@@ -185,7 +185,7 @@ paths:
       x-csrf-protection: cookie-session
       x-idempotency-key: required
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
-      description: Creates a private owner-scoped signed passport after rechecking the submitted input hash, confirmed claims, and explicit consent to retain confirmed claim text until deletion. Current unqualified source evidence produces NOT_VERIFIABLE. No investment recommendation or monitoring enrollment occurs.
+      description: Creates a private owner-scoped signed passport after rechecking the submitted input hash, confirmed claims, and explicit consent. Cases are limited to 25 per user and expire 90 days after saving; MongoDB TTL cleanup may occur shortly after expiry. Current unqualified source evidence produces NOT_VERIFIABLE. No investment recommendation or monitoring enrollment occurs.
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreateRequest' } } } }
       responses: { '200': { description: Replayed idempotent creation, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreated' } } } }, '201': { description: Created signed passport, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreated' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
     get:
@@ -234,6 +234,26 @@ paths:
       parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' } }]
       description: Checks canonical manifest hash, trusted Ed25519 signature, and case/owner bindings. A valid signature proves document integrity only, not financial correctness.
       responses: { '200': { description: Integrity verification result, headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofIntegrity' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/genieproof/cases/{caseId}/revisions:
+    get:
+      operationId: listGenieProofPassportRevisions
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' } }]
+      description: Returns up to 25 owner-scoped immutable passport revisions with per-revision signature and case-binding checks. A valid signature establishes document integrity only, not financial correctness.
+      responses:
+        '200':
+          description: Historical signed passport revisions.
+          headers:
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenieProofRevisionHistory' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/agent/plan-review/current:
     get:
       operationId: getCurrentPlanReviewRun
@@ -912,7 +932,7 @@ components:
       properties:
         offerText: { type: string, minLength: 1, maxLength: 16000, writeOnly: true }
         submissionHash: { type: string, pattern: '^[a-f0-9]{64}$' }
-        savingConsent: { type: boolean, const: true, description: Explicit consent to store the confirmed claim wording and offer fingerprint in the private case until deletion. }
+        savingConsent: { type: boolean, const: true, description: Explicit consent to store confirmed claim wording and offer fingerprint in the private case for 90 days or until deletion. }
         confirmedClaims: { type: array, minItems: 1, maxItems: 10, items: { $ref: '#/components/schemas/GenieProofClaim' } }
     GenieProofCandidate:
       type: object
@@ -942,13 +962,14 @@ components:
     GenieProofCaseSummary:
       type: object
       additionalProperties: false
-      required: [caseId, revision, manifestHash, claimCount, createdAt]
+      required: [caseId, revision, manifestHash, claimCount, createdAt, expiresAt]
       properties:
         caseId: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' }
         revision: { type: integer, minimum: 1 }
         manifestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
         claimCount: { type: integer, minimum: 0, maximum: 10 }
         createdAt: { type: string, format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
     GenieProofSignedPassport:
       type: object
       additionalProperties: false
@@ -992,7 +1013,25 @@ components:
         signature: { type: string, enum: [VERIFIED, UNVERIFIED] }
         trustedIssuer: { type: boolean }
         financialCorrectness: { type: string, const: NOT_ESTABLISHED_BY_SIGNATURE }
+        chainContinuity: { type: string, enum: [VERIFIED, INCOMPLETE, INVALID] }
         code: { type: string }
+    GenieProofRevisionItem:
+      type: object
+      additionalProperties: false
+      required: [revision, manifestHash, assessedAt, verification, passport]
+      properties:
+        revision: { type: integer, minimum: 1 }
+        manifestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        assessedAt: { type: string, format: date-time }
+        verification: { $ref: '#/components/schemas/GenieProofIntegrity' }
+        passport: { $ref: '#/components/schemas/GenieProofSignedPassport' }
+    GenieProofRevisionHistory:
+      type: object
+      additionalProperties: false
+      required: [caseId, revisions]
+      properties:
+        caseId: { type: string, format: uuid }
+        revisions: { type: array, maxItems: 25, items: { $ref: '#/components/schemas/GenieProofRevisionItem' } }
     User:
       type: object
       required: [id, name, email, role]

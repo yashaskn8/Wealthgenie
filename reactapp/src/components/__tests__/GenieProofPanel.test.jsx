@@ -8,6 +8,7 @@ const mockApi = vi.hoisted(() => ({
   listGenieProofCases: vi.fn(),
   getGenieProofCase: vi.fn(),
   verifyGenieProofCase: vi.fn(),
+  listGenieProofRevisions: vi.fn(),
   deleteGenieProofCase: vi.fn(),
 }));
 
@@ -113,6 +114,35 @@ describe('GenieProofPanel', () => {
     expect(mockApi.createGenieProofCase).not.toHaveBeenCalled();
   });
 
+  it('shows UTF-8 byte usage and prevents oversized extraction', async () => {
+    render(<GenieProofPanel />);
+    const offerInput = screen.getByLabelText('Paste the offer text');
+    fireEvent.change(offerInput, { target: { value: '₹'.repeat(6000) } });
+    const byteStatus = screen.getByRole('status');
+    const byteCount = screen.getByText(/18,000 \/ 16,000 UTF-8 bytes/i);
+    const extractButton = screen.getByRole('button', { name: /extract claims/i });
+    expect(byteStatus).toHaveTextContent(/exceeds the 16,000-byte extraction limit/i);
+    expect(byteStatus).toHaveAttribute('aria-live', 'polite');
+    expect(offerInput.getAttribute('aria-describedby')).toContain(byteCount.id);
+    expect(offerInput.getAttribute('aria-describedby')).toContain(byteStatus.id);
+    expect(extractButton).toBeDisabled();
+    expect(extractButton.getAttribute('aria-describedby')).toContain(byteCount.id);
+    expect(extractButton.getAttribute('aria-describedby')).toContain(byteStatus.id);
+    expect(mockApi.extractGenieProofClaims).not.toHaveBeenCalled();
+  });
+
+  it('does not silently truncate oversized ASCII offers at the extraction limit', async () => {
+    render(<GenieProofPanel />);
+    const offerInput = screen.getByLabelText('Paste the offer text');
+    const oversizedOffer = 'a'.repeat(16001);
+    fireEvent.change(offerInput, { target: { value: oversizedOffer } });
+
+    expect(offerInput).toHaveValue(oversizedOffer);
+    expect(screen.getByText(/16,001 \/ 16,000 UTF-8 bytes/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /extract claims/i })).toBeDisabled();
+    expect(mockApi.extractGenieProofClaims).not.toHaveBeenCalled();
+  });
+
   it('opens saved findings only after a trusted signature is verified', async () => {
     const caseId = '00000000-0000-4000-8000-000000000001';
     mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
@@ -121,8 +151,140 @@ describe('GenieProofPanel', () => {
     });
     render(<GenieProofPanel />);
     fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
-    expect(await screen.findByText('NOT_VERIFIABLE', { exact: true })).toBeInTheDocument();
+    expect(await screen.findByText(/Not checked against qualified source evidence/)).toBeInTheDocument();
     expect(mockApi.verifyGenieProofCase).toHaveBeenCalledWith(caseId);
+  });
+
+  it('clears previously opened signed findings as soon as a new offer is entered', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getGenieProofCase.mockResolvedValue({
+      passport: { manifest: { caseId, revision: 1, confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }], findings: [{ claimId: candidate.claimId, finding: 'NOT_VERIFIABLE', reasonCodes: [], explanation: 'Evidence unavailable.' }] } },
+    });
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+    expect(await screen.findByRole('heading', { name: /Signed claim record · revision 1/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Paste the offer text'), { target: { value: 'A different offer.' } });
+    expect(screen.queryByRole('heading', { name: /Signed claim record · revision 1/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/The stored report signature is verified/i)).not.toBeInTheDocument();
+  });
+
+  it('clears the prior integrity state while a new verification request is pending or has failed', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Verify integrity' }));
+    expect(await screen.findByText(/trusted report-signing key: true/i)).toBeInTheDocument();
+    mockApi.verifyGenieProofCase.mockRejectedValueOnce(new Error('Temporary verification failure.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Verify integrity' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Temporary verification failure.');
+    expect(screen.queryByText(/trusted report-signing key: true/i)).not.toBeInTheDocument();
+  });
+
+  it('loads and displays immutable assessment history with verification state', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const passport = {
+      manifestHash: 'c'.repeat(64),
+      signature: { algorithm: 'Ed25519', keyId: 'test-key', value: 'signature' },
+      manifest: { caseId, revision: 1, confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }], findings: [] },
+    };
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.listGenieProofRevisions.mockResolvedValue({
+      caseId,
+      revisions: [{ revision: 1, manifestHash: 'c'.repeat(64), verification: { integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true }, passport }],
+    });
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Assessment history' }));
+    expect(await screen.findByRole('group', { name: 'Assessment history' })).toHaveTextContent('Open revision 1');
+    fireEvent.click(screen.getByRole('button', { name: /Open revision 1/ }));
+    expect(await screen.findByRole('heading', { name: /Signed claim record · revision 1/ })).toBeInTheDocument();
+    expect(mockApi.listGenieProofRevisions).toHaveBeenCalledWith(caseId);
+  });
+
+  it('clears a prior case verification status when another case history loads', async () => {
+    const caseA = '00000000-0000-4000-8000-000000000001';
+    const caseB = '00000000-0000-4000-8000-000000000002';
+    let resolveHistory;
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [
+      { caseId: caseA, revision: 1, claimCount: 1, manifestHash: 'a'.repeat(64) },
+      { caseId: caseB, revision: 1, claimCount: 1, manifestHash: 'b'.repeat(64) },
+    ] });
+    mockApi.getGenieProofCase.mockResolvedValue({
+      passport: { manifest: { caseId: caseA, revision: 1, confirmedClaims: [], findings: [] } },
+    });
+    mockApi.listGenieProofRevisions.mockImplementation(() => new Promise(resolve => { resolveHistory = resolve; }));
+
+    render(<GenieProofPanel />);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Open' }))[0]);
+    expect(await screen.findByText(/The stored report signature is verified/i)).toBeInTheDocument();
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Assessment history' }))[1]);
+    expect(screen.queryByText(/The stored report signature is verified/i)).not.toBeInTheDocument();
+
+    resolveHistory({ caseId: caseB, revisions: [] });
+    expect(await screen.findByRole('group', { name: 'Assessment history' })).toBeInTheDocument();
+    expect(screen.queryByText(/The stored report signature is verified/i)).not.toBeInTheDocument();
+  });
+
+  it('compares two historical revisions only after both trusted signatures verify', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const makeRevision = (revision, finding) => ({
+      revision,
+      manifestHash: String(revision).repeat(64),
+      verification: { integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true },
+      passport: {
+        manifestHash: String(revision).repeat(64),
+        signature: { algorithm: 'Ed25519', keyId: 'test-key', value: `signature-${revision}` },
+        manifest: {
+          caseId,
+          revision,
+          confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }],
+          findings: [{ claimId: candidate.claimId, finding, reasonCodes: [], explanation: 'Recorded assessment result.' }],
+        },
+      },
+    });
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 2, claimCount: 1, manifestHash: '2'.repeat(64) }] });
+    mockApi.listGenieProofRevisions.mockResolvedValue({
+      caseId,
+      revisions: [makeRevision(2, 'INSUFFICIENT_INPUTS'), makeRevision(1, 'NOT_VERIFIABLE')],
+    });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Assessment history' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Compare revision 1 with revision 2' }));
+
+    expect(await screen.findByRole('heading', { name: 'Signed assessment comparison' })).toBeInTheDocument();
+    expect(screen.getByText(/Revision 1: Not checked against qualified source evidence/)).toBeInTheDocument();
+    expect(screen.getByText(/Revision 2: More product details are needed/)).toBeInTheDocument();
+    expect(screen.getByText(/does not establish financial correctness/i)).toBeInTheDocument();
+  });
+
+  it('does not compare findings when either historical signature is untrusted', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const makeRevision = (revision, trustedIssuer) => ({
+      revision,
+      verification: { integrity: trustedIssuer ? 'VALID' : 'CONTENT_HASH_MATCHES', signature: trustedIssuer ? 'VERIFIED' : 'UNVERIFIED', trustedIssuer },
+      passport: {
+        manifest: {
+          caseId,
+          revision,
+          confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }],
+          findings: [{ claimId: candidate.claimId, finding: 'NOT_VERIFIABLE', reasonCodes: [], explanation: 'Evidence unavailable.' }],
+        },
+      },
+    });
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 2, claimCount: 1, manifestHash: '2'.repeat(64) }] });
+    mockApi.listGenieProofRevisions.mockResolvedValue({
+      caseId,
+      revisions: [makeRevision(2, true), makeRevision(1, false)],
+    });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Assessment history' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Compare revision 1 with revision 2' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/both report signatures and case bindings must verify/i);
+    expect(screen.queryByRole('heading', { name: 'Signed assessment comparison' })).not.toBeInTheDocument();
   });
 
   it('withholds saved findings when the signature is not trusted', async () => {
@@ -158,8 +320,8 @@ describe('GenieProofPanel', () => {
 
     render(<GenieProofPanel />);
     fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
-    await screen.findByRole('button', { name: 'Download signed passport' });
-    fireEvent.click(screen.getByRole('button', { name: 'Download signed passport' }));
+    await screen.findByRole('button', { name: 'Download signed claim record' });
+    fireEvent.click(screen.getByRole('button', { name: 'Download signed claim record' }));
 
     expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
     expect(click).toHaveBeenCalledOnce();

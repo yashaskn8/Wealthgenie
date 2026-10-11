@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import GenieProofCase from '../../models/GenieProofCase.js';
 import GenieProofRevision from '../../models/GenieProofRevision.js';
 import { canonicalSha256 } from '../../utils/canonicalJson.js';
+import { GENIEPROOF_MAX_CASES_PER_USER, getGenieProofExpiry } from './genieProofPolicy.js';
 import {
   buildGenieProofManifest,
   extractGenieProofClaims,
@@ -13,6 +14,12 @@ export const GENIEPROOF_SAVING_CONSENT_VERSION = 'genieproof-private-save/1';
 
 function serviceError(status, code, message) {
   return Object.assign(new Error(message), { status, code, clientMessage: message });
+}
+
+function isTransientTransactionConflict(error) {
+  return error?.hasErrorLabel?.('TransientTransactionError') === true
+    || error?.code === 112
+    || error?.codeName === 'WriteConflict';
 }
 
 function validateConfirmation({ offerText, submissionHash, confirmedClaims }) {
@@ -95,6 +102,7 @@ export async function createGenieProofCase({
   revisionModel = GenieProofRevision,
   startSession = () => mongoose.startSession(),
   now = () => new Date(),
+  transactionAttempt = 0,
 }) {
   if (!signer) throw serviceError(503, 'GENIEPROOF_SIGNER_UNAVAILABLE', 'The passport signer is unavailable.');
   if (savingConsent !== true) {
@@ -104,6 +112,9 @@ export async function createGenieProofCase({
     throw serviceError(400, 'GENIEPROOF_IDEMPOTENCY_KEY_REQUIRED', 'A valid request key is required.');
   }
   const extraction = validateConfirmation({ offerText, submissionHash, confirmedClaims });
+  if (extraction.claimsTruncated) {
+    throw serviceError(400, 'GENIEPROOF_EXTRACTION_TRUNCATED', 'The offer contains more claims than can be reviewed at once. Shorten the submitted offer and extract claims again.');
+  }
   if (confirmedClaims.length > extraction.claims.length) {
     throw serviceError(400, 'GENIEPROOF_CLAIM_LIMIT_EXCEEDED', 'Too many claims were confirmed.');
   }
@@ -112,26 +123,71 @@ export async function createGenieProofCase({
   const idempotencyKeyHash = canonicalSha256([String(userId), idempotencyKey]);
   const caseId = crypto.randomUUID();
   const assessedAt = now();
-  const passport = signedPassport({
-    caseId,
-    userId,
-    submissionHash,
-    confirmedClaims: claims,
-    revision: 1,
-    previousManifestHash: null,
-    signer,
-    assessedAt,
-  });
+  const expiresAt = getGenieProofExpiry(assessedAt);
   const session = await startSession();
+  let retryTransaction = false;
   try {
     session.startTransaction({
       readConcern: { level: 'snapshot' },
       writeConcern: { w: 'majority' },
       readPreference: 'primary',
     });
+    const expiredCasesQuery = caseModel.find({ userId, deletedAt: null, expiresAt: { $lte: assessedAt } });
+    if (typeof expiredCasesQuery.session === 'function') expiredCasesQuery.session(session);
+    const expiredCases = await expiredCasesQuery.select('caseId').lean();
+    for (const expiredCase of expiredCases) {
+      await revisionModel.deleteMany({ userId, caseId: expiredCase.caseId }, { session });
+      await caseModel.deleteOne({ userId, caseId: expiredCase.caseId, expiresAt: { $lte: assessedAt } }, { session });
+    }
+    const replay = await findIdempotentReplay({
+      userId,
+      idempotencyKeyHash,
+      requestHash,
+      assessedAt,
+      caseModel,
+      revisionModel,
+      session,
+    });
+    if (replay) {
+      await session.commitTransaction();
+      return replay;
+    }
+    const activeCasesQuery = caseModel.find(activeCaseFilter(userId, null, assessedAt));
+    if (typeof activeCasesQuery.session === 'function') activeCasesQuery.session(session);
+    const activeCases = await activeCasesQuery.select('quotaSlot').lean();
+    if (activeCases.length >= GENIEPROOF_MAX_CASES_PER_USER) {
+      throw serviceError(429, 'GENIEPROOF_CASE_QUOTA_REACHED', 'You have reached the 25 saved passport limit. Delete a case or wait for an expired case to be removed.');
+    }
+    const occupiedSlots = new Set(activeCases
+      .map(row => row.quotaSlot)
+      .filter(slot => Number.isInteger(slot) && slot >= 0 && slot < GENIEPROOF_MAX_CASES_PER_USER));
+    // Older records do not have a slot. Reserve virtual slots for them so that
+    // newly created records remain within the same hard per-user quota.
+    for (const row of activeCases) {
+      if (Number.isInteger(row.quotaSlot)) continue;
+      let legacySlot = 0;
+      while (occupiedSlots.has(legacySlot) && legacySlot < GENIEPROOF_MAX_CASES_PER_USER) legacySlot += 1;
+      if (legacySlot < GENIEPROOF_MAX_CASES_PER_USER) occupiedSlots.add(legacySlot);
+    }
+    let quotaSlot = 0;
+    while (occupiedSlots.has(quotaSlot) && quotaSlot < GENIEPROOF_MAX_CASES_PER_USER) quotaSlot += 1;
+    if (quotaSlot >= GENIEPROOF_MAX_CASES_PER_USER) {
+      throw serviceError(429, 'GENIEPROOF_CASE_QUOTA_REACHED', 'You have reached the 25 saved passport limit. Delete a case or wait for an expired case to be removed.');
+    }
+    const passport = signedPassport({
+      caseId,
+      userId,
+      submissionHash,
+      confirmedClaims: claims,
+      revision: 1,
+      previousManifestHash: null,
+      signer,
+      assessedAt,
+    });
     const [caseDoc] = await caseModel.create([{
       caseId,
       userId,
+      quotaSlot,
       submissionHash,
       requestHash,
       idempotencyKeyHash,
@@ -140,6 +196,7 @@ export async function createGenieProofCase({
       savingConsentAt: assessedAt,
       latestRevision: 1,
       latestManifestHash: passport.manifestHash,
+      expiresAt,
     }], { session });
     await revisionModel.create([{
       userId,
@@ -149,6 +206,7 @@ export async function createGenieProofCase({
       manifestHash: passport.manifestHash,
       signature: passport.signature,
       assessedAt,
+      expiresAt,
     }], { session });
     await session.commitTransaction();
     return { created: true, case: toCaseSummary(caseDoc), passport };
@@ -158,20 +216,65 @@ export async function createGenieProofCase({
       throw serviceError(400, 'GENIEPROOF_RECORD_INVALID', 'The confirmed claims could not be saved. Review them and try again.');
     }
     if (error?.code === 11000) {
-      const existing = await caseModel.findOne({ userId, idempotencyKeyHash, deletedAt: null }).lean();
-      if (existing) {
-        if (existing.requestHash !== requestHash) {
-          throw serviceError(409, 'GENIEPROOF_IDEMPOTENCY_CONFLICT', 'This idempotency key was already used for a different case.');
-        }
-        const revision = await revisionModel.findOne({ userId, caseId: existing.caseId, revision: existing.latestRevision }).lean();
-        if (!revision) throw serviceError(503, 'GENIEPROOF_REVISION_UNAVAILABLE', 'The saved passport revision is unavailable.');
-        return { created: false, case: toCaseSummary(existing), passport: toSignedPassport(revision) };
+      const replay = await findIdempotentReplay({
+        userId,
+        idempotencyKeyHash,
+        requestHash,
+        assessedAt,
+        caseModel,
+        revisionModel,
+      });
+      if (replay) return replay;
+      if (error.keyPattern?.quotaSlot || error.message?.includes('uniq_genieproof_owner_quota_slot')) {
+        throw serviceError(409, 'GENIEPROOF_CASE_QUOTA_RACE', 'Another save used this case slot at the same time. Refresh your cases and try again.');
       }
     }
-    throw error;
+    if (isTransientTransactionConflict(error) && transactionAttempt < 2) {
+      retryTransaction = true;
+    } else if (isTransientTransactionConflict(error)) {
+      const unavailable = serviceError(503, 'GENIEPROOF_TRANSACTION_RETRY_EXHAUSTED', 'The case could not be saved because the database transaction conflicted repeatedly. Try again shortly.');
+      unavailable.cause = error;
+      throw unavailable;
+    } else {
+      throw error;
+    }
   } finally {
     await session.endSession();
   }
+  if (retryTransaction) {
+    return createGenieProofCase({
+      userId,
+      offerText,
+      submissionHash,
+      savingConsent,
+      confirmedClaims,
+      idempotencyKey,
+      signer,
+      caseModel,
+      revisionModel,
+      startSession,
+      now,
+      transactionAttempt: transactionAttempt + 1,
+    });
+  }
+}
+
+async function findIdempotentReplay({ userId, idempotencyKeyHash, requestHash, assessedAt, caseModel, revisionModel, session }) {
+  const caseQuery = caseModel.findOne({ userId, idempotencyKeyHash, deletedAt: null });
+  if (session && typeof caseQuery.session === 'function') caseQuery.session(session);
+  const existing = await caseQuery.lean();
+  if (!existing) return null;
+  if (existing.expiresAt && new Date(existing.expiresAt) <= assessedAt) {
+    throw serviceError(410, 'GENIEPROOF_CASE_EXPIRED', 'This saved passport has expired. Start a new private review.');
+  }
+  if (existing.requestHash !== requestHash) {
+    throw serviceError(409, 'GENIEPROOF_IDEMPOTENCY_CONFLICT', 'This idempotency key was already used for a different case.');
+  }
+  const revisionQuery = revisionModel.findOne({ userId, caseId: existing.caseId, revision: existing.latestRevision });
+  if (session && typeof revisionQuery.session === 'function') revisionQuery.session(session);
+  const revision = await revisionQuery.lean();
+  if (!revision) throw serviceError(503, 'GENIEPROOF_REVISION_UNAVAILABLE', 'The saved passport revision is unavailable.');
+  return { created: false, case: toCaseSummary(existing), passport: toSignedPassport(revision) };
 }
 
 function toSignedPassport(revision) {
@@ -189,31 +292,46 @@ function toCaseSummary(row) {
     manifestHash: row.latestManifestHash,
     claimCount: row.confirmedClaims?.length || 0,
     createdAt: row.createdAt,
+    expiresAt: row.expiresAt || null,
   };
 }
 
-async function loadOwnedCaseAndLatestRevision({ userId, caseId, caseModel, revisionModel }) {
-  const row = await caseModel.findOne({ userId, caseId, deletedAt: null }).lean();
+function activeCaseFilter(userId, caseId, now) {
+  return {
+    userId,
+    ...(caseId ? { caseId } : {}),
+    deletedAt: null,
+    $or: [
+      { expiresAt: { $gt: now } },
+      // A read-only compatibility path keeps pre-retention records reachable
+      // until the explicit migration assigns their 90-day expiry window.
+      { expiresAt: { $exists: false } },
+    ],
+  };
+}
+
+async function loadOwnedCaseAndLatestRevision({ userId, caseId, caseModel, revisionModel, now = () => new Date() }) {
+  const row = await caseModel.findOne(activeCaseFilter(userId, caseId, now())).lean();
   if (!row) return null;
   const revision = await revisionModel.findOne({ userId, caseId, revision: row.latestRevision }).lean();
   if (!revision) throw serviceError(503, 'GENIEPROOF_REVISION_UNAVAILABLE', 'The saved passport revision is unavailable.');
   return { row, revision };
 }
 
-export async function listGenieProofCases({ userId, caseModel = GenieProofCase, limit = 25 }) {
-  const rows = await caseModel.find({ userId, deletedAt: null })
+export async function listGenieProofCases({ userId, caseModel = GenieProofCase, limit = 25, now = () => new Date() }) {
+  const rows = await caseModel.find(activeCaseFilter(userId, null, now()))
     .sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
   return rows.map(toCaseSummary);
 }
 
-export async function getGenieProofCase({ userId, caseId, caseModel = GenieProofCase, revisionModel = GenieProofRevision }) {
-  const loaded = await loadOwnedCaseAndLatestRevision({ userId, caseId, caseModel, revisionModel });
+export async function getGenieProofCase({ userId, caseId, caseModel = GenieProofCase, revisionModel = GenieProofRevision, now = () => new Date() }) {
+  const loaded = await loadOwnedCaseAndLatestRevision({ userId, caseId, caseModel, revisionModel, now });
   if (!loaded) return null;
   return { case: toCaseSummary(loaded.row), passport: toSignedPassport(loaded.revision) };
 }
 
-export async function verifyGenieProofCase({ userId, caseId, signer, caseModel = GenieProofCase, revisionModel = GenieProofRevision }) {
-  const loaded = await loadOwnedCaseAndLatestRevision({ userId, caseId, caseModel, revisionModel });
+export async function verifyGenieProofCase({ userId, caseId, signer, caseModel = GenieProofCase, revisionModel = GenieProofRevision, now = () => new Date() }) {
+  const loaded = await loadOwnedCaseAndLatestRevision({ userId, caseId, caseModel, revisionModel, now });
   if (!loaded) return null;
   const { row, revision } = loaded;
   const { manifest, manifestHash, signature } = toSignedPassport(revision);
@@ -244,6 +362,90 @@ export async function verifyGenieProofCase({ userId, caseId, signer, caseModel =
     financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
     code: bindingValid ? signatureResult.code : 'PASSPORT_CASE_BINDING_MISMATCH',
   };
+}
+
+function verifyRevisionBinding({ row, revision, userId, signer, previousRevision }) {
+  const passport = toSignedPassport(revision);
+  const signatureResult = signer.verifySignedManifest(passport);
+  const claims = (row.confirmedClaims || []).map(claim => ({
+    claimId: claim.claimId,
+    statement: claim.statement,
+    claimType: claim.claimType,
+    productId: claim.productId,
+    value: claim.value,
+    unit: claim.unit,
+  })).sort((a, b) => a.claimId.localeCompare(b.claimId));
+  const manifest = revision.manifest;
+  const bindingValid = manifest.caseId === String(row.caseId)
+    && manifest.revision === Number(revision.revision)
+    && manifest.ownerBindingHash === canonicalSha256([String(row.caseId), String(userId)])
+    && manifest.submissionHash === row.submissionHash
+    && manifest.confirmedClaimsHash === canonicalSha256(claims)
+    && revision.manifestHash === canonicalSha256(manifest);
+  const chainContinuity = previousRevision
+    ? manifest.previousManifestHash === previousRevision.manifestHash
+      && Number(revision.revision) === Number(previousRevision.revision) + 1
+      ? 'VERIFIED'
+      : 'INVALID'
+    : Number(revision.revision) === 1
+      ? manifest.previousManifestHash == null ? 'VERIFIED' : 'INVALID'
+      : 'INCOMPLETE';
+  const valid = signatureResult.integrityValid && bindingValid && chainContinuity === 'VERIFIED';
+  const trusted = valid && signatureResult.valid && signatureResult.trustedIssuer;
+  const integrity = !signatureResult.integrityValid || !bindingValid || chainContinuity === 'INVALID'
+    ? 'INVALID'
+    : trusted && chainContinuity === 'VERIFIED' ? 'VALID' : 'CONTENT_HASH_MATCHES';
+  return {
+    caseId: String(row.caseId),
+    revision: Number(revision.revision),
+    manifestHash: revision.manifestHash,
+    integrity,
+    signature: signatureResult.valid ? 'VERIFIED' : 'UNVERIFIED',
+    trustedIssuer: signatureResult.trustedIssuer,
+    financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
+    chainContinuity,
+    code: !bindingValid ? 'PASSPORT_CASE_BINDING_MISMATCH'
+      : chainContinuity === 'INVALID' ? 'PASSPORT_REVISION_CHAIN_MISMATCH'
+        : chainContinuity === 'INCOMPLETE' ? 'PASSPORT_REVISION_CHAIN_PREFIX_UNVERIFIED'
+          : signatureResult.code,
+  };
+}
+
+export async function listGenieProofRevisions({
+  userId,
+  caseId,
+  signer,
+  caseModel = GenieProofCase,
+  revisionModel = GenieProofRevision,
+  now = () => new Date(),
+  limit = 25,
+}) {
+  const row = await caseModel.findOne(activeCaseFilter(userId, caseId, now())).lean();
+  if (!row) return null;
+  if (!signer) throw serviceError(503, 'GENIEPROOF_SIGNER_UNAVAILABLE', 'The passport verifier is unavailable.');
+  const revisions = await revisionModel.find(activeCaseFilter(userId, caseId, now()))
+    .sort({ revision: -1 }).limit(Math.min(limit, 25)).lean();
+  const ascending = [...revisions].sort((a, b) => a.revision - b.revision);
+  const declaredHead = ascending.at(-1);
+  if (!declaredHead
+      || Number(declaredHead.revision) !== Number(row.latestRevision)
+      || declaredHead.manifestHash !== row.latestManifestHash) {
+    throw serviceError(503, 'GENIEPROOF_CASE_HEAD_MISMATCH', 'The saved passport history does not match its recorded latest revision and cannot be verified.');
+  }
+  const verified = ascending.map((revision, index) => ({
+    revision: Number(revision.revision),
+    manifestHash: revision.manifestHash,
+    assessedAt: revision.assessedAt,
+    verification: verifyRevisionBinding({
+      row,
+      revision,
+      userId,
+      signer,
+      previousRevision: index ? ascending[index - 1] : null,
+    }),
+    passport: toSignedPassport(revision),
+  }));
+  return { caseId: String(row.caseId), revisions: verified.reverse() };
 }
 
 export async function deleteGenieProofCase({

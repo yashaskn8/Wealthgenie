@@ -10,6 +10,7 @@
   "test/chaos.test.js",
   "test/concurrency.test.js",
   "test/deferredAdvisory.test.js",
+  "test/genieProofMongo.integration.test.js",
   "test/goalPostCommitResponse.test.js",
   "test/goalUpdateRecompute.test.js",
   "test/helpers/mongoTestHelper.test.js",

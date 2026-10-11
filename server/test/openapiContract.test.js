@@ -190,6 +190,7 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'GET /api/genieproof/cases', method: 'GET', path: '/api/genieproof/cases', url: '/api/genieproof/cases', expectedStatus: 401 },
   { operation: 'GET /api/genieproof/cases/{caseId}', method: 'GET', path: '/api/genieproof/cases/{caseId}', url: '/api/genieproof/cases/00000000-0000-4000-8000-000000000001', expectedStatus: 401 },
   { operation: 'GET /api/genieproof/cases/{caseId}/verify', method: 'GET', path: '/api/genieproof/cases/{caseId}/verify', url: '/api/genieproof/cases/00000000-0000-4000-8000-000000000001/verify', expectedStatus: 401 },
+  { operation: 'GET /api/genieproof/cases/{caseId}/revisions', method: 'GET', path: '/api/genieproof/cases/{caseId}/revisions', url: '/api/genieproof/cases/00000000-0000-4000-8000-000000000001/revisions', expectedStatus: 401 },
   { operation: 'DELETE /api/genieproof/cases/{caseId}', method: 'DELETE', path: '/api/genieproof/cases/{caseId}', url: '/api/genieproof/cases/00000000-0000-4000-8000-000000000001', expectedStatus: 404 },
 ]);
 

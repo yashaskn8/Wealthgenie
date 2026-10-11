@@ -15,6 +15,7 @@ const genieProofRevisionSchema = new mongoose.Schema({
   manifestHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
   signature: { type: signatureSchema, required: true, immutable: true },
   assessedAt: { type: Date, required: true, immutable: true },
+  expiresAt: { type: Date, required: true, immutable: true },
 }, { strict: 'throw', timestamps: { createdAt: true, updatedAt: false } });
 
 genieProofRevisionSchema.index(
@@ -22,5 +23,6 @@ genieProofRevisionSchema.index(
   { unique: true, name: 'uniq_genieproof_revision' },
 );
 genieProofRevisionSchema.index({ userId: 1, caseId: 1, createdAt: -1 }, { name: 'genieproof_case_revision_history' });
+genieProofRevisionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'genieproof_revision_expiry' });
 
 export default mongoose.models.GenieProofRevision || mongoose.model('GenieProofRevision', genieProofRevisionSchema);

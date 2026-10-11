@@ -19,6 +19,7 @@ import ExecutionReceipt from '../models/ExecutionReceipt.js';
 import AuthorizedExecutionAttempt from '../models/AuthorizedExecutionAttempt.js';
 import GenieProofCase from '../models/GenieProofCase.js';
 import GenieProofRevision from '../models/GenieProofRevision.js';
+import { GENIEPROOF_RETENTION_MS } from '../agents/genieProof/genieProofPolicy.js';
 import { createError } from '../middleware/errorHandler.js';
 
 export const PHASE2_INDEX_MODELS = Object.freeze([
@@ -178,7 +179,37 @@ export async function verifyAuthorizationPersistenceIndexes({ models = AUTHORIZA
 
 /** Read-only startup gate for owner-bound GenieProof case and revision identities. */
 export async function verifyGenieProofPersistenceIndexes({ models = GENIEPROOF_INDEX_MODELS, force = true } = {}) {
-  return verifyPersistenceIndexes({ models, force, scope: 'genieproof' });
+  const result = await verifyPersistenceIndexes({ models, force, scope: 'genieproof' });
+  const missing = [];
+  for (const model of models) {
+    const requiredExpiryIndexes = model.schema.indexes()
+      .filter(([, options]) => options.expireAfterSeconds !== undefined);
+    if (!requiredExpiryIndexes.length) continue;
+    let actualIndexes;
+    try {
+      actualIndexes = await model.collection.indexes();
+    } catch {
+      missing.push(`${model.collection.collectionName}:expiry-index-list-unavailable`);
+      continue;
+    }
+    for (const [key, options] of requiredExpiryIndexes) {
+      if (!actualIndexes.some(index => keyMatches(index.key, key)
+        && index.expireAfterSeconds === options.expireAfterSeconds)) {
+        missing.push(`${model.collection.collectionName}:${options.name || JSON.stringify(key)}`);
+      }
+    }
+    try {
+      if (typeof model.collection.countDocuments !== 'function') {
+        missing.push(`${model.collection.collectionName}:expiry-migration-state-unavailable`);
+      } else if (await model.collection.countDocuments({ expiresAt: { $exists: false } })) {
+        missing.push(`${model.collection.collectionName}:legacy-expiry-migration-required`);
+      }
+    } catch {
+      missing.push(`${model.collection.collectionName}:expiry-migration-state-unavailable`);
+    }
+  }
+  if (missing.length) throw indexReadinessError(missing, 'genieproof');
+  return result;
 }
 
 /** Explicit migration entry point. Never call from an HTTP request or app startup. */
@@ -201,6 +232,37 @@ export async function migratePersistenceIndexes({ models = MIGRATION_INDEX_MODEL
     } catch (error) {
       if (error.code !== 48 && error.codeName !== 'NamespaceExists') throw error;
     }
+  }
+
+  // Existing local GenieProof records predate expiry metadata. Give old cases
+  // one complete retention window from migration, then align each old
+  // revision's expiry with its parent case. Orphan revisions receive a bounded
+  // fallback window and remain visible to the readiness check until assigned.
+  const genieProofModels = models.filter(model => [GenieProofCase.modelName, GenieProofRevision.modelName].includes(model.modelName));
+  if (genieProofModels.length) {
+    const legacyExpiry = new Date(Date.now() + GENIEPROOF_RETENTION_MS);
+    const caseModel = genieProofModels.find(model => model.modelName === GenieProofCase.modelName);
+    const revisionModel = genieProofModels.find(model => model.modelName === GenieProofRevision.modelName);
+    if (caseModel) {
+      // Use the native collection because Mongoose marks expiry immutable.
+      await caseModel.collection.updateMany({ expiresAt: { $exists: false } }, { $set: { expiresAt: legacyExpiry } });
+    }
+    if (revisionModel) {
+      const cursor = revisionModel.collection.find({ expiresAt: { $exists: false } }, { projection: { userId: 1, caseId: 1 } });
+      for await (const revision of cursor) {
+        const parentCase = caseModel
+          ? await caseModel.collection.findOne({ userId: revision.userId, caseId: revision.caseId }, { projection: { expiresAt: 1 } })
+          : null;
+        const expiresAt = parentCase?.expiresAt instanceof Date ? parentCase.expiresAt : legacyExpiry;
+        await revisionModel.collection.updateOne(
+          { _id: revision._id, expiresAt: { $exists: false } },
+          { $set: { expiresAt } },
+        );
+      }
+    }
+  }
+
+  for (const model of models) {
     await model.createIndexes();
   }
   return verifyPersistenceIndexes({ models, force: true, scope: 'persistence' });

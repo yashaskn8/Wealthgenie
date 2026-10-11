@@ -15,6 +15,7 @@ import {
   MIGRATION_INDEX_MODELS,
   migratePersistenceIndexes,
   verifyAuthorizationPersistenceIndexes,
+  verifyGenieProofPersistenceIndexes,
   verifyPersistenceIndexes,
 } from '../services/persistenceIndexReadiness.js';
 
@@ -101,6 +102,78 @@ test('explicit Phase 2 migration includes user and verifiable-authorization iden
   for (const model of [GenieProofCase, GenieProofRevision]) {
     assert.ok(GENIEPROOF_INDEX_MODELS.includes(model), `${model.modelName} must be in the GenieProof readiness gate`);
     assert.ok(MIGRATION_INDEX_MODELS.includes(model), `${model.modelName} indexes must be in the explicit migration`);
+  }
+});
+
+test('GenieProof migrations declare the owner quota fence and both 90-day TTL indexes', () => {
+  const quotaIndex = GenieProofCase.schema.indexes().find(([, options]) => options.name === 'uniq_genieproof_owner_quota_slot');
+  assert.ok(quotaIndex);
+  assert.equal(quotaIndex[1].unique, true);
+  assert.deepEqual(quotaIndex[1].partialFilterExpression, { quotaSlot: { $type: 'number' } });
+
+  for (const model of [GenieProofCase, GenieProofRevision]) {
+    const expiryIndex = model.schema.indexes().find(([, options]) => options.expireAfterSeconds === 0);
+    assert.ok(expiryIndex, `${model.modelName} must expire records by expiresAt`);
+    assert.deepEqual(expiryIndex[0], { expiresAt: 1 });
+  }
+});
+
+test('GenieProof runtime readiness fails closed when a required expiry index is missing', async () => {
+  const originals = new Map([GenieProofCase, GenieProofRevision].map(model => [model, model.collection.indexes]));
+  const originalCounts = new Map([GenieProofCase, GenieProofRevision].map(model => [model, model.collection.countDocuments]));
+  const indexesFor = model => model.schema.indexes().map(([key, options]) => ({
+    key,
+    ...(options.unique ? { unique: true } : {}),
+    ...(options.partialFilterExpression ? { partialFilterExpression: options.partialFilterExpression } : {}),
+    ...(options.expireAfterSeconds !== undefined ? { expireAfterSeconds: options.expireAfterSeconds } : {}),
+    name: options.name,
+  }));
+  try {
+    for (const model of [GenieProofCase, GenieProofRevision]) {
+      model.collection.indexes = async () => indexesFor(model);
+      model.collection.countDocuments = async () => 0;
+    }
+    assert.equal((await verifyGenieProofPersistenceIndexes({ force: true })).ready, true);
+    GenieProofRevision.collection.indexes = async () => indexesFor(GenieProofRevision).filter(index => index.expireAfterSeconds === undefined);
+    await assert.rejects(
+      verifyGenieProofPersistenceIndexes({ force: true }),
+      error => error.status === 503 && error.clientDetails.missing.includes('genieproofrevisions:genieproof_revision_expiry'),
+    );
+  } finally {
+    for (const [model, indexes] of originals) model.collection.indexes = indexes;
+    for (const [model, countDocuments] of originalCounts) model.collection.countDocuments = countDocuments;
+  }
+});
+
+test('GenieProof runtime readiness fails closed until the explicit legacy expiry migration has completed', async () => {
+  const originals = new Map([GenieProofCase, GenieProofRevision].map(model => [model, {
+    indexes: model.collection.indexes,
+    countDocuments: model.collection.countDocuments,
+  }]));
+  const indexesFor = model => model.schema.indexes().map(([key, options]) => ({
+    key,
+    ...(options.unique ? { unique: true } : {}),
+    ...(options.partialFilterExpression ? { partialFilterExpression: options.partialFilterExpression } : {}),
+    ...(options.expireAfterSeconds !== undefined ? { expireAfterSeconds: options.expireAfterSeconds } : {}),
+    name: options.name,
+  }));
+  try {
+    for (const model of [GenieProofCase, GenieProofRevision]) {
+      model.collection.indexes = async () => indexesFor(model);
+      model.collection.countDocuments = async () => model === GenieProofCase ? 1 : 0;
+    }
+    await assert.rejects(
+      verifyGenieProofPersistenceIndexes({ force: true }),
+      error => error.status === 503
+        && error.clientDetails.missing.includes('genieproofcases:legacy-expiry-migration-required'),
+    );
+    GenieProofCase.collection.countDocuments = async () => 0;
+    assert.equal((await verifyGenieProofPersistenceIndexes({ force: true })).ready, true);
+  } finally {
+    for (const [model, originalsForModel] of originals) {
+      model.collection.indexes = originalsForModel.indexes;
+      model.collection.countDocuments = originalsForModel.countDocuments;
+    }
   }
 });
 

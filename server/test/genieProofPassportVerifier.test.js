@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { buildGenieProofManifest, extractGenieProofClaims, verifyConfirmedGenieProofClaim } from '../agents/genieProof/genieProofCore.js';
+import { buildGenieProofManifest, extractGenieProofClaims, GENIEPROOF_LEGACY_VERIFIER_VERSION, GENIEPROOF_SUPPORTED_PRODUCT_ID, verifyConfirmedGenieProofClaim } from '../agents/genieProof/genieProofCore.js';
 import { verifyExportedGenieProofPassport } from '../agents/genieProof/genieProofPassportVerifier.js';
 import { GenieProofPassportSigner, GenieProofPassportVerifier } from '../agents/genieProof/genieProofPassportSignature.js';
 
@@ -84,6 +84,35 @@ test('offline verifier supports explicitly pinned historical signing keys after 
 
   assert.equal(verifyExportedGenieProofPassport(oldPassport, { trustedPublicKeys: trustStore }).signature, 'SIGNATURE_INTEGRITY_VALID');
   assert.equal(verifyExportedGenieProofPassport(newPassport, { trustedPublicKeys: trustStore }).signature, 'SIGNATURE_INTEGRITY_VALID');
+});
+
+test('offline verifier replays a historical verifier version without rewriting its finding', () => {
+  const keys = keyPair();
+  const signer = signerFrom(keys, 'legacy-verifier-v1');
+  const claim = {
+    claimId: 'a'.repeat(32),
+    statement: 'The PPF rate may be 7.1% p.a.',
+    claimType: 'CURRENT_NOMINAL_RATE',
+    productId: GENIEPROOF_SUPPORTED_PRODUCT_ID,
+    value: 7.1,
+    unit: 'PERCENT_PER_ANNUM',
+  };
+  const finding = verifyConfirmedGenieProofClaim(claim, { verifierVersion: GENIEPROOF_LEGACY_VERIFIER_VERSION });
+  const { manifest } = buildGenieProofManifest({
+    caseId: '00000000-0000-4000-8000-000000000001',
+    ownerId: '65b000000000000000000001',
+    submissionHash: 'a'.repeat(64),
+    confirmedClaims: [claim],
+    findings: [finding],
+    revision: 1,
+    assessedAt: '2026-10-11T08:00:00.000Z',
+    verifierVersion: GENIEPROOF_LEGACY_VERIFIER_VERSION,
+  });
+  const result = verifyExportedGenieProofPassport(signer.signManifest(manifest), {
+    trustedPublicKeys: { 'legacy-verifier-v1': keys.publicKeyPem },
+  });
+  assert.equal(result.findings, 'FINDING_REPRODUCIBLE');
+  assert.equal(result.status, 'VERIFICATION_INCOMPLETE');
 });
 
 test('offline verifier rejects a tampered manifest and a signed finding that does not replay', () => {

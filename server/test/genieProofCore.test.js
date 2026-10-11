@@ -89,6 +89,25 @@ test('extractor abstains on guarantees, historical claims, injection text and am
   }
 });
 
+test('extractor captures common PPF percentage wording but keeps ambiguous or modal claims unsupported', () => {
+  for (const offerText of [
+    'Earn 7.1% on PPF every year.',
+    'PPF rate 7.1%.',
+    'PPF interest is 7.1%.',
+    'The PPF rate may be 7.1% p.a.',
+    'Is the PPF rate 7.1% p.a.?',
+    'If the PPF rate is 7.1% p.a., this may be a good deal.',
+  ]) {
+    const result = extractGenieProofClaims(offerText);
+    assert.equal(result.claims.length, 1, offerText);
+    assert.equal(result.claims[0].claimType, 'UNSUPPORTED', offerText);
+    if (!/p\.?\s*a\.?|per\s+annum/i.test(offerText)) {
+      assert.equal(result.claims[0].value, null, offerText);
+      assert.equal(result.claims[0].unit, 'UNKNOWN', offerText);
+    }
+  }
+});
+
 test('extractor retains unsupported financial claim statements without inventing structured values', () => {
   const result = extractGenieProofClaims('This scheme guarantees a 15% return. The investment is tax-free and allows early withdrawals.');
   assert.equal(result.claims.length, 2);

@@ -1,14 +1,21 @@
 import crypto from 'node:crypto';
 import { canonicalJson, canonicalSha256 } from '../../utils/canonicalJson.js';
 
-export const GENIEPROOF_VERIFIER_VERSION = 'genieproof-current-rate/0.1.0';
+export const GENIEPROOF_VERIFIER_VERSION = 'genieproof-current-rate/0.2.0';
+export const GENIEPROOF_LEGACY_VERIFIER_VERSION = 'genieproof-current-rate/0.1.0';
+export const GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS = Object.freeze([
+  GENIEPROOF_LEGACY_VERIFIER_VERSION,
+  GENIEPROOF_VERIFIER_VERSION,
+]);
 export const GENIEPROOF_MANIFEST_VERSION = 'genieproof-passport/0.1.0';
 export const GENIEPROOF_MAX_SUBMISSION_BYTES = 16_000;
 export const GENIEPROOF_MAX_CLAIMS = 10;
 export const GENIEPROOF_SUPPORTED_PRODUCT_ID = 'government:india-post:ppf';
 
-const UNSUPPORTED_SEMANTICS = /\b(?:guarantee(?:s|d)?|assured|maturity|tax(?:-free|able|ation)?|after\s+tax|post[- ]tax|withdraw(?:al|als)?|lock[- ]?in|liquid(?:ity)?|safe|risk|returns?|yield|eligible|eligibility|claim\s+now|buy|sell|invest\s+now|historical|previously|last\s+(?:year|quarter)|in\s+20\d{2}|was|were|will\s+be|expected|projected|not|isn't|wasn't|cannot|can't|fixed|remain(?:s|ed|ing)?|until|through\s+20\d{2}|next\s+(?:quarter|month|year|financial\s+year)|ignore\s+(?:all\s+)?instructions|system\s+prompt|assistant\s+tool|another\s+scheme|other\s+scheme|\band\b|\bor\b|versus|\bvs\b)\b/i;
+const UNSUPPORTED_SEMANTICS = /\b(?:guarantee(?:s|d)?|assured|maturity|tax(?:-free|able|ation)?|after\s+tax|post[- ]tax|withdraw(?:al|als)?|lock[- ]?in|liquid(?:ity)?|safe|risk|returns?|yield|eligible|eligibility|claim\s+now|buy|sell|invest\s+now|historical|previously|last\s+(?:year|quarter)|in\s+20\d{2}|was|were|will\s+be|expected|projected|not|isn't|wasn't|cannot|can't|fixed|remain(?:s|ed|ing)?|until|through\s+20\d{2}|next\s+(?:quarter|month|year|financial\s+year)|may|might|could|would|should|if|whether|assuming|possibly|perhaps|approximately|approx|about|around|up\s+to|ignore\s+(?:all\s+)?instructions|system\s+prompt|assistant\s+tool|another\s+scheme|other\s+scheme|\band\b|\bor\b|versus|\bvs\b)\b/i;
+const LEGACY_UNSUPPORTED_SEMANTICS = /\b(?:guarantee(?:s|d)?|assured|maturity|tax(?:-free|able|ation)?|after\s+tax|post[- ]tax|withdraw(?:al|als)?|lock[- ]?in|liquid(?:ity)?|safe|risk|returns?|yield|eligible|eligibility|claim\s+now|buy|sell|invest\s+now|historical|previously|last\s+(?:year|quarter)|in\s+20\d{2}|was|were|will\s+be|expected|projected|not|isn't|wasn't|cannot|can't|fixed|remain(?:s|ed|ing)?|until|through\s+20\d{2}|next\s+(?:quarter|month|year|financial\s+year)|ignore\s+(?:all\s+)?instructions|system\s+prompt|assistant\s+tool|another\s+scheme|other\s+scheme|\band\b|\bor\b|versus|\bvs\b)\b/i;
 const PERCENT_PER_ANNUM = /(?:\b(\d{1,2}(?:\.\d{1,4})?)\s*%\s*(?:p\.?\s*a\.?|per\s+annum|annually|annual(?:\s+rate)?)(?=$|[\s,;.!?])|\b(\d{1,2}(?:\.\d{1,4})?)\s*percent\s+per\s+annum\b)/i;
+const PERCENT_VALUE = /\b(\d{1,2}(?:\.\d{1,4})?)\s*%/gi;
 const PPF_IDENTITY = /\b(?:PPF|Public Provident Fund(?: Scheme)?)\b/gi;
 const RATE_WORDING = /\b(?:rate|interest)\b/i;
 const FINANCIAL_CLAIM_SIGNAL = /\b(?:interest\s+rate|returns?|yield|guarantee(?:d)?|assured|capital\s+(?:protection|guarantee)|deposit\s+insurance|lock[- ]?in|withdraw(?:al|als)|liquid(?:ity)?|minimum\s+investment|maximum\s+investment|NAV|net\s+asset\s+value|mutual\s+fund|historical\s+performance|historical\s+return|tax(?:-free|able|ation|\s+exemption)?|deduction|80C|112A|50AA|registered\s+with\s+(?:SEBI|RBI)|(?:SEBI|RBI)[- ]registered)\b/i;
@@ -21,8 +28,11 @@ function stableClaimId(inputHash, start, end, index) {
   return sha256(`${inputHash}:${start}:${end}:${index}`).slice(0, 32);
 }
 
-function containsUnsupportedClaimSemantics(text) {
-  return UNSUPPORTED_SEMANTICS.test(text) || /-\s*\d+(?:\.\d+)?\s*%/.test(text);
+function containsUnsupportedClaimSemantics(text, verifierVersion = GENIEPROOF_VERIFIER_VERSION) {
+  const semantics = verifierVersion === GENIEPROOF_LEGACY_VERIFIER_VERSION
+    ? LEGACY_UNSUPPORTED_SEMANTICS : UNSUPPORTED_SEMANTICS;
+  return semantics.test(text) || /-\s*\d+(?:\.\d+)?\s*%/.test(text)
+    || (verifierVersion !== GENIEPROOF_LEGACY_VERIFIER_VERSION && /\?/.test(text));
 }
 
 function splitSentences(text) {
@@ -60,7 +70,12 @@ export function extractGenieProofClaims(offerText) {
   let omittedClaimCount = 0;
   for (const span of splitSentences(normalized)) {
     const rateMatch = span.text.match(PERCENT_PER_ANNUM);
-    if (!rateMatch && !FINANCIAL_CLAIM_SIGNAL.test(span.text)) continue;
+    const percentMatches = [...span.text.matchAll(PERCENT_VALUE)];
+    const hasPpfIdentity = PPF_IDENTITY.test(span.text);
+    PPF_IDENTITY.lastIndex = 0;
+    const hasFinancialPercent = percentMatches.length > 0
+      && (hasPpfIdentity || FINANCIAL_CLAIM_SIGNAL.test(span.text));
+    if (!rateMatch && !FINANCIAL_CLAIM_SIGNAL.test(span.text) && !hasFinancialPercent) continue;
     if (claims.length >= GENIEPROOF_MAX_CLAIMS) {
       omittedClaimCount += 1;
       continue;
@@ -71,7 +86,8 @@ export function extractGenieProofClaims(offerText) {
     const unsupportedSemantics = containsUnsupportedClaimSemantics(span.text);
     const rateCount = rateMatch ? [...span.text.matchAll(new RegExp(PERCENT_PER_ANNUM.source, 'gi'))].length : 0;
     const hasRateWording = RATE_WORDING.test(span.text);
-    const supportedCandidate = Boolean(rateMatch) && hasSinglePpfIdentity && !unsupportedSemantics && rateCount === 1 && hasRateWording;
+    const supportedCandidate = Boolean(rateMatch) && percentMatches.length === 1 && hasSinglePpfIdentity
+      && !unsupportedSemantics && rateCount === 1 && hasRateWording;
     const claimId = stableClaimId(inputHash, span.start, span.end, claims.length);
 
     claims.push({
@@ -101,7 +117,7 @@ export function extractGenieProofClaims(offerText) {
   return {
     ok: true,
     inputHash,
-    extractionVersion: 'genieproof-deterministic-extractor/0.1.0',
+      extractionVersion: 'genieproof-deterministic-extractor/0.2.0',
     claims,
     claimsTruncated: omittedClaimCount > 0,
     omittedClaimCount,
@@ -110,7 +126,9 @@ export function extractGenieProofClaims(offerText) {
   };
 }
 
-export function verifyConfirmedGenieProofClaim(claim) {
+export function verifyConfirmedGenieProofClaim(claim, { verifierVersion = GENIEPROOF_VERIFIER_VERSION } = {}) {
+  const version = GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS.includes(verifierVersion)
+    ? verifierVersion : GENIEPROOF_VERIFIER_VERSION;
   const base = {
     claimId: claim?.claimId || null,
     claimHash: canonicalSha256(claim || null),
@@ -124,7 +142,7 @@ export function verifyConfirmedGenieProofClaim(claim) {
     missingConditions: [],
     effectiveTime: null,
     freshness: 'UNKNOWN',
-    verifierVersion: GENIEPROOF_VERIFIER_VERSION,
+    verifierVersion: version,
     explanation: 'This claim could not be checked against all required product-specific evidence.',
   };
   if (claim?.claimType !== 'CURRENT_NOMINAL_RATE') {
@@ -132,7 +150,7 @@ export function verifyConfirmedGenieProofClaim(claim) {
   }
   if (claim?.productId !== GENIEPROOF_SUPPORTED_PRODUCT_ID || claim?.unit !== 'PERCENT_PER_ANNUM'
       || typeof claim?.value !== 'number' || !Number.isFinite(claim.value) || claim.value <= 0
-      || typeof claim?.statement !== 'string' || containsUnsupportedClaimSemantics(claim.statement)) {
+      || typeof claim?.statement !== 'string' || containsUnsupportedClaimSemantics(claim.statement, version)) {
     return {
       ...base,
       finding: 'INSUFFICIENT_INPUTS',
@@ -163,9 +181,12 @@ export function verifyConfirmedGenieProofClaim(claim) {
   };
 }
 
-export function buildGenieProofManifest({ caseId, ownerId, submissionHash, confirmedClaims, findings, revision, previousManifestHash = null, assessedAt = new Date().toISOString() }) {
+export function buildGenieProofManifest({ caseId, ownerId, submissionHash, confirmedClaims, findings, revision, previousManifestHash = null, assessedAt = new Date().toISOString(), verifierVersion = GENIEPROOF_VERIFIER_VERSION }) {
   if (!/^[a-f0-9]{64}$/i.test(submissionHash || '') || !Array.isArray(confirmedClaims) || !Array.isArray(findings)) {
     throw new TypeError('GenieProof manifest requires a submission hash, confirmed claims, and findings.');
+  }
+  if (!GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS.includes(verifierVersion)) {
+    throw new TypeError('GenieProof manifest requires a supported verifier version.');
   }
   const normalizedClaims = confirmedClaims.map(claim => ({ ...claim })).sort((a, b) => a.claimId.localeCompare(b.claimId));
   const normalizedFindings = findings.map(finding => ({ ...finding })).sort((a, b) => a.claimId.localeCompare(b.claimId));
@@ -179,8 +200,8 @@ export function buildGenieProofManifest({ caseId, ownerId, submissionHash, confi
     confirmedClaims: normalizedClaims,
     productIdentityHash: canonicalSha256(normalizedClaims.map(claim => ({ claimId: claim.claimId, productId: claim.productId })).sort((a, b) => a.claimId.localeCompare(b.claimId))),
     evidenceRevisionHashes: [...new Set(normalizedFindings.flatMap(finding => finding.evidence ? [finding.evidence.factHash] : []))].sort(),
-    policyVersion: GENIEPROOF_VERIFIER_VERSION,
-    verifierVersion: GENIEPROOF_VERIFIER_VERSION,
+    policyVersion: verifierVersion,
+    verifierVersion,
     findings: normalizedFindings,
     assessedAt,
     previousManifestHash,

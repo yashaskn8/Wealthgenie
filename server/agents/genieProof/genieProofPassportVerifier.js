@@ -1,5 +1,5 @@
 import { canonicalSha256 } from '../../utils/canonicalJson.js';
-import { GENIEPROOF_MANIFEST_VERSION, GENIEPROOF_VERIFIER_VERSION, verifyConfirmedGenieProofClaim } from './genieProofCore.js';
+import { GENIEPROOF_MANIFEST_VERSION, GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS, verifyConfirmedGenieProofClaim } from './genieProofCore.js';
 import { genieProofConfirmedClaimSchema } from './genieProofSchemas.js';
 import { GenieProofPassportVerifier } from './genieProofPassportSignature.js';
 
@@ -37,7 +37,7 @@ function hasReproducibleFindings(manifest) {
     if (!actual) return false;
     let expected;
     try {
-      expected = verifyConfirmedGenieProofClaim(claim);
+      expected = verifyConfirmedGenieProofClaim(claim, { verifierVersion: manifest.verifierVersion });
     } catch {
       return false;
     }
@@ -53,8 +53,8 @@ function hasReproducibleFindings(manifest) {
 function hasValidManifestBindings(manifest) {
   if (!Array.isArray(manifest?.confirmedClaims) || !Array.isArray(manifest?.findings)
       || manifest?.schemaVersion !== GENIEPROOF_MANIFEST_VERSION
-      || manifest?.verifierVersion !== GENIEPROOF_VERIFIER_VERSION
-      || manifest?.policyVersion !== GENIEPROOF_VERIFIER_VERSION
+      || !GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS.includes(manifest?.verifierVersion)
+      || manifest?.policyVersion !== manifest.verifierVersion
       || !/^[0-9a-f-]{36}$/i.test(manifest?.caseId || '')
       || !Number.isSafeInteger(manifest?.revision) || manifest.revision < 1
       || !/^[a-f0-9]{64}$/.test(manifest?.submissionHash || '')

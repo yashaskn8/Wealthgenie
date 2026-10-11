@@ -363,6 +363,43 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(page.getByRole('heading', { name: 'Compare Investments' })).toBeVisible();
   });
 
+  test('authenticated mobile navigation opens gated GenieProof and announces the UTF-8 limit', async ({ page }) => {
+    await page.route('**/api/genieproof/cases', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ cases: [] }),
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('http://127.0.0.1:5173/profile?page=home');
+    await page.waitForLoadState('networkidle');
+
+    await page.getByTestId('mobile-nav-more').click();
+    const drawer = page.getByRole('dialog', { name: 'More navigation options' });
+    await expect(drawer.getByRole('button', { name: /GenieProof/i })).toBeVisible();
+    await drawer.getByRole('button', { name: /GenieProof/i }).click();
+    await expect(page).toHaveURL(/page=genieproof/);
+    await expect(page.getByRole('heading', { name: 'GenieProof claim inspection' })).toBeVisible();
+    await expect(page.getByText(/ProofBreak monitoring is disabled/i)).toBeVisible();
+
+    const offer = page.getByLabel('Paste the offer text');
+    await offer.fill('₹'.repeat(6000));
+    const byteStatus = page.locator('#genieproof-byte-status');
+    await expect(byteStatus).toContainText('exceeds the 16,000-byte extraction limit');
+    await expect(byteStatus).toHaveAttribute('aria-live', 'polite');
+    await expect(page.locator('#genieproof-byte-count')).toContainText('18,000 / 16,000 UTF-8 bytes');
+    const extractButton = page.getByRole('button', { name: /extract claims/i });
+    await expect(extractButton).toBeDisabled();
+    await expect(extractButton).toHaveAttribute('aria-describedby', /genieproof-byte-count genieproof-byte-status/);
+    await offer.fill('a'.repeat(16001));
+    await expect(offer).toHaveValue('a'.repeat(16001));
+    await expect(offer).toHaveJSProperty('maxLength', -1);
+    await expect(page.locator('#genieproof-byte-count')).toContainText('16,001 / 16,000 UTF-8 bytes');
+    await expect(extractButton).toBeDisabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
   test('mobile viewport (390px): bottom tab bar, More drawer, focus trap, and Escape handling', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('http://127.0.0.1:5173/profile?page=home');

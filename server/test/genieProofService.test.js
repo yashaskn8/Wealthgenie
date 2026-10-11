@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { extractGenieProofClaims, GENIEPROOF_SUPPORTED_PRODUCT_ID } from '../agents/genieProof/genieProofCore.js';
+import { buildGenieProofManifest, extractGenieProofClaims, GENIEPROOF_SUPPORTED_PRODUCT_ID } from '../agents/genieProof/genieProofCore.js';
 import { GenieProofPassportSigner } from '../agents/genieProof/genieProofPassportSignature.js';
-import { createGenieProofCase, deleteGenieProofCase, getGenieProofCase, verifyGenieProofCase } from '../agents/genieProof/genieProofService.js';
+import { createGenieProofCase, deleteGenieProofCase, getGenieProofCase, listGenieProofCases, listGenieProofRevisions, verifyGenieProofCase } from '../agents/genieProof/genieProofService.js';
+import { GENIEPROOF_MAX_CASES_PER_USER, GENIEPROOF_RETENTION_DAYS } from '../agents/genieProof/genieProofPolicy.js';
 import { genieProofCreateCaseSchema } from '../agents/genieProof/genieProofSchemas.js';
 
 const userOne = '65b000000000000000000001';
@@ -23,12 +24,23 @@ function fixture() {
     inTransaction() { return this.active; },
     async endSession() {},
   };
-  const matches = (row, filter) => Object.entries(filter).every(([key, value]) => String(row[key] ?? '') === String(value ?? ''));
+  const matches = (row, filter) => Object.entries(filter).every(([key, value]) => {
+    if (key === '$or') return value.some(condition => matches(row, condition));
+    if (value && typeof value === 'object' && !(value instanceof Date)) {
+      if (Object.hasOwn(value, '$gt')) return new Date(row[key]) > new Date(value.$gt);
+      if (Object.hasOwn(value, '$lte')) return new Date(row[key]) <= new Date(value.$lte);
+      if (Object.hasOwn(value, '$exists')) return (row[key] !== undefined) === value.$exists;
+    }
+    return String(row[key] ?? '') === String(value ?? '');
+  });
   const leanQuery = value => ({ lean: async () => value });
   const caseModel = {
     async create([input]) {
       if (cases.some(row => row.userId === input.userId && row.idempotencyKeyHash === input.idempotencyKeyHash)) {
-        throw Object.assign(new Error('duplicate'), { code: 11000 });
+        throw Object.assign(new Error('duplicate'), { code: 11000, keyPattern: { idempotencyKeyHash: 1 } });
+      }
+      if (cases.some(row => row.userId === input.userId && row.quotaSlot === input.quotaSlot)) {
+        throw Object.assign(new Error('duplicate'), { code: 11000, keyPattern: { quotaSlot: 1 } });
       }
       const row = { ...structuredClone(input), createdAt: now() };
       cases.push(row);
@@ -38,11 +50,23 @@ function fixture() {
     find(filter) {
       let result = cases.filter(row => matches(row, filter));
       const query = {
-        sort() { return query; },
+        session() { return query; },
+        select() { return query; },
+        sort(order) {
+          const [[key, direction]] = Object.entries(order);
+          result = [...result].sort((a, b) => direction * (new Date(a[key] || 0) - new Date(b[key] || 0)));
+          return query;
+        },
         limit(value) { result = result.slice(0, value); return query; },
         lean: async () => result,
       };
       return query;
+    },
+    async deleteOne(filter) {
+      const index = cases.findIndex(row => matches(row, filter));
+      if (index < 0) return { deletedCount: 0 };
+      cases.splice(index, 1);
+      return { deletedCount: 1 };
     },
     async findOneAndDelete(filter) {
       const index = cases.findIndex(row => matches(row, filter));
@@ -53,6 +77,19 @@ function fixture() {
   const revisionModel = {
     async create([input]) { const row = structuredClone(input); revisions.push(row); return [row]; },
     findOne(filter) { return leanQuery(revisions.find(row => matches(row, filter)) || null); },
+    find(filter) {
+      let result = revisions.filter(row => matches(row, filter));
+      const query = {
+        sort(order) {
+          const [[key, direction]] = Object.entries(order);
+          result = [...result].sort((a, b) => direction * (Number(a[key]) - Number(b[key])));
+          return query;
+        },
+        limit(value) { result = result.slice(0, value); return query; },
+        lean: async () => result,
+      };
+      return query;
+    },
     async deleteMany(filter) {
       const before = revisions.length;
       for (let i = revisions.length - 1; i >= 0; i -= 1) if (matches(revisions[i], filter)) revisions.splice(i, 1);
@@ -99,6 +136,8 @@ test('case creation checks the original input hash, requires extracted claim IDs
   assert.equal(f.cases[0].confirmedClaims[0].statement, request.offerText);
   assert.equal(f.cases[0].savingConsentVersion, 'genieproof-private-save/1');
   assert.equal(f.cases[0].savingConsentAt.toISOString(), now().toISOString());
+  assert.equal(f.cases[0].expiresAt.toISOString(), new Date(now().getTime() + GENIEPROOF_RETENTION_DAYS * 86400000).toISOString());
+  assert.equal(created.case.expiresAt, f.cases[0].expiresAt);
   assert.equal(f.session.committed, true);
   assert.equal(f.revisions.length, 1);
 
@@ -149,6 +188,24 @@ test('case creation requires explicit private-save consent', async () => {
   assert.equal(f.revisions.length, 0);
 });
 
+test('case creation rejects a truncated extraction before signing or persistence', async () => {
+  const f = fixture();
+  const request = requestFor(Array(11).fill('The current official PPF interest rate is 7.1% p.a.').join('\n'));
+  assert.equal(request.confirmedClaims.length, 10);
+
+  await assert.rejects(() => createGenieProofCase({
+    userId: userOne,
+    ...request,
+    idempotencyKey: 'genieproof-truncated-offer',
+    signer: { signManifest() { assert.fail('truncated submissions must not be signed'); } },
+    ...f,
+    now,
+  }), error => error.code === 'GENIEPROOF_EXTRACTION_TRUNCATED');
+  assert.equal(f.cases.length, 0);
+  assert.equal(f.revisions.length, 0);
+  assert.equal(f.session.committed, false);
+});
+
 test('same idempotency key replays only the same owner-bound request', async () => {
   const f = fixture();
   const request = requestFor();
@@ -176,6 +233,114 @@ test('passport reads, integrity verification, deletion, and IDOR checks are owne
   assert.equal(await deleteGenieProofCase({ userId: userOne, caseId: created.case.caseId, ...f }), true);
   assert.equal(f.cases.length, 0);
   assert.equal(f.revisions.length, 0);
+});
+
+test('passport history is owner-scoped and independently checks each immutable revision', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-history-1', signer: f.signer, ...f, now });
+  const history = await listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f, now });
+  assert.equal(history.revisions.length, 1);
+  assert.equal(history.revisions[0].revision, 1);
+  assert.equal(history.revisions[0].verification.integrity, 'VALID');
+  assert.equal(history.revisions[0].verification.financialCorrectness, 'NOT_ESTABLISHED_BY_SIGNATURE');
+  assert.equal(await listGenieProofRevisions({ userId: userTwo, caseId: created.case.caseId, signer: f.signer, ...f, now }), null);
+
+  f.revisions[0].manifest.confirmedClaims[0].value = 99;
+  const tampered = await listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f, now });
+  assert.equal(tampered.revisions[0].verification.integrity, 'INVALID');
+});
+
+test('passport history fails closed when its latest signed revision disagrees with the stored case head', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-head-check', signer: f.signer, ...f, now });
+  f.cases[0].latestManifestHash = 'f'.repeat(64);
+
+  await assert.rejects(
+    listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f, now }),
+    error => error.status === 503 && error.code === 'GENIEPROOF_CASE_HEAD_MISMATCH',
+  );
+});
+
+test('bounded passport history does not claim a complete chain without its predecessor', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-prefix-check', signer: f.signer, ...f, now });
+  const previous = f.revisions[0];
+  const signed = buildGenieProofManifest({
+    caseId: created.case.caseId,
+    ownerId: userOne,
+    submissionHash: previous.manifest.submissionHash,
+    confirmedClaims: previous.manifest.confirmedClaims,
+    findings: previous.manifest.findings,
+    revision: 2,
+    previousManifestHash: previous.manifestHash,
+    assessedAt: now().toISOString(),
+  });
+  const passport = f.signer.signManifest(signed.manifest);
+  f.revisions.push({
+    userId: userOne,
+    caseId: created.case.caseId,
+    revision: 2,
+    manifest: passport.manifest,
+    manifestHash: passport.manifestHash,
+    signature: passport.signature,
+    assessedAt: now(),
+    expiresAt: previous.expiresAt,
+  });
+  f.cases[0].latestRevision = 2;
+  f.cases[0].latestManifestHash = passport.manifestHash;
+
+  const history = await listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, limit: 1, ...f, now });
+  assert.equal(history.revisions[0].revision, 2);
+  assert.equal(history.revisions[0].verification.signature, 'VERIFIED');
+  assert.equal(history.revisions[0].verification.integrity, 'CONTENT_HASH_MATCHES');
+  assert.equal(history.revisions[0].verification.chainContinuity, 'INCOMPLETE');
+  assert.equal(history.revisions[0].verification.code, 'PASSPORT_REVISION_CHAIN_PREFIX_UNVERIFIED');
+});
+
+test('case quota is a hard 25-case limit and expired records stop appearing in active reads', async () => {
+  const f = fixture();
+  const request = requestFor();
+  for (let index = 0; index < GENIEPROOF_MAX_CASES_PER_USER; index += 1) {
+    await createGenieProofCase({ userId: userOne, ...request, idempotencyKey: `genieproof-quota-${String(index).padStart(2, '0')}`, signer: f.signer, ...f, now });
+  }
+  assert.equal(new Set(f.cases.map(row => row.quotaSlot)).size, GENIEPROOF_MAX_CASES_PER_USER);
+  await assert.rejects(() => createGenieProofCase({
+    userId: userOne, ...request, idempotencyKey: 'genieproof-quota-over',
+    signer: { signManifest() { assert.fail('quota rejection must happen before signing'); } }, ...f, now,
+  }), error => error.code === 'GENIEPROOF_CASE_QUOTA_REACHED' && error.status === 429);
+  assert.equal((await listGenieProofCases({ userId: userOne, ...f, now })).length, GENIEPROOF_MAX_CASES_PER_USER);
+
+  const expiredAt = new Date(now().getTime() + GENIEPROOF_RETENTION_DAYS * 86400000 + 1);
+  assert.deepEqual(await listGenieProofCases({ userId: userOne, ...f, now: () => expiredAt }), []);
+  await createGenieProofCase({
+    userId: userOne, ...request, idempotencyKey: 'genieproof-after-expiry', signer: f.signer, ...f, now: () => expiredAt,
+  });
+  assert.equal(f.cases.length, 1, 'expired cases and their revisions are pruned transactionally before a new save');
+  assert.equal(f.revisions.length, 1);
+});
+
+test('an exact idempotent retry replays the last quota slot and rejects a changed payload at quota', async () => {
+  const f = fixture();
+  const request = requestFor();
+  const keys = [];
+  for (let index = 0; index < GENIEPROOF_MAX_CASES_PER_USER; index += 1) {
+    const idempotencyKey = `genieproof-last-slot-${String(index).padStart(2, '0')}`;
+    keys.push(idempotencyKey);
+    await createGenieProofCase({ userId: userOne, ...request, idempotencyKey, signer: f.signer, ...f, now });
+  }
+
+  const firstCase = f.cases.find(row => row.idempotencyKeyHash);
+  const replay = await createGenieProofCase({ userId: userOne, ...request, idempotencyKey: keys[0], signer: f.signer, ...f, now });
+  assert.equal(replay.created, false);
+  assert.equal(replay.case.caseId, firstCase.caseId);
+  await assert.rejects(() => createGenieProofCase({
+    userId: userOne,
+    ...requestFor('The current official PPF interest rate is 7.2% p.a.'),
+    idempotencyKey: keys[0],
+    signer: f.signer,
+    ...f,
+    now,
+  }), error => error.code === 'GENIEPROOF_IDEMPOTENCY_CONFLICT' && error.status === 409);
 });
 
 test('untrusted signer reports a matching content hash without claiming verified integrity', async () => {

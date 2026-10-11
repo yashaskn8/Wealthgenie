@@ -580,6 +580,11 @@ export async function verifyGenieProofCase(caseId, options = {}) {
   return request('GET', `/genieproof/cases/${encodeURIComponent(caseId)}/verify`, null, { retries: 0, ...options });
 }
 
+export async function listGenieProofRevisions(caseId, options = {}) {
+  if (!caseId) throw new TypeError('A GenieProof case ID is required.');
+  return request('GET', `/genieproof/cases/${encodeURIComponent(caseId)}/revisions`, null, { retries: 0, ...options });
+}
+
 export async function deleteGenieProofCase(caseId, options = {}) {
   if (!caseId) throw new TypeError('A GenieProof case ID is required.');
   return request('DELETE', `/genieproof/cases/${encodeURIComponent(caseId)}`, null, { retries: 0, ...options });

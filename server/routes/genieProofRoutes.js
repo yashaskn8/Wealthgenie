@@ -10,6 +10,7 @@ import {
   deleteGenieProofCase,
   getGenieProofCase,
   listGenieProofCases,
+  listGenieProofRevisions,
   verifyGenieProofCase,
 } from '../agents/genieProof/genieProofService.js';
 
@@ -82,6 +83,18 @@ router.get('/cases/:caseId/verify', verifyJWT, genieProofLimiter, asyncHandler(a
   requireEnabled(req);
   caseIdParam(req);
   const result = await verifyGenieProofCase({
+    userId: req.user.userId,
+    caseId: req.params.caseId,
+    signer: req.app.locals.genieProofRuntime.signer,
+  });
+  if (!result) throw createError(404, 'GenieProof case not found.', 'Case not found.', { code: 'GENIEPROOF_CASE_NOT_FOUND' });
+  return res.json(result);
+}));
+
+router.get('/cases/:caseId/revisions', verifyJWT, genieProofLimiter, rejectQueryParameters, asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  caseIdParam(req);
+  const result = await listGenieProofRevisions({
     userId: req.user.userId,
     caseId: req.params.caseId,
     signer: req.app.locals.genieProofRuntime.signer,
