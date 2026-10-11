@@ -585,6 +585,58 @@ export async function listGenieProofRevisions(caseId, options = {}) {
   return request('GET', `/genieproof/cases/${encodeURIComponent(caseId)}/revisions`, null, { retries: 0, ...options });
 }
 
+export async function reassessGenieProofCase({ caseId, expectedRevision, expectedManifestHash, reassessmentConsent }, options = {}) {
+  if (!caseId || !Number.isInteger(expectedRevision) || !expectedManifestHash) {
+    throw new TypeError('The current GenieProof case revision and manifest hash are required.');
+  }
+  return request('POST', `/genieproof/cases/${encodeURIComponent(caseId)}/reassess`, {
+    expectedRevision, expectedManifestHash, reassessmentConsent,
+  }, { retries: 0, ...options });
+}
+
+export async function withdrawGenieProofConsent(caseId, options = {}) {
+  if (!caseId) throw new TypeError('A GenieProof case ID is required.');
+  return request('POST', `/genieproof/cases/${encodeURIComponent(caseId)}/consent/withdraw`, { withdrawConsent: true }, { retries: 0, ...options });
+}
+
+export async function getProofWatchAvailability(caseId, options = {}) {
+  if (!caseId) throw new TypeError('A GenieProof case ID is required.');
+  return request('GET', `/genieproof/cases/${encodeURIComponent(caseId)}/watch/availability`, null, { retries: 0, ...options });
+}
+
+export async function createProofWatch(caseId, options = {}) {
+  if (!caseId) throw new TypeError('A GenieProof case ID is required.');
+  return request('POST', `/genieproof/cases/${encodeURIComponent(caseId)}/watch`, { watchConsent: true }, { retries: 0, ...options });
+}
+
+export async function listProofWatches({ caseId, limit = 25 } = {}, options = {}) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (caseId) query.set('caseId', caseId);
+  return request('GET', `/genieproof/watches?${query.toString()}`, null, { retries: 0, ...options });
+}
+
+export async function updateProofWatch(watchId, action, options = {}) {
+  if (!watchId) throw new TypeError('A ProofBreak watch ID is required.');
+  return request('PATCH', `/genieproof/watches/${encodeURIComponent(watchId)}`, { action }, { retries: 0, ...options });
+}
+
+export async function deleteProofWatch(watchId, options = {}) {
+  if (!watchId) throw new TypeError('A ProofBreak watch ID is required.');
+  return request('DELETE', `/genieproof/watches/${encodeURIComponent(watchId)}`, null, { retries: 0, ...options });
+}
+
+export async function listProofBreakEvents(caseId, { limit = 25, cursor = null } = {}, options = {}) {
+  if (!caseId) throw new TypeError('A GenieProof case ID is required.');
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) query.set('cursor', cursor);
+  return request('GET', `/genieproof/cases/${encodeURIComponent(caseId)}/events?${query.toString()}`, null, { retries: 0, ...options });
+}
+
+export async function acknowledgeProofBreakEvent(eventId, options = {}) {
+  if (!eventId) throw new TypeError('A ProofBreak event ID is required.');
+  return request('POST', `/genieproof/events/${encodeURIComponent(eventId)}/acknowledge`, { acknowledge: true }, { retries: 0, ...options });
+}
+
 export async function deleteGenieProofCase(caseId, options = {}) {
   if (!caseId) throw new TypeError('A GenieProof case ID is required.');
   return request('DELETE', `/genieproof/cases/${encodeURIComponent(caseId)}`, null, { retries: 0, ...options });
@@ -936,7 +988,7 @@ const api = {
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,
-  buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, getFinancialHealthScore, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, extractGenieProofClaims, createGenieProofCase, listGenieProofCases, getGenieProofCase, verifyGenieProofCase, deleteGenieProofCase, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
+  buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, getFinancialHealthScore, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, extractGenieProofClaims, createGenieProofCase, listGenieProofCases, getGenieProofCase, verifyGenieProofCase, listGenieProofRevisions, reassessGenieProofCase, withdrawGenieProofConsent, getProofWatchAvailability, createProofWatch, listProofWatches, updateProofWatch, deleteProofWatch, listProofBreakEvents, acknowledgeProofBreakEvent, deleteGenieProofCase, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
   runMonteCarlo, runPortfolioMonteCarlo, createGoal, getGoals, updateGoal, simulateGoal, deleteGoal, healthCheck,
   getMarketRates, getBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,

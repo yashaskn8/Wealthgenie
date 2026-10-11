@@ -226,6 +226,106 @@ paths:
       x-csrf-protection: cookie-session
       parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' } }]
       responses: { '204': { description: Case and all saved passport revisions deleted. }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/genieproof/cases/{caseId}/reassess:
+    post:
+      operationId: reassessGenieProofPassport
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      x-idempotency-key: required
+      parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' } }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      description: Appends a signed revision for the authenticated owner's current case head. Evidence is resolved only from server-side immutable, qualified, and permitted records. Reassessment consent is required; blocked or unavailable sources yield an abstention.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofReassessRequest' } } } }
+      responses: { '200': { description: Replayed idempotent reassessment, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofReassessed' } } } }, '201': { description: New signed reassessment revision, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofReassessed' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' }, '410': { $ref: '#/components/responses/Error' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/genieproof/cases/{caseId}/consent/withdraw:
+    post:
+      operationId: withdrawGenieProofProcessingConsent
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' } }]
+      description: Stops future reassessments that rely on saved private claim processing consent. It does not delete the stored case; the customer can separately delete it.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofConsentWithdrawalRequest' } } } }
+      responses: { '204': { description: Consent withdrawal recorded. }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/genieproof/cases/{caseId}/watch:
+    post:
+      operationId: createProofBreakWatch
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      x-idempotency-key: required
+      parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid } }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      description: Records separate consent for bounded checks of supported claims. Watches remain blocked when current official source reuse rights are not approved; an eligible watch is created only when a fresh worker heartbeat is present.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProofWatchCreateRequest' } } } }
+      responses: { '200': { description: Idempotent replay, content: { application/json: { schema: { $ref: '#/components/schemas/ProofWatchCreated' } } } }, '201': { description: Watch created, including an explicit source-blocked state where applicable, content: { application/json: { schema: { $ref: '#/components/schemas/ProofWatchCreated' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' }, '422': { $ref: '#/components/responses/BadRequest' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/genieproof/cases/{caseId}/watch/availability:
+    get:
+      operationId: getProofBreakWatchAvailability
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid } }]
+      description: Owner-scoped preview of supported claim coverage, official source rights/qualification state, and recent ProofBreak worker availability. It does not create a watch or claim that source monitoring is active.
+      responses: { '200': { description: Availability details, content: { application/json: { schema: { $ref: '#/components/schemas/ProofWatchAvailability' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/genieproof/watches:
+    get:
+      operationId: listOwnedProofBreakWatches
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: caseId, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 25 } }
+      responses:
+        '200':
+          description: Owner-scoped watches
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [watches]
+                properties:
+                  watches:
+                    type: array
+                    maxItems: 50
+                    items: { $ref: '#/components/schemas/ProofWatchSummary' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/genieproof/watches/{watchId}:
+    patch:
+      operationId: updateProofBreakWatch
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters: [{ name: watchId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProofWatchActionRequest' } } } }
+      responses: { '200': { description: Updated watch state, content: { application/json: { schema: { $ref: '#/components/schemas/ProofWatchUpdated' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' }, '429': { $ref: '#/components/responses/Error' } }
+    delete:
+      operationId: deleteOwnedProofBreakWatch
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters: [{ name: watchId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '204': { description: Watch, jobs, events, and notifications deleted. }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/genieproof/cases/{caseId}/events:
+    get:
+      operationId: listProofBreakTimeline
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 25 } }
+        - { name: cursor, in: query, required: false, schema: { type: string, maxLength: 256 } }
+      responses: { '200': { description: Owner-scoped paginated event timeline, content: { application/json: { schema: { $ref: '#/components/schemas/ProofBreakTimeline' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '429': { $ref: '#/components/responses/Error' } }
+  /api/genieproof/events/{eventId}/acknowledge:
+    post:
+      operationId: acknowledgeProofBreakEvent
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters: [{ name: eventId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [acknowledge], properties: { acknowledge: { type: boolean, const: true } } } } } }
+      responses: { '204': { description: Event acknowledged. }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' } }
   /api/genieproof/cases/{caseId}/verify:
     get:
       operationId: verifyGenieProofPassportIntegrity
@@ -934,17 +1034,133 @@ components:
         submissionHash: { type: string, pattern: '^[a-f0-9]{64}$' }
         savingConsent: { type: boolean, const: true, description: Explicit consent to store confirmed claim wording and offer fingerprint in the private case for 90 days or until deletion. }
         confirmedClaims: { type: array, minItems: 1, maxItems: 10, items: { $ref: '#/components/schemas/GenieProofClaim' } }
+    GenieProofReassessRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedRevision, expectedManifestHash, reassessmentConsent]
+      properties:
+        expectedRevision: { type: integer, minimum: 1 }
+        expectedManifestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        reassessmentConsent: { type: boolean, const: true, description: Explicit consent to create and retain a new private assessment revision. }
+    GenieProofConsentWithdrawalRequest:
+      type: object
+      additionalProperties: false
+      required: [withdrawConsent]
+      properties: { withdrawConsent: { type: boolean, const: true } }
+    ProofWatchCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [watchConsent]
+      properties: { watchConsent: { type: boolean, const: true, description: Separate consent for periodic supported-claim checks until paused, disabled, case deletion, or expiry. } }
+    ProofWatchActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties: { action: { type: string, enum: [pause, resume, disable] } }
+    ProofWatchAvailability:
+      type: object
+      additionalProperties: false
+      required: [caseId, workerStatus, canEnable, claims, monitoringScope, sourceStatus]
+      properties:
+        caseId: { type: string, format: uuid }
+        workerStatus: { type: string, enum: [AVAILABLE, UNAVAILABLE] }
+        canEnable: { type: boolean }
+        claims:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required: [claimId, claimType, productId, status]
+            properties:
+              claimId: { type: string, pattern: '^[a-f0-9]{32}$' }
+              claimType: { type: string }
+              productId: { type: [string, 'null'] }
+              status: { type: string, enum: [AVAILABLE, SOURCE_RIGHTS_BLOCKED, SOURCE_TECHNICALLY_BLOCKED, WAITING_FOR_QUALIFIED_SOURCE, NOT_SUPPORTED] }
+        monitoringScope: { type: string }
+        sourceStatus: { type: string, enum: [AVAILABLE, WAITING, RIGHTS_BLOCKED, TECHNICALLY_BLOCKED] }
+    ProofWatchSummary:
+      type: object
+      additionalProperties: false
+      required: [watchId, caseId, status, consentVersion, consentAt, consentWithdrawnAt, generation, requestedClaimIds, sourceAvailability, monitoredSourceIds, lastSuccessfulCheckAt, nextCheckAt, lastFailureCode, expiresAt]
+      properties:
+        watchId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        status: { type: string, enum: [ACTIVE, PAUSED, WAITING_FOR_SOURCE, BLOCKED_SOURCE_RIGHTS, FAILED_RETRYABLE, FAILED_TERMINAL, EXPIRED, CANCELLED] }
+        consentVersion: { type: string }
+        consentAt: { type: string, format: date-time }
+        consentWithdrawnAt: { type: [string, 'null'], format: date-time }
+        generation: { type: integer, minimum: 1 }
+        requestedClaimIds: { type: array, maxItems: 10, items: { type: string, pattern: '^[a-f0-9]{32}$' } }
+        sourceAvailability: { type: string, enum: [AVAILABLE, WAITING, RIGHTS_BLOCKED, TECHNICALLY_BLOCKED] }
+        monitoredSourceIds: { type: array, maxItems: 10, items: { type: string } }
+        lastSuccessfulCheckAt: { type: [string, 'null'], format: date-time }
+        nextCheckAt: { type: [string, 'null'], format: date-time }
+        lastFailureCode: { type: [string, 'null'] }
+        expiresAt: { type: string, format: date-time }
+    ProofWatchCreated:
+      type: object
+      additionalProperties: false
+      required: [created, watch]
+      properties: { created: { type: boolean }, watch: { $ref: '#/components/schemas/ProofWatchSummary' } }
+    ProofWatchUpdated:
+      type: object
+      additionalProperties: false
+      required: [watch]
+      properties: { watch: { $ref: '#/components/schemas/ProofWatchSummary' } }
+    ProofBreakTimeline:
+      type: object
+      additionalProperties: false
+      required: [events, nextCursor]
+      properties:
+        events: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/ProofBreakEvent' } }
+        nextCursor: { type: [string, 'null'], maxLength: 256 }
+    ProofBreakEvent:
+      type: object
+      additionalProperties: false
+      required: [eventId, caseId, watchId, claimId, previousAssessmentId, newAssessmentId, previousEvidenceRevision, newEvidenceRevision, retrievalReceiptIds, changedFactFields, effectivePeriodImplications, eventType, detectedAt, publishedAt, notificationStatus, acknowledgedAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        watchId: { type: string, format: uuid }
+        claimId: { type: string, pattern: '^[a-f0-9]{32}$' }
+        previousAssessmentId: { type: string }
+        newAssessmentId: { type: [string, 'null'] }
+        previousEvidenceRevision: { type: [string, 'null'] }
+        newEvidenceRevision: { type: [string, 'null'] }
+        retrievalReceiptIds: { type: array, maxItems: 40, items: { type: string, format: uuid } }
+        changedFactFields: { type: array, maxItems: 30, items: { type: string } }
+        effectivePeriodImplications:
+          type: object
+          additionalProperties: false
+          required: [previousEffectiveFrom, previousEffectiveTo, currentEffectiveFrom, currentEffectiveTo]
+          properties:
+            previousEffectiveFrom: { type: [string, 'null'], format: date-time }
+            previousEffectiveTo: { type: [string, 'null'], format: date-time }
+            currentEffectiveFrom: { type: [string, 'null'], format: date-time }
+            currentEffectiveTo: { type: [string, 'null'], format: date-time }
+        eventType: { type: string, enum: [EVIDENCE_CHANGED, EVIDENCE_EXPIRED, FINDING_CHANGED, CONDITIONS_CHANGED, SOURCE_UNAVAILABLE, PROCESSING_FAILED, POLICY_REVIEW_REQUIRED, RECHECK_UNCHANGED] }
+        detectedAt: { type: string, format: date-time }
+        publishedAt: { type: string, format: date-time }
+        notificationStatus:
+          type: string
+          enum: [PENDING, DELIVERED, NOT_REQUIRED, FAILED, CANCELLED]
+          description: Durable publication state for the in-app timeline. DELIVERED means the event is persisted and available in the user's account; it does not imply email, SMS, or push delivery.
+        acknowledgedAt: { type: [string, 'null'], format: date-time }
     GenieProofCandidate:
       type: object
-      additionalProperties: true
-      required: [claimId, originalSpan, claimType, value, unit, candidateReasonCodes]
+      additionalProperties: false
+      required: [claimId, originalSpan, startOffset, endOffset, claimType, productId, value, unit, interpretation, candidateReasonCodes]
       properties:
         claimId: { type: string, pattern: '^[a-f0-9]{32}$' }
         originalSpan: { type: string }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
         claimType: { type: string, enum: [CURRENT_NOMINAL_RATE, UNSUPPORTED] }
         productId: { type: [string, 'null'] }
         value: { type: [number, 'null'] }
         unit: { type: string }
+        interpretation: { type: [string, 'null'] }
         candidateReasonCodes: { type: array, items: { type: string } }
     GenieProofExtraction:
       type: object
@@ -993,6 +1209,15 @@ components:
       properties:
         created: { type: boolean }
         case: { $ref: '#/components/schemas/GenieProofCaseSummary' }
+        passport: { $ref: '#/components/schemas/GenieProofSignedPassport' }
+    GenieProofReassessed:
+      type: object
+      additionalProperties: false
+      required: [created, revision, manifestHash, passport]
+      properties:
+        created: { type: boolean }
+        revision: { type: integer, minimum: 1 }
+        manifestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
         passport: { $ref: '#/components/schemas/GenieProofSignedPassport' }
     GenieProofCaseDetail:
       type: object

@@ -11,6 +11,8 @@ const genieProofRevisionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, immutable: true },
   caseId: { type: String, required: true, match: /^[0-9a-f-]{36}$/i, immutable: true },
   revision: { type: Number, required: true, min: 1, immutable: true },
+  idempotencyKeyHash: { type: String, default: null, match: /^[a-f0-9]{64}$/, immutable: true },
+  requestHash: { type: String, default: null, match: /^[a-f0-9]{64}$/, immutable: true },
   manifest: { type: mongoose.Schema.Types.Mixed, required: true, immutable: true },
   manifestHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
   signature: { type: signatureSchema, required: true, immutable: true },
@@ -21,6 +23,14 @@ const genieProofRevisionSchema = new mongoose.Schema({
 genieProofRevisionSchema.index(
   { userId: 1, caseId: 1, revision: 1 },
   { unique: true, name: 'uniq_genieproof_revision' },
+);
+genieProofRevisionSchema.index(
+  { userId: 1, caseId: 1, idempotencyKeyHash: 1 },
+  {
+    unique: true,
+    name: 'uniq_genieproof_reassessment_idempotency',
+    partialFilterExpression: { idempotencyKeyHash: { $type: 'string' } },
+  },
 );
 genieProofRevisionSchema.index({ userId: 1, caseId: 1, createdAt: -1 }, { name: 'genieproof_case_revision_history' });
 genieProofRevisionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'genieproof_revision_expiry' });

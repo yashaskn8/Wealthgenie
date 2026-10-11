@@ -9,6 +9,9 @@ import ExecutionReceipt from '../models/ExecutionReceipt.js';
 import AuthorizedExecutionAttempt from '../models/AuthorizedExecutionAttempt.js';
 import GenieProofCase from '../models/GenieProofCase.js';
 import GenieProofRevision from '../models/GenieProofRevision.js';
+import GenieProofSourceDefinition from '../models/GenieProofSourceDefinition.js';
+import GenieProofRetrievalReceipt from '../models/GenieProofRetrievalReceipt.js';
+import GenieProofEvidenceRevision from '../models/GenieProofEvidenceRevision.js';
 import {
   AUTHORIZATION_INDEX_MODELS,
   GENIEPROOF_INDEX_MODELS,
@@ -99,7 +102,7 @@ test('explicit Phase 2 migration includes user and verifiable-authorization iden
     assert.ok(MIGRATION_INDEX_MODELS.includes(model), `${model.modelName} authorization indexes must be in migration`);
   }
 
-  for (const model of [GenieProofCase, GenieProofRevision]) {
+  for (const model of [GenieProofCase, GenieProofRevision, GenieProofSourceDefinition, GenieProofRetrievalReceipt, GenieProofEvidenceRevision]) {
     assert.ok(GENIEPROOF_INDEX_MODELS.includes(model), `${model.modelName} must be in the GenieProof readiness gate`);
     assert.ok(MIGRATION_INDEX_MODELS.includes(model), `${model.modelName} indexes must be in the explicit migration`);
   }
@@ -119,7 +122,7 @@ test('GenieProof migrations declare the owner quota fence and both 90-day TTL in
 });
 
 test('GenieProof runtime readiness fails closed when a required expiry index is missing', async () => {
-  const originals = new Map([GenieProofCase, GenieProofRevision].map(model => [model, model.collection.indexes]));
+  const originals = new Map(GENIEPROOF_INDEX_MODELS.map(model => [model, model.collection.indexes]));
   const originalCounts = new Map([GenieProofCase, GenieProofRevision].map(model => [model, model.collection.countDocuments]));
   const indexesFor = model => model.schema.indexes().map(([key, options]) => ({
     key,
@@ -129,8 +132,10 @@ test('GenieProof runtime readiness fails closed when a required expiry index is 
     name: options.name,
   }));
   try {
-    for (const model of [GenieProofCase, GenieProofRevision]) {
+    for (const model of GENIEPROOF_INDEX_MODELS) {
       model.collection.indexes = async () => indexesFor(model);
+    }
+    for (const model of [GenieProofCase, GenieProofRevision]) {
       model.collection.countDocuments = async () => 0;
     }
     assert.equal((await verifyGenieProofPersistenceIndexes({ force: true })).ready, true);
@@ -146,7 +151,7 @@ test('GenieProof runtime readiness fails closed when a required expiry index is 
 });
 
 test('GenieProof runtime readiness fails closed until the explicit legacy expiry migration has completed', async () => {
-  const originals = new Map([GenieProofCase, GenieProofRevision].map(model => [model, {
+  const originals = new Map(GENIEPROOF_INDEX_MODELS.map(model => [model, {
     indexes: model.collection.indexes,
     countDocuments: model.collection.countDocuments,
   }]));
@@ -158,8 +163,10 @@ test('GenieProof runtime readiness fails closed until the explicit legacy expiry
     name: options.name,
   }));
   try {
-    for (const model of [GenieProofCase, GenieProofRevision]) {
+    for (const model of GENIEPROOF_INDEX_MODELS) {
       model.collection.indexes = async () => indexesFor(model);
+    }
+    for (const model of [GenieProofCase, GenieProofRevision]) {
       model.collection.countDocuments = async () => model === GenieProofCase ? 1 : 0;
     }
     await assert.rejects(
@@ -172,7 +179,7 @@ test('GenieProof runtime readiness fails closed until the explicit legacy expiry
   } finally {
     for (const [model, originalsForModel] of originals) {
       model.collection.indexes = originalsForModel.indexes;
-      model.collection.countDocuments = originalsForModel.countDocuments;
+      if (model === GenieProofCase || model === GenieProofRevision) model.collection.countDocuments = originalsForModel.countDocuments;
     }
   }
 });

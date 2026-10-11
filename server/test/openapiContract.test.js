@@ -586,6 +586,41 @@ test('OpenAPI runtime contracts exercise real HTTP success and canonical error r
   }
 });
 
+test('enabled GenieProof routes reject invalid consent and unknown fields over authenticated HTTP', async () => {
+  const oldSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'genieproof-enabled-route-test-secret-at-least-32';
+  const app = buildContractTestApp();
+  app.locals.genieProofRuntime = { enabled: true };
+  const userId = '65b000000000000000000001';
+  const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '5m' });
+  const url = '/api/genieproof/cases/00000000-0000-4000-8000-000000000001/watch';
+
+  try {
+    await withServer(app, async baseUrl => {
+      for (const body of [{ watchConsent: false }, { watchConsent: true, userId }]) {
+        const response = await rawRequest(`${baseUrl}${url}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        assert.equal(response.status, 400);
+        assert.equal((await response.json()).code, 'VALIDATION_ERROR');
+      }
+
+      const missingIdempotency = await rawRequest(`${baseUrl}${url}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ watchConsent: true }),
+      });
+      assert.equal(missingIdempotency.status, 400, 'valid consent proceeds to the route-level idempotency check without reaching persistence');
+      assert.equal((await missingIdempotency.json()).code, 'GENIEPROOF_IDEMPOTENCY_KEY_REQUIRED');
+    });
+  } finally {
+    if (oldSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = oldSecret;
+  }
+});
+
 test('deferred advisory success contract requires exact allocation provenance', () => {
   const operation = contractOperations().find(entry => operationKey(entry) === 'POST /api/recommend/{recommendationId}/advisory')?.operation;
   assert.ok(operation);

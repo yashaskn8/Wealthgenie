@@ -2,15 +2,21 @@ import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import GenieProofCase from '../../models/GenieProofCase.js';
 import GenieProofRevision from '../../models/GenieProofRevision.js';
+import ProofWatch from '../../models/ProofWatch.js';
+import ProofBreakJob from '../../models/ProofBreakJob.js';
+import ProofBreakEvent from '../../models/ProofBreakEvent.js';
+import ProofNotificationOutbox from '../../models/ProofNotificationOutbox.js';
 import { canonicalSha256 } from '../../utils/canonicalJson.js';
 import { GENIEPROOF_MAX_CASES_PER_USER, getGenieProofExpiry } from './genieProofPolicy.js';
 import {
+  GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
   buildGenieProofManifest,
   extractGenieProofClaims,
   verifyConfirmedGenieProofClaim,
 } from './genieProofCore.js';
 
 export const GENIEPROOF_SAVING_CONSENT_VERSION = 'genieproof-private-save/1';
+const PROOFBREAK_EVENT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 function serviceError(status, code, message) {
   return Object.assign(new Error(message), { status, code, clientMessage: message });
@@ -69,14 +75,26 @@ function copyConfirmedClaims(claims) {
   }));
 }
 
-function signedPassport({ caseId, userId, submissionHash, confirmedClaims, revision, previousManifestHash, signer, assessedAt }) {
-  // No live provider is called here. Existing market adapters lack an approved
-  // GenieProof reuse contract and signed raw-body-to-fact binding, so the
-  // verifier deliberately abstains instead of promoting adapter output.
+function signedPassport({
+  caseId,
+  userId,
+  submissionHash,
+  confirmedClaims,
+  revision,
+  previousManifestHash,
+  signer,
+  assessedAt,
+  evidenceSnapshot = { byClaimId: {}, registrySnapshotHash: canonicalSha256([]) },
+}) {
   const findings = confirmedClaims.map(claim => verifyConfirmedGenieProofClaim({
     ...claim,
     productId: claim.productId,
-  }, { snapshot: null, now: assessedAt, sourceReusePermission: 'UNVERIFIED' }));
+  }, {
+    verifierVersion: GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
+    evidenceRevisions: evidenceSnapshot.byClaimId?.[claim.claimId] || [],
+    signatureVerifier: signer,
+    now: assessedAt,
+  }));
   const { manifest } = buildGenieProofManifest({
     caseId,
     ownerId: userId,
@@ -86,8 +104,181 @@ function signedPassport({ caseId, userId, submissionHash, confirmedClaims, revis
     revision,
     previousManifestHash,
     assessedAt: assessedAt.toISOString(),
+    verifierVersion: GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
+    evidenceRegistrySnapshotHash: evidenceSnapshot.registrySnapshotHash,
   });
   return signer.signManifest(manifest);
+}
+
+function evidenceReferences(finding) {
+  const revisions = Array.isArray(finding?.evidence?.revisions) ? finding.evidence.revisions : [];
+  return revisions.map(item => ({
+    id: `${item.evidenceId}:${item.revision}`,
+    factHash: item.factHash,
+    fact: item.fact,
+    effectiveFrom: item.effectiveFrom || item.fact?.effectiveFrom || null,
+    effectiveTo: item.effectiveTo || item.fact?.effectiveTo || null,
+    conditions: item.fact?.conditions || [],
+  }));
+}
+
+function proofBreakEventType(previousFinding, nextFinding) {
+  if (nextFinding?.finding === 'OUTDATED_EVIDENCE' && previousFinding?.finding !== 'OUTDATED_EVIDENCE') return 'EVIDENCE_EXPIRED';
+  if (nextFinding?.reasonCodes?.some(code => /SOURCE_(?:NOT|REUSE)|POLICY_REVIEW/.test(code))) return 'POLICY_REVIEW_REQUIRED';
+  if (previousFinding?.finding !== nextFinding?.finding) return 'FINDING_CHANGED';
+  const previous = evidenceReferences(previousFinding);
+  const next = evidenceReferences(nextFinding);
+  const oldConditions = canonicalSha256(previous.map(item => item.conditions));
+  const newConditions = canonicalSha256(next.map(item => item.conditions));
+  if (oldConditions !== newConditions) return 'CONDITIONS_CHANGED';
+  if (canonicalSha256(previous.map(item => item.factHash).sort()) !== canonicalSha256(next.map(item => item.factHash).sort())) return 'EVIDENCE_CHANGED';
+  return 'RECHECK_UNCHANGED';
+}
+
+function changedEvidenceFields(previousFinding, nextFinding) {
+  const previous = evidenceReferences(previousFinding).map(item => item.fact).filter(Boolean);
+  const next = evidenceReferences(nextFinding).map(item => item.fact).filter(Boolean);
+  const fields = ['claimType', 'productId', 'value', 'unit', 'effectiveFrom', 'effectiveTo', 'conditions'];
+  return fields.filter(field => canonicalSha256(previous.map(item => item[field] ?? null).sort((a, b) => String(a).localeCompare(String(b))))
+    !== canonicalSha256(next.map(item => item[field] ?? null).sort((a, b) => String(a).localeCompare(String(b)))));
+}
+
+function eventPeriodImplications(previousFinding, nextFinding) {
+  const before = evidenceReferences(previousFinding)[0];
+  const after = evidenceReferences(nextFinding)[0];
+  return {
+    previousEffectiveFrom: before?.effectiveFrom ? new Date(before.effectiveFrom) : null,
+    previousEffectiveTo: before?.effectiveTo ? new Date(before.effectiveTo) : null,
+    currentEffectiveFrom: after?.effectiveFrom ? new Date(after.effectiveFrom) : null,
+    currentEffectiveTo: after?.effectiveTo ? new Date(after.effectiveTo) : null,
+  };
+}
+
+async function publishProofBreakReassessment({
+  row,
+  previous,
+  passport,
+  session,
+  watchFence,
+  watchModel,
+  jobModel,
+  eventModel,
+  outboxModel,
+  assessedAt,
+  retrievalReceiptIds = [],
+}) {
+  const watchQuery = watchModel.findOne({
+    userId: row.userId,
+    caseId: row.caseId,
+    watchId: watchFence.watchId,
+    status: 'ACTIVE',
+    generation: watchFence.watchGeneration,
+    consentWithdrawnAt: null,
+  });
+  if (typeof watchQuery.session === 'function') watchQuery.session(session);
+  const watch = await watchQuery.lean();
+  if (!watch) throw serviceError(409, 'PROOFBREAK_WATCH_FENCE_LOST', 'The ProofBreak watch changed during this check.');
+
+  const jobQuery = jobModel.findOne({
+    userId: row.userId,
+    caseId: row.caseId,
+    watchId: watch.watchId,
+    jobId: watchFence.jobId,
+    status: 'LEASED',
+    leaseOwner: watchFence.leaseOwner,
+    executionGeneration: watchFence.executionGeneration,
+    leaseUntil: { $gt: assessedAt },
+  });
+  if (typeof jobQuery.session === 'function') jobQuery.session(session);
+  const job = await jobQuery.lean();
+  if (!job) throw serviceError(409, 'PROOFBREAK_JOB_FENCE_LOST', 'The ProofBreak worker lease was lost during this check.');
+
+  const previousFindings = new Map((previous.manifest.findings || []).map(finding => [finding.claimId, finding]));
+  const nextFindings = new Map((passport.manifest.findings || []).map(finding => [finding.claimId, finding]));
+  const eventRows = [];
+  const outboxRows = [];
+  for (const claimId of watch.requestedClaimIds || []) {
+    const before = previousFindings.get(claimId);
+    const after = nextFindings.get(claimId);
+    if (!before || !after) continue;
+    const eventType = proofBreakEventType(before, after);
+    const beforeEvidence = evidenceReferences(before);
+    const afterEvidence = evidenceReferences(after);
+    const eventId = crypto.randomUUID();
+    const deduplicationKey = canonicalSha256([watch.watchId, job.scheduleKey, claimId, eventType, beforeEvidence.map(item => item.factHash), afterEvidence.map(item => item.factHash)]);
+    eventRows.push({
+      eventId,
+      deduplicationKey,
+      userId: row.userId,
+      caseId: row.caseId,
+      watchId: watch.watchId,
+      claimId,
+      previousAssessmentId: `${row.caseId}:${previous.manifest.revision}`,
+      newAssessmentId: `${row.caseId}:${passport.manifest.revision}`,
+      previousEvidenceRevision: beforeEvidence[0]?.id || null,
+      newEvidenceRevision: afterEvidence[0]?.id || null,
+      retrievalReceiptIds,
+      changedFactFields: changedEvidenceFields(before, after),
+      effectivePeriodImplications: eventPeriodImplications(before, after),
+      eventType,
+      detectedAt: assessedAt,
+      publishedAt: assessedAt,
+      notificationStatus: eventType === 'RECHECK_UNCHANGED' ? 'NOT_REQUIRED' : 'PENDING',
+      acknowledgedAt: null,
+      expiresAt: row.expiresAt || new Date(assessedAt.getTime() + PROOFBREAK_EVENT_RETENTION_MS),
+    });
+    if (eventType !== 'RECHECK_UNCHANGED') {
+      outboxRows.push({
+        outboxId: crypto.randomUUID(),
+        eventId,
+        userId: row.userId,
+        caseId: row.caseId,
+        watchId: watch.watchId,
+        status: 'PENDING',
+        attempt: 0,
+        nextAttemptAt: assessedAt,
+        executionGeneration: 0,
+        expiresAt: row.expiresAt || new Date(assessedAt.getTime() + PROOFBREAK_EVENT_RETENTION_MS),
+      });
+    }
+  }
+  if (eventRows.length) await eventModel.create(eventRows, { session });
+  if (outboxRows.length) await outboxModel.create(outboxRows, { session });
+  const watchUpdate = await watchModel.updateOne({
+    userId: row.userId,
+    caseId: row.caseId,
+    watchId: watch.watchId,
+    status: 'ACTIVE',
+    generation: watchFence.watchGeneration,
+    consentWithdrawnAt: null,
+  }, {
+    $set: {
+      lastSuccessfulCheckAt: assessedAt,
+      nextCheckAt: new Date(assessedAt.getTime() + 6 * 60 * 60 * 1000),
+      lastFailureCode: null,
+    },
+  }, { session });
+  if (Number(watchUpdate?.modifiedCount ?? watchUpdate?.nModified ?? 0) !== 1) {
+    throw serviceError(409, 'PROOFBREAK_WATCH_FENCE_LOST', 'The ProofBreak watch changed during publication.');
+  }
+  const jobUpdate = await jobModel.updateOne({
+    userId: row.userId,
+    watchId: watch.watchId,
+    jobId: watchFence.jobId,
+    status: 'LEASED',
+    leaseOwner: watchFence.leaseOwner,
+    executionGeneration: watchFence.executionGeneration,
+    leaseUntil: { $gt: assessedAt },
+  }, {
+    $set: { status: 'COMPLETED', leaseOwner: null, leaseUntil: null, heartbeatAt: assessedAt, failureCode: null },
+  }, { session });
+  if (Number(jobUpdate?.modifiedCount ?? jobUpdate?.nModified ?? 0) !== 1) {
+    throw serviceError(409, 'PROOFBREAK_JOB_FENCE_LOST', 'The ProofBreak worker lease was lost during publication.');
+  }
+}
+
+async function defaultEvidenceResolver({ claims }) {
+  return { byClaimId: Object.fromEntries((claims || []).map(claim => [claim.claimId, []])), registrySnapshotHash: canonicalSha256([]) };
 }
 
 export async function createGenieProofCase({
@@ -102,6 +293,7 @@ export async function createGenieProofCase({
   revisionModel = GenieProofRevision,
   startSession = () => mongoose.startSession(),
   now = () => new Date(),
+  evidenceResolver = defaultEvidenceResolver,
   transactionAttempt = 0,
 }) {
   if (!signer) throw serviceError(503, 'GENIEPROOF_SIGNER_UNAVAILABLE', 'The passport signer is unavailable.');
@@ -123,6 +315,7 @@ export async function createGenieProofCase({
   const idempotencyKeyHash = canonicalSha256([String(userId), idempotencyKey]);
   const caseId = crypto.randomUUID();
   const assessedAt = now();
+  const evidenceSnapshot = await evidenceResolver({ claims, now: () => assessedAt });
   const expiresAt = getGenieProofExpiry(assessedAt);
   const session = await startSession();
   let retryTransaction = false;
@@ -183,6 +376,7 @@ export async function createGenieProofCase({
       previousManifestHash: null,
       signer,
       assessedAt,
+      evidenceSnapshot,
     });
     const [caseDoc] = await caseModel.create([{
       caseId,
@@ -254,8 +448,239 @@ export async function createGenieProofCase({
       revisionModel,
       startSession,
       now,
+      evidenceResolver,
       transactionAttempt: transactionAttempt + 1,
     });
+  }
+}
+
+async function findReassessmentReplay({ userId, caseId, idempotencyKeyHash, requestHash, revisionModel, session = null }) {
+  const query = revisionModel.findOne({ userId, caseId, idempotencyKeyHash });
+  if (session && typeof query.session === 'function') query.session(session);
+  const existing = await query.lean();
+  if (!existing) return null;
+  if (existing.requestHash !== requestHash) {
+    throw serviceError(409, 'GENIEPROOF_IDEMPOTENCY_CONFLICT', 'This request key was already used for a different reassessment.');
+  }
+  return { created: false, passport: toSignedPassport(existing), revision: Number(existing.revision), manifestHash: existing.manifestHash };
+}
+
+/** Append a newly signed assessment while atomically advancing the case head. */
+export async function reassessGenieProofCase({
+  userId,
+  caseId,
+  expectedRevision,
+  expectedManifestHash,
+  reassessmentConsent,
+  idempotencyKey,
+  signer,
+  caseModel = GenieProofCase,
+  revisionModel = GenieProofRevision,
+  startSession = () => mongoose.startSession(),
+  now = () => new Date(),
+  evidenceResolver = defaultEvidenceResolver,
+  watchFence = null,
+  watchModel = ProofWatch,
+  jobModel = ProofBreakJob,
+  eventModel = ProofBreakEvent,
+  outboxModel = ProofNotificationOutbox,
+  proofBreakRetrievalReceiptIds = [],
+  transactionAttempt = 0,
+}) {
+  if (!signer) throw serviceError(503, 'GENIEPROOF_SIGNER_UNAVAILABLE', 'The passport signer is unavailable.');
+  if (reassessmentConsent !== true) throw serviceError(400, 'GENIEPROOF_REASSESSMENT_CONSENT_REQUIRED', 'Confirm that you want to create a new private assessment.');
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1
+      || !/^[a-f0-9]{64}$/.test(expectedManifestHash || '')) {
+    throw serviceError(400, 'GENIEPROOF_CASE_HEAD_REQUIRED', 'The current passport revision is required to reassess this case.');
+  }
+  if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey)) {
+    throw serviceError(400, 'GENIEPROOF_IDEMPOTENCY_KEY_REQUIRED', 'A valid request key is required.');
+  }
+  const boundedProofBreakRetrievalReceiptIds = [...new Set(Array.isArray(proofBreakRetrievalReceiptIds) ? proofBreakRetrievalReceiptIds : [])];
+  if (boundedProofBreakRetrievalReceiptIds.length > 40
+      || boundedProofBreakRetrievalReceiptIds.some(value => !/^[0-9a-f-]{36}$/i.test(value))) {
+    throw serviceError(400, 'PROOFBREAK_RETRIEVAL_RECEIPTS_INVALID', 'The source retrieval receipt set is invalid.');
+  }
+  const assessedAt = now();
+  const idempotencyKeyHash = canonicalSha256([String(userId), String(caseId), idempotencyKey]);
+  const requestHash = canonicalSha256({ caseId, expectedRevision, expectedManifestHash, reassessmentConsent: true });
+  const session = await startSession();
+  let retryTransaction = false;
+  try {
+    session.startTransaction({ readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
+    const replay = await findReassessmentReplay({ userId, caseId, idempotencyKeyHash, requestHash, revisionModel, session });
+    if (replay) {
+      await session.commitTransaction();
+      return replay;
+    }
+    const rowQuery = caseModel.findOne({
+      $and: [
+        activeCaseFilter(userId, caseId, assessedAt),
+        { latestRevision: expectedRevision, latestManifestHash: expectedManifestHash, consentWithdrawnAt: null },
+      ],
+    });
+    if (typeof rowQuery.session === 'function') rowQuery.session(session);
+    const row = await rowQuery.lean();
+    if (!row) {
+      const existingCase = await caseModel.findOne({ userId, caseId }).select('expiresAt deletedAt consentWithdrawnAt latestRevision latestManifestHash').lean();
+      if (!existingCase) throw serviceError(404, 'GENIEPROOF_CASE_NOT_FOUND', 'The saved passport was not found.');
+      if (existingCase.consentWithdrawnAt) throw serviceError(403, 'GENIEPROOF_CONSENT_WITHDRAWN', 'Reassessment is unavailable because private processing consent was withdrawn.');
+      if (existingCase.expiresAt && new Date(existingCase.expiresAt) <= assessedAt) throw serviceError(410, 'GENIEPROOF_CASE_EXPIRED', 'This saved passport has expired.');
+      throw serviceError(409, 'GENIEPROOF_STALE_CASE_HEAD', 'The passport changed since it was opened. Refresh its revision history before reassessing.');
+    }
+    const previousQuery = revisionModel.findOne({ userId, caseId, revision: expectedRevision });
+    if (typeof previousQuery.session === 'function') previousQuery.session(session);
+    const previous = await previousQuery.lean();
+    const previousClaims = (row.confirmedClaims || []).map(claim => ({
+      claimId: claim.claimId,
+      statement: claim.statement,
+      claimType: claim.claimType,
+      productId: claim.productId,
+      value: claim.value,
+      unit: claim.unit,
+    })).sort((a, b) => a.claimId.localeCompare(b.claimId));
+    const previousSignature = previous && signer.verifySignedManifest?.({
+      manifest: previous.manifest,
+      manifestHash: previous.manifestHash,
+      signature: previous.signature,
+    });
+    const previousBindingValid = previous
+      && previousSignature?.valid === true
+      && previousSignature?.trustedIssuer === true
+      && previous.manifestHash === expectedManifestHash
+      && previous.manifest?.caseId === String(row.caseId)
+      && Number(previous.manifest?.revision) === expectedRevision
+      && previous.manifest?.ownerBindingHash === canonicalSha256([String(row.caseId), String(userId)])
+      && previous.manifest?.submissionHash === row.submissionHash
+      && previous.manifest?.confirmedClaimsHash === canonicalSha256(previousClaims);
+    if (!previousBindingValid) {
+      throw serviceError(503, 'GENIEPROOF_CASE_HEAD_MISMATCH', 'The saved passport head cannot be verified.');
+    }
+    const freshEvidenceSnapshot = await evidenceResolver({ claims: row.confirmedClaims || [], now: () => assessedAt, session });
+    const passport = signedPassport({
+      caseId,
+      userId,
+      submissionHash: row.submissionHash,
+      confirmedClaims: row.confirmedClaims || [],
+      revision: expectedRevision + 1,
+      previousManifestHash: previous.manifestHash,
+      signer,
+      assessedAt,
+      evidenceSnapshot: freshEvidenceSnapshot,
+    });
+    const update = await caseModel.updateOne({
+      $and: [
+        activeCaseFilter(userId, caseId, assessedAt),
+        { latestRevision: expectedRevision, latestManifestHash: expectedManifestHash, consentWithdrawnAt: null },
+      ],
+    }, {
+      $set: { latestRevision: expectedRevision + 1, latestManifestHash: passport.manifestHash },
+    }, { session });
+    if (update.modifiedCount !== 1) {
+      throw serviceError(409, 'GENIEPROOF_STALE_CASE_HEAD', 'The passport changed during reassessment. Refresh its revision history and try again.');
+    }
+    await revisionModel.create([{
+      userId,
+      caseId,
+      revision: expectedRevision + 1,
+      idempotencyKeyHash,
+      requestHash,
+      manifest: passport.manifest,
+      manifestHash: passport.manifestHash,
+      signature: passport.signature,
+      assessedAt,
+      expiresAt: row.expiresAt,
+    }], { session });
+    if (watchFence) {
+      await publishProofBreakReassessment({
+        row,
+        previous,
+        passport,
+        session,
+        watchFence,
+        watchModel,
+        jobModel,
+        eventModel,
+        outboxModel,
+        assessedAt,
+        retrievalReceiptIds: boundedProofBreakRetrievalReceiptIds,
+      });
+    }
+    await session.commitTransaction();
+    return { created: true, revision: expectedRevision + 1, manifestHash: passport.manifestHash, passport };
+  } catch (error) {
+    if (session.inTransaction()) await session.abortTransaction().catch(() => {});
+    if (error?.code === 11000) {
+      const replay = await findReassessmentReplay({ userId, caseId, idempotencyKeyHash, requestHash, revisionModel });
+      if (replay) return replay;
+    }
+    if (isTransientTransactionConflict(error) && transactionAttempt < 2) retryTransaction = true;
+    else if (isTransientTransactionConflict(error)) {
+      throw serviceError(503, 'GENIEPROOF_TRANSACTION_RETRY_EXHAUSTED', 'The reassessment conflicted repeatedly. Try again shortly.');
+    } else throw error;
+  } finally {
+    await session.endSession();
+  }
+  if (retryTransaction) {
+    return reassessGenieProofCase({
+      userId, caseId, expectedRevision, expectedManifestHash, reassessmentConsent, idempotencyKey,
+      signer, caseModel, revisionModel, startSession, now, evidenceResolver, watchFence,
+      watchModel, jobModel, eventModel, outboxModel,
+      proofBreakRetrievalReceiptIds: boundedProofBreakRetrievalReceiptIds,
+      transactionAttempt: transactionAttempt + 1,
+    });
+  }
+  throw serviceError(503, 'GENIEPROOF_REASSESSMENT_FAILED', 'The reassessment could not be saved.');
+}
+
+export async function withdrawGenieProofConsent({
+  userId,
+  caseId,
+  caseModel = GenieProofCase,
+  watchModel = ProofWatch,
+  jobModel = ProofBreakJob,
+  eventModel = ProofBreakEvent,
+  outboxModel = ProofNotificationOutbox,
+  startSession = () => mongoose.startSession(),
+  now = () => new Date(),
+}) {
+  const assessedAt = now();
+  const session = await startSession();
+  try {
+    session.startTransaction({ readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
+    const updated = await caseModel.updateOne({
+      ...activeCaseFilter(userId, caseId, assessedAt),
+      consentWithdrawnAt: null,
+    }, { $set: { consentWithdrawnAt: assessedAt }, $inc: { consentGeneration: 1 } }, { session });
+    if (Number(updated?.modifiedCount ?? updated?.nModified ?? 0) !== 1) {
+      const existingQuery = caseModel.findOne({ userId, caseId, consentWithdrawnAt: { $ne: null } });
+      if (typeof existingQuery.session === 'function') existingQuery.session(session);
+      const alreadyWithdrawn = await existingQuery.select('caseId').lean();
+      await session.commitTransaction();
+      return Boolean(alreadyWithdrawn);
+    }
+    await watchModel.updateMany({ userId, caseId, status: { $in: ['ACTIVE', 'PAUSED', 'WAITING_FOR_SOURCE', 'BLOCKED_SOURCE_RIGHTS', 'FAILED_RETRYABLE', 'FAILED_TERMINAL'] } }, {
+      $set: { status: 'CANCELLED', consentWithdrawnAt: assessedAt, nextCheckAt: null, lastFailureCode: 'PROCESSING_CONSENT_WITHDRAWN' },
+      $inc: { generation: 1 },
+    }, { session });
+    await jobModel.updateMany({ userId, caseId, status: { $in: ['QUEUED', 'LEASED'] } }, {
+      $set: { status: 'CANCELLED', leaseOwner: null, leaseUntil: null, failureCode: 'PROCESSING_CONSENT_WITHDRAWN' },
+      $inc: { executionGeneration: 1 },
+    }, { session });
+    await outboxModel.updateMany({ userId, caseId, status: { $in: ['PENDING', 'LEASED', 'FAILED_RETRYABLE'] } }, {
+      $set: { status: 'CANCELLED', leaseOwner: null, leaseUntil: null, failureCode: 'PROCESSING_CONSENT_WITHDRAWN' },
+      $inc: { executionGeneration: 1 },
+    }, { session });
+    await eventModel.updateMany({ userId, caseId, notificationStatus: 'PENDING' }, {
+      $set: { notificationStatus: 'CANCELLED' },
+    }, { session });
+    await session.commitTransaction();
+    return true;
+  } catch (error) {
+    if (session.inTransaction()) await session.abortTransaction().catch(() => {});
+    throw error;
+  } finally {
+    await session.endSession();
   }
 }
 
@@ -453,6 +878,10 @@ export async function deleteGenieProofCase({
   caseId,
   caseModel = GenieProofCase,
   revisionModel = GenieProofRevision,
+  watchModel = ProofWatch,
+  jobModel = ProofBreakJob,
+  eventModel = ProofBreakEvent,
+  outboxModel = ProofNotificationOutbox,
   startSession = () => mongoose.startSession(),
 }) {
   const session = await startSession();
@@ -468,6 +897,10 @@ export async function deleteGenieProofCase({
       return false;
     }
     await revisionModel.deleteMany({ userId, caseId }, { session });
+    await watchModel.deleteMany({ userId, caseId }, { session });
+    await jobModel.deleteMany({ userId, caseId }, { session });
+    await eventModel.deleteMany({ userId, caseId }, { session });
+    await outboxModel.deleteMany({ userId, caseId }, { session });
     await session.commitTransaction();
     return true;
   } catch (error) {

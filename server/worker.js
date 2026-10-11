@@ -6,6 +6,9 @@ import { connectRedis, redisAvailable, redisClient } from './config/redis.js';
 import { getRuntimeConfig, assertValidRuntimeConfig } from './config/runtime.js';
 import { validateEnvironmentConfig } from './config/validateEnv.js';
 import { createPlanReviewWorker } from './agents/planReview/planReviewWorker.js';
+import { createProofBreakWorker } from './agents/genieProof/proofBreakWorker.js';
+import { createGenieProofRuntime } from './agents/genieProof/genieProofPassportSignature.js';
+import { resolveGenieProofEvidenceForClaims } from './agents/genieProof/genieProofEvidenceRegistryService.js';
 import AgentRunEvent from './models/AgentRunEvent.js';
 import ProductionAgentEvaluation from './models/ProductionAgentEvaluation.js';
 import {
@@ -16,10 +19,12 @@ import { createWorkerHealthServer } from './services/workerHealthServer.js';
 import { verifyPlanReviewPersistenceIndexes } from './services/planReviewPersistence.js';
 import { getPlanHealthSchedulerState, startPlanHealthScheduler, stopPlanHealthScheduler } from './services/planHealthScheduler.js';
 import { verifyAgentRuntimePersistence, verifyPlanHealthPersistence } from './services/planHealthPersistence.js';
+import { verifyGenieProofPersistenceIndexes } from './services/persistenceIndexReadiness.js';
 import logger from './utils/logger.js';
 
 let healthServer = null;
 let worker = null;
+let proofBreakWorker = null;
 let shutdownPromise = null;
 
 function shutdownDeadlineError(label) {
@@ -50,24 +55,28 @@ export async function closeWorkerInfrastructure(config, overrides = {}) {
   const clock = overrides.clock || Date.now;
   const deadlineAt = clock() + config.agentPlanReview.shutdownGraceMs;
   const activeWorker = Object.hasOwn(overrides, 'worker') ? overrides.worker : worker;
+  const activeProofBreakWorker = Object.hasOwn(overrides, 'proofBreakWorker') ? overrides.proofBreakWorker : proofBreakWorker;
   const activeHealthServer = Object.hasOwn(overrides, 'healthServer') ? overrides.healthServer : healthServer;
   const stopPlanHealth = overrides.stopPlanHealthScheduler || stopPlanHealthScheduler;
   const stopWorkerRuntime = overrides.stopWorker || (activeWorker ? activeWorker.stop.bind(activeWorker) : () => Promise.resolve({ drained: true }));
+  const stopProofBreakRuntime = overrides.stopProofBreakWorker || (activeProofBreakWorker ? activeProofBreakWorker.stop.bind(activeProofBreakWorker) : () => Promise.resolve({ drained: true }));
   const awaitDeadline = (operation, label) => awaitWithinShutdownDeadline(operation, deadlineAt, label, {
     clock,
     setTimer: overrides.setTimer || setTimeout,
     clearTimer: overrides.clearTimer || clearTimeout,
   });
-  const [planHealthStop, workerStop] = await awaitDeadline(Promise.all([
+  const [planHealthStop, workerStop, proofBreakStop] = await awaitDeadline(Promise.all([
     stopPlanHealth({ graceMs: Math.max(0, deadlineAt - clock()) }),
     stopWorkerRuntime({ graceMs: Math.max(0, deadlineAt - clock()) }),
+    stopProofBreakRuntime({ graceMs: Math.max(0, deadlineAt - clock()) }),
   ]), 'agent drain');
-  if (!planHealthStop.drained || workerStop?.drained === false) {
+  if (!planHealthStop.drained || workerStop?.drained === false || proofBreakStop?.drained === false) {
     const error = new Error('Agent worker shutdown deadline expired before durable work drained.');
     error.code = 'AGENT_WORKER_DRAIN_TIMEOUT';
     throw error;
   }
   if (activeWorker === worker) worker = null;
+  if (activeProofBreakWorker === proofBreakWorker) proofBreakWorker = null;
   await awaitDeadline(stopProductionEvaluationReconciliation(), 'evaluation reconciliation drain');
   await awaitDeadline(activeHealthServer?.close().catch(error => {
     logger.warn('Agent worker health server close failed', { code: error?.code || 'HEALTH_SERVER_CLOSE_FAILED' });
@@ -111,6 +120,9 @@ export async function startWorker({ env = process.env } = {}) {
   if (config.agenticPlanReviewEnabled) await verifyPlanReviewPersistenceIndexes();
   if (config.agenticPlanReviewEnabled) await verifyAgentRuntimePersistence({ force: true });
   if (config.planHealth.enabled) await verifyPlanHealthPersistence({ force: true });
+  const genieProofRuntime = createGenieProofRuntime({ env });
+  const proofBreakEnabled = genieProofRuntime.enabled && env.GENIEPROOF_PROOFBREAK_WORKER_ENABLED === 'true';
+  if (proofBreakEnabled) await verifyGenieProofPersistenceIndexes({ force: true });
   await connectRedis({ url: env.REDIS_URL });
   if (config.requireRedis && !redisAvailable) throw new Error('Redis is required in this environment but is unavailable');
 
@@ -123,9 +135,16 @@ export async function startWorker({ env = process.env } = {}) {
     });
   }
   if (config.planHealth.enabled) startPlanHealthScheduler({ config: config.planHealth });
+  if (proofBreakEnabled) {
+    proofBreakWorker = createProofBreakWorker({
+      signer: genieProofRuntime.signer,
+      evidenceResolver: resolveGenieProofEvidenceForClaims,
+    });
+    proofBreakWorker.start({ intervalMs: Number(env.GENIEPROOF_PROOFBREAK_POLL_MS) || 2_000 });
+  }
   healthServer = createWorkerHealthServer({
     port: config.agentPlanReview.healthPort,
-    stateProvider: () => ({ ...worker?.state(), planHealth: getPlanHealthSchedulerState() }),
+    stateProvider: () => ({ ...worker?.state(), planHealth: getPlanHealthSchedulerState(), proofBreak: proofBreakWorker?.state() || { running: false, ready: false, activeJobs: 0 } }),
     requireRedis: config.requireRedis,
     requirePlanReviewIndexes: config.agenticPlanReviewEnabled,
     requirePlanHealthPersistence: config.planHealth.enabled,

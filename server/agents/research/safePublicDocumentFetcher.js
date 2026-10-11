@@ -272,7 +272,7 @@ async function readBoundedBody(response, maxBytes, { signal = null } = {}) {
 }
 
 export class SafePublicDocumentFetcher {
-  constructor({ fetchImpl = null, dnsLookup = dns.lookup, maxBytes = DEFAULT_MAX_BYTES, timeoutMs = DEFAULT_TIMEOUT_MS, maxRedirects = DEFAULT_MAX_REDIRECTS, env = process.env } = {}) {
+  constructor({ fetchImpl = null, dnsLookup = dns.lookup, maxBytes = DEFAULT_MAX_BYTES, timeoutMs = DEFAULT_TIMEOUT_MS, maxRedirects = DEFAULT_MAX_REDIRECTS, extraContentTypes = [], env = process.env } = {}) {
     if (fetchImpl && env.NODE_ENV === 'production') {
       throw Object.assign(new Error('Production ResearchMesh must use the DNS-pinned HTTPS transport.'), { code: 'RESEARCH_TRANSPORT_CONFIGURATION_INVALID' });
     }
@@ -280,7 +280,13 @@ export class SafePublicDocumentFetcher {
     this.dnsLookup = dnsLookup;
     this.maxBytes = Math.min(DEFAULT_MAX_BYTES, Math.max(1024, Number(maxBytes) || DEFAULT_MAX_BYTES));
     this.timeoutMs = Math.min(DEFAULT_TIMEOUT_MS, Math.max(250, Number(timeoutMs) || DEFAULT_TIMEOUT_MS));
-    this.maxRedirects = Math.min(DEFAULT_MAX_REDIRECTS, Math.max(0, Number(maxRedirects) || DEFAULT_MAX_REDIRECTS));
+    const configuredRedirects = Number(maxRedirects);
+    this.maxRedirects = Math.min(DEFAULT_MAX_REDIRECTS, Math.max(0, Number.isFinite(configuredRedirects) ? configuredRedirects : DEFAULT_MAX_REDIRECTS));
+    this.extraContentTypes = [...new Set(extraContentTypes.map(value => String(value).trim().toLowerCase()))];
+    if (this.extraContentTypes.some(value => !/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/.test(value))) {
+      throw Object.assign(new Error('Research fetcher extra content types are invalid.'), { code: 'RESEARCH_TRANSPORT_CONFIGURATION_INVALID' });
+    }
+    this.acceptHeader = ['text/html', 'text/plain', 'application/json;q=0.9', ...this.extraContentTypes.map(type => `${type};q=0.8`)].join(', ');
   }
 
   async fetchDocument(rawUrl, { signal } = {}) {
@@ -312,7 +318,7 @@ export class SafePublicDocumentFetcher {
             response = await raceWithSignal(this.fetchImpl(safeUrl, {
               redirect: 'manual',
               signal: combinedSignal,
-              headers: { accept: 'text/html, text/plain, application/json;q=0.9', 'user-agent': 'WealthGenie-ResearchMesh/1.0' },
+              headers: { accept: this.acceptHeader, 'user-agent': 'WealthGenie-ResearchMesh/1.0' },
             }), combinedSignal);
             const isRedirect = response.status >= 300 && response.status < 400;
             const body = isRedirect || !response.ok ? Buffer.alloc(0) : await readBoundedBody(response, this.maxBytes, { signal: combinedSignal });
@@ -331,7 +337,7 @@ export class SafePublicDocumentFetcher {
             maxBytes: this.maxBytes,
             timeoutMs: remainingMs,
             signal,
-            headers: { accept: 'text/html, text/plain, application/json;q=0.9', 'user-agent': 'WealthGenie-ResearchMesh/1.0' },
+            headers: { accept: this.acceptHeader, 'user-agent': 'WealthGenie-ResearchMesh/1.0' },
           });
           response.ok = response.status >= 200 && response.status < 300;
           response.bodyBytes = response.body;
@@ -350,7 +356,8 @@ export class SafePublicDocumentFetcher {
       if (!response.ok) throw Object.assign(new Error('Research document returned an error status.'), { code: 'RESEARCH_DOCUMENT_UNAVAILABLE' });
       const rawContentType = response.headers?.get?.('content-type') || response.headers?.['content-type'] || '';
       const contentType = String(rawContentType).split(';')[0].trim().toLowerCase();
-      if (!(contentType === 'text/html' || contentType === 'text/plain' || contentType === 'application/json' || contentType.startsWith('text/'))) {
+      if (!(contentType === 'text/html' || contentType === 'text/plain' || contentType === 'application/json'
+          || contentType.startsWith('text/') || this.extraContentTypes.includes(contentType))) {
         throw Object.assign(new Error('Research document content type is not supported.'), { code: 'RESEARCH_CONTENT_TYPE_REJECTED' });
       }
       const bytes = response.bodyBytes || await readBoundedBody(response, this.maxBytes);

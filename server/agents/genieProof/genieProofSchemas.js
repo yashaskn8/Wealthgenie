@@ -22,3 +22,30 @@ export const genieProofCreateCaseSchema = Joi.object({
   savingConsent: Joi.boolean().valid(true).required(),
   confirmedClaims: Joi.array().items(genieProofConfirmedClaimSchema).min(1).max(10).unique('claimId').required(),
 }).unknown(false);
+
+export const genieProofReassessSchema = Joi.object({
+  expectedRevision: Joi.number().integer().min(1).required(),
+  expectedManifestHash: hash,
+  reassessmentConsent: Joi.boolean().valid(true).required(),
+}).unknown(false);
+
+export const genieProofConsentWithdrawalSchema = Joi.object({
+  withdrawConsent: Joi.boolean().valid(true).required(),
+}).unknown(false);
+
+export const proofWatchCreateSchema = Joi.object({
+  watchConsent: Joi.boolean().valid(true).required(),
+}).unknown(false);
+
+export const proofWatchActionSchema = Joi.object({
+  action: Joi.string().valid('pause', 'resume', 'disable').required(),
+}).unknown(false);
+
+export const proofBreakAcknowledgeSchema = Joi.object({
+  acknowledge: Joi.boolean().valid(true).required(),
+}).unknown(false);
+
+export const proofBreakTimelineQuerySchema = Joi.object({
+  limit: Joi.number().integer().min(1).max(50).default(25),
+  cursor: Joi.string().max(256).allow(''),
+}).unknown(false);

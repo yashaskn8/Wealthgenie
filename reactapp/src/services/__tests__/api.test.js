@@ -44,6 +44,32 @@ describe('frontend API contracts', () => {
     expect(fetchMock.mock.calls[0][1].headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
+  it('uses the authenticated ProofBreak availability, watch, timeline, and acknowledgment contracts', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ canEnable: false }))
+      .mockResolvedValueOnce(jsonResponse({ created: true, watch: { status: 'ACTIVE' } }, 201))
+      .mockResolvedValueOnce(jsonResponse({ events: [], nextCursor: null }))
+      .mockResolvedValueOnce(jsonResponse(null, 204));
+    vi.stubGlobal('fetch', fetchMock);
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const eventId = '00000000-0000-4000-8000-000000000002';
+
+    await api.getProofWatchAvailability(caseId);
+    await api.createProofWatch(caseId);
+    await api.listProofBreakEvents(caseId, { limit: 10 });
+    await api.acknowledgeProofBreakEvent(eventId);
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining(`/genieproof/cases/${caseId}/watch/availability`),
+      expect.stringContaining(`/genieproof/cases/${caseId}/watch`),
+      expect.stringContaining(`/genieproof/cases/${caseId}/events?limit=10`),
+      expect.stringContaining(`/genieproof/events/${eventId}/acknowledge`),
+    ]);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ watchConsent: true });
+    expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({ acknowledge: true });
+    expect(fetchMock.mock.calls[1][1].headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+
   it('passes tax cancellation as a request option, never a financial input', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [] }));
     vi.stubGlobal('fetch', fetchMock);

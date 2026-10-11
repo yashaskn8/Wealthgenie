@@ -19,6 +19,14 @@ import ExecutionReceipt from '../models/ExecutionReceipt.js';
 import AuthorizedExecutionAttempt from '../models/AuthorizedExecutionAttempt.js';
 import GenieProofCase from '../models/GenieProofCase.js';
 import GenieProofRevision from '../models/GenieProofRevision.js';
+import GenieProofSourceDefinition from '../models/GenieProofSourceDefinition.js';
+import GenieProofRetrievalReceipt from '../models/GenieProofRetrievalReceipt.js';
+import GenieProofEvidenceRevision from '../models/GenieProofEvidenceRevision.js';
+import ProofWatch from '../models/ProofWatch.js';
+import ProofBreakJob from '../models/ProofBreakJob.js';
+import ProofBreakEvent from '../models/ProofBreakEvent.js';
+import ProofNotificationOutbox from '../models/ProofNotificationOutbox.js';
+import ProofBreakWorkerHeartbeat from '../models/ProofBreakWorkerHeartbeat.js';
 import { GENIEPROOF_RETENTION_MS } from '../agents/genieProof/genieProofPolicy.js';
 import { createError } from '../middleware/errorHandler.js';
 
@@ -51,6 +59,14 @@ export const AUTHORIZATION_INDEX_MODELS = Object.freeze([
 export const GENIEPROOF_INDEX_MODELS = Object.freeze([
   GenieProofCase,
   GenieProofRevision,
+  GenieProofSourceDefinition,
+  GenieProofRetrievalReceipt,
+  GenieProofEvidenceRevision,
+  ProofWatch,
+  ProofBreakJob,
+  ProofBreakEvent,
+  ProofNotificationOutbox,
+  ProofBreakWorkerHeartbeat,
 ]);
 
 export const MIGRATION_INDEX_MODELS = Object.freeze([
@@ -198,14 +214,20 @@ export async function verifyGenieProofPersistenceIndexes({ models = GENIEPROOF_I
         missing.push(`${model.collection.collectionName}:${options.name || JSON.stringify(key)}`);
       }
     }
-    try {
-      if (typeof model.collection.countDocuments !== 'function') {
+    // Only cases and revisions predate expiry metadata. Newer operational
+    // collections are created with the required field and are governed by
+    // their schema; probing them would turn index readiness into an implicit
+    // migration contract for unrelated documents.
+    if (model === GenieProofCase || model === GenieProofRevision) {
+      try {
+        if (typeof model.collection.countDocuments !== 'function') {
+          missing.push(`${model.collection.collectionName}:expiry-migration-state-unavailable`);
+        } else if (await model.collection.countDocuments({ expiresAt: { $exists: false } })) {
+          missing.push(`${model.collection.collectionName}:legacy-expiry-migration-required`);
+        }
+      } catch {
         missing.push(`${model.collection.collectionName}:expiry-migration-state-unavailable`);
-      } else if (await model.collection.countDocuments({ expiresAt: { $exists: false } })) {
-        missing.push(`${model.collection.collectionName}:legacy-expiry-migration-required`);
       }
-    } catch {
-      missing.push(`${model.collection.collectionName}:expiry-migration-state-unavailable`);
     }
   }
   if (missing.length) throw indexReadinessError(missing, 'genieproof');
@@ -266,6 +288,39 @@ export async function migratePersistenceIndexes({ models = MIGRATION_INDEX_MODEL
     await model.createIndexes();
   }
   return verifyPersistenceIndexes({ models, force: true, scope: 'persistence' });
+}
+
+/** Explicit GenieProof-only migration; startup remains read-only and other domains are untouched. */
+export async function migrateGenieProofPersistenceIndexes({ models = GENIEPROOF_INDEX_MODELS } = {}) {
+  for (const model of models) {
+    try {
+      await model.createCollection();
+    } catch (error) {
+      if (error.code !== 48 && error.codeName !== 'NamespaceExists') throw error;
+    }
+  }
+
+  const caseModel = models.find(model => model.modelName === GenieProofCase.modelName);
+  const revisionModel = models.find(model => model.modelName === GenieProofRevision.modelName);
+  const legacyExpiry = new Date(Date.now() + GENIEPROOF_RETENTION_MS);
+  if (caseModel) {
+    await caseModel.collection.updateMany({ expiresAt: { $exists: false } }, { $set: { expiresAt: legacyExpiry } });
+  }
+  if (revisionModel) {
+    const cursor = revisionModel.collection.find({ expiresAt: { $exists: false } }, { projection: { userId: 1, caseId: 1 } });
+    for await (const revision of cursor) {
+      const parentCase = caseModel
+        ? await caseModel.collection.findOne({ userId: revision.userId, caseId: revision.caseId }, { projection: { expiresAt: 1 } })
+        : null;
+      const expiresAt = parentCase?.expiresAt instanceof Date ? parentCase.expiresAt : legacyExpiry;
+      await revisionModel.collection.updateOne(
+        { _id: revision._id, expiresAt: { $exists: false } },
+        { $set: { expiresAt } },
+      );
+    }
+  }
+  for (const model of models) await model.createIndexes();
+  return verifyGenieProofPersistenceIndexes({ models, force: true });
 }
 
 function migrationIndexOptions(required) {

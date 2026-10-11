@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { buildGenieProofManifest, extractGenieProofClaims, GENIEPROOF_SUPPORTED_PRODUCT_ID } from '../agents/genieProof/genieProofCore.js';
 import { GenieProofPassportSigner } from '../agents/genieProof/genieProofPassportSignature.js';
-import { createGenieProofCase, deleteGenieProofCase, getGenieProofCase, listGenieProofCases, listGenieProofRevisions, verifyGenieProofCase } from '../agents/genieProof/genieProofService.js';
+import { createGenieProofCase, deleteGenieProofCase, getGenieProofCase, listGenieProofCases, listGenieProofRevisions, reassessGenieProofCase, verifyGenieProofCase, withdrawGenieProofConsent } from '../agents/genieProof/genieProofService.js';
 import { GENIEPROOF_MAX_CASES_PER_USER, GENIEPROOF_RETENTION_DAYS } from '../agents/genieProof/genieProofPolicy.js';
 import { genieProofCreateCaseSchema } from '../agents/genieProof/genieProofSchemas.js';
 
@@ -14,6 +14,10 @@ const now = () => new Date('2026-10-11T08:00:00.000Z');
 function fixture() {
   const cases = [];
   const revisions = [];
+  const watches = [];
+  const jobs = [];
+  const events = [];
+  const outbox = [];
   const session = {
     active: false,
     committed: false,
@@ -25,15 +29,17 @@ function fixture() {
     async endSession() {},
   };
   const matches = (row, filter) => Object.entries(filter).every(([key, value]) => {
+    if (key === '$and') return value.every(condition => matches(row, condition));
     if (key === '$or') return value.some(condition => matches(row, condition));
     if (value && typeof value === 'object' && !(value instanceof Date)) {
       if (Object.hasOwn(value, '$gt')) return new Date(row[key]) > new Date(value.$gt);
       if (Object.hasOwn(value, '$lte')) return new Date(row[key]) <= new Date(value.$lte);
       if (Object.hasOwn(value, '$exists')) return (row[key] !== undefined) === value.$exists;
+      if (Object.hasOwn(value, '$ne')) return String(row[key] ?? '') !== String(value.$ne ?? '');
     }
     return String(row[key] ?? '') === String(value ?? '');
   });
-  const leanQuery = value => ({ lean: async () => value });
+  const leanQuery = value => ({ session() { return this; }, select() { return this; }, lean: async () => value });
   const caseModel = {
     async create([input]) {
       if (cases.some(row => row.userId === input.userId && row.idempotencyKeyHash === input.idempotencyKeyHash)) {
@@ -73,9 +79,32 @@ function fixture() {
       if (index < 0) return null;
       return cases.splice(index, 1)[0];
     },
+    async updateOne(filter, update) {
+      const row = cases.find(item => matches(item, filter));
+      if (!row) return { modifiedCount: 0 };
+      Object.assign(row, structuredClone(update.$set || {}));
+      for (const [field, amount] of Object.entries(update.$inc || {})) row[field] = (row[field] || 0) + amount;
+      return { modifiedCount: 1 };
+    },
+    findOneAndUpdate(filter, update) {
+      const row = cases.find(item => matches(item, filter));
+      if (row) {
+        Object.assign(row, structuredClone(update.$set || {}));
+        for (const [field, amount] of Object.entries(update.$inc || {})) row[field] = (row[field] || 0) + amount;
+      }
+      return leanQuery(row || null);
+    },
   };
   const revisionModel = {
-    async create([input]) { const row = structuredClone(input); revisions.push(row); return [row]; },
+    async create([input]) {
+      if (revisions.some(row => row.userId === input.userId && row.caseId === input.caseId && row.revision === input.revision)) {
+        throw Object.assign(new Error('duplicate revision'), { code: 11000, keyPattern: { revision: 1 } });
+      }
+      if (input.idempotencyKeyHash && revisions.some(row => row.userId === input.userId && row.caseId === input.caseId && row.idempotencyKeyHash === input.idempotencyKeyHash)) {
+        throw Object.assign(new Error('duplicate reassessment key'), { code: 11000, keyPattern: { idempotencyKeyHash: 1 } });
+      }
+      const row = structuredClone(input); revisions.push(row); return [row];
+    },
     findOne(filter) { return leanQuery(revisions.find(row => matches(row, filter)) || null); },
     find(filter) {
       let result = revisions.filter(row => matches(row, filter));
@@ -96,13 +125,35 @@ function fixture() {
       return { deletedCount: before - revisions.length };
     },
   };
+  const childModel = rows => ({
+    async deleteMany(filter) {
+      const before = rows.length;
+      for (let i = rows.length - 1; i >= 0; i -= 1) if (rows[i].userId === filter.userId && rows[i].caseId === filter.caseId) rows.splice(i, 1);
+      return { deletedCount: before - rows.length };
+    },
+    async updateMany(filter, update) {
+      let modifiedCount = 0;
+      for (const row of rows) {
+        if (row.userId === filter.userId && row.caseId === filter.caseId) {
+          Object.assign(row, structuredClone(update.$set || {}));
+          for (const [key, value] of Object.entries(update.$inc || {})) row[key] = (row[key] || 0) + value;
+          modifiedCount += 1;
+        }
+      }
+      return { modifiedCount };
+    },
+  });
   const pair = crypto.generateKeyPairSync('ed25519');
   const signer = new GenieProofPassportSigner({
     privateKeyPem: pair.privateKey.export({ type: 'pkcs8', format: 'pem' }),
     publicKeyPem: pair.publicKey.export({ type: 'spki', format: 'pem' }),
     keyId: 'test-local-key',
   });
-  return { cases, revisions, session, caseModel, revisionModel, signer, startSession: async () => session };
+  return {
+    cases, revisions, watches, jobs, events, outbox, session, caseModel, revisionModel, signer,
+    watchModel: childModel(watches), jobModel: childModel(jobs), eventModel: childModel(events), outboxModel: childModel(outbox),
+    startSession: async () => session,
+  };
 }
 
 function requestFor(text = 'The current official PPF interest rate is 7.1% p.a.') {
@@ -365,6 +416,88 @@ test('passport verification detects divergence between signed claims and mutable
   const verification = await verifyGenieProofCase({ userId: userOne, caseId: created.case.caseId, ...f });
   assert.equal(verification.integrity, 'INVALID');
   assert.equal(verification.code, 'PASSPORT_CASE_BINDING_MISMATCH');
+});
+
+test('reassessment appends a signed revision, binds the prior head, and replays idempotently', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({
+    userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-reassess-create', signer: f.signer, ...f, now,
+  });
+  const original = structuredClone(f.revisions[0]);
+  const request = {
+    userId: userOne,
+    caseId: created.case.caseId,
+    expectedRevision: 1,
+    expectedManifestHash: created.passport.manifestHash,
+    reassessmentConsent: true,
+    idempotencyKey: 'genieproof-reassess-one',
+    signer: f.signer,
+    ...f,
+    now,
+  };
+  const reassessed = await reassessGenieProofCase(request);
+  assert.equal(reassessed.created, true);
+  assert.equal(reassessed.revision, 2);
+  assert.equal(reassessed.passport.manifest.previousManifestHash, original.manifestHash);
+  assert.equal(f.cases[0].latestRevision, 2);
+  assert.equal(f.revisions.length, 2);
+  assert.deepEqual(f.revisions[0], original, 'the earlier assessment remains unchanged');
+
+  const replay = await reassessGenieProofCase(request);
+  assert.equal(replay.created, false);
+  assert.equal(replay.revision, 2);
+  assert.equal(replay.manifestHash, reassessed.manifestHash);
+  assert.equal(f.revisions.length, 2);
+  await assert.rejects(reassessGenieProofCase({ ...request, expectedRevision: 2 }), error => (
+    error.code === 'GENIEPROOF_IDEMPOTENCY_CONFLICT' && error.status === 409
+  ));
+  await assert.rejects(reassessGenieProofCase({ ...request, idempotencyKey: 'genieproof-reassess-stale' }), error => (
+    error.code === 'GENIEPROOF_STALE_CASE_HEAD' && error.status === 409
+  ));
+});
+
+test('reassessment refuses a previous revision whose signed manifest was altered', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({
+    userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-invalid-parent-create', signer: f.signer, ...f, now,
+  });
+  f.revisions[0].manifest.findings[0].finding = 'SUPPORTED';
+
+  await assert.rejects(reassessGenieProofCase({
+    userId: userOne,
+    caseId: created.case.caseId,
+    expectedRevision: 1,
+    expectedManifestHash: created.passport.manifestHash,
+    reassessmentConsent: true,
+    idempotencyKey: 'genieproof-invalid-parent-reassess',
+    signer: f.signer,
+    ...f,
+    now,
+  }), error => error.code === 'GENIEPROOF_CASE_HEAD_MISMATCH' && error.status === 503);
+  assert.equal(f.revisions.length, 1);
+  assert.equal(f.cases[0].latestRevision, 1);
+});
+
+test('consent withdrawal prevents a later reassessment and is idempotent', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({
+    userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-consent-create', signer: f.signer, ...f, now,
+  });
+  assert.equal(await withdrawGenieProofConsent({ userId: userOne, caseId: created.case.caseId, ...f, now }), true);
+  assert.equal(await withdrawGenieProofConsent({ userId: userOne, caseId: created.case.caseId, ...f, now }), true);
+  await assert.rejects(reassessGenieProofCase({
+    userId: userOne,
+    caseId: created.case.caseId,
+    expectedRevision: 1,
+    expectedManifestHash: created.passport.manifestHash,
+    reassessmentConsent: true,
+    idempotencyKey: 'genieproof-consent-reassess',
+    signer: f.signer,
+    ...f,
+    now,
+  }), error => error.code === 'GENIEPROOF_CONSENT_WITHDRAWN' && error.status === 403);
+  assert.equal(f.revisions.length, 1);
+  assert.equal(f.cases[0].latestRevision, 1);
 });
 
 test('create API schema rejects extra keys and unsupported products', () => {

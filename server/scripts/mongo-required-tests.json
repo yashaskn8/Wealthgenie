@@ -20,6 +20,7 @@
   "test/planHealthRuntimeMongo.integration.test.js",
   "test/planReviewIndexMongo.integration.test.js",
   "test/planReviewMandateMongo.integration.test.js",
+  "test/proofBreakWorkerMongo.integration.test.js",
   "test/rbacRole.test.js",
   "test/recommendationAllocationRevisionBehavior.test.js",
   "test/recommendPostCommitCurrentState.test.js",

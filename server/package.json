@@ -33,7 +33,8 @@
     "migrate:phase2-indexes": "node scripts/migratePhase2Indexes.js",
     "migrate:phase4-plan-review-indexes": "node scripts/migratePlanReviewIndexes.js",
     "migrate:phase5-agent-runtime": "node scripts/migratePhase5AgentRuntimeIndexes.js",
-    "migrate:phase7-research-tasks": "node scripts/migrateResearchTaskIndexes.js"
+    "migrate:phase7-research-tasks": "node scripts/migrateResearchTaskIndexes.js",
+    "migrate:genieproof-evidence": "node scripts/migrateGenieProofEvidenceRegistry.js"
   },
   "dependencies": {
     "@a2a-js/sdk": "1.2.0",

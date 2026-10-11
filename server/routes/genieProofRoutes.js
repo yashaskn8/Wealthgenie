@@ -4,15 +4,36 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { validateStrict } from '../validation/financialSchemas.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { extractGenieProofClaims } from '../agents/genieProof/genieProofCore.js';
-import { genieProofCreateCaseSchema, genieProofExtractSchema } from '../agents/genieProof/genieProofSchemas.js';
+import {
+  genieProofConsentWithdrawalSchema,
+  genieProofCreateCaseSchema,
+  genieProofExtractSchema,
+  genieProofReassessSchema,
+  proofBreakAcknowledgeSchema,
+  proofBreakTimelineQuerySchema,
+  proofWatchActionSchema,
+  proofWatchCreateSchema,
+} from '../agents/genieProof/genieProofSchemas.js';
+import { resolveGenieProofEvidenceForClaims } from '../agents/genieProof/genieProofEvidenceRegistryService.js';
 import {
   createGenieProofCase,
   deleteGenieProofCase,
   getGenieProofCase,
   listGenieProofCases,
   listGenieProofRevisions,
+  reassessGenieProofCase,
   verifyGenieProofCase,
+  withdrawGenieProofConsent,
 } from '../agents/genieProof/genieProofService.js';
+import {
+  acknowledgeProofBreakEvent,
+  createProofWatch,
+  deleteProofWatch,
+  getProofWatchAvailability,
+  listProofBreakEvents,
+  listProofWatches,
+  updateProofWatchStatus,
+} from '../agents/genieProof/proofBreakService.js';
 
 const router = Router();
 router.use((_req, res, next) => {
@@ -39,6 +60,12 @@ function requireEnabled(req) {
 function caseIdParam(req) {
   if (!UUID_V4.test(req.params.caseId || '')) {
     throw createError(400, 'Invalid GenieProof case ID.', 'Invalid case ID.', { code: 'GENIEPROOF_CASE_ID_INVALID' });
+  }
+}
+
+function uuidParam(value, label) {
+  if (!UUID_V4.test(value || '')) {
+    throw createError(400, `Invalid GenieProof ${label}.`, `Invalid ${label}.`, { code: `GENIEPROOF_${label.toUpperCase()}_INVALID` });
   }
 }
 
@@ -70,8 +97,103 @@ router.post('/cases', verifyJWT, genieProofLimiter, validateStrict(genieProofCre
     confirmedClaims: req.body.confirmedClaims,
     idempotencyKey,
     signer: req.app.locals.genieProofRuntime.signer,
+    evidenceResolver: resolveGenieProofEvidenceForClaims,
   });
   return res.status(result.created ? 201 : 200).json(result);
+}));
+
+router.post('/cases/:caseId/reassess', verifyJWT, genieProofLimiter, validateStrict(genieProofReassessSchema), asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  caseIdParam(req);
+  const idempotencyKey = req.get('Idempotency-Key');
+  if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey)) {
+    throw createError(400, 'Idempotency-Key is required for GenieProof reassessment.', 'A valid request key is required.', { code: 'GENIEPROOF_IDEMPOTENCY_KEY_REQUIRED' });
+  }
+  const result = await reassessGenieProofCase({
+    userId: req.user.userId,
+    caseId: req.params.caseId,
+    expectedRevision: req.body.expectedRevision,
+    expectedManifestHash: req.body.expectedManifestHash,
+    reassessmentConsent: req.body.reassessmentConsent,
+    idempotencyKey,
+    signer: req.app.locals.genieProofRuntime.signer,
+    evidenceResolver: resolveGenieProofEvidenceForClaims,
+  });
+  return res.status(result.created ? 201 : 200).json(result);
+}));
+
+router.post('/cases/:caseId/consent/withdraw', verifyJWT, genieProofLimiter, validateStrict(genieProofConsentWithdrawalSchema), asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  caseIdParam(req);
+  const withdrawn = await withdrawGenieProofConsent({ userId: req.user.userId, caseId: req.params.caseId });
+  if (!withdrawn) throw createError(404, 'GenieProof case not found.', 'Case not found.', { code: 'GENIEPROOF_CASE_NOT_FOUND' });
+  return res.status(204).end();
+}));
+
+router.post('/cases/:caseId/watch', verifyJWT, genieProofLimiter, validateStrict(proofWatchCreateSchema), asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  caseIdParam(req);
+  const idempotencyKey = req.get('Idempotency-Key');
+  if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey)) {
+    throw createError(400, 'Idempotency-Key is required for ProofBreak watch creation.', 'A valid request key is required.', { code: 'GENIEPROOF_IDEMPOTENCY_KEY_REQUIRED' });
+  }
+  const result = await createProofWatch({
+    userId: req.user.userId,
+    caseId: req.params.caseId,
+    watchConsent: req.body.watchConsent,
+    idempotencyKey,
+  });
+  return res.status(result.created ? 201 : 200).json(result);
+}));
+
+router.get('/cases/:caseId/watch/availability', verifyJWT, genieProofLimiter, asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  caseIdParam(req);
+  if (Object.keys(req.query || {}).length) throw createError(400, 'ProofBreak availability does not accept query parameters.', 'Invalid query parameters.', { code: 'VALIDATION_ERROR' });
+  return res.json(await getProofWatchAvailability({ userId: req.user.userId, caseId: req.params.caseId }));
+}));
+
+router.get('/watches', verifyJWT, genieProofLimiter, asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  const { error, value } = proofBreakTimelineQuerySchema.validate({ limit: req.query.limit ?? 25, cursor: req.query.cursor }, { convert: true, abortEarly: false, allowUnknown: false });
+  if (error || value.cursor) throw createError(400, 'ProofBreak watch listing accepts no cursor and a bounded limit.', 'Invalid query parameters.', { code: 'VALIDATION_ERROR' });
+  const caseId = req.query.caseId;
+  if (caseId !== undefined && !UUID_V4.test(caseId)) throw createError(400, 'Invalid GenieProof case ID.', 'Invalid case ID.', { code: 'GENIEPROOF_CASE_ID_INVALID' });
+  const extra = Object.keys(req.query).filter(key => !['caseId', 'limit'].includes(key));
+  if (extra.length) throw createError(400, 'ProofBreak watch listing received unsupported query parameters.', 'Invalid query parameters.', { code: 'VALIDATION_ERROR' });
+  return res.json({ watches: await listProofWatches({ userId: req.user.userId, caseId, limit: value.limit }) });
+}));
+
+router.patch('/watches/:watchId', verifyJWT, genieProofLimiter, validateStrict(proofWatchActionSchema), asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  uuidParam(req.params.watchId, 'watch');
+  const watch = await updateProofWatchStatus({ userId: req.user.userId, watchId: req.params.watchId, action: req.body.action });
+  if (!watch) throw createError(404, 'ProofBreak watch not found.', 'Watch not found.', { code: 'PROOFBREAK_WATCH_NOT_FOUND' });
+  return res.json({ watch });
+}));
+
+router.delete('/watches/:watchId', verifyJWT, genieProofLimiter, asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  uuidParam(req.params.watchId, 'watch');
+  const deleted = await deleteProofWatch({ userId: req.user.userId, watchId: req.params.watchId });
+  if (!deleted) throw createError(404, 'ProofBreak watch not found.', 'Watch not found.', { code: 'PROOFBREAK_WATCH_NOT_FOUND' });
+  return res.status(204).end();
+}));
+
+router.get('/cases/:caseId/events', verifyJWT, genieProofLimiter, asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  caseIdParam(req);
+  const { error, value } = proofBreakTimelineQuerySchema.validate(req.query, { convert: true, abortEarly: false, allowUnknown: false });
+  if (error) throw createError(400, 'Invalid ProofBreak timeline query.', 'Invalid query parameters.', { code: 'VALIDATION_ERROR' });
+  return res.json(await listProofBreakEvents({ userId: req.user.userId, caseId: req.params.caseId, limit: value.limit, cursor: value.cursor || null }));
+}));
+
+router.post('/events/:eventId/acknowledge', verifyJWT, genieProofLimiter, validateStrict(proofBreakAcknowledgeSchema), asyncHandler(async (req, res) => {
+  requireEnabled(req);
+  uuidParam(req.params.eventId, 'event');
+  const acknowledged = await acknowledgeProofBreakEvent({ userId: req.user.userId, eventId: req.params.eventId });
+  if (!acknowledged) throw createError(404, 'ProofBreak event not found.', 'Event not found.', { code: 'PROOFBREAK_EVENT_NOT_FOUND' });
+  return res.status(204).end();
 }));
 
 router.get('/cases', verifyJWT, genieProofLimiter, rejectQueryParameters, asyncHandler(async (req, res) => {

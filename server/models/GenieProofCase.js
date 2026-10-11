@@ -20,6 +20,8 @@ const genieProofCaseSchema = new mongoose.Schema({
   confirmedClaims: { type: [confirmedClaimSchema], required: true, validate: claims => claims.length > 0 && claims.length <= 10, immutable: true },
   savingConsentVersion: { type: String, required: true, enum: ['genieproof-private-save/1'], immutable: true },
   savingConsentAt: { type: Date, required: true, immutable: true },
+  consentWithdrawnAt: { type: Date, default: null },
+  consentGeneration: { type: Number, min: 0, default: 0, validate: Number.isInteger },
   latestRevision: { type: Number, required: true, min: 1, default: 1 },
   latestManifestHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
   expiresAt: { type: Date, required: true, immutable: true },

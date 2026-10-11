@@ -1,5 +1,12 @@
 import { canonicalSha256 } from '../../utils/canonicalJson.js';
-import { GENIEPROOF_MANIFEST_VERSION, GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS, verifyConfirmedGenieProofClaim } from './genieProofCore.js';
+import {
+  genieProofManifestVersionForVerifier,
+  GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
+  GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS,
+  isGenieProofEvidenceVerifierVersion,
+  verifyConfirmedGenieProofClaim,
+} from './genieProofCore.js';
+import { evidenceRevisionHashesFromFindings } from './genieProofEvidenceContract.js';
 import { genieProofConfirmedClaimSchema } from './genieProofSchemas.js';
 import { GenieProofPassportVerifier } from './genieProofPassportSignature.js';
 
@@ -16,7 +23,7 @@ function incompleteResult({ signatureCheck, findingStatus = 'VERIFICATION_INCOMP
   };
 }
 
-function hasReproducibleFindings(manifest) {
+function hasReproducibleFindings(manifest, { trustedPublicKeys = {} } = {}) {
   const claims = manifest?.confirmedClaims;
   const findings = manifest?.findings;
   if (!Array.isArray(claims) || !Array.isArray(findings) || claims.length !== findings.length) return false;
@@ -32,12 +39,22 @@ function hasReproducibleFindings(manifest) {
     findingsById.set(finding.claimId, finding);
   }
   if (claimsById.size !== findingsById.size) return false;
+  let evidenceVerifier;
+  if (isGenieProofEvidenceVerifierVersion(manifest.verifierVersion)) {
+    try { evidenceVerifier = new GenieProofPassportVerifier({ trustedPublicKeys }); } catch { return false; }
+  }
   for (const [claimId, claim] of claimsById) {
     const actual = findingsById.get(claimId);
     if (!actual) return false;
     let expected;
     try {
-      expected = verifyConfirmedGenieProofClaim(claim, { verifierVersion: manifest.verifierVersion });
+      const actualEvidence = findingsById.get(claimId)?.evidence;
+      expected = verifyConfirmedGenieProofClaim(claim, {
+        verifierVersion: manifest.verifierVersion,
+        evidenceRevisions: actualEvidence?.revisions || [],
+        signatureVerifier: evidenceVerifier,
+        now: manifest.assessedAt,
+      });
     } catch {
       return false;
     }
@@ -51,8 +68,9 @@ function hasReproducibleFindings(manifest) {
 }
 
 function hasValidManifestBindings(manifest) {
+  const manifestVersionMatches = manifest?.schemaVersion === genieProofManifestVersionForVerifier(manifest?.verifierVersion);
   if (!Array.isArray(manifest?.confirmedClaims) || !Array.isArray(manifest?.findings)
-      || manifest?.schemaVersion !== GENIEPROOF_MANIFEST_VERSION
+      || !manifestVersionMatches
       || !GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS.includes(manifest?.verifierVersion)
       || manifest?.policyVersion !== manifest.verifierVersion
       || !/^[0-9a-f-]{36}$/i.test(manifest?.caseId || '')
@@ -63,16 +81,20 @@ function hasValidManifestBindings(manifest) {
       || !/^[a-f0-9]{64}$/.test(manifest?.productIdentityHash || '')
       || !(manifest.previousManifestHash === null || /^[a-f0-9]{64}$/.test(manifest.previousManifestHash || ''))
       || typeof manifest.assessedAt !== 'string' || !Number.isFinite(Date.parse(manifest.assessedAt))) return false;
+  if (isGenieProofEvidenceVerifierVersion(manifest.verifierVersion)
+      && !/^[a-f0-9]{64}$/.test(manifest.evidenceRegistrySnapshotHash || '')) return false;
   const claims = [...manifest.confirmedClaims].sort((a, b) => a.claimId.localeCompare(b.claimId));
   const products = claims.map(claim => ({ claimId: claim.claimId, productId: claim.productId }))
     .sort((a, b) => a.claimId.localeCompare(b.claimId));
-  const evidenceHashes = [];
   for (const finding of manifest.findings) {
-    if (!finding?.evidence) continue;
-    if (!/^[a-f0-9]{64}$/.test(finding.evidence.factHash || '')) return false;
-    evidenceHashes.push(finding.evidence.factHash);
+    const revisions = finding?.evidence?.revisions;
+    if (Array.isArray(revisions)) {
+      for (const revision of revisions) {
+        if (!/^[a-f0-9]{64}$/.test(revision?.factHash || '')) return false;
+      }
+    } else if (finding?.evidence && !/^[a-f0-9]{64}$/.test(finding.evidence.factHash || '')) return false;
   }
-  const canonicalEvidenceHashes = [...new Set(evidenceHashes)].sort();
+  const canonicalEvidenceHashes = evidenceRevisionHashesFromFindings(manifest.findings);
   return canonicalSha256(claims) === manifest.confirmedClaimsHash
     && canonicalSha256(products) === manifest.productIdentityHash
     && Array.isArray(manifest.evidenceRevisionHashes)
@@ -122,7 +144,8 @@ export function verifyExportedGenieProofPassport(signedPassport, options = {}) {
   }
 
   const manifest = signedPassport.manifest;
-  const findingsReproduced = hasReproducibleFindings(manifest)
+  const trustedPublicKeys = options?.trustedPublicKeys ?? {};
+  const findingsReproduced = hasReproducibleFindings(manifest, { trustedPublicKeys })
     && hasValidManifestBindings(manifest);
   if (!findingsReproduced) {
     return {
@@ -139,16 +162,30 @@ export function verifyExportedGenieProofPassport(signedPassport, options = {}) {
 
   const hasEvidenceBindings = Array.isArray(manifest.evidenceRevisionHashes)
     && manifest.evidenceRevisionHashes.length > 0;
+  const evidenceCheckable = isGenieProofEvidenceVerifierVersion(manifest.verifierVersion) && hasEvidenceBindings;
+  const findingSemantics = manifest.verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+    ? 'CURRENT_POLICY_REPLAY_ONLY' : 'LEGACY_REPLAY_ONLY';
+  const levels = {
+    signatureIntegrity: 'SIGNATURE_INTEGRITY_VALID',
+    evidenceIntegrity: evidenceCheckable ? 'EVIDENCE_INTEGRITY_CHECKABLE' : 'EVIDENCE_INTEGRITY_NOT_CHECKABLE',
+    financialFinding: 'FINANCIAL_FINDING_REPRODUCIBLE',
+    financialCorrectness: 'FINANCIAL_CORRECTNESS_NOT_ESTABLISHED',
+  };
   return {
     status: 'VERIFICATION_INCOMPLETE',
     signature: 'SIGNATURE_INTEGRITY_VALID',
-    evidence: 'VERIFICATION_INCOMPLETE',
+    evidence: evidenceCheckable ? 'EVIDENCE_INTEGRITY_CHECKABLE' : 'VERIFICATION_INCOMPLETE',
     findings: 'FINDING_REPRODUCIBLE',
+    findingSemantics,
     trustedIssuer: true,
     financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
-    code: hasEvidenceBindings ? 'QUALIFIED_EVIDENCE_NOT_INCLUDED' : 'QUALIFIED_EVIDENCE_UNAVAILABLE',
+    verificationLevels: levels,
+    code: evidenceCheckable ? 'EVIDENCE_ATTESTATION_CHECKABLE_SOURCE_BYTES_OMITTED'
+      : hasEvidenceBindings ? 'QUALIFIED_EVIDENCE_NOT_INCLUDED' : 'QUALIFIED_EVIDENCE_UNAVAILABLE',
     reasons: [
-      hasEvidenceBindings
+      evidenceCheckable
+        ? 'The signed evidence-to-fact commitments replay, but the source bytes are not included, so financial correctness is not independently established.'
+        : hasEvidenceBindings
         ? 'The passport references evidence revisions, but this export contains no independently checkable qualified evidence package.'
         : 'The passport contains no qualified evidence revisions, so its abstaining result can be replayed but not independently checked against financial facts.',
     ],
