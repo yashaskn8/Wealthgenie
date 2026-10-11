@@ -8,9 +8,9 @@
     "origin": "https://github.com/yashaskn8/Wealthgenie.git",
     "verificationBaseHead": "0e8e6a3e2b1eb2db5da1e2607ba092c7094c42c7",
     "originMainAtPreDeliveryFetch": "0e8e6a3e2b1eb2db5da1e2607ba092c7094c42c7",
-    "deliveryCommit": "PENDING",
-    "remoteHeadAfterDelivery": "PENDING",
-    "note": "This ledger describes the dirty local implementation until final verification and delivery. It does not claim external source approval or production activation."
+    "deliveryCommit": "b29507f6dbff8335e3aaee9a998ddc2453610f97",
+    "remoteHeadAfterDelivery": "b29507f6dbff8335e3aaee9a998ddc2453610f97",
+    "note": "deliveryCommit and remoteHeadAfterDelivery identify the verified GenieProof implementation push. This status-ledger-only follow-up records post-push Actions state; its own Git SHA is reported separately. No external source approval or production activation is claimed."
   },
   "productionActivation": {
     "status": "BLOCKED_LEGAL",
@@ -69,9 +69,9 @@
     "O": { "area": "Financial red-team results", "status": "VERIFIED", "tested": "Independent fintech, official-evidence and deterministic-verifier reviews; legacy false support and invalid period corrected; targeted tests passed", "blocked": "No real qualified official source to test", "remaining": "Source-backed evaluation after permission." },
     "P": { "area": "Security and concurrency red-team results", "status": "IMPLEMENTED_UNVERIFIED", "tested": "Independent security/crypto/worker reviews; authenticated owner scope, SSRF guards, CAS and worker fencing tests", "blocked": "No production chaos infrastructure exercised", "remaining": "Review residual parser-structure and operations risks; final tests." },
     "Q": { "area": "Existing WealthGenie regression results", "status": "IMPLEMENTED_UNVERIFIED", "tested": "Frontend full suite/build passed; full backend suite completed with 1,626 passed and 1 failed out of 1,627 tests. GenieProof-focused backend, Mongo integration, and authenticated browser journey passed.", "blocked": "The only full-suite failure is the unrelated RBI_Bond instrument drift assertion: static nominalRate 7.5% versus catalog expectedReturn average 7.8%, exceeding the 0.15 percentage-point tolerance.", "remaining": "Resolve the financial-policy/catalog discrepancy with authoritative semantics and evidence; this task did not change either value or the test." },
-    "R": { "area": "GitHub Actions results", "status": "IMPLEMENTED_UNVERIFIED", "tested": "Workflow definitions inspected; push workflow runs on GitHub-hosted ephemeral Kind and Terraform validation", "blocked": "No successful run for delivery commit yet", "remaining": "After authorized push, inspect actual Actions run and report its exact state." },
+    "R": { "area": "GitHub Actions results", "status": "BLOCKED_EXTERNAL", "tested": "Inspected all workflow definitions; GitHub API reports repository Actions enabled=false, commit status has zero checks, and no workflow run exists for the implementation commit", "blocked": "Repository Actions are disabled, so push workflows did not run", "remaining": "Repository owner must enable Actions if workflow verification is required; no workflow was manually dispatched." },
     "S": { "area": "Source licensing, legal review and production activation", "status": "BLOCKED_LEGAL", "tested": "Registry/runtime preserve blocked state and production gate is off", "blocked": "No documented source permission or external legal approval", "remaining": "Keep production activation disabled until approvals are independently verified." },
-    "T": { "area": "Git commit and remote verification", "status": "IN_PROGRESS", "tested": "Correct new repository and main branch verified; fresh origin/main matches base HEAD 0e8e6a3e2b1eb2db5da1e2607ba092c7094c42c7; 42 changed files are in GenieProof scope", "blocked": "The full backend suite has one unrelated RBI_Bond catalog/static-parameter drift failure; GenieProof-focused tests pass", "remaining": "Stage and inspect the reviewed patch; commit and push without force; verify remote SHA and Actions result." }
+    "T": { "area": "Git commit and remote verification", "status": "VERIFIED", "tested": "Committed 42 reviewed GenieProof files as b29507f6dbff8335e3aaee9a998ddc2453610f97 and pushed normally to origin/main; git ls-remote confirmed the exact remote SHA and worktree was clean", "blocked": "None for Git delivery; unrelated full-suite failure is recorded in Q and Actions-disabled state is recorded in R", "remaining": "No pending Git delivery steps for the implementation commit." }
   },
   "agentReviews": [
     { "role": "Principal Fintech Architect", "reviewMode": "INDEPENDENT_SUBAGENT", "result": "Found legacy supported finding could mislead, ProofBreak readiness mismatch, and stale ledger. These findings are corrected; targeted and Mongo integration regressions pass." },
@@ -100,7 +100,7 @@
       "Frontend lint: zero errors, one existing App.jsx exhaustive-deps warning. Frontend typecheck: passed. Production Vite build: passed with existing >1,000 kB chunk warning.",
       "Authenticated real Express/browser/isolated Mongo replica-set/worker journey: 1/1 passed using only synthetic evidence and no external source requests. It verified case creation, signature, watch, reassessment, persisted event/timeline, acknowledgement, owner isolation, disable, and deletion. Desktop/mobile screenshots plus API/worker trace were captured in ignored test-results output.",
       "Backend lint: zero errors, 39 warnings. Backend typecheck: passed. OpenAPI contract/runtime and affected backend focused suite: passed (included in 81/81 focused run).",
-      "`git diff --check`: passed before final ledger refresh; rerun after final edits."
+      "GitHub Actions verification: repository Actions enabled=false; the pushed implementation commit has zero status checks and no Actions runs."
     ],
     "verificationLimits": [
       "No Department of Posts/DEA live source fetch, source permission, source approval, or real financial finding was produced.",
@@ -115,6 +115,6 @@
     "Real source-backed positive, negative, historical, and supersession qualification cases after legal approval.",
     "Operational privacy, signing-key custody/rotation, and production worker reliability review.",
     "External notification provider integration if email/push delivery is required.",
-    "Inspect GitHub Actions after push and report delivery SHAs."
+    "Repository Actions are disabled, so CI/CD workflow verification requires the repository owner to enable Actions; production source rights and legal approval remain blockers."
   ]
 }
