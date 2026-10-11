@@ -12,6 +12,7 @@ import { TRUST_BADGES, investmentDatabase } from '../../investmentDatabase';
 import JargonTooltip from '../JargonTooltip';
 
 const formatCatalogRate = value => {
+  if (value === null || value === undefined || value === '') return 'Unavailable';
   const rate = Number(value);
   return Number.isFinite(rate) ? `${rate}% p.a.` : 'Unavailable';
 };
@@ -286,7 +287,9 @@ const OverviewTab = ({ inv, comparisonData, onSelectInvestment }) => {
             <div><span style={{ color: '#64748b' }}>Last Updated:</span> <span style={{ color: '#94a3b8', fontWeight: 600 }}>{metadata.lastUpdated}</span></div>
             <div><span style={{ color: '#64748b' }}>Reviewed By:</span> <span style={{ color: '#94a3b8', fontWeight: 600 }}>{metadata.reviewedBy}</span></div>
             <div><span style={{ color: '#64748b' }}>Confidence:</span> <span style={{ color: metadata.sourceConfidence === 'High' ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>{metadata.sourceConfidence}</span></div>
-            <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#64748b' }}>Return Classification:</span> <span style={{ color: '#94a3b8', fontWeight: 600 }}>MODEL_ASSUMPTION · {inv.returnAssumptionVersion || 'wealthgenie-projection-assumptions-1.0.0'} · not an observed market fact or provider forecast</span></div>
+            <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#64748b' }}>Return Classification:</span> <span style={{ color: '#94a3b8', fontWeight: 600 }}>{inv.returnDataClass === 'UNAVAILABLE'
+              ? 'UNAVAILABLE · No current bank quote is available in this catalog'
+              : `MODEL_ASSUMPTION · ${inv.returnAssumptionVersion || 'wealthgenie-projection-assumptions-1.0.0'} · not an observed market fact or provider forecast`}</span></div>
             {returnSource && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#64748b' }}>Legacy Catalog Citation:</span> <span style={{ color: '#94a3b8', fontWeight: 600 }}>{returnSource} ({returnLastUpdated}) — reference metadata only</span></div>}
           </div>
         </div>

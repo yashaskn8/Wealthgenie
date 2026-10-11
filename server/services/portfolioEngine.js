@@ -478,6 +478,7 @@ const CANONICAL_MAP = {
     'ssy': 'SSY',
     'equity_mf': 'Equity_MF',
     'g-sec': 'G-Sec',
+    'rbi_retail_direct_gilt': 'G-Sec',
     'rbi_bond': 'RBI_Bond',
     'rbi_bonds': 'RBI_Bond',
     'balanced_advantage': 'Hybrid_MF',

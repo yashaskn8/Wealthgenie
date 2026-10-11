@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatINR } from './utils/recommendationPresentation';
 import { computeSuitabilityMatch } from './utils/suitabilityMatch';
+import { isPresentFiniteNumber } from './utils/financialValues';
 import { X, Lock, Unlock, Info, Search, Link, BarChart3, ArrowUpRight, ArrowDownRight, ChevronLeft, TrendingUp, Shield, Zap, Sparkles, HelpCircle } from 'lucide-react';
 import './ComparisonTableModal.css';
 
@@ -33,7 +34,7 @@ const getRiskPercent = (riskLevel) => {
 };
 
 const Sparkline = ({ color, category, riskLevel, rate, invId }) => {
-  const numericRate = Number(rate);
+  const numericRate = isPresentFiniteNumber(rate) ? Number(rate) : null;
   const riskPercent = getRiskPercent(riskLevel);
   if (!Number.isFinite(numericRate) || riskPercent === null) {
     return <span style={{ width: 80, color: '#64748b', textAlign: 'center' }} title="Illustrative risk glyph unavailable">—</span>;
@@ -271,8 +272,8 @@ const ComparisonTableModal = ({ isOpen, onClose, allInvestments = [], recommenda
       const lockInCandidate = Number(inv.lock_in_years ?? inv.lockIn);
       const lockIn = Number.isFinite(lockInCandidate) && lockInCandidate >= 0 ? lockInCandidate : null;
       const riskLbl = backendItem?.riskLabel ?? inv.riskLabel ?? inv.risk_level ?? null;
-      const rateCandidate = Number(backendItem?.nominalReturn ?? inv.rate ?? inv.expected_return_max);
-      const rate = Number.isFinite(rateCandidate) ? rateCandidate : null;
+      const rateCandidate = backendItem?.nominalReturn ?? inv.rate ?? inv.expected_return_max;
+      const rate = isPresentFiniteNumber(rateCandidate) ? Number(rateCandidate) : null;
       return {
         ...inv,
         ...(backendItem || {}),
@@ -337,8 +338,9 @@ const ComparisonTableModal = ({ isOpen, onClose, allInvestments = [], recommenda
       return category === metadata.key;
     });
     const rates = categoryItems
-      .map(instrument => Number(instrument.rate ?? instrument.expectedReturn))
-      .filter(Number.isFinite);
+      .map(instrument => instrument.rate ?? instrument.expectedReturn)
+      .filter(isPresentFiniteNumber)
+      .map(Number);
     const riskLabels = [...new Set(categoryItems.map(instrument => instrument.riskLabel).filter(label => getRiskPercent(label) !== null))]
       .sort((a, b) => getRiskPercent(a) - getRiskPercent(b));
     const lockIns = categoryItems.map(instrument => Number(instrument.lockIn)).filter(value => Number.isFinite(value) && value >= 0);

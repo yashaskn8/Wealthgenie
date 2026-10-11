@@ -13,4 +13,20 @@ describe('investment catalog tax boundary', () => {
       expect(instrument.staticData.taxation).not.toHaveProperty('taxFreeInterest', true);
     }
   });
+
+  it('does not present legacy bank-deposit catalog rates as current provider quotes', () => {
+    const deposits = investmentDatabase.filter(item => item.category === 'Bank Deposits');
+    expect(deposits.length).toBeGreaterThan(0);
+    for (const deposit of deposits) {
+      expect(deposit.rate).toBeNull();
+      expect(deposit.expectedReturn).toBeNull();
+      expect(deposit.returnRange).toEqual({ min: null, max: null });
+      expect(deposit.returnDataClass).toBe('UNAVAILABLE');
+      expect(deposit.metadata.sourceConfidence).toBe('Not established');
+      expect(deposit.desc).toMatch(/does not provide a current bank quote/i);
+      expect(deposit.desc).not.toMatch(/\d+(?:\.\d+)?\s*%/);
+      expect(deposit.dynamicData.expectedReturn.source).toBeNull();
+      expect(deposit.dynamicData.topSchemes).toEqual([]);
+    }
+  });
 });

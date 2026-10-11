@@ -162,11 +162,23 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     expect(screen.getByText(/MODELLED_POST_TAX_PROJECTION/i)).toBeInTheDocument();
   });
 
+  it('labels tax drag as not calculated before the user submits an explicit what-if', async () => {
+    render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
+    const totalTaxDrag = document.querySelector('.pta-kpi-card--erosion');
+    expect(totalTaxDrag).toHaveTextContent('Not calculated');
+    expect(screen.getByTestId('post-tax-asset-count')).toHaveTextContent('1 asset');
+    expect(screen.getByText(/After-tax estimates have not been calculated for 1 asset/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('post-tax-unavailable-explanation')).toBeNull();
+  });
+
   it('keeps an unavailable portfolio summary unavailable in the UI', async () => {
     apiModule.computePostTaxReturnBatch.mockResolvedValue({
       portfolioStatus: 'UNAVAILABLE',
       assumptions: { inflationRate: 0.06 },
-      results: [{ instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE' }],
+      results: [{
+        instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
+        unavailableReasons: ['MODEL_TAX_CLASS_UNAVAILABLE_FOR_GENERIC_INSTRUMENT_TYPE'],
+      }],
       summary: {
         status: 'UNAVAILABLE',
         totalTaxDrag: null,
@@ -189,6 +201,10 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
     fireEvent.click(screen.getByRole('button', { name: /calculate explicit tax what-if/i }));
     expect(await screen.findByText(/Profit retention unavailable/i)).toBeInTheDocument();
+    expect(await screen.findByTestId('post-tax-unavailable-explanation'))
+      .toHaveTextContent(/No source-qualified tax treatment is established for this investment type/i);
+    expect(screen.getByTestId('post-tax-unavailable-explanation'))
+      .not.toHaveTextContent('MODEL_TAX_CLASS_UNAVAILABLE_FOR_GENERIC_INSTRUMENT_TYPE');
     expect(screen.queryByText('RETAINED')).not.toBeInTheDocument();
   });
 });

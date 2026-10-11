@@ -136,8 +136,8 @@ const SPECIFIC_ID_TYPE_MAP = {
   'scss': 'SCSS',
   'ppf': 'PPF',
   'rbi_bonds': 'RBI_Bond',
-  'rbi_retail_direct_gilt': 'RBI_Bond',
-  'g_sec': 'RBI_Bond',
+  'rbi_retail_direct_gilt': 'G-Sec',
+  'g_sec': 'G-Sec',
 };
 
 const EXACT_RECOMMENDATION_TYPES = Object.freeze({
@@ -145,7 +145,7 @@ const EXACT_RECOMMENDATION_TYPES = Object.freeze({
   scss: 'SCSS',
   sukanya: 'SSY',
   rbi_bonds: 'RBI_Bond',
-  rbi_retail_direct_gilt: 'RBI_Bond',
+  rbi_retail_direct_gilt: 'G-Sec',
   g_sec: 'G-Sec',
   sgb: 'SGB',
   arbitrage_mf: 'Arbitrage_MF',

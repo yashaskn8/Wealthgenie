@@ -33,6 +33,7 @@ const ComparisonTableModal = lazy(() => import('./ComparisonTableModal'));
 const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const AuthPage = lazy(() => import('./components/AuthPage'));
 const LandingPage = lazy(() => import('./LandingPage'));
+const GENIEPROOF_LOCAL_UI_ENABLED = !import.meta.env.PROD && import.meta.env.VITE_GENIEPROOF_ENABLED === 'true';
 
 // ── Bounded retry helper for deferred advisory generation ──
 // eslint-disable-next-line react-refresh/only-export-components
@@ -791,6 +792,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
               recommendations={recommendations}
               recommendationMeta={currentRecommendationState}
               onNavigateHome={() => navigateTo(NAV_PAGES.HOME)}
+              genieProofEnabled={GENIEPROOF_LOCAL_UI_ENABLED}
             />
           </ErrorBoundary>
         );

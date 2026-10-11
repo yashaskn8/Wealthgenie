@@ -87,9 +87,34 @@ masterCatalog.instruments.forEach(inst => {
 
 // Map masterCatalog instruments to the old flat structure for backward compatibility
 export const investmentDatabase = masterCatalog.instruments.map(inst => {
-  const safeStaticData = sanitizeStaticTaxClaims(inst.staticData);
+  const isBankDeposit = inst.category === 'Bank Deposits';
+  const sanitizedStaticData = sanitizeStaticTaxClaims(inst.staticData);
+  const safeStaticData = isBankDeposit
+    ? {
+      ...sanitizedStaticData,
+      description: `${inst.name} rates depend on the bank, tenure, deposit amount, and depositor category. This catalog does not provide a current bank quote; confirm current rates and terms directly with the bank.`,
+      pros: (sanitizedStaticData.pros || []).map((pro, index) => index === 0
+        ? 'Interest rates and payout options depend on the bank and chosen deposit terms; confirm the current quote directly with the bank.'
+        : pro),
+      explainer: sanitizedStaticData.explainer
+        ? { ...sanitizedStaticData.explainer, example: null }
+        : sanitizedStaticData.explainer,
+    }
+    : sanitizedStaticData;
   const safeDynamicData = {
     ...inst.dynamicData,
+    ...(isBankDeposit ? {
+      expectedReturn: {
+        ...inst.dynamicData.expectedReturn,
+        min: null,
+        avg: null,
+        max: null,
+        source: null,
+        lastUpdated: null,
+      },
+      interestRates: null,
+      topSchemes: [],
+    } : {}),
     // Legacy catalog aliases/scores are not fiscal-year-specific tax outcomes.
     taxType: null,
     taxEfficiencyScore: null,
@@ -104,7 +129,9 @@ export const investmentDatabase = masterCatalog.instruments.map(inst => {
     assetClass: inst.assetClass,
     color: inst.color,
     eligibility: inst.eligibility,
-    metadata: inst.metadata,
+    metadata: isBankDeposit
+      ? { ...inst.metadata, sourceConfidence: 'Not established' }
+      : inst.metadata,
     
     // Static fields flattened
     description: safeStaticData.description,
@@ -120,16 +147,16 @@ export const investmentDatabase = masterCatalog.instruments.map(inst => {
     cardSubtitle: safeStaticData.cardSubtitle,
     
     // Dynamic fields flattened
-    expectedReturn: inst.dynamicData.expectedReturn.avg,
-    returnDataClass: 'MODEL_ASSUMPTION',
-    returnAssumptionVersion: 'wealthgenie-projection-assumptions-1.0.0',
-    returnSource: 'WEALTHGENIE_MODEL_POLICY',
+    expectedReturn: safeDynamicData.expectedReturn.avg,
+    returnDataClass: isBankDeposit ? 'UNAVAILABLE' : 'MODEL_ASSUMPTION',
+    returnAssumptionVersion: isBankDeposit ? null : 'wealthgenie-projection-assumptions-1.0.0',
+    returnSource: isBankDeposit ? null : 'WEALTHGENIE_MODEL_POLICY',
     observedMarketFact: false,
     providerForecast: false,
-    rate: inst.dynamicData.interestRates,
+    rate: safeDynamicData.interestRates,
     returnRange: {
-      min: inst.dynamicData.expectedReturn.min,
-      max: inst.dynamicData.expectedReturn.max
+      min: safeDynamicData.expectedReturn.min,
+      max: safeDynamicData.expectedReturn.max
     },
     riskLevel: inst.dynamicData.risk.value,
     risk: inst.dynamicData.risk.value,

@@ -7,8 +7,11 @@ import PasskeyCredential from '../models/PasskeyCredential.js';
 import MandateApprovalChallenge from '../models/MandateApprovalChallenge.js';
 import ExecutionReceipt from '../models/ExecutionReceipt.js';
 import AuthorizedExecutionAttempt from '../models/AuthorizedExecutionAttempt.js';
+import GenieProofCase from '../models/GenieProofCase.js';
+import GenieProofRevision from '../models/GenieProofRevision.js';
 import {
   AUTHORIZATION_INDEX_MODELS,
+  GENIEPROOF_INDEX_MODELS,
   MIGRATION_INDEX_MODELS,
   migratePersistenceIndexes,
   verifyAuthorizationPersistenceIndexes,
@@ -93,6 +96,11 @@ test('explicit Phase 2 migration includes user and verifiable-authorization iden
 
   for (const model of AUTHORIZATION_INDEX_MODELS) {
     assert.ok(MIGRATION_INDEX_MODELS.includes(model), `${model.modelName} authorization indexes must be in migration`);
+  }
+
+  for (const model of [GenieProofCase, GenieProofRevision]) {
+    assert.ok(GENIEPROOF_INDEX_MODELS.includes(model), `${model.modelName} must be in the GenieProof readiness gate`);
+    assert.ok(MIGRATION_INDEX_MODELS.includes(model), `${model.modelName} indexes must be in the explicit migration`);
   }
 });
 

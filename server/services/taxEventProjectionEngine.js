@@ -309,6 +309,33 @@ function finalizeOutcome({ instrumentType, modelTaxClass, nominalRate, grossGain
   };
 }
 
+function assessInterestTds({ instrumentType, grossGain, userAge, policy }) {
+  if (instrumentType === 'G-Sec') {
+    return {
+      tdsApplicable: null,
+      tdsRate: null,
+      tdsThreshold: null,
+      tdsTreatment: 'SECURITY_IDENTITY_REQUIRED',
+    };
+  }
+
+  const securityInterest = instrumentType === 'RBI_Bond';
+  const tdsThreshold = securityInterest
+    ? policy.rules.securityInterestTdsThreshold
+    : userAge >= 60
+      ? policy.rules.bankInterestTdsThreshold.senior
+      : policy.rules.bankInterestTdsThreshold.general;
+  const tdsApplicable = grossGain > tdsThreshold;
+  return {
+    tdsApplicable,
+    tdsRate: tdsApplicable
+      ? securityInterest ? policy.rules.securityInterestTdsRate : policy.rules.bankInterestTdsRate
+      : 0,
+    tdsThreshold,
+    tdsTreatment: securityInterest ? 'FRSB_SECURITY_INTEREST' : 'BANK_OR_NOTIFIED_DEPOSIT_INTEREST',
+  };
+}
+
 export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, annualIncome, holdingYears, regime, monthlySIP, userAge, incomeSource, fiscalYear, deductions = {}, options = {} }) {
   const modelTaxClass = resolveServerModelTaxClass(instrumentType);
   if (!modelTaxClass) {
@@ -349,10 +376,7 @@ export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, 
     const annualPrincipal = monthlySIP * 12;
     const grossGain = annualPrincipal * nominalRate;
     const tax = calculateOrdinaryIncrementalTax({ grossGain, context });
-    const tdsThreshold = userAge >= 60
-      ? policy.rules.bankInterestTdsThreshold.senior
-      : policy.rules.bankInterestTdsThreshold.general;
-    const tdsApplicable = grossGain > tdsThreshold;
+    const tdsAssessment = assessInterestTds({ instrumentType, grossGain, userAge, policy });
     return finalizeOutcome({
       instrumentType, modelTaxClass, nominalRate, grossGain, taxAmount: tax.taxAmount, cess: tax.cess, surcharge: tax.surcharge,
       taxType: 'Ordinary income — incremental tax under selected regime',
@@ -360,13 +384,13 @@ export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, 
       taxRuleMetadata: combineTaxRuleMetadata(policy, [tax.baseline.taxRuleMetadata, tax.withGain.taxRuleMetadata]),
       assumptions: ['INCREMENTAL_TAX_BASELINE_AND_WITH_PRODUCT_INCOME', 'TDS_NOT_MODELLED_AS_SECOND_FINAL_TAX'],
       details: {
-        tdsApplicable,
-        tdsRate: tdsApplicable ? policy.rules.bankInterestTdsRate : 0,
-        tdsThreshold,
+        ...tdsAssessment,
         fiscalYear: policy.fiscalYear,
         policyVersion: policy.policyVersion,
       },
-      notes: 'Gross interest is added to the supplied income context and taxed through baseline-versus-with-income tax. TDS, if a provider withholds it, is a credit and not an extra tax charge.',
+      notes: tdsAssessment.tdsTreatment === 'SECURITY_IDENTITY_REQUIRED'
+        ? 'Gross interest is added to the supplied income context and taxed through baseline-versus-with-income tax. TDS is not assessed for a generic government security without its exact security identity and any applicable notification facts.'
+        : 'Gross interest is added to the supplied income context and taxed through baseline-versus-with-income tax. TDS threshold comparison is a single-product illustration; actual withholding may depend on payer-level aggregation, valid declarations or certificates, and exact product facts. TDS is a credit, not an extra tax charge.',
     });
   }
   if (modelTaxClass === MODEL_TAX_CLASSES.NPS_EXIT) {

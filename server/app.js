@@ -28,6 +28,8 @@ import { createMcpRouter } from './routes/mcpRouter.js';
 import { createMcpCapacityController } from './mcp/mcpCapacity.js';
 import { createMcpRuntime } from './mcp/mcpRuntime.js';
 import agentRoutes from './routes/agentRoutes.js';
+import genieProofRoutes from './routes/genieProofRoutes.js';
+import { createGenieProofRuntime } from './agents/genieProof/genieProofPassportSignature.js';
 import { createHealthRouter } from './routes/health.js';
 import { createRuntimeState } from './services/runtimeState.js';
 import { getCurrentFiscalYear, getCurrentRegulatoryRuleVersion } from './services/taxEngine.js';
@@ -77,7 +79,7 @@ function detailedHealth(_req, res) {
   });
 }
 
-export function createApp({ env = process.env, runtimeState = null, mcpRuntime = null } = {}) {
+export function createApp({ env = process.env, runtimeState = null, mcpRuntime = null, genieProofRuntime = null } = {}) {
   const config = getRuntimeConfig(env);
   const lifecycle = runtimeState || createRuntimeState();
   const mcpLifecycle = mcpRuntime || createMcpRuntime({
@@ -97,6 +99,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.locals.runtimeState = lifecycle;
   app.locals.mcpRuntime = mcpLifecycle;
   app.locals.mcpCapacity = mcpCapacity;
+  app.locals.genieProofRuntime = genieProofRuntime || createGenieProofRuntime({ env });
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     crossOriginOpenerPolicy: { policy: 'same-origin' },
@@ -194,6 +197,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/regime', regimeRoutes);
   app.use('/api/metrics', metricsRoutes);
   app.use('/api/agent', agentRoutes);
+  app.use('/api/genieproof', genieProofRoutes);
   app.get('/api/health', detailedHealth);
 
   app.use((req, res) => sendError(req, res, 404, 'Route not found.', 'ROUTE_NOT_FOUND'));

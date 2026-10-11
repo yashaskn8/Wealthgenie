@@ -1,7 +1,9 @@
 /** @vitest-environment jsdom */
 import '@testing-library/jest-dom/vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+const { useMarketContextMock } = vi.hoisted(() => ({ useMarketContextMock: vi.fn() }));
+vi.mock('./state/useMarketContext', () => ({ useMarketContext: useMarketContextMock }));
 import RecommendationDashboard from './RecommendationDashboard.jsx';
 
 const profile = {
@@ -9,7 +11,15 @@ const profile = {
   monthly_savings: 20000, risk_tolerance: 'Moderate', investment_horizon_years: 10,
 };
 
-beforeEach(() => localStorage.removeItem('wg_onboarded'));
+beforeEach(() => {
+  localStorage.removeItem('wg_onboarded');
+  useMarketContextMock.mockReturnValue({
+    marketContext: null,
+    marketContextLoading: false,
+    marketContextError: null,
+    marketContextRefreshing: false,
+  });
+});
 afterEach(cleanup);
 
 describe('RecommendationDashboard authority boundary', () => {
@@ -35,6 +45,39 @@ describe('RecommendationDashboard authority boundary', () => {
     render(<RecommendationDashboard userProfile={profile} recommendations={[]} />);
     expect(screen.getByText(/No personalized recommendation is being shown/i)).toBeVisible();
     expect(screen.queryByText(/offline estimate/i)).toBeNull();
+  });
+
+  it('shows qualified observed market facts separately from modeled portfolio assumptions', () => {
+    useMarketContextMock.mockReturnValue({
+      marketContext: {
+        status: 'MARKET_CONTEXT_AVAILABLE',
+        marketSnapshot: {
+          status: 'MARKET_CLOSED',
+          observedAt: '2026-10-09T10:00:00.000Z',
+          freshness: { status: 'FRESH' },
+          marketSession: { status: 'MARKET_CLOSED' },
+          observedFacts: [
+            { key: 'nifty50Current', value: 22520.45, availabilityStatus: 'AVAILABLE', semanticClass: 'OBSERVED', source: { provider: 'NSE' } },
+            { key: 'nifty50PreviousClose', value: 22231.8, availabilityStatus: 'AVAILABLE', semanticClass: 'OBSERVED', source: { provider: 'NSE' } },
+            { key: 'indiaVixCurrent', value: 14.36, availabilityStatus: 'AVAILABLE', semanticClass: 'OBSERVED', source: { provider: 'NSE' } },
+          ],
+        },
+      },
+      marketContextLoading: false,
+      marketContextError: null,
+      marketContextRefreshing: false,
+    });
+
+    render(<RecommendationDashboard userProfile={profile} recommendations={[]} />);
+
+    const overview = screen.getByTestId('home-market-overview');
+    expect(within(overview).getByRole('heading', { name: 'Market overview' })).toBeVisible();
+    expect(within(overview).getAllByText('Market closed')).toHaveLength(2);
+    expect(within(overview).getByText('22,520.45')).toBeVisible();
+    expect(within(overview).getByText('22,231.8')).toBeVisible();
+    expect(within(overview).getByText('14.36')).toBeVisible();
+    expect(within(overview).getByText(/Source: NSE · Freshness: FRESH/)).toBeVisible();
+    expect(within(overview).getByText(/separate from modeled return assumptions/i)).toBeVisible();
   });
 
   it('renders only supplied server instruments and explains the property-proceeds invariant', () => {

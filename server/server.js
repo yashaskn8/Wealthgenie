@@ -14,7 +14,7 @@ import { startPlanReviewWorker, stopPlanReviewWorker } from './agents/planReview
 import logger from './utils/logger.js';
 import { createRuntimeState } from './services/runtimeState.js';
 import { warmAdvisoryPersistence } from './services/advisoryPersistence.js';
-import { verifyMarketDataPersistenceIndexes } from './services/persistenceIndexReadiness.js';
+import { verifyGenieProofPersistenceIndexes, verifyMarketDataPersistenceIndexes } from './services/persistenceIndexReadiness.js';
 import { verifyPlanReviewPersistenceIndexes } from './services/planReviewPersistence.js';
 import { verifyAgentRuntimePersistence } from './services/planHealthPersistence.js';
 import AgentRunEvent from './models/AgentRunEvent.js';
@@ -26,6 +26,7 @@ import {
 import { warmAuthorizationPersistence } from './services/authorizationPersistence.js';
 import { reconcileAuthorizedExecutions } from './agents/authorization/executionRecovery.js';
 import { createMcpRuntime } from './mcp/mcpRuntime.js';
+import { createGenieProofRuntime } from './agents/genieProof/genieProofPassportSignature.js';
 
 let server = null;
 let shuttingDown = false;
@@ -77,6 +78,7 @@ export async function startServer({ env = process.env } = {}) {
 
   const config = getRuntimeConfig(env);
   assertValidRuntimeConfig(config);
+  const genieProofRuntime = createGenieProofRuntime({ env });
   activeConfig = config;
   runtimeState.markStarting();
   const mcpRuntime = createMcpRuntime({
@@ -105,6 +107,7 @@ export async function startServer({ env = process.env } = {}) {
     });
     await warmAdvisoryPersistence();
     await verifyMarketDataPersistenceIndexes({ force: true });
+    if (genieProofRuntime.enabled) await verifyGenieProofPersistenceIndexes({ force: true });
     if (config.agenticPlanReviewEnabled) {
       await verifyPlanReviewPersistenceIndexes();
       await verifyEnabledApiAgentPersistence(config);
@@ -115,7 +118,7 @@ export async function startServer({ env = process.env } = {}) {
       throw new Error('Redis is required in this environment but is unavailable');
     }
 
-    const app = createApp({ env, runtimeState, mcpRuntime });
+    const app = createApp({ env, runtimeState, mcpRuntime, genieProofRuntime });
     if (config.isProduction && config.mcp.enabled && config.mcp.remoteEnabled
         && !(await app.locals.mcpCapacity.probe())) {
       throw new Error('MCP distributed capacity and revocation dependencies failed their readiness contract probe.');

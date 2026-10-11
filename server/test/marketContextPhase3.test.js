@@ -98,6 +98,12 @@ test('fresh verified NIFTY and VIX observations produce deterministic normal con
   assert.equal(context.policyVersion, MARKET_CONTEXT_POLICY_VERSION);
   assert.equal(context.confidence, null);
   assert.equal(features.signals.return1DayPct.value, 0.628931);
+  for (const key of ['nifty50Current', 'nifty50PreviousClose', 'indiaVixCurrent']) {
+    assert.equal(features.signals[key].semanticClass, 'OBSERVED', `${key} is directly supplied by the quote source`);
+  }
+  for (const key of ['return1DayPct', 'return20DayPct', 'movingAverage50Day', 'realizedVolatility20DayAnnualizedPct']) {
+    assert.equal(features.signals[key].semanticClass, 'DERIVED', `${key} is computed from observed quote/history facts`);
+  }
   assert.equal(features.signals.movingAverage50Day.available, true);
   assert.equal(features.signals.movingAverage200Day.available, false);
   assert.equal(features.observedFacts.find(fact => fact.key === 'nifty50Current').semanticClass, 'OBSERVED');

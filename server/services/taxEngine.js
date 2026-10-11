@@ -204,6 +204,8 @@ const TAX_POLICY_RULES = Object.freeze({
         capitalGainsHoldingPeriodMonths: Object.freeze({ listed: 12, other: 24 }),
         bankInterestTdsThreshold: Object.freeze({ general: 50000, senior: 100000 }),
         bankInterestTdsRate: 0.10,
+        securityInterestTdsThreshold: 10000,
+        securityInterestTdsRate: 0.10,
         healthAndEducationCessRate: 0.04,
         deductionLimits: Object.freeze({
             section80C: 150000,
@@ -235,6 +237,8 @@ const TAX_POLICY_RULES = Object.freeze({
         capitalGainsHoldingPeriodMonths: Object.freeze({ listed: 12, other: 24 }),
         bankInterestTdsThreshold: Object.freeze({ general: 50000, senior: 100000 }),
         bankInterestTdsRate: 0.10,
+        securityInterestTdsThreshold: 10000,
+        securityInterestTdsRate: 0.10,
         healthAndEducationCessRate: 0.04,
         deductionLimits: Object.freeze({
             section80C: 150000,
@@ -752,6 +756,34 @@ export function computeCapitalGainsTaxBuckets({
             userAge: ordinary.userAge,
             sourceReferences: policy.sourceReferences,
             unavailableReasons: ['SPECIAL_RATE_HIGH_INCOME_REQUIRES_FULL_TAX_CONTEXT'],
+        };
+    }
+
+    // Sections 196(2), 197(2), and 198(3) permit a resident individual/HUF
+    // to offset unused basic-exemption headroom against qualifying gains.
+    // Residency is not collected by this product, so fail closed whenever
+    // that interaction could change the result instead of silently omitting it.
+    const maximumNotChargeable = getRegimeSlabs(regime, fiscalYear, ordinary.userAge)[0]?.max;
+    const unusedBasicExemption = Number.isFinite(maximumNotChargeable)
+        ? Math.max(0, maximumNotChargeable - ordinary.taxableIncome)
+        : 0;
+    if (totalGain > 0 && unusedBasicExemption > 0) {
+        return {
+            status: 'UNAVAILABLE',
+            grossGain: totalGain,
+            taxableGain: null,
+            taxable112A: null,
+            exemptionApplied: null,
+            taxAmount: null,
+            cess: null,
+            surcharge: null,
+            marginalRelief: null,
+            policyVersion: policy.policyVersion,
+            statuteMetadata: policy.statuteMetadata,
+            fiscalYear,
+            userAge: ordinary.userAge,
+            sourceReferences: policy.sourceReferences,
+            unavailableReasons: ['TAX_RESIDENCY_REQUIRED_FOR_BASIC_EXEMPTION_INTERACTION'],
         };
     }
 

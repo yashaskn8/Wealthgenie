@@ -17,6 +17,8 @@ import MandateApprovalChallenge from '../models/MandateApprovalChallenge.js';
 import PasskeyRegistrationChallenge from '../models/PasskeyRegistrationChallenge.js';
 import ExecutionReceipt from '../models/ExecutionReceipt.js';
 import AuthorizedExecutionAttempt from '../models/AuthorizedExecutionAttempt.js';
+import GenieProofCase from '../models/GenieProofCase.js';
+import GenieProofRevision from '../models/GenieProofRevision.js';
 import { createError } from '../middleware/errorHandler.js';
 
 export const PHASE2_INDEX_MODELS = Object.freeze([
@@ -45,9 +47,15 @@ export const AUTHORIZATION_INDEX_MODELS = Object.freeze([
   AuthorizedExecutionAttempt,
 ]);
 
+export const GENIEPROOF_INDEX_MODELS = Object.freeze([
+  GenieProofCase,
+  GenieProofRevision,
+]);
+
 export const MIGRATION_INDEX_MODELS = Object.freeze([
   ...PHASE2_INDEX_MODELS,
   ...AUTHORIZATION_INDEX_MODELS,
+  ...GENIEPROOF_INDEX_MODELS,
 ]);
 
 // These schema-declared unique indexes fence every durable market-data upsert.
@@ -98,7 +106,7 @@ function indexMatches(actual, required) {
 }
 
 function indexReadinessError(missing, scope = 'financial') {
-  const subject = ['market-data', 'authorization', 'persistence'].includes(scope) ? scope : 'financial';
+  const subject = ['market-data', 'authorization', 'persistence', 'genieproof'].includes(scope) ? scope : 'financial';
   const displaySubject = subject === 'market-data' ? 'Market data' : subject[0].toUpperCase() + subject.slice(1);
   return createError(
     503,
@@ -166,6 +174,11 @@ export async function verifyMarketDataPersistenceIndexes({ models = MARKET_DATA_
 /** Read-only startup gate for durable verifiable-authorization identities. */
 export async function verifyAuthorizationPersistenceIndexes({ models = AUTHORIZATION_INDEX_MODELS, force = true } = {}) {
   return verifyPersistenceIndexes({ models, force, scope: 'authorization' });
+}
+
+/** Read-only startup gate for owner-bound GenieProof case and revision identities. */
+export async function verifyGenieProofPersistenceIndexes({ models = GENIEPROOF_INDEX_MODELS, force = true } = {}) {
+  return verifyPersistenceIndexes({ models, force, scope: 'genieproof' });
 }
 
 /** Explicit migration entry point. Never call from an HTTP request or app startup. */

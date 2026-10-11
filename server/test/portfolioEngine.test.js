@@ -106,6 +106,7 @@ test('resolveAssetKey mappings and fallback', () => {
   assert.equal(resolveAssetKey('fd'), 'FD');
   assert.equal(resolveAssetKey('debt_mf'), 'Debt_MF');
   assert.equal(resolveAssetKey('rbi_bonds'), 'RBI_Bond');
+  assert.equal(resolveAssetKey('rbi_retail_direct_gilt'), 'G-Sec');
   assert.equal(resolveAssetKey('g-sec'), 'G-Sec');
   assert.equal(resolveAssetKey('balancedadvantage'), 'Hybrid_MF');
   assert.equal(resolveAssetKey('gold_physical'), 'Gold');

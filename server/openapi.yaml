@@ -167,6 +167,73 @@ paths:
       description: Bounded, read-only evidence review. It never changes profiles, recommendations, goals, allocations, or weights. The feature is controlled by AGENTIC_PLAN_REVIEW_ENABLED.
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PlanReviewRequest' } } } }
       responses: { '202': { $ref: '#/components/responses/PlanReviewRun' }, '200': { $ref: '#/components/responses/PlanReviewRun' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+
+  /api/genieproof/extract:
+    post:
+      operationId: extractGenieProofClaims
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      description: Local bounded deterministic candidate extraction only. It returns no verdict; the customer must review and confirm every claim. Raw offer text is not persisted.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofExtractRequest' } } } }
+      responses: { '200': { description: Extracted candidates awaiting customer confirmation, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofExtraction' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' } }
+  /api/genieproof/cases:
+    post:
+      operationId: createGenieProofPassport
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      x-idempotency-key: required
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      description: Creates a private owner-scoped signed passport after rechecking the submitted input hash and confirming claims. Current unqualified source evidence produces NOT_VERIFIABLE. No investment recommendation or monitoring enrollment occurs.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreateRequest' } } } }
+      responses: { '200': { description: Replayed idempotent creation, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreated' } } } }, '201': { description: Created signed passport, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreated' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+    get:
+      operationId: listGenieProofCases
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      description: Lists only the authenticated user's saved cases. Query parameters are rejected.
+      responses:
+        '200':
+          description: Owned case summaries.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cases]
+                properties:
+                  cases: { type: array, maxItems: 25, items: { $ref: '#/components/schemas/GenieProofCaseSummary' } }
+                additionalProperties: false
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/genieproof/cases/{caseId}:
+    get:
+      operationId: getGenieProofCase
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' } }]
+      responses: { '200': { description: Owned passport, headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCaseDetail' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+    delete:
+      operationId: deleteGenieProofCase
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' } }]
+      responses: { '204': { description: Case and all saved passport revisions deleted. }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/genieproof/cases/{caseId}/verify:
+    get:
+      operationId: verifyGenieProofPassportIntegrity
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters: [{ name: caseId, in: path, required: true, schema: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' } }]
+      description: Checks canonical manifest hash, trusted Ed25519 signature, and case/owner bindings. A valid signature proves document integrity only, not financial correctness.
+      responses: { '200': { description: Integrity verification result, headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofIntegrity' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
   /api/agent/plan-review/current:
     get:
       operationId: getCurrentPlanReviewRun
@@ -822,6 +889,107 @@ components:
         code: { type: string, pattern: '^[A-Z0-9_]+$' }
         request_id: { type: [string, 'null'] }
         details: { oneOf: [{ type: array, items: { type: string } }, { type: object, additionalProperties: true }] }
+    GenieProofExtractRequest:
+      type: object
+      additionalProperties: false
+      required: [offerText]
+      properties: { offerText: { type: string, minLength: 1, maxLength: 16000, writeOnly: true } }
+    GenieProofClaim:
+      type: object
+      additionalProperties: false
+      required: [claimId, statement, claimType, productId, value, unit]
+      properties:
+        claimId: { type: string, pattern: '^[a-f0-9]{32}$' }
+        statement: { type: string, minLength: 1, maxLength: 500 }
+        claimType: { type: string, enum: [CURRENT_NOMINAL_RATE, UNSUPPORTED] }
+        productId: { type: [string, 'null'], enum: ['government:india-post:ppf', null] }
+        value: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        unit: { type: string, enum: [PERCENT_PER_ANNUM, UNKNOWN] }
+    GenieProofCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [offerText, submissionHash, confirmedClaims]
+      properties:
+        offerText: { type: string, minLength: 1, maxLength: 16000, writeOnly: true }
+        submissionHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        confirmedClaims: { type: array, minItems: 1, maxItems: 10, items: { $ref: '#/components/schemas/GenieProofClaim' } }
+    GenieProofCandidate:
+      type: object
+      additionalProperties: true
+      required: [claimId, originalSpan, claimType, value, unit, candidateReasonCodes]
+      properties:
+        claimId: { type: string, pattern: '^[a-f0-9]{32}$' }
+        originalSpan: { type: string }
+        claimType: { type: string, enum: [CURRENT_NOMINAL_RATE, UNSUPPORTED] }
+        productId: { type: [string, 'null'] }
+        value: { type: [number, 'null'] }
+        unit: { type: string }
+        candidateReasonCodes: { type: array, items: { type: string } }
+    GenieProofExtraction:
+      type: object
+      additionalProperties: false
+      required: [ok, inputHash, extractionVersion, claims, requiresCustomerConfirmation, rawOfferRetained]
+      properties:
+        ok: { type: boolean, const: true }
+        inputHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        extractionVersion: { type: string }
+        claims: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/GenieProofCandidate' } }
+        requiresCustomerConfirmation: { type: boolean, const: true }
+        rawOfferRetained: { type: boolean, const: false }
+    GenieProofCaseSummary:
+      type: object
+      additionalProperties: false
+      required: [caseId, revision, manifestHash, claimCount, createdAt]
+      properties:
+        caseId: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' }
+        revision: { type: integer, minimum: 1 }
+        manifestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        claimCount: { type: integer, minimum: 0, maximum: 10 }
+        createdAt: { type: string, format: date-time }
+    GenieProofSignedPassport:
+      type: object
+      additionalProperties: false
+      required: [manifest, manifestHash, signature]
+      properties:
+        manifest: { type: object, required: [schemaVersion, caseId, revision, submissionHash, confirmedClaims, findings, verifierVersion, assessedAt], additionalProperties: true }
+        manifestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        signature:
+          type: object
+          additionalProperties: false
+          required: [algorithm, keyId, publicKeyFingerprint, value]
+          properties:
+            algorithm: { type: string, const: Ed25519 }
+            keyId: { type: string }
+            publicKeyFingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+            value: { type: string }
+    GenieProofCreated:
+      type: object
+      additionalProperties: false
+      required: [created, case, passport]
+      properties:
+        created: { type: boolean }
+        case: { $ref: '#/components/schemas/GenieProofCaseSummary' }
+        passport: { $ref: '#/components/schemas/GenieProofSignedPassport' }
+    GenieProofCaseDetail:
+      type: object
+      additionalProperties: false
+      required: [case, passport]
+      properties:
+        case: { $ref: '#/components/schemas/GenieProofCaseSummary' }
+        passport: { $ref: '#/components/schemas/GenieProofSignedPassport' }
+    GenieProofIntegrity:
+      type: object
+      additionalProperties: false
+      required: [caseId, revision, manifestHash, integrity, signature, trustedIssuer, financialCorrectness, code]
+      properties:
+        caseId: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' }
+        revision: { type: integer, minimum: 1 }
+        manifestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        integrity: { type: string, enum: [VALID, CONTENT_HASH_MATCHES, INVALID] }
+        signature: { type: string, enum: [VERIFIED, UNVERIFIED] }
+        trustedIssuer: { type: boolean }
+        financialCorrectness: { type: string, const: NOT_ESTABLISHED_BY_SIGNATURE }
+        code: { type: string }
     User:
       type: object
       required: [id, name, email, role]

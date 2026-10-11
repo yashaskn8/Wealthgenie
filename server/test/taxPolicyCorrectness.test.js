@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   calculateTaxableIncome,
+  computeCapitalGainsTaxBuckets,
   computeTax,
   getTaxPolicyCatalog,
   getTaxPolicyMetadata,
@@ -47,6 +48,31 @@ test('old-regime basic exemption changes at ages 60 and 80', () => {
     () => computeTax(600_000, 'old', {}, 'business', CURRENT_FY),
     /USER_AGE_REQUIRED_FOR_OLD_REGIME/,
   );
+});
+
+test('special-rate gains fail closed when residency could change the basic-exemption result', () => {
+  for (const fiscalYear of [OLD_FY, CURRENT_FY]) {
+    const result = computeCapitalGainsTaxBuckets({
+      longTerm112AGain: 600_000,
+      annualIncome: 0,
+      regime: 'new',
+      incomeSource: 'other',
+      fiscalYear,
+    });
+    assert.equal(result.status, 'UNAVAILABLE');
+    assert.equal(result.taxAmount, null);
+    assert.deepEqual(result.unavailableReasons, ['TAX_RESIDENCY_REQUIRED_FOR_BASIC_EXEMPTION_INTERACTION']);
+  }
+
+  const noBasicExemptionHeadroom = computeCapitalGainsTaxBuckets({
+    longTerm112AGain: 600_000,
+    annualIncome: 500_000,
+    regime: 'new',
+    incomeSource: 'other',
+    fiscalYear: CURRENT_FY,
+  });
+  assert.equal(noBasicExemptionHeadroom.status, 'CALCULATED');
+  assert.equal(noBasicExemptionHeadroom.taxable112A, 475_000);
 });
 
 test('family-pension deduction is fiscal-year and regime policy, not a universal magic number', () => {

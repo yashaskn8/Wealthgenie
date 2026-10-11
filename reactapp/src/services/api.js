@@ -558,6 +558,33 @@ export async function actOnPlanReview(runId, action, options = {}) {
   return request('POST', `/agent/plan-review/${encodeURIComponent(runId)}/action`, { action }, { retries: 0, ...options });
 }
 
+export async function extractGenieProofClaims(offerText, options = {}) {
+  return request('POST', '/genieproof/extract', { offerText }, { retries: 0, ...options });
+}
+
+export async function createGenieProofCase({ offerText, submissionHash, confirmedClaims }, options = {}) {
+  return request('POST', '/genieproof/cases', { offerText, submissionHash, confirmedClaims }, { retries: 0, ...options });
+}
+
+export async function listGenieProofCases(options = {}) {
+  return request('GET', '/genieproof/cases', null, { retries: 0, ...options });
+}
+
+export async function getGenieProofCase(caseId, options = {}) {
+  if (!caseId) throw new TypeError('A GenieProof case ID is required.');
+  return request('GET', `/genieproof/cases/${encodeURIComponent(caseId)}`, null, { retries: 0, ...options });
+}
+
+export async function verifyGenieProofCase(caseId, options = {}) {
+  if (!caseId) throw new TypeError('A GenieProof case ID is required.');
+  return request('GET', `/genieproof/cases/${encodeURIComponent(caseId)}/verify`, null, { retries: 0, ...options });
+}
+
+export async function deleteGenieProofCase(caseId, options = {}) {
+  if (!caseId) throw new TypeError('A GenieProof case ID is required.');
+  return request('DELETE', `/genieproof/cases/${encodeURIComponent(caseId)}`, null, { retries: 0, ...options });
+}
+
 export async function listAuthorizedMandates(options = {}) {
   return request('GET', '/agent/mandates', null, { retries: 0, ...options });
 }
@@ -904,7 +931,7 @@ const api = {
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,
-  buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, getFinancialHealthScore, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
+  buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, getFinancialHealthScore, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, extractGenieProofClaims, createGenieProofCase, listGenieProofCases, getGenieProofCase, verifyGenieProofCase, deleteGenieProofCase, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
   runMonteCarlo, runPortfolioMonteCarlo, createGoal, getGoals, updateGoal, simulateGoal, deleteGoal, healthCheck,
   getMarketRates, getBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,

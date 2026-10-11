@@ -7,6 +7,46 @@ import { isPresentFiniteNumber, toOptionalNumber } from './utils/financialValues
 import * as api from './services/api';
 import './PostTaxAnalysis.css';
 
+const TAX_INPUT_LABELS = Object.freeze({
+  annualGrossIncome: 'gross annual income',
+  incomeSource: 'income source',
+  regime: 'tax regime',
+  fiscalYear: 'fiscal year',
+  userAge: 'age from the saved Financial Profile',
+  holdingPeriod: 'holding period or exact transaction dates',
+  holdingPeriodMonths: 'holding period or exact transaction dates',
+  acquisitionDate: 'acquisition date',
+  redemptionDate: 'redemption date',
+  section112AExemptionUsed: 'Section 112A exemption already used',
+  sttConditionAssumedSatisfied: 'the explicit STT condition assumption',
+  couponRate: 'coupon rate',
+  redemptionChannel: 'redemption channel',
+  annuityFraction: 'annuity fraction',
+  retirementTiming: 'retirement timing',
+  acquiredAtOriginalIssue: 'whether the bond was acquired at original issue',
+  heldContinuously: 'whether the bond was held continuously to maturity',
+});
+
+const TAX_UNAVAILABLE_REASON_COPY = Object.freeze({
+  MODEL_TAX_CLASS_UNAVAILABLE_FOR_GENERIC_INSTRUMENT_TYPE: 'No source-qualified tax treatment is established for this investment type.',
+  PPF_SSY_EXCLUSION_ELIGIBILITY_NOT_ESTABLISHED: 'Account eligibility and contribution or payment evidence are needed before an exclusion can be applied.',
+  VERIFIED_ACCOUNT_AND_PAYMENT_FACTS_REQUIRED: 'Verified account and payment facts are needed before this result can be calculated.',
+  SGB_MATURITY_EXEMPTION_NOT_ESTABLISHED: 'Original-issue acquisition and continuous-holding facts are needed to establish the maturity treatment.',
+  SGB_PREMATURE_REDEMPTION_TAX_CLASSIFICATION_REQUIRES_FACTS: 'The tax treatment for this redemption path is not established by the supplied facts.',
+  TAX_RESIDENCY_REQUIRED_FOR_BASIC_EXEMPTION_INTERACTION: 'Residency status is required to determine whether unused basic-exemption headroom can apply to these gains.',
+  SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE: 'All relevant qualifying equity gains must be available before the shared exemption can be allocated.',
+  FISCAL_YEAR_UNSUPPORTED: 'A verified tax policy is not available for the selected fiscal year.',
+});
+
+function describeUnavailableResult(result) {
+  const reasons = Array.isArray(result?.unavailableReasons) ? result.unavailableReasons : [];
+  const requiredFacts = [...new Set(reasons.map(reason => TAX_INPUT_LABELS[reason]).filter(Boolean))];
+  if (requiredFacts.length > 0) return `Required facts: ${requiredFacts.join(', ')}.`;
+  const explanations = [...new Set(reasons.map(reason => TAX_UNAVAILABLE_REASON_COPY[reason]).filter(Boolean))];
+  if (explanations.length > 0) return explanations.join(' ');
+  return 'The backend could not establish a qualified tax class or all required product facts. No after-tax figure is shown.';
+}
+
 const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
   const [showBreakdown, setShowBreakdown] = useState(true);
   const [grossAnnualIncome, setGrossAnnualIncome] = useState('');
@@ -188,6 +228,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
           postTaxGain: result.postTaxGain,
           taxDragWealth: result.taxDragWealth,
           taxDragCAGR: isPresentFiniteNumber(result.taxDragCAGR) ? Number(result.taxDragCAGR) * 100 : null,
+          unavailableExplanation: describeUnavailableResult(result),
         },
         totalInvested: result.totalInvested,
         wealthGained: isPresentFiniteNumber(result.postTaxGain) ? Number(result.postTaxGain) : null,
@@ -207,6 +248,8 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
   const marginalRate = readNumeric(backendPostTaxData?.summary?.maxTaxRate);
   const portfolioStatus = backendPostTaxData?.portfolioStatus || backendPostTaxData?.summary?.status || null;
   const calculatedCount = backendPostTaxData?.results?.filter(result => result.status === 'CALCULATED').length || 0;
+  const displayedAssetCount = backendPostTaxData ? postTaxData.length : recommendations.length;
+  const displayedAssetCountLabel = `${displayedAssetCount} ${displayedAssetCount === 1 ? 'asset' : 'assets'}`;
 
   const strokeDashoffset = useMemo(() => {
     return efficiencyPercent === null ? 251.2 : 251.2 - (251.2 * efficiencyPercent) / 100;
@@ -521,7 +564,9 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
           </div>
           <div className="pta-kpi-content">
             <span className="pta-kpi-label">Total Tax Drag</span>
-          <span className="pta-kpi-value pta-kpi-value--rose">{totalTaxDragRupees === null ? 'Unavailable' : formatINR(totalTaxDragRupees)}</span>
+          <span className="pta-kpi-value pta-kpi-value--rose">
+            {totalTaxDragRupees === null ? (backendPostTaxData ? 'Unavailable' : 'Not calculated') : formatINR(totalTaxDragRupees)}
+          </span>
           </div>
         </div>
       </motion.div>
@@ -584,7 +629,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
               }}>
               <div className="pta-table-header-left">
                 <h3 className="pta-card-title">Detailed Breakdown</h3>
-                <span className="pta-table-count">{postTaxData.length} assets</span>
+                <span className="pta-table-count" data-testid="post-tax-asset-count">{displayedAssetCountLabel}</span>
               </div>
               <div className="pta-table-header-right">
                 <span className="pta-inflation-chip">
@@ -622,6 +667,13 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
                         </tr>
                       </thead>
                       <tbody>
+                        {!backendPostTaxData && (
+                          <tr>
+                            <td colSpan={6} style={{ padding: '18px 14px', color: '#94a3b8', textAlign: 'center' }}>
+                              After-tax estimates have not been calculated for {displayedAssetCountLabel}. Enter explicit tax inputs above and calculate to view them.
+                            </td>
+                          </tr>
+                        )}
                         {postTaxData.map((data, i) => (
                           <tr key={data.id} className="pta-table-row" data-testid={`post-tax-row-${data.id}`}>
                             <td className="pta-td--asset">
@@ -632,11 +684,15 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
                               </div>
                             </td>
                             <td>
-                              <span className={`pta-badge ${getTaxBadgeClass(data.taxDetails.taxType)}`}>
-                                {data.resultStatus === 'CALCULATED' ? data.taxDetails.taxType : 'Unavailable — tax class or inputs required'}
+                          <span className={`pta-badge ${getTaxBadgeClass(data.taxDetails.taxType)}`}>
+                                {data.resultStatus === 'CALCULATED'
+                                  ? data.taxDetails.taxType
+                                  : 'Unavailable — tax class or inputs required'}
                               </span>
                               {data.resultStatus !== 'CALCULATED' && (
-                                <span className="pta-asset-cat">No zero substituted</span>
+                                <span className="pta-asset-cat" data-testid="post-tax-unavailable-explanation">
+                                  {data.taxDetails.unavailableExplanation} No zero substituted.
+                                </span>
                               )}
                             </td>
                             <td data-testid="nominal-return" className="pta-td--mono pta-td--center pta-td--dim">

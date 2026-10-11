@@ -10,6 +10,8 @@ import SebiDisclaimer from './components/SebiDisclaimer';
 import { formatCompactINR } from './utils/indianNumberFormat';
 import JargonTooltip from './components/JargonTooltip';
 import { computeSuitabilityMatch } from './utils/suitabilityMatch';
+import { formatMarketTimestamp, getMarketDisplayState, getMarketEvidenceSource } from './utils/marketDataDisplay';
+import { useMarketContext } from './state/useMarketContext';
 
 import './Dashboard.css';
 
@@ -61,6 +63,79 @@ export const BackendFallbackBanner = ({ notice, onDismiss }) => {
 };
 
 const RecommendationSourceBadge = () => null;
+
+function HomeMarketOverview() {
+  const { marketContext, marketContextLoading, marketContextError, marketContextRefreshing } = useMarketContext();
+  const snapshot = marketContext?.marketSnapshot || null;
+  const displayState = getMarketDisplayState(marketContext, {
+    loading: marketContextLoading,
+    refreshFailed: Boolean(marketContextError),
+  });
+  const observedFacts = snapshot?.observedFacts || [];
+  const factByKey = new Map(observedFacts.map(fact => [fact.key, fact]));
+  const formatQuote = key => {
+    const fact = factByKey.get(key);
+    const value = nullableMarketNumber(fact?.value);
+    if (fact?.availabilityStatus !== 'AVAILABLE' || value === null) return 'Unavailable';
+    return value.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  };
+  const sources = getMarketEvidenceSource(marketContext) || 'Unavailable';
+  const sessionStatus = snapshot?.marketSession?.status;
+  const sessionLabel = sessionStatus === 'MARKET_OPEN'
+    ? 'Market open'
+    : sessionStatus === 'MARKET_CLOSED' || sessionStatus === 'MARKET_HOLIDAY'
+      ? 'Market closed'
+      : 'Session unavailable';
+  const freshness = snapshot?.freshness?.status || 'UNAVAILABLE';
+  const observedAt = formatMarketTimestamp(snapshot?.observedAt);
+
+  return (
+    <section
+      aria-labelledby="home-market-overview-title"
+      data-testid="home-market-overview"
+      style={{
+        marginBottom: 18,
+        padding: '16px 20px',
+        borderRadius: 14,
+        border: '1px solid rgba(56, 189, 248, 0.2)',
+        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.72))',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <h2 id="home-market-overview-title" style={{ margin: 0, color: '#f8fafc', fontSize: '0.98rem', fontWeight: 800 }}>
+            Market overview
+          </h2>
+          <p role="status" style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '0.72rem' }}>
+            {displayState.label}{marketContextRefreshing ? ' · Refreshing' : ''}
+            {marketContextError && !marketContextLoading ? ' · Refresh failed; showing the last response.' : ''}
+          </p>
+        </div>
+        <span style={{ color: '#cbd5e1', fontSize: '0.7rem' }}>{sessionLabel}</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 14 }}>
+        {[
+          ['NIFTY 50', 'nifty50Current'],
+          ['Previous close', 'nifty50PreviousClose'],
+          ['India VIX', 'indiaVixCurrent'],
+        ].map(([label, key]) => (
+          <div key={key} style={{ padding: '9px 11px', borderRadius: 10, background: 'rgba(2, 6, 23, 0.35)', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ color: '#94a3b8', fontSize: '0.65rem', marginBottom: 4 }}>{label} · Observed</div>
+            <strong style={{ color: '#e2e8f0', fontSize: '0.9rem', fontVariantNumeric: 'tabular-nums' }}>{formatQuote(key)}</strong>
+          </div>
+        ))}
+      </div>
+      <p style={{ margin: '10px 0 0', color: '#64748b', fontSize: '0.66rem', lineHeight: 1.5 }}>
+        Source: {sources} · Freshness: {freshness} · Observed: {observedAt || 'Unavailable'}. These are market observations, separate from modeled return assumptions below.
+      </p>
+      {marketContextError && !snapshot && (
+        <p style={{ margin: '8px 0 0', color: '#fbbf24', fontSize: '0.72rem' }}>
+          {displayState.detail}
+        </p>
+      )}
+    </section>
+  );
+}
 
 // Map 5-tier riskCategory to slider value (1-10)
 const riskCategoryToSlider = (cat) => {
@@ -679,6 +754,13 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             Sold-property proceeds are not treated as investable capital; they remain context only.
           </div>
         </div>
+
+        {/* Public market-data redistribution rights are not yet established for every
+            backend source. Keep this additive overview local by default; production
+            requires an explicit deployment-level rights review and opt-in. */}
+        {(import.meta.env.DEV || import.meta.env.VITE_HOME_MARKET_CONTEXT_ENABLED === 'true') && (
+          <HomeMarketOverview />
+        )}
 
         {/* ELIGIBILITY NOTICE BAR */}
         {excludedCount > 0 && (

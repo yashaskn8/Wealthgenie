@@ -17,6 +17,7 @@ import recommendRoutes from '../routes/recommend.js';
 import goalsRoutes from '../routes/goals.js';
 import marketRoutes from '../routes/market.js';
 import agentRoutes from '../routes/agentRoutes.js';
+import genieProofRoutes from '../routes/genieProofRoutes.js';
 import projectionRoutes from '../routes/projection.js';
 import montecarloRoutes from '../routes/montecarlo.js';
 import portfolioRoutes from '../routes/portfolio.js';
@@ -46,6 +47,7 @@ const publicMounts = [
   ['profile.js', '/api/profile'],
   ['recommend.js', '/api/recommend'],
   ['agentRoutes.js', '/api/agent'],
+  ['genieProofRoutes.js', '/api/genieproof'],
   ['instruments.js', '/api/instruments'],
   ['projection.js', '/api/projection'],
   ['montecarlo.js', '/api/montecarlo'],
@@ -143,6 +145,7 @@ function buildContractTestApp() {
   app.use('/api/recommend', recommendRoutes);
   app.use('/api/market', marketRoutes);
   app.use('/api/agent', agentRoutes);
+  app.use('/api/genieproof', genieProofRoutes);
   app.use('/api/projection', projectionRoutes);
   app.use('/api/montecarlo', montecarloRoutes);
   app.use('/api/portfolio', portfolioRoutes);
@@ -182,6 +185,12 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'POST /api/agent/plan-review/{runId}/action', method: 'POST', path: '/api/agent/plan-review/{runId}/action', url: '/api/agent/plan-review/65b00000-0000-4000-8000-000000000099/action', expectedStatus: 400, authenticated: true, body: { action: 'UNSAFE_ACTION' } },
   { operation: 'POST /api/agent/plan-review/{runId}/action', method: 'POST', path: '/api/agent/plan-review/{runId}/action', url: '/api/agent/plan-review/65b00000-0000-4000-8000-000000000099/action', expectedStatus: 404, authenticated: true, body: { action: 'OPEN_PROFILE' } },
   { operation: 'GET /api/market/mutual-funds/nav', method: 'GET', path: '/api/market/mutual-funds/nav', url: '/api/market/mutual-funds/nav?schemeCodes=1001&extra=unexpected', expectedStatus: 400 },
+  { operation: 'POST /api/genieproof/extract', method: 'POST', path: '/api/genieproof/extract', url: '/api/genieproof/extract', expectedStatus: 404, body: { offerText: 'The current PPF interest rate is 7.1% p.a.' } },
+  { operation: 'POST /api/genieproof/cases', method: 'POST', path: '/api/genieproof/cases', url: '/api/genieproof/cases', expectedStatus: 404, body: { offerText: 'The current PPF interest rate is 7.1% p.a.', submissionHash: 'a'.repeat(64), confirmedClaims: [{ claimId: 'a'.repeat(32), statement: 'The current PPF interest rate is 7.1% p.a.', claimType: 'CURRENT_NOMINAL_RATE', productId: 'government:india-post:ppf', value: 7.1, unit: 'PERCENT_PER_ANNUM' }] } },
+  { operation: 'GET /api/genieproof/cases', method: 'GET', path: '/api/genieproof/cases', url: '/api/genieproof/cases', expectedStatus: 401 },
+  { operation: 'GET /api/genieproof/cases/{caseId}', method: 'GET', path: '/api/genieproof/cases/{caseId}', url: '/api/genieproof/cases/00000000-0000-4000-8000-000000000001', expectedStatus: 401 },
+  { operation: 'GET /api/genieproof/cases/{caseId}/verify', method: 'GET', path: '/api/genieproof/cases/{caseId}/verify', url: '/api/genieproof/cases/00000000-0000-4000-8000-000000000001/verify', expectedStatus: 401 },
+  { operation: 'DELETE /api/genieproof/cases/{caseId}', method: 'DELETE', path: '/api/genieproof/cases/{caseId}', url: '/api/genieproof/cases/00000000-0000-4000-8000-000000000001', expectedStatus: 404 },
 ]);
 
 // Critical success responses validated by neighboring real-HTTP suites. The

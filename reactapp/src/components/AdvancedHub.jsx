@@ -3,7 +3,8 @@ import ComparisonTableModal from '../ComparisonTableModal';
 import InsightsScreen from '../InsightsScreen';
 import ErrorBoundary from './ErrorBoundary';
 import { investmentDatabase } from '../investmentDatabase';
-import { Layers, Lightbulb, ShieldCheck, Activity, Database, CheckCircle2 } from 'lucide-react';
+import { Layers, Lightbulb, ShieldCheck, Database, FileSearch } from 'lucide-react';
+import GenieProofPanel from './GenieProofPanel';
 import './HubStyles.css';
 
 /**
@@ -23,8 +24,11 @@ const AdvancedHub = ({
   recommendations,
   recommendationMeta,
   onNavigateHome,
+  genieProofEnabled = false,
 }) => {
-  const allowedTabs = ['comparison', 'insights', 'diagnostics'];
+  const allowedTabs = genieProofEnabled
+    ? ['comparison', 'insights', 'diagnostics', 'genieproof']
+    : ['comparison', 'insights', 'diagnostics'];
   const currentTab = allowedTabs.includes(activeTab) ? activeTab : 'comparison';
 
   return (
@@ -75,6 +79,20 @@ const AdvancedHub = ({
             <Database size={15} />
             <span>Policy & Diagnostics</span>
           </button>
+          {genieProofEnabled && (
+            <button
+              role="tab"
+              id="tab-genieproof"
+              aria-selected={currentTab === 'genieproof'}
+              aria-controls="panel-genieproof"
+              data-testid="tab-genieproof"
+              className={`hub-tab-btn ${currentTab === 'genieproof' ? 'hub-tab-btn--active' : ''}`}
+              onClick={() => onTabChange('genieproof')}
+            >
+              <FileSearch size={15} />
+              <span>GenieProof</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -194,6 +212,19 @@ const AdvancedHub = ({
                   </div>
                 </div>
               </div>
+            </ErrorBoundary>
+          </div>
+        )}
+
+        {genieProofEnabled && currentTab === 'genieproof' && (
+          <div
+            role="tabpanel"
+            id="panel-genieproof"
+            aria-labelledby="tab-genieproof"
+            data-testid="panel-genieproof"
+          >
+            <ErrorBoundary>
+              <GenieProofPanel />
             </ErrorBoundary>
           </div>
         )}

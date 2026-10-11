@@ -263,9 +263,24 @@ export function computeMarketContextFeatures({ quoteSnapshot, historicalSnapshot
   const niftyCurrent = finitePositive(niftyFact?.value);
   const previousClose = finitePositive(niftyFact?.metrics?.previousClose);
   const vixCurrent = finitePositive(vixFact?.value);
-  signals.nifty50Current = signal(niftyCurrent, 'INDEX_POINTS', 'VERIFIED_CURRENT_NIFTY50_QUOTE');
-  signals.nifty50PreviousClose = signal(previousClose, 'INDEX_POINTS', 'VERIFIED_PREVIOUS_TRADING_SESSION_CLOSE');
-  signals.indiaVixCurrent = signal(vixCurrent, 'INDEX_POINTS', 'VERIFIED_CURRENT_INDIA_VIX_QUOTE');
+  signals.nifty50Current = signal(
+    niftyCurrent,
+    'INDEX_POINTS',
+    'VERIFIED_CURRENT_NIFTY50_QUOTE',
+    MARKET_FACT_SEMANTIC_CLASSES.OBSERVED,
+  );
+  signals.nifty50PreviousClose = signal(
+    previousClose,
+    'INDEX_POINTS',
+    'VERIFIED_PREVIOUS_TRADING_SESSION_CLOSE',
+    MARKET_FACT_SEMANTIC_CLASSES.OBSERVED,
+  );
+  signals.indiaVixCurrent = signal(
+    vixCurrent,
+    'INDEX_POINTS',
+    'VERIFIED_CURRENT_INDIA_VIX_QUOTE',
+    MARKET_FACT_SEMANTIC_CLASSES.OBSERVED,
+  );
   if (previousClose === null) reasonCodes.push('NIFTY50_PREVIOUS_CLOSE_UNAVAILABLE');
 
   if (historicalSnapshot?.status !== AVAILABILITY.AVAILABLE) {

@@ -64,7 +64,7 @@ export const PIPELINE_CONFIG = Object.freeze({
 
 export const INSTRUMENT_KEY_MAP = Object.freeze({
   ppf: 'PPF', scss: 'SCSS', sukanya: 'SSY', ssy: 'SSY', rbi_bonds: 'RBI_Bond',
-  rbi_retail_direct_gilt: 'RBI_Bond', g_sec: 'G-Sec', sgb: 'SGB', nps: 'NPS',
+  rbi_retail_direct_gilt: 'G-Sec', g_sec: 'G-Sec', sgb: 'SGB', nps: 'NPS',
 });
 
 const RISK_LABEL_SCORE = Object.freeze({

@@ -36,7 +36,7 @@ export const HUB_TABS = {
   },
   [NAV_PAGES.ADVANCED]: {
     default: 'comparison',
-    allowed: ['comparison', 'insights', 'diagnostics'],
+    allowed: ['comparison', 'insights', 'diagnostics', 'genieproof'],
   },
 };
 

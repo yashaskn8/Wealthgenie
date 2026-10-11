@@ -16,10 +16,10 @@ import {
   getTaxSlabsForFY,
 } from '../services/taxEngine.js';
 import { calculatePostTaxReturn } from '../services/postTaxCalculator.js';
-import { runPipeline } from '../services/RecommendationPipeline.js';
+import { INSTRUMENT_KEY_MAP, runPipeline } from '../services/RecommendationPipeline.js';
 import { applyProfileSafeMarketContextAdjustment } from '../services/regimeRotationEngine.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
-import { investmentDatabase } from '../data/investmentDatabase.js';
+import { investmentDatabase, recommendationTypeForCatalogInstrument } from '../data/investmentDatabase.js';
 import { postTaxReturnSchema } from '../validation/schemas.js';
 import { FinancialToolRegistry } from '../services/financialToolRegistry.js';
 import { buildGroundedEvidencePacket } from '../services/groundedEvidence.js';
@@ -92,6 +92,34 @@ test('supported fiscal years use Finance Act 2025 bank-interest TDS thresholds',
   assert.equal(generalAbove.tdsApplicable, true);
   assert.equal(seniorBelow.tdsApplicable, false);
   assert.equal(seniorAbove.tdsApplicable, true);
+});
+
+test('FRSB uses the security-interest TDS threshold while generic G-Sec withholding stays unassessed', () => {
+  const frsb = calculatePostTaxReturn(
+    'RBI_Bond', 0.06, 1_000_000, 1, 'new', 20_000, 35, 'salary', true, 'FY2026-27',
+  );
+  assert.equal(frsb.grossGain, 14_400);
+  assert.equal(frsb.tdsThreshold, 10_000);
+  assert.equal(frsb.tdsApplicable, true);
+  assert.equal(frsb.tdsRate, 0.10);
+  assert.equal(frsb.tdsTreatment, 'FRSB_SECURITY_INTEREST');
+  assert.match(frsb.notes, /payer-level aggregation/);
+
+  const genericGovernmentSecurity = calculatePostTaxReturn(
+    'G-Sec', 0.06, 1_000_000, 1, 'new', 100_000, 35, 'salary', true, 'FY2026-27',
+  );
+  assert.equal(genericGovernmentSecurity.grossGain, 72_000);
+  assert.equal(genericGovernmentSecurity.tdsApplicable, null);
+  assert.equal(genericGovernmentSecurity.tdsThreshold, null);
+  assert.equal(genericGovernmentSecurity.tdsTreatment, 'SECURITY_IDENTITY_REQUIRED');
+  assert.match(genericGovernmentSecurity.notes, /exact security identity/);
+});
+
+test('RBI Retail Direct Gilt catalog identities stay separate from the RBI floating-rate savings bond', () => {
+  assert.equal(recommendationTypeForCatalogInstrument({ id: 'rbi_bonds' }), 'RBI_Bond');
+  assert.equal(recommendationTypeForCatalogInstrument({ id: 'rbi_retail_direct_gilt' }), 'G-Sec');
+  assert.equal(recommendationTypeForCatalogInstrument({ id: 'g_sec' }), 'G-Sec');
+  assert.equal(INSTRUMENT_KEY_MAP.rbi_retail_direct_gilt, 'G-Sec');
 });
 
 test('TDS is withholding metadata and does not create a second final-tax charge', () => {
