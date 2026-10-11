@@ -2,7 +2,7 @@ import React from 'react';
 import GoalTracker from './GoalTracker';
 import GoalPlanner from './GoalPlanner';
 import StepUpPlanner from './StepUpPlanner';
-import HealthScoreScreen from '../HealthScoreScreen';
+import FinancialIndicatorsPanel from './FinancialIndicatorsPanel';
 import RebalancerScreen from './RebalancerScreen';
 import ErrorBoundary from './ErrorBoundary';
 import { Target, Crosshair, TrendingUp, Activity, ArrowLeftRight } from 'lucide-react';
@@ -14,7 +14,7 @@ import './HubStyles.css';
  * - Tab 1: My Goals (GoalTracker)
  * - Tab 2: Plan a Goal (GoalPlanner)
  * - Tab 3: Grow My SIP (StepUpPlanner)
- * - Tab 4: Money Health (HealthScoreScreen)
+ * - Tab 4: Financial Indicators (individual profile facts; no composite grade)
  * - Tab 5: Keep on Track (RebalancerScreen)
  *
  * Strictly enforces active-tab-only mounting so inactive tabs do not mount or run API calls.
@@ -28,7 +28,7 @@ const ProgressHub = ({
   onNavigate,
   onSaveRebalance,
 }) => {
-  const allowedTabs = ['goals', 'plan-goal', 'grow-sip', 'health', 'rebalancer'];
+  const allowedTabs = ['goals', 'plan-goal', 'grow-sip', 'indicators', 'rebalancer'];
   const currentTab = allowedTabs.includes(activeTab) ? activeTab : 'goals';
 
   return (
@@ -43,6 +43,18 @@ const ProgressHub = ({
 
         {/* Tab Navigation */}
         <div role="tablist" aria-label="Progress views" className="hub-tabs-list">
+          <button
+            role="tab"
+            id="tab-indicators"
+            aria-selected={currentTab === 'indicators'}
+            aria-controls="panel-indicators"
+            data-testid="tab-indicators"
+            className={`hub-tab-btn ${currentTab === 'indicators' ? 'hub-tab-btn--active' : ''}`}
+            onClick={() => onTabChange('indicators')}
+          >
+            <Activity size={15} />
+            <span>Financial Indicators</span>
+          </button>
           <button
             role="tab"
             id="tab-goals"
@@ -78,18 +90,6 @@ const ProgressHub = ({
           >
             <TrendingUp size={15} />
             <span>Grow My SIP</span>
-          </button>
-          <button
-            role="tab"
-            id="tab-health"
-            aria-selected={currentTab === 'health'}
-            aria-controls="panel-health"
-            data-testid="tab-health"
-            className={`hub-tab-btn ${currentTab === 'health' ? 'hub-tab-btn--active' : ''}`}
-            onClick={() => onTabChange('health')}
-          >
-            <Activity size={15} />
-            <span>Money Health</span>
           </button>
           <button
             role="tab"
@@ -150,19 +150,15 @@ const ProgressHub = ({
           </div>
         )}
 
-        {currentTab === 'health' && (
+        {currentTab === 'indicators' && (
           <div
             role="tabpanel"
-            id="panel-health"
-            aria-labelledby="tab-health"
-            data-testid="panel-health"
+            id="panel-indicators"
+            aria-labelledby="tab-indicators"
+            data-testid="panel-indicators"
           >
             <ErrorBoundary>
-              <HealthScoreScreen
-                profile={profile}
-                recommendations={recommendations}
-                onNavigate={onNavigate}
-              />
+              <FinancialIndicatorsPanel profile={profile} />
             </ErrorBoundary>
           </div>
         )}

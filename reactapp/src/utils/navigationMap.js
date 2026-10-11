@@ -9,7 +9,7 @@ export const NAV_PAGES = {
   INVESTMENTS: 'investments',
   TAXES: 'taxes',
   PROGRESS: 'progress',
-  ADVANCED: 'advanced',
+  GENIEPROOF: 'genieproof',
   ACCOUNT: 'account',
   HELP: 'help',
 };
@@ -20,7 +20,7 @@ export const PAGE_ALLOWLIST = [
   NAV_PAGES.INVESTMENTS,
   NAV_PAGES.TAXES,
   NAV_PAGES.PROGRESS,
-  NAV_PAGES.ADVANCED,
+  NAV_PAGES.GENIEPROOF,
   NAV_PAGES.ACCOUNT,
   NAV_PAGES.HELP,
 ];
@@ -32,11 +32,7 @@ export const HUB_TABS = {
   },
   [NAV_PAGES.PROGRESS]: {
     default: 'goals',
-    allowed: ['goals', 'plan-goal', 'grow-sip', 'health', 'rebalancer'],
-  },
-  [NAV_PAGES.ADVANCED]: {
-    default: 'comparison',
-    allowed: ['comparison', 'insights', 'diagnostics', 'genieproof'],
+    allowed: ['goals', 'plan-goal', 'grow-sip', 'indicators', 'rebalancer'],
   },
 };
 
@@ -53,11 +49,12 @@ export const LEGACY_NAV_MAP = {
   'goals':           { page: NAV_PAGES.PROGRESS,    tab: 'goals' },
   'goal-planner':    { page: NAV_PAGES.PROGRESS,    tab: 'plan-goal' },
   'sip-planner':     { page: NAV_PAGES.PROGRESS,    tab: 'grow-sip' },
-  'health':          { page: NAV_PAGES.PROGRESS,    tab: 'health' },
+  'health':          { page: NAV_PAGES.PROGRESS,    tab: 'indicators' },
   'rebalancer':      { page: NAV_PAGES.PROGRESS,    tab: 'rebalancer' },
-  'compare':         { page: NAV_PAGES.ADVANCED,    tab: 'comparison' },
-  'insights':        { page: NAV_PAGES.ADVANCED,    tab: 'insights' },
-  'diagnostics':     { page: NAV_PAGES.ADVANCED,    tab: 'diagnostics' },
+  'compare':         { page: NAV_PAGES.HOME,        tab: null },
+  'insights':        { page: NAV_PAGES.HOME,        tab: null },
+  'diagnostics':     { page: NAV_PAGES.HOME,        tab: null },
+  'genieproof':      { page: NAV_PAGES.GENIEPROOF,  tab: null },
   'profile':         { page: NAV_PAGES.ACCOUNT,     tab: null },
   'account':         { page: NAV_PAGES.ACCOUNT,     tab: null },
   'help':            { page: NAV_PAGES.HELP,        tab: null },
@@ -67,9 +64,16 @@ export const LEGACY_NAV_MAP = {
  * Normalizes a page and tab to safe, allowlisted values.
  * Returns { page, tab, isNormalized: boolean }
  */
-export function normalizeNavigation(rawPage, rawTab) {
+export function normalizeNavigation(rawPage, rawTab, { allowGenieProof = false } = {}) {
   let page = rawPage;
   let tab = rawTab;
+
+  // The old Advanced URL is retained only as a gated entry point for GenieProof.
+  // All other retired Advanced URLs normalize to Home.
+  if (page === 'advanced') {
+    page = allowGenieProof && tab === 'genieproof' ? NAV_PAGES.GENIEPROOF : NAV_PAGES.HOME;
+    tab = null;
+  }
 
   // Resolve legacy aliases first if rawPage is a legacy identifier
   if (LEGACY_NAV_MAP[page]) {
@@ -78,6 +82,11 @@ export function normalizeNavigation(rawPage, rawTab) {
     if (!tab) {
       tab = legacy.tab;
     }
+  }
+
+  if (page === NAV_PAGES.GENIEPROOF && !allowGenieProof) {
+    page = NAV_PAGES.HOME;
+    tab = null;
   }
 
   // Validate page against allowlist
@@ -105,7 +114,7 @@ export function normalizeNavigation(rawPage, rawTab) {
  * Resolves any target (string or object) into a canonical { page, tab }
  * Note: Explicit tab: null MUST clear a previous tab and not leak it.
  */
-export function resolveNavigation(target, explicitTab = undefined) {
+export function resolveNavigation(target, explicitTab = undefined, options = {}) {
   if (!target) {
     return { page: NAV_PAGES.HOME, tab: null };
   }
@@ -125,17 +134,17 @@ export function resolveNavigation(target, explicitTab = undefined) {
     requestedTab = explicitTab !== undefined ? explicitTab : null;
   }
 
-  const { page, tab } = normalizeNavigation(requestedPage, requestedTab);
+  const { page, tab } = normalizeNavigation(requestedPage, requestedTab, options);
   return { page, tab };
 }
 
 /**
  * Extracts normalized navigation state from URLSearchParams
  */
-export function fromSearchParams(searchParams) {
+export function fromSearchParams(searchParams, options = {}) {
   const rawPage = searchParams.get('page');
   const rawTab = searchParams.get('tab');
-  const { page, tab, isNormalized } = normalizeNavigation(rawPage, rawTab);
+  const { page, tab, isNormalized } = normalizeNavigation(rawPage, rawTab, options);
 
   const needsReplace = isNormalized || !searchParams.has('page') || (searchParams.has('tab') && tab === null);
   return { page, tab, needsReplace };

@@ -1,6 +1,6 @@
 AGENTS.md — WealthGenie Engineering Constitution
 
-Repository: yashaskn8/WealthGenie-AI-Powered-Financial-AdvisoryPlatform
+Repository: yashaskn8/Wealthgenie
 Authoritative branch: main
 Purpose: Make every coding agent inspect first, avoid hallucination, preserve financial correctness, and finish each assigned task end-to-end.
 No snapshot SHA is authoritative. Inspect the current repository and HEAD before every task.
@@ -111,7 +111,7 @@ Installed skills never outrank the project’s financial, security, or architect
 
 Use only:
 
-https://github.com/yashaskn8/WealthGenie-AI-Powered-Financial-AdvisoryPlatform
+https://github.com/yashaskn8/Wealthgenie
 
 These repositories are archival/reference-only unless the user explicitly says otherwise:
 

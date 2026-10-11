@@ -8,6 +8,7 @@
     "dev": "node --watch server.js",
     "start": "node server.js",
     "start:worker": "node worker.js",
+    "genieproof:verify": "node scripts/verifyGenieProofPassport.js",
     "test": "node scripts/test-partition.js full",
     "test:unit": "node scripts/test-partition.js full",
     "test:coverage": "npx c8 --reporter=text --reporter=text-summary --reporter=json --reporter=lcovonly --reports-dir=reports node scripts/test-partition.js full",

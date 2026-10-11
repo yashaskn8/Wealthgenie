@@ -27,6 +27,23 @@ const CANONICAL_PROFILE = Object.freeze({
 });
 
 describe('frontend API contracts', () => {
+  it('sends the explicit GenieProof private-save consent with confirmed claims', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ created: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const request = {
+      offerText: 'The current PPF interest rate is 7.1% p.a.',
+      submissionHash: 'a'.repeat(64),
+      savingConsent: true,
+      confirmedClaims: [{ claimId: 'b'.repeat(32), statement: 'The current PPF interest rate is 7.1% p.a.' }],
+    };
+
+    await api.createGenieProofCase(request);
+
+    expect(fetchMock.mock.calls[0][0]).toContain('/genieproof/cases');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
+    expect(fetchMock.mock.calls[0][1].headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+
   it('passes tax cancellation as a request option, never a financial input', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ results: [] }));
     vi.stubGlobal('fetch', fetchMock);

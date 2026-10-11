@@ -3,13 +3,11 @@ import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import TaxesHub from '../TaxesHub';
 import ProgressHub from '../ProgressHub';
-import AdvancedHub from '../AdvancedHub';
 import WhereToInvestScreen from '../WhereToInvestScreen';
 import DeepDiveModal from '../DeepDiveModal';
 import Sidebar from '../Sidebar';
 import {
   NAV_PAGES,
-  LEGACY_NAV_MAP,
   resolveNavigation,
 } from '../../utils/navigationMap';
 
@@ -69,10 +67,11 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       { legacy: 'goals', page: NAV_PAGES.PROGRESS, tab: 'goals' },
       { legacy: 'goal-planner', page: NAV_PAGES.PROGRESS, tab: 'plan-goal' },
       { legacy: 'sip-planner', page: NAV_PAGES.PROGRESS, tab: 'grow-sip' },
-      { legacy: 'health', page: NAV_PAGES.PROGRESS, tab: 'health' },
+      { legacy: 'health', page: NAV_PAGES.PROGRESS, tab: 'indicators' },
       { legacy: 'rebalancer', page: NAV_PAGES.PROGRESS, tab: 'rebalancer' },
-      { legacy: 'compare', page: NAV_PAGES.ADVANCED, tab: 'comparison' },
-      { legacy: 'insights', page: NAV_PAGES.ADVANCED, tab: 'insights' },
+      { legacy: 'compare', page: NAV_PAGES.HOME, tab: null },
+      { legacy: 'insights', page: NAV_PAGES.HOME, tab: null },
+      { legacy: 'diagnostics', page: NAV_PAGES.HOME, tab: null },
       { legacy: 'profile', page: NAV_PAGES.ACCOUNT, tab: null },
       { legacy: 'account', page: NAV_PAGES.ACCOUNT, tab: null },
       { legacy: 'help', page: NAV_PAGES.HELP, tab: null },
@@ -160,18 +159,19 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('panel-grow-sip')).toBeInTheDocument();
     });
 
-    it('mounts HealthScoreScreen on health tab', () => {
+    it('keeps individual Financial Indicators available without the composite score experience', () => {
       render(
         <ProgressHub
-          activeTab="health"
+          activeTab="indicators"
           onTabChange={vi.fn()}
-          profile={mockProfile}
+          profile={null}
           recommendations={mockRecommendations}
-          onNavigate={vi.fn()}
         />
       );
 
-      expect(screen.getByTestId('panel-health')).toBeInTheDocument();
+      expect(screen.getByTestId('panel-indicators')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Financial Indicators' })).toBeInTheDocument();
+      expect(screen.queryByText(/out of 100|excellent|poor fitness/i)).not.toBeInTheDocument();
     });
 
     it('mounts RebalancerScreen on rebalancer tab with onSaveRebalance', () => {
@@ -190,56 +190,7 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
     });
   });
 
-  describe('4. AdvancedHub preserves Comparison, Insights, and Diagnostics', () => {
-    it('mounts ComparisonTableModal on comparison tab', () => {
-      render(
-        <AdvancedHub
-          activeTab="comparison"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-          onNavigateHome={vi.fn()}
-        />
-      );
-
-      expect(screen.getByTestId('panel-comparison')).toBeInTheDocument();
-    });
-
-    it('mounts InsightsScreen on insights tab', () => {
-      render(
-        <AdvancedHub
-          activeTab="insights"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-          recommendationMeta={{}}
-        />
-      );
-
-      expect(screen.getByTestId('panel-insights')).toBeInTheDocument();
-    });
-
-    it('mounts Policy & Diagnostics on diagnostics tab with real policy data', () => {
-      render(
-        <AdvancedHub
-          activeTab="diagnostics"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-          recommendationMeta={{
-            policy_lineage: 'market-context-policy-1.0.0',
-            market_state: 'NORMAL',
-          }}
-        />
-      );
-
-      expect(screen.getByTestId('panel-diagnostics')).toBeInTheDocument();
-      expect(screen.getByText('Deterministic Recommendation Engine Policy')).toBeInTheDocument();
-      expect(screen.getByText('market-context-policy-1.0.0')).toBeInTheDocument();
-    });
-  });
-
-  describe('5. WhereToInvestScreen integrates Deep Dive', () => {
+  describe('4. WhereToInvestScreen integrates Deep Dive', () => {
     it('renders category selector in exact backend recommendation order', () => {
       render(
         <WhereToInvestScreen
@@ -283,8 +234,8 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
     });
   });
 
-  describe('6. DeepDiveModal preserves all 7 tabs and supports initialTab', () => {
-    it('renders all 7 tabs and respects initialTab="Calculator"', () => {
+  describe('5. DeepDiveModal preserves the six supported tabs and supports initialTab', () => {
+    it('renders the supported tabs, omits the retired stress UI, and respects initialTab="Calculator"', () => {
       render(
         <DeepDiveModal
           isOpen={true}
@@ -306,12 +257,12 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByRole('tab', { name: /^tax$/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /^history$/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /^why invest$/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /^stress test$/i })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /^stress test$/i })).not.toBeInTheDocument();
     });
   });
 
-  describe('7. Sidebar exposes all primary, utility, and legacy navigation test-ids', () => {
-    it('exposes test-ids for all 8 destinations and legacy aliases', () => {
+  describe('6. Sidebar exposes primary navigation and keeps GenieProof behind its gate', () => {
+    it('exposes primary and utility destinations without retired Advanced navigation', () => {
       render(
         <Sidebar
           activePage="home"
@@ -326,9 +277,10 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-investments')).toBeInTheDocument();
       expect(screen.getByTestId('nav-taxes')).toBeInTheDocument();
       expect(screen.getByTestId('nav-progress')).toBeInTheDocument();
-      expect(screen.getByTestId('nav-advanced')).toBeInTheDocument();
       expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
       expect(screen.getByTestId('nav-help')).toBeInTheDocument();
+      expect(screen.queryByTestId('nav-advanced')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('nav-genieproof')).not.toBeInTheDocument();
       expect(screen.getByTestId('nav-sign-out')).toBeInTheDocument();
 
       // Legacy test-ids
@@ -341,9 +293,12 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-rebalancer')).toBeInTheDocument();
       expect(screen.getByTestId('nav-sip-planner')).toBeInTheDocument();
       expect(screen.getByTestId('nav-health')).toBeInTheDocument();
-      expect(screen.getByTestId('nav-compare')).toBeInTheDocument();
-      expect(screen.getByTestId('nav-insights')).toBeInTheDocument();
       expect(screen.getByTestId('nav-dashboard')).toBeInTheDocument();
+    });
+
+    it('shows the existing GenieProof entry only when its feature gate is enabled', () => {
+      render(<Sidebar activePage={NAV_PAGES.HOME} onNavigate={vi.fn()} genieProofEnabled />);
+      expect(screen.getByTestId('nav-genieproof')).toBeInTheDocument();
     });
   });
 });

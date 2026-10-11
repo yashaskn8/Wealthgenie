@@ -56,7 +56,11 @@ describe('GenieProofPanel', () => {
     });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it('requires a customer review and creates an abstaining passport without claiming financial correctness', async () => {
     render(<GenieProofPanel />);
@@ -67,12 +71,15 @@ describe('GenieProofPanel', () => {
     expect(screen.getByLabelText('Claim wording')).toHaveAttribute('readonly');
     expect(screen.getByRole('button', { name: /save private passport/i })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByLabelText('I reviewed the exact wording and interpretation above.'));
+    expect(screen.getByRole('button', { name: /save private passport/i })).toBeDisabled();
+    fireEvent.click(screen.getByLabelText(/I consent to save the confirmed claim wording/i));
     fireEvent.click(screen.getByRole('button', { name: /save private passport/i }));
     await waitFor(() => expect(mockApi.createGenieProofCase).toHaveBeenCalledOnce());
     expect(mockApi.createGenieProofCase).toHaveBeenCalledWith({
       offerText,
       submissionHash: 'b'.repeat(64),
+      savingConsent: true,
       confirmedClaims: [{
         claimId: candidate.claimId,
         statement: offerText,
@@ -85,6 +92,25 @@ describe('GenieProofPanel', () => {
     expect(screen.queryByText('NOT_VERIFIABLE', { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText(/verify its trusted signature before viewing findings/i)).toBeInTheDocument();
     expect(screen.getByText(/ProofBreak monitoring is disabled/i)).toBeInTheDocument();
+  });
+
+  it('blocks saving when extraction omitted claims beyond its review limit', async () => {
+    mockApi.extractGenieProofClaims.mockResolvedValueOnce({
+      inputHash: 'b'.repeat(64),
+      claims: [candidate],
+      claimsTruncated: true,
+      omittedClaimCount: 2,
+      requiresCustomerConfirmation: true,
+      rawOfferRetained: false,
+    });
+    render(<GenieProofPanel />);
+    fireEvent.change(screen.getByLabelText('Paste the offer text'), { target: { value: offerText } });
+    fireEvent.click(screen.getByRole('button', { name: /extract claims/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/2 additional claim statement\(s\)/i);
+    fireEvent.click(screen.getByLabelText('I reviewed the exact wording and interpretation above.'));
+    fireEvent.click(screen.getByLabelText(/I consent to save the confirmed claim wording/i));
+    expect(screen.getByRole('button', { name: /save private passport/i })).toBeDisabled();
+    expect(mockApi.createGenieProofCase).not.toHaveBeenCalled();
   });
 
   it('opens saved findings only after a trusted signature is verified', async () => {
@@ -113,6 +139,32 @@ describe('GenieProofPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/trusted key.*findings.*hidden/i);
     expect(screen.queryByText('SUPPORTED', { exact: true })).not.toBeInTheDocument();
+  });
+
+  it('downloads only the opened signed passport as an explicit JSON export', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getGenieProofCase.mockResolvedValue({
+      passport: {
+        manifestHash: 'c'.repeat(64),
+        signature: { algorithm: 'Ed25519', keyId: 'test-key', value: 'signature' },
+        manifest: { caseId, revision: 1, confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }], findings: [] },
+      },
+    });
+    const createObjectURL = vi.fn(() => 'blob:genieproof-passport');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+    await screen.findByRole('button', { name: 'Download signed passport' });
+    fireEvent.click(screen.getByRole('button', { name: 'Download signed passport' }));
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(click).toHaveBeenCalledOnce();
+    expect(click.mock.contexts[0].download).toBe(`wealthgenie-genieproof-${caseId}-r1.json`);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:genieproof-passport');
   });
 
   it('requires a second confirmation before permanently deleting a passport', async () => {

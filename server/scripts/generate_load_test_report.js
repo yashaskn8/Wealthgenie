@@ -6,168 +6,75 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const REPORTS_DIR = path.join(__dirname, '..', 'reports', 'loadtest');
-const ROOT_REPORT_PATH = path.join(__dirname, '..', '..', 'load_test_report.md');
-
-function formatMs(val) {
-  if (val === undefined || val === null || isNaN(val)) return 'N/A';
-  return typeof val === 'number' ? val.toFixed(1) : String(val);
-}
+const REPORT_OUTPUT_PATH = path.join(REPORTS_DIR, 'load_test_report.json');
 
 function parseScenarioFile(filePath) {
   if (!fs.existsSync(filePath)) return null;
   const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  
-  const latency = data.latency || {};
-  const requests = data.requests || {};
+  const latency = data.latency ?? {};
+  const requests = data.requests ?? {};
 
   return {
-    filename: path.basename(filePath),
-    connections: data.connections,
-    duration: data.duration,
-    totalRequests: requests.total || 0,
-    rps: requests.average ? requests.average.toFixed(1) : '0.0',
-    p50: latency.p50 !== undefined ? latency.p50 : (latency.mean || 0),
-    p95: latency.p95 !== undefined ? latency.p95 : (latency.p97_5 || latency.p90 || 0),
-    p99: latency.p99 !== undefined ? latency.p99 : 0,
-    errors: data.errors || 0,
-    timeouts: data.timeouts || 0,
-    non2xx: data.non2xx || 0,
-    statusCodes: data.statusCodeStats || {},
+    sourceFile: path.basename(filePath),
+    connections: data.connections ?? null,
+    duration: data.duration ?? null,
+    totalRequests: requests.total ?? null,
+    requestsPerSecond: requests.average ?? null,
+    latencyMs: {
+      p50: latency.p50 ?? latency.mean ?? null,
+      p95: latency.p95 ?? latency.p97_5 ?? latency.p90 ?? null,
+      p99: latency.p99 ?? null,
+    },
+    errors: data.errors ?? 0,
+    timeouts: data.timeouts ?? 0,
+    non2xx: data.non2xx ?? 0,
+    statusCodes: data.statusCodeStats ?? {},
   };
 }
 
 function generateReport(postPatchData = null) {
-  console.log('Generating load_test_report.md from raw JSON outputs...');
-
   const files = [
-    { key: 'Scenario 1 (Read-Heavy / GET /api/instruments)', file: 'scenario1_read_heavy_c10.json', conc: 10, mode: 'Initial Run' },
-    { key: 'Scenario 1 (Read-Heavy / GET /api/instruments)', file: 'scenario1_read_heavy_c50.json', conc: 50, mode: 'Initial Run (Cold-Start Artifact)' },
-    { key: 'Scenario 1 (Read-Heavy / GET /api/instruments)', file: 'scenario1_read_heavy_c100.json', conc: 100, mode: 'Initial Run' },
-    { key: 'Scenario 2 (Compute-Heavy / GET /api/tax/compare)', file: 'scenario2_compute_heavy_c10.json', conc: 10, mode: 'Steady State' },
-    { key: 'Scenario 2 (Compute-Heavy / GET /api/tax/compare)', file: 'scenario2_compute_heavy_c50.json', conc: 50, mode: 'Steady State' },
-    { key: 'Scenario 2 (Compute-Heavy / GET /api/tax/compare)', file: 'scenario2_compute_heavy_c100.json', conc: 100, mode: 'Steady State' },
-    { key: 'Scenario 3 (Agentic LLM / POST /api/chat/message)', file: 'scenario3_agentic_llm_c10.json', conc: 10, mode: 'Pre-Patch (Unhandled Mongoose Enum Exception)' },
-    { key: 'Scenario 3 (Agentic LLM / POST /api/chat/message)', file: 'scenario3_agentic_llm_c50.json', conc: 50, mode: 'Pre-Patch (Unhandled Mongoose Enum Exception)' },
-    { key: 'Scenario 3 (Agentic LLM / POST /api/chat/message)', file: 'scenario3_agentic_llm_c100.json', conc: 100, mode: 'Pre-Patch (Unhandled Mongoose Enum Exception)' },
-    { key: 'Scenario 4 (Stress Ceiling / GET /api/tax/compare)', file: 'scenario4_stress_c200.json', conc: 200, mode: 'Steady State' },
+    { scenario: 'Read-heavy: GET /api/instruments', file: 'scenario1_read_heavy_c10.json', concurrency: 10, runMode: 'Initial Run' },
+    { scenario: 'Read-heavy: GET /api/instruments', file: 'scenario1_read_heavy_c50.json', concurrency: 50, runMode: 'Initial Run (Cold-Start Artifact)' },
+    { scenario: 'Read-heavy: GET /api/instruments', file: 'scenario1_read_heavy_c100.json', concurrency: 100, runMode: 'Initial Run' },
+    { scenario: 'Compute-heavy: GET /api/tax/compare', file: 'scenario2_compute_heavy_c10.json', concurrency: 10, runMode: 'Steady State' },
+    { scenario: 'Compute-heavy: GET /api/tax/compare', file: 'scenario2_compute_heavy_c50.json', concurrency: 50, runMode: 'Steady State' },
+    { scenario: 'Compute-heavy: GET /api/tax/compare', file: 'scenario2_compute_heavy_c100.json', concurrency: 100, runMode: 'Steady State' },
+    { scenario: 'Agentic chat: POST /api/chat/message', file: 'scenario3_agentic_llm_c10.json', concurrency: 10, runMode: 'Pre-patch' },
+    { scenario: 'Agentic chat: POST /api/chat/message', file: 'scenario3_agentic_llm_c50.json', concurrency: 50, runMode: 'Pre-patch' },
+    { scenario: 'Agentic chat: POST /api/chat/message', file: 'scenario3_agentic_llm_c100.json', concurrency: 100, runMode: 'Pre-patch' },
+    { scenario: 'Stress ceiling: GET /api/tax/compare', file: 'scenario4_stress_c200.json', concurrency: 200, runMode: 'Steady State' },
   ];
 
-  let rowsHtml = '';
-  files.forEach(item => {
-    const filePath = path.join(REPORTS_DIR, item.file);
-    const parsed = parseScenarioFile(filePath);
-    if (!parsed) return;
+  const scenarios = files.flatMap(item => {
+    const measurements = parseScenarioFile(path.join(REPORTS_DIR, item.file));
+    if (!measurements) return [];
 
-    const totalFail = parsed.errors + parsed.timeouts + parsed.non2xx;
-    const errorRate = parsed.totalRequests > 0 
-      ? ((totalFail / parsed.totalRequests) * 100).toFixed(2) + '%'
-      : '0.00%';
-
-    let statusBreakdown = [];
-    if (parsed.statusCodes) {
-      for (const [code, info] of Object.entries(parsed.statusCodes)) {
-        statusBreakdown.push(`${info.count}x HTTP ${code}`);
-      }
-    }
-    const notesStr = statusBreakdown.length > 0 ? statusBreakdown.join(', ') : 'Zero errors / 200 OK';
-
-    rowsHtml += `| ${item.key} | ${item.conc} | ${formatMs(parsed.p50)} | ${formatMs(parsed.p95)} | ${formatMs(parsed.p99)} | ${parsed.rps} | **${errorRate}** | [${item.file}](file:///${filePath.replace(/\\/g, '/')}) — ${notesStr} |\n`;
+    const totalFailures = measurements.errors + measurements.timeouts + measurements.non2xx;
+    return [{
+      scenario: item.scenario,
+      configuredConcurrency: item.concurrency,
+      runMode: item.runMode,
+      measurements,
+      totalFailures,
+      errorRatePercent: measurements.totalRequests > 0
+        ? Number(((totalFailures / measurements.totalRequests) * 100).toFixed(2))
+        : null,
+    }];
   });
 
-  if (postPatchData && Array.isArray(postPatchData)) {
-    postPatchData.forEach(item => {
-      rowsHtml += `| **Scenario 3 (POST-PATCH / POST /api/chat/message)** | **${item.c}** | **${formatMs(item.p50)}** | **${formatMs(item.p95)}** | **${formatMs(item.p99)}** | **${item.rps}** | **0.00%** | **POST-PATCH VERIFIED — ${item.total}x HTTP 200 OK (0 Failures)** |\n`;
-    });
-  }
+  const report = {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    source: 'autocannon scenario JSON files',
+    historicalBenchmarkArchive: 'historical_benchmarks.json',
+    missingSourceFiles: files.map(item => item.file).filter(file => !fs.existsSync(path.join(REPORTS_DIR, file))),
+    scenarios,
+    postPatchResults: Array.isArray(postPatchData) ? postPatchData : [],
+  };
 
-  const markdownContent = `# WealthGenie — Real Load-Test Report (Phase 6)
-
-> [!IMPORTANT]
-> **LOCAL-ONLY LIMITATION STATEMENT**:
-> This load test was executed on a single local development machine (\`localhost:5000\`). It measures Node.js event-loop throughput, CPU compute engine efficiency, and local MongoDB connection pool performance under synthetic concurrent load.
-> **These results do NOT represent production network conditions**, multi-region availability, or remote cloud database latency. Cloud deployments (e.g., AWS ECS, GCP Cloud Run) will introduce network latency, TLS termination overhead, and cross-AZ database round-trips.
-
----
-
-## 1. Environment & Honesty Baseline
-
-### System Specifications
-- **CPU**: Intel(R) Core(TM) i7-10870H CPU @ 2.20GHz (8 Cores, 16 Logical Processors)
-- **RAM**: 16.0 GB DDR4
-- **OS**: Windows 11 Home (64-bit)
-- **Runtime**: Node.js v24.11.1
-- **Database**: MongoDB v7 (Local \`127.0.0.1:27017\`, seeded with 109 financial instruments, test user, financial profile, recommendation, and goal data)
-- **Cache**: In-memory Redis store fallback (\`HybridStore\` active)
-- **ML Microservice**: Python FastAPI on \`127.0.0.1:8000\` (PyTorch / scikit-learn / RAG lifecycle active)
-
-### Tooling Audit Findings
-- **Status of Existing Tooling**: \`server/package.json\` listed \`"loadtest": "node scripts/loadtest.js"\` in its scripts block and \`autocannon\` in \`devDependencies\`.
-- **Finding**: \`autocannon\` was not yet installed in \`node_modules\`, and \`server/scripts/loadtest.js\` did not exist in the repository (an unmaintained script entry).
-- **Remediation**: Installed \`autocannon\` (\`v8.0.0\`) and created [loadtest.js](server/scripts/loadtest.js) to automate 30-second benchmark scenarios across 10, 50, 100, and 200 concurrent connections, saving raw un-truncated JSON outputs for every run.
-
----
-
-## 2. Scenario Definitions & Disclosures
-
-1. **Scenario 1 — Read-heavy (\`GET /api/instruments\`)**: Exercises MongoDB query execution, field sorting, filtering, and JSON serialization.
-2. **Scenario 2 — Compute-heavy (\`GET /api/tax/compare\`)**: Exercises the in-memory financial tax engine (FY2025-26 tax regime comparison, Section 87A marginal relief, surcharge calculation, 80C/80D deductions).
-3. **Scenario 3 — Agentic LLM / Chat Path (\`POST /api/chat/message\`)**: Exercises the full Phase 3 agentic orchestration stack (Security prompt injection inspection, MongoDB profile & conversation history queries, RAG intent classification \`isFactualQuery\`, \`LayeredMemoryManager\` context retrieval & prompt formatting, and \`ToolTraceGraph\` snapshotting).
-   - **Causal Failure Chain**: Downstream RAG microservice rate-limits requests to 60 req/min and returns HTTP 429 → 429 triggers fallback path → fallback persists with non-standard provider metadata → Mongoose \`ValidationError\` on \`provider\` enum → unhandled exception → HTTP 500 server crash.
-   - **Post-Patch Verification**: \`geminiChatService.js\` persists RAG-path messages without a \`metadata.provider\` field (preventing enum validation triggers), and \`providerAbstraction.js\` mock adapter maps to \`'gemini'\`. Full post-patch verification across **c10, c50, and c100** confirmed **0.00% Error Rate across all concurrency levels**.
-4. **Scenario 4 — Stress Ceiling Check (\`GET /api/tax/compare\` at 200 Connections)**: Tests single-process Node.js event-loop throughput at 200 concurrent connections.
-
----
-
-## 3. Benchmark Results Table
-
-All metrics below are derived directly from committed raw JSON output files in [server/reports/loadtest/](server/reports/loadtest/). Error rates count all HTTP non-2xx responses (including HTTP 500s and 429s) as failures per standard load-testing definitions.
-
-| Scenario | Concurrency | p50 (ms) | p95 (ms) | p99 (ms) | Throughput (req/s) | Error Rate | Raw Output File & Status Codes |
-|---|---|---|---|---|---|---|---|
-${rowsHtml}
-
----
-
-## 4. Structural Bottleneck, Anomaly Audit & Patch Verification
-
-### 1. Scenario 1 Latency Anomaly & Warmed-Instance Audit
-In the initial run of Scenario 1, p99 latency exhibited a non-monotonic spike: \`73ms (c10) → 494ms (c50) → 267ms (c100)\`.
-Per Step 2's "no single lucky sample" rule, we conducted two consecutive repeat benchmark passes across warmed server instances:
-- **Pass 1 (Warmed)**: c10 p50 = 49ms / p99 = 219ms (146.9 req/s) → c50 p50 = 55ms / p99 = 198ms (741.5 req/s) → c100 p50 = 72ms / p99 = 128ms (1,316.5 req/s)
-- **Pass 2 (Warmed)**: c10 p50 = 42ms / p99 = 63ms (230.1 req/s) → c50 p50 = 51ms / p99 = 81ms (933.5 req/s) → c100 p50 = 78ms / p99 = 135ms (1,136.7 req/s)
-- **Empirical Finding**: The 494ms spike at c50 in the initial run was a **transient cold-start artifact** caused by initial Mongoose connection pool socket allocation and V8 JIT compilation. On warmed server instances, steady-state p99 latency at c50 stabilizes at **81ms–198ms**, scaling monotonically with concurrency up to 100 connections.
-
-### 2. Discovered Bug & Two-Step Causal Chain
-Phase 1's test suite included a test for *unreachable RAG microservice* (\`ECONNREFUSED\`), which passed because \`queryRAG\` returned \`null\`. However, load testing surfaced a distinct failure mode:
-\`\`\`text
-RAG returns HTTP 429 → Triggers fallback path → Fallback attempts conversation.save() with provider metadata → Mongoose ValidationError on provider enum → Unhandled exception → Client receives HTTP 500
-\`\`\`
-
-### 3. Production Schema Hygiene & Remediation Executed
-- **Schema & Provider Hygiene**: Updated \`ConversationHistory.js\` enum to include \`'rag'\`. Mapped mock load-test adapter to production-valid \`'gemini'\` key to avoid polluting the production Mongoose schema with test-only artifacts (\`'mock_llm_loadtest'\`).
-- **Regression Suite Hardening**: Added a regression test to \`server/test/ragIntegration.test.js\` verifying graceful handling of RAG rate limiting without 500 crashes (**3/3 tests passing**).
-- **Full Post-Patch Verification**: Re-ran Scenario 3 across **c10, c50, and c100** post-patch, confirming **0.00% Error Rate across all concurrency levels**.
-
----
-
-## 5. Raw Tool Output Files
-
-All raw JSON output files produced by \`autocannon\` are committed in the repository:
-- [loadtest_summary_manifest.json](server/reports/loadtest/loadtest_summary_manifest.json)
-- [scenario1_read_heavy_c10.json](server/reports/loadtest/scenario1_read_heavy_c10.json)
-- [scenario1_read_heavy_c50.json](server/reports/loadtest/scenario1_read_heavy_c50.json)
-- [scenario1_read_heavy_c100.json](server/reports/loadtest/scenario1_read_heavy_c100.json)
-- [scenario2_compute_heavy_c10.json](server/reports/loadtest/scenario2_compute_heavy_c10.json)
-- [scenario2_compute_heavy_c50.json](server/reports/loadtest/scenario2_compute_heavy_c50.json)
-- [scenario2_compute_heavy_c100.json](server/reports/loadtest/scenario2_compute_heavy_c100.json)
-- [scenario3_agentic_llm_c10.json](server/reports/loadtest/scenario3_agentic_llm_c10.json)
-- [scenario3_agentic_llm_c50.json](server/reports/loadtest/scenario3_agentic_llm_c50.json)
-- [scenario3_agentic_llm_c100.json](server/reports/loadtest/scenario3_agentic_llm_c100.json)
-- [scenario4_stress_c200.json](server/reports/loadtest/scenario4_stress_c200.json)
-`;
-
-  fs.writeFileSync(ROOT_REPORT_PATH, markdownContent);
-  console.log(`✓ Generated ${ROOT_REPORT_PATH}`);
+  fs.writeFileSync(REPORT_OUTPUT_PATH, JSON.stringify(report, null, 2));
+  console.log(`Generated ${REPORT_OUTPUT_PATH}`);
 }
 
 generateReport();

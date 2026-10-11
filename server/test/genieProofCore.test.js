@@ -89,11 +89,26 @@ test('extractor abstains on guarantees, historical claims, injection text and am
   }
 });
 
+test('extractor retains unsupported financial claim statements without inventing structured values', () => {
+  const result = extractGenieProofClaims('This scheme guarantees a 15% return. The investment is tax-free and allows early withdrawals.');
+  assert.equal(result.claims.length, 2);
+  assert.equal(result.claims[0].claimType, 'UNSUPPORTED');
+  assert.equal(result.claims[0].value, null);
+  assert.equal(result.claims[0].unit, 'UNKNOWN');
+  assert.equal(result.claims[0].originalSpan, 'This scheme guarantees a 15% return.');
+  assert.equal(result.claims[1].claimType, 'UNSUPPORTED');
+  assert.equal(result.claims[1].value, null);
+  assert.equal(result.claims[1].unit, 'UNKNOWN');
+  assert.deepEqual(extractGenieProofClaims('Please review my monthly budget.').claims, []);
+});
+
 test('extractor enforces byte and claim count limits', () => {
   assert.deepEqual(extractGenieProofClaims('  '), { ok: false, code: 'OFFER_TEXT_REQUIRED' });
   assert.equal(extractGenieProofClaims('x'.repeat(16_001)).code, 'OFFER_TEXT_TOO_LARGE');
   const result = extractGenieProofClaims(Array(12).fill('PPF interest rate 7.1% p.a.').join('\n'));
   assert.equal(result.claims.length, 10);
+  assert.equal(result.claimsTruncated, true);
+  assert.equal(result.omittedClaimCount, 2);
 });
 
 test('verifier abstains until a qualified source-attestation pipeline and reuse permission exist', () => {

@@ -5,14 +5,14 @@
  * for maintainability. This file handles modal state, layout, and tab routing.
  */
 import React, { useState, useMemo } from 'react';
-import { X, MapPin, Info, Shield, History as HistoryIcon, IndianRupee, Flame, Calculator as CalcIcon, AlertTriangle } from 'lucide-react';
+import { X, MapPin, Info, Shield, History as HistoryIcon, IndianRupee, Calculator as CalcIcon, AlertTriangle } from 'lucide-react';
 import { investmentDatabase } from '../investmentDatabase';
 import api from '../services/api';
 import JargonTooltip from './JargonTooltip';
 import './DeepDiveModal.css';
 
 // ── Tab Panel Components ────────────────────────────────────────
-import { OverviewTab, WhereToInvestTab, CalculatorTab, TaxTab, HistoryTab, WhyInvestTab, StressTestTab } from './deepdive';
+import { OverviewTab, WhereToInvestTab, CalculatorTab, TaxTab, HistoryTab, WhyInvestTab } from './deepdive';
 
 const TABS = [
   { id: 'Overview', icon: <Info size={16} /> },
@@ -20,8 +20,7 @@ const TABS = [
   { id: 'Calculator', icon: <CalcIcon size={16} /> },
   { id: 'Tax', icon: <Shield size={16} /> },
   { id: 'History', icon: <HistoryIcon size={16} /> },
-  { id: 'Why Invest', icon: <IndianRupee size={16} /> },
-  { id: 'Stress Test', icon: <Flame size={16} /> }
+  { id: 'Why Invest', icon: <IndianRupee size={16} /> }
 ];
 
 const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRecommendations, horizon, userProfile, recommendationMeta = null, initialTab = 'Overview' }) => {
@@ -41,7 +40,6 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
   const [projection, setProjection] = useState(null);
   const [projectionError, setProjectionError] = useState(null);
   const [projectionLoading, setProjectionLoading] = useState(false);
-  const [stressTestAmount, setStressTestAmount] = useState(100000);
 
   const modalRef = React.useRef(null);
   const previouslyFocusedElementRef = React.useRef(null);
@@ -407,14 +405,6 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
           {activeTab === 'Tax' && <TaxTab inv={inv} calcAmount={calcAmount} calcYears={calcYears} userProfile={userProfile} />}
           {activeTab === 'History' && <HistoryTab inv={inv} historicalData={historicalData} benchmarkRate={benchmarkRate} inflationRate={inflationRate} projectionError={projectionError} />}
           {activeTab === 'Why Invest' && <WhyInvestTab {...calcProps} setActiveTab={setActiveTab} setInflationRate={setInflationRate} setBenchmarkRate={setBenchmarkRate} />}
-          {activeTab === 'Stress Test' && (
-            <StressTestTab
-              inv={inv}
-              profileId={userProfile?.profileId}
-              stressTestAmount={stressTestAmount}
-              setStressTestAmount={setStressTestAmount}
-            />
-          )}
         </div>
       </div>
     </div>

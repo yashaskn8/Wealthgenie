@@ -5,6 +5,7 @@ export const GENIEPROOF_SIGNATURE_ALGORITHM = 'Ed25519';
 
 function readPublicKey(value) {
   try {
+    if (typeof value === 'string' && /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value)) return null;
     const key = typeof value === 'string' ? crypto.createPublicKey(value) : value;
     return key?.type === 'public' && key.asymmetricKeyType === 'ed25519' ? key : null;
   } catch {
@@ -12,10 +13,70 @@ function readPublicKey(value) {
   }
 }
 
+export class GenieProofPassportVerifier {
+  constructor({ trustedPublicKeys = {} } = {}) {
+    if (!trustedPublicKeys || Array.isArray(trustedPublicKeys) || typeof trustedPublicKeys !== 'object') {
+      throw new TypeError('GenieProof verification requires an explicit public-key trust store.');
+    }
+    this.trustedPublicKeys = new Map();
+    for (const [trustedId, trustedValue] of Object.entries(trustedPublicKeys)) {
+      if (!/^[A-Za-z0-9._-]{1,120}$/.test(trustedId)) {
+        throw new TypeError('GenieProof trust-store key IDs must be valid identifiers.');
+      }
+      const key = readPublicKey(trustedValue);
+      if (!key) throw new TypeError(`GenieProof trust-store key ${trustedId} is not a valid Ed25519 public key.`);
+      this.trustedPublicKeys.set(trustedId, key);
+    }
+  }
+
+  verifySignedManifest(signed) {
+    const manifest = signed?.manifest;
+    const signature = signed?.signature;
+    if (!manifest || signature?.algorithm !== GENIEPROOF_SIGNATURE_ALGORITHM
+        || typeof signature.keyId !== 'string' || !/^[A-Za-z0-9._-]{1,120}$/.test(signature.keyId)
+        || typeof signature.value !== 'string' || !/^[A-Za-z0-9_-]{86}$/.test(signature.value)
+        || !/^[a-f0-9]{64}$/.test(signed?.manifestHash || '')) {
+      return { valid: false, integrityValid: false, trustedIssuer: false, code: 'PASSPORT_SIGNATURE_MALFORMED' };
+    }
+    const signatureBytes = Buffer.from(signature.value, 'base64url');
+    if (signatureBytes.length !== 64 || signatureBytes.toString('base64url') !== signature.value) {
+      return { valid: false, integrityValid: false, trustedIssuer: false, code: 'PASSPORT_SIGNATURE_MALFORMED' };
+    }
+    let canonicalManifest;
+    try {
+      canonicalManifest = canonicalJson(manifest);
+      if (canonicalSha256(manifest) !== signed.manifestHash) {
+        return { valid: false, integrityValid: false, trustedIssuer: false, code: 'PASSPORT_MANIFEST_HASH_MISMATCH' };
+      }
+    } catch {
+      return { valid: false, integrityValid: false, trustedIssuer: false, code: 'PASSPORT_MANIFEST_INVALID' };
+    }
+    const trustedKey = this.trustedPublicKeys.get(signature.keyId);
+    if (!trustedKey) return { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_UNTRUSTED' };
+    const publicDer = trustedKey.export({ type: 'spki', format: 'der' });
+    const fingerprint = crypto.createHash('sha256').update(publicDer).digest('hex');
+    if (signature.publicKeyFingerprint !== fingerprint) {
+      return { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_KEY_FINGERPRINT_MISMATCH' };
+    }
+    let signatureValid = false;
+    try {
+      signatureValid = crypto.verify(null, Buffer.from(canonicalManifest, 'utf8'), trustedKey, signatureBytes);
+    } catch {
+      signatureValid = false;
+    }
+    return signatureValid
+      ? { valid: true, integrityValid: true, trustedIssuer: true, code: 'PASSPORT_SIGNATURE_VERIFIED' }
+      : { valid: false, integrityValid: true, trustedIssuer: true, code: 'PASSPORT_SIGNATURE_INVALID' };
+  }
+}
+
 export class GenieProofPassportSigner {
   constructor({ privateKeyPem, publicKeyPem, keyId, trustedPublicKeys = {} } = {}) {
     if (!privateKeyPem || !publicKeyPem || typeof keyId !== 'string' || !/^[A-Za-z0-9._-]{1,120}$/.test(keyId)) {
       throw new TypeError('GenieProof signing requires an Ed25519 key pair and key ID.');
+    }
+    if (typeof publicKeyPem === 'string' && /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(publicKeyPem)) {
+      throw new TypeError('GenieProof public-key configuration must contain only a public key.');
     }
     this.privateKey = crypto.createPrivateKey(privateKeyPem);
     this.publicKey = crypto.createPublicKey(publicKeyPem);
@@ -32,11 +93,19 @@ export class GenieProofPassportSigner {
     this.publicKeyFingerprint = crypto.createHash('sha256').update(publicDer).digest('hex');
     this.trustedPublicKeys = new Map();
     for (const [trustedId, trustedValue] of Object.entries(trustedPublicKeys)) {
+      if (!/^[A-Za-z0-9._-]{1,120}$/.test(trustedId)) {
+        throw new TypeError('GenieProof trust-store key IDs must be valid identifiers.');
+      }
       const key = readPublicKey(trustedValue);
-      if (key) this.trustedPublicKeys.set(trustedId, key);
+      if (!key) throw new TypeError(`GenieProof trust-store key ${trustedId} is not a valid Ed25519 public key.`);
+      this.trustedPublicKeys.set(trustedId, key);
     }
     // The configured signing public key is an explicit local trust anchor for
     // the environment using it. A manifest cannot introduce its own key.
+    const existingKey = this.trustedPublicKeys.get(keyId);
+    if (existingKey && !existingKey.export({ type: 'spki', format: 'der' }).equals(publicDer)) {
+      throw new TypeError('GenieProof signing key ID conflicts with a different pinned public key.');
+    }
     this.trustedPublicKeys.set(keyId, this.publicKey);
   }
 

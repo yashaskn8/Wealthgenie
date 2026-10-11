@@ -97,11 +97,14 @@ brain/
 tmp_pycache/
 
 # Coverage artifacts
-server/reports/
+server/reports/*
 !server/reports/*.md
 !server/reports/*.json
 !server/reports/*.csv
 !server/reports/*.svg
+!server/reports/loadtest/
+server/reports/loadtest/*
+!server/reports/loadtest/historical_benchmarks.json
 server/coverage/
 reactapp/coverage/
 coverage/

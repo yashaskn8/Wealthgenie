@@ -7,7 +7,7 @@ export const genieProofExtractSchema = Joi.object({
   offerText: Joi.string().min(1).max(16_000).required(),
 }).unknown(false);
 
-const confirmedClaimSchema = Joi.object({
+export const genieProofConfirmedClaimSchema = Joi.object({
   claimId,
   statement: Joi.string().trim().min(1).max(500).required(),
   claimType: Joi.string().valid('CURRENT_NOMINAL_RATE', 'UNSUPPORTED').required(),
@@ -19,5 +19,6 @@ const confirmedClaimSchema = Joi.object({
 export const genieProofCreateCaseSchema = Joi.object({
   offerText: Joi.string().min(1).max(16_000).required(),
   submissionHash: hash,
-  confirmedClaims: Joi.array().items(confirmedClaimSchema).min(1).max(10).unique('claimId').required(),
+  savingConsent: Joi.boolean().valid(true).required(),
+  confirmedClaims: Joi.array().items(genieProofConfirmedClaimSchema).min(1).max(10).unique('claimId').required(),
 }).unknown(false);

@@ -258,7 +258,7 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     expect(unexpectedApiRequests).toEqual([]);
   });
 
-  test('full beginner journey: Home → Where to Invest → Taxes → Progress → Advanced with browser history', async ({ page }) => {
+  test('full beginner journey: Home → Where to Invest → Taxes → Progress → Home comparison with browser history', async ({ page }) => {
     // 1. Visit /profile
     await page.goto('http://127.0.0.1:5173/profile');
     await page.waitForLoadState('networkidle');
@@ -309,26 +309,58 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(page.getByTestId('panel-rebalancer')).toBeVisible();
     await expect(page.getByTestId('panel-goals')).not.toBeVisible();
 
-    // 5. Navigate to Advanced via Sidebar
-    await page.getByTestId('nav-advanced').click();
-    await expect(page).toHaveURL(/page=advanced&tab=comparison/);
-    await expect(page.getByTestId('panel-comparison')).toBeVisible();
-
-    // Switch to Policy & Diagnostics sub-tab
-    await page.getByTestId('tab-diagnostics').click();
-    await expect(page).toHaveURL(/page=advanced&tab=diagnostics/);
-    await expect(page.getByTestId('panel-diagnostics')).toBeVisible();
+    // 5. Compare investments from Home after retiring the standalone Advanced Hub.
+    await page.getByTestId('nav-home').click();
+    await expect(page).toHaveURL(/page=home/);
+    await page.getByRole('button', { name: /Compare Scenarios/i }).click();
+    await expect(page.getByRole('heading', { name: 'Compare Investments' })).toBeVisible();
+    await page.locator('.modal-close-btn').click();
 
     // 6. Test browser Back and Forward
-    await page.goBack();
-    await expect(page).toHaveURL(/page=advanced&tab=comparison/);
-
     await page.goBack();
     await expect(page).toHaveURL(/page=progress&tab=rebalancer/);
     await expect(page.getByTestId('panel-rebalancer')).toBeVisible();
 
     await page.goForward();
-    await expect(page).toHaveURL(/page=advanced&tab=comparison/);
+    await expect(page).toHaveURL(/page=home/);
+    await expect(page.getByTestId('beginner-home-hero')).toBeVisible();
+  });
+
+  test('retired Advanced URLs normalize to Home and no Advanced customer navigation remains', async ({ page }) => {
+    await page.goto('http://127.0.0.1:5173/profile?page=advanced&tab=diagnostics');
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(/page=home/);
+    await expect(page.getByTestId('nav-advanced')).toHaveCount(0);
+    await expect(page.getByTestId('beginner-home-hero')).toBeVisible();
+  });
+
+  test('GenieChat comparison action opens the retained Home comparison flow', async ({ page }) => {
+    await page.route('**/api/chat/history**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ messages: [] }) });
+    });
+    await page.route('**/api/chat/message', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          response: 'Compare the suitable choices.\n<<<ACTION_CARD>>>\n{"title":"Investment comparison","subtitle":"Open the existing comparison tool.","severity":"info","type":"rebalance","actions":[{"label":"Compare investments","target":"/compare"}]}\n<<<END_ACTION_CARD>>>',
+          rate_limit_remaining: 29,
+          rate_limit_total: 30,
+          grounded: true,
+          citations: [],
+        }),
+      });
+    });
+
+    await page.goto('http://127.0.0.1:5173/profile?page=home');
+    await page.waitForLoadState('networkidle');
+    await page.locator('.genie-fab').click();
+    await page.getByRole('textbox', { name: 'Ask Genie a financial question' }).fill('Compare investments');
+    await page.getByRole('textbox', { name: 'Ask Genie a financial question' }).press('Enter');
+    await page.getByRole('button', { name: 'Compare investments' }).click();
+
+    await expect(page).toHaveURL(/page=home/);
+    await expect(page.getByRole('heading', { name: 'Compare Investments' })).toBeVisible();
   });
 
   test('mobile viewport (390px): bottom tab bar, More drawer, focus trap, and Escape handling', async ({ page }) => {
@@ -355,12 +387,12 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(drawer).not.toBeVisible();
     await expect(moreBtn).toBeFocused();
 
-    // Open More sheet again and navigate to Advanced
+    // Open More sheet again; retired Advanced navigation is absent.
     await moreBtn.click();
     await expect(drawer).toBeVisible();
-    await drawer.getByRole('button', { name: /Advanced/i }).click();
-
-    await expect(page).toHaveURL(/page=advanced/);
+    await expect(drawer.getByRole('button', { name: /Advanced/i })).toHaveCount(0);
+    await drawer.getByRole('button', { name: /My Profile & Preferences/i }).click();
+    await expect(page).toHaveURL(/page=account/);
     await expect(drawer).not.toBeVisible();
   });
 });

@@ -49,11 +49,28 @@ function prepareClaim(candidate) {
   };
 }
 
+function downloadPassport(signedPassport) {
+  const caseId = signedPassport?.manifest?.caseId;
+  const revision = signedPassport?.manifest?.revision;
+  if (!caseId || !Number.isInteger(revision)) return false;
+  const file = new Blob([JSON.stringify(signedPassport, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `wealthgenie-genieproof-${caseId}-r${revision}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
 export default function GenieProofPanel() {
   const [offerText, setOfferText] = useState('');
   const [extraction, setExtraction] = useState(null);
   const [claims, setClaims] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
+  const [savingConsent, setSavingConsent] = useState(false);
   const [savedCases, setSavedCases] = useState([]);
   const [selected, setSelected] = useState(null);
   const [integrityByCase, setIntegrityByCase] = useState({});
@@ -80,6 +97,7 @@ export default function GenieProofPanel() {
     setExtraction(null);
     setClaims([]);
     setConfirmed(false);
+    setSavingConsent(false);
     setSelected(null);
     setIntegrityByCase({});
     setPendingDeleteCaseId(null);
@@ -97,11 +115,12 @@ export default function GenieProofPanel() {
 
   const removeClaim = claimId => {
     setConfirmed(false);
+    setSavingConsent(false);
     setClaims(current => current.filter(claim => claim.claimId !== claimId));
   };
 
   const savePassport = async () => {
-    if (!extraction || !confirmed || claims.length === 0) return;
+    if (!extraction || extraction.claimsTruncated || !confirmed || !savingConsent || claims.length === 0) return;
     setBusy(true);
     setError('');
     setStatus('');
@@ -109,6 +128,7 @@ export default function GenieProofPanel() {
       await api.createGenieProofCase({
         offerText,
         submissionHash: extraction.inputHash,
+        savingConsent: true,
         confirmedClaims: claims,
       });
       setSelected(null);
@@ -116,6 +136,7 @@ export default function GenieProofPanel() {
       setExtraction(null);
       setClaims([]);
       setConfirmed(false);
+      setSavingConsent(false);
       setStatus('Private passport saved. Verify its trusted signature before viewing findings; a signature does not establish financial correctness.');
       await reloadCases();
     } catch (saveError) {
@@ -202,13 +223,13 @@ export default function GenieProofPanel() {
           id="genieproof-offer"
           value={offerText}
           disabled={busy}
-          onChange={event => { setOfferText(event.target.value); setExtraction(null); setClaims([]); setConfirmed(false); }}
+          onChange={event => { setOfferText(event.target.value); setExtraction(null); setClaims([]); setConfirmed(false); setSavingConsent(false); }}
           maxLength={16000}
           rows={5}
           style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
-          <span style={{ color: '#94a3b8', fontSize: '0.83rem' }}>Up to 16,000 UTF-8 bytes. The full text is processed on the server and not saved in the passport record; its SHA-256 fingerprint and confirmed claim text are saved. Passports do not automatically expire.</span>
+          <span style={{ color: '#94a3b8', fontSize: '0.83rem' }}>Up to 16,000 UTF-8 bytes. The full offer is processed but not persisted. If you save a passport, its confirmed claim wording and fingerprint remain until you delete it; automatic expiry is not configured, and backups may follow separate retention schedules.</span>
           <button type="button" style={buttonStyle} onClick={() => void extract()} disabled={busy || !offerText.trim()}>
             <FileSearch size={16} aria-hidden="true" /> {busy ? 'Working…' : 'Extract claims'}
           </button>
@@ -219,8 +240,9 @@ export default function GenieProofPanel() {
         <section style={cardStyle} aria-labelledby="genieproof-confirm-title">
           <h2 id="genieproof-confirm-title" style={{ fontSize: '1.05rem', margin: '0 0 8px', color: '#f8fafc' }}>Confirm the exact claims</h2>
           <p style={{ margin: '0 0 14px', color: '#94a3b8', lineHeight: 1.5 }}>
-            Review the exact extracted wording and remove any statement that does not match the offer. Nothing is assessed until you confirm this review.
+            Review the exact extracted wording and remove any statement that does not match the offer. Edit the offer above and extract again to correct it. Nothing is assessed until you confirm this review.
           </p>
+          {extraction.claimsTruncated && <p role="alert" style={{ color: '#fbbf24' }}>This offer contains {extraction.omittedClaimCount} additional claim statement(s) beyond the review limit. Shorten the text and extract again before saving so no claims are hidden.</p>}
           {claims.length === 0 && <p role="status" style={{ color: '#fbbf24' }}>No claim candidate was extracted. Nothing will be assessed.</p>}
           {claims.map((claim, index) => (
             <fieldset key={claim.claimId} style={{ border: '1px solid rgba(148, 163, 184, 0.22)', borderRadius: 12, padding: 14, margin: '12px 0', minWidth: 0 }}>
@@ -260,7 +282,11 @@ export default function GenieProofPanel() {
                 <input type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)} />
                 I reviewed the exact wording and interpretation above.
               </label>
-              <button type="button" style={buttonStyle} onClick={() => void savePassport()} disabled={busy || !confirmed}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, margin: '14px 0', color: '#cbd5e1', lineHeight: 1.45 }}>
+                <input type="checkbox" checked={savingConsent} disabled={busy} onChange={event => setSavingConsent(event.target.checked)} />
+                I consent to save the confirmed claim wording and fingerprint in this private account until I delete the case. I understand backup copies may follow separate retention schedules.
+              </label>
+              <button type="button" style={buttonStyle} onClick={() => void savePassport()} disabled={busy || extraction.claimsTruncated || !confirmed || !savingConsent}>
                 <ShieldCheck size={16} aria-hidden="true" /> Save private passport
               </button>
             </>
@@ -302,7 +328,10 @@ export default function GenieProofPanel() {
 
       {selected && (
         <section style={cardStyle} aria-labelledby="genieproof-passport-title">
-          <h2 id="genieproof-passport-title" style={{ fontSize: '1.05rem', margin: '0 0 12px', color: '#f8fafc' }}>Evidence Passport · revision {selected.manifest.revision}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <h2 id="genieproof-passport-title" style={{ fontSize: '1.05rem', margin: 0, color: '#f8fafc' }}>Evidence Passport · revision {selected.manifest.revision}</h2>
+            <button type="button" style={buttonStyle} onClick={() => downloadPassport(selected)}>Download signed passport</button>
+          </div>
           <p style={{ color: '#94a3b8', overflowWrap: 'anywhere' }}>Manifest SHA-256: {selected.manifestHash}</p>
           <ul style={{ paddingLeft: 20, display: 'grid', gap: 12 }}>
             {selected.manifest.findings.map(finding => {

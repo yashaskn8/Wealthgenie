@@ -160,10 +160,10 @@ const HelpTourScreen = () => {
     },
     {
       icon: Target, color: '#8b5cf6', colorRgb: '139, 92, 246',
-      title: 'Health Score & Goals',
-      tag: 'Financial Health',
-      desc: 'A psychometric-style evaluation of your financial resilience. Tracks emergency funds, debt-to-income limits, and maps assets against lifetime expenses.',
-      details: 'Maps your raw assets against massive lifetime expenses like Retirement, Education, and Property acquisition with inflation-adjusted projections.',
+      title: 'Goals & Planning',
+      tag: 'Financial Planning',
+      desc: 'Set financial goals and track progress toward the milestones that matter to you.',
+      details: 'Use the goal planner to explore contribution plans and review progress against your saved financial profile.',
       step: '04'
     },
     {

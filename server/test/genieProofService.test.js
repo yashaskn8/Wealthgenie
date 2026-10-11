@@ -73,6 +73,7 @@ function requestFor(text = 'The current official PPF interest rate is 7.1% p.a.'
   return {
     offerText: text,
     submissionHash: extraction.inputHash,
+    savingConsent: true,
     confirmedClaims: extraction.claims.map(candidate => ({
       claimId: candidate.claimId,
       statement: candidate.originalSpan,
@@ -96,6 +97,8 @@ test('case creation checks the original input hash, requires extracted claim IDs
   assert.equal(created.passport.manifest.confirmedClaims[0].statement, request.confirmedClaims[0].statement);
   assert.equal(Object.hasOwn(f.cases[0], 'offerText'), false);
   assert.equal(f.cases[0].confirmedClaims[0].statement, request.offerText);
+  assert.equal(f.cases[0].savingConsentVersion, 'genieproof-private-save/1');
+  assert.equal(f.cases[0].savingConsentAt.toISOString(), now().toISOString());
   assert.equal(f.session.committed, true);
   assert.equal(f.revisions.length, 1);
 
@@ -126,6 +129,22 @@ test('case creation rejects altered claim text or structured values before signi
     userId: userOne, ...alteredValue, idempotencyKey: 'genieproof-altered-value', signer: f.signer,
     ...f, now,
   }), error => error.code === 'GENIEPROOF_CLAIM_NOT_FROM_SUBMISSION');
+  assert.equal(f.cases.length, 0);
+  assert.equal(f.revisions.length, 0);
+});
+
+test('case creation requires explicit private-save consent', async () => {
+  const f = fixture();
+  const request = requestFor();
+  await assert.rejects(() => createGenieProofCase({
+    userId: userOne,
+    ...request,
+    savingConsent: false,
+    idempotencyKey: 'genieproof-no-consent',
+    signer: f.signer,
+    ...f,
+    now,
+  }), error => error.code === 'GENIEPROOF_SAVING_CONSENT_REQUIRED');
   assert.equal(f.cases.length, 0);
   assert.equal(f.revisions.length, 0);
 });
@@ -186,6 +205,10 @@ test('passport verification detects divergence between signed claims and mutable
 test('create API schema rejects extra keys and unsupported products', () => {
   const request = requestFor();
   assert.equal(genieProofCreateCaseSchema.validate(request).error, undefined);
+  assert.ok(genieProofCreateCaseSchema.validate({ ...request, savingConsent: false }).error);
+  const withoutConsent = { ...request };
+  delete withoutConsent.savingConsent;
+  assert.ok(genieProofCreateCaseSchema.validate(withoutConsent).error);
   assert.ok(genieProofCreateCaseSchema.validate({ ...request, userId: userOne }).error);
   assert.ok(genieProofCreateCaseSchema.validate({
     ...request,

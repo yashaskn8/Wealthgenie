@@ -33,69 +33,6 @@ const getRiskPercent = (riskLevel) => {
   return Number.isFinite(value) ? value : null;
 };
 
-const Sparkline = ({ color, category, riskLevel, rate, invId }) => {
-  const numericRate = isPresentFiniteNumber(rate) ? Number(rate) : null;
-  const riskPercent = getRiskPercent(riskLevel);
-  if (!Number.isFinite(numericRate) || riskPercent === null) {
-    return <span style={{ width: 80, color: '#64748b', textAlign: 'center' }} title="Illustrative risk glyph unavailable">—</span>;
-  }
-  const seedStr = invId || 'default';
-  let seed = 0;
-  for (let i = 0; i < seedStr.length; i++) {
-    seed = Math.imul(31, seed) + seedStr.charCodeAt(i) | 0;
-  }
-  const random = () => {
-    const x = Math.sin(seed++) * 10000;
-    return x - Math.floor(x);
-  };
-
-  const isDebt = category === 'Debt' || category === 'Government';
-  const volMulti = riskPercent / 100;
-  
-  const clampedRate = Math.max(5, Math.min(16, numericRate));
-  const finalY = 18 - ((clampedRate - 5) / 11) * 16;
-  
-  const pointsCount = isDebt ? 6 : 14; 
-  const dx = 100 / (pointsCount - 1);
-  
-  let points = [{ x: 0, y: 18 }];
-  
-  for (let i = 1; i < pointsCount - 1; i++) {
-    const x = i * dx;
-    const progress = i / (pointsCount - 1);
-    const trendY = 18 - (18 - finalY) * progress;
-    
-    let noise = (random() - 0.5) * 20 * volMulti;
-    if (isDebt) noise *= 0.15; 
-    
-    points.push({ x, y: Math.max(2, Math.min(18, trendY + noise)) });
-  }
-  
-  points.push({ x: 100, y: finalY });
-  
-  let path = `M 0 18`;
-  if (isDebt) {
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i-1];
-      const curr = points[i];
-      const cpX = (prev.x + curr.x) / 2;
-      path += ` C ${cpX} ${prev.y}, ${cpX} ${curr.y}, ${curr.x} ${curr.y}`;
-    }
-  } else {
-    for (let i = 1; i < points.length; i++) {
-      path += ` L ${points[i].x} ${points[i].y}`;
-    }
-  }
-
-  return (
-    <svg role="img" aria-label="Illustrative risk pattern, not a price history or forecast" className="sparkline-container" viewBox="0 0 100 20" style={{ width: '80px', height: '24px', flexShrink: 0, overflow: 'visible', filter: `drop-shadow(0 2px 4px ${color}40)` }}>
-      {!isDebt && <path d={`${path} L 100 20 L 0 20 Z`} fill={`${color}15`} />}
-      <path d={path} fill="none" stroke={color} strokeWidth={isDebt ? "2" : "1.5"} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="100" cy={finalY} r="2.5" fill={color} />
-    </svg>
-  );
-};
-
 const RiskLiquidityVisual = ({ risk, liquidity }) => {
   const percent = getRiskPercent(risk);
   const color = percent === null ? '#64748b' : percent <= 30 ? '#34d399' : percent <= 60 ? '#fbbf24' : '#ef4444';
@@ -151,7 +88,7 @@ const ComparisonDetailPanel = ({ selectedInvestments, onBack }) => {
   if (!selectedInvestments.length) return null;
 
   const metrics = [
-    { key: 'matchScore', label: 'Match Score', fmt: v => v === null ? 'Not assessed' : `${v}%`, icon: <Sparkles size={14}/>, higher: true },
+    { key: 'matchScore', label: 'Match Score', fmt: v => v === null ? 'Not assessed' : `${v}%`, icon: <Sparkles size={14}/> },
     { key: 'rate', label: 'Model Return Assumption', fmt: v => Number.isFinite(v) ? `${v}%` : 'Unavailable', icon: <TrendingUp size={14}/>, higher: true },
     { key: 'riskLabel', label: 'Risk Level', fmt: v => v, icon: <Shield size={14}/> },
     { key: 'lockIn', label: 'Lock-in (yrs)', fmt: v => v === 0 ? 'None' : Number.isFinite(v) ? `${v} yrs` : 'Unavailable', icon: <Lock size={14}/>, higher: false },
@@ -162,9 +99,6 @@ const ComparisonDetailPanel = ({ selectedInvestments, onBack }) => {
   const finiteLockIns = selectedInvestments.map(instrument => Number(instrument.lockIn ?? instrument.lock_in_years)).filter(Number.isFinite);
   const bestRate = finiteRates.length ? Math.max(...finiteRates) : null;
   const bestLock = finiteLockIns.length ? Math.min(...finiteLockIns) : null;
-
-  const assessedScores = itemsWithScores.map(i => i.matchScore).filter(Number.isFinite);
-  const bestMatch = assessedScores.length ? Math.max(...assessedScores) : null;
 
   return (
     <motion.div className="comparison-detail-panel" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}>
@@ -195,33 +129,16 @@ const ComparisonDetailPanel = ({ selectedInvestments, onBack }) => {
               const val = inv[m.key];
               const isBest = m.key === 'rate' ? (bestRate !== null && inv.rate === bestRate)
                 : m.key === 'lockIn' ? (bestLock !== null && (inv.lockIn ?? inv.lock_in_years) === bestLock)
-                : m.key === 'matchScore' ? (bestMatch !== null && inv.matchScore === bestMatch)
                 : false;
               return (
                 <div key={inv.id} className={`detail-cell detail-value-cell ${isBest ? 'best-value' : ''}`}>
                   {m.fmt(val)}
-                  {isBest && m.higher !== undefined && <span className="best-badge" style={m.key === 'matchScore' ? { background: '#10b981', color: '#fff' } : {}}>{m.key === 'rate' ? 'Highest assumption' : 'Best'}</span>}
+                  {isBest && m.higher !== undefined && <span className="best-badge">{m.key === 'rate' ? 'Highest assumption' : 'Best'}</span>}
                 </div>
               );
             })}
           </React.Fragment>
         ))}
-        {/* Verdict row */}
-        <div className="detail-cell detail-label-cell" style={{ fontWeight: 700, color: '#38bdf8' }}>AI Match Verdict</div>
-        {itemsWithScores.map(inv => {
-          const isWinner = bestMatch !== null && inv.matchScore === bestMatch;
-          return (
-            <div key={inv.id} className={`detail-cell detail-value-cell ${isWinner ? 'verdict-winner' : ''}`}>
-              {isWinner ? (
-                <span className="winner-badge"><ArrowUpRight size={12}/> Highest Suitability Score</span>
-              ) : (
-                <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                  {inv.matchScore === null ? 'Catalog only' : 'Suitable Option'}
-                </span>
-              )}
-            </div>
-          );
-        })}
       </div>
     </motion.div>
   );
@@ -614,13 +531,6 @@ const ComparisonTableModal = ({ isOpen, onClose, allInvestments = [], recommenda
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontWeight: 700, minWidth: '45px' }}>{Number.isFinite(rate) ? `${rate}%` : '—'}</span>
-                          <Sparkline 
-                            color={CATEGORY_COLORS[cat] || '#888'} 
-                            category={cat}
-                            riskLevel={riskLbl}
-                            rate={rate}
-                            invId={invId}
-                          />
                         </div>
                       </td>
                       <td>

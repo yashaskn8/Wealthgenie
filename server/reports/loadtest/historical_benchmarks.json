@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "sourceDocument": "load_test_report.md",
+    "sourceHead": "e842132b2e66d83fc0d4192241a216502c88fa6d",
+    "status": "historical-unverified-on-current-head",
+    "rawScenarioFilesAvailable": false,
+    "disclosure": "Values were migrated from the committed report table and warmed-run notes. The raw scenario JSON files cited by that report are absent from the repository tree, so these values have not been independently reproduced. They are retained as historical measurements, not current performance claims."
+  },
+  "initialScenarios": [
+    {
+      "scenario": "Read-heavy: GET /api/instruments",
+      "concurrency": 10,
+      "latencyMs": { "p50": 48, "p95": 66, "p99": 73 },
+      "requestsPerSecond": 199,
+      "totalRequests": 5969,
+      "errorRatePercent": 0,
+      "statusCodes": { "200": 5969 }
+    },
+    {
+      "scenario": "Read-heavy: GET /api/instruments",
+      "concurrency": 50,
+      "latencyMs": { "p50": 63, "p95": 306, "p99": 494 },
+      "requestsPerSecond": 600.2,
+      "totalRequests": 18005,
+      "errorRatePercent": 0,
+      "statusCodes": { "200": 18005 }
+    },
+    {
+      "scenario": "Read-heavy: GET /api/instruments",
+      "concurrency": 100,
+      "latencyMs": { "p50": 79, "p95": 244, "p99": 267 },
+      "requestsPerSecond": 973.7,
+      "totalRequests": 29212,
+      "errorRatePercent": 0,
+      "statusCodes": { "200": 29212 }
+    },
+    {
+      "scenario": "Compute-heavy: GET /api/tax/compare",
+      "concurrency": 10,
+      "latencyMs": { "p50": 2, "p95": 4, "p99": 5 },
+      "requestsPerSecond": 3606.5,
+      "totalRequests": 108174,
+      "errorRatePercent": 0,
+      "statusCodes": { "200": 108174 }
+    },
+    {
+      "scenario": "Compute-heavy: GET /api/tax/compare",
+      "concurrency": 50,
+      "latencyMs": { "p50": 12, "p95": 19, "p99": 21 },
+      "requestsPerSecond": 3809.4,
+      "totalRequests": 114264,
+      "errorRatePercent": 0,
+      "statusCodes": { "200": 114264 }
+    },
+    {
+      "scenario": "Compute-heavy: GET /api/tax/compare",
+      "concurrency": 100,
+      "latencyMs": { "p50": 25, "p95": 36, "p99": 41 },
+      "requestsPerSecond": 3736.7,
+      "totalRequests": 112088,
+      "errorRatePercent": 0,
+      "statusCodes": { "200": 112088 }
+    },
+    {
+      "scenario": "Agentic chat: POST /api/chat/message",
+      "concurrency": 10,
+      "latencyMs": { "p50": 90, "p95": 155, "p99": 245 },
+      "requestsPerSecond": 105.7,
+      "totalRequests": 3170,
+      "errorRatePercent": 98.11,
+      "statusCodes": { "200": 60, "500": 3110 }
+    },
+    {
+      "scenario": "Agentic chat: POST /api/chat/message",
+      "concurrency": 50,
+      "latencyMs": { "p50": 264, "p95": 474, "p99": 512 },
+      "requestsPerSecond": 188.5,
+      "totalRequests": 5656,
+      "errorRatePercent": 100,
+      "statusCodes": { "500": 5656 }
+    },
+    {
+      "scenario": "Agentic chat: POST /api/chat/message",
+      "concurrency": 100,
+      "latencyMs": { "p50": 506, "p95": 844, "p99": 874 },
+      "requestsPerSecond": 193.6,
+      "totalRequests": 5807,
+      "errorRatePercent": 99.14,
+      "statusCodes": { "200": 50, "500": 5757 }
+    },
+    {
+      "scenario": "Stress ceiling: GET /api/tax/compare",
+      "concurrency": 200,
+      "latencyMs": { "p50": 35, "p95": 43, "p99": 54 },
+      "requestsPerSecond": 5537.7,
+      "totalRequests": 166115,
+      "errorRatePercent": 0,
+      "statusCodes": { "200": 166115 }
+    }
+  ],
+  "reportedWarmPasses": [
+    {
+      "pass": 1,
+      "results": [
+        { "concurrency": 10, "latencyMs": { "p50": 49, "p99": 219 }, "requestsPerSecond": 146.9 },
+        { "concurrency": 50, "latencyMs": { "p50": 55, "p99": 198 }, "requestsPerSecond": 741.5 },
+        { "concurrency": 100, "latencyMs": { "p50": 72, "p99": 128 }, "requestsPerSecond": 1316.5 }
+      ]
+    },
+    {
+      "pass": 2,
+      "results": [
+        { "concurrency": 10, "latencyMs": { "p50": 42, "p99": 63 }, "requestsPerSecond": 230.1 },
+        { "concurrency": 50, "latencyMs": { "p50": 51, "p99": 81 }, "requestsPerSecond": 933.5 },
+        { "concurrency": 100, "latencyMs": { "p50": 78, "p99": 135 }, "requestsPerSecond": 1136.7 }
+      ]
+    }
+  ]
+}

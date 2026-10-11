@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "status": "PARTIAL_LOCAL_PROTOTYPE_NOT_READY_FOR_RELEASE",
+  "currentSessionCheckpoint": {
+    "repository": "yashaskn8/Wealthgenie",
+    "workingDirectory": "C:\\Projects\\wealthgenie ai",
+    "branch": "main",
+    "head": "e842132b2e66d83fc0d4192241a216502c88fa6d",
+      "worktreeNote": "The feature cleanup, documentation cleanup, and incremental GenieProof implementation changes are uncommitted. Preserve the worktree and inspect its current state before resuming; do not reset or clean it."
+  },
+  "featureGates": {
+    "frontend": {
+      "source": "reactapp/src/App.jsx",
+      "enabledOnlyWhen": {
+        "productionBuild": false,
+        "VITE_GENIEPROOF_ENABLED": "true"
+      }
+    },
+    "backend": {
+      "source": "server/agents/genieProof/genieProofPassportSignature.js",
+      "enabledOnlyWhen": {
+        "NODE_ENV": ["development", "test"],
+        "GENIEPROOF_ENABLED": "true",
+        "GENIEPROOF_SIGNING_PRIVATE_KEY": "configured",
+        "GENIEPROOF_SIGNING_PUBLIC_KEY": "configured",
+        "GENIEPROOF_SIGNING_KEY_ID": "configured"
+      },
+      "optionalTrustedKeyConfiguration": "GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON",
+      "productionActivationAllowed": false,
+      "disabledRouteResponse": "404 FEATURE_UNAVAILABLE",
+      "enabledStartupBehavior": "Persistence indexes are checked read-only; the explicit migration owns index creation."
+    }
+  },
+  "implementationLimits": {
+    "supportedClaim": "The verifier's only in-scope claim is one current nominal annual interest-rate statement for India Post PPF. Other recognized financial statements are retained as UNSUPPORTED and are not verified.",
+    "maxSubmissionBytes": 16000,
+    "maxClaims": 10,
+    "customerConfirmationRequired": true,
+    "explicitPrivateSaveConsentRequired": true,
+    "claimLimitBehavior": "Extraction reports how many financial-claim statements were omitted; a truncated offer cannot be saved as a reviewed passport.",
+    "sourceVerification": "The source verifier abstains. In-scope claims return NOT_VERIFIABLE because source attestation and reuse permission are not qualified.",
+    "customerMeaning": "A signed record does not establish offer or sender legitimacy, investment safety, or whether the customer should invest.",
+    "proofBreak": "Monitoring, durable scheduling, source-change detection, revalidation, and alerts are not implemented; the UI keeps ProofBreak disabled.",
+    "passportExportAndIndependentVerification": "The UI exports a signed JSON passport. A local Node.js verifier checks an out-of-band Ed25519 trust store and deterministic finding replay; without qualified evidence it returns VERIFICATION_INCOMPLETE.",
+    "storage": "There is no automatic retention policy or per-user storage quota. Deletion removes active app records but does not establish backup or oplog erasure. The UI now explicitly discloses saved claim retention until deletion."
+  },
+  "preservedControls": [
+    "Authenticated, strict, owner-scoped API routes with rate limiting and Cache-Control: no-store.",
+    "Ed25519-signed manifests bind case owner, claim submission, confirmed claims, findings, and revision metadata.",
+    "Submitted structured claims must match the server-side extraction before signing or persistence.",
+    "Synthetic or caller-supplied snapshot fields cannot create SUPPORTED or CONTRADICTED findings.",
+    "Manifest self-published keys are not trust anchors; offline verification requires configured external public keys."
+  ],
+  "latestVerification": {
+    "recordedAt": "2026-10-11",
+    "recordedAgainstHead": "e842132b2e66d83fc0d4192241a216502c88fa6d",
+    "worktreeChangesRemainUncommitted": true,
+    "results": [
+      "Focused backend GenieProof and persistence-index tests: 28/28 passed.",
+      "OpenAPI contract suite, including local Express HTTP cases: 13/13 passed with elevated loopback permission.",
+      "Focused frontend feature-preservation, navigation, GenieProof, API and cleanup tests: 73/73 passed (workspace-local temp directory required by Windows sandbox).",
+      "Server lint passed with 39 existing warnings; server typecheck passed.",
+      "Frontend lint passed with one existing App.jsx exhaustive-deps warning; frontend typecheck and production build passed with the existing large-chunk warning.",
+      "git diff --check passed after the final implementation and verification-status updates."
+    ],
+    "blockedOrNotRun": [
+      "Playwright navigation suite was attempted but Chromium headless executable is missing.",
+      "No transaction-capable MongoDB integration or authenticated GenieProof browser journey was run.",
+      "No official source import was run; positive financial verdicts remain disabled."
+    ]
+  },
+  "sourcePermissionReview": {
+    "source": "India Post Department of Posts website",
+    "status": "BLOCKED_EXTERNAL",
+    "finding": "The official copyright policy says material is protected; downloading is allowed, while other proposed use requires Department of Posts approval. No approval or product-specific reuse record is present in the repository.",
+    "policyUrl": "https://www.indiapost.gov.in/VAS/Pages/Content/Copyright.aspx",
+    "verificationUrl": "https://www.indiapost.gov.in/VAS/Pages/Content/disclaimer.aspx",
+    "publicPositiveVerdictsEnabled": false,
+    "proofBreakSourceMonitoringEnabled": false
+  },
+  "historicalVerification": {
+    "recordedAt": "2026-10-11",
+    "recordedBranch": "main",
+    "recordedAgainstHead": "954812081d3490c003fd53756b1754c2020789fa",
+    "currentHeadReverified": false,
+    "recordedPassingChecks": [
+      "Backend focused tests: 22/22 passed.",
+      "OpenAPI/static route contract: 4/4 passed.",
+      "Frontend focused tests: 41/41 passed.",
+      "Focused ESLint: zero errors; one recorded pre-existing exhaustive-deps warning in App.jsx.",
+      "Frontend typecheck and production build passed; the build recorded an existing large-chunk warning.",
+      "git diff --check passed."
+    ],
+    "note": "These results belong to the recorded historical checkout and are not claimed as rerun against the current cleanup worktree."
+  },
+  "unverifiedOrOutstanding": [
+    "No official source fetcher/attestation pipeline or source-reuse permission is qualified; no current financial rate is verified and no source-based verdict is available.",
+    "No regulatory or expert financial review is complete.",
+    "No live MongoDB migration or transaction integration run is recorded.",
+    "No authenticated browser journey or rendered screenshot is recorded.",
+    "No 1,000-user simulation is recorded.",
+    "Distributed rate-limit behavior, retention and quota policy, signing-key custody/trust distribution, source permissions, and Mongo transaction behavior require review before any non-local rollout."
+  ],
+  "resumeNext": "Keep GenieProof local and gated. Qualify official source bytes, parser-to-fact binding, retrieval time, reuse permission, and regulatory scope before enabling any source-based result or ProofBreak worker. Re-run focused backend and frontend tests, then conduct live migration/transaction and authenticated browser verification before considering release."
+}

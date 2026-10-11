@@ -26,10 +26,13 @@ describe('navigationMap architecture', () => {
     expect(resolveNavigation('goals')).toEqual({ page: 'progress', tab: 'goals' });
     expect(resolveNavigation('goal-planner')).toEqual({ page: 'progress', tab: 'plan-goal' });
     expect(resolveNavigation('sip-planner')).toEqual({ page: 'progress', tab: 'grow-sip' });
-    expect(resolveNavigation('health')).toEqual({ page: 'progress', tab: 'health' });
+    expect(resolveNavigation('health')).toEqual({ page: 'progress', tab: 'indicators' });
     expect(resolveNavigation('rebalancer')).toEqual({ page: 'progress', tab: 'rebalancer' });
-    expect(resolveNavigation('compare')).toEqual({ page: 'advanced', tab: 'comparison' });
-    expect(resolveNavigation('insights')).toEqual({ page: 'advanced', tab: 'insights' });
+    expect(resolveNavigation('compare')).toEqual({ page: 'home', tab: null });
+    expect(resolveNavigation('insights')).toEqual({ page: 'home', tab: null });
+    expect(resolveNavigation('diagnostics')).toEqual({ page: 'home', tab: null });
+    expect(resolveNavigation('genieproof')).toEqual({ page: 'home', tab: null });
+    expect(resolveNavigation('genieproof', undefined, { allowGenieProof: true })).toEqual({ page: 'genieproof', tab: null });
     expect(resolveNavigation('dashboard')).toEqual({ page: 'home', tab: null });
     expect(resolveNavigation('allocation')).toEqual({ page: 'plan', tab: null });
     expect(resolveNavigation('where-to-invest')).toEqual({ page: 'investments', tab: null });
@@ -52,8 +55,16 @@ describe('navigationMap architecture', () => {
     const progressInvalid = normalizeNavigation('progress', 'non-existent-prog-tab');
     expect(progressInvalid).toEqual({ page: 'progress', tab: 'goals', isNormalized: true });
 
-    const advInvalid = normalizeNavigation('advanced', 'non-existent-adv-tab');
-    expect(advInvalid).toEqual({ page: 'advanced', tab: 'comparison', isNormalized: true });
+    const retiredPage = normalizeNavigation('advanced', 'comparison');
+    expect(retiredPage).toEqual({ page: 'home', tab: null, isNormalized: true });
+    const gatedLegacyProof = normalizeNavigation('advanced', 'genieproof', { allowGenieProof: true });
+    expect(gatedLegacyProof).toEqual({ page: 'genieproof', tab: null, isNormalized: true });
+    const blockedLegacyProof = normalizeNavigation('advanced', 'genieproof');
+    expect(blockedLegacyProof).toEqual({ page: 'home', tab: null, isNormalized: true });
+    expect(normalizeNavigation('genieproof', null)).toEqual({ page: 'home', tab: null, isNormalized: true });
+    expect(normalizeNavigation('genieproof', null, { allowGenieProof: true })).toEqual({ page: 'genieproof', tab: null, isNormalized: false });
+    expect(normalizeNavigation('progress', 'health')).toEqual({ page: 'progress', tab: 'goals', isNormalized: true });
+    expect(normalizeNavigation('progress', 'indicators')).toEqual({ page: 'progress', tab: 'indicators', isNormalized: false });
   });
 
   it('converts to and from URLSearchParams accurately', () => {

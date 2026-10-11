@@ -65,6 +65,7 @@ router.post('/cases', verifyJWT, genieProofLimiter, validateStrict(genieProofCre
     userId: req.user.userId,
     offerText: req.body.offerText,
     submissionHash: req.body.submissionHash,
+    savingConsent: req.body.savingConsent,
     confirmedClaims: req.body.confirmedClaims,
     idempotencyKey,
     signer: req.app.locals.genieProofRuntime.signer,

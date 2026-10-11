@@ -6,7 +6,7 @@ import DeepDiveModal from '../DeepDiveModal';
 vi.mock('../deepdive', () => ({
   OverviewTab: () => <div>Overview</div>, WhereToInvestTab: () => null,
   CalculatorTab: () => null, TaxTab: () => null, HistoryTab: () => null,
-  WhyInvestTab: () => null, StressTestTab: () => null,
+  WhyInvestTab: () => null,
 }));
 vi.mock('../../services/api', () => ({ default: { compareInvestmentProjection: vi.fn(async () => ({ normalizedChart: [] })) } }));
 afterEach(cleanup);
@@ -47,4 +47,19 @@ it('switches instrument, horizon, and recommendation in StrictMode without rende
   expect(screen.getByRole('dialog', { name: 'Index category' })).toBeVisible();
   expect(consoleError.mock.calls.flat().join(' ')).not.toMatch(/cannot update a component while rendering|too many re-renders/i);
   consoleError.mockRestore();
+});
+
+it('keeps the retained investment detail tabs without exposing the crash stress test', () => {
+  render(<DeepDiveModal
+    isOpen
+    investment={{ id: 'ppf', name: 'Server PPF', nominalReturn: 7.1, riskLabel: 'Very Low', lockIn: 15 }}
+    onClose={vi.fn()}
+    allRecommendations={[]}
+  />);
+
+  const tabs = screen.getAllByRole('tab');
+  expect(tabs.map(tab => tab.textContent.trim())).toEqual([
+    'Overview', 'Where to Invest', 'Calculator', 'Tax', 'History', 'Why Invest',
+  ]);
+  expect(screen.queryByRole('tab', { name: /stress test/i })).toBeNull();
 });

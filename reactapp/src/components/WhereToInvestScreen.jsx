@@ -19,7 +19,7 @@ import './WhereToInvestScreen.css';
  * - Displays category selector tabs derived STRICTLY from backend recommendations
  *   in their exact backend-authoritative order (no local re-ranking).
  * - Defaults to recommendations[0] unless explicitly selected by the user.
- * - Integrates full Deep Dive capabilities (Calculator, Tax, History, Overview, Stress Test).
+ * - Integrates the retained Deep Dive capabilities (Calculator, Tax, History, Overview).
  */
 const WhereToInvestScreen = ({
   recommendations = [],
@@ -196,7 +196,7 @@ const WhereToInvestScreen = ({
                 </span>
               </div>
               <span className="wti-deep-dive-subheading">
-                SIP projections, tax slabs, 10Y NAV history, and stress tests
+                SIP projections, tax analysis, and 10Y NAV history
               </span>
             </div>
           </div>

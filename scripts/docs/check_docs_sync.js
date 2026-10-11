@@ -1,25 +1,27 @@
 /**
- * WealthGenie architecture/documentation integrity checker.
+ * WealthGenie architecture contract checker.
  *
- * This checks current authority boundaries rather than preserving retired
- * chat-orchestration claims in documentation.
+ * Verify authority boundaries directly in implementation and regression
+ * coverage so the check does not depend on optional overview documentation.
  */
 const fs = require('fs');
 const path = require('path');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const files = {
-  readme: path.join(ROOT_DIR, 'README.md'),
   chat: path.join(ROOT_DIR, 'server', 'services', 'geminiChatService.js'),
   explanation: path.join(ROOT_DIR, 'server', 'services', 'groundedExplanationService.js'),
   validator: path.join(ROOT_DIR, 'server', 'services', 'groundingValidator.js'),
   providers: path.join(ROOT_DIR, 'server', 'services', 'providerAbstraction.js'),
+  marketContextPolicy: path.join(ROOT_DIR, 'server', 'services', 'marketContextPolicy.js'),
+  regimeRotationTest: path.join(ROOT_DIR, 'server', 'test', 'regimeRotationEngine.test.js'),
+  mongoExample: path.join(ROOT_DIR, '.env.example'),
   mlMain: path.join(ROOT_DIR, 'ml-service', 'main.py'),
   mlSecurity: path.join(ROOT_DIR, 'ml-service', 'security.py'),
 };
 
 console.log('='.repeat(70));
-console.log('WealthGenie Architecture & Documentation Sync Checker');
+console.log('WealthGenie Architecture Contract Checker');
 console.log('='.repeat(70));
 
 let failures = 0;
@@ -65,17 +67,13 @@ assertMatches(files.explanation, /validateGroundedExplanation/, 'LLM output is v
 assertMatches(files.explanation, /DETERMINISTIC_TEMPLATE/, 'validated deterministic explanation fallback remains available');
 assertMatches(files.providers, /NvidiaNimProviderAdapter/, 'NVIDIA NIM adapter exists behind the provider abstraction');
 assertMatches(files.mlSecurity, /env_mode\s+not\s+in\s+LOCAL_ENVIRONMENTS/, 'ML service authentication fails closed outside local environments');
-
-assertMatches(files.readme, /Express is the authoritative boundary/, 'README identifies Express as financial authority');
-assertMatches(files.readme, /NVIDIA NIM[^\n]*grounded explanation/i, 'README limits NVIDIA NIM to grounded explanation');
-assertMatches(files.readme, /HMM[^\n]*shadow/i, 'README identifies HMM as shadow-only');
-assertMatches(files.readme, /deterministic market-context policy[^\n]*champion/i, 'README identifies the deterministic market policy as champion');
-assertMatches(files.readme, /replicaSet=rs0/, 'README documents the replica-set requirement');
-assertDoesNotMatch(files.readme, /Express\.js Gateway \(IntentGate\)|routes factual[^\n]+FastAPI RAG|Multi-Agent Conversational System|Ranks catalog product candidates/, 'stale gateway, multi-agent, or catalog-ranking claims');
+assertMatches(files.marketContextPolicy, /MARKET_CONTEXT_POLICY_VERSION\s*=\s*'market-context-policy-\d+\.\d+\.\d+'/, 'deterministic market-context policy is explicitly versioned');
+assertMatches(files.regimeRotationTest, /an ML shadow state cannot become an allocation context/i, 'ML shadow state remains outside allocation contexts under regression coverage');
+assertMatches(files.mongoExample, /MONGODB_URI=.*replicaSet=rs0/i, 'local Mongo configuration uses a transaction-capable replica set');
 
 console.log('='.repeat(70));
 if (failures > 0) {
   console.error(`FAILED: ${failures} architecture sync checks failed.`);
   process.exit(1);
 }
-console.log('SUCCESS: documented authority boundaries match the implementation.');
+console.log('SUCCESS: implementation authority contracts match their regression coverage.');

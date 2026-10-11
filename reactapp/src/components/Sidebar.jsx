@@ -5,7 +5,7 @@ import {
   Target,
   ShieldCheck,
   TrendingUp,
-  Layers,
+  FileSearch,
   User,
   BookOpen,
   LogOut,
@@ -28,7 +28,7 @@ const PRIMARY_NAV_ITEMS = [
 ];
 
 const SECONDARY_NAV_ITEMS = [
-  { id: NAV_PAGES.ADVANCED, label: 'Advanced', icon: Layers, testId: 'nav-advanced', legacyTestIds: ['nav-compare', 'nav-insights'] },
+  { id: NAV_PAGES.GENIEPROOF, label: 'GenieProof', icon: FileSearch, testId: 'nav-genieproof', legacyTestIds: [] },
 ];
 
 const UTILITY_NAV_ITEMS = [
@@ -57,11 +57,7 @@ const getLegacyHandler = (legacyId, onNavigate, handleItemClick) => {
     case 'nav-sip-planner':
       return () => onNavigate({ page: NAV_PAGES.PROGRESS, tab: 'grow-sip' });
     case 'nav-health':
-      return () => onNavigate({ page: NAV_PAGES.PROGRESS, tab: 'health' });
-    case 'nav-compare':
-      return () => onNavigate({ page: NAV_PAGES.ADVANCED, tab: 'comparison' });
-    case 'nav-insights':
-      return () => onNavigate({ page: NAV_PAGES.ADVANCED, tab: 'insights' });
+      return () => onNavigate({ page: NAV_PAGES.PROGRESS, tab: 'indicators' });
     case 'nav-account':
     case 'nav-profile':
       return () => handleItemClick(NAV_PAGES.ACCOUNT);
@@ -70,7 +66,7 @@ const getLegacyHandler = (legacyId, onNavigate, handleItemClick) => {
   }
 };
 
-const Sidebar = ({ activePage, onNavigate, onLogout }) => {
+const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = false }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -257,16 +253,17 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
             </div>
           </div>
 
-          {/* Group 2: Secondary / Advanced */}
-          <div className="sidebar-group">
-            {!collapsed && (
-              <div className="sidebar-group-header">
-                <span className="sidebar-group-title">DEEP RESEARCH</span>
-                <span className="sidebar-group-line" />
-              </div>
-            )}
-            <div className="sidebar-group-items">
-              {SECONDARY_NAV_ITEMS.map((item) => {
+          {/* The gated research prototype remains reachable only when its local UI gate is enabled. */}
+          {genieProofEnabled && (
+            <div className="sidebar-group">
+              {!collapsed && (
+                <div className="sidebar-group-header">
+                  <span className="sidebar-group-title">RESEARCH PREVIEW</span>
+                  <span className="sidebar-group-line" />
+                </div>
+              )}
+              <div className="sidebar-group-items">
+                {SECONDARY_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
                 const isHovered = hoveredItem === item.id;
@@ -316,9 +313,10 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
                     )}
                   </button>
                 );
-              })}
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </nav>
 
         {/* Footer / Utility Section */}
@@ -435,7 +433,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
           aria-expanded={mobileMenuOpen}
           aria-label="More navigation options"
           className={`tab-item ${
-            [NAV_PAGES.ADVANCED, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
+            [NAV_PAGES.GENIEPROOF, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
               ? 'tab-item--active'
               : ''
           }`}
@@ -443,7 +441,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
         >
           <Menu size={20} strokeWidth={1.8} />
           <span className="tab-label">More</span>
-          {[NAV_PAGES.ADVANCED, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
+          {[NAV_PAGES.GENIEPROOF, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
             <span className="tab-active-dot" />
           )}
         </button>
@@ -481,15 +479,19 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
 
             {/* Sheet Nav Items */}
             <div className="mobile-drawer-items">
-              <div className="mobile-drawer-section-title">DEEP RESEARCH</div>
-              <button
-                type="button"
-                className={`mobile-drawer-btn ${activePage === NAV_PAGES.ADVANCED ? 'mobile-drawer-btn--active' : ''}`}
-                onClick={() => handleItemClick(NAV_PAGES.ADVANCED)}
-              >
-                <Layers size={18} color="#38bdf8" />
-                <span>Advanced (Compare, Insights, Diagnostics)</span>
-              </button>
+              {genieProofEnabled && (
+                <>
+                  <div className="mobile-drawer-section-title">RESEARCH PREVIEW</div>
+                  <button
+                    type="button"
+                    className={`mobile-drawer-btn ${activePage === NAV_PAGES.GENIEPROOF ? 'mobile-drawer-btn--active' : ''}`}
+                    onClick={() => handleItemClick(NAV_PAGES.GENIEPROOF)}
+                  >
+                    <FileSearch size={18} color="#38bdf8" />
+                    <span>GenieProof Preview</span>
+                  </button>
+                </>
+              )}
 
               <div className="mobile-drawer-section-title" style={{ marginTop: 12 }}>ACCOUNT & SUPPORT</div>
               <button

@@ -11,6 +11,7 @@ const UNSUPPORTED_SEMANTICS = /\b(?:guarantee(?:s|d)?|assured|maturity|tax(?:-fr
 const PERCENT_PER_ANNUM = /(?:\b(\d{1,2}(?:\.\d{1,4})?)\s*%\s*(?:p\.?\s*a\.?|per\s+annum|annually|annual(?:\s+rate)?)(?=$|[\s,;.!?])|\b(\d{1,2}(?:\.\d{1,4})?)\s*percent\s+per\s+annum\b)/i;
 const PPF_IDENTITY = /\b(?:PPF|Public Provident Fund(?: Scheme)?)\b/gi;
 const RATE_WORDING = /\b(?:rate|interest)\b/i;
+const FINANCIAL_CLAIM_SIGNAL = /\b(?:interest\s+rate|returns?|yield|guarantee(?:d)?|assured|capital\s+(?:protection|guarantee)|deposit\s+insurance|lock[- ]?in|withdraw(?:al|als)|liquid(?:ity)?|minimum\s+investment|maximum\s+investment|NAV|net\s+asset\s+value|mutual\s+fund|historical\s+performance|historical\s+return|tax(?:-free|able|ation|\s+exemption)?|deduction|80C|112A|50AA|registered\s+with\s+(?:SEBI|RBI)|(?:SEBI|RBI)[- ]registered)\b/i;
 
 function sha256(value) {
   return crypto.createHash('sha256').update(value, 'utf8').digest('hex');
@@ -56,16 +57,21 @@ export function extractGenieProofClaims(offerText) {
 
   const inputHash = sha256(offerText);
   const claims = [];
+  let omittedClaimCount = 0;
   for (const span of splitSentences(normalized)) {
     const rateMatch = span.text.match(PERCENT_PER_ANNUM);
-    if (!rateMatch) continue;
-    const numericText = rateMatch[1] || rateMatch[2];
+    if (!rateMatch && !FINANCIAL_CLAIM_SIGNAL.test(span.text)) continue;
+    if (claims.length >= GENIEPROOF_MAX_CLAIMS) {
+      omittedClaimCount += 1;
+      continue;
+    }
+    const numericText = rateMatch ? (rateMatch[1] || rateMatch[2]) : null;
     const productMatches = [...span.text.matchAll(PPF_IDENTITY)];
     const hasSinglePpfIdentity = productMatches.length === 1;
     const unsupportedSemantics = containsUnsupportedClaimSemantics(span.text);
-    const rateCount = [...span.text.matchAll(new RegExp(PERCENT_PER_ANNUM.source, 'gi'))].length;
+    const rateCount = rateMatch ? [...span.text.matchAll(new RegExp(PERCENT_PER_ANNUM.source, 'gi'))].length : 0;
     const hasRateWording = RATE_WORDING.test(span.text);
-    const supportedCandidate = hasSinglePpfIdentity && !unsupportedSemantics && rateCount === 1 && hasRateWording;
+    const supportedCandidate = Boolean(rateMatch) && hasSinglePpfIdentity && !unsupportedSemantics && rateCount === 1 && hasRateWording;
     const claimId = stableClaimId(inputHash, span.start, span.end, claims.length);
 
     claims.push({
@@ -75,8 +81,8 @@ export function extractGenieProofClaims(offerText) {
       endOffset: span.end,
       claimType: supportedCandidate ? 'CURRENT_NOMINAL_RATE' : 'UNSUPPORTED',
       productId: supportedCandidate ? GENIEPROOF_SUPPORTED_PRODUCT_ID : null,
-      value: Number(numericText),
-      unit: 'PERCENT_PER_ANNUM',
+      value: numericText == null ? null : Number(numericText),
+      unit: numericText == null ? 'UNKNOWN' : 'PERCENT_PER_ANNUM',
       interpretation: supportedCandidate
         ? 'The official current nominal annual interest rate for the exact PPF scheme.'
         : null,
@@ -87,9 +93,9 @@ export function extractGenieProofClaims(offerText) {
           ...(unsupportedSemantics ? ['CLAIM_CONTAINS_UNSUPPORTED_OR_MIXED_SEMANTICS'] : []),
           ...(rateCount !== 1 ? ['CLAIM_CONTAINS_AMBIGUOUS_RATE_COUNT'] : []),
           ...(!hasRateWording ? ['RATE_ASSERTION_WORDING_MISSING'] : []),
+          ...(!rateMatch ? ['CLAIM_CLASS_NOT_SUPPORTED_BY_EXTRACTOR'] : []),
         ],
     });
-    if (claims.length >= GENIEPROOF_MAX_CLAIMS) break;
   }
 
   return {
@@ -97,6 +103,8 @@ export function extractGenieProofClaims(offerText) {
     inputHash,
     extractionVersion: 'genieproof-deterministic-extractor/0.1.0',
     claims,
+    claimsTruncated: omittedClaimCount > 0,
+    omittedClaimCount,
     requiresCustomerConfirmation: true,
     rawOfferRetained: false,
   };

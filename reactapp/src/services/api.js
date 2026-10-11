@@ -562,8 +562,8 @@ export async function extractGenieProofClaims(offerText, options = {}) {
   return request('POST', '/genieproof/extract', { offerText }, { retries: 0, ...options });
 }
 
-export async function createGenieProofCase({ offerText, submissionHash, confirmedClaims }, options = {}) {
-  return request('POST', '/genieproof/cases', { offerText, submissionHash, confirmedClaims }, { retries: 0, ...options });
+export async function createGenieProofCase({ offerText, submissionHash, savingConsent, confirmedClaims }, options = {}) {
+  return request('POST', '/genieproof/cases', { offerText, submissionHash, savingConsent, confirmedClaims }, { retries: 0, ...options });
 }
 
 export async function listGenieProofCases(options = {}) {

@@ -9,6 +9,8 @@ import {
   verifyConfirmedGenieProofClaim,
 } from './genieProofCore.js';
 
+export const GENIEPROOF_SAVING_CONSENT_VERSION = 'genieproof-private-save/1';
+
 function serviceError(status, code, message) {
   return Object.assign(new Error(message), { status, code, clientMessage: message });
 }
@@ -85,6 +87,7 @@ export async function createGenieProofCase({
   userId,
   offerText,
   submissionHash,
+  savingConsent,
   confirmedClaims,
   idempotencyKey,
   signer,
@@ -94,6 +97,9 @@ export async function createGenieProofCase({
   now = () => new Date(),
 }) {
   if (!signer) throw serviceError(503, 'GENIEPROOF_SIGNER_UNAVAILABLE', 'The passport signer is unavailable.');
+  if (savingConsent !== true) {
+    throw serviceError(400, 'GENIEPROOF_SAVING_CONSENT_REQUIRED', 'Confirm that you want to save the claim text in a private passport.');
+  }
   if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey)) {
     throw serviceError(400, 'GENIEPROOF_IDEMPOTENCY_KEY_REQUIRED', 'A valid request key is required.');
   }
@@ -102,7 +108,7 @@ export async function createGenieProofCase({
     throw serviceError(400, 'GENIEPROOF_CLAIM_LIMIT_EXCEEDED', 'Too many claims were confirmed.');
   }
   const claims = copyConfirmedClaims(confirmedClaims);
-  const requestHash = canonicalSha256({ submissionHash, confirmedClaims: claims });
+  const requestHash = canonicalSha256({ submissionHash, confirmedClaims: claims, savingConsentVersion: GENIEPROOF_SAVING_CONSENT_VERSION });
   const idempotencyKeyHash = canonicalSha256([String(userId), idempotencyKey]);
   const caseId = crypto.randomUUID();
   const assessedAt = now();
@@ -130,6 +136,8 @@ export async function createGenieProofCase({
       requestHash,
       idempotencyKeyHash,
       confirmedClaims: claims,
+      savingConsentVersion: GENIEPROOF_SAVING_CONSENT_VERSION,
+      savingConsentAt: assessedAt,
       latestRevision: 1,
       latestManifestHash: passport.manifestHash,
     }], { session });

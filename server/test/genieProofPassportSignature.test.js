@@ -50,6 +50,16 @@ test('signer refuses key type and pair mismatches', () => {
     publicKeyPem: rsa.publicKey.export({ type: 'spki', format: 'pem' }),
     keyId: 'rsa',
   }), /Ed25519/);
+  assert.throws(() => new GenieProofPassportSigner({
+    privateKeyPem: first.privateKeyPem,
+    publicKeyPem: first.privateKeyPem,
+    keyId: 'private-as-public',
+  }), /public-key configuration/);
+  assert.throws(() => new GenieProofPassportSigner({
+    ...first,
+    keyId: 'pinned-key',
+    trustedPublicKeys: { 'pinned-key': second.publicKeyPem },
+  }), /conflicts with a different pinned public key/);
 });
 
 test('runtime enables GenieProof only with explicit local keys in development or test', () => {

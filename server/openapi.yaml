@@ -185,7 +185,7 @@ paths:
       x-csrf-protection: cookie-session
       x-idempotency-key: required
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
-      description: Creates a private owner-scoped signed passport after rechecking the submitted input hash and confirming claims. Current unqualified source evidence produces NOT_VERIFIABLE. No investment recommendation or monitoring enrollment occurs.
+      description: Creates a private owner-scoped signed passport after rechecking the submitted input hash, confirmed claims, and explicit consent to retain confirmed claim text until deletion. Current unqualified source evidence produces NOT_VERIFIABLE. No investment recommendation or monitoring enrollment occurs.
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreateRequest' } } } }
       responses: { '200': { description: Replayed idempotent creation, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreated' } } } }, '201': { description: Created signed passport, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofCreated' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
     get:
@@ -908,10 +908,11 @@ components:
     GenieProofCreateRequest:
       type: object
       additionalProperties: false
-      required: [offerText, submissionHash, confirmedClaims]
+      required: [offerText, submissionHash, savingConsent, confirmedClaims]
       properties:
         offerText: { type: string, minLength: 1, maxLength: 16000, writeOnly: true }
         submissionHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        savingConsent: { type: boolean, const: true, description: Explicit consent to store the confirmed claim wording and offer fingerprint in the private case until deletion. }
         confirmedClaims: { type: array, minItems: 1, maxItems: 10, items: { $ref: '#/components/schemas/GenieProofClaim' } }
     GenieProofCandidate:
       type: object
@@ -928,12 +929,14 @@ components:
     GenieProofExtraction:
       type: object
       additionalProperties: false
-      required: [ok, inputHash, extractionVersion, claims, requiresCustomerConfirmation, rawOfferRetained]
+      required: [ok, inputHash, extractionVersion, claims, claimsTruncated, omittedClaimCount, requiresCustomerConfirmation, rawOfferRetained]
       properties:
         ok: { type: boolean, const: true }
         inputHash: { type: string, pattern: '^[a-f0-9]{64}$' }
         extractionVersion: { type: string }
         claims: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/GenieProofCandidate' } }
+        claimsTruncated: { type: boolean, description: True when more financial-claim sentences were found than the bounded result can contain. }
+        omittedClaimCount: { type: integer, minimum: 0, description: Number of financial-claim sentences omitted by the claim limit. }
         requiresCustomerConfirmation: { type: boolean, const: true }
         rawOfferRetained: { type: boolean, const: false }
     GenieProofCaseSummary:

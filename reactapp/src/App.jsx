@@ -24,7 +24,7 @@ import { fromSearchParams, toSearchParams, resolveNavigation, NAV_PAGES } from '
 const WhereToInvestScreen = lazy(() => import('./components/WhereToInvestScreen'));
 const TaxesHub = lazy(() => import('./components/TaxesHub'));
 const ProgressHub = lazy(() => import('./components/ProgressHub'));
-const AdvancedHub = lazy(() => import('./components/AdvancedHub'));
+const GenieProofPanel = lazy(() => import('./components/GenieProofPanel'));
 const AllocationPlanner = lazy(() => import('./components/AllocationPlanner'));
 const ProfileEditor = lazy(() => import('./ProfileEditor'));
 const HelpTourScreen = lazy(() => import('./HelpTourScreen'));
@@ -34,6 +34,7 @@ const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const AuthPage = lazy(() => import('./components/AuthPage'));
 const LandingPage = lazy(() => import('./LandingPage'));
 const GENIEPROOF_LOCAL_UI_ENABLED = !import.meta.env.PROD && import.meta.env.VITE_GENIEPROOF_ENABLED === 'true';
+const NAVIGATION_OPTIONS = { allowGenieProof: GENIEPROOF_LOCAL_UI_ENABLED };
 
 // ── Bounded retry helper for deferred advisory generation ──
 // eslint-disable-next-line react-refresh/only-export-components
@@ -152,7 +153,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
 
   // URL search params are the SINGLE source of truth for navigation
   const { page: activePage, tab: activeTab, needsReplace } = useMemo(
-    () => fromSearchParams(searchParams),
+    () => fromSearchParams(searchParams, NAVIGATION_OPTIONS),
     [searchParams]
   );
 
@@ -164,7 +165,15 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
   }, [needsReplace, activePage, activeTab, setSearchParams]);
 
   const navigateTo = (target, options = { replace: false }) => {
-    const resolved = resolveNavigation(target);
+    const requestsComparison = target === 'compare'
+      || (target && typeof target === 'object' && (
+        target.page === 'compare'
+        || (target.page === 'advanced' && target.tab === 'comparison')
+      ));
+    const resolved = requestsComparison
+      ? { page: NAV_PAGES.HOME, tab: null }
+      : resolveNavigation(target, undefined, NAVIGATION_OPTIONS);
+    if (requestsComparison) setShowComparisonTable(true);
     setSearchParams(toSearchParams(resolved), options);
   };
 
@@ -782,20 +791,12 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
             />
           </ErrorBoundary>
         );
-      case NAV_PAGES.ADVANCED:
-        return (
+      case NAV_PAGES.GENIEPROOF:
+        return GENIEPROOF_LOCAL_UI_ENABLED ? (
           <ErrorBoundary>
-            <AdvancedHub
-              activeTab={activeTab}
-              onTabChange={(newTab) => navigateTo({ page: NAV_PAGES.ADVANCED, tab: newTab })}
-              profile={userProfile}
-              recommendations={recommendations}
-              recommendationMeta={currentRecommendationState}
-              onNavigateHome={() => navigateTo(NAV_PAGES.HOME)}
-              genieProofEnabled={GENIEPROOF_LOCAL_UI_ENABLED}
-            />
+            <GenieProofPanel />
           </ErrorBoundary>
-        );
+        ) : null;
       case NAV_PAGES.ACCOUNT:
         return (
           <ErrorBoundary>
@@ -847,7 +848,12 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
 
   return (
     <div className="app-shell">
-      <Sidebar activePage={activePage} onNavigate={navigateTo} onLogout={handleLogout} />
+      <Sidebar
+        activePage={activePage}
+        onNavigate={navigateTo}
+        onLogout={handleLogout}
+        genieProofEnabled={GENIEPROOF_LOCAL_UI_ENABLED}
+      />
       <main className="app-main">
         <Suspense fallback={lazyFallback}>
           {renderPage()}
@@ -870,7 +876,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
       </Suspense>
 
       {/* Comparison Table Modal */}
-      {showComparisonTable && activePage !== NAV_PAGES.ADVANCED && (
+      {showComparisonTable && (
         <Suspense fallback={null}>
           <ComparisonTableModal
             isOpen={true}

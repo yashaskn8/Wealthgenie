@@ -298,31 +298,6 @@ const CalculatorTab = ({
             </div>
           </div>
 
-          {/* Goal-Mapping Milestones */}
-          {realMaturityValue > 0 && (() => {
-            const goals = projection?.illustrativePurchasePowerMilestones || [];
-            const matched = goals.filter(g => realMaturityValue >= g.min);
-            const topGoals = matched.slice(-3).reverse();
-            if (topGoals.length === 0) return null;
-            return (
-              <div className="goal-map-section">
-                <div className="goal-map-title">What this money could buy (today's prices)</div>
-                {topGoals.map((g, i) => (
-                  <div key={i} className="goal-map-item">
-                    <span className="goal-map-icon">{g.icon}</span>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', flex: 1, alignItems: 'center' }}>
-                      <span className="goal-map-label">{g.label}</span>
-                      <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>{g.amount}</span>
-                    </div>
-                  </div>
-                ))}
-                <div style={{ fontSize: '0.6rem', color: '#475569', marginTop: 8, fontStyle: 'italic', lineHeight: 1.4 }}>
-                  * Curated illustrations, not live price quotes; compared using the explicit inflation-adjusted value ({inflationRate}%).
-                </div>
-              </div>
-            );
-          })()}
-
           {/* Save / Export Goal */}
           <div className="goal-export-section">
             <button
