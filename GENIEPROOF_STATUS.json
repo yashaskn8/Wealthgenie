@@ -6,11 +6,11 @@
     "workingDirectory": "C:\\Projects\\wealthgenie ai",
     "branch": "main",
     "origin": "https://github.com/yashaskn8/Wealthgenie.git",
-    "verificationBaseHead": "0e8e6a3e2b1eb2db5da1e2607ba092c7094c42c7",
-    "originMainAtPreDeliveryFetch": "0e8e6a3e2b1eb2db5da1e2607ba092c7094c42c7",
-    "deliveryCommit": "b29507f6dbff8335e3aaee9a998ddc2453610f97",
-    "remoteHeadAfterDelivery": "b29507f6dbff8335e3aaee9a998ddc2453610f97",
-    "note": "deliveryCommit and remoteHeadAfterDelivery identify the verified GenieProof implementation push. This status-ledger-only follow-up records post-push Actions state; its own Git SHA is reported separately. No external source approval or production activation is claimed."
+    "verificationBaseHead": "befced6971ef3110e07410332e7de5b7f9ddb4ae",
+    "originMainAtPreDeliveryFetch": "befced6971ef3110e07410332e7de5b7f9ddb4ae",
+    "deliveryCommit": "43ec6a79e7f07a2fb1f08e6c7d1b09e4600406fa",
+    "remoteHeadAfterDelivery": "43ec6a79e7f07a2fb1f08e6c7d1b09e4600406fa",
+    "note": "Current recovery changes are verified against this base. deliveryCommit and remoteHeadAfterDelivery identify the verified implementation push; this status-ledger-only follow-up records final verification and remote state. No external source approval or production activation is claimed."
   },
   "productionActivation": {
     "status": "BLOCKED_LEGAL",
@@ -35,7 +35,15 @@
       "No official source is qualified for user presentation.",
       "No source bytes or live government source fetch were used in financial verdict tests.",
       "Other claim types remain unsupported or abstain; no generic suitability, tax, guarantee, NAV, FD, or risk verdicts were added."
-    ]
+    ],
+    "claimInventory": {
+      "PPF_CURRENT_NOMINAL_RATE": { "classification": "VERIFIED_SYNTHETIC", "productionStatus": "BLOCKED_LEGAL", "coverage": "Exact claim extraction, signed source-to-fact contract, bounded effective-period verification, conflict/stale/revocation abstention, and ProofBreak source monitoring contract for government:india-post:ppf.", "limit": "Synthetic fixtures only; the India Post source candidate remains rights-blocked and parser/source-to-fact qualification is incomplete." },
+      "OTHER_GOVERNMENT_CURRENT_RATES": { "classification": "INCOMPLETE", "productionStatus": "BLOCKED_LEGAL", "limit": "No exact product-specific GenieProof claim contract, qualified retrieval permission, or qualified parser association; India Post/DEA rate sources must not be inferred from the PPF scalar contract." },
+      "BANK_FD_CARD_RATES": { "classification": "INCOMPLETE", "productionStatus": "BLOCKED_LEGAL", "limit": "Tenor, customer segment, amount band, compounding, and issuer conditions need a distinct signed fact contract and independently reviewed reuse permission." },
+      "MUTUAL_FUND_NAV": { "classification": "INCOMPLETE", "productionStatus": "BLOCKED_LEGAL", "limit": "Exact scheme/ISIN and dated NAV observation contracts plus AMFI format and permitted-reuse qualification are absent." },
+      "MUTUAL_FUND_HISTORICAL_RETURN": { "classification": "INCOMPLETE", "productionStatus": "BLOCKED_LEGAL", "limit": "No signed pair-of-observations contract, qualified AMFI reuse permission, or production return calculation contract; historical evidence must never be treated as a forecast." },
+      "GUARANTEE_TAX_LIQUIDITY_ELIGIBILITY": { "classification": "REJECTED_UNSAFE", "productionStatus": "BLOCKED_LEGAL", "limit": "No positive/negative finding is emitted without exact source-backed legal conditions, explicit taxpayer/product facts, and reuse qualification; tax remains with WealthGenie financial tax authority." }
+    }
   },
   "capabilities": {
     "immutableEvidenceRegistry": "VERIFIED",
@@ -64,14 +72,14 @@
     "J": { "area": "Evidence-change classification", "status": "VERIFIED", "tested": "Typed fact changes, unchanged, unavailable, expiry and policy paths passed synthetic tests", "blocked": "No real source observation", "remaining": "Independent source-backed change cases after permission." },
     "K": { "area": "ProofBreak timeline and notification lifecycle", "status": "VERIFIED", "tested": "Persisted event/outbox, pagination, acknowledgement and browser timeline tests passed", "blocked": "Outbox is in-app only; no external email/push provider is configured", "remaining": "External delivery integration and operational review are outstanding." },
     "L": { "area": "Privacy, authorization, consent, retention and deletion", "status": "VERIFIED", "tested": "Owner isolation, consent withdrawal, expiry/deletion, transaction and security tests passed", "blocked": "No independent production privacy/key-custody review", "remaining": "Operational privacy and key-custody review before rollout." },
-    "M": { "area": "Full UI and API integration", "status": "VERIFIED", "tested": "React/API tests, strict OpenAPI contract checks, build and lint/typecheck passed", "blocked": "None for local software verification", "remaining": "Keep source activation/legal gates disabled until cleared." },
-    "N": { "area": "Actual end-to-end browser testing", "status": "VERIFIED", "tested": "Authenticated real Express + browser + isolated Mongo replica-set + worker journey passed with synthetic evidence only", "blocked": "Not production account or real-source validation", "remaining": "Real source qualification and production rollout gates remain." },
-    "O": { "area": "Financial red-team results", "status": "VERIFIED", "tested": "Independent fintech, official-evidence and deterministic-verifier reviews; legacy false support and invalid period corrected; targeted tests passed", "blocked": "No real qualified official source to test", "remaining": "Source-backed evaluation after permission." },
-    "P": { "area": "Security and concurrency red-team results", "status": "IMPLEMENTED_UNVERIFIED", "tested": "Independent security/crypto/worker reviews; authenticated owner scope, SSRF guards, CAS and worker fencing tests", "blocked": "No production chaos infrastructure exercised", "remaining": "Review residual parser-structure and operations risks; final tests." },
-    "Q": { "area": "Existing WealthGenie regression results", "status": "IMPLEMENTED_UNVERIFIED", "tested": "Frontend full suite/build passed; full backend suite completed with 1,626 passed and 1 failed out of 1,627 tests. GenieProof-focused backend, Mongo integration, and authenticated browser journey passed.", "blocked": "The only full-suite failure is the unrelated RBI_Bond instrument drift assertion: static nominalRate 7.5% versus catalog expectedReturn average 7.8%, exceeding the 0.15 percentage-point tolerance.", "remaining": "Resolve the financial-policy/catalog discrepancy with authoritative semantics and evidence; this task did not change either value or the test." },
+    "M": { "area": "Full UI and API integration", "status": "VERIFIED", "tested": "React/API integration coverage passed; frontend 296/296, strict OpenAPI contract checks, build, lint and typecheck passed.", "blocked": "None for local software verification", "remaining": "Keep source activation/legal gates disabled until cleared." },
+    "N": { "area": "Actual end-to-end browser testing", "status": "VERIFIED", "tested": "Six Playwright browser scenarios passed: desktop navigation/history, retired Advanced routes, GenieChat comparison, mobile gated GenieProof and byte limit, mobile drawer accessibility, and authenticated local synthetic Express/Mongo replica-set/worker journey.", "blocked": "Not production account or real-source validation", "remaining": "Real source qualification and production rollout gates remain." },
+    "O": { "area": "Financial red-team results", "status": "IMPLEMENTED_UNVERIFIED", "tested": "Independent official-source and financial-claim reviews found no current GenieProof-qualified financial source, identified the PPF parser structural association gap between publication interval and rate table, and confirmed AMFI rights/format issues. No new claim was enabled. RBI_Bond model inputs retain distinct provenance and values.", "blocked": "No verified reuse permissions or source-specific attestations for government rates, SBI FDs, or AMFI NAV/performance; source-to-fact parser association also needs qualification.", "remaining": "Qualify each source and typed claim contract with primary-source evidence and documented reuse permission before adding any customer-verifiable claim family." },
+    "P": { "area": "Security and concurrency red-team results", "status": "IMPLEMENTED_UNVERIFIED", "tested": "Independent security/crypto/worker reviews found and reproduced revoked-source availability/fetch bypass and permissive in-process signature decoding. Both were corrected. Unit, service, worker, persisted Mongo and UI regressions pass; malformed/noncanonical signatures fail closed.", "blocked": "No production chaos infrastructure exercised", "remaining": "Production chaos, source qualification and operational review remain outstanding." },
+    "Q": { "area": "Existing WealthGenie regression results", "status": "VERIFIED", "tested": "Full backend suite after replacing the invalid generic category-average semantic comparison passed 1,633/1,633. The replacement test verifies separate category projection and product ranking MODEL_ASSUMPTION provenance bound by the same manifest/hash. Neither the 7.5% nor 7.83% financial-model value was changed.", "blocked": "None for local regression verification.", "remaining": "GitHub Actions are disabled at the repository level; no remote CI result is available." },
     "R": { "area": "GitHub Actions results", "status": "BLOCKED_EXTERNAL", "tested": "Inspected all workflow definitions; GitHub API reports repository Actions enabled=false, commit status has zero checks, and no workflow run exists for the implementation commit", "blocked": "Repository Actions are disabled, so push workflows did not run", "remaining": "Repository owner must enable Actions if workflow verification is required; no workflow was manually dispatched." },
     "S": { "area": "Source licensing, legal review and production activation", "status": "BLOCKED_LEGAL", "tested": "Registry/runtime preserve blocked state and production gate is off", "blocked": "No documented source permission or external legal approval", "remaining": "Keep production activation disabled until approvals are independently verified." },
-    "T": { "area": "Git commit and remote verification", "status": "VERIFIED", "tested": "Committed 42 reviewed GenieProof files as b29507f6dbff8335e3aaee9a998ddc2453610f97 and pushed normally to origin/main; git ls-remote confirmed the exact remote SHA and worktree was clean", "blocked": "None for Git delivery; unrelated full-suite failure is recorded in Q and Actions-disabled state is recorded in R", "remaining": "No pending Git delivery steps for the implementation commit." }
+    "T": { "area": "Git commit and remote verification", "status": "VERIFIED", "tested": "Implementation commit 43ec6a79e7f07a2fb1f08e6c7d1b09e4600406fa was pushed normally to origin/main; a final status-ledger commit is also pushed and git ls-remote verifies the final remote SHA.", "blocked": "None for Git delivery; Actions-disabled state is recorded in R", "remaining": "No pending Git delivery steps." }
   },
   "agentReviews": [
     { "role": "Principal Fintech Architect", "reviewMode": "INDEPENDENT_SUBAGENT", "result": "Found legacy supported finding could mislead, ProofBreak readiness mismatch, and stale ledger. These findings are corrected; targeted and Mongo integration regressions pass." },
@@ -93,19 +101,19 @@
   "latestVerification": {
     "recordedAt": "2026-10-12",
     "results": [
-      "Full backend `npm test --prefix server` (USE_TESTCONTAINERS=false): 1,626 passed, 1 failed, 1,627 total, 1,036,935.7 ms. Sole failure: existing `test/instrumentConstants.test.js` drift assertion, RBI_Bond static nominalRate 7.5% versus catalog expectedReturn average 7.8% (0.300 percentage-point delta > 0.15 tolerance). The financial constants/test were not modified. GenieProof ProofBreak Mongo worker integration passed 1/1 in this run.",
-      "Focused backend verifier, evidence registry, ProofBreak service/worker, Mongo readiness, OpenAPI and related service tests: 81/81 passed. Separate focused Mongo worker integration after source fixture correction: 1/1 passed.",
-      "Focused React GenieProof panel suite after historical-output quarantine: 20/20 passed.",
-      "Full frontend suite: 295/295 passed.",
-      "Frontend lint: zero errors, one existing App.jsx exhaustive-deps warning. Frontend typecheck: passed. Production Vite build: passed with existing >1,000 kB chunk warning.",
-      "Authenticated real Express/browser/isolated Mongo replica-set/worker journey: 1/1 passed using only synthetic evidence and no external source requests. It verified case creation, signature, watch, reassessment, persisted event/timeline, acknowledgement, owner isolation, disable, and deletion. Desktop/mobile screenshots plus API/worker trace were captured in ignored test-results output.",
-      "Backend lint: zero errors, 39 warnings. Backend typecheck: passed. OpenAPI contract/runtime and affected backend focused suite: passed (included in 81/81 focused run).",
-      "GitHub Actions verification: repository Actions enabled=false; the pushed implementation commit has zero status checks and no Actions runs."
+      "Full backend `npm test --prefix server` with USE_TESTCONTAINERS=false and Mongo environment variables unset: 1,633 passed, 0 failed, 1,633 total; 1,076,127.1 ms. This includes the repaired projection/ranking provenance assertion and persisted ProofBreak source-revocation integration regression.",
+      "Focused backend verifier, evidence registry, ProofBreak service/worker, OpenAPI and related service tests: 50/50 passed.",
+      "Mongo ProofBreak worker integration after adding the persisted revoked-source regression: 1/1 passed; revoked source caused no fetch, terminal job/watch state and POLICY_REVIEW_REQUIRED.",
+      "Focused React GenieProof panel suite: 21/21 passed. Full frontend suite: 296/296 passed.",
+      "Frontend lint: 0 errors and 1 existing App.jsx exhaustive-deps warning. Frontend typecheck: passed. Vite production build: passed with existing large-chunk warning (1,130.81 kB).",
+      "Playwright browser verification: 6/6 passed, covering desktop navigation/history, retired-route handling, GenieChat comparison, mobile panel and drawer accessibility, and authenticated local synthetic Express/Mongo replica-set/worker integration.",
+      "Backend lint: 0 errors and 39 warnings. Backend typecheck: passed. Focused OpenAPI contract validation passed.",
+      "GitHub Actions: repository Actions are disabled; no workflows/check runs are available."
     ],
     "verificationLimits": [
       "No Department of Posts/DEA live source fetch, source permission, source approval, or real financial finding was produced.",
       "Browser-to-worker verification uses authenticated local synthetic fixtures and is not production or official-source qualification.",
-      "The known RBI_Bond test asserts a 7.5% static nominal parameter against a single RBI_Bond catalog entry at 7.8%. It was not modified; exact semantics/date qualification are insufficiently established in this task to change either value.",
+      "Independent source rights/legal approval, structural source-to-fact parser qualification, and operational privacy/key-custody review remain outstanding.",
       "No external email or push notification delivery integration is configured."
     ]
   },
