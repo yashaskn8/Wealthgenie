@@ -336,6 +336,9 @@ jobs:
           cd reactapp
           npx playwright install --with-deps chromium
 
+      - name: Verify isolated browser-test Mongo database ownership
+        run: node --test --test-concurrency=1 reactapp/e2e/helpers/isolatedMongoDatabase.test.js
+
       - name: Migrate Phase 2 persistence indexes
         run: MONGODB_MIGRATION_URI="$MONGODB_URI" npm run migrate:phase2-indexes --prefix server
 

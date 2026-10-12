@@ -6,11 +6,11 @@
     "workingDirectory": "C:\\Projects\\wealthgenie ai",
     "branch": "main",
     "origin": "https://github.com/yashaskn8/Wealthgenie.git",
-    "verificationBaseHead": "89e1d32839ad5b1cac571374de227e70940c3908",
-    "originMainAtPreDeliveryFetch": "89e1d32839ad5b1cac571374de227e70940c3908",
-    "deliveryCommit": "7f78d6ac793f59227bd7c19bde682d474fb945a1",
-    "remoteHeadAfterDelivery": "Status-ledger follow-up commit; final branch tip verified with git ls-remote after push.",
-    "note": "Recovery changes are verified against the freshly fetched origin/main base. deliveryCommit identifies the implementation commit; a status-ledger-only follow-up is delivered with it. The final remote branch tip is independently verified after push. No external source approval or production activation is claimed."
+    "verificationBaseHead": "d28321e1018dfde79d64a937a87e548292c63d1e",
+    "originMainAtPreDeliveryFetch": "d28321e1018dfde79d64a937a87e548292c63d1e",
+    "deliveryCommit": "PENDING_IMPLEMENTATION_COMMIT",
+    "remoteHeadAfterDelivery": "Pending normal push and exact-SHA verification.",
+    "note": "Recovery changes are verified against the freshly fetched origin/main base. The delivery commit and remote branch tip will be recorded after normal push and independent SHA verification. No external source approval or production activation is claimed."
   },
   "productionActivation": {
     "status": "BLOCKED_LEGAL",
@@ -77,9 +77,9 @@
     "O": { "area": "Financial red-team results", "status": "VERIFIED", "tested": "Independent final source-claim audit found a historical replay compatibility risk; version-aware replay compatibility was restored. The new India Post source parser fails closed on the unresolved publication-period/rate-table association. No financial source is qualified and no new claim was enabled. RBI_Bond model inputs retain distinct provenance and values.", "blocked": "No verified reuse permissions or source-specific attestations for government rates, SBI FDs, or AMFI NAV/performance; current India Post parser intentionally abstains.", "remaining": "Qualify each source and typed claim contract with primary-source evidence and documented reuse permission before adding any customer-verifiable claim family." },
     "P": { "area": "Security and concurrency red-team results", "status": "VERIFIED", "tested": "Independent reviews found and corrected revoked-source availability/fetch bypass, permissive signature decoding, and a resume-versus-disable worker race. Focused Mongo replica-set tests confirm transactional watch/job generation fencing; malformed/noncanonical signatures fail closed.", "blocked": "No production chaos infrastructure exercised", "remaining": "Production chaos and operational review remain outstanding." },
     "Q": { "area": "Existing WealthGenie regression results", "status": "VERIFIED", "tested": "Full backend suite after final recovery fixes passed 1,658/1,658. It includes the separate category projection and product ranking MODEL_ASSUMPTION provenance assertion bound by the same manifest/hash. Neither the 7.5% nor 7.83% financial-model value was changed.", "blocked": "None for local regression verification.", "remaining": "Review the new automatically triggered GitHub checks after push; no workflow was manually dispatched." },
-    "R": { "area": "GitHub Actions results", "status": "PENDING_REMOTE_VERIFICATION", "tested": "Repository workflow definitions are enabled/configured. Earlier run 38214920208 passed the ephemeral Kind smoke; run 38214920222 exposed browser lifecycle failures that this recovery addresses. The current push will trigger repository-configured CI and ephemeral Kind workflows.", "blocked": "The current push's workflow result is not yet available.", "remaining": "Check the automatically triggered run after push if the GitHub status endpoint is accessible; no workflow was manually dispatched." },
+    "R": { "area": "GitHub Actions results", "status": "PENDING_REMOTE_VERIFICATION", "tested": "Latest observed run 38225733054 failed the browser lifecycle with a 64-character Mongo database name. The root cause is repaired; the helper suite passes 8/8, and the focused browser journey passes 1/1 both through the offline memory-replica path and the CI loopback rs0 URI path locally.", "blocked": "The repaired implementation has not yet been pushed, so its exact-SHA GitHub workflows have not run.", "remaining": "Push normally to origin/main and inspect all automatically triggered workflows on the resulting SHA; no workflow was manually dispatched." },
     "S": { "area": "Source licensing, legal review and production activation", "status": "BLOCKED_LEGAL", "tested": "Registry/runtime preserve blocked state and production gate is off", "blocked": "No documented source permission or external legal approval", "remaining": "Keep production activation disabled until approvals are independently verified." },
-    "T": { "area": "Git commit and remote verification", "status": "PENDING_REMOTE_VERIFICATION", "tested": "Implementation commit 7f78d6ac793f59227bd7c19bde682d474fb945a1 and a final status-ledger follow-up are prepared on main; origin/main was freshly fetched at base 89e1d32839ad5b1cac571374de227e70940c3908.", "blocked": "Push and final remote SHA verification are pending.", "remaining": "Push normally to origin/main and verify the branch tip with git ls-remote." }
+    "T": { "area": "Git commit and remote verification", "status": "PENDING_REMOTE_VERIFICATION", "tested": "The worktree is based on freshly fetched origin/main d28321e1018dfde79d64a937a87e548292c63d1e; task changes are limited to the CI workflow, isolated browser-test Mongo ownership helper/tests, GenieProof Playwright setup/cleanup, and this status ledger.", "blocked": "Implementation commit, normal push, and final remote SHA verification are pending.", "remaining": "Commit after validation, push normally to origin/main, then verify remote HEAD with git ls-remote." }
   },
   "agentReviews": [
     { "role": "Principal Fintech Architect", "reviewMode": "INDEPENDENT_SUBAGENT", "result": "Found legacy supported finding could mislead, ProofBreak readiness mismatch, and stale ledger. These findings are corrected; targeted and Mongo integration regressions pass." },
@@ -109,13 +109,16 @@
       "Frontend lint: 0 errors and 1 existing App.jsx exhaustive-deps warning. Frontend typecheck: passed. Vite production build: passed with existing large-chunk warning (1,130.81 kB).",
       "Playwright: six earlier browser scenarios passed; final authenticated synthetic-only GenieProof browser journey passed 1/1 after the last recovery fixes, covering worker publication, owner isolation and deletion.",
       "Backend lint: 0 errors and 39 warnings. Backend typecheck: passed. Focused OpenAPI contract validation passed.",
-      "GitHub Actions: earlier run 38214920208 passed ephemeral Kind smoke; run 38214920222 exposed browser lifecycle failures addressed here. Current push automatically triggers configured CI and ephemeral Kind workflows; final remote result remains pending."
+      "Browser-test Mongo isolation helper: 8/8 passed, including 63-byte boundary, Mongo-safe names, 4,096 unique generated names, loopback rs0 URI constraints, owned-only deletion, and observable cleanup failure.",
+      "Focused Playwright GenieProof lifecycle: 1/1 passed using the offline MongoMemoryReplSet fallback and 1/1 passed with CI=true against a disposable local 127.0.0.1:27017 rs0 replica set. Browser evidence includes desktop/mobile screenshots and API/worker trace JSON under ignored reactapp/test-results/.",
+      "Current frontend suite: 297/297 passed. Frontend lint: 0 errors and 1 pre-existing App.jsx exhaustive-deps warning. Frontend typecheck passed; Vite production build passed with the existing large-chunk warning.",
+      "GitHub Actions: run 38225733054 at the pre-fix SHA failed only the browser lifecycle job because Mongo rejected a 64-character database name; repair is locally verified and awaits push-triggered exact-SHA workflows."
     ],
     "verificationLimits": [
       "No Department of Posts/DEA live source fetch, source permission, source approval, or real financial finding was produced.",
       "Browser-to-worker verification uses authenticated local synthetic fixtures and is not production or official-source qualification.",
       "Independent source rights/legal approval and operational privacy/key-custody review remain outstanding. The parser does not qualify the current publication-period/rate-table association and therefore abstains.",
-      "The post-push GitHub workflow result is pending remote verification.",
+      "The repaired exact-SHA GitHub workflow result remains pending until normal push and completion of automatically triggered workflows.",
       "No external email or push notification delivery integration is configured."
     ]
   },

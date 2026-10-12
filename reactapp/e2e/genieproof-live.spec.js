@@ -10,6 +10,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import process from 'node:process';
+import {
+  createIsolatedMongoDatabaseOwnership,
+  createLoopbackMongoTestUri,
+  dropOwnedMongoTestDatabase,
+} from './helpers/isolatedMongoDatabase.js';
 
 const SPEC_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SPEC_DIR, '../..');
@@ -27,7 +32,8 @@ let envSnapshot;
 let mongoose;
 let mongoReplSet;
 let mongoDbPath = null;
-let mongoDatabaseName = null;
+let mongoDatabaseOwnership = null;
+let mongoDatabaseWasConnected = false;
 let modelSet;
 let testSigner;
 let fixtureSource;
@@ -44,26 +50,13 @@ let cleanedUp = false;
 
 function setIsolatedTestEnvironment() {
   envSnapshot = new Map(ENV_KEYS.map(key => [key, process.env[key]]));
+  const databaseOwnership = createIsolatedMongoDatabaseOwnership();
   let ciMongoUri = null;
   if (process.env.CI === 'true' && process.env.MONGODB_URI) {
-    let configuredUri;
-    try {
-      configuredUri = new URL(process.env.MONGODB_URI);
-    } catch {
-      throw new Error('The CI MongoDB URI must be a valid loopback replica-set URI.');
-    }
-    if (configuredUri.protocol !== 'mongodb:'
-        || configuredUri.hostname !== '127.0.0.1'
-        || configuredUri.port !== '27017'
-        || configuredUri.username
-        || configuredUri.password
-        || configuredUri.searchParams.get('replicaSet') !== 'rs0') {
-      throw new Error('The CI MongoDB URI must target the unauthenticated 127.0.0.1:27017 rs0 service.');
-    }
-    mongoDatabaseName = `wealthgenie_genieproof_e2e_${process.pid}_${crypto.randomUUID().replaceAll('-', '')}`;
-    configuredUri.pathname = `/${mongoDatabaseName}`;
-    ciMongoUri = configuredUri.toString();
+    ciMongoUri = createLoopbackMongoTestUri(process.env.MONGODB_URI, databaseOwnership);
   }
+  mongoDatabaseOwnership = databaseOwnership;
+  mongoDatabaseWasConnected = false;
   for (const key of ['MONGODB_URI', 'MONGO_URI', 'MONGO_URL']) delete process.env[key];
   Object.assign(process.env, {
     NODE_ENV: 'test',
@@ -299,6 +292,7 @@ async function stopVite() {
 async function cleanup() {
   if (cleanedUp) return;
   cleanedUp = true;
+  let databaseCleanupError = null;
   try { await proofBreakWorker?.stop({ graceMs: 3000 }); } catch { /* Continue teardown after a worker stop error. */ }
   proofBreakWorker = null;
   await stopVite();
@@ -307,13 +301,22 @@ async function cleanup() {
     await new Promise(resolve => apiServer.close(() => resolve()));
   }
   apiServer = null;
-  if (mongoDatabaseName && mongoose?.connection?.readyState) {
-    try { await mongoose.connection.dropDatabase(); } catch { /* Continue teardown after isolated-database cleanup errors. */ }
+  if (mongoDatabaseOwnership && mongoDatabaseWasConnected) {
+    try {
+      const dropped = await dropOwnedMongoTestDatabase({
+        connection: mongoose.connection,
+        ownership: mongoDatabaseOwnership,
+      });
+      if (!dropped) throw new Error('Refusing to drop a Mongo database that is not owned by this browser test or cannot be reached for cleanup.');
+    } catch (error) {
+      databaseCleanupError = error;
+    }
   }
   try { if (mongoose?.connection?.readyState) await mongoose.disconnect(); } catch { /* Continue teardown after a connection error. */ }
   try { await mongoReplSet?.stop(); } catch { /* Continue teardown after a replica-set stop error. */ }
   mongoReplSet = null;
-  mongoDatabaseName = null;
+  mongoDatabaseOwnership = null;
+  mongoDatabaseWasConnected = false;
   if (mongoDbPath) {
     const resolvedDbPath = path.resolve(mongoDbPath);
     const resolvedReactappDir = path.resolve(REACTAPP_DIR);
@@ -325,14 +328,15 @@ async function cleanup() {
     mongoDbPath = null;
   }
   restoreTestEnvironment();
+  if (databaseCleanupError) throw databaseCleanupError;
 }
 
 test.describe('synthetic-only authenticated GenieProof browser-to-worker integration', () => {
   test.describe.configure({ timeout: 300_000 });
 
   test.beforeAll(async () => {
-    setIsolatedTestEnvironment();
     try {
+      setIsolatedTestEnvironment();
       const serverRequire = createRequire(path.join(SERVER_DIR, 'package.json'));
       mongoose = serverRequire('mongoose');
       if (process.env.CI === 'true' && process.env.MONGODB_URI) {
@@ -358,8 +362,11 @@ test.describe('synthetic-only authenticated GenieProof browser-to-worker integra
           replSet: { count: 1, storageEngine: 'wiredTiger' },
           instanceOpts: [{ dbPath: mongoDbPath }],
         });
-        mongoDatabaseName = 'wealthgenie_genieproof_e2e_test';
-        await mongoose.connect(mongoReplSet.getUri(mongoDatabaseName));
+        await mongoose.connect(mongoReplSet.getUri(mongoDatabaseOwnership.databaseName));
+      }
+      mongoDatabaseWasConnected = true;
+      if (mongoose.connection.db?.databaseName !== mongoDatabaseOwnership?.databaseName) {
+        throw new Error('Mongo connected to a database other than this browser test’s isolated database.');
       }
 
       const persistence = await import(pathToFileURL(path.join(SERVER_DIR, 'services', 'persistenceIndexReadiness.js')).href);
