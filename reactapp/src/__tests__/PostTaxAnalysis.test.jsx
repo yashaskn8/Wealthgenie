@@ -92,7 +92,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     const row = within(await screen.findByTestId('post-tax-row-etf'));
     expect(row.getByTestId('post-tax-return')).toHaveTextContent('—');
     expect(row.getByTestId('post-tax-gain')).toHaveTextContent('—');
-    expect(screen.getByText(/1 of 2 instruments are included/i)).toBeVisible();
+    await waitFor(() => expect(screen.getByText(/1 of 2 instruments are included/i)).toBeVisible(), { timeout: 5000 });
     apiModule.computePostTaxReturnBatch.mockResolvedValue({ ...calculated, results: [{ ...calculated.results[0], postTaxGain: null }, unavailable] });
     submit();
     expect(await screen.findByRole('alert')).toHaveTextContent(/incomplete instrument analysis/i);
