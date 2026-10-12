@@ -110,6 +110,10 @@ export function validateGenieProofSourceDefinition(source) {
   if (source.definitionHash !== computeGenieProofSourceDefinitionHash(source)) {
     throw sourceFailure('GENIEPROOF_SOURCE_DEFINITION_HASH_MISMATCH', 503);
   }
+  if (source.revocationReasonCode || source.qualificationStatus === 'REVOKED'
+      || source.reusePermissionStatus === 'REVOKED') {
+    throw sourceFailure('GENIEPROOF_SOURCE_REVOKED', 410);
+  }
   if (source.qualificationStatus !== 'QUALIFIED_FOR_USER_PRESENTATION'
       || source.reusePermissionStatus !== 'APPROVED') {
     throw sourceFailure('GENIEPROOF_SOURCE_REUSE_NOT_APPROVED', 403);

@@ -36,6 +36,18 @@ test('signed passport verifies only against its trusted Ed25519 key', () => {
   assert.equal(untrusted.code, 'PASSPORT_SIGNING_KEY_UNTRUSTED');
 });
 
+test('in-process verifier rejects noncanonical Ed25519 signature encodings', () => {
+  const keys = keyPair();
+  const signer = new GenieProofPassportSigner({ ...keys, keyId: 'canonical-signature-test' });
+  const signed = signer.signManifest({ schemaVersion: 'test/1', revision: 1, findings: [] });
+  for (const suffix of [' ', '!', '====', '\n']) {
+    const malformed = structuredClone(signed);
+    malformed.signature.value += suffix;
+    assert.equal(signer.verifySignedManifest(malformed).valid, false, `suffix ${JSON.stringify(suffix)} must not be accepted`);
+    assert.equal(signer.verifySignedManifest(malformed).code, 'PASSPORT_SIGNATURE_MALFORMED');
+  }
+});
+
 test('signer refuses key type and pair mismatches', () => {
   const first = keyPair();
   const second = keyPair();

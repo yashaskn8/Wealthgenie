@@ -286,6 +286,17 @@ test('passport reads, integrity verification, deletion, and IDOR checks are owne
   assert.equal(f.revisions.length, 0);
 });
 
+test('stored passport with a noncanonical signature is never presented as verified', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-malformed-signature', signer: f.signer, ...f, now });
+  f.revisions[0].signature.value += ' ';
+
+  const verification = await verifyGenieProofCase({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f });
+  assert.equal(verification.integrity, 'INVALID');
+  assert.equal(verification.signature, 'UNVERIFIED');
+  assert.equal(verification.code, 'PASSPORT_SIGNATURE_MALFORMED');
+});
+
 test('passport history is owner-scoped and independently checks each immutable revision', async () => {
   const f = fixture();
   const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-history-1', signer: f.signer, ...f, now });
@@ -299,6 +310,17 @@ test('passport history is owner-scoped and independently checks each immutable r
   f.revisions[0].manifest.confirmedClaims[0].value = 99;
   const tampered = await listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f, now });
   assert.equal(tampered.revisions[0].verification.integrity, 'INVALID');
+});
+
+test('passport history never presents a noncanonical signature as verified', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-history-malformed-signature', signer: f.signer, ...f, now });
+  f.revisions[0].signature.value += ' ';
+
+  const history = await listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f, now });
+  assert.equal(history.revisions[0].verification.integrity, 'INVALID');
+  assert.equal(history.revisions[0].verification.signature, 'UNVERIFIED');
+  assert.equal(history.revisions[0].verification.code, 'PASSPORT_SIGNATURE_MALFORMED');
 });
 
 test('passport history fails closed when its latest signed revision disagrees with the stored case head', async () => {

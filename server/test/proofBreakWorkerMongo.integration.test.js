@@ -26,6 +26,7 @@ import {
 import {
   computeGenieProofRetrievalReceiptHash,
   computeGenieProofSourceDefinitionHash,
+  refreshGenieProofIndiaPostPpfEvidence,
   resolveGenieProofEvidenceForClaims,
 } from '../agents/genieProof/genieProofEvidenceRegistryService.js';
 import { GENIEPROOF_SOURCE_CATALOG_CANDIDATES } from '../agents/genieProof/genieProofSourceCatalog.js';
@@ -91,6 +92,7 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
   await setupTestDatabase({ requireReplicaSet: true });
   const userId = new mongoose.Types.ObjectId();
   const otherUserId = new mongoose.Types.ObjectId();
+  const revokedUserId = new mongoose.Types.ObjectId();
   const raceUserId = new mongoose.Types.ObjectId();
   const deletionRaceUserId = new mongoose.Types.ObjectId();
   const nowAt = new Date();
@@ -106,6 +108,9 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
   assert.equal(extraction.claims[0].claimType, 'CURRENT_NOMINAL_RATE');
   let sourceId = null;
   let watchId = null;
+  let revokedCaseId = null;
+  let revokedWatchId = null;
+  let readinessWorkerId = null;
   let raceCaseId = null;
   let raceWatchId = null;
   let deletionRaceCaseId = null;
@@ -221,8 +226,9 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
     assert.equal(initialReassessment.revision, 2);
     assert.equal(initialReassessment.passport.manifest.findings[0].finding, 'SUPPORTED');
 
+    readinessWorkerId = `proofbreak-readiness-${crypto.randomUUID()}`;
     await ProofBreakWorkerHeartbeat.create({
-      workerId: `proofbreak-readiness-${crypto.randomUUID()}`,
+      workerId: readinessWorkerId,
       status: 'RUNNING',
       startedAt: nowAt,
       heartbeatAt: nowAt,
@@ -345,6 +351,79 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
     assert.equal(await ProofBreakEvent.countDocuments({ userId, caseId: createdCase.case.caseId }), 0);
     assert.equal(await ProofNotificationOutbox.countDocuments({ userId, caseId: createdCase.case.caseId }), 0);
 
+    const revokedCase = await createGenieProofCase({
+      userId: revokedUserId,
+      offerText,
+      submissionHash: extraction.inputHash,
+      savingConsent: true,
+      confirmedClaims: extraction.claims.map(claim => ({
+        claimId: claim.claimId,
+        statement: claim.originalSpan,
+        claimType: claim.claimType,
+        productId: claim.productId,
+        value: claim.value,
+        unit: claim.unit,
+      })),
+      idempotencyKey: `proofbreak-revoked-source-${crypto.randomUUID()}`,
+      signer,
+      now: () => nowAt,
+    });
+    revokedCaseId = revokedCase.case.caseId;
+    await ProofBreakWorkerHeartbeat.updateOne({ workerId: readinessWorkerId }, {
+      $set: { heartbeatAt: nowAt, lastSuccessfulPollAt: nowAt, lastPollErrorCode: null, expiresAt: new Date(nowAt.getTime() + 30_000) },
+    });
+    const revokedWatch = await createProofWatch({
+      userId: revokedUserId,
+      caseId: revokedCaseId,
+      watchConsent: true,
+      idempotencyKey: `proofbreak-revoked-watch-${crypto.randomUUID()}`,
+      now: () => nowAt,
+    });
+    revokedWatchId = revokedWatch.watch.watchId;
+    assert.equal(revokedWatch.watch.status, 'ACTIVE');
+
+    const revokedSource = {
+      ...source,
+      revision: source.revision + 1,
+      qualificationStatus: 'REVOKED',
+      reusePermissionStatus: 'REVOKED',
+      revocationReasonCode: 'TEST_FIXTURE_PERMISSION_REVOKED',
+      lineage: [...source.lineage, `revoked-test-revision:${source.revision}`],
+      supersedes: { sourceId, revision: source.revision },
+    };
+    revokedSource.definitionHash = computeGenieProofSourceDefinitionHash(revokedSource);
+    await GenieProofSourceDefinition.create(revokedSource);
+
+    let revokedFetchCalls = 0;
+    const revokedWorker = new ProofBreakWorker({
+      signer,
+      workerId: `proofbreak-revoked-worker-${crypto.randomUUID()}`,
+      now: () => nowAt,
+      refreshEvidence: options => refreshGenieProofIndiaPostPpfEvidence({
+        ...options,
+        sourceModel: GenieProofSourceDefinition,
+        fetcher: { async fetchDocument() { revokedFetchCalls += 1; throw new Error('Revoked source must not be fetched.'); } },
+      }),
+      evidenceResolver: resolveGenieProofEvidenceForClaims,
+    });
+    const revokedCheck = await revokedWorker.processNext();
+    assert.equal(revokedCheck.status, 'BLOCKED_SOURCE_RIGHTS');
+    assert.equal(revokedFetchCalls, 0, 'revocation must block the worker before source retrieval');
+    const [revokedJob, revokedPersistedWatch, revokedEvent] = await Promise.all([
+      ProofBreakJob.findOne({ userId: revokedUserId, watchId: revokedWatchId }).lean(),
+      ProofWatch.findOne({ userId: revokedUserId, watchId: revokedWatchId }).lean(),
+      ProofBreakEvent.findOne({ userId: revokedUserId, watchId: revokedWatchId }).lean(),
+    ]);
+    assert.equal(revokedJob.status, 'FAILED_TERMINAL');
+    assert.equal(revokedJob.failureCode, 'GENIEPROOF_SOURCE_REVOKED');
+    assert.equal(revokedPersistedWatch.status, 'BLOCKED_SOURCE_RIGHTS');
+    assert.equal(revokedPersistedWatch.sourceAvailability, 'RIGHTS_BLOCKED');
+    assert.equal(revokedPersistedWatch.lastFailureCode, 'GENIEPROOF_SOURCE_REVOKED');
+    assert.equal(revokedPersistedWatch.nextCheckAt, null);
+    assert.equal(revokedEvent.eventType, 'POLICY_REVIEW_REQUIRED');
+    assert.equal(await ProofBreakJob.countDocuments({ userId: revokedUserId, watchId: revokedWatchId, status: { $in: ['QUEUED', 'LEASED'] } }), 0);
+    assert.equal(await ProofBreakEvent.countDocuments({ userId: revokedUserId, watchId: revokedWatchId, eventType: 'SOURCE_UNAVAILABLE' }), 0);
+
     const raceCase = await createGenieProofCase({
       userId: raceUserId,
       offerText,
@@ -450,6 +529,20 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
         GenieProofEvidenceRevision.deleteMany({ sourceId }),
         GenieProofRetrievalReceipt.deleteMany({ sourceId }),
         GenieProofSourceDefinition.deleteMany({ sourceId }),
+      ] : []),
+      ...(revokedCaseId ? [
+        ...(revokedWatchId ? [
+          ProofWatch.deleteMany({ userId: revokedUserId, watchId: revokedWatchId }),
+          ProofBreakJob.deleteMany({ userId: revokedUserId, watchId: revokedWatchId }),
+          ProofBreakEvent.deleteMany({ userId: revokedUserId, watchId: revokedWatchId }),
+          ProofNotificationOutbox.deleteMany({ userId: revokedUserId, watchId: revokedWatchId }),
+        ] : []),
+        ProofWatch.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
+        ProofBreakJob.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
+        ProofBreakEvent.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
+        ProofNotificationOutbox.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
+        GenieProofRevision.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
+        GenieProofCase.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
       ] : []),
       ProofBreakWorkerHeartbeat.deleteMany({ workerId: /^proofbreak-readiness-/ }),
       ...(raceCaseId ? [

@@ -131,3 +131,33 @@ test('offline verifier rejects a tampered manifest and a signed finding that doe
   assert.equal(replay.findings, 'VERIFICATION_FAILED');
   assert.equal(replay.code, 'PASSPORT_FINDING_REPLAY_MISMATCH');
 });
+
+test('offline verifier rejects malformed and noncanonical Base64URL signature encodings', () => {
+  const keys = keyPair();
+  const signer = signerFrom(keys, 'offline-signature-encoding');
+  const trustedPublicKeys = { 'offline-signature-encoding': keys.publicKeyPem };
+  const signed = signedPassport(signer);
+
+  for (const suffix of [' ', '!', '====', '\n']) {
+    const malformed = structuredClone(signed);
+    malformed.signature.value += suffix;
+    const result = verifyExportedGenieProofPassport(malformed, { trustedPublicKeys });
+    assert.equal(result.status, 'VERIFICATION_FAILED', `suffix ${JSON.stringify(suffix)} must be rejected`);
+    assert.equal(result.code, 'PASSPORT_SIGNATURE_MALFORMED');
+  }
+
+  const noncanonical = structuredClone(signed);
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const encoded = noncanonical.signature.value;
+  const lastCharacterIndex = alphabet.indexOf(encoded.at(-1));
+  const equivalentIndex = Math.floor(lastCharacterIndex / 16) * 16 + ((lastCharacterIndex % 16 + 1) % 16);
+  noncanonical.signature.value = `${encoded.slice(0, -1)}${alphabet[equivalentIndex]}`;
+  assert.deepEqual(
+    Buffer.from(noncanonical.signature.value, 'base64url'),
+    Buffer.from(encoded, 'base64url'),
+    'the mutation must differ only in unused trailing pad bits',
+  );
+  const result = verifyExportedGenieProofPassport(noncanonical, { trustedPublicKeys });
+  assert.equal(result.status, 'VERIFICATION_FAILED');
+  assert.equal(result.code, 'PASSPORT_SIGNATURE_MALFORMED');
+});

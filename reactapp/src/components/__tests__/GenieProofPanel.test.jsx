@@ -456,6 +456,22 @@ describe('GenieProofPanel', () => {
     expect(mockApi.createProofWatch).not.toHaveBeenCalled();
   });
 
+  it('explains when source reuse approval was revoked', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getProofWatchAvailability.mockResolvedValue({
+      caseId, workerStatus: 'AVAILABLE', canEnable: false, sourceStatus: 'RIGHTS_BLOCKED',
+      sourceReasonCode: 'GENIEPROOF_SOURCE_REVOKED',
+      monitoringScope: 'Only exact current nominal PPF annual-rate claims are currently supported.',
+      claims: [{ claimId: candidate.claimId, claimType: 'CURRENT_NOMINAL_RATE', productId: candidate.productId, status: 'SOURCE_RIGHTS_BLOCKED' }],
+    });
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /ProofBreak status & timeline/i }));
+    expect(await screen.findByText(/official source reuse approval was revoked/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/source reuse approval was revoked/i)).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /enable ProofBreak checks/i })).not.toBeInTheDocument();
+  });
+
   it('requires separate consent before enabling an available watch and displays its persisted timeline', async () => {
     const caseId = '00000000-0000-4000-8000-000000000001';
     mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });

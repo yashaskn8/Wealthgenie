@@ -1060,7 +1060,7 @@ components:
     ProofWatchAvailability:
       type: object
       additionalProperties: false
-      required: [caseId, workerStatus, canEnable, claims, monitoringScope, sourceStatus]
+      required: [caseId, workerStatus, canEnable, claims, monitoringScope, sourceStatus, sourceReasonCode]
       properties:
         caseId: { type: string, format: uuid }
         workerStatus: { type: string, enum: [AVAILABLE, UNAVAILABLE] }
@@ -1079,6 +1079,7 @@ components:
               status: { type: string, enum: [AVAILABLE, SOURCE_RIGHTS_BLOCKED, SOURCE_TECHNICALLY_BLOCKED, WAITING_FOR_QUALIFIED_SOURCE, NOT_SUPPORTED] }
         monitoringScope: { type: string }
         sourceStatus: { type: string, enum: [AVAILABLE, WAITING, RIGHTS_BLOCKED, TECHNICALLY_BLOCKED] }
+        sourceReasonCode: { type: [string, 'null'], enum: [GENIEPROOF_SOURCE_REVOKED, null] }
     ProofWatchSummary:
       type: object
       additionalProperties: false

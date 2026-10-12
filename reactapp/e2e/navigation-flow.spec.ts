@@ -381,7 +381,8 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await drawer.getByRole('button', { name: /GenieProof/i }).click();
     await expect(page).toHaveURL(/page=genieproof/);
     await expect(page.getByRole('heading', { name: 'GenieProof claim inspection' })).toBeVisible();
-    await expect(page.getByText(/ProofBreak monitoring is disabled/i)).toBeVisible();
+    await expect(page.getByText(/when qualified evidence is unavailable, GenieProof records an abstention/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Enable ProofBreak checks/i })).toHaveCount(0);
 
     const offer = page.getByLabel('Paste the offer text');
     await offer.fill('₹'.repeat(6000));

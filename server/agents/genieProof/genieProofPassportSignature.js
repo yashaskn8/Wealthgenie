@@ -129,7 +129,12 @@ export class GenieProofPassportSigner {
     const signature = signed?.signature;
     if (!manifest || signature?.algorithm !== GENIEPROOF_SIGNATURE_ALGORITHM
         || typeof signature.keyId !== 'string' || typeof signature.value !== 'string'
+        || !/^[A-Za-z0-9_-]{86}$/.test(signature.value)
         || !/^[a-f0-9]{64}$/.test(signed?.manifestHash || '')) {
+      return { valid: false, integrityValid: false, trustedIssuer: false, code: 'PASSPORT_SIGNATURE_MALFORMED' };
+    }
+    const signatureBytes = Buffer.from(signature.value, 'base64url');
+    if (signatureBytes.length !== 64 || signatureBytes.toString('base64url') !== signature.value) {
       return { valid: false, integrityValid: false, trustedIssuer: false, code: 'PASSPORT_SIGNATURE_MALFORMED' };
     }
     let canonicalManifest;
@@ -150,7 +155,7 @@ export class GenieProofPassportSigner {
     }
     let signatureValid = false;
     try {
-      signatureValid = crypto.verify(null, Buffer.from(canonicalManifest, 'utf8'), trustedKey, Buffer.from(signature.value, 'base64url'));
+      signatureValid = crypto.verify(null, Buffer.from(canonicalManifest, 'utf8'), trustedKey, signatureBytes);
     } catch {
       signatureValid = false;
     }

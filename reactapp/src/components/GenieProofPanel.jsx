@@ -79,10 +79,12 @@ function integrityLabel(result) {
   return 'The report contents match their fingerprint, but the signing key is not trusted.';
 }
 
-function proofBreakClaimStatusLabel(status) {
+function proofBreakClaimStatusLabel(status, sourceReasonCode = null) {
   return ({
     AVAILABLE: 'Supported by an approved monitoring source',
-    SOURCE_RIGHTS_BLOCKED: 'Source reuse approval is not recorded',
+    SOURCE_RIGHTS_BLOCKED: sourceReasonCode === 'GENIEPROOF_SOURCE_REVOKED'
+      ? 'Source reuse approval was revoked'
+      : 'Source reuse approval is not recorded',
     SOURCE_TECHNICALLY_BLOCKED: 'Source is not technically qualified',
     WAITING_FOR_QUALIFIED_SOURCE: 'Waiting for a qualified source',
     NOT_SUPPORTED: 'Outside the current monitoring scope',
@@ -649,7 +651,9 @@ export default function GenieProofPanel() {
                   {proofBreakByCase[saved.caseId].availabilityNotice && <span role="status">{proofBreakByCase[saved.caseId].availabilityNotice}</span>}
                   {proofBreakByCase[saved.caseId].availability && <>
                     <p style={{ margin: 0 }}>{proofBreakByCase[saved.caseId].availability.sourceStatus === 'RIGHTS_BLOCKED'
-                      ? 'The official source reuse approval is not recorded, so financial claims cannot currently be monitored.'
+                      ? proofBreakByCase[saved.caseId].availability.sourceReasonCode === 'GENIEPROOF_SOURCE_REVOKED'
+                        ? 'The official source reuse approval was revoked, so financial claims cannot currently be monitored.'
+                        : 'The official source reuse approval is not recorded, so financial claims cannot currently be monitored.'
                       : proofBreakByCase[saved.caseId].availability.sourceStatus === 'TECHNICALLY_BLOCKED'
                         ? 'The source is blocked by technical qualification checks.'
                         : proofBreakByCase[saved.caseId].availability.sourceStatus === 'WAITING'
@@ -658,7 +662,7 @@ export default function GenieProofPanel() {
                     <p style={{ margin: 0 }}>Monitoring worker: {proofBreakByCase[saved.caseId].availability.workerStatus === 'AVAILABLE' ? 'recently available' : 'unavailable or without a recent heartbeat'}.</p>
                     <p style={{ margin: 0, color: '#94a3b8' }}>{proofBreakByCase[saved.caseId].availability.monitoringScope}</p>
                     <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 4 }}>
-                      {proofBreakByCase[saved.caseId].availability.claims.map(claim => <li key={claim.claimId}>{proofBreakClaimStatusLabel(claim.status)}</li>)}
+                      {proofBreakByCase[saved.caseId].availability.claims.map(claim => <li key={claim.claimId}>{proofBreakClaimStatusLabel(claim.status, proofBreakByCase[saved.caseId].availability.sourceReasonCode)}</li>)}
                     </ul>
                     {!proofBreakByCase[saved.caseId].watch && proofBreakByCase[saved.caseId].availability.canEnable && <>
                       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>

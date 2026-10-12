@@ -190,6 +190,34 @@ test('availability and watch creation reject an approved source that the fetch g
   assert.deepEqual(f.jobs, []);
 });
 
+test('revoked source approval blocks availability and cannot schedule a ProofBreak job', async () => {
+  const f = fixture();
+  const revoked = {
+    ...GENIEPROOF_SOURCE_CATALOG_CANDIDATES[0],
+    qualificationStatus: 'QUALIFIED_FOR_USER_PRESENTATION',
+    reusePermissionStatus: 'APPROVED',
+    reviewRecord: { reviewedAt: timestamp, reference: 'TEST_ONLY_SYNTHETIC_FIXTURE', scope: 'TESTS_ONLY' },
+    revocationReasonCode: 'SOURCE_APPROVAL_WITHDRAWN',
+  };
+  revoked.definitionHash = computeGenieProofSourceDefinitionHash(revoked);
+  f.sourceModel.find = () => ({ sort() { return this; }, session() { return this; }, lean: async () => [revoked] });
+  f.workerHeartbeatModel.exists = async () => true;
+
+  const availability = await getProofWatchAvailability({ userId: owner, caseId, ...f, now: () => timestamp });
+  assert.equal(availability.canEnable, false);
+  assert.equal(availability.sourceStatus, 'RIGHTS_BLOCKED');
+  assert.equal(availability.sourceReasonCode, 'GENIEPROOF_SOURCE_REVOKED');
+  assert.equal(availability.claims[0].status, 'SOURCE_RIGHTS_BLOCKED');
+
+  const created = await createProofWatch({
+    userId: owner, caseId, watchConsent: true, idempotencyKey: 'proof-watch-revoked-source', ...f, now: () => timestamp,
+  });
+  assert.equal(created.watch.status, 'BLOCKED_SOURCE_RIGHTS');
+  assert.equal(created.watch.sourceAvailability, 'RIGHTS_BLOCKED');
+  assert.equal(created.watch.lastFailureCode, 'GENIEPROOF_SOURCE_REVOKED');
+  assert.deepEqual(f.jobs, []);
+});
+
 test('watch listing honors the validated limit', async () => {
   const f = fixture();
   f.watches.push(...[1, 2, 3].map(index => ({

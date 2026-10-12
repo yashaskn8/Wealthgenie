@@ -78,9 +78,16 @@ async function getSourceAvailability({ claims, sourceModel, session = null }) {
   if (permitted.length) {
     return { status: 'AVAILABLE', sourceIds: permitted.map(source => source.sourceId).sort(), claimIds: supported.map(claim => claim.claimId) };
   }
-  if (matching.some(source => ['BLOCKED_REUSE_RIGHTS', 'REVOKED'].includes(source.qualificationStatus)
+  const revokedSource = matching.some(source => source.revocationReasonCode
+    || source.qualificationStatus === 'REVOKED' || source.reusePermissionStatus === 'REVOKED');
+  if (revokedSource || matching.some(source => ['BLOCKED_REUSE_RIGHTS', 'REVOKED'].includes(source.qualificationStatus)
     || ['BLOCKED', 'REVOKED'].includes(source.reusePermissionStatus))) {
-    return { status: 'RIGHTS_BLOCKED', sourceIds: [], claimIds: supported.map(claim => claim.claimId) };
+    return {
+      status: 'RIGHTS_BLOCKED',
+      ...(revokedSource ? { reasonCode: 'GENIEPROOF_SOURCE_REVOKED' } : {}),
+      sourceIds: [],
+      claimIds: supported.map(claim => claim.claimId),
+    };
   }
   if (matching.some(source => source.qualificationStatus === 'BLOCKED_TECHNICAL')) {
     return { status: 'TECHNICALLY_BLOCKED', sourceIds: [], claimIds: supported.map(claim => claim.claimId) };
@@ -197,7 +204,9 @@ export async function createProofWatch({
       monitoredSourceIds: availability.sourceIds,
       lastSuccessfulCheckAt: null,
       nextCheckAt: availability.status === 'AVAILABLE' ? new Date(createdAt.getTime() + PROOFBREAK_CHECK_INTERVAL_MS) : null,
-      lastFailureCode: availability.status === 'RIGHTS_BLOCKED' ? 'SOURCE_REUSE_NOT_APPROVED' : null,
+      lastFailureCode: availability.status === 'RIGHTS_BLOCKED'
+        ? availability.reasonCode || 'SOURCE_REUSE_NOT_APPROVED'
+        : null,
       expiresAt: row.expiresAt || new Date(createdAt.getTime() + 90 * 24 * 60 * 60 * 1000),
     };
     const [saved] = await watchModel.create([watch], { session });
@@ -300,7 +309,9 @@ export async function updateProofWatchStatus({
       sourceAvailability: availability.status,
       monitoredSourceIds: availability.sourceIds,
       nextCheckAt: state === 'ACTIVE' ? currentTime : null,
-      lastFailureCode: availability.status === 'RIGHTS_BLOCKED' ? 'SOURCE_REUSE_NOT_APPROVED' : null,
+      lastFailureCode: availability.status === 'RIGHTS_BLOCKED'
+        ? availability.reasonCode || 'SOURCE_REUSE_NOT_APPROVED'
+        : null,
     },
     $inc: { generation: 1 },
   }, { new: true }).lean();
@@ -348,6 +359,7 @@ export async function getProofWatchAvailability({
     claims,
     monitoringScope: 'Only exact current nominal PPF annual-rate claims are currently supported.',
     sourceStatus: availability.status,
+    sourceReasonCode: availability.reasonCode || null,
   };
 }
 

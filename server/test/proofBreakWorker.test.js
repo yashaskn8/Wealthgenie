@@ -81,6 +81,7 @@ test('worker timeline distinguishes provider failures from internal processing f
   assert.equal(failedCheckEventType(Object.assign(new Error('Source fetch failed.'), { code: 'GENIEPROOF_SOURCE_BUNDLE_UNAVAILABLE' })), 'SOURCE_UNAVAILABLE');
   assert.equal(failedCheckEventType(Object.assign(new Error('Research fetch timed out.'), { code: 'RESEARCH_FETCH_TIMEOUT' })), 'SOURCE_UNAVAILABLE');
   assert.equal(failedCheckEventType(Object.assign(new Error('Review permission missing.'), { code: 'GENIEPROOF_SOURCE_REUSE_NOT_APPROVED', status: 403 })), 'POLICY_REVIEW_REQUIRED');
+  assert.equal(failedCheckEventType(Object.assign(new Error('The source approval was revoked.'), { code: 'GENIEPROOF_SOURCE_REVOKED', status: 410 })), 'POLICY_REVIEW_REQUIRED');
   assert.equal(failedCheckEventType(Object.assign(new Error('The assessment head changed.'), { code: 'GENIEPROOF_CASE_HEAD_MISMATCH', status: 503 })), 'PROCESSING_FAILED');
   assert.equal(failedCheckEventType(Object.assign(new Error('Retry budget exhausted.'), { code: 'PROOFBREAK_RETRY_EXHAUSTED' })), 'PROCESSING_FAILED');
 });

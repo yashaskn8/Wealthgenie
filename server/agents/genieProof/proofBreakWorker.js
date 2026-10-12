@@ -29,7 +29,7 @@ function dateAdd(value, milliseconds) {
 }
 
 function isRightsBlocked(error) {
-  return ['GENIEPROOF_SOURCE_REUSE_NOT_APPROVED', 'GENIEPROOF_SOURCE_REVIEW_RECORD_REQUIRED'].includes(error?.code)
+  return ['GENIEPROOF_SOURCE_REUSE_NOT_APPROVED', 'GENIEPROOF_SOURCE_REVIEW_RECORD_REQUIRED', 'GENIEPROOF_SOURCE_REVOKED'].includes(error?.code)
     || error?.status === 403;
 }
 

@@ -7,6 +7,7 @@ import {
   computeGenieProofSourceDefinitionHash,
   refreshGenieProofIndiaPostPpfEvidence,
   resolveGenieProofEvidenceForClaims,
+  validateGenieProofSourceDefinition,
 } from '../agents/genieProof/genieProofEvidenceRegistryService.js';
 import { INDIA_POST_SAVINGS_URL } from '../services/marketData/GovernmentSmallSavingsProvider.js';
 import { GENIEPROOF_SUPPORTED_PRODUCT_ID } from '../agents/genieProof/genieProofCore.js';
@@ -34,6 +35,26 @@ test('persisted source catalog candidate is content-bound and blocked from user 
     fetcher: { async fetchDocument() { fetchCalls += 1; throw new Error('network should not run'); } },
   }), error => error.code === 'GENIEPROOF_SOURCE_REUSE_NOT_APPROVED' && error.status === 403);
   assert.equal(fetchCalls, 0, 'the legal/source-rights gate runs before outbound requests');
+});
+
+test('revoked source approval is rejected before any retrieval or signing', async () => {
+  const [candidate] = GENIEPROOF_SOURCE_CATALOG_CANDIDATES;
+  const revoked = {
+    ...candidate,
+    qualificationStatus: 'QUALIFIED_FOR_USER_PRESENTATION',
+    reusePermissionStatus: 'APPROVED',
+    reviewRecord: { reviewedAt: new Date('2026-01-01T00:00:00.000Z'), reference: 'TEST_ONLY_SYNTHETIC_FIXTURE', scope: 'TESTS_ONLY' },
+    revocationReasonCode: 'SOURCE_APPROVAL_WITHDRAWN',
+  };
+  revoked.definitionHash = computeGenieProofSourceDefinitionHash(revoked);
+  let fetchCalls = 0;
+  assert.throws(() => validateGenieProofSourceDefinition(revoked), error => error.code === 'GENIEPROOF_SOURCE_REVOKED');
+  await assert.rejects(refreshGenieProofIndiaPostPpfEvidence({
+    signer: { signManifest() { assert.fail('revoked sources must not be signed'); } },
+    sourceModel: sourceModelFor(revoked),
+    fetcher: { async fetchDocument() { fetchCalls += 1; throw new Error('network should not run'); } },
+  }), error => error.code === 'GENIEPROOF_SOURCE_REVOKED');
+  assert.equal(fetchCalls, 0, 'revocation is enforced by the shared source gate before outbound requests');
 });
 
 test('a forged official-looking host is rejected before DNS or HTTP activity', async () => {
