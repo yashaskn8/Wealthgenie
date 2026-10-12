@@ -202,12 +202,16 @@ test('uses the poster without motion under reduced-motion settings', async ({ pa
 
 test('keeps the playback control removed as reduced-motion preference changes', async ({ page }) => {
   await page.goto('/');
+  const hero = page.locator('.wg-landing__hero');
+  await expect(hero).toHaveAttribute('data-motion', 'full');
   await expect(page.getByRole('button', { name: 'Background video playback' })).toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(hero).toHaveAttribute('data-motion', 'reduced');
   await expect(page.locator('.wg-landing__video')).toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect(hero).toHaveAttribute('data-motion', 'full');
   await expect(page.locator('.wg-landing__video')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Background video playback' })).toHaveCount(0);
 });

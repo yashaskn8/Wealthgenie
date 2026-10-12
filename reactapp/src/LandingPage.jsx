@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -47,7 +47,7 @@ function LandingPage() {
   const [videoUnavailable, setVideoUnavailable] = useState(false);
   const showVideo = !preferences.reducedMotion && !preferences.saveData && !videoUnavailable;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
     const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
