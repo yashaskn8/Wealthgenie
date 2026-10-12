@@ -498,6 +498,7 @@ test('real backend financial facts match the dashboard, product details, tax wha
   // rather than assuming the completion response remains the current revision.
   const profileResponse = page.waitForResponse(apiResponse('GET', '/profile/current'), { timeout: RESPONSE_TIMEOUT });
   const recommendationResponse = page.waitForResponse(apiResponse('GET', '/recommend/current'), { timeout: RESPONSE_TIMEOUT });
+  const marketContextResponse = page.waitForResponse(apiResponse('GET', '/regime/current'), { timeout: RESPONSE_TIMEOUT });
   await page.reload();
   const profile = await json(await profileResponse);
   expect(profile).toMatchObject({
@@ -508,6 +509,7 @@ test('real backend financial facts match the dashboard, product details, tax wha
   const currentResponse = await recommendationResponse;
   expect(new URL(currentResponse.url()).searchParams.get('profileId')).toBe(profileId);
   const recommendation = await json(currentResponse);
+  const dashboardMarketContext = await json(await marketContextResponse);
   expectCurrentFinancialBinding(recommendation, { profileId, profileVersion });
   expect(recommendation.return_data_class).toBe('MODEL_ASSUMPTION');
   expect(recommendation.provider_forecast).toBe(false);
@@ -548,16 +550,17 @@ test('real backend financial facts match the dashboard, product details, tax wha
       const dialog = page.getByRole('dialog', { name: string(instrument.name, 'name'), exact: true });
       await expect(dialog).toBeVisible();
       const ranked = page.waitForResponse(apiResponse('POST', '/instruments/rank-wti', id), { timeout: RESPONSE_TIMEOUT });
-      const initialMarket = index === 0
-        ? page.waitForResponse(apiResponse('GET', '/regime/current'), { timeout: RESPONSE_TIMEOUT }) : null;
       await dialog.getByRole('tab', { name: 'Where to Invest', exact: true }).click();
-      if (initialMarket) await market(dialog, await json(await initialMarket));
+      if (index === 0) await market(dialog, dashboardMarketContext);
       const rankedResponse = await ranked;
       expect(rankedResponse.request().postDataJSON()).toMatchObject({ profileId, parentInstrumentId: id });
       await products(dialog, await json(rankedResponse), id);
       if (index === 0) {
         const refreshButton = dialog.getByRole('button', { name: 'Refresh market data', exact: true });
         await expect(refreshButton).toBeEnabled();
+        // Market context is shared with the dashboard and may already be cached
+        // when this tab mounts. Force an explicit refresh before asserting the
+        // live response so this test does not assume tab entry always refetches.
         const refreshed = page.waitForResponse(apiResponse('GET', '/regime/current'), { timeout: RESPONSE_TIMEOUT });
         await refreshButton.click();
         const refreshedBody = await json(await refreshed);
