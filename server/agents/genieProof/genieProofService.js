@@ -114,6 +114,9 @@ function evidenceReferences(finding) {
   const revisions = Array.isArray(finding?.evidence?.revisions) ? finding.evidence.revisions : [];
   return revisions.map(item => ({
     id: `${item.evidenceId}:${item.revision}`,
+    sourceId: item.sourceId,
+    sourceRevision: item.sourceRevision,
+    sourceDefinitionHash: item.sourceDefinitionHash,
     factHash: item.factHash,
     fact: item.fact,
     effectiveFrom: item.effectiveFrom || item.fact?.effectiveFrom || null,
@@ -165,8 +168,10 @@ async function publishProofBreakReassessment({
   eventModel,
   outboxModel,
   assessedAt,
+  now = () => new Date(),
   retrievalReceiptIds = [],
 }) {
+  const publicationAt = now();
   const watchQuery = watchModel.findOne({
     userId: row.userId,
     caseId: row.caseId,
@@ -174,6 +179,7 @@ async function publishProofBreakReassessment({
     status: 'ACTIVE',
     generation: watchFence.watchGeneration,
     consentWithdrawnAt: null,
+    expiresAt: { $gt: publicationAt },
   });
   if (typeof watchQuery.session === 'function') watchQuery.session(session);
   const watch = await watchQuery.lean();
@@ -187,7 +193,7 @@ async function publishProofBreakReassessment({
     status: 'LEASED',
     leaseOwner: watchFence.leaseOwner,
     executionGeneration: watchFence.executionGeneration,
-    leaseUntil: { $gt: assessedAt },
+    leaseUntil: { $gt: publicationAt },
   });
   if (typeof jobQuery.session === 'function') jobQuery.session(session);
   const job = await jobQuery.lean();
@@ -222,7 +228,7 @@ async function publishProofBreakReassessment({
       effectivePeriodImplications: eventPeriodImplications(before, after),
       eventType,
       detectedAt: assessedAt,
-      publishedAt: assessedAt,
+      publishedAt: publicationAt,
       notificationStatus: eventType === 'RECHECK_UNCHANGED' ? 'NOT_REQUIRED' : 'PENDING',
       acknowledgedAt: null,
       expiresAt: row.expiresAt || new Date(assessedAt.getTime() + PROOFBREAK_EVENT_RETENTION_MS),
@@ -236,7 +242,7 @@ async function publishProofBreakReassessment({
         watchId: watch.watchId,
         status: 'PENDING',
         attempt: 0,
-        nextAttemptAt: assessedAt,
+        nextAttemptAt: publicationAt,
         executionGeneration: 0,
         expiresAt: row.expiresAt || new Date(assessedAt.getTime() + PROOFBREAK_EVENT_RETENTION_MS),
       });
@@ -251,16 +257,18 @@ async function publishProofBreakReassessment({
     status: 'ACTIVE',
     generation: watchFence.watchGeneration,
     consentWithdrawnAt: null,
+    expiresAt: { $gt: now() },
   }, {
     $set: {
-      lastSuccessfulCheckAt: assessedAt,
-      nextCheckAt: new Date(assessedAt.getTime() + 6 * 60 * 60 * 1000),
+      lastSuccessfulCheckAt: publicationAt,
+      nextCheckAt: new Date(publicationAt.getTime() + 6 * 60 * 60 * 1000),
       lastFailureCode: null,
     },
   }, { session });
   if (Number(watchUpdate?.modifiedCount ?? watchUpdate?.nModified ?? 0) !== 1) {
     throw serviceError(409, 'PROOFBREAK_WATCH_FENCE_LOST', 'The ProofBreak watch changed during publication.');
   }
+  const finalizedAt = now();
   const jobUpdate = await jobModel.updateOne({
     userId: row.userId,
     watchId: watch.watchId,
@@ -268,9 +276,9 @@ async function publishProofBreakReassessment({
     status: 'LEASED',
     leaseOwner: watchFence.leaseOwner,
     executionGeneration: watchFence.executionGeneration,
-    leaseUntil: { $gt: assessedAt },
+    leaseUntil: { $gt: finalizedAt },
   }, {
-    $set: { status: 'COMPLETED', leaseOwner: null, leaseUntil: null, heartbeatAt: assessedAt, failureCode: null },
+    $set: { status: 'COMPLETED', leaseOwner: null, leaseUntil: null, heartbeatAt: finalizedAt, failureCode: null },
   }, { session });
   if (Number(jobUpdate?.modifiedCount ?? jobUpdate?.nModified ?? 0) !== 1) {
     throw serviceError(409, 'PROOFBREAK_JOB_FENCE_LOST', 'The ProofBreak worker lease was lost during publication.');
@@ -315,7 +323,6 @@ export async function createGenieProofCase({
   const idempotencyKeyHash = canonicalSha256([String(userId), idempotencyKey]);
   const caseId = crypto.randomUUID();
   const assessedAt = now();
-  const evidenceSnapshot = await evidenceResolver({ claims, now: () => assessedAt });
   const expiresAt = getGenieProofExpiry(assessedAt);
   const session = await startSession();
   let retryTransaction = false;
@@ -367,6 +374,7 @@ export async function createGenieProofCase({
     if (quotaSlot >= GENIEPROOF_MAX_CASES_PER_USER) {
       throw serviceError(429, 'GENIEPROOF_CASE_QUOTA_REACHED', 'You have reached the 25 saved passport limit. Delete a case or wait for an expired case to be removed.');
     }
+    const evidenceSnapshot = await evidenceResolver({ claims, now: () => assessedAt, session });
     const passport = signedPassport({
       caseId,
       userId,
@@ -415,6 +423,7 @@ export async function createGenieProofCase({
         idempotencyKeyHash,
         requestHash,
         assessedAt,
+        now,
         caseModel,
         revisionModel,
       });
@@ -568,9 +577,10 @@ export async function reassessGenieProofCase({
       assessedAt,
       evidenceSnapshot: freshEvidenceSnapshot,
     });
+    const publicationAt = now();
     const update = await caseModel.updateOne({
       $and: [
-        activeCaseFilter(userId, caseId, assessedAt),
+        activeCaseFilter(userId, caseId, publicationAt),
         { latestRevision: expectedRevision, latestManifestHash: expectedManifestHash, consentWithdrawnAt: null },
       ],
     }, {
@@ -603,6 +613,7 @@ export async function reassessGenieProofCase({
         eventModel,
         outboxModel,
         assessedAt,
+        now,
         retrievalReceiptIds: boundedProofBreakRetrievalReceiptIds,
       });
     }
@@ -749,13 +760,36 @@ export async function listGenieProofCases({ userId, caseModel = GenieProofCase, 
   return rows.map(toCaseSummary);
 }
 
-export async function getGenieProofCase({ userId, caseId, caseModel = GenieProofCase, revisionModel = GenieProofRevision, now = () => new Date() }) {
+export async function getGenieProofCase({
+  userId,
+  caseId,
+  caseModel = GenieProofCase,
+  revisionModel = GenieProofRevision,
+  currentEvidenceStatusResolver = null,
+  now = () => new Date(),
+}) {
   const loaded = await loadOwnedCaseAndLatestRevision({ userId, caseId, caseModel, revisionModel, now });
   if (!loaded) return null;
-  return { case: toCaseSummary(loaded.row), passport: toSignedPassport(loaded.revision) };
+  const passport = toSignedPassport(loaded.revision);
+  const currentEvidenceStatus = currentEvidenceStatusResolver
+    ? await currentEvidenceStatusResolver({ manifest: passport.manifest, now })
+    : null;
+  return {
+    case: toCaseSummary(loaded.row),
+    passport,
+    ...(currentEvidenceStatus ? { currentEvidenceStatus } : {}),
+  };
 }
 
-export async function verifyGenieProofCase({ userId, caseId, signer, caseModel = GenieProofCase, revisionModel = GenieProofRevision, now = () => new Date() }) {
+export async function verifyGenieProofCase({
+  userId,
+  caseId,
+  signer,
+  caseModel = GenieProofCase,
+  revisionModel = GenieProofRevision,
+  currentEvidenceStatusResolver = null,
+  now = () => new Date(),
+}) {
   const loaded = await loadOwnedCaseAndLatestRevision({ userId, caseId, caseModel, revisionModel, now });
   if (!loaded) return null;
   const { row, revision } = loaded;
@@ -775,6 +809,9 @@ export async function verifyGenieProofCase({ userId, caseId, signer, caseModel =
     && manifest.submissionHash === row.submissionHash
     && manifest.confirmedClaimsHash === canonicalSha256(normalizedCaseClaims)
     && manifestHash === row.latestManifestHash;
+  const currentEvidenceStatus = currentEvidenceStatusResolver
+    ? await currentEvidenceStatusResolver({ manifest, now })
+    : null;
   return {
     caseId: String(row.caseId),
     revision: Number(row.latestRevision),
@@ -785,11 +822,12 @@ export async function verifyGenieProofCase({ userId, caseId, signer, caseModel =
     signature: signatureResult.valid ? 'VERIFIED' : 'UNVERIFIED',
     trustedIssuer: signatureResult.trustedIssuer,
     financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
+    ...(currentEvidenceStatus ? { currentEvidenceStatus } : {}),
     code: bindingValid ? signatureResult.code : 'PASSPORT_CASE_BINDING_MISMATCH',
   };
 }
 
-function verifyRevisionBinding({ row, revision, userId, signer, previousRevision }) {
+function verifyRevisionBinding({ row, revision, userId, signer, previousRevision, currentEvidenceStatus = null }) {
   const passport = toSignedPassport(revision);
   const signatureResult = signer.verifySignedManifest(passport);
   const claims = (row.confirmedClaims || []).map(claim => ({
@@ -828,6 +866,7 @@ function verifyRevisionBinding({ row, revision, userId, signer, previousRevision
     signature: signatureResult.valid ? 'VERIFIED' : 'UNVERIFIED',
     trustedIssuer: signatureResult.trustedIssuer,
     financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
+    ...(currentEvidenceStatus ? { currentEvidenceStatus } : {}),
     chainContinuity,
     code: !bindingValid ? 'PASSPORT_CASE_BINDING_MISMATCH'
       : chainContinuity === 'INVALID' ? 'PASSPORT_REVISION_CHAIN_MISMATCH'
@@ -843,6 +882,7 @@ export async function listGenieProofRevisions({
   caseModel = GenieProofCase,
   revisionModel = GenieProofRevision,
   now = () => new Date(),
+  currentEvidenceStatusResolver = null,
   limit = 25,
 }) {
   const row = await caseModel.findOne(activeCaseFilter(userId, caseId, now())).lean();
@@ -857,18 +897,26 @@ export async function listGenieProofRevisions({
       || declaredHead.manifestHash !== row.latestManifestHash) {
     throw serviceError(503, 'GENIEPROOF_CASE_HEAD_MISMATCH', 'The saved passport history does not match its recorded latest revision and cannot be verified.');
   }
-  const verified = ascending.map((revision, index) => ({
-    revision: Number(revision.revision),
-    manifestHash: revision.manifestHash,
-    assessedAt: revision.assessedAt,
-    verification: verifyRevisionBinding({
-      row,
-      revision,
-      userId,
-      signer,
-      previousRevision: index ? ascending[index - 1] : null,
-    }),
-    passport: toSignedPassport(revision),
+  const verified = await Promise.all(ascending.map(async (revision, index) => {
+    const passport = toSignedPassport(revision);
+    const currentEvidenceStatus = currentEvidenceStatusResolver
+      ? await currentEvidenceStatusResolver({ manifest: passport.manifest, now })
+      : null;
+    return {
+      revision: Number(revision.revision),
+      manifestHash: revision.manifestHash,
+      assessedAt: revision.assessedAt,
+      verification: verifyRevisionBinding({
+        row,
+        revision,
+        userId,
+        signer,
+        previousRevision: index ? ascending[index - 1] : null,
+        currentEvidenceStatus,
+      }),
+      passport,
+      ...(currentEvidenceStatus ? { currentEvidenceStatus } : {}),
+    };
   }));
   return { caseId: String(row.caseId), revisions: verified.reverse() };
 }

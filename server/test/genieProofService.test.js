@@ -300,11 +300,21 @@ test('stored passport with a noncanonical signature is never presented as verifi
 test('passport history is owner-scoped and independently checks each immutable revision', async () => {
   const f = fixture();
   const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-history-1', signer: f.signer, ...f, now });
-  const history = await listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f, now });
+  const currentEvidenceStatus = { byClaimId: { example: { status: 'SOURCE_REVOKED' } } };
+  const history = await listGenieProofRevisions({
+    userId: userOne,
+    caseId: created.case.caseId,
+    signer: f.signer,
+    currentEvidenceStatusResolver: async () => currentEvidenceStatus,
+    ...f,
+    now,
+  });
   assert.equal(history.revisions.length, 1);
   assert.equal(history.revisions[0].revision, 1);
   assert.equal(history.revisions[0].verification.integrity, 'VALID');
   assert.equal(history.revisions[0].verification.financialCorrectness, 'NOT_ESTABLISHED_BY_SIGNATURE');
+  assert.deepEqual(history.revisions[0].verification.currentEvidenceStatus, currentEvidenceStatus);
+  assert.deepEqual(history.revisions[0].currentEvidenceStatus, currentEvidenceStatus);
   assert.equal(await listGenieProofRevisions({ userId: userTwo, caseId: created.case.caseId, signer: f.signer, ...f, now }), null);
 
   f.revisions[0].manifest.confirmedClaims[0].value = 99;

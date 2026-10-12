@@ -22,6 +22,7 @@ import GenieProofRevision from '../models/GenieProofRevision.js';
 import GenieProofSourceDefinition from '../models/GenieProofSourceDefinition.js';
 import GenieProofRetrievalReceipt from '../models/GenieProofRetrievalReceipt.js';
 import GenieProofEvidenceRevision from '../models/GenieProofEvidenceRevision.js';
+import GenieProofEvidenceRegistryState, { GENIEPROOF_EVIDENCE_REGISTRY_STATE_ID } from '../models/GenieProofEvidenceRegistryState.js';
 import ProofWatch from '../models/ProofWatch.js';
 import ProofBreakJob from '../models/ProofBreakJob.js';
 import ProofBreakEvent from '../models/ProofBreakEvent.js';
@@ -62,6 +63,7 @@ export const GENIEPROOF_INDEX_MODELS = Object.freeze([
   GenieProofSourceDefinition,
   GenieProofRetrievalReceipt,
   GenieProofEvidenceRevision,
+  GenieProofEvidenceRegistryState,
   ProofWatch,
   ProofBreakJob,
   ProofBreakEvent,
@@ -231,6 +233,12 @@ export async function verifyGenieProofPersistenceIndexes({ models = GENIEPROOF_I
     }
   }
   if (missing.length) throw indexReadinessError(missing, 'genieproof');
+  if (models.includes(GenieProofEvidenceRegistryState)) {
+    const state = await GenieProofEvidenceRegistryState.findById(GENIEPROOF_EVIDENCE_REGISTRY_STATE_ID).lean();
+    if (!state || !Number.isSafeInteger(state.generation) || state.generation < 0) {
+      throw indexReadinessError(['genieproof_evidence_registry_state:missing-or-invalid'], 'genieproof');
+    }
+  }
   return result;
 }
 
@@ -254,6 +262,12 @@ export async function migratePersistenceIndexes({ models = MIGRATION_INDEX_MODEL
     } catch (error) {
       if (error.code !== 48 && error.codeName !== 'NamespaceExists') throw error;
     }
+  }
+
+  if (models.includes(GenieProofEvidenceRegistryState)) {
+    await GenieProofEvidenceRegistryState.updateOne({ _id: GENIEPROOF_EVIDENCE_REGISTRY_STATE_ID }, {
+      $setOnInsert: { generation: 0, updatedAt: new Date() },
+    }, { upsert: true });
   }
 
   // Existing local GenieProof records predate expiry metadata. Give old cases
@@ -298,6 +312,12 @@ export async function migrateGenieProofPersistenceIndexes({ models = GENIEPROOF_
     } catch (error) {
       if (error.code !== 48 && error.codeName !== 'NamespaceExists') throw error;
     }
+  }
+
+  if (models.includes(GenieProofEvidenceRegistryState)) {
+    await GenieProofEvidenceRegistryState.updateOne({ _id: GENIEPROOF_EVIDENCE_REGISTRY_STATE_ID }, {
+      $setOnInsert: { generation: 0, updatedAt: new Date() },
+    }, { upsert: true });
   }
 
   const caseModel = models.find(model => model.modelName === GenieProofCase.modelName);

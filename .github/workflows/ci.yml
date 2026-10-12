@@ -287,6 +287,7 @@ jobs:
       DISABLE_RATE_LIMIT: 'true'
       CORS_ORIGINS: http://127.0.0.1:5173
       VITE_API_URL: http://127.0.0.1:5000/api
+      VITE_GENIEPROOF_ENABLED: 'true'
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
 
     steps:

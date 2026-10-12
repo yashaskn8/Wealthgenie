@@ -163,8 +163,7 @@ test('routes authentication actions and omits the removed landing sections', asy
   await page.getByRole('link', { name: 'Log In' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto('/');
-  await page.getByRole('link', { name: 'Get Started' }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('link', { name: 'Get Started' })).toHaveCount(0);
 
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'See How It Works' })).toHaveCount(0);

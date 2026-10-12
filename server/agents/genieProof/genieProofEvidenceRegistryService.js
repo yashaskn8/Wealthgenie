@@ -1,10 +1,12 @@
 import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import GenieProofEvidenceRevision from '../../models/GenieProofEvidenceRevision.js';
+import GenieProofEvidenceRegistryState, { GENIEPROOF_EVIDENCE_REGISTRY_STATE_ID } from '../../models/GenieProofEvidenceRegistryState.js';
 import GenieProofRetrievalReceipt from '../../models/GenieProofRetrievalReceipt.js';
 import GenieProofSourceDefinition from '../../models/GenieProofSourceDefinition.js';
 import { SafePublicDocumentFetcher } from '../research/safePublicDocumentFetcher.js';
-import { extractOfficialScriptUrls, INDIA_POST_SAVINGS_URL, parseIndiaPostSavingsBundle } from '../../services/marketData/GovernmentSmallSavingsProvider.js';
+import { extractOfficialScriptUrls, INDIA_POST_SAVINGS_URL } from '../../services/marketData/GovernmentSmallSavingsProvider.js';
+import { parseGenieProofIndiaPostPpfBundle } from './genieProofIndiaPostSourceParser.js';
 import { canonicalSha256 } from '../../utils/canonicalJson.js';
 import {
   buildGenieProofEvidenceAttestationPayload,
@@ -17,8 +19,6 @@ const FETCHER_VERSION = 'genieproof-bounded-public-fetch/1.0.0';
 const SOURCE_ID = 'india-post-small-savings';
 const PRODUCT_ID = 'government:india-post:ppf';
 const MAX_SCRIPT_DOCUMENTS = 20;
-const INDIA_POST_INTERVAL_PATTERN = /Post Office Small Savings Schemes \(w\.e\.f\s+(\d{2}\.\d{2}\.\d{4})\s+to\s+(\d{2}\.\d{2}\.\d{4})\)/gi;
-const INDIA_POST_RATE_TABLE_PATTERN = /JSON\.parse\('(\[\{"slNo"[\s\S]*?\}\])'\)/g;
 
 function asDate(value) {
   const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
@@ -52,6 +52,80 @@ export function computeGenieProofSourceDefinitionHash(source) {
   return canonicalSha256(sourcePayload(source));
 }
 
+export async function advanceGenieProofEvidenceRegistryFence({
+  session,
+  stateModel = GenieProofEvidenceRegistryState,
+  now = () => new Date(),
+}) {
+  if (!session) throw sourceFailure('GENIEPROOF_SOURCE_REGISTRY_TRANSACTION_REQUIRED');
+  const update = await stateModel.updateOne({ _id: GENIEPROOF_EVIDENCE_REGISTRY_STATE_ID }, {
+    $inc: { generation: 1 },
+    $set: { updatedAt: now() },
+  }, { session });
+  if (Number(update?.modifiedCount ?? update?.nModified ?? 0) !== 1) {
+    throw sourceFailure('GENIEPROOF_SOURCE_REGISTRY_STATE_UNAVAILABLE');
+  }
+}
+
+/** Append a source revision while fencing in-flight assessments in the same transaction. */
+export async function appendGenieProofSourceDefinitionRevision({
+  source,
+  sourceModel = GenieProofSourceDefinition,
+  stateModel = GenieProofEvidenceRegistryState,
+  startSession = () => mongoose.startSession(),
+  now = () => new Date(),
+  transactionAttempt = 0,
+}) {
+  if (!source || source.definitionHash !== computeGenieProofSourceDefinitionHash(source)) {
+    throw sourceFailure('GENIEPROOF_SOURCE_DEFINITION_HASH_MISMATCH');
+  }
+  const session = await startSession();
+  let retryTransaction = false;
+  try {
+    session.startTransaction({ readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
+    const existingQuery = sourceModel.findOne({ sourceId: source.sourceId, revision: source.revision });
+    if (typeof existingQuery.session === 'function') existingQuery.session(session);
+    const existing = await existingQuery.lean();
+    if (existing) {
+      if (existing.definitionHash !== source.definitionHash) {
+        throw sourceFailure('GENIEPROOF_SOURCE_CATALOG_CONFLICT');
+      }
+      await session.commitTransaction();
+      return { created: false, source: existing };
+    }
+
+    const latestQuery = sourceModel.findOne({ sourceId: source.sourceId }).sort({ revision: -1 });
+    if (typeof latestQuery.session === 'function') latestQuery.session(session);
+    const latest = await latestQuery.lean();
+    if ((!latest && (source.revision !== 1 || source.supersedes))
+        || (latest && (source.revision !== Number(latest.revision) + 1
+          || source.supersedes?.sourceId !== latest.sourceId
+          || source.supersedes?.revision !== latest.revision))) {
+      throw sourceFailure('GENIEPROOF_SOURCE_REVISION_CHAIN_INVALID');
+    }
+
+    await advanceGenieProofEvidenceRegistryFence({ session, stateModel, now });
+    const [created] = await sourceModel.create([{ ...source }], { session });
+    await session.commitTransaction();
+    return { created: true, source: created };
+  } catch (error) {
+    if (session.inTransaction()) await session.abortTransaction().catch(() => {});
+    const transient = error?.hasErrorLabel?.('TransientTransactionError') === true
+      || error?.code === 112
+      || error?.codeName === 'WriteConflict';
+    if (transient && transactionAttempt < 2) retryTransaction = true;
+    else throw error;
+  } finally {
+    await session.endSession();
+  }
+  if (retryTransaction) {
+    return appendGenieProofSourceDefinitionRevision({
+      source, sourceModel, stateModel, startSession, now, transactionAttempt: transactionAttempt + 1,
+    });
+  }
+  throw sourceFailure('GENIEPROOF_SOURCE_REVISION_APPEND_FAILED');
+}
+
 export function computeGenieProofRetrievalReceiptHash(receipt) {
   return canonicalSha256({
     retrievalId: receipt.retrievalId,
@@ -77,24 +151,7 @@ function sourceFailure(code, status = 503) {
 }
 
 export function assertUnambiguousGenieProofIndiaPostBundle(bundleText) {
-  if (typeof bundleText !== 'string' || !bundleText.trim()) throw sourceFailure('GENIEPROOF_SOURCE_SCHEMA_REJECTED', 503);
-  const intervals = [...bundleText.matchAll(INDIA_POST_INTERVAL_PATTERN)];
-  const tables = [...bundleText.matchAll(INDIA_POST_RATE_TABLE_PATTERN)];
-  if (intervals.length !== 1 || tables.length !== 1) {
-    throw sourceFailure('GENIEPROOF_SOURCE_SCHEMA_REJECTED', 503);
-  }
-  const [, fromText, toText] = intervals[0];
-  const [fromDay, fromMonth, fromYear] = fromText.split('.').map(Number);
-  const [toDay, toMonth, toYear] = toText.split('.').map(Number);
-  const quarterStartMonths = new Set([1, 4, 7, 10]);
-  const quarterEnd = new Date(Date.UTC(fromYear, fromMonth - 1 + 3, 0));
-  if (!quarterStartMonths.has(fromMonth)
-      || fromDay !== 1
-      || toYear !== fromYear
-      || toMonth !== fromMonth + 2
-      || toDay !== quarterEnd.getUTCDate()) {
-    throw sourceFailure('GENIEPROOF_SOURCE_SCHEMA_REJECTED', 503);
-  }
+  parseGenieProofIndiaPostPpfBundle(bundleText);
 }
 
 export function validateGenieProofSourceDefinition(source) {
@@ -181,10 +238,14 @@ async function latestSource({ sourceId, sourceModel, session = null }) {
 export async function refreshGenieProofIndiaPostPpfEvidence({
   signer,
   sourceModel = GenieProofSourceDefinition,
+  stateModel = GenieProofEvidenceRegistryState,
   receiptModel = GenieProofRetrievalReceipt,
   evidenceModel = GenieProofEvidenceRevision,
   fetcher = new SafePublicDocumentFetcher({ maxRedirects: 0, extraContentTypes: ['application/javascript', 'text/javascript'] }),
   startSession = () => mongoose.startSession(),
+  // Trusted server dependency injection for synthetic lifecycle tests. HTTP
+  // callers never supply this dependency; production uses the fail-closed gate.
+  parseSourceBundle = parseGenieProofIndiaPostPpfBundle,
   signal = null,
   now = () => new Date(),
 }) {
@@ -199,7 +260,7 @@ export async function refreshGenieProofIndiaPostPpfEvidence({
     throw sourceFailure('GENIEPROOF_SOURCE_SCHEMA_REJECTED', 503);
   }
 
-  let bundle = null;
+  const bundles = [];
   for (const scriptUrl of scriptUrls.slice(0, MAX_SCRIPT_DOCUMENTS)) {
     const parsedUrl = new URL(scriptUrl);
     if (parsedUrl.origin !== endpoint.origin || !parsedUrl.pathname.startsWith('/_next/static/chunks/')) {
@@ -209,8 +270,7 @@ export async function refreshGenieProofIndiaPostPpfEvidence({
       const candidate = await fetcher.fetchDocument(scriptUrl, { signal });
       validateFetchedDocument(candidate, scriptUrl, ['application/javascript', 'text/javascript']);
       if (candidate.body.includes('Post Office Small Savings Schemes')) {
-        bundle = candidate;
-        break;
+        bundles.push(candidate);
       }
     } catch (error) {
       if (error?.code === 'GENIEPROOF_SOURCE_DOCUMENT_REJECTED') continue;
@@ -218,12 +278,13 @@ export async function refreshGenieProofIndiaPostPpfEvidence({
       throw error;
     }
   }
-  if (!bundle) throw sourceFailure('GENIEPROOF_SOURCE_BUNDLE_UNAVAILABLE', 503);
+  if (!bundles.length) throw sourceFailure('GENIEPROOF_SOURCE_BUNDLE_UNAVAILABLE', 503);
+  if (bundles.length !== 1) throw sourceFailure('GENIEPROOF_SOURCE_SCHEMA_REJECTED', 503);
+  const [bundle] = bundles;
 
   let parsed;
   try {
-    assertUnambiguousGenieProofIndiaPostBundle(bundle.body);
-    parsed = parseIndiaPostSavingsBundle(bundle.body, {
+    parsed = parseSourceBundle(bundle.body, {
       fetchedAt: bundle.retrievedAt,
       now: now(),
       sourceUrl: endpoint.toString(),
@@ -256,6 +317,7 @@ export async function refreshGenieProofIndiaPostPpfEvidence({
   const session = await startSession();
   try {
     session.startTransaction({ readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
+    await advanceGenieProofEvidenceRegistryFence({ session, stateModel, now });
     const currentSource = await latestSource({ sourceId: SOURCE_ID, sourceModel, session });
     if (!currentSource || currentSource.revision !== source.revision
         || currentSource.definitionHash !== source.definitionHash) throw sourceFailure('GENIEPROOF_SOURCE_REVIEW_CHANGED', 409);
@@ -367,6 +429,9 @@ export async function resolveGenieProofEvidenceForClaims({
 }) {
   const byClaimId = {};
   const registrySnapshots = [];
+  if (session && (claims || []).length) {
+    await advanceGenieProofEvidenceRegistryFence({ session });
+  }
   for (const claim of claims || []) {
     // Select the newest source definition before checking claim scope. A later
     // revision may intentionally narrow or revoke an older definition.
@@ -432,4 +497,85 @@ export async function resolveGenieProofEvidenceForClaims({
     byClaimId,
     registrySnapshotHash: canonicalSha256({ assessedAt: asDate(now()).toISOString(), records: registrySnapshots }),
   };
+}
+
+export async function getGenieProofCurrentEvidenceStatus({
+  manifest,
+  sourceModel = GenieProofSourceDefinition,
+  now = () => new Date(),
+}) {
+  const asOf = asDate(now());
+  const claimsById = new Map((manifest?.confirmedClaims || []).map(claim => [claim.claimId, claim]));
+  const findings = Array.isArray(manifest?.findings) ? manifest.findings : [];
+  if (!findings.length) return { asOf: asOf.toISOString(), byClaimId: {} };
+
+  const sourceQuery = sourceModel.find({}).sort({ sourceId: 1, revision: -1 });
+  const sources = await sourceQuery.lean();
+  const latestById = new Map();
+  for (const source of sources) if (!latestById.has(source.sourceId)) latestById.set(source.sourceId, source);
+  const latestSources = [...latestById.values()];
+  const byClaimId = {};
+
+  for (const finding of findings) {
+    const claim = claimsById.get(finding.claimId);
+    const recordedReferences = Array.isArray(finding?.evidence?.revisions) ? finding.evidence.revisions : [];
+    const applicable = latestSources.filter(source => source.productIds?.includes(claim?.productId)
+      && source.claimTypes?.includes(claim?.claimType));
+    const relevant = applicable.length
+      ? applicable
+      : latestSources.filter(source => recordedReferences.some(reference => reference.sourceId === source.sourceId));
+    if (!claim || !relevant.length) {
+      byClaimId[finding.claimId] = {
+        status: 'NO_CURRENT_QUALIFIED_SOURCE',
+        sourceIds: [],
+        currentSourceRevisions: [],
+      };
+      continue;
+    }
+
+    const statuses = relevant.map(source => {
+      const recorded = recordedReferences.find(reference => reference.sourceId === source.sourceId) || null;
+      let status;
+      if (source.definitionHash !== computeGenieProofSourceDefinitionHash(source)) status = 'SOURCE_DEFINITION_INVALID';
+      else if (source.revocationReasonCode || source.qualificationStatus === 'REVOKED'
+          || source.reusePermissionStatus === 'REVOKED') status = 'SOURCE_REVOKED';
+      else if (source.qualificationStatus === 'BLOCKED_TECHNICAL') status = 'SOURCE_TECHNICALLY_BLOCKED';
+      else if (source.qualificationStatus !== 'QUALIFIED_FOR_USER_PRESENTATION'
+          || source.reusePermissionStatus !== 'APPROVED') status = 'SOURCE_REUSE_NOT_APPROVED';
+      else if (!source.reviewRecord?.reviewedAt
+          || !String(source.reviewRecord?.reference || '').trim()
+          || !String(source.reviewRecord?.scope || '').trim()) status = 'SOURCE_REVIEW_UNQUALIFIED';
+      else if (source.parserVersion !== GENIEPROOF_PPF_PARSER_VERSION
+          || source.ruleVersion !== GENIEPROOF_PPF_RATE_RULE_VERSION) status = 'SOURCE_PARSER_SUPERSEDED';
+      else if (!recorded) status = 'CURRENT_SOURCE_EVIDENCE_UNAVAILABLE';
+      else if (Number(recorded.sourceRevision) !== Number(source.revision)
+          || recorded.sourceDefinitionHash !== source.definitionHash) status = 'SOURCE_DEFINITION_SUPERSEDED';
+      else {
+        const effectiveTo = recorded.effectiveTo || recorded.fact?.effectiveTo;
+        status = effectiveTo && asDate(effectiveTo) <= asOf
+          ? 'EVIDENCE_PERIOD_ENDED'
+          : 'CURRENT_SOURCE_REASSESSMENT_REQUIRED';
+      }
+      return {
+        sourceId: source.sourceId,
+        currentSourceRevision: Number(source.revision),
+        recordedSourceRevision: recorded ? Number(recorded.sourceRevision) : null,
+        status,
+      };
+    });
+    const priority = [
+      'SOURCE_REVOKED', 'SOURCE_DEFINITION_INVALID', 'SOURCE_TECHNICALLY_BLOCKED',
+      'SOURCE_REUSE_NOT_APPROVED', 'SOURCE_REVIEW_UNQUALIFIED', 'SOURCE_PARSER_SUPERSEDED', 'SOURCE_DEFINITION_SUPERSEDED',
+      'EVIDENCE_PERIOD_ENDED', 'CURRENT_SOURCE_EVIDENCE_UNAVAILABLE', 'CURRENT_SOURCE_REASSESSMENT_REQUIRED',
+    ];
+    statuses.sort((a, b) => priority.indexOf(a.status) - priority.indexOf(b.status));
+    byClaimId[finding.claimId] = {
+      status: statuses[0]?.status || 'NO_CURRENT_QUALIFIED_SOURCE',
+      sourceIds: statuses.map(item => item.sourceId).sort(),
+      currentSourceRevisions: statuses.map(({ sourceId, currentSourceRevision, recordedSourceRevision, status }) => ({
+        sourceId, currentSourceRevision, recordedSourceRevision, status,
+      })),
+    };
+  }
+  return { asOf: asOf.toISOString(), byClaimId };
 }

@@ -13,6 +13,7 @@ import {
 import {
   buildGenieProofEvidenceAttestationPayload,
   buildGenieProofEvidenceFactHash,
+  GENIEPROOF_LEGACY_PPF_PARSER_VERSION,
   GENIEPROOF_PPF_PARSER_VERSION,
   GENIEPROOF_PPF_RATE_RULE_VERSION,
 } from '../agents/genieProof/genieProofEvidenceContract.js';
@@ -56,6 +57,7 @@ function syntheticEvidence(signer, {
   qualification = 'QUALIFIED_FOR_USER_PRESENTATION',
   reuse = 'APPROVED',
   revision = 1,
+  parserVersion = GENIEPROOF_PPF_PARSER_VERSION,
 } = {}) {
   const fact = {
     claimType: 'CURRENT_NOMINAL_RATE',
@@ -82,7 +84,7 @@ function syntheticEvidence(signer, {
     freshnessStatus,
     revocationStatus,
     fact,
-    parserVersion: GENIEPROOF_PPF_PARSER_VERSION,
+    parserVersion,
     ruleVersion: GENIEPROOF_PPF_RATE_RULE_VERSION,
     sourceLineage: ['SYNTHETIC_TEST_FIXTURE_ONLY'],
     supersedes: null,
@@ -135,7 +137,7 @@ test('current verifier rejects temporal scope and extra unverified rate semantic
   };
   const historicalVersionFinding = verifyConfirmedGenieProofClaim(historicalVersionClaim, {
     verifierVersion: GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION,
-    evidenceRevisions: [syntheticEvidence(signer)],
+    evidenceRevisions: [syntheticEvidence(signer, { parserVersion: GENIEPROOF_LEGACY_PPF_PARSER_VERSION })],
     signatureVerifier: signer,
     now: assessedAt,
   });
@@ -146,7 +148,10 @@ test('current verifier rejects temporal scope and extra unverified rate semantic
 test('legacy Unicode-minus replay is explicitly not current-policy verification', () => {
   const { signer } = createSigner();
   const claim = { ...ppfClaim(7.1), statement: 'The PPF interest rate is −7.1% p.a.' };
-  const evidence = syntheticEvidence(signer, { value: 7.1 });
+  const evidence = syntheticEvidence(signer, {
+    value: 7.1,
+    parserVersion: GENIEPROOF_LEGACY_PPF_PARSER_VERSION,
+  });
   const legacy = verifyConfirmedGenieProofClaim(claim, {
     verifierVersion: GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION,
     evidenceRevisions: [evidence],
@@ -190,7 +195,10 @@ test('current verifier rejects a signed evidence revision without a bounded effe
 
   const priorVersionFinding = verifyConfirmedGenieProofClaim(ppfClaim(), {
     verifierVersion: GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION,
-    evidenceRevisions: [unbounded],
+    evidenceRevisions: [syntheticEvidence(signer, {
+      effectiveTo: null,
+      parserVersion: GENIEPROOF_LEGACY_PPF_PARSER_VERSION,
+    })],
     signatureVerifier: signer,
     now: assessedAt,
   });
@@ -200,7 +208,15 @@ test('current verifier rejects a signed evidence revision without a bounded effe
 test('offline replay preserves the signed evidence-bound 0.4 rules and manifest version', () => {
   const { signer, publicKeyPem } = createSigner();
   const claim = { ...ppfClaim(), statement: 'The PPF interest rate is no longer 7.1% p.a.' };
-  const evidence = syntheticEvidence(signer);
+  const evidence = syntheticEvidence(signer, { parserVersion: GENIEPROOF_LEGACY_PPF_PARSER_VERSION });
+  const currentFinding = verifyConfirmedGenieProofClaim(ppfClaim(), {
+    verifierVersion: GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
+    evidenceRevisions: [evidence],
+    signatureVerifier: signer,
+    now: assessedAt,
+  });
+  assert.equal(currentFinding.finding, 'NOT_VERIFIABLE', 'superseded parser evidence cannot support current assessments');
+  assert.deepEqual(currentFinding.reasonCodes, ['EVIDENCE_BINDING_INVALID']);
   const finding = verifyConfirmedGenieProofClaim(claim, {
     verifierVersion: GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION,
     evidenceRevisions: [evidence],
@@ -231,7 +247,7 @@ test('offline replay preserves the signed evidence-bound 0.4 rules and manifest 
 test('offline replay preserves the older evidence-bound 0.3 manifest contract', () => {
   const { signer, publicKeyPem } = createSigner();
   const claim = { ...ppfClaim(), statement: 'The PPF interest rate is no longer 7.1% p.a.' };
-  const evidence = syntheticEvidence(signer);
+  const evidence = syntheticEvidence(signer, { parserVersion: GENIEPROOF_LEGACY_PPF_PARSER_VERSION });
   const finding = verifyConfirmedGenieProofClaim(claim, {
     verifierVersion: GENIEPROOF_LEGACY_EVIDENCE_VERIFIER_VERSION,
     evidenceRevisions: [evidence],

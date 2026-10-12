@@ -4,6 +4,7 @@ import {
   buildGenieProofEvidenceAttestationPayload,
   buildGenieProofEvidenceFactHash,
   evidenceRevisionHashesFromFindings,
+  GENIEPROOF_LEGACY_PPF_PARSER_VERSION,
   GENIEPROOF_PPF_PARSER_VERSION,
   GENIEPROOF_PPF_RATE_RULE_VERSION,
 } from './genieProofEvidenceContract.js';
@@ -172,7 +173,7 @@ export function extractGenieProofClaims(offerText) {
   };
 }
 
-function validateEvidenceRevision(evidence, { signatureVerifier, now, requireBoundedEffectivePeriod }) {
+function validateEvidenceRevision(evidence, { signatureVerifier, now, requireBoundedEffectivePeriod, verifierVersion }) {
   if (!evidence || typeof evidence !== 'object' || !signatureVerifier?.verifySignedManifest) {
     return { valid: false, reason: 'EVIDENCE_ATTESTATION_UNAVAILABLE' };
   }
@@ -197,7 +198,9 @@ function validateEvidenceRevision(evidence, { signatureVerifier, now, requireBou
       || evidence.retrievalIds.some(id => !/^[0-9a-f-]{36}$/i.test(id))
       || !Array.isArray(evidence.retrievalReceiptHashes) || evidence.retrievalReceiptHashes.length < 1
       || evidence.retrievalReceiptHashes.some(hash => !/^[a-f0-9]{64}$/.test(hash))
-      || evidence.parserVersion !== GENIEPROOF_PPF_PARSER_VERSION
+      || evidence.parserVersion !== (verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+        ? GENIEPROOF_PPF_PARSER_VERSION
+        : GENIEPROOF_LEGACY_PPF_PARSER_VERSION)
       || evidence.ruleVersion !== GENIEPROOF_PPF_RATE_RULE_VERSION
       || typeof fact?.productId !== 'string' || !fact.productId
       || typeof fact?.claimType !== 'string' || !fact.claimType
@@ -285,6 +288,7 @@ function evidenceBoundFinding(claim, {
     signatureVerifier,
     now,
     requireBoundedEffectivePeriod: verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
+    verifierVersion,
   }) }));
   const mismatchedProduct = checked.some(({ check }) => check.valid
     && (check.fact.productId !== claim.productId || check.fact.claimType !== claim.claimType));

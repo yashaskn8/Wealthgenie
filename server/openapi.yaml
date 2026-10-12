@@ -1223,14 +1223,15 @@ components:
     GenieProofCaseDetail:
       type: object
       additionalProperties: false
-      required: [case, passport]
+      required: [case, passport, currentEvidenceStatus]
       properties:
         case: { $ref: '#/components/schemas/GenieProofCaseSummary' }
         passport: { $ref: '#/components/schemas/GenieProofSignedPassport' }
+        currentEvidenceStatus: { $ref: '#/components/schemas/GenieProofCurrentEvidenceStatus' }
     GenieProofIntegrity:
       type: object
       additionalProperties: false
-      required: [caseId, revision, manifestHash, integrity, signature, trustedIssuer, financialCorrectness, code]
+      required: [caseId, revision, manifestHash, integrity, signature, trustedIssuer, financialCorrectness, currentEvidenceStatus, code]
       properties:
         caseId: { type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' }
         revision: { type: integer, minimum: 1 }
@@ -1240,17 +1241,48 @@ components:
         trustedIssuer: { type: boolean }
         financialCorrectness: { type: string, const: NOT_ESTABLISHED_BY_SIGNATURE }
         chainContinuity: { type: string, enum: [VERIFIED, INCOMPLETE, INVALID] }
+        currentEvidenceStatus: { $ref: '#/components/schemas/GenieProofCurrentEvidenceStatus' }
         code: { type: string }
+    GenieProofCurrentEvidenceStatus:
+      type: object
+      additionalProperties: false
+      required: [asOf, byClaimId]
+      properties:
+        asOf: { type: string, format: date-time }
+        byClaimId:
+          type: object
+          propertyNames: { pattern: '^[a-f0-9]{32}$' }
+          additionalProperties: { $ref: '#/components/schemas/GenieProofCurrentEvidenceStatusItem' }
+    GenieProofCurrentEvidenceStatusItem:
+      type: object
+      additionalProperties: false
+      required: [status, sourceIds, currentSourceRevisions]
+      properties:
+        status: { type: string, enum: [NO_CURRENT_QUALIFIED_SOURCE, SOURCE_DEFINITION_INVALID, SOURCE_REVOKED, SOURCE_TECHNICALLY_BLOCKED, SOURCE_REUSE_NOT_APPROVED, SOURCE_REVIEW_UNQUALIFIED, SOURCE_PARSER_SUPERSEDED, SOURCE_DEFINITION_SUPERSEDED, EVIDENCE_PERIOD_ENDED, CURRENT_SOURCE_EVIDENCE_UNAVAILABLE, CURRENT_SOURCE_REASSESSMENT_REQUIRED] }
+        sourceIds: { type: array, maxItems: 10, items: { type: string, maxLength: 120 } }
+        currentSourceRevisions:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required: [sourceId, currentSourceRevision, recordedSourceRevision, status]
+            properties:
+              sourceId: { type: string, maxLength: 120 }
+              currentSourceRevision: { type: integer, minimum: 1 }
+              recordedSourceRevision: { type: [integer, 'null'], minimum: 1 }
+              status: { type: string, enum: [SOURCE_DEFINITION_INVALID, SOURCE_REVOKED, SOURCE_TECHNICALLY_BLOCKED, SOURCE_REUSE_NOT_APPROVED, SOURCE_REVIEW_UNQUALIFIED, SOURCE_PARSER_SUPERSEDED, SOURCE_DEFINITION_SUPERSEDED, EVIDENCE_PERIOD_ENDED, CURRENT_SOURCE_EVIDENCE_UNAVAILABLE, CURRENT_SOURCE_REASSESSMENT_REQUIRED] }
     GenieProofRevisionItem:
       type: object
       additionalProperties: false
-      required: [revision, manifestHash, assessedAt, verification, passport]
+      required: [revision, manifestHash, assessedAt, verification, passport, currentEvidenceStatus]
       properties:
         revision: { type: integer, minimum: 1 }
         manifestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
         assessedAt: { type: string, format: date-time }
         verification: { $ref: '#/components/schemas/GenieProofIntegrity' }
         passport: { $ref: '#/components/schemas/GenieProofSignedPassport' }
+        currentEvidenceStatus: { $ref: '#/components/schemas/GenieProofCurrentEvidenceStatus' }
     GenieProofRevisionHistory:
       type: object
       additionalProperties: false

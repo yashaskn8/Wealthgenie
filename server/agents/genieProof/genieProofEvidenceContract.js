@@ -1,7 +1,13 @@
 import { canonicalSha256 } from '../../utils/canonicalJson.js';
 
 export const GENIEPROOF_EVIDENCE_ATTESTATION_VERSION = 'genieproof-financial-evidence/1.0.0';
-export const GENIEPROOF_PPF_PARSER_VERSION = 'india-post-small-savings/qualified-identities-2';
+// Version used by already-signed evidence-bound 0.3/0.4 passports. It is
+// accepted only while replaying those legacy manifests, never for current
+// assessments or source selection.
+export const GENIEPROOF_LEGACY_PPF_PARSER_VERSION = 'india-post-small-savings/qualified-identities-2';
+// Supersedes the loose bundle marker association. Older evidence may remain
+// signed history, but cannot be selected for a new current assessment.
+export const GENIEPROOF_PPF_PARSER_VERSION = 'india-post-small-savings/source-record-association-unqualified-3';
 export const GENIEPROOF_PPF_RATE_RULE_VERSION = 'genieproof-current-nominal-rate/0.1.0';
 
 export function buildGenieProofEvidenceAttestationPayload(evidence) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 const mockApi = vi.hoisted(() => ({
   extractGenieProofClaims: vi.fn(),
@@ -169,6 +169,66 @@ describe('GenieProofPanel', () => {
     expect(mockApi.verifyGenieProofCase).toHaveBeenCalledWith(caseId);
   });
 
+  it('labels signed supported and contradicted findings as assessment-time records and shows separate current source status', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const contradictedClaimId = 'd'.repeat(32);
+    const currentEvidenceStatus = {
+      asOf: '2026-10-12T10:00:00.000Z',
+      byClaimId: {
+        [candidate.claimId]: {
+          status: 'SOURCE_REVOKED',
+          sourceIds: ['synthetic-test-source'],
+          currentSourceRevisions: [{ sourceId: 'synthetic-test-source', currentSourceRevision: 4, recordedSourceRevision: 3, status: 'SOURCE_REVOKED' }],
+        },
+        [contradictedClaimId]: {
+          status: 'CURRENT_SOURCE_REASSESSMENT_REQUIRED',
+          sourceIds: ['synthetic-test-source'],
+          currentSourceRevisions: [{ sourceId: 'synthetic-test-source', currentSourceRevision: 4, recordedSourceRevision: 4, status: 'CURRENT_SOURCE_REASSESSMENT_REQUIRED' }],
+        },
+      },
+    };
+    const passport = {
+      manifestHash: 'c'.repeat(64),
+      manifest: {
+        caseId,
+        revision: 1,
+        verifierVersion: 'genieproof-evidence-bound/0.5.0',
+        confirmedClaims: [
+          { claimId: candidate.claimId, statement: offerText },
+          { claimId: contradictedClaimId, statement: 'A different signed statement.' },
+        ],
+        findings: [
+          { claimId: candidate.claimId, finding: 'SUPPORTED', reasonCodes: [], explanation: 'Recorded support.' },
+          { claimId: contradictedClaimId, finding: 'CONTRADICTED', reasonCodes: [], explanation: 'Recorded conflict.' },
+        ],
+      },
+    };
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 2, manifestHash: passport.manifestHash }] });
+    mockApi.getGenieProofCase.mockResolvedValue({ passport, currentEvidenceStatus });
+    mockApi.verifyGenieProofCase.mockResolvedValue({
+      revision: 1,
+      manifestHash: passport.manifestHash,
+      integrity: 'VALID',
+      signature: 'VERIFIED',
+      trustedIssuer: true,
+      currentEvidenceStatus,
+    });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+
+    expect(await screen.findByText(/signed report marked this claim as supported at the time of assessment/i)).toBeInTheDocument();
+    expect(screen.getByText(/signed report marked this claim as contradicted at the time of assessment/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/source qualification or reuse approval was revoked/i)).toHaveLength(2);
+    expect(screen.getAllByText(/source is currently qualified; a new assessment is needed to check current evidence/i)).toHaveLength(2);
+    expect(screen.getAllByText(/checked/i).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByText('Source revision details')[0]);
+    expect(screen.getByText(/current source revision 4; assessment used revision 3/i)).toBeInTheDocument();
+    expect(passport.manifest.findings[0].finding).toBe('SUPPORTED');
+    expect(passport.manifest.findings[1].finding).toBe('CONTRADICTED');
+  });
+
   it('retries when case details and verification report different signed heads', async () => {
     const caseId = '00000000-0000-4000-8000-000000000001';
     const revisionOne = { passport: { manifestHash: '1'.repeat(64), manifest: { caseId, revision: 1, confirmedClaims: [], findings: [] } } };
@@ -289,8 +349,7 @@ describe('GenieProofPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Open revision 1/ }));
 
     expect(await screen.findByRole('note')).toHaveTextContent(/historical verifier output.*not reassessed under current claim rules/i);
-    expect(screen.getByText(/Historical verifier output; not reassessed under current claim rules/)).toBeInTheDocument();
-    expect(screen.queryByText(/available qualified evidence supports this claim/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/signed report marked this claim as supported at the time of assessment/i)).toBeInTheDocument();
   });
 
   it('clears a prior case verification status when another case history loads', async () => {
@@ -327,6 +386,21 @@ describe('GenieProofPanel', () => {
       revision,
       manifestHash: String(revision).repeat(64),
       verification: { integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true },
+      currentEvidenceStatus: {
+        asOf: '2026-10-12T10:00:00.000Z',
+        byClaimId: {
+          [candidate.claimId]: {
+            status: revision === 1 ? 'SOURCE_REVOKED' : 'CURRENT_SOURCE_REASSESSMENT_REQUIRED',
+            sourceIds: ['synthetic-test-source'],
+            currentSourceRevisions: [{
+              sourceId: 'synthetic-test-source',
+              currentSourceRevision: 4,
+              recordedSourceRevision: revision,
+              status: revision === 1 ? 'SOURCE_REVOKED' : 'CURRENT_SOURCE_REASSESSMENT_REQUIRED',
+            }],
+          },
+        },
+      },
       passport: {
         manifestHash: String(revision).repeat(64),
         signature: { algorithm: 'Ed25519', keyId: 'test-key', value: `signature-${revision}` },
@@ -347,12 +421,18 @@ describe('GenieProofPanel', () => {
 
     render(<GenieProofPanel />);
     fireEvent.click(await screen.findByRole('button', { name: 'Assessment history' }));
+    const history = await screen.findByRole('group', { name: 'Assessment history' });
+    expect(within(history).getAllByText(/source qualification or reuse approval was revoked/i)).toHaveLength(2);
+    expect(within(history).getAllByText(/source is currently qualified; a new assessment is needed to check current evidence/i)).toHaveLength(2);
     fireEvent.click(await screen.findByRole('button', { name: 'Compare revision 1 with revision 2' }));
 
     expect(await screen.findByRole('heading', { name: 'Signed assessment comparison' })).toBeInTheDocument();
     expect(screen.getByText(/Revision 1: Not checked against qualified source evidence/)).toBeInTheDocument();
     expect(screen.getByText(/Revision 2: More product details are needed/)).toBeInTheDocument();
     expect(screen.getByText(/does not establish financial correctness/i)).toBeInTheDocument();
+    const comparison = screen.getByRole('region', { name: 'Signed assessment comparison' });
+    expect(within(comparison).getAllByText(/source qualification or reuse approval was revoked/i)).toHaveLength(2);
+    expect(within(comparison).getAllByText(/source is currently qualified; a new assessment is needed to check current evidence/i)).toHaveLength(2);
   });
 
   it('does not compare findings when either historical signature is untrusted', async () => {

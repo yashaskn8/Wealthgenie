@@ -12,6 +12,7 @@ import GenieProofRevision from '../models/GenieProofRevision.js';
 import GenieProofSourceDefinition from '../models/GenieProofSourceDefinition.js';
 import GenieProofRetrievalReceipt from '../models/GenieProofRetrievalReceipt.js';
 import GenieProofEvidenceRevision from '../models/GenieProofEvidenceRevision.js';
+import GenieProofEvidenceRegistryState from '../models/GenieProofEvidenceRegistryState.js';
 import {
   AUTHORIZATION_INDEX_MODELS,
   GENIEPROOF_INDEX_MODELS,
@@ -124,6 +125,7 @@ test('GenieProof migrations declare the owner quota fence and both 90-day TTL in
 test('GenieProof runtime readiness fails closed when a required expiry index is missing', async () => {
   const originals = new Map(GENIEPROOF_INDEX_MODELS.map(model => [model, model.collection.indexes]));
   const originalCounts = new Map([GenieProofCase, GenieProofRevision].map(model => [model, model.collection.countDocuments]));
+  const originalFindById = GenieProofEvidenceRegistryState.findById;
   const indexesFor = model => model.schema.indexes().map(([key, options]) => ({
     key,
     ...(options.unique ? { unique: true } : {}),
@@ -132,6 +134,7 @@ test('GenieProof runtime readiness fails closed when a required expiry index is 
     name: options.name,
   }));
   try {
+    GenieProofEvidenceRegistryState.findById = () => ({ lean: async () => ({ generation: 0 }) });
     for (const model of GENIEPROOF_INDEX_MODELS) {
       model.collection.indexes = async () => indexesFor(model);
     }
@@ -145,6 +148,7 @@ test('GenieProof runtime readiness fails closed when a required expiry index is 
       error => error.status === 503 && error.clientDetails.missing.includes('genieproofrevisions:genieproof_revision_expiry'),
     );
   } finally {
+    GenieProofEvidenceRegistryState.findById = originalFindById;
     for (const [model, indexes] of originals) model.collection.indexes = indexes;
     for (const [model, countDocuments] of originalCounts) model.collection.countDocuments = countDocuments;
   }
@@ -155,6 +159,7 @@ test('GenieProof runtime readiness fails closed until the explicit legacy expiry
     indexes: model.collection.indexes,
     countDocuments: model.collection.countDocuments,
   }]));
+  const originalFindById = GenieProofEvidenceRegistryState.findById;
   const indexesFor = model => model.schema.indexes().map(([key, options]) => ({
     key,
     ...(options.unique ? { unique: true } : {}),
@@ -163,6 +168,7 @@ test('GenieProof runtime readiness fails closed until the explicit legacy expiry
     name: options.name,
   }));
   try {
+    GenieProofEvidenceRegistryState.findById = () => ({ lean: async () => ({ generation: 0 }) });
     for (const model of GENIEPROOF_INDEX_MODELS) {
       model.collection.indexes = async () => indexesFor(model);
     }
@@ -177,6 +183,7 @@ test('GenieProof runtime readiness fails closed until the explicit legacy expiry
     GenieProofCase.collection.countDocuments = async () => 0;
     assert.equal((await verifyGenieProofPersistenceIndexes({ force: true })).ready, true);
   } finally {
+    GenieProofEvidenceRegistryState.findById = originalFindById;
     for (const [model, originalsForModel] of originals) {
       model.collection.indexes = originalsForModel.indexes;
       if (model === GenieProofCase || model === GenieProofRevision) model.collection.countDocuments = originalsForModel.countDocuments;

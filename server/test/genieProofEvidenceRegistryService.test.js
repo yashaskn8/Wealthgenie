@@ -70,10 +70,10 @@ test('a forged official-looking host is rejected before DNS or HTTP activity', a
   assert.equal(fetchCalls, 0);
 });
 
-test('ambiguous India Post bundle interval or rate-table markers fail closed', () => {
+test('India Post marker counts do not establish a qualified record association', () => {
   const interval = 'Post Office Small Savings Schemes (w.e.f 01.10.2026 to 31.12.2026)';
   const table = `JSON.parse('[{"slNo":"10.","instrument":"Public Provident Fund Scheme","interestRate":"7.1%"}]')`;
-  assert.doesNotThrow(() => assertUnambiguousGenieProofIndiaPostBundle(`${interval};${table}`));
+  assert.throws(() => assertUnambiguousGenieProofIndiaPostBundle(`${interval};${table}`), error => error.code === 'GENIEPROOF_SOURCE_SCHEMA_REJECTED');
   assert.throws(() => assertUnambiguousGenieProofIndiaPostBundle(`${interval};${interval};${table}`), error => error.code === 'GENIEPROOF_SOURCE_SCHEMA_REJECTED');
   assert.throws(() => assertUnambiguousGenieProofIndiaPostBundle(`${interval};${table};${table}`), error => error.code === 'GENIEPROOF_SOURCE_SCHEMA_REJECTED');
 });
@@ -87,14 +87,14 @@ test('GenieProof rejects non-quarter and overlong source effective periods', () 
   ]) {
     assert.throws(() => assertUnambiguousGenieProofIndiaPostBundle(`${interval};${table}`), error => error.code === 'GENIEPROOF_SOURCE_SCHEMA_REJECTED');
   }
-  assert.doesNotThrow(() => assertUnambiguousGenieProofIndiaPostBundle(
+  assert.throws(() => assertUnambiguousGenieProofIndiaPostBundle(
     'Post Office Small Savings Schemes (w.e.f 01.10.2026 to 31.12.2026);'
       + table,
-  ));
+  ), error => error.code === 'GENIEPROOF_SOURCE_SCHEMA_REJECTED');
 });
 
-test('synthetic source bytes exercise append-only receipt-to-fact ingestion without enabling any production source', async () => {
-  const [candidate] = GENIEPROOF_SOURCE_CATALOG_CANDIDATES;
+test('injected synthetic fact exercises append-only receipts and persistence independently of provider qualification', async () => {
+  const candidate = GENIEPROOF_SOURCE_CATALOG_CANDIDATES[1];
   const source = {
     ...candidate,
     qualificationStatus: 'QUALIFIED_FOR_USER_PRESENTATION',
@@ -127,6 +127,8 @@ test('synthetic source bytes exercise append-only receipt-to-fact ingestion with
     find() { return { sort() { return this; }, limit() { return this; }, session() { return this; }, lean: async () => [...evidenceRows].sort((a, b) => b.revision - a.revision) }; },
   };
   const session = { startTransaction() {}, inTransaction() { return true; }, async commitTransaction() {}, async abortTransaction() {}, async endSession() {} };
+  let registryFenceAdvances = 0;
+  const stateModel = { async updateOne() { registryFenceAdvances += 1; return { modifiedCount: 1 }; } };
   const rows = [
     { slNo: '01.', instrument: 'Post Office Savings Account', interestRate: '4.0%', compoundingFrequency: 'Annually' },
     { slNo: '02.', instrument: '1 Year Time Deposit', interestRate: '6.9%', compoundingFrequency: 'Quarterly' },
@@ -153,21 +155,33 @@ test('synthetic source bytes exercise append-only receipt-to-fact ingestion with
     },
   };
   const signer = { signManifest(manifest) { return { manifest, manifestHash: '3'.repeat(64), signature: { testOnly: true } }; } };
+  // This hand-authored test dependency is intentionally not a provider parser
+  // or proof that the loose synthetic source bytes establish a financial fact.
+  const parseSourceBundle = () => ({ facts: [{
+    canonicalProductId: GENIEPROOF_SUPPORTED_PRODUCT_ID,
+    value: 6.25,
+    unit: 'PERCENT_PER_ANNUM',
+    availabilityStatus: 'AVAILABLE',
+    effectiveFrom: '2026-10-01',
+    effectiveTo: '2026-12-31',
+  }] });
   const refreshed = await refreshGenieProofIndiaPostPpfEvidence({
-    signer, sourceModel, receiptModel, evidenceModel, fetcher, startSession: async () => session,
+    signer, sourceModel, stateModel, receiptModel, evidenceModel, fetcher, parseSourceBundle, startSession: async () => session,
     now: () => new Date('2026-10-11T12:00:00.000Z'),
   });
   assert.equal(refreshed.created, true);
+  assert.equal(registryFenceAdvances, 1, 'evidence refresh shares the source-registry transaction fence');
   assert.equal(receipts.length, 2);
   assert.equal(evidenceRows[0].fact.value, 6.25);
   assert.equal(evidenceRows[0].fact.productId, GENIEPROOF_SUPPORTED_PRODUCT_ID);
   assert.equal(evidenceRows[0].sourceContentCommitment, bundleHash);
   assert.equal(evidenceRows[0].sourceQualificationAtAssessment, 'QUALIFIED_FOR_USER_PRESENTATION');
   const repeatedFetch = await refreshGenieProofIndiaPostPpfEvidence({
-    signer, sourceModel, receiptModel, evidenceModel, fetcher, startSession: async () => session,
+    signer, sourceModel, stateModel, receiptModel, evidenceModel, fetcher, parseSourceBundle, startSession: async () => session,
     now: () => new Date('2026-10-11T12:00:00.000Z'),
   });
   assert.equal(repeatedFetch.created, false);
+  assert.equal(registryFenceAdvances, 2);
   assert.equal(evidenceRows.length, 1, 'unchanged bytes reuse the immutable evidence revision');
   assert.equal(receipts.length, 4, 'each successful recheck keeps its own persisted retrieval receipts');
   assert.equal(repeatedFetch.retrievalIds.length, 2);
@@ -175,7 +189,7 @@ test('synthetic source bytes exercise append-only receipt-to-fact ingestion with
   const resolved = await resolveGenieProofEvidenceForClaims({ claims: [claim], sourceModel, receiptModel, evidenceModel, now: () => new Date('2026-10-11T12:00:00.000Z') });
   assert.equal(resolved.byClaimId[claim.claimId].length, 1);
   assert.equal(resolved.byClaimId[claim.claimId][0].factHash, evidenceRows[0].factHash);
-  const narrowedSource = { ...source, revision: 2, productIds: [], claimTypes: [] };
+  const narrowedSource = { ...source, revision: source.revision + 1, productIds: [], claimTypes: [] };
   narrowedSource.definitionHash = computeGenieProofSourceDefinitionHash(narrowedSource);
   sourceRows.push(narrowedSource);
   const afterSourceNarrowing = await resolveGenieProofEvidenceForClaims({ claims: [claim], sourceModel, receiptModel, evidenceModel, now: () => new Date('2026-10-11T12:00:00.000Z') });
@@ -184,5 +198,16 @@ test('synthetic source bytes exercise append-only receipt-to-fact ingestion with
   evidenceRows.push({ ...evidenceRows[0], revision: 2, revocationStatus: 'REVOKED' });
   const afterEvidenceRevocation = await resolveGenieProofEvidenceForClaims({ claims: [claim], sourceModel, receiptModel, evidenceModel, now: () => new Date('2026-10-11T12:00:00.000Z') });
   assert.equal(afterEvidenceRevocation.byClaimId[claim.claimId].length, 0, 'a revoked latest evidence revision cannot fall back to an older active revision');
+  evidenceRows.pop();
+  const oldParserSource = { ...source, parserVersion: 'india-post-small-savings/qualified-identities-2' };
+  oldParserSource.definitionHash = computeGenieProofSourceDefinitionHash(oldParserSource);
+  sourceRows[0] = oldParserSource;
+  evidenceRows[0] = {
+    ...evidenceRows[0],
+    parserVersion: oldParserSource.parserVersion,
+    sourceDefinitionHash: oldParserSource.definitionHash,
+  };
+  const afterParserSuperseded = await resolveGenieProofEvidenceForClaims({ claims: [claim], sourceModel, receiptModel, evidenceModel, now: () => new Date('2026-10-11T12:00:00.000Z') });
+  assert.equal(afterParserSuperseded.byClaimId[claim.claimId].length, 0, 'cached evidence from the loose source association parser cannot authorize a new current finding');
   assert.notEqual(source.qualificationStatus, candidate.qualificationStatus, 'the test-only qualification exists only in memory');
 });

@@ -13,7 +13,7 @@ import ProofBreakEvent from '../models/ProofBreakEvent.js';
 import ProofNotificationOutbox from '../models/ProofNotificationOutbox.js';
 import ProofBreakWorkerHeartbeat from '../models/ProofBreakWorkerHeartbeat.js';
 import { extractGenieProofClaims } from '../agents/genieProof/genieProofCore.js';
-import { createGenieProofCase, deleteGenieProofCase, listGenieProofRevisions, reassessGenieProofCase, withdrawGenieProofConsent } from '../agents/genieProof/genieProofService.js';
+import { createGenieProofCase, deleteGenieProofCase, getGenieProofCase, listGenieProofRevisions, reassessGenieProofCase, withdrawGenieProofConsent } from '../agents/genieProof/genieProofService.js';
 import { GenieProofPassportSigner } from '../agents/genieProof/genieProofPassportSignature.js';
 import { createProofWatch, listProofBreakEvents, updateProofWatchStatus } from '../agents/genieProof/proofBreakService.js';
 import { ProofBreakWorker } from '../agents/genieProof/proofBreakWorker.js';
@@ -26,14 +26,23 @@ import {
 import {
   computeGenieProofRetrievalReceiptHash,
   computeGenieProofSourceDefinitionHash,
+  appendGenieProofSourceDefinitionRevision,
+  getGenieProofCurrentEvidenceStatus,
   refreshGenieProofIndiaPostPpfEvidence,
   resolveGenieProofEvidenceForClaims,
 } from '../agents/genieProof/genieProofEvidenceRegistryService.js';
 import { GENIEPROOF_SOURCE_CATALOG_CANDIDATES } from '../agents/genieProof/genieProofSourceCatalog.js';
 import { migratePersistenceIndexes, verifyGenieProofPersistenceIndexes } from '../services/persistenceIndexReadiness.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
+import { canonicalSha256 } from '../utils/canonicalJson.js';
 
 const noMongoPartition = process.env.MONGO_TEST_PARTITION === 'NO_MONGO';
+
+function isTransientTransactionConflict(error) {
+  return error?.hasErrorLabel?.('TransientTransactionError') === true
+    || [112, 251].includes(error?.code)
+    || error?.codeName === 'WriteConflict';
+}
 
 function makeFixtureReceipt({ source, url, contentType, body, responseLineage, now }) {
   const contentSha256 = crypto.createHash('sha256').update(body, 'utf8').digest('hex');
@@ -93,6 +102,8 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
   const userId = new mongoose.Types.ObjectId();
   const otherUserId = new mongoose.Types.ObjectId();
   const revokedUserId = new mongoose.Types.ObjectId();
+  const revocationRaceUserId = new mongoose.Types.ObjectId();
+  const leaseExpiryUserId = new mongoose.Types.ObjectId();
   const raceUserId = new mongoose.Types.ObjectId();
   const deletionRaceUserId = new mongoose.Types.ObjectId();
   const nowAt = new Date();
@@ -109,6 +120,12 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
   let sourceId = null;
   let watchId = null;
   let revokedCaseId = null;
+  let revocationRaceCaseId = null;
+  let leaseExpiryCaseId = null;
+  let leaseExpiryWatchId = null;
+  let notificationRaceWatchId = null;
+  let leasePublicationWatchId = null;
+  let outboxLeaseWatchId = null;
   let revokedWatchId = null;
   let readinessWorkerId = null;
   let raceCaseId = null;
@@ -143,10 +160,9 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
     // change or qualify the production catalog candidate or authorize live fetches.
     const catalogCandidate = GENIEPROOF_SOURCE_CATALOG_CANDIDATES[0];
     sourceId = catalogCandidate.sourceId;
+    await appendGenieProofSourceDefinitionRevision({ source: catalogCandidate });
     const source = {
-      ...catalogCandidate,
-      sourceId,
-      revision: catalogCandidate.revision + 1,
+      ...GENIEPROOF_SOURCE_CATALOG_CANDIDATES[1],
       qualificationStatus: 'QUALIFIED_FOR_USER_PRESENTATION',
       reusePermissionStatus: 'APPROVED',
       lineage: [`${catalogCandidate.sourceId}:${catalogCandidate.revision}`],
@@ -158,7 +174,7 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
       },
     };
     source.definitionHash = computeGenieProofSourceDefinitionHash(source);
-    await GenieProofSourceDefinition.create(source);
+    await appendGenieProofSourceDefinitionRevision({ source });
 
     const rootBody = 'Synthetic source page fixture; no network request was made.';
     const rootReceipt = makeFixtureReceipt({
@@ -334,9 +350,224 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
     assert.equal(await ProofBreakEvent.countDocuments({ userId, caseId: createdCase.case.caseId, eventType: 'SOURCE_UNAVAILABLE' }), 0);
 
     assert.equal((await updateProofWatchStatus({ userId, watchId, action: 'pause' })).status, 'PAUSED');
-    assert.equal((await updateProofWatchStatus({ userId, watchId, action: 'resume' })).status, 'ACTIVE');
-    assert.equal((await updateProofWatchStatus({ userId, watchId, action: 'disable' })).status, 'CANCELLED');
+    let resumeJobInsertStarted;
+    let releaseResumeJobInsert;
+    const resumeJobInsertObserved = new Promise(resolve => { resumeJobInsertStarted = resolve; });
+    const resumeJobInsertBarrier = new Promise(resolve => { releaseResumeJobInsert = resolve; });
+    const racingResume = updateProofWatchStatus({
+      userId,
+      watchId,
+      action: 'resume',
+      jobModel: {
+        async create(documents, options) {
+          resumeJobInsertStarted();
+          await resumeJobInsertBarrier;
+          return ProofBreakJob.create(documents, options);
+        },
+      },
+    });
+    await resumeJobInsertObserved;
+    const racingDisable = updateProofWatchStatus({ userId, watchId, action: 'disable' })
+      .then(value => ({ value }), error => ({ error }));
+    await new Promise(resolve => setTimeout(resolve, 100));
+    releaseResumeJobInsert();
+    const [resumeOutcome, disableOutcome] = await Promise.all([
+      racingResume.then(value => ({ value }), error => ({ error })),
+      racingDisable,
+    ]);
+    if (resumeOutcome.error) assert.ok(isTransientTransactionConflict(resumeOutcome.error));
+    if (disableOutcome.error) {
+      assert.ok(isTransientTransactionConflict(disableOutcome.error));
+      await updateProofWatchStatus({ userId, watchId, action: 'disable' });
+    }
+    assert.equal((await ProofWatch.findOne({ userId, watchId }).lean()).status, 'CANCELLED');
     assert.equal(await ProofBreakJob.countDocuments({ userId, watchId, status: { $in: ['QUEUED', 'LEASED'] } }), 0);
+
+    const notificationRaceWatch = await createProofWatch({
+      userId,
+      caseId: createdCase.case.caseId,
+      watchConsent: true,
+      idempotencyKey: `proofbreak-notification-race-${crypto.randomUUID()}`,
+      now: () => nowAt,
+    });
+    notificationRaceWatchId = notificationRaceWatch.watch.watchId;
+    await ProofBreakJob.updateOne({ userId, watchId: notificationRaceWatchId }, {
+      $set: { scheduledAt: new Date(nowAt.getTime() + 60_000) },
+    });
+    const notificationRaceEventId = crypto.randomUUID();
+    await ProofBreakEvent.create({
+      eventId: notificationRaceEventId,
+      deduplicationKey: canonicalSha256(['notification-disable-race', notificationRaceWatchId]),
+      userId,
+      caseId: createdCase.case.caseId,
+      watchId: notificationRaceWatchId,
+      claimId: extraction.claims[0].claimId,
+      previousAssessmentId: `${createdCase.case.caseId}:2`,
+      newAssessmentId: `${createdCase.case.caseId}:3`,
+      eventType: 'FINDING_CHANGED',
+      detectedAt: nowAt,
+      publishedAt: nowAt,
+      notificationStatus: 'PENDING',
+      expiresAt: new Date(nowAt.getTime() + 60_000),
+    });
+    const notificationRaceOutboxId = crypto.randomUUID();
+    await ProofNotificationOutbox.create({
+      outboxId: notificationRaceOutboxId,
+      eventId: notificationRaceEventId,
+      userId,
+      caseId: createdCase.case.caseId,
+      watchId: notificationRaceWatchId,
+      status: 'PENDING',
+      attempt: 0,
+      nextAttemptAt: nowAt,
+      executionGeneration: 0,
+      expiresAt: new Date(nowAt.getTime() + 60_000),
+    });
+    let disableAfterDeliverySnapshot = false;
+    const notificationRaceWorker = new ProofBreakWorker({
+      signer,
+      workerId: `proofbreak-notification-race-${crypto.randomUUID()}`,
+      now: () => nowAt,
+      watchModel: {
+        find(filter) { return ProofWatch.find(filter); },
+        findOne(filter) {
+          const query = ProofWatch.findOne(filter);
+          return {
+            session(session) { query.session(session); return this; },
+            async lean() {
+              const snapshot = await query.lean();
+              if (filter.watchId === notificationRaceWatchId && !disableAfterDeliverySnapshot) {
+                disableAfterDeliverySnapshot = true;
+                await updateProofWatchStatus({ userId, watchId: notificationRaceWatchId, action: 'disable', now: () => nowAt });
+              }
+              return snapshot;
+            },
+          };
+        },
+      },
+    });
+    await assert.rejects(notificationRaceWorker.processNext(), error => (
+      error?.hasErrorLabel?.('TransientTransactionError') === true
+      || [112, 251].includes(error?.code) || error?.codeName === 'WriteConflict'
+    ));
+    const [notificationRaceWatchAfter, notificationRaceEventAfter, notificationRaceOutboxAfter] = await Promise.all([
+      ProofWatch.findOne({ userId, watchId: notificationRaceWatchId }).lean(),
+      ProofBreakEvent.findOne({ userId, eventId: notificationRaceEventId }).lean(),
+      ProofNotificationOutbox.findOne({ userId, outboxId: notificationRaceOutboxId }).lean(),
+    ]);
+    assert.equal(notificationRaceWatchAfter.status, 'CANCELLED');
+    assert.equal(notificationRaceEventAfter.notificationStatus, 'CANCELLED');
+    assert.equal(notificationRaceOutboxAfter.status, 'CANCELLED');
+    assert.equal(notificationRaceOutboxAfter.executionGeneration, 2, 'disable fences the already-leased notification attempt');
+
+    let failurePublicationClock = new Date();
+    const failurePublicationNow = () => new Date(failurePublicationClock);
+    const leasePublicationWatch = await createProofWatch({
+      userId,
+      caseId: createdCase.case.caseId,
+      watchConsent: true,
+      idempotencyKey: `proofbreak-failed-publication-lease-${crypto.randomUUID()}`,
+      now: failurePublicationNow,
+    });
+    leasePublicationWatchId = leasePublicationWatch.watch.watchId;
+    await Promise.all([
+      ProofWatch.updateOne({ userId, watchId: leasePublicationWatchId }, { $set: { nextCheckAt: new Date(failurePublicationClock.getTime() - 1) } }),
+      ProofBreakJob.updateOne({ userId, watchId: leasePublicationWatchId }, { $set: { scheduledAt: new Date(failurePublicationClock.getTime() - 1) } }),
+    ]);
+    const startSessionAfterLeaseExpiry = async () => {
+      const session = await mongoose.startSession();
+      await new Promise(resolve => setTimeout(resolve, 1_100));
+      return session;
+    };
+    const failureWatchModel = {
+      find: filter => ProofWatch.find(filter),
+      findOne: filter => ProofWatch.findOne(filter),
+      async updateOne(filter, update, options) {
+        const result = await ProofWatch.updateOne(filter, update, options);
+        if (filter.watchId === leasePublicationWatchId && update.$set?.lastFailureCode) {
+          failurePublicationClock = new Date(failurePublicationClock.getTime() + 3_000);
+        }
+        return result;
+      },
+    };
+    const failedPublicationWorker = new ProofBreakWorker({
+      signer,
+      workerId: `proofbreak-failed-publication-lease-${crypto.randomUUID()}`,
+      watchModel: failureWatchModel,
+      leaseMs: 2_000,
+      now: failurePublicationNow,
+      setIntervalImpl: () => null,
+      clearIntervalImpl: () => {},
+      refreshEvidence: async () => { throw Object.assign(new Error('Synthetic provider outage.'), { code: 'RESEARCH_DOCUMENT_UNAVAILABLE' }); },
+    });
+    const failedPublication = await failedPublicationWorker.processNext();
+    assert.equal(failedPublication.status, 'FENCED', 'failure publication is fenced if its lease expires while opening the transaction');
+    const [failedPublicationWatch, failedPublicationJob, failedPublicationEvents, failedPublicationOutbox] = await Promise.all([
+      ProofWatch.findOne({ userId, watchId: leasePublicationWatchId }).lean(),
+      ProofBreakJob.findOne({ userId, watchId: leasePublicationWatchId }).lean(),
+      ProofBreakEvent.countDocuments({ userId, watchId: leasePublicationWatchId }),
+      ProofNotificationOutbox.countDocuments({ userId, watchId: leasePublicationWatchId }),
+    ]);
+    assert.equal(failedPublicationWatch.status, 'ACTIVE');
+    assert.equal(failedPublicationJob.status, 'LEASED');
+    assert.equal(failedPublicationEvents, 0);
+    assert.equal(failedPublicationOutbox, 0);
+    await updateProofWatchStatus({ userId, watchId: leasePublicationWatchId, action: 'disable' });
+
+    const outboxLeaseWatch = await createProofWatch({
+      userId,
+      caseId: createdCase.case.caseId,
+      watchConsent: true,
+      idempotencyKey: `proofbreak-outbox-lease-expiry-${crypto.randomUUID()}`,
+    });
+    outboxLeaseWatchId = outboxLeaseWatch.watch.watchId;
+    await ProofBreakJob.updateOne({ userId, watchId: outboxLeaseWatchId }, {
+      $set: { scheduledAt: new Date(Date.now() + 60_000) },
+    });
+    const expiredOutboxEventId = crypto.randomUUID();
+    const expiredOutboxId = crypto.randomUUID();
+    const outboxExpiry = new Date(Date.now() + 60_000);
+    await ProofBreakEvent.create({
+      eventId: expiredOutboxEventId,
+      deduplicationKey: canonicalSha256(['outbox-lease-expiry', outboxLeaseWatchId]),
+      userId,
+      caseId: createdCase.case.caseId,
+      watchId: outboxLeaseWatchId,
+      claimId: extraction.claims[0].claimId,
+      previousAssessmentId: `${createdCase.case.caseId}:2`,
+      newAssessmentId: `${createdCase.case.caseId}:3`,
+      eventType: 'FINDING_CHANGED',
+      detectedAt: new Date(),
+      publishedAt: new Date(),
+      notificationStatus: 'PENDING',
+      expiresAt: outboxExpiry,
+    });
+    await ProofNotificationOutbox.create({
+      outboxId: expiredOutboxId,
+      eventId: expiredOutboxEventId,
+      userId,
+      caseId: createdCase.case.caseId,
+      watchId: outboxLeaseWatchId,
+      status: 'PENDING',
+      attempt: 0,
+      nextAttemptAt: new Date(Date.now() - 1),
+      executionGeneration: 0,
+      expiresAt: outboxExpiry,
+    });
+    const outboxLeaseWorker = new ProofBreakWorker({
+      signer,
+      workerId: `proofbreak-outbox-lease-expiry-${crypto.randomUUID()}`,
+      leaseMs: 1_000,
+      startSession: startSessionAfterLeaseExpiry,
+    });
+    await assert.rejects(outboxLeaseWorker.processNext(), error => error.code === 'PROOFBREAK_OUTBOX_FENCE_LOST');
+    const [expiredOutboxAfter, expiredOutboxEventAfter] = await Promise.all([
+      ProofNotificationOutbox.findOne({ userId, outboxId: expiredOutboxId }).lean(),
+      ProofBreakEvent.findOne({ userId, eventId: expiredOutboxEventId }).lean(),
+    ]);
+    assert.equal(expiredOutboxAfter.status, 'LEASED', 'an expired delivery lease cannot publish the outbox row');
+    assert.equal(expiredOutboxEventAfter.notificationStatus, 'PENDING');
+    await updateProofWatchStatus({ userId, watchId: outboxLeaseWatchId, action: 'disable' });
 
     assert.equal(await withdrawGenieProofConsent({ userId, caseId: createdCase.case.caseId }), true);
     const withdrawnWatch = await ProofWatch.findOne({ userId, watchId }).lean();
@@ -350,6 +581,62 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
     assert.equal(await ProofBreakJob.countDocuments({ userId, caseId: createdCase.case.caseId }), 0);
     assert.equal(await ProofBreakEvent.countDocuments({ userId, caseId: createdCase.case.caseId }), 0);
     assert.equal(await ProofNotificationOutbox.countDocuments({ userId, caseId: createdCase.case.caseId }), 0);
+
+    const leaseExpiryCase = await createGenieProofCase({
+      userId: leaseExpiryUserId,
+      offerText,
+      submissionHash: extraction.inputHash,
+      savingConsent: true,
+      confirmedClaims: extraction.claims.map(claim => ({
+        claimId: claim.claimId,
+        statement: claim.originalSpan,
+        claimType: claim.claimType,
+        productId: claim.productId,
+        value: claim.value,
+        unit: claim.unit,
+      })),
+      idempotencyKey: `proofbreak-lease-expiry-${crypto.randomUUID()}`,
+      signer,
+      now: () => nowAt,
+    });
+    leaseExpiryCaseId = leaseExpiryCase.case.caseId;
+    const leaseWatch = await createProofWatch({
+      userId: leaseExpiryUserId,
+      caseId: leaseExpiryCaseId,
+      watchConsent: true,
+      idempotencyKey: `proofbreak-lease-watch-${crypto.randomUUID()}`,
+      now: () => nowAt,
+    });
+    leaseExpiryWatchId = leaseWatch.watch.watchId;
+    let leaseNow = new Date(nowAt);
+    const leaseExpiryWorker = new ProofBreakWorker({
+      signer,
+      workerId: `proofbreak-expired-lease-${crypto.randomUUID()}`,
+      leaseMs: 5_000,
+      now: () => leaseNow,
+      refreshEvidence: async () => ({ created: false, retrievalIds: [] }),
+      evidenceResolver: async options => {
+        const snapshot = await resolveGenieProofEvidenceForClaims(options);
+        leaseNow = new Date(leaseNow.getTime() + 10_000);
+        return snapshot;
+      },
+    });
+    const expiredLeaseResult = await leaseExpiryWorker.processNext();
+    assert.equal(expiredLeaseResult.status, 'FENCED');
+    const [leaseCaseAfter, leaseWatchAfter, leaseJobAfter, leaseEvents, leaseOutbox] = await Promise.all([
+      GenieProofCase.findOne({ userId: leaseExpiryUserId, caseId: leaseExpiryCaseId }).lean(),
+      ProofWatch.findOne({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId }).lean(),
+      ProofBreakJob.findOne({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId }).lean(),
+      ProofBreakEvent.countDocuments({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId }),
+      ProofNotificationOutbox.countDocuments({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId }),
+    ]);
+    assert.equal(leaseCaseAfter.latestRevision, 1, 'an expired worker lease cannot publish a new signed revision');
+    assert.equal(leaseWatchAfter.status, 'ACTIVE');
+    assert.equal(leaseJobAfter.status, 'LEASED');
+    assert.equal(leaseEvents, 0);
+    assert.equal(leaseOutbox, 0);
+    await updateProofWatchStatus({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId, action: 'disable' });
+    assert.equal(await deleteGenieProofCase({ userId: leaseExpiryUserId, caseId: leaseExpiryCaseId }), true);
 
     const revokedCase = await createGenieProofCase({
       userId: revokedUserId,
@@ -382,6 +669,27 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
     revokedWatchId = revokedWatch.watch.watchId;
     assert.equal(revokedWatch.watch.status, 'ACTIVE');
 
+    const revocationRaceCase = await createGenieProofCase({
+      userId: revocationRaceUserId,
+      offerText,
+      submissionHash: extraction.inputHash,
+      savingConsent: true,
+      confirmedClaims: extraction.claims.map(claim => ({
+        claimId: claim.claimId,
+        statement: claim.originalSpan,
+        claimType: claim.claimType,
+        productId: claim.productId,
+        value: claim.value,
+        unit: claim.unit,
+      })),
+      idempotencyKey: `proofbreak-revocation-race-${crypto.randomUUID()}`,
+      signer,
+      evidenceResolver: resolveGenieProofEvidenceForClaims,
+      now: () => nowAt,
+    });
+    revocationRaceCaseId = revocationRaceCase.case.caseId;
+    assert.equal(revocationRaceCase.passport.manifest.findings[0].finding, 'CONTRADICTED');
+
     const revokedSource = {
       ...source,
       revision: source.revision + 1,
@@ -392,7 +700,53 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
       supersedes: { sourceId, revision: source.revision },
     };
     revokedSource.definitionHash = computeGenieProofSourceDefinitionHash(revokedSource);
-    await GenieProofSourceDefinition.create(revokedSource);
+
+    let appendAttemptedInsideAssessment = false;
+    const racedAssessment = await reassessGenieProofCase({
+      userId: revocationRaceUserId,
+      caseId: revocationRaceCaseId,
+      expectedRevision: revocationRaceCase.passport.manifest.revision,
+      expectedManifestHash: revocationRaceCase.passport.manifestHash,
+      reassessmentConsent: true,
+      idempotencyKey: `proofbreak-revocation-race-assess-${crypto.randomUUID()}`,
+      signer,
+      now: () => nowAt,
+      evidenceResolver: async options => {
+        const snapshot = await resolveGenieProofEvidenceForClaims(options);
+        if (!appendAttemptedInsideAssessment) {
+          appendAttemptedInsideAssessment = true;
+          await assert.rejects(
+            appendGenieProofSourceDefinitionRevision({ source: revokedSource }),
+            error => error?.hasErrorLabel?.('TransientTransactionError') === true
+              || [112, 251].includes(error?.code) || error?.codeName === 'WriteConflict',
+            'source revocation must conflict with an assessment holding the registry fence',
+          );
+        }
+        return snapshot;
+      },
+    });
+    assert.equal(racedAssessment.passport.manifest.findings[0].finding, 'CONTRADICTED');
+    await appendGenieProofSourceDefinitionRevision({ source: revokedSource });
+
+    const [historicalCase, historicalRevisions] = await Promise.all([
+      getGenieProofCase({ userId: revocationRaceUserId, caseId: revocationRaceCaseId, currentEvidenceStatusResolver: getGenieProofCurrentEvidenceStatus }),
+      listGenieProofRevisions({ userId: revocationRaceUserId, caseId: revocationRaceCaseId, signer, currentEvidenceStatusResolver: getGenieProofCurrentEvidenceStatus }),
+    ]);
+    assert.equal(historicalCase.passport.manifest.findings[0].finding, 'CONTRADICTED', 'revocation must not rewrite the signed historical finding');
+    assert.equal(historicalCase.currentEvidenceStatus.byClaimId[extraction.claims[0].claimId].status, 'SOURCE_REVOKED');
+    assert.ok(historicalRevisions.revisions.every(revision => revision.currentEvidenceStatus.byClaimId[extraction.claims[0].claimId].status === 'SOURCE_REVOKED'));
+    const postRevocationAssessment = await reassessGenieProofCase({
+      userId: revocationRaceUserId,
+      caseId: revocationRaceCaseId,
+      expectedRevision: racedAssessment.revision,
+      expectedManifestHash: racedAssessment.manifestHash,
+      reassessmentConsent: true,
+      idempotencyKey: `proofbreak-revoked-assess-${crypto.randomUUID()}`,
+      signer,
+      evidenceResolver: resolveGenieProofEvidenceForClaims,
+      now: () => nowAt,
+    });
+    assert.equal(postRevocationAssessment.passport.manifest.findings[0].finding, 'NOT_VERIFIABLE');
 
     let revokedFetchCalls = 0;
     const revokedWorker = new ProofBreakWorker({
@@ -452,8 +806,6 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
       }),
       withdrawGenieProofConsent({ userId: raceUserId, caseId: raceCaseId, now: () => nowAt }),
     ]);
-    const isTransientTransactionConflict = error => error?.hasErrorLabel?.('TransientTransactionError') === true
-      || [112, 251].includes(error?.code);
     if (watchCreation.status === 'rejected') {
       assert.ok(['GENIEPROOF_CONSENT_WITHDRAWN', 'GENIEPROOF_CASE_CHANGED'].includes(watchCreation.reason.code)
         || isTransientTransactionConflict(watchCreation.reason), `Unexpected watch race failure: ${watchCreation.reason.code || watchCreation.reason.name}`);
@@ -525,6 +877,38 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
         ProofBreakEvent.deleteMany({ watchId }),
         ProofNotificationOutbox.deleteMany({ watchId }),
       ] : []),
+      ...(notificationRaceWatchId ? [
+        ProofWatch.deleteMany({ userId, watchId: notificationRaceWatchId }),
+        ProofBreakJob.deleteMany({ userId, watchId: notificationRaceWatchId }),
+        ProofBreakEvent.deleteMany({ userId, watchId: notificationRaceWatchId }),
+        ProofNotificationOutbox.deleteMany({ userId, watchId: notificationRaceWatchId }),
+      ] : []),
+      ...(leasePublicationWatchId ? [
+        ProofWatch.deleteMany({ userId, watchId: leasePublicationWatchId }),
+        ProofBreakJob.deleteMany({ userId, watchId: leasePublicationWatchId }),
+        ProofBreakEvent.deleteMany({ userId, watchId: leasePublicationWatchId }),
+        ProofNotificationOutbox.deleteMany({ userId, watchId: leasePublicationWatchId }),
+      ] : []),
+      ...(outboxLeaseWatchId ? [
+        ProofWatch.deleteMany({ userId, watchId: outboxLeaseWatchId }),
+        ProofBreakJob.deleteMany({ userId, watchId: outboxLeaseWatchId }),
+        ProofBreakEvent.deleteMany({ userId, watchId: outboxLeaseWatchId }),
+        ProofNotificationOutbox.deleteMany({ userId, watchId: outboxLeaseWatchId }),
+      ] : []),
+      ...(leaseExpiryCaseId ? [
+        ...(leaseExpiryWatchId ? [
+          ProofWatch.deleteMany({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId }),
+          ProofBreakJob.deleteMany({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId }),
+          ProofBreakEvent.deleteMany({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId }),
+          ProofNotificationOutbox.deleteMany({ userId: leaseExpiryUserId, watchId: leaseExpiryWatchId }),
+        ] : []),
+        ProofWatch.deleteMany({ userId: leaseExpiryUserId, caseId: leaseExpiryCaseId }),
+        ProofBreakJob.deleteMany({ userId: leaseExpiryUserId, caseId: leaseExpiryCaseId }),
+        ProofBreakEvent.deleteMany({ userId: leaseExpiryUserId, caseId: leaseExpiryCaseId }),
+        ProofNotificationOutbox.deleteMany({ userId: leaseExpiryUserId, caseId: leaseExpiryCaseId }),
+        GenieProofRevision.deleteMany({ userId: leaseExpiryUserId, caseId: leaseExpiryCaseId }),
+        GenieProofCase.deleteMany({ userId: leaseExpiryUserId, caseId: leaseExpiryCaseId }),
+      ] : []),
       ...(sourceId ? [
         GenieProofEvidenceRevision.deleteMany({ sourceId }),
         GenieProofRetrievalReceipt.deleteMany({ sourceId }),
@@ -543,6 +927,10 @@ test('Mongo ProofBreak worker completes a real reassessment and publishes a scop
         ProofNotificationOutbox.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
         GenieProofRevision.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
         GenieProofCase.deleteMany({ userId: revokedUserId, caseId: revokedCaseId }),
+      ] : []),
+      ...(revocationRaceCaseId ? [
+        GenieProofRevision.deleteMany({ userId: revocationRaceUserId, caseId: revocationRaceCaseId }),
+        GenieProofCase.deleteMany({ userId: revocationRaceUserId, caseId: revocationRaceCaseId }),
       ] : []),
       ProofBreakWorkerHeartbeat.deleteMany({ workerId: /^proofbreak-readiness-/ }),
       ...(raceCaseId ? [

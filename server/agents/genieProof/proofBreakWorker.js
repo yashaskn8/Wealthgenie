@@ -137,7 +137,6 @@ async function recordFailedCheck({
   const currentTime = now();
   const blockedByRights = isRightsBlocked(error);
   const terminal = blockedByRights || claimed.job.attempt >= (claimed.job.maxAttempts || MAX_ATTEMPTS);
-  const retryAt = terminal ? null : dateAdd(currentTime, retryDelay(claimed.job.attempt));
   const session = await startSession();
   try {
     session.startTransaction({ readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
@@ -168,7 +167,7 @@ async function recordFailedCheck({
     const latestQuery = revisionModel.findOne({ userId: watch.userId, caseId: watch.caseId }).sort({ revision: -1 });
     if (typeof latestQuery.session === 'function') latestQuery.session(session);
     const latestRevision = await latestQuery.lean();
-  const eventType = failedCheckEventType(error);
+    const eventType = failedCheckEventType(error);
     const eventRows = [];
     const outboxRows = [];
     if (latestRevision) {
@@ -212,6 +211,8 @@ async function recordFailedCheck({
     if (eventRows.length) await eventModel.create(eventRows, { session });
     if (outboxRows.length) await outboxModel.create(outboxRows, { session });
     const watchStatus = blockedByRights ? 'BLOCKED_SOURCE_RIGHTS' : terminal ? 'FAILED_TERMINAL' : 'FAILED_RETRYABLE';
+    const publicationAt = now();
+    const retryAt = terminal ? null : dateAdd(publicationAt, retryDelay(claimed.job.attempt));
     const watchUpdate = await watchModel.updateOne({
       watchId: watch.watchId,
       userId: watch.userId,
@@ -219,6 +220,7 @@ async function recordFailedCheck({
       status: { $in: ['ACTIVE', 'FAILED_RETRYABLE'] },
       generation: claimed.job.watchGeneration,
       consentWithdrawnAt: null,
+      expiresAt: { $gt: publicationAt },
     }, {
       $set: {
         status: watchStatus,
@@ -229,19 +231,20 @@ async function recordFailedCheck({
       ...(terminal ? { $inc: { generation: 1 } } : {}),
     }, { session });
     if (!isModified(watchUpdate)) throw Object.assign(new Error('Watch changed during source failure publication.'), { code: 'PROOFBREAK_WATCH_FENCE_LOST' });
+    const finalizedAt = now();
     const jobUpdate = await jobModel.updateOne({
       jobId: claimed.job.jobId,
       status: 'LEASED',
       leaseOwner: claimed.owner,
       executionGeneration: claimed.executionGeneration,
-      leaseUntil: { $gt: currentTime },
+      leaseUntil: { $gt: finalizedAt },
     }, {
       $set: {
         status: blockedByRights ? 'FAILED_TERMINAL' : terminal ? 'FAILED_TERMINAL' : 'QUEUED',
-        scheduledAt: retryAt || currentTime,
+        scheduledAt: retryAt || finalizedAt,
         leaseOwner: null,
         leaseUntil: null,
-        heartbeatAt: currentTime,
+        heartbeatAt: finalizedAt,
         failureCode: error?.code || 'PROOFBREAK_CHECK_FAILED',
       },
     }, { session });
@@ -282,17 +285,22 @@ async function deliverOutbox({ item, owner, watchModel, eventModel, outboxModel,
     const caseQuery = caseModel.findOne({ userId: item.userId, caseId: item.caseId, deletedAt: null, consentWithdrawnAt: null, expiresAt: { $gt: currentTime } });
     if (typeof caseQuery.session === 'function') caseQuery.session(session);
     const ownedCase = await caseQuery.lean();
-    const mayDeliver = watch && ownedCase && watch.status !== 'CANCELLED' && watch.status !== 'EXPIRED';
+    const publicationAt = now();
+    const mayDeliver = watch && ownedCase
+      && watch.status !== 'CANCELLED' && watch.status !== 'EXPIRED'
+      && (!watch.expiresAt || watch.expiresAt > publicationAt)
+      && ownedCase.expiresAt > publicationAt
+      && (!item.expiresAt || item.expiresAt > publicationAt);
     const outboxUpdate = await outboxModel.updateOne({
       outboxId: item.outboxId,
       status: 'LEASED',
       leaseOwner: owner,
       executionGeneration: item.executionGeneration,
-      leaseUntil: { $gt: currentTime },
+      leaseUntil: { $gt: publicationAt },
     }, {
       $set: {
         status: mayDeliver ? 'DELIVERED' : 'CANCELLED',
-        deliveredAt: mayDeliver ? currentTime : null,
+        deliveredAt: mayDeliver ? publicationAt : null,
         leaseOwner: null,
         leaseUntil: null,
         failureCode: mayDeliver ? null : 'WATCH_OR_CASE_UNAVAILABLE',

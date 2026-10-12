@@ -14,7 +14,10 @@ import {
   proofWatchActionSchema,
   proofWatchCreateSchema,
 } from '../agents/genieProof/genieProofSchemas.js';
-import { resolveGenieProofEvidenceForClaims } from '../agents/genieProof/genieProofEvidenceRegistryService.js';
+import {
+  getGenieProofCurrentEvidenceStatus,
+  resolveGenieProofEvidenceForClaims,
+} from '../agents/genieProof/genieProofEvidenceRegistryService.js';
 import {
   createGenieProofCase,
   deleteGenieProofCase,
@@ -208,6 +211,7 @@ router.get('/cases/:caseId/verify', verifyJWT, genieProofLimiter, asyncHandler(a
     userId: req.user.userId,
     caseId: req.params.caseId,
     signer: req.app.locals.genieProofRuntime.signer,
+    currentEvidenceStatusResolver: getGenieProofCurrentEvidenceStatus,
   });
   if (!result) throw createError(404, 'GenieProof case not found.', 'Case not found.', { code: 'GENIEPROOF_CASE_NOT_FOUND' });
   return res.json(result);
@@ -220,6 +224,7 @@ router.get('/cases/:caseId/revisions', verifyJWT, genieProofLimiter, rejectQuery
     userId: req.user.userId,
     caseId: req.params.caseId,
     signer: req.app.locals.genieProofRuntime.signer,
+    currentEvidenceStatusResolver: getGenieProofCurrentEvidenceStatus,
   });
   if (!result) throw createError(404, 'GenieProof case not found.', 'Case not found.', { code: 'GENIEPROOF_CASE_NOT_FOUND' });
   return res.json(result);
@@ -228,7 +233,11 @@ router.get('/cases/:caseId/revisions', verifyJWT, genieProofLimiter, rejectQuery
 router.get('/cases/:caseId', verifyJWT, genieProofLimiter, asyncHandler(async (req, res) => {
   requireEnabled(req);
   caseIdParam(req);
-  const result = await getGenieProofCase({ userId: req.user.userId, caseId: req.params.caseId });
+  const result = await getGenieProofCase({
+    userId: req.user.userId,
+    caseId: req.params.caseId,
+    currentEvidenceStatusResolver: getGenieProofCurrentEvidenceStatus,
+  });
   if (!result) throw createError(404, 'GenieProof case not found.', 'Case not found.', { code: 'GENIEPROOF_CASE_NOT_FOUND' });
   return res.json(result);
 }));

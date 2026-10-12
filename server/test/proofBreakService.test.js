@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { createProofWatch, getProofWatchAvailability, listProofBreakEvents, listProofWatches, updateProofWatchStatus, acknowledgeProofBreakEvent } from '../agents/genieProof/proofBreakService.js';
 import { computeGenieProofSourceDefinitionHash } from '../agents/genieProof/genieProofEvidenceRegistryService.js';
 import { GENIEPROOF_SOURCE_CATALOG_CANDIDATES } from '../agents/genieProof/genieProofSourceCatalog.js';
+import { GENIEPROOF_PPF_PARSER_VERSION } from '../agents/genieProof/genieProofEvidenceContract.js';
 import { withdrawGenieProofConsent } from '../agents/genieProof/genieProofService.js';
 
 const owner = '65b000000000000000000001';
@@ -46,7 +47,7 @@ function fixture() {
   const source = {
     sourceId: 'india-post-small-savings', revision: 1, productIds: ['government:india-post:ppf'], claimTypes: ['CURRENT_NOMINAL_RATE'],
     qualificationStatus: 'BLOCKED_REUSE_RIGHTS', reusePermissionStatus: 'BLOCKED', reviewRecord: { reviewedAt: null, reference: null, scope: null },
-    parserVersion: 'india-post-small-savings/qualified-identities-2', ruleVersion: 'genieproof-current-nominal-rate/0.1.0',
+    parserVersion: GENIEPROOF_PPF_PARSER_VERSION, ruleVersion: 'genieproof-current-nominal-rate/0.1.0',
     definitionHash: 'd'.repeat(64), revocationReasonCode: null,
   };
   const sourceModel = { find() { return { sort() { return this; }, session() { return this; }, lean: async () => [source] }; } };
@@ -78,7 +79,7 @@ function fixture() {
   };
   const jobModel = {
     async create([input]) { const row = { ...structuredClone(input), _id: new mongooseId() }; jobs.push(row); return [row]; },
-    async updateMany(filter, update) { for (const row of jobs) if ((filter.watchId === undefined || row.watchId === filter.watchId) && row.userId === filter.userId && row.caseId === filter.caseId && filter.status.$in.includes(row.status)) Object.assign(row, structuredClone(update.$set)); return { modifiedCount: 1 }; },
+    async updateMany(filter, update) { let modifiedCount = 0; for (const row of jobs) if ((filter.watchId === undefined || row.watchId === filter.watchId) && (filter.caseId === undefined || row.caseId === filter.caseId) && row.userId === filter.userId && filter.status.$in.includes(row.status)) { Object.assign(row, structuredClone(update.$set)); for (const [key, value] of Object.entries(update.$inc || {})) row[key] = (row[key] || 0) + value; modifiedCount += 1; } return { modifiedCount }; },
     async deleteMany(filter) { for (let i = jobs.length - 1; i >= 0; i -= 1) if (jobs[i].userId === filter.userId && jobs[i].watchId === filter.watchId) jobs.splice(i, 1); return { deletedCount: 0 }; },
   };
   const eventModel = {
@@ -94,11 +95,11 @@ function fixture() {
     findOneAndUpdate(filter, update) { const item = events.find(row => row.userId === filter.userId && row.eventId === filter.eventId && row.acknowledgedAt === null); if (item) Object.assign(item, update.$set); return query(item || null); },
     async exists(filter) { return events.some(row => row.userId === filter.userId && row.eventId === filter.eventId); },
     async deleteMany(filter) { for (let i = events.length - 1; i >= 0; i -= 1) if (events[i].userId === filter.userId && events[i].watchId === filter.watchId) events.splice(i, 1); return { deletedCount: 0 }; },
-    async updateMany(filter, update) { let modifiedCount = 0; for (const item of events) if (item.userId === filter.userId && item.caseId === filter.caseId && item.notificationStatus === filter.notificationStatus) { Object.assign(item, structuredClone(update.$set)); modifiedCount += 1; } return { modifiedCount }; },
+    async updateMany(filter, update) { let modifiedCount = 0; for (const item of events) if (item.userId === filter.userId && item.watchId === filter.watchId && item.notificationStatus === filter.notificationStatus) { Object.assign(item, structuredClone(update.$set)); modifiedCount += 1; } return { modifiedCount }; },
   };
   const outboxModel = {
     async deleteMany(filter) { for (let i = outbox.length - 1; i >= 0; i -= 1) if (outbox[i].userId === filter.userId && outbox[i].watchId === filter.watchId) outbox.splice(i, 1); return { deletedCount: 0 }; },
-    async updateMany(filter, update) { let modifiedCount = 0; for (const item of outbox) if (item.userId === filter.userId && item.caseId === filter.caseId && filter.status.$in.includes(item.status)) { Object.assign(item, structuredClone(update.$set)); modifiedCount += 1; } return { modifiedCount }; },
+    async updateMany(filter, update) { let modifiedCount = 0; for (const item of outbox) if (item.userId === filter.userId && item.watchId === filter.watchId && filter.status.$in.includes(item.status)) { Object.assign(item, structuredClone(update.$set)); for (const [key, value] of Object.entries(update.$inc || {})) item[key] = (item[key] || 0) + value; modifiedCount += 1; } return { modifiedCount }; },
   };
   const workerHeartbeatModel = { async exists() { return false; } };
   return { cases, watches, jobs, events, outbox, sessions, caseModel, sourceModel, watchModel, jobModel, eventModel, outboxModel, workerHeartbeatModel, startSession };
@@ -147,7 +148,7 @@ test('availability explains blocked and unsupported claims without implying that
 test('eligible source cannot create a watch from a liveness-only or degraded worker heartbeat', async () => {
   const f = fixture();
   const permitted = {
-    ...GENIEPROOF_SOURCE_CATALOG_CANDIDATES[0],
+    ...GENIEPROOF_SOURCE_CATALOG_CANDIDATES[1],
     qualificationStatus: 'QUALIFIED_FOR_USER_PRESENTATION',
     reusePermissionStatus: 'APPROVED',
     reviewRecord: { reviewedAt: timestamp, reference: 'TEST_ONLY', scope: 'TESTS_ONLY' },
@@ -246,9 +247,21 @@ test('watch pause, resume, and disable are owner-scoped and fence scheduled jobs
   assert.equal(resumed.status, 'BLOCKED_SOURCE_RIGHTS');
   assert.equal(resumed.nextCheckAt, null);
   assert.equal(await updateProofWatchStatus({ userId: otherOwner, watchId: created.watch.watchId, action: 'disable', ...f, now: () => timestamp }), null);
+  f.jobs.push({ userId: owner, caseId, watchId: created.watch.watchId, status: 'LEASED', executionGeneration: 3 });
+  f.outbox.push(
+    { userId: owner, caseId, watchId: created.watch.watchId, status: 'PENDING', executionGeneration: 0 },
+    { userId: owner, caseId, watchId: created.watch.watchId, status: 'LEASED', executionGeneration: 1 },
+    { userId: owner, caseId, watchId: created.watch.watchId, status: 'FAILED_RETRYABLE', executionGeneration: 2 },
+  );
+  f.events.push({ userId: owner, caseId, watchId: created.watch.watchId, notificationStatus: 'PENDING' });
   const disabled = await updateProofWatchStatus({ userId: owner, watchId: created.watch.watchId, action: 'disable', ...f, now: () => timestamp });
   assert.equal(disabled.status, 'CANCELLED');
   assert.ok(disabled.consentWithdrawnAt);
+  assert.equal(f.jobs[0].status, 'CANCELLED');
+  assert.equal(f.jobs[0].executionGeneration, 4);
+  assert.deepEqual(f.outbox.map(item => item.status), ['CANCELLED', 'CANCELLED', 'CANCELLED']);
+  assert.deepEqual(f.outbox.map(item => item.executionGeneration), [1, 2, 3]);
+  assert.equal(f.events[0].notificationStatus, 'CANCELLED');
   await assert.rejects(updateProofWatchStatus({ userId: owner, watchId: created.watch.watchId, action: 'resume', ...f, now: () => timestamp }), error => error.code === 'PROOFBREAK_WATCH_CANCELLED');
 });
 

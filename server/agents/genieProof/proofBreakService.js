@@ -247,6 +247,8 @@ export async function updateProofWatchStatus({
   jobModel = ProofBreakJob,
   sourceModel = GenieProofSourceDefinition,
   workerHeartbeatModel = ProofBreakWorkerHeartbeat,
+  eventModel = ProofBreakEvent,
+  outboxModel = ProofNotificationOutbox,
   startSession = () => mongoose.startSession(),
   now = () => new Date(),
 }) {
@@ -277,6 +279,19 @@ export async function updateProofWatchStatus({
         $set: { status: 'CANCELLED', leaseOwner: null, leaseUntil: null, failureCode: action === 'disable' ? 'WATCH_DISABLED' : 'WATCH_PAUSED' },
         $inc: { executionGeneration: 1 },
       }, { session });
+      if (action === 'disable') {
+        await outboxModel.updateMany({
+          userId,
+          watchId,
+          status: { $in: ['PENDING', 'LEASED', 'FAILED_RETRYABLE'] },
+        }, {
+          $set: { status: 'CANCELLED', leaseOwner: null, leaseUntil: null, failureCode: 'WATCH_DISABLED' },
+          $inc: { executionGeneration: 1 },
+        }, { session });
+        await eventModel.updateMany({ userId, watchId, notificationStatus: 'PENDING' }, {
+          $set: { notificationStatus: 'CANCELLED' },
+        }, { session });
+      }
       await session.commitTransaction();
       return toPublicWatch(updated);
     } catch (error) {
@@ -290,34 +305,62 @@ export async function updateProofWatchStatus({
   if (!current) return null;
   if (action !== 'resume') throw serviceError(400, 'PROOFBREAK_ACTION_INVALID', 'Choose pause, resume, or disable.');
   if (current.status === 'CANCELLED') throw serviceError(409, 'PROOFBREAK_WATCH_CANCELLED', 'A disabled watch cannot be resumed. Create a new watch with fresh consent.');
-  const row = await ownedCase({ userId, caseId: current.caseId, caseModel, now: currentTime });
-  const availability = await getSourceAvailability({ claims: row.confirmedClaims || [], sourceModel });
-  if (availability.status === 'AVAILABLE') {
-    const workerReady = await workerHeartbeatModel.exists({
-      status: 'RUNNING',
-      heartbeatAt: { $gt: new Date(currentTime.getTime() - 30_000) },
-      lastSuccessfulPollAt: { $ne: null },
-      lastPollErrorCode: null,
-    });
-    if (!workerReady) throw serviceError(503, 'PROOFBREAK_WORKER_UNAVAILABLE', 'The monitoring worker is unavailable. The watch was not resumed.');
+  const session = await startSession();
+  try {
+    session.startTransaction({ readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
+    const currentQuery = watchModel.findOne({ userId, watchId });
+    if (typeof currentQuery.session === 'function') currentQuery.session(session);
+    const transactionalCurrent = await currentQuery.lean();
+    if (!transactionalCurrent) {
+      await session.abortTransaction();
+      return null;
+    }
+    if (transactionalCurrent.status === 'CANCELLED') {
+      throw serviceError(409, 'PROOFBREAK_WATCH_CANCELLED', 'A disabled watch cannot be resumed. Create a new watch with fresh consent.');
+    }
+
+    const row = await ownedCase({ userId, caseId: transactionalCurrent.caseId, caseModel, now: currentTime, session });
+    const availability = await getSourceAvailability({ claims: row.confirmedClaims || [], sourceModel, session });
+    if (availability.status === 'AVAILABLE') {
+      const workerReady = await workerHeartbeatModel.exists({
+        status: 'RUNNING',
+        heartbeatAt: { $gt: new Date(currentTime.getTime() - 30_000) },
+        lastSuccessfulPollAt: { $ne: null },
+        lastPollErrorCode: null,
+      });
+      if (!workerReady) throw serviceError(503, 'PROOFBREAK_WORKER_UNAVAILABLE', 'The monitoring worker is unavailable. The watch was not resumed.');
+    }
+    const nextGeneration = Number(transactionalCurrent.generation || 0) + 1;
+    const state = watchStateForAvailability(availability);
+    const updatedQuery = watchModel.findOneAndUpdate({
+      userId,
+      watchId,
+      generation: transactionalCurrent.generation,
+    }, {
+      $set: {
+        status: state,
+        sourceAvailability: availability.status,
+        monitoredSourceIds: availability.sourceIds,
+        nextCheckAt: state === 'ACTIVE' ? currentTime : null,
+        lastFailureCode: availability.status === 'RIGHTS_BLOCKED'
+          ? availability.reasonCode || 'SOURCE_REUSE_NOT_APPROVED'
+          : null,
+      },
+      $inc: { generation: 1 },
+    }, { new: true, session });
+    const updated = await updatedQuery.lean();
+    if (!updated) throw serviceError(409, 'PROOFBREAK_WATCH_CHANGED', 'The watch changed. Refresh its status and retry.');
+    if (state === 'ACTIVE') {
+      await createCheckJob({ watch: { ...updated, generation: nextGeneration }, jobModel, now: currentTime, session });
+    }
+    await session.commitTransaction();
+    return toPublicWatch(updated, currentTime);
+  } catch (error) {
+    if (session.inTransaction()) await session.abortTransaction().catch(() => {});
+    throw error;
+  } finally {
+    await session.endSession();
   }
-  const nextGeneration = Number(current.generation || 0) + 1;
-  const state = watchStateForAvailability(availability);
-  const updated = await watchModel.findOneAndUpdate({ userId, watchId, generation: current.generation }, {
-    $set: {
-      status: state,
-      sourceAvailability: availability.status,
-      monitoredSourceIds: availability.sourceIds,
-      nextCheckAt: state === 'ACTIVE' ? currentTime : null,
-      lastFailureCode: availability.status === 'RIGHTS_BLOCKED'
-        ? availability.reasonCode || 'SOURCE_REUSE_NOT_APPROVED'
-        : null,
-    },
-    $inc: { generation: 1 },
-  }, { new: true }).lean();
-  if (!updated) throw serviceError(409, 'PROOFBREAK_WATCH_CHANGED', 'The watch changed. Refresh its status and retry.');
-  if (state === 'ACTIVE') await createCheckJob({ watch: { ...updated, generation: nextGeneration }, jobModel, now: currentTime, session: null });
-  return toPublicWatch(updated);
 }
 
 export async function getProofWatchAvailability({

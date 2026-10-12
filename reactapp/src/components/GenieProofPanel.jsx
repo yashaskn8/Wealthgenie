@@ -47,7 +47,11 @@ async function loadConsistentLatestPassport(caseId) {
     if (passport?.manifest?.caseId === caseId
         && passport.manifest.revision === verification?.revision
         && passport.manifestHash === verification?.manifestHash) {
-      return { passport, verification };
+      return {
+        passport,
+        verification,
+        currentEvidenceStatus: verification.currentEvidenceStatus ?? saved.currentEvidenceStatus ?? null,
+      };
     }
   }
   throw new Error('The Passport changed while it was opening. Open it again to load the latest revision.');
@@ -55,8 +59,8 @@ async function loadConsistentLatestPassport(caseId) {
 
 function findingLabel(value) {
   return ({
-    SUPPORTED: 'The available qualified evidence supports this claim',
-    CONTRADICTED: 'The available qualified evidence conflicts with this claim',
+    SUPPORTED: 'The signed report marked this claim as supported at the time of assessment',
+    CONTRADICTED: 'The signed report marked this claim as contradicted at the time of assessment',
     NOT_VERIFIABLE: 'Not checked against qualified source evidence',
     INSUFFICIENT_INPUTS: 'More product details are needed',
     OUTDATED_EVIDENCE: 'The available evidence is out of date',
@@ -65,6 +69,9 @@ function findingLabel(value) {
 }
 
 function findingPresentationLabel(finding, manifest) {
+  if (finding?.finding === 'SUPPORTED' || finding?.finding === 'CONTRADICTED') {
+    return findingLabel(finding.finding);
+  }
   if (manifest?.verifierVersion !== CURRENT_CLAIM_VERIFIER_VERSION) {
     return 'Historical verifier output; not reassessed under current claim rules';
   }
@@ -89,6 +96,66 @@ function proofBreakClaimStatusLabel(status, sourceReasonCode = null) {
     WAITING_FOR_QUALIFIED_SOURCE: 'Waiting for a qualified source',
     NOT_SUPPORTED: 'Outside the current monitoring scope',
   })[status] || 'Monitoring availability is unknown';
+}
+
+function currentEvidenceStatusLabel(status) {
+  return ({
+    NO_CURRENT_QUALIFIED_SOURCE: 'No currently qualified source is available.',
+    SOURCE_DEFINITION_INVALID: 'The current source definition failed integrity checks.',
+    SOURCE_REVOKED: 'The source qualification or reuse approval was revoked.',
+    SOURCE_TECHNICALLY_BLOCKED: 'The source is blocked by technical qualification checks.',
+    SOURCE_REUSE_NOT_APPROVED: 'Current source reuse approval is not recorded.',
+    SOURCE_REVIEW_UNQUALIFIED: 'The current source review is incomplete.',
+    SOURCE_PARSER_SUPERSEDED: 'The source parser or claim rule changed since this assessment.',
+    SOURCE_DEFINITION_SUPERSEDED: 'The source definition changed since this assessment.',
+    EVIDENCE_PERIOD_ENDED: 'The evidence period recorded in this assessment has ended.',
+    CURRENT_SOURCE_EVIDENCE_UNAVAILABLE: 'Current evidence from the source is unavailable.',
+    CURRENT_SOURCE_REASSESSMENT_REQUIRED: 'The source is currently qualified; a new assessment is needed to check current evidence.',
+  })[status] || 'Current source qualification status cannot be determined.';
+}
+
+function currentEvidenceAsOfLabel(asOf) {
+  if (!asOf) return 'Check time unavailable';
+  const date = new Date(asOf);
+  return Number.isNaN(date.getTime()) ? 'Check time unavailable' : `Checked ${date.toLocaleString()}`;
+}
+
+function CurrentEvidenceClaimStatus({ currentEvidenceStatus, claimId }) {
+  const claimStatus = currentEvidenceStatus?.byClaimId?.[claimId];
+  if (!claimStatus) {
+    return <div style={{ color: '#fbbf24', fontSize: '0.88rem', marginTop: 6 }}>
+      Current source status: unavailable for this claim.
+    </div>;
+  }
+
+  const sourceRevisions = Array.isArray(claimStatus.currentSourceRevisions)
+    ? claimStatus.currentSourceRevisions
+    : [];
+  return <div style={{ color: '#bae6fd', fontSize: '0.88rem', marginTop: 6 }}>
+    <span><strong>Current source status:</strong> {currentEvidenceStatusLabel(claimStatus.status)} {currentEvidenceAsOfLabel(currentEvidenceStatus.asOf)}.</span>
+    {sourceRevisions.length > 0 && <details style={{ marginTop: 4, color: '#94a3b8' }}>
+      <summary>Source revision details</summary>
+      <ul style={{ margin: '4px 0 0', paddingLeft: 20 }}>
+        {sourceRevisions.map((source, index) => <li key={`${source.sourceId || 'source'}-${index}`}>
+          {source.sourceId || 'Source not identified'}: {currentEvidenceStatusLabel(source.status)} Current source revision {source.currentSourceRevision ?? 'unavailable'}; assessment used revision {source.recordedSourceRevision ?? 'not recorded'}.
+        </li>)}
+      </ul>
+    </details>}
+  </div>;
+}
+
+function CurrentEvidenceManifestStatus({ currentEvidenceStatus, manifest }) {
+  const claimIds = [...new Set((manifest?.findings || []).map(finding => finding.claimId))];
+  if (claimIds.length === 0) {
+    return <div style={{ color: '#fbbf24', fontSize: '0.88rem' }}>Current source status is unavailable because this revision has no claim findings.</div>;
+  }
+  return <div style={{ display: 'grid', gap: 4 }}>
+    {claimIds.map(claimId => <CurrentEvidenceClaimStatus
+      key={claimId}
+      currentEvidenceStatus={currentEvidenceStatus}
+      claimId={claimId}
+    />)}
+  </div>;
 }
 
 function proofBreakEventLabel(eventType) {
@@ -149,6 +216,7 @@ export default function GenieProofPanel() {
   const [savingConsent, setSavingConsent] = useState(false);
   const [savedCases, setSavedCases] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [selectedCurrentEvidenceStatus, setSelectedCurrentEvidenceStatus] = useState(null);
   const [revisionHistory, setRevisionHistory] = useState(null);
   const [comparison, setComparison] = useState(null);
   const [integrityByCase, setIntegrityByCase] = useState({});
@@ -276,6 +344,7 @@ export default function GenieProofPanel() {
     setConfirmed(false);
     setSavingConsent(false);
     setSelected(null);
+    setSelectedCurrentEvidenceStatus(null);
     setRevisionHistory(null);
     setComparison(null);
     setIntegrityByCase({});
@@ -297,6 +366,7 @@ export default function GenieProofPanel() {
     setError('');
     setStatus('');
     setSelected(null);
+    setSelectedCurrentEvidenceStatus(null);
     setReassessmentConsent(false);
     setRevisionHistory(null);
     setComparison(null);
@@ -315,12 +385,14 @@ export default function GenieProofPanel() {
     if (verification.integrity !== 'VALID' || verification.signature !== 'VERIFIED' || verification.trustedIssuer !== true) {
       setError(`Revision ${revision.revision} failed trusted signature or case-binding verification. Its findings are hidden.`);
       setSelected(null);
+      setSelectedCurrentEvidenceStatus(null);
       setComparison(null);
       setStatus('');
       return;
     }
     setError('');
     setSelected(revision.passport);
+    setSelectedCurrentEvidenceStatus(revision.currentEvidenceStatus ?? null);
     setComparison(null);
     setStatus('');
     setStatus(`Revision ${revision.revision} has a verified document signature. Financial correctness is not established by that signature.`);
@@ -359,6 +431,7 @@ export default function GenieProofPanel() {
         confirmedClaims: claims,
       });
       setSelected(null);
+      setSelectedCurrentEvidenceStatus(null);
       setOfferText('');
       setExtraction(null);
       setClaims([]);
@@ -378,17 +451,19 @@ export default function GenieProofPanel() {
     setError('');
     setStatus('');
     setSelected(null);
+    setSelectedCurrentEvidenceStatus(null);
     setReassessmentConsent(false);
     setRevisionHistory(null);
     setComparison(null);
     try {
-      const { passport, verification } = await loadConsistentLatestPassport(caseId);
+      const { passport, verification, currentEvidenceStatus } = await loadConsistentLatestPassport(caseId);
       setIntegrityByCase(current => ({ ...current, [caseId]: verification }));
       if (verification.integrity !== 'VALID' || verification.signature !== 'VERIFIED' || verification.trustedIssuer !== true) {
         setError('Passport signature could not be verified by a trusted key. Its findings are hidden.');
         return;
       }
       setSelected(passport);
+      setSelectedCurrentEvidenceStatus(currentEvidenceStatus);
       setRevisionHistory(null);
       setStatus('The stored report signature is verified. This does not establish financial correctness.');
     } catch (openError) {
@@ -410,6 +485,9 @@ export default function GenieProofPanel() {
     try {
       const result = await api.verifyGenieProofCase(caseId);
       setIntegrityByCase(current => ({ ...current, [caseId]: result }));
+      if (selected?.manifest?.caseId === caseId && selected.manifest.revision === result.revision && result.currentEvidenceStatus) {
+        setSelectedCurrentEvidenceStatus(result.currentEvidenceStatus);
+      }
     } catch (verifyError) {
       setError(messageOf(verifyError));
     } finally {
@@ -435,18 +513,20 @@ export default function GenieProofPanel() {
         api.listGenieProofRevisions(caseId),
         api.listGenieProofCases(),
       ]);
-      const { passport, verification } = verified;
+      const { passport, verification, currentEvidenceStatus } = verified;
       setSavedCases(caseResult.cases || []);
       setRevisionHistory(history);
       setIntegrityByCase(current => ({ ...current, [caseId]: verification }));
       if (verification.integrity === 'VALID' && verification.signature === 'VERIFIED' && verification.trustedIssuer === true) {
         setSelected(passport);
+        setSelectedCurrentEvidenceStatus(currentEvidenceStatus);
         const revisionMessage = result.revision === passport.manifest.revision
           ? `Private assessment revision ${result.revision} was saved.`
           : `Private assessment revision ${result.revision} was saved; showing newer verified revision ${passport.manifest.revision}.`;
         setStatus(`${revisionMessage} Its signature does not establish financial correctness.`);
       } else {
         setSelected(null);
+        setSelectedCurrentEvidenceStatus(null);
         setError('The new revision was saved, but its trusted signature could not be verified. Its findings are hidden.');
       }
       setReassessmentConsent(false);
@@ -484,7 +564,10 @@ export default function GenieProofPanel() {
     setError('');
     try {
       await api.deleteGenieProofCase(caseId);
-      if (selected?.manifest?.caseId === caseId) setSelected(null);
+      if (selected?.manifest?.caseId === caseId) {
+        setSelected(null);
+        setSelectedCurrentEvidenceStatus(null);
+      }
       if (revisionHistory?.caseId === caseId) setRevisionHistory(null);
       if (comparison?.older?.passport?.manifest?.caseId === caseId
           || comparison?.newer?.passport?.manifest?.caseId === caseId) setComparison(null);
@@ -543,6 +626,7 @@ export default function GenieProofPanel() {
             setConfirmed(false);
             setSavingConsent(false);
             setSelected(null);
+            setSelectedCurrentEvidenceStatus(null);
             setReassessmentConsent(false);
             setRevisionHistory(null);
             setComparison(null);
@@ -722,13 +806,21 @@ export default function GenieProofPanel() {
                     Integrity: {integrityByCase[saved.caseId].integrity}; signature: {integrityByCase[saved.caseId].signature}; trusted report-signing key: {String(integrityByCase[saved.caseId].trustedIssuer)}; financial correctness: {integrityByCase[saved.caseId].financialCorrectness}.
                   </details>
                 </span>}
-                {revisionHistory?.caseId === saved.caseId && <span role="group" aria-label="Assessment history" style={{ flexBasis: '100%', display: 'grid', gap: 8, color: '#cbd5e1' }}>
+                {revisionHistory?.caseId === saved.caseId && <div role="group" aria-label="Assessment history" style={{ flexBasis: '100%', display: 'grid', gap: 8, color: '#cbd5e1' }}>
                   <strong>Assessment history</strong>
+                  <span style={{ color: '#94a3b8' }}>Each signed finding remains as recorded at assessment. Current source qualification is shown separately.</span>
                   {revisionHistory.revisions.length < 2 && <span>Only the original assessment is available. Reassessment is currently disabled.</span>}
                   {revisionHistory.revisions.length === 0 && <span>No unexpired assessment revisions are available.</span>}
-                  {revisionHistory.revisions.map(revision => <button key={revision.revision} type="button" style={buttonStyle} onClick={() => openRevision(revision)} disabled={busy}>
-                    Open revision {revision.revision} · {revision.verification.integrity === 'VALID' ? 'signature verified' : 'verification needs review'}
-                  </button>)}
+                  {revisionHistory.revisions.map(revision => <div key={revision.revision}>
+                    <button type="button" style={buttonStyle} onClick={() => openRevision(revision)} disabled={busy}>
+                      Open revision {revision.revision} · {revision.verification.integrity === 'VALID' ? 'signature verified' : 'verification needs review'}
+                    </button>
+                    {revision.verification.integrity === 'VALID'
+                        && revision.verification.signature === 'VERIFIED'
+                        && revision.verification.trustedIssuer === true
+                      ? <CurrentEvidenceManifestStatus currentEvidenceStatus={revision.currentEvidenceStatus} manifest={revision.passport?.manifest} />
+                      : <div style={{ color: '#fbbf24', fontSize: '0.88rem' }}>Current source status is hidden until this revision verifies with a trusted signature.</div>}
+                  </div>)}
                   {revisionHistory.revisions.length > 1 && revisionHistory.revisions
                     .filter(revision => revision.revision < Math.max(...revisionHistory.revisions.map(item => item.revision)))
                     .map(revision => {
@@ -737,7 +829,7 @@ export default function GenieProofPanel() {
                         Compare revision {revision.revision} with revision {latest.revision}
                       </button>;
                     })}
-                </span>}
+                </div>}
                 {pendingDeleteCaseId === saved.caseId && <span role="group" aria-label="Confirm passport deletion" style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', color: '#fecaca' }}>
                   Delete this passport and all revisions?
                   <button type="button" style={{ ...buttonStyle, color: '#fecaca', borderColor: 'rgba(248,113,113,.45)' }} onClick={() => void deleteCase(saved.caseId)} disabled={busy}>Delete case and revisions</button>
@@ -751,7 +843,7 @@ export default function GenieProofPanel() {
       {comparison && (
         <section style={cardStyle} aria-labelledby="genieproof-comparison-title">
           <h2 id="genieproof-comparison-title" style={{ fontSize: '1.05rem', margin: '0 0 8px', color: '#f8fafc' }}>Signed assessment comparison</h2>
-          <p style={{ color: '#94a3b8', marginTop: 0 }}>Both report signatures and case bindings were verified. This comparison describes signed report contents; it does not establish financial correctness.</p>
+          <p style={{ color: '#94a3b8', marginTop: 0 }}>Both report signatures and case bindings were verified. Findings remain as recorded at assessment; current source qualification is shown separately and does not establish financial correctness.</p>
           {(() => {
             const oldManifest = comparison.older.passport.manifest;
             const newManifest = comparison.newer.passport.manifest;
@@ -770,8 +862,14 @@ export default function GenieProofPanel() {
                   return <li key={claimId}>
                     <strong>{claim?.statement || 'Claim wording unavailable'}</strong>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginTop: 8 }}>
-                      <span>Revision {oldManifest.revision}: {oldFinding ? findingPresentationLabel(oldFinding, oldManifest) : 'No finding recorded'}</span>
-                      <span>Revision {newManifest.revision}: {newFinding ? findingPresentationLabel(newFinding, newManifest) : 'No finding recorded'}</span>
+                      <div>
+                        <span>Revision {oldManifest.revision}: {oldFinding ? findingPresentationLabel(oldFinding, oldManifest) : 'No finding recorded'}</span>
+                        <CurrentEvidenceClaimStatus currentEvidenceStatus={comparison.older.currentEvidenceStatus} claimId={claimId} />
+                      </div>
+                      <div>
+                        <span>Revision {newManifest.revision}: {newFinding ? findingPresentationLabel(newFinding, newManifest) : 'No finding recorded'}</span>
+                        <CurrentEvidenceClaimStatus currentEvidenceStatus={comparison.newer.currentEvidenceStatus} claimId={claimId} />
+                      </div>
                     </div>
                   </li>;
                 })}
@@ -794,6 +892,7 @@ export default function GenieProofPanel() {
             <button type="button" style={buttonStyle} onClick={() => void reassessSelectedCase()} disabled={busy || !reassessmentConsent}>Create new assessment</button>
           </div>
           <p style={{ color: '#94a3b8', overflowWrap: 'anywhere' }}>Manifest SHA-256: {selected.manifestHash}</p>
+          <p style={{ color: '#94a3b8' }}>Signed findings below remain as recorded at assessment. Current source qualification is checked separately and does not rewrite this record.</p>
           {selected.manifest.verifierVersion !== CURRENT_CLAIM_VERIFIER_VERSION && <p role="note" style={{ color: '#fbbf24' }}>
             Historical verifier output — not reassessed under current claim rules. This signed result is not a current financial finding; the original signed JSON is preserved and its signature establishes integrity, not correctness.
           </p>}
@@ -803,6 +902,7 @@ export default function GenieProofPanel() {
               return <li key={finding.claimId}>
                 <strong>{findingPresentationLabel(finding, selected.manifest)}</strong>: {claim?.statement || 'Claim text unavailable'}
                 <span style={{ display: 'block', color: '#cbd5e1', marginTop: 4 }}>{finding.explanation}</span>
+                <CurrentEvidenceClaimStatus currentEvidenceStatus={selectedCurrentEvidenceStatus} claimId={finding.claimId} />
                 <details style={{ marginTop: 5, color: '#94a3b8' }}>
                   <summary>Technical verification details</summary>
                   <span style={{ display: 'block', marginTop: 4 }}>{selected.manifest.verifierVersion === CURRENT_CLAIM_VERIFIER_VERSION ? 'Finding code' : 'Recorded historical finding code (not a current claim verdict)'}: {finding.finding}; reason codes: {finding.reasonCodes.join(', ') || 'none'}.</span>

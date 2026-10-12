@@ -18,7 +18,7 @@ const REACTAPP_DIR = path.join(REPO_ROOT, 'reactapp');
 const OFFER_TEXT = 'The PPF interest rate is 7.1% p.a.';
 const TEST_ONLY_SCOPE = 'Disposable synthetic browser-test fixture; no source is fetched, reused, or qualified for production.';
 const ENV_KEYS = [
-  'NODE_ENV', 'JWT_SECRET', 'EXPOSE_AUTH_TOKEN', 'DISABLE_RATE_LIMIT', 'GENIEPROOF_ENABLED',
+  'NODE_ENV', 'JWT_SECRET', 'EXPOSE_AUTH_TOKEN', 'DISABLE_RATE_LIMIT', 'GENIEPROOF_ENABLED', 'VITE_GENIEPROOF_ENABLED',
   'MONGODB_URI', 'MONGO_URI', 'MONGO_URL', 'USE_TESTCONTAINERS', 'USE_MMS',
   'MONGOMS_SYSTEM_BINARY', 'MCP_ENABLED', 'MCP_REMOTE_ENABLED', 'AGENT_WORKER_ENABLED',
 ];
@@ -27,6 +27,7 @@ let envSnapshot;
 let mongoose;
 let mongoReplSet;
 let mongoDbPath = null;
+let mongoDatabaseName = null;
 let modelSet;
 let testSigner;
 let fixtureSource;
@@ -43,6 +44,26 @@ let cleanedUp = false;
 
 function setIsolatedTestEnvironment() {
   envSnapshot = new Map(ENV_KEYS.map(key => [key, process.env[key]]));
+  let ciMongoUri = null;
+  if (process.env.CI === 'true' && process.env.MONGODB_URI) {
+    let configuredUri;
+    try {
+      configuredUri = new URL(process.env.MONGODB_URI);
+    } catch {
+      throw new Error('The CI MongoDB URI must be a valid loopback replica-set URI.');
+    }
+    if (configuredUri.protocol !== 'mongodb:'
+        || configuredUri.hostname !== '127.0.0.1'
+        || configuredUri.port !== '27017'
+        || configuredUri.username
+        || configuredUri.password
+        || configuredUri.searchParams.get('replicaSet') !== 'rs0') {
+      throw new Error('The CI MongoDB URI must target the unauthenticated 127.0.0.1:27017 rs0 service.');
+    }
+    mongoDatabaseName = `wealthgenie_genieproof_e2e_${process.pid}_${crypto.randomUUID().replaceAll('-', '')}`;
+    configuredUri.pathname = `/${mongoDatabaseName}`;
+    ciMongoUri = configuredUri.toString();
+  }
   for (const key of ['MONGODB_URI', 'MONGO_URI', 'MONGO_URL']) delete process.env[key];
   Object.assign(process.env, {
     NODE_ENV: 'test',
@@ -56,6 +77,8 @@ function setIsolatedTestEnvironment() {
     MCP_REMOTE_ENABLED: 'false',
     AGENT_WORKER_ENABLED: 'false',
   });
+  process.env.VITE_GENIEPROOF_ENABLED = 'true';
+  if (ciMongoUri) process.env.MONGODB_URI = ciMongoUri;
 }
 
 function restoreTestEnvironment() {
@@ -284,9 +307,13 @@ async function cleanup() {
     await new Promise(resolve => apiServer.close(() => resolve()));
   }
   apiServer = null;
+  if (mongoDatabaseName && mongoose?.connection?.readyState) {
+    try { await mongoose.connection.dropDatabase(); } catch { /* Continue teardown after isolated-database cleanup errors. */ }
+  }
   try { if (mongoose?.connection?.readyState) await mongoose.disconnect(); } catch { /* Continue teardown after a connection error. */ }
   try { await mongoReplSet?.stop(); } catch { /* Continue teardown after a replica-set stop error. */ }
   mongoReplSet = null;
+  mongoDatabaseName = null;
   if (mongoDbPath) {
     const resolvedDbPath = path.resolve(mongoDbPath);
     const resolvedReactappDir = path.resolve(REACTAPP_DIR);
@@ -308,27 +335,32 @@ test.describe('synthetic-only authenticated GenieProof browser-to-worker integra
     try {
       const serverRequire = createRequire(path.join(SERVER_DIR, 'package.json'));
       mongoose = serverRequire('mongoose');
-      const { MongoMemoryReplSet } = serverRequire('mongodb-memory-server');
-      const localMongoCandidates = [
-        { version: '8.0.9', path: 'C:\\Program Files\\MongoDB\\Server\\8.0\\bin\\mongod.exe' },
-        { version: '7.0.5', path: path.join(process.env.USERPROFILE || '', '.cache', 'mongodb-binaries', 'mongod-x64-win32-7.0.5.exe') },
-        { version: '8.2.6', path: path.join(process.env.USERPROFILE || '', '.cache', 'mongodb-binaries', 'mongod-x64-win32-8.2.6.exe') },
-      ];
-      const localMongo = localMongoCandidates.find(candidate => fs.existsSync(candidate.path));
-      if (!localMongo) {
-        throw new Error(`A locally installed or cached MongoDB binary is required to keep this integration test offline. Checked: ${localMongoCandidates.map(candidate => candidate.path).join(', ')}`);
+      if (process.env.CI === 'true' && process.env.MONGODB_URI) {
+        await mongoose.connect(process.env.MONGODB_URI);
+      } else {
+        const { MongoMemoryReplSet } = serverRequire('mongodb-memory-server');
+        const localMongoCandidates = [
+          { version: '8.0.9', path: 'C:\\Program Files\\MongoDB\\Server\\8.0\\bin\\mongod.exe' },
+          { version: '7.0.5', path: path.join(process.env.USERPROFILE || '', '.cache', 'mongodb-binaries', 'mongod-x64-win32-7.0.5.exe') },
+          { version: '8.2.6', path: path.join(process.env.USERPROFILE || '', '.cache', 'mongodb-binaries', 'mongod-x64-win32-8.2.6.exe') },
+        ];
+        const localMongo = localMongoCandidates.find(candidate => fs.existsSync(candidate.path));
+        if (!localMongo) {
+          throw new Error(`A locally installed or cached MongoDB binary is required to keep this integration test offline. Checked: ${localMongoCandidates.map(candidate => candidate.path).join(', ')}`);
+        }
+        // The managed Windows Temp path can deny WiredTiger's atomic file rename.
+        // Keep this unique, disposable database inside the writable React app
+        // workspace and remove only this generated directory in cleanup().
+        mongoDbPath = path.join(REACTAPP_DIR, `.genieproof-e2e-mongo-${process.pid}-${crypto.randomUUID()}`);
+        fs.mkdirSync(mongoDbPath, { recursive: true });
+        mongoReplSet = await MongoMemoryReplSet.create({
+          binary: { version: localMongo.version, systemBinary: localMongo.path },
+          replSet: { count: 1, storageEngine: 'wiredTiger' },
+          instanceOpts: [{ dbPath: mongoDbPath }],
+        });
+        mongoDatabaseName = 'wealthgenie_genieproof_e2e_test';
+        await mongoose.connect(mongoReplSet.getUri(mongoDatabaseName));
       }
-      // The managed Windows Temp path can deny WiredTiger's atomic file rename.
-      // Keep this unique, disposable database inside the writable React app
-      // workspace and remove only this generated directory in cleanup().
-      mongoDbPath = path.join(REACTAPP_DIR, `.genieproof-e2e-mongo-${process.pid}-${crypto.randomUUID()}`);
-      fs.mkdirSync(mongoDbPath, { recursive: true });
-      mongoReplSet = await MongoMemoryReplSet.create({
-        binary: { version: localMongo.version, systemBinary: localMongo.path },
-        replSet: { count: 1, storageEngine: 'wiredTiger' },
-        instanceOpts: [{ dbPath: mongoDbPath }],
-      });
-      await mongoose.connect(mongoReplSet.getUri('wealthgenie_genieproof_e2e_test'));
 
       const persistence = await import(pathToFileURL(path.join(SERVER_DIR, 'services', 'persistenceIndexReadiness.js')).href);
       await persistence.migratePersistenceIndexes();
@@ -370,7 +402,7 @@ test.describe('synthetic-only authenticated GenieProof browser-to-worker integra
       // identity accepted by the availability/fetch gate. It is admitted only
       // to the isolated memory database; the worker refresh adapter below
       // writes synthetic receipts and never performs network IO.
-      const catalogShape = catalogModule.GENIEPROOF_SOURCE_CATALOG_CANDIDATES[0];
+      const catalogShape = catalogModule.GENIEPROOF_SOURCE_CATALOG_CANDIDATES.at(-1);
       fixtureSource = {
         ...catalogShape,
         revision: catalogShape.revision + 1,
