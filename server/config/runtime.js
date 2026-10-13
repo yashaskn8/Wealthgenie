@@ -1,6 +1,6 @@
 import { getMongoFlavor } from './mongoCompatibility.js';
 
-const LOCAL_DEVELOPMENT_ORIGINS = ['http://localhost:5173', 'http://localhost:3000'];
+const LOCAL_DEVELOPMENT_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 const LOCAL_MCP_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
 function positiveInteger(value, fallback, { min = 1, max = Number.MAX_SAFE_INTEGER } = {}) {

@@ -50,6 +50,20 @@ test('app factory rejects unapproved browser origins and returns traceable 404s'
   });
 });
 
+test('development CORS defaults allow the Vite IPv4 loopback origin', async () => {
+  const app = createApp({
+    env: { ...process.env, NODE_ENV: 'development', CORS_ORIGINS: '' },
+  });
+
+  await withServer(app, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/healthz`, {
+      headers: { Origin: 'http://127.0.0.1:5173' },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('access-control-allow-origin'), 'http://127.0.0.1:5173');
+  });
+});
+
 test('runtime configuration bounds ports, proxy trust, and HTTP lifecycle timeouts', () => {
   const config = getRuntimeConfig({
     NODE_ENV: 'production',
