@@ -1,5 +1,4 @@
 import { investmentDatabase, CONCENTRATION_CAPS } from '../data/investmentDatabase.js';
-import whereToInvestCatalog from '../data/whereToInvestCatalog.js';
 import {
   INSTRUMENT_PARAMS,
   PROJECTION_ASSUMPTION_DATA_CLASS,
@@ -30,6 +29,7 @@ import {
 } from './fixedIncomeProductRanking.js';
 import { enrichProductsWithPostTaxAndSuitability } from './productPostTaxCalculator.js';
 import { PROVIDERS } from './marketData/contracts.js';
+import { resolvePostTaxProviderRights } from './postTaxSourceRights.js';
 
 function reportPipelineTiming(onStageTiming, stage, startedAt, status = 'COMPLETED', error = null) {
   if (typeof onStageTiming !== 'function') return;
@@ -496,12 +496,12 @@ function historicalTargetDate(snapshot) {
   return reference.toISOString().slice(0, 10);
 }
 
-function referenceMetadata(parent, entry) {
+function referenceMetadata(parent) {
   return {
     dataClass: 'REFERENCE_METADATA',
     title: `Where to invest in ${parent.name}`,
-    note: 'Only the qualified provider response supplies products, rates, NAVs, historical returns, eligibility facts, and ordering. Legacy catalog copy is non-financial reference metadata and is not evidence.',
-    howToStart: entry?.howToStart || null,
+    note: 'Only qualified provider responses supply product facts. Legacy catalog instructions are not source-qualified and are unavailable.',
+    howToStart: null,
     riskLevel: parent.riskScore,
   };
 }
@@ -512,6 +512,7 @@ export function getWhereToInvestProviderCoverageMatrix() {
     const hasAmfiProductPath = supportsAmfiParentCategory(instrument.id)
       || supportsQualifiedEtfParentCategory(instrument.id);
     const provider = fixedIncomeProvider || (hasAmfiProductPath ? PROVIDERS.AMFI : null);
+    const sourceRights = provider ? resolvePostTaxProviderRights(provider) : null;
     const canBeRecommended = resolveBackendType(instrument) !== null && getInstrumentRisk(instrument) !== null;
     return {
       parentInstrumentId: instrument.id,
@@ -521,6 +522,9 @@ export function getWhereToInvestProviderCoverageMatrix() {
       provider,
       qualifiedWtiProvider: provider,
       productOptionsAvailable: Boolean(provider),
+      sourceRightsStatus: sourceRights?.status || 'SOURCE_UNAVAILABLE',
+      productionSourceUseAllowed: sourceRights?.productionPostTaxUseAllowed === true,
+      sourceRightsTerms: sourceRights?.termsUrls || [],
       status: provider ? 'QUALIFIED_PROVIDER_PATH' : 'UNSUPPORTED_FAIL_CLOSED',
       currentFailureMode: provider
         ? 'QUALIFIED_PROVIDER_RESPONSE_REQUIRED'
@@ -555,9 +559,9 @@ export async function rankWhereToInvestBackend(profileInput, options = {}, depen
     return attachWtiMetadata([], { excluded, riskReconciliation, catalog: null, ranking: null });
   }
 
-  const parent = { name: catalog.name, riskScore: getInstrumentRisk(catalog) };
+  const parent = { id: catalog.id, name: catalog.name, riskScore: getInstrumentRisk(catalog), suitabilityStatus: 'PASSED' };
   const catalogMetadata = {
-    ...referenceMetadata(parent, whereToInvestCatalog[catalog.id]),
+    ...referenceMetadata(parent),
     providerCoverage: getWhereToInvestProviderCoverageMatrix().find(item => item.parentInstrumentId === catalog.id),
   };
   const taxCalculationContext = options.taxCalculationContext
@@ -573,8 +577,9 @@ export async function rankWhereToInvestBackend(profileInput, options = {}, depen
     try {
       const enriched = enrichProductsWithPostTaxAndSuitability(resultProducts, {
         profile: canonical,
-        parentCatalog: catalog,
+        parentCatalog: parent,
         taxCalculationContext,
+        enforceSourceRights: dependencies.isProductionEnvironment ?? (process.env.NODE_ENV === 'production'),
       });
       reportPipelineTiming(dependencies.onStageTiming, 'tax_enrichment', startedAt);
       return attachWtiMetadata(enriched, metadata);
@@ -586,6 +591,33 @@ export async function rankWhereToInvestBackend(profileInput, options = {}, depen
 
   if (supportsFixedIncomeParentCategory(catalog.id)) {
     const provider = fixedIncomeProviderForParent(catalog.id);
+    const productionEnvironment = dependencies.isProductionEnvironment ?? (process.env.NODE_ENV === 'production');
+    const sourceRights = resolvePostTaxProviderRights(provider);
+    if (productionEnvironment && !sourceRights.productionPostTaxUseAllowed) {
+      const disclosure = 'This official data source is not cleared for WealthGenie production display or post-tax calculations. Product data remains unavailable until its exact reuse permissions are verified.';
+      return formatOutput([], {
+        excluded,
+        riskReconciliation,
+        catalog: catalogMetadata,
+        ranking: {
+          version: 'wti-source-rights-gate-1.0.0',
+          status: 'UNAVAILABLE',
+          authority: 'NONE',
+          method: null,
+          hasUniqueLeader: false,
+          reasonCodes: ['SOURCE_RIGHTS_UNQUALIFIED'],
+          warning: disclosure,
+        },
+        comparisonUniverse: {
+          parentInstrumentId: catalog.id,
+          sourceProvider: provider,
+          returnedProductCount: 0,
+          sourceRightsStatus: sourceRights.status,
+          productionSourceUseAllowed: false,
+          disclosure,
+        },
+      });
+    }
     let fetchSnapshot = null;
     if (provider === PROVIDERS.GOVERNMENT_OF_INDIA) {
       fetchSnapshot = dependencies.fetchGovernmentSavingsSnapshot || fetchGovernmentSavingsSnapshot;
@@ -640,6 +672,34 @@ export async function rankWhereToInvestBackend(profileInput, options = {}, depen
       catalog: catalogMetadata,
       ranking: result.ranking,
       comparisonUniverse: result.comparisonUniverse,
+    });
+  }
+
+  const productionEnvironment = dependencies.isProductionEnvironment ?? (process.env.NODE_ENV === 'production');
+  const sourceRights = resolvePostTaxProviderRights(PROVIDERS.AMFI);
+  if (productionEnvironment && !sourceRights.productionPostTaxUseAllowed) {
+    const disclosure = 'AMFI data-use rights have not been qualified for WealthGenie production display or post-tax calculations. No fund or ETF data is shown until the required permission is recorded.';
+    return formatOutput([], {
+      excluded,
+      riskReconciliation,
+      catalog: catalogMetadata,
+      ranking: {
+        version: 'wti-source-rights-gate-1.0.0',
+        status: 'UNAVAILABLE',
+        authority: 'NONE',
+        method: null,
+        hasUniqueLeader: false,
+        reasonCodes: ['SOURCE_RIGHTS_UNQUALIFIED'],
+        warning: disclosure,
+      },
+      comparisonUniverse: {
+        parentInstrumentId: catalog.id,
+        sourceProvider: PROVIDERS.AMFI,
+        returnedProductCount: 0,
+        sourceRightsStatus: sourceRights.status,
+        productionSourceUseAllowed: false,
+        disclosure,
+      },
     });
   }
 

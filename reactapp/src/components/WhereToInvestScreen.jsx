@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import WhereToInvestTab from './deepdive/WhereToInvestTab';
 import {
   AlertCircle,
@@ -48,6 +48,21 @@ const WhereToInvestScreen = ({
     return recommendedParents[0];
   }, [recommendedParents, selectedId]);
 
+  // Ensure active category tab smoothly scrolls into view when selection changes
+  useEffect(() => {
+    if (activeParent && railRef.current) {
+      const activeEl = railRef.current.querySelector('[aria-selected="true"]');
+      if (activeEl) {
+        const rail = railRef.current;
+        const railRect = rail.getBoundingClientRect();
+        const elRect = activeEl.getBoundingClientRect();
+        if (elRect.left < railRect.left || elRect.right > railRect.right) {
+          activeEl.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+        }
+      }
+    }
+  }, [activeParent]);
+
   const handleScrollRail = useCallback((direction) => {
     if (railRef.current) {
       const scrollOffset = direction === 'left' ? -260 : 260;
@@ -95,7 +110,9 @@ const WhereToInvestScreen = ({
       {/* ─── Hero Header & Context ─── */}
       <header className="wti-screen-header">
         <div className="wti-eyebrow">
-          <span className="wti-eyebrow-dot" />
+          <span className="wti-eyebrow-status-ring" aria-hidden="true">
+            <span className="wti-eyebrow-dot" />
+          </span>
           <span>SUITABILITY MATCHED · VERIFIED EXECUTION</span>
         </div>
         <h1 className="wti-title">
@@ -124,7 +141,7 @@ const WhereToInvestScreen = ({
             aria-label="Scroll categories left"
             title="Scroll left"
           >
-            <ChevronLeft size={15} />
+            <ChevronLeft size={16} />
           </button>
 
           <div
@@ -170,7 +187,7 @@ const WhereToInvestScreen = ({
             aria-label="Scroll categories right"
             title="Scroll right"
           >
-            <ChevronRight size={15} />
+            <ChevronRight size={16} />
           </button>
         </div>
       </nav>
@@ -184,7 +201,7 @@ const WhereToInvestScreen = ({
         >
           <div className="wti-deep-dive-info">
             <div className="wti-deep-dive-sparkle-box">
-              <Sparkles size={14} className="wti-deep-dive-sparkle" />
+              <Sparkles size={15} className="wti-deep-dive-sparkle" />
             </div>
             <div className="wti-deep-dive-text-col">
               <div className="wti-deep-dive-heading-row">
@@ -209,7 +226,7 @@ const WhereToInvestScreen = ({
               className="wti-deep-dive-action-btn"
               title="SIP & Growth Calculator"
             >
-              <Calculator size={13} />
+              <Calculator size={14} />
               <span>Calculator</span>
             </button>
             <button
@@ -219,7 +236,7 @@ const WhereToInvestScreen = ({
               className="wti-deep-dive-action-btn"
               title="Tax Treatment & Slabs"
             >
-              <Shield size={13} />
+              <Shield size={14} />
               <span>Tax Rules</span>
             </button>
             <button
@@ -229,7 +246,7 @@ const WhereToInvestScreen = ({
               className="wti-deep-dive-action-btn"
               title="Historical NAV and Drawdowns"
             >
-              <HistoryIcon size={13} />
+              <HistoryIcon size={14} />
               <span>History</span>
             </button>
             <button
@@ -240,7 +257,7 @@ const WhereToInvestScreen = ({
               title="Full 7-tab Deep Dive Modal"
             >
               <span>Full Deep Dive</span>
-              <ArrowUpRight size={13} />
+              <ArrowUpRight size={14} />
             </button>
           </div>
         </aside>

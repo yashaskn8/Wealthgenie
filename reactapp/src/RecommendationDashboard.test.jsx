@@ -1,9 +1,7 @@
 /** @vitest-environment jsdom */
 import '@testing-library/jest-dom/vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-const { useMarketContextMock } = vi.hoisted(() => ({ useMarketContextMock: vi.fn() }));
-vi.mock('./state/useMarketContext', () => ({ useMarketContext: useMarketContextMock }));
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import RecommendationDashboard from './RecommendationDashboard.jsx';
 
 const profile = {
@@ -13,12 +11,6 @@ const profile = {
 
 beforeEach(() => {
   localStorage.removeItem('wg_onboarded');
-  useMarketContextMock.mockReturnValue({
-    marketContext: null,
-    marketContextLoading: false,
-    marketContextError: null,
-    marketContextRefreshing: false,
-  });
 });
 afterEach(cleanup);
 
@@ -47,37 +39,11 @@ describe('RecommendationDashboard authority boundary', () => {
     expect(screen.queryByText(/offline estimate/i)).toBeNull();
   });
 
-  it('shows qualified observed market facts separately from modeled portfolio assumptions', () => {
-    useMarketContextMock.mockReturnValue({
-      marketContext: {
-        status: 'MARKET_CONTEXT_AVAILABLE',
-        marketSnapshot: {
-          status: 'MARKET_CLOSED',
-          observedAt: '2026-10-09T10:00:00.000Z',
-          freshness: { status: 'FRESH' },
-          marketSession: { status: 'MARKET_CLOSED' },
-          observedFacts: [
-            { key: 'nifty50Current', value: 22520.45, availabilityStatus: 'AVAILABLE', semanticClass: 'OBSERVED', source: { provider: 'NSE' } },
-            { key: 'nifty50PreviousClose', value: 22231.8, availabilityStatus: 'AVAILABLE', semanticClass: 'OBSERVED', source: { provider: 'NSE' } },
-            { key: 'indiaVixCurrent', value: 14.36, availabilityStatus: 'AVAILABLE', semanticClass: 'OBSERVED', source: { provider: 'NSE' } },
-          ],
-        },
-      },
-      marketContextLoading: false,
-      marketContextError: null,
-      marketContextRefreshing: false,
-    });
-
+  it('does not render market overview data on the dashboard', () => {
     render(<RecommendationDashboard userProfile={profile} recommendations={[]} />);
 
-    const overview = screen.getByTestId('home-market-overview');
-    expect(within(overview).getByRole('heading', { name: 'Market overview' })).toBeVisible();
-    expect(within(overview).getAllByText('Market closed')).toHaveLength(2);
-    expect(within(overview).getByText('22,520.45')).toBeVisible();
-    expect(within(overview).getByText('22,231.8')).toBeVisible();
-    expect(within(overview).getByText('14.36')).toBeVisible();
-    expect(within(overview).getByText(/Source: NSE · Freshness: FRESH/)).toBeVisible();
-    expect(within(overview).getByText(/separate from modeled return assumptions/i)).toBeVisible();
+    expect(screen.queryByTestId('home-market-overview')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Market overview' })).toBeNull();
   });
 
   it('renders only supplied server instruments and explains the property-proceeds invariant', () => {
@@ -97,5 +63,19 @@ describe('RecommendationDashboard authority boundary', () => {
     expect(screen.getByText(/Dashboard returns are pre-tax model assumptions/i)).toBeVisible();
     expect(screen.queryByText(/AI-synthesized financial allocation/i)).toBeNull();
     expect(screen.queryByText(/Returns shown are after tax/i)).toBeNull();
+  });
+  it('does not infer product terms from names or IDs for emergency-fund recommendations', () => {
+    render(<RecommendationDashboard
+      userProfile={{ ...profile, investment_goals: ['Emergency Fund'] }}
+      recommendations={[{
+        id: 'rbi_bonds', name: 'RBI gilt reference', type: 'RBI_Bond', assetClass: 'Debt',
+        nominalReturn: 0, monthly_allocation: 20000, allocation_pct: 100, riskLabel: 'Low', lockIn: null,
+      }]}
+    />);
+
+    expect(screen.getByRole('heading', { name: 'Emergency-fund recommendations' })).toBeVisible();
+    expect(screen.getByText(/Check each product’s current access, withdrawal, and lock-in terms/i)).toBeVisible();
+    expect(screen.queryByText(/T\+1 Redemption|1–7 days|zero lock-in|instant access|Sovereign Guarantee|Zero Credit Risk/i)).toBeNull();
+    expect(screen.queryByText(/2\.5% Coupon|15Y Tax-Free|Daily Access/i)).toBeNull();
   });
 });

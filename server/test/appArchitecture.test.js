@@ -50,6 +50,39 @@ test('app factory rejects unapproved browser origins and returns traceable 404s'
   });
 });
 
+test('production blocks every public Upstox-derived quote or market-context route without distribution clearance', async () => {
+  const env = {
+    ...process.env,
+    NODE_ENV: 'production',
+    MARKET_DATA_PRIMARY_PROVIDER: 'UPSTOX',
+    UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
+    CORS_ORIGINS: 'https://wealth.example',
+  };
+  const app = createApp({ env });
+
+  await withServer(app, async baseUrl => {
+    for (const path of [
+      '/api/market/rates',
+      '/api/market/benchmarks',
+      '/api/regime/current',
+      '/api/market-data/quotes?ids=market:index:nifty-50',
+    ]) {
+      const response = await jsonRequest(`${baseUrl}${path}`);
+      assert.equal(response.response.status, 503, path);
+      assert.equal(response.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED', path);
+    }
+  });
+});
+
+test('admin-only TejHQ market-history endpoints reject unauthenticated requests', async () => {
+  const app = createApp({ env: { ...process.env, NODE_ENV: 'test' } });
+  await withServer(app, async baseUrl => {
+    const response = await jsonRequest(`${baseUrl}/api/market-data/admin/tejhq/status`);
+    assert.equal(response.response.status, 401);
+    assert.equal(response.body.code, 'AUTH_REQUIRED');
+  });
+});
+
 test('development CORS defaults allow the Vite IPv4 loopback origin', async () => {
   const app = createApp({
     env: { ...process.env, NODE_ENV: 'development', CORS_ORIGINS: '' },

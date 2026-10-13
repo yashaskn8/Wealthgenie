@@ -119,7 +119,7 @@ function taxContext(context = {}) {
     fiscalYear: context.fiscalYear,
     userAge: Number.isInteger(userAge) ? userAge : undefined,
     deductions,
-    section112AExemptionUsed: Number(context.section112AExemptionUsed || 0),
+    section112AExemptionUsed: context.section112AExemptionUsed,
     section112AExemptionAppliedOverride: context.section112AExemptionAppliedOverride ?? null,
   };
 }
@@ -131,17 +131,28 @@ function missingContext(context, modelTaxClass, options = {}) {
       || modelTaxClass === MODEL_TAX_CLASSES.SGB) {
     required.push('holdingPeriod');
   }
+  if (modelTaxClass === MODEL_TAX_CLASSES.EQUITY_112A) {
+    required.push('section112AExemptionUsed');
+  }
   if (modelTaxClass === MODEL_TAX_CLASSES.NPS_EXIT) {
     required.push('annuityFraction', 'retirementTiming');
   }
   const missing = required.filter(key => {
     if (key === 'annualGrossIncome') return !Number.isFinite(Number(context?.annualGrossIncome));
     if (key === 'userAge') return !Number.isInteger(Number(context?.userAge));
+    if (key === 'section112AExemptionUsed') {
+      return !Number.isFinite(context?.section112AExemptionUsed) || context.section112AExemptionUsed < 0;
+    }
     if (key === 'holdingPeriod') {
       const hasDates = context?.acquisitionDate !== undefined || context?.redemptionDate !== undefined;
       return hasDates
         ? !context?.acquisitionDate || !context?.redemptionDate
         : !Number.isFinite(Number(context?.holdingPeriodMonths)) && !Number.isFinite(Number(options?.holdingYears));
+    }
+    if (key === 'section112AExemptionUsed') {
+      const used = context?.section112AExemptionUsed;
+      return used === undefined || used === null || used === ''
+        || !Number.isFinite(Number(used)) || Number(used) < 0;
     }
     if (key === 'annuityFraction') return !Number.isFinite(Number(options?.annuityFraction));
     if (key === 'retirementTiming') return !options?.retirementTiming;
@@ -252,6 +263,9 @@ function unavailableResult({ instrumentType, modelTaxClass = null, status = MODE
     instrumentType,
     modelTaxClass,
     taxClass: modelTaxClass,
+    grossGain: null,
+    taxableGain: null,
+    netGain: null,
     postTaxReturn: null,
     effectiveYield: null,
     taxRate: null,
@@ -370,7 +384,7 @@ export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, 
   const taxInputs = taxContext(context);
   const missing = missingContext(context, modelTaxClass, { ...options, holdingYears });
   if (missing.length > 0) {
-      return unavailableResult({ instrumentType, modelTaxClass, status: MODEL_POST_TAX_STATUSES.REQUIRES_TAX_INPUTS, reasons: missing, fiscalYear, policy });
+    return unavailableResult({ instrumentType, modelTaxClass, status: MODEL_POST_TAX_STATUSES.REQUIRES_TAX_INPUTS, reasons: missing, fiscalYear, policy });
   }
   if (modelTaxClass === MODEL_TAX_CLASSES.ORDINARY_INTEREST) {
     const annualPrincipal = monthlySIP * 12;
@@ -452,7 +466,11 @@ export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, 
       if (holding.unavailable) return unavailableResult({ instrumentType, modelTaxClass, status: MODEL_POST_TAX_STATUSES.REQUIRES_TAX_INPUTS, reasons: [holding.unavailable], fiscalYear, policy });
       holdingBasis = holding.holdingPeriodBasis;
       if (holding.isLongTerm) {
-        capitalTax = computeCapitalGainsTaxBuckets({ longTermOtherGain: capitalGain, ...taxInputs });
+        capitalTax = computeCapitalGainsTaxBuckets({
+          longTermOtherGain: capitalGain,
+          ...taxInputs,
+          section112AExemptionUsed: taxInputs.section112AExemptionUsed ?? 0,
+        });
       } else {
         capitalTax = calculateOrdinaryIncrementalTax({ grossGain: capitalGain, context });
       }
@@ -493,7 +511,11 @@ export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, 
   if (modelTaxClass === MODEL_TAX_CLASSES.EQUITY_112A) {
     capitalTax = computeCapitalGainsTaxBuckets({ shortTerm111AGain: shortTermGain, longTerm112AGain: longTermGain, ...taxInputs });
   } else if (longTermGain > 0) {
-    const longTermTax = computeCapitalGainsTaxBuckets({ longTermOtherGain: longTermGain, ...taxInputs });
+    const longTermTax = computeCapitalGainsTaxBuckets({
+      longTermOtherGain: longTermGain,
+      ...taxInputs,
+      section112AExemptionUsed: taxInputs.section112AExemptionUsed ?? 0,
+    });
     const shortTermTax = shortTermGain > 0 ? calculateOrdinaryIncrementalTax({ grossGain: shortTermGain, context }) : { taxAmount: 0, cess: 0, surcharge: 0 };
     capitalTax = { ...longTermTax, taxAmount: (longTermTax.taxAmount || 0) + shortTermTax.taxAmount, cess: (longTermTax.cess || 0) + shortTermTax.cess, surcharge: (longTermTax.surcharge || 0) + shortTermTax.surcharge };
   } else {
@@ -589,7 +611,9 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       unavailableReasons: ['PPF_SSY_EXCLUSION_ELIGIBILITY_NOT_ESTABLISHED', 'VERIFIED_ACCOUNT_AND_PAYMENT_FACTS_REQUIRED'],
     };
   }
-  if (postTaxResult.status !== MODEL_POST_TAX_STATUSES.CALCULATED || exactDateError) {
+  const section112AUsageMissing = modelTaxClass === MODEL_TAX_CLASSES.EQUITY_112A
+    && (!Number.isFinite(context.section112AExemptionUsed) || context.section112AExemptionUsed < 0);
+  if (postTaxResult.status !== MODEL_POST_TAX_STATUSES.CALCULATED || exactDateError || section112AUsageMissing) {
     return {
       status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE,
       totalInvested: Math.round(gross.totalInvested),
@@ -610,6 +634,7 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       unavailableReasons: [
         ...(postTaxResult.unavailableReasons || []),
         ...(exactDateError ? [exactDateError] : []),
+        ...(section112AUsageMissing ? ['section112AExemptionUsed'] : []),
       ],
     };
   }
@@ -648,11 +673,19 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
     } else if (shortTermGain > 0) {
       const shortTermTax = calculateOrdinaryIncrementalTax({ grossGain: shortTermGain, context });
       const longTermTax = longTermGain > 0
-        ? computeCapitalGainsTaxBuckets({ longTermOtherGain: longTermGain, ...values })
+        ? computeCapitalGainsTaxBuckets({
+          longTermOtherGain: longTermGain,
+          ...values,
+          section112AExemptionUsed: values.section112AExemptionUsed ?? 0,
+        })
         : { taxAmount: 0, cess: 0, surcharge: 0, status: 'CALCULATED' };
       tax = { status: longTermTax.status, taxAmount: shortTermTax.taxAmount + (longTermTax.taxAmount || 0), cess: shortTermTax.cess + (longTermTax.cess || 0), surcharge: shortTermTax.surcharge + (longTermTax.surcharge || 0), unavailableReasons: longTermTax.unavailableReasons || [] };
     } else {
-      tax = computeCapitalGainsTaxBuckets({ longTermOtherGain: longTermGain, ...values });
+      tax = computeCapitalGainsTaxBuckets({
+        longTermOtherGain: longTermGain,
+        ...values,
+        section112AExemptionUsed: values.section112AExemptionUsed ?? 0,
+      });
     }
     if (tax.status !== 'CALCULATED') {
       return { ...projectPostTaxCashFlows({ postTaxResult: { ...postTaxResult, status: 'UNAVAILABLE' }, instrument, context, inflationRate }), status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE, taxEvents: [] };

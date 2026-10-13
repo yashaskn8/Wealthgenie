@@ -38,7 +38,7 @@ function getDisplayDefaults(goal) {
 }
 
 function formatShort(val) {
-  if (val === null || val === undefined || val === '' || !Number.isFinite(Number(val))) return '—';
+  if (!isPresentFiniteNumber(val)) return '—';
   const numericValue = Number(val);
   if (numericValue >= 10000000) return `₹${(numericValue / 10000000).toFixed(2)} Cr`;
   if (numericValue >= 100000) return `₹${(numericValue / 100000).toFixed(1)}L`;

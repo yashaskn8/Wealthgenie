@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateTaxableIncome,
   computeCapitalGainsTaxBuckets,
+  computeEquityCapitalGainsTax,
   computeTax,
   getTaxPolicyCatalog,
   getTaxPolicyMetadata,
@@ -58,6 +59,7 @@ test('special-rate gains fail closed when residency could change the basic-exemp
       regime: 'new',
       incomeSource: 'other',
       fiscalYear,
+      section112AExemptionUsed: 0,
     });
     assert.equal(result.status, 'UNAVAILABLE');
     assert.equal(result.taxAmount, null);
@@ -70,9 +72,35 @@ test('special-rate gains fail closed when residency could change the basic-exemp
     regime: 'new',
     incomeSource: 'other',
     fiscalYear: CURRENT_FY,
+    section112AExemptionUsed: 0,
   });
   assert.equal(noBasicExemptionHeadroom.status, 'CALCULATED');
   assert.equal(noBasicExemptionHeadroom.taxable112A, 475_000);
+});
+
+test('capital-gains helpers require explicit Section 112A usage while accepting explicit zero', () => {
+  const buckets = {
+    longTerm112AGain: 200_000,
+    annualIncome: 3_000_000,
+    regime: 'new',
+    incomeSource: 'salary',
+    fiscalYear: CURRENT_FY,
+  };
+  assert.throws(() => computeCapitalGainsTaxBuckets(buckets), /section112AExemptionUsed/);
+  const bucketsWithZero = computeCapitalGainsTaxBuckets({ ...buckets, section112AExemptionUsed: 0 });
+  assert.equal(bucketsWithZero.status, 'CALCULATED');
+  assert.equal(bucketsWithZero.exemptionApplied, 125_000);
+
+  const equity = {
+    grossGain: 200_000,
+    holdingPeriodMonths: 13,
+    annualIncome: 3_000_000,
+    regime: 'new',
+    incomeSource: 'salary',
+    fiscalYear: CURRENT_FY,
+  };
+  assert.throws(() => computeEquityCapitalGainsTax(equity), /section112AExemptionUsed/);
+  assert.equal(computeEquityCapitalGainsTax({ ...equity, section112AExemptionUsed: 0 }).status, 'CALCULATED');
 });
 
 test('family-pension deduction is fiscal-year and regime policy, not a universal magic number', () => {

@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { motion } from 'framer-motion';
 import { TrendingUp, Rocket, PiggyBank, ArrowUpRight, Wallet, Calendar, Target, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatINR, formatCompactINR } from '../utils/indianNumberFormat';
+import { isPresentFiniteNumber } from '../utils/financialValues';
 import api from '../services/api';
 import JargonTooltip from './JargonTooltip';
 import './StepUpPlanner.css';
@@ -81,7 +82,7 @@ const StepUpPlanner = ({ profile }) => {
   const flatInvested = projection?.flatInvested ?? null;
   const stepUpInvested = projection?.stepUpInvested ?? null;
   const additionalCorpus = projection?.additionalCorpus ?? null;
-  const additionalPercent = Number.isFinite(Number(projection?.additionalPercent))
+  const additionalPercent = isPresentFiniteNumber(projection?.additionalPercent)
     ? Math.round(Number(projection.additionalPercent))
     : null;
   const chartData = projection?.chartData ?? [];

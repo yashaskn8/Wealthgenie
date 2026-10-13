@@ -16,6 +16,8 @@ import chatRoutes from '../routes/chatRoutes.js';
 import recommendRoutes from '../routes/recommend.js';
 import goalsRoutes from '../routes/goals.js';
 import marketRoutes from '../routes/market.js';
+import marketQuotesRoutes from '../routes/marketQuotes.js';
+import marketDataAdminRoutes from '../routes/marketDataAdmin.js';
 import agentRoutes from '../routes/agentRoutes.js';
 import genieProofRoutes from '../routes/genieProofRoutes.js';
 import projectionRoutes from '../routes/projection.js';
@@ -65,6 +67,8 @@ const publicMounts = [
   ['montecarlo.js', '/api/montecarlo'],
   ['goals.js', '/api/goals'],
   ['market.js', '/api/market'],
+  ['marketQuotes.js', '/api/market-data'],
+  ['marketDataAdmin.js', '/api/market-data'],
   ['tax.js', '/api/tax'],
   ['chatRoutes.js', '/api/chat'],
   ['portfolio.js', '/api/portfolio'],
@@ -88,7 +92,7 @@ function extractRoutes(source, receiver, prefix = '') {
       path: normalizePath(`${prefix}${match[2] === '/' ? '' : match[2]}`),
       // Authentication middleware appears in the route's argument preamble.
       // Limit the scan so a later route cannot make a long handler look protected.
-      authenticated: /\b(?:verifyJWT|verifyJWTWithRevocationAvailability)\b/.test(declaration.slice(0, 300)),
+      authenticated: /\b(?:verifyJWT|verifyJWTWithRevocationAvailability|authenticate)\b/.test(declaration.slice(0, 300)),
     };
   });
 }
@@ -156,6 +160,8 @@ function buildContractTestApp() {
   app.use('/api/chat', chatRoutes);
   app.use('/api/recommend', recommendRoutes);
   app.use('/api/market', marketRoutes);
+  app.use('/api/market-data', marketQuotesRoutes);
+  app.use('/api/market-data', marketDataAdminRoutes);
   app.use('/api/agent', agentRoutes);
   app.use('/api/genieproof', genieProofRoutes);
   app.use('/api/projection', projectionRoutes);
@@ -174,8 +180,10 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'GET /api/tax/compare', method: 'GET', path: '/api/tax/compare', url: '/api/tax/compare?income=1200000&incomeSource=salary&fiscalYear=FY2026-27&age=30', expectedStatus: 200 },
   { operation: 'GET /api/tax/compute', method: 'GET', path: '/api/tax/compute', url: '/api/tax/compute?income=1200000&incomeSource=salary&fiscalYear=FY2026-27&age=30&regime=new', expectedStatus: 200 },
   { operation: 'GET /api/tax/policies', method: 'GET', path: '/api/tax/policies', url: '/api/tax/policies', expectedStatus: 200 },
+  { operation: 'POST /api/tax/post-tax-scenario', method: 'POST', path: '/api/tax/post-tax-scenario', url: '/api/tax/post-tax-scenario', expectedStatus: 200, body: { canonicalInstrumentId: 'sbi_fd', scenarioType: 'INTEREST_INCOME', interestReceived: 2500, annualGrossIncome: 1000000, incomeSource: 'salary', regime: 'new', fiscalYear: 'FY2026-27', userAge: 35 } },
   { operation: 'GET /api/instruments', method: 'GET', path: '/api/instruments', url: '/api/instruments?page=1&limit=10', expectedStatus: 200 },
   { operation: 'GET /api/market/params', method: 'GET', path: '/api/market/params', url: '/api/market/params', expectedStatus: 200 },
+  { operation: 'GET /api/market-data/quotes', method: 'GET', path: '/api/market-data/quotes', url: '/api/market-data/quotes?ids=market:index:nifty-50', expectedStatus: 200 },
   { operation: 'POST /api/projection/compare', method: 'POST', path: '/api/projection/compare', url: '/api/projection/compare', expectedStatus: 200, body: { monthlyInvestment: 5000, annualReturnRate: 0.08, benchmarkRate: 0.06, inflationRate: 0.05, years: 5 } },
   { operation: 'POST /api/projection/allocation-split', method: 'POST', path: '/api/projection/allocation-split', url: '/api/projection/allocation-split', expectedStatus: 200, body: { monthlyInvestment: 5000, equityPct: 50 } },
   { operation: 'POST /api/projection/step-up', method: 'POST', path: '/api/projection/step-up', url: '/api/projection/step-up', expectedStatus: 200, body: { monthlyInvestment: 5000, annualReturnRate: 0.08, years: 5, annualStepUpRate: 0.05 } },

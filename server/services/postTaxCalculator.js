@@ -75,7 +75,7 @@ export function calculatePostTaxReturn(
     ...options,
     regime,
     holdingPeriodMonths: options.holdingPeriodMonths ?? (holdingYears * 12),
-    section112AExemptionUsed: options.section112AExemptionUsed ?? 0,
+    section112AExemptionUsed: options.section112AExemptionUsed,
     redemptionChannel: options.redemptionChannel ?? explicitLegacyChannel,
     acquiredAtOriginalIssue: options.acquiredAtOriginalIssue,
     heldContinuously: options.heldContinuously,
@@ -93,10 +93,6 @@ export function calculatePostTaxReturn(
     deductions: options.deductions || {},
     options: normalizedOptions,
   });
-  if (result.status === MODEL_POST_TAX_STATUSES.CALCULATED && options.section112AExemptionUsed === undefined
-      && result.modelTaxClass === 'MODEL_TAX_CLASS_EQUITY_112A') {
-    result.assumptions = [...(result.assumptions || []), 'LEGACY_CAPITAL_GAINS_EXEMPTION_INPUT_DEFAULTED_TO_ZERO'];
-  }
   return validatePostTaxInput(result, nominalRate, instrumentType);
 }
 

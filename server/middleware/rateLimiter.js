@@ -7,6 +7,10 @@ function rateLimitHandler(message, code) {
   return (req, res) => sendError(req, res, 429, message, code);
 }
 
+export function shouldSkipRateLimit(env = process.env) {
+  return env.NODE_ENV !== 'production' && env.DISABLE_RATE_LIMIT === 'true';
+}
+
 class HybridStore {
   constructor(options = {}) {
     this.options = options;
@@ -47,6 +51,20 @@ class HybridStore {
   async increment(key) {
     const store = this.getStore();
     if (store) return store.increment(key);
+    const explicitlyRequired = typeof this.options.requireSharedStore === 'function'
+      ? this.options.requireSharedStore()
+      : this.options.requireSharedStore === true;
+    const distributedRequired = this.options.requireDistributed
+      && (process.env.NODE_ENV === 'production' || process.env.REQUIRE_REDIS === 'true');
+    if (explicitlyRequired || distributedRequired) {
+      const error = new Error(explicitlyRequired
+        ? 'Shared rate-limit store is unavailable.'
+        : 'Distributed rate-limit store is unavailable.');
+      error.status = 503;
+      error.code = this.options.unavailableCode || 'RATE_LIMIT_STORE_UNAVAILABLE';
+      error.clientMessage = 'Request capacity could not be verified. Please retry shortly.';
+      throw error;
+    }
 
     const now = Date.now();
     const windowMs = this.options.windowMs || this.windowMs || 60000;
@@ -85,24 +103,62 @@ class HybridStore {
   }
 }
 
-// Strict limiter for authentication endpoints (registration, login)
-// SECURITY: passOnStoreError is explicitly FALSE - auth endpoints MUST fail closed
-// if the rate-limit store encounters an error to prevent brute-force attacks.
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes window
-  max: 100, // High threshold for cluster tests
-  message: { error: 'Authentication rate limit exceeded or store unavailable. Try again in 15 minutes.' },
-  handler: rateLimitHandler(
-    'Authentication rate limit exceeded or store unavailable. Try again in 15 minutes.',
-    'AUTH_RATE_LIMIT_EXCEEDED',
-  ),
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: new HybridStore({ prefix: 'rl:auth:', windowMs: 15 * 60 * 1000 }),
-  passOnStoreError: false, // SECURITY: Fail-closed on auth store error
-  validate: { singleCount: false },
-  skip: () => process.env.DISABLE_RATE_LIMIT === 'true',
-});
+// Auth cannot safely degrade to a process-local quota in production: separate
+// app replicas would each accept their own independent brute-force allowance.
+export function createAuthLimiter({
+  env = process.env,
+  getRedisState = () => ({ available: redisAvailable, client: redisClient }),
+} = {}) {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: { error: 'Authentication rate limit exceeded. Try again in 15 minutes.' },
+    handler: rateLimitHandler(
+      'Authentication rate limit exceeded. Try again in 15 minutes.',
+      'AUTH_RATE_LIMIT_EXCEEDED',
+    ),
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: new HybridStore({
+      prefix: 'rl:auth:',
+      windowMs: 15 * 60 * 1000,
+      requireSharedStore: () => env.NODE_ENV === 'production' || env.REQUIRE_REDIS === 'true',
+      unavailableCode: 'AUTH_RATE_LIMIT_UNAVAILABLE',
+    }),
+    passOnStoreError: false,
+    validate: { singleCount: false },
+    skip: () => shouldSkipRateLimit(env),
+  });
+
+  return (req, res, next) => {
+    if (env.NODE_ENV === 'production') {
+      const redis = getRedisState();
+      if (!redis?.available || !redis?.client) {
+        return sendError(
+          req,
+          res,
+          503,
+          'Authentication is temporarily unavailable because rate-limit capacity could not be verified.',
+          'AUTH_RATE_LIMIT_UNAVAILABLE',
+        );
+      }
+    }
+    return limiter(req, res, error => {
+      if (error && env.NODE_ENV === 'production') {
+        return sendError(
+          req,
+          res,
+          503,
+          'Authentication is temporarily unavailable because rate-limit capacity could not be verified.',
+          'AUTH_RATE_LIMIT_UNAVAILABLE',
+        );
+      }
+      return next(error);
+    });
+  };
+}
+
+export const authLimiter = createAuthLimiter();
 
 // Standard API rate limiter (protects database/CPU resource consumption)
 // AVAILABILITY: passOnStoreError is TRUE - non-auth API endpoints degrade gracefully
@@ -114,7 +170,7 @@ export const apiLimiter = rateLimit({
   store: new HybridStore({ prefix: 'rl:api:', windowMs: 60 * 1000 }),
   passOnStoreError: true, // Degrade gracefully for general read endpoints
   validate: { singleCount: false },
-  skip: () => process.env.DISABLE_RATE_LIMIT === 'true',
+  skip: () => shouldSkipRateLimit(),
 });
 
 // Factory function for dedicated endpoint rate limiters (Chat, Monte Carlo, Portfolio Optimisation)
@@ -134,9 +190,9 @@ export function createEndpointRateLimiter(options = {}) {
     standardHeaders: true,
     legacyHeaders: false,
     ...(keyGenerator ? { keyGenerator } : {}),
-    store: new HybridStore({ prefix, windowMs }),
-    passOnStoreError: true,
-    skip: () => process.env.DISABLE_RATE_LIMIT === 'true',
+    store: new HybridStore({ prefix, windowMs, requireDistributed: true, unavailableCode: 'ENDPOINT_RATE_LIMIT_UNAVAILABLE' }),
+    passOnStoreError: !(process.env.NODE_ENV === 'production' || process.env.REQUIRE_REDIS === 'true'),
+    skip: () => shouldSkipRateLimit(),
   });
 }
 

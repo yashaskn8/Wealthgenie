@@ -3,6 +3,7 @@ import { X, Send, Trash2, Sparkles, RefreshCw, Scale, Coins, Percent, Target, Ar
 import JargonTooltip from './JargonTooltip';
 import './GenieChat.css';
 import * as api from '../services/api';
+import { isPresentFiniteNumber } from '../utils/financialValues';
 import {
   formatFullINR,
   getSuggestedQuestions,
@@ -16,8 +17,9 @@ import {
 } from './GenieChatSubcomponents.jsx';
 
 function formatLakhs(value) {
+  if (!isPresentFiniteNumber(value)) return '—';
   const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? `₹${(numericValue / 100000).toFixed(1)}L` : '—';
+  return `₹${(numericValue / 100000).toFixed(1)}L`;
 }
 
 // ── Main Component ────────────────────────────────────────────────
@@ -28,6 +30,10 @@ const GenieChat = ({ profile, onNavigate }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [historyStatus, setHistoryStatus] = useState('idle');
+  const [historyError, setHistoryError] = useState(null);
+  const [clearStatus, setClearStatus] = useState('idle');
+  const [isClearing, setIsClearing] = useState(false);
   const [rateLimit, setRateLimit] = useState({ remaining: 30, total: 30 });
   const [isListening, setIsListening] = useState(false);
   const [sessionId, setSessionId] = useState(() => {
@@ -40,6 +46,7 @@ const GenieChat = ({ profile, onNavigate }) => {
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
+  const historyRequestIdRef = useRef(0);
 
   // ── 2026 Agentic Workspace State ────────────────────────────────
   const [activeWorkspace, setActiveWorkspace] = useState(null); // null | 'rebalancer' | 'sip-planner' | 'tax-optimizer'
@@ -196,10 +203,18 @@ const GenieChat = ({ profile, onNavigate }) => {
   const lastAssistantMsg = messages.filter(m => m.role === 'assistant').slice(-1)[0];
 
   const loadHistory = useCallback(async () => {
+    const requestId = ++historyRequestIdRef.current;
+    const requestedSessionId = sessionId;
+    setHistoryStatus('loading');
+    setHistoryError(null);
     try {
-      const data = await api.getChatHistory(sessionId);
-      if (data.conversations?.[0]?.messages) {
-        setMessages(data.conversations[0].messages.map(m => ({
+      const data = await api.getChatHistory(requestedSessionId);
+      if (requestId !== historyRequestIdRef.current || requestedSessionId !== sessionId) return;
+      if (!Array.isArray(data?.conversations)) throw new Error('Invalid chat history response');
+      const conversation = data.conversations[0];
+      if (conversation && !Array.isArray(conversation.messages)) throw new Error('Invalid chat history response');
+      if (conversation?.messages) {
+        setMessages(conversation.messages.map(m => ({
           role: m.role === 'model' ? 'assistant' : 'user',
           content: m.content,
           timestamp: m.timestamp || new Date().toISOString(),
@@ -213,17 +228,23 @@ const GenieChat = ({ profile, onNavigate }) => {
           citations: m.metadata?.citations || [],
           _streamed: true,
         })));
+      } else {
+        setMessages([]);
       }
+      setHistoryStatus('loaded');
     } catch {
-      // Graceful error handle — fallback silently to empty chat history
+      if (requestId !== historyRequestIdRef.current || requestedSessionId !== sessionId) return;
+      setHistoryStatus('failed');
+      setHistoryError('Saved chat history could not be loaded. Check your connection and retry.');
     }
   }, [sessionId]);
 
   useEffect(() => {
-    if (isOpen && sessionId && messages.length === 0) {
+    if (isOpen && sessionId && historyStatus === 'idle') {
       loadHistory();
     }
-  }, [isOpen, sessionId, messages.length, loadHistory]);
+  }, [isOpen, sessionId, historyStatus, loadHistory]);
+  useEffect(() => () => { historyRequestIdRef.current += 1; }, []);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isLoading]);
 
   // Voice recognition setup
@@ -322,13 +343,31 @@ const GenieChat = ({ profile, onNavigate }) => {
   const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
   const clearChat = async () => {
+    if (isClearing) return;
+    setIsClearing(true);
+    setClearStatus('pending');
+    setHistoryError(null);
     try {
       await api.clearChatSession(sessionId);
+      historyRequestIdRef.current += 1;
+      setMessages([]);
+      setError(null);
+      setRateLimit({ remaining: 30, total: 30 });
+      const newId = crypto.randomUUID();
+      setSessionId(newId);
+      setHistoryStatus('idle');
+      setClearStatus('confirmed');
+      try {
+        sessionStorage.setItem('genie_session_id', newId);
+      } catch {
+        setClearStatus('storage-warning');
+      }
     } catch {
-      // Best effort deletion, fallback to local reset
+      setClearStatus('failed');
     }
-    setMessages([]); setError(null); setRateLimit({ remaining: 30, total: 30 });
-    const newId = crypto.randomUUID(); sessionStorage.setItem('genie_session_id', newId); setSessionId(newId);
+    finally {
+      setIsClearing(false);
+    }
   };
 
   const suggestedQuestions = getSuggestedQuestions(profile);
@@ -353,14 +392,32 @@ const GenieChat = ({ profile, onNavigate }) => {
                 <button onClick={() => setIsExpanded(prev => !prev)} title={isExpanded ? "Restore compact size" : "Expand size"} aria-label={isExpanded ? "Restore compact size" : "Expand size"}>
                   {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                 </button>
-                <button onClick={clearChat} title="Clear chat" aria-label="Clear chat conversation"><Trash2 size={16} /></button>
+                <button onClick={clearChat} title="Clear chat" aria-label="Clear chat conversation" disabled={isClearing}><Trash2 size={16} /></button>
                 <button onClick={() => setIsOpen(false)} title="Close" aria-label="Close chat helper"><X size={18} /></button>
               </div>
             </div>
 
             {/* Messages */}
             <div className="genie-messages">
-              {messages.length === 0 && !isLoading && (
+              {historyStatus === 'loading' && messages.length === 0 && (
+                <div role="status" className="chat-history-status">Loading saved conversation…</div>
+              )}
+              {historyError && (
+                <div role="alert" className="chat-error-banner">
+                  <span>{historyError}</span>
+                  <button type="button" onClick={loadHistory}>Retry loading history</button>
+                </div>
+              )}
+              {clearStatus === 'pending' && <div role="status" className="chat-history-status">Clearing saved conversation…</div>}
+              {clearStatus === 'confirmed' && <div role="status" className="chat-history-status">Saved conversation cleared.</div>}
+              {clearStatus === 'storage-warning' && <div role="status" className="chat-history-status">Saved conversation cleared, but the new chat session could not be remembered for the next visit.</div>}
+              {clearStatus === 'failed' && (
+                <div role="alert" className="chat-error-banner">
+                  <span>The conversation could not be cleared. Your saved messages are still available.</span>
+                  <button type="button" onClick={clearChat}>Retry clear</button>
+                </div>
+              )}
+              {messages.length === 0 && !isLoading && historyStatus === 'loaded' && !historyError && (
                 <div className="genie-welcome">
                   <div className="genie-welcome-glow" />
                   <div className="genie-welcome-avatar"><div className="welcome-avatar-ring"><span className="ba-letter ba-large">G</span></div></div>
@@ -520,7 +577,7 @@ const GenieChat = ({ profile, onNavigate }) => {
                     totalInvested: sipProjection?.stepUpInvested ?? null,
                   };
                   const diff = sipProjection?.additionalCorpus ?? null;
-                  const pct = Number.isFinite(Number(sipProjection?.additionalPercent))
+                  const pct = isPresentFiniteNumber(sipProjection?.additionalPercent)
                     ? Math.round(Number(sipProjection.additionalPercent))
                     : null;
 

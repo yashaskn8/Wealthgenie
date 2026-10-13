@@ -5,6 +5,7 @@ import React from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, render as rtlRender, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react';
 import WhereToInvestTab from '../deepdive/WhereToInvestTab';
+import UserDeclaredScenarioPanel from '../deepdive/UserDeclaredScenarioPanel';
 import * as api from '../../services/api';
 import { resetMarketContextStoreForTest } from '../../state/useMarketContext';
 
@@ -17,6 +18,7 @@ vi.mock('../../services/api', () => ({
     currentFiscalYearVerified: true,
     verifiedFiscalYears: ['FY2025-26', 'FY2026-27'],
   })),
+  computeUserDeclaredPostTaxScenario: vi.fn(),
 }));
 
 const CURRENT_STATE_BINDING = {
@@ -37,6 +39,79 @@ const CURRENT_RECOMMENDATION_META = {
   recommendation_fingerprint: CURRENT_STATE_BINDING.recommendationFingerprint,
 };
 
+function makeMarketContext({
+  digest = 'c'.repeat(64),
+  evaluatedAt = '2026-09-08T10:01:00.000Z',
+  observedAt = '2026-09-08T10:00:00.000Z',
+  context = 'CAUTIOUS',
+  usabilityStatus = 'USABLE',
+  usabilityReasonCodes = [],
+  marketStatus = 'CURRENT',
+} = {}) {
+  return {
+    status: 'MARKET_CONTEXT_AVAILABLE',
+    context,
+    classification: 'DETERMINISTIC_POLICY_HEURISTIC',
+    policyVersion: 'market-context-policy-1.0.0',
+    observedAt,
+    evaluatedAt,
+    recommendationUsability: {
+      status: usabilityStatus,
+      reasonCodes: usabilityReasonCodes,
+      maxAgeSeconds: 900,
+    },
+    freshness: { status: 'FRESH' },
+    signals: {},
+    sources: [{ provider: 'NSE', instrumentId: 'NIFTY 50', dataClass: 'LIVE' }],
+    marketSnapshot: {
+      schemaVersion: 'market-snapshot-1.0.0',
+      status: marketStatus,
+      availability: 'AVAILABLE',
+      observedAt,
+      evaluatedAt,
+      marketSession: { status: 'MARKET_OPEN', tradingDate: '2026-09-08', checkedAt: evaluatedAt },
+      providerStatus: { quotes: { provider: 'NSE', status: 'AVAILABLE' }, history: { provider: 'NSE', status: 'AVAILABLE' } },
+      observedFacts: [{ key: 'nifty50Current', value: 23450.5, observedAt, source: { provider: 'NSE', instrumentId: 'NIFTY 50' } }],
+      derivedFacts: [{ key: 'return20DayPct', value: -1.2 }],
+      policyOutput: { status: 'MARKET_CONTEXT_AVAILABLE', context, policyVersion: 'market-context-policy-1.0.0', reasonCodes: ['DRAWDOWN_EXCEEDS_CAUTION_THRESHOLD'], evaluatedAt },
+      provenance: { sources: [{ provider: 'NSE', instrumentId: 'NIFTY 50' }], qualification: 'OFFICIAL_NSE_TEST_CONTRACT' },
+      freshness: { status: 'FRESH', ageSeconds: 60, maxAgeSeconds: 900 },
+      recommendationUsability: { status: usabilityStatus, reasonCodes: usabilityReasonCodes, maxAgeSeconds: 900 },
+      evidenceRevision: 'd'.repeat(64),
+      contentRevision: { version: 'market-snapshot-content-1.0.0', digest },
+    },
+  };
+}
+
+function makePreviewResult({ market = makeMarketContext(), overrides = {} } = {}) {
+  return {
+    applied: true,
+    maxTotalTiltPct: 2,
+    actualTotalTiltPct: 2,
+    baseWeights: { ppf: 0.85, large_cap_mf: 0.15 },
+    adjustedWeights: { ppf: 0.87, large_cap_mf: 0.13 },
+    adjustedInstruments: [
+      { id: 'ppf', name: 'Public Provident Fund', riskScore: 1, allocationWeight: 0.87, allocation_pct: 87 },
+      { id: 'large_cap_mf', name: 'Large-cap mutual funds', riskScore: 5, allocationWeight: 0.13, allocation_pct: 13 },
+    ],
+    explanations: [
+      { instrumentId: 'large_cap_mf', direction: 'REDUCE', deltaPct: -2, reasonCode: 'BOUNDED_REDUCTION_FROM_HIGHER_RISK_ELIGIBLE_INSTRUMENT' },
+      { instrumentId: 'ppf', direction: 'INCREASE', deltaPct: 2, reasonCode: 'BOUNDED_TRANSFER_TO_LOWEST_RISK_ALREADY_ELIGIBLE_INSTRUMENT' },
+    ],
+    reasonCodes: ['SERVER_AUTHORITATIVE_RECOMMENDATION_ONLY'],
+    marketContext: market,
+    profileId: CURRENT_STATE_BINDING.profileId,
+    profile_version: CURRENT_STATE_BINDING.profileVersion,
+    recommendationId: CURRENT_STATE_BINDING.recommendationId,
+    allocation_revision: CURRENT_STATE_BINDING.allocationRevision,
+    allocation_revision_id: CURRENT_STATE_BINDING.allocationRevisionId,
+    portfolio_fingerprint: CURRENT_STATE_BINDING.portfolioFingerprint,
+    recommendation_fingerprint: CURRENT_STATE_BINDING.recommendationFingerprint,
+    persisted: false,
+    ...overrides,
+  };
+}
+
 function render(element, options) {
   if (element?.type === WhereToInvestTab) {
     element = React.cloneElement(element, {
@@ -48,6 +123,23 @@ function render(element, options) {
 }
 
 describe('Beginner-First Where-To-Invest UX', () => {
+  it('keeps missing plan allocation unavailable while preserving an explicit zero', async () => {
+    api.rankInvestmentCandidates.mockResolvedValueOnce({
+      financialStateBinding: CURRENT_STATE_BINDING,
+      products: [],
+    });
+    const profile = { profileId: CURRENT_STATE_BINDING.profileId, version: CURRENT_STATE_BINDING.profileVersion };
+    const view = render(<WhereToInvestTab inv={{ id: 'index_mf', name: 'Index Fund', allocation_pct: null }} userProfile={profile} />);
+
+    await waitFor(() => expect(api.rankInvestmentCandidates).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('Plan allocation')).toBeNull();
+    expect(screen.queryByText('0%')).toBeNull();
+
+    view.rerender(<WhereToInvestTab inv={{ id: 'index_mf', name: 'Index Fund', allocation_pct: 0 }} userProfile={profile} recommendationMeta={CURRENT_RECOMMENDATION_META} />);
+    expect(screen.getByText('Plan allocation')).toBeVisible();
+    expect(screen.getByText('0%')).toBeVisible();
+  });
+
   it('excludes an obsolete product response after profile-version replacement even if abort is ignored', async () => {
     let resolveOld;
     api.rankInvestmentCandidates.mockReturnValueOnce(new Promise(done => { resolveOld = done; }));
@@ -147,7 +239,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
     expect(card.getByText(/A verified historical return is shown for context only\. Historical performance is not an expected return/)).toBeVisible();
     expect(card.getByText('Risk classification unavailable')).toBeVisible();
     expect(card.getByText('Access terms unavailable')).toBeVisible();
-    expect(card.getByText(/tax classification unavailable/)).toBeVisible();
+    expect(card.getByText('Tax treatment is not verified for this exact product.')).toBeVisible();
     expect(card.getByRole('link', { name: 'NSE evidence' })).toHaveAttribute('href', 'https://nsearchives.nseindia.com/trading_security/mf/pdf/scheme.pdf');
     expect(card.getByRole('link', { name: 'Benchmark evidence' })).toHaveAttribute('href', 'https://mf.nipponindiaim.com/FundsAndPerformance/ProductNotes/NipponIndia-ETF-Nifty-50-BeES-Feb-2026.pdf');
   });
@@ -169,6 +261,78 @@ describe('Beginner-First Where-To-Invest UX', () => {
     expect(await screen.findByText(/Authoritative product ranking is temporarily unavailable/i)).toBeVisible();
     expect(screen.queryByTestId('wti-product-ppf:fact')).toBeNull();
   });
+
+  it('explains when production product data is unavailable because source reuse rights are not cleared', async () => {
+    api.rankInvestmentCandidates.mockResolvedValueOnce({
+      financialStateBinding: CURRENT_STATE_BINDING,
+      products: [],
+      ranking: { status: 'UNAVAILABLE', reasonCodes: ['SOURCE_RIGHTS_UNQUALIFIED'] },
+      comparisonUniverse: {
+        sourceRightsStatus: 'BLOCKED_REUSE_RIGHTS',
+        productionSourceUseAllowed: false,
+        disclosure: 'Source reuse permission is unqualified.',
+      },
+    });
+    render(<WhereToInvestTab
+      inv={{ id: 'index_mf', name: 'Index Fund' }}
+      userProfile={{ profileId: '64b000000000000000000001' }}
+    />);
+    expect(await screen.findByText(/not cleared for WealthGenie production display/i)).toBeVisible();
+    expect(screen.queryByText('BLOCKED_REUSE_RIGHTS')).toBeNull();
+    expect(screen.queryByText(/static fallback values were inserted/i)).toBeNull();
+  });
+
+  it('submits explicitly entered SBI interest and tax facts as a user-declared scenario', async () => {
+    api.computeUserDeclaredPostTaxScenario.mockResolvedValueOnce({
+      status: 'CALCULATED',
+      dataClass: 'USER_DECLARED_TRANSACTION',
+      inputBasis: 'USER_DECLARED_SCENARIO',
+      grossGain: 2500,
+      incrementalTax: 0,
+      netGain: 2500,
+      postTaxRatePct: null,
+      disclosure: 'These values were entered by you and are not verified market facts.',
+    });
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="sbi_fd"
+      instrumentName="SBI fixed deposit"
+      initialAge={35}
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    fireEvent.click(screen.getByText('Use your own transaction facts'));
+    fireEvent.change(screen.getByLabelText(/Gross interest received in this fiscal year/i), { target: { value: '2500' } });
+    fireEvent.change(screen.getByLabelText(/Annual tax income before this scenario/i), { target: { value: '1000000' } });
+    fireEvent.change(screen.getByLabelText('Income source'), { target: { value: 'salary' } });
+    fireEvent.change(screen.getByLabelText('Tax regime'), { target: { value: 'new' } });
+    fireEvent.click(screen.getByLabelText(/I confirm these entered tax facts cover my scenario/i));
+    fireEvent.submit(screen.getByRole('button', { name: /Calculate my scenario/i }).closest('form'));
+
+    await waitFor(() => expect(api.computeUserDeclaredPostTaxScenario).toHaveBeenCalledTimes(1));
+    expect(api.computeUserDeclaredPostTaxScenario).toHaveBeenCalledWith(expect.objectContaining({
+      canonicalInstrumentId: 'sbi_fd',
+      scenarioType: 'INTEREST_INCOME',
+      interestReceived: 2500,
+      annualGrossIncome: 1000000,
+      incomeSource: 'salary',
+      regime: 'new',
+      fiscalYear: 'FY2026-27',
+      userAge: 35,
+    }));
+    expect(await screen.findByText('Interest after tax')).toBeVisible();
+    expect(screen.getAllByText(/not verified market facts/i)).toHaveLength(2);
+    expect(screen.queryByText(/\d+(?:\.\d+)?%/)).toBeNull();
+  });
+
+  it('does not offer a user-entered tax result where product classification is unavailable', () => {
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="physical_gold"
+      instrumentName="Physical gold"
+      taxPolicyMetadata={{ verifiedFiscalYears: [] }}
+    />);
+    fireEvent.click(screen.getByText('Use your own transaction facts'));
+    expect(screen.getByText(/needs an exact product tax classification/i)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Calculate my scenario/i })).toBeNull();
+  });
   afterEach(() => {
     cleanup();
     resetMarketContextStoreForTest();
@@ -179,13 +343,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
     vi.clearAllMocks();
 
     api.getCurrentMarketContext.mockResolvedValue({
-      status: 'MARKET_CONTEXT_AVAILABLE',
-      context: 'CAUTIOUS',
-      classification: 'DETERMINISTIC_POLICY_HEURISTIC',
-      policyVersion: 'market-context-policy-1.0.0',
-      observedAt: '2026-09-08T10:00:00.000Z',
-      evaluatedAt: '2026-09-08T10:01:00.000Z',
-      freshness: { status: 'FRESH' },
+      ...makeMarketContext(),
       reasonCodes: ['DRAWDOWN_EXCEEDS_CAUTION_THRESHOLD', 'VIX_ABOVE_CAUTION_LEVEL'],
       signals: {
         nifty50Current: { value: 23450.5, unit: 'INDEX_POINTS', available: true },
@@ -387,11 +545,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
   });
 
   it('triggers profile-safe adjustment preview when See how this affects my plan is clicked', async () => {
-    api.previewMarketContextAdjustment.mockResolvedValueOnce({
-      applied: true,
-      actualTotalTiltPct: 3.5,
-      explanations: ['Slight shift to short-term sovereign instruments'],
-    });
+    api.previewMarketContextAdjustment.mockResolvedValueOnce(makePreviewResult());
 
     render(
       <WhereToInvestTab
@@ -407,8 +561,104 @@ describe('Beginner-First Where-To-Invest UX', () => {
     fireEvent.click(previewBtn);
 
     expect(api.previewMarketContextAdjustment).toHaveBeenCalledWith('64b000000000000000000001', { signal: expect.any(AbortSignal) });
-    expect(await screen.findByText(/Adjustment Preview Ready ✓/i)).toBeTruthy();
-    expect(screen.getByText(/bounded 3.5% total tilt/i)).toBeTruthy();
+    const preview = await screen.findByRole('region', { name: 'Hypothetical plan allocation preview' });
+    expect(within(preview).getByText('Cautious')).toBeVisible();
+    expect(within(preview).getByText('2.00%', { selector: 'dd' })).toBeVisible();
+    expect(within(preview).getByTestId('preview-row-ppf')).toHaveTextContent('85.00%87.00%Increase +2.00 pp');
+    expect(within(preview).getByTestId('preview-row-large_cap_mf')).toHaveTextContent('15.00%13.00%Reduce −2.00 pp');
+    expect(within(preview).getByText(/saved plan has not changed; nothing has been bought or sold/i)).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide allocation preview' }));
+    expect(screen.queryByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show allocation preview' }));
+    expect(screen.getByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeVisible();
+    expect(api.previewMarketContextAdjustment).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the preview valid across an evaluation-only market refresh', async () => {
+    api.previewMarketContextAdjustment.mockResolvedValueOnce(makePreviewResult());
+    render(<WhereToInvestTab
+      inv={{ id: 'ppf', name: 'Public Provident Fund', riskScore: 1 }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: 1 }}
+    />);
+    fireEvent.click(await screen.findByRole('button', { name: 'See how this affects my plan' }));
+    expect(await screen.findByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeVisible();
+
+    api.getCurrentMarketContext.mockResolvedValueOnce(makeMarketContext({ evaluatedAt: '2026-09-08T10:04:00.000Z' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh market data' }));
+
+    expect(await screen.findByText(/saved plan has not changed/i)).toBeVisible();
+    expect(screen.queryByText(/This preview is stale/i)).toBeNull();
+  });
+
+  it('invalidates the preview when normalized market evidence changes at the same evaluation time', async () => {
+    api.previewMarketContextAdjustment.mockResolvedValueOnce(makePreviewResult());
+    render(<WhereToInvestTab
+      inv={{ id: 'ppf', name: 'Public Provident Fund', riskScore: 1 }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: 1 }}
+    />);
+    fireEvent.click(await screen.findByRole('button', { name: 'See how this affects my plan' }));
+    expect(await screen.findByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeVisible();
+
+    api.getCurrentMarketContext.mockResolvedValueOnce(makeMarketContext({ digest: 'e'.repeat(64) }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh market data' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/verified market snapshot changed/i);
+    expect(screen.queryByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeNull();
+  });
+
+  it('keeps a portfolio preview request alive when the selected investment category changes', async () => {
+    let resolvePreview;
+    api.previewMarketContextAdjustment.mockReturnValueOnce(new Promise(resolve => { resolvePreview = resolve; }));
+    const view = render(<WhereToInvestTab
+      inv={{ id: 'ppf', name: 'Public Provident Fund', riskScore: 1 }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: 1 }}
+      recommendationMeta={CURRENT_RECOMMENDATION_META}
+    />);
+    fireEvent.click(await screen.findByRole('button', { name: 'See how this affects my plan' }));
+    const signal = api.previewMarketContextAdjustment.mock.calls[0][1].signal;
+    view.rerender(<WhereToInvestTab
+      inv={{ id: 'large_cap_mf', name: 'Large-cap mutual funds', riskScore: 4 }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: 1 }}
+      recommendationMeta={CURRENT_RECOMMENDATION_META}
+    />);
+    expect(signal.aborted).toBe(false);
+
+    await act(async () => resolvePreview(makePreviewResult()));
+    expect(await screen.findByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeVisible();
+  });
+
+  it('declines a preview response if market evidence changes while the request is pending', async () => {
+    let resolvePreview;
+    api.previewMarketContextAdjustment.mockReturnValueOnce(new Promise(resolve => { resolvePreview = resolve; }));
+    render(<WhereToInvestTab
+      inv={{ id: 'ppf', name: 'Public Provident Fund', riskScore: 1 }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: 1 }}
+    />);
+    fireEvent.click(await screen.findByRole('button', { name: 'See how this affects my plan' }));
+
+    api.getCurrentMarketContext.mockResolvedValueOnce(makeMarketContext({ digest: 'e'.repeat(64) }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh market data' }));
+    await waitFor(() => expect(api.getCurrentMarketContext).toHaveBeenCalledTimes(2));
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => resolvePreview(makePreviewResult()));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/changed while this preview was running/i);
+    expect(screen.queryByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeNull();
+  });
+
+  it('rejects a preview bound to another saved-plan revision and isolates product-ranking failures', async () => {
+    api.rankInvestmentCandidates.mockRejectedValueOnce(new Error('Product ranking unavailable'));
+    api.previewMarketContextAdjustment.mockResolvedValueOnce(makePreviewResult({ overrides: { allocation_revision: 2 } }));
+    render(<WhereToInvestTab
+      inv={{ id: 'liquid_etf', name: 'Liquid ETFs', riskScore: 1 }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: 1 }}
+    />);
+
+    expect(await screen.findByText(/Authoritative product ranking is temporarily unavailable/i)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'See how this affects my plan' }));
+    expect(await screen.findByText(/Your saved plan has changed/i)).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeNull();
   });
 
   it('renders plain-English Why this fits you, risk tier, and access to money', async () => {
@@ -444,7 +694,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
     );
 
     const ppf = within(await screen.findByTestId('wti-product-ppf:fact'));
-    expect(ppf.getByText(/Exact-product tax illustration: tax classification requires acquisition facts/i)).toBeVisible();
+    expect(ppf.getByText(/Additional product or account facts are needed before a tax result can be calculated./i)).toBeVisible();
     expect(ppf.getByText(/No tax-free result or after-tax rate is inferred/i)).toBeVisible();
     expect(ppf.queryByText('Defensible Post-Tax')).toBeNull();
     expect(screen.queryByRole('button', { name: /Exact-product tax illustration/i })).toBeNull();
@@ -455,6 +705,32 @@ describe('Beginner-First Where-To-Invest UX', () => {
     expect(screen.getAllByText('₹25,000').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('₹50,000').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('₹1,00,000').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it.each([
+    ['unknown', { status: 'FUTURE_TAX_STATUS', postTaxRatePct: 99 }],
+    ['missing', undefined],
+  ])('shows no tax amount when the product tax analysis is %s', async (_case, postTaxAnalysis) => {
+    api.rankInvestmentCandidates.mockResolvedValueOnce({
+      financialStateBinding: CURRENT_STATE_BINDING,
+      products: [{
+        id: 'tax-fallback',
+        name: 'Tax fallback product',
+        officialRate: { value: 7.1 },
+        ...(postTaxAnalysis ? { postTaxAnalysis } : {}),
+      }],
+    });
+    render(
+      <WhereToInvestTab
+        inv={{ id: 'ppf', name: 'Public Provident Fund', riskScore: 1 }}
+        userProfile={{ profileId: '64b000000000000000000001' }}
+      />
+    );
+    const card = within(await screen.findByTestId('wti-product-tax-fallback'));
+    expect(card.getByText(postTaxAnalysis
+      ? 'Tax status could not be verified. No tax amount is shown.'
+      : 'No tax analysis was returned. No tax amount is shown.')).toBeVisible();
+    expect(card.queryByText(/FUTURE_TAX_STATUS|99%/)).toBeNull();
   });
 
   it('prioritizes an official current rate over historical return in the product card', async () => {

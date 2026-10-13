@@ -41,6 +41,21 @@ async function fillValidForm() {
 }
 
 describe('ProfilePage backend version contract', () => {
+  it('keeps a missing lump-sum amount distinct from an explicit zero', async () => {
+    vi.spyOn(api, 'getCurrentProfile').mockRejectedValue({ status: 404 });
+    vi.spyOn(api, 'getCurrentRecommendation').mockRejectedValue({ status: 404 });
+    render(<ProfilePage><div /></ProfilePage>);
+
+    await screen.findByTestId('profile-save');
+    fireEvent.click(screen.getByRole('button', { name: 'Yes', exact: true }));
+    const amountSummary = screen.getByText('Amount not entered');
+    expect(amountSummary).toBeInTheDocument();
+    expect(screen.queryByText('₹0')).not.toBeInTheDocument();
+    const lumpSumField = screen.getByText('Lump Sum Investment Amount (₹)').closest('.pf-field');
+    fireEvent.change(lumpSumField.querySelector('input'), { target: { value: '0' } });
+    expect(screen.getByText('₹0')).toBeInTheDocument();
+  });
+
   it('preserves explicitly entered optional zeros instead of turning them into unknown facts', async () => {
     vi.spyOn(api, 'getCurrentProfile').mockRejectedValue({ status: 404 });
     const precompute = vi.spyOn(api, 'precomputeProfile').mockResolvedValue({ candidateId: 'candidate' });

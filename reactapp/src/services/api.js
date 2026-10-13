@@ -902,18 +902,22 @@ export async function computeTax(income, regime, deductions = {}) {
   return request('GET', `/tax/compute?${params.toString()}`);
 }
 
-export async function compareTax(income, deductions = {}) {
+export async function compareTax(income, deductions = {}, options = {}) {
   const params = new URLSearchParams({ income: String(income) });
   Object.entries(deductions).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '') {
       params.set(k, String(v));
     }
   });
-  return request('GET', `/tax/compare?${params.toString()}`);
+  return request('GET', `/tax/compare?${params.toString()}`, null, options);
 }
 
 export async function getTaxPolicyMetadata(options = {}) {
   return request('GET', '/tax/policies', null, options);
+}
+
+export async function computeUserDeclaredPostTaxScenario(scenario, options = {}) {
+  return request('POST', '/tax/post-tax-scenario', scenario, options);
 }
 
 export async function getCurrentMarketContext(options = {}) {
@@ -993,7 +997,7 @@ const api = {
   getMarketRates, getBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,
   updateRecommendationWeights, optimisePortfolio,
-  computeTax, compareTax, getTaxPolicyMetadata, getCurrentMarketContext, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,
+  computeTax, compareTax, getTaxPolicyMetadata, computeUserDeclaredPostTaxScenario, getCurrentMarketContext, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,
 };
 
 export default api;

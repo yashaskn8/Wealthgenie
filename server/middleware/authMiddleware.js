@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import User from '../models/User.js';
 import { isTokenBlacklisted, TokenRevocationUnavailableError } from '../config/redis.js';
 import { clearAuthCookies, readSessionCookie } from '../services/authSession.js';
 import { sendError } from './errorHandler.js';
@@ -12,7 +13,11 @@ export function verifyJWTWithRevocationAvailability(req, res, next) {
   return verifyJWT(req, res, next, { revocationUnavailableStatus: 503 });
 }
 
-export async function verifyJWT(req, res, next, { revocationUnavailableStatus = null } = {}) {
+export async function verifyJWT(req, res, next, {
+  revocationUnavailableStatus = null,
+  getCurrentUser = userId => User.findById(userId).select('role').lean(),
+  isDatabaseReady = () => mongoose.connection.readyState === 1,
+} = {}) {
   const authHeader = req.headers.authorization;
   if (authHeader && !authHeader.startsWith('Bearer ')) {
     return sendError(req, res, 401, 'Access denied. Invalid authorization scheme.', 'AUTH_SCHEME_INVALID');
@@ -27,7 +32,14 @@ export async function verifyJWT(req, res, next, { revocationUnavailableStatus = 
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    if (!decoded.userId || (decoded.token_use && decoded.token_use !== 'session')) {
+    const validJti = typeof decoded.jti === 'string'
+      && decoded.jti.length >= 1
+      && decoded.jti.length <= 128
+      && /^[A-Za-z0-9._:-]+$/.test(decoded.jti);
+    const missingJti = decoded.jti === undefined || decoded.jti === null;
+    const revocationRequired = process.env.NODE_ENV === 'production' || process.env.REQUIRE_REDIS === 'true';
+    if (!decoded.userId || (!validJti && (!missingJti || revocationRequired))
+        || (decoded.token_use && decoded.token_use !== 'session')) {
       if (usingCookie) clearAuthCookies(res);
       return sendError(req, res, 401, 'Invalid token payload.', 'AUTH_TOKEN_INVALID');
     }
@@ -44,6 +56,30 @@ export async function verifyJWT(req, res, next, { revocationUnavailableStatus = 
     // will not contain a role claim — default them to 'user'.
     if (!decoded.role) {
       decoded.role = 'user';
+    }
+
+    // A signed JWT may outlive an administrator demotion. Recheck only tokens
+    // that claim elevated access, keeping ordinary authenticated requests off
+    // this additional database path.
+    if (decoded.role === 'admin') {
+      if (!isValidObjectId(decoded.userId)) {
+        if (usingCookie) clearAuthCookies(res);
+        return sendError(req, res, 401, 'Invalid token payload.', 'AUTH_TOKEN_INVALID');
+      }
+      if (!isDatabaseReady()) {
+        return sendError(req, res, 503, 'Administrator access could not be verified right now.', 'AUTH_ROLE_STATE_UNAVAILABLE');
+      }
+      let currentUser;
+      try {
+        currentUser = await getCurrentUser(decoded.userId);
+      } catch {
+        return sendError(req, res, 503, 'Administrator access could not be verified right now.', 'AUTH_ROLE_STATE_UNAVAILABLE');
+      }
+      if (!currentUser) {
+        if (usingCookie) clearAuthCookies(res);
+        return sendError(req, res, 401, 'Invalid or expired token.', 'AUTH_TOKEN_INVALID');
+      }
+      decoded.role = currentUser.role === 'admin' ? 'admin' : 'user';
     }
 
     req.user = decoded;
@@ -76,12 +112,27 @@ export async function verifyJWT(req, res, next, { revocationUnavailableStatus = 
  * @param {string} role - Required role (e.g. 'admin')
  * @returns {Function} Express middleware
  */
-export function requireRole(role) {
-  return (req, res, next) => {
+export function requireRole(role, { findCurrentRole } = {}) {
+  const loadCurrentRole = findCurrentRole || (async userId => {
+    const user = await User.findById(userId).select('role').lean();
+    return user?.role || null;
+  });
+
+  return async (req, res, next) => {
     if (!req.user || req.user.role !== role) {
       return sendError(req, res, 403, `Access denied. Requires ${role} role.`, 'AUTH_ROLE_REQUIRED');
     }
-    next();
+
+    let currentRole;
+    try {
+      currentRole = await loadCurrentRole(req.user.userId);
+    } catch {
+      return sendError(req, res, 503, 'Privileged access is temporarily unavailable.', 'AUTH_ROLE_STATE_UNAVAILABLE');
+    }
+    if (currentRole !== role) {
+      return sendError(req, res, 403, 'Access denied. Account privileges have changed.', 'AUTH_ROLE_REQUIRED');
+    }
+    return next();
   };
 }
 

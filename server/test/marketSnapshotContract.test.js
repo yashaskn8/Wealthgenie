@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildMarketSnapshot,
+  MARKET_SNAPSHOT_CONTENT_REVISION_VERSION,
   MARKET_DISPLAY_STATUS,
   MARKET_SNAPSHOT_SCHEMA_VERSION,
 } from '../services/marketContextService.js';
@@ -34,6 +35,7 @@ function quoteSnapshot({ session = 'UNKNOWN', freshness = 'FRESH', value = 25000
   return {
     provider: 'NSE',
     status: 'AVAILABLE',
+    qualification: 'TEST_QUALIFIED_SOURCE_CONTRACT',
     marketSession: { status: session, tradingDate: '2026-09-08', checkedAt: '2026-09-08T10:01:00.000Z' },
     facts: [{ value, availabilityStatus: 'AVAILABLE', freshness: { status: freshness } }],
   };
@@ -63,6 +65,90 @@ test('market snapshot keeps observed, derived, and policy output separate', () =
   assert.equal(snapshot.policyOutput.semanticClass, 'POLICY_OUTPUT');
   assert.equal(snapshot.policyOutput.context, 'NORMAL');
   assert.equal(snapshot.providerStatus.quotes.provider, 'NSE');
+  assert.equal(snapshot.contentRevision.version, MARKET_SNAPSHOT_CONTENT_REVISION_VERSION);
+  assert.match(snapshot.evidenceRevision, /^[a-f0-9]{64}$/);
+  assert.match(snapshot.contentRevision.digest, /^[a-f0-9]{64}$/);
+});
+
+test('content revision is stable when only the evaluation and fetch timestamps change', () => {
+  const first = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN' }),
+    historicalSnapshot: { ...historicalSnapshot, fetchedAt: '2026-09-08T10:00:00.000Z' },
+    features: features(),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+  const later = buildMarketSnapshot({
+    quoteSnapshot: {
+      ...quoteSnapshot({ session: 'MARKET_OPEN' }),
+      fetchedAt: '2026-09-08T10:04:00.000Z',
+      marketSession: { status: 'MARKET_OPEN', tradingDate: '2026-09-08', checkedAt: '2026-09-08T10:04:00.000Z' },
+    },
+    historicalSnapshot: { ...historicalSnapshot, fetchedAt: '2026-09-08T10:04:00.000Z' },
+    features: features(),
+    policy: { ...policy, evaluatedAt: '2026-09-08T10:04:00.000Z' },
+    evaluatedAt: '2026-09-08T10:04:00.000Z',
+  });
+
+  assert.equal(first.evidenceRevision, later.evidenceRevision);
+  assert.equal(first.contentRevision.digest, later.contentRevision.digest);
+  assert.notEqual(first.evaluatedAt, later.evaluatedAt);
+});
+
+test('content revision detects revised normalized quote/history facts even when observation time is unchanged', () => {
+  const base = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN', value: 25000 }),
+    historicalSnapshot,
+    features: features(),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+  const quoteRevision = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN', value: 25001 }),
+    historicalSnapshot,
+    features: features(),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+  const historyRevision = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN', value: 25000 }),
+    historicalSnapshot: { ...historicalSnapshot, candles: [{ close: 2 }] },
+    features: features(),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+
+  assert.equal(base.observedAt, quoteRevision.observedAt);
+  assert.notEqual(base.evidenceRevision, quoteRevision.evidenceRevision);
+  assert.notEqual(base.evidenceRevision, historyRevision.evidenceRevision);
+});
+
+test('content revision distinguishes policy version, classification, and market session changes', () => {
+  const base = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN' }),
+    historicalSnapshot,
+    features: features(),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+  const changedPolicy = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN' }),
+    historicalSnapshot,
+    features: features(),
+    policy: { ...policy, policyVersion: 'market-context-policy-2.0.0', classification: 'UPDATED_POLICY' },
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+  const changedSession = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_CLOSED' }),
+    historicalSnapshot,
+    features: features(),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+
+  assert.equal(base.evidenceRevision, changedPolicy.evidenceRevision);
+  assert.notEqual(base.contentRevision.digest, changedPolicy.contentRevision.digest);
+  assert.notEqual(base.contentRevision.digest, changedSession.contentRevision.digest);
 });
 
 test('market snapshot distinguishes closed, last available, stale, partial, and unavailable states', () => {

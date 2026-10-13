@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion';
 import { Scale, HelpCircle, ShieldCheck, CheckCircle2, Check, TrendingUp, Calendar, Sparkles, ArrowRight, Shield, Wallet, PieChart } from 'lucide-react';
 import { formatINR } from '../utils/indianNumberFormat';
+import { isPresentFiniteNumber } from '../utils/financialValues';
 import JargonTooltip from './JargonTooltip';
 import * as api from '../services/api';
 import { localToBackendInstrument } from '../utils/instrumentTypeMap';
@@ -24,7 +25,7 @@ const getRiskLabelString = (inv) => {
 
 const AnimatedNumber = ({ value, duration = 800 }) => {
   const [displayValue, setDisplayValue] = useState(0);
-  const hasValue = Number.isFinite(Number(value));
+  const hasValue = isPresentFiniteNumber(value);
 
   useEffect(() => {
     const end = hasValue ? parseInt(value) : 0;
@@ -54,7 +55,7 @@ const AnimatedNumber = ({ value, duration = 800 }) => {
 
 const AnimatedCurrency = ({ value, duration = 800 }) => {
   const [displayValue, setDisplayValue] = useState(0);
-  const hasValue = Number.isFinite(Number(value));
+  const hasValue = isPresentFiniteNumber(value);
 
   useEffect(() => {
     const start = 0;
@@ -94,9 +95,12 @@ const buildAllocations = (recs) => {
 
   safeRecs.forEach(inv => {
     if (!inv || !inv.id) return;
-    const weight = Number(inv.allocationWeight);
-    const pct = Number.isFinite(weight) ? weight * 100 : Number(inv.allocation_pct);
-    if (!Number.isFinite(pct)) return;
+    const hasWeight = isPresentFiniteNumber(inv.allocationWeight);
+    const pctCandidate = hasWeight
+      ? Number(inv.allocationWeight) * 100
+      : (isPresentFiniteNumber(inv.allocation_pct) ? Number(inv.allocation_pct) : null);
+    if (!isPresentFiniteNumber(pctCandidate)) return;
+    const pct = Number(pctCandidate);
     allocs[inv.id] = pct;
   });
   return allocs;
@@ -242,10 +246,10 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
   const projectionResults = useMemo(() => {
     const point = projectionData?.performance_data?.find(item => item.year === projectionDisplayYear);
     return {
-      wealth10y: Number.isFinite(Number(point?.average)) ? Number(point.average) : null,
-      totalInvested10y: Number.isFinite(Number(point?.invested)) ? Number(point.invested) : null,
-      estReturns: Number.isFinite(Number(point?.gains)) ? Number(point.gains) : null,
-      wealthMultiple: Number.isFinite(Number(point?.wealth_multiple)) ? Number(point.wealth_multiple) : null,
+      wealth10y: isPresentFiniteNumber(point?.average) ? Number(point.average) : null,
+      totalInvested10y: isPresentFiniteNumber(point?.invested) ? Number(point.invested) : null,
+      estReturns: isPresentFiniteNumber(point?.gains) ? Number(point.gains) : null,
+      wealthMultiple: isPresentFiniteNumber(point?.wealth_multiple) ? Number(point.wealth_multiple) : null,
     };
   }, [projectionData, projectionDisplayYear]);
 
@@ -286,9 +290,9 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
 
   const scenarioResults = useMemo(() => {
     return {
-      p10: Number.isFinite(Number(mcData?.percentile_summary?.p10)) ? Number(mcData.percentile_summary.p10) : null,
-      p50: Number.isFinite(Number(mcData?.percentile_summary?.p50)) ? Number(mcData.percentile_summary.p50) : null,
-      p90: Number.isFinite(Number(mcData?.percentile_summary?.p90)) ? Number(mcData.percentile_summary.p90) : null,
+      p10: isPresentFiniteNumber(mcData?.percentile_summary?.p10) ? Number(mcData.percentile_summary.p10) : null,
+      p50: isPresentFiniteNumber(mcData?.percentile_summary?.p50) ? Number(mcData.percentile_summary.p50) : null,
+      p90: isPresentFiniteNumber(mcData?.percentile_summary?.p90) ? Number(mcData.percentile_summary.p90) : null,
     };
   }, [mcData]);
 
@@ -359,7 +363,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
       amount: valueAt(year),
       label: year === projectionDisplayYear ? 'Current projection' : `Projected value at year ${year}`,
       highlight: year === projectionDisplayYear,
-    })).filter(milestone => Number.isFinite(Number(milestone.amount)));
+    })).filter(milestone => isPresentFiniteNumber(milestone.amount));
 
     // If we have real goals, merge with defaults to fill gaps
     if (milestones.length > 0) {
@@ -908,8 +912,8 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.88rem' }}>
                   <span style={{ color: '#94a3b8' }}>Estimated Returns</span>
-                  <span style={{ fontWeight: 700, color: projectionResults.estReturns < 0 ? '#f87171' : '#10b981' }}>
-                    {projectionResults.estReturns >= 0 ? '+' : ''}<AnimatedCurrency value={projectionResults.estReturns} />
+                  <span style={{ fontWeight: 700, color: isPresentFiniteNumber(projectionResults.estReturns) && projectionResults.estReturns < 0 ? '#f87171' : '#10b981' }}>
+                    {isPresentFiniteNumber(projectionResults.estReturns) && projectionResults.estReturns >= 0 ? '+' : ''}<AnimatedCurrency value={projectionResults.estReturns} />
                   </span>
                 </div>
 

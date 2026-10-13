@@ -180,8 +180,8 @@ test('required revocation rejects missing JTI and expired JWT without claiming l
     const missing = await jsonFetch(`${baseUrl}/api/auth/logout`, {
       method: 'POST', headers: { authorization: `Bearer ${withoutJti}` },
     });
-    assert.equal(missing.response.status, 503);
-    assert.equal(missing.body.code, 'TOKEN_REVOCATION_UNAVAILABLE');
+    assert.equal(missing.response.status, 401);
+    assert.equal(missing.body.code, 'AUTH_TOKEN_INVALID');
 
     const expired = jwt.sign(
       { userId: '64b000000000000000000005', email: 'test@example.com', jti: 'expired-jti' },

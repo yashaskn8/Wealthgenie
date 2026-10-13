@@ -29,8 +29,10 @@ export function buildAmfiProductIdentity({ schemeCode, primaryIsin, secondaryIsi
 
 export function buildUpstoxInstrumentIdentity(instrumentKey) {
   const normalizedKey = clean(instrumentKey);
-  if (!normalizedKey || normalizedKey.length > 200) {
-    throw new TypeError('Upstox instrument key is required and must be at most 200 characters.');
+  // Keep this aligned with Upstox's documented instrument_key pattern. This
+  // validates syntax only; it does not establish that a key maps to a product.
+  if (!/^(?:NSE_EQ|NSE_FO|NCD_FO|BSE_EQ|BSE_FO|BCD_FO|MCX_FO|NSE_COM|NSE_INDEX|BSE_INDEX|MCX_INDEX)\|[\w ]{1,200}$/.test(normalizedKey)) {
+    throw new TypeError('Upstox instrument key does not match the documented format.');
   }
   return {
     canonicalProductId: benchmarkByUpstoxInstrumentKey(normalizedKey)?.canonicalProductId

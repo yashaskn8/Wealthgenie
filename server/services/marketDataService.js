@@ -16,12 +16,15 @@ import AmfiNavProvider from './marketData/AmfiNavProvider.js';
 import AmfiNavHistoryProvider from './marketData/AmfiNavHistoryProvider.js';
 import UpstoxMarketDataProvider, {
   DEFAULT_BENCHMARK_INSTRUMENT_KEYS,
+  UPSTOX_QUOTE_FRESHNESS_SECONDS,
+  UPSTOX_QUOTE_URL,
 } from './marketData/UpstoxMarketDataProvider.js';
 import UpstoxHistoricalCandleProvider, {
   NIFTY_50_INSTRUMENT_KEY,
 } from './marketData/UpstoxHistoricalCandleProvider.js';
 import NseMarketDataProvider from './marketData/NseMarketDataProvider.js';
 import NseHistoricalDataProvider from './marketData/NseHistoricalDataProvider.js';
+import TejHqHistoricalDataProvider, { normalizeTejHqIdentity } from './marketData/TejHqHistoricalDataProvider.js';
 import GovernmentSmallSavingsProvider from './marketData/GovernmentSmallSavingsProvider.js';
 import SbiTermDepositProvider from './marketData/SbiTermDepositProvider.js';
 import RbiFloatingRateSavingsBondProvider from './marketData/RbiFloatingRateSavingsBondProvider.js';
@@ -31,10 +34,16 @@ import {
   MARKET_BENCHMARKS,
 } from './marketData/marketBenchmarks.js';
 import {
+  UPSTOX_INSTRUMENT_REGISTRY_REVISION,
+  resolveUpstoxQuoteIdentities,
+} from './marketData/upstoxInstrumentRegistry.js';
+import {
   AVAILABILITY,
   MARKET_DATA_SCHEMA_VERSION,
+  PROVIDERS,
 } from './marketData/contracts.js';
 import { isoDateInIndia } from './marketData/indiaMarketTime.js';
+import { isUsableNseTradingCalendar } from './marketData/nseTradingCalendar.js';
 import { persistVerifiedMarketSnapshot } from './marketData/MarketDataRepository.js';
 
 const amfiProvider = new AmfiNavProvider();
@@ -43,6 +52,7 @@ const upstoxProvider = new UpstoxMarketDataProvider();
 const upstoxHistoryProvider = new UpstoxHistoricalCandleProvider();
 const nseProvider = new NseMarketDataProvider();
 const nseHistoryProvider = new NseHistoricalDataProvider();
+const tejHqProvider = new TejHqHistoricalDataProvider();
 const governmentSavingsProvider = new GovernmentSmallSavingsProvider();
 const sbiTermDepositProvider = new SbiTermDepositProvider();
 const rbiProvider = new RbiFloatingRateSavingsBondProvider({
@@ -60,6 +70,362 @@ export function resolvePrimaryMarketProvider(env = process.env) {
 }
 
 export const PRIMARY_MARKET_PROVIDER = resolvePrimaryMarketProvider();
+
+const MAX_TEJHQ_FALLBACK_SEGMENTS = 5;
+
+function requireHistoryDate(value, field) {
+  const text = String(value || '').trim();
+  const date = new Date(`${text}T00:00:00.000Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text) {
+    throw new TypeError(`${field} must use YYYY-MM-DD format.`);
+  }
+  return text;
+}
+
+function expectedNseSessions(fromDate, toDate, holidayDates) {
+  const holidaySet = new Set(holidayDates);
+  const dates = [];
+  const current = new Date(`${fromDate}T00:00:00.000Z`);
+  const endMs = Date.parse(`${toDate}T00:00:00.000Z`);
+  while (current.getTime() <= endMs) {
+    const day = current.getUTCDay();
+    const date = current.toISOString().slice(0, 10);
+    if (day !== 0 && day !== 6 && !holidaySet.has(date)) dates.push(date);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+function buildTejHqSymbolSegments(symbolSnapshot, expectedDates, { exchange, isin } = {}) {
+  const segments = [];
+  let active = null;
+  for (const date of expectedDates) {
+    const matches = (symbolSnapshot?.intervals || []).filter(interval => interval.exchange === exchange
+      && interval.isin === isin && interval.validFrom <= date && interval.validTo >= date);
+    if (matches.length !== 1) {
+      return { segments: [], errorCode: matches.length > 1 ? 'TEJHQ_SYMBOL_INTERVAL_AMBIGUOUS' : 'TEJHQ_SYMBOL_HISTORY_GAP' };
+    }
+    const interval = matches[0];
+    if (active && active.symbol === interval.symbol && active.isin === interval.isin) {
+      active.dates.push(date);
+    } else {
+      active = { symbol: interval.symbol, isin: interval.isin, dates: [date] };
+      segments.push(active);
+      if (segments.length > MAX_TEJHQ_FALLBACK_SEGMENTS) {
+        return { segments: [], errorCode: 'TEJHQ_SYMBOL_SEGMENT_LIMIT_EXCEEDED' };
+      }
+    }
+  }
+  return { segments, errorCode: null };
+}
+
+function providerFailureCode(snapshot, fallback = 'UPSTOX_HISTORY_UNAVAILABLE') {
+  return safeTimingCode({ code: snapshot?.error?.code || snapshot?.reasonCodes?.[0] }) || fallback;
+}
+
+function isQualifiedUpstoxDailyHistory(snapshot, { instrumentKey, fromDate, toDate } = {}) {
+  if (snapshot?.status !== AVAILABILITY.AVAILABLE
+      || snapshot.provider !== PROVIDERS.UPSTOX
+      || snapshot.instrumentKey !== instrumentKey
+      || !Array.isArray(snapshot.candles)
+      || snapshot.candles.length === 0
+      || snapshot.candles.length > 366) return false;
+
+  let previousDate = null;
+  for (const candle of snapshot.candles) {
+    const date = isoDateInIndia(candle?.timestamp);
+    const open = Number(candle?.open);
+    const high = Number(candle?.high);
+    const low = Number(candle?.low);
+    const close = Number(candle?.close);
+    if (!date || date < fromDate || date > toDate || date > isoDateInIndia(new Date())
+        || (previousDate && date <= previousDate)
+        || ![open, high, low, close].every(value => Number.isFinite(value) && value > 0 && value <= Number.MAX_SAFE_INTEGER)
+        || high < Math.max(open, close, low)
+        || low > Math.min(open, close)) return false;
+    if (candle.volume !== null && candle.volume !== undefined
+        && (!Number.isSafeInteger(candle.volume) || candle.volume < 0)) return false;
+    previousDate = date;
+  }
+  return true;
+}
+
+function unavailableEquityHistory({ request, reasonCode, primarySnapshot = null, providerStatus = null } = {}) {
+  return {
+    schemaVersion: MARKET_DATA_SCHEMA_VERSION,
+    status: AVAILABILITY.UNAVAILABLE,
+    canonicalProductId: `market:equity:${request.exchange.toLowerCase()}:${request.isin}`,
+    instrumentIdentity: { exchange: request.exchange, tradingSymbol: request.symbol, isin: request.isin },
+    interval: '1 day',
+    dataClass: request.basis === 'ADJUSTED' ? 'HISTORICAL_EOD' : null,
+    priceBasis: request.basis === 'ADJUSTED' ? 'BACK_ADJUSTED' : null,
+    fetchedAt: new Date().toISOString(),
+    observedAt: null,
+    effectiveTradingDate: null,
+    freshness: { status: 'UNKNOWN', ageSeconds: null, maxAgeSeconds: null },
+    candleCount: 0,
+    candles: [],
+    provider: null,
+    fallbackUsed: false,
+    selection: {
+      requestedBasis: request.basis,
+      primaryProvider: request.basis === 'RAW' ? PROVIDERS.UPSTOX : PROVIDERS.TEJHQ,
+      selectedProvider: null,
+      primaryFailureCode: primarySnapshot ? providerFailureCode(primarySnapshot) : null,
+      reasonCode,
+    },
+    providerPublicationStatus: providerStatus?.publication ?? null,
+    reasonCodes: [reasonCode],
+  };
+}
+
+/**
+ * Read-only daily equity history path. Upstox remains the primary historical
+ * source for raw daily candles. TejHQ may only supply an NSE EOD fallback after
+ * exact ISIN symbol-interval and official NSE-session completeness checks.
+ * Adjusted history is a separate TejHQ data basis and is never replaced with
+ * raw Upstox candles.
+ */
+export async function fetchQualifiedEquityHistory({
+  exchange,
+  symbol,
+  isin,
+  fromDate,
+  toDate,
+  basis = 'RAW',
+  forceRefresh = false,
+} = {}, {
+  upstoxProvider = upstoxHistoryProvider,
+  tejHqHistoricalProvider = tejHqProvider,
+  nseCalendarProvider = nseHistoryProvider,
+  env = process.env,
+} = {}) {
+  const normalizedIdentity = normalizeTejHqIdentity({ exchange, symbol, isin });
+  const from = requireHistoryDate(fromDate, 'fromDate');
+  const to = requireHistoryDate(toDate, 'toDate');
+  if (from > to) throw new RangeError('fromDate must not be after toDate.');
+  const normalizedBasis = String(basis).trim().toUpperCase();
+  if (!['RAW', 'ADJUSTED'].includes(normalizedBasis)) throw new TypeError('basis must be RAW or ADJUSTED.');
+  const spanDays = (Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) / 86_400_000 + 1;
+  if (spanDays > 366) throw new RangeError('Equity history is limited to 366 calendar days per request.');
+  const request = { ...normalizedIdentity, fromDate: from, toDate: to, basis: normalizedBasis };
+  const canonicalProductId = `market:equity:${request.exchange.toLowerCase()}:${request.isin}`;
+  const upstoxInstrumentKey = `${request.exchange}_EQ|${request.isin}`;
+
+  let primarySnapshot = null;
+  if (normalizedBasis === 'RAW') {
+    primarySnapshot = await upstoxProvider.getDailyCandles(upstoxInstrumentKey, {
+      fromDate: from,
+      toDate: to,
+      forceRefresh,
+    });
+    if (isQualifiedUpstoxDailyHistory(primarySnapshot, {
+      instrumentKey: upstoxInstrumentKey,
+      fromDate: from,
+      toDate: to,
+    })) {
+      return {
+        ...primarySnapshot,
+        canonicalProductId,
+        instrumentIdentity: normalizedIdentity,
+        provider: PROVIDERS.UPSTOX,
+        dataClass: 'HISTORICAL_DAILY',
+        priceBasis: 'UPSTOX_PROVIDER_NATIVE',
+        fallbackUsed: false,
+        selection: {
+          requestedBasis: normalizedBasis,
+          primaryProvider: PROVIDERS.UPSTOX,
+          selectedProvider: PROVIDERS.UPSTOX,
+          primaryFailureCode: null,
+        },
+      };
+    }
+    if (primarySnapshot?.status === AVAILABILITY.AVAILABLE) {
+      primarySnapshot = {
+        ...primarySnapshot,
+        status: AVAILABILITY.SOURCE_ERROR,
+        error: { code: 'UPSTOX_HISTORY_RESPONSE_UNQUALIFIED' },
+      };
+    }
+  }
+
+  if (normalizedBasis === 'ADJUSTED' && env.TEJHQ_ADJUSTED_HISTORY_ENABLED !== 'true') {
+    return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_ADJUSTED_HISTORY_DISABLED', primarySnapshot });
+  }
+  if (normalizedBasis === 'RAW' && env.TEJHQ_HISTORICAL_FALLBACK_ENABLED !== 'true') {
+    return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_HISTORICAL_FALLBACK_DISABLED', primarySnapshot });
+  }
+  if (request.exchange !== 'NSE') {
+    return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_EXCHANGE_CALENDAR_NOT_QUALIFIED_FOR_FALLBACK', primarySnapshot });
+  }
+
+  const [symbolSnapshot, providerStatus, calendarSnapshot] = await Promise.all([
+    tejHqHistoricalProvider.getSymbolHistory({ exchange: request.exchange, isin: request.isin, forceRefresh }),
+    tejHqHistoricalProvider.getStatus({ forceRefresh: false }),
+    nseCalendarProvider.holidayLoader({ forceRefresh: false }),
+  ]);
+  const now = new Date();
+  if (symbolSnapshot?.status !== AVAILABILITY.AVAILABLE || symbolSnapshot.isin !== request.isin
+      || symbolSnapshot.exchange !== request.exchange) {
+    return unavailableEquityHistory({
+      request,
+      reasonCode: providerFailureCode(symbolSnapshot, 'TEJHQ_SYMBOL_IDENTITY_UNAVAILABLE'),
+      primarySnapshot,
+      providerStatus,
+    });
+  }
+  if (providerStatus?.status !== AVAILABILITY.AVAILABLE || providerStatus.provider !== PROVIDERS.TEJHQ) {
+    return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_PUBLICATION_STATUS_UNAVAILABLE', primarySnapshot });
+  }
+  if (!isUsableNseTradingCalendar(calendarSnapshot, now)) {
+    return unavailableEquityHistory({ request, reasonCode: 'NSE_TRADING_CALENDAR_UNAVAILABLE', primarySnapshot, providerStatus });
+  }
+
+  const requestedYears = new Set([from.slice(0, 4), to.slice(0, 4)]);
+  if ([...requestedYears].some(year => !calendarSnapshot.dates.some(date => date.startsWith(`${year}-`)))) {
+    return unavailableEquityHistory({ request, reasonCode: 'NSE_CALENDAR_RANGE_NOT_COVERED', primarySnapshot, providerStatus });
+  }
+  const expectedDates = expectedNseSessions(from, to, calendarSnapshot.dates);
+  if (expectedDates.length === 0) {
+    return unavailableEquityHistory({ request, reasonCode: 'NO_EXPECTED_NSE_TRADING_SESSIONS', primarySnapshot, providerStatus });
+  }
+  const lastExpectedSession = expectedDates.at(-1);
+  if (providerStatus.publication?.datasetTradingDate < lastExpectedSession) {
+    return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_DATASET_NOT_PUBLISHED_THROUGH_REQUESTED_SESSION', primarySnapshot, providerStatus });
+  }
+
+  const segmented = buildTejHqSymbolSegments(symbolSnapshot, expectedDates, normalizedIdentity);
+  if (segmented.errorCode || segmented.segments.length === 0) {
+    return unavailableEquityHistory({ request, reasonCode: segmented.errorCode || 'TEJHQ_SYMBOL_HISTORY_INCOMPLETE', primarySnapshot, providerStatus });
+  }
+
+  const candles = [];
+  for (const segment of segmented.segments) {
+    const segmentOptions = {
+      exchange: request.exchange,
+      symbol: segment.symbol,
+      isin: segment.isin,
+      fromDate: segment.dates[0],
+      toDate: segment.dates.at(-1),
+      forceRefresh,
+    };
+    const snapshot = normalizedBasis === 'ADJUSTED'
+      ? await tejHqHistoricalProvider.getAdjustedHistory(segmentOptions)
+      : await tejHqHistoricalProvider.getRawHistory(segmentOptions);
+    if (snapshot?.status !== AVAILABILITY.AVAILABLE
+        || snapshot.instrumentIdentity?.exchange !== request.exchange
+        || snapshot.instrumentIdentity?.tradingSymbol !== segment.symbol
+        || (normalizedBasis === 'ADJUSTED' && snapshot.priceBasis !== 'BACK_ADJUSTED')
+        || !Array.isArray(snapshot.candles)
+        || snapshot.candles.length !== segment.dates.length
+        || !snapshot.candles.every((candle, index) => candle.date === segment.dates[index])) {
+      return unavailableEquityHistory({
+        request,
+        reasonCode: providerFailureCode(snapshot, 'TEJHQ_HISTORICAL_SESSION_COVERAGE_INCOMPLETE'),
+        primarySnapshot,
+        providerStatus,
+      });
+    }
+    if (normalizedBasis === 'ADJUSTED' && snapshot.candles.some(candle => candle.isin !== request.isin)) {
+      return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_ADJUSTED_ISIN_CHAIN_UNQUALIFIED', primarySnapshot, providerStatus });
+    }
+    candles.push(...snapshot.candles);
+  }
+
+  if (candles.length !== expectedDates.length || candles.some((candle, index) => candle.date !== expectedDates[index])) {
+    return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_HISTORICAL_SESSION_COVERAGE_INCOMPLETE', primarySnapshot, providerStatus });
+  }
+
+  return {
+    schemaVersion: MARKET_DATA_SCHEMA_VERSION,
+    status: AVAILABILITY.AVAILABLE,
+    provider: PROVIDERS.TEJHQ,
+    canonicalProductId,
+    instrumentIdentity: normalizedIdentity,
+    instrumentKey: `${request.exchange}:${request.symbol}`,
+    interval: '1 day',
+    dataClass: 'HISTORICAL_EOD',
+    priceBasis: normalizedBasis === 'ADJUSTED' ? 'BACK_ADJUSTED' : 'RAW_UNADJUSTED',
+    ...(normalizedBasis === 'ADJUSTED' ? { adjustmentSemantics: 'SPLITS_BONUSES_AND_DIVIDENDS' } : {}),
+    sourceDatasetRevision: symbolSnapshot.sourceDatasetRevision,
+    fetchedAt: new Date().toISOString(),
+    observedAt: null,
+    effectiveTradingDate: candles.at(-1)?.date ?? null,
+    freshness: { status: 'UNKNOWN', ageSeconds: null, maxAgeSeconds: null, reasonCode: 'TEJHQ_DATE_ONLY_OBSERVATION' },
+    candleCount: candles.length,
+    candles,
+    source: {
+      provider: PROVIDERS.TEJHQ,
+      instrumentId: `${request.exchange}:${request.isin}`,
+      url: normalizedBasis === 'ADJUSTED'
+        ? 'https://api.tejhq.dev/v1/adjusted'
+        : 'https://api.tejhq.dev/v1/ohlcv',
+    },
+    sourceAttribution: {
+      provider: PROVIDERS.TEJHQ,
+      sourceUrl: 'https://tejhq.dev/docs',
+      upstreamData: 'NSE exchange-published end-of-day equity Bhavcopy',
+    },
+    fallbackUsed: normalizedBasis === 'RAW' && primarySnapshot?.status !== AVAILABILITY.AVAILABLE,
+    providerPublicationStatus: {
+      ...providerStatus.publication,
+      requestedLatestSession: lastExpectedSession,
+      requestedRangePublicationStatus: 'PUBLISHED_THROUGH_REQUESTED_SESSION',
+    },
+    coverage: {
+      status: 'COMPLETE_FOR_VERIFIED_NSE_SESSIONS',
+      expectedSessionCount: expectedDates.length,
+      observedSessionCount: candles.length,
+      calendarSource: calendarSnapshot.source,
+      symbolHistoryStatus: symbolSnapshot.identityStatus,
+    },
+    selection: {
+      requestedBasis: normalizedBasis,
+      primaryProvider: normalizedBasis === 'RAW' ? PROVIDERS.UPSTOX : PROVIDERS.TEJHQ,
+      selectedProvider: PROVIDERS.TEJHQ,
+      primaryFailureCode: primarySnapshot && primarySnapshot.status !== AVAILABILITY.AVAILABLE
+        ? providerFailureCode(primarySnapshot)
+        : null,
+    },
+    reasonCodes: [],
+  };
+}
+
+export async function fetchTejHqCorporateActionEvidence({ exchange, symbol, isin, forceRefresh = false } = {}, {
+  tejHqHistoricalProvider = tejHqProvider,
+} = {}) {
+  const identity = normalizeTejHqIdentity({ exchange, symbol, isin });
+  const [actionsSnapshot, symbolSnapshot] = await Promise.all([
+    tejHqHistoricalProvider.getCorporateActions({ symbol: identity.symbol, forceRefresh }),
+    tejHqHistoricalProvider.getSymbolHistory({ exchange: identity.exchange, isin: identity.isin, forceRefresh }),
+  ]);
+  if (actionsSnapshot?.status !== AVAILABILITY.AVAILABLE) return actionsSnapshot;
+  const events = actionsSnapshot.events.map(event => {
+    const interval = (symbolSnapshot?.intervals || []).find(item => item.exchange === identity.exchange
+      && item.isin === identity.isin && item.symbol === event.symbol
+      && item.validFrom <= event.exDate && item.validTo >= event.exDate);
+    return {
+      ...event,
+      identityStatus: event.exchange === identity.exchange && event.isin === identity.isin && interval
+        ? 'VERIFIED_FOR_EFFECTIVE_DATE'
+        : 'UNVERIFIED',
+    };
+  }).filter(event => event.exchange === identity.exchange && event.isin === identity.isin);
+  return {
+    ...actionsSnapshot,
+    canonicalProductId: `market:equity:${identity.exchange.toLowerCase()}:${identity.isin}`,
+    requestedIdentity: identity,
+    events,
+    completeness: 'NOT_CONCLUSIVE',
+    identityStatus: events.length > 0 && events.every(event => event.identityStatus === 'VERIFIED_FOR_EFFECTIVE_DATE')
+      ? 'SOURCE_INTERVALS_VALIDATED'
+      : 'PARTIALLY_OR_NOT_VERIFIED',
+  };
+}
+
+export async function fetchTejHqProviderPublicationStatus(options = {}) {
+  return tejHqProvider.getStatus(options);
+}
 
 export const MARKET_PARAMETER_SCHEMA_VERSION = 'simulation-assumptions-3.0.0';
 export const MARKET_PARAMETER_CACHE_KEY = `mc:instrument:params:${MARKET_PARAMETER_SCHEMA_VERSION}`;
@@ -216,6 +582,69 @@ export async function fetchBenchmarkQuotes({ forceRefresh = false, persist = tru
     : await nseProvider.getQuotes(DEFAULT_BENCHMARK_IDS, { forceRefresh });
   const persistence = persist ? await persistFreshSnapshot(snapshot) : { status: 'NOT_REQUESTED' };
   return { ...snapshot, persistence };
+}
+
+/**
+ * Read-only quotes for exact canonical IDs in the small verified Upstox
+ * registry. A syntactically valid provider key is never accepted from a client.
+ */
+export async function fetchUpstoxCanonicalQuotes(canonicalProductIds, { forceRefresh = false } = {}) {
+  const identities = resolveUpstoxQuoteIdentities(canonicalProductIds);
+  const snapshot = await upstoxProvider.getQuotes(
+    identities.map(identity => identity.upstoxInstrumentKey),
+    { forceRefresh },
+  );
+  const factsById = new Map((snapshot.facts || []).map(fact => [fact.canonicalProductId, fact]));
+  const facts = identities.map(identity => {
+    const sourceFact = factsById.get(identity.canonicalProductId) || null;
+    return {
+      canonicalProductId: identity.canonicalProductId,
+      displayName: identity.displayName,
+      assetClass: identity.assetClass,
+      instrumentIdentity: {
+        exchange: identity.exchange,
+        instrumentType: identity.instrumentType,
+        tradingSymbol: identity.tradingSymbol,
+        listingStatus: identity.listingStatus,
+        isin: identity.isin,
+        issuer: identity.issuer,
+        registryRevision: identity.registryRevision,
+      },
+      dataClass: identity.dataClass,
+      sourceProvider: PROVIDERS.UPSTOX,
+      sourceInstrumentId: identity.upstoxInstrumentKey,
+      sourceUrl: UPSTOX_QUOTE_URL,
+      value: sourceFact?.value ?? null,
+      currency: identity.currency,
+      unit: identity.unit,
+      observedAt: sourceFact?.observedAt ?? null,
+      fetchedAt: sourceFact?.fetchedAt ?? snapshot.fetchedAt ?? null,
+      providerTimestamp: sourceFact?.providerTimestamp ?? null,
+      effectiveTradingDate: sourceFact?.effectiveTradingDate ?? null,
+      availabilityStatus: sourceFact?.availabilityStatus ?? AVAILABILITY.UNAVAILABLE,
+      freshness: sourceFact?.freshness ?? { status: 'UNKNOWN', ageSeconds: null, maxAgeSeconds: UPSTOX_QUOTE_FRESHNESS_SECONDS },
+      reasonCode: sourceFact?.reasonCode ?? snapshot.error?.code ?? 'NO_PROVIDER_OBSERVATION',
+      sourceVerification: {
+        status: 'DOCUMENTATION_AND_BACKEND_IDENTITY_ONLY',
+        evidenceSource: identity.evidenceSource,
+        evidenceReviewedAt: identity.evidenceReviewedAt,
+        providerAccessStatus: identity.providerAccessStatus,
+      },
+      marketSessionStatus: 'UNKNOWN',
+    };
+  });
+  return {
+    schemaVersion: MARKET_DATA_SCHEMA_VERSION,
+    provider: PROVIDERS.UPSTOX,
+    status: snapshot.status,
+    registryRevision: UPSTOX_INSTRUMENT_REGISTRY_REVISION,
+    fetchedAt: snapshot.fetchedAt,
+    requestedInstrumentCount: facts.length,
+    availableFactCount: facts.filter(fact => fact.availabilityStatus === AVAILABILITY.AVAILABLE).length,
+    facts,
+    cache: snapshot.cache ?? { hit: false, backend: 'NONE' },
+    ...(snapshot.error ? { error: snapshot.error } : {}),
+  };
 }
 
 export function buildNiftyHistoryWindow(now = new Date()) {

@@ -5,10 +5,11 @@ import { formatINR, formatPercent } from '../utils/indianNumberFormat';
 import { ShieldCheck, Calculator, Wallet, Receipt, Percent, PiggyBank, TrendingDown, Info, Sparkles, IndianRupee, HelpCircle, Layers, ArrowUpRight, CheckCircle2, Heart, ToggleLeft, ToggleRight, Landmark, Coins } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
 import api from '../services/api';
+import { isPresentFiniteNumber } from '../utils/financialValues';
 import './TaxScreen.css';
 
 const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
-  const [annualIncome, setAnnualIncome] = useState(0);
+  const [annualIncome, setAnnualIncome] = useState(null);
   const [incomeSource, setIncomeSource] = useState('');
   const [fiscalYear, setFiscalYear] = useState('');
   const [regime, setRegime] = useState('');
@@ -32,28 +33,61 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [taxPolicyMetadata, setTaxPolicyMetadata] = useState(null);
+  const [taxPolicyStatus, setTaxPolicyStatus] = useState('loading');
+  const [taxPolicyError, setTaxPolicyError] = useState(null);
+  const [taxPolicyRetry, setTaxPolicyRetry] = useState(0);
+
+  const normalizedAnnualIncome = isPresentFiniteNumber(annualIncome) ? Number(annualIncome) : null;
+  const annualIncomeIsValid = normalizedAnnualIncome !== null
+    && normalizedAnnualIncome >= 0
+    && normalizedAnnualIncome <= 12000000;
+  const ageValue = isPresentFiniteNumber(profile?.age) ? Number(profile.age) : null;
+  const ageIsValid = Number.isInteger(ageValue) && ageValue >= 18 && ageValue <= 120;
+  const verifiedFiscalYears = taxPolicyMetadata?.verifiedFiscalYears || [];
+  const fiscalYearIsVerified = taxPolicyStatus === 'ready' && verifiedFiscalYears.includes(fiscalYear);
 
   useEffect(() => {
-    if (typeof api.getTaxPolicyMetadata !== 'function') return undefined;
-    let cancelled = false;
-    api.getTaxPolicyMetadata()
+    if (typeof api.getTaxPolicyMetadata !== 'function') {
+      setTaxPolicyStatus('failed');
+      setTaxPolicyError('Verified tax-year information is unavailable.');
+      return undefined;
+    }
+    const controller = new AbortController();
+    setTaxPolicyStatus('loading');
+    setTaxPolicyError(null);
+    api.getTaxPolicyMetadata({ signal: controller.signal })
       .then(metadata => {
-        if (cancelled) return;
-        setTaxPolicyMetadata(metadata);
-        if (metadata?.currentFiscalYearVerified && metadata.currentFiscalYear) {
-          setFiscalYear(current => current || metadata.currentFiscalYear);
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(metadata?.verifiedFiscalYears)) {
+          throw new Error('Tax policy metadata did not contain verified fiscal years.');
         }
+        setTaxPolicyMetadata(metadata);
+        setTaxPolicyStatus('ready');
+        setFiscalYear(current => metadata.verifiedFiscalYears.includes(current)
+          ? current
+          : (metadata.currentFiscalYearVerified && metadata.verifiedFiscalYears.includes(metadata.currentFiscalYear)
+            ? metadata.currentFiscalYear
+            : ''));
       })
-      .catch(() => {
-        if (!cancelled) setTaxPolicyMetadata(null);
+      .catch(error => {
+        if (controller.signal.aborted || error?.code === 'REQUEST_ABORTED') return;
+        setTaxPolicyMetadata(null);
+        setFiscalYear('');
+        setTaxPolicyStatus('failed');
+        setTaxPolicyError('Verified tax-year information could not be loaded.');
       });
-    return () => { cancelled = true; };
-  }, []);
+    return () => controller.abort();
+  }, [taxPolicyRetry]);
 
   // ── Debounced API Synchronisation ──
   useEffect(() => {
-    if (!incomeSource || !fiscalYear) return undefined;
+    if (!annualIncomeIsValid || !incomeSource || !fiscalYearIsVerified || !ageIsValid) {
+      setIsLoading(false);
+      setApiError(null);
+      return undefined;
+    }
     let active = true;
+    const controller = new AbortController();
     setIsLoading(true);
     setApiError(null);
 
@@ -71,12 +105,13 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
           incomeSource,
           fiscalYear,
         };
-        const response = await api.compareTax(annualIncome, payload);
+        const response = await api.compareTax(normalizedAnnualIncome, payload, { signal: controller.signal });
         if (active) {
           setServerTaxResult({ inputKey: taxInputKey, data: response });
           setApiError(null);
         }
       } catch (err) {
+        if (err?.code === 'REQUEST_ABORTED') return;
         console.error("Backend tax query failed; authoritative tax values are unavailable:", err);
         if (active) {
           setApiError(err.message || "Failed to synchronise with tax slabs server.");
@@ -91,8 +126,9 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
     return () => {
       active = false;
       clearTimeout(timer);
+      controller.abort();
     };
-  }, [annualIncome, fiscalYear, incomeSource, existing80C, existing80CCD, existingHRA, existingHomeLoan, existing80DSelf, existing80DParents, parentsSenior, profile?.age, taxInputKey]);
+  }, [annualIncomeIsValid, ageIsValid, normalizedAnnualIncome, fiscalYearIsVerified, fiscalYear, incomeSource, existing80C, existing80CCD, existingHRA, existingHomeLoan, existing80DSelf, existing80DParents, parentsSenior, profile?.age, taxInputKey]);
 
   const section80CLimit = serverTaxData?.deduction_limits?.section80C ?? null;
   const section80CCDLimit = serverTaxData?.deduction_limits?.section80CCD1B ?? null;
@@ -223,8 +259,16 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
         <div>
           <h2 className="tax-verdict-title">Our Recommendation</h2>
           <p className="tax-verdict-text">
-            {!incomeSource || !fiscalYear ? (
-              <span>Select your income source and fiscal year below to run an explicit, server-verified tax comparison.</span>
+            {taxPolicyStatus === 'loading' ? (
+              <span>Loading verified tax-year information…</span>
+            ) : taxPolicyStatus === 'failed' ? (
+              <span>Verified tax-year information is unavailable. Retry the tax policy request below.</span>
+            ) : !annualIncomeIsValid ? (
+              <span>Enter your gross yearly income below before requesting a tax comparison.</span>
+            ) : !incomeSource || !fiscalYearIsVerified ? (
+              <span>Select your income source and a verified fiscal year below to run a server-verified tax comparison.</span>
+            ) : !ageIsValid ? (
+              <span>Your age is required to compare both tax regimes. Add a valid age to your Financial Profile.</span>
             ) : apiError ? (
               <span>Authoritative tax results are unavailable. No local fallback calculation is being shown.</span>
             ) : !serverTaxData ? (
@@ -310,17 +354,30 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             min="0" 
             max="12000000" 
             step="50000" 
-            value={annualIncome}
+            value={annualIncome ?? 0}
             onChange={(e) => setAnnualIncome(Number(e.target.value))}
             className="tax-slider"
             style={{ 
-              '--val': `${(annualIncome / 12000000) * 100}%` 
+              '--val': `${((annualIncome ?? 0) / 12000000) * 100}%`
             }}
           />
 
-          <div className="tax-income-display">{formatINR(annualIncome)}</div>
+          <label className="tax-input-label" htmlFor="tax-annual-income-input">Enter yearly income amount (₹)</label>
+          <input
+            id="tax-annual-income-input"
+            className="tax-input"
+            type="number"
+            min="0"
+            max="12000000"
+            step="1"
+            inputMode="numeric"
+            value={annualIncome ?? ''}
+            onChange={event => setAnnualIncome(event.target.value === '' ? null : Number(event.target.value))}
+            aria-label="Enter yearly income amount"
+          />
+          <div className="tax-income-display">{annualIncomeIsValid ? formatINR(normalizedAnnualIncome) : 'Enter your yearly income'}</div>
           <div className="tax-income-sub">
-            <span>Monthly Salary: {formatINR(Math.round(annualIncome / 12))}</span>
+            <span>Monthly equivalent: {annualIncomeIsValid ? formatINR(Math.round(normalizedAnnualIncome / 12)) : 'Not calculated'}</span>
             <span className="tax-income-badge">
               {serverTaxData?.fiscal_year ? `${serverTaxData.fiscal_year} · Verified Server Rules` : 'Select income source and fiscal year to calculate'}
             </span>
@@ -352,6 +409,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             id="tax-fiscal-year"
             className="tax-input"
             value={fiscalYear}
+            disabled={taxPolicyStatus !== 'ready'}
             onChange={(event) => {
               setFiscalYear(event.target.value);
               if (!event.target.value) setServerTaxResult(null);
@@ -359,10 +417,18 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             aria-label="Fiscal year for tax calculation"
           >
             <option value="">Select fiscal year</option>
-            {(taxPolicyMetadata?.verifiedFiscalYears || []).map(year => (
+            {verifiedFiscalYears.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
+          {taxPolicyStatus === 'loading' && <div role="status">Loading verified tax years…</div>}
+          {taxPolicyError && (
+            <div role="alert" className="tax-offline-notice">
+              <Info size={14} />
+              <span>{taxPolicyError}</span>
+              <button type="button" onClick={() => setTaxPolicyRetry(value => value + 1)}>Retry tax policy loading</button>
+            </div>
+          )}
         </div>
 
         {/* Regime Switcher Card */}

@@ -12,6 +12,7 @@ const store = {
   isLoading: false,
   isRefreshing: false,
   lastResolvedAt: null,
+  revision: 0,
   transport: {
     lastAttemptAt: null,
     lastSuccessfulAt: null,
@@ -21,6 +22,7 @@ const store = {
 
 const listeners = new Set();
 let inFlight = null;
+let requestGeneration = 0;
 let pollTimer = null;
 let consumerCount = 0;
 let lifecycleBound = false;
@@ -70,11 +72,14 @@ async function requestMarketContext({ force = false } = {}) {
   store.isLoading = !store.snapshot;
   store.isRefreshing = Boolean(store.snapshot);
   emit();
-  inFlight = api.getCurrentMarketContext()
+  const generation = ++requestGeneration;
+  const request = api.getCurrentMarketContext()
     .then((snapshot) => {
+      if (generation !== requestGeneration) return store.snapshot;
       store.snapshot = snapshot;
       store.error = null;
       store.lastResolvedAt = Date.now();
+      store.revision += 1;
       store.transport = {
         ...store.transport,
         lastSuccessfulAt: new Date().toISOString(),
@@ -83,6 +88,7 @@ async function requestMarketContext({ force = false } = {}) {
       return snapshot;
     })
     .catch((error) => {
+      if (generation !== requestGeneration) return store.snapshot;
       if (error?.code !== 'REQUEST_ABORTED') {
         store.error = error?.message || 'Live market context request failed.';
         store.transport = {
@@ -98,13 +104,35 @@ async function requestMarketContext({ force = false } = {}) {
       return store.snapshot;
     })
     .finally(() => {
+      if (generation !== requestGeneration) return;
       store.isLoading = false;
       store.isRefreshing = false;
       inFlight = null;
       emit();
       schedulePoll();
     });
+  inFlight = request;
   return inFlight;
+}
+
+function acceptMarketContext(snapshot) {
+  if (!snapshot?.marketSnapshot) return false;
+  requestGeneration += 1;
+  inFlight = null;
+  store.snapshot = snapshot;
+  store.error = null;
+  store.isLoading = false;
+  store.isRefreshing = false;
+  store.lastResolvedAt = Date.now();
+  store.revision += 1;
+  store.transport = {
+    ...store.transport,
+    lastSuccessfulAt: new Date().toISOString(),
+    revalidationStatus: 'SUCCESS',
+  };
+  emit();
+  schedulePoll();
+  return true;
 }
 
 function bindLifecycle() {
@@ -153,7 +181,9 @@ export function useMarketContext() {
     marketContextLoading: store.isLoading,
     marketContextRefreshing: store.isRefreshing,
     marketContextTransport: store.transport,
+    marketContextRevision: store.revision,
     refreshMarketContext: () => requestMarketContext({ force: true }),
+    acceptMarketContext,
   };
 }
 
@@ -166,12 +196,14 @@ export function resetMarketContextStoreForTest() {
   store.isLoading = false;
   store.isRefreshing = false;
   store.lastResolvedAt = null;
+  store.revision = 0;
   store.transport = {
     lastAttemptAt: null,
     lastSuccessfulAt: null,
     revalidationStatus: 'IDLE',
   };
   inFlight = null;
+  requestGeneration += 1;
   consumerCount = 0;
   listeners.clear();
 }

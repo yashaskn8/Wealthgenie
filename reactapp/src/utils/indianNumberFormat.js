@@ -1,3 +1,5 @@
+import { isPresentFiniteNumber } from './financialValues';
+
 /**
  * Formats a number into Indian currency format with ₹ symbol.
  * Examples: 
@@ -6,7 +8,7 @@
  *   2500000 -> "₹25,00,000"
  */
 export function formatINR(val) {
-  if (val === null || val === undefined || val === '' || isNaN(val)) return '—';
+  if (!isPresentFiniteNumber(val)) return '—';
   const num = Number(val);
   // Guard against overflow / absurdly large numbers
   if (!isFinite(num)) return '—';
@@ -32,7 +34,7 @@ export function formatINR(val) {
  * 150000 -> "₹1.5L", 25000000 -> "₹2.5Cr"
  */
 export function formatCompactINR(val) {
-  if (val === null || val === undefined || val === '' || isNaN(val)) return '—';
+  if (!isPresentFiniteNumber(val)) return '—';
   const num = Number(val);
   if (!isFinite(num)) return '—';
   const abs = Math.abs(num);
@@ -50,7 +52,7 @@ export function formatCompactINR(val) {
  * Formats a percentage cleanly (e.g. 12.5 -> "12.5%", 12.0 -> "12%").
  */
 export function formatPercent(val, decimals = 1) {
-  if (val === null || val === undefined || val === '' || isNaN(val)) return '—';
+  if (!isPresentFiniteNumber(val)) return '—';
   const num = Number(val);
   if (!isFinite(num)) return '—';
   return `${Number.isInteger(num) ? num : num.toFixed(decimals)}%`;

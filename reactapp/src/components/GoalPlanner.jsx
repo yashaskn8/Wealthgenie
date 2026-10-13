@@ -114,7 +114,7 @@ function presentGoalForState(goal, profile, financialState) {
 }
 
 const formatINR = (value) => {
-  if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return '—';
+  if (!isPresentFiniteNumber(value)) return '—';
   value = Number(value);
   if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)} Cr`;
   if (value >= 100000) return `₹${(value / 100000).toFixed(1)} L`;

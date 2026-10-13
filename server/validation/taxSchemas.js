@@ -3,6 +3,16 @@ import Joi from 'joi';
 export const FISCAL_YEAR_PATTERN = /^FY\d{4}-\d{2}$/;
 export const incomeSourceValues = ['salary', 'pension', 'family_pension', 'business', 'other'];
 
+function validCalendarDate(value, helpers) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    return helpers.message({ custom: 'must be a valid calendar date' });
+  }
+  return value;
+}
+
+const dateOnlySchema = Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).custom(validCalendarDate);
+
 export const taxDeductionFields = {
   section80C: Joi.number().min(0).max(150000).optional(),
   nps80CCD1B: Joi.number().min(0).max(50000).optional(),
@@ -91,8 +101,8 @@ export const taxCalculationContextSchema = Joi.object({
   holdingPeriodMonths: Joi.number().min(0).max(1200).optional(),
   section112AExemptionUsed: Joi.number().min(0).max(125000).optional(),
   sttConditionAssumedSatisfied: Joi.boolean().strict().optional(),
-  acquisitionDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  redemptionDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  acquisitionDate: dateOnlySchema.optional(),
+  redemptionDate: dateOnlySchema.optional(),
   redemptionChannel: Joi.string().valid('RBI_REDEMPTION', 'MATURITY_REDEMPTION', 'SECONDARY_MARKET_SALE').optional(),
   acquiredAtOriginalIssue: Joi.boolean().optional(),
   heldContinuously: Joi.boolean().optional(),
@@ -116,6 +126,14 @@ export const taxCalculationContextSchema = Joi.object({
   }
   if (value.acquisitionDate && value.redemptionDate && value.redemptionDate < value.acquisitionDate) {
     return helpers.message({ custom: 'redemptionDate cannot precede acquisitionDate' });
+  }
+  for (const [key, dateValue] of [['acquisitionDate', value.acquisitionDate], ['redemptionDate', value.redemptionDate]]) {
+    if (dateValue === undefined) continue;
+    const [year, month, day] = dateValue.split('-').map(Number);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) {
+      return helpers.message({ custom: key + ' must be a real calendar date' });
+    }
   }
   return requirePostTaxDependencyFacts(value, helpers);
 }).unknown(false);

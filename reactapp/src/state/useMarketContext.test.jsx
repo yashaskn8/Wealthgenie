@@ -27,6 +27,7 @@ function Probe() {
     marketContextRefreshing,
     marketContextTransport,
     refreshMarketContext,
+    acceptMarketContext,
   } = useMarketContext();
   return (
     <div>
@@ -34,6 +35,7 @@ function Probe() {
       <span data-testid="refreshing">{marketContextRefreshing ? 'refreshing' : 'idle'}</span>
       <span data-testid="transport-status">{marketContextTransport.revalidationStatus}</span>
       <button type="button" onClick={() => refreshMarketContext()}>refresh</button>
+      <button type="button" onClick={() => acceptMarketContext({ ...snapshot, context: 'CAUTIOUS' })}>accept server preview</button>
     </div>
   );
 }
@@ -88,6 +90,17 @@ describe('shared market context store', () => {
 
     await waitFor(() => expect(screen.getByTestId('transport-status').textContent).toBe('FAILED'));
     expect(screen.getByTestId('context').textContent).toBe('NORMAL');
+  });
+
+  it('does not let an older in-flight GET overwrite the exact server snapshot used by a preview', async () => {
+    let resolveRead;
+    api.getCurrentMarketContext.mockReturnValueOnce(new Promise(resolve => { resolveRead = resolve; }));
+    render(<Probe />);
+    fireEvent.click(screen.getByRole('button', { name: 'accept server preview' }));
+    expect(screen.getByTestId('context').textContent).toBe('CAUTIOUS');
+
+    await act(async () => resolveRead(snapshot));
+    await waitFor(() => expect(screen.getByTestId('context').textContent).toBe('CAUTIOUS'));
   });
 
   it.each([

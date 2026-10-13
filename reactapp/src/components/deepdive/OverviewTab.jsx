@@ -6,19 +6,20 @@
  * Performance Indexing chart, and Data Provenance footer.
  */
 import React from 'react';
+import { isPresentFiniteNumber } from '../../utils/financialValues';
 import { Shield, Zap, Target, Activity, TrendingUp, AlertCircle, Lock, BarChart3, ShieldCheck, Landmark, ArrowRight, Clock, Info, Layers } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TRUST_BADGES, investmentDatabase } from '../../investmentDatabase';
 import JargonTooltip from '../JargonTooltip';
 
 const formatCatalogRate = value => {
-  if (value === null || value === undefined || value === '') return 'Unavailable';
+  if (!isPresentFiniteNumber(value)) return 'Unavailable';
   const rate = Number(value);
   return Number.isFinite(rate) ? `${rate}% p.a.` : 'Unavailable';
 };
 
 const formatCatalogHorizon = horizon => (
-  Number.isFinite(Number(horizon?.min)) && Number.isFinite(Number(horizon?.max))
+  isPresentFiniteNumber(horizon?.min) && isPresentFiniteNumber(horizon?.max)
     ? `${horizon.min}–${horizon.max} years`
     : 'Unavailable'
 );

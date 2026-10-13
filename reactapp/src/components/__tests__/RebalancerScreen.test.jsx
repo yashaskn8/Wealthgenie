@@ -103,4 +103,35 @@ describe('RebalancerScreen request binding', () => {
     expect(within(projectionCard).getByText(/Estimated Value/)).toBeInTheDocument();
     expect(within(scenarioCard).getByText('Simulated Median (P50)')).toBeInTheDocument();
   });
+
+  it('keeps explicit null projection and Monte Carlo values unavailable instead of rendering zero', async () => {
+    vi.spyOn(api, 'getGoals').mockResolvedValue([]);
+    vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({
+      performance_data: [{ year: 10, average: null, invested: null, gains: null, wealth_multiple: null }],
+      portfolio_risk_score: null,
+    });
+    vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({
+      percentile_summary: { p10: null, p50: null, p90: null },
+    });
+
+    render(
+      <RebalancerScreen
+        profile={{ profileId: '64b000000000000000000001', monthly_savings: 30000, investment_horizon_years: 10, risk_tolerance: 'Moderate', investment_goals: ['Wealth Growth'] }}
+        recommendations={[
+          { id: 'ppf', name: 'Public Provident Fund', allocationWeight: 0.6, riskLabel: 'Very Low' },
+          { id: 'index-fund', name: 'Nifty 50 Index Fund', allocationWeight: 0.4, riskLabel: 'Moderate' },
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(api.getCustomPortfolioProjection).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.runPortfolioMonteCarlo).toHaveBeenCalledTimes(1));
+
+    const projectionCard = screen.getByText('Future Wealth Projection').closest('.projection-card');
+    const scenarioCard = screen.getByText(/Market Scenario Projections/i).closest('.scenarios-card');
+    expect(within(projectionCard).queryByText('₹0')).not.toBeInTheDocument();
+    expect(within(projectionCard).getAllByText('—').length).toBeGreaterThan(0);
+    expect(within(scenarioCard).queryByText('₹0')).not.toBeInTheDocument();
+    expect(within(scenarioCard).getAllByText('—').length).toBeGreaterThan(0);
+  });
 });

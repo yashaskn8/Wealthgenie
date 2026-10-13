@@ -10,6 +10,7 @@ import { enforceJsonContentType } from './middleware/contentType.js';
 import { correlationIdMiddleware } from './middleware/correlation.js';
 import { createCsrfProtection } from './middleware/csrf.js';
 import { createOperationalMiddleware } from './middleware/operations.js';
+import { createUpstoxPublicDataGate } from './middleware/upstoxPublicDataGate.js';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter.js';
 import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
@@ -19,6 +20,8 @@ import projectionRoutes from './routes/projection.js';
 import montecarloRoutes from './routes/montecarlo.js';
 import goalRoutes from './routes/goals.js';
 import marketRoutes from './routes/market.js';
+import marketQuotesRoutes from './routes/marketQuotes.js';
+import marketDataAdminRoutes from './routes/marketDataAdmin.js';
 import taxRoutes from './routes/tax.js';
 import chatRoutes from './routes/chatRoutes.js';
 import portfolioRoutes from './routes/portfolio.js';
@@ -158,6 +161,13 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
 
   app.use('/api/auth', authLimiter);
   app.use('/api', apiLimiter);
+  app.use('/api/market-data/quotes', createUpstoxPublicDataGate({ env, requiresUpstox: true }));
+  app.use([
+    '/api/market/rates',
+    '/api/market/benchmarks',
+    '/api/regime/current',
+    '/api/regime/adjust',
+  ], createUpstoxPublicDataGate({ env }));
   const healthRoutes = createHealthRouter({
     runtimeState: lifecycle,
     requireRedis: config.requireRedis,
@@ -191,6 +201,8 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/montecarlo', montecarloRoutes);
   app.use('/api/goals', goalRoutes);
   app.use('/api/market', marketRoutes);
+  app.use('/api/market-data', marketQuotesRoutes);
+  app.use('/api/market-data', marketDataAdminRoutes);
   app.use('/api/tax', taxRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/portfolio', portfolioRoutes);

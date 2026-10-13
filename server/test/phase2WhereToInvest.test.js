@@ -484,3 +484,33 @@ test('WTI preserves hard parent suitability before requesting any product data',
   assert.equal(eligible.metadata.catalog.dataClass, 'REFERENCE_METADATA');
   assert.equal(sourceCalls, 2);
 });
+
+test('production WTI blocks unqualified source paths before making provider requests', async () => {
+  let sourceCalls = 0;
+  const dependencies = {
+    isProductionEnvironment: true,
+    fetchAmfiProductSnapshot: async () => { sourceCalls += 1; return snapshots().current; },
+    fetchAmfiHistoricalNavSnapshot: async () => { sourceCalls += 1; return snapshots().historical; },
+    fetchGovernmentSavingsSnapshot: async () => { sourceCalls += 1; return null; },
+  };
+
+  const mutualFunds = await rankWhereToInvestBackend(
+    canonicalProfile({ investmentHorizonYears: 15 }),
+    { parentInstrumentId: 'large_cap_mf' },
+    dependencies,
+  );
+  assert.equal(mutualFunds.length, 0);
+  assert.equal(mutualFunds.metadata.ranking.reasonCodes[0], 'SOURCE_RIGHTS_UNQUALIFIED');
+  assert.equal(mutualFunds.metadata.comparisonUniverse.sourceRightsStatus, 'BLOCKED_REUSE_RIGHTS');
+  assert.equal(mutualFunds.metadata.catalog.providerCoverage.productionSourceUseAllowed, false);
+
+  const smallSavings = await rankWhereToInvestBackend(
+    canonicalProfile({ investmentHorizonYears: 15 }),
+    { parentInstrumentId: 'ppf' },
+    dependencies,
+  );
+  assert.equal(smallSavings.length, 0);
+  assert.equal(smallSavings.metadata.ranking.reasonCodes[0], 'SOURCE_RIGHTS_UNQUALIFIED');
+  assert.equal(smallSavings.metadata.comparisonUniverse.sourceRightsStatus, 'BLOCKED_REUSE_RIGHTS');
+  assert.equal(sourceCalls, 0);
+});

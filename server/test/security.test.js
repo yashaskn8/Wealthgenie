@@ -30,6 +30,7 @@ import AuditRecord from '../models/AuditRecord.js';
 import AuditChainHead from '../models/AuditChainHead.js';
 import IdempotencyKey from '../models/IdempotencyKey.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
+import User from '../models/User.js';
 import { withServer, jsonRequest as jsonFetch, rawRequest } from '../test-utils/httpTestUtils.js';
 import { canonicalProfile, canonicalProfilePayload } from './helpers/canonicalProfile.js';
 import { assertRuntimeResponseMatchesContract } from './helpers/openapiRuntimeContract.js';
@@ -353,14 +354,24 @@ test('WG-018: GET /api/metrics rejects a normal authenticated user', async () =>
 });
 
 test('WG-018: GET /api/metrics returns 200 for an administrator', async () => {
+  await ensureDb();
+  await User.updateOne(
+    { _id: USER_A_ID },
+    { $setOnInsert: { name: 'Metrics Admin', email: `metrics-admin-${USER_A_ID}@test.local`, passwordHash: 'test-only-hash', role: 'admin' } },
+    { upsert: true },
+  );
   const token = signToken(USER_A_ID, crypto.randomUUID(), '1h', 'admin');
-  await withServer(buildMetricsApp(), async (baseUrl) => {
-    const { response } = await jsonFetch(`${baseUrl}/api/metrics`, {
-      method: 'GET',
-      headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+  try {
+    await withServer(buildMetricsApp(), async (baseUrl) => {
+      const { response } = await jsonFetch(`${baseUrl}/api/metrics`, {
+        method: 'GET',
+        headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+      });
+      assert.equal(response.status, 200, 'metrics endpoint must succeed with admin auth');
     });
-    assert.equal(response.status, 200, 'metrics endpoint must succeed with admin auth');
-  });
+  } finally {
+    await User.deleteOne({ _id: USER_A_ID });
+  }
 });
 
 test('WG-018: GET /api/chat/metrics (old path) returns 404 after relocation', async () => {

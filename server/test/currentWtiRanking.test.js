@@ -127,3 +127,27 @@ test('WTI ranking also discards results after profile or recommendation generati
     assert.equal(reads, 2, `${changedState} is rechecked after ranking`);
   }
 });
+
+test('WTI rejects a client tax age that conflicts with the persisted profile before provider work', async () => {
+  const current = state();
+  let rankingCalls = 0;
+  const profileAge = Number(current.profile.age);
+  await assert.rejects(() => rankWtiAgainstCurrentState({
+    userId: 'user-1',
+    profileId: current.profile._id,
+    parentInstrumentId: 'index_mf',
+    expectedBinding: currentWtiBinding(current),
+    taxCalculationContext: {
+      annualGrossIncome: 500000,
+      incomeSource: 'salary',
+      regime: 'old',
+      fiscalYear: 'FY2026-27',
+      userAge: profileAge + 1,
+    },
+    dependencies: {
+      requireFreshRecommendationState: async () => current,
+      rankWhereToInvestBackend: async () => { rankingCalls += 1; return []; },
+    },
+  }), { code: 'TAX_PROFILE_AGE_MISMATCH', status: 400 });
+  assert.equal(rankingCalls, 0);
+});

@@ -33,6 +33,14 @@ function conflict(code, message) {
   return error;
 }
 
+function invalidTaxProfileAge() {
+  const error = new Error('Tax age must match the age in the saved Financial Profile.');
+  error.status = 400;
+  error.code = 'TAX_PROFILE_AGE_MISMATCH';
+  error.clientMessage = 'Refresh your saved Financial Profile before requesting a tax illustration.';
+  return error;
+}
+
 /**
  * Rank a selected parent only inside a verified current recommendation state.
  * The state is checked again after ranking so a delayed provider result cannot
@@ -63,8 +71,15 @@ export async function rankWtiAgainstCurrentState({
     throw conflict('RECOMMENDATION_PARENT_MISMATCH', 'The selected category is not part of the current authoritative recommendation.');
   }
 
+  const profile = profileBuilder(state.profile);
+  const suppliedAges = [taxCalculationContext?.userAge, taxCalculationContext?.deductions?.age]
+    .filter(age => age !== undefined && age !== null);
+  if (suppliedAges.some(age => !Number.isInteger(age) || age !== profile.age)) {
+    throw invalidTaxProfileAge();
+  }
+
   const ranked = await rankProducts(
-    profileBuilder(state.profile),
+    profile,
     { parentInstrumentId, taxCalculationContext },
     {
       onStageTiming: dependencies.onStageTiming,

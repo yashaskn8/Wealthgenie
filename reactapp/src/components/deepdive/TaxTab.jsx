@@ -6,6 +6,7 @@ import React from 'react';
 import { X, Shield, Info, Zap, ShieldCheck, Briefcase, History as HistoryIcon } from 'lucide-react';
 import JargonTooltip from '../JargonTooltip';
 import api from '../../services/api';
+import { describeTaxUnavailableResponse, isTaxResponseValid } from './financialResponseIntegrity';
 
 /** Never promote legacy catalog tax tags into current tax-law facts. */
 function getTaxInfo() {
@@ -20,7 +21,7 @@ function getTaxInfo() {
   };
 }
 
-const TaxTab = ({ inv, calcAmount, calcYears, userProfile }) => {
+const TaxTab = ({ inv, calcAmount, calcYears, userProfile, profileStateKey = null, recommendationMeta = null }) => {
   const taxInfo = getTaxInfo();
   const taxBenefitKnown = typeof taxInfo.taxBenefit === 'boolean';
   const taxInterestKnown = typeof taxInfo.taxFreeInterest === 'boolean';
@@ -111,25 +112,111 @@ const TaxTab = ({ inv, calcAmount, calcYears, userProfile }) => {
       )}
 
       {/* Interactive Post-Tax Net Yield Simulator */}
-      <InteractiveTaxSimulator inv={inv} calcAmount={calcAmount} calcYears={calcYears} userProfile={userProfile} />
+      <InteractiveTaxSimulator inv={inv} calcAmount={calcAmount} calcYears={calcYears} userProfile={userProfile} profileStateKey={profileStateKey} recommendationMeta={recommendationMeta} />
     </div>
   );
 };
 
-const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile }) => {
+const parseFiniteNumber = value => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string' || value.trim() === '' || value.trim() !== value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatTaxAmount = value => '₹' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value);
+
+const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile, profileStateKey, recommendationMeta }) => {
   const [annualIncome, setAnnualIncome] = React.useState('');
   const [regime, setRegime] = React.useState('');
   const [incomeSource, setIncomeSource] = React.useState('');
   const [fiscalYear, setFiscalYear] = React.useState('');
-  const [result, setResult] = React.useState(null);
-  const [error, setError] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
+  const [section112AExemptionUsed, setSection112AExemptionUsed] = React.useState('');
+  const [section112ARequirementKey, setSection112ARequirementKey] = React.useState(null);
+  const [resultState, setResultState] = React.useState(null);
   const [policyMetadata, setPolicyMetadata] = React.useState(null);
   const [policyError, setPolicyError] = React.useState(null);
-  const nominalReturn = Number(inv?.nominalReturn);
-  const userAge = Number(userProfile?.age);
-  const isReady = Number(annualIncome) >= 0 && annualIncome !== '' && regime && incomeSource && fiscalYear
-    && Number.isFinite(nominalReturn) && Number.isFinite(userAge) && Number.isFinite(calcYears) && Number.isFinite(calcAmount);
+  const taxRequestKeyRef = React.useRef(null);
+  const taxRequestGenerationRef = React.useRef(0);
+
+  const annualIncomeValue = annualIncome === '' ? null : parseFiniteNumber(annualIncome);
+  const nominalReturn = parseFiniteNumber(inv?.nominalReturn);
+  const userAge = parseFiniteNumber(userProfile?.age);
+  const sectionIsBlank = section112AExemptionUsed === '';
+  const section112AValue = sectionIsBlank ? null : parseFiniteNumber(section112AExemptionUsed);
+  const verifiedFiscalYears = Array.isArray(policyMetadata?.verifiedFiscalYears) ? policyMetadata.verifiedFiscalYears : [];
+  const expectedInputs = React.useMemo(() => ({
+    instrumentType: inv?.type,
+    nominalRate: nominalReturn === null ? null : nominalReturn / 100,
+    annualIncome: annualIncomeValue,
+    holdingYears: calcYears,
+    regime,
+    monthlySIP: calcAmount,
+    userAge,
+    incomeSource,
+    fiscalYear,
+    section112AExemptionUsed: section112AValue,
+  }), [inv?.type, nominalReturn, annualIncomeValue, calcYears, regime, calcAmount, userAge, incomeSource, fiscalYear, section112AValue]);
+
+  const recommendationKey = JSON.stringify({
+    profileId: recommendationMeta?.profileId || recommendationMeta?.profile_id || null,
+    profileVersion: recommendationMeta?.profile_version ?? null,
+    recommendationId: recommendationMeta?.recommendationId || recommendationMeta?.recommendation_id || null,
+    allocationRevision: recommendationMeta?.allocation_revision ?? null,
+    allocationRevisionId: recommendationMeta?.allocation_revision_id || null,
+    portfolioFingerprint: recommendationMeta?.portfolio_fingerprint || null,
+    recommendationFingerprint: recommendationMeta?.recommendation_fingerprint || null,
+    profileInputHash: recommendationMeta?.profile_input_hash || null,
+  });
+  const sectionRequirementKey = JSON.stringify({
+    investmentId: inv?.id || null,
+    investmentType: inv?.type || null,
+    nominalReturn,
+    calcAmount,
+    calcYears,
+    annualIncome,
+    regime,
+    incomeSource,
+    fiscalYear,
+    userAge,
+    profileStateKey,
+    recommendationKey,
+    policyVersion: policyMetadata?.policyVersion || null,
+  });
+  const inputKey = JSON.stringify({
+    investmentId: inv?.id || null,
+    investmentType: inv?.type || null,
+    nominalReturn,
+    calcAmount,
+    calcYears,
+    annualIncome,
+    regime,
+    incomeSource,
+    fiscalYear,
+    userAge,
+    section112AExemptionUsed,
+    profileStateKey,
+    recommendationKey,
+    policyVersion: policyMetadata?.policyVersion || null,
+  });
+  React.useLayoutEffect(() => {
+    taxRequestKeyRef.current = inputKey;
+  }, [inputKey]);
+
+  const sectionIsValid = sectionIsBlank
+    || (section112AValue !== null && section112AValue >= 0 && section112AValue <= 125000);
+  const annualIsValid = annualIncomeValue !== null && annualIncomeValue >= 0 && annualIncomeValue <= 1000000000;
+  const isReady = Boolean(
+    typeof inv?.type === 'string' && inv.type.trim()
+    && nominalReturn !== null && nominalReturn >= 0 && nominalReturn <= 100
+    && annualIsValid
+    && regime && incomeSource
+    && verifiedFiscalYears.includes(fiscalYear)
+    && Number.isInteger(userAge) && userAge >= 18 && userAge <= 120
+    && Number.isFinite(calcYears) && calcYears >= 0.01 && calcYears <= 100
+    && Number.isFinite(calcAmount) && calcAmount >= 0 && calcAmount <= 100000000
+    && sectionIsValid
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -141,47 +228,79 @@ const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile }) =>
           setFiscalYear(current => current || metadata.currentFiscalYear);
         }
       })
-      .catch(requestError => {
-        if (!cancelled) setPolicyError(requestError?.message || 'Verified tax policy metadata is unavailable.');
+      .catch(() => {
+        if (!cancelled) setPolicyError('Verified tax policy metadata is unavailable.');
       });
     return () => { cancelled = true; };
   }, []);
 
   React.useEffect(() => {
     if (!isReady) return undefined;
-    const controller = new AbortController();
     let cancelled = false;
+    const controller = new AbortController();
+    const requestKey = inputKey;
+    const requestInputs = expectedInputs;
+    const generation = ++taxRequestGenerationRef.current;
     const timer = setTimeout(() => {
-      setLoading(true);
-      setError(null);
+      setResultState({ inputKey: requestKey, status: 'loading', result: null, error: null });
+      const body = requestInputs.section112AExemptionUsed === null
+        ? {}
+        : { section112AExemptionUsed: requestInputs.section112AExemptionUsed };
       api.computePostTaxReturn(
-        inv.type,
-        nominalReturn / 100,
-        Number(annualIncome),
-        calcYears,
-        regime,
-        calcAmount,
-        userAge,
-        incomeSource,
-        fiscalYear,
-        { signal: controller.signal },
+        requestInputs.instrumentType,
+        requestInputs.nominalRate,
+        requestInputs.annualIncome,
+        requestInputs.holdingYears,
+        requestInputs.regime,
+        requestInputs.monthlySIP,
+        requestInputs.userAge,
+        requestInputs.incomeSource,
+        requestInputs.fiscalYear,
+        { signal: controller.signal, body },
       ).then(response => {
-        if (!cancelled) setResult(response);
-      }).catch(requestError => {
-        if (!cancelled && requestError?.code !== 'REQUEST_ABORTED') {
-          setResult(null);
-          setError(requestError?.message || 'Tax what-if calculation failed.');
+        if (cancelled || generation !== taxRequestGenerationRef.current
+          || taxRequestKeyRef.current !== requestKey) return;
+        if (!isTaxResponseValid(response, requestInputs)) {
+          setResultState({
+            inputKey: requestKey,
+            status: 'error',
+            result: null,
+            error: 'The tax response could not be verified against the current inputs.',
+          });
+          return;
         }
-      }).finally(() => {
-        if (!cancelled) setLoading(false);
+        setSection112ARequirementKey(response.unavailableReasons.includes('section112AExemptionUsed')
+          ? sectionRequirementKey
+          : null);
+        setResultState({ inputKey: requestKey, status: 'ready', result: response, error: null });
+      }).catch(requestError => {
+        if (!cancelled && generation === taxRequestGenerationRef.current
+          && taxRequestKeyRef.current === requestKey && requestError?.code !== 'REQUEST_ABORTED') {
+          setResultState({
+            inputKey: requestKey,
+            status: 'error',
+            result: null,
+            error: 'A verified tax calculation could not be obtained. Please try again.',
+          });
+        }
       });
     }, 250);
     return () => {
       cancelled = true;
+      taxRequestGenerationRef.current += 1;
       clearTimeout(timer);
       controller.abort();
     };
-  }, [annualIncome, calcAmount, calcYears, fiscalYear, incomeSource, inv.type, isReady, nominalReturn, regime, userAge]);
+  }, [inputKey, isReady, expectedInputs, sectionRequirementKey]);
+
+  const currentState = resultState?.inputKey === inputKey ? resultState : null;
+  const result = currentState?.status === 'ready' ? currentState.result : null;
+  const loading = Boolean(isReady && (!currentState || currentState.status === 'loading'));
+  const error = currentState?.status === 'error' ? currentState.error : null;
+  const calculated = result?.status === 'CALCULATED';
+  const requiresSection112A = section112ARequirementKey === sectionRequirementKey
+    || Boolean(result && !calculated && result.unavailableReasons.includes('section112AExemptionUsed'));
+  const unavailableMessage = result && !calculated ? describeTaxUnavailableResponse(result) : null;
 
   return (
     <div style={{
@@ -204,7 +323,9 @@ const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile }) =>
           {['new', 'old'].map(option => (
             <button
               key={option}
+              type="button"
               onClick={() => setRegime(option)}
+              aria-pressed={regime === option}
               style={{
                 padding: '4px 10px',
                 borderRadius: '6px',
@@ -225,7 +346,7 @@ const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile }) =>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
         <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
           Gross annual income before allowed deductions (₹)
-          <input type="number" min="0" value={annualIncome} onChange={event => setAnnualIncome(event.target.value)} placeholder="Enter gross income" style={{ width: '100%', marginTop: 6, padding: '9px 10px', borderRadius: 8, color: '#f8fafc', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
+          <input type="number" min="0" max="1000000000" value={annualIncome} onChange={event => setAnnualIncome(event.target.value)} placeholder="Enter gross income" style={{ width: '100%', marginTop: 6, padding: '9px 10px', borderRadius: 8, color: '#f8fafc', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
         </label>
         <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
           Income source
@@ -242,38 +363,69 @@ const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile }) =>
           Fiscal year
           <select value={fiscalYear} onChange={event => setFiscalYear(event.target.value)} style={{ width: '100%', marginTop: 6, padding: '9px 10px', borderRadius: 8, color: '#f8fafc', background: '#111827', border: '1px solid rgba(255,255,255,0.1)' }}>
             <option value="">Select fiscal year</option>
-            {(policyMetadata?.verifiedFiscalYears || []).map(year => (
+            {verifiedFiscalYears.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
         </label>
       </div>
+
+      {requiresSection112A && (
+        <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.78rem', fontWeight: 600, marginTop: 14 }}>
+          Section 112A exemption already used this financial year (₹)
+          <input
+            type="number"
+            min="0"
+            max="125000"
+            step="1"
+            value={section112AExemptionUsed}
+            onChange={event => setSection112AExemptionUsed(event.target.value)}
+            aria-label="Section 112A exemption already used this financial year"
+            placeholder="Enter amount; use 0 if none"
+            style={{ width: '100%', maxWidth: 360, display: 'block', marginTop: 6, padding: '9px 10px', borderRadius: 8, color: '#f8fafc', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+          />
+          <span style={{ display: 'block', color: '#94a3b8', fontWeight: 400, marginTop: 6 }}>
+            Leave blank only while you are checking your records. Enter 0 explicitly if none was used.
+          </span>
+        </label>
+      )}
+
+      {!annualIsValid && annualIncome !== '' && <p role="alert" style={{ color: '#fda4af', fontSize: '0.75rem', margin: '10px 0 0' }}>Enter gross annual income from ₹0 to ₹1,00,00,00,000.</p>}
+      {!sectionIsValid && <p role="alert" style={{ color: '#fda4af', fontSize: '0.75rem', margin: '10px 0 0' }}>Enter a Section 112A amount from ₹0 to ₹1,25,000.</p>}
       {!isReady && <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '10px 0 0' }}>Enter the separate tax facts above to run this server calculation. It uses the supplied nominal rate as a model assumption and is not an actual transaction tax estimate.</p>}
       {policyError && <p role="alert" style={{ color: '#fbbf24', fontSize: '0.75rem', margin: '10px 0 0' }}>{policyError}</p>}
       {error && <p role="alert" style={{ color: '#f87171', fontSize: '0.75rem', margin: '10px 0 0' }}>{error}</p>}
+      {loading && <p role="status" style={{ color: '#7dd3fc', fontSize: '0.75rem', margin: '10px 0 0' }}>Calculating with the current inputs…</p>}
+      {unavailableMessage && <p role="status" style={{ color: '#fbbf24', fontSize: '0.78rem', margin: '12px 0 0' }}>{unavailableMessage}</p>}
+
+      <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.16)' }}>
+        <strong style={{ color: '#7dd3fc', fontSize: '0.78rem' }}>Fixed ₹1,00,000 what-if principal</strong>
+        <p style={{ color: '#cbd5e1', fontSize: '0.74rem', lineHeight: 1.55, margin: '5px 0 0' }}>
+          The figures below use this fixed principal. The selected monthly SIP and holding period are tax-context inputs; these figures are not your SIP account balance or actual tax liability.
+        </p>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 16 }}>
         <div style={{ padding: '14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>Gross Annual Growth</span>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>Gross growth on fixed principal</span>
           <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', marginTop: 4 }}>
-            {result ? `₹${Number(result.what_if_nominal_gain).toLocaleString('en-IN')} (${(nominalReturn).toFixed(2)}%)` : loading ? 'Calculating…' : '—'}
+            {calculated ? formatTaxAmount(result.what_if_nominal_gain) + ' (' + (nominalReturn).toFixed(2) + '%)' : loading ? 'Calculating…' : '—'}
           </div>
         </div>
         <div style={{ padding: '14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
-          <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>Modelled Tax Drag</span>
+          <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>Modelled tax on fixed principal</span>
           <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f87171', marginTop: 4 }}>
-            {result ? `- ₹${Number(result.what_if_estimated_tax).toLocaleString('en-IN')} (${(Number(result.taxRate) * 100).toFixed(2)}%)` : loading ? 'Calculating…' : '—'}
+            {calculated ? '- ' + formatTaxAmount(result.what_if_estimated_tax) + ' (' + (result.taxRate * 100).toFixed(2) + '%)' : loading ? 'Calculating…' : '—'}
           </div>
         </div>
         <div style={{ padding: '14px', background: 'rgba(34, 197, 94, 0.08)', borderRadius: '10px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-          <span style={{ fontSize: '0.75rem', color: '#4ade80', fontWeight: 700 }}>Net In-Hand Profit</span>
+          <span style={{ fontSize: '0.75rem', color: '#4ade80', fontWeight: 700 }}>Net growth on fixed principal</span>
           <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#4ade80', marginTop: 4 }}>
-            {result ? `₹${Number(result.what_if_net_gain).toLocaleString('en-IN')} (${Number(result.effectiveYield).toFixed(2)}% Net)` : loading ? 'Calculating…' : '—'}
+            {calculated ? formatTaxAmount(result.what_if_net_gain) + ' (' + result.effectiveYield.toFixed(2) + '% modelled net)' : loading ? 'Calculating…' : '—'}
           </div>
         </div>
       </div>
     </div>
   );
 };
-
 export default TaxTab;

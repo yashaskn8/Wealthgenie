@@ -64,9 +64,9 @@ test.after(async () => {
 // ==============================================================================
 // PROOF 1: Pre-existing token without role claim decodes with req.user.role === 'user'
 // ==============================================================================
-test('PROOF 1: verifyJWT defaults legacy/missing role claim to "user"', () => {
+test('PROOF 1: verifyJWT defaults legacy/missing role claim to "user"', async () => {
   const legacyToken = jwt.sign(
-    { userId: '64b000000000000000000001', email: 'legacy@wealthgenie.test' },
+    { userId: '64b000000000000000000001', email: 'legacy@wealthgenie.test', jti: 'legacy-role-token' },
     process.env.JWT_SECRET,
     { expiresIn: '1h' }
   );
@@ -75,7 +75,7 @@ test('PROOF 1: verifyJWT defaults legacy/missing role claim to "user"', () => {
   const res = mockResponse();
   let nextCalled = false;
 
-  verifyJWT(req, res, () => {
+  await verifyJWT(req, res, () => {
     nextCalled = true;
   });
 
@@ -87,8 +87,9 @@ test('PROOF 1: verifyJWT defaults legacy/missing role claim to "user"', () => {
 // ==============================================================================
 // PROOF 2: requireRole('admin') rejects user-role tokens with 403 and allows admin-role tokens
 // ==============================================================================
-test('PROOF 2: requireRole middleware enforces role constraints strictly', () => {
-  const adminGuard = requireRole('admin');
+test('PROOF 2: requireRole checks current account roles and fails closed on lookup errors', async () => {
+  const roles = new Map([['456', 'admin']]);
+  const adminGuard = requireRole('admin', { findCurrentRole: async userId => roles.get(userId) || null });
 
   // Case A: User role trying to access admin endpoint -> 403 Forbidden
   const userReq = { user: { userId: '123', role: 'user' } };
@@ -104,10 +105,26 @@ test('PROOF 2: requireRole middleware enforces role constraints strictly', () =>
   const adminReq = { user: { userId: '456', role: 'admin' } };
   const adminRes = mockResponse();
   let adminNext = false;
-  adminGuard(adminReq, adminRes, () => { adminNext = true; });
+  await adminGuard(adminReq, adminRes, () => { adminNext = true; });
 
   assert.equal(adminNext, true);
   assert.equal(adminRes.statusCode, 200);
+
+  roles.set('456', 'user');
+  const revokedRes = mockResponse();
+  let revokedNext = false;
+  await adminGuard(adminReq, revokedRes, () => { revokedNext = true; });
+  assert.equal(revokedNext, false);
+  assert.equal(revokedRes.statusCode, 403);
+  assert.equal(revokedRes.body.code, 'AUTH_ROLE_REQUIRED');
+
+  const unavailableGuard = requireRole('admin', { findCurrentRole: async () => { throw new Error('database unavailable'); } });
+  const unavailableRes = mockResponse();
+  let unavailableNext = false;
+  await unavailableGuard(adminReq, unavailableRes, () => { unavailableNext = true; });
+  assert.equal(unavailableNext, false);
+  assert.equal(unavailableRes.statusCode, 503);
+  assert.equal(unavailableRes.body.code, 'AUTH_ROLE_STATE_UNAVAILABLE');
 
   // Case C: Unauthenticated / missing req.user -> 403 Forbidden
   const unauthReq = {};
@@ -185,6 +202,13 @@ test('PROOF 4: POST /api/auth/login reads direct DB promotion to "admin" and iss
     });
     assert.equal(adminRouteRes.status, 200);
     assert.equal(adminRouteBody.role, 'admin');
+
+    await User.updateOne({ email }, { $set: { role: 'user' } });
+    const revokedAdmin = await jsonRequest(`${baseUrl}/api/admin/dashboard`, {
+      method: 'GET', headers: { authorization: `Bearer ${loginBody.token}` },
+    });
+    assert.equal(revokedAdmin.response.status, 403);
+    assert.equal(revokedAdmin.body.code, 'AUTH_ROLE_REQUIRED');
 
     await User.deleteOne({ email });
   });

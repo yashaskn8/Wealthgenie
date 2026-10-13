@@ -718,7 +718,7 @@ export function computeCapitalGainsTaxBuckets({
     incomeSource,
     fiscalYear,
     userAge,
-    section112AExemptionUsed = 0,
+    section112AExemptionUsed,
     section112AExemptionAppliedOverride = null,
 }) {
     for (const [name, value] of Object.entries({ shortTerm111AGain, longTerm112AGain, longTermOtherGain })) {
@@ -848,7 +848,7 @@ export function computeEquityCapitalGainsTax({
     incomeSource,
     fiscalYear,
     userAge,
-    section112AExemptionUsed = 0,
+    section112AExemptionUsed,
     holdingPeriodClassification = null,
     section112AExemptionAppliedOverride = null,
 }) {

@@ -111,6 +111,51 @@ export const postTaxReturnBatchSchema = Joi.object({
   section112AExemptionUsed: Joi.number().min(0).max(125000).optional(),
 }).custom(requirePostTaxDependencyFacts).unknown(false);
 
+const userDeclaredScenarioInstrumentIds = ['fd', 'sbi_fd', 'rbi_bonds', 'sgb', 'nifty_etf'];
+export const userDeclaredPostTaxScenarioSchema = Joi.object({
+  canonicalInstrumentId: Joi.string().valid(...userDeclaredScenarioInstrumentIds).required(),
+  scenarioType: Joi.string().valid('INTEREST_INCOME', 'EQUITY_REALIZED_GAIN').required(),
+  canonicalProductId: Joi.when('canonicalInstrumentId', {
+    is: 'nifty_etf', then: Joi.string().valid('etf:isin:INF204KB14I2').required(), otherwise: Joi.forbidden(),
+  }),
+  interestReceived: Joi.number().min(0).max(1000000000).when('scenarioType', {
+    is: 'INTEREST_INCOME', then: Joi.required(), otherwise: Joi.forbidden(),
+  }),
+  acquisitionCostBasis: Joi.number().greater(0).max(1000000000).when('scenarioType', {
+    is: 'EQUITY_REALIZED_GAIN', then: Joi.required(), otherwise: Joi.forbidden(),
+  }),
+  saleProceeds: Joi.number().min(0).max(1000000000).when('scenarioType', {
+    is: 'EQUITY_REALIZED_GAIN', then: Joi.required(), otherwise: Joi.forbidden(),
+  }),
+  acquisitionDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).when('scenarioType', {
+    is: 'EQUITY_REALIZED_GAIN', then: Joi.required(), otherwise: Joi.forbidden(),
+  }),
+  redemptionDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).when('scenarioType', {
+    is: 'EQUITY_REALIZED_GAIN', then: Joi.required(), otherwise: Joi.forbidden(),
+  }),
+  section112AExemptionUsed: Joi.number().min(0).max(125000).when('scenarioType', {
+    is: 'EQUITY_REALIZED_GAIN', then: Joi.required(), otherwise: Joi.forbidden(),
+  }),
+  sttConditionAssumedSatisfied: Joi.boolean().strict().when('scenarioType', {
+    is: 'EQUITY_REALIZED_GAIN', then: Joi.required(), otherwise: Joi.forbidden(),
+  }),
+  annualGrossIncome: Joi.number().min(0).max(1000000000).required(),
+  incomeSource: Joi.string().valid(...incomeSourceValues).required(),
+  regime: Joi.string().valid('new', 'old').required(),
+  fiscalYear: Joi.string().pattern(FISCAL_YEAR_PATTERN).required(),
+  userAge: Joi.number().integer().min(18).max(120).required(),
+  deductions: taxDeductionSchema.optional(),
+}).custom((value, helpers) => {
+  if (value.scenarioType === 'INTEREST_INCOME'
+      && !['fd', 'sbi_fd', 'rbi_bonds', 'sgb'].includes(value.canonicalInstrumentId)) {
+    return helpers.message({ custom: 'This investment does not have a qualified user-declared interest-tax scenario.' });
+  }
+  if (value.scenarioType === 'EQUITY_REALIZED_GAIN' && value.canonicalInstrumentId !== 'nifty_etf') {
+    return helpers.message({ custom: 'An exact qualified product identity is required for this capital-gain scenario.' });
+  }
+  return validatePostTaxTransactionDates(value, helpers);
+}).custom(requirePostTaxDependencyFacts).unknown(false);
+
 export const marketContextQuerySchema = Joi.object({}).unknown(false);
 
 export const marketNavQuerySchema = Joi.object({
@@ -119,6 +164,41 @@ export const marketNavQuerySchema = Joi.object({
     .pattern(/^\d+(,\d+){0,49}$/)
     .max(600)
     .required(),
+}).unknown(false);
+
+// Canonical IDs only: instrument keys and arbitrary provider URLs never enter
+// the public market-data request contract.
+export const marketQuoteQuerySchema = Joi.object({
+  ids: Joi.string()
+    .trim()
+    .pattern(/^[a-z0-9:-]+(?:,[a-z0-9:-]+){0,9}$/)
+    .max(500)
+    .required(),
+}).unknown(false);
+
+const marketHistoryIsoDate = Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).custom((value, helpers) => {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    return helpers.error('date.base');
+  }
+  return value;
+}, 'valid calendar date');
+
+export const marketEquityHistoryQuerySchema = Joi.object({
+  exchange: Joi.string().trim().uppercase().valid('NSE', 'BSE').required(),
+  symbol: Joi.string().trim().uppercase().pattern(/^[A-Z0-9][A-Z0-9&-]{0,29}$/).required(),
+  isin: Joi.string().trim().uppercase().pattern(/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/).required(),
+  fromDate: marketHistoryIsoDate.required(),
+  toDate: marketHistoryIsoDate.required(),
+  basis: Joi.string().trim().uppercase().valid('RAW', 'ADJUSTED').default('RAW'),
+}).custom((value, helpers) => value.fromDate <= value.toDate
+  ? value
+  : helpers.error('date.order'), 'ordered market-history range').unknown(false);
+
+export const marketEquityIdentityQuerySchema = Joi.object({
+  exchange: Joi.string().trim().uppercase().valid('NSE', 'BSE').required(),
+  symbol: Joi.string().trim().uppercase().pattern(/^[A-Z0-9][A-Z0-9&-]{0,29}$/).required(),
+  isin: Joi.string().trim().uppercase().pattern(/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/).required(),
 }).unknown(false);
 
 const boundedIntegerQuery = (min, max) => Joi.string()

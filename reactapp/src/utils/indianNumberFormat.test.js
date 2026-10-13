@@ -7,6 +7,11 @@ describe('Indian number formatting', () => {
     expect(formatCompactINR(undefined)).toBe('—');
     expect(formatPercent(Number.NaN)).toBe('—');
     expect(formatINR(Number.POSITIVE_INFINITY)).toBe('—');
+    for (const value of [' ', '0x10', false, []]) {
+      expect(formatINR(value)).toBe('—');
+      expect(formatCompactINR(value)).toBe('—');
+      expect(formatPercent(value)).toBe('—');
+    }
   });
 
   it('formats negative compact values without duplicate or misplaced signs', () => {

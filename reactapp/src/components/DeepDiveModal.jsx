@@ -8,11 +8,13 @@ import React, { useState, useMemo } from 'react';
 import { X, MapPin, Info, Shield, History as HistoryIcon, IndianRupee, Calculator as CalcIcon, AlertTriangle } from 'lucide-react';
 import { investmentDatabase } from '../investmentDatabase';
 import api from '../services/api';
+import { isPresentFiniteNumber } from '../utils/financialValues';
 import JargonTooltip from './JargonTooltip';
 import './DeepDiveModal.css';
 
 // ── Tab Panel Components ────────────────────────────────────────
 import { OverviewTab, WhereToInvestTab, CalculatorTab, TaxTab, HistoryTab, WhyInvestTab } from './deepdive';
+import { isProjectionInputValid, isProjectionResponseValid } from './deepdive/financialResponseIntegrity';
 
 const TABS = [
   { id: 'Overview', icon: <Info size={16} /> },
@@ -37,9 +39,9 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
   const [calcReturn, setCalcReturn] = useState(10);
   const [inflationRate, setInflationRate] = useState(6);
   const [benchmarkRate, setBenchmarkRate] = useState(2.7);
-  const [projection, setProjection] = useState(null);
-  const [projectionError, setProjectionError] = useState(null);
-  const [projectionLoading, setProjectionLoading] = useState(false);
+  const [projectionState, setProjectionState] = useState(null);
+  const projectionRequestKeyRef = React.useRef(null);
+  const projectionRequestGenerationRef = React.useRef(0);
 
   const modalRef = React.useRef(null);
   const previouslyFocusedElementRef = React.useRef(null);
@@ -85,9 +87,7 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
 
   // ─── Instrument-Aware Calculator Bounds ───
   const calcBounds = useMemo(() => {
-    const numberOrNull = (value) => value === null || value === undefined || value === ''
-      ? null
-      : Number.isFinite(Number(value)) ? Number(value) : null;
+    const numberOrNull = value => isPresentFiniteNumber(value) ? Number(value) : null;
     const exactReturn = numberOrNull(investment?.nominalReturn);
     const retMin = numberOrNull(investment?.expected_return_min ?? investment?.returnRange?.min) ?? exactReturn;
     const retMax = numberOrNull(investment?.expected_return_max ?? investment?.returnRange?.max) ?? exactReturn;
@@ -126,7 +126,9 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
     constraints: investment?.calculatorConstraints || null,
     horizon: horizon ?? null,
     profileId: recommendationMeta?.profileId || recommendationMeta?.profile_id || null,
-    profileVersion: recommendationMeta?.profile_version ?? null,
+    profileVersion: recommendationMeta?.profile_version ?? userProfile?.version ?? userProfile?.profileVersion ?? null,
+    userProfileId: userProfile?.profileId || userProfile?.profile_id || null,
+    userProfileUpdatedAt: userProfile?.updatedAt || userProfile?.updated_at || null,
     recommendationId: recommendationMeta?.recommendationId || recommendationMeta?.recommendation_id || null,
     allocationRevision: recommendationMeta?.allocation_revision ?? null,
     allocationRevisionId: recommendationMeta?.allocation_revision_id || null,
@@ -137,12 +139,26 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
     initialTab: initialTab || null,
   });
   const hasInvestment = Boolean(investment);
+  const projectionAssumptions = useMemo(() => ({
+    monthlyInvestment: calcAmount,
+    annualReturnRate: calcReturn / 100,
+    benchmarkRate: benchmarkRate / 100,
+    inflationRate: inflationRate / 100,
+    years: calcYears,
+  }), [calcAmount, calcReturn, benchmarkRate, inflationRate, calcYears]);
+  const projectionInputKey = JSON.stringify({
+    investmentId: investment?.id || null,
+    investmentType: investment?.type || null,
+    calculatorStateKey,
+    assumptions: projectionAssumptions,
+  });
+  React.useLayoutEffect(() => {
+    projectionRequestKeyRef.current = projectionInputKey;
+  }, [projectionInputKey]);
 
   React.useEffect(() => {
     if (!hasInvestment) {
-      setProjection(null);
-      setProjectionError(null);
-      setProjectionLoading(false);
+      setProjectionState(null);
       return;
     }
     const defaultYears = horizon === null || horizon === undefined || horizon === '' ? null : Number(horizon);
@@ -152,8 +168,7 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
     setCalcReturn(Number(((calcBounds.returnMin + calcBounds.returnMax) / 2).toFixed(1)));
     setCalcYears(boundedYears);
     setCalcAmount(5000);
-    setProjection(null);
-    setProjectionError(null);
+    setProjectionState(null);
     setActiveTab(initialTab || 'Overview');
   }, [calculatorStateKey, calcBounds, horizon, hasInvestment, initialTab]);
 
@@ -181,36 +196,59 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
   const riskLevel = typeof inv.risk_level === 'string' ? inv.risk_level : '';
 
   React.useEffect(() => {
-    if (!isOpen || !hasInvestment) return undefined;
+    if (!isOpen || !hasInvestment || !isProjectionInputValid(projectionAssumptions)) return undefined;
     let cancelled = false;
     const controller = new AbortController();
+    const requestKey = projectionInputKey;
+    const requestAssumptions = projectionAssumptions;
+    const generation = ++projectionRequestGenerationRef.current;
     const timer = setTimeout(() => {
-      setProjectionLoading(true);
-      setProjectionError(null);
+      setProjectionState({ inputKey: requestKey, status: 'loading', result: null, error: null });
       api.compareInvestmentProjection(
-        calcAmount,
-        calcReturn / 100,
-        benchmarkRate / 100,
-        inflationRate / 100,
-        calcYears,
+        requestAssumptions.monthlyInvestment,
+        requestAssumptions.annualReturnRate,
+        requestAssumptions.benchmarkRate,
+        requestAssumptions.inflationRate,
+        requestAssumptions.years,
         { signal: controller.signal },
       ).then(result => {
-        if (!cancelled) setProjection(result);
-      }).catch(error => {
-        if (!cancelled && error?.code !== 'REQUEST_ABORTED') {
-          setProjection(null);
-          setProjectionError(error.message);
+        if (cancelled || generation !== projectionRequestGenerationRef.current
+          || projectionRequestKeyRef.current !== requestKey) return;
+        if (!isProjectionResponseValid(result, requestAssumptions)) {
+          setProjectionState({
+            inputKey: requestKey,
+            status: 'error',
+            result: null,
+            error: 'The server response did not match the current projection assumptions.',
+          });
+          return;
         }
-      }).finally(() => {
-        if (!cancelled) setProjectionLoading(false);
+        setProjectionState({ inputKey: requestKey, status: 'ready', result, error: null });
+      }).catch(error => {
+        if (!cancelled && generation === projectionRequestGenerationRef.current
+          && projectionRequestKeyRef.current === requestKey && error?.code !== 'REQUEST_ABORTED') {
+          setProjectionState({
+            inputKey: requestKey,
+            status: 'error',
+            result: null,
+            error: error?.message || 'Comparison is unavailable.',
+          });
+        }
       });
     }, 250);
     return () => {
       cancelled = true;
+      projectionRequestGenerationRef.current += 1;
       clearTimeout(timer);
       controller.abort();
     };
-  }, [isOpen, hasInvestment, calculatorStateKey, calcAmount, calcReturn, benchmarkRate, inflationRate, calcYears]);
+  }, [isOpen, hasInvestment, calculatorStateKey, projectionInputKey, projectionAssumptions]);
+
+  const currentProjectionState = projectionState?.inputKey === projectionInputKey ? projectionState : null;
+  const projection = currentProjectionState?.status === 'ready' ? currentProjectionState.result : null;
+  const projectionError = currentProjectionState?.status === 'error' ? currentProjectionState.error : null;
+  const projectionLoading = Boolean(isOpen && hasInvestment && isProjectionInputValid(projectionAssumptions)
+    && (!currentProjectionState || currentProjectionState.status === 'loading'));
 
   const historicalData = useMemo(() => (projection?.normalizedChart || []).map(point => ({
     ...point,
@@ -265,6 +303,7 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
     projection,
     projectionError,
     projectionLoading,
+    projectionAssumptions,
   };
 
   return (
@@ -402,8 +441,8 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
           {activeTab === 'Overview' && <OverviewTab inv={inv} comparisonData={comparisonData} onSelectInvestment={onSelectInvestment} />}
           {activeTab === 'Where to Invest' && <WhereToInvestTab inv={inv} userProfile={userProfile} recommendationMeta={recommendationMeta} />}
           {activeTab === 'Calculator' && <CalculatorTab {...calcProps} setCalcAmount={setCalcAmount} setCalcYears={setCalcYears} setCalcReturn={setCalcReturn} setInflationRate={setInflationRate} />}
-          {activeTab === 'Tax' && <TaxTab inv={inv} calcAmount={calcAmount} calcYears={calcYears} userProfile={userProfile} />}
-          {activeTab === 'History' && <HistoryTab inv={inv} historicalData={historicalData} benchmarkRate={benchmarkRate} inflationRate={inflationRate} projectionError={projectionError} />}
+          {activeTab === 'Tax' && <TaxTab inv={inv} calcAmount={calcAmount} calcYears={calcYears} userProfile={userProfile} profileStateKey={calculatorStateKey} recommendationMeta={recommendationMeta} />}
+          {activeTab === 'History' && <HistoryTab inv={inv} historicalData={historicalData} benchmarkRate={benchmarkRate} inflationRate={inflationRate} projectionError={projectionError} projectionLoading={projectionLoading} />}
           {activeTab === 'Why Invest' && <WhyInvestTab {...calcProps} setActiveTab={setActiveTab} setInflationRate={setInflationRate} setBenchmarkRate={setBenchmarkRate} />}
         </div>
       </div>

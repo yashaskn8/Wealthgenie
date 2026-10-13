@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
-import { ChevronRight, ChevronDown, Filter, Info, Shield, TrendingUp, Zap, Trophy, BarChart3, AlertCircle, Calendar, Target, Activity, Wallet, PiggyBank, Clock, HelpCircle, Building2, MapPin, Star, User, Edit3, Sparkles, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Filter, Info, Shield, TrendingUp, Zap, Trophy, BarChart3, AlertCircle, Calendar, Target, Activity, Wallet, PiggyBank, Clock, HelpCircle, Building2, MapPin, Star, User, Edit3, Sparkles, ShieldAlert, CheckCircle2, SlidersHorizontal, PieChart as PieChartIcon } from 'lucide-react';
 import { RISK_COLORS, CHART_COLORS } from './investmentDatabase';
 import { formatINR, getWhy } from './utils/recommendationPresentation';
 import { nullableMarketNumber } from './utils/marketDataDisplay';
@@ -10,22 +10,83 @@ import SebiDisclaimer from './components/SebiDisclaimer';
 import { formatCompactINR } from './utils/indianNumberFormat';
 import JargonTooltip from './components/JargonTooltip';
 import { computeSuitabilityMatch } from './utils/suitabilityMatch';
-import { formatMarketTimestamp, getMarketDisplayState, getMarketEvidenceSource } from './utils/marketDataDisplay';
-import { useMarketContext } from './state/useMarketContext';
 
 import './Dashboard.css';
+import './RecommendationDashboardIntro.css';
 
 const CATEGORY_COLORS = {
+  'Cash': '#10b981',        // Vibrant emerald green (safe, liquid)
+  'Liquid': '#10b981',
+  'Sovereign': '#8b5cf6',   // Royal purple (sovereign / government backed)
+  'Government': '#06b6d4',  // Bright teal cyan
+  'Debt': '#38bdf8',        // Clean electric sky blue
+  'Fixed Income': '#38bdf8',
   'Equity': '#6366f1',      // Refined indigo
-  'Debt': '#38bdf8',        // Clean sky blue
-  'Commodity': '#f59e0b',   // Warm amber
-  'Government': '#06b6d4',  // Teal cyan
-  'Equity-Debt': '#8b5cf6', // Muted violet
-  'Alternative': '#d97706', // Deep amber
-  'Hybrid': '#ec4899'       // Pink
+  'Equities': '#6366f1',
+  'Stocks': '#6366f1',
+  'Commodity': '#f59e0b',   // Warm amber / gold
+  'Gold': '#f59e0b',
+  'Hybrid': '#ec4899',      // Modern rose pink
+  'Equity-Debt': '#a855f7', // Balanced violet
+  'Alternative': '#f97316'  // Tangy orange
 };
-const DEFAULT_COLORS = ['#6366f1', '#06b6d4', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#a855f7'];
 
+const DEFAULT_PALETTE = ['#10b981', '#38bdf8', '#8b5cf6', '#6366f1', '#f59e0b', '#06b6d4', '#ec4899', '#f97316'];
+
+const getCategoryColor = (name, index = 0) => {
+  if (!name) return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
+  const trimmed = String(name).trim();
+  if (CATEGORY_COLORS[trimmed]) return CATEGORY_COLORS[trimmed];
+  const lower = trimmed.toLowerCase();
+  for (const [key, color] of Object.entries(CATEGORY_COLORS)) {
+    if (key.toLowerCase() === lower) return color;
+  }
+  if (lower.includes('cash') || lower.includes('liquid')) return '#10b981';
+  if (lower.includes('sovereign') || lower.includes('gov') || lower.includes('rbi')) return '#8b5cf6';
+  if (lower.includes('debt') || lower.includes('fd') || lower.includes('bond')) return '#38bdf8';
+  if (lower.includes('equity') || lower.includes('stock')) return '#6366f1';
+  if (lower.includes('gold') || lower.includes('commodity')) return '#f59e0b';
+  if (lower.includes('hybrid')) return '#ec4899';
+  return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
+};
+
+const INSTRUMENT_TYPE_LABELS = Object.freeze({
+  ETF: 'ETF', MF: 'MF', MUTUAL_FUND: 'MF', FD: 'FD', FIXED_DEPOSIT: 'FD',
+  'G-SEC': 'G-SEC', G_SEC: 'G-SEC', RBI_BOND: 'BOND', BOND: 'BOND',
+  PPF: 'PPF', SCSS: 'SCSS', SSY: 'SSY', SGB: 'SGB', NPS: 'NPS',
+});
+
+const getInstrumentTypeBadge = (type = '') => {
+  const label = INSTRUMENT_TYPE_LABELS[String(type).trim().toUpperCase()] || 'IN';
+  const style = label === 'IN'
+    ? { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)', border: 'rgba(148, 163, 184, 0.22)' }
+    : { color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.28)' };
+  return { label, ...style };
+};
+
+const getInstrumentIconData = (assetClass = '') => {
+  const category = String(assetClass).trim().toLowerCase();
+  if (['sovereign', 'government'].includes(category)) {
+    return { Icon: Shield, color: '#c084fc', bg: 'rgba(192, 132, 252, 0.14)', border: 'rgba(192, 132, 252, 0.3)' };
+  }
+  if (['commodity', 'gold'].includes(category)) {
+    return { Icon: Sparkles, color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.14)', border: 'rgba(251, 191, 36, 0.3)' };
+  }
+  if (['cash', 'liquid'].includes(category)) {
+    return { Icon: PiggyBank, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.3)' };
+  }
+  if (['debt', 'fixed income'].includes(category)) {
+    return { Icon: Building2, color: '#34d399', bg: 'rgba(52, 211, 153, 0.14)', border: 'rgba(52, 211, 153, 0.3)' };
+  }
+  if (['equity', 'equities', 'stocks'].includes(category)) {
+    return { Icon: BarChart3, color: '#818cf8', bg: 'rgba(129, 140, 248, 0.14)', border: 'rgba(129, 140, 248, 0.3)' };
+  }
+  return { Icon: TrendingUp, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.14)', border: 'rgba(6, 182, 212, 0.3)' };
+};
+
+const getInstrumentSubtitle = (assetClass = '') => (
+  typeof assetClass === 'string' && assetClass.trim() ? assetClass.trim() : null
+);
 const SOURCE_BADGES = {
   backend: { label: 'Live backend', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.10)', border: 'rgba(56, 189, 248, 0.22)' },
 };
@@ -64,79 +125,6 @@ export const BackendFallbackBanner = ({ notice, onDismiss }) => {
 
 const RecommendationSourceBadge = () => null;
 
-function HomeMarketOverview() {
-  const { marketContext, marketContextLoading, marketContextError, marketContextRefreshing } = useMarketContext();
-  const snapshot = marketContext?.marketSnapshot || null;
-  const displayState = getMarketDisplayState(marketContext, {
-    loading: marketContextLoading,
-    refreshFailed: Boolean(marketContextError),
-  });
-  const observedFacts = snapshot?.observedFacts || [];
-  const factByKey = new Map(observedFacts.map(fact => [fact.key, fact]));
-  const formatQuote = key => {
-    const fact = factByKey.get(key);
-    const value = nullableMarketNumber(fact?.value);
-    if (fact?.availabilityStatus !== 'AVAILABLE' || value === null) return 'Unavailable';
-    return value.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-  };
-  const sources = getMarketEvidenceSource(marketContext) || 'Unavailable';
-  const sessionStatus = snapshot?.marketSession?.status;
-  const sessionLabel = sessionStatus === 'MARKET_OPEN'
-    ? 'Market open'
-    : sessionStatus === 'MARKET_CLOSED' || sessionStatus === 'MARKET_HOLIDAY'
-      ? 'Market closed'
-      : 'Session unavailable';
-  const freshness = snapshot?.freshness?.status || 'UNAVAILABLE';
-  const observedAt = formatMarketTimestamp(snapshot?.observedAt);
-
-  return (
-    <section
-      aria-labelledby="home-market-overview-title"
-      data-testid="home-market-overview"
-      style={{
-        marginBottom: 18,
-        padding: '16px 20px',
-        borderRadius: 14,
-        border: '1px solid rgba(56, 189, 248, 0.2)',
-        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.72))',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h2 id="home-market-overview-title" style={{ margin: 0, color: '#f8fafc', fontSize: '0.98rem', fontWeight: 800 }}>
-            Market overview
-          </h2>
-          <p role="status" style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '0.72rem' }}>
-            {displayState.label}{marketContextRefreshing ? ' · Refreshing' : ''}
-            {marketContextError && !marketContextLoading ? ' · Refresh failed; showing the last response.' : ''}
-          </p>
-        </div>
-        <span style={{ color: '#cbd5e1', fontSize: '0.7rem' }}>{sessionLabel}</span>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 14 }}>
-        {[
-          ['NIFTY 50', 'nifty50Current'],
-          ['Previous close', 'nifty50PreviousClose'],
-          ['India VIX', 'indiaVixCurrent'],
-        ].map(([label, key]) => (
-          <div key={key} style={{ padding: '9px 11px', borderRadius: 10, background: 'rgba(2, 6, 23, 0.35)', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            <div style={{ color: '#94a3b8', fontSize: '0.65rem', marginBottom: 4 }}>{label} · Observed</div>
-            <strong style={{ color: '#e2e8f0', fontSize: '0.9rem', fontVariantNumeric: 'tabular-nums' }}>{formatQuote(key)}</strong>
-          </div>
-        ))}
-      </div>
-      <p style={{ margin: '10px 0 0', color: '#64748b', fontSize: '0.66rem', lineHeight: 1.5 }}>
-        Source: {sources} · Freshness: {freshness} · Observed: {observedAt || 'Unavailable'}. These are market observations, separate from modeled return assumptions below.
-      </p>
-      {marketContextError && !snapshot && (
-        <p style={{ margin: '8px 0 0', color: '#fbbf24', fontSize: '0.72rem' }}>
-          {displayState.detail}
-        </p>
-      )}
-    </section>
-  );
-}
-
 // Map 5-tier riskCategory to slider value (1-10)
 const riskCategoryToSlider = (cat) => {
   const c = cat;
@@ -153,7 +141,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
   const profileHorizon = Number(userProfile?.investment_horizon_years);
   const horizon = Number.isFinite(profileHorizon) && profileHorizon > 0 ? profileHorizon : null;
   const isLoading = Boolean(isLoadingProp);
-  
+
   const riskValue = riskCategoryToSlider(userProfile?.risk_tolerance);
 
   // The restored controls present the saved profile; edits happen on the profile screen.
@@ -260,10 +248,10 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
       });
     });
 
-    const outerData = Object.keys(catMap).map(k => ({
+    const outerData = Object.keys(catMap).map((k, i) => ({
       name: k,
       value: catMap[k],
-      color: CATEGORY_COLORS[k] || '#888'
+      color: getCategoryColor(k, i)
     }));
 
     // Format server weights; rounded monthly amounts are not allocation authority.
@@ -294,7 +282,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
   // Risk-grouped eligible instruments for "Browse by Risk Level"
   const riskGroups = useMemo(() => {
     if (!recommendations || recommendations.length === 0) return { low: [], medium: [], high: [] };
-    
+
     return {
       low: recommendations.filter(r => nullableMarketNumber(r.risk) !== null && nullableMarketNumber(r.risk) <= 2),
       medium: recommendations.filter(r => nullableMarketNumber(r.risk) === 3),
@@ -381,55 +369,23 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
         }
       `}</style>
         <div className="dashboard-container" style={{maxWidth: 1600, margin: '0 auto'}}>
-        
-        {/* ─── UNIFIED EXECUTIVE DASHBOARD HEADER & PROFILE BANNER ─── */}
-        <div className="dashboard-header-wrapper" style={{ marginBottom: 18 }}>
-          {/* Top Title Bar */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            paddingBottom: 14, flexWrap: 'wrap', gap: 12
-          }}>
-            <div>
-              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-                YOUR PERSONAL SAVINGS & INVESTMENT PLAN
-              </span>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#f8fafc', margin: '2px 0 0 0', letterSpacing: '-0.5px' }}>
-                Your Personal Wealth Plan{' '}
-                {userProfile?.name && (
-                  <span style={{ 
-                    background: 'linear-gradient(135deg, #38bdf8, #818cf8)', 
-                    WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' 
-                  }}>
-                    for {userProfile.name}
-                  </span>
-                )}
-              </h1>
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                padding: '6px 14px', borderRadius: 20, fontSize: '0.72rem', color: '#94a3b8'
-              }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 8px #4ade80' }} />
-                <span>{userProfile?.risk_tolerance ? `${userProfile.risk_tolerance} Risk` : 'Risk not provided'}</span>
-                <span style={{ opacity: 0.4 }}>•</span>
-                <span>{(userProfile?.investment_goals || []).join(' + ') || 'Goals not provided'}</span>
-              </div>
-              <span style={{
-                background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(255, 255, 255, 0.06)',
-                padding: '6px 12px', borderRadius: 12, fontSize: '0.72rem', color: '#64748b', fontWeight: 600
-              }}>
-                {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </span>
+        {/* Selected dashboard introduction: presentation only. */}
+        <section className="wg-plan-intro" aria-label="Personal wealth plan summary">
+          <header className="wg-plan-heading">
+            <div className="wg-plan-heading-copy">
+              <h1>Your Personal Wealth Plan{userProfile?.name && <span> for {userProfile.name}</span>}</h1>
+              <p><Sparkles size={13} aria-hidden="true" style={{ display: 'inline', verticalAlign: '-1px', marginRight: 5, color: '#38bdf8' }} />Your personal savings &amp; investment plan</p>
             </div>
-          </div>
+            <div className="wg-plan-heading-meta">
+              <span><span className="wg-plan-beacon-dot" aria-hidden="true" />{userProfile?.risk_tolerance ? `${userProfile.risk_tolerance} Risk` : 'Risk not provided'}</span>
+              <span><Target size={12} aria-hidden="true" style={{ marginRight: 4 }} />{(userProfile?.investment_goals || []).join(' + ') || 'Goals not provided'}</span>
+              <time><Calendar size={11} aria-hidden="true" style={{ marginRight: 4 }} />{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</time>
+            </div>
+          </header>
 
           <BackendFallbackBanner notice={fallbackNotice} onDismiss={onDismissFallbackNotice} />
 
-          {/* ─── ELEVATED FINANCIAL PROFILE GLASS CARD & BEGINNER CONTROL CENTER ─── */}
           {(() => {
             const monthlyTakeHome = Number(userProfile?.monthly_take_home);
             const monthlySavings = Number(userProfile?.monthly_savings);
@@ -440,503 +396,188 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             const profileVersion = userProfile?.version ?? userProfile?.__v;
 
             return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
-                {/* ── BEGINNER CONTROL CENTER HERO ── */}
-                <div
-                  className="beginner-control-center"
-                  data-testid="beginner-home-hero"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                    gap: 16,
-                  }}
-                >
-                  {/* Card 1: Your Plan Today */}
-                  <div style={{
-                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.88))',
-                    border: '1px solid rgba(56, 189, 248, 0.28)',
-                    borderRadius: 16,
-                    padding: '20px 24px',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>
-                        YOUR PLAN TODAY
-                      </div>
-                      <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 14px 0', letterSpacing: '-0.3px' }}>
-                        Plan Overview
-                      </h2>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                        <div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 2 }}>Monthly Investment Capacity</div>
-                          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#4ade80' }}>
-                            {hasSavings ? `${formatINR(monthlySavings)}/mo` : (currentMonthly > 0 ? `${formatINR(currentMonthly)}/mo` : 'Not specified')}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 2 }}>Risk Comfort Level</div>
-                          <div style={{ fontSize: '1rem', fontWeight: 800, color: derivedRiskLabel === 'High' ? '#f43f5e' : derivedRiskLabel === 'Low' ? '#22c55e' : '#dfbd69' }}>
-                            {derivedRiskLabel}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 2 }}>Primary Goal</div>
-                          <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#e2e8f0' }}>
-                            {(userProfile?.investment_goals || [])[0] || 'Wealth Creation'}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 2 }}>Investment Horizon</div>
-                          <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#818cf8' }}>
-                            {horizon ? `${horizon} Years` : 'Not specified'}
-                          </div>
-                        </div>
-                      </div>
+              <div className="wg-plan-surface">
+                <div className="wg-plan-hero" data-testid="beginner-home-hero">
+                  <section className="wg-plan-overview" aria-labelledby="wg-plan-overview-title">
+                    <div className="wg-plan-section-title">
+                      <Target size={17} aria-hidden="true" className="wg-plan-header-icon" />
+                      <h2 id="wg-plan-overview-title">Plan Overview</h2>
                     </div>
-                  </div>
-
-                  {/* Card 2: Your Next Step */}
-                  <div style={{
-                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.88))',
-                    border: '1px solid rgba(129, 140, 248, 0.3)',
-                    borderRadius: 16,
-                    padding: '20px 24px',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#818cf8', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 6 }}>
-                        RECOMMENDED ACTION
+                    <dl className="wg-plan-capacity">
+                      <div className="wg-plan-capacity-main">
+                        <dt>Monthly Investment Capacity</dt>
+                        <dd>{hasSavings ? <>{formatINR(monthlySavings)}<span>/mo</span></> : (currentMonthly > 0 ? <>{formatINR(currentMonthly)}<span>/mo</span></> : 'Not specified')}</dd>
                       </div>
-                      <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 6px 0', letterSpacing: '-0.3px' }}>
-                        What Should You Do Next?
-                      </h2>
-                      <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-                        Review the verified financial choices selected specifically for your profile.
-                      </p>
-                    </div>
+                      <div className="wg-plan-capacity-metrics">
+                        <div className="wg-plan-capacity-metric-chip">
+                          <Wallet size={13} aria-hidden="true" />
+                          <span>{hasSavings ? `${formatINR(currentMonthly)} of ${formatINR(monthlySavings)} allocated` : `${formatINR(currentMonthly)} allocated`}</span>
+                        </div>
+                        {savingsRate !== null && (
+                          <span className="wg-plan-capacity-ratio">
+                            <span className="wg-plan-rate-dot" aria-hidden="true" />
+                            {savingsRate}% of income
+                          </span>
+                        )}
+                      </div>
+                    </dl>
+                    <dl className="wg-plan-facts">
+                      <div>
+                        <dt><Target size={12} aria-hidden="true" style={{ color: '#38bdf8' }} /> Primary Goal</dt>
+                        <dd>{(userProfile?.investment_goals || [])[0] || 'Wealth Creation'}</dd>
+                      </div>
+                      <div>
+                        <dt><Shield size={12} aria-hidden="true" style={{ color: derivedRiskLabel === 'High' ? '#f43f5e' : derivedRiskLabel === 'Low' ? '#22c55e' : '#dfbd69' }} /> Risk Comfort</dt>
+                        <dd className="wg-plan-risk" style={{ color: derivedRiskLabel === 'High' ? '#f43f5e' : derivedRiskLabel === 'Low' ? '#22c55e' : '#dfbd69' }}>{derivedRiskLabel}</dd>
+                      </div>
+                      <div>
+                        <dt><Clock size={12} aria-hidden="true" style={{ color: '#a78bfa' }} /> Investment Horizon</dt>
+                        <dd>{horizon ? `${horizon} Years` : 'Not specified'}</dd>
+                      </div>
+                    </dl>
+                  </section>
 
-                    <div>
-                      <button
-                        type="button"
-                        data-testid="home-cta-where-to-invest"
-                        onClick={() => onNavigate && onNavigate('investments')}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 8,
-                          padding: '12px 20px',
-                          borderRadius: 12,
-                          background: 'linear-gradient(135deg, #38bdf8, #6366f1)',
-                          color: '#0f172a',
-                          fontWeight: 800,
-                          fontSize: '0.92rem',
-                          border: 'none',
-                          cursor: 'pointer',
-                          boxShadow: '0 4px 18px rgba(56, 189, 248, 0.35)',
-                          transition: 'all 0.15s ease',
-                          marginBottom: 10,
-                          fontFamily: 'inherit',
-                        }}
-                      >
+                  <section className="wg-plan-next" aria-labelledby="wg-plan-next-title">
+                    <div className="wg-plan-action-deck">
+                      <div className="wg-plan-action-badge">
+                        <Sparkles size={12} aria-hidden="true" />
+                        <span>AI RECOMMENDED ACTION</span>
+                      </div>
+                      <h2 id="wg-plan-next-title">What Should You Do Next?</h2>
+                      <p>Review the verified financial choices selected specifically for your profile.</p>
+                      <button type="button" className="wg-plan-primary" data-testid="home-cta-where-to-invest" onClick={() => onNavigate && onNavigate('investments')}>
                         <span>See Where to Invest</span>
-                        <ChevronRight size={18} />
+                        <span className="wg-plan-primary-icon-wrap"><ChevronRight size={18} aria-hidden="true" /></span>
                       </button>
-
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => onNavigate && onNavigate('plan')}
-                          style={{
-                            flex: 1,
-                            padding: '7px 10px',
-                            borderRadius: 8,
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            color: '#cbd5e1',
-                            fontSize: '0.74rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
-                          }}
-                        >
-                          Understand My Plan
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onNavigate && onNavigate('taxes')}
-                          style={{
-                            flex: 1,
-                            padding: '7px 10px',
-                            borderRadius: 8,
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            color: '#cbd5e1',
-                            fontSize: '0.74rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
-                          }}
-                        >
-                          Check Taxes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onNavigate && onNavigate('progress')}
-                          style={{
-                            flex: 1,
-                            padding: '7px 10px',
-                            borderRadius: 8,
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            color: '#cbd5e1',
-                            fontSize: '0.74rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
-                          }}
-                        >
-                          See Progress
-                        </button>
+                      <div className="wg-plan-shortcuts-divider">
+                        <span>EXPLORE DESTINATIONS</span>
                       </div>
+                      <nav className="wg-plan-shortcuts" aria-label="Plan shortcuts">
+                        <button type="button" onClick={() => onNavigate && onNavigate('plan')}><TrendingUp size={13} aria-hidden="true" />Understand My Plan<ChevronRight size={13} aria-hidden="true" /></button>
+                        <button type="button" onClick={() => onNavigate && onNavigate('taxes')}><Wallet size={13} aria-hidden="true" />Check Taxes<ChevronRight size={13} aria-hidden="true" /></button>
+                        <button type="button" onClick={() => onNavigate && onNavigate('progress')}><Activity size={13} aria-hidden="true" />See Progress<ChevronRight size={13} aria-hidden="true" /></button>
+                      </nav>
+                    </div>
+                  </section>
+                </div>
+
+                <section className="wg-plan-profile" aria-labelledby="wg-plan-profile-title">
+                  <div className="wg-plan-profile-heading">
+                    <div className="wg-plan-profile-avatar"><User size={19} aria-hidden="true" /></div>
+                    <div className="wg-plan-profile-meta">
+                      <h3 id="wg-plan-profile-title">{userProfile?.name || 'Investor Financial Profile'}</h3>
+                      <span className="wg-plan-version">{profileVersion !== undefined ? `Profile v${profileVersion}` : 'Financial Profile'}</span>
                     </div>
                   </div>
-                </div>
-
-                {/* ── ELEVATED FINANCIAL PROFILE GLASS CARD ── */}
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.85) 100%)',
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
-                  borderLeft: '4px solid #38bdf8',
-                  borderRadius: 16,
-                  padding: '12px 20px',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 16,
-                  flexWrap: 'nowrap'
-              }}>
-                {/* Background Ambient Glow */}
-                <div style={{
-                  position: 'absolute', top: -50, right: -50, width: 220, height: 220,
-                  background: 'radial-gradient(circle, rgba(56, 189, 248, 0.15), transparent 70%)',
-                  pointerEvents: 'none'
-                }} />
-
-                {/* Left: User Identity */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, zIndex: 1 }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 12,
-                    background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.2))',
-                    border: '1px solid rgba(56, 189, 248, 0.4)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#38bdf8', flexShrink: 0,
-                    boxShadow: '0 4px 14px rgba(56, 189, 248, 0.2)'
-                  }}>
-                    <User size={19} />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <h3 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc', margin: 0, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>
-                        {userProfile?.name || 'Investor Financial Profile'}
-                      </h3>
-                      <span style={{
-                        fontSize: '0.58rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.5px',
-                        background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)',
-                        padding: '2px 8px', borderRadius: 20, textTransform: 'uppercase', whiteSpace: 'nowrap'
-                      }}>
-                        {profileVersion !== undefined ? `Profile v${profileVersion}` : 'Financial Profile'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Center: Metric Chips Bar (Single Non-Wrapping Line) */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  flexWrap: 'nowrap', zIndex: 1, overflowX: 'auto',
-                  padding: '2px 0', scrollbarWidth: 'none'
-                }}>
-                  {/* Age */}
-                  <div style={{
-                    background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: 10, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6,
-                    whiteSpace: 'nowrap', boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)'
-                  }}>
-                    <Calendar size={13} color="#94a3b8" />
-                    <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Age</span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#f1f5f9' }}>{userProfile?.age ?? 'N/A'}</span>
-                  </div>
-
-                  {/* Income */}
-                  <div style={{
-                    background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.22)',
-                    borderRadius: 10, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6,
-                    whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(56, 189, 248, 0.08)'
-                  }}>
-                    <Wallet size={13} color="#38bdf8" />
-                    <span style={{ fontSize: '0.58rem', color: '#38bdf8', opacity: 0.85, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Take-home</span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#38bdf8' }}>{annualTakeHomeLakhs ? `₹${annualTakeHomeLakhs}L/yr` : 'N/A'}</span>
-                  </div>
-
-                  {/* Savings */}
-                  <div style={{
-                    background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.22)',
-                    borderRadius: 10, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6,
-                    whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(34, 197, 94, 0.08)'
-                  }}>
-                    <PiggyBank size={13} color="#4ade80" />
-                    <span style={{ fontSize: '0.58rem', color: '#4ade80', opacity: 0.85, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Savings</span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#4ade80' }}>
-                      {hasSavings ? formatINR(monthlySavings) : 'N/A'} {savingsRate !== null && <span style={{ fontSize: '0.68rem', color: '#34d399', fontWeight: 700 }}>({savingsRate}%)</span>}
-                    </span>
-                  </div>
-
-                  {/* Horizon */}
-                  <div style={{
-                    background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.22)',
-                    borderRadius: 10, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6,
-                    whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(139, 92, 246, 0.08)'
-                  }}>
-                    <Clock size={13} color="#818cf8" />
-                    <span style={{ fontSize: '0.58rem', color: '#818cf8', opacity: 0.85, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Horizon</span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#818cf8' }}>{horizon ? `${horizon} Yrs` : 'N/A'}</span>
-                  </div>
-                </div>
-
-                {/* Right: Risk Level & Action Button */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, zIndex: 1 }}>
-                  <div style={{
-                    background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.09)',
-                    padding: '5px 12px', borderRadius: 10, textAlign: 'center', whiteSpace: 'nowrap'
-                  }}>
-                    <div style={{ fontSize: '0.55rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Risk Comfort</div>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: derivedRiskLabel === 'High' ? '#f43f5e' : derivedRiskLabel === 'Low' ? '#22c55e' : '#dfbd69' }}>
-                      {derivedRiskLabel}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => onNavigate && onNavigate('profile')}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '8px 15px', borderRadius: 10,
-                      background: 'linear-gradient(135deg, #38bdf8, #818cf8)',
-                      color: '#0f172a', fontWeight: 800, fontSize: '0.78rem',
-                      border: 'none', cursor: 'pointer',
-                      boxShadow: '0 4px 16px rgba(56, 189, 248, 0.28)',
-                      transition: 'all 0.2s ease', letterSpacing: '-0.2px',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    <Edit3 size={14} />
-                    Edit Profile
-                  </button>
-                  </div>
-                </div>
+                  <dl className="wg-plan-profile-facts">
+                    <div><dt>Age</dt><dd>{userProfile?.age ?? 'N/A'}</dd></div>
+                    <div><dt>Take-home</dt><dd>{annualTakeHomeLakhs ? `₹${annualTakeHomeLakhs}L/yr` : 'N/A'}</dd></div>
+                    <div><dt>Savings</dt><dd>{hasSavings ? formatINR(monthlySavings) : 'N/A'} {savingsRate !== null && <span>({savingsRate}%)</span>}</dd></div>
+                    <div><dt>Horizon</dt><dd>{horizon ? `${horizon} Yrs` : 'N/A'}</dd></div>
+                    <div><dt>Risk Comfort</dt><dd>{derivedRiskLabel}</dd></div>
+                  </dl>
+                  <button type="button" className="wg-plan-edit" onClick={() => onNavigate && onNavigate('profile')}><Edit3 size={15} aria-hidden="true" />Edit Profile</button>
+                </section>
               </div>
             );
           })()}
-          <div style={{ marginTop: 7, color: '#64748b', fontSize: '0.68rem', paddingLeft: 4 }}>
-            Sold-property proceeds are not treated as investable capital; they remain context only.
-          </div>
-        </div>
 
-        {/* Public market-data redistribution rights are not yet established for every
-            backend source. Keep this additive overview local by default; production
-            requires an explicit deployment-level rights review and opt-in. */}
-        {(import.meta.env.DEV || import.meta.env.VITE_HOME_MARKET_CONTEXT_ENABLED === 'true') && (
-          <HomeMarketOverview />
-        )}
+          <p className="wg-plan-property-note">Sold-property proceeds are not treated as investable capital; they remain context only.</p>
 
-        {/* ELIGIBILITY NOTICE BAR */}
-        {excludedCount > 0 && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px',
-            background: isEmergencyFundGoal ? 'rgba(34, 197, 94, 0.05)' : 'rgba(56, 189, 248, 0.05)',
-            border: `1px solid ${isEmergencyFundGoal ? 'rgba(34, 197, 94, 0.2)' : 'rgba(56, 189, 248, 0.2)'}`,
-            borderRadius: 12, marginBottom: 16, fontSize: '0.78rem', color: '#94a3b8',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2)'
-          }}>
-            <Info size={16} color={isEmergencyFundGoal ? '#22c55e' : '#38bdf8'} style={{ flexShrink: 0 }} />
-            <span>
-              {isEmergencyFundGoal ? (
-                <>
-                  Showing <strong style={{ color: '#e2e8f0' }}>{displayedCount} liquid instruments</strong> for Emergency Fund.{' '}
-                  <strong style={{ color: '#e2e8f0' }}>{excludedCount}</strong> excluded (lock-in / liquidity mismatch).
-                </>
+          {excludedCount > 0 && (
+            <div className="wg-plan-eligibility">
+              <Info size={16} aria-hidden="true" />
+              <p>{isEmergencyFundGoal ? (
+                <>Showing <strong>{displayedCount} liquid instruments</strong> for Emergency Fund.{' '}<strong>{excludedCount}</strong> excluded (lock-in / liquidity mismatch).</>
               ) : (
-                <>
-                  <strong style={{ color: '#e2e8f0' }}>{displayedCount}/{totalConsidered}</strong> instruments shown.{' '}
-                  {excludedCount > 0 && <>{excludedCount} excluded by the backend suitability and eligibility checks.</>}
-                </>
-              )}
-            </span>
-          </div>
-        )}
-
-        {/* ─── RISK-AGE MISMATCH WARNING (Fix 2) ─── */}
-        {riskAgeMismatch.flag && !mismatchDismissed && (
-          <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 18px',
-            background: riskAgeMismatch.severity === 'warning' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(14, 165, 233, 0.06)',
-            border: `1px solid ${riskAgeMismatch.severity === 'warning' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(14, 165, 233, 0.2)'}`,
-            borderRadius: 12, marginBottom: 12, fontSize: '0.78rem', lineHeight: 1.5
-          }}>
-            <AlertCircle size={18} color={riskAgeMismatch.severity === 'warning' ? '#f59e0b' : '#0ea5e9'} style={{flexShrink: 0, marginTop: 1}} />
-            <div style={{flex: 1}}>
-              <div style={{fontWeight: 700, color: riskAgeMismatch.severity === 'warning' ? '#fbbf24' : '#38bdf8', marginBottom: 4, fontSize: '0.82rem'}}>
-                {riskAgeMismatch.title}
-              </div>
-              <div style={{color: '#94a3b8', marginBottom: 4}}>{riskAgeMismatch.message}</div>
-              <div style={{color: '#cbd5e1', fontSize: '0.72rem'}}>{riskAgeMismatch.recommendation}</div>
+                <><strong>{displayedCount}/{totalConsidered}</strong> instruments shown.{' '}{excludedCount > 0 && <>{excludedCount} excluded by the backend suitability and eligibility checks.</>}</>
+              )}</p>
             </div>
-            <button onClick={() => setMismatchDismissed(true)} style={{
-              background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6,
-              color: '#94a3b8', fontSize: '0.68rem', padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit'
-            }}>Dismiss</button>
-          </div>
-        )}
+          )}
 
-        <div className="status-bar" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 12,
-          marginBottom: 20
-        }}>
-          {(() => {
-            const goals = userProfile?.investment_goals || [];
-            const status = recommendations.length > 0 ? 'Backend Verified' : 'Unavailable';
-            const statusColor = recommendations.length > 0 ? '#4ade80' : '#f59e0b';
-            const monthlySavings = Number(userProfile?.monthly_savings);
-            const hasSavingsBudget = Number.isFinite(monthlySavings) && monthlySavings > 0;
-            const budgetUsed = hasSavingsBudget ? ((currentMonthly / monthlySavings) * 100).toFixed(0) : null;
-            return (
-              <>
-                <div className="status-item" style={{
-                  background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(56, 189, 248, 0.18)',
-                  borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10,
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)'
-                }}>
-                  <Target size={15} color="#38bdf8" style={{flexShrink:0}} />
-                  <span style={{color:'#94a3b8', fontWeight:600, fontSize:'0.75rem'}}>Goal</span>
-                  <span style={{marginLeft:'auto', display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
-                    {goals.map((g, i) => (
-                      <span key={i} style={{
-                        background: 'rgba(56, 189, 248, 0.12)', 
-                        border: '1px solid rgba(56, 189, 248, 0.25)', 
-                        padding: '2px 8px', borderRadius: 20, 
-                        fontSize: '0.66rem', fontWeight: 700, color: '#38bdf8'
-                      }}>{g}</span>
-                    ))}
-                  </span>
-                </div>
+          {riskAgeMismatch.flag && !mismatchDismissed && (
+            <div className="wg-plan-suitability">
+              <ShieldAlert size={19} aria-hidden="true" />
+              <div>
+                <h3>{riskAgeMismatch.title}</h3>
+                <p>{riskAgeMismatch.message}</p>
+                <p className="wg-plan-suitability-detail">{riskAgeMismatch.recommendation}</p>
+              </div>
+              <button type="button" onClick={() => setMismatchDismissed(true)}>Dismiss</button>
+            </div>
+          )}
 
-                <div className="status-item" style={{
-                  background: 'rgba(15, 23, 42, 0.65)', border: `1px solid ${statusColor}30`,
-                  borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10,
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)'
-                }}>
-                  <Activity size={15} color={statusColor} style={{flexShrink:0}} />
-                  <span style={{color:'#94a3b8', fontWeight:600, fontSize:'0.75rem'}}>Status</span>
-                  <span style={{
-                    marginLeft:'auto', color: statusColor, fontWeight: 800, fontSize: '0.78rem',
-                    background: `${statusColor}15`, padding: '2px 10px', borderRadius: 20,
-                    border: `1px solid ${statusColor}30`, display: 'inline-flex', alignItems: 'center', gap: 4
-                  }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />
-                    {status}
-                  </span>
-                </div>
 
-                <div className="status-item" style={{
-                  background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(223, 189, 105, 0.18)',
-                  borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10,
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)'
-                }}>
-                  <PiggyBank size={15} color="#dfbd69" style={{flexShrink:0}} />
-                  <span style={{color:'#94a3b8', fontWeight:600, fontSize:'0.75rem'}}>SIP Budget</span>
-                  <span style={{marginLeft:'auto', fontWeight: 800, color: '#e2e8f0', fontSize: '0.85rem'}}>{hasSavingsBudget ? formatINR(monthlySavings) : 'N/A'}</span>
-                </div>
-
-                <div className="status-item" style={{
-                  background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(56, 189, 248, 0.18)',
-                  borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10,
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)'
-                }}>
-                  <Wallet size={15} color={hasSavingsBudget && currentMonthly === monthlySavings ? '#4ade80' : '#f59e0b'} style={{flexShrink:0}} />
-                  <span style={{color:'#94a3b8', fontWeight:600, fontSize:'0.75rem'}}>Allocated</span>
-                  <span style={{marginLeft:'auto', color: hasSavingsBudget && currentMonthly === monthlySavings ? '#4ade80' : '#f59e0b', fontWeight: 800, fontSize: '0.85rem'}}>
-                    {hasSavingsBudget
-                      ? `${formatINR(currentMonthly)} of ${formatINR(monthlySavings)} allocated`
-                      : `${formatINR(currentMonthly)} allocated`}{' '}
-                    {budgetUsed !== null && <span style={{fontSize:'0.68rem', color:'#64748b', fontWeight: 600}}>({budgetUsed}%)</span>}
-                  </span>
-                </div>
-
-                <div className="status-item" style={{
-                  background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(139, 92, 246, 0.18)',
-                  borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10,
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)'
-                }}>
-                  <Clock size={15} color="#8b5cf6" style={{flexShrink:0}} />
-                  <span style={{color:'#94a3b8', fontWeight:600, fontSize:'0.75rem'}}>Horizon</span>
-                  <span style={{marginLeft:'auto', fontWeight: 800, color: '#818cf8', fontSize: '0.85rem'}}>{horizon ? `${horizon} Yrs` : 'N/A'}</span>
-                </div>
-              </>
-            );
-          })()}
-        </div>
+        </section>
 
         {/* Top Grid (3 columns) */}
         <div className="top-row-grid">
-           
+
           {/* Panel 1: Portfolio Parameters */}
           <div className="panel-card">
             <div className="panel-header">
-               <span className="panel-title">Adjust Your Settings</span>
+               <span className="panel-title">
+                 <SlidersHorizontal size={14} aria-hidden="true" style={{ color: '#38bdf8' }} />
+                 Adjust Your Settings
+               </span>
+               <span className="panel-header-badge" title="Parameters locked to Verified Financial Profile">
+                 <Shield size={11} aria-hidden="true" />
+                 Profile Synced
+               </span>
             </div>
 
-            <div className="param-row">
-              <span>Investment Horizon</span>
-              <span style={{color: '#e2e8f0', fontWeight: 700, fontVariantNumeric: 'tabular-nums'}}>{horizon ?? 'N/A'} {horizon && <span style={{color:'#64748b', fontWeight:400}}>Yrs</span>}</span>
+            <div className="wg-param-well">
+              <div className="param-row">
+                <span className="wg-param-label"><Clock size={13} aria-hidden="true" /> Investment Horizon</span>
+                <span className="wg-param-value-tag">{horizon ?? 'N/A'} {horizon && <small>Yrs</small>}</span>
+              </div>
+              <input type="range" min="1" max="30" value={horizon || 1} disabled aria-label="Investment horizon from Financial Profile" title="Edit the Financial Profile to change this value" className="dash-range" style={{'--value': `${horizon ? (horizon/30)*100 : 0}%`, marginBottom: 6}} />
+              <div className="risk-scale" style={{ color: '#64748b', fontSize: '0.62rem' }}>
+                <span>1 Yr</span>
+                <span>15 Yrs</span>
+                <span>30 Yrs</span>
+              </div>
             </div>
-            <input type="range" min="1" max="30" value={horizon || 1} disabled aria-label="Investment horizon from Financial Profile" title="Edit the Financial Profile to change this value" className="dash-range" style={{'--value': `${horizon ? (horizon/30)*100 : 0}%`, marginBottom: 16}} />
 
-            <div className="param-row" style={{ marginTop: 10 }}>
-              <span><JargonTooltip term="SIP">Monthly SIP</JargonTooltip></span>
-              <span style={{color: '#4ade80', fontWeight: 700, fontSize: '0.9rem'}}>{formatINR(currentMonthly)}</span>
+            <div className="wg-param-well">
+              <div className="param-row">
+                <span className="wg-param-label"><Wallet size={13} aria-hidden="true" /><JargonTooltip term="SIP">Monthly SIP</JargonTooltip></span>
+                <span className="wg-param-sip-tag">{formatINR(currentMonthly)}</span>
+              </div>
+              <div className="wg-param-sip-meta">
+                <span className="wg-param-sip-pill">
+                  <CheckCircle2 size={11} aria-hidden="true" />
+                  Allocated from profile
+                </span>
+                <span className="wg-param-sip-sublabel">Monthly investment capacity</span>
+              </div>
             </div>
 
-            <div style={{height: 1, background: 'rgba(255,255,255,0.04)', margin: '14px 0'}} />
-
-            <div className="param-row">
-              <span><JargonTooltip term="Risk Profile">Risk Comfort Level</JargonTooltip></span>
-              <span style={{background: derivedRiskLabel === 'High' ? 'rgba(244, 63, 94, 0.12)' : derivedRiskLabel === 'Low' ? 'rgba(34, 197, 94, 0.12)' : 'rgba(223, 189, 105, 0.12)', color: derivedRiskLabel === 'High' ? '#f43f5e' : derivedRiskLabel === 'Low' ? '#22c55e' : '#dfbd69', padding: '3px 10px', borderRadius: 6, fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.5px', border: `1px solid ${derivedRiskLabel === 'High' ? 'rgba(244, 63, 94, 0.2)' : derivedRiskLabel === 'Low' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(223, 189, 105, 0.2)'}`}}>{derivedRiskLabel}</span>
-            </div>
-            <input type="range" min="1" max="10" value={riskValue || 1} disabled aria-label="Risk tolerance from Financial Profile" title="Edit the Financial Profile to change this value" className="dash-range" style={{'--value': `${riskValue ? ((riskValue - 1) / 9) * 100 : 0}%`}} />
-            <div className="risk-scale">
-               {[1,2,3,4,5,6,7,8,9,10].map(v => <span key={v}>{v}</span>)}
+            <div className="wg-param-well">
+              <div className="param-row">
+                <span className="wg-param-label"><Shield size={13} aria-hidden="true" /><JargonTooltip term="Risk Profile">Risk Comfort Level</JargonTooltip></span>
+                <span style={{background: derivedRiskLabel === 'High' ? 'rgba(244, 63, 94, 0.14)' : derivedRiskLabel === 'Low' ? 'rgba(34, 197, 94, 0.14)' : 'rgba(245, 158, 11, 0.14)', color: derivedRiskLabel === 'High' ? '#f43f5e' : derivedRiskLabel === 'Low' ? '#22c55e' : '#fbbf24', padding: '3px 10px', borderRadius: 9999, fontWeight: 750, fontSize: '0.72rem', letterSpacing: '0.3px', border: `1px solid ${derivedRiskLabel === 'High' ? 'rgba(244, 63, 94, 0.3)' : derivedRiskLabel === 'Low' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`, display: 'inline-flex', alignItems: 'center', gap: 5}}>
+                  <span style={{width: 5, height: 5, borderRadius: '50%', background: 'currentColor', boxShadow: '0 0 6px currentColor'}} />
+                  {derivedRiskLabel}
+                </span>
+              </div>
+              <input type="range" min="1" max="10" value={riskValue || 1} disabled aria-label="Risk tolerance from Financial Profile" title="Edit the Financial Profile to change this value" className="dash-range" style={{'--value': `${riskValue ? ((riskValue - 1) / 9) * 100 : 0}%`, marginTop: 6}} />
+              <div className="risk-scale">
+                 {[1,2,3,4,5,6,7,8,9,10].map(v => <span key={v} className={v === riskValue ? 'active' : ''}>{v}</span>)}
+              </div>
             </div>
           </div>
 
           {/* Panel 2: Multi-Layered Asset Allocation */}
           <div className="panel-card" style={{ position: 'relative' }}>
             <div className="panel-header" style={{ marginBottom: 8 }}>
-               <span className="panel-title"><JargonTooltip term="Asset Allocation">Your Investment Mix</JargonTooltip></span>
+               <span className="panel-title">
+                 <PieChartIcon size={14} aria-hidden="true" style={{ color: '#38bdf8' }} />
+                 <JargonTooltip term="Asset Allocation">Your Investment Mix</JargonTooltip>
+               </span>
+               <span className="panel-header-badge">
+                 {allocationDataOuter.length} Classes
+               </span>
             </div>
             <div style={{ height: 200, position: 'relative' }}>
               {isLoading ? (
@@ -945,13 +586,13 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                 <>
                   <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
                     <PieChart>
-                      <Pie 
-                        data={allocationDataOuter} 
-                        dataKey="value" 
-                        cx="50%" 
-                        cy="50%" 
-                        innerRadius={60} 
-                        outerRadius={88} 
+                      <Pie
+                        data={allocationDataOuter}
+                        dataKey="value"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={88}
                         stroke="rgba(2, 6, 23, 0.8)"
                         strokeWidth={2}
                         paddingAngle={2}
@@ -961,44 +602,44 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <RechartsTooltip 
+                      <RechartsTooltip
                         formatter={(val) => [`${formatINR(val)}/mo`, 'Allocation']}
                         contentStyle={{
-                          background: 'rgba(15, 23, 42, 0.95)', 
-                          border: '1px solid rgba(255, 255, 255, 0.1)', 
-                          borderRadius: 12, 
-                          backdropFilter: 'blur(16px)', 
+                          background: 'rgba(15, 23, 42, 0.95)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: 12,
+                          backdropFilter: 'blur(16px)',
                           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
                           fontSize: '0.82rem'
-                        }} 
-                        itemStyle={{color: '#e2e8f0'}} 
+                        }}
+                        itemStyle={{color: '#e2e8f0'}}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Center projected value */}
-                   <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none', width: '100%' }}>
+                   <div className="wg-donut-center-hub">
                      {(() => {
                        const val = nullableMarketNumber(totalProjected);
                        if (!Number.isFinite(val)) {
                          return (
                            <>
                              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>N/A</div>
-                             <div style={{ fontSize: '0.5rem', color: '#546178', letterSpacing: '1.4px', textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>SERVER PROJECTION</div>
+                             <div style={{ fontSize: '0.52rem', color: '#64748b', letterSpacing: '1.4px', textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>SERVER PROJECTION</div>
                            </>
                          );
                        }
                        if (val >= 10000000) {
                          return (
                            <>
-                             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums', textShadow: '0 0 20px rgba(56,189,248,0.15)' }}>₹{(val / 10000000).toFixed(2)}</div>
-                             <div style={{ fontSize: '0.55rem', color: '#546178', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>CRORES AVG.</div>
+                             <div style={{ fontSize: '1.4rem', fontWeight: 850, color: '#fff', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums', textShadow: '0 0 20px rgba(56,189,248,0.25)' }}>₹{(val / 10000000).toFixed(2)}</div>
+                             <div style={{ fontSize: '0.55rem', color: '#64748b', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>CRORES AVG.</div>
                            </>
                          );
                        }
                        return (
                          <>
-                           <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums', textShadow: '0 0 20px rgba(56,189,248,0.15)' }}>₹{(val / 100000).toFixed(1)}</div>
-                           <div style={{ fontSize: '0.55rem', color: '#546178', letterSpacing: '2px', textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>LAKHS AVG.</div>
+                           <div style={{ fontSize: '1.4rem', fontWeight: 850, color: '#fff', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums', textShadow: '0 0 20px rgba(56,189,248,0.25)' }}>₹{(val / 100000).toFixed(1)}</div>
+                           <div style={{ fontSize: '0.55rem', color: '#64748b', letterSpacing: '2px', textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>LAKHS AVG.</div>
                          </>
                        );
                      })()}
@@ -1007,15 +648,13 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                )}
             </div>
             {/* Category legend with proportion bars */}
-             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 4px 0', marginTop: 8 }}>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '6px 2px 0', marginTop: 8 }}>
               {(() => {
-                // Pre-compute percentages using largest-remainder method so they always sum to 100%
                 const rawPcts = allocationDataOuter.map(item =>
                   currentMonthly > 0 ? (item.value / currentMonthly) * 100 : 0
                 );
                 const floored = rawPcts.map(p => Math.floor(p));
                 let remainder = 100 - floored.reduce((s, f) => s + f, 0);
-                // Distribute remainder to items with largest fractional parts
                 const fracs = rawPcts.map((p, i) => ({ i, frac: p - floored[i] }));
                 fracs.sort((a, b) => b.frac - a.frac);
                 for (let k = 0; k < remainder && k < fracs.length; k++) {
@@ -1024,22 +663,16 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                 return allocationDataOuter.map((item, i) => {
                   const pct = floored[i];
                   return (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.75rem',
-                      padding: '4px 8px', borderRadius: 8, transition: 'background 0.2s ease', cursor: 'default'
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
+                    <div key={i} className="wg-mix-row" title={`${item.name}: ${formatINR(item.value)}/month`}>
                       <span style={{
-                        width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0,
-                        boxShadow: `0 0 6px ${item.color}40`
+                        width: 9, height: 9, borderRadius: '50%', background: item.color, flexShrink: 0,
+                        boxShadow: `0 0 8px ${item.color}80`
                       }} />
-                      <span style={{color: '#cbd5e1', flex: 1, fontSize: '0.75rem', fontWeight: 500}}>{item.name}</span>
-                      <div style={{width: 52, height: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 3, overflow: 'hidden', flexShrink: 0}}>
-                        <div style={{width: `${pct}%`, height: '100%', background: `linear-gradient(90deg, ${item.color}cc, ${item.color})`, borderRadius: 3, transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)'}} />
+                      <span style={{color: '#e2e8f0', flex: 1, fontSize: '0.78rem', fontWeight: 600}}>{item.name}</span>
+                      <div style={{width: 56, height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden', flexShrink: 0}}>
+                        <div style={{width: `${pct}%`, height: '100%', background: `linear-gradient(90deg, ${item.color}bb, ${item.color})`, borderRadius: 3, transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)'}} />
                       </div>
-                      <span style={{color: '#f1f5f9', fontWeight: 700, fontVariantNumeric: 'tabular-nums', minWidth: 32, textAlign: 'right', fontSize: '0.78rem'}}>{pct}%</span>
+                      <span style={{color: '#f8fafc', fontWeight: 750, fontVariantNumeric: 'tabular-nums', minWidth: 34, textAlign: 'right', fontSize: '0.8rem'}}>{pct}%</span>
                     </div>
                   );
                 });
@@ -1051,9 +684,14 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
           <div className="panel-card">
              <div className="panel-header">
                <span className="panel-title">
+                 <TrendingUp size={14} aria-hidden="true" style={{ color: '#38bdf8' }} />
                  {(userProfile?.investment_goals || []).includes('Emergency Fund')
                    ? 'Goal Achievement Timeline'
                    : 'Wealth Trajectory'}
+               </span>
+               <span className="panel-header-badge">
+                 <span style={{ width: 12, height: 2.5, background: '#38bdf8', borderRadius: 2, display: 'inline-block' }} />
+                 Projected
                </span>
             </div>
 
@@ -1134,13 +772,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
               // Default: Wealth Trajectory
               return (
                 <>
-                  <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: '0.7rem', padding: '6px 12px', background: 'rgba(10,16,30,0.5)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)', width: 'fit-content' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ width: 16, height: 3, background: '#38bdf8', borderRadius: 2, display: 'inline-block', boxShadow: '0 0 4px rgba(56,189,248,0.4)' }} />
-                      <span style={{ color: '#38bdf8', fontWeight: 600 }}>Projected Growth</span>
-                    </span>
-                  </div>
-                  <div style={{ height: 240, fontSize: '0.72rem' }}>
+                  <div style={{ height: 260, fontSize: '0.72rem', marginTop: 4 }}>
                     {isLoading ? (
                        <div style={{ display: 'flex', gap: 10, height: '100%', alignItems: 'flex-end', paddingBottom: 20 }}>
                           <div className="skeleton-box" style={{ width: '25%', height: '30%' }} />
@@ -1150,22 +782,56 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                        </div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
-                        <AreaChart data={performanceData} margin={{top: 10, right: 20, left: -10, bottom: 0}}>
+                        <AreaChart data={performanceData} margin={{top: 10, right: 16, left: -10, bottom: 0}}>
                           <defs>
                             <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.02}/>
+                              <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.35}/>
+                              <stop offset="70%" stopColor="#38bdf8" stopOpacity={0.05}/>
+                              <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.0}/>
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
-                          <XAxis dataKey="year" tick={{fill: '#cbd5e1', fontSize: 11, fontWeight: 500}} axisLine={false} tickLine={false} tickFormatter={(val) => `${val} yrs`} />
-                          <YAxis tick={{fill: '#cbd5e1', fontSize: 11, fontWeight: 500}} axisLine={false} tickLine={false} tickFormatter={(val) => {
-                            if (val >= 10000000) return `\u20b9${(val/10000000).toFixed(1)}Cr`;
-                            if (val >= 100000) return `\u20b9${(val/100000).toFixed(1)}L`;
-                            return `\u20b9${(val/1000).toFixed(0)}K`;
-                          }} />
-                          <RechartsTooltip formatter={(val) => `\u20b9${Math.round(val).toLocaleString()}`} contentStyle={{background: 'rgba(15, 23, 42, 0.92)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: 12, backdropFilter: 'blur(16px)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)', fontSize: '0.78rem'}} itemStyle={{color: '#f8fafc'}} />
-                          <Area type="monotone" dataKey="average" stroke="#38bdf8" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAvg)" dot={false} activeDot={{r: 4, fill: '#38bdf8', stroke: '#fff', strokeWidth: 2}} />
+                          <XAxis
+                            dataKey="year"
+                            tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 500}}
+                            axisLine={false}
+                            tickLine={false}
+                            interval="preserveStartEnd"
+                            minTickGap={28}
+                            tickFormatter={(val) => `${val} yrs`}
+                          />
+                          <YAxis
+                            tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 500}}
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={(val) => {
+                              if (val >= 10000000) return `\u20b9${(val/10000000).toFixed(1)}Cr`;
+                              if (val >= 100000) return `\u20b9${(val/100000).toFixed(1)}L`;
+                              return `\u20b9${(val/1000).toFixed(0)}K`;
+                            }}
+                          />
+                          <RechartsTooltip
+                            formatter={(val) => `\u20b9${Math.round(val).toLocaleString()}`}
+                            contentStyle={{
+                              background: 'rgba(15, 23, 42, 0.94)',
+                              border: '1px solid rgba(56, 189, 248, 0.25)',
+                              borderRadius: 12,
+                              backdropFilter: 'blur(16px)',
+                              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.55)',
+                              fontSize: '0.78rem'
+                            }}
+                            itemStyle={{color: '#f8fafc'}}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="average"
+                            stroke="#38bdf8"
+                            strokeWidth={2.5}
+                            fillOpacity={1}
+                            fill="url(#colorAvg)"
+                            dot={false}
+                            activeDot={{r: 4.5, fill: '#38bdf8', stroke: '#0f172a', strokeWidth: 2}}
+                          />
                         </AreaChart>
                       </ResponsiveContainer>
                     )}
@@ -1175,11 +841,15 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                     const last = performanceData[performanceData.length - 1];
                     const fmt = (v) => v >= 10000000 ? `\u20b9${(v/10000000).toFixed(2)}Cr` : `\u20b9${(v/100000).toFixed(1)}L`;
                     return (
-                      <div style={{display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginTop: 10}}>
-                        <div style={{background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.1)', borderRadius: 10, padding: '8px 10px', textAlign: 'center'}}>
-                          <div style={{fontSize: '0.65rem', color: '#546178', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginBottom: 3}}>Projected Total Value</div>
-                          <div style={{fontSize: '1.25rem', fontWeight: 800, color: '#38bdf8', fontVariantNumeric: 'tabular-nums'}}>{fmt(last.average)}</div>
+                      <div className="wg-trajectory-endpoint-card">
+                        <div className="wg-trajectory-endpoint-label">
+                          <div className="wg-trajectory-endpoint-title">
+                            <Sparkles size={12} aria-hidden="true" />
+                            Projected Total Value
+                          </div>
+                          <span className="wg-trajectory-endpoint-sub">At {horizon ?? 10}-yr horizon · Pre-tax assumption</span>
                         </div>
+                        <div className="wg-trajectory-endpoint-value">{fmt(last.average)}</div>
                       </div>
                     );
                   })()}
@@ -1193,55 +863,63 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
         {/* Section divider */}
         <div style={{height: 1, margin: '12px 0', background: 'linear-gradient(90deg, transparent 5%, rgba(56,189,248,0.1) 30%, rgba(139,92,246,0.08) 70%, transparent 95%)'}} />
 
-        {/* Bottom Grid (70/30) */}
-        <div className="bottom-row-grid">
-          
-          {/* Table Panel */}
-          <div className="panel-card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div className="panel-header" style={{ padding: '18px 20px 12px', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-               <span className="panel-title" style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '2px' }}>
-                 <span style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 5, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.15)', marginRight: 8}}>
-                   <span style={{color: '#38bdf8', fontSize: '0.6rem', fontWeight: 900}}>✓</span>
+        {/* Full-width Verified Portfolio Table */}
+        <div className="panel-card wg-portfolio-card" style={{ padding: 0, overflow: 'hidden', width: '100%', marginBottom: 16 }}>
+            <div className="panel-header wg-portfolio-header">
+               <div className="wg-table-header-title">
+                 <span className="wg-table-check-badge">
+                   <CheckCircle2 size={13} aria-hidden="true" />
                  </span>
-                 VERIFIED PORTFOLIO
-               </span>
-               <div style={{display: 'flex', gap: 8}}>
-                 <select value={filterType} onChange={e => setFilterType(e.target.value)}>
-                   <option value="all">All Categories</option>
-                   <option value="equity">Equity Only</option>
-                   <option value="government">Government</option>
-                   <option value="has-tax-benefit">Verified Tax Class</option>
-                   <option value="low-risk-only">Low Risk</option>
-                 </select>
-                 <select value={sortField} onChange={e => setSortField(e.target.value)}>
-                   <option value="">Sort by…</option>
-                   <option value="weight_desc">Weight ↓</option>
-                   <option value="return_desc">Model Assumption ↓</option>
-                   <option value="risk_asc">Risk ↑</option>
-                   <option value="projection_desc">Projection ↓</option>
-                   <option value="sip_asc">SIP ↑</option>
-                 </select>
+                 <span className="wg-table-title-text">VERIFIED PORTFOLIO</span>
+                 <span className="wg-table-count-badge">
+                   {tableData.reduce((acc, g) => acc + (g.children || []).length, 0)} instruments
+                 </span>
+               </div>
+               <div className="wg-table-controls">
+                 <div className="wg-select-wrap">
+                   <Filter size={11} aria-hidden="true" className="wg-select-icon" />
+                   <select value={filterType} onChange={e => setFilterType(e.target.value)} className="wg-table-select">
+                     <option value="all">All Categories</option>
+                     <option value="equity">Equity Only</option>
+                     <option value="government">Government</option>
+                     <option value="has-tax-benefit">Verified Tax Class</option>
+                     <option value="low-risk-only">Low Risk</option>
+                   </select>
+                   <ChevronDown size={11} aria-hidden="true" className="wg-select-caret" />
+                 </div>
+                 <div className="wg-select-wrap">
+                   <SlidersHorizontal size={11} aria-hidden="true" className="wg-select-icon" />
+                   <select value={sortField} onChange={e => setSortField(e.target.value)} className="wg-table-select">
+                     <option value="">Sort by…</option>
+                     <option value="weight_desc">Weight ↓</option>
+                     <option value="return_desc">Model Assumption ↓</option>
+                     <option value="risk_asc">Risk ↑</option>
+                     <option value="projection_desc">Projection ↓</option>
+                     <option value="sip_asc">SIP ↑</option>
+                   </select>
+                   <ChevronDown size={11} aria-hidden="true" className="wg-select-caret" />
+                 </div>
                </div>
             </div>
 
-            {/* FIX 7: Responsive scrollable wrapper */}
-            <div className="portfolio-table-wrapper" style={{ marginTop: 16, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            {/* Responsive scrollable wrapper */}
+            <div className="portfolio-table-wrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <table className="dense-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '10%', paddingLeft: 32 }}>Verified Tax Class</th>
-                    <th style={{ width: '22%' }}>Security Name</th>
-                    <th style={{ width: '9%' }}>Match</th>
-                    <th className="col-weight" style={{ width: '10%' }}>Weight %</th>
-                    <th className="col-exp-return" style={{ width: '13%' }}>Model Assumption</th>
-                    <th className="col-risk-level" style={{ width: '10%' }}>Risk Level</th>
-                    <th style={{ width: '12%' }}>Monthly SIP</th>
-                    <th style={{ width: '10%', whiteSpace: 'normal', paddingRight: 20, textAlign: 'right', lineHeight: 1.2 }}>Projected<br/>({horizon ? `${horizon} Yrs` : 'N/A'})</th>
+                    <th style={{ width: '29%', paddingLeft: 20, whiteSpace: 'nowrap' }}>Security Name</th>
+                    <th style={{ width: '10%', whiteSpace: 'nowrap' }}>Match</th>
+                    <th className="col-weight" style={{ width: '10%', whiteSpace: 'nowrap' }}>Weight %</th>
+                    <th className="col-exp-return" style={{ width: '11%', whiteSpace: 'nowrap' }}>Model Assumption</th>
+                    <th className="col-risk-level" style={{ width: '10%', whiteSpace: 'nowrap' }}>Risk Level</th>
+                    <th style={{ width: '9%', whiteSpace: 'nowrap' }}>Tax Class</th>
+                    <th style={{ width: '10%', whiteSpace: 'nowrap' }}>Monthly SIP</th>
+                    <th style={{ width: '11%', paddingRight: 20, textAlign: 'right', whiteSpace: 'nowrap' }}>Projected ({horizon ? `${horizon} Yrs` : 'N/A'})</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    /* FIX 6: Enhanced skeleton loader */
+                    /* Enhanced skeleton loader */
                     Array(8).fill(0).map((_, i) => (
                       <tr key={i}>
                         <td colSpan="8" style={{ padding: '12px' }}>
@@ -1286,118 +964,158 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                            default: return 0;
                          }
                        });
+                       const catColor = getCategoryColor(group.class);
+                       const catAllocTotal = (group.children || []).reduce((s, c) => s + (c.alloc || 0), 0);
+                       const catWeightTotal = (group.children || []).reduce((s, c) => s + (Number(c.weight) || 0), 0);
                        return (
                     <React.Fragment key={group.id}>
-                      <tr style={{ 
-                        background: isGroupExpanded(group.id)
-                          ? 'linear-gradient(90deg, rgba(56, 189, 248, 0.06) 0%, rgba(15, 23, 42, 0.4) 100%)' 
-                          : 'rgba(255,255,255,0.015)',
-                        borderTop: '1px solid rgba(255,255,255,0.04)'
-                      }}>
-                        <td colSpan="8" style={{ padding: 0, borderBottom: 'none', borderLeft: `3px solid ${
-                          (group.class || '').toLowerCase().includes('equity') ? '#38bdf8' 
-                          : (group.class || '').toLowerCase().includes('government') ? '#4ade80' 
-                          : (group.class || '').toLowerCase().includes('debt') || (group.class || '').toLowerCase().includes('hybrid') ? '#8b5cf6' 
-                          : (group.class || '').toLowerCase().includes('commodity') ? '#dfbd69' : '#546178'
-                        }`, borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }}>
-                          <div style={{ 
-                            display: 'flex', alignItems: 'center', padding: '12px 16px', cursor: 'pointer',
-                            fontSize: '0.88rem', fontWeight: 700, color: isGroupExpanded(group.id) ? '#38bdf8' : '#e2e8f0',
-                            transition: 'color 0.2s ease', gap: 6
-                          }} onClick={() => toggleRow(group.id)}>
-                            {isGroupExpanded(group.id) ? <ChevronDown size={14} className="toggle-icon"/> : <ChevronRight size={14} className="toggle-icon"/>}
-                            {group.class} 
-                            <span style={{fontSize: '0.65rem', color: '#546178', fontWeight: 500, marginLeft: 4}}>{(group.children || []).length} instruments</span>
-                            {group.hasTax && <span className="tax-badge" style={{marginLeft: 8}}>Verified Tax Class</span>}
+                      <tr className="wg-cat-row">
+                        <td colSpan="8" style={{ padding: 0, border: 'none' }}>
+                          <div
+                            className={`wg-cat-bar ${isGroupExpanded(group.id) ? 'expanded' : ''}`}
+                            style={{ '--cat-tint': catColor }}
+                            onClick={() => toggleRow(group.id)}
+                          >
+                            <div className="wg-cat-bar-left">
+                              <span className="wg-cat-toggle-chevron">
+                                {isGroupExpanded(group.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </span>
+                              <span className="wg-cat-beacon" style={{ background: catColor, boxShadow: `0 0 10px ${catColor}99` }} />
+                              <span className="wg-cat-title" style={{ color: isGroupExpanded(group.id) ? '#f8fafc' : '#e2e8f0' }}>{group.class}</span>
+                              <span className="wg-cat-count-badge">{(group.children || []).length} instruments</span>
+                              {group.hasTax && (
+                                <span className="tax-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 4 }}>
+                                  <Shield size={9} aria-hidden="true" /> Verified Tax Class
+                                </span>
+                              )}
+                            </div>
+                            <div className="wg-cat-bar-right">
+                              <span className="wg-cat-alloc-value">{formatINR(catAllocTotal)}/mo</span>
+                              {catWeightTotal > 0 && (
+                                <span className="wg-cat-weight-tag">{catWeightTotal.toFixed(0)}% mix</span>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
                       {isGroupExpanded(group.id) && sortedChildren.map((child, idx) => {
                         const isUnfunded = child.weight < 0.1 || child.alloc === 0;
+                        const subtitle = getInstrumentSubtitle(child.assetClass || child.category);
                         return (
                           <tr key={`${group.id}-${idx}`} data-testid={`recommendation-row-${child.instId}`} style={{ opacity: isUnfunded ? 0.6 : 1 }}>
-                            <td style={{ paddingLeft: 32 }}>
-                               {child.taxBadge ? <span className="tax-badge">{child.taxLabel || 'Tax'}</span> : <span style={{color: '#475569', fontSize: '0.75rem'}}>—</span>}
+                            <td style={{ paddingLeft: 20 }}>
+                              {(() => {
+                                const typeBadge = getInstrumentTypeBadge(child.type);
+                                return (
+                                  <div className="wg-inst-cell">
+                                    <span
+                                      className="wg-inst-badge"
+                                      style={{ color: typeBadge.color, background: typeBadge.bg, borderColor: typeBadge.border }}
+                                      title={typeBadge.label}
+                                    >
+                                      {typeBadge.label}
+                                    </span>
+                                    <div className="wg-inst-name-col">
+                                      <div className="wg-inst-name-row">
+                                        <span className="wg-inst-name-text">{child.fullName || child.name}</span>
+                                        <RecommendationSourceBadge source={child.source} />
+                                        {INSTRUMENT_EXPLAINERS[child.instId] && (
+                                          <span
+                                            onClick={(e) => { e.stopPropagation(); setActiveTooltip(activeTooltip === `tbl-${child.instId}` ? null : `tbl-${child.instId}`); }}
+                                            className="wg-inst-help-btn"
+                                            title="Explain instrument"
+                                          >
+                                            <HelpCircle size={11} color="#38bdf8" />
+                                          </span>
+                                        )}
+                                      </div>
+                                      {subtitle && <span className="wg-inst-subtitle">{subtitle}</span>}
+                                      {activeTooltip === `tbl-${child.instId}` && INSTRUMENT_EXPLAINERS[child.instId] && (
+                                        <div style={{background: 'rgba(10,16,30,0.95)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: 8, padding: '8px 10px', marginTop: 4, fontSize: '0.68rem', lineHeight: 1.5, maxWidth: 320, boxShadow: '0 8px 24px rgba(0,0,0,0.5)'}}>
+                                          <div style={{color: '#38bdf8', fontWeight: 600, marginBottom: 3}}>What is this?</div>
+                                          <div style={{color: '#94a3b8'}}>{INSTRUMENT_EXPLAINERS[child.instId].what}</div>
+                                          {INSTRUMENT_EXPLAINERS[child.instId].who_for && <div style={{color: '#cbd5e1', marginTop: 3, fontSize: '0.65rem'}}><b>Best for:</b> {INSTRUMENT_EXPLAINERS[child.instId].who_for}</div>}
+                                        </div>
+                                      )}
+                                      {(() => { const lw = getLockInWarning({id: child.instId}, horizon); return lw ? <div className="wg-inst-lockin-warning">&#x23f0; {lw}</div> : null; })()}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </td>
-                            <td style={{ color: '#fff', fontWeight: 600, letterSpacing: '-0.2px' }}>
-                              <div style={{display: 'flex', alignItems: 'center', gap: 5}}>
-                                {child.fullName || child.name}
-                                <RecommendationSourceBadge source={child.source} />
-                                {INSTRUMENT_EXPLAINERS[child.instId] && (
-                                  <span
-                                    onClick={(e) => { e.stopPropagation(); setActiveTooltip(activeTooltip === `tbl-${child.instId}` ? null : `tbl-${child.instId}`); }}
-                                    style={{cursor: 'pointer', display: 'inline-flex', opacity: 0.4, transition: 'opacity 0.2s'}}
-                                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                                    onMouseLeave={e => e.currentTarget.style.opacity = 0.4}
-                                  >
-                                    <HelpCircle size={12} color="#38bdf8" />
+                            <td>
+                              {(() => {
+                                const recObj = (recommendations || []).find(r => r.id === child.instId);
+                                const score = recObj ? computeSuitabilityMatch(recObj, userProfile) : null;
+                                if (score === null) return <span style={{color:'#475569', fontSize:'0.72rem'}}>—</span>;
+                                const scoreColor = score >= 85 ? '#10b981' : score >= 70 ? '#38bdf8' : score >= 55 ? '#f59e0b' : '#94a3b8';
+                                const scoreBg = score >= 85 ? 'rgba(16, 185, 129, 0.12)' : score >= 70 ? 'rgba(56, 189, 248, 0.12)' : score >= 55 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(148, 163, 184, 0.1)';
+                                const scoreBorder = score >= 85 ? 'rgba(16, 185, 129, 0.28)' : score >= 70 ? 'rgba(56, 189, 248, 0.28)' : score >= 55 ? 'rgba(245, 158, 11, 0.28)' : 'rgba(148, 163, 184, 0.2)';
+                                const scoreFmt = score >= 99.5 ? '100%' : (score % 1 === 0 ? `${score}%` : `${score.toFixed(1)}%`);
+                                return (
+                                  <span className="wg-match-pill" style={{ color: scoreColor, background: scoreBg, borderColor: scoreBorder }}>
+                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: scoreColor, flexShrink: 0, boxShadow: `0 0 6px ${scoreColor}` }} />
+                                    {scoreFmt} Match
                                   </span>
-                                )}
-                              </div>
-                              {activeTooltip === `tbl-${child.instId}` && INSTRUMENT_EXPLAINERS[child.instId] && (
-                                <div style={{background: 'rgba(10,16,30,0.95)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: 8, padding: '8px 10px', marginTop: 4, fontSize: '0.68rem', lineHeight: 1.5, maxWidth: 320, boxShadow: '0 8px 24px rgba(0,0,0,0.5)'}}>
-                                  <div style={{color: '#38bdf8', fontWeight: 600, marginBottom: 3}}>What is this?</div>
-                                  <div style={{color: '#94a3b8'}}>{INSTRUMENT_EXPLAINERS[child.instId].what}</div>
-                                  {INSTRUMENT_EXPLAINERS[child.instId].who_for && <div style={{color: '#cbd5e1', marginTop: 3, fontSize: '0.65rem'}}><b>Best for:</b> {INSTRUMENT_EXPLAINERS[child.instId].who_for}</div>}
-                                </div>
-                              )}
-                              {(() => { const lw = getLockInWarning({id: child.instId}, horizon); return lw ? <div style={{fontSize: '0.62rem', color: '#f59e0b', marginTop: 2, padding: '2px 6px', background: 'rgba(245,158,11,0.06)', borderRadius: 4, display: 'inline-block'}}>&#x23f0; {lw}</div> : null; })()}
+                                );
+                              })()}
                             </td>
-                             <td>
-                               {(() => {
-                                 const recObj = (recommendations || []).find(r => r.id === child.instId);
-                                 const score = recObj ? computeSuitabilityMatch(recObj, userProfile) : null;
-                                 if (score === null) return <span style={{color:'#475569', fontSize:'0.72rem'}}>—</span>;
-                                 const scoreColor = score >= 90 ? '#10b981' : score >= 75 ? '#38bdf8' : score >= 60 ? '#f59e0b' : '#94a3b8';
-                                 const scoreBg = score >= 90 ? 'rgba(16, 185, 129, 0.12)' : score >= 75 ? 'rgba(56, 189, 248, 0.12)' : score >= 60 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(148, 163, 184, 0.1)';
-                                 const scoreBorder = score >= 90 ? 'rgba(16, 185, 129, 0.28)' : score >= 75 ? 'rgba(56, 189, 248, 0.28)' : score >= 60 ? 'rgba(245, 158, 11, 0.28)' : 'rgba(148, 163, 184, 0.2)';
-                                 return (
-                                   <span style={{
-                                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                                     padding: '3px 9px', borderRadius: 20,
-                                     fontSize: '0.72rem', fontWeight: 800, color: scoreColor,
-                                     background: scoreBg, border: `1px solid ${scoreBorder}`,
-                                     boxShadow: `0 2px 8px ${scoreColor}15`,
-                                     fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.2px'
-                                   }}>
-                                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: scoreColor, flexShrink: 0 }} />
-                                     {score}% Match
-                                   </span>
-                                 );
-                               })()}
-                             </td>
                             <td className="col-weight" style={{ color: '#94a3b8' }}>
                               {isUnfunded
-                                ? <span style={{display: 'inline-block', whiteSpace: 'nowrap', color: '#f59e0b', fontSize: '0.75rem', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: 6, lineHeight: 1.2}}>Not Funded</span>
-                                : <span style={{ color: '#fff' }}>{Number.isFinite(child.weight) ? `${child.weight.toFixed(1)}%` : 'Unavailable'}</span>
+                                ? <span style={{display: 'inline-block', whiteSpace: 'nowrap', color: '#f59e0b', fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '2px 8px', borderRadius: 6, lineHeight: 1.2}}>Not Funded</span>
+                                : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <span style={{ color: '#f8fafc', fontWeight: 750, fontVariantNumeric: 'tabular-nums', fontSize: '0.84rem' }}>{Number.isFinite(child.weight) ? `${child.weight.toFixed(1)}%` : 'Unavailable'}</span>
+                                    {Number.isFinite(child.weight) && child.weight > 0 && (
+                                      <div className="wg-weight-track">
+                                        <div className="wg-weight-fill" style={{ width: `${Math.min(100, (child.weight / 25) * 100)}%`, background: catColor, boxShadow: `0 0 6px ${catColor}88` }} />
+                                      </div>
+                                    )}
+                                  </div>
+                                )
                               }
                             </td>
-                            <td className="col-exp-return" style={{ color: '#38bdf8', fontWeight: 600 }}>{child.ret}</td>
+                            <td className="col-exp-return">
+                              <span className="wg-return-tag">{child.ret}</span>
+                            </td>
                             <td className="col-risk-level">
                               {(() => {
                                 const r = (child.risk || '').toLowerCase();
                                 const isLow = r.includes('low');
                                 const isHigh = r.includes('high');
-                                const styles = isLow 
-                                  ? { bg: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: 'rgba(16, 185, 129, 0.2)' }
-                                  : isHigh 
-                                    ? { bg: 'rgba(244, 63, 94, 0.1)', color: '#fb7185', border: 'rgba(244, 63, 94, 0.2)' }
-                                    : { bg: 'rgba(251, 191, 36, 0.1)', color: '#fbbf24', border: 'rgba(251, 191, 36, 0.2)' };
+                                const styles = isLow
+                                  ? { bg: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: 'rgba(16, 185, 129, 0.25)' }
+                                  : isHigh
+                                    ? { bg: 'rgba(244, 63, 94, 0.1)', color: '#fb7185', border: 'rgba(244, 63, 94, 0.25)' }
+                                    : { bg: 'rgba(251, 191, 36, 0.1)', color: '#fbbf24', border: 'rgba(251, 191, 36, 0.25)' };
                                 return (
-                                  <span style={{
-                                    display: 'inline-block',
-                                    whiteSpace: 'nowrap',
-                                    background: styles.bg, color: styles.color, border: `1px solid ${styles.border}`,
-                                    padding: '4px 10px', borderRadius: 12, fontSize: '0.68rem', fontWeight: 600, textTransform: 'capitalize',
-                                    lineHeight: 1
+                                  <span className="wg-risk-pill" style={{
+                                    background: styles.bg, color: styles.color, borderColor: styles.border
                                   }}>
+                                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: styles.color, flexShrink: 0 }} />
                                     {child.risk}
                                   </span>
                                 );
                               })()}
                             </td>
-                            <td style={{ color: '#e2e8f0' }}>{formatINR(child.alloc)}</td>
-                            <td style={{color: '#4ade80', fontSize: '1.05em'}}>{Number.isFinite(child.proj) ? formatCompactINR(child.proj) : '—'}</td>
+                            <td>
+                               {child.taxBadge ? (
+                                 <span className="tax-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                   <Shield size={9} aria-hidden="true" />
+                                   {child.taxLabel || 'Verified'}
+                                 </span>
+                               ) : (
+                                 <span className="wg-tax-default">—</span>
+                               )}
+                            </td>
+                            <td className="col-sip">
+                              <span className="wg-sip-val">{formatINR(child.alloc)}</span>
+                            </td>
+                            <td className="col-proj" style={{ paddingRight: 20, textAlign: 'right' }}>
+                              <span className="wg-proj-val">
+                                {Number.isFinite(child.proj) ? formatCompactINR(child.proj) : '—'}
+                              </span>
+                            </td>
                           </tr>
                         );
                       })}
@@ -1409,140 +1127,155 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            
-            <div className="panel-card" style={{
-              padding: 22, 
-              borderTop: '2px solid transparent',
-              borderImage: 'linear-gradient(90deg, #38bdf8, #8b5cf6, #dfbd69) 1',
-              position: 'relative',
-              boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 40px rgba(56,189,248,0.04), inset 0 1px 0 rgba(255,255,255,0.08)'
-            }}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14}}>
-                {(() => {
-                  const isEF = (userProfile?.investment_goals || []).includes('Emergency Fund');
-                  const projection = recommendationMeta?.dashboard_projection;
-                  const projectedValue = nullableMarketNumber(projection?.total_projected);
-                  const projectedMonth = Array.isArray(projection?.monthly_timeline) && projection.monthly_timeline.length > 0
-                    ? projection.monthly_timeline[projection.monthly_timeline.length - 1].month
-                    : null;
-                  if (isEF) {
-                    return (
-                      <>
-                        <div>
-                          <div style={{fontSize: '0.65rem', color: '#546178', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: 4}}>Projected Fund</div>
-                          <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums'}}>{Number.isFinite(projectedValue) ? formatCompactINR(projectedValue) : 'N/A'}</div>
-                          <div style={{fontSize: '0.7rem', color: '#64748b', marginTop: 2}}>{projectedMonth !== null ? `Month ${projectedMonth}` : 'Awaiting projection'}</div>
-                        </div>
-                        <div style={{textAlign: 'right'}}>
-                          <div style={{fontSize: '0.65rem', color: '#546178', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: 4}}>{horizon ? `${horizon}-Year Total` : 'Horizon Total'}</div>
-                          <div style={{fontSize: '1.1rem', fontWeight: 700, color: '#e2e8f0'}}>{Number.isFinite(projectedValue) ? formatCompactINR(projectedValue) : 'N/A'}</div>
-                          <div style={{fontSize: '0.65rem', color: '#64748b', marginTop: 2}}>simulated from model assumptions</div>
-                        </div>
-                      </>
-                    );
-                  }
-                  const wealthMultiplier = nullableMarketNumber(projection?.wealth_multiple);
+        {/* Executive Overview Deck at Bottom */}
+        <div className="wg-bottom-deck-grid">
+
+          {/* Quick Stats Bento Card */}
+          <div className="panel-card wg-quick-stats-card">
+            <div className="wg-stats-hero-row">
+              {(() => {
+                const isEF = (userProfile?.investment_goals || []).includes('Emergency Fund');
+                const projection = recommendationMeta?.dashboard_projection;
+                const projectedValue = nullableMarketNumber(projection?.total_projected);
+                const projectedMonth = Array.isArray(projection?.monthly_timeline) && projection.monthly_timeline.length > 0
+                  ? projection.monthly_timeline[projection.monthly_timeline.length - 1].month
+                  : null;
+                if (isEF) {
                   return (
                     <>
                       <div>
-                        <div style={{fontSize: '0.65rem', color: '#546178', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: 4}}>Projected Value</div>
-                        <div style={{fontSize: '1.6rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums'}}>
-                          {Number.isFinite(projectedValue) ? formatCompactINR(projectedValue) : 'N/A'}
-                        </div>
+                        <div className="wg-stats-hero-label">Projected Fund</div>
+                        <div className="wg-stats-hero-value">{Number.isFinite(projectedValue) ? formatCompactINR(projectedValue) : 'N/A'}</div>
+                        <div className="wg-stats-hero-sub">{projectedMonth !== null ? `Month ${projectedMonth}` : 'Awaiting projection'}</div>
                       </div>
                       <div style={{textAlign: 'right'}}>
-                        <div style={{fontSize: '0.65rem', color: '#546178', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: 4}}>Wealth Multiple</div>
-                        <div style={{fontSize: '1.2rem', fontWeight: 800, color: '#dfbd69'}}>{Number.isFinite(wealthMultiplier) ? `${wealthMultiplier.toFixed(2)}x` : 'N/A'}</div>
-                        <div style={{fontSize: '0.65rem', color: '#64748b', marginTop: 2}}>on invested capital</div>
+                        <div className="wg-stats-hero-label">{horizon ? `${horizon}-Year Total` : 'Horizon Total'}</div>
+                        <div style={{fontSize: '1.25rem', fontWeight: 800, color: '#e2e8f0', letterSpacing: '-0.3px', fontVariantNumeric: 'tabular-nums'}}>{Number.isFinite(projectedValue) ? formatCompactINR(projectedValue) : 'N/A'}</div>
+                        <div className="wg-stats-hero-sub">simulated from model assumptions</div>
                       </div>
                     </>
                   );
-                })()}
-              </div>
-
-              <div className="stats-grid" style={{paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.04)'}}>
-                <div className="mini-stat">
-                  Monthly SIP <strong className="stat-green">{formatINR(currentMonthly)}</strong>
-                </div>
-                <div className="mini-stat" style={{textAlign: 'right'}}>
-                  Horizon <strong>{horizon ? `${horizon} Yrs` : 'N/A'}</strong>
-                </div>
-                <div className="mini-stat">
-                  Diversification <strong>{allocationDataOuter.length} {allocationDataOuter.length === 1 ? 'Category' : 'Categories'}</strong>
-                </div>
-                <div className="mini-stat" style={{textAlign: 'right'}}>
-                  Risk Bias <strong style={{color: (userProfile?.risk_tolerance || '').includes('Aggressive') ? '#fb7185' : (userProfile?.risk_tolerance || '').includes('Conservative') ? '#34d399' : '#dfbd69'}}>{recommendationMeta?.final_risk_tier || 'N/A'}</strong>
-                </div>
-              </div>
-            </div>
-
-
-
-            {/* Action Buttons with Icons */}
-            <div className="buttons-stack">
-              <button className="btn-portal btn-portal-primary" onClick={onRebalance} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8}}>
-                <Zap size={15} /> Rebalance Portfolio
-              </button>
-              <button className="btn-portal btn-portal-secondary" onClick={onExploreAll} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8}}>
-                <BarChart3 size={15} /> Compare Scenarios
-              </button>
-              <button className="btn-portal btn-portal-secondary" onClick={() => window.print()} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.82rem'}}>
-                <TrendingUp size={14} /> Export PDF Report
-              </button>
-            </div>
-
-            {/* Portfolio Insights Card */}
-            <div className="panel-card" style={{padding: 16, marginTop: 4}}>
-              <div className="panel-title" style={{marginBottom: 12, fontSize: '0.6rem'}}>PORTFOLIO INSIGHTS</div>
-              {(() => {
-                const recs = recommendations || [];
-                const returnAssumption = nullableMarketNumber(recommendationMeta?.portfolio_return_assumption);
-                const avgReturn = Number.isFinite(returnAssumption) ? returnAssumption.toFixed(1) : null;
-                const assetAllocations = Object.entries(recommendationMeta?.asset_class_allocation || {})
-                  .sort((a, b) => b[1] - a[1]);
-                const primaryAsset = assetAllocations[0] || null;
-                const secondaryAsset = assetAllocations[1] || null;
+                }
+                const wealthMultiplier = nullableMarketNumber(projection?.wealth_multiple);
                 return (
-                  <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span style={{fontSize: '0.72rem', color: '#94a3b8'}}>Portfolio Nominal Assumption</span>
-                      <span style={{fontSize: '0.82rem', fontWeight: 700, color: '#4ade80', fontVariantNumeric: 'tabular-nums'}}>{avgReturn !== null ? `${avgReturn}%` : 'N/A'}</span>
+                  <>
+                    <div>
+                      <div className="wg-stats-hero-label">Projected Value</div>
+                      <div className="wg-stats-hero-value">
+                        {Number.isFinite(projectedValue) ? formatCompactINR(projectedValue) : 'N/A'}
+                      </div>
                     </div>
-                    <div style={{height: 1, background: 'rgba(255,255,255,0.03)'}} />
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span style={{fontSize: '0.72rem', color: '#94a3b8'}}>Return Basis</span>
-                      <span style={{fontSize: '0.82rem', fontWeight: 700, color: '#38bdf8', fontVariantNumeric: 'tabular-nums'}}>{recommendationMeta?.return_basis === 'PRE_TAX_NOMINAL' ? 'Pre-tax nominal' : 'N/A'}</span>
+                    <div style={{textAlign: 'right'}}>
+                      <div className="wg-stats-hero-label">Wealth Multiple</div>
+                      <div className="wg-stats-hero-multiple">{Number.isFinite(wealthMultiplier) ? `${wealthMultiplier.toFixed(2)}x` : 'N/A'}</div>
+                      <div className="wg-stats-hero-sub">on invested capital</div>
                     </div>
-                    <div style={{height: 1, background: 'rgba(255,255,255,0.03)'}} />
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span style={{fontSize: '0.72rem', color: '#94a3b8'}}>Top Asset Classes</span>
-                      <span style={{fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0', fontVariantNumeric: 'tabular-nums'}}>
-                        {primaryAsset ? `${primaryAsset[0]} ${primaryAsset[1].toFixed(0)}%` : 'N/A'}
-                        {secondaryAsset ? ` / ${secondaryAsset[0]} ${secondaryAsset[1].toFixed(0)}%` : ''}
-                      </span>
-                    </div>
-                    <div style={{height: 1, background: 'rgba(255,255,255,0.03)'}} />
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span style={{fontSize: '0.72rem', color: '#94a3b8'}}>Instruments</span>
-                      <span style={{fontSize: '0.82rem', fontWeight: 700, color: '#dfbd69', fontVariantNumeric: 'tabular-nums'}}>{recs.length} active</span>
-                    </div>
-
-                    {/* Smart Tip */}
-                    <div style={{
-                      marginTop: 6, padding: '8px 10px', borderRadius: 8,
-                      background: 'rgba(139, 92, 246, 0.04)', border: '1px solid rgba(139, 92, 246, 0.1)',
-                      fontSize: '0.68rem', color: '#a78bfa', lineHeight: 1.5
-                    }}>
-                      {recommendationMeta?.reconciliation_note || 'Suitability commentary will appear after the backend recommendation is generated.'}
-                    </div>
-                  </div>
+                  </>
                 );
               })()}
             </div>
 
+            <div className="wg-bento-stats-grid">
+              <div className="wg-bento-stat-cell">
+                <div className="wg-bento-stat-header">
+                  <Wallet size={11} aria-hidden="true" style={{ color: '#34d399' }} />
+                  <span>Monthly SIP</span>
+                </div>
+                <strong className="stat-green">{formatINR(currentMonthly)}</strong>
+              </div>
+              <div className="wg-bento-stat-cell" style={{textAlign: 'right'}}>
+                <div className="wg-bento-stat-header" style={{ justifyContent: 'flex-end' }}>
+                  <Clock size={11} aria-hidden="true" style={{ color: '#38bdf8' }} />
+                  <span>Horizon</span>
+                </div>
+                <strong>{horizon ? `${horizon} Yrs` : 'N/A'}</strong>
+              </div>
+              <div className="wg-bento-stat-cell">
+                <div className="wg-bento-stat-header">
+                  <PieChartIcon size={11} aria-hidden="true" style={{ color: '#a78bfa' }} />
+                  <span>Diversification</span>
+                </div>
+                <strong>{allocationDataOuter.length} {allocationDataOuter.length === 1 ? 'Category' : 'Categories'}</strong>
+              </div>
+              <div className="wg-bento-stat-cell" style={{textAlign: 'right'}}>
+                <div className="wg-bento-stat-header" style={{ justifyContent: 'flex-end' }}>
+                  <Shield size={11} aria-hidden="true" style={{ color: (userProfile?.risk_tolerance || '').includes('Aggressive') ? '#fb7185' : '#fbbf24' }} />
+                  <span>Risk Bias</span>
+                </div>
+                <strong style={{color: (userProfile?.risk_tolerance || '').includes('Aggressive') ? '#fb7185' : (userProfile?.risk_tolerance || '').includes('Conservative') ? '#34d399' : '#dfbd69'}}>
+                  {recommendationMeta?.final_risk_tier || 'N/A'}
+                </strong>
+              </div>
+            </div>
           </div>
 
+          {/* Portfolio Insights Card */}
+          <div className="panel-card wg-insights-card">
+            <div className="wg-insights-header">
+              <span className="panel-title" style={{ fontSize: '0.66rem', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={12} aria-hidden="true" style={{ color: '#38bdf8' }} />
+                Portfolio Insights
+              </span>
+              <span className="wg-insights-badge">Live Context</span>
+            </div>
+            {(() => {
+              const recs = recommendations || [];
+              const returnAssumption = nullableMarketNumber(recommendationMeta?.portfolio_return_assumption);
+              const avgReturn = Number.isFinite(returnAssumption) ? returnAssumption.toFixed(1) : null;
+              const assetAllocations = Object.entries(recommendationMeta?.asset_class_allocation || {})
+                .sort((a, b) => b[1] - a[1]);
+              const primaryAsset = assetAllocations[0] || null;
+              const secondaryAsset = assetAllocations[1] || null;
+              return (
+                <div className="wg-insights-body">
+                  <div className="wg-insight-row">
+                    <span className="wg-insight-label">Portfolio Nominal Assumption</span>
+                    <span className="wg-insight-val green">{avgReturn !== null ? `${avgReturn}%` : 'N/A'}</span>
+                  </div>
+                  <div className="wg-insight-row">
+                    <span className="wg-insight-label">Return Basis</span>
+                    <span className="wg-insight-val cyan">{recommendationMeta?.return_basis === 'PRE_TAX_NOMINAL' ? 'Pre-tax nominal' : 'N/A'}</span>
+                  </div>
+                  <div className="wg-insight-row">
+                    <span className="wg-insight-label">Top Asset Classes</span>
+                    <span className="wg-insight-val text-primary">
+                      {primaryAsset ? `${primaryAsset[0]} ${primaryAsset[1].toFixed(0)}%` : 'N/A'}
+                      {secondaryAsset ? ` / ${secondaryAsset[0]} ${secondaryAsset[1].toFixed(0)}%` : ''}
+                    </span>
+                  </div>
+                  <div className="wg-insight-row">
+                    <span className="wg-insight-label">Instruments</span>
+                    <span className="wg-insight-val amber">{recs.length} active</span>
+                  </div>
+
+                  {/* Status commentary callout */}
+                  <div className="wg-insight-callout">
+                    <Shield size={13} aria-hidden="true" style={{ color: '#38bdf8', flexShrink: 0, marginTop: 2 }} />
+                    <div className="wg-insight-callout-text">
+                      {recommendationMeta?.reconciliation_note || 'Suitability commentary will appear after the backend recommendation is generated.'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+        </div>
+
+        {/* Action Buttons Toolbar */}
+        <div className="buttons-stack wg-portfolio-actions-bar">
+          <button className="btn-portal btn-portal-primary" onClick={onRebalance}>
+            <Zap size={15} aria-hidden="true" />
+            <span>Rebalance Portfolio</span>
+          </button>
+          <button className="btn-portal btn-portal-secondary" onClick={onExploreAll}>
+            <BarChart3 size={15} aria-hidden="true" />
+            <span>Compare Scenarios</span>
+          </button>
+          <button className="btn-portal btn-portal-secondary" onClick={() => window.print()}>
+            <TrendingUp size={14} aria-hidden="true" />
+            <span>Export PDF Report</span>
+          </button>
         </div>
 
         {/* Section divider */}
@@ -1581,258 +1314,366 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
               {recommendations.map((rec, idx) => {
                 const whyReasons = getWhy(rec, userProfile);
                 const isExpanded = expandedWhyCards[rec.id];
-                const isTop3 = idx < 3;
                 const cardAccent = rec.color || '#06b6d4';
+                const podiumClass = idx === 0 ? 'rec-card--rank-1' : idx === 1 ? 'rec-card--rank-2' : idx === 2 ? 'rec-card--rank-3' : '';
                 return (
-                  <div key={rec.id} id={`rec-card-${rec.id}`} className="rec-card" style={{
-                    background: `linear-gradient(165deg, rgba(18, 27, 46, 0.8) 0%, rgba(8, 13, 28, 0.95) 100%)`,
-                    backdropFilter: 'blur(40px) saturate(160%)',
-                    border: `1px solid ${cardAccent}20`,
-                    borderTop: `2px solid ${cardAccent}30`,
-                    borderRadius: 22, padding: '22px 24px', position: 'relative', overflow: 'hidden',
-                    transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: `0 12px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)`
-                  }}>
-                    {/* Ambient glow — top-right radial */}
+                  <div
+                    key={rec.id}
+                    id={`rec-card-${rec.id}`}
+                    className={`rec-card ${podiumClass}`}
+                    style={{
+                      background: 'linear-gradient(165deg, rgba(18, 27, 46, 0.85) 0%, rgba(8, 13, 28, 0.98) 100%)',
+                      backdropFilter: 'blur(40px) saturate(160%)',
+                      border: `1px solid ${cardAccent}22`,
+                      borderTop: `2px solid ${cardAccent}38`,
+                      borderRadius: 22,
+                      padding: '20px 22px 18px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      boxShadow: '0 14px 44px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06)',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    {/* Top ambient radial glow */}
                     <div style={{
-                      position: 'absolute', top: -60, right: -60,
-                      width: idx === 0 ? 180 : 120, height: idx === 0 ? 180 : 120,
-                      background: `radial-gradient(circle, ${cardAccent}${idx === 0 ? '14' : '08'}, transparent 70%)`,
+                      position: 'absolute', top: -50, right: -50,
+                      width: idx === 0 ? 170 : 120, height: idx === 0 ? 170 : 120,
+                      background: `radial-gradient(circle, ${cardAccent}${idx === 0 ? '16' : '0a'}, transparent 70%)`,
                       pointerEvents: 'none'
                     }} />
-                    {/* Bottom-left subtle glow */}
-                    <div style={{
-                      position: 'absolute', bottom: -40, left: -40,
-                      width: 100, height: 100,
-                      background: `radial-gradient(circle, rgba(139, 92, 246, 0.05), transparent 70%)`,
-                      pointerEvents: 'none'
-                    }} />
-                    {/* Rank badge */}
-                    <div style={{
-                      position: 'absolute', top: 14, right: 14,
-                      background: idx === 0 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : isTop3 ? `linear-gradient(135deg, rgba(223, 189, 105, 0.12), rgba(223, 189, 105, 0.04))` : 'rgba(255,255,255,0.03)',
-                      color: idx === 0 ? '#000' : isTop3 ? '#dfbd69' : '#546178',
-                      width: idx === 0 ? 32 : 28, height: idx === 0 ? 32 : 28, borderRadius: idx === 0 ? 10 : 9,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 800, fontSize: idx === 0 ? '0.8rem' : '0.72rem',
-                      border: idx === 0 ? 'none' : isTop3 ? '1px solid rgba(223, 189, 105, 0.2)' : '1px solid rgba(255,255,255,0.05)',
-                      boxShadow: idx === 0 ? '0 4px 20px rgba(245, 158, 11, 0.4), inset 0 1px 1px rgba(255,255,255,0.3)' : isTop3 ? '0 2px 8px rgba(0,0,0,0.2)' : 'none'
-                    }}>#{idx + 1}</div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                      <div style={{
-                        width: 4, height: 36, borderRadius: 4,
-                        background: `linear-gradient(180deg, ${cardAccent}, ${cardAccent}60)`,
-                        boxShadow: `0 0 8px ${cardAccent}30`
-                      }} />
-                      <div style={{flex: 1}}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#f1f5f9', letterSpacing: '-0.3px' }}>{rec.abbr || rec.name}</span>
-                          {(() => {
-                             const score = computeSuitabilityMatch(rec, userProfile);
-                             const scoreColor = score >= 90 ? '#10b981' : score >= 75 ? '#38bdf8' : score >= 60 ? '#f59e0b' : '#94a3b8';
-                             const scoreBg = score >= 90 ? 'rgba(16, 185, 129, 0.12)' : score >= 75 ? 'rgba(56, 189, 248, 0.12)' : score >= 60 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(148, 163, 184, 0.1)';
-                             const scoreBorder = score >= 90 ? 'rgba(16, 185, 129, 0.28)' : score >= 75 ? 'rgba(56, 189, 248, 0.28)' : score >= 60 ? 'rgba(245, 158, 11, 0.28)' : 'rgba(148, 163, 184, 0.2)';
-                             return (
-                               <span style={{
-                                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                                 padding: '3px 10px', borderRadius: 20,
-                                 fontSize: '0.7rem', fontWeight: 800, color: scoreColor,
-                                 background: scoreBg, border: `1px solid ${scoreBorder}`,
-                                 boxShadow: `0 2px 10px ${scoreColor}18`,
-                                 fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.2px', whiteSpace: 'nowrap'
-                               }}>
-                                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: scoreColor, flexShrink: 0 }} />
-                                 {score}% Match
-                               </span>
-                             );
-                           })()}
-                          <RecommendationSourceBadge source={rec._source} />
-
-                          {INSTRUMENT_EXPLAINERS[rec.id] && (
-                            <span 
-                              onClick={(e) => { e.stopPropagation(); setActiveTooltip(activeTooltip === rec.id ? null : rec.id); }}
-                              style={{cursor: 'pointer', display: 'inline-flex', opacity: 0.4, transition: 'opacity 0.2s'}}
-                              onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                              onMouseLeave={e => e.currentTarget.style.opacity = 0.4}
+                    {/* Header main: Avatar + Name/Subtitle on Left, Podium Badge on Right */}
+                    {(() => {
+                      const instIconData = getInstrumentIconData(rec.assetClass || rec.category);
+                      const InstIcon = instIconData.Icon;
+                      return (
+                        <div className="wg-card-header-main">
+                          <div className="wg-card-identity-group">
+                            <div
+                              className="wg-card-avatar"
+                              style={{
+                                background: instIconData.bg,
+                                borderColor: instIconData.border,
+                                color: instIconData.color,
+                                boxShadow: `0 4px 16px ${instIconData.color}25`
+                              }}
                             >
-                              <HelpCircle size={13} color="#38bdf8" />
-                            </span>
-                          )}
+                              <InstIcon size={20} />
+                            </div>
+                            <div className="wg-card-name-block">
+                              <div className="wg-card-title-row-inner">
+                                <h3 className="wg-card-title">{rec.abbr || rec.name}</h3>
+                                {INSTRUMENT_EXPLAINERS[rec.id] && (
+                                  <button
+                                    type="button"
+                                    className="wg-card-help-btn"
+                                    aria-label={`What is ${rec.abbr || rec.name}?`}
+                                    onClick={(e) => { e.stopPropagation(); setActiveTooltip(activeTooltip === rec.id ? null : rec.id); }}
+                                  >
+                                    <HelpCircle size={12} color="#38bdf8" />
+                                  </button>
+                                )}
+                              </div>
+                              <div className="wg-card-subtitle">
+                                {getInstrumentSubtitle(rec.assetClass || rec.category) || rec.name}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Rank badge */}
+                          <div className={`wg-rank-badge ${idx === 0 ? 'wg-rank-badge--1' : idx === 1 ? 'wg-rank-badge--2' : idx === 2 ? 'wg-rank-badge--3' : 'wg-rank-badge--default'}`}>
+                            {idx === 0 && <Trophy size={11} style={{ flexShrink: 0 }} />}
+                            {(idx === 1 || idx === 2) && <Star size={11} style={{ flexShrink: 0 }} />}
+                            <span>#{idx + 1}</span>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 2, lineHeight: 1.3 }}>{CARD_SUBTITLES[rec.id] || rec.name}</div>
+                      );
+                    })()}
+
+                    {/* Meta & Suitability Row: Asset Type + Match Score on Left, Monthly SIP on Right */}
+                    <div className="wg-card-meta-row">
+                      <div className="wg-card-meta-left">
+                        {/* Type badge */}
+                        {(() => {
+                          const typeBadge = getInstrumentTypeBadge(rec.type);
+                          return (
+                            <span
+                              className="wg-card-type-pill"
+                              style={{
+                                color: typeBadge.color,
+                                background: typeBadge.bg,
+                                borderColor: typeBadge.border
+                              }}
+                            >
+                              {typeBadge.label}
+                            </span>
+                          );
+                        })()}
+
+                        {/* Suitability match badge */}
+                        {(() => {
+                          const score = computeSuitabilityMatch(rec, userProfile);
+                          const scoreColor = score >= 90 ? '#10b981' : score >= 75 ? '#38bdf8' : score >= 60 ? '#f59e0b' : '#94a3b8';
+                          const scoreBg = score >= 90 ? 'rgba(16, 185, 129, 0.12)' : score >= 75 ? 'rgba(56, 189, 248, 0.12)' : score >= 60 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(148, 163, 184, 0.1)';
+                          const scoreBorder = score >= 90 ? 'rgba(16, 185, 129, 0.28)' : score >= 75 ? 'rgba(56, 189, 248, 0.28)' : score >= 60 ? 'rgba(245, 158, 11, 0.28)' : 'rgba(148, 163, 184, 0.2)';
+                          const formattedScore = score % 1 === 0 ? `${score}%` : `${score.toFixed(1)}%`;
+                          return (
+                            <span
+                              className="wg-card-match-tag"
+                              style={{
+                                color: scoreColor,
+                                background: scoreBg,
+                                borderColor: scoreBorder,
+                                boxShadow: `0 2px 10px ${scoreColor}18`
+                              }}
+                            >
+                              <span className="wg-card-beacon-dot" style={{ background: scoreColor }} />
+                              {formattedScore} Match
+                            </span>
+                          );
+                        })()}
+
+                        <RecommendationSourceBadge source={rec._source} />
                       </div>
+
+                      {rec.monthly_allocation > 0 && (
+                        <div className="wg-card-alloc-chip">
+                          <span className="wg-alloc-chip-label">SIP</span>
+                          <span>{formatINR(rec.monthly_allocation)}</span>
+                        </div>
+                      )}
                     </div>
+
                     {/* Beginner tooltip */}
                     {activeTooltip === rec.id && INSTRUMENT_EXPLAINERS[rec.id] && (
                       <div style={{
-                        background: 'rgba(10, 16, 30, 0.95)', border: '1px solid rgba(56,189,248,0.15)',
-                        borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: '0.72rem', lineHeight: 1.6,
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+                        background: 'rgba(10, 16, 30, 0.96)', border: '1px solid rgba(56,189,248,0.22)',
+                        borderRadius: 12, padding: '12px 14px', marginBottom: 12, fontSize: '0.73rem', lineHeight: 1.6,
+                        boxShadow: '0 12px 36px rgba(0,0,0,0.6)', backdropFilter: 'blur(20px)', position: 'relative', zIndex: 10
                       }}>
-                        <div style={{fontWeight: 700, color: '#38bdf8', marginBottom: 6, fontSize: '0.75rem'}}>What is {rec.abbr || rec.name}?</div>
-                        <div style={{color: '#cbd5e1', marginBottom: 6}}>{INSTRUMENT_EXPLAINERS[rec.id].what}</div>
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6}}>
-                          <div><span style={{color: '#546178', fontSize: '0.65rem'}}>Risk:</span><br/><span style={{color: '#94a3b8'}}>{INSTRUMENT_EXPLAINERS[rec.id].risk_plain}</span></div>
-                          <div><span style={{color: '#546178', fontSize: '0.65rem'}}>Lock-in:</span><br/><span style={{color: '#94a3b8'}}>{INSTRUMENT_EXPLAINERS[rec.id].lock_in_plain}</span></div>
+                        <div style={{fontWeight: 750, color: '#38bdf8', marginBottom: 6, fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: 6}}>
+                          <Sparkles size={12} color="#38bdf8" />
+                          What is {rec.abbr || rec.name}?
                         </div>
-                        {INSTRUMENT_EXPLAINERS[rec.id].who_for && <div style={{color: '#94a3b8'}}><strong style={{color: '#e2e8f0'}}>Best for:</strong> {INSTRUMENT_EXPLAINERS[rec.id].who_for}</div>}
-                        {INSTRUMENT_EXPLAINERS[rec.id].example && <div style={{color: '#4ade80', marginTop: 4, fontSize: '0.68rem'}}>{INSTRUMENT_EXPLAINERS[rec.id].example}</div>}
+                        <div style={{color: '#cbd5e1', marginBottom: 8}}>{INSTRUMENT_EXPLAINERS[rec.id].what}</div>
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8}}>
+                          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: 6 }}>
+                            <span style={{color: '#64748b', fontSize: '0.62rem', textTransform: 'uppercase', fontWeight: 700}}>Risk:</span><br/>
+                            <span style={{color: '#94a3b8', fontWeight: 600}}>{INSTRUMENT_EXPLAINERS[rec.id].risk_plain}</span>
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: 6 }}>
+                            <span style={{color: '#64748b', fontSize: '0.62rem', textTransform: 'uppercase', fontWeight: 700}}>Lock-in:</span><br/>
+                            <span style={{color: '#94a3b8', fontWeight: 600}}>{INSTRUMENT_EXPLAINERS[rec.id].lock_in_plain}</span>
+                          </div>
+                        </div>
+                        {INSTRUMENT_EXPLAINERS[rec.id].who_for && (
+                          <div style={{color: '#94a3b8', fontSize: '0.70rem', marginBottom: 4}}>
+                            <strong style={{color: '#e2e8f0'}}>Best for:</strong> {INSTRUMENT_EXPLAINERS[rec.id].who_for}
+                          </div>
+                        )}
+                        {INSTRUMENT_EXPLAINERS[rec.id].example && (
+                          <div style={{color: '#34d399', marginTop: 4, fontSize: '0.70rem', fontWeight: 500}}>
+                            💡 {INSTRUMENT_EXPLAINERS[rec.id].example}
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-                      <div className="stat-box">
-                        <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4, fontWeight: 500 }}>Model Return Assumption</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#4ade80', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.3px' }}>{nullableMarketNumber(rec.nominalReturn) !== null ? `${nullableMarketNumber(rec.nominalReturn).toFixed(1)}%` : 'N/A'}</div>
+                    {/* Bento 4-Cell Stats Grid */}
+                    <div className="wg-card-stats-grid">
+                      {/* 1. Model Return Assumption */}
+                      <div className="stat-box wg-stat-box-modern">
+                        <div className="wg-stat-box-header">
+                          <div className="wg-stat-icon-badge wg-stat-icon-badge--return">
+                            <TrendingUp size={11} color="#34d399" />
+                          </div>
+                          <span>Model Return</span>
+                        </div>
+                        <div className="wg-stat-box-val val-green">
+                          {nullableMarketNumber(rec.nominalReturn) !== null ? `${nullableMarketNumber(rec.nominalReturn).toFixed(1)}%` : 'N/A'}
+                        </div>
+                        <div className="wg-stat-box-sub">pre-tax assumption</div>
                       </div>
-                      <div className="stat-box">
-                        <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4, fontWeight: 500 }}>Risk Level</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: RISK_COLORS[rec.riskLabel] || '#f59e0b', letterSpacing: '-0.3px' }} title={RISK_PLAIN_LABELS[rec.riskLabel] || ''}>{rec.riskLabel}</div>
+
+                      {/* 2. Risk Level */}
+                      <div className="stat-box wg-stat-box-modern">
+                        <div className="wg-stat-box-header">
+                          <div className="wg-stat-icon-badge wg-stat-icon-badge--risk">
+                            <Shield size={11} color={RISK_COLORS[rec.riskLabel] || '#38bdf8'} />
+                          </div>
+                          <span>Risk Level</span>
+                        </div>
+                        <div
+                          className="wg-stat-box-val"
+                          style={{ color: RISK_COLORS[rec.riskLabel] || '#38bdf8' }}
+                          title={RISK_PLAIN_LABELS[rec.riskLabel] || ''}
+                        >
+                          {rec.riskLabel}
+                        </div>
+                        <div className="wg-stat-box-sub">profile matched</div>
                       </div>
-                      <div className="stat-box">
-                        <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4, fontWeight: 500 }}>Monthly SIP</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#e2e8f0', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.3px' }}>{formatINR(rec.monthly_allocation)}</div>
+
+                      {/* 3. Monthly SIP */}
+                      <div className="stat-box wg-stat-box-modern">
+                        <div className="wg-stat-box-header">
+                          <div className="wg-stat-icon-badge wg-stat-icon-badge--sip">
+                            <Wallet size={11} color="#818cf8" />
+                          </div>
+                          <span>Monthly SIP</span>
+                        </div>
+                        <div className="wg-stat-box-val val-white">
+                          {formatINR(rec.monthly_allocation)}
+                        </div>
+                        <div className="wg-stat-box-sub">recommended plan</div>
                       </div>
-                      <div className="stat-box">
-                        <div style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4, fontWeight: 500 }}>Lock-in</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#e2e8f0', letterSpacing: '-0.3px' }}
+
+                      {/* 4. Lock-in (strictly keeping 'None' / 'Unavailable' text for invariant tests) */}
+                      <div className="stat-box wg-stat-box-modern">
+                        <div className="wg-stat-box-header">
+                          <div className="wg-stat-icon-badge wg-stat-icon-badge--lock">
+                            <Clock size={11} color="#94a3b8" />
+                          </div>
+                          <span>Lock-In</span>
+                        </div>
+                        <div
+                          className="wg-stat-box-val val-white"
                           title={rec.maturity_type === 'age_based'
                             ? `Matures at age ${rec.maturity_age} (${rec.lock_in_years} years from now)`
                             : undefined}
-                        >{rec.lock_in_years != null
+                        >
+                          {rec.lock_in_years != null
                             ? (rec.lock_in_years === 0 ? 'None' : `${rec.lock_in_years}Y`)
                             : (rec.lockIn == null ? 'Unavailable' : rec.lockIn === 0 ? 'None' : `${rec.lockIn}Y`)}
                         </div>
+                        <div className="wg-stat-box-sub">liquidity horizon</div>
                       </div>
                     </div>
-                    {/* ELSS Lock-in Warning (Fix 3) */}
+
+                    {/* Primary Suitability Reason Snippet */}
+                    {whyReasons && whyReasons.length > 0 && (
+                      <div className="wg-card-reason-snippet">
+                        <CheckCircle2 size={13} color="#38bdf8" style={{ flexShrink: 0, marginTop: 2 }} />
+                        <span className="wg-reason-snippet-text">{whyReasons[0]}</span>
+                      </div>
+                    )}
+
+                    {/* ELSS Lock-in Warning */}
                     {(() => {
                       const lockWarning = getLockInWarning(rec, horizon);
                       return lockWarning ? (
                         <div style={{
-                          fontSize: '0.68rem', color: '#f59e0b', padding: '5px 10px', marginBottom: 8,
-                          background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.12)',
-                          borderRadius: 6, lineHeight: 1.4
+                          fontSize: '0.68rem', color: '#fbbf24', padding: '6px 10px', marginBottom: 10,
+                          background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.22)',
+                          borderRadius: 8, lineHeight: 1.4, display: 'flex', alignItems: 'center', gap: 6
                         }}>
-                          ⏰ {lockWarning}
+                          <Clock size={12} color="#fbbf24" style={{ flexShrink: 0 }} />
+                          <span>{lockWarning}</span>
                         </div>
                       ) : null;
                     })()}
 
-                    {/* Score bar — Fix 4: use actual ML confidence or mark as local */}
+                    {/* ML Telemetry / Provenance HUD bar */}
                     {(() => {
                       const confidence = rec.ml_confidence;
                       const hasRealConfidence = confidence != null && confidence > 0;
-                      
+
                       if (!hasRealConfidence) {
                         return (
-                          <div className="confidence-unavailable" style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic', marginBottom: 8 }}>
-                            ML shadow observation unavailable; ranking remains backend-owned
+                          <div className="wg-card-telemetry wg-card-telemetry--muted confidence-unavailable">
+                            <div className="wg-telemetry-note">
+                              ML shadow observation unavailable; ranking remains backend-owned
+                            </div>
                           </div>
                         );
                       }
 
                       const confLabel = getConfidenceLabel(confidence);
                       const displayPct = Math.round(confidence * 100);
+                      const displayStatus = confLabel.label ? confLabel.label.replace(' Recommendation', '') : `${displayPct}%`;
                       return (
-                        <>
-                          <div className="confidence-bar-container" style={{ marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 500 }}>ML Shadow Confidence (not ranking authority)</span>
-                            <span className="confidence-value" style={{ fontSize: '0.72rem', color: confLabel.colour, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                              {confLabel.label || `${displayPct}%`}
+                        <div className="wg-card-telemetry confidence-bar-container">
+                          <div className="wg-telemetry-row">
+                            <span className="wg-telemetry-label">
+                              <Activity size={11} color="#38bdf8" />
+                              <span>ML Observation</span>
+                            </span>
+                            <span
+                              className="wg-telemetry-badge confidence-value"
+                              style={{
+                                color: confLabel.colour,
+                                borderColor: `${confLabel.colour}35`,
+                                background: `${confLabel.colour}10`
+                              }}
+                            >
+                              {displayStatus} • {displayPct}%
                             </span>
                           </div>
-                          <div style={{ height: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 100, marginBottom: 8, overflow: 'hidden' }}>
-                            <div className="confidence-bar" style={{
-                              height: '100%',
-                              width: `${Math.min(100, displayPct)}%`,
-                              background: `linear-gradient(90deg, ${confLabel.colour}cc, ${confLabel.colour})`,
-                              borderRadius: 100,
-                              transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-                              boxShadow: `0 0 8px ${confLabel.colour}40`
-                            }} />
+                          <div className="wg-telemetry-track">
+                            <div
+                              className="wg-telemetry-fill confidence-bar"
+                              style={{
+                                width: `${Math.min(100, displayPct)}%`,
+                                background: `linear-gradient(90deg, #06b6d4, #38bdf8, ${confLabel.colour})`,
+                                boxShadow: `0 0 10px ${confLabel.colour}60`
+                              }}
+                            />
                           </div>
-                          {/* Fix 4: Low confidence badge */}
                           {confidence < 0.30 && (
-                            <div style={{
-                              fontSize: '0.7rem', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.08)',
-                              border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 8,
-                              padding: '3px 8px', marginBottom: 8, textAlign: 'center'
-                            }}>
-                            <AlertCircle size={14} style={{ marginRight: 6 }} /> Low model confidence — shown for reference only
+                            <div className="wg-telemetry-alert-chip">
+                              <AlertCircle size={12} color="#fbbf24" style={{ flexShrink: 0 }} />
+                              <span>Low model confidence — shown for reference only</span>
                             </div>
                           )}
-                        </>
+                        </div>
                       );
                     })()}
 
-                    {/* Why recommended */}
-                    <button
-                      onClick={() => toggleWhyCard(rec.id)}
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(139, 92, 246, 0.04))',
-                        border: '1px solid rgba(6, 182, 212, 0.15)',
-                        color: '#22d3ee', cursor: 'pointer', borderRadius: 10,
-                        fontSize: '0.72rem', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 5,
-                        fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                        letterSpacing: '0.2px'
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(6, 182, 212, 0.14), rgba(139, 92, 246, 0.08))'; e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.25)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(139, 92, 246, 0.04))'; e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.15)'; }}
-                    >
-                      {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                      Why recommended?
-                    </button>
-                    {isExpanded && (
-                      <div style={{
-                        marginTop: 10, padding: 12,
-                        background: 'rgba(6, 182, 212, 0.04)',
-                        border: '1px solid rgba(6, 182, 212, 0.1)',
-                        borderRadius: 10, fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.6
-                      }}>
-                        {whyReasons.map((reason, i) => (
-                          <div key={i} style={{ marginBottom: 6, display: 'flex', gap: 6 }}>
-                            <span style={{ color: '#06b6d4' }}>•</span>
-                            <span>{reason}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-
-
-                    {/* ═══ LEARN MORE — Opens full deep-dive page ═══ */}
-                    {onLearnMore && (
+                    {/* Card Actions Dock */}
+                    <div className="wg-card-actions-dock">
+                      {/* Why recommended drawer */}
                       <button
-                        onClick={() => onLearnMore(rec)}
-                        style={{
-                          width: '100%', marginTop: 12, padding: '10px 16px',
-                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(56, 189, 248, 0.08))',
-                          border: '1px solid rgba(139, 92, 246, 0.25)',
-                          borderRadius: 12, color: '#a78bfa', cursor: 'pointer',
-                          fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                          letterSpacing: '0.3px'
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(56, 189, 248, 0.14))';
-                          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 4px 20px rgba(139, 92, 246, 0.15)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(56, 189, 248, 0.08))';
-                          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.25)';
-                          e.currentTarget.style.transform = 'none';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }}
+                        type="button"
+                        onClick={() => toggleWhyCard(rec.id)}
+                        className="wg-why-card-btn"
+                        aria-expanded={isExpanded}
                       >
-                        Learn More — Full Deep Dive
-                        <ChevronRight size={14} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                          <Sparkles size={13} color="#22d3ee" />
+                          <span>Why recommended?</span>
+                        </span>
+                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </button>
-                    )}
+
+                      {isExpanded && (
+                        <div className="wg-why-drawer">
+                          <div className="wg-why-drawer-header">
+                            <Sparkles size={11} color="#38bdf8" />
+                            <span>Suitability Rationale</span>
+                          </div>
+                          <ul className="wg-why-reasons-list">
+                            {whyReasons.map((reason, i) => (
+                              <li key={i} className="wg-why-reason-item">
+                                <span className="wg-why-bullet">✦</span>
+                                <span>{reason}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Learn More button */}
+                      {onLearnMore && (
+                        <button
+                          type="button"
+                          onClick={() => onLearnMore(rec)}
+                          className="wg-learn-more-btn"
+                        >
+                          <span>Learn More — Full Deep Dive</span>
+                          <ChevronRight size={15} className="wg-learn-more-arrow" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -1840,14 +1681,14 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
           </div>
         )}
 
-        
+
 
         {/* ═══════════════════════════════════════════════════════════
             SECTION 10: AI ADVISORY CARD — Structured Smart Advisory Synthesis
             ═══════════════════════════════════════════════════════════ */}
         {recommendationMeta?.advisory_text ? (() => {
           const rawText = recommendationMeta.advisory_text;
-          
+
           // Clean up and extract any leading salutation like "Dear Investor,"
           let cleanText = rawText.trim();
           let salutation = '';
@@ -2093,72 +1934,53 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
           const isEmergencyFund = (userProfile?.investment_goals || []).includes('Emergency Fund');
 
           if (isEmergencyFund) {
-            // FIX 6: Emergency Fund — Browse by Liquidity
-            const liquidGroup = recommendations.filter(r => ['liquid_mf'].includes(r.id));
-            const nearLiquidGroup = recommendations.filter(r => ['fd'].includes(r.id));
-            const shortTermGroup = recommendations.filter(r => ['debt_mf', 'hybrid_mf'].includes(r.id));
-            const groups = [
-              { key: 'liquid', label: 'Liquid (T+1 Redemption)', items: liquidGroup, color: '#14b8a6', icon: <Shield size={18} color="#14b8a6" /> },
-              { key: 'near_liquid', label: 'Near-Liquid (1–7 days)', items: nearLiquidGroup, color: '#06b6d4', icon: <TrendingUp size={18} color="#06b6d4" /> },
-              { key: 'short_term', label: 'Short-Term (< 1 year)', items: shortTermGroup, color: '#f59e0b', icon: <BarChart3 size={18} color="#f59e0b" /> },
-            ];
-
+            const emergencyColor = '#14b8a6';
             return (
               <div style={{ marginTop: 40, marginBottom: 40 }}>
                 <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8, color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <BarChart3 size={20} color="#94a3b8" /> Browse by Liquidity
+                  <BarChart3 size={20} color="#94a3b8" /> Emergency-fund recommendations
                 </h2>
                 <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: 20 }}>
-                  Emergency funds require instant access. All instruments below have zero lock-in.
+                  Check each product’s current access, withdrawal, and lock-in terms before assigning emergency savings.
                 </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-                  {groups.map(grp => (
-                    <div key={grp.key} style={{
-                      background: '#0d141e', border: `1px solid ${grp.color}30`,
-                      borderRadius: 16, overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        width: '100%', padding: '14px 18px',
-                        color: '#fff', display: 'flex', alignItems: 'center', gap: 10,
-                        fontSize: '0.95rem', fontWeight: 600
-                      }}>
-                        {grp.icon}
-                        {grp.label}
-                        <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#94a3b8' }}>
-                          {grp.items.length} instrument{grp.items.length !== 1 ? 's' : ''}
-                        </span>
+                <div className="wg-risk-accordion-card" style={{ borderLeft: `3px solid ${emergencyColor}` }}>
+                  <div style={{
+                    width: '100%', padding: '14px 18px', color: '#fff', display: 'flex', alignItems: 'center', gap: 10,
+                    fontSize: '0.88rem', fontWeight: 750
+                  }}>
+                    <Shield size={18} color={emergencyColor} />
+                    <span>Recommendations</span>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
+                      {recommendations.length} instrument{recommendations.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div style={{ padding: '4px 16px 16px' }}>
+                    {recommendations.length === 0 ? (
+                      <div style={{ color: '#94a3b8', fontSize: '0.82rem', padding: '10px 0' }}>
+                        No eligible recommendations are available for this profile.
                       </div>
-                      <div style={{ padding: '0 18px 16px' }}>
-                        {grp.items.length === 0 ? (
-                          <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '8px 0' }}>None in this category.</div>
-                        ) : grp.items.map(inv => (
-                          <div key={inv.id} style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.03)'
-                          }}>
-                            <div>
-                              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#e2e8f0' }}>{inv.abbr || inv.name}</div>
-                              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                                Model assumption (pre-tax): {nullableMarketNumber(inv.nominalReturn) !== null ? `${nullableMarketNumber(inv.nominalReturn).toFixed(1)}%` : 'N/A'} &bull; <span style={{ color: RISK_COLORS[inv.riskLabel] }}>{inv.riskLabel}</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => scrollToCard(inv.id)}
-                              style={{
-                                background: `${grp.color}15`, border: `1px solid ${grp.color}30`,
-                                color: grp.color, borderRadius: 8, padding: '4px 10px', fontSize: '0.75rem', cursor: 'pointer'
-                              }}
-                            >View Details</button>
+                    ) : recommendations.map(inv => (
+                      <div key={inv.id} className="wg-risk-instrument-row">
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>{inv.abbr || inv.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>
+                            Model assumption (pre-tax): {nullableMarketNumber(inv.nominalReturn) !== null ? `${nullableMarketNumber(inv.nominalReturn).toFixed(1)}%` : 'Unavailable'}
+                            {' '}&bull; <span style={{ color: RISK_COLORS[inv.riskLabel] || emergencyColor, fontWeight: 650 }}>{inv.riskLabel || 'Risk unavailable'}</span>
                           </div>
-                        ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => scrollToCard(inv.id)}
+                          className="wg-risk-view-btn"
+                          style={{ background: `${emergencyColor}15`, borderColor: `${emergencyColor}35`, color: emergencyColor }}
+                        >View Details</button>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             );
           }
-
           // Default: Browse by Risk Level
           return (
           <div style={{ marginTop: 36, marginBottom: 36 }}>
@@ -2183,49 +2005,38 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
               {/* Low Risk Group */}
-              <div style={{
-                background: 'linear-gradient(165deg, rgba(18, 27, 46, 0.75), rgba(10, 15, 30, 0.9))',
-                border: '1px solid rgba(20, 184, 166, 0.12)',
-                borderLeft: '3px solid #14b8a6',
-                borderRadius: 16, overflow: 'hidden',
-                backdropFilter: 'blur(32px) saturate(150%)',
-                boxShadow: '0 8px 28px rgba(0,0,0,0.2)'
-              }}>
+              <div className="wg-risk-accordion-card" style={{ borderLeft: '3px solid #14b8a6' }}>
                 <button
+                  type="button"
                   onClick={() => setRiskGroupOpen(prev => ({ ...prev, low: !prev.low }))}
-                  style={{
-                    width: '100%', padding: '12px 16px', background: 'none', border: 'none',
-                    color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                    fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit'
-                  }}
+                  className="wg-risk-accordion-btn"
                 >
                   <Shield size={18} color="#14b8a6" />
-                  Low Risk
-                  <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#94a3b8' }}>
+                  <span>Low Risk</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
                     {riskGroups.low.length} instruments
                   </span>
                   {riskGroupOpen.low ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 </button>
                 {riskGroupOpen.low && (
-                  <div style={{ padding: '0 18px 16px' }}>
+                  <div style={{ padding: '4px 16px 16px' }}>
                     {riskGroups.low.length === 0 ? (
-                      <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '8px 0' }}>No eligible low-risk instruments for your profile.</div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.82rem', padding: '10px 0' }}>No eligible low-risk instruments for your profile.</div>
                     ) : riskGroups.low.map(inv => (
-                      <div key={inv.id} style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.03)'
-                      }}>
+                      <div key={inv.id} className="wg-risk-instrument-row">
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#e2e8f0' }}>{inv.abbr || inv.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                            Model assumption (pre-tax): {nullableMarketNumber(inv.nominalReturn) !== null ? `${nullableMarketNumber(inv.nominalReturn).toFixed(1)}%` : 'N/A'} · <span style={{ color: RISK_COLORS[inv.riskLabel] }}>{inv.riskLabel}</span>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>{inv.abbr || inv.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>
+                            Model assumption (pre-tax): {nullableMarketNumber(inv.nominalReturn) !== null ? `${nullableMarketNumber(inv.nominalReturn).toFixed(1)}%` : 'N/A'} · <span style={{ color: RISK_COLORS[inv.riskLabel] || '#34d399', fontWeight: 650 }}>{inv.riskLabel}</span>
                           </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => scrollToCard(inv.id)}
+                          className="wg-risk-view-btn"
                           style={{
-                            background: 'rgba(20, 184, 166, 0.1)', border: '1px solid rgba(20, 184, 166, 0.2)',
-                            color: '#14b8a6', borderRadius: 8, padding: '4px 10px', fontSize: '0.75rem', cursor: 'pointer'
+                            background: 'rgba(20, 184, 166, 0.1)', borderColor: 'rgba(20, 184, 166, 0.28)',
+                            color: '#2dd4bf'
                           }}
                         >View Details</button>
                       </div>
@@ -2235,49 +2046,38 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
               </div>
 
               {/* Medium Risk Group */}
-              <div style={{
-                background: 'linear-gradient(165deg, rgba(18, 27, 46, 0.75), rgba(10, 15, 30, 0.9))',
-                border: '1px solid rgba(249, 115, 22, 0.12)',
-                borderLeft: '3px solid #f97316',
-                borderRadius: 16, overflow: 'hidden',
-                backdropFilter: 'blur(32px) saturate(150%)',
-                boxShadow: '0 8px 28px rgba(0,0,0,0.2)'
-              }}>
+              <div className="wg-risk-accordion-card" style={{ borderLeft: '3px solid #f97316' }}>
                 <button
+                  type="button"
                   onClick={() => setRiskGroupOpen(prev => ({ ...prev, medium: !prev.medium }))}
-                  style={{
-                    width: '100%', padding: '12px 16px', background: 'none', border: 'none',
-                    color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                    fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit'
-                  }}
+                  className="wg-risk-accordion-btn"
                 >
                   <TrendingUp size={18} color="#f97316" />
-                  Medium Risk
-                  <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#94a3b8' }}>
+                  <span>Medium Risk</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
                     {riskGroups.medium.length} instruments
                   </span>
                   {riskGroupOpen.medium ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 </button>
                 {riskGroupOpen.medium && (
-                  <div style={{ padding: '0 18px 16px' }}>
+                  <div style={{ padding: '4px 16px 16px' }}>
                     {riskGroups.medium.length === 0 ? (
-                      <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '8px 0' }}>No eligible medium-risk instruments for your profile.</div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.82rem', padding: '10px 0' }}>No eligible medium-risk instruments for your profile.</div>
                     ) : riskGroups.medium.map(inv => (
-                      <div key={inv.id} style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.03)'
-                      }}>
+                      <div key={inv.id} className="wg-risk-instrument-row">
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#e2e8f0' }}>{inv.abbr || inv.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                            Model assumption (pre-tax): {nullableMarketNumber(inv.nominalReturn) !== null ? `${nullableMarketNumber(inv.nominalReturn).toFixed(1)}%` : 'N/A'} · <span style={{ color: RISK_COLORS[inv.riskLabel] }}>{inv.riskLabel}</span>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>{inv.abbr || inv.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>
+                            Model assumption (pre-tax): {nullableMarketNumber(inv.nominalReturn) !== null ? `${nullableMarketNumber(inv.nominalReturn).toFixed(1)}%` : 'N/A'} · <span style={{ color: RISK_COLORS[inv.riskLabel] || '#fbbf24', fontWeight: 650 }}>{inv.riskLabel}</span>
                           </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => scrollToCard(inv.id)}
+                          className="wg-risk-view-btn"
                           style={{
-                            background: 'rgba(249, 115, 22, 0.1)', border: '1px solid rgba(249, 115, 22, 0.2)',
-                            color: '#f97316', borderRadius: 8, padding: '4px 10px', fontSize: '0.75rem', cursor: 'pointer'
+                            background: 'rgba(249, 115, 22, 0.1)', borderColor: 'rgba(249, 115, 22, 0.28)',
+                            color: '#fb923c'
                           }}
                         >View Details</button>
                       </div>
@@ -2287,49 +2087,38 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
               </div>
 
               {/* High Risk Group */}
-              <div style={{
-                background: 'linear-gradient(165deg, rgba(18, 27, 46, 0.75), rgba(10, 15, 30, 0.9))',
-                border: '1px solid rgba(239, 68, 68, 0.12)',
-                borderLeft: '3px solid #ef4444',
-                borderRadius: 16, overflow: 'hidden',
-                backdropFilter: 'blur(32px) saturate(150%)',
-                boxShadow: '0 8px 28px rgba(0,0,0,0.2)'
-              }}>
+              <div className="wg-risk-accordion-card" style={{ borderLeft: '3px solid #ef4444' }}>
                 <button
+                  type="button"
                   onClick={() => setRiskGroupOpen(prev => ({ ...prev, high: !prev.high }))}
-                  style={{
-                    width: '100%', padding: '12px 16px', background: 'none', border: 'none',
-                    color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                    fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit'
-                  }}
+                  className="wg-risk-accordion-btn"
                 >
                   <Zap size={18} color="#ef4444" />
-                  High Risk
-                  <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#94a3b8' }}>
+                  <span>High Risk</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
                     {riskGroups.high.length} instruments
                   </span>
                   {riskGroupOpen.high ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 </button>
                 {riskGroupOpen.high && (
-                  <div style={{ padding: '0 18px 16px' }}>
+                  <div style={{ padding: '4px 16px 16px' }}>
                     {riskGroups.high.length === 0 ? (
-                      <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '8px 0' }}>No eligible high-risk instruments for your profile.</div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.82rem', padding: '10px 0' }}>No eligible high-risk instruments for your profile.</div>
                     ) : riskGroups.high.map(inv => (
-                      <div key={inv.id} style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.03)'
-                      }}>
+                      <div key={inv.id} className="wg-risk-instrument-row">
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#e2e8f0' }}>{inv.abbr || inv.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                            Model assumption (pre-tax): {nullableMarketNumber(inv.nominalReturn) !== null ? `${nullableMarketNumber(inv.nominalReturn).toFixed(1)}%` : 'N/A'} · <span style={{ color: RISK_COLORS[inv.riskLabel] }}>{inv.riskLabel}</span>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f8fafc' }}>{inv.abbr || inv.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 2 }}>
+                            Model assumption (pre-tax): {nullableMarketNumber(inv.nominalReturn) !== null ? `${nullableMarketNumber(inv.nominalReturn).toFixed(1)}%` : 'N/A'} · <span style={{ color: RISK_COLORS[inv.riskLabel] || '#f87171', fontWeight: 650 }}>{inv.riskLabel}</span>
                           </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => scrollToCard(inv.id)}
+                          className="wg-risk-view-btn"
                           style={{
-                            background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)',
-                            color: '#ef4444', borderRadius: 8, padding: '4px 10px', fontSize: '0.75rem', cursor: 'pointer'
+                            background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.28)',
+                            color: '#f87171'
                           }}
                         >View Details</button>
                       </div>

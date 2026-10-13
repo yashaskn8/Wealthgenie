@@ -241,6 +241,155 @@ test('Upstox adapter normalizes a verified quote and preserves a missing quote a
   assert.equal(snapshot.facts[1].availabilityStatus, AVAILABILITY.UNAVAILABLE);
 });
 
+test('Upstox quote response identity uses the documented exchange:symbol key and trade time, not response time', async () => {
+  const provider = new UpstoxMarketDataProvider({
+    accessToken: 'fixture-token',
+    clock: () => FIXED_NOW,
+    httpClient: {
+      get: async () => ({
+        data: {
+          status: 'success',
+          data: {
+            'NSE_INDEX:Nifty 50': {
+              instrument_token: 'NSE_INDEX|Nifty 50',
+              timestamp: FIXED_NOW.toISOString(),
+              last_price: 25000,
+              last_trade_time: String(Date.parse('2026-09-08T11:59:30.000Z')),
+              ohlc: { open: 24900, high: 25100, low: 24800, close: 24950 },
+            },
+            'NSE_INDEX:India VIX': {
+              instrument_token: 'NSE_INDEX|India VIX',
+              timestamp: FIXED_NOW.toISOString(),
+              last_price: 14.5,
+            },
+          },
+        },
+      }),
+    },
+  });
+
+  const snapshot = await provider.getQuotes(
+    ['NSE_INDEX|Nifty 50', 'NSE_INDEX|India VIX'],
+    { forceRefresh: true },
+  );
+  assert.equal(snapshot.facts[0].observedAt, '2026-09-08T11:59:30.000Z');
+  assert.equal(snapshot.facts[1].observedAt, null);
+  assert.equal(snapshot.facts[1].availabilityStatus, AVAILABILITY.UNAVAILABLE);
+  assert.equal(snapshot.facts[1].reasonCode, 'OBSERVATION_TIMESTAMP_UNAVAILABLE');
+});
+
+test('Upstox quote rejects mismatched identity, non-positive values, invalid OHLC, and future observations', async () => {
+  const provider = new UpstoxMarketDataProvider({
+    accessToken: 'fixture-token',
+    clock: () => FIXED_NOW,
+    httpClient: {
+      get: async () => ({
+        data: {
+          status: 'success',
+          data: {
+            'NSE_INDEX:Nifty 50': {
+              instrument_token: 'NSE_INDEX|Unknown',
+              last_price: 25000,
+              last_trade_time: String(Date.parse('2026-09-08T11:59:30.000Z')),
+            },
+            'NSE_INDEX:India VIX': {
+              instrument_token: 'NSE_INDEX|India VIX',
+              last_price: 0,
+              last_trade_time: String(Date.parse('2026-09-08T11:59:30.000Z')),
+            },
+            'NSE_INDEX:Nifty Bank': {
+              instrument_token: 'NSE_INDEX|Nifty Bank',
+              last_price: 10,
+              last_trade_time: String(Date.parse('2026-09-08T11:59:30.000Z')),
+              ohlc: { open: 10, high: 9, low: 8, close: 9 },
+            },
+            'BSE_INDEX:SENSEX': {
+              instrument_token: 'BSE_INDEX|SENSEX',
+              last_price: 10,
+              last_trade_time: String(Date.parse('2026-09-09T11:59:30.000Z')),
+            },
+          },
+        },
+      }),
+    },
+  });
+
+  const snapshot = await provider.getQuotes(
+    ['NSE_INDEX|Nifty 50', 'NSE_INDEX|India VIX', 'NSE_INDEX|Nifty Bank', 'BSE_INDEX|SENSEX'],
+    { forceRefresh: true },
+  );
+  assert.ok(snapshot.facts.every(fact => fact.availabilityStatus === AVAILABILITY.UNAVAILABLE));
+  assert.deepEqual(snapshot.facts.map(fact => fact.reasonCode), [
+    'INSTRUMENT_IDENTITY_MISMATCH',
+    'INVALID_MARKET_VALUE',
+    'INVALID_OHLC',
+    'FUTURE_OBSERVATION_TIMESTAMP',
+  ]);
+});
+
+test('Upstox returns a safe authentication error code without provider details or credentials', async () => {
+  const provider = new UpstoxMarketDataProvider({
+    accessToken: 'do-not-echo-this-fixture-token',
+    clock: () => FIXED_NOW,
+    httpClient: {
+      get: async () => {
+        const error = new Error('request failed Authorization: Bearer do-not-echo-this-fixture-token');
+        error.response = { status: 401 };
+        throw error;
+      },
+    },
+  });
+
+  const snapshot = await provider.getQuotes(['NSE_INDEX|Nifty 50'], { forceRefresh: true });
+  assert.equal(snapshot.error.code, 'UPSTOX_AUTHENTICATION_FAILED');
+  assert.doesNotMatch(JSON.stringify(snapshot), /do-not-echo-this-fixture-token|Authorization|Bearer/);
+});
+
+test('Upstox classifies auth, permission, missing-instrument, throttle, and provider errors safely', async () => {
+  const expectedCodes = new Map([
+    [401, 'UPSTOX_AUTHENTICATION_FAILED'],
+    [403, 'UPSTOX_PERMISSION_DENIED'],
+    [404, 'UPSTOX_INSTRUMENT_UNAVAILABLE'],
+    [429, 'UPSTOX_RATE_LIMITED'],
+    [503, 'UPSTOX_PROVIDER_UNAVAILABLE'],
+  ]);
+  for (const [status, code] of expectedCodes) {
+    const provider = new UpstoxMarketDataProvider({
+      accessToken: 'fixture-token',
+      clock: () => FIXED_NOW,
+      httpClient: {
+        get: async () => {
+          const error = new Error(`provider response ${status} with fixture-token`);
+          error.response = { status };
+          throw error;
+        },
+      },
+    });
+    const snapshot = await provider.getQuotes(['NSE_INDEX|India VIX'], { forceRefresh: true });
+    assert.equal(snapshot.status, AVAILABILITY.SOURCE_ERROR);
+    assert.equal(snapshot.error.code, code);
+    assert.doesNotMatch(JSON.stringify(snapshot), /fixture-token|Bearer|Authorization/);
+  }
+});
+
+test('Upstox rejects malformed quote payloads and arbitrary provider keys without fallback data', async () => {
+  let calls = 0;
+  const provider = new UpstoxMarketDataProvider({
+    accessToken: 'fixture-token',
+    clock: () => FIXED_NOW,
+    httpClient: { get: async () => { calls += 1; return { data: '<html>not json</html>' }; } },
+  });
+  const malformed = await provider.getQuotes(['NSE_INDEX|India VIX'], { forceRefresh: true });
+  assert.equal(malformed.status, AVAILABILITY.SOURCE_ERROR);
+  assert.equal(malformed.error.code, 'UPSTOX_RESPONSE_INVALID');
+  assert.deepEqual(malformed.facts, []);
+  await assert.rejects(
+    provider.getQuotes(['https://api.upstox.com/v3/market-quote/quotes']),
+    /documented format/,
+  );
+  assert.equal(calls, 1);
+});
+
 test('Upstox V3 historical candles are normalized, sorted, and source timestamped', () => {
   const snapshot = parseUpstoxDailyCandles({
     data: {
@@ -299,6 +448,27 @@ test('Upstox history returns PROVIDER_NOT_CONFIGURED without a request or fallba
   assert.deepEqual(snapshot.candles, []);
   assert.equal(snapshot.error.code, 'PROVIDER_NOT_CONFIGURED');
   assert.equal(calls, 0);
+});
+
+test('Upstox history classifies auth errors without returning provider details or credentials', async () => {
+  const provider = new UpstoxHistoricalCandleProvider({
+    accessToken: 'do-not-echo-history-token',
+    clock: () => FIXED_NOW,
+    httpClient: {
+      get: async () => {
+        const error = new Error('failed Authorization: Bearer do-not-echo-history-token');
+        error.response = { status: 401 };
+        throw error;
+      },
+    },
+  });
+  const snapshot = await provider.getDailyCandles('NSE_INDEX|Nifty 50', {
+    fromDate: '2026-09-07',
+    toDate: '2026-09-08',
+  });
+  assert.equal(snapshot.status, AVAILABILITY.SOURCE_ERROR);
+  assert.equal(snapshot.error.code, 'UPSTOX_AUTHENTICATION_FAILED');
+  assert.doesNotMatch(JSON.stringify(snapshot), /do-not-echo-history-token|Authorization|Bearer/);
 });
 
 test('Upstox history rejects impossible calendar dates before making a provider request', async () => {

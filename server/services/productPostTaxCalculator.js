@@ -28,6 +28,7 @@ import {
   getCapitalGainsHoldingPeriodMonths,
   getTaxPolicyMetadata,
 } from './taxEngine.js';
+import { isPresentFiniteFinancialNumber, toOptionalFinancialNumber } from '../utils/strictFinancialNumber.js';
 import {
   classifySourceQualifiedProductTaxType,
   getProductTaxMetadata,
@@ -37,6 +38,7 @@ import {
   PRODUCT_TAX_STATUSES,
 } from './productTaxAuthority.js';
 import { buildTaxRuleMetadata, LEGACY_RULE_SEMANTICS } from './taxRuleMetadata.js';
+import { resolvePostTaxProductRights } from './postTaxSourceRights.js';
 
 export const POST_TAX_SERVICE_VERSION = 'product-post-tax-calculator-2.0.0';
 
@@ -161,8 +163,12 @@ function createAnalysis({
 }
 
 function getPrincipal(taxCalculationContext) {
-  const supplied = Number(taxCalculationContext?.illustrativePrincipal);
-  return Number.isFinite(supplied) && supplied > 0 ? supplied : 10000;
+  const supplied = toOptionalFinancialNumber(taxCalculationContext?.illustrativePrincipal);
+  return supplied !== null && supplied > 0 ? supplied : 10000;
+}
+
+function hasExplicitFiniteNumber(value) {
+  return isPresentFiniteFinancialNumber(value);
 }
 
 function getTaxPolicyOrUnavailable(fiscalYear) {
@@ -176,17 +182,22 @@ function getTaxPolicyOrUnavailable(fiscalYear) {
   }
 }
 
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 function missingRequiredTaxInputs(taxCalculationContext, requiredTaxInputs) {
   const context = taxCalculationContext || {};
   const hasBothExactDates = Boolean(context.acquisitionDate && context.redemptionDate);
   const hasPartialExactDates = Boolean(context.acquisitionDate || context.redemptionDate) && !hasBothExactDates;
   return requiredTaxInputs.filter(key => {
-    if (key === 'annualGrossIncome') return !Number.isFinite(Number(context.annualGrossIncome));
-    if (key === 'userAge') return !Number.isInteger(Number(context.userAge)) || Number(context.userAge) < 18 || Number(context.userAge) > 120;
+    if (key === 'annualGrossIncome') return !hasExplicitFiniteNumber(context.annualGrossIncome);
+    if (key === 'userAge') return !hasExplicitFiniteNumber(context.userAge)
+      || !Number.isInteger(Number(context.userAge)) || Number(context.userAge) < 18 || Number(context.userAge) > 120;
     if (key === 'holdingPeriodMonths') return hasBothExactDates
       ? false
-      : !Number.isFinite(Number(context.holdingPeriodMonths));
-    if (key === 'section112AExemptionUsed') return !Number.isFinite(Number(context.section112AExemptionUsed));
+      : !hasExplicitFiniteNumber(context.holdingPeriodMonths);
+    if (key === 'section112AExemptionUsed') return !hasExplicitFiniteNumber(context.section112AExemptionUsed);
     if (key === 'sttConditionAssumedSatisfied') return context.sttConditionAssumedSatisfied === undefined || context.sttConditionAssumedSatisfied === null;
     return context[key] === undefined || context[key] === null || context[key] === '';
   }).concat(hasPartialExactDates ? ['acquisitionDate', 'redemptionDate'] : []);
@@ -251,7 +262,7 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
     });
   }
 
-  const annualRate = Number(product?.officialRate?.value);
+  const annualRate = toOptionalFinancialNumber(product?.officialRate?.value) ?? Number.NaN;
   const isEee = [PRODUCT_TAX_CLASSES.PPF_EEE, PRODUCT_TAX_CLASSES.SSY_EEE].includes(taxType);
   if (isEee) {
     return createAnalysis({
@@ -293,7 +304,7 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
 
   const { annualIncome, regime, incomeSource, userAge, deductions } = taxContextValues(taxCalculationContext);
   if ([PRODUCT_TAX_CLASSES.BANK_DEPOSIT_INTEREST, PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST].includes(taxType)) {
-    if (!Number.isFinite(annualRate) || annualRate <= 0) {
+    if (!Number.isFinite(annualRate) || annualRate < 0) {
       return createAnalysis({
         status: PRODUCT_TAX_STATUSES.PRODUCT_FACTS_UNAVAILABLE,
         taxMetadata,
@@ -341,8 +352,8 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
     });
   }
 
-  const historicalRate = Number(product?.historicalReturn?.valuePct);
-  if (!Number.isFinite(historicalRate)) {
+  const historicalRateValue = product?.historicalReturn?.valuePct;
+  if (!hasExplicitFiniteNumber(historicalRateValue)) {
     return createAnalysis({
       status: PRODUCT_TAX_STATUSES.PRODUCT_FACTS_UNAVAILABLE,
       taxMetadata,
@@ -358,6 +369,7 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
       isHistoricalEstimate: true,
     });
   }
+  const historicalRate = toOptionalFinancialNumber(historicalRateValue);
   const grossGain = Math.round(principal * (historicalRate / 100));
   const holdingPeriodMonths = Number(taxCalculationContext.holdingPeriodMonths);
   let holdingPeriodBasis = 'MODELLED_HOLDING_PERIOD';
@@ -576,132 +588,211 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
  * Deterministically generate plain-English "Why this fits you", risk tier,
  * and access-to-money copy based on profile goals, horizon, and suitability.
  */
-export function generateBeginnerSuitability({ product, profile = {}, parentCatalog = null }) {
-  const parentId = String(product?.parentInstrumentId || parentCatalog?.id || '').toLowerCase();
-  const canonicalId = String(product?.canonicalProductId || '').toLowerCase();
-  const name = String(product?.name || '').toLowerCase();
-  const goals = Array.isArray(profile?.investmentGoals) && profile.investmentGoals.length > 0
-    ? profile.investmentGoals.join(' and ')
-    : 'Wealth Growth';
-  const horizon = profile?.investmentHorizonYears
-    ? `${profile.investmentHorizonYears} years`
-    : 'a multi-year investment horizon';
-  const riskCapacity = profile?.finalSuitabilityRisk || profile?.riskTolerance || 'Moderate';
-
-  // 1. Risk Tier
-  let riskTier = product?.productType === 'ETF' && !product?.riskEvidence
-    ? 'Risk classification unavailable'
-    : 'Moderate Risk';
-  if (['ppf', 'sukanya', 'scss', 'nsc', 'kvp', 'pomis', 'po_rd', 'po_td_1yr', 'fd', 'sbi_fd', 'rbi_bonds'].includes(parentId) ||
-      canonicalId.includes('ppf') || canonicalId.includes('sbi') || canonicalId.includes('rbi') || canonicalId.includes('govt')) {
-    riskTier = 'Very Low Risk';
-  } else if (parentId.includes('liquid') || parentId.includes('debt') || parentId.includes('gilt') || parentId.includes('corporate_bond')) {
-    riskTier = 'Low Risk';
-  } else if (parentId.includes('hybrid') || parentId.includes('large_cap') || parentId.includes('index')) {
-    riskTier = 'Moderate Risk';
-  } else if (parentId.includes('mid') || parentId.includes('small') || parentId.includes('thematic') || parentId.includes('sector')) {
-    riskTier = 'High Risk';
+function evidenceSourceMatches(evidenceSource, productSource) {
+  if (!evidenceSource || !productSource) return false;
+  const fields = ['provider', 'instrumentId', 'url'];
+  if (!fields.every(field => typeof evidenceSource[field] === 'string'
+      && evidenceSource[field].trim()
+      && evidenceSource[field] === productSource[field])) return false;
+  try {
+    const url = new URL(evidenceSource.url);
+    return url.protocol === 'https:' && !url.username && !url.password;
+  } catch {
+    return false;
   }
+}
 
-  // 2. Access to Money (Liquidity)
-  let accessToMoney = product?.productType === 'ETF' && !product?.liquidityEvidence
-    ? 'Access terms unavailable'
-    : 'Easy access (redeem anytime, typically 1–3 business days)';
-  if (parentId === 'ppf' || canonicalId.includes('ppf')) {
-    accessToMoney = '15-year term (partial withdrawal permitted from year 7)';
-  } else if (parentId === 'sukanya' || canonicalId.includes('sukanya')) {
-    accessToMoney = 'Lock-in (until girl child turns 21 or marries after 18)';
-  } else if (parentId === 'scss' || canonicalId.includes('scss')) {
-    accessToMoney = '5-year term (extendable by 3 years)';
-  } else if (parentId === 'nsc' || canonicalId.includes('nsc')) {
-    accessToMoney = '5-year lock-in (payable at maturity)';
-  } else if (parentId === 'kvp' || canonicalId.includes('kvp')) {
-    accessToMoney = 'Lock-in (~115 months; premature exit allowed after 2.5 years)';
-  } else if (parentId === 'pomis' || canonicalId.includes('pomis')) {
-    accessToMoney = '5-year term (premature closure allowed with penalty after 1 year)';
-  } else if (parentId === 'po_td_1yr' || canonicalId.includes('po_td')) {
-    accessToMoney = '1-year fixed tenure (premature closure allowed after 6 months)';
-  } else if (parentId === 'fd' || parentId === 'sbi_fd' || canonicalId.includes('sbi')) {
-    const tenureLabel = product?.tenure?.label || 'selected tenure';
-    accessToMoney = `Limited access (${tenureLabel}; premature withdrawal penalty applies)`;
-  } else if (parentId === 'rbi_bonds' || canonicalId.includes('rbi')) {
-    accessToMoney = '7-year lock-in (premature exit only for senior citizens age 60+)';
-  } else if (parentId.includes('elss') || name.includes('elss')) {
-    accessToMoney = '3-year lock-in; tax eligibility depends on the selected fiscal-year policy and regime';
+function evidenceIsFreshAndBound(evidence, product, expectedScope, now) {
+  if (evidence?.status !== 'VERIFIED'
+      || evidence.scope !== expectedScope
+      || typeof product?.canonicalProductId !== 'string'
+      || !product.canonicalProductId.trim()
+      || evidence.canonicalProductId !== product.canonicalProductId
+      || !evidenceSourceMatches(evidence.source, product.source)
+      || evidence.freshness?.status !== 'FRESH'
+      || !isFiniteNumber(evidence.freshness?.maxAgeSeconds)
+      || evidence.freshness.maxAgeSeconds <= 0) return false;
+  const observedAt = Date.parse(evidence.observedAt);
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(now);
+  if (!Number.isFinite(observedAt) || !Number.isFinite(nowMs) || observedAt > nowMs) return false;
+  return nowMs - observedAt <= evidence.freshness.maxAgeSeconds * 1000;
+}
+
+function hasFreshQualifiedProductSource(product) {
+  return evidenceSourceMatches(product?.source, product?.source)
+    && product?.freshness?.status === 'FRESH';
+}
+
+function verifiedProductRisk(product, now) {
+  const evidence = product?.riskEvidence;
+  if (!evidenceIsFreshAndBound(evidence, product, 'PRODUCT_SPECIFIC', now)
+      || typeof evidence.level !== 'string' || !evidence.level.trim() || evidence.level.length > 100
+      || typeof evidence.ratingSystem !== 'string' || !evidence.ratingSystem.trim() || evidence.ratingSystem.length > 100) {
+    return {
+      status: 'UNAVAILABLE', scope: 'PRODUCT_SPECIFIC', level: null, ratingSystem: null,
+      source: null, observedAt: null,
+    };
   }
+  return {
+    status: 'VERIFIED', scope: 'PRODUCT_SPECIFIC', level: evidence.level.trim(),
+    ratingSystem: evidence.ratingSystem.trim(), source: { ...evidence.source }, observedAt: evidence.observedAt,
+  };
+}
 
-  // 3. Why this fits you (plain-English explanation)
-  let whyThisFitsYou = '';
-  if (parentId === 'ppf' || parentId === 'sukanya') {
-    whyThisFitsYou = `Shown because you selected ${goals}. Backed by the Government of India with sovereign backing; applicable tax treatment depends on the selected fiscal-year policy and your account facts.`;
-  } else if (parentId === 'rbi_bonds') {
-    whyThisFitsYou = `Shown because you selected ${goals} with a ${horizon} horizon. Government of India bond, administered by the RBI, with sovereign safety and a floating coupon that resets every 6 months.`;
-  } else if (parentId === 'fd' || parentId === 'sbi_fd') {
-    whyThisFitsYou = `Shown because you selected ${goals}. SBI publishes rates for selected term-deposit tenures; the applicable rate and early-withdrawal terms depend on the deposit you choose.`;
-  } else if (parentId === 'scss') {
-    whyThisFitsYou = `Shown because you selected ${goals}. Designed for senior citizens seeking high quarterly income with sovereign backing from the Government of India.`;
-  } else if (['nsc', 'kvp', 'pomis'].includes(parentId)) {
-    whyThisFitsYou = `Shown because you selected ${goals}. A dependable small-savings option backed by the Government of India for steady capital accumulation.`;
-  } else if (parentId.includes('elss')) {
-    whyThisFitsYou = `Shown because you selected ${goals}. This equity fund has a 3-year lock-in; any tax treatment depends on the selected fiscal-year policy, regime and your eligibility.`;
-  } else if (parentId.includes('debt') || parentId.includes('liquid') || parentId.includes('gilt')) {
-    whyThisFitsYou = `Shown because you selected ${goals}. Provides liquidity and portfolio stability with lower price volatility, matching your ${riskCapacity} suitability tier.`;
-  } else {
-    whyThisFitsYou = `Shown because you selected ${goals}, have a ${horizon} investment horizon, and this category passed your ${riskCapacity}-risk suitability rules for long-term growth.`;
+function verifiedProductAccessTerms(product, profile, now) {
+  const evidence = product?.accessTermsEvidence;
+  if (!evidenceIsFreshAndBound(evidence, product, 'PRODUCT_ACCESS_TERMS', now)
+      || typeof evidence.summary !== 'string' || !evidence.summary.trim() || evidence.summary.trim().length > 500) {
+    return { status: 'UNAVAILABLE', scope: 'PRODUCT_SPECIFIC', summary: null, source: null, observedAt: null };
   }
-
-  // 4. Verified Fact Label & Value
-  let verifiedFactLabel = 'Verified Fact';
-  let verifiedFactValue = 'Available';
-  if (product?.officialRate?.value !== undefined && product?.officialRate?.value !== null) {
-    const rateVal = Number(product.officialRate.value);
-    if (parentId === 'rbi_bonds') {
-      verifiedFactLabel = 'Current RBI bond coupon';
-    } else if (parentId === 'fd' || parentId === 'sbi_fd') {
-      verifiedFactLabel = 'Current official bank rate';
-    } else {
-      verifiedFactLabel = 'Current official rate';
+  const applicability = evidence.applicability;
+  if (applicability !== undefined) {
+    const minimumAge = applicability?.minimumAge;
+    const maximumAge = applicability?.maximumAge;
+    if ((minimumAge !== undefined && (!Number.isInteger(minimumAge) || minimumAge < 0 || minimumAge > 120))
+        || (maximumAge !== undefined && (!Number.isInteger(maximumAge) || maximumAge < 0 || maximumAge > 120))
+        || (minimumAge !== undefined && maximumAge !== undefined && minimumAge > maximumAge)) {
+      return { status: 'UNAVAILABLE', scope: 'PRODUCT_SPECIFIC', summary: null, source: null, observedAt: null };
     }
-    verifiedFactValue = `${rateVal.toFixed(2)}% p.a.`;
-  } else if (product?.historicalReturn?.valuePct !== undefined && product?.historicalReturn?.valuePct !== null) {
-    const histVal = Number(product.historicalReturn.valuePct);
-    verifiedFactLabel = 'Historical 1Y return';
-    verifiedFactValue = `${histVal.toFixed(2)}% historical`;
-  } else if (product?.nav?.value !== undefined && product?.nav?.value !== null) {
-    const navVal = Number(product.nav.value);
-    verifiedFactLabel = 'Current NAV';
-    verifiedFactValue = `₹${navVal.toLocaleString('en-IN')}`;
+    const age = profile?.age;
+    if (!Number.isInteger(age) || age < 0 || age > 120) {
+      return { status: 'UNAVAILABLE', scope: 'PRODUCT_SPECIFIC', summary: null, source: null, observedAt: null };
+    }
+    if ((minimumAge !== undefined && age < minimumAge) || (maximumAge !== undefined && age > maximumAge)) {
+      return { status: 'NOT_APPLICABLE_TO_PROFILE', scope: 'PRODUCT_SPECIFIC', summary: null, source: null, observedAt: null };
+    }
   }
+  return {
+    status: 'VERIFIED', scope: 'PRODUCT_SPECIFIC', summary: evidence.summary.trim(),
+    source: { ...evidence.source }, observedAt: evidence.observedAt,
+  };
+}
 
-  // 5. Source Provider
-  const sourceProvider = product?.source?.provider || product?.provider || 'Verified Official Source';
+/**
+ * Present parent-category suitability separately from source-qualified,
+ * product-specific risk and access terms. Missing product evidence stays unknown.
+ */
+export function generateBeginnerSuitability({ product, profile = {}, parentCatalog = null, now = new Date() }) {
+  const parentName = parentCatalog?.name || parentCatalog?.id || 'selected category';
+  const parentRiskScore = isFiniteNumber(parentCatalog?.riskScore) ? parentCatalog.riskScore : null;
+  const parentCategorySuitability = {
+    status: parentCatalog?.suitabilityStatus === 'PASSED' ? 'PASSED' : 'NOT_ESTABLISHED',
+    scope: 'PARENT_CATEGORY_ONLY',
+  };
+  const parentCategoryRisk = {
+    status: parentRiskScore === null ? 'UNAVAILABLE' : 'AVAILABLE',
+    riskScore: parentRiskScore,
+    basis: 'WEALTHGENIE_PARENT_CATEGORY_RISK_MODEL',
+    scope: 'PARENT_CATEGORY_ONLY',
+  };
+  const productRiskClassification = verifiedProductRisk(product, now);
+  const productAccessTerms = verifiedProductAccessTerms(product, profile, now);
+  const whyThisFitsYou = parentCategorySuitability.status === 'PASSED'
+    ? `The ${parentName} category passed the profile suitability check in the current plan. That category-level check does not establish this product's individual eligibility, risk rating, or redemption terms.`
+    : `This product is shown under ${parentName}. Individual-product suitability, eligibility, risk rating, and redemption terms have not been established.`;
+
+  let verifiedFactLabel = 'Verified fact unavailable';
+  let verifiedFactValue = 'Unavailable';
+  const hasFreshQualifiedSource = hasFreshQualifiedProductSource(product);
+  const officialRate = product?.officialRate;
+  const officialRateDataClass = officialRate?.dataClass;
+  const officialRateBasis = officialRate?.basis;
+  const productFactAvailable = product?.availabilityStatus === 'AVAILABLE';
+  const hasQualifiedOfficialRate = hasFreshQualifiedSource
+    && productFactAvailable
+    && typeof officialRateDataClass === 'string'
+    && (officialRateDataClass.startsWith('OFFICIAL_') || officialRateDataClass === 'QUARTERLY_OFFICIAL_RATE')
+    && typeof officialRateBasis === 'string'
+    && (officialRateBasis.startsWith('OFFICIAL_') || officialRateBasis === 'NSC_REFERENCE_RATE_PLUS_35_BPS')
+    && isFiniteNumber(officialRate.value)
+    && officialRate.value >= 0;
+  const historicalReturn = product?.historicalReturn;
+  const hasQualifiedHistoricalReturn = hasFreshQualifiedSource
+    && productFactAvailable
+    && product?.source?.provider === 'AMFI'
+    && historicalReturn?.basis === 'HISTORICAL_POINT_TO_POINT_NAV_RETURN_1Y'
+    && isFiniteNumber(historicalReturn?.valuePct);
+  const nav = product?.nav;
+  const hasQualifiedNav = hasFreshQualifiedSource
+    && productFactAvailable
+    && product?.source?.provider === 'AMFI'
+    && nav?.unit === 'NAV_PER_UNIT'
+    && isFiniteNumber(nav?.value)
+    && nav.value > 0;
+  if (hasQualifiedOfficialRate) {
+    const parentId = String(product?.parentInstrumentId || parentCatalog?.id || '').toLowerCase();
+    if (parentId === 'rbi_bonds') verifiedFactLabel = 'Current RBI bond coupon';
+    else if (parentId === 'fd' || parentId === 'sbi_fd') verifiedFactLabel = 'Current official bank rate';
+    else verifiedFactLabel = 'Current official rate';
+    verifiedFactValue = `${officialRate.value.toFixed(2)}% p.a.`;
+  } else if (hasQualifiedHistoricalReturn) {
+    verifiedFactLabel = 'Historical 1Y return';
+    verifiedFactValue = `${historicalReturn.valuePct.toFixed(2)}% historical`;
+  } else if (hasQualifiedNav) {
+    verifiedFactLabel = 'Current NAV';
+    verifiedFactValue = `₹${nav.value.toLocaleString('en-IN')}`;
+  }
 
   return {
     whyThisFitsYou,
-    riskTier,
-    accessToMoney,
+    riskTier: productRiskClassification.status === 'VERIFIED'
+      ? productRiskClassification.level
+      : 'Product-specific risk unavailable',
+    accessToMoney: productAccessTerms.status === 'VERIFIED'
+      ? productAccessTerms.summary
+      : 'Product-specific access terms unavailable',
+    parentCategorySuitability,
+    parentCategoryRisk,
+    productSpecificSuitability: { status: 'NOT_ESTABLISHED', scope: 'PRODUCT_SPECIFIC' },
+    productRiskClassification,
+    productAccessTerms,
     verifiedFactLabel,
     verifiedFactValue,
-    sourceProvider,
+    sourceProvider: hasFreshQualifiedSource ? product.source.provider : 'Source unavailable',
   };
 }
 
 /**
  * Enriches product DTOs with beginner suitability and defensible post-tax outcomes.
  */
-export function enrichProductsWithPostTaxAndSuitability(products, { profile = {}, parentCatalog = null, taxCalculationContext = null }) {
+export function enrichProductsWithPostTaxAndSuitability(products, {
+  profile = {},
+  parentCatalog = null,
+  taxCalculationContext = null,
+  enforceSourceRights = process.env.NODE_ENV === 'production',
+  sourceRightsResolver = resolvePostTaxProductRights,
+} = {}) {
   if (!Array.isArray(products)) return [];
 
   return products.map((product) => {
     const beginnerSuitability = generateBeginnerSuitability({ product, profile, parentCatalog });
-    const postTaxAnalysis = calculateProductPostTaxOutcome({ product, profile, taxCalculationContext });
     const taxMetadata = getProductTaxMetadata(product, product?.parentInstrumentId);
+    const postTaxSourceRights = sourceRightsResolver(product);
+    const rightsBlock = enforceSourceRights && !postTaxSourceRights.productionPostTaxUseAllowed;
+    const postTaxAnalysis = rightsBlock
+      ? {
+        ...createAnalysis({
+          status: PRODUCT_TAX_STATUSES.SOURCE_RIGHTS_UNQUALIFIED,
+          taxMetadata,
+          principal: null,
+          calculationClass: 'UNAVAILABLE',
+          dataClass: 'UNAVAILABLE',
+          unavailableReasons: ['POST_TAX_SOURCE_RIGHTS_UNQUALIFIED'],
+          disclosure: 'This provider data is not cleared for WealthGenie production display and post-tax calculations. No sourced amount is shown until the exact data-use permission is qualified.',
+        }),
+        sourceRights: postTaxSourceRights,
+      }
+      : {
+        ...calculateProductPostTaxOutcome({ product, profile, taxCalculationContext }),
+        sourceRights: postTaxSourceRights,
+      };
 
     return {
       ...product,
       beginnerSuitability,
       taxMetadata,
       postTaxAnalysis,
+      postTaxSourceRights,
       // WTI's generic postTaxReturn field is intentionally not overloaded with
       // product tax authority. Consumers must use postTaxAnalysis explicitly.
       postTaxReturn: null,

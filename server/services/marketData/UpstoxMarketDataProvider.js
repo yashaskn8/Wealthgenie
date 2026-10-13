@@ -11,10 +11,14 @@ import {
 import { buildUpstoxInstrumentIdentity } from './productIdentity.js';
 import { readThroughMarketCache } from './requestCache.js';
 import { isoDateInIndia } from './indiaMarketTime.js';
+import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
 
 export const UPSTOX_QUOTE_URL = 'https://api.upstox.com/v3/market-quote/quotes';
 export const UPSTOX_QUOTE_CACHE_TTL_SECONDS = 60;
 export const UPSTOX_QUOTE_FRESHNESS_SECONDS = 15 * 60;
+// The provider documents up to 500 keys per request. WealthGenie intentionally
+// keeps a much smaller 50-key internal ceiling until a measured refresh budget
+// justifies widening it.
 export const MAX_UPSTOX_INSTRUMENTS_PER_REQUEST = 50;
 export const DEFAULT_BENCHMARK_INSTRUMENT_KEYS = Object.freeze([
   'NSE_INDEX|Nifty 50',
@@ -37,14 +41,57 @@ function cacheKeyFor(instrumentKeys) {
 }
 
 function findQuote(data, instrumentKey) {
-  if (data?.[instrumentKey]) return data[instrumentKey];
-  return Object.values(data || {}).find(value => value?.instrument_token === instrumentKey) || null;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { quote: null, reasonCode: 'INVALID_PROVIDER_RESPONSE' };
+  }
+  const exchangeSymbolKey = instrumentKey.replace('|', ':');
+  const candidates = new Set(
+    Object.entries(data)
+      .filter(([key, value]) => key === exchangeSymbolKey || value?.instrument_token === instrumentKey)
+      .map(([, value]) => value),
+  );
+  if (candidates.size > 1) return { quote: null, reasonCode: 'DUPLICATE_PROVIDER_OBSERVATION' };
+  if (candidates.size === 0) return { quote: null, reasonCode: 'MISSING_PROVIDER_OBSERVATION' };
+  const [quote] = candidates;
+  if (quote?.instrument_token !== instrumentKey) {
+    return { quote: null, reasonCode: 'INSTRUMENT_IDENTITY_MISMATCH' };
+  }
+  return { quote, reasonCode: null };
 }
 
-function quoteObservedAt(quote, responseTimestamp) {
-  return normalizeTimestamp(
-    quote?.last_trade_time ?? quote?.lastTradeTime ?? quote?.timestamp ?? responseTimestamp,
-  );
+function quoteObservedAt(quote) {
+  // Upstox `timestamp` is when its quote response was generated. Only
+  // `last_trade_time` describes when the observation traded at the exchange.
+  return normalizeTimestamp(quote?.last_trade_time ?? quote?.lastTradeTime);
+}
+
+function invalidOhlc(quote) {
+  const ohlc = quote?.ohlc;
+  if (!ohlc || typeof ohlc !== 'object') return false;
+  const values = ['open', 'high', 'low', 'close'].map(key => nullableMarketValue(ohlc[key]));
+  if (values.every(value => value === null)) return false;
+  if (values.some(value => value === null)) return true;
+  const [open, high, low, close] = values;
+  return high < low || high < open || high < close || low > open || low > close;
+}
+
+function nullableMarketValue(value) {
+  const parsed = Number(value);
+  return value === null || value === undefined || value === '' || !Number.isFinite(parsed)
+    || parsed <= 0 || parsed > Number.MAX_SAFE_INTEGER
+    ? null
+    : parsed;
+}
+
+function quoteIssue(quoteResult, quote, now) {
+  if (quoteResult.reasonCode) return quoteResult.reasonCode;
+  if (!quote) return 'MISSING_PROVIDER_OBSERVATION';
+  if (nullableMarketValue(quote.last_price) === null) return 'INVALID_MARKET_VALUE';
+  if (invalidOhlc(quote)) return 'INVALID_OHLC';
+  const observedAt = quoteObservedAt(quote);
+  if (!observedAt) return 'OBSERVATION_TIMESTAMP_UNAVAILABLE';
+  if (Date.parse(observedAt) > now.getTime()) return 'FUTURE_OBSERVATION_TIMESTAMP';
+  return null;
 }
 
 export default class UpstoxMarketDataProvider extends MarketDataProvider {
@@ -95,29 +142,35 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
               Authorization: `Bearer ${this.accessToken}`,
             },
           });
-          const responseData = response.data?.data || {};
-          // Only a provider payload timestamp can represent market observation time.
-          // HTTP Date is transport metadata and must never make an old quote look fresh.
-          const responseTimestamp = response.data?.timestamp || null;
+          if (!response?.data || typeof response.data !== 'object' || Array.isArray(response.data)
+              || (response.data.status !== undefined && response.data.status !== 'success')
+              || !response.data.data || typeof response.data.data !== 'object' || Array.isArray(response.data.data)) {
+            throw Object.assign(new Error('UPSTOX_RESPONSE_SCHEMA_INVALID'), { code: 'UPSTOX_RESPONSE_SCHEMA_INVALID' });
+          }
+          const responseData = response.data.data;
+          const now = this.clock();
           const facts = normalizedKeys.map(instrumentKey => {
-            const quote = findQuote(responseData, instrumentKey);
+            const quoteResult = findQuote(responseData, instrumentKey);
+            const quote = quoteResult.quote;
             const identity = buildUpstoxInstrumentIdentity(instrumentKey);
+            const observedAt = quoteObservedAt(quote);
+            const reasonCode = quoteIssue(quoteResult, quote, now);
             return createMarketFact({
               kind: FACT_KINDS.MARKET_QUOTE,
               canonicalProductId: identity.canonicalProductId,
               sourceProvider: PROVIDERS.UPSTOX,
               sourceInstrumentId: instrumentKey,
               sourceUrl: UPSTOX_QUOTE_URL,
-              value: quote?.last_price,
-              currency: 'INR',
-              unit: 'PRICE',
-              observedAt: quoteObservedAt(quote, responseTimestamp),
-              providerTimestamp: quoteObservedAt(quote, responseTimestamp),
-              effectiveTradingDate: isoDateInIndia(quoteObservedAt(quote, responseTimestamp)),
+              value: reasonCode ? null : quote?.last_price,
+              currency: /^(?:NSE|BSE|MCX)_INDEX\|/.test(instrumentKey) ? null : 'INR',
+              unit: /^(?:NSE|BSE|MCX)_INDEX\|/.test(instrumentKey) ? 'INDEX_POINTS' : 'PRICE',
+              observedAt,
+              providerTimestamp: observedAt,
+              effectiveTradingDate: isoDateInIndia(observedAt),
               fetchedAt: requestFetchedAt,
               dataClass: 'LIVE',
               maxAgeSeconds: UPSTOX_QUOTE_FRESHNESS_SECONDS,
-              metrics: {
+              metrics: reasonCode ? {} : {
                 open: quote?.ohlc?.open,
                 high: quote?.ohlc?.high,
                 low: quote?.ohlc?.low,
@@ -126,8 +179,12 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
                 volume: quote?.volume,
                 openInterest: quote?.oi,
               },
-              now: this.clock(),
+              now,
             });
+          }).map((fact, index) => {
+            const quoteResult = findQuote(responseData, normalizedKeys[index]);
+            const reasonCode = quoteIssue(quoteResult, quoteResult.quote, now);
+            return reasonCode ? { ...fact, reasonCode } : fact;
           });
           const availableFactCount = facts.filter(
             fact => fact.availabilityStatus === AVAILABILITY.AVAILABLE,
@@ -152,7 +209,7 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
             requestedInstrumentCount: normalizedKeys.length,
             availableFactCount: 0,
             facts: [],
-            error: { code: 'UPSTOX_FETCH_FAILED', message: error?.message || 'Upstox request failed.' },
+            error: safeUpstoxError(classifyUpstoxError(error)),
           };
         }
       },

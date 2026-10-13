@@ -45,6 +45,24 @@ test('ambiguous generic instruments fail closed instead of inheriting equity or 
   assert.equal(calculatePostTaxReturn('Debt_MF', 0.07, 5_000_000, 5, 'new', 10_000, 35, 'salary', undefined, FY).status, 'MODEL_TAX_CLASS_UNAVAILABLE');
 });
 
+test('equity projection requires explicit prior 112A exemption usage and accepts zero', () => {
+  const shared = {
+    instrumentType: 'Equity_MF', nominalRate: 0.12, annualIncome: 1_500_000,
+    holdingYears: 2, regime: 'new', monthlySIP: 10_000, userAge: 35,
+    incomeSource: 'salary', fiscalYear: FY, deductions: {},
+  };
+  const missing = calculateCanonicalPostTaxOutcome({ ...shared, options: {} });
+  assert.equal(missing.status, 'REQUIRES_TAX_INPUTS');
+  assert.equal(missing.postTaxReturn, null);
+  assert.ok(missing.unavailableReasons.includes('section112AExemptionUsed'));
+
+  const explicitZero = calculateCanonicalPostTaxOutcome({
+    ...shared,
+    options: { section112AExemptionUsed: 0 },
+  });
+  assert.equal(explicitZero.status, 'CALCULATED');
+});
+
 test('SIP lots retain FIFO acquisition order and produce mixed short/long buckets', () => {
   const lots = buildMonthlySipLots({ monthlySIP: 10_000, annualRate: 0.12, holdingYears: 2 });
   assert.equal(lots.length, 24);
@@ -55,7 +73,7 @@ test('SIP lots retain FIFO acquisition order and produce mixed short/long bucket
   const outcome = calculateCanonicalPostTaxOutcome({
     instrumentType: 'Equity_MF', nominalRate: 0.12, annualIncome: 1_500_000,
     holdingYears: 2, regime: 'new', monthlySIP: 10_000, userAge: 35,
-    incomeSource: 'salary', fiscalYear: FY, deductions: {}, options: {},
+    incomeSource: 'salary', fiscalYear: FY, deductions: {}, options: { section112AExemptionUsed: 0 },
   });
   assert.equal(outcome.status, 'CALCULATED');
   assert.ok(outcome.shortTermGain > 0);
@@ -63,11 +81,60 @@ test('SIP lots retain FIFO acquisition order and produce mixed short/long bucket
   assert.ok(outcome.lots.every(lot => lot.cost === 10_000));
 });
 
+test('equity tax requires explicit annual Section 112A usage; explicit zero remains a valid input', () => {
+  const base = {
+    instrumentType: 'Equity_MF', nominalRate: 0.12, annualIncome: 1_500_000,
+    holdingYears: 2, regime: 'new', monthlySIP: 10_000, userAge: 35,
+    incomeSource: 'salary', fiscalYear: FY, deductions: {},
+  };
+  const missing = calculateCanonicalPostTaxOutcome({ ...base, options: {} });
+  assert.equal(missing.status, 'REQUIRES_TAX_INPUTS');
+  assert.equal(missing.postTaxReturn, null);
+  assert.ok(missing.unavailableReasons.includes('section112AExemptionUsed'));
+
+  const explicitZero = calculateCanonicalPostTaxOutcome({ ...base, options: { section112AExemptionUsed: 0 } });
+  assert.equal(explicitZero.status, 'CALCULATED');
+  assert.ok(Number.isFinite(explicitZero.exemptionApplied));
+
+  const fullyUsed = calculateCanonicalPostTaxOutcome({ ...base, options: { section112AExemptionUsed: 125_000 } });
+  assert.equal(fullyUsed.status, 'CALCULATED');
+  assert.equal(fullyUsed.exemptionApplied, 0);
+
+  const legacyMissing = calculatePostTaxReturn(
+    'Equity_MF', 0.12, 1_500_000, 2, 'new', 10_000, 35, 'salary', undefined, FY,
+  );
+  assert.equal(legacyMissing.status, 'REQUIRES_TAX_INPUTS');
+  assert.equal(legacyMissing.postTaxReturn, null);
+  assert.ok(legacyMissing.unavailableReasons.includes('section112AExemptionUsed'));
+});
+
+test('equity projection requires the same explicit Section 112A usage as its calculation', () => {
+  const result = calculatePostTaxReturn(
+    'Equity_MF', 0.12, 3_000_000, 2, 'new', 10_000, 35, 'salary', undefined, FY,
+    { section112AExemptionUsed: 0 },
+  );
+  const instrument = { nominalRate: 0.12, monthlySIP: 10_000, holdingYears: 2 };
+  const context = {
+    annualGrossIncome: 3_000_000, regime: 'new', incomeSource: 'salary',
+    fiscalYear: FY, userAge: 35, deductions: {},
+  };
+  const missing = calculatePostTaxProjection(result, instrument, 0.06, context);
+  assert.equal(missing.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.equal(missing.postTaxFutureValue, null);
+  assert.ok(missing.unavailableReasons.includes('section112AExemptionUsed'));
+
+  const explicitZero = calculatePostTaxProjection(result, instrument, 0.06, {
+    ...context, section112AExemptionUsed: 0,
+  });
+  assert.equal(explicitZero.status, 'CALCULATED');
+  assert.ok(Number.isFinite(explicitZero.postTaxFutureValue));
+});
+
 test('modeled SIP lots use more-than threshold for 11, 12, and 13 month listed holdings', () => {
   const outcome = calculateCanonicalPostTaxOutcome({
     instrumentType: 'Equity_MF', nominalRate: 0.12, annualIncome: 1_500_000,
     holdingYears: 13 / 12, regime: 'new', monthlySIP: 10_000, userAge: 35,
-    incomeSource: 'salary', fiscalYear: FY, deductions: {}, options: {},
+    incomeSource: 'salary', fiscalYear: FY, deductions: {}, options: { section112AExemptionUsed: 0 },
   });
   const thresholdMonths = 12;
   const edgeLots = outcome.lots.filter(lot => [11, 12, 13].includes(lot.holdingPeriodMonths));

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { getCache, setCache } from '../config/redis.js';
 import {
   fetchQualifiedMarketContextSnapshots,
@@ -25,6 +26,7 @@ const MARKET_CONTEXT_CLOSED_MAX_AGE_SECONDS = 36 * 60 * 60;
 const MARKET_CONTEXT_OPEN_MAX_AGE_SECONDS = 15 * 60;
 
 export const MARKET_SNAPSHOT_SCHEMA_VERSION = 'market-snapshot-1.0.0';
+export const MARKET_SNAPSHOT_CONTENT_REVISION_VERSION = 'market-snapshot-content-1.0.0';
 export const MARKET_DISPLAY_STATUS = Object.freeze({
   CURRENT: 'CURRENT',
   MARKET_CLOSED: 'MARKET_CLOSED',
@@ -36,6 +38,109 @@ export const MARKET_DISPLAY_STATUS = Object.freeze({
 
 let processState = null;
 let processLastKnownGood = null;
+
+const VOLATILE_REVISION_FIELDS = new Set([
+  'ageSeconds',
+  'cache',
+  'cacheAgeSeconds',
+  'cacheMetadata',
+  'cachedAt',
+  'cacheHit',
+  'checkedAt',
+  'createdAt',
+  'evaluatedAt',
+  'expiresAt',
+  'fetchedAt',
+  'lastFetchedAt',
+  'lastCheckedAt',
+  'latencyMs',
+  'durationMs',
+  'requestId',
+  'updatedAt',
+]);
+
+const ORDER_INSENSITIVE_REVISION_ARRAYS = new Set([
+  'candles',
+  'facts',
+  'observedFacts',
+  'derivedFacts',
+  'providerFailures',
+  'reasonCodes',
+  'sources',
+]);
+
+function normalizeRevisionEvidence(value, parentKey = '') {
+  if (Array.isArray(value)) {
+    const normalized = value.map(item => normalizeRevisionEvidence(item));
+    return ORDER_INSENSITIVE_REVISION_ARRAYS.has(parentKey)
+      ? normalized.sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+      : normalized;
+  }
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.keys(value)
+    .filter(key => !VOLATILE_REVISION_FIELDS.has(key))
+    .sort()
+    .map(key => [key, normalizeRevisionEvidence(value[key], key)]));
+}
+
+function sha256Revision(value) {
+  return crypto.createHash('sha256')
+    .update(JSON.stringify(normalizeRevisionEvidence(value)))
+    .digest('hex');
+}
+
+function snapshotContentRevision(snapshot, evidenceRevision = snapshot.evidenceRevision) {
+  const policyOutput = snapshot.policyOutput || {};
+  return {
+    version: MARKET_SNAPSHOT_CONTENT_REVISION_VERSION,
+    digest: sha256Revision({
+      version: MARKET_SNAPSHOT_CONTENT_REVISION_VERSION,
+      evidenceRevision,
+      status: snapshot.status,
+      availability: snapshot.availability,
+      providerStatus: snapshot.providerStatus,
+      providerSelection: snapshot.providerSelection,
+      policyOutput: {
+        status: policyOutput.status,
+        context: policyOutput.context,
+        classification: policyOutput.classification,
+        policyVersion: policyOutput.policyVersion,
+        reasonCodes: policyOutput.reasonCodes,
+        observedAt: policyOutput.observedAt,
+      },
+      policyAvailability: snapshot.policyAvailability,
+      dataCompleteness: snapshot.dataCompleteness,
+      freshness: snapshot.freshness,
+      provenance: snapshot.provenance,
+      observedAt: snapshot.observedAt,
+      marketSession: snapshot.marketSession,
+    }),
+  };
+}
+
+function evidenceRevisionFromSnapshot(snapshot) {
+  return sha256Revision({
+    schemaVersion: snapshot.schemaVersion,
+    providerStatus: snapshot.providerStatus,
+    providerSelection: snapshot.providerSelection,
+    observedFacts: snapshot.observedFacts,
+    derivedFacts: snapshot.derivedFacts,
+    freshness: snapshot.freshness,
+    provenance: snapshot.provenance,
+    observedAt: snapshot.observedAt,
+    marketSession: snapshot.marketSession,
+  });
+}
+
+function finalizeMarketSnapshot(snapshot, recommendationUsability, evidenceRevision = snapshot.evidenceRevision) {
+  const finalized = {
+    ...snapshot,
+    recommendationUsability,
+  };
+  finalized.evidenceRevision = evidenceRevision || evidenceRevisionFromSnapshot(finalized);
+  finalized.contentRevision = snapshotContentRevision(finalized, finalized.evidenceRevision);
+  return finalized;
+}
 
 function sourceFailureSnapshot(code, message) {
   return {
@@ -147,7 +252,7 @@ export function buildMarketSnapshot({ quoteSnapshot, historicalSnapshot, feature
     observedAt: policy?.observedAt ?? null,
     evaluatedAt: evaluatedAt ?? null,
   };
-  return {
+  const marketSnapshot = {
     schemaVersion: MARKET_SNAPSHOT_SCHEMA_VERSION,
     status: displayStatus,
     availability: features?.status === 'FEATURES_AVAILABLE'
@@ -182,6 +287,13 @@ export function buildMarketSnapshot({ quoteSnapshot, historicalSnapshot, feature
       history: cacheDescriptor(historicalSnapshot, now),
     },
   };
+  marketSnapshot.evidenceRevision = sha256Revision({
+    version: MARKET_SNAPSHOT_CONTENT_REVISION_VERSION,
+    quoteSnapshot,
+    historicalSnapshot,
+  });
+  marketSnapshot.contentRevision = snapshotContentRevision(marketSnapshot);
+  return marketSnapshot;
 }
 
 async function readState(getState) {
@@ -276,11 +388,12 @@ function recoverLastKnownGood(lastKnownGood, now, liveReasonCodes = [], liveProv
     },
   };
   const recommendationUsability = recommendationUsabilityFor(marketSnapshot, now);
+  const finalizedMarketSnapshot = finalizeMarketSnapshot(marketSnapshot, recommendationUsability);
   return {
     ...saved,
     evaluatedAt: now.toISOString(),
     reasonCodes: [...new Set([...(saved.reasonCodes || []), ...liveReasonCodes, 'RECOVERED_LAST_KNOWN_GOOD'])],
-    marketSnapshot: { ...marketSnapshot, recommendationUsability },
+    marketSnapshot: finalizedMarketSnapshot,
     recommendationUsability,
     recoveredFromLastKnownGood: true,
     liveProviderSelection,
@@ -360,7 +473,7 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
     return {
       ...candidate,
       evaluatedAt,
-      marketSnapshot: { ...marketSnapshot, recommendationUsability },
+      marketSnapshot: finalizeMarketSnapshot(marketSnapshot, recommendationUsability),
       recommendationUsability,
       candidateContext: null,
       hysteresis: { status: 'NOT_APPLIED_MARKET_CONTEXT_UNAVAILABLE' },
@@ -385,7 +498,7 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
   const published = {
     ...transition.result,
     evaluatedAt,
-    marketSnapshot: { ...marketSnapshot, recommendationUsability },
+    marketSnapshot: finalizeMarketSnapshot(marketSnapshot, recommendationUsability),
     recommendationUsability,
     statePersistence,
   };
@@ -424,14 +537,14 @@ export async function getLatestQualifiedMarketContextForRecommendation(options =
       reasonCodes: ['NO_LAST_KNOWN_GOOD_MARKET_CONTEXT'],
       evaluatedAt: now.toISOString(),
       recommendationUsability: { status: 'NOT_USABLE', reasonCodes: ['NO_LAST_KNOWN_GOOD_MARKET_CONTEXT'] },
-      marketSnapshot: buildMarketSnapshot({
+      marketSnapshot: finalizeMarketSnapshot(buildMarketSnapshot({
         quoteSnapshot: null,
         historicalSnapshot: null,
         features: null,
         policy: null,
         evaluatedAt: now.toISOString(),
         now,
-      }),
+      }), { status: 'NOT_USABLE', reasonCodes: ['NO_LAST_KNOWN_GOOD_MARKET_CONTEXT'] }),
     };
   }
   return recovered;

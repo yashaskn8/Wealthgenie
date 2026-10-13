@@ -12,6 +12,16 @@ export function validateEnvironmentConfig(env = process.env) {
   const isProduction = env.NODE_ENV === 'production';
   const errors = [];
   errors.push(...validateMongoCompatibilityConfig(env).errors);
+  if (isProduction && env.DISABLE_RATE_LIMIT === 'true') {
+    errors.push('DISABLE_RATE_LIMIT cannot be enabled in production');
+  }
+
+  if (env.DISABLE_RATE_LIMIT !== undefined && !['true', 'false'].includes(env.DISABLE_RATE_LIMIT)) {
+    errors.push('DISABLE_RATE_LIMIT must be true or false');
+  }
+  if (isProduction && env.DISABLE_RATE_LIMIT === 'true') {
+    errors.push('DISABLE_RATE_LIMIT must not be enabled in production');
+  }
 
   for (const name of ['MCP_ENABLED', 'MCP_REMOTE_ENABLED', 'MCP_LEGACY_SSE_ENABLED', 'MCP_DIRECT_TLS']) {
     if (env[name] !== undefined && !['true', 'false'].includes(env[name])) {

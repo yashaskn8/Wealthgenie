@@ -10,6 +10,30 @@ afterEach(() => {
 });
 
 describe('TaxScreen request binding', () => {
+  it('does not treat the initial income display as an explicit zero-income entry', async () => {
+    vi.spyOn(api, 'getTaxPolicyMetadata').mockResolvedValue({
+      currentFiscalYearVerified: true,
+      currentFiscalYear: 'FY2026-27',
+      verifiedFiscalYears: ['FY2026-27'],
+    });
+    vi.spyOn(api, 'compareTax').mockResolvedValue({});
+
+    render(<TaxScreen profile={{ age: 35 }} recommendations={[]} />);
+    await waitFor(() => expect(screen.getByLabelText('Fiscal year for tax calculation')).toHaveValue('FY2026-27'));
+    fireEvent.change(screen.getByLabelText('Income source for tax calculation'), { target: { value: 'salary' } });
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    expect(api.compareTax).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Enter yearly income amount'), { target: { value: '0' } });
+    await waitFor(() => expect(api.compareTax).toHaveBeenCalledTimes(1));
+    expect(api.compareTax).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ incomeSource: 'salary', fiscalYear: 'FY2026-27' }),
+      expect.any(Object),
+    );
+  });
+
   it('hides a verified tax result immediately when its income inputs change', async () => {
     let finishComparison;
     vi.spyOn(api, 'getTaxPolicyMetadata').mockResolvedValue({
@@ -24,6 +48,7 @@ describe('TaxScreen request binding', () => {
     render(<TaxScreen profile={{ age: 35 }} recommendations={[]} />);
     await waitFor(() => expect(screen.getByLabelText('Fiscal year for tax calculation')).toHaveValue('FY2026-27'));
     fireEvent.change(screen.getByLabelText('Income source for tax calculation'), { target: { value: 'salary' } });
+    fireEvent.change(screen.getByLabelText('Enter yearly income amount'), { target: { value: '0' } });
     await waitFor(() => expect(api.compareTax).toHaveBeenCalledTimes(1));
 
     finishComparison({
@@ -38,9 +63,30 @@ describe('TaxScreen request binding', () => {
     });
 
     await waitFor(() => expect(screen.getByText('FY2026-27 · Verified Server Rules')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Yearly gross income before tax'), { target: { value: '50000' } });
+    fireEvent.change(screen.getByLabelText('Enter yearly income amount'), { target: { value: '50000' } });
 
     expect(screen.queryByText('FY2026-27 · Verified Server Rules')).not.toBeInTheDocument();
     expect(screen.getByText('The authoritative tax service is calculating your comparison.')).toBeInTheDocument();
+  });
+
+  it('shows a retryable tax-policy metadata error and does not accept an unverified year', async () => {
+    const metadata = vi.spyOn(api, 'getTaxPolicyMetadata')
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce({
+        currentFiscalYearVerified: true,
+        currentFiscalYear: 'FY2026-27',
+        verifiedFiscalYears: ['FY2026-27'],
+      });
+    vi.spyOn(api, 'compareTax').mockResolvedValue({});
+
+    render(<TaxScreen profile={{ age: 35 }} recommendations={[]} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/verified tax-year information could not be loaded/i);
+    expect(screen.getByLabelText('Fiscal year for tax calculation')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry tax policy loading' }));
+
+    await waitFor(() => expect(metadata).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByLabelText('Fiscal year for tax calculation')).toHaveValue('FY2026-27'));
+    expect(api.compareTax).not.toHaveBeenCalled();
   });
 });

@@ -190,6 +190,7 @@ test('WTI unsupported categories fail closed while preserving parent suitability
   assert.equal(products.length, 0);
   assert.equal(products.metadata.catalog.title.length > 0, true);
   assert.equal(products.metadata.catalog.dataClass, 'REFERENCE_METADATA');
+  assert.equal(products.metadata.catalog.howToStart, null);
   assert.equal(products.metadata.ranking.status, 'UNAVAILABLE');
   assert.equal(products.metadata.ranking.authority, 'NONE');
   assert.deepEqual(products.metadata.ranking.reasonCodes, ['PRODUCT_CLASS_NOT_SUPPORTED_PHASE_2']);
@@ -222,7 +223,7 @@ test('WTI legacy catalog exports reference text only and cannot expose product o
   for (const instrumentId of instrumentIds) {
     const entry = whereToInvestCatalog[instrumentId];
     assert.equal(typeof entry.title, 'string', `${instrumentId} must have a title`);
-    assert.equal(typeof entry.howToStart, 'string', `${instrumentId} must explain how to start`);
+    assert.equal(entry.howToStart, null, `${instrumentId} must not expose unqualified account instructions`);
     assert.deepEqual(Object.keys(entry).sort(), ['howToStart', 'title']);
     assert.equal('products' in entry, false);
     assert.equal('rate' in entry, false);

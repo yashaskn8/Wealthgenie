@@ -23,6 +23,21 @@ test('Config Validation: Missing MONGODB_URI fails validation', () => {
   assert.ok(result.errors.some(e => e.includes('MONGODB_URI is required')));
 });
 
+test('Config Validation: production rejects attempts to disable HTTP rate limiting', () => {
+  const base = {
+    JWT_SECRET: '0123456789abcdef0123456789abcdef0123456789abcdef',
+    MONGODB_URI: 'mongodb://mongodb:27017/wealthgenie',
+    ML_SERVICE_API_KEY: 'production-secret-api-key-value-secure',
+    METRICS_TOKEN: 'production-metrics-token-at-least-32-characters',
+    CORS_ORIGINS: 'https://app.wealthgenie.example',
+    NODE_ENV: 'production',
+  };
+  assert.equal(validateEnvironmentConfig(base).valid, true);
+  const disabled = validateEnvironmentConfig({ ...base, DISABLE_RATE_LIMIT: 'true' });
+  assert.equal(disabled.valid, false);
+  assert.ok(disabled.errors.some(error => error.includes('DISABLE_RATE_LIMIT cannot be enabled in production')));
+});
+
 test('Config Validation: Production rejects JWT_SECRET shorter than 32 chars', () => {
   const result = validateEnvironmentConfig({
     JWT_SECRET: 'short_secret_20_chars',

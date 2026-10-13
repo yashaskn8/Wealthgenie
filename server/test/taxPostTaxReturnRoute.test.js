@@ -59,6 +59,66 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
     });
   });
 
+  test('single equity response requires explicit prior Section 112A use and echoes null versus zero', async () => {
+    await withServer(app, async (baseUrl) => {
+      const common = {
+        instrumentType: 'Equity_MF', nominalRate: 0.12, annualIncome: 3_000_000,
+        holdingYears: 2, regime: 'new', incomeSource: 'salary', monthlySIP: 10_000,
+        userAge: 35, fiscalYear: 'FY2026-27',
+      };
+      const missing = await jsonRequest(`${baseUrl}/api/tax/post-tax-return`, {
+        method: 'POST', body: JSON.stringify(common),
+      });
+      assert.equal(missing.response.status, 200);
+      assert.equal(missing.body.status, 'REQUIRES_TAX_INPUTS');
+      assert.ok(missing.body.unavailableReasons.includes('section112AExemptionUsed'));
+      assert.equal(missing.body.inputsUsed.section112AExemptionUsed, null);
+      assert.equal(missing.body.inputsUsed.instrumentType, 'Equity_MF');
+      for (const field of ['grossGain', 'taxableGain', 'netGain', 'postTaxReturn', 'effectiveYield', 'taxRate', 'incrementalTax', 'cess', 'surcharge']) {
+        assert.equal(missing.body[field], null, `${field} must remain null without prior-use context`);
+      }
+      assert.equal(missing.body.what_if_nominal_gain, null);
+      assert.equal(missing.body.what_if_estimated_tax, null);
+      assert.equal(missing.body.what_if_net_gain, null);
+      assert.equal(missing.body.what_if_principal, 100_000);
+
+      const explicitZero = await jsonRequest(`${baseUrl}/api/tax/post-tax-return`, {
+        method: 'POST', body: JSON.stringify({ ...common, section112AExemptionUsed: 0 }),
+      });
+      assert.equal(explicitZero.response.status, 200);
+      assert.equal(explicitZero.body.status, 'CALCULATED');
+      assert.equal(explicitZero.body.inputsUsed.section112AExemptionUsed, 0);
+      assert.ok(Number.isFinite(explicitZero.body.postTaxReturn));
+      assert.ok(Number.isFinite(explicitZero.body.what_if_nominal_gain));
+    });
+  });
+
+  test('batch equity keeps REQUIRES_TAX_INPUTS and null allocation metadata when prior use is omitted', async () => {
+    await withServer(app, async (baseUrl) => {
+      const { response, body } = await jsonRequest(`${baseUrl}/api/tax/post-tax-return/batch`, {
+        method: 'POST',
+        body: JSON.stringify({
+          instruments: [
+            { instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
+            { instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 2, monthlySIP: 10000 },
+          ],
+          annualIncome: 3_000_000,
+          regime: 'new', incomeSource: 'salary', userAge: 35,
+          inflationRate: 0.06, fiscalYear: 'FY2026-27',
+        }),
+      });
+      assert.equal(response.status, 200);
+      assert.equal(body.portfolioStatus, 'PARTIAL');
+      assert.equal(body.results[0].status, 'CALCULATED');
+      assert.equal(body.results[1].status, 'REQUIRES_TAX_INPUTS');
+      assert.ok(body.results[1].unavailableReasons.includes('section112AExemptionUsed'));
+      assert.equal(body.inputsUsed.section112AExemptionUsed, null);
+      assert.equal(body.assumptions.section112APortfolioAllocation.exemptionUsedBeforeBatch, null);
+      assert.equal(body.assumptions.section112APortfolioAllocation.exemptionAppliedAcrossBatch, null);
+      assert.deepEqual(body.assumptions.section112APortfolioAllocation.unavailableReasons, ['SECTION_112A_EXEMPTION_USAGE_REQUIRED']);
+    });
+  });
+
   test('POST /api/tax/post-tax-return/batch - Batch computation correctly computes multiple instruments with rebate', async () => {
     await withServer(app, async (baseUrl) => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/tax/post-tax-return/batch`, {
@@ -75,6 +135,7 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
           userAge: 30,
           inflationRate: 0.06,
           fiscalYear: 'FY2026-27',
+          section112AExemptionUsed: 0,
         }),
       });
 
@@ -205,6 +266,7 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
         userAge: 35,
         inflationRate: 0.06,
         fiscalYear: 'FY2026-27',
+        section112AExemptionUsed: 0,
       };
       const instruments = [
         { instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 2, monthlySIP: 10000 },
@@ -234,6 +296,28 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
     });
   });
 
+  test('batch with fully used Section 112A exemption allocates zero across the complete equity set', async () => {
+    await withServer(app, async (baseUrl) => {
+      const { response, body } = await jsonRequest(`${baseUrl}/api/tax/post-tax-return/batch`, {
+        method: 'POST',
+        body: JSON.stringify({
+          instruments: [
+            { instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 2, monthlySIP: 100_000 },
+            { instrumentType: 'Equity_MF', nominalRate: 0.15, holdingYears: 2, monthlySIP: 50_000 },
+          ],
+          annualIncome: 3_000_000, regime: 'new', incomeSource: 'salary', userAge: 35,
+          inflationRate: 0.06, fiscalYear: 'FY2026-27', section112AExemptionUsed: 125_000,
+        }),
+      });
+      assert.equal(response.status, 200);
+      assert.equal(body.portfolioStatus, 'COMPLETE');
+      assert.equal(body.inputsUsed.section112AExemptionUsed, 125_000);
+      assert.equal(body.assumptions.section112APortfolioAllocation.exemptionUsedBeforeBatch, 125_000);
+      assert.equal(body.assumptions.section112APortfolioAllocation.exemptionAppliedAcrossBatch, 0);
+      assert.ok(body.results.every(item => item.exemptionApplied === 0));
+    });
+  });
+
   test('Partial equity portfolio does not grant the full 112A exemption to the known subset', async () => {
     await withServer(app, async (baseUrl) => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/tax/post-tax-return/batch`, {
@@ -249,6 +333,7 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
           userAge: 35,
           inflationRate: 0.06,
           fiscalYear: 'FY2026-27',
+          section112AExemptionUsed: 75_000,
         }),
       });
       const allocation = body.assumptions.section112APortfolioAllocation;
@@ -256,6 +341,7 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
       assert.equal(body.portfolioStatus, 'PARTIAL');
       assert.equal(allocation.allocationComplete, false);
       assert.equal(allocation.policy, 'CONSERVATIVE_PARTIAL_PORTFOLIO_112A_ASSUMPTION');
+      assert.equal(allocation.exemptionUsedBeforeBatch, 75_000);
       assert.equal(allocation.exemptionAppliedAcrossBatch, 0);
       assert.deepEqual(allocation.unavailableReasons, ['SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE']);
       assert.equal(body.results[0].status, 'CALCULATED');
@@ -280,6 +366,7 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
           userAge: 35,
           inflationRate: 0.06,
           fiscalYear: 'FY2026-27',
+          section112AExemptionUsed: 0,
         }),
       });
       assert.equal(response.status, 200);
@@ -306,6 +393,7 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
           userAge: 35,
           inflationRate: 0.06,
           fiscalYear: 'FY2026-27',
+          section112AExemptionUsed: 0,
         }),
       });
       assert.equal(response.status, 200);
@@ -317,6 +405,38 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
       assert.equal(body.summary.maxTaxRate, null);
       assert.equal(body.assumptions.section112APortfolioAllocation.allocationComplete, false);
       assert.deepEqual(body.assumptions.section112APortfolioAllocation.unavailableReasons, ['SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE']);
+    });
+  });
+
+  test('Equity batch without taxpayer-wide prior 112A usage stays uncalculated', async () => {
+    await withServer(app, async (baseUrl) => {
+      const equity = { instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 2, monthlySIP: 10000 };
+      const instrumentCases = [
+        { instruments: [equity], expectedStatus: 200 },
+        { instruments: [{ ...equity, section112AExemptionUsed: 75000 }], expectedStatus: 400 },
+      ];
+      for (const { instruments, expectedStatus } of instrumentCases) {
+        const { response, body } = await jsonRequest(baseUrl + '/api/tax/post-tax-return/batch', {
+          method: 'POST',
+          body: JSON.stringify({
+            instruments,
+            annualIncome: 3000000,
+            regime: 'new',
+            incomeSource: 'salary',
+            userAge: 35,
+            inflationRate: 0.06,
+            fiscalYear: 'FY2026-27',
+          }),
+        });
+        assert.equal(response.status, expectedStatus);
+        if (expectedStatus === 200) {
+          assert.notEqual(body.results[0].status, 'CALCULATED');
+          assert.equal(body.results[0].postTaxReturn, null);
+          assert.equal(body.results[0].postTaxFutureValue, null);
+        } else {
+          assert.equal(body.error, 'Validation failed');
+        }
+      }
     });
   });
 

@@ -28,8 +28,22 @@ const ProgressHub = ({
   onNavigate,
   onSaveRebalance,
 }) => {
-  const allowedTabs = ['goals', 'plan-goal', 'grow-sip', 'indicators', 'rebalancer'];
+  const allowedTabs = ['indicators', 'goals', 'plan-goal', 'grow-sip', 'rebalancer'];
   const currentTab = allowedTabs.includes(activeTab) ? activeTab : 'goals';
+  const handleTabListKeyDown = event => {
+    const currentIndex = allowedTabs.indexOf(currentTab);
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % allowedTabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + allowedTabs.length) % allowedTabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = allowedTabs.length - 1;
+    else return;
+
+    event.preventDefault();
+    const nextTab = allowedTabs[nextIndex];
+    onTabChange?.(nextTab);
+    event.currentTarget.querySelector(`[data-tab-value="${nextTab}"]`)?.focus();
+  };
 
   return (
     <div className="hub-container">
@@ -42,15 +56,17 @@ const ProgressHub = ({
         </p>
 
         {/* Tab Navigation */}
-        <div role="tablist" aria-label="Progress views" className="hub-tabs-list">
+        <div role="tablist" aria-label="Progress views" aria-orientation="horizontal" className="hub-tabs-list" onKeyDown={handleTabListKeyDown}>
           <button
             role="tab"
             id="tab-indicators"
             aria-selected={currentTab === 'indicators'}
             aria-controls="panel-indicators"
             data-testid="tab-indicators"
+            data-tab-value="indicators"
+            tabIndex={currentTab === 'indicators' ? 0 : -1}
             className={`hub-tab-btn ${currentTab === 'indicators' ? 'hub-tab-btn--active' : ''}`}
-            onClick={() => onTabChange('indicators')}
+            onClick={() => onTabChange?.('indicators')}
           >
             <Activity size={15} />
             <span>Financial Indicators</span>
@@ -61,8 +77,10 @@ const ProgressHub = ({
             aria-selected={currentTab === 'goals'}
             aria-controls="panel-goals"
             data-testid="tab-goals"
+            data-tab-value="goals"
+            tabIndex={currentTab === 'goals' ? 0 : -1}
             className={`hub-tab-btn ${currentTab === 'goals' ? 'hub-tab-btn--active' : ''}`}
-            onClick={() => onTabChange('goals')}
+            onClick={() => onTabChange?.('goals')}
           >
             <Target size={15} />
             <span>My Goals</span>
@@ -73,8 +91,10 @@ const ProgressHub = ({
             aria-selected={currentTab === 'plan-goal'}
             aria-controls="panel-plan-goal"
             data-testid="tab-plan-goal"
+            data-tab-value="plan-goal"
+            tabIndex={currentTab === 'plan-goal' ? 0 : -1}
             className={`hub-tab-btn ${currentTab === 'plan-goal' ? 'hub-tab-btn--active' : ''}`}
-            onClick={() => onTabChange('plan-goal')}
+            onClick={() => onTabChange?.('plan-goal')}
           >
             <Crosshair size={15} />
             <span>Plan a Goal</span>
@@ -85,8 +105,10 @@ const ProgressHub = ({
             aria-selected={currentTab === 'grow-sip'}
             aria-controls="panel-grow-sip"
             data-testid="tab-grow-sip"
+            data-tab-value="grow-sip"
+            tabIndex={currentTab === 'grow-sip' ? 0 : -1}
             className={`hub-tab-btn ${currentTab === 'grow-sip' ? 'hub-tab-btn--active' : ''}`}
-            onClick={() => onTabChange('grow-sip')}
+            onClick={() => onTabChange?.('grow-sip')}
           >
             <TrendingUp size={15} />
             <span>Grow My SIP</span>
@@ -97,8 +119,10 @@ const ProgressHub = ({
             aria-selected={currentTab === 'rebalancer'}
             aria-controls="panel-rebalancer"
             data-testid="tab-rebalancer"
+            data-tab-value="rebalancer"
+            tabIndex={currentTab === 'rebalancer' ? 0 : -1}
             className={`hub-tab-btn ${currentTab === 'rebalancer' ? 'hub-tab-btn--active' : ''}`}
-            onClick={() => onTabChange('rebalancer')}
+            onClick={() => onTabChange?.('rebalancer')}
           >
             <ArrowLeftRight size={15} />
             <span>Keep on Track</span>

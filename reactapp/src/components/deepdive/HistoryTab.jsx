@@ -5,7 +5,7 @@
 import React from 'react';
 import { CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
-const HistoryTab = ({ inv, historicalData, benchmarkRate, inflationRate, projectionError }) => {
+const HistoryTab = ({ inv, historicalData, benchmarkRate, inflationRate, projectionError, projectionLoading }) => {
   return (
     <div className="tab-fade-in">
       <div className="ddm-section-header">Normalized Growth Comparison</div>
@@ -22,7 +22,10 @@ const HistoryTab = ({ inv, historicalData, benchmarkRate, inflationRate, project
         </div>
       </div>
 
-      <div style={{ height: 340, background: 'rgba(15, 23, 42, 0.4)', borderRadius: 18, padding: '24px 20px 16px', border: '1px solid var(--ddm-border)' }}>
+      {projectionLoading && <p role="status" style={{ color: '#7dd3fc', textAlign: 'center' }}>Updating the comparison for the current assumptions…</p>}
+      {projectionError && <p role="alert" style={{ color: '#fda4af', textAlign: 'center' }}>Comparison unavailable: {projectionError}</p>}
+      {!projectionLoading && !projectionError && historicalData.length === 0 && <p role="status" style={{ color: '#94a3b8', textAlign: 'center' }}>No verified comparison is available for the current assumptions.</p>}
+      {!projectionLoading && !projectionError && historicalData.length > 0 && <div style={{ height: 340, background: 'rgba(15, 23, 42, 0.4)', borderRadius: 18, padding: '24px 20px 16px', border: '1px solid var(--ddm-border)' }}>
         <ResponsiveContainer initialDimension={{ width: 1, height: 1 }}>
           <AreaChart data={historicalData}>
             <defs>
@@ -79,8 +82,7 @@ const HistoryTab = ({ inv, historicalData, benchmarkRate, inflationRate, project
             <Area type="monotone" dataKey="fd" stroke="rgba(255,255,255,0.15)" strokeDasharray="5 5" strokeWidth={1.5} fill="url(#colorFd)" fillOpacity={1} dot={false} name="FD Benchmark" />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
-      {projectionError && <p role="alert" style={{ color: '#fda4af', fontSize: '0.7rem', marginTop: 10, textAlign: 'center' }}>{projectionError}</p>}
+      </div>}
       <p style={{ color: 'var(--ddm-text-muted)', fontSize: '0.7rem', marginTop: 10, textAlign: 'center', fontStyle: 'italic' }}>
         * Server projection of ₹100 at the selected rates; this is not historical backtesting. Inflation comparison uses {inflationRate}%. Actual results may vary.
       </p>

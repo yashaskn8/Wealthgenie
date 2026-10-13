@@ -7,6 +7,7 @@ import { validate, registerSchema, loginSchema } from '../validation/schemas.js'
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { verifyJWT, verifyJWTWithRevocationAvailability } from '../middleware/authMiddleware.js';
 import { blacklistToken, tokenRevocationMustFailClosed } from '../config/redis.js';
+import { compareLoginPassword } from '../services/loginPassword.js';
 import {
   clearAuthCookies,
   createSessionToken,
@@ -88,10 +89,6 @@ router.post('/register', validate(registerSchema), asyncHandler(async (req, res)
  * POST /api/auth/login
  * Authenticates a user and returns a JWT.
  */
-// Dummy hash for constant-time rejection when user not found.
-// This prevents timing attacks that reveal email existence.
-const DUMMY_HASH = '$2a$12$LJ3m4ys3Lz0Yqn4F5s5sUuQ7v8r9t0u1v2w3x4y5z6a7b8c9d0e1f2';
-
 router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -102,11 +99,10 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   // Must explicitly select passwordHash (hidden by default via select:false)
   const user = await User.findOne({ email }).select('+passwordHash');
 
-  // SECURITY: Always run bcrypt.compare to maintain constant response time.
-  // Without this, a missing user returns ~0ms (no compare) vs ~200ms (with compare),
-  // creating a timing oracle that reveals whether an email is registered.
-  const hashToCompare = user ? user.passwordHash : DUMMY_HASH;
-  const valid = await bcrypt.compare(password, hashToCompare);
+  // Run bcrypt for both known and unknown users. The dummy hash is a valid
+  // cost-12 hash; this reduces the obvious fast-path difference without claiming
+  // that the whole database-backed login operation is constant-time.
+  const valid = await compareLoginPassword(password, user);
 
   if (!user || !valid) {
     throw createError(401, `Failed login for email: ${email}`, INVALID_CREDS);

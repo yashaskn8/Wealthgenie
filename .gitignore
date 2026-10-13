@@ -21,6 +21,8 @@ server/data/*
 !server/data/investmentDatabase.js
 !server/data/investment_master.json
 !server/data/whereToInvestCatalog.js
+!server/data/market_data_coverage.json
+!server/data/postTaxCoverageMatrix.json
 
 # Editor directories and files
 .vscode/*

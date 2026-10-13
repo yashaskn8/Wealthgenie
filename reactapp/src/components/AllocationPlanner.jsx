@@ -25,6 +25,8 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import { toast } from 'sonner';
 import { RISK_COLORS } from '../investmentDatabase';
 import * as api from '../services/api';
+import { formatCurrency, getCategoryDescription } from '../utils/allocationPlannerPresentation';
+import { isPresentFiniteNumber, toOptionalNumber } from '../utils/financialValues';
 import ResearchStatusCard from './agent/ResearchStatusCard';
 import PlanReviewAuthorization from './agent/PlanReviewAuthorization';
 import './AllocationPlanner.css';
@@ -44,30 +46,26 @@ const RISK_PRESETS = [
   { id: 'Aggressive Growth', label: 'Aggressive Growth' },
 ];
 
-const CATEGORY_EXPLANATIONS = {
-  Equity: 'Company Shares — High growth potential over time',
-  Debt: 'Fixed Income & FD — Steady, reliable interest income',
-  Government: 'Government savings category — rules and access vary by instrument',
-  'Equity-Debt': 'Hybrid Funds — Balanced safety and growth',
-  Commodity: 'Gold & Metals — Protects against inflation',
-  Alternative: 'Alternative Assets — Extra portfolio diversification',
-  Gold: 'Gold & Metals — Protects against inflation',
-};
-
 const getCategoryIcon = (category) => {
-  const value = String(category || '');
-  if (value.includes('Equity') || value.includes('MF') || value.includes('ETF')) return <TrendingUp size={19} aria-hidden="true" />;
-  if (value.includes('Debt') || value.includes('Govt') || value.includes('Bond') || value.includes('NPS')) return <Landmark size={19} aria-hidden="true" />;
-  if (value.includes('Gold') || value.includes('Commodity')) return <Briefcase size={19} aria-hidden="true" />;
+  const value = String(category || '').toLowerCase();
+  if (value === 'equity' || value.includes('stock')) {
+    return <TrendingUp size={19} aria-hidden="true" />;
+  }
+  if (['debt', 'government', 'sovereign', 'cash'].includes(value)) {
+    return <Landmark size={19} aria-hidden="true" />;
+  }
+  if (['gold', 'commodity', 'alternative'].includes(value)) {
+    return <Briefcase size={19} aria-hidden="true" />;
+  }
   return <Wallet size={19} aria-hidden="true" />;
 };
-
-const formatCurrency = (value) => `₹${Number(value).toLocaleString('en-IN')}`;
 
 const normalizeRationaleForDisplay = (text) => text
   .replace(/\s*\[[A-Z0-9_:-]+\]/g, '')
   .replace(/\s{2,}/g, ' ')
   .trim();
+
+const formatSubtype = (val) => String(val || '').replace(/_/g, ' ').trim();
 
 const PlanState = ({ kind, title, message }) => (
   <div className={`ap-state ap-state-${kind}`} role="status" aria-live="polite">
@@ -80,13 +78,13 @@ const PlanState = ({ kind, title, message }) => (
   </div>
 );
 
-const PlanTerm = ({ term, explanation }) => (
+const PlanTerm = ({ term, explanation, label }) => (
   <span className="ap-term">
-    <span>{term}</span>
+    <span>{label || term}</span>
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
         <button type="button" className="ap-tooltip-trigger" aria-label={`More information about ${term}`}>
-          <Info size={13} aria-hidden="true" />
+          <Info size={12} aria-hidden="true" />
         </button>
       </Tooltip.Trigger>
       <Tooltip.Portal>
@@ -347,48 +345,62 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
   const prefersReducedMotion = useReducedMotion();
   const [hoveredSlice, setHoveredSlice] = useState(null);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
-  const savings = Number(profile?.monthly_savings);
-
-  const riskView = (
-    profile?.risk_tolerance === 'Aggressive' ? 'Aggressive Growth' :
-      profile?.risk_tolerance === 'Conservative' ? 'Safe & Stable' : 'Balanced Growth'
-  );
+  const savings = toOptionalNumber(profile?.monthly_savings);
+  const riskLabel = recommendationMeta?.final_risk_tier || profile?.risk_tolerance || 'Unavailable';
 
   // Only convert backend-authoritative weights into chart presentation fields.
   // Keep the incoming recommendation order and values unchanged.
-  const allocation = useMemo(() => recommendations
-    .filter(item => Number(item.monthly_allocation) > 0)
+  const allocation = useMemo(() => (Array.isArray(recommendations) ? recommendations : [])
     .map((item, idx) => {
       const grad = SLICE_GRADIENTS[idx % SLICE_GRADIENTS.length];
-      const allocationWeight = Number(item.allocationWeight);
-      const monthlyAmount = Number(item.monthly_allocation);
-      const nominalRate = Number(item.nominalReturn);
-      if (!Number.isFinite(allocationWeight) || !Number.isFinite(monthlyAmount) || !Number.isFinite(nominalRate)) {
-        throw new TypeError(`Authoritative allocation fields are missing for ${item.id || item.name || 'an investment'}`);
+      const allocationWeight = toOptionalNumber(item?.allocationWeight);
+      const monthlyAmount = toOptionalNumber(item?.monthly_allocation);
+      const nominalRate = toOptionalNumber(item?.nominalReturn);
+      if (allocationWeight === undefined || monthlyAmount === undefined
+          || allocationWeight < 0 || allocationWeight > 1 || monthlyAmount < 0) {
+        throw new TypeError(`Authoritative allocation fields are missing for ${item?.id || item?.name || 'an investment'}`);
       }
       return {
         ...item,
         allocationPct: allocationWeight * 100,
         monthlyAmount,
         nominalRate,
-        cat: item.cat || item.category || item.assetClass || 'Other',
+        cat: item.assetClass || item.cat || item.category || 'Other',
         riskLabel: item.riskLabel || item.riskLevel || 'Unavailable',
         gradId: grad.id,
         themeColor: grad.primary,
         glowColor: grad.glow,
       };
-    }), [recommendations]);
+    })
+    .filter(item => item.monthlyAmount > 0), [recommendations]);
 
-  const blendedReturn = Number(recommendationMeta?.portfolio_return_assumption);
-  const equityExposure = useMemo(() => allocation
-    .filter(item => item.cat === 'Equity')
-    .reduce((sum, item) => sum + item.allocationPct, 0), [allocation]);
-  const debtGovtExposure = useMemo(() => allocation
-    .filter(item => item.cat === 'Government' || item.cat === 'Debt' || item.cat === 'Equity-Debt')
-    .reduce((sum, item) => sum + item.allocationPct, 0), [allocation]);
-  const altExposure = useMemo(() => allocation
-    .filter(item => item.cat === 'Commodity' || item.cat === 'Alternative' || item.cat === 'Gold')
-    .reduce((sum, item) => sum + item.allocationPct, 0), [allocation]);
+  const blendedReturn = toOptionalNumber(recommendationMeta?.portfolio_return_assumption);
+  const allocatedMonthlyTotal = allocation.reduce((sum, item) => sum + item.monthlyAmount, 0);
+  const allocationPctTotal = allocation.reduce((sum, item) => sum + item.allocationPct, 0);
+
+  const categoryBreakdown = useMemo(() => {
+    const groups = {};
+    for (const item of allocation) {
+      const groupKey = String(item.cat || 'Other').trim().toLowerCase();
+      const groupLabel = formatSubtype(item.cat) || 'Other';
+      const groupColor = item.themeColor || '#38bdf8';
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          key: groupKey,
+          label: groupLabel,
+          color: groupColor,
+          pct: 0,
+          amount: 0,
+          count: 0,
+        };
+      }
+      groups[groupKey].pct += item.allocationPct;
+      groups[groupKey].amount += item.monthlyAmount;
+      groups[groupKey].count += 1;
+    }
+    return Object.values(groups).sort((a, b) => b.pct - a.pct);
+  }, [allocation]);
 
   const rationaleText = recommendationMeta?.advisory_text
     || (['PENDING', 'GENERATING'].includes(recommendationMeta?.advisory_explanation?.status)
@@ -399,7 +411,6 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
     .map(item => item.trim())
     .filter(Boolean), [rationaleText]);
   const assetClassCount = new Set(allocation.map(item => item.cat)).size;
-  const riskLabel = recommendationMeta?.final_risk_tier || profile?.risk_tolerance || 'Unavailable';
   const horizonYears = Number(profile?.investment_horizon_years);
   const goals = Array.isArray(profile?.investment_goals) ? profile.investment_goals.filter(Boolean) : [];
   const isLoading = recommendationMeta?.loading === true || recommendationMeta?.status === 'LOADING';
@@ -441,7 +452,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
     );
   }
 
-  if (!Number.isFinite(savings) || savings <= 0 || allocation.length === 0) {
+  if (savings === undefined || savings <= 0 || allocation.length === 0) {
     return (
       <Tooltip.Provider delayDuration={220} skipDelayDuration={120}>
         <motion.div className="ap-page ap-state-page" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
@@ -469,9 +480,9 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
                 A clear monthly plan for your <strong>{formatCurrency(savings)}</strong> savings, shaped around your profile.
               </p>
             </div>
-            <div className="ap-plan-status" aria-label={`Current plan strategy: ${riskView}`}>
+            <div className="ap-plan-status" aria-label={`Current profile risk: ${riskLabel}`}>
               <CheckCircle2 size={16} aria-hidden="true" />
-              <span>{riskView}</span>
+              <span>{riskLabel}</span>
             </div>
           </div>
           <div className="ap-summary-metrics" aria-label="Plan summary">
@@ -481,7 +492,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
               <span className="ap-metric-help">Your current monthly savings</span>
             </div>
             <div className="ap-summary-metric"><span className="ap-metric-label">Investments</span><strong>{allocation.length}</strong><span className="ap-metric-help">Across your plan</span></div>
-            <div className="ap-summary-metric"><span className="ap-metric-label">Strategy</span><strong>{riskView}</strong><span className="ap-metric-help">Based on your profile</span></div>
+            <div className="ap-summary-metric"><span className="ap-metric-label">Allocation share</span><strong>{isPresentFiniteNumber(allocationPctTotal) ? `${allocationPctTotal.toFixed(1)}%` : 'Unavailable'}</strong><span className="ap-metric-help">From the backend recommendation</span></div>
             <div className="ap-summary-metric"><span className="ap-metric-label">Risk profile</span><strong>{riskLabel}</strong><span className="ap-metric-help">Suitability context</span></div>
           </div>
           <div className="ap-context-strip" aria-label="Plan context">
@@ -562,8 +573,8 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
                       </motion.div>
                     ) : (
                       <motion.div key="default" className="ap-center-content" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                        <span className="ap-center-kicker">TOTAL INVESTMENT</span>
-                        <strong>{formatCurrency(savings)}</strong>
+                        <span className="ap-center-kicker">MONTHLY ALLOCATION</span>
+                        <strong>{formatCurrency(allocatedMonthlyTotal)}</strong>
                         <span>PER MONTH</span>
                       </motion.div>
                     )}
@@ -595,13 +606,68 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
             </div>
 
             <div className="ap-overview-stats">
-              <div className="ap-stat-lead"><span className="ap-eyebrow">YOUR MONTHLY MIX</span><strong>{formatCurrency(savings)}</strong><span>allocated across {allocation.length} investment{allocation.length === 1 ? '' : 's'}</span></div>
-              <div className="ap-stat-list">
-                <div><span>Equity</span><strong>{equityExposure.toFixed(1)}%</strong></div>
-                <div><span>Debt & government</span><strong>{debtGovtExposure.toFixed(1)}%</strong></div>
-                {altExposure > 0 && <div><span>Gold & alternatives</span><strong>{altExposure.toFixed(1)}%</strong></div>}
+              <div className="ap-chart-heading">
+                <div><PieChartIcon size={16} aria-hidden="true" /><span>Portfolio Structure</span></div>
+                <span className="ap-muted-label">Asset breakdown</span>
               </div>
-              <div className="ap-overview-note"><ShieldCheck size={16} aria-hidden="true" /><span>Your allocation is presented in the recommendation order returned for your profile.</span></div>
+
+              <div className="ap-stat-lead">
+                <div className="ap-stat-lead-top">
+                  <span className="ap-eyebrow">MONTHLY ALLOCATION</span>
+                  <span className="ap-lead-badge">
+                    <Target size={11} aria-hidden="true" />
+                    <span>{isPresentFiniteNumber(allocationPctTotal) ? `${allocationPctTotal.toFixed(1)}% allocated` : 'Allocation unavailable'}</span>
+                  </span>
+                </div>
+                <strong>{formatCurrency(allocatedMonthlyTotal)}</strong>
+                <div className="ap-stat-lead-sub">
+                  <span>Allocated across <strong>{allocation.length} investment{allocation.length === 1 ? '' : 's'}</strong> in <strong>{categoryBreakdown.length} asset {categoryBreakdown.length === 1 ? 'class' : 'classes'}</strong></span>
+                </div>
+              </div>
+
+              <div className="ap-stat-list" aria-label="Asset class breakdown">
+                {categoryBreakdown.map(cat => (
+                  <div key={cat.key} className="ap-stat-breakdown-row">
+                    <div className="ap-stat-row-top">
+                      <div className="ap-stat-row-label">
+                        <span className="ap-stat-dot" style={{ backgroundColor: cat.color, boxShadow: `0 0 8px ${cat.color}` }} aria-hidden="true" />
+                        <span className="ap-stat-name">{cat.label}</span>
+                        <span className="ap-stat-count-pill">{cat.count} {cat.count === 1 ? 'holding' : 'holdings'}</span>
+                      </div>
+                      <div className="ap-stat-row-values">
+                        <span className="ap-stat-amount">{formatCurrency(cat.amount)}/mo</span>
+                        <strong className="ap-stat-pct" style={{ color: cat.color }}>{cat.pct.toFixed(1)}%</strong>
+                      </div>
+                    </div>
+                    <div className="ap-stat-progress-track" role="progressbar" aria-label={`${cat.label}: ${cat.pct.toFixed(1)} percent`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={cat.pct}>
+                      <span
+                        className="ap-stat-progress-fill"
+                        style={{
+                          width: `${Math.max(0, Math.min(100, cat.pct))}%`,
+                          backgroundColor: cat.color,
+                          boxShadow: `0 0 8px ${cat.color}66`
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="ap-stat-highlights" aria-label="Portfolio highlights">
+                <div className="ap-stat-pill">
+                  <ShieldCheck size={13} aria-hidden="true" />
+                  <span>{riskLabel}</span>
+                </div>
+                <div className="ap-stat-pill">
+                  <Layers size={13} aria-hidden="true" />
+                  <span>{categoryBreakdown.length} Asset Classes</span>
+                </div>
+              </div>
+
+              <div className="ap-overview-note">
+                <ShieldCheck size={16} aria-hidden="true" />
+                <span>Your allocation is presented in the recommendation order returned for your profile.</span>
+              </div>
             </div>
           </div>
         </section>
@@ -612,6 +678,8 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
             {allocation.map((item, index) => {
               const isActive = hoveredSlice?.id === item.id;
               const itemRiskColor = RISK_COLORS[item.riskLabel] || '#fbbf24';
+              const displayType = formatSubtype(item.type || item.cat || item.category || 'Investment');
+              const categoryDesc = getCategoryDescription(item);
               return (
                 <motion.article
                   key={item.id}
@@ -623,13 +691,52 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
                   onMouseEnter={() => setHoveredSlice(item)}
                   onMouseLeave={() => setHoveredSlice(null)}
                 >
-                  <div className="ap-plan-card-head"><div className="ap-plan-card-identity"><span className="ap-plan-icon">{getCategoryIcon(item.cat || item.name)}</span><div><h3>{item.name}</h3><span>{item.type || item.cat || item.category || 'Investment'}</span></div></div><strong className="ap-plan-percent">{item.allocationPct.toFixed(1)}%</strong></div>
-                  <div className="ap-plan-card-category">{CATEGORY_EXPLANATIONS[item.cat] || CATEGORY_EXPLANATIONS[item.name] || item.cat || ''}</div>
+                  <div className="ap-card-shimmer" aria-hidden="true" />
+                  <div className="ap-plan-card-head">
+                    <div className="ap-plan-card-identity">
+                      <span className="ap-plan-icon">{getCategoryIcon(item.cat)}</span>
+                      <div className="ap-plan-title-col">
+                        <h3>{item.name}</h3>
+                        <span className="ap-plan-type-tag">{displayType}</span>
+                      </div>
+                    </div>
+                    <div className="ap-plan-percent-badge">
+                      <span className="ap-plan-percent-dot" aria-hidden="true" />
+                      <strong className="ap-plan-percent">{item.allocationPct.toFixed(1)}%</strong>
+                    </div>
+                  </div>
+                  <div className="ap-plan-card-category-row">
+                    <span className="ap-category-pill">
+                      <span className="ap-cat-beacon" style={{ backgroundColor: item.themeColor }} />
+                      <span className="ap-cat-text">{categoryDesc}</span>
+                    </span>
+                    <span className="ap-cat-target-label">Target share</span>
+                  </div>
                   <div className="ap-progress-track" role="progressbar" aria-label={`${item.name}: ${item.allocationPct.toFixed(1)} percent allocation`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={item.allocationPct}><span style={{ width: `${Math.max(0, Math.min(100, item.allocationPct))}%` }} /></div>
                   <div className="ap-plan-card-metrics">
-                    <div><span>Monthly</span><strong>{formatCurrency(item.monthlyAmount)}</strong></div>
-                    <div><PlanTerm term="Model return assumption" explanation="A versioned model input for planning. It is not a live rate, provider forecast, or guarantee." /><strong>{item.nominalRate}%/yr</strong></div>
-                    <div><PlanTerm term="Risk" explanation="The risk classification supplied with this recommendation. It is shown as context, not a promise about future performance." /><strong className="ap-risk-value" style={{ color: itemRiskColor }}>{item.riskLabel}</strong></div>
+                    <div className="ap-metric-cell">
+                      <div className="ap-metric-cell-header">
+                        <span className="ap-metric-cell-label">Monthly</span>
+                      </div>
+                      <strong className="ap-metric-cell-val ap-monthly-val">{formatCurrency(item.monthlyAmount)}</strong>
+                    </div>
+                    <div className="ap-metric-cell">
+                      <div className="ap-metric-cell-header">
+                        <PlanTerm term="Model return assumption" label="Model return" explanation="A versioned model input for planning. It is not a live rate, provider forecast, or guarantee." />
+                      </div>
+                      <strong className="ap-metric-cell-val ap-return-val">{isPresentFiniteNumber(item.nominalRate) ? `${Number(item.nominalRate)}%/yr` : 'Unavailable'}</strong>
+                    </div>
+                    <div className="ap-metric-cell">
+                      <div className="ap-metric-cell-header">
+                        <PlanTerm term="Risk" explanation="The risk classification supplied with this recommendation. It is shown as context, not a promise about future performance." />
+                      </div>
+                      <div className="ap-risk-value ap-metric-cell-val">
+                        <strong className="ap-risk-pill" style={{ '--risk-tint': itemRiskColor, color: itemRiskColor }}>
+                          <span className="ap-risk-dot" style={{ backgroundColor: itemRiskColor }} aria-hidden="true" />
+                          {item.riskLabel}
+                        </strong>
+                      </div>
+                    </div>
                   </div>
                   {item.concentrationBadge && <div className="ap-concentration"><Info size={14} aria-hidden="true" />{item.concentrationBadge}</div>}
                 </motion.article>
@@ -647,7 +754,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
           <div className="ap-section-heading"><div><span className="ap-eyebrow">TRANSPARENCY</span><h2 id="plan-assumptions-title">Plan assumptions</h2></div><span className="ap-section-note">For context, not a promise</span></div>
           <div className="ap-assumptions-grid">
             <div className="ap-assumption-main"><div className="ap-assumption-label"><PlanTerm term="Portfolio model return assumption" explanation="A backend-weighted, pre-tax nominal model input used for planning. It is not a provider forecast or guaranteed outcome." /></div><strong>{Number.isFinite(blendedReturn) ? `${blendedReturn.toFixed(1)}%` : 'Unavailable'} <small>per year</small></strong><p>Backend-weighted, pre-tax nominal model assumption. Tax is calculated separately with explicit tax inputs.</p></div>
-            <div className="ap-assumption-facts"><div><span>Allocation model</span><strong>Profile-based</strong></div><div><span>Risk context</span><strong>{riskLabel}</strong></div><div><span>Equity / debt / other</span><strong>{equityExposure.toFixed(1)}% / {debtGovtExposure.toFixed(1)}% / {altExposure.toFixed(1)}%</strong></div></div>
+            <div className="ap-assumption-facts"><div><span>Allocation model</span><strong>Profile-based</strong></div><div><span>Risk context</span><strong>{riskLabel}</strong></div><div><span>Allocation share</span><strong>{isPresentFiniteNumber(allocationPctTotal) ? `${allocationPctTotal.toFixed(1)}%` : 'Unavailable'}</strong></div></div>
           </div>
         </section>
       </div>

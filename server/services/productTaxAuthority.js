@@ -1,4 +1,4 @@
-import { isQualifiedNiftyEtfIdentity } from './niftyEtfProductRanking.js';
+import { isQualifiedNiftyEtfIdentity, supportsQualifiedEtfParentCategory } from './niftyEtfProductRanking.js';
 
 /**
  * Source-qualified product tax authority for the WTI comparison path.
@@ -49,6 +49,7 @@ export const PRODUCT_TAX_STATUSES = Object.freeze({
   FISCAL_YEAR_UNSUPPORTED: 'FISCAL_YEAR_UNSUPPORTED',
   PRODUCT_FACTS_UNAVAILABLE: 'PRODUCT_FACTS_UNAVAILABLE',
   TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS: 'TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS',
+  SOURCE_RIGHTS_UNQUALIFIED: 'SOURCE_RIGHTS_UNQUALIFIED',
   UNAVAILABLE: 'UNAVAILABLE',
 });
 
@@ -75,12 +76,6 @@ const FRSB_SOURCE = Object.freeze({
   authority: 'Reserve Bank of India',
   title: 'Floating Rate Savings Bonds 2020 (Taxable) guidelines',
   url: 'https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11924',
-  role: 'PRODUCT_RULE',
-});
-const FD_SOURCE = Object.freeze({
-  authority: 'State Bank of India',
-  title: 'Retail domestic term-deposit rate source',
-  url: 'https://sbi.co.in/web/interest-rates/deposit-rates/retail-domestic-term-deposits',
   role: 'PRODUCT_RULE',
 });
 const SGB_SOURCE = Object.freeze({
@@ -114,13 +109,13 @@ const EXACT_PARENT_TAX_METADATA = Object.freeze({
   fd: Object.freeze({
     taxClass: PRODUCT_TAX_CLASSES.BANK_DEPOSIT_INTEREST,
     displayName: 'Bank fixed deposit interest',
-    sourceReferences: Object.freeze([FD_SOURCE]),
+    sourceReferences: Object.freeze([]),
     rulesApplied: Object.freeze(['BANK_DEPOSIT_INTEREST_TAXED_AT_INCOME_TAX_RATES']),
   }),
   sbi_fd: Object.freeze({
     taxClass: PRODUCT_TAX_CLASSES.BANK_DEPOSIT_INTEREST,
     displayName: 'SBI retail domestic term-deposit interest',
-    sourceReferences: Object.freeze([FD_SOURCE]),
+    sourceReferences: Object.freeze([]),
     rulesApplied: Object.freeze(['BANK_DEPOSIT_INTEREST_TAXED_AT_INCOME_TAX_RATES']),
   }),
   rbi_bonds: Object.freeze({
@@ -275,6 +270,22 @@ export function getProductTaxMetadata(product = {}, parentInstrumentId = product
       ? 'This product category has no qualified tax adapter in the current WTI contract.'
       : 'The qualified provider did not supply a tax classification for this product.',
   };
+}
+
+/**
+ * Resolve tax metadata for a user-declared scenario without accepting tax
+ * classes or source facts from the request. The only exact ETF scenario is
+ * bound to the server-qualified canonical NIFTYBEES identity.
+ */
+export function getUserScenarioTaxMetadata(parentInstrumentId, canonicalProductId = null) {
+  if (parentInstrumentId === 'nifty_etf') {
+    if (canonicalProductId !== NIFTYBEES_CANONICAL_ID || !supportsQualifiedEtfParentCategory(parentInstrumentId)) {
+      return unavailableTaxMetadata('EXACT_ETF_IDENTITY_NOT_QUALIFIED');
+    }
+    return copyNiftyBeesTaxMetadata();
+  }
+  if (canonicalProductId !== null) return unavailableTaxMetadata('CANONICAL_PRODUCT_ID_NOT_QUALIFIED_FOR_PARENT');
+  return getProductTaxMetadata({}, parentInstrumentId);
 }
 
 export function getRequiredTaxInputs(taxClass) {

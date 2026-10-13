@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   Shield,
+  ShieldCheck,
+  CheckCircle2,
+  Target,
   Star,
   Info,
   Wallet,
@@ -21,6 +24,7 @@ import {
 } from 'lucide-react';
 import * as api from '../../services/api';
 import SebiDisclaimer from '../SebiDisclaimer';
+import '../DeepDiveModal.css';
 import {
   formatMarketTimestamp,
   getMarketAttemptedProvider,
@@ -31,8 +35,9 @@ import {
   safeSourceUrl,
 } from '../../utils/marketDataDisplay';
 import { formatINR } from '../../utils/recommendationPresentation';
-import { toOptionalNumber } from '../../utils/financialValues';
+import { isPresentFiniteNumber, toOptionalNumber } from '../../utils/financialValues';
 import { useMarketContext } from '../../state/useMarketContext';
+import UserDeclaredScenarioPanel from './UserDeclaredScenarioPanel';
 
 const RISK_LEVELS = [
   { label: 'Low', color: '#22c55e', desc: 'Lower relative risk. Any guarantee or insurance depends on the specific product terms.' },
@@ -114,16 +119,116 @@ const MARKET_CONTEXT_COPY = {
   },
 };
 
-function marketSnapshotFingerprint(snapshot) {
-  if (!snapshot) return null;
-  return [
-    snapshot.schemaVersion,
-    snapshot.status,
-    snapshot.observedAt,
-    snapshot.evaluatedAt,
-    snapshot.policyOutput?.policyVersion,
-    ...(snapshot.policyOutput?.reasonCodes || []),
-  ].join('|');
+function marketSnapshotFingerprint(snapshot, marketContext = null) {
+  const revision = snapshot?.contentRevision;
+  if (!revision || revision.version !== 'market-snapshot-content-1.0.0'
+      || !/^[a-f0-9]{64}$/i.test(revision.digest || '')) return null;
+  const usability = marketContext?.recommendationUsability || snapshot.recommendationUsability;
+  const usabilityStatus = usability?.status || 'UNKNOWN';
+  const usabilityReasons = Array.isArray(usability?.reasonCodes) ? [...usability.reasonCodes].sort() : [];
+  return `${revision.version}:${revision.digest}|${snapshot.status}|${usabilityStatus}|${usabilityReasons.join(',')}`;
+}
+
+const PREVIEW_MAX_TILT_PCT = Object.freeze({ NORMAL: 0, CAUTIOUS: 2, HIGH_VOLATILITY: 4, RISK_OFF: 5 });
+
+function validatePreviewResponse(result, binding) {
+  const responseBindingMatches = result?.profileId === binding.profileId
+    && Number(result?.profile_version) === binding.profileVersion
+    && result?.recommendationId === binding.recommendationId
+    && Number(result?.allocation_revision) === binding.allocationRevision
+    && result?.allocation_revision_id === binding.allocationRevisionId
+    && result?.portfolio_fingerprint === binding.portfolioFingerprint
+    && result?.recommendation_fingerprint === binding.recommendationFingerprint;
+  if (!responseBindingMatches) {
+    const error = new Error('Your saved plan changed while the preview was running. Refresh the plan and try again.');
+    error.code = 'FINANCIAL_STATE_CHANGED';
+    throw error;
+  }
+  if (result.persisted !== false) throw new Error('The server could not confirm that this preview leaves your saved plan unchanged.');
+
+  const snapshot = result.marketContext?.marketSnapshot;
+  if (!marketSnapshotFingerprint(snapshot, result.marketContext)) {
+    throw new Error('The server did not return a verified market snapshot for this preview. Refresh market data and try again.');
+  }
+
+  const baseWeights = result.baseWeights;
+  const adjustedWeights = result.adjustedWeights;
+  const instruments = result.adjustedInstruments;
+  if (!baseWeights || !adjustedWeights || !Array.isArray(instruments) || instruments.length === 0) {
+    throw new Error('The server returned an incomplete allocation comparison. Please try again.');
+  }
+  const baseIds = Object.keys(baseWeights).sort();
+  const adjustedIds = Object.keys(adjustedWeights).sort();
+  const instrumentIds = instruments.map(item => item?.id).sort();
+  if (baseIds.length !== adjustedIds.length
+      || baseIds.some((id, index) => id !== adjustedIds[index])
+      || baseIds.length !== instrumentIds.length
+      || baseIds.some((id, index) => id !== instrumentIds[index])) {
+    throw new Error('The server returned an allocation comparison that does not match your current holdings.');
+  }
+  const sumWeights = (weights) => Object.values(weights).reduce((sum, weight) => sum + Number(weight), 0);
+  if (baseIds.some(id => !Number.isFinite(baseWeights[id]) || baseWeights[id] < 0 || baseWeights[id] > 1
+      || !Number.isFinite(adjustedWeights[id]) || adjustedWeights[id] < 0 || adjustedWeights[id] > 1)
+      || Math.abs(sumWeights(baseWeights) - 1) > 0.001
+      || Math.abs(sumWeights(adjustedWeights) - 1) > 0.001
+      || instruments.some(item => Math.abs(Number(item.allocationWeight) - adjustedWeights[item.id]) > 0.000001)) {
+    throw new Error('The server returned invalid allocation weights. The preview has been withheld.');
+  }
+  const context = result.marketContext?.context;
+  const expectedMaxTilt = PREVIEW_MAX_TILT_PCT[context] ?? 0;
+  if (!Number.isFinite(result.maxTotalTiltPct) || result.maxTotalTiltPct !== expectedMaxTilt
+      || !Number.isFinite(result.actualTotalTiltPct) || result.actualTotalTiltPct < 0
+      || result.actualTotalTiltPct > result.maxTotalTiltPct + 0.000001
+      || (result.applied === true && result.marketContext?.recommendationUsability?.status !== 'USABLE')) {
+    throw new Error('The server returned a preview outside the verified market or adjustment limits.');
+  }
+  return result;
+}
+
+const PREVIEW_REASON_COPY = {
+  NORMAL_CONTEXT_NO_TACTICAL_ADJUSTMENT: 'Market conditions are steady, so no allocation shift is proposed.',
+  NO_LOWER_RISK_ELIGIBLE_TRANSFER_PATH: 'There is no lower-risk investment in your current suitable plan to receive a transfer.',
+  CONCENTRATION_CAPS_PREVENT_LOWER_RISK_TRANSFER: 'Your existing concentration limits prevent a further allocation shift.',
+  MARKET_CONTEXT_UNAVAILABLE_NO_ADJUSTMENT: 'Verified market information is unavailable, so no adjustment was calculated.',
+  MARKET_CONTEXT_NOT_USABLE_FOR_RECOMMENDATION: 'The latest market information is not fresh enough for a plan adjustment.',
+};
+
+function previewReasonText(reasonCode) {
+  if (PREVIEW_REASON_COPY[reasonCode]) return PREVIEW_REASON_COPY[reasonCode];
+  if (reasonCode === 'BOUNDED_REDUCTION_FROM_HIGHER_RISK_ELIGIBLE_INSTRUMENT') {
+    return 'A limited amount is moved away from a higher-risk investment already in your plan.';
+  }
+  if (reasonCode === 'BOUNDED_TRANSFER_TO_LOWEST_RISK_ALREADY_ELIGIBLE_INSTRUMENT') {
+    return 'The amount is moved to a lower-risk investment already in your suitable plan.';
+  }
+  return 'No additional change is permitted within your current plan constraints.';
+}
+
+function previewErrorCopy(error) {
+  if (error?.code === 'STALE_RECOMMENDATION_PROFILE' || error?.code === 'RECOMMENDATION_STALE'
+      || error?.code === 'FINANCIAL_STATE_CHANGED') {
+    return 'Your saved plan has changed since recommendations were created. Refresh or regenerate the plan, then try again.';
+  }
+  if (error?.code === 'MARKET_CONTEXT_CHANGED') {
+    return 'Verified market information changed while this preview was running. Refresh market data and run the preview again.';
+  }
+  if (error?.code === 'AUTH_REQUIRED' || error?.status === 401) {
+    return 'Your session has expired. Sign in again to preview your plan.';
+  }
+  if (error?.code === 'REQUEST_TIMEOUT' || error?.status === 408 || error?.status === 504) {
+    return 'The preview took too long to load. Check your connection and try again.';
+  }
+  return error?.message || 'The plan preview is unavailable. Refresh market data and try again.';
+}
+
+function formatAllocationPercent(weight) {
+  return `${(Number(weight) * 100).toFixed(2)}%`;
+}
+
+function formatAllocationDelta(deltaPct) {
+  const rounded = Math.abs(deltaPct) < 0.005 ? 0 : deltaPct;
+  if (rounded === 0) return '0.00 pp';
+  return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded).toFixed(2)} pp`;
 }
 
 const SIGNAL_DEFINITIONS = [
@@ -205,6 +310,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
     parentInstrumentId,
     revisionId: recommendationMeta?.allocation_revision_id,
   });
+  const previewBindingKey = JSON.stringify(financialStateBinding);
 
   const [rankingResult, setRankingResult] = useState({
     requestKey: null,
@@ -226,16 +332,20 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   const subKeys = subCategoryMap ? Object.keys(subCategoryMap) : [];
 
   const [contextPreview, setContextPreview] = useState(null);
+  const [contextPreviewVisible, setContextPreviewVisible] = useState(false);
   const [contextPreviewError, setContextPreviewError] = useState(null);
   const [contextPreviewLoading, setContextPreviewLoading] = useState(false);
   const previewController = useRef(null);
+  const previewRequestGeneration = useRef(0);
   const {
     marketContext,
     marketContextError,
     marketContextLoading,
     marketContextRefreshing,
     marketContextTransport,
+    marketContextRevision,
     refreshMarketContext,
+    acceptMarketContext,
   } = useMarketContext();
   const [sortBy, setSortBy] = useState('score');
   const [isTechExpanded, setIsTechExpanded] = useState(false);
@@ -281,8 +391,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   }, []);
 
   useEffect(() => {
-    setContextPreview(null);
-    setContextPreviewError(null);
     setActiveTaxContext(null);
     setShowTaxDrawer(false);
     setTaxAnnualIncome('');
@@ -303,28 +411,45 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   }, [financialKey, userProfile?.age]);
 
   useEffect(() => {
+    previewRequestGeneration.current += 1;
+    previewController.current?.abort();
+    previewController.current = null;
+    setContextPreview(null);
+    setContextPreviewVisible(false);
+    setContextPreviewError(null);
+    setContextPreviewLoading(false);
+    return () => {
+      previewRequestGeneration.current += 1;
+      previewController.current?.abort();
+      previewController.current = null;
+    };
+  }, [previewBindingKey]);
+
+  useEffect(() => {
     if (userProfile?.age !== undefined && userProfile?.age !== null) {
       setTaxUserAge(userProfile.age);
     }
   }, [userProfile?.age]);
 
   const currentMarketSnapshot = marketContext?.marketSnapshot || null;
-  const currentSnapshotFingerprint = marketSnapshotFingerprint(currentMarketSnapshot);
+  const currentSnapshotFingerprint = marketSnapshotFingerprint(currentMarketSnapshot, marketContext);
+  const currentSnapshotFingerprintRef = useRef(currentSnapshotFingerprint);
+  const marketContextRevisionRef = useRef(marketContextRevision);
+  currentSnapshotFingerprintRef.current = currentSnapshotFingerprint;
+  marketContextRevisionRef.current = marketContextRevision;
   useEffect(() => {
-    previewController.current?.abort();
-    setContextPreviewLoading(false);
-    return () => previewController.current?.abort();
-  }, [financialKey, currentSnapshotFingerprint]);
-  useEffect(() => {
-    if (contextPreview && contextPreview.__marketSnapshotFingerprint !== currentSnapshotFingerprint) {
+    if (contextPreview && currentSnapshotFingerprint
+        && contextPreview.__marketSnapshotFingerprint !== currentSnapshotFingerprint) {
       setContextPreview(null);
+      setContextPreviewVisible(false);
       setContextPreviewError('This preview is stale because the verified market snapshot changed. Run it again.');
     }
   }, [currentSnapshotFingerprint, contextPreview]);
 
   const toggleContextPreview = async () => {
-    if (contextPreview && contextPreview.__marketSnapshotFingerprint === currentSnapshotFingerprint) {
-      setContextPreview(null);
+    if (contextPreview && contextPreview.__financialBindingKey === previewBindingKey
+        && contextPreview.__marketSnapshotFingerprint === currentSnapshotFingerprint) {
+      setContextPreviewVisible(visible => !visible);
       return;
     }
     if (marketContext?.status !== 'MARKET_CONTEXT_AVAILABLE' || !profileId) {
@@ -332,22 +457,47 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
       return;
     }
     const controller = new AbortController();
+    const requestId = ++previewRequestGeneration.current;
+    const requestMarketRevision = marketContextRevisionRef.current;
+    const requestSnapshotFingerprint = currentSnapshotFingerprintRef.current;
     previewController.current = controller;
     try {
       setContextPreviewLoading(true);
       setContextPreviewError(null);
-      const result = await api.previewMarketContextAdjustment(profileId, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      setContextPreview({
-        ...result,
-        __marketSnapshotFingerprint: marketSnapshotFingerprint(result?.marketContext?.marketSnapshot),
-      });
-    } catch (error) {
-      if (controller.signal.aborted) return;
       setContextPreview(null);
-      setContextPreviewError(error.message || 'Market-context adjustment preview is unavailable.');
+      setContextPreviewVisible(false);
+      const result = await api.previewMarketContextAdjustment(profileId, { signal: controller.signal });
+      if (controller.signal.aborted || requestId !== previewRequestGeneration.current) return;
+      const validatedResult = validatePreviewResponse(result, financialStateBinding);
+      const responseFingerprint = marketSnapshotFingerprint(
+        validatedResult.marketContext.marketSnapshot,
+        validatedResult.marketContext,
+      );
+      if (marketContextRevisionRef.current > requestMarketRevision
+          && currentSnapshotFingerprintRef.current
+          && responseFingerprint !== currentSnapshotFingerprintRef.current) {
+        const changed = new Error('Verified market information changed while this preview was running. Refresh market data and run the preview again.');
+        changed.code = 'MARKET_CONTEXT_CHANGED';
+        throw changed;
+      }
+      acceptMarketContext(validatedResult.marketContext);
+      setContextPreview({
+        ...validatedResult,
+        __financialBindingKey: previewBindingKey,
+        __marketSnapshotFingerprint: responseFingerprint,
+        __marketWasRefreshed: Boolean(requestSnapshotFingerprint && requestSnapshotFingerprint !== responseFingerprint),
+      });
+      setContextPreviewVisible(true);
+    } catch (error) {
+      if (controller.signal.aborted || requestId !== previewRequestGeneration.current) return;
+      setContextPreview(null);
+      setContextPreviewVisible(false);
+      setContextPreviewError(previewErrorCopy(error));
     } finally {
-      if (!controller.signal.aborted) setContextPreviewLoading(false);
+      if (!controller.signal.aborted && requestId === previewRequestGeneration.current) {
+        setContextPreviewLoading(false);
+        if (previewController.current === controller) previewController.current = null;
+      }
     }
   };
 
@@ -510,6 +660,57 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
     setActiveTaxContext(nextContext);
   };
 
+  const riskLevel = nullableMarketNumber(wtiData?.riskLevel);
+  const level = Number.isFinite(riskLevel) ? Math.max(0, Math.min(5, riskLevel - 1)) : null;
+  const risk = level === null
+    ? { label: 'Not available', color: '#64748b', desc: 'The backend did not provide a parent-category suitability risk classification.' }
+    : { ...RISK_LEVELS[level], desc: `${RISK_LEVELS[level].desc} This is the parent-category suitability tier, not a verified product Risk-o-Meter.` };
+  const riskBaseDesc = level !== null ? RISK_LEVELS[level].desc : risk.desc;
+
+  const suitabilityChips = useMemo(() => {
+    if (level === null) return [];
+    if (level === 0) {
+      return [
+        { label: 'Capital Safety', value: 'Highest · Sovereign Backed', icon: 'shield', highlight: true },
+        { label: 'Price Volatility', value: 'Zero to Minimal', icon: 'activity' },
+        { label: 'Investor Profile', value: 'Conservative & Beginner', icon: 'target' },
+      ];
+    }
+    if (level === 1) {
+      return [
+        { label: 'Capital Safety', value: 'High · Regulated Bank', icon: 'shield', highlight: true },
+        { label: 'Price Volatility', value: 'Low & Predictable', icon: 'activity' },
+        { label: 'Investor Profile', value: 'Stability Focused', icon: 'target' },
+      ];
+    }
+    if (level === 2) {
+      return [
+        { label: 'Capital Safety', value: 'Moderate Capital Buffer', icon: 'shield', highlight: true },
+        { label: 'Price Volatility', value: 'Controlled Fluctuations', icon: 'activity' },
+        { label: 'Investor Profile', value: 'Balanced Growth', icon: 'target' },
+      ];
+    }
+    if (level === 3) {
+      return [
+        { label: 'Capital Safety', value: 'Market Sensitive', icon: 'shield', highlight: false },
+        { label: 'Price Volatility', value: 'Moderate to High', icon: 'activity' },
+        { label: 'Investor Profile', value: 'Active Wealth Builder', icon: 'target' },
+      ];
+    }
+    if (level === 4) {
+      return [
+        { label: 'Capital Safety', value: 'Equity Market Linked', icon: 'shield', highlight: false },
+        { label: 'Price Volatility', value: 'Substantial Drawdowns', icon: 'activity' },
+        { label: 'Investor Profile', value: 'Growth & High Horizon', icon: 'target' },
+      ];
+    }
+    return [
+      { label: 'Capital Safety', value: 'High Risk / Unhedged', icon: 'shield', highlight: false },
+      { label: 'Price Volatility', value: 'Significant Volatility', icon: 'activity' },
+      { label: 'Investor Profile', value: 'Aggressive Horizon Only', icon: 'target' },
+    ];
+  }, [level]);
+
   if (!wtiData) {
     return (
       <div style={{ textAlign: 'center', padding: '80px 0' }}>
@@ -520,12 +721,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
       </div>
     );
   }
-
-  const riskLevel = nullableMarketNumber(wtiData.riskLevel);
-  const level = Number.isFinite(riskLevel) ? Math.max(0, Math.min(5, riskLevel - 1)) : null;
-  const risk = level === null
-    ? { label: 'Not available', color: '#64748b', desc: 'The backend did not provide a parent-category suitability risk classification.' }
-    : { ...RISK_LEVELS[level], desc: `${RISK_LEVELS[level].desc} This is the parent-category suitability tier, not a verified product Risk-o-Meter.` };
 
   const CX = 140, CY = 125, R = 90, r2 = 62;
   const totalAngle = Math.PI;
@@ -598,8 +793,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   const signalMap = marketContext?.signals || {};
   const definedSignalKeys = new Set(SIGNAL_DEFINITIONS.map(d => d.key));
   const marketSignals = SIGNAL_DEFINITIONS.filter(d => d.group === 'market' && signalMap[d.key]);
-  const trendSignals = SIGNAL_DEFINITIONS.filter(d => d.group === 'trend' && signalMap[d.key]);
-  const volatilitySignals = SIGNAL_DEFINITIONS.filter(d => d.group === 'volatility' && signalMap[d.key]);
+  const trendAndVolatilitySignals = SIGNAL_DEFINITIONS.filter(d => ['trend', 'volatility'].includes(d.group) && signalMap[d.key]);
   const otherSignals = Object.keys(signalMap)
     .filter(k => !definedSignalKeys.has(k))
     .map(k => ({ key: k, label: k.replace(/([A-Z])/g, ' $1').trim() }));
@@ -609,6 +803,28 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   const semanticFacts = marketSnapshot
     ? `${marketSnapshot.observedFacts?.length || 0} observed · ${marketSnapshot.derivedFacts?.length || 0} derived · 1 policy output`
     : 'Observed, derived, and policy output are separated by the backend contract.';
+
+  const previewMarketSnapshot = contextPreview?.marketContext?.marketSnapshot;
+  const previewUsable = contextPreview?.marketContext?.recommendationUsability?.status === 'USABLE';
+  const previewRows = (contextPreview?.adjustedInstruments || []).map(instrument => {
+    const currentWeight = Number(contextPreview.baseWeights[instrument.id]);
+    const proposedWeight = Number(contextPreview.adjustedWeights[instrument.id]);
+    const changePct = (proposedWeight - currentWeight) * 100;
+    const explanation = contextPreview.explanations?.find(item => item.instrumentId === instrument.id);
+    return {
+      id: instrument.id,
+      name: instrument.name || instrument.id,
+      currentWeight,
+      proposedWeight,
+      changePct,
+      reason: explanation ? previewReasonText(explanation.reasonCode) : null,
+    };
+  });
+  const previewNoOpReason = !previewUsable
+    ? 'Verified market information is not fresh or complete enough to calculate an adjustment.'
+    : !contextPreview?.applied
+      ? previewReasonText(contextPreview?.reasonCodes?.[0])
+      : null;
 
   const formatSignal = (item) => {
     if (!item?.available || !Number.isFinite(item.value)) return 'UNAVAILABLE';
@@ -677,14 +893,14 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
             className="wti-preview-plan-btn"
             onClick={toggleContextPreview}
             disabled={contextPreviewLoading || !contextAvailable || !profileId}
-            aria-label="See how this affects my plan"
+            aria-label={contextPreview ? `${contextPreviewVisible ? 'Hide' : 'Show'} allocation preview` : 'See how this affects my plan'}
           >
             <ArrowUpRight size={14} />
             <span>
               {contextPreviewLoading
                 ? 'Running Server Preview…'
                 : contextPreview
-                ? 'Adjustment Preview Ready ✓'
+                ? `${contextPreviewVisible ? 'Hide' : 'Show'} allocation preview`
                 : 'See how this affects my plan'}
             </span>
           </button>
@@ -704,10 +920,84 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           </button>
         </div>
 
-        {contextPreview && (
-          <p className="wti-preview-feedback">
-            Server preview {contextPreview.applied ? 'applied' : 'did not apply'} a bounded {contextPreview.actualTotalTiltPct ?? 'unavailable'}% total tilt across {contextPreview.explanations?.length ?? 'unavailable'} allocation change{contextPreview.explanations?.length === 1 ? '' : 's'}. It is not persisted and does not execute trades.
-          </p>
+        {contextPreview && contextPreviewVisible && (
+          <section className="wti-preview-panel" aria-label="Hypothetical plan allocation preview" aria-live="polite" data-testid="market-adjustment-preview">
+            <div className="wti-preview-panel-heading">
+              <h4>Hypothetical allocation preview</h4>
+              <span>{contextPreview.applied ? 'Proposed change' : 'No allocation change'}</span>
+            </div>
+            <dl className="wti-preview-context-grid">
+              <div>
+                <dt>Market condition used</dt>
+                <dd>{contextPreview.marketContext?.context
+                  ? contextPreview.marketContext.context.replaceAll('_', ' ').toLowerCase().replace(/^./, char => char.toUpperCase())
+                  : 'Unavailable'}</dd>
+              </div>
+              <div>
+                <dt>Evidence observed</dt>
+                <dd>{formatMarketTimestamp(previewMarketSnapshot?.observedAt) || 'Unavailable'}</dd>
+              </div>
+              <div>
+                <dt>Proposed total shift</dt>
+                <dd>{previewUsable ? `${Number(contextPreview.actualTotalTiltPct).toFixed(2)}%` : 'Not calculated'}</dd>
+              </div>
+              <div>
+                <dt>Policy version</dt>
+                <dd>{previewMarketSnapshot?.policyOutput?.policyVersion || 'Unavailable'}</dd>
+              </div>
+            </dl>
+
+            {contextPreview.__marketWasRefreshed && (
+              <p className="wti-preview-refresh-note" role="status">
+                The server refreshed verified market information for this preview. The comparison below uses that exact snapshot.
+              </p>
+            )}
+
+            {!previewUsable && (
+              <p className="wti-preview-noop" role="status">{previewNoOpReason} No allocation change was calculated.</p>
+            )}
+            {previewUsable && !contextPreview.applied && (
+              <p className="wti-preview-noop" role="status">{previewNoOpReason}</p>
+            )}
+
+            {previewUsable && (
+              <div className="wti-preview-table-wrap" tabIndex="0" aria-label="Scrollable before and after allocation comparison">
+                <table className="wti-preview-table">
+                  <caption>Current and proposed allocation percentages</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Investment</th>
+                      <th scope="col">Current</th>
+                      <th scope="col">Preview</th>
+                      <th scope="col">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map(row => (
+                      <tr key={row.id} data-testid={`preview-row-${row.id}`}>
+                        <th scope="row">
+                          <span>{row.name}</span>
+                          {row.reason && <small>{row.reason}</small>}
+                        </th>
+                        <td>{formatAllocationPercent(row.currentWeight)}</td>
+                        <td>{formatAllocationPercent(row.proposedWeight)}</td>
+                        <td>
+                          <span className={`wti-preview-delta ${row.changePct > 0.005 ? 'wti-preview-delta--increase' : row.changePct < -0.005 ? 'wti-preview-delta--reduce' : ''}`}>
+                            {row.changePct > 0.005 ? 'Increase ' : row.changePct < -0.005 ? 'Reduce ' : 'Unchanged '}
+                            {formatAllocationDelta(row.changePct)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <p className="wti-preview-disclaimer">
+              This is a hypothetical comparison within your suitability limits. Your saved plan has not changed; nothing has been bought or sold. It is not a guarantee of improved returns.
+            </p>
+          </section>
         )}
         {contextPreviewError && (
           <p role="alert" className="wti-preview-error">{contextPreviewError}</p>
@@ -725,72 +1015,90 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
             <div data-testid="market-context-signals" className="wti-tech-signals-container">
               {marketSignals.length > 0 && (
                 <div className="wti-tech-group">
-                  <h4 className="wti-tech-group-title">Market & Index</h4>
+                  <h4 className="wti-tech-group-title">Market & Benchmark Indicators</h4>
                   <div className="wti-tech-metric-grid">
-                    {marketSignals.map(sig => (
-                      <div key={sig.key} className="wti-tech-metric-tile">
-                        <span className="wti-tech-metric-label">{sig.label}</span>
-                        <span className="wti-tech-metric-class">{signalSemanticClass(sig.key)}</span>
-                        <span
-                          className="wti-tech-metric-value"
-                          style={{ color: signalMap[sig.key]?.available ? '#f8fafc' : '#fbbf24' }}
-                        >
-                          {formatSignal(signalMap[sig.key])}
-                        </span>
-                      </div>
-                    ))}
+                    {marketSignals.map(sig => {
+                      const valStr = String(formatSignal(signalMap[sig.key]));
+                      const isNegative = valStr.startsWith('-') || valStr.startsWith('−');
+                      const isPositivePct = valStr.endsWith('%') && Number(signalMap[sig.key]?.value) > 0;
+                      return (
+                        <div key={sig.key} className="wti-tech-metric-tile" data-signal-key={sig.key}>
+                          <div className="wti-tech-metric-top">
+                            <span className="wti-tech-metric-label">{sig.label}</span>
+                            <span className={`wti-tech-metric-class wti-class-${String(signalSemanticClass(sig.key)).toLowerCase()}`}>
+                              {signalSemanticClass(sig.key)}
+                            </span>
+                          </div>
+                          <span
+                            className="wti-tech-metric-value"
+                            style={{
+                              color: !signalMap[sig.key]?.available
+                                ? '#fbbf24'
+                                : isNegative
+                                ? '#f87171'
+                                : isPositivePct
+                                ? '#34d399'
+                                : '#f8fafc',
+                            }}
+                          >
+                            {formatSignal(signalMap[sig.key])}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {trendSignals.length > 0 && (
+              {trendAndVolatilitySignals.length > 0 && (
                 <div className="wti-tech-group">
-                  <h4 className="wti-tech-group-title">Trend & Moving Averages</h4>
+                  <h4 className="wti-tech-group-title">Trend, Moving Averages & Volatility</h4>
                   <div className="wti-tech-metric-grid">
-                    {trendSignals.map(sig => (
-                      <div key={sig.key} className="wti-tech-metric-tile">
-                        <span className="wti-tech-metric-label">{sig.label}</span>
-                        <span className="wti-tech-metric-class">{signalSemanticClass(sig.key)}</span>
-                        <span
-                          className="wti-tech-metric-value"
-                          style={{ color: signalMap[sig.key]?.available ? '#f8fafc' : '#fbbf24' }}
-                        >
-                          {formatSignal(signalMap[sig.key])}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {volatilitySignals.length > 0 && (
-                <div className="wti-tech-group">
-                  <h4 className="wti-tech-group-title">Volatility</h4>
-                  <div className="wti-tech-metric-grid">
-                    {volatilitySignals.map(sig => (
-                      <div key={sig.key} className="wti-tech-metric-tile">
-                        <span className="wti-tech-metric-label">{sig.label}</span>
-                        <span className="wti-tech-metric-class">{signalSemanticClass(sig.key)}</span>
-                        <span
-                          className="wti-tech-metric-value"
-                          style={{ color: signalMap[sig.key]?.available ? '#f8fafc' : '#fbbf24' }}
-                        >
-                          {formatSignal(signalMap[sig.key])}
-                        </span>
-                      </div>
-                    ))}
+                    {trendAndVolatilitySignals.map(sig => {
+                      const valStr = String(formatSignal(signalMap[sig.key]));
+                      const isNegative = valStr.startsWith('-') || valStr.startsWith('−');
+                      const isPositivePct = valStr.endsWith('%') && Number(signalMap[sig.key]?.value) > 0;
+                      return (
+                        <div key={sig.key} className="wti-tech-metric-tile" data-signal-key={sig.key}>
+                          <div className="wti-tech-metric-top">
+                            <span className="wti-tech-metric-label">{sig.label}</span>
+                            <span className={`wti-tech-metric-class wti-class-${String(signalSemanticClass(sig.key)).toLowerCase()}`}>
+                              {signalSemanticClass(sig.key)}
+                            </span>
+                          </div>
+                          <span
+                            className="wti-tech-metric-value"
+                            style={{
+                              color: !signalMap[sig.key]?.available
+                                ? '#fbbf24'
+                                : isNegative
+                                ? '#f87171'
+                                : isPositivePct
+                                ? '#34d399'
+                                : '#f8fafc',
+                            }}
+                          >
+                            {formatSignal(signalMap[sig.key])}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {otherSignals.length > 0 && (
-                <div className="wti-tech-group">
-                  <h4 className="wti-tech-group-title">Other Signals</h4>
+                <div className="wti-tech-group wti-tech-group--other">
+                  <h4 className="wti-tech-group-title">Other Telemetry Signals</h4>
                   <div className="wti-tech-metric-grid">
                     {otherSignals.map(sig => (
-                      <div key={sig.key} className="wti-tech-metric-tile">
-                        <span className="wti-tech-metric-label">{sig.label}</span>
-                        <span className="wti-tech-metric-class">{signalSemanticClass(sig.key)}</span>
+                      <div key={sig.key} className="wti-tech-metric-tile" data-signal-key={sig.key}>
+                        <div className="wti-tech-metric-top">
+                          <span className="wti-tech-metric-label">{sig.label}</span>
+                          <span className={`wti-tech-metric-class wti-class-${String(signalSemanticClass(sig.key)).toLowerCase()}`}>
+                            {signalSemanticClass(sig.key)}
+                          </span>
+                        </div>
                         <span
                           className="wti-tech-metric-value"
                           style={{ color: signalMap[sig.key]?.available ? '#f8fafc' : '#fbbf24' }}
@@ -806,34 +1114,63 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
 
             {/* Evidence & Provenance Section */}
             <div className="wti-tech-evidence-section">
-              <h4 className="wti-tech-group-title">Evidence & Policy Provenance</h4>
-              <div className="wti-semantic-legend" data-testid="market-semantic-legend">
-                <span>Observed facts: provider values</span>
-                <span>Derived facts: deterministic calculations</span>
-                <span>Policy output: market-context classification</span>
-              </div>
-              <div className="wti-tech-provenance-lines">Data plane: {semanticFacts}</div>
-              <div className="wti-tech-policy-badge">
-                {contextAvailable
-                  ? `${marketContext.classification} · ${marketContext.policyVersion} · confidence: unavailable (deterministic policy, not ML)`
-                  : marketContextError || 'No usable live context is published unless NIFTY 50, India VIX, and sufficient fresh history are all verified.'}
+              <div className="wti-tech-evidence-header">
+                <div className="wti-tech-evidence-title-group">
+                  <Shield size={16} />
+                  <h4 className="wti-tech-group-title">Evidence & Policy Provenance</h4>
+                </div>
+                <div className="wti-semantic-legend" data-testid="market-semantic-legend">
+                  <span className="wti-legend-chip wti-chip-observed"><span className="wti-chip-dot"></span> Observed facts: provider values</span>
+                  <span className="wti-legend-chip wti-chip-derived"><span className="wti-chip-dot"></span> Derived facts: deterministic calculations</span>
+                  <span className="wti-legend-chip wti-chip-policy"><span className="wti-chip-dot"></span> Policy output: market-context classification</span>
+                </div>
               </div>
 
-              <div className="wti-tech-provenance-lines">
-                <div>
-                  Observed: {marketContext?.observedAt || 'UNAVAILABLE'} · Evaluated: {marketContext?.evaluatedAt || 'UNAVAILABLE'} · Freshness: {marketContext?.freshness?.status || 'UNAVAILABLE'}
+              <div className="wti-tech-policy-dock">
+                <div className="wti-tech-policy-badge">
+                  {contextAvailable
+                    ? `${marketContext.classification} · ${marketContext.policyVersion} · confidence: unavailable (deterministic policy, not ML)`
+                    : marketContextError || 'No usable live context is published unless NIFTY 50, India VIX, and sufficient fresh history are all verified.'}
                 </div>
-                <div>
-                  Sources:{' '}
-                  {marketContext?.sources?.length
-                    ? marketContext.sources.map(source => `${source.provider || 'UNAVAILABLE'} (${source.instrumentId || 'benchmark history'} · ${source.dataClass || 'UNAVAILABLE'})`).join(', ')
-                    : 'UNAVAILABLE'}
+                <div className="wti-tech-dataplane-badge">Data plane: {semanticFacts}</div>
+              </div>
+
+              <div className="wti-tech-provenance-grid">
+                <div className="wti-provenance-card">
+                  <span className="wti-provenance-kicker">Observation Timestamps</span>
+                  <div className="wti-provenance-val">
+                    <span>Observed: {marketContext?.observedAt || 'UNAVAILABLE'}</span>
+                    <span>Evaluated: {marketContext?.evaluatedAt || 'UNAVAILABLE'}</span>
+                    <span className="wti-freshness-pill">Freshness: {marketContext?.freshness?.status || 'UNAVAILABLE'}</span>
+                  </div>
                 </div>
-                {providerSelection && <div>
-                  Provider attempts: {(providerSelection.attemptedProviders || []).join(', ') || 'UNAVAILABLE'} · Selected: {providerSelection.selectedProvider || 'none'} · Fallback used: {providerSelection.fallbackUsed ? 'yes' : 'no'}
-                  {providerSelection.providerFailures?.length > 0 && ` · Failed attempts: ${providerSelection.providerFailures.map(failure => `${failure.provider} [${failure.reasonCodes.join(', ')}]`).join('; ')}`}
-                </div>}
-                <div>Reason codes: {contextReasonCodes.length ? contextReasonCodes.join(', ') : 'UNAVAILABLE'}</div>
+                <div className="wti-provenance-card">
+                  <span className="wti-provenance-kicker">Verified Data Sources</span>
+                  <div className="wti-provenance-val">
+                    {marketContext?.sources?.length
+                      ? marketContext.sources.map(source => `${source.provider || 'UNAVAILABLE'} (${source.instrumentId || 'benchmark history'} · ${source.dataClass || 'UNAVAILABLE'})`).join(', ')
+                      : 'UNAVAILABLE'}
+                  </div>
+                </div>
+                {providerSelection && (
+                  <div className="wti-provenance-card">
+                    <span className="wti-provenance-kicker">Provider Selection & Routing</span>
+                    <div className="wti-provenance-val">
+                      Provider attempts: {(providerSelection.attemptedProviders || []).join(', ') || 'UNAVAILABLE'} · Selected: {providerSelection.selectedProvider || 'none'} · Fallback used: {providerSelection.fallbackUsed ? 'yes' : 'no'}
+                      {providerSelection.providerFailures?.length > 0 && ` · Failed attempts: ${providerSelection.providerFailures.map(failure => `${failure.provider} [${failure.reasonCodes.join(', ')}]`).join('; ')}`}
+                    </div>
+                  </div>
+                )}
+                <div className="wti-provenance-card wti-provenance-card--reasons">
+                  <span className="wti-provenance-kicker">Active Policy Reason Codes</span>
+                  <div className="wti-provenance-reasons">
+                    {contextReasonCodes.length
+                      ? contextReasonCodes.map(code => (
+                          <span key={code} className="wti-reason-chip">{code}</span>
+                        ))
+                      : 'UNAVAILABLE'}
+                  </div>
+                </div>
               </div>
 
               <p className="wti-tech-safety-note">
@@ -880,7 +1217,11 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
       {rankingStatus === 'ready' && products.length === 0 && (
         <div role="status" className="wti-status-banner wti-status-banner--unavailable">
           <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
-          <div>No current source-qualified products are available for this category. No static fallback values were inserted.</div>
+          <div>
+            {rankingResult.comparisonUniverse?.productionSourceUseAllowed === false
+              ? 'This source is not cleared for WealthGenie production display. Product data and post-tax amounts remain unavailable until its reuse permissions are verified.'
+              : 'No current source-qualified products are available for this category. No static fallback values were inserted.'}
+          </div>
         </div>
       )}
 
@@ -1167,7 +1508,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
               This category passed the backend Financial Profile suitability check. The verified options below are a deeper product view inside it.
             </p>
           </div>
-          {Number.isFinite(Number(inv?.allocation_pct)) && (
+          {isPresentFiniteNumber(inv?.allocation_pct) && (
             <div className="wti-parent-recommendation-allocation">
               <span>Plan allocation</span>
               <strong>{inv.allocation_pct}%</strong>
@@ -1237,6 +1578,17 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
         </div>
       )}
 
+      {rankingStatus === 'ready' && products.length === 0 && (
+        <UserDeclaredScenarioPanel
+          key={`${parentInstrumentId || 'unknown'}|${financialKey}`}
+          canonicalInstrumentId={parentInstrumentId}
+          instrumentName={inv?.name}
+          initialAge={userProfile?.age}
+          taxPolicyMetadata={taxPolicyMetadata}
+          taxPolicyError={taxPolicyError}
+        />
+      )}
+
       {/* Sub-Category Sector/Theme Drill-Down Tabs */}
       {subKeys.length > 0 && (
         <div className="wti-sub-pills">
@@ -1260,123 +1612,174 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
       )}
 
       {/* Parent-Category Suitability Gauge */}
-      <div className="risk-meter-container">
-        <div className="risk-meter-header">
-          <Shield size={14} style={{ color: risk.color }} />
-          <span>Parent Category Risk</span>
-          <span className="risk-meter-sebi-tag">Suitability Filter</span>
-        </div>
-        <div className="risk-meter-gauge">
-          <svg viewBox="0 0 280 155" className="risk-meter-svg">
-            <defs>
-              <filter id="rmGlow">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-              <filter id="rmNeedleShadow">
-                <feDropShadow dx="0" dy="1" stdDeviation="3" floodColor={risk.color} floodOpacity="0.6" />
-              </filter>
-              <linearGradient id="rmNeedleGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f8fafc" />
-                <stop offset="100%" stopColor={risk.color} />
-              </linearGradient>
-              <radialGradient id="rmHubGrad">
-                <stop offset="0%" stopColor="rgba(30,41,59,1)" />
-                <stop offset="100%" stopColor="rgba(15,23,42,1)" />
-              </radialGradient>
-            </defs>
+      <div className="risk-meter-container" style={{ '--risk-color': risk.color }}>
+        <div className="risk-card-shimmer" aria-hidden="true" />
 
-            <path
-              d={`M ${CX + (R + 8) * Math.cos(Math.PI)} ${CY - (R + 8) * Math.sin(Math.PI)} A ${R + 8} ${R + 8} 0 0 1 ${CX + (R + 8) * Math.cos(0)} ${CY - (R + 8) * Math.sin(0)}`}
-              fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"
-            />
+        {/* Left Column: Precision Instrument Dial */}
+        <div className="risk-meter-visual-col">
+          <div className="risk-meter-gauge-wrap">
+            <div className="risk-meter-ambient-glow" style={{ '--glow-color': risk.color }} aria-hidden="true" />
+            <div className="risk-meter-gauge">
+              <svg viewBox="0 0 280 155" className="risk-meter-svg">
+                <defs>
+                  <filter id="rmGlow">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                  <filter id="rmNeedleShadow">
+                    <feDropShadow dx="0" dy="1" stdDeviation="3" floodColor={risk.color} floodOpacity="0.6" />
+                  </filter>
+                  <linearGradient id="rmNeedleGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="100%" stopColor={risk.color} />
+                  </linearGradient>
+                  <radialGradient id="rmHubGrad">
+                    <stop offset="0%" stopColor="rgba(30,41,59,1)" />
+                    <stop offset="100%" stopColor="rgba(15,23,42,1)" />
+                  </radialGradient>
+                </defs>
 
-            {RISK_LEVELS.map((r, i) => {
-              const a1 = Math.PI - (i / 6) * totalAngle + segGap;
-              const a2 = Math.PI - ((i + 1) / 6) * totalAngle - segGap;
-              const ox1 = CX + R * Math.cos(a1), oy1 = CY - R * Math.sin(a1);
-              const ox2 = CX + R * Math.cos(a2), oy2 = CY - R * Math.sin(a2);
-              const ix2 = CX + r2 * Math.cos(a2), iy2 = CY - r2 * Math.sin(a2);
-              const ix1 = CX + r2 * Math.cos(a1), iy1 = CY - r2 * Math.sin(a1);
-              const isActive = i === level;
-              return (
+                {/* Outer Framing Arc */}
                 <path
-                  key={i}
-                  d={`M ${ox1} ${oy1} A ${R} ${R} 0 0 1 ${ox2} ${oy2} L ${ix2} ${iy2} A ${r2} ${r2} 0 0 0 ${ix1} ${iy1} Z`}
-                  fill={r.color}
-                  opacity={isActive ? 1 : 0.18}
-                  filter={isActive ? 'url(#rmGlow)' : 'none'}
-                  style={{ transition: 'opacity 0.6s ease' }}
+                  d={`M ${CX + (R + 8) * Math.cos(Math.PI)} ${CY - (R + 8) * Math.sin(Math.PI)} A ${R + 8} ${R + 8} 0 0 1 ${CX + (R + 8) * Math.cos(0)} ${CY - (R + 8) * Math.sin(0)}`}
+                  fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1"
                 />
-              );
-            })}
 
-            {RISK_LEVELS.map((r, i) => {
-              const midAngle = Math.PI - ((i + 0.5) / 6) * totalAngle;
-              const labelR = R + 16;
-              const lx = CX + labelR * Math.cos(midAngle);
-              const ly = CY - labelR * Math.sin(midAngle);
-              const isActive = i === level;
-              const rotDeg = -((midAngle * 180) / Math.PI - 90);
-              const flip = rotDeg > 90 || rotDeg < -90;
-              const finalRot = flip ? rotDeg + 180 : rotDeg;
-              return (
-                <text
-                  key={i}
-                  x={lx} y={ly}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fill={isActive ? '#f1f5f9' : 'rgba(255,255,255,0.3)'}
-                  fontSize={isActive ? '7' : '6'}
-                  fontWeight={isActive ? '700' : '400'}
-                  fontFamily="Inter, system-ui, sans-serif"
-                  transform={`rotate(${finalRot}, ${lx}, ${ly})`}
-                  style={{ transition: 'all 0.4s ease' }}
-                >
-                  {r.label}
-                </text>
-              );
-            })}
+                {/* Color-Coded Tiers */}
+                {RISK_LEVELS.map((r, i) => {
+                  const a1 = Math.PI - (i / 6) * totalAngle + segGap;
+                  const a2 = Math.PI - ((i + 1) / 6) * totalAngle - segGap;
+                  const ox1 = CX + R * Math.cos(a1), oy1 = CY - R * Math.sin(a1);
+                  const ox2 = CX + R * Math.cos(a2), oy2 = CY - R * Math.sin(a2);
+                  const ix2 = CX + r2 * Math.cos(a2), iy2 = CY - r2 * Math.sin(a2);
+                  const ix1 = CX + r2 * Math.cos(a1), iy1 = CY - r2 * Math.sin(a1);
+                  const isActive = i === level;
+                  return (
+                    <path
+                      key={i}
+                      d={`M ${ox1} ${oy1} A ${R} ${R} 0 0 1 ${ox2} ${oy2} L ${ix2} ${iy2} A ${r2} ${r2} 0 0 0 ${ix1} ${iy1} Z`}
+                      fill={r.color}
+                      opacity={isActive ? 1 : 0.22}
+                      filter={isActive ? 'url(#rmGlow)' : 'none'}
+                      style={{ transition: 'opacity 0.6s ease' }}
+                    />
+                  );
+                })}
 
-            {[0, 1, 2, 3, 4, 5, 6].map(i => {
-              const a = Math.PI - (i / 6) * totalAngle;
-              const t1 = CX + (R + 1) * Math.cos(a), u1 = CY - (R + 1) * Math.sin(a);
-              const t2 = CX + (R + 6) * Math.cos(a), u2 = CY - (R + 6) * Math.sin(a);
-              return <line key={i} x1={t1} y1={u1} x2={t2} y2={u2} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />;
-            })}
+                {/* Boundary Scale Labels */}
+                <text x="36" y="145" textAnchor="middle" fill="#64748b" fontSize="8.5" fontWeight="600" fontFamily="Inter, sans-serif">Low</text>
+                <text x="244" y="145" textAnchor="middle" fill="#64748b" fontSize="8.5" fontWeight="600" fontFamily="Inter, sans-serif">Very High</text>
 
-            {level !== null && (() => {
-              const needleAngle = Math.PI - ((level + 0.5) / 6) * totalAngle;
-              const needleLen = r2 - 6;
-              const tipX = CX + needleLen * Math.cos(needleAngle);
-              const tipY = CY - needleLen * Math.sin(needleAngle);
-              const basePerp = Math.PI / 2;
-              const bx1 = CX + 4 * Math.cos(needleAngle + basePerp);
-              const by1 = CY - 4 * Math.sin(needleAngle + basePerp);
-              const bx2 = CX + 4 * Math.cos(needleAngle - basePerp);
-              const by2 = CY - 4 * Math.sin(needleAngle - basePerp);
-              return (
-                <g filter="url(#rmNeedleShadow)">
-                  <polygon
-                    points={`${bx1},${by1} ${bx2},${by2} ${tipX},${tipY}`}
-                    fill="url(#rmNeedleGrad)"
-                  />
-                  <circle cx={tipX} cy={tipY} r="2" fill="#f8fafc" />
-                </g>
-              );
-            })()}
+                {/* Outer Tick Notches */}
+                {[0, 1, 2, 3, 4, 5, 6].map(i => {
+                  const a = Math.PI - (i / 6) * totalAngle;
+                  const t1 = CX + (R + 1) * Math.cos(a), u1 = CY - (R + 1) * Math.sin(a);
+                  const t2 = CX + (R + 6) * Math.cos(a), u2 = CY - (R + 6) * Math.sin(a);
+                  return <line key={i} x1={t1} y1={u1} x2={t2} y2={u2} stroke="rgba(255,255,255,0.18)" strokeWidth="1" />;
+                })}
 
-            <circle cx={CX} cy={CY} r="12" fill="url(#rmHubGrad)" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
-            <circle cx={CX} cy={CY} r="5" fill={risk.color} opacity="0.9" />
-            <circle cx={CX} cy={CY} r="2.5" fill="#020617" />
-            <line x1={CX - R - 4} y1={CY + 1} x2={CX + R + 4} y2={CY + 1} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-          </svg>
-        </div>
-        <div className="risk-meter-result">
-          <div className="risk-meter-pill" style={{ '--risk-color': risk.color, color: 'var(--risk-color)', borderColor: 'var(--risk-color)' }}>
-            {risk.label}
+                {/* Precision Needle Indicator */}
+                {level !== null && (() => {
+                  const needleAngle = Math.PI - ((level + 0.5) / 6) * totalAngle;
+                  const needleLen = r2 - 5;
+                  const tipX = CX + needleLen * Math.cos(needleAngle);
+                  const tipY = CY - needleLen * Math.sin(needleAngle);
+                  const basePerp = Math.PI / 2;
+                  const bx1 = CX + 4 * Math.cos(needleAngle + basePerp);
+                  const by1 = CY - 4 * Math.sin(needleAngle + basePerp);
+                  const bx2 = CX + 4 * Math.cos(needleAngle - basePerp);
+                  const by2 = CY - 4 * Math.sin(needleAngle - basePerp);
+                  return (
+                    <g filter="url(#rmNeedleShadow)">
+                      <polygon
+                        points={`${bx1},${by1} ${bx2},${by2} ${tipX},${tipY}`}
+                        fill="url(#rmNeedleGrad)"
+                      />
+                      <circle cx={tipX} cy={tipY} r="2.2" fill="#ffffff" />
+                    </g>
+                  );
+                })()}
+
+                {/* Pivot Hub */}
+                <circle cx={CX} cy={CY} r="13" fill="url(#rmHubGrad)" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
+                <circle cx={CX} cy={CY} r="5.5" fill={risk.color} opacity="0.95" />
+                <circle cx={CX} cy={CY} r="2.5" fill="#020617" />
+                <line x1={CX - R - 4} y1={CY + 1} x2={CX + R + 4} y2={CY + 1} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              </svg>
+            </div>
           </div>
-          <p className="risk-meter-desc">{risk.desc}</p>
+
+          {/* Telemetry Badge Under Gauge */}
+          <div className="risk-gauge-readout" style={{ '--risk-color': risk.color }}>
+            <span className="risk-gauge-readout-pill">{risk.label} Risk</span>
+            <span className="risk-gauge-readout-tier">Tier {level !== null ? level + 1 : '—'} of 6</span>
+          </div>
+
+          {/* 6-Tier Interactive Spectrum Bar */}
+          <div className="risk-meter-spectrum-bar" role="meter" aria-label={`Parent Category Risk: ${risk.label}`} aria-valuemin="1" aria-valuemax="6" aria-valuenow={level !== null ? level + 1 : 1}>
+            <div className="risk-meter-spectrum-segments">
+              {RISK_LEVELS.map((r, i) => {
+                const isActive = i === level;
+                return (
+                  <div
+                    key={i}
+                    className={`risk-meter-segment ${isActive ? 'active' : ''}`}
+                    style={{ '--seg-color': r.color }}
+                    title={`${r.label} (Tier ${i + 1} of 6)`}
+                  >
+                    <span className="risk-meter-seg-bar" />
+                    {isActive && <span className="risk-meter-seg-glow" />}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="risk-meter-spectrum-labels">
+              <span>Lowest Risk</span>
+              <span>Highest Risk</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Institutional Suitability Intelligence */}
+        <div className="risk-meter-details-col">
+          <div className="risk-card-eyebrow">
+            <div className="risk-card-eyebrow-left">
+              <Shield size={16} style={{ color: risk.color }} aria-hidden="true" />
+              <span>Parent Category Suitability</span>
+            </div>
+            <div className="risk-card-eyebrow-tags">
+              <span className="risk-gate-badge">
+                <CheckCircle2 size={13} aria-hidden="true" />
+                <span>Suitability Gate Passed</span>
+              </span>
+              <span className="risk-filter-badge">Financial Profile Match</span>
+            </div>
+          </div>
+
+          <div className="risk-summary-text">
+            <p>{riskBaseDesc}</p>
+          </div>
+
+          {suitabilityChips.length > 0 && (
+            <div className="risk-telemetry-grid" aria-label="Key suitability criteria">
+              {suitabilityChips.map((chip, idx) => (
+                <div key={idx} className={`risk-telemetry-cell ${chip.highlight ? 'risk-telemetry-cell--highlight' : ''}`}>
+                  <div className="risk-telemetry-header">
+                    {chip.icon === 'shield' && <ShieldCheck size={13} className="risk-telemetry-icon" aria-hidden="true" />}
+                    {chip.icon === 'activity' && <Activity size={13} className="risk-telemetry-icon" aria-hidden="true" />}
+                    {chip.icon === 'target' && <Target size={13} className="risk-telemetry-icon" aria-hidden="true" />}
+                    <span className="risk-telemetry-label">{chip.label}</span>
+                  </div>
+                  <strong className="risk-telemetry-val">{chip.value}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <footer className="risk-compliance-footer">
+            <Info size={13} className="risk-compliance-icon" aria-hidden="true" />
+            <span>Parent-category suitability tier, not a verified product Risk-o-Meter. Individual product rankings below evaluate verified scheme evidence.</span>
+          </footer>
         </div>
       </div>
 
@@ -1408,9 +1811,9 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
               <div className="wti-card-body">
                 {/* Card Top: Product Name, Chips, Metric */}
                 <div className="wti-card-top">
-                  <div>
-                    <div className="wti-card-chips" style={{ marginTop: 0, marginBottom: 4 }}>
-                      <h4 className="wti-name" style={{ margin: 0 }}>{product.name}</h4>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="wti-card-title-row">
+                      <h4 className="wti-name">{product.name}</h4>
                       <span
                         className="wti-badge"
                         style={{
@@ -1424,11 +1827,13 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                       {product.tiedRank && <span className="wti-badge">TIED RANK</span>}
                     </div>
 
-                    <span className="wti-provider">
-                      {readableSource(product.provider)} · {readableSource(product.source?.provider)}
-                    </span>
                     <div className="wti-card-evidence-row">
+                      <span className="wti-provider">
+                        {readableSource(product.provider)} · {readableSource(product.source?.provider)}
+                      </span>
+                      <span className="wti-bullet">·</span>
                       <span>Source: {readableSource(product.source?.provider)}</span>
+                      <span className="wti-bullet">·</span>
                       <span>As of: {productObservedAt || 'Unavailable'}</span>
                     </div>
 
@@ -1463,8 +1868,8 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                 {product.beginnerSuitability?.whyThisFitsYou && (
                   <div className="wti-why-fits">
                     <span className="wti-why-fits-label">
-                      <Sparkles size={12} />
-                      Why this fits you
+                      <Sparkles size={11} />
+                      Why this fits you:
                     </span>
                     <p className="wti-why-fits-text">{product.beginnerSuitability.whyThisFitsYou}</p>
                   </div>
@@ -1532,10 +1937,26 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                   </div>
                 )}
 
-                {postTax && ['TAX_CLASSIFICATION_UNAVAILABLE', 'TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS', 'FISCAL_YEAR_UNSUPPORTED', 'PRODUCT_FACTS_UNAVAILABLE', 'UNAVAILABLE'].includes(postTax.status) && (
+                {(!postTax || !['CALCULATED', 'REQUIRES_TAX_INPUTS'].includes(postTax.status)) && (
                   <div className="wti-post-tax-cta-box">
-                    <span>Exact-product tax illustration: {postTax.status.replaceAll('_', ' ').toLowerCase()}.</span>
-                    {postTax.disclosure && <small>{postTax.disclosure}</small>}
+                    <span>
+                      {postTax?.status === 'TAX_CLASSIFICATION_UNAVAILABLE'
+                        ? 'Tax treatment is not verified for this exact product.'
+                        : postTax?.status === 'SOURCE_RIGHTS_UNQUALIFIED'
+                          ? 'This data source is not cleared for production display or post-tax calculations.'
+                        : postTax?.status === 'TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS'
+                          ? 'Additional product or account facts are needed before a tax result can be calculated.'
+                          : postTax?.status === 'FISCAL_YEAR_UNSUPPORTED'
+                            ? 'Tax rules for the selected financial year are not available.'
+                            : postTax?.status === 'PRODUCT_FACTS_UNAVAILABLE'
+                              ? 'Verified product facts needed for this calculation are unavailable.'
+                              : postTax?.status === 'UNAVAILABLE'
+                                ? 'A tax result could not be established from the available facts.'
+                                : postTax?.status
+                                  ? 'Tax status could not be verified. No tax amount is shown.'
+                                  : 'No tax analysis was returned. No tax amount is shown.'}
+                    </span>
+                    {postTax?.disclosure && <small>{postTax.disclosure}</small>}
                   </div>
                 )}
 

@@ -6,6 +6,8 @@
 import React, { useMemo } from 'react';
 import { Shield, TrendingUp, Info, ExternalLink, ArrowUpRight, Calendar, Landmark, IndianRupee } from 'lucide-react';
 import { formatINR } from '../../utils/indianNumberFormat';
+import { isPresentFiniteNumber } from '../../utils/financialValues';
+import { isProjectionResponseValid } from './financialResponseIntegrity';
 
 const CalculatorTab = ({
   inv,
@@ -17,17 +19,36 @@ const CalculatorTab = ({
   setCalcReturn,
   calcBounds,
   inflationRate,
+  benchmarkRate,
   setInflationRate,
-  projection,
+  projectionAssumptions,
+  projection: projectionResponse,
   projectionError,
   projectionLoading,
 }) => {
+  const expectedAssumptions = projectionAssumptions || {
+    monthlyInvestment: calcAmount,
+    annualReturnRate: calcReturn / 100,
+    benchmarkRate: benchmarkRate / 100,
+    inflationRate: inflationRate / 100,
+    years: calcYears,
+  };
+  const responseMatchesCurrentInputs = isProjectionResponseValid(projectionResponse, expectedAssumptions);
+  const hasFiniteProjectionValues = [
+    projectionResponse?.investmentMaturity,
+    projectionResponse?.totalInvested,
+    projectionResponse?.estimatedReturns,
+    projectionResponse?.investmentReal,
+  ].every(isPresentFiniteNumber);
+  const hasProjection = responseMatchesCurrentInputs
+    && hasFiniteProjectionValues
+    && !projectionLoading
+    && !projectionError;
+  const projection = hasProjection ? projectionResponse : null;
   const maturityValue = projection?.investmentMaturity ?? null;
   const totalInvested = projection?.totalInvested ?? null;
   const estimatedReturns = projection?.estimatedReturns ?? null;
   const realMaturityValue = projection?.investmentReal ?? null;
-  const hasProjection = [maturityValue, totalInvested, estimatedReturns, realMaturityValue]
-    .every(value => Number.isFinite(Number(value)));
   const taxRule = { label: 'Open Post-Tax Analysis to supply income and tax regime', color: '#94a3b8' };
 
   // Growth metrics — derived only from values returned by the projection API.
@@ -259,7 +280,7 @@ const CalculatorTab = ({
           </div>
           <div className="sidebar-stat">
             <span className="sidebar-label">Estimated Compounding Yield</span>
-            <span className="sidebar-value" style={{ color: '#22c55e', whiteSpace: 'nowrap' }}>+{formatINR(estimatedReturns)}</span>
+            <span className="sidebar-value" style={{ color: '#22c55e', whiteSpace: 'nowrap' }}>{isPresentFiniteNumber(estimatedReturns) && estimatedReturns >= 0 ? '+' : ''}{formatINR(estimatedReturns)}</span>
           </div>
           <div style={{ borderTop: '1px solid var(--ddm-border)', paddingTop: 16 }}>
             <span className="sidebar-label" style={{ color: '#38bdf8' }}>Gross Maturity Value</span>
@@ -304,7 +325,7 @@ const CalculatorTab = ({
               className="goal-export-btn goal-export-btn--pdf"
               disabled={!hasProjection}
               onClick={() => {
-                if (!hasProjection) return;
+                if (!hasProjection || projectionLoading || projectionError || !responseMatchesCurrentInputs) return;
                 const report = `
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>WealthGenie – ${inv.name} Goal Report</title>
@@ -337,8 +358,10 @@ const CalculatorTab = ({
 <div class="grid">
   <div class="card"><div class="label">Monthly SIP</div><div class="value cyan">₹${calcAmount.toLocaleString('en-IN')}</div></div>
   <div class="card"><div class="label">Assumed Return</div><div class="value cyan">${calcReturn}% p.a.</div></div>
+  <div class="card"><div class="label">Savings Benchmark Assumption</div><div class="value cyan">${benchmarkRate}% p.a.</div></div>
+  <div class="card"><div class="label">Inflation Assumption</div><div class="value orange">${inflationRate}% p.a.</div></div>
   <div class="card"><div class="label">Total Principal</div><div class="value">${formatINR(totalInvested)}</div></div>
-  <div class="card"><div class="label">Compounding Yield</div><div class="value green">+${formatINR(estimatedReturns)}</div></div>
+  <div class="card"><div class="label">Compounding Yield</div><div class="value green">${isPresentFiniteNumber(estimatedReturns) && estimatedReturns >= 0 ? '+' : ''}${formatINR(estimatedReturns)}</div></div>
   <div class="card"><div class="label">Gross Maturity Value</div><div class="value cyan" style="font-size:1.6rem">${formatINR(maturityValue)}</div></div>
   <div class="card"><div class="label">After Tax</div><div class="value yellow">Requires tax context</div></div>
   <div class="card" style="grid-column:span 2"><div class="label">Today's Purchasing Power (${inflationRate}% inflation adjusted)</div><div class="value orange">${formatINR(realMaturityValue)}</div></div>
@@ -362,7 +385,7 @@ const CalculatorTab = ({
               className="goal-export-btn goal-export-btn--copy"
               disabled={!hasProjection}
               onClick={(e) => {
-                if (!hasProjection) return;
+                if (!hasProjection || projectionLoading || projectionError || !responseMatchesCurrentInputs) return;
                 const btn = e.currentTarget;
                 const summary = `WealthGenie – ${inv.name} Goal Report\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Monthly SIP: ₹${calcAmount.toLocaleString('en-IN')}\n• Assumed Return: ${calcReturn}% p.a.\n• Time Horizon: ${calcYears} years\n• Growth Multiplier: ${growthMultiplier}×\n\n• Total Invested: ${formatINR(totalInvested)}\n• Maturity Value: ${formatINR(maturityValue)}\n• After Tax: Requires explicit tax context in Post-Tax Analysis\n• Today's Value (${inflationRate}% inflation): ${formatINR(realMaturityValue)}\n\n* Past performance is not indicative of future results.\nGenerated by WealthGenie • ${new Date().toLocaleDateString('en-IN')}`;
                 navigator.clipboard.writeText(summary).then(() => {

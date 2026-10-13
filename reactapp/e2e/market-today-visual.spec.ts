@@ -71,7 +71,11 @@ const MARKET_CONTEXT_MOCK = {
     evaluatedAt: '2026-09-09T14:46:01.694Z',
     provenance: { sources: [{ provider: 'NSE', instrumentId: 'NIFTY 50', dataClass: 'LIVE' }] },
     marketSession: { status: 'MARKET_OPEN', tradingDate: '2026-09-09' },
+    recommendationUsability: { status: 'USABLE', reasonCodes: [], maxAgeSeconds: 900 },
+    evidenceRevision: 'd'.repeat(64),
+    contentRevision: { version: 'market-snapshot-content-1.0.0', digest: 'c'.repeat(64) },
   },
+  recommendationUsability: { status: 'USABLE', reasonCodes: [], maxAgeSeconds: 900 },
 };
 
 let unexpectedApiRequests: string[] = [];
@@ -197,12 +201,29 @@ test.describe('Market Today Card Visual & Responsive Review', () => {
 
     // ── 4b. Market adjustment preview: POST /api/regime/adjust ──
     await page.route('**/api/regime/adjust', async route => {
+      const request = route.request().postDataJSON();
+      expect(request).toEqual({ profileId: VISUAL_WTI_BINDING.profileId });
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          context: 'CAUTIOUS',
-          adjustments: [],
+          applied: false,
+          maxTotalTiltPct: 2,
+          actualTotalTiltPct: 0,
+          baseWeights: { ppf: 1 },
+          adjustedWeights: { ppf: 1 },
+          adjustedInstruments: VISUAL_INSTRUMENTS,
+          reasonCodes: ['NO_LOWER_RISK_ELIGIBLE_TRANSFER_PATH'],
+          explanations: [],
+          marketContext: MARKET_CONTEXT_MOCK,
+          profileId: VISUAL_WTI_BINDING.profileId,
+          profile_version: VISUAL_WTI_BINDING.profileVersion,
+          recommendationId: VISUAL_WTI_BINDING.recommendationId,
+          allocation_revision: VISUAL_WTI_BINDING.allocationRevision,
+          allocation_revision_id: VISUAL_WTI_BINDING.allocationRevisionId,
+          portfolio_fingerprint: VISUAL_WTI_BINDING.portfolioFingerprint,
+          recommendation_fingerprint: VISUAL_WTI_BINDING.recommendationFingerprint,
+          persisted: false,
         }),
       });
     });
@@ -427,5 +448,38 @@ test.describe('Market Today Card Visual & Responsive Review', () => {
       path: `${ARTIFACT_DIR}/market_today_mobile_390px.png`,
       fullPage: false,
     });
+  });
+
+  test('renders a server-bound before-and-after allocation preview without saving or trading', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/profile');
+    const showPlanButton = page.locator('button:has-text("Show me my plan")');
+    if (await showPlanButton.isVisible({ timeout: 2000 }).catch(() => false)) await showPlanButton.click();
+
+    const deepDiveButton = page.locator('button:has-text("Deep Dive"), button:has-text("Learn More")').first();
+    await expect(deepDiveButton).toBeVisible({ timeout: 20000 });
+    await deepDiveButton.scrollIntoViewIfNeeded();
+    await deepDiveButton.click({ force: true });
+    const wtiTab = page.locator('.ddm-tab-btn', { hasText: /Where to Invest/i });
+    await expect(wtiTab).toBeVisible();
+    await wtiTab.click({ force: true });
+
+    const previewRequest = page.waitForRequest(request => request.url().includes('/api/regime/adjust') && request.method() === 'POST');
+    await page.getByRole('button', { name: 'See how this affects my plan' }).click();
+    expect((await previewRequest).postDataJSON()).toEqual({ profileId: VISUAL_WTI_BINDING.profileId });
+
+    const preview = page.getByRole('region', { name: 'Hypothetical plan allocation preview' });
+    await expect(preview).toBeVisible();
+    await expect(preview.getByText('Cautious')).toBeVisible();
+    await expect(preview.getByRole('table')).toContainText('100.00%');
+    await expect(preview).toContainText('There is no lower-risk investment in your current suitable plan');
+    await expect(preview).toContainText('Your saved plan has not changed; nothing has been bought or sold.');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(preview).toBeVisible();
+    const tableScroller = preview.locator('.wti-preview-table-wrap');
+    await expect(tableScroller).toBeVisible();
+    await expect(preview.getByRole('table')).toBeVisible();
+    await page.screenshot({ path: `${ARTIFACT_DIR}/market_plan_preview_mobile.png`, fullPage: true });
   });
 });

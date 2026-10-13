@@ -50,6 +50,21 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     expect(row.getByTestId('tax-drag-cagr')).toHaveTextContent('2.50%');
   });
 
+  it('renders an exact-zero real return neutrally without an up or down icon', async () => {
+    const zeroRealReturn = structuredClone(calculated);
+    zeroRealReturn.results[0].realReturnPercent = 0;
+    apiModule.computePostTaxReturnBatch.mockResolvedValue(zeroRealReturn);
+    render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
+    await explicitInputs(); submit();
+    const row = within(await screen.findByTestId('post-tax-row-fd'));
+    const realReturn = row.getByTestId('real-return');
+    expect(realReturn).toHaveTextContent('0.0%');
+    expect(realReturn).toHaveClass('pta-td--dim');
+    expect(realReturn).not.toHaveClass('pta-td--green');
+    expect(realReturn).not.toHaveClass('pta-td--rose');
+    expect(realReturn.querySelector('svg')).toBeNull();
+  });
+
   it('hides persisted calculations immediately when tax inputs or the allocation identity change', async () => {
     apiModule.computePostTaxReturnBatch.mockResolvedValue(calculated);
     const view = render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} recommendationMeta={{ recommendationId: 'r1' }} />);

@@ -414,17 +414,20 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
           />
         </label>
         <label style={{ display: 'grid', gap: 7, color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700 }}>
-          Annual equity long-term gains exclusion already used (₹)
+          Section 112A exemption already used this financial year (₹)
           <input
-            aria-label="Annual equity long-term gains exclusion already used"
+            aria-label="Section 112A exemption already used this financial year"
             type="number"
             min="0"
             max="125000"
             value={section112AExemptionUsed}
             onChange={event => setSection112AExemptionUsed(event.target.value)}
             className="tax-input"
-            placeholder="Leave blank if none…"
+            placeholder="Enter 0 if none was used"
           />
+          <small style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 400 }}>
+            This is taxpayer-wide usage for the selected financial year. Enter 0 if none was used; leave blank only if unknown. Equity calculation stays unavailable until you enter an amount.
+          </small>
         </label>
         <details style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(148,163,184,0.16)', paddingTop: 10 }}>
           <summary style={{ cursor: 'pointer', color: '#cbd5e1', fontWeight: 700 }}>Advanced deductions (optional)</summary>
@@ -701,9 +704,11 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
                             <td data-testid="post-tax-return" className="pta-td--mono pta-td--center pta-td--purple">
                               {Number.isFinite(data.postTaxReturn) ? `${data.postTaxReturn.toFixed(1)}%` : '—'}
                             </td>
-                            <td data-testid="real-return" className={`pta-td--mono pta-td--center ${data.realReturn > 0 ? 'pta-td--green' : 'pta-td--rose'}`}>
+                            <td data-testid="real-return" className={`pta-td--mono pta-td--center ${data.realReturn > 0 ? 'pta-td--green' : data.realReturn < 0 ? 'pta-td--rose' : 'pta-td--dim'}`}>
                               <span className="pta-real-cell">
-                                {Number.isFinite(data.realReturn) && (data.realReturn > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />)}
+                                {Number.isFinite(data.realReturn) && (data.realReturn > 0
+                                  ? <TrendingUp size={12} />
+                                  : data.realReturn < 0 ? <TrendingDown size={12} /> : null)}
                                 {Number.isFinite(data.realReturn) ? `${data.realReturn > 0 ? '+' : ''}${data.realReturn.toFixed(1)}%` : '—'}
                               </span>
                             </td>

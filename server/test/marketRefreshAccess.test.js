@@ -5,13 +5,29 @@ import jwt from 'jsonwebtoken';
 import marketRouter, { respondToManualMarketRefresh } from '../routes/market.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { setRedisAvailable, setRedisClient } from '../config/redis.js';
+import User from '../models/User.js';
 import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
+import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'market-refresh-access-test-secret';
 process.env.DISABLE_RATE_LIMIT = 'true';
 
-const userToken = jwt.sign({ userId: '60d5ecb8b3b3a72d9c8e4a11', role: 'user' }, process.env.JWT_SECRET);
-const adminToken = jwt.sign({ userId: '60d5ecb8b3b3a72d9c8e4a12', role: 'admin' }, process.env.JWT_SECRET);
+const userToken = jwt.sign({ userId: '60d5ecb8b3b3a72d9c8e4a11', role: 'user', jti: 'market-user-session' }, process.env.JWT_SECRET);
+const adminToken = jwt.sign({ userId: '60d5ecb8b3b3a72d9c8e4a12', role: 'admin', jti: 'market-admin-session' }, process.env.JWT_SECRET);
+
+test.before(async () => {
+  await setupTestDatabase();
+  await User.updateOne(
+    { _id: '60d5ecb8b3b3a72d9c8e4a12' },
+    { $setOnInsert: { name: 'Market Refresh Admin', email: 'market-refresh-admin@wealthgenie.test', passwordHash: 'test-only-hash', role: 'admin' } },
+    { upsert: true },
+  );
+});
+
+test.after(async () => {
+  await User.deleteOne({ _id: '60d5ecb8b3b3a72d9c8e4a12' });
+  await teardownTestDatabase();
+});
 
 function buildApp() {
   const app = express();
@@ -21,11 +37,23 @@ function buildApp() {
   return app;
 }
 
-test('market refresh requires admin role and fails safely when production lease coordination is unavailable', async () => {
+test('market refresh verifies current admin role and fails safely when production lease coordination is unavailable', async t => {
   const previousEnvironment = process.env.NODE_ENV;
   process.env.NODE_ENV = 'production';
-  setRedisAvailable(false);
-  setRedisClient(null);
+  t.mock.method(User, 'findById', userId => ({
+    select() { return this; },
+    lean: async () => ({ role: userId === '60d5ecb8b3b3a72d9c8e4a12' ? 'admin' : 'user' }),
+  }));
+  setRedisAvailable(true);
+  setRedisClient({
+    get: async () => null,
+    sendCommand: async command => {
+      if (String(command[0]).toUpperCase() === 'SCRIPT') return 'test-script-sha';
+      if (String(command[0]).toUpperCase() === 'EVALSHA') return [1, 300000];
+      return 'OK';
+    },
+    set: async () => null,
+  });
 
   try {
     await withServer(buildApp(), async baseUrl => {
@@ -47,6 +75,8 @@ test('market refresh requires admin role and fails safely when production lease 
       assert.equal(body.code, 'MARKET_REFRESH_LEASE_UNAVAILABLE');
     });
   } finally {
+    setRedisAvailable(false);
+    setRedisClient(null);
     if (previousEnvironment === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = previousEnvironment;
   }

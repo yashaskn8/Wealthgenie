@@ -3,6 +3,8 @@ import profileImg from '../assets/gen_4k_nobull.png';
 import * as api from '../services/api';
 import { financialProfileKey, normalizeFinancialProfile, validateFinancialProfile } from '../utils/financialProfile';
 import { matchesProfileState } from '../utils/financialStateBinding';
+import { isPresentFiniteNumber } from '../utils/financialValues';
+import { formatINR } from '../utils/indianNumberFormat';
 import '../App.css';
 
 const PRECOMPUTE_DEBOUNCE_MS = 500;
@@ -369,7 +371,9 @@ const ProfilePage = ({ onCompleteProfile: _onCompleteProfile, children }) => {
             <div>
               <span className="summary-label">Lump Sum Deployment</span>
               <strong className={`summary-value ${hasLumpSum ? 'lump-active' : 'lump-none'}`}>
-                {hasLumpSum === true ? `₹${Number(lumpSumAmount || 0).toLocaleString('en-IN')}` : hasLumpSum === false ? 'None' : 'Not provided'}
+                {hasLumpSum === true
+                  ? (isPresentFiniteNumber(lumpSumAmount) ? formatINR(Number(lumpSumAmount)) : 'Amount not entered')
+                  : hasLumpSum === false ? 'None' : 'Not provided'}
               </strong>
             </div>
           </div>

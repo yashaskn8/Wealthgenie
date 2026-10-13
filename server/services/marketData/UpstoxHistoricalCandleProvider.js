@@ -12,6 +12,7 @@ import {
 import { buildUpstoxInstrumentIdentity } from './productIdentity.js';
 import { readThroughMarketCache } from './requestCache.js';
 import { isoDateInIndia } from './indiaMarketTime.js';
+import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
 
 export const UPSTOX_HISTORICAL_CANDLE_V3_URL = 'https://api.upstox.com/v3/historical-candle';
 export const UPSTOX_HISTORY_CACHE_TTL_SECONDS = 6 * 60 * 60;
@@ -41,7 +42,7 @@ function requireIsoDate(value, fieldName) {
 
 function finitePositive(value) {
   const parsed = nullableFiniteNumber(value);
-  return parsed !== null && parsed > 0 ? parsed : null;
+  return parsed !== null && parsed > 0 && parsed <= Number.MAX_SAFE_INTEGER ? parsed : null;
 }
 
 function sourceUrlFor(instrumentKey, toDate, fromDate) {
@@ -203,10 +204,7 @@ export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
             candleCount: 0,
             candles: [],
             source: { provider: PROVIDERS.UPSTOX, instrumentId: instrumentKey, url: sourceUrl },
-            error: {
-              code: 'UPSTOX_HISTORY_FETCH_FAILED',
-              message: error?.message || 'Upstox historical candle request failed.',
-            },
+            error: safeUpstoxError(classifyUpstoxError(error)),
           };
         }
       },

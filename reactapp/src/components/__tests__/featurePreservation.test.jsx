@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { cwd } from 'node:process';
 import TaxesHub from '../TaxesHub';
 import ProgressHub from '../ProgressHub';
 import WhereToInvestScreen from '../WhereToInvestScreen';
@@ -118,6 +121,54 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
   });
 
   describe('3. ProgressHub preserves child milestone components', () => {
+    it('supports arrow-key tab navigation and keeps every view discoverable', () => {
+      function ProgressHarness() {
+        const [activeTab, setActiveTab] = React.useState('indicators');
+        return (
+          <ProgressHub
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            profile={mockProfile}
+            recommendations={mockRecommendations}
+          />
+        );
+      }
+
+      render(<ProgressHarness />);
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs).toHaveLength(5);
+      expect(tabs[0]).toHaveAttribute('tabindex', '0');
+
+      fireEvent.keyDown(screen.getByRole('tablist', { name: 'Progress views' }), { key: 'ArrowRight' });
+
+      expect(screen.getByRole('tab', { name: 'My Goals' })).toHaveFocus();
+      expect(screen.getByRole('tab', { name: 'My Goals' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('panel-goals')).toBeInTheDocument();
+    });
+
+    it('wraps the tab list instead of hiding overflow behind a hidden scrollbar', () => {
+      const source = readFileSync(resolve(cwd(), 'src/components/HubStyles.css'), 'utf8');
+      const tabListRule = source.match(/\.hub-tabs-list\s*\{([^}]+)\}/)?.[1] || '';
+
+      expect(tabListRule).toMatch(/flex-wrap:\s*wrap/);
+      expect(tabListRule).not.toMatch(/scrollbar-width:\s*none/);
+      expect(tabListRule).not.toMatch(/overflow-x:\s*auto/);
+    });
+
+    it('recovers invalid active-tab values to the My Goals panel', () => {
+      render(
+        <ProgressHub
+          activeTab="unknown-view"
+          onTabChange={vi.fn()}
+          profile={mockProfile}
+          recommendations={mockRecommendations}
+        />,
+      );
+
+      expect(screen.getByRole('tab', { name: 'My Goals' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('panel-goals')).toBeInTheDocument();
+    });
+
     it('mounts GoalTracker on goals tab', () => {
       render(
         <ProgressHub

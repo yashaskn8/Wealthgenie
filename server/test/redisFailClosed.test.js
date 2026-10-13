@@ -67,7 +67,7 @@ import {
   setCache,
   setCacheNX,
 } from '../config/redis.js';
-import { authLimiter, apiLimiter, HybridStore } from '../middleware/rateLimiter.js';
+import { authLimiter, apiLimiter, HybridStore, createEndpointRateLimiter } from '../middleware/rateLimiter.js';
 
 process.env.NODE_ENV = 'test';
 
@@ -254,6 +254,71 @@ test('Redis mid-session break: Token blacklist fails CLOSED when connected clien
 // ══════════════════════════════════════════════════════════════════════
 // 5. Auth Rate Limiter — MUST propagate error (fail closed)
 // ══════════════════════════════════════════════════════════════════════
+test('production rate limiters ignore DISABLE_RATE_LIMIT and fail closed when Redis is absent', async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousDisableRateLimit = process.env.DISABLE_RATE_LIMIT;
+  try {
+    process.env.NODE_ENV = 'production';
+    process.env.DISABLE_RATE_LIMIT = 'true';
+    setRedisAvailable(false);
+    setRedisClient(null);
+    let authStatus = null;
+    let authBody = null;
+    await authLimiter({
+      ip: '127.0.0.1', headers: {}, method: 'POST', path: '/limited', url: '/limited', originalUrl: '/limited',
+      socket: { remoteAddress: '127.0.0.1' }, app: { get: () => false },
+    }, {
+      setHeader() {}, set() {}, status(code) { authStatus = code; return this; },
+      json(body) { authBody = body; return this; },
+    }, () => assert.fail('the auth limiter must return its safe 503 response'));
+    assert.equal(authStatus, 503);
+    assert.equal(authBody.code, 'AUTH_RATE_LIMIT_UNAVAILABLE');
+
+    {
+      const limiter = createEndpointRateLimiter({ max: 1 });
+      let normalNext = 0;
+      let capturedError = null;
+      await limiter({
+        ip: '127.0.0.1', headers: {}, method: 'POST', path: '/limited', url: '/limited', originalUrl: '/limited',
+        socket: { remoteAddress: '127.0.0.1' }, app: { get: () => false },
+      }, {
+        setHeader() {}, set() {}, status() { return this; }, json() { return this; },
+      }, error => { if (error) capturedError = error; else normalNext += 1; });
+      assert.equal(normalNext, 0);
+      assert.equal(capturedError?.status, 503);
+    }
+  } finally {
+    process.env.NODE_ENV = previousNodeEnv;
+    if (previousDisableRateLimit === undefined) delete process.env.DISABLE_RATE_LIMIT;
+    else process.env.DISABLE_RATE_LIMIT = previousDisableRateLimit;
+  }
+});
+
+test('production auth and endpoint HybridStore quotas fail closed when Redis is absent', async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousRequireRedis = process.env.REQUIRE_REDIS;
+  try {
+    process.env.NODE_ENV = 'production';
+    delete process.env.REQUIRE_REDIS;
+    setRedisAvailable(false);
+    setRedisClient(null);
+    for (const store of [
+      new HybridStore({ prefix: 'rl:auth:test:', requireDistributed: true, unavailableCode: 'AUTH_RATE_LIMIT_UNAVAILABLE' }),
+      new HybridStore({ prefix: 'rl:ep:test:', requireDistributed: true, unavailableCode: 'ENDPOINT_RATE_LIMIT_UNAVAILABLE' }),
+    ]) {
+      await assert.rejects(store.increment('client'), { status: 503 });
+    }
+
+    process.env.NODE_ENV = 'development';
+    const developmentStore = new HybridStore({ prefix: 'rl:auth:dev:', requireDistributed: true });
+    assert.equal((await developmentStore.increment('client')).totalHits, 1);
+  } finally {
+    process.env.NODE_ENV = previousNodeEnv;
+    if (previousRequireRedis === undefined) delete process.env.REQUIRE_REDIS;
+    else process.env.REQUIRE_REDIS = previousRequireRedis;
+  }
+});
+
 test('Redis fail-closed: Auth rate limiter propagates store error to error handler', async () => {
   const { default: rateLimit } = await import('express-rate-limit');
 

@@ -7,6 +7,7 @@ import {
   taxCompareSchema,
   postTaxReturnSchema,
   postTaxReturnBatchSchema,
+  userDeclaredPostTaxScenarioSchema,
 } from '../validation/schemas.js';
 import {
   computeTax,
@@ -18,6 +19,7 @@ import {
   analyzeTaxOptimization,
 } from '../services/taxEngine.js';
 import { calculatePostTaxReturnSafe, calculatePostTaxProjection } from '../services/postTaxCalculator.js';
+import { calculateUserDeclaredPostTaxScenario } from '../services/userDeclaredPostTaxScenario.js';
 
 const router = Router();
 const SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE = 'SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE';
@@ -202,8 +204,9 @@ router.post('/post-tax-return', validate(postTaxReturnSchema), asyncHandler(asyn
   );
 
   const whatIfPrincipal = 100000;
-  const nominalGain = Math.round(whatIfPrincipal * nominalRate);
-  const netGain = Number.isFinite(result.postTaxReturn)
+  const isCalculated = result.status === 'CALCULATED';
+  const nominalGain = isCalculated ? Math.round(whatIfPrincipal * nominalRate) : null;
+  const netGain = isCalculated && Number.isFinite(result.postTaxReturn)
     ? Math.round(whatIfPrincipal * result.postTaxReturn)
     : null;
   res.json({
@@ -217,8 +220,9 @@ router.post('/post-tax-return', validate(postTaxReturnSchema), asyncHandler(asyn
     what_if_net_gain: netGain,
     ...getTaxPolicyMetadata(fiscalYear),
     inputsUsed: {
-      annualIncome, incomeSource, regime, fiscalYear, holdingYears, monthlySIP, userAge,
+      instrumentType, annualIncome, incomeSource, regime, fiscalYear, holdingYears, monthlySIP, userAge,
       nominalRate, deductions, acquisitionDate, redemptionDate, redemptionChannel,
+      section112AExemptionUsed: section112AExemptionUsed ?? null,
       acquiredAtOriginalIssue, heldContinuously,
     },
     assumptions: [
@@ -246,7 +250,7 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
   }
 
   const calculateBatchInstrument = (inv, section112AExemptionAppliedOverride) => {
-    const section112AUsed = section112AExemptionUsed ?? inv.section112AExemptionUsed;
+    const section112AUsed = section112AExemptionUsed;
     const options = {
       deductions,
       acquisitionDate: inv.acquisitionDate,
@@ -289,12 +293,14 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
       acquisitionDate: inv.acquisitionDate,
       redemptionDate: inv.redemptionDate,
     };
+    const projection = calculatePostTaxProjection(taxResult, inv, inflationRate, projectionContext);
     return {
       instrumentType: inv.instrumentType,
       ...taxResult,
       calculationClass: 'MODELLED_POST_TAX_PROJECTION',
       dataClass: 'MODEL_ASSUMPTION',
-      ...calculatePostTaxProjection(taxResult, inv, inflationRate, projectionContext),
+      ...projection,
+      ...(taxResult.status === 'REQUIRES_TAX_INPUTS' ? { status: taxResult.status } : {}),
     };
   };
 
@@ -308,49 +314,62 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
   let section112APortfolioAllocation = null;
   if (equityResultIndexes.length > 0) {
     const policy = getTaxPolicyMetadata(fiscalYear);
-    const requestedUsed = Number(section112AExemptionUsed ?? 0);
-    const remainingExemption = Math.max(0, policy.rules.capitalGains112AExemption - requestedUsed);
-    const allocationComplete = calculatedEquityResults.length === equityResultIndexes.length;
-    if (!allocationComplete) {
-      const calculableEquityIndexes = new Set(calculatedEquityResults.map(({ index }) => index));
-      // The taxpayer-level exemption cannot be safely allocated from a partial
-      // equity universe. Recalculate known holdings without any additional
-      // exemption rather than presenting a subset as the complete portfolio.
-      results = results.map((result, index) => calculableEquityIndexes.has(index)
-        ? calculateBatchInstrument(instruments[index], 0)
-        : result);
+    const requestedUsed = section112AExemptionUsed;
+    if (requestedUsed === undefined) {
       section112APortfolioAllocation = {
-        policy: 'CONSERVATIVE_PARTIAL_PORTFOLIO_112A_ASSUMPTION',
+        policy: 'SECTION_112A_EXEMPTION_USAGE_REQUIRED',
         exemptionLimit: policy.rules.capitalGains112AExemption,
-        exemptionUsedBeforeBatch: requestedUsed,
-        exemptionAppliedAcrossBatch: 0,
+        exemptionUsedBeforeBatch: null,
+        exemptionAppliedAcrossBatch: null,
         qualifyingLongTermGain: null,
-        calculableQualifyingLongTermGain: calculatedEquityResults.reduce((sum, { result }) => sum + result.longTermGain, 0),
         allocationComplete: false,
-        unavailableEquityInstruments: equityResultIndexes.length - calculatedEquityResults.length,
-        unavailableReasons: [SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE],
+        unavailableEquityInstruments: equityResultIndexes.length,
+        unavailableReasons: ['SECTION_112A_EXEMPTION_USAGE_REQUIRED'],
       };
     } else {
-      const totalQualifyingGain = calculatedEquityResults.reduce((sum, { result }) => sum + result.longTermGain, 0);
-      const exemptionApplied = Math.min(remainingExemption, totalQualifyingGain);
-      const allocations = new Map();
-      if (totalQualifyingGain > 0) {
-        for (const { index, result } of calculatedEquityResults) {
-          allocations.set(index, exemptionApplied * (result.longTermGain / totalQualifyingGain));
-        }
-        results = results.map((result, index) => allocations.has(index)
-          ? calculateBatchInstrument(instruments[index], allocations.get(index))
+      const remainingExemption = Math.max(0, policy.rules.capitalGains112AExemption - requestedUsed);
+      const allocationComplete = calculatedEquityResults.length === equityResultIndexes.length;
+      if (!allocationComplete) {
+        const calculableEquityIndexes = new Set(calculatedEquityResults.map(({ index }) => index));
+        // The taxpayer-level exemption cannot be safely allocated from a partial
+        // equity universe. Recalculate known holdings without any additional
+        // exemption rather than presenting a subset as the complete portfolio.
+        results = results.map((result, index) => calculableEquityIndexes.has(index)
+          ? calculateBatchInstrument(instruments[index], 0)
           : result);
+        section112APortfolioAllocation = {
+          policy: 'CONSERVATIVE_PARTIAL_PORTFOLIO_112A_ASSUMPTION',
+          exemptionLimit: policy.rules.capitalGains112AExemption,
+          exemptionUsedBeforeBatch: requestedUsed,
+          exemptionAppliedAcrossBatch: 0,
+          qualifyingLongTermGain: null,
+          calculableQualifyingLongTermGain: calculatedEquityResults.reduce((sum, { result }) => sum + result.longTermGain, 0),
+          allocationComplete: false,
+          unavailableEquityInstruments: equityResultIndexes.length - calculatedEquityResults.length,
+          unavailableReasons: [SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE],
+        };
+      } else {
+        const totalQualifyingGain = calculatedEquityResults.reduce((sum, { result }) => sum + result.longTermGain, 0);
+        const exemptionApplied = Math.min(remainingExemption, totalQualifyingGain);
+        const allocations = new Map();
+        if (totalQualifyingGain > 0) {
+          for (const { index, result } of calculatedEquityResults) {
+            allocations.set(index, exemptionApplied * (result.longTermGain / totalQualifyingGain));
+          }
+          results = results.map((result, index) => allocations.has(index)
+            ? calculateBatchInstrument(instruments[index], allocations.get(index))
+            : result);
+        }
+        section112APortfolioAllocation = {
+          policy: 'PROPORTIONAL_QUALIFYING_LTCG_ALLOCATED_ONCE_PER_BATCH',
+          exemptionLimit: policy.rules.capitalGains112AExemption,
+          exemptionUsedBeforeBatch: requestedUsed,
+          exemptionAppliedAcrossBatch: exemptionApplied,
+          qualifyingLongTermGain: totalQualifyingGain,
+          allocationComplete: true,
+          unavailableEquityInstruments: 0,
+        };
       }
-      section112APortfolioAllocation = {
-        policy: 'PROPORTIONAL_QUALIFYING_LTCG_ALLOCATED_ONCE_PER_BATCH',
-        exemptionLimit: policy.rules.capitalGains112AExemption,
-        exemptionUsedBeforeBatch: requestedUsed,
-        exemptionAppliedAcrossBatch: exemptionApplied,
-        qualifyingLongTermGain: totalQualifyingGain,
-        allocationComplete: true,
-        unavailableEquityInstruments: 0,
-      };
     }
   }
 
@@ -447,6 +466,7 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
     },
     inputsUsed: {
       annualIncome, incomeSource, regime, userAge, inflationRate, fiscalYear,
+      section112AExemptionUsed: section112AExemptionUsed ?? null,
       instruments: instruments.map(instrument => ({ ...instrument })),
     },
     rulesApplied: [...new Set(results.map(result => result.taxType))],
@@ -464,6 +484,22 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
     },
     insights,
   });
+}));
+
+/**
+ * POST /api/tax/post-tax-scenario
+ * Ephemeral tax-only scenario using transaction facts declared by this user.
+ * This route does not fetch or persist product/provider data.
+ */
+router.post('/post-tax-scenario', validate(userDeclaredPostTaxScenarioSchema), asyncHandler(async (req, res) => {
+  try {
+    res.json(calculateUserDeclaredPostTaxScenario(req.body));
+  } catch (error) {
+    if (error?.code === 'FISCAL_YEAR_UNSUPPORTED') {
+      return sendError(req, res, 422, `Verified tax rules are unavailable for ${req.body.fiscalYear}.`, 'FISCAL_YEAR_UNSUPPORTED');
+    }
+    throw error;
+  }
 }));
 
 export default router;
