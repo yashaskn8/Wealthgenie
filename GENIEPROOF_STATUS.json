@@ -1,13 +1,13 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "status": "IMPLEMENTED_VERIFIED_BLOCKED_PRODUCTION",
   "repository": {
     "name": "yashaskn8/Wealthgenie",
     "workingDirectory": "C:\\Projects\\wealthgenie ai",
     "branch": "main",
     "origin": "https://github.com/yashaskn8/Wealthgenie.git",
-    "verificationBaseHead": "d28321e1018dfde79d64a937a87e548292c63d1e",
-    "originMainAtPreDeliveryFetch": "d28321e1018dfde79d64a937a87e548292c63d1e",
+    "verificationBaseHead": "19d8724dd01c91af768b113c7ea653db19f33ef1",
+    "originMainAtPreDeliveryFetch": "19d8724dd01c91af768b113c7ea653db19f33ef1",
     "deliveryCommit": "699547a1951445fd81c926790e11f718742b22d5",
     "remoteHeadAfterDelivery": "origin/main matched 699547a1951445fd81c926790e11f718742b22d5 after normal push; exact-SHA CI run 38239152924 and cluster verification run 38239152923 both succeeded.",
     "note": "Implementation delivery was verified against the freshly fetched origin/main base. This records the verified code commit; a status-ledger-only follow-up may update the branch tip. No external source approval or production activation is claimed."
@@ -32,7 +32,7 @@
     },
     "claimVerifier": "Versioned deterministic verifier; current 0.5.0 evidence-bound rules require exact PPF rate wording, exact product binding, fresh signed evidence and bounded applicable effective period. Legacy signed manifests remain replayable but are explicitly labeled historical/replay-only in user interfaces and independent verification results.",
     "limits": [
-      "No official source is qualified for user presentation.",
+      "No official source is qualified specifically for GenieProof customer-facing financial claim verification.",
       "No source bytes or live government source fetch were used in financial verdict tests.",
       "Other claim types remain unsupported or abstain; no generic suitability, tax, guarantee, NAV, FD, or risk verdicts were added."
     ],
@@ -45,6 +45,117 @@
       "GUARANTEE_TAX_LIQUIDITY_ELIGIBILITY": { "classification": "REJECTED_UNSAFE", "productionStatus": "BLOCKED_LEGAL", "limit": "No positive/negative finding is emitted without exact source-backed legal conditions, explicit taxpayer/product facts, and reuse qualification; tax remains with WealthGenie financial tax authority." }
     }
   },
+  "sourceQualificationAudit": {
+    "reviewedAt": "2026-10-13",
+    "scope": "GenieProof proposed customer-facing claim evidence only. Existing WealthGenie market-data integrations were not reviewed for activation or rights by this audit.",
+    "conclusion": "No real source is activated. Official publication role, authority to define a fact, source-to-fact association, source freshness, and reuse permission are independent qualification requirements.",
+    "adjacentOutOfScopeObservation": "A separate existing server/data/whereToInvestCatalog.js DICGC insurance assertion associated with non-bank corporate/NBFC deposits was flagged in source review. It was not changed or cleared by this GenieProof-only audit; DICGC materials describe bank-deposit coverage and stated conditions.",
+    "sources": [
+      {
+        "sourceId": "india-post-small-savings",
+        "officialSourceRole": "India Post is an official publication and operational channel displaying small-savings material; the Department of Economic Affairs publishes quarterly small-savings rate revisions.",
+        "reuseEvidence": "The current India Post website policy says access does not grant reproduction/distribution permission and prior Department approval is required; no approval artifact exists in this repository.",
+        "sourceToFactEvidence": "The India Post row has no qualified period binding, and the current parser cannot establish an unambiguous relation between the applicable publication period and the PPF table record; it abstains. DEA is the rate-setting evidence source for quarterly revisions.",
+        "decision": "BLOCKED_REUSE_RIGHTS_AND_RECORD_ASSOCIATION",
+        "evidenceUrls": ["https://indiapost.gov.in/website-policy", "https://www.indiapost.gov.in/banking-services/savings", "https://dea.gov.in/budget-division/475"]
+      },
+      {
+        "sourceId": "dea-small-savings",
+        "officialSourceRole": "Department of Economic Affairs publishes quarterly small-savings rate revisions and is the rate-setting evidence source.",
+        "reuseEvidence": "The reviewed DEA website copyright policy requires permission for reproduction; no source-specific reuse approval was found.",
+        "sourceToFactEvidence": "No qualified GenieProof PPF source-to-fact parser/attestation contract is present for this source.",
+        "decision": "CANDIDATE_ONLY_NOT_ACTIVATED",
+        "evidenceUrls": ["https://dea.gov.in/budget-division/475", "https://dea.gov.in/website-policies"]
+      },
+      {
+        "sourceId": "ogd-quarterly-small-savings-2018-2022",
+        "officialSourceRole": "The named Open Government Data dataset is a published historical quarterly compilation.",
+        "reuseEvidence": "The Government Open Data License permits qualifying data use with attribution and other terms, but expressly excludes data the provider is not authorized to license.",
+        "sourceToFactEvidence": "The dataset covers September 2018 through December 2022 and its listed fields do not establish the current PPF rate contract.",
+        "decision": "HISTORICAL_LICENSE_CANDIDATE_NOT_SUITABLE_FOR_CURRENT_PPF",
+        "evidenceUrls": ["https://tn.data.gov.in/resource/quarter-wise-trend-interest-rate-small-savings-schemes-september-2018-december-2022", "https://ap.data.gov.in/godl"]
+      },
+      {
+        "sourceId": "amfi-nav",
+        "officialSourceRole": "AMFI publishes and distributes NAV information and related files; this record does not assert AMFI is the scheme's legal NAV authority.",
+        "reuseEvidence": "AMFI terms limit site use to personal/non-commercial purposes and prohibit public transmission and significant electronic storage absent written approval; no approval was found.",
+        "sourceToFactEvidence": "No qualified GenieProof scheme/ISIN observation, plan/option identity, or reuse contract exists.",
+        "decision": "BLOCKED_REUSE_AND_TYPED_CONTRACT",
+        "evidenceUrls": ["https://www.amfiindia.com/net-asset-value/nav-download", "https://www.amfiindia.com/terms-of-use"]
+      },
+      {
+        "sourceId": "sbi-retail-domestic-term-deposits",
+        "officialSourceRole": "SBI's published retail domestic term-deposit card applies to SBI products and stated conditions.",
+        "reuseEvidence": "No page-specific reuse approval for GenieProof was found.",
+        "sourceToFactEvidence": "This source cannot support a broad bank-market ranking; tenure, customer category, amount, frequency, and issuer must be separately bound.",
+        "decision": "CANDIDATE_ONLY_NOT_ACTIVATED",
+        "evidenceUrls": ["https://sbi.bank.in/web/interest-rates/deposit-rates/retail-domestic-term-deposits"]
+      },
+      {
+        "sourceId": "rbi-frsb",
+        "officialSourceRole": "RBI operational guidance defines FRSB mechanics; dated coupon announcements only support their specified period.",
+        "reuseEvidence": "No source-specific commercial reuse permission was established by this audit.",
+        "sourceToFactEvidence": "Current coupon/reset semantics require a distinct bounded-period contract; current coupon is not a fixed lifetime return.",
+        "decision": "CANDIDATE_ONLY_NOT_ACTIVATED",
+        "evidenceUrls": ["https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11924", "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=55965"]
+      },
+      {
+        "sourceId": "dicgc-deposit-insurance",
+        "officialSourceRole": "DICGC materials describe deposit insurance within the bank-deposit scope and stated conditions.",
+        "reuseEvidence": "No GenieProof-specific reuse approval was found. DICGC's policy page also describes restrictions on caching and conditions for linking/framing; this is recorded as policy evidence, not a blanket conclusion about underlying facts.",
+        "sourceToFactEvidence": "The source cannot support generic safety language or non-bank corporate-deposit insurance claims.",
+        "decision": "CANDIDATE_ONLY_NOT_ACTIVATED",
+        "evidenceUrls": ["https://www.dicgc.org.in/guide-to-deposit-insurance", "https://www.dicgc.org.in/FAQs", "https://www.dicgc.org.in/disclaimer_and_policies"]
+      }
+    ]
+  },
+  "releaseBlockers": [
+    {
+      "id": "source-reuse-rights-and-approval",
+      "reason": "No reuse permission is qualified for the sources and scopes needed by currently supported GenieProof claims. OGD is a conditional-license candidate, but its listed dataset is historical through December 2022 and does not provide current PPF support.",
+      "evidence": ["The current India Post website policy requires prior Department approval for reproduction/distribution; no approval artifact is present.", "AMFI terms restrict use to personal/non-commercial permitted uses and restrict significant electronic storage/public transmission absent written approval.", "GODL permits qualifying reuse with attribution only where the provider is authorized to license; the reviewed OGD dataset is historical through December 2022 and has no PPF field.", "No source approval artifact is stored in the registry or repository."],
+      "responsibleApprovalOrDependency": "Written approval from the applicable source owner or an exact source dataset license whose licensor is authorized, followed by independent legal review.",
+      "preparationCompleted": "Source candidates remain blocked; source fetch is gated before outbound retrieval; official authority and reuse permission are recorded separately.",
+      "nextAction": "Obtain and independently verify written/source-specific reuse approval; record scope, attribution, permitted automation, retention, and publication conditions before changing source qualification.",
+      "requiredReleaseTests": ["Unapproved source is rejected before network fetch or signing.", "Approval scope, source identity, expiry/revocation, and attribution are validated.", "A qualified live-source golden test verifies only the approved user-facing claim scope."]
+    },
+    {
+      "id": "ppf-source-record-association",
+      "reason": "The available India Post page/script structure does not independently establish which PPF row is bound to which publication interval and source revision.",
+      "evidence": ["The source parser intentionally abstains on ambiguous period-to-table association.", "No permitted live source fetch or independent PPF golden record was produced."],
+      "responsibleApprovalOrDependency": "A permitted authoritative publication or machine-readable record with explicit PPF identity, rate, publication revision, and effective period.",
+      "preparationCompleted": "Fail-closed parser behavior and wrong-period, duplicate, missing, stale, and ambiguous-association tests are present.",
+      "nextAction": "After rights approval, identify a source record that explicitly binds product and period; otherwise keep the parser disabled.",
+      "requiredReleaseTests": ["Independent valid and invalid golden source records.", "Wrong-quarter, conflicting-rate, duplicate-PPF, stale-revision, malformed-period, and schema-change cases abstain.", "No heading proximity or table order can create an association."]
+    },
+    {
+      "id": "additional-claim-families",
+      "reason": "Only deterministic extraction and a narrow PPF current nominal-rate contract exist; FD, mutual-fund NAV/return, tax, guarantee, liquidity, eligibility, and other government-savings claims lack distinct qualified contracts.",
+      "evidence": ["financialEvidence.claimInventory records the unsupported/incomplete scope.", "No typed claim families were added from unqualified sources."],
+      "responsibleApprovalOrDependency": "Product-specific primary sources, exact reuse permissions, schema/parser contracts, and independent financial review for each claim family.",
+      "preparationCompleted": "Broader financially material wording is retained as UNSUPPORTED and cannot produce a finding; the existing WealthGenie tax engine remains authoritative.",
+      "nextAction": "Qualify one claim family at a time with distinct product identity, effective-time, condition, provenance, and calculation contracts.",
+      "requiredReleaseTests": ["Family-specific positive, negative, unsupported, stale, conflict, and unavailable cases.", "No historical performance is presented as a forecast.", "Tax, suitability, and product eligibility remain backend-authoritative."]
+    },
+    {
+      "id": "production-privacy-key-custody-and-operations",
+      "reason": "Independent production privacy, signing-key custody/rotation, and worker reliability approval has not been completed.",
+      "evidence": ["Repository contains no independent production sign-off or deployed key-custody evidence.", "Synthetic replica-set tests do not constitute production operational validation."],
+      "responsibleApprovalOrDependency": "Production security/privacy owners and infrastructure operators.",
+      "preparationCompleted": "Owner isolation, consent withdrawal, deletion, append-only audit, leases/fencing, and source outage behavior have code/test coverage; production runtime remains disabled.",
+      "nextAction": "Complete an independent privacy/security review and document managed key storage, rotation, access logging, backup, deletion, worker monitoring, and incident response.",
+      "requiredReleaseTests": ["Key rotation and old-key verification tests.", "Owner isolation, consent, deletion, and recovery tests against isolated production-like infrastructure.", "Worker crash, lease expiry, revocation, outage, and duplicate-delivery exercises."]
+    },
+    {
+      "id": "external-notification-delivery",
+      "reason": "Only the persisted in-app notification outbox is configured; email and push delivery are not integrated.",
+      "evidence": ["capabilities.externalEmailOrPushDelivery is BLOCKED_EXTERNAL."],
+      "responsibleApprovalOrDependency": "A selected notification provider, sender/domain verification, privacy/legal review, and user delivery consent.",
+      "preparationCompleted": "In-app outbox delivery and acknowledgement are implemented and tested.",
+      "nextAction": "Decide whether external delivery is a product requirement; if so, qualify provider, consent, retry, suppression, and deletion semantics.",
+      "requiredReleaseTests": ["Provider authentication and redaction tests.", "Duplicate/retry/idempotency and unsubscribe/consent-withdrawal tests."]
+    }
+  ],
   "capabilities": {
     "immutableEvidenceRegistry": "VERIFIED",
     "separateRetrievalReceipts": "VERIFIED",
@@ -98,11 +209,16 @@
     { "role": "Independent Evaluation and Benchmark Engineer", "reviewMode": "LEAD_SELF_REVIEW", "result": "No competitive-superiority claim is made; synthetic fixtures are test-only and are not a product benchmark." },
     { "role": "Adversarial Chief Architect", "reviewMode": "LEAD_CROSS_REVIEW", "result": "Cross-reviewed independent findings; legacy verdict presentation and readiness discrepancies were corrected and targeted tests pass; legal/source blockers remain." },
     { "role": "Final source-claim compatibility audit", "reviewMode": "INDEPENDENT_SUBAGENT", "result": "Found a risk that parser-version strictness could prevent replay of older signed evidence-bound findings. Version-aware replay was restored and regression tests pass. No production financial claim is enabled; the new source parser abstains." },
-    { "role": "Final worker concurrency audit", "reviewMode": "INDEPENDENT_SUBAGENT", "result": "Found a race where resume could enqueue a check after disable cancelled existing work. Watch generation CAS and job creation now share a transaction; replica-set race regression passes." }
+    { "role": "Final worker concurrency audit", "reviewMode": "INDEPENDENT_SUBAGENT", "result": "Found a race where resume could enqueue a check after disable cancelled existing work. Watch generation CAS and job creation now share a transaction; replica-set race regression passes." },
+    { "role": "Source reuse rights cross-review", "reviewMode": "INDEPENDENT_SUBAGENT", "result": "Confirmed the GenieProof-only scope and blocked registry gate; recommended separating India Post's publication role from DEA rate-setting evidence, using the current India Post website policy, narrowing the OGD/GODL blocker, recording DICGC cache/link policy, and preserving a separate out-of-scope DICGC catalog observation. Ledger wording and evidence links were updated; no source was activated." }
   ],
   "latestVerification": {
-    "recordedAt": "2026-10-12",
+    "recordedAt": "2026-10-13",
     "results": [
+      "Current recovery worktree on base HEAD 19d8724dd01c91af768b113c7ea653db19f33ef1: focused GenieProof/ProofBreak backend suite passed 106/106; OpenAPI HTTP/contract suite passed 15/15; full backend no-Mongo partition passed 1,456/1,456 tests (592,994 ms). Mongo transaction suites were not run in this partition; local Docker was not used.",
+      "Current recovery frontend suite passed 297/297 tests across 41 files. Frontend typecheck and production build passed; lint reported 0 errors and 1 existing App.jsx exhaustive-deps warning. Build retains the existing large-chunk warning (1,130.81 kB).",
+      "Current recovery backend typecheck passed. Backend lint reported 0 errors and 39 existing warnings. `git diff --check` and JSON parsing passed before final delivery review.",
+      "The prior exact-SHA GitHub CI and ephemeral Kind results below apply to implementation SHA 699547a1951445fd81c926790e11f718742b22d5, not yet to the current recovery edits. A new normal push is required for exact-SHA verification of this recovery; push triggers the repository's CI and ephemeral Kind workflow, not production deployment.",
       "Full backend `npm test --prefix server` with USE_TESTCONTAINERS=false and Mongo environment variables unset: 1,658 passed, 0 failed, 1,658 total; 988,887.3 ms. This includes current parser abstention, historical replay compatibility, registry fencing, and ProofBreak resume/disable race regressions.",
       "Focused backend verifier, persistence readiness, ProofBreak service/worker and Mongo integration tests after final fixes: 30/30 passed.",
       "Focused React GenieProof panel suite: 21/21 passed. Full frontend suite: 297/297 passed.",
@@ -117,6 +233,8 @@
       "The final reduced-motion browser behavior is verified by the exact-SHA Linux Playwright job. Local Playwright could not launch because the Chromium executable is not installed in this Windows workspace; no local browser download or Docker run was performed."
     ],
     "verificationLimits": [
+      "The current local backend partition excludes Mongo transaction integration suites. Earlier replica-set integration and exact-SHA GitHub checks are recorded separately above; current recovery edits still require exact-SHA CI before delivery is considered verified.",
+      "The deterministic extractor moved to version 0.5.0 and create re-extracts claims. A mixed-version rolling deployment may reject an in-flight extraction/create pair and fail closed; deploy the API atomically or require re-extraction before production activation.",
       "No Department of Posts/DEA live source fetch, source permission, source approval, or real financial finding was produced.",
       "Browser-to-worker verification uses authenticated local synthetic fixtures and is not production or official-source qualification.",
       "Independent source rights/legal approval and operational privacy/key-custody review remain outstanding. The parser does not qualify the current publication-period/rate-table association and therefore abstains.",

@@ -40,6 +40,18 @@ const appSource = fs.readFileSync(path.join(serverRoot, 'app.js'), 'utf8');
 const contract = parse(fs.readFileSync(path.join(serverRoot, 'openapi.yaml'), 'utf8'));
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete']);
 
+test('GenieProof offer text OpenAPI schemas document the shared UTF-8 byte limit', () => {
+  for (const schemaName of ['GenieProofExtractRequest', 'GenieProofCreateRequest']) {
+    const offerText = contract.components.schemas[schemaName].properties.offerText;
+    assert.equal(offerText.maxLength, 16_000);
+    assert.equal(offerText['x-max-utf8-bytes'], 16_000);
+    assert.match(offerText.description, /UTF-8 bytes/);
+  }
+  const candidate = contract.components.schemas.GenieProofCandidate.properties;
+  assert.match(candidate.startOffset.description, /UTF-16 code-unit offset into the exact submitted offerText/);
+  assert.match(candidate.endOffset.description, /Exclusive zero-based UTF-16 code-unit offset/);
+});
+
 // Only externally supported route modules belong in the public contract.
 // metricsRoutes and mcpRoutes are deliberately private operational protocols.
 const publicMounts = [

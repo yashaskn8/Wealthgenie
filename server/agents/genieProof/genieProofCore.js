@@ -41,7 +41,8 @@ const PPF_IDENTITY = /\b(?:PPF|Public Provident Fund(?: Scheme)?)\b/gi;
 const RATE_WORDING = /\b(?:rate|interest)\b/i;
 const CURRENT_RATE_SCOPE_UNSUPPORTED = /\b(?:no\s+(?:longer|more)|never)\b|\b(?:q[1-4]\s*(?:fy\s*)?20\d{2}|fy\s*20\d{2}\s*[-/]\s*\d{2}|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+20\d{2}|\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}\s+(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4}|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?[,]?\s+\d{4})\b/i;
 const EXACT_CURRENT_PPF_RATE_STATEMENT = /^\s*(?:the\s+)?(?:(?:current|official)\s+){0,2}(?:ppf|public\s+provident\s+fund(?:\s+scheme)?)\s+(?:current\s+)?(?:official\s+)?interest\s+rate\s+(?:is|stands\s+at|:)\s*(\d{1,2}(?:\.\d{1,4})?)\s*%\s*(?:p\.?\s*a\.?|per\s+annum)\.?\s*$/i;
-const FINANCIAL_CLAIM_SIGNAL = /\b(?:interest\s+rate|returns?|yield|guarantee(?:d)?|assured|capital\s+(?:protection|guarantee)|deposit\s+insurance|lock[- ]?in|withdraw(?:al|als)|liquid(?:ity)?|minimum\s+investment|maximum\s+investment|NAV|net\s+asset\s+value|mutual\s+fund|historical\s+performance|historical\s+return|tax(?:-free|able|ation|\s+exemption)?|deduction|80C|112A|50AA|registered\s+with\s+(?:SEBI|RBI)|(?:SEBI|RBI)[- ]registered)\b/i;
+const FINANCIAL_CLAIM_SIGNAL = /\b(?:interest|rate|returns?|yield|growth|double(?:s|d)?|triple(?:s|d)?|earn(?:s|ed|ing)?|profit|guarantee(?:d)?|assured|capital\s+(?:protection|guarantee)|deposit(?:s)?|payouts?|income|pension|corpus|maturity(?:\s+(?:amount|value|benefit))?|invest(?:ment|ing|ed|s)?|insured|insurance(?:\s+cover)?|cover(?:ed|age)?|lock[- ]?in|withdraw(?:al|als)|liquid(?:ity)?|minimum\s+investment|maximum\s+investment|NAV|net\s+asset\s+value|mutual\s+fund|historical\s+performance|historical\s+return|tax(?:-free|able|ation|\s+exemption)?|deduction|fee|fees|charge|charges|premium|cashback|80C|112A|50AA|SEBI|RBI|DICGC|approved|certified|licensed|regulated|government[- ]backed|sovereign|risk[- ]free)\b/i;
+const FINANCIAL_CURRENCY_AMOUNT = /(?:₹|\b(?:rs\.?|inr)\s*)\s*\d[\d,]*(?:\.\d+)?/i;
 
 export function isGenieProofEvidenceVerifierVersion(verifierVersion) {
   return verifierVersion === GENIEPROOF_LEGACY_EVIDENCE_VERIFIER_VERSION
@@ -104,36 +105,37 @@ export function extractGenieProofClaims(offerText) {
   if (typeof offerText !== 'string') {
     return { ok: false, code: 'OFFER_TEXT_REQUIRED' };
   }
-  const normalized = offerText.normalize('NFC');
-  if (!normalized.trim()) return { ok: false, code: 'OFFER_TEXT_REQUIRED' };
-  if (Buffer.byteLength(normalized, 'utf8') > GENIEPROOF_MAX_SUBMISSION_BYTES) {
+  if (!offerText.normalize('NFC').trim()) return { ok: false, code: 'OFFER_TEXT_REQUIRED' };
+  if (Buffer.byteLength(offerText, 'utf8') > GENIEPROOF_MAX_SUBMISSION_BYTES) {
     return { ok: false, code: 'OFFER_TEXT_TOO_LARGE' };
   }
 
   const inputHash = sha256(offerText);
   const claims = [];
   let omittedClaimCount = 0;
-  for (const span of splitSentences(normalized)) {
-    const rateMatch = span.text.match(PERCENT_PER_ANNUM);
-    const percentMatches = [...span.text.matchAll(PERCENT_VALUE)];
-    const hasPpfIdentity = PPF_IDENTITY.test(span.text);
+  for (const span of splitSentences(offerText)) {
+    const normalizedText = span.text.normalize('NFC');
+    const rateMatch = normalizedText.match(PERCENT_PER_ANNUM);
+    const percentMatches = [...normalizedText.matchAll(PERCENT_VALUE)];
+    const hasPpfIdentity = PPF_IDENTITY.test(normalizedText);
     PPF_IDENTITY.lastIndex = 0;
     const hasFinancialPercent = percentMatches.length > 0
-      && (hasPpfIdentity || FINANCIAL_CLAIM_SIGNAL.test(span.text));
-    if (!rateMatch && !FINANCIAL_CLAIM_SIGNAL.test(span.text) && !hasFinancialPercent) continue;
+      && (hasPpfIdentity || FINANCIAL_CLAIM_SIGNAL.test(normalizedText));
+    const hasFinancialAmount = FINANCIAL_CURRENCY_AMOUNT.test(normalizedText);
+    if (!rateMatch && !FINANCIAL_CLAIM_SIGNAL.test(normalizedText) && !hasFinancialPercent && !hasFinancialAmount) continue;
     if (claims.length >= GENIEPROOF_MAX_CLAIMS) {
       omittedClaimCount += 1;
       continue;
     }
     const numericText = rateMatch ? (rateMatch[1] || rateMatch[2]) : null;
-    const productMatches = [...span.text.matchAll(PPF_IDENTITY)];
+    const productMatches = [...normalizedText.matchAll(PPF_IDENTITY)];
     const hasSinglePpfIdentity = productMatches.length === 1;
-    const unsupportedSemantics = containsUnsupportedClaimSemantics(span.text);
-    const rateCount = rateMatch ? [...span.text.matchAll(new RegExp(PERCENT_PER_ANNUM.source, 'gi'))].length : 0;
-    const hasRateWording = RATE_WORDING.test(span.text);
+    const unsupportedSemantics = containsUnsupportedClaimSemantics(normalizedText);
+    const rateCount = rateMatch ? [...normalizedText.matchAll(new RegExp(PERCENT_PER_ANNUM.source, 'gi'))].length : 0;
+    const hasRateWording = RATE_WORDING.test(normalizedText);
     const supportedCandidate = Boolean(rateMatch) && percentMatches.length === 1 && hasSinglePpfIdentity
       && !unsupportedSemantics && rateCount === 1 && hasRateWording
-      && isExactCurrentPpfRateStatement(span.text, Number(numericText));
+      && isExactCurrentPpfRateStatement(normalizedText, Number(numericText));
     const claimId = stableClaimId(inputHash, span.start, span.end, claims.length);
 
     claims.push({
@@ -155,7 +157,7 @@ export function extractGenieProofClaims(offerText) {
           ...(unsupportedSemantics ? ['CLAIM_CONTAINS_UNSUPPORTED_OR_MIXED_SEMANTICS'] : []),
           ...(rateCount !== 1 ? ['CLAIM_CONTAINS_AMBIGUOUS_RATE_COUNT'] : []),
           ...(!hasRateWording ? ['RATE_ASSERTION_WORDING_MISSING'] : []),
-          ...(!isExactCurrentPpfRateStatement(span.text, Number(numericText)) ? ['CLAIM_NOT_EXACT_CURRENT_RATE_STATEMENT'] : []),
+          ...(!isExactCurrentPpfRateStatement(normalizedText, Number(numericText)) ? ['CLAIM_NOT_EXACT_CURRENT_RATE_STATEMENT'] : []),
           ...(!rateMatch ? ['CLAIM_CLASS_NOT_SUPPORTED_BY_EXTRACTOR'] : []),
         ],
     });
@@ -164,7 +166,7 @@ export function extractGenieProofClaims(offerText) {
   return {
     ok: true,
     inputHash,
-    extractionVersion: 'genieproof-deterministic-extractor/0.4.0',
+    extractionVersion: 'genieproof-deterministic-extractor/0.5.0',
     claims,
     claimsTruncated: omittedClaimCount > 0,
     omittedClaimCount,

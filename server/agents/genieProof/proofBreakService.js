@@ -162,7 +162,7 @@ export async function createProofWatch({
     if (replay) {
       if (replay.requestHash !== requestHash) throw serviceError(409, 'GENIEPROOF_IDEMPOTENCY_CONFLICT', 'This request key was already used for a different watch.');
       await session.commitTransaction();
-      return { created: false, watch: toPublicWatch(replay) };
+      return { created: false, watch: toPublicWatch(replay, createdAt) };
     }
     const row = await ownedCase({ userId, caseId, caseModel, now: createdAt, session });
     const availability = await getSourceAvailability({ claims: row.confirmedClaims || [], sourceModel, session });
@@ -212,14 +212,14 @@ export async function createProofWatch({
     const [saved] = await watchModel.create([watch], { session });
     if (watch.status === 'ACTIVE') await createCheckJob({ watch, jobModel, now: createdAt, session });
     await session.commitTransaction();
-    return { created: true, watch: toPublicWatch(asPlain(saved)) };
+    return { created: true, watch: toPublicWatch(asPlain(saved), createdAt) };
   } catch (error) {
     if (session.inTransaction()) await session.abortTransaction().catch(() => {});
     if (error?.code === 11000) {
       const replay = await watchModel.findOne({ userId, creationKeyHash }).lean();
       if (replay) {
         if (replay.requestHash !== requestHash) throw serviceError(409, 'GENIEPROOF_IDEMPOTENCY_CONFLICT', 'This request key was already used for a different watch.');
-        return { created: false, watch: toPublicWatch(replay) };
+        return { created: false, watch: toPublicWatch(replay, createdAt) };
       }
       const existing = await watchModel.findOne({ userId, caseId, status: { $nin: ['CANCELLED', 'EXPIRED'] } }).lean();
       if (existing) throw serviceError(409, 'PROOFBREAK_WATCH_ALREADY_EXISTS', 'ProofBreak already has a watch for this passport.');
@@ -293,7 +293,7 @@ export async function updateProofWatchStatus({
         }, { session });
       }
       await session.commitTransaction();
-      return toPublicWatch(updated);
+      return toPublicWatch(updated, currentTime);
     } catch (error) {
       if (session.inTransaction()) await session.abortTransaction().catch(() => {});
       throw error;

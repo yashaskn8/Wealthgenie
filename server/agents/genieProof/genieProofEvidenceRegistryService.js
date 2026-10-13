@@ -552,7 +552,7 @@ export async function getGenieProofCurrentEvidenceStatus({
           || recorded.sourceDefinitionHash !== source.definitionHash) status = 'SOURCE_DEFINITION_SUPERSEDED';
       else {
         const effectiveTo = recorded.effectiveTo || recorded.fact?.effectiveTo;
-        status = effectiveTo && asDate(effectiveTo) <= asOf
+        status = effectiveTo && asDate(effectiveTo) < asOf
           ? 'EVIDENCE_PERIOD_ENDED'
           : 'CURRENT_SOURCE_REASSESSMENT_REQUIRED';
       }

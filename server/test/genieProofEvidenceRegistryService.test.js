@@ -5,6 +5,7 @@ import { GENIEPROOF_SOURCE_CATALOG_CANDIDATES } from '../agents/genieProof/genie
 import {
   assertUnambiguousGenieProofIndiaPostBundle,
   computeGenieProofSourceDefinitionHash,
+  getGenieProofCurrentEvidenceStatus,
   refreshGenieProofIndiaPostPpfEvidence,
   resolveGenieProofEvidenceForClaims,
   validateGenieProofSourceDefinition,
@@ -91,6 +92,37 @@ test('GenieProof rejects non-quarter and overlong source effective periods', () 
     'Post Office Small Savings Schemes (w.e.f 01.10.2026 to 31.12.2026);'
       + table,
   ), error => error.code === 'GENIEPROOF_SOURCE_SCHEMA_REJECTED');
+});
+
+test('current evidence status keeps an inclusive effective-to instant current', async () => {
+  const candidate = GENIEPROOF_SOURCE_CATALOG_CANDIDATES[1];
+  const source = {
+    ...candidate,
+    qualificationStatus: 'QUALIFIED_FOR_USER_PRESENTATION',
+    reusePermissionStatus: 'APPROVED',
+    reviewRecord: { reviewedAt: new Date('2026-01-01T00:00:00.000Z'), reference: 'TEST_ONLY', scope: 'TESTS_ONLY' },
+  };
+  source.definitionHash = computeGenieProofSourceDefinitionHash(source);
+  const effectiveTo = new Date('2026-12-31T18:29:59.999Z');
+  const manifest = {
+    confirmedClaims: [{ claimId: 'claim-1', productId: GENIEPROOF_SUPPORTED_PRODUCT_ID, claimType: 'CURRENT_NOMINAL_RATE' }],
+    findings: [{
+      claimId: 'claim-1',
+      evidence: { revisions: [{
+        sourceId: source.sourceId,
+        sourceRevision: source.revision,
+        sourceDefinitionHash: source.definitionHash,
+        effectiveTo,
+      }] },
+    }],
+  };
+  const sourceModel = { find() { return { sort() { return this; }, lean: async () => [source] }; } };
+  const assessAt = async now => getGenieProofCurrentEvidenceStatus({ manifest, sourceModel, now: () => now });
+
+  const atInclusiveEnd = await assessAt(effectiveTo);
+  const afterInclusiveEnd = await assessAt(new Date(effectiveTo.getTime() + 1));
+  assert.equal(atInclusiveEnd.byClaimId['claim-1'].status, 'CURRENT_SOURCE_REASSESSMENT_REQUIRED');
+  assert.equal(afterInclusiveEnd.byClaimId['claim-1'].status, 'EVIDENCE_PERIOD_ENDED');
 });
 
 test('injected synthetic fact exercises append-only receipts and persistence independently of provider qualification', async () => {

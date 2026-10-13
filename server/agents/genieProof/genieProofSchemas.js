@@ -1,10 +1,16 @@
 import Joi from 'joi';
+import { GENIEPROOF_MAX_SUBMISSION_BYTES } from './genieProofCore.js';
 
 const hash = Joi.string().pattern(/^[a-f0-9]{64}$/).required();
 const claimId = Joi.string().pattern(/^[a-f0-9]{32}$/).required();
+const offerText = Joi.string().min(1).max(16_000).custom((value, helpers) => (
+  Buffer.byteLength(value, 'utf8') > GENIEPROOF_MAX_SUBMISSION_BYTES
+    ? helpers.error('string.maxUtf8Bytes', { limit: GENIEPROOF_MAX_SUBMISSION_BYTES })
+    : value
+)).messages({ 'string.maxUtf8Bytes': '{{#label}} must be at most {{#limit}} UTF-8 bytes' });
 
 export const genieProofExtractSchema = Joi.object({
-  offerText: Joi.string().min(1).max(16_000).required(),
+  offerText: offerText.required(),
 }).unknown(false);
 
 export const genieProofConfirmedClaimSchema = Joi.object({
@@ -17,7 +23,7 @@ export const genieProofConfirmedClaimSchema = Joi.object({
 }).unknown(false);
 
 export const genieProofCreateCaseSchema = Joi.object({
-  offerText: Joi.string().min(1).max(16_000).required(),
+  offerText: offerText.required(),
   submissionHash: hash,
   savingConsent: Joi.boolean().valid(true).required(),
   confirmedClaims: Joi.array().items(genieProofConfirmedClaimSchema).min(1).max(10).unique('claimId').required(),

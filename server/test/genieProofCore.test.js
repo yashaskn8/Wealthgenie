@@ -133,9 +133,44 @@ test('extractor retains unsupported financial claim statements without inventing
   assert.deepEqual(extractGenieProofClaims('Please review my monthly budget.').claims, []);
 });
 
+test('extractor retains financially material claims that lack familiar rate or return wording', () => {
+  for (const offerText of [
+    'This investment doubles in five years.',
+    'Earn a monthly payout on your deposit.',
+    'RBI certified and insured up to ₹10 lakh.',
+    'The scheme pays a maturity amount of ₹12 lakh.',
+  ]) {
+    const result = extractGenieProofClaims(offerText);
+    assert.equal(result.ok, true, offerText);
+    assert.equal(result.claims.length, 1, offerText);
+    assert.equal(result.claims[0].originalSpan, offerText);
+    assert.equal(result.claims[0].claimType, 'UNSUPPORTED', offerText);
+    assert.equal(result.claims[0].productId, null, offerText);
+    assert.equal(result.claims[0].value, null, offerText);
+    assert.equal(result.claims[0].unit, 'UNKNOWN', offerText);
+  }
+});
+
+test('extracted spans and offsets reference the exact submitted Unicode text', () => {
+  const offerText = 'The current official PPF interest rate is 7.1% p.a.';
+  const submittedText = `Intro 🪙 cafe\u0301 note. ${offerText}`;
+  const result = extractGenieProofClaims(submittedText);
+  const [claim] = result.claims;
+  const start = submittedText.indexOf(offerText);
+
+  assert.equal(result.claims.length, 1);
+  assert.equal(result.extractionVersion, 'genieproof-deterministic-extractor/0.5.0');
+  assert.equal(claim.claimType, 'CURRENT_NOMINAL_RATE');
+  assert.equal(claim.originalSpan, offerText);
+  assert.equal(claim.startOffset, start);
+  assert.equal(claim.endOffset, start + offerText.length);
+  assert.equal(submittedText.slice(claim.startOffset, claim.endOffset), claim.originalSpan);
+});
+
 test('extractor enforces byte and claim count limits', () => {
   assert.deepEqual(extractGenieProofClaims('  '), { ok: false, code: 'OFFER_TEXT_REQUIRED' });
   assert.equal(extractGenieProofClaims('x'.repeat(16_001)).code, 'OFFER_TEXT_TOO_LARGE');
+  assert.equal(extractGenieProofClaims(('e\u0301').repeat(8_000)).code, 'OFFER_TEXT_TOO_LARGE');
   const result = extractGenieProofClaims(Array(12).fill('PPF interest rate 7.1% p.a.').join('\n'));
   assert.equal(result.claims.length, 10);
   assert.equal(result.claimsTruncated, true);
