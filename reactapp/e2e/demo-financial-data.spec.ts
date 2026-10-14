@@ -327,13 +327,25 @@ async function market(dialog: Locator, body: JsonObject) {
   const panel = region.getByTestId('market-context-panel');
   await expect(panel).toBeVisible();
   const freshness = body.freshness === null ? null : object(body.freshness, 'market.freshness');
-  await expect(panel).toContainText(`Observed: ${observed || 'UNAVAILABLE'} · Evaluated: ${body.evaluatedAt} · Freshness: ${freshness ? string(freshness.status, 'freshness.status') : 'UNAVAILABLE'}`);
+  const observationCard = panel.locator('.wti-provenance-card').filter({ hasText: 'Observation Timestamps' });
+  const observationValues = observationCard.locator('.wti-provenance-val');
+  await expect(observationValues).toContainText(`Observed: ${observed || 'UNAVAILABLE'}`);
+  await expect(observationValues).toContainText(`Evaluated: ${string(body.evaluatedAt, 'market.evaluatedAt')}`);
+  await expect(observationValues).toContainText(`Freshness: ${freshness ? string(freshness.status, 'freshness.status') : 'UNAVAILABLE'}`);
   for (const source of sources) {
     await expect(panel).toContainText(`${sourceLabel(string(source.provider, 'source.provider'))} (${string(source.instrumentId, 'source.instrumentId')} · ${string(source.dataClass, 'source.dataClass')})`);
   }
   await expect(panel).toContainText(`Provider attempts: ${displayAttemptedProvider}`);
-  if (sources.length === 0) await expect(panel).toContainText('Sources: UNAVAILABLE');
-  await expect(panel).toContainText(`Reason codes: ${reasons.length ? reasons.join(', ') : 'UNAVAILABLE'}`);
+  if (sources.length === 0) {
+    const sourceCard = panel.locator('.wti-provenance-card').filter({ hasText: 'Verified Data Sources' });
+    await expect(sourceCard.locator('.wti-provenance-val')).toHaveText('UNAVAILABLE');
+  }
+  const reasonCard = panel.locator('.wti-provenance-card--reasons');
+  if (reasons.length > 0) {
+    for (const reason of reasons) await expect(reasonCard).toContainText(reason);
+  } else {
+    await expect(reasonCard).toContainText('UNAVAILABLE');
+  }
   const tiles = panel.locator('.wti-tech-metric-tile');
   await expect(tiles).toHaveCount(Object.keys(signals).length);
   for (const [key, raw] of Object.entries(signals)) {
