@@ -134,7 +134,7 @@ async function dashboard(page: Page, recommendation: JsonObject) {
     const card = page.locator(`[id="rec-card-${id}"]`);
     await expect(card.locator('.stat-box').filter({ has: page.getByText('Risk Level', { exact: true }) })).toContainText(string(instrument.riskLevel, 'riskLevel'));
     const lockIn = instrument.lockIn;
-    await expect(card.locator('.stat-box').filter({ has: page.getByText('Lock-in', { exact: true }) }))
+    await expect(card.locator('.stat-box').filter({ has: page.getByText(/^Lock-in$/i) }))
       .toContainText(lockIn === null ? 'Unavailable' : number(lockIn, 'lockIn') === 0 ? 'None' : `${lockIn}Y`);
   }
   return instruments;
