@@ -29,7 +29,7 @@ const MARKET_DISPLAY_COPY = Object.freeze({
   },
   CURRENT: {
     label: 'Current verified data',
-    detail: 'Verified market evidence is available for the current session.',
+    detail: 'Verified evidence for this market session.',
   },
   MARKET_CLOSED: {
     label: 'Market closed',

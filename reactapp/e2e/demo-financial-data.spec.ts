@@ -119,11 +119,7 @@ async function dashboard(page: Page, recommendation: JsonObject) {
     const row = page.getByTestId(`recommendation-row-${id}`);
     await expect(row).toBeVisible();
     const name = string(instrument.name, `${id}.name`);
-    // The name shares a cell with badges; compare its text node independently.
-    await expect.poll(() => row.locator('td').nth(1).locator('div').first().evaluate(element =>
-      [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE)
-        .map(node => node.textContent).join('').trim(),
-    )).toBe(name);
+    await expect(row.locator('.wg-inst-name-text')).toHaveText(name);
     const weight = number(instrument.allocationWeight, `${id}.allocationWeight`);
     const allocationPct = number(instrument.allocation_pct, `${id}.allocation_pct`);
     expect(weight).toBeGreaterThan(0);

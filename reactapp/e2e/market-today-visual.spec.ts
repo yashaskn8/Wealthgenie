@@ -382,9 +382,8 @@ test.describe('Market Today Card Visual & Responsive Review', () => {
     await expect(techPanel).toBeVisible();
 
     // Verify grouped technical metrics
-    await expect(page.locator('.wti-tech-group-title', { hasText: 'Market & Index' })).toBeVisible();
-    await expect(page.locator('.wti-tech-group-title', { hasText: 'Trend & Moving Averages' })).toBeVisible();
-    await expect(page.locator('.wti-tech-group-title', { hasText: 'Volatility' })).toBeVisible();
+    await expect(page.locator('.wti-tech-group-title', { hasText: 'Market & Benchmark Indicators' })).toBeVisible();
+    await expect(page.locator('.wti-tech-group-title', { hasText: 'Trend, Moving Averages & Volatility' })).toBeVisible();
     await expect(page.locator('.wti-tech-group-title', { hasText: 'Evidence & Policy Provenance' })).toBeVisible();
 
     // Verify humanized labels
