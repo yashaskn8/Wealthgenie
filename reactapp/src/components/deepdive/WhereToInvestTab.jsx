@@ -866,13 +866,15 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
             <span className="wti-meaning-lead">What this means for you:</span> {adjustmentExplanation}
           </p>
           <div className="wti-market-evidence-summary" data-testid="market-data-status">
-            <span className="wti-market-data-status">{marketDisplay.label}</span>
-            <span>{marketDisplay.detail}</span>
+            <div className="wti-market-status-copy">
+              <span className="wti-market-data-status">{marketDisplay.label}</span>
+              <span>{marketDisplay.detail}</span>
+            </div>
             {marketContextTransport?.revalidationStatus === 'FAILED' && (
-              <span role="status">Refresh failed; showing the last verified snapshot.</span>
+              <span className="wti-market-refresh-notice" role="status">Refresh failed; showing the last verified snapshot.</span>
             )}
             <span className="wti-market-data-asof">
-              As of: {marketObservedAt || 'Unavailable'} · Verified source: {marketEvidenceSource || 'Unavailable'} · Attempted provider: {marketAttemptedProvider || 'Unavailable'}
+              As of: {marketObservedAt || 'Unavailable'} · Verified source: {marketEvidenceSource || 'Unavailable'}
             </span>
             <button
               type="button"
@@ -1152,15 +1154,13 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                       : 'UNAVAILABLE'}
                   </div>
                 </div>
-                {providerSelection && (
-                  <div className="wti-provenance-card">
-                    <span className="wti-provenance-kicker">Provider Selection & Routing</span>
-                    <div className="wti-provenance-val">
-                      Provider attempts: {(providerSelection.attemptedProviders || []).join(', ') || 'UNAVAILABLE'} · Selected: {providerSelection.selectedProvider || 'none'} · Fallback used: {providerSelection.fallbackUsed ? 'yes' : 'no'}
-                      {providerSelection.providerFailures?.length > 0 && ` · Failed attempts: ${providerSelection.providerFailures.map(failure => `${failure.provider} [${failure.reasonCodes.join(', ')}]`).join('; ')}`}
-                    </div>
+                <div className="wti-provenance-card">
+                  <span className="wti-provenance-kicker">Provider Selection & Routing</span>
+                  <div className="wti-provenance-val">
+                    Provider attempts: {marketAttemptedProvider || 'UNAVAILABLE'} · Selected: {providerSelection?.selectedProvider || 'none'} · Fallback used: {providerSelection?.fallbackUsed ? 'yes' : 'no'}
+                    {providerSelection?.providerFailures?.length > 0 && ` · Failed attempts: ${providerSelection.providerFailures.map(failure => `${failure.provider} [${failure.reasonCodes.join(', ')}]`).join('; ')}`}
                   </div>
-                )}
+                </div>
                 <div className="wti-provenance-card wti-provenance-card--reasons">
                   <span className="wti-provenance-kicker">Active Policy Reason Codes</span>
                   <div className="wti-provenance-reasons">

@@ -4,6 +4,12 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      run_live_market_preflight:
+        description: Run the strict live-market Phase 15 browser preflight against the deployed Kind cluster
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -645,12 +651,15 @@ jobs:
           echo "- **Business Tax Endpoint (/api/tax/compare)**: \`$TAX_RES\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Install frontend verification dependencies
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_live_market_preflight }}
         run: npm ci --prefix reactapp
 
       - name: Install Playwright Chromium for the authenticated Phase 15 journey
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_live_market_preflight }}
         run: reactapp/node_modules/.bin/playwright install --with-deps chromium
 
       - name: Execute complete Phase 15 live preflight against the attested Kind deployment
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_live_market_preflight }}
         env:
           NODE_ENV: production
           MARKET_DATA_PRIMARY_PROVIDER: NSE
@@ -699,6 +708,12 @@ jobs:
           wait_for_loopback http://127.0.0.1:5000/health/live
           wait_for_loopback https://127.0.0.1:8443/login
           node server/scripts/runPhase15CiPreflight.js
+
+      - name: Explain skipped live-market preflight
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.run_live_market_preflight) }}
+        run: |
+          echo "### Live-market Phase 15 preflight" >> "$GITHUB_STEP_SUMMARY"
+          echo "Skipped by default because it depends on current market-session/provider data. Deployment provenance, health, tax endpoint, and Kind smoke checks still ran. Start this workflow manually with **Run live-market preflight** enabled to run its strict authenticated browser checks." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify Horizontal Pod Autoscaler & Load Response (Step 3)
         run: |

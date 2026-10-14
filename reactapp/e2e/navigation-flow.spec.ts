@@ -266,10 +266,10 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     // Verify URL normalized to page=home
     await expect(page).toHaveURL(/page=home/);
 
-    // Verify Home first-viewport "Your Plan Today" card and CTA
+    // Verify Home first-viewport plan overview card and CTA
     const heroCard = page.getByTestId('beginner-home-hero');
     await expect(heroCard).toBeVisible();
-    await expect(heroCard).toContainText('YOUR PLAN TODAY');
+    await expect(heroCard).toContainText('Plan Overview');
     await expect(heroCard).toContainText('₹25,000/mo');
 
     const whereToInvestCTA = page.getByTestId('home-cta-where-to-invest');

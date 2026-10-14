@@ -322,7 +322,8 @@ async function market(dialog: Locator, body: JsonObject) {
   const attemptedProviders = [...new Set(selectedAttempts.length ? selectedAttempts : fallbackAttempts)];
   const displayAttemptedProvider = attemptedProviders.length ? attemptedProviders.join(', ') : 'Unavailable';
   const marketStatus = region.getByTestId('market-data-status');
-  await expect(marketStatus).toContainText(`As of: ${snapshotObserved ? ist(snapshotObserved) : 'Unavailable'} · Verified source: ${displaySource} · Attempted provider: ${displayAttemptedProvider}`);
+  await expect(marketStatus).toContainText(`As of: ${snapshotObserved ? ist(snapshotObserved) : 'Unavailable'}`);
+  await expect(marketStatus).toContainText(displaySource);
   const toggle = region.getByRole('button', { name: 'Technical details', exact: true });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
@@ -334,6 +335,7 @@ async function market(dialog: Locator, body: JsonObject) {
   for (const source of sources) {
     await expect(panel).toContainText(`${sourceLabel(string(source.provider, 'source.provider'))} (${string(source.instrumentId, 'source.instrumentId')} · ${string(source.dataClass, 'source.dataClass')})`);
   }
+  await expect(panel).toContainText(`Provider attempts: ${displayAttemptedProvider}`);
   if (sources.length === 0) await expect(panel).toContainText('Sources: UNAVAILABLE');
   await expect(panel).toContainText(`Reason codes: ${reasons.length ? reasons.join(', ') : 'UNAVAILABLE'}`);
   const tiles = panel.locator('.wti-tech-metric-tile');
@@ -498,7 +500,6 @@ test('real backend financial facts match the dashboard, product details, tax wha
   // rather than assuming the completion response remains the current revision.
   const profileResponse = page.waitForResponse(apiResponse('GET', '/profile/current'), { timeout: RESPONSE_TIMEOUT });
   const recommendationResponse = page.waitForResponse(apiResponse('GET', '/recommend/current'), { timeout: RESPONSE_TIMEOUT });
-  const marketContextResponse = page.waitForResponse(apiResponse('GET', '/regime/current'), { timeout: RESPONSE_TIMEOUT });
   await page.reload();
   const profile = await json(await profileResponse);
   expect(profile).toMatchObject({
@@ -509,7 +510,6 @@ test('real backend financial facts match the dashboard, product details, tax wha
   const currentResponse = await recommendationResponse;
   expect(new URL(currentResponse.url()).searchParams.get('profileId')).toBe(profileId);
   const recommendation = await json(currentResponse);
-  const dashboardMarketContext = await json(await marketContextResponse);
   expectCurrentFinancialBinding(recommendation, { profileId, profileVersion });
   expect(recommendation.return_data_class).toBe('MODEL_ASSUMPTION');
   expect(recommendation.provider_forecast).toBe(false);
@@ -551,16 +551,14 @@ test('real backend financial facts match the dashboard, product details, tax wha
       await expect(dialog).toBeVisible();
       const ranked = page.waitForResponse(apiResponse('POST', '/instruments/rank-wti', id), { timeout: RESPONSE_TIMEOUT });
       await dialog.getByRole('tab', { name: 'Where to Invest', exact: true }).click();
-      if (index === 0) await market(dialog, dashboardMarketContext);
       const rankedResponse = await ranked;
       expect(rankedResponse.request().postDataJSON()).toMatchObject({ profileId, parentInstrumentId: id });
       await products(dialog, await json(rankedResponse), id);
       if (index === 0) {
         const refreshButton = dialog.getByRole('button', { name: 'Refresh market data', exact: true });
         await expect(refreshButton).toBeEnabled();
-        // Market context is shared with the dashboard and may already be cached
-        // when this tab mounts. Force an explicit refresh before asserting the
-        // live response so this test does not assume tab entry always refetches.
+        // Assert the exact response returned by an explicit refresh. The
+        // shared market context may be loaded or cached before this tab opens.
         const refreshed = page.waitForResponse(apiResponse('GET', '/regime/current'), { timeout: RESPONSE_TIMEOUT });
         await refreshButton.click();
         const refreshedBody = await json(await refreshed);
