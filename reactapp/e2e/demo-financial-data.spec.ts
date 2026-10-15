@@ -435,7 +435,12 @@ async function taxTable(panel: Locator, body: JsonObject, instruments: JsonObjec
       if (value === null) {
         if (isSipMetric) expect(sipMetrics.status).toBe('UNAVAILABLE');
         else expect(result.status, `${testId} cannot be null in a calculated result`).not.toBe('CALCULATED');
-        await expect(row.getByTestId(testId)).toHaveText('—');
+        if (testId === 'post-tax-return') {
+          await expect(row.getByTestId(testId)).toHaveText(/^—/);
+          await expect(row.getByTestId('sip-return-unavailable-explanation')).toBeVisible();
+        } else {
+          await expect(row.getByTestId(testId)).toHaveText('—');
+        }
       } else {
         await expect(row.getByTestId(testId)).toHaveText(format(number(value, `results[${index}].${testId}`)));
       }
