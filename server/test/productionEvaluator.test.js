@@ -10,6 +10,7 @@ import {
 } from '../agents/evals/productionEvaluator.js';
 import {
   reconcileMissingTerminalEvaluations,
+  scheduleTerminalEvaluationReconciliation,
   startProductionEvaluationReconciliation,
 } from '../agents/evals/productionEvaluationQueue.js';
 
@@ -527,6 +528,46 @@ test('startup and periodic evaluation reconciliation recover failed terminal dia
     await recovery.stop();
   }
   assert.equal(intervalCleared, true, 'shutdown cancels the reconciliation timer');
+});
+
+test('a queued periodic evaluation callback cannot restart reconciliation after shutdown drains', async () => {
+  let retrySweep;
+  let aggregateCalls = 0;
+  let releaseStartup;
+  let markStartupStarted;
+  const startupStarted = new Promise(resolve => { markStartupStarted = resolve; });
+  const startupSweep = new Promise(resolve => { releaseStartup = resolve; });
+  const options = {
+    timerApi: {
+      setInterval(callback) { retrySweep = callback; return 1; },
+      clearInterval() {},
+    },
+    runModel: {
+      aggregate: async () => {
+        aggregateCalls += 1;
+        if (aggregateCalls === 1) {
+          markStartupStarted();
+          await startupSweep;
+        }
+        return [];
+      },
+    },
+    eventModel: { find: () => ({ lean: async () => [] }) },
+    evaluationModel: { collection: { name: 'productionagentevaluations' }, create: async () => [] },
+    evaluatedAt: now,
+  };
+
+  const recovery = startProductionEvaluationReconciliation(options);
+  await startupStarted;
+  const stopping = recovery.stop();
+  releaseStartup();
+  await stopping;
+
+  await retrySweep();
+  assert.equal(aggregateCalls, 1, 'a late timer callback is ignored after the in-flight sweep drains');
+
+  await scheduleTerminalEvaluationReconciliation(options);
+  assert.equal(aggregateCalls, 2, 'explicit terminal reconciliation remains available after periodic shutdown');
 });
 
 test('production evaluation integrity binds the evidence manifest and read access to the originating run owner', async () => {

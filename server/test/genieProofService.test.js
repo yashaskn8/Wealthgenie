@@ -297,6 +297,18 @@ test('stored passport with a noncanonical signature is never presented as verifi
   assert.equal(verification.code, 'PASSPORT_SIGNATURE_MALFORMED');
 });
 
+test('stored passport with a canonical invalid signature is not misreported as an untrusted key', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-invalid-signature', signer: f.signer, ...f, now });
+  f.revisions[0].signature.value = 'A'.repeat(86);
+
+  const verification = await verifyGenieProofCase({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f });
+  assert.equal(verification.integrity, 'CONTENT_HASH_MATCHES');
+  assert.equal(verification.signature, 'UNVERIFIED');
+  assert.equal(verification.trustedIssuer, false);
+  assert.equal(verification.code, 'PASSPORT_SIGNATURE_INVALID');
+});
+
 test('passport history is owner-scoped and independently checks each immutable revision', async () => {
   const f = fixture();
   const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-history-1', signer: f.signer, ...f, now });

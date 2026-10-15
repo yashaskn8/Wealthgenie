@@ -45,7 +45,7 @@ export const TERMINAL_PLAN_REVIEW_STATES = Object.freeze([
 
 export const PLAN_REVIEW_TRANSITIONS = Object.freeze({
   QUEUED: ['RUNNING', 'CANCELLED', 'SUPERSEDED'],
-  RUNNING: ['WAITING_FOR_APPROVAL', 'COMPLETED', 'FAILED', 'CANCELLED', 'BUDGET_EXCEEDED', 'SUPERSEDED'],
+  RUNNING: ['QUEUED', 'WAITING_FOR_APPROVAL', 'COMPLETED', 'FAILED', 'CANCELLED', 'BUDGET_EXCEEDED', 'SUPERSEDED'],
   WAITING_FOR_APPROVAL: ['RUNNING', 'COMPLETED', 'CANCELLED', 'SUPERSEDED'],
   COMPLETED: [],
   FAILED: [],
@@ -93,20 +93,26 @@ export const PLAN_REVIEW_BUDGETS = Object.freeze({
 });
 export const PLAN_REVIEW_CHECKPOINT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-export function buildPlanReviewSnapshotBinding({ userId, profileId, currentState = null, freshness = null, financialProfileStateRevision = null }) {
+export function buildPlanReviewSnapshotBinding({ userId, profileId, currentState = null, freshness = null, financialProfileStateRevision = null, goalSnapshot = null }) {
   const recommendation = currentState?.recommendation || null;
   const allocation = currentState?.allocationRevision || currentState?.currentAllocation || null;
   const provenance = currentState?.provenance || {};
   const profile = currentState?.profile || null;
   const profileVersion = currentState?.profileVersion ?? profile?.version ?? null;
   return Object.freeze({
-    schemaVersion: 'plan-review-source-binding-1.0.0',
+    schemaVersion: 'plan-review-source-binding-1.1.0',
     userId: String(userId),
     profileId: String(profileId),
     financialProfileStateRevision: financialProfileStateRevision !== null
       && financialProfileStateRevision !== undefined
       && Number.isSafeInteger(Number(financialProfileStateRevision))
       ? Number(financialProfileStateRevision)
+      : null,
+    goalSnapshotCount: Number.isSafeInteger(Number(goalSnapshot?.count)) && Number(goalSnapshot.count) >= 0
+      ? Number(goalSnapshot.count)
+      : null,
+    goalSnapshotHash: typeof goalSnapshot?.hash === 'string' && /^[a-f0-9]{64}$/.test(goalSnapshot.hash)
+      ? goalSnapshot.hash
       : null,
     profileVersion: Number.isInteger(Number(profileVersion)) ? Number(profileVersion) : null,
     profileInputHash: recommendation?.profileInputHash || provenance.profileInputHash || null,

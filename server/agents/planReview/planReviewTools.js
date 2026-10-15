@@ -208,11 +208,12 @@ async function getGoalStatusSummary(context) {
   if (!context.profile) return { status: 'UNAVAILABLE', items: [], unavailableFacts: ['PROFILE_REQUIRED'] };
   try {
     const goals = await goalModel.find({ userId: context.userId, profileId: context.profileId })
-      .sort({ target_date: 1 })
+      .sort({ target_date: 1, _id: 1 })
+      .limit(20)
       .lean();
     return {
       status: goals.length ? 'AVAILABLE' : 'NONE',
-      items: goals.slice(0, 20).map(goal => {
+      items: goals.map(goal => {
         const calculationFreshness = context.currentState
           ? assessGoalCalculationFreshness(goal, context.currentState)
           : { fresh: false, reasonCodes: ['SOURCE_MISSING'] };

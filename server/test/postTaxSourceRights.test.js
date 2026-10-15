@@ -9,6 +9,7 @@ import {
 } from '../services/postTaxCoverageMatrix.js';
 import {
   isPostTaxSourceProductionAllowed,
+  matchesSourceRightsEndpoint,
   POST_TAX_SOURCE_RIGHTS_STATES,
   resolvePostTaxProductRights,
   resolvePostTaxSourceRights,
@@ -52,7 +53,46 @@ test('unverified providers and exact-endpoint mismatches fail closed', () => {
   });
   assert.equal(wrongAmfiPath.status, POST_TAX_SOURCE_RIGHTS_STATES.LICENSE_UNVERIFIED);
   assert.equal(wrongAmfiPath.productionPostTaxUseAllowed, false);
+  const wrongRbiDocument = resolvePostTaxSourceRights({
+    provider: PROVIDERS.RBI,
+    url: 'https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=99999',
+  });
+  assert.equal(wrongRbiDocument.sourceId, null);
+  assert.equal(wrongRbiDocument.status, POST_TAX_SOURCE_RIGHTS_STATES.LICENSE_UNVERIFIED);
   assert.equal(isPostTaxSourceProductionAllowed('UNREGISTERED_PROVIDER'), false);
+});
+
+test('declared endpoint templates match only the registered host, path shape, and query keys', () => {
+  const record = {
+    provider: PROVIDERS.TEJHQ,
+    url: 'https://api.tejhq.dev/v1/ohlcv/nse/{symbol}?from={fromDate}&to={toDate}',
+    matchPath: '/v1/ohlcv/nse/{symbol}',
+  };
+  assert.equal(matchesSourceRightsEndpoint(
+    record,
+    PROVIDERS.TEJHQ,
+    'https://api.tejhq.dev/v1/ohlcv/nse/RELIANCE?to=2026-10-14&from=2026-10-01',
+  ), true);
+  assert.equal(matchesSourceRightsEndpoint(
+    record,
+    PROVIDERS.TEJHQ,
+    'https://other.tejhq.dev/v1/ohlcv/nse/RELIANCE?from=2026-10-01&to=2026-10-14',
+  ), false);
+  assert.equal(matchesSourceRightsEndpoint(
+    record,
+    PROVIDERS.TEJHQ,
+    'https://api.tejhq.dev:444/v1/ohlcv/nse/RELIANCE?from=2026-10-01&to=2026-10-14',
+  ), false);
+  assert.equal(matchesSourceRightsEndpoint(
+    record,
+    PROVIDERS.TEJHQ,
+    'https://api.tejhq.dev/v1/ohlcv/bse/RELIANCE?from=2026-10-01&to=2026-10-14',
+  ), false);
+  assert.equal(matchesSourceRightsEndpoint(
+    record,
+    PROVIDERS.TEJHQ,
+    'https://api.tejhq.dev/v1/ohlcv/nse/RELIANCE?from=2026-10-01&to=2026-10-14&extra=1',
+  ), false);
 });
 
 test('NSE MCP is separately classified for development research and never production', () => {

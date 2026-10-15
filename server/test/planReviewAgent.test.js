@@ -244,7 +244,14 @@ function dependencies(overrides = {}) {
     profileModel: { findOne: () => lean(profile) },
     recommendationModel: { findOne: () => sortedLean(recommendation) },
     auditModel: { findOne: () => ({ select: () => lean(null) }) },
-    goalModel: { find: () => ({ sort: () => ({ lean: async () => [] }) }) },
+    goalModel: { find: () => {
+      const query = {
+        sort: () => query,
+        limit: () => query,
+        lean: async () => [],
+      };
+      return query;
+    } },
   };
   return {
     ...models,

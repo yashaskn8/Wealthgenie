@@ -8,6 +8,7 @@ import NseHistoricalDataProvider, {
   buildNseHistoryWindows,
   parseNseHistoricalData,
 } from '../services/marketData/NseHistoricalDataProvider.js';
+import { buildNseHistoricalIndexRequestUrl } from '../services/marketData/marketDataSourceUrls.js';
 import { MARKET_BENCHMARKS, DEFAULT_BENCHMARK_IDS } from '../services/marketData/marketBenchmarks.js';
 import {
   evaluateNseQuoteFreshness,
@@ -300,6 +301,37 @@ test('NSE history windows are bounded and cover the requested range without over
   for (let index = 1; index < windows.length; index += 1) {
     assert.equal(Date.parse(`${windows[index].fromDate}T00:00:00Z`) - Date.parse(`${windows[index - 1].toDate}T00:00:00Z`), 86400000);
   }
+});
+
+test('NSE history sends exact query URLs and preserves each request URL in source provenance', async () => {
+  const calls = [];
+  const expectedUrl = buildNseHistoricalIndexRequestUrl({
+    indexType: 'NIFTY 50', from: '01-09-2026', to: '07-09-2026',
+  });
+  const calendar = {
+    status: 'AVAILABLE',
+    provider: 'NSE',
+    dates: ['2026-10-02'],
+    fetchedAt: FETCHED_AT,
+    source: { provider: 'NSE', url: NSE_TRADING_HOLIDAY_URL },
+  };
+  const provider = new NseHistoricalDataProvider({
+    clock: () => new Date(FETCHED_AT),
+    holidayLoader: async () => calendar,
+    httpClient: {
+      get: async (url, options) => {
+        calls.push({ url, options });
+        return { data: { data: [historyRow('2026-09-07', 24020)] } };
+      },
+    },
+  });
+  const snapshot = await provider.getDailyCandles(MARKET_BENCHMARKS.NIFTY_50.canonicalProductId, {
+    fromDate: '2026-09-01', toDate: '2026-09-07', forceRefresh: true,
+  });
+  assert.equal(snapshot.status, 'AVAILABLE');
+  assert.deepEqual(calls.map(call => call.url), [expectedUrl]);
+  assert.equal(calls[0].options.params, undefined);
+  assert.deepEqual(snapshot.source.requestUrls, [expectedUrl]);
 });
 
 test('provider HTTP and parser failures return SOURCE_ERROR with no quote or candle fallback', async () => {

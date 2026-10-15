@@ -786,7 +786,7 @@ function qualifiedMarketContext({
   const fetchedAt = checkedAt;
   const calendar = {
     status: 'AVAILABLE',
-    source: { provider: 'NSE', url: 'https://www.nseindia.com/api/holiday-master' },
+    source: { provider: 'NSE', url: 'https://www.nseindia.com/api/holiday-master?type=trading' },
     fetchedAt: new Date(now.getTime() - 60_000).toISOString(),
   };
   const quoteFreshness = { status: 'FRESH', marketSession: session, tradingDate: currentDate };
@@ -803,6 +803,7 @@ function qualifiedMarketContext({
     },
     {
       provider: 'NSE', instrumentId: 'NIFTY 50', url: 'https://www.nseindia.com/api/historicalOR/indicesHistory',
+      requestUrls: ['https://www.nseindia.com/api/historicalOR/indicesHistory?indexType=NIFTY+50&from=01-10-2026&to=13-10-2026'],
       observedAt: marketFixtureTimestamp(historyDate, 15, 30),
       providerTimestamp: marketFixtureTimestamp(historyDate, 15, 30), fetchedAt,
       freshness: { status: 'FRESH' }, effectiveTradingDate: historyDate, dataClass: 'DAILY',

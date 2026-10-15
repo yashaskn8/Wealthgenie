@@ -12,6 +12,7 @@ import {
   isSafeDemoEnvironmentId,
 } from '../services/demoDatabaseIdentity.js';
 import { BACKEND_HTTP_HARD_TIMEOUT_MS, isRedisRequired, isSafeDemoUrl, readJson } from './demoPreflight.js';
+import { hasUpstoxAccessToken } from '../services/marketData/upstoxCredentials.js';
 
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REACTAPP_DIR = path.resolve(SERVER_DIR, '..', 'reactapp');
@@ -95,7 +96,7 @@ export async function runDemoDoctor({ environment = process.env, write = line =>
   const provider = String(environment.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase();
   const providerValid = provider === 'NSE' || provider === 'UPSTOX';
   add(checks, write, 'Market provider selection', providerValid, providerValid ? `configured provider ${provider}` : 'configure NSE or UPSTOX');
-  const tokenPresent = provider === 'NSE' || Boolean(environment.UPSTOX_ANALYTICS_TOKEN || environment.UPSTOX_ACCESS_TOKEN);
+  const tokenPresent = provider === 'NSE' || hasUpstoxAccessToken(environment);
   add(checks, write, 'Provider token presence', providerValid && tokenPresent,
     !providerValid ? 'provider selection is invalid' : provider === 'NSE' ? 'NSE does not require a provider token' : tokenPresent ? 'Upstox token PRESENT (value hidden)' : 'selected Upstox provider requires a server-side token');
 

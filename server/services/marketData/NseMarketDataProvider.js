@@ -21,9 +21,11 @@ import {
   evaluateNseQuoteFreshness,
   fetchNseTradingHolidays,
   NSE_MARKET_SESSION,
+  NSE_TRADING_HOLIDAY_URL,
   parseNseMarketTimestamp,
 } from './nseTradingCalendar.js';
 import { readThroughMarketCache } from './requestCache.js';
+import { buildMarketDataRightsUnavailableSnapshot, isMarketDataProductionUseAllowed } from './marketDataRights.js';
 
 export const NSE_ALL_INDICES_URL = 'https://www.nseindia.com/api/allIndices';
 export const NSE_QUOTE_CACHE_TTL_SECONDS = 60;
@@ -162,12 +164,29 @@ export default class NseMarketDataProvider extends MarketDataProvider {
     this.holidayLoader = holidayLoader || ((loaderOptions = {}) => fetchNseTradingHolidays({
       httpClient: this.httpClient,
       clock: this.clock,
+      env: this.env,
+      fixtureCapability: this.marketDataTestFixtureRightsCapability,
       ...loaderOptions,
     }));
   }
 
   async getQuotes(benchmarkIds = DEFAULT_BENCHMARK_IDS, { forceRefresh = false } = {}) {
     const normalizedIds = normalizeBenchmarkIds(benchmarkIds);
+    const deniedUrl = [NSE_ALL_INDICES_URL, NSE_TRADING_HOLIDAY_URL]
+      .find(url => !isMarketDataProductionUseAllowed(
+        PROVIDERS.NSE,
+        url,
+        this.env,
+        this.marketDataTestFixtureRightsCapability,
+      ));
+    if (deniedUrl) {
+      return {
+        ...buildMarketDataRightsUnavailableSnapshot(PROVIDERS.NSE, deniedUrl, { now: this.clock() }),
+        qualification: NSE_ENDPOINT_QUALIFICATION,
+        requestedInstrumentCount: normalizedIds.length,
+        availableFactCount: null,
+      };
+    }
     const snapshot = await readThroughMarketCache({
       cacheKey: cacheKeyFor(normalizedIds),
       ttlSeconds: NSE_QUOTE_CACHE_TTL_SECONDS,

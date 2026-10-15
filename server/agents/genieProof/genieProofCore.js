@@ -14,7 +14,8 @@ export const GENIEPROOF_PREVIOUS_VERIFIER_VERSION = 'genieproof-current-rate/0.3
 export const GENIEPROOF_VERIFIER_VERSION = 'genieproof-current-rate/0.4.0';
 export const GENIEPROOF_LEGACY_EVIDENCE_VERIFIER_VERSION = 'genieproof-evidence-bound/0.3.0';
 export const GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION = 'genieproof-evidence-bound/0.4.0';
-export const GENIEPROOF_EVIDENCE_VERIFIER_VERSION = 'genieproof-evidence-bound/0.5.0';
+export const GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION = 'genieproof-evidence-bound/0.5.0';
+export const GENIEPROOF_EVIDENCE_VERIFIER_VERSION = 'genieproof-evidence-bound/0.6.0';
 export const GENIEPROOF_LEGACY_VERIFIER_VERSION = 'genieproof-current-rate/0.1.0';
 export const GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS = Object.freeze([
   GENIEPROOF_LEGACY_VERIFIER_VERSION,
@@ -23,12 +24,14 @@ export const GENIEPROOF_SUPPORTED_VERIFIER_VERSIONS = Object.freeze([
   GENIEPROOF_VERIFIER_VERSION,
   GENIEPROOF_LEGACY_EVIDENCE_VERIFIER_VERSION,
   GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION,
+  GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION,
   GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
 ]);
 export const GENIEPROOF_MANIFEST_VERSION = 'genieproof-passport/0.1.0';
 export const GENIEPROOF_LEGACY_EVIDENCE_MANIFEST_VERSION = 'genieproof-passport/0.2.0';
 export const GENIEPROOF_PREVIOUS_EVIDENCE_MANIFEST_VERSION = 'genieproof-passport/0.3.0';
-export const GENIEPROOF_EVIDENCE_MANIFEST_VERSION = 'genieproof-passport/0.4.0';
+export const GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_MANIFEST_VERSION = 'genieproof-passport/0.4.0';
+export const GENIEPROOF_EVIDENCE_MANIFEST_VERSION = 'genieproof-passport/0.5.0';
 export const GENIEPROOF_MAX_SUBMISSION_BYTES = 16_000;
 export const GENIEPROOF_MAX_CLAIMS = 10;
 export const GENIEPROOF_SUPPORTED_PRODUCT_ID = 'government:india-post:ppf';
@@ -47,11 +50,18 @@ const FINANCIAL_CURRENCY_AMOUNT = /(?:₹|\b(?:rs\.?|inr)\s*)\s*\d[\d,]*(?:\.\d+
 export function isGenieProofEvidenceVerifierVersion(verifierVersion) {
   return verifierVersion === GENIEPROOF_LEGACY_EVIDENCE_VERIFIER_VERSION
     || verifierVersion === GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION
+    || verifierVersion === GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION
+    || verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION;
+}
+
+function usesCurrentEvidenceContract(verifierVersion) {
+  return verifierVersion === GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION
     || verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION;
 }
 
 export function genieProofManifestVersionForVerifier(verifierVersion) {
   if (verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION) return GENIEPROOF_EVIDENCE_MANIFEST_VERSION;
+  if (verifierVersion === GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION) return GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_MANIFEST_VERSION;
   if (verifierVersion === GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION) return GENIEPROOF_PREVIOUS_EVIDENCE_MANIFEST_VERSION;
   if (verifierVersion === GENIEPROOF_LEGACY_EVIDENCE_VERIFIER_VERSION) return GENIEPROOF_LEGACY_EVIDENCE_MANIFEST_VERSION;
   return GENIEPROOF_MANIFEST_VERSION;
@@ -71,7 +81,7 @@ function containsUnsupportedClaimSemantics(text, verifierVersion = GENIEPROOF_VE
   return semantics.test(text) || /-\s*\d+(?:\.\d+)?\s*%/.test(text)
     || (verifierVersion !== GENIEPROOF_LEGACY_VERIFIER_VERSION && /\?/.test(text))
     || (verifierVersion === GENIEPROOF_VERIFIER_VERSION
-      || verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION)
+        || usesCurrentEvidenceContract(verifierVersion))
       && CURRENT_RATE_SCOPE_UNSUPPORTED.test(text);
 }
 
@@ -200,13 +210,16 @@ function validateEvidenceRevision(evidence, { signatureVerifier, now, requireBou
       || evidence.retrievalIds.some(id => !/^[0-9a-f-]{36}$/i.test(id))
       || !Array.isArray(evidence.retrievalReceiptHashes) || evidence.retrievalReceiptHashes.length < 1
       || evidence.retrievalReceiptHashes.some(hash => !/^[a-f0-9]{64}$/.test(hash))
-      || evidence.parserVersion !== (verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+      || evidence.parserVersion !== (usesCurrentEvidenceContract(verifierVersion)
         ? GENIEPROOF_PPF_PARSER_VERSION
         : GENIEPROOF_LEGACY_PPF_PARSER_VERSION)
       || evidence.ruleVersion !== GENIEPROOF_PPF_RATE_RULE_VERSION
       || typeof fact?.productId !== 'string' || !fact.productId
       || typeof fact?.claimType !== 'string' || !fact.claimType
       || typeof fact?.value !== 'number' || !Number.isFinite(fact.value)
+      || (verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+        && (!Array.isArray(fact?.conditions)
+          || fact.conditions.some(condition => typeof condition !== 'string' || !condition.trim())))
       || fact?.unit !== 'PERCENT_PER_ANNUM') {
     return { valid: false, reason: 'EVIDENCE_BINDING_INVALID' };
   }
@@ -256,7 +269,7 @@ function evidenceBoundFinding(claim, {
   if (claim?.productId !== GENIEPROOF_SUPPORTED_PRODUCT_ID || claim?.unit !== 'PERCENT_PER_ANNUM'
       || typeof claim?.value !== 'number' || !Number.isFinite(claim.value) || claim.value <= 0
       || typeof claim?.statement !== 'string' || containsUnsupportedClaimSemantics(claim.statement, verifierVersion)
-      || (verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+      || (usesCurrentEvidenceContract(verifierVersion)
         && !isExactCurrentPpfRateStatement(claim.statement, claim.value))) {
     return {
       ...base,
@@ -269,7 +282,7 @@ function evidenceBoundFinding(claim, {
   const statementProducts = [...claim.statement.matchAll(PPF_IDENTITY)];
   if (!RATE_WORDING.test(claim.statement) || statementRates.length !== 1 || statementProducts.length !== 1
       || Number(statementRates[0][1] || statementRates[0][2]) !== Number(claim.value)
-      || (verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+      || (usesCurrentEvidenceContract(verifierVersion)
         && !isExactCurrentPpfRateStatement(claim.statement, claim.value))) {
     return { ...base, finding: 'INSUFFICIENT_INPUTS', reasonCodes: ['CONFIRMED_INTERPRETATION_DOES_NOT_MATCH_CLAIM_TEXT'] };
   }
@@ -289,7 +302,7 @@ function evidenceBoundFinding(claim, {
   const checked = candidates.map(evidence => ({ evidence, check: validateEvidenceRevision(evidence, {
     signatureVerifier,
     now,
-    requireBoundedEffectivePeriod: verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
+    requireBoundedEffectivePeriod: usesCurrentEvidenceContract(verifierVersion),
     verifierVersion,
   }) }));
   const mismatchedProduct = checked.some(({ check }) => check.valid
@@ -321,6 +334,14 @@ function evidenceBoundFinding(claim, {
       finding: expiredEvidence || checked.some(({ evidence }) => evidence.freshnessStatus === 'STALE') ? 'OUTDATED_EVIDENCE' : 'NOT_VERIFIABLE',
       reasonCodes: ['NO_CURRENT_APPLICABLE_EVIDENCE'],
       explanation: 'The available evidence does not cover the effective date of this current-rate question.',
+    };
+  }
+  if (verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+      && applicable.some(({ check }) => check.fact.conditions.length > 0)) {
+    return {
+      ...base,
+      reasonCodes: ['EVIDENCE_APPLICABILITY_CONDITIONS_UNRESOLVED'],
+      explanation: 'The evidence includes applicability conditions that are not captured by the exact submitted claim, so the verifier abstains.',
     };
   }
   const observedValues = new Set(applicable.map(({ check }) => check.fact.value));

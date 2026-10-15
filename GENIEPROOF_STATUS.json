@@ -30,7 +30,7 @@
       "endpoint": "https://www.indiapost.gov.in/banking-services/savings",
       "approvalEvidence": "NOT_PRESENT"
     },
-    "claimVerifier": "Versioned deterministic verifier; current 0.5.0 evidence-bound rules require exact PPF rate wording, exact product binding, fresh signed evidence and bounded applicable effective period. Legacy signed manifests remain replayable but are explicitly labeled historical/replay-only in user interfaces and independent verification results.",
+    "claimVerifier": "Versioned deterministic verifier; current 0.6.0 evidence-bound rules require exact PPF rate wording, exact product binding, fresh signed evidence, bounded applicable effective period, and abstention when evidence conditions are unresolved. Signed 0.5.0 passports retain their prior deterministic replay semantics and manifest schema; older manifests remain labeled historical/replay-only in user interfaces and independent verification results.",
     "limits": [
       "No official source is qualified specifically for GenieProof customer-facing financial claim verification.",
       "No source bytes or live government source fetch were used in financial verdict tests.",

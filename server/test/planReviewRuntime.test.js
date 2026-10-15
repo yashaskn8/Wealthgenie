@@ -10,7 +10,7 @@ import {
   planReviewGraphThreadId,
   PLAN_REVIEW_AGENT_VERSION,
 } from '../agents/planReview/planReviewRuntime.js';
-import { enqueuePlanReviewRun } from '../agents/planReview/planReviewService.js';
+import { enqueuePlanReviewRun, getPlanReviewRun } from '../agents/planReview/planReviewService.js';
 import { assertPlanReviewGates, gradePlanReviewTrajectory } from '../agents/evals/planReviewEvals.js';
 import { emptyCheckpoint } from '@langchain/langgraph';
 import { MongoPlanReviewCheckpointer } from '../agents/planReview/mongoPlanReviewCheckpointer.js';
@@ -36,6 +36,7 @@ function queueTransactionDependencies() {
 
 test('plan review state machine permits only explicit durable transitions', () => {
   assert.equal(canTransitionPlanReviewState('QUEUED', 'RUNNING'), true);
+  assert.equal(canTransitionPlanReviewState('RUNNING', 'QUEUED'), true, 'a fenced pre-execution lease release can safely return work to the queue');
   assert.equal(canTransitionPlanReviewState('COMPLETED', 'RUNNING'), false);
   assert.doesNotThrow(() => assertPlanReviewTransition('WAITING_FOR_APPROVAL', 'CANCELLED'));
   assert.throws(() => assertPlanReviewTransition('COMPLETED', 'RUNNING'), { code: 'INVALID_AGENT_STATE_TRANSITION' });
@@ -90,6 +91,58 @@ test('direct cancellation and supersession commit terminal event and checkpoint 
     assert.deepEqual(expiries.map(([label]) => label).sort(), ['checkpoint', 'graph']);
     assert.ok(expiries.every(([, expiresAt]) => expiresAt > now));
   }
+});
+
+test('PlanReview poll supersedes a run when its bound goal snapshot has changed', async () => {
+  const originalBinding = buildPlanReviewSnapshotBinding({
+    userId,
+    profileId,
+    currentState: { profileVersion: 1, provenance: { status: 'MISSING' } },
+    freshness: { fresh: false, reasonCodes: ['RECOMMENDATION_MISSING'] },
+    goalSnapshot: { count: 1, hash: 'a'.repeat(64) },
+  });
+  const originalHash = hashPlanReviewSnapshot(originalBinding);
+  let run = {
+    userId,
+    runId: 'run-goal-superseded',
+    profileId,
+    status: 'QUEUED',
+    planReviewSnapshotHash: originalHash,
+    sourceBinding: originalBinding,
+    executionGeneration: 1,
+    eventSequence: 3,
+  };
+  const model = {
+    findOne: () => ({ lean: async () => ({ ...run }) }),
+    findOneAndUpdate: (_filter, update) => ({
+      lean: async () => {
+        run = { ...run, ...update.$set };
+        return { ...run };
+      },
+    }),
+  };
+  const events = [];
+  const eventModel = { create: async rows => { events.push(...rows); } };
+  const checkpointModel = { updateMany: async () => ({ modifiedCount: 1 }) };
+  const graphCheckpointModel = { updateMany: async () => ({ modifiedCount: 1 }) };
+  const changedBinding = {
+    ...originalBinding,
+    goalSnapshotHash: 'b'.repeat(64),
+  };
+  const result = await getPlanReviewRun({
+    userId,
+    runId: run.runId,
+    model,
+    snapshotResolver: async () => ({ planReviewSnapshotHash: hashPlanReviewSnapshot(changedBinding) }),
+    eventModel,
+    checkpointModel,
+    graphCheckpointModel,
+  });
+
+  assert.equal(result.status, 'SUPERSEDED');
+  assert.equal(result.currentStateMatch, false);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].eventType, 'RUN_SUPERSEDED');
 });
 
 test('approval action is a descriptor and never a financial mutation', () => {

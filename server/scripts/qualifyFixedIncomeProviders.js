@@ -1,6 +1,22 @@
-import GovernmentSmallSavingsProvider from '../services/marketData/GovernmentSmallSavingsProvider.js';
-import SbiTermDepositProvider from '../services/marketData/SbiTermDepositProvider.js';
-import RbiFloatingRateSavingsBondProvider from '../services/marketData/RbiFloatingRateSavingsBondProvider.js';
+import GovernmentSmallSavingsProvider, {
+  INDIA_POST_SAVINGS_URL,
+  INDIA_POST_SCRIPT_CHUNK_RIGHTS_URL,
+} from '../services/marketData/GovernmentSmallSavingsProvider.js';
+import SbiTermDepositProvider, { SBI_TERM_DEPOSIT_URL } from '../services/marketData/SbiTermDepositProvider.js';
+import RbiFloatingRateSavingsBondProvider, { RBI_FRSB_NOTIFICATION_URL } from '../services/marketData/RbiFloatingRateSavingsBondProvider.js';
+import { assertMarketDataQualificationRights } from '../services/marketData/marketDataRights.js';
+
+try {
+  assertMarketDataQualificationRights([
+    { provider: 'GOVERNMENT_OF_INDIA', url: INDIA_POST_SAVINGS_URL },
+    { provider: 'GOVERNMENT_OF_INDIA', url: INDIA_POST_SCRIPT_CHUNK_RIGHTS_URL },
+    { provider: 'SBI', url: SBI_TERM_DEPOSIT_URL },
+    { provider: 'RBI', url: RBI_FRSB_NOTIFICATION_URL },
+  ]);
+} catch (error) {
+  console.error(`${error.code || 'MARKET_DATA_QUALIFICATION_BLOCKED'}: ${error.message}`);
+  process.exit(1);
+}
 
 function assertAvailableSnapshot(snapshot, expectedProvider, minimumProducts) {
   if (snapshot?.provider !== expectedProvider) throw new Error(`${expectedProvider}: unexpected provider identity`);

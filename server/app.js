@@ -11,6 +11,7 @@ import { correlationIdMiddleware } from './middleware/correlation.js';
 import { createCsrfProtection } from './middleware/csrf.js';
 import { createOperationalMiddleware } from './middleware/operations.js';
 import { createUpstoxPublicDataGate } from './middleware/upstoxPublicDataGate.js';
+import { hasUpstoxAccessToken } from './services/marketData/upstoxCredentials.js';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter.js';
 import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
@@ -189,7 +190,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
     expectedDemoEnvironmentId: env.DEMO_EXPECTED_MONGODB_ENVIRONMENT_ID,
     marketProvider: String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase(),
     marketProviderTokenPresent: String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase() === 'NSE'
-      || Boolean(env.UPSTOX_ANALYTICS_TOKEN || env.UPSTOX_ACCESS_TOKEN),
+      || hasUpstoxAccessToken(env),
   });
   app.use('/health', healthRoutes);
   app.get('/ready', (_req, res) => res.redirect(307, '/health/ready'));

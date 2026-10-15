@@ -1,9 +1,11 @@
 import { PROVIDERS } from './marketData/contracts.js';
-import { AMFI_NAV_URL } from './marketData/AmfiNavProvider.js';
-import { AMFI_NAV_HISTORY_URL } from './marketData/AmfiNavHistoryProvider.js';
-import { INDIA_POST_SAVINGS_URL } from './marketData/GovernmentSmallSavingsProvider.js';
-import { SBI_TERM_DEPOSIT_URL } from './marketData/SbiTermDepositProvider.js';
-import { RBI_FRSB_NOTIFICATION_URL } from './marketData/RbiFloatingRateSavingsBondProvider.js';
+import {
+  AMFI_NAV_URL,
+  AMFI_NAV_HISTORY_RIGHTS_URL,
+  INDIA_POST_SAVINGS_URL,
+  SBI_TERM_DEPOSIT_URL,
+  RBI_FRSB_NOTIFICATION_URL,
+} from './marketData/marketDataSourceUrls.js';
 
 export const POST_TAX_SOURCE_RIGHTS_STATES = Object.freeze({
   APPROVED_FOR_INTENDED_USE: 'APPROVED_FOR_INTENDED_USE',
@@ -68,7 +70,7 @@ const SOURCE_RECORDS = Object.freeze([
     basis: 'AMFI terms limit use to personal, non-commercial permitted uses; broader publication, derivative works, and significant electronic storage are restricted absent a separate written agreement.',
   }),
   sourceRecord({
-    sourceId: 'AMFI_HISTORICAL_NAV', provider: PROVIDERS.AMFI, url: AMFI_NAV_HISTORY_URL,
+    sourceId: 'AMFI_HISTORICAL_NAV', provider: PROVIDERS.AMFI, url: AMFI_NAV_HISTORY_RIGHTS_URL,
     matchPath: '/DownloadNAVHistoryReport_Po.aspx', status: BLOCKED_REUSE_RIGHTS,
     termsUrl: 'https://www.amfiindia.com/terms-of-use',
     rights: {
@@ -188,13 +190,52 @@ function normalizedUrl(value) {
   }
 }
 
-function matchesRecord(record, provider, rawUrl) {
-  if (record.provider !== provider) return false;
+function placeholderName(value) {
+  const match = /^(?:\{([A-Za-z][A-Za-z0-9_]*)\}|%7B([A-Za-z][A-Za-z0-9_]*)%7D)$/i.exec(value);
+  return match?.[1] || match?.[2] || null;
+}
+
+function pathTemplateMatches(templatePath, candidatePath) {
+  const templateSegments = String(templatePath || '').split('/');
+  const candidateSegments = String(candidatePath || '').split('/');
+  return templateSegments.length === candidateSegments.length
+    && templateSegments.every((segment, index) => (
+      placeholderName(segment)
+        ? candidateSegments[index].length > 0
+        : segment === candidateSegments[index]
+    ));
+}
+
+function queryTemplateMatches(expectedSearchParams, candidateSearchParams) {
+  const expectedEntries = [...expectedSearchParams.entries()];
+  const unmatched = [...candidateSearchParams.entries()];
+  if (expectedEntries.length !== unmatched.length) return false;
+  for (const [expectedKey, expectedValue] of expectedEntries) {
+    const index = unmatched.findIndex(([candidateKey, candidateValue]) => (
+      candidateKey === expectedKey
+      && (placeholderName(expectedValue)
+        ? candidateValue.length > 0
+        : candidateValue === expectedValue)
+    ));
+    if (index < 0) return false;
+    unmatched.splice(index, 1);
+  }
+  return unmatched.length === 0;
+}
+
+/** Match a registered exact endpoint or a deliberately declared path/query template. */
+export function matchesSourceRightsEndpoint(record, provider, rawUrl) {
+  if (record?.provider !== provider) return false;
   const candidate = normalizedUrl(rawUrl);
   const expected = normalizedUrl(record.url);
   return Boolean(candidate && expected
-    && candidate.hostname.toLowerCase() === expected.hostname.toLowerCase()
-    && candidate.pathname === record.matchPath);
+    && candidate.origin.toLowerCase() === expected.origin.toLowerCase()
+    && pathTemplateMatches(record.matchPath || expected.pathname, candidate.pathname)
+    && queryTemplateMatches(expected.searchParams, candidate.searchParams));
+}
+
+function matchesRecord(record, provider, rawUrl) {
+  return matchesSourceRightsEndpoint(record, provider, rawUrl);
 }
 
 function isAuthorizedForProduction(record) {
@@ -235,13 +276,17 @@ function decisionForRecord(record) {
   };
 }
 
-export function resolvePostTaxSourceRights({ provider, url } = {}) {
+export function resolveSourceRights({ provider, url } = {}) {
   const record = SOURCE_RECORDS.find(candidate => matchesRecord(candidate, provider, url));
   if (record) return decisionForRecord(record);
   const potential = POTENTIAL_SOURCE_RECORDS.find(candidate => matchesRecord(candidate, provider, url));
   if (potential) return decisionForRecord(potential);
   return unknownDecision(provider, url);
 }
+
+// Backward-compatible name for existing post-tax consumers. Source matching is
+// generic; each caller must still enforce the permission scope it requires.
+export const resolvePostTaxSourceRights = resolveSourceRights;
 
 export function resolvePostTaxProviderRights(provider) {
   const records = SOURCE_RECORDS.filter(record => record.provider === provider);

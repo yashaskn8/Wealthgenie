@@ -57,7 +57,7 @@ function response(status, body) {
   return { response: { ok: status >= 200 && status < 300, status }, body };
 }
 
-function verifiedResponses({ databaseIdentityVerified = true } = {}) {
+function verifiedResponses({ databaseIdentityVerified = true, marketProvider = 'NSE', marketProviderTokenPresent = true } = {}) {
   return async (url, options = {}) => {
     const parsed = new URL(url);
     if (parsed.pathname === '/health/live') return response(200, { status: 'ALIVE', buildSha: BUILD_SHA });
@@ -72,8 +72,8 @@ function verifiedResponses({ databaseIdentityVerified = true } = {}) {
         buildSha: BUILD_SHA,
         mongo: { connected: true, transactionCapable: true, databaseIdentityVerified, environmentSentinelVerified: true },
         redis: { required: false, connected: false },
-        marketProvider: 'NSE',
-        marketProviderTokenPresent: true,
+        marketProvider,
+        marketProviderTokenPresent,
       });
     }
     if (parsed.pathname === '/health/deep') return response(200, { services: { database: 'UP', redis: 'DOWN' } });
@@ -108,6 +108,52 @@ test('read-only doctor validates runtime prerequisites without invoking mutation
     assert.ok(paths.includes('/login'));
     assert.ok(paths.every(value => !/^\/api\/(auth|profile|recommend|instruments|tax)\b/.test(value)));
     assert.doesNotMatch(output.join('\n'), /never-print-this-secret/);
+  } finally {
+    await rm(fixture.directory, { recursive: true, force: true });
+  }
+});
+
+test('read-only doctor resolves a whitespace Analytics token through the access-token fallback', async () => {
+  const fixture = await makeFixtureEnvironment();
+  fixture.environment.MARKET_DATA_PRIMARY_PROVIDER = 'UPSTOX';
+  fixture.environment.UPSTOX_ANALYTICS_TOKEN = '   ';
+  fixture.environment.UPSTOX_ACCESS_TOKEN = ' doctor-fixture-token ';
+  const output = [];
+  try {
+    const result = await runDemoDoctor({
+      environment: fixture.environment,
+      write: line => output.push(line),
+      dependencies: {
+        readHttp: verifiedResponses({ marketProvider: 'UPSTOX', marketProviderTokenPresent: true }),
+        async launchBrowser() { return { async close() {} }; },
+      },
+    });
+    assert.equal(result.checks.find(check => check.name === 'Provider token presence').state, 'PASS');
+    assert.equal(result.checks.find(check => check.name === 'Backend market provider configuration').state, 'PASS');
+    assert.doesNotMatch(output.join('\n'), /doctor-fixture-token/);
+  } finally {
+    await rm(fixture.directory, { recursive: true, force: true });
+  }
+});
+
+test('read-only doctor treats whitespace-only Upstox credentials as absent', async () => {
+  const fixture = await makeFixtureEnvironment();
+  fixture.environment.MARKET_DATA_PRIMARY_PROVIDER = 'UPSTOX';
+  fixture.environment.UPSTOX_ANALYTICS_TOKEN = '   ';
+  fixture.environment.UPSTOX_ACCESS_TOKEN = ' \t ';
+  const output = [];
+  try {
+    const result = await runDemoDoctor({
+      environment: fixture.environment,
+      write: line => output.push(line),
+      dependencies: {
+        readHttp: verifiedResponses({ marketProvider: 'UPSTOX', marketProviderTokenPresent: false }),
+        async launchBrowser() { return { async close() {} }; },
+      },
+    });
+    assert.equal(result.checks.find(check => check.name === 'Provider token presence').state, 'FAIL');
+    assert.equal(result.checks.find(check => check.name === 'Backend market provider configuration').state, 'FAIL');
+    assert.doesNotMatch(output.join('\n'), /UPSTOX_(ANALYTICS|ACCESS)_TOKEN/);
   } finally {
     await rm(fixture.directory, { recursive: true, force: true });
   }

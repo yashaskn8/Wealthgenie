@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import axios from 'axios';
 import { setRedisAvailable, setRedisClient } from '../config/redis.js';
-import NseMarketDataProvider from '../services/marketData/NseMarketDataProvider.js';
-import NseHistoricalDataProvider from '../services/marketData/NseHistoricalDataProvider.js';
+import NseMarketDataProvider, { NSE_ALL_INDICES_URL } from '../services/marketData/NseMarketDataProvider.js';
+import NseHistoricalDataProvider, { NSE_HISTORICAL_INDEX_RIGHTS_URL } from '../services/marketData/NseHistoricalDataProvider.js';
 import { DEFAULT_BENCHMARK_IDS, MARKET_BENCHMARKS } from '../services/marketData/marketBenchmarks.js';
 import { clearInFlightMarketRequestsForTest } from '../services/marketData/requestCache.js';
 import { computeMarketContextFeatures } from '../services/marketContextFeatureEngine.js';
@@ -12,6 +12,19 @@ import {
   classifyDeterministicMarketContext,
 } from '../services/marketContextPolicy.js';
 import { buildNiftyHistoryWindow } from '../services/marketDataService.js';
+import { assertMarketDataQualificationRights } from '../services/marketData/marketDataRights.js';
+import { NSE_TRADING_HOLIDAY_URL } from '../services/marketData/nseTradingCalendar.js';
+
+try {
+  assertMarketDataQualificationRights([
+    { provider: 'NSE', url: NSE_ALL_INDICES_URL },
+    { provider: 'NSE', url: NSE_HISTORICAL_INDEX_RIGHTS_URL },
+    { provider: 'NSE', url: NSE_TRADING_HOLIDAY_URL },
+  ]);
+} catch (error) {
+  console.error(`${error.code || 'MARKET_DATA_QUALIFICATION_BLOCKED'}: ${error.message}`);
+  process.exit(1);
+}
 
 const storedValues = new Map();
 const redisFacade = {

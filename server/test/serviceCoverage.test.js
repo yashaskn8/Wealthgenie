@@ -139,9 +139,11 @@ test('instrumentConstants exposes immutable, versioned model assumptions', () =>
   assert.equal(buildRateLookup().FD, 7.5);
 });
 
-test('marketDataService parses AMFI and uses NSE as the no-account primary market provider', async (t) => {
+test('marketDataService blocks unqualified AMFI and NSE source rights before outbound requests', async (t) => {
   const originalGet = axios.get;
+  let sourceCalls = 0;
   axios.get = async (url) => {
+    sourceCalls += 1;
     if (url.includes('NAVAll.txt')) {
       return { data: 'Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date\n123;INF000A01010;;Example Fund;Direct;Growth;12.34;01-Jan-2026\n' };
     }
@@ -162,18 +164,18 @@ test('marketDataService parses AMFI and uses NSE as the no-account primary marke
   const navs = await fetchMutualFundNAVs();
   const stats = await fetchIndexStatistics('^NSEI');
 
-  assert.equal(navs.count, 1);
-  assert.equal(navs.navMap['123'].nav, 12.34);
-  assert.equal(navs.navMap['123'].plan, 'Direct');
+  assert.equal(navs.status, 'UNAVAILABLE');
+  assert.equal(navs.error.code, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
   assert.equal(stats.symbol, '^NSEI');
   assert.equal(resolvePrimaryMarketProvider({}), 'NSE');
   assert.equal(resolvePrimaryMarketProvider({ MARKET_DATA_PRIMARY_PROVIDER: 'upstox' }), 'UPSTOX');
   assert.throws(() => resolvePrimaryMarketProvider({ MARKET_DATA_PRIMARY_PROVIDER: 'unknown' }), /must be one of/);
-  assert.equal(stats.status, 'AVAILABLE');
-  assert.equal(stats.latest_price, 25000);
-  assert.equal(stats.data_source, 'NSE');
+  assert.equal(stats.status, 'UNAVAILABLE');
+  assert.equal(stats.latest_price, null);
+  assert.equal(stats.data_source, null);
   assert.equal(stats.annualised_return, null);
   assert.equal(stats.annualised_volatility, null);
+  assert.equal(sourceCalls, 0);
 });
 
 test('marketDataService FD staleness handles stale counts and model failures', async () => {

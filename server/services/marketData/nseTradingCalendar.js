@@ -8,8 +8,11 @@ import {
 import { getNseJson, safeNseHttpError } from './nseHttp.js';
 import { indiaClockParts, isoDateInIndia } from './indiaMarketTime.js';
 import { readThroughMarketCache } from './requestCache.js';
+import { createMarketDataTestFixtureRightsCapability } from './marketDataTestFixtures.js';
+import { buildMarketDataRightsUnavailableSnapshot, isMarketDataProductionUseAllowed } from './marketDataRights.js';
+import { NSE_TRADING_HOLIDAY_URL } from './marketDataSourceUrls.js';
 
-export const NSE_TRADING_HOLIDAY_URL = 'https://www.nseindia.com/api/holiday-master';
+export { NSE_TRADING_HOLIDAY_URL };
 export const NSE_TRADING_HOLIDAY_CACHE_TTL_SECONDS = 24 * 60 * 60;
 export const NSE_QUOTE_MAX_AGE_SECONDS = 15 * 60;
 export const NSE_DAILY_HISTORY_MAX_AGE_SECONDS = 4 * 24 * 60 * 60;
@@ -244,8 +247,18 @@ export async function fetchNseTradingHolidays({
   httpClient,
   clock = () => new Date(),
   forceRefresh = false,
+  env = process.env,
+  fixtureCapability = null,
 } = {}) {
   if (!httpClient?.get) throw new TypeError('httpClient.get is required.');
+  const testFixtureCapability = fixtureCapability
+    || createMarketDataTestFixtureRightsCapability({ env, transport: httpClient });
+  if (!isMarketDataProductionUseAllowed(PROVIDERS.NSE, NSE_TRADING_HOLIDAY_URL, env, testFixtureCapability)) {
+    return {
+      ...buildMarketDataRightsUnavailableSnapshot(PROVIDERS.NSE, NSE_TRADING_HOLIDAY_URL, { now: clock() }),
+      dates: [],
+    };
+  }
   const year = indiaClockParts(clock())?.isoDate.slice(0, 4) || 'unknown';
   return readThroughMarketCache({
     cacheKey: `market:nse:trading-holidays:${MARKET_DATA_SCHEMA_VERSION}:${year}`,
@@ -255,7 +268,6 @@ export async function fetchNseTradingHolidays({
       const fetchedAt = clock().toISOString();
       try {
         const response = await getNseJson(httpClient, NSE_TRADING_HOLIDAY_URL, {
-          params: { type: 'trading' },
           referer: 'https://www.nseindia.com/resources/exchange-communication-holidays',
         });
         return {

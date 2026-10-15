@@ -161,14 +161,14 @@ describe('AllocationPlanner', () => {
     render(<AllocationPlanner profile={profile} recommendations={recommendations} recommendationMeta={recommendationMeta} />);
     fireEvent.click(screen.getByRole('button', { name: /Run plan review/i }));
     await waitFor(() => expect(screen.getByText('Review complete')).toBeInTheDocument());
-    expect(api.runPlanReview).toHaveBeenCalledWith(profile.profileId);
+    expect(api.runPlanReview).toHaveBeenCalledWith(profile.profileId, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     fireEvent.click(screen.getByRole('button', { name: /View evidence/i }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('E_RECOMMENDATION_FRESHNESS')).toBeInTheDocument();
     expect(screen.getByText('Current recommendation matches the profile.')).toBeInTheDocument();
   });
 
-  it('keeps recompute as an explicit authoritative parent action', async () => {
+  it('does not recompute when step-up authorization is unavailable', async () => {
     vi.spyOn(api, 'runPlanReview').mockResolvedValue({
       runId: '4f4f4f4f-1111-4111-8111-111111111111',
       currentStateMatch: true,
@@ -189,7 +189,101 @@ describe('AllocationPlanner', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /Request step-up approval/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /Request step-up approval/i }));
     await waitFor(() => expect(api.default.actOnPlanReview).toHaveBeenCalledWith('4f4f4f4f-1111-4111-8111-111111111111', 'APPROVE_RECOMPUTE'));
-    await waitFor(() => expect(recompute).toHaveBeenCalledWith(profile, null));
+    expect(await screen.findByRole('status')).toHaveTextContent('Step-up authorization is not enabled. No financial action was executed.');
+    expect(recompute).not.toHaveBeenCalled();
+  });
+
+  it('does not apply a mandate response to the new profile after switching profiles mid-execution', async () => {
+    const executeResponse = { response_state: 'CURRENT', recommendationId: 'old-profile-recommendation' };
+    let resolveExecution;
+    const pendingExecution = new Promise(resolve => { resolveExecution = resolve; });
+    const mandate = {
+      mandateId: '4f4f4f4f-1111-4111-8111-111111111111',
+      mandateHash: 'a'.repeat(64),
+      financialSnapshotHash: 'b'.repeat(64),
+      action: 'APPROVE_RECOMPUTE',
+      approvalMethod: 'DEVELOPMENT',
+      status: 'DRAFT',
+      expiresAt: '2026-09-25T10:00:00.000Z',
+    };
+    vi.spyOn(api, 'getCurrentPlanReviewRun').mockRejectedValue(noPlanReviewRun);
+    vi.spyOn(api, 'runPlanReview').mockResolvedValue({
+      runId: mandate.mandateId,
+      currentStateMatch: true,
+      status: 'WAITING_FOR_APPROVAL',
+      recommendedAction: 'RECOMPUTE_PLAN',
+      result: validPlanReviewResult({
+        recommendedAction: 'RECOMPUTE_PLAN',
+        freshness: { fresh: false, reasonCodes: ['PROFILE_CHANGED'] },
+        evidence: { status: 'UNAVAILABLE', unavailableFacts: ['PROFILE_CHANGED'], entries: [] },
+      }),
+    });
+    vi.spyOn(api.default, 'actOnPlanReview').mockResolvedValue({ authorization: { enabled: true }, mandate });
+    vi.spyOn(api.default, 'verifyMandateApproval').mockResolvedValue({ status: 'AUTHORIZED' });
+    vi.spyOn(api.default, 'getAuthorizedMandate').mockResolvedValue({ ...mandate, status: 'AUTHORIZED' });
+    vi.spyOn(api.default, 'executeAuthorizedMandate').mockReturnValue(pendingExecution);
+    const recompute = vi.fn();
+    const nextProfile = { ...profile, profileId: '64b000000000000000000099' };
+    const { rerender } = render(
+      <AllocationPlanner profile={profile} recommendations={recommendations} recommendationMeta={recommendationMeta} onRecomputePlan={recompute} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Run plan review/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Request step-up approval/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve (development only)' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Execute approved recompute' }));
+    await waitFor(() => expect(api.default.executeAuthorizedMandate).toHaveBeenCalledWith(mandate.mandateId));
+
+    rerender(
+      <AllocationPlanner profile={nextProfile} recommendations={recommendations} recommendationMeta={recommendationMeta} onRecomputePlan={recompute} />,
+    );
+    await act(async () => {
+      resolveExecution({ receipt: { receiptId: 'old-profile-receipt' }, response: executeResponse });
+      await pendingExecution;
+    });
+
+    expect(recompute).not.toHaveBeenCalled();
+    expect(screen.queryByText('old-profile-receipt')).not.toBeInTheDocument();
+    expect(screen.queryByText('old-profile-recommendation')).not.toBeInTheDocument();
+  });
+
+  it('aborts the current-run lookup when the profile binding changes', async () => {
+    const lookupSignals = [];
+    vi.spyOn(api, 'getCurrentPlanReviewRun').mockImplementation((_profileId, options) => {
+      lookupSignals.push(options.signal);
+      return new Promise(() => {});
+    });
+    const nextProfile = { ...profile, profileId: '64b000000000000000000099' };
+    const { rerender } = render(<AllocationPlanner profile={profile} recommendations={recommendations} recommendationMeta={recommendationMeta} />);
+
+    await waitFor(() => expect(lookupSignals).toHaveLength(1));
+    expect(lookupSignals[0].aborted).toBe(false);
+    rerender(<AllocationPlanner profile={nextProfile} recommendations={recommendations} recommendationMeta={recommendationMeta} />);
+
+    expect(lookupSignals[0].aborted).toBe(true);
+  });
+
+  it('aborts an in-flight status poll when the profile binding changes', async () => {
+    let pollSignal;
+    vi.spyOn(api, 'getCurrentPlanReviewRun').mockRejectedValue(noPlanReviewRun);
+    vi.spyOn(api, 'runPlanReview').mockResolvedValue({
+      runId: '4f4f4f4f-1111-4111-8111-111111111111',
+      currentStateMatch: true,
+      status: 'QUEUED',
+    });
+    vi.spyOn(api, 'getPlanReviewRun').mockImplementation((_runId, options) => {
+      pollSignal = options.signal;
+      return new Promise(() => {});
+    });
+    const nextProfile = { ...profile, profileId: '64b000000000000000000099' };
+    const { rerender } = render(<AllocationPlanner profile={profile} recommendations={recommendations} recommendationMeta={recommendationMeta} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Run plan review/i }));
+    await waitFor(() => expect(api.getPlanReviewRun).toHaveBeenCalled());
+    expect(pollSignal.aborted).toBe(false);
+    rerender(<AllocationPlanner profile={nextProfile} recommendations={recommendations} recommendationMeta={recommendationMeta} />);
+
+    expect(pollSignal.aborted).toBe(true);
   });
 
   it('does not display a completed review that is bound to a superseded financial state', async () => {
@@ -294,6 +388,38 @@ describe('AllocationPlanner', () => {
     });
 
     expect(screen.queryByText('Late result for the previous profile.')).not.toBeInTheDocument();
+  });
+
+  it('aborts and ignores a pending review submission after switching profiles', async () => {
+    let resolveReview;
+    let requestSignal;
+    const pendingReview = new Promise(resolve => { resolveReview = resolve; });
+    vi.spyOn(api, 'getCurrentPlanReviewRun').mockRejectedValue(noPlanReviewRun);
+    vi.spyOn(api, 'runPlanReview').mockImplementation((_profileId, options) => {
+      requestSignal = options.signal;
+      return pendingReview;
+    });
+    const nextProfile = { ...profile, profileId: '64b000000000000000000099' };
+    const { rerender } = render(<AllocationPlanner profile={profile} recommendations={recommendations} recommendationMeta={recommendationMeta} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Run plan review/i }));
+    await waitFor(() => expect(api.runPlanReview).toHaveBeenCalledWith(profile.profileId, expect.objectContaining({ signal: expect.any(AbortSignal) })));
+    expect(requestSignal.aborted).toBe(false);
+    rerender(<AllocationPlanner profile={nextProfile} recommendations={recommendations} recommendationMeta={recommendationMeta} />);
+    expect(requestSignal.aborted).toBe(true);
+
+    await act(async () => {
+      resolveReview({
+        runId: '4f4f4f4f-1111-4111-8111-111111111111',
+        currentStateMatch: true,
+        status: 'COMPLETED',
+        recommendedAction: 'NONE',
+        result: validPlanReviewResult({ summary: 'Late response from the previous profile.' }),
+      });
+      await pendingReview;
+    });
+
+    expect(screen.queryByText('Late response from the previous profile.')).not.toBeInTheDocument();
   });
 
   it('does not request recompute approval unless the server run is waiting for approval', async () => {

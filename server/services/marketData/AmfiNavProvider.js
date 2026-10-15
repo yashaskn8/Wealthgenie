@@ -10,8 +10,10 @@ import {
 } from './contracts.js';
 import { buildAmfiProductIdentity } from './productIdentity.js';
 import { readThroughMarketCache } from './requestCache.js';
+import { AMFI_NAV_URL } from './marketDataSourceUrls.js';
+import { buildMarketDataRightsUnavailableSnapshot, isMarketDataProductionUseAllowed } from './marketDataRights.js';
 
-export const AMFI_NAV_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt';
+export { AMFI_NAV_URL };
 export const AMFI_CACHE_KEY = `market:amfi:nav:${MARKET_DATA_SCHEMA_VERSION}`;
 export const AMFI_CACHE_TTL_SECONDS = 24 * 60 * 60;
 export const AMFI_FRESHNESS_SECONDS = 4 * 24 * 60 * 60;
@@ -166,6 +168,17 @@ export default class AmfiNavProvider extends MarketDataProvider {
   }
 
   async getSnapshot({ forceRefresh = false } = {}) {
+    if (!isMarketDataProductionUseAllowed(
+      PROVIDERS.AMFI,
+      AMFI_NAV_URL,
+      this.env,
+      this.marketDataTestFixtureRightsCapability,
+    )) {
+      return buildMarketDataRightsUnavailableSnapshot(PROVIDERS.AMFI, AMFI_NAV_URL, {
+        now: this.clock(),
+        includeProducts: true,
+      });
+    }
     const snapshot = await readThroughMarketCache({
       cacheKey: AMFI_CACHE_KEY,
       ttlSeconds: AMFI_CACHE_TTL_SECONDS,

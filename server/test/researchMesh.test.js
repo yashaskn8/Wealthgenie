@@ -657,7 +657,10 @@ test('Plan Review invokes ResearchMesh only through a sanitized brief and merges
       profileModel: { findOne: () => ({ lean: async () => profile }) },
       recommendationModel: { findOne: () => ({ sort: () => ({ lean: async () => null }) }) },
       auditModel: { findOne: () => ({ select: () => ({ lean: async () => null }) }) },
-      goalModel: { find: () => ({ sort: () => ({ lean: async () => [] }) }) },
+      goalModel: { find: () => {
+        const query = { sort: () => query, limit: () => query, lean: async () => [] };
+        return query;
+      } },
       getCurrentRegulatoryRuleVersion: () => 'FY2025-26',
       explanationProviders: [],
       timeoutMs: 2000,
@@ -786,7 +789,10 @@ test('prescriptive investment advice from a public source is not verified resear
       profileModel: { findOne: () => ({ lean: async () => profile }) },
       recommendationModel: { findOne: () => ({ sort: () => ({ lean: async () => null }) }) },
       auditModel: { findOne: () => ({ select: () => ({ lean: async () => null }) }) },
-      goalModel: { find: () => ({ sort: () => ({ lean: async () => [] }) }) },
+      goalModel: { find: () => {
+        const query = { sort: () => query, limit: () => query, lean: async () => [] };
+        return query;
+      } },
       getCurrentRegulatoryRuleVersion: () => 'FY2025-26',
       explanationProviders: [],
       timeoutMs: 2000,

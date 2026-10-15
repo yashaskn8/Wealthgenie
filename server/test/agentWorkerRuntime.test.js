@@ -612,6 +612,65 @@ test('heartbeat persistence failure fences and aborts active provider execution'
   worker.stopHeartbeat();
 });
 
+test('an older delayed worker heartbeat cannot shorten a newer lease renewal', async () => {
+  const originalDateNow = Date.now;
+  let clock = originalDateNow();
+  const run = {
+    runId: 'run-monotonic-heartbeat',
+    workerId: 'worker-heartbeat-order',
+    executionGeneration: 4,
+    status: 'RUNNING',
+    cancellationRequested: false,
+    leaseUntil: new Date(clock + 30000),
+  };
+  const pending = [];
+  const model = {
+    updateOne(_filter, update) {
+      return new Promise(resolve => pending.push({ update, resolve }));
+    },
+  };
+  const worker = createPlanReviewWorker({
+    model,
+    worker: run.workerId,
+    runtimeConfig: { agentPlanReview: { leaseMs: 60000, heartbeatMs: 1000 } },
+  });
+  worker.activeRun = run;
+
+  const apply = write => {
+    const { update, resolve } = write;
+    let modified = false;
+    Object.assign(run, update.$set || {});
+    for (const [key, value] of Object.entries(update.$max || {})) {
+      if (run[key] === undefined || run[key] === null || value > run[key]) {
+        run[key] = value;
+        modified = true;
+      }
+    }
+    write.modified = modified;
+    resolve({ matchedCount: 1, modifiedCount: modified ? 1 : 0 });
+  };
+
+  Date.now = () => clock;
+  try {
+    const earlierHeartbeat = worker.heartbeat();
+    clock += 1000;
+    const laterHeartbeat = worker.heartbeat();
+    assert.equal(pending.length, 2);
+
+    apply(pending[1]);
+    assert.equal(await laterHeartbeat, true);
+    const laterLeaseUntil = run.leaseUntil;
+
+    apply(pending[0]);
+    assert.equal(await earlierHeartbeat, true);
+    assert.equal(run.leaseUntil.getTime(), laterLeaseUntil.getTime());
+    assert.equal(pending[0].modified, false, 'Mongo may match the current lease while the monotonic $max is a no-op');
+    assert.equal(pending[0].update.$max.leaseUntil.getTime() < laterLeaseUntil.getTime(), true);
+  } finally {
+    Date.now = originalDateNow;
+  }
+});
+
 test('worker shutdown aborts a provider that ignores cancellation and returns at its deadline', async () => {
   const timers = [];
   const worker = createPlanReviewWorker({
@@ -1044,6 +1103,7 @@ test('expired-run recovery is repeated by its durable worker timer while the pro
   });
   worker.start();
   await firstDone;
+  await new Promise(resolve => setImmediate(resolve));
   const recoveryTimer = worker.expiredRunRecoveryTimer;
   assert.ok(recoveryTimer);
   assert.notEqual(recoveryTimer, worker.timer);

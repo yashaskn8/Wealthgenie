@@ -114,7 +114,10 @@ export function verifyExportedGenieProofPassport(signedPassport, options = {}) {
     const trustedPublicKeys = options && typeof options === 'object'
       ? (options.trustedPublicKeys ?? {})
       : null;
-    signatureResult = new GenieProofPassportVerifier({ trustedPublicKeys }).verifySignedManifest(signedPassport);
+    const revokedKeyIds = options && typeof options === 'object'
+      ? (options.revokedKeyIds ?? [])
+      : null;
+    signatureResult = new GenieProofPassportVerifier({ trustedPublicKeys, revokedKeyIds }).verifySignedManifest(signedPassport);
   } catch {
     return incompleteResult({
       signatureCheck: 'VERIFICATION_INCOMPLETE',
@@ -134,6 +137,25 @@ export function verifyExportedGenieProofPassport(signedPassport, options = {}) {
       code: signatureResult.code,
       reasons: ['The manifest hash or signature envelope is invalid.'],
     };
+  }
+  if (signatureResult.code === 'PASSPORT_SIGNATURE_INVALID') {
+    return {
+      status: 'VERIFICATION_FAILED',
+      signature: 'VERIFICATION_FAILED',
+      evidence: 'VERIFICATION_INCOMPLETE',
+      findings: 'VERIFICATION_INCOMPLETE',
+      trustedIssuer: false,
+      financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
+      code: signatureResult.code,
+      reasons: ['The manifest hash matches, but its signature does not verify against the trusted key.'],
+    };
+  }
+  if (signatureResult.code === 'PASSPORT_SIGNING_KEY_REVOKED') {
+    return incompleteResult({
+      signatureCheck: 'VERIFICATION_INCOMPLETE',
+      code: signatureResult.code,
+      reason: 'The passport signing key is revoked and cannot establish a trusted issuer.',
+    });
   }
   if (!signatureResult.valid || !signatureResult.trustedIssuer) {
     return incompleteResult({

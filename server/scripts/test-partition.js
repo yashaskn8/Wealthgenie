@@ -116,7 +116,7 @@ if (mode === 'full') {
   console.log(`Running the full backend suite: ${testFiles.length} explicit *.test.js files.`);
   const result = spawnSync(process.execPath, ['--test', '--test-concurrency=1', ...testFiles], {
     cwd: serverDir,
-    env: process.env,
+    env: { ...process.env, NODE_ENV: 'test' },
     stdio: 'inherit',
   });
   process.exit(result.status ?? 1);
@@ -155,6 +155,7 @@ if (mode === 'standalone-mongo') {
     assertDisposableLoopbackMongoUri(uri);
 
     const env = { ...process.env };
+    env.NODE_ENV = 'test';
     delete env.MONGO_URI;
     delete env.MONGO_TEST_PARTITION;
     env.MONGODB_URI = uri;
@@ -197,6 +198,7 @@ if (mode === 'standalone-mongo') {
   }
 
   const env = { ...process.env };
+  env.NODE_ENV = 'test';
   delete env.MONGODB_URI;
   delete env.MONGO_URI;
   env.MONGO_TEST_PARTITION = 'NO_MONGO';

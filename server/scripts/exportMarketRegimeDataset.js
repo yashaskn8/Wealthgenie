@@ -1,7 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import axios from 'axios';
-import NseHistoricalDataProvider from '../services/marketData/NseHistoricalDataProvider.js';
+import NseHistoricalDataProvider, { NSE_HISTORICAL_INDEX_RIGHTS_URL } from '../services/marketData/NseHistoricalDataProvider.js';
+import { NSE_TRADING_HOLIDAY_URL } from '../services/marketData/nseTradingCalendar.js';
+import { assertMarketDataQualificationRights } from '../services/marketData/marketDataRights.js';
 import { MARKET_BENCHMARKS } from '../services/marketData/marketBenchmarks.js';
 import { buildMarketRegimeDataset } from '../services/marketData/marketRegimeDataset.js';
 
@@ -24,6 +26,16 @@ const toDate = args.get('to');
 const output = args.get('output');
 if (!fromDate || !toDate || !output) {
   throw new TypeError('Required arguments: --from YYYY-MM-DD --to YYYY-MM-DD --output FILE');
+}
+
+try {
+  assertMarketDataQualificationRights([
+    { provider: 'NSE', url: NSE_HISTORICAL_INDEX_RIGHTS_URL },
+    { provider: 'NSE', url: NSE_TRADING_HOLIDAY_URL },
+  ]);
+} catch (error) {
+  console.error((error.code || 'MARKET_DATA_QUALIFICATION_BLOCKED') + ': ' + error.message);
+  process.exit(1);
 }
 
 const provider = new NseHistoricalDataProvider({ httpClient: axios });

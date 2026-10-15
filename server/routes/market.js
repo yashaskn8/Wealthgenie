@@ -47,6 +47,23 @@ export function respondToManualMarketRefresh(req, res, refreshResult) {
     );
   }
 
+  const sourceRightsBlocked = refreshResult.some(result => {
+    if (result.status !== 'fulfilled') return false;
+    const value = result.value;
+    return value?.error?.code === 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'
+      || value?.reasonCodes?.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED')
+      || value?.marketSnapshot?.policyOutput?.reasonCodes?.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+  });
+  if (sourceRightsBlocked) {
+    return sendError(
+      req,
+      res,
+      503,
+      'Market refresh is unavailable because production source-use permission is not qualified.',
+      'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
+    );
+  }
+
   return res.status(202).json({
     status: 'REFRESH_COMPLETED',
     sources: ['AMFI_CURRENT_NAV', 'AMFI_HISTORICAL_NAV', 'GOVERNMENT_SMALL_SAVINGS', 'SBI_TERM_DEPOSITS', `${PRIMARY_MARKET_PROVIDER}_MARKET_CONTEXT`],

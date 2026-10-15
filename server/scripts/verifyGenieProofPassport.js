@@ -11,7 +11,10 @@ if (!passportPath || process.argv.length !== 3) {
     const trustedPublicKeys = process.env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON
       ? JSON.parse(process.env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON)
       : {};
-    const result = verifyExportedGenieProofPassport(signedPassport, { trustedPublicKeys });
+    const revokedKeyIds = process.env.GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON
+      ? JSON.parse(process.env.GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON)
+      : [];
+    const result = verifyExportedGenieProofPassport(signedPassport, { trustedPublicKeys, revokedKeyIds });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     process.exitCode = result.status === 'VERIFICATION_FAILED' ? 1
       : result.status === 'VERIFICATION_INCOMPLETE' ? 2 : 0;

@@ -720,7 +720,7 @@ paths:
       operationId: getAdminQualifiedEquityHistory
       tags: [Market]
       summary: Read qualified daily equity history for source verification
-      description: Admin-only daily historical read. Upstox remains the raw-history primary; TejHQ is an EOD-only fallback after exact ISIN intervals, NSE session completeness, and publication checks. Adjusted history is a separate basis. This route is not exposed to ordinary users.
+      description: Admin-only daily historical read. Upstox remains the raw-history primary; NSE results require exact dates under the qualified weekday-minus-holiday calendar, and current-session Upstox candles are not treated as final without publication evidence. TejHQ fallback additionally requires exact ISIN intervals and publication checks. This calendar model does not represent exceptional weekend sessions or unscheduled closures. BSE history is unavailable until a qualified BSE session calendar exists. Adjusted results retain raw OHLC and expose the back-adjusted value separately as adjustedClose. This route is not exposed to ordinary users.
       security: [{ BearerAuth: [] }]
       x-required-roles: [admin]
       parameters:

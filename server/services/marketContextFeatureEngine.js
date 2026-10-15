@@ -112,6 +112,7 @@ function sourceDescriptor(source, observedAt, fetchedAt, freshness, metadata = {
     provider: source?.provider ?? null,
     instrumentId: source?.instrumentId ?? null,
     url: source?.url ?? null,
+    ...(Array.isArray(source?.requestUrls) ? { requestUrls: [...source.requestUrls] } : {}),
     observedAt: observedAt ?? null,
     fetchedAt: fetchedAt ?? null,
     freshness: freshness ?? null,
@@ -119,6 +120,32 @@ function sourceDescriptor(source, observedAt, fetchedAt, freshness, metadata = {
     effectiveTradingDate: metadata?.effectiveTradingDate ?? null,
     dataClass: metadata?.dataClass ?? null,
   };
+}
+
+function snapshotProviderIdentities(snapshot, evidenceRole) {
+  const status = snapshot?.providerStatus || {};
+  const providers = [
+    snapshot?.provider,
+    snapshot?.providerSelection?.selectedProvider,
+    status[evidenceRole]?.provider,
+    ...(snapshot?.facts || []).flatMap(fact => [fact?.source?.provider, fact?.sourceProvider, fact?.provider]),
+    ...(snapshot?.candles || []).flatMap(candle => [
+      candle?.source?.provider,
+      candle?.sourceProvider,
+      candle?.provider,
+      snapshot?.source?.provider,
+    ]),
+  ].filter(provider => typeof provider === 'string' && provider.trim())
+    .map(provider => provider.trim().toUpperCase());
+  return new Set(providers);
+}
+
+function hasCoherentProviderPair(quoteSnapshot, historicalSnapshot) {
+  const quoteProviders = snapshotProviderIdentities(quoteSnapshot, 'quotes');
+  const historyProviders = snapshotProviderIdentities(historicalSnapshot, 'history');
+  return quoteProviders.size === 1
+    && historyProviders.size === 1
+    && quoteProviders.values().next().value === historyProviders.values().next().value;
 }
 
 function combinedFetchedAt(...snapshots) {
@@ -249,6 +276,9 @@ export function computeMarketContextFeatures({ quoteSnapshot, historicalSnapshot
   ].filter(source => source.provider || source.instrumentId || source.url);
 
   const reasonCodes = [];
+  if (!hasCoherentProviderPair(quoteSnapshot, historicalSnapshot)) {
+    reasonCodes.push('MARKET_PROVIDER_PAIR_MISMATCH');
+  }
   if (quoteSnapshot?.status === AVAILABILITY.PROVIDER_NOT_CONFIGURED
       || historicalSnapshot?.status === AVAILABILITY.PROVIDER_NOT_CONFIGURED) {
     reasonCodes.push('PROVIDER_NOT_CONFIGURED');

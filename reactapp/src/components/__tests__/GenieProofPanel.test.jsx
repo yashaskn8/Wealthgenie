@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 const mockApi = vi.hoisted(() => ({
   extractGenieProofClaims: vi.fn(),
@@ -103,7 +103,7 @@ describe('GenieProofPanel', () => {
         value: 7.1,
         unit: 'PERCENT_PER_ANNUM',
       }],
-    });
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(screen.queryByText('NOT_VERIFIABLE', { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText(/verify its trusted signature before viewing findings/i)).toBeInTheDocument();
     expect(screen.getByText(/ProofBreak availability is checked for each saved case/i)).toBeInTheDocument();
@@ -157,16 +157,137 @@ describe('GenieProofPanel', () => {
     expect(mockApi.extractGenieProofClaims).not.toHaveBeenCalled();
   });
 
+  it('aborts pending offer extraction on unmount and ignores a response that still resolves', async () => {
+    let resolveExtraction;
+    mockApi.extractGenieProofClaims.mockImplementation(() => new Promise(resolve => { resolveExtraction = resolve; }));
+    const { unmount } = render(<GenieProofPanel />);
+    const offerInput = screen.getByLabelText('Paste the offer text');
+    fireEvent.change(offerInput, { target: { value: offerText } });
+    fireEvent.click(screen.getByRole('button', { name: /extract claims/i }));
+    await waitFor(() => expect(mockApi.extractGenieProofClaims).toHaveBeenCalledOnce());
+    const signal = mockApi.extractGenieProofClaims.mock.calls[0][1].signal;
+
+    unmount();
+    expect(signal.aborted).toBe(true);
+    await act(async () => {
+      resolveExtraction({ inputHash: 'd'.repeat(64), claims: [candidate] });
+      await Promise.resolve();
+    });
+  });
+
+  it('clears a stale case-list error on refresh and keeps the latest refresh error visible', async () => {
+    mockApi.listGenieProofCases
+      .mockRejectedValueOnce(new Error('Old case-list error'))
+      .mockResolvedValueOnce({ cases: [{ caseId: '00000000-0000-4000-8000-000000000002', revision: 2, claimCount: 0, manifestHash: 'b'.repeat(64) }] })
+      .mockRejectedValueOnce(new Error('Current case-list error'));
+
+    render(<GenieProofPanel />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Old case-list error');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(await screen.findByText('b'.repeat(64))).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Current case-list error');
+  });
+
+  it('ignores an older saved-case list response after a newer refresh completes', async () => {
+    let resolveFirstList;
+    mockApi.listGenieProofCases
+      .mockImplementationOnce(() => new Promise(resolve => { resolveFirstList = resolve; }))
+      .mockResolvedValueOnce({ cases: [{ caseId: '00000000-0000-4000-8000-000000000002', revision: 2, claimCount: 0, manifestHash: 'b'.repeat(64) }] });
+    render(<GenieProofPanel />);
+    await waitFor(() => expect(mockApi.listGenieProofCases).toHaveBeenCalledTimes(1));
+    const firstSignal = mockApi.listGenieProofCases.mock.calls[0][0].signal;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(await screen.findByText('b'.repeat(64))).toBeInTheDocument();
+    expect(firstSignal.aborted).toBe(true);
+
+    resolveFirstList({ cases: [{ caseId: '00000000-0000-4000-8000-000000000001', revision: 1, claimCount: 0, manifestHash: 'a'.repeat(64) }] });
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByText('b'.repeat(64))).toBeInTheDocument();
+    expect(screen.queryByText('a'.repeat(64))).not.toBeInTheDocument();
+  });
+
   it('opens saved findings only after a trusted signature is verified', async () => {
     const caseId = '00000000-0000-4000-8000-000000000001';
     mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
     mockApi.getGenieProofCase.mockResolvedValue({
-      passport: { manifestHash: 'c'.repeat(64), manifest: { caseId, revision: 1, verifierVersion: 'genieproof-evidence-bound/0.5.0', confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }], findings: [{ claimId: candidate.claimId, finding: 'NOT_VERIFIABLE', reasonCodes: [], explanation: 'Evidence unavailable.' }] } },
+      passport: { manifestHash: 'c'.repeat(64), manifest: { caseId, revision: 1, verifierVersion: 'genieproof-evidence-bound/0.6.0', confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }], findings: [{ claimId: candidate.claimId, finding: 'NOT_VERIFIABLE', reasonCodes: [], explanation: 'Evidence unavailable.' }] } },
     });
     render(<GenieProofPanel />);
     fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
     expect(await screen.findByText(/Not checked against qualified source evidence/)).toBeInTheDocument();
-    expect(mockApi.verifyGenieProofCase).toHaveBeenCalledWith(caseId);
+    expect(mockApi.verifyGenieProofCase).toHaveBeenCalledWith(caseId, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it('keeps the newer case open when an older trusted-signature check resolves late', async () => {
+    const caseA = '00000000-0000-4000-8000-000000000001';
+    const caseB = '00000000-0000-4000-8000-000000000002';
+    let resolveVerificationA;
+    const makePassport = (caseId, revision, hash, statement) => ({
+      passport: {
+        manifestHash: hash,
+        manifest: { caseId, revision, confirmedClaims: [{ claimId: candidate.claimId, statement }], findings: [] },
+      },
+    });
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [
+      { caseId: caseA, revision: 1, claimCount: 1, manifestHash: 'a'.repeat(64) },
+      { caseId: caseB, revision: 2, claimCount: 1, manifestHash: 'b'.repeat(64) },
+    ] });
+    mockApi.getGenieProofCase.mockImplementation(async caseId => makePassport(
+      caseId, caseId === caseA ? 1 : 2, caseId === caseA ? 'a'.repeat(64) : 'b'.repeat(64),
+      caseId === caseA ? 'Case A private claim' : 'Case B private claim',
+    ));
+    mockApi.verifyGenieProofCase.mockImplementation(caseId => caseId === caseA
+      ? new Promise(resolve => { resolveVerificationA = resolve; })
+      : Promise.resolve({ revision: 2, manifestHash: 'b'.repeat(64), integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true }));
+
+    render(<GenieProofPanel />);
+    const [openA, openB] = await screen.findAllByRole('button', { name: 'Open' });
+    fireEvent.click(openA);
+    await waitFor(() => expect(mockApi.verifyGenieProofCase).toHaveBeenCalledTimes(1));
+    expect(openB).toBeEnabled();
+
+    fireEvent.click(openB);
+    expect(await screen.findByRole('heading', { name: /Signed claim record · revision 2/ })).toBeInTheDocument();
+
+    resolveVerificationA({ revision: 1, manifestHash: 'a'.repeat(64), integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true });
+    await waitFor(() => expect(mockApi.verifyGenieProofCase).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('heading', { name: /Signed claim record · revision 2/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Signed claim record · revision 1/ })).not.toBeInTheDocument();
+  });
+
+  it('shows an invalid signature separately from an unknown signing key and still hides its findings', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getGenieProofCase.mockResolvedValue({
+      passport: {
+        manifestHash: 'c'.repeat(64),
+        manifest: { caseId, revision: 1, confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }], findings: [{ claimId: candidate.claimId, finding: 'SUPPORTED', reasonCodes: [], explanation: 'Forged finding.' }] },
+      },
+    });
+    mockApi.verifyGenieProofCase.mockResolvedValue({
+      revision: 1, manifestHash: 'c'.repeat(64), integrity: 'CONTENT_HASH_MATCHES', signature: 'UNVERIFIED',
+      trustedIssuer: false, code: 'PASSPORT_SIGNATURE_INVALID', financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
+    });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/trusted signing key, but its document signature is invalid/i);
+    expect(screen.queryByText('SUPPORTED', { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByText(/trusted signing key was found, but the document signature is invalid/i)).toBeInTheDocument();
+    expect(screen.queryByText(/signing key is not trusted/i)).not.toBeInTheDocument();
+
+    mockApi.verifyGenieProofCase.mockResolvedValueOnce({
+      revision: 1, manifestHash: 'c'.repeat(64), integrity: 'CONTENT_HASH_MATCHES', signature: 'UNVERIFIED',
+      trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_REVOKED', financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify integrity' }));
+    expect(await screen.findByText(/report was signed by a revoked key/i)).toBeInTheDocument();
   });
 
   it('labels signed supported and contradicted findings as assessment-time records and shows separate current source status', async () => {
@@ -272,7 +393,7 @@ describe('GenieProofPanel', () => {
     expect(screen.getByRole('button', { name: 'Create new assessment' })).toBeEnabled();
 
     fireEvent.click(openB);
-    await waitFor(() => expect(mockApi.getGenieProofCase).toHaveBeenLastCalledWith(caseB));
+    await waitFor(() => expect(mockApi.getGenieProofCase).toHaveBeenLastCalledWith(caseB, expect.objectContaining({ signal: expect.any(AbortSignal) })));
     await screen.findByRole('heading', { name: /Signed claim record · revision 1/ });
     expect(screen.getByLabelText(/I consent to a new private assessment/i)).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Create new assessment' })).toBeDisabled();
@@ -322,7 +443,7 @@ describe('GenieProofPanel', () => {
     expect(await screen.findByRole('group', { name: 'Assessment history' })).toHaveTextContent('Open revision 1');
     fireEvent.click(screen.getByRole('button', { name: /Open revision 1/ }));
     expect(await screen.findByRole('heading', { name: /Signed claim record · revision 1/ })).toBeInTheDocument();
-    expect(mockApi.listGenieProofRevisions).toHaveBeenCalledWith(caseId);
+    expect(mockApi.listGenieProofRevisions).toHaveBeenCalledWith(caseId, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('preserves trusted legacy findings without presenting them as current financial verdicts', async () => {
@@ -333,7 +454,7 @@ describe('GenieProofPanel', () => {
       manifest: {
         caseId,
         revision: 1,
-        verifierVersion: 'genieproof-evidence-bound/0.4.0',
+        verifierVersion: 'genieproof-evidence-bound/0.5.0',
         confirmedClaims: [{ claimId: candidate.claimId, statement: 'The PPF interest rate is no longer 7.1% p.a.' }],
         findings: [{ claimId: candidate.claimId, finding: 'SUPPORTED', reasonCodes: [], explanation: 'Recorded by the historical verifier.' }],
       },
@@ -349,7 +470,35 @@ describe('GenieProofPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Open revision 1/ }));
 
     expect(await screen.findByRole('note')).toHaveTextContent(/historical verifier output.*not reassessed under current claim rules/i);
+    expect(screen.getByText(/Historical finding: The signed report marked this claim as supported at the time of assessment/i)).toBeInTheDocument();
     expect(screen.getByText(/signed report marked this claim as supported at the time of assessment/i)).toBeInTheDocument();
+  });
+
+  it('labels a trusted legacy contradicted finding as historical at the finding', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const passport = {
+      manifestHash: 'c'.repeat(64),
+      signature: { algorithm: 'Ed25519', keyId: 'test-key', value: 'legacy-signature' },
+      manifest: {
+        caseId,
+        revision: 1,
+        verifierVersion: 'genieproof-evidence-bound/0.5.0',
+        confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }],
+        findings: [{ claimId: candidate.claimId, finding: 'CONTRADICTED', reasonCodes: [], explanation: 'Recorded by the historical verifier.' }],
+      },
+    };
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.listGenieProofRevisions.mockResolvedValue({
+      caseId,
+      revisions: [{ revision: 1, manifestHash: 'c'.repeat(64), verification: { integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true }, passport }],
+    });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Assessment history' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Open revision 1/ }));
+
+    expect(await screen.findByText(/Historical finding: The signed report marked this claim as contradicted at the time of assessment/i)).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent(/historical verifier output.*not reassessed under current claim rules/i);
   });
 
   it('clears a prior case verification status when another case history loads', async () => {
@@ -380,6 +529,40 @@ describe('GenieProofPanel', () => {
     expect(screen.queryByText(/The stored report signature is verified/i)).not.toBeInTheDocument();
   });
 
+  it('does not let delayed assessment history replace the history for the newly selected case', async () => {
+    const caseA = '00000000-0000-4000-8000-000000000001';
+    const caseB = '00000000-0000-4000-8000-000000000002';
+    let resolveHistoryA;
+    const revisionB = {
+      revision: 2,
+      manifestHash: 'b'.repeat(64),
+      verification: { integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true },
+      passport: { manifest: { caseId: caseB, revision: 2, confirmedClaims: [], findings: [] } },
+    };
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [
+      { caseId: caseA, revision: 1, claimCount: 0, manifestHash: 'a'.repeat(64) },
+      { caseId: caseB, revision: 2, claimCount: 0, manifestHash: 'b'.repeat(64) },
+    ] });
+    mockApi.listGenieProofRevisions.mockImplementation(caseId => caseId === caseA
+      ? new Promise(resolve => { resolveHistoryA = resolve; })
+      : Promise.resolve({ caseId, revisions: [revisionB] }));
+
+    render(<GenieProofPanel />);
+    const [historyA, historyB] = await screen.findAllByRole('button', { name: 'Assessment history' });
+    fireEvent.click(historyA);
+    await waitFor(() => expect(mockApi.listGenieProofRevisions).toHaveBeenCalledTimes(1));
+    expect(historyB).toBeEnabled();
+
+    fireEvent.click(historyB);
+    const history = await screen.findByRole('group', { name: 'Assessment history' });
+    expect(within(history).getByRole('button', { name: /Open revision 2/ })).toBeInTheDocument();
+
+    resolveHistoryA({ caseId: caseA, revisions: [{ ...revisionB, revision: 1, passport: { manifest: { caseId: caseA, revision: 1, confirmedClaims: [], findings: [] } } }] });
+    await waitFor(() => expect(mockApi.listGenieProofRevisions).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('group', { name: 'Assessment history' })).toHaveTextContent('Open revision 2');
+    expect(screen.queryByRole('button', { name: /Open revision 1/ })).not.toBeInTheDocument();
+  });
+
   it('compares two historical revisions only after both trusted signatures verify', async () => {
     const caseId = '00000000-0000-4000-8000-000000000001';
     const makeRevision = (revision, finding) => ({
@@ -407,7 +590,7 @@ describe('GenieProofPanel', () => {
         manifest: {
           caseId,
           revision,
-          verifierVersion: 'genieproof-evidence-bound/0.5.0',
+          verifierVersion: 'genieproof-evidence-bound/0.6.0',
           confirmedClaims: [{ claimId: candidate.claimId, statement: offerText }],
           findings: [{ claimId: candidate.claimId, finding, reasonCodes: [], explanation: 'Recorded assessment result.' }],
         },
@@ -517,7 +700,22 @@ describe('GenieProofPanel', () => {
     expect(mockApi.deleteGenieProofCase).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Delete passport revision 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete case and revisions' }));
-    await waitFor(() => expect(mockApi.deleteGenieProofCase).toHaveBeenCalledWith(caseId));
+    await waitFor(() => expect(mockApi.deleteGenieProofCase).toHaveBeenCalledWith(caseId, expect.objectContaining({ signal: expect.any(AbortSignal) })));
+  });
+
+  it('preserves a delete failure when refreshing the saved-case list succeeds', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.deleteGenieProofCase.mockRejectedValue(new Error('Synthetic deletion failure'));
+    render(<GenieProofPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete passport revision 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete case and revisions' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Synthetic deletion failure');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(mockApi.listGenieProofCases).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('alert')).toHaveTextContent('Synthetic deletion failure');
   });
 
   it('shows source-rights and worker blockers before asking for monitoring consent', async () => {
@@ -536,6 +734,34 @@ describe('GenieProofPanel', () => {
     expect(mockApi.createProofWatch).not.toHaveBeenCalled();
   });
 
+  it('keeps the latest watch/source refresh when an older watch response arrives late', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    let resolveFirstAvailability;
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getProofWatchAvailability
+      .mockImplementationOnce(() => new Promise(resolve => { resolveFirstAvailability = resolve; }))
+      .mockResolvedValueOnce({
+        caseId, workerStatus: 'UNAVAILABLE', canEnable: false, sourceStatus: 'TECHNICALLY_BLOCKED',
+        monitoringScope: 'Latest synthetic status', claims: [],
+      });
+
+    render(<GenieProofPanel />);
+    const refresh = await screen.findByRole('button', { name: /ProofBreak status & timeline/i });
+    fireEvent.click(refresh);
+    await waitFor(() => expect(mockApi.getProofWatchAvailability).toHaveBeenCalledTimes(1));
+    fireEvent.click(refresh);
+    const region = await screen.findByRole('region', { name: /ProofBreak status and timeline/i });
+    expect(region).toHaveTextContent('Latest synthetic status');
+
+    resolveFirstAvailability({
+      caseId, workerStatus: 'AVAILABLE', canEnable: true, sourceStatus: 'AVAILABLE',
+      monitoringScope: 'Stale synthetic status', claims: [],
+    });
+    await waitFor(() => expect(mockApi.getProofWatchAvailability).toHaveBeenCalledTimes(2));
+    expect(region).toHaveTextContent('Latest synthetic status');
+    expect(region).not.toHaveTextContent('Stale synthetic status');
+  });
+
   it('explains when source reuse approval was revoked', async () => {
     const caseId = '00000000-0000-4000-8000-000000000001';
     mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
@@ -550,6 +776,58 @@ describe('GenieProofPanel', () => {
     expect(await screen.findByText(/official source reuse approval was revoked/i)).toBeInTheDocument();
     expect(screen.getAllByText(/source reuse approval was revoked/i)).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /enable ProofBreak checks/i })).not.toBeInTheDocument();
+  });
+
+  it.each(['CANCELLED', 'DISABLED', 'EXPIRED'])('offers a fresh consented watch after a %s watch while preserving prior event history', async watchStatus => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const cancelledWatch = { watchId: '00000000-0000-4000-8000-000000000002', status: watchStatus };
+    const activeWatch = { watchId: '00000000-0000-4000-8000-000000000004', status: 'ACTIVE' };
+    const priorEvent = { eventId: '00000000-0000-4000-8000-000000000003', eventType: 'EVIDENCE_CHANGED', detectedAt: '2026-10-11T12:00:00.000Z', notificationStatus: 'DELIVERED', acknowledgedAt: null };
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getProofWatchAvailability.mockResolvedValue({
+      caseId, workerStatus: 'AVAILABLE', canEnable: true, sourceStatus: 'AVAILABLE',
+      monitoringScope: 'PPF only', claims: [{ claimId: candidate.claimId, status: 'AVAILABLE' }],
+    });
+    mockApi.listProofWatches
+      .mockResolvedValueOnce({ watches: [cancelledWatch] })
+      .mockResolvedValue({ watches: [cancelledWatch, activeWatch] });
+    mockApi.listProofBreakEvents.mockResolvedValue({ events: [priorEvent], nextCursor: null });
+    mockApi.createProofWatch.mockResolvedValue({ created: true, watch: activeWatch });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /ProofBreak status & timeline/i }));
+    const region = await screen.findByRole('region', { name: /ProofBreak status and timeline/i });
+    expect(region).toHaveTextContent(new RegExp(`watch status: ${watchStatus.toLowerCase()}`, 'i'));
+    expect(region).toHaveTextContent(/a qualified financial fact changed/i);
+    expect(within(region).queryByRole('button', { name: 'Resume checks' })).not.toBeInTheDocument();
+    expect(within(region).getByRole('button', { name: /Withdraw private processing consent/i })).toBeInTheDocument();
+    expect(within(region).getByRole('button', { name: 'Enable ProofBreak checks' })).toBeDisabled();
+
+    fireEvent.click(within(region).getByLabelText(/I consent to periodic checks/i));
+    fireEvent.click(within(region).getByRole('button', { name: 'Enable ProofBreak checks' }));
+    await waitFor(() => expect(mockApi.createProofWatch).toHaveBeenCalledWith(caseId, expect.objectContaining({ signal: expect.any(AbortSignal) })));
+    expect(await within(region).findByText(/watch status: active/i)).toBeInTheDocument();
+    expect(region).toHaveTextContent(/a qualified financial fact changed/i);
+    expect(mockApi.updateProofWatch).not.toHaveBeenCalled();
+    expect(mockApi.deleteProofWatch).not.toHaveBeenCalled();
+  });
+
+  it('keeps source qualification fail-closed for unexpected status values', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getProofWatchAvailability.mockResolvedValue({
+      caseId, workerStatus: 'AVAILABLE', canEnable: true, sourceStatus: 'QUALIFIED_MAYBE',
+      monitoringScope: 'PPF only', claims: [{ claimId: candidate.claimId, status: 'AVAILABLE' }],
+    });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /ProofBreak status & timeline/i }));
+    const region = await screen.findByRole('region', { name: /ProofBreak status and timeline/i });
+    expect(region).toHaveTextContent(/Source qualification is unknown, so monitoring cannot be enabled/i);
+    expect(region).toHaveTextContent(/Monitoring availability is unknown/i);
+    expect(region).not.toHaveTextContent(/Supported by an approved monitoring source/i);
+    expect(region).not.toHaveTextContent('A source is qualified for the supported claims.');
+    expect(within(region).queryByRole('button', { name: /Enable ProofBreak checks/i })).not.toBeInTheDocument();
   });
 
   it('requires separate consent before enabling an available watch and displays its persisted timeline', async () => {
@@ -568,13 +846,13 @@ describe('GenieProofPanel', () => {
     ], nextCursor: null });
     render(<GenieProofPanel />);
     fireEvent.click(await screen.findByRole('button', { name: /ProofBreak status & timeline/i }));
-    await waitFor(() => expect(mockApi.getProofWatchAvailability).toHaveBeenCalledWith(caseId));
+    await waitFor(() => expect(mockApi.getProofWatchAvailability).toHaveBeenCalledWith(caseId, expect.objectContaining({ signal: expect.any(AbortSignal) })));
     expect(screen.getByRole('region', { name: /ProofBreak status and timeline/i })).toHaveTextContent(/A source is qualified/);
     const enable = await screen.findByRole('button', { name: /Enable ProofBreak checks/i });
     expect(enable).toBeDisabled();
     fireEvent.click(screen.getByLabelText(/I consent to periodic checks of these supported claims/i));
     fireEvent.click(enable);
-    await waitFor(() => expect(mockApi.createProofWatch).toHaveBeenCalledWith(caseId));
+    await waitFor(() => expect(mockApi.createProofWatch).toHaveBeenCalledWith(caseId, expect.objectContaining({ signal: expect.any(AbortSignal) })));
     expect(await screen.findByText(/a qualified financial fact changed/i)).toBeInTheDocument();
     expect(screen.getByText(/Timeline update: published in this account/i)).toBeInTheDocument();
     expect(screen.getByText(/A background check could not be completed/i)).toBeInTheDocument();
@@ -606,6 +884,100 @@ describe('GenieProofPanel', () => {
     const region = await screen.findByRole('region', { name: /ProofBreak status and timeline/i });
     await waitFor(() => expect(region).toHaveTextContent(/watch status: cancelled/i));
     expect(region).toHaveTextContent(/a qualified financial fact changed/i);
+    expect(region).toHaveTextContent(/Private processing consent is withdrawn. Future monitoring checks are off./i);
+  });
+
+  it('shows withdrawn consent immediately and preserves it when watch and event reads fail', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const activeWatch = { watchId: '00000000-0000-4000-8000-000000000002', status: 'ACTIVE', nextCheckAt: '2026-10-16T12:00:00.000Z' };
+    const priorEvent = { eventId: '00000000-0000-4000-8000-000000000003', eventType: 'EVIDENCE_CHANGED', detectedAt: '2026-10-11T12:00:00.000Z', notificationStatus: 'DELIVERED', acknowledgedAt: null };
+    let rejectWatchRead;
+    let rejectTimelineRead;
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getProofWatchAvailability.mockResolvedValue({ caseId, workerStatus: 'AVAILABLE', canEnable: false, sourceStatus: 'AVAILABLE', claims: [] });
+    mockApi.listProofWatches
+      .mockResolvedValueOnce({ watches: [activeWatch] })
+      .mockImplementationOnce(() => new Promise((resolve, reject) => { rejectWatchRead = reject; }));
+    mockApi.listProofBreakEvents
+      .mockResolvedValueOnce({ events: [priorEvent], nextCursor: null })
+      .mockImplementationOnce(() => new Promise((resolve, reject) => { rejectTimelineRead = reject; }));
+    mockApi.withdrawGenieProofConsent.mockResolvedValue({});
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /ProofBreak status & timeline/i }));
+    const region = await screen.findByRole('region', { name: /ProofBreak status and timeline/i });
+    fireEvent.click(within(region).getByRole('button', { name: /Withdraw private processing consent/i }));
+    fireEvent.click(within(region).getByRole('button', { name: /Confirm withdrawal/i }));
+
+    expect(await within(region).findByText(/Processing consent is withdrawn. Future checks are off./i)).toBeInTheDocument();
+    expect(region).toHaveTextContent(/watch status: cancelled/i);
+    expect(region).not.toHaveTextContent('Next eligible check:');
+    expect(region).toHaveTextContent(/a qualified financial fact changed/i);
+    expect(rejectWatchRead).toEqual(expect.any(Function));
+    expect(rejectTimelineRead).toEqual(expect.any(Function));
+
+    await act(async () => {
+      rejectWatchRead(new Error('Synthetic watch read failure'));
+      rejectTimelineRead(new Error('Synthetic event read failure'));
+    });
+    await waitFor(() => expect(region).toHaveTextContent(/latest watch status could not be refreshed.*saved event history could not be refreshed/i));
+    expect(region).toHaveTextContent(/a qualified financial fact changed/i);
+    expect(await screen.findByText(/Private processing consent was withdrawn. Future reassessments and monitoring checks were cancelled/i)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('allows consent withdrawal when current availability cannot be loaded', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const activeWatch = { watchId: '00000000-0000-4000-8000-000000000002', status: 'ACTIVE' };
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getProofWatchAvailability.mockRejectedValue(new Error('Availability unavailable'));
+    mockApi.listProofWatches.mockResolvedValue({ watches: [activeWatch] });
+    mockApi.withdrawGenieProofConsent.mockResolvedValue({});
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /ProofBreak status & timeline/i }));
+    const region = await screen.findByRole('region', { name: /ProofBreak status and timeline/i });
+    expect(region).toHaveTextContent(/Current monitoring availability cannot be shown/i);
+    fireEvent.click(within(region).getByRole('button', { name: /Withdraw private processing consent/i }));
+    fireEvent.click(within(region).getByRole('button', { name: /Confirm withdrawal/i }));
+
+    await waitFor(() => expect(mockApi.withdrawGenieProofConsent).toHaveBeenCalledWith(caseId, expect.objectContaining({ signal: expect.any(AbortSignal) })));
+    expect(await within(region).findByText(/Processing consent is withdrawn. Future checks are off./i)).toBeInTheDocument();
+  });
+
+  it('allows case consent withdrawal when availability is unknown and no watch exists', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getProofWatchAvailability.mockRejectedValue(new Error('Synthetic availability failure'));
+    mockApi.listProofWatches.mockResolvedValue({ watches: [] });
+    mockApi.withdrawGenieProofConsent.mockResolvedValue({});
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /ProofBreak status & timeline/i }));
+    const region = await screen.findByRole('region', { name: /ProofBreak status and timeline/i });
     expect(region).toHaveTextContent(/Current monitoring availability cannot be shown; saved watch history remains available/i);
+    expect(within(region).queryByText(/Watch status:/i)).not.toBeInTheDocument();
+    fireEvent.click(within(region).getByRole('button', { name: /Withdraw private processing consent/i }));
+    fireEvent.click(within(region).getByRole('button', { name: /Confirm withdrawal/i }));
+
+    await waitFor(() => expect(mockApi.withdrawGenieProofConsent).toHaveBeenCalledWith(caseId, expect.objectContaining({ signal: expect.any(AbortSignal) })));
+    expect(await within(region).findByText(/Processing consent is withdrawn. Future checks are off./i)).toBeInTheDocument();
+  });
+
+  it('recognizes explicit withdrawn-consent availability errors after reload without treating unknown failures as withdrawal', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 1, manifestHash: 'c'.repeat(64) }] });
+    mockApi.getProofWatchAvailability.mockRejectedValue(Object.assign(new Error('Consent was withdrawn.'), { code: 'GENIEPROOF_CONSENT_WITHDRAWN' }));
+    mockApi.listProofWatches.mockResolvedValue({ watches: [{ watchId: '00000000-0000-4000-8000-000000000002', status: 'CANCELLED' }] });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: /ProofBreak status & timeline/i }));
+    const region = await screen.findByRole('region', { name: /ProofBreak status and timeline/i });
+    expect(region).toHaveTextContent(/Private processing consent is withdrawn. Future monitoring checks are off./i);
+    expect(region).not.toHaveTextContent(/Current monitoring availability cannot be shown/i);
+    expect(within(region).queryByRole('button', { name: /Withdraw private processing consent/i })).not.toBeInTheDocument();
+    expect(within(region).queryByRole('button', { name: 'Resume checks' })).not.toBeInTheDocument();
+    expect(within(region).queryByRole('button', { name: 'Enable ProofBreak checks' })).not.toBeInTheDocument();
+    expect(mockApi.withdrawGenieProofConsent).not.toHaveBeenCalled();
   });
 });

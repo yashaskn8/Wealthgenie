@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import {
   serializeAuthenticationCredential,
@@ -22,13 +22,21 @@ function userMessage(error) {
   return error?.message || 'Passkey authorization is temporarily unavailable.';
 }
 
-export function PlanReviewAuthorization({ run, onExecutionComplete, onAuthorizationUnavailable }) {
+export function PlanReviewAuthorization({ run, onExecutionComplete }) {
+  const mountedRef = useRef(false);
   const [mandate, setMandate] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [needsEnrollment, setNeedsEnrollment] = useState(false);
   const [receiptId, setReceiptId] = useState(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   async function requestApproval() {
     if (!run?.runId || busy) return;
@@ -39,7 +47,6 @@ export function PlanReviewAuthorization({ run, onExecutionComplete, onAuthorizat
       const result = await api.actOnPlanReview(run.runId, 'APPROVE_RECOMPUTE');
       if (result?.authorization?.enabled !== true || !result?.mandate?.mandateId) {
         setMessage('Step-up authorization is not enabled. No financial action was executed.');
-        await onAuthorizationUnavailable?.();
         return;
       }
       setMandate(result.mandate);
@@ -133,15 +140,16 @@ export function PlanReviewAuthorization({ run, onExecutionComplete, onAuthorizat
     setMessage(null);
     try {
       const result = await api.executeAuthorizedMandate(mandate.mandateId);
+      if (!mountedRef.current) return;
       const newReceiptId = result?.receipt?.receiptId || null;
       setReceiptId(newReceiptId);
       setMandate(current => ({ ...current, status: 'EXECUTED', receiptId: newReceiptId }));
       setMessage('Authorized recompute completed. The application is reconciling the canonical current plan.');
       await onExecutionComplete?.(result?.response || null);
     } catch (cause) {
-      setError(userMessage(cause));
+      if (mountedRef.current) setError(userMessage(cause));
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   }
 

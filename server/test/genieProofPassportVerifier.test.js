@@ -161,3 +161,33 @@ test('offline verifier rejects malformed and noncanonical Base64URL signature en
   assert.equal(result.status, 'VERIFICATION_FAILED');
   assert.equal(result.code, 'PASSPORT_SIGNATURE_MALFORMED');
 });
+
+test('offline verifier fails a canonical signature that does not verify against a trusted key', () => {
+  const keys = keyPair();
+  const signer = signerFrom(keys, 'offline-invalid-signature');
+  const invalid = structuredClone(signedPassport(signer));
+  invalid.signature.value = 'A'.repeat(86);
+
+  const result = verifyExportedGenieProofPassport(invalid, {
+    trustedPublicKeys: { 'offline-invalid-signature': keys.publicKeyPem },
+  });
+  assert.equal(result.status, 'VERIFICATION_FAILED');
+  assert.equal(result.signature, 'VERIFICATION_FAILED');
+  assert.equal(result.trustedIssuer, false);
+  assert.equal(result.financialCorrectness, 'NOT_ESTABLISHED_BY_SIGNATURE');
+  assert.equal(result.code, 'PASSPORT_SIGNATURE_INVALID');
+});
+
+test('offline verifier distinguishes a revoked signing key from an unknown key', () => {
+  const keys = keyPair();
+  const signer = signerFrom(keys, 'offline-revoked-key');
+  const signed = signedPassport(signer);
+  const result = verifyExportedGenieProofPassport(signed, {
+    trustedPublicKeys: { 'offline-revoked-key': keys.publicKeyPem },
+    revokedKeyIds: ['offline-revoked-key'],
+  });
+
+  assert.equal(result.status, 'VERIFICATION_INCOMPLETE');
+  assert.equal(result.trustedIssuer, false);
+  assert.equal(result.code, 'PASSPORT_SIGNING_KEY_REVOKED');
+});

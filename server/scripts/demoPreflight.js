@@ -36,7 +36,11 @@ import {
   NSE_ENDPOINT_QUALIFICATION,
   NSE_QUOTE_CACHE_TTL_SECONDS,
 } from '../services/marketData/NseMarketDataProvider.js';
-import { NSE_HISTORICAL_INDEX_URL } from '../services/marketData/NseHistoricalDataProvider.js';
+import {
+  NSE_HISTORICAL_INDEX_RIGHTS_URL,
+  NSE_HISTORICAL_INDEX_URL,
+} from '../services/marketData/NseHistoricalDataProvider.js';
+import { matchesSourceRightsEndpoint } from '../services/postTaxSourceRights.js';
 import {
   NSE_MARKET_SESSION,
   NSE_TRADING_HOLIDAY_CACHE_TTL_SECONDS,
@@ -778,9 +782,18 @@ function isQualifiedNseCalendar(calendar, nowMs) {
     && isTimestampWithin(calendar.fetchedAt, nowMs, NSE_TRADING_HOLIDAY_CACHE_TTL_SECONDS);
 }
 
-function sourceFor(snapshot, { url, instrumentId }) {
+function sourceFor(snapshot, { url, instrumentId, requestUrlTemplate = null }) {
   const matches = (Array.isArray(snapshot?.provenance?.sources) ? snapshot.provenance.sources : []).filter(source => (
-    source?.provider === 'NSE' && source.url === url && source.instrumentId === instrumentId
+    source?.provider === 'NSE'
+      && source.url === url
+      && source.instrumentId === instrumentId
+      && (!requestUrlTemplate || (Array.isArray(source.requestUrls)
+        && source.requestUrls.length > 0
+        && source.requestUrls.every(requestUrl => matchesSourceRightsEndpoint(
+          { provider: 'NSE', url: requestUrlTemplate },
+          'NSE',
+          requestUrl,
+        ))))
   ));
   return matches.length === 1 ? matches[0] : null;
 }
@@ -809,7 +822,11 @@ function assessSessionEvidence({ snapshot, nifty, vix, now }) {
 
   const niftySource = sourceFor(snapshot, { url: NSE_ALL_INDICES_URL, instrumentId: 'NIFTY 50' });
   const vixSource = sourceFor(snapshot, { url: NSE_ALL_INDICES_URL, instrumentId: 'INDIA VIX' });
-  const historySource = sourceFor(snapshot, { url: NSE_HISTORICAL_INDEX_URL, instrumentId: 'NIFTY 50' });
+  const historySource = sourceFor(snapshot, {
+    url: NSE_HISTORICAL_INDEX_URL,
+    instrumentId: 'NIFTY 50',
+    requestUrlTemplate: NSE_HISTORICAL_INDEX_RIGHTS_URL,
+  });
   if (!niftySource || !vixSource || !historySource
       || nifty?.source?.url !== NSE_ALL_INDICES_URL || nifty.source.instrumentId !== 'NIFTY 50'
       || vix?.source?.url !== NSE_ALL_INDICES_URL || vix.source.instrumentId !== 'INDIA VIX'

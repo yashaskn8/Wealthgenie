@@ -81,6 +81,23 @@ test('qualified preferred provider is used without invoking the secondary', asyn
   assert.equal(selected.quoteSnapshot.provider, selected.historicalSnapshot.provider);
 });
 
+test('quote observation and historical EOD timestamps may differ inside one coherent provider pair', async () => {
+  const quotes = quoteSnapshot('NSE');
+  const history = historySnapshot('NSE');
+  assert.notEqual(quotes.facts[0].observedAt, history.observedAt);
+
+  const selected = await fetchQualifiedMarketPair({
+    preferredProvider: 'NSE',
+    providers: [provider('NSE', { quotes, history })],
+  });
+  assert.equal(selected.providerSelection.selectedProvider, 'NSE');
+  assert.equal(selected.quoteSnapshot.provider, selected.historicalSnapshot.provider);
+  assert.equal(computeMarketContextFeatures({
+    quoteSnapshot: selected.quoteSnapshot,
+    historicalSnapshot: selected.historicalSnapshot,
+  }).status, 'FEATURES_AVAILABLE');
+});
+
 test('primary request failure falls back to one complete secondary provider pair', async () => {
   const selected = await fetchQualifiedMarketPair({
     preferredProvider: 'NSE',
@@ -108,6 +125,99 @@ test('incomplete primary semantic evidence is recorded before qualified secondar
   assert(selected.providerSelection.providerFailures[0].reasonCodes.includes('INDIA_VIX_UNAVAILABLE'));
   assert.equal(selected.quoteSnapshot.facts.every(fact => fact.source.provider === 'UPSTOX'), true);
   assert.equal(selected.historicalSnapshot.source.provider, 'UPSTOX');
+});
+
+test('invalid preferred pair and unqualified secondary remain unavailable', async () => {
+  const invalidPrimaryQuotes = quoteSnapshot('NSE', { includeVix: false });
+  const staleSecondaryHistory = historySnapshot('UPSTOX');
+  staleSecondaryHistory.freshness = { status: 'STALE', ageSeconds: 604800, maxAgeSeconds: 345600 };
+
+  const selected = await fetchQualifiedMarketPair({
+    preferredProvider: 'NSE',
+    providers: [
+      provider('NSE', { quotes: invalidPrimaryQuotes }),
+      provider('UPSTOX', { history: staleSecondaryHistory }),
+    ],
+  });
+
+  assert.equal(selected.providerSelection.selectedProvider, null);
+  assert.deepEqual(selected.providerSelection.attemptedProviders, ['NSE', 'UPSTOX']);
+  assert(selected.providerSelection.providerFailures.some(failure => (
+    failure.provider === 'NSE' && failure.reasonCodes.includes('INDIA_VIX_UNAVAILABLE')
+  )));
+  assert(selected.providerSelection.providerFailures.some(failure => (
+    failure.provider === 'UPSTOX' && failure.reasonCodes.includes('NIFTY50_HISTORY_STALE')
+  )));
+  assert.equal(computeMarketContextFeatures(selected).status, 'FEATURES_UNAVAILABLE');
+});
+
+test('quote-only and history-only providers are never combined into a market pair', async () => {
+  const primaryShortHistory = historySnapshot('NSE');
+  primaryShortHistory.candles = primaryShortHistory.candles.slice(0, 20);
+  const secondaryMissingVix = quoteSnapshot('UPSTOX', { includeVix: false });
+  const primary = provider('NSE', { history: primaryShortHistory });
+  const secondary = provider('UPSTOX', { quotes: secondaryMissingVix });
+
+  // Each source contributes one otherwise-usable leg. Both the pair selector
+  // and feature engine must enforce provider identity.
+  assert.equal(computeMarketContextFeatures({
+    quoteSnapshot: await primary.fetchQuotes(),
+    historicalSnapshot: await primary.fetchHistory(),
+  }).status, 'FEATURES_UNAVAILABLE');
+  assert.equal(computeMarketContextFeatures({
+    quoteSnapshot: await secondary.fetchQuotes(),
+    historicalSnapshot: await secondary.fetchHistory(),
+  }).status, 'FEATURES_UNAVAILABLE');
+  const mixedFeatures = computeMarketContextFeatures({
+    quoteSnapshot: await primary.fetchQuotes(),
+    historicalSnapshot: await secondary.fetchHistory(),
+  });
+  assert.equal(mixedFeatures.status, 'FEATURES_UNAVAILABLE');
+  assert(mixedFeatures.reasonCodes.includes('MARKET_PROVIDER_PAIR_MISMATCH'));
+
+  const selected = await fetchQualifiedMarketPair({
+    preferredProvider: 'NSE',
+    providers: [primary, secondary],
+  });
+
+  assert.equal(selected.providerSelection.selectedProvider, null);
+  assert.deepEqual(selected.providerSelection.attemptedProviders, ['NSE', 'UPSTOX']);
+  assert(selected.providerSelection.providerFailures.some(failure => (
+    failure.provider === 'NSE' && failure.reasonCodes.includes('INSUFFICIENT_NIFTY50_HISTORY')
+  )));
+  assert(selected.providerSelection.providerFailures.some(failure => (
+    failure.provider === 'UPSTOX' && failure.reasonCodes.includes('INDIA_VIX_UNAVAILABLE')
+  )));
+  assert.equal(selected.quoteSnapshot.provider, selected.historicalSnapshot.provider);
+  assert.equal(computeMarketContextFeatures(selected).status, 'FEATURES_UNAVAILABLE');
+});
+
+test('stale cached preferred pair is rejected in favor of a complete fresh secondary pair', async () => {
+  const staleCachedQuotes = quoteSnapshot('NSE');
+  staleCachedQuotes.cache = { hit: true, backend: 'REDIS' };
+  staleCachedQuotes.facts.forEach(fact => {
+    fact.freshness = { status: 'STALE', ageSeconds: 3600, maxAgeSeconds: 900 };
+  });
+  const staleCachedHistory = historySnapshot('NSE');
+  staleCachedHistory.cache = { hit: true, backend: 'REDIS' };
+  staleCachedHistory.freshness = { status: 'STALE', ageSeconds: 604800, maxAgeSeconds: 345600 };
+
+  const selected = await fetchQualifiedMarketPair({
+    preferredProvider: 'NSE',
+    providers: [
+      provider('NSE', { quotes: staleCachedQuotes, history: staleCachedHistory }),
+      provider('UPSTOX'),
+    ],
+  });
+
+  assert.equal(selected.providerSelection.selectedProvider, 'UPSTOX');
+  assert.equal(selected.providerSelection.fallbackUsed, true);
+  assert.deepEqual(selected.providerSelection.attemptedProviders, ['NSE', 'UPSTOX']);
+  assert(selected.providerSelection.providerFailures[0].reasonCodes.includes('NIFTY50_QUOTE_STALE'));
+  assert(selected.providerSelection.providerFailures[0].reasonCodes.includes('NIFTY50_HISTORY_STALE'));
+  assert.equal(selected.quoteSnapshot.provider, 'UPSTOX');
+  assert.equal(selected.historicalSnapshot.provider, 'UPSTOX');
+  assert.equal(computeMarketContextFeatures(selected).status, 'FEATURES_AVAILABLE');
 });
 
 test('all providers unavailable remains unavailable and reports attempts without invented values', async () => {

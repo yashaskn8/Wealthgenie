@@ -7,8 +7,10 @@ import {
   createMarketFact,
 } from './contracts.js';
 import { readThroughMarketCache } from './requestCache.js';
+import { SBI_TERM_DEPOSIT_URL } from './marketDataSourceUrls.js';
+import { buildMarketDataRightsUnavailableSnapshot, isMarketDataProductionUseAllowed } from './marketDataRights.js';
 
-export const SBI_TERM_DEPOSIT_URL = 'https://sbi.bank.in/web/interest-rates/deposit-rates/retail-domestic-term-deposits';
+export { SBI_TERM_DEPOSIT_URL };
 export const SBI_TERM_DEPOSIT_CACHE_KEY = `market:sbi:retail-term-deposits:${MARKET_DATA_SCHEMA_VERSION}:qualified-identities-2`;
 export const SBI_TERM_DEPOSIT_CACHE_TTL_SECONDS = 12 * 60 * 60;
 export const SBI_TERM_DEPOSIT_FRESHNESS_SECONDS = 180 * 24 * 60 * 60;
@@ -206,6 +208,20 @@ export default class SbiTermDepositProvider extends MarketDataProvider {
   }
 
   async getSnapshot({ forceRefresh = false } = {}) {
+    if (!isMarketDataProductionUseAllowed(
+      PROVIDERS.SBI,
+      SBI_TERM_DEPOSIT_URL,
+      this.env,
+      this.marketDataTestFixtureRightsCapability,
+    )) {
+      return {
+        ...buildMarketDataRightsUnavailableSnapshot(PROVIDERS.SBI, SBI_TERM_DEPOSIT_URL, {
+          now: this.clock(),
+          includeProducts: true,
+        }),
+        dataClass: SBI_RATE_DATA_CLASS,
+      };
+    }
     return readThroughMarketCache({
       cacheKey: SBI_TERM_DEPOSIT_CACHE_KEY,
       ttlSeconds: SBI_TERM_DEPOSIT_CACHE_TTL_SECONDS,

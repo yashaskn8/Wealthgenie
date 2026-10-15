@@ -128,17 +128,23 @@ export function startProductionEvaluationReconciliation({
     };
   }
 
-  const runSweep = () => scheduleTerminalEvaluationReconciliation(options);
+  const active = { timer: null, timerApi, firstRun: null, stopped: false };
+  const runSweep = () => {
+    if (active.stopped) return undefined;
+    return scheduleTerminalEvaluationReconciliation(options);
+  };
   const firstRun = runSweep();
   const timer = timerApi.setInterval(runSweep, PRODUCTION_EVALUATION_RECONCILIATION_INTERVAL_MS);
   timer?.unref?.();
-  periodicReconciliation = { timer, timerApi, firstRun };
+  Object.assign(active, { timer, firstRun });
+  periodicReconciliation = active;
   return { started: true, firstRun, stop: stopProductionEvaluationReconciliation };
 }
 
 export async function stopProductionEvaluationReconciliation() {
   const active = periodicReconciliation;
   if (active) {
+    active.stopped = true;
     periodicReconciliation = null;
     active.timerApi.clearInterval(active.timer);
   }

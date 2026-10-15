@@ -4,6 +4,7 @@ import AmfiNavProvider, { parseAmfiNavReport } from '../services/marketData/Amfi
 import AmfiNavHistoryProvider from '../services/marketData/AmfiNavHistoryProvider.js';
 import { buildNiftyHistoryWindow, fetchAmfiHistoricalNavSnapshot, fetchAmfiProductSnapshot } from '../services/marketDataService.js';
 import UpstoxMarketDataProvider from '../services/marketData/UpstoxMarketDataProvider.js';
+import { buildUpstoxQuoteRequestUrl } from '../services/marketData/marketDataSourceUrls.js';
 import UpstoxHistoricalCandleProvider, {
   parseUpstoxDailyCandles,
 } from '../services/marketData/UpstoxHistoricalCandleProvider.js';
@@ -15,6 +16,7 @@ import {
   normalizeTimestamp,
 } from '../services/marketData/contracts.js';
 import { buildAmfiProductIdentity } from '../services/marketData/productIdentity.js';
+import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
 import {
   clearInFlightMarketRequestsForTest,
   coalesceMarketRequest,
@@ -29,6 +31,10 @@ import {
 import { setRedisAvailable, setRedisClient } from '../config/redis.js';
 
 const FIXED_NOW = new Date('2026-09-08T12:00:00.000Z');
+const TEST_MARKET_DATA_RIGHTS_CAPABILITY = createMarketDataTestFixtureRightsCapability({
+  env: { NODE_ENV: 'test' },
+  transport: { get: async () => ({ data: null }) },
+});
 const AMFI_REPORT = [
   'Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date',
   'Open Ended Schemes (Equity Scheme - Large Cap Fund)',
@@ -131,10 +137,10 @@ test('WTI AMFI timing reports fetch and persistence stages without provider payl
   try {
     AmfiNavProvider.prototype.getSnapshot = async () => ({ ...sourceError, fetchedAt: FIXED_NOW.toISOString() });
     AmfiNavHistoryProvider.prototype.getSnapshot = async () => ({ ...sourceError, fetchedAt: FIXED_NOW.toISOString() });
-    const current = await fetchAmfiProductSnapshot({ onStageTiming: event => events.push(event) });
-    const historical = await fetchAmfiHistoricalNavSnapshot({ targetDate: '2025-09-07', onStageTiming: event => events.push(event) });
-    const callbackFailure = await fetchAmfiProductSnapshot({ persist: false, onStageTiming: () => { throw new Error('diagnostics must be non-authoritative'); } });
-    const readOnly = await fetchAmfiProductSnapshot({ persist: false, onStageTiming: event => events.push(event) });
+    const current = await fetchAmfiProductSnapshot({ marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY, onStageTiming: event => events.push(event) });
+    const historical = await fetchAmfiHistoricalNavSnapshot({ marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY, targetDate: '2025-09-07', onStageTiming: event => events.push(event) });
+    const callbackFailure = await fetchAmfiProductSnapshot({ marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY, persist: false, onStageTiming: () => { throw new Error('diagnostics must be non-authoritative'); } });
+    const readOnly = await fetchAmfiProductSnapshot({ marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY, persist: false, onStageTiming: event => events.push(event) });
 
     assert.equal(current.persistence.status, 'NOT_PERSISTED');
     assert.equal(historical.persistence.status, 'NOT_PERSISTED');
@@ -204,8 +210,9 @@ test('Upstox adapter normalizes a verified quote and preserves a missing quote a
     accessToken: 'test-token-not-a-real-secret',
     clock: () => FIXED_NOW,
     httpClient: {
-      get: async (_url, config) => {
-        assert.equal(config.params.instrument_key, 'NSE_INDEX|Nifty 50,NSE_INDEX|India VIX');
+      get: async (url, config) => {
+        assert.equal(url, buildUpstoxQuoteRequestUrl(['NSE_INDEX|Nifty 50', 'NSE_INDEX|India VIX']));
+        assert.equal(config.params, undefined);
         assert.match(config.headers.Authorization, /^Bearer /);
         return {
           data: {
@@ -234,6 +241,7 @@ test('Upstox adapter normalizes a verified quote and preserves a missing quote a
   assert.equal(snapshot.facts[0].value, 25123.45);
   assert.equal(snapshot.facts[0].canonicalProductId, 'market:index:nifty-50');
   assert.equal(snapshot.facts[0].source.instrumentId, 'NSE_INDEX|Nifty 50');
+  assert.equal(snapshot.facts[0].source.url, buildUpstoxQuoteRequestUrl(['NSE_INDEX|Nifty 50', 'NSE_INDEX|India VIX']));
   assert.equal(snapshot.facts[0].metrics.close, 24980);
   assert.equal(snapshot.facts[0].metrics.previousClose, 24875.5);
   assert.notEqual(snapshot.facts[0].metrics.previousClose, snapshot.facts[0].metrics.close);

@@ -8,8 +8,13 @@ import {
   createMarketFact,
 } from './contracts.js';
 import { readThroughMarketCache } from './requestCache.js';
+import {
+  INDIA_POST_SAVINGS_URL,
+  INDIA_POST_SCRIPT_CHUNK_RIGHTS_URL,
+} from './marketDataSourceUrls.js';
+import { buildMarketDataRightsUnavailableSnapshot, isMarketDataProductionUseAllowed } from './marketDataRights.js';
 
-export const INDIA_POST_SAVINGS_URL = 'https://www.indiapost.gov.in/banking-services/savings';
+export { INDIA_POST_SAVINGS_URL, INDIA_POST_SCRIPT_CHUNK_RIGHTS_URL };
 export const GOVERNMENT_SAVINGS_CACHE_KEY = `market:government:small-savings:${MARKET_DATA_SCHEMA_VERSION}:qualified-identities-2`;
 export const GOVERNMENT_SAVINGS_CACHE_TTL_SECONDS = 12 * 60 * 60;
 export const GOVERNMENT_RATE_DATA_CLASS = 'QUARTERLY_OFFICIAL_RATE';
@@ -203,15 +208,37 @@ export function parseIndiaPostSavingsBundle(bundleText, {
 }
 
 export default class GovernmentSmallSavingsProvider extends MarketDataProvider {
-  constructor(options = {}) {
-    super({ providerName: PROVIDERS.GOVERNMENT_OF_INDIA, ...options });
+  constructor({ env = process.env, ...options } = {}) {
+    super({ providerName: PROVIDERS.GOVERNMENT_OF_INDIA, env, ...options });
+    this.env = env;
   }
 
   async getSnapshot({ forceRefresh = false } = {}) {
+    const deniedEndpoint = [
+      INDIA_POST_SAVINGS_URL,
+      INDIA_POST_SCRIPT_CHUNK_RIGHTS_URL,
+    ].find(url => !isMarketDataProductionUseAllowed(
+      PROVIDERS.GOVERNMENT_OF_INDIA,
+      url,
+      this.env,
+      this.marketDataTestFixtureRightsCapability,
+    ));
+    if (deniedEndpoint) {
+      return {
+        ...buildMarketDataRightsUnavailableSnapshot(PROVIDERS.GOVERNMENT_OF_INDIA, deniedEndpoint, {
+          now: this.clock(),
+          includeProducts: true,
+        }),
+        dataClass: GOVERNMENT_RATE_DATA_CLASS,
+      };
+    }
+
     return readThroughMarketCache({
       cacheKey: governmentSavingsCacheKeyAt(this.clock()),
       ttlSeconds: GOVERNMENT_SAVINGS_CACHE_TTL_SECONDS,
       forceRefresh,
+      shouldCache: result => result?.status !== AVAILABILITY.SOURCE_ERROR
+        && result?.error?.code !== 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
       loader: async () => {
         const fetchedAt = this.nowIso();
         try {
@@ -223,6 +250,17 @@ export default class GovernmentSmallSavingsProvider extends MarketDataProvider {
           const scriptUrls = extractOfficialScriptUrls(page.data);
           if (scriptUrls.length === 0) throw new Error('INDIA_POST_SCHEMA_MISMATCH:scripts');
           for (const scriptUrl of scriptUrls) {
+            if (!isMarketDataProductionUseAllowed(
+              PROVIDERS.GOVERNMENT_OF_INDIA,
+              scriptUrl,
+              this.env,
+              this.marketDataTestFixtureRightsCapability,
+            )) {
+              return buildMarketDataRightsUnavailableSnapshot(PROVIDERS.GOVERNMENT_OF_INDIA, scriptUrl, {
+                now: this.clock(),
+                includeProducts: true,
+              });
+            }
             const script = await this.httpClient.get(scriptUrl, {
               timeout: 20_000,
               responseType: 'text',

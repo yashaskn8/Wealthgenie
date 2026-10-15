@@ -11,6 +11,10 @@ import {
 } from './contracts.js';
 import { readThroughMarketCache } from './requestCache.js';
 import { consumeTejHqKeyedRequest } from './tejHqRequestBudget.js';
+import {
+  evaluateMarketDataProductionRights,
+  isMarketDataProductionUseAllowed,
+} from './marketDataRights.js';
 
 export const TEJHQ_API_BASE_URL = 'https://api.tejhq.dev';
 export const TEJHQ_API_DOCUMENTATION_URL = 'https://tejhq.dev/docs';
@@ -264,7 +268,7 @@ export function parseTejHqAdjustedEnvelope(payload, options = {}) {
   return buildHistoricalSnapshot({ payload, request, fetchedAt, now, sourceUrl, adjusted: true });
 }
 
-export function parseTejHqSymbolHistoryEnvelope(payload, { exchange, isin, fetchedAt } = {}) {
+export function parseTejHqSymbolHistoryEnvelope(payload, { exchange, isin, fetchedAt, sourceUrl: requestUrl } = {}) {
   const normalizedExchange = String(exchange || '').trim().toUpperCase();
   const normalizedIsin = String(isin || '').trim().toUpperCase();
   const normalizedFetchedAt = normalizeTimestamp(fetchedAt);
@@ -318,7 +322,7 @@ export function parseTejHqSymbolHistoryEnvelope(payload, { exchange, isin, fetch
     source: {
       provider: PROVIDERS.TEJHQ,
       instrumentId: `${normalizedExchange}:${normalizedIsin}`,
-      url: `${TEJHQ_API_BASE_URL}/v1/symbols/${normalizedExchange.toLowerCase()}`,
+      url: requestUrl || sourceUrl(`/v1/symbols/${normalizedExchange.toLowerCase()}`, { isin: normalizedIsin }),
     },
     identityStatus: intervals.length ? 'SOURCE_INTERVALS_VALIDATED' : 'UNAVAILABLE',
   };
@@ -529,16 +533,18 @@ function errorSnapshot({ fetchedAt, source, code, provider = PROVIDERS.TEJHQ, id
   return {
     schemaVersion: MARKET_DATA_SCHEMA_VERSION,
     provider,
-    status: ['TEJHQ_DISABLED', 'TEJHQ_LICENSE_NOT_CONFIRMED', 'TEJHQ_KEY_NOT_CONFIGURED'].includes(code)
-      ? AVAILABILITY.PROVIDER_NOT_CONFIGURED
-      : AVAILABILITY.SOURCE_ERROR,
+    status: code === 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'
+      ? AVAILABILITY.UNAVAILABLE
+      : ['TEJHQ_DISABLED', 'TEJHQ_LICENSE_NOT_CONFIRMED', 'TEJHQ_KEY_NOT_CONFIGURED'].includes(code)
+        ? AVAILABILITY.PROVIDER_NOT_CONFIGURED
+        : AVAILABILITY.SOURCE_ERROR,
     ...(identity ? { ...identity } : {}),
     fetchedAt,
     observedAt: null,
     observedDate: null,
     effectiveTradingDate: null,
     freshness: freshnessUnknown(),
-    candleCount: 0,
+    candleCount: code === 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' ? null : 0,
     candles: [],
     source,
     fallbackUsed: false,
@@ -549,15 +555,21 @@ function errorSnapshot({ fetchedAt, source, code, provider = PROVIDERS.TEJHQ, id
 }
 
 export default class TejHqHistoricalDataProvider extends MarketDataProvider {
-  constructor({
-    apiKey = process.env.TEJHQ_API_KEY || '',
-    env = process.env,
-    httpClient = axios,
-    clock = () => new Date(),
-    budget = consumeTejHqKeyedRequest,
-    requestCache = readThroughMarketCache,
-  } = {}) {
-    super({ providerName: PROVIDERS.TEJHQ, httpClient, clock });
+  constructor(options = {}) {
+    const {
+      apiKey = process.env.TEJHQ_API_KEY || '',
+      env = process.env,
+      httpClient = axios,
+      clock = () => new Date(),
+      budget = consumeTejHqKeyedRequest,
+      requestCache = readThroughMarketCache,
+    } = options;
+    super({
+      providerName: PROVIDERS.TEJHQ,
+      httpClient,
+      clock,
+      env,
+    });
     this.env = env;
     this.apiKey = String(apiKey || '').trim();
     this.configuredEnabled = env.TEJHQ_ENABLED === 'true';
@@ -692,6 +704,25 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
       instrumentKey: `${request.exchange}:${request.symbol}`,
       ...(request.isin ? { canonicalProductId: `market:equity:${request.exchange.toLowerCase()}:${request.isin}` } : {}),
     } : null);
+    if (!isMarketDataProductionUseAllowed(
+      PROVIDERS.TEJHQ,
+      url,
+      this.env,
+      this.marketDataTestFixtureRightsCapability,
+    )) {
+      const rights = evaluateMarketDataProductionRights(PROVIDERS.TEJHQ, url);
+      return {
+        ...this.#disabledSnapshot({
+          operation,
+          path,
+          params,
+          identity: normalizedIdentity,
+          code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
+        }),
+        sourceRights: { status: rights.status, sourceId: rights.sourceId, productionUseAllowed: false },
+        cache: { hit: false, backend: 'NONE', status: 'NOT_READ_SOURCE_RIGHTS_BLOCKED' },
+      };
+    }
     const cacheKey = cacheKeyFor(operation, { params, identity: normalizedIdentity });
     if (!this.enabled || this.env[enabledFlag] !== 'true') {
       const code = !this.configuredEnabled

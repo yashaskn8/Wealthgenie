@@ -14,8 +14,13 @@ import {
 } from './AmfiNavProvider.js';
 import { buildAmfiProductIdentity } from './productIdentity.js';
 import { readThroughMarketCache } from './requestCache.js';
+import {
+  AMFI_NAV_HISTORY_RIGHTS_URL,
+  AMFI_NAV_HISTORY_URL,
+} from './marketDataSourceUrls.js';
+import { buildMarketDataRightsUnavailableSnapshot, isMarketDataProductionUseAllowed } from './marketDataRights.js';
 
-export const AMFI_NAV_HISTORY_URL = 'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx';
+export { AMFI_NAV_HISTORY_RIGHTS_URL, AMFI_NAV_HISTORY_URL };
 export const AMFI_HISTORY_CACHE_TTL_SECONDS = 24 * 60 * 60;
 export const AMFI_HISTORY_WINDOW_RADIUS_DAYS = 3;
 
@@ -207,6 +212,17 @@ export default class AmfiNavHistoryProvider extends MarketDataProvider {
   async getSnapshot({ targetDate, forceRefresh = false } = {}) {
     const window = buildAmfiHistoryWindow(targetDate);
     const sourceUrl = `${AMFI_NAV_HISTORY_URL}?frmdt=${window.fromParam}&todt=${window.toParam}`;
+    if (!isMarketDataProductionUseAllowed(
+      PROVIDERS.AMFI,
+      sourceUrl,
+      this.env,
+      this.marketDataTestFixtureRightsCapability,
+    )) {
+      return buildMarketDataRightsUnavailableSnapshot(PROVIDERS.AMFI, sourceUrl, {
+        now: this.clock(),
+        includeProducts: true,
+      });
+    }
     const cacheKey = `market:amfi:nav-history:${MARKET_DATA_SCHEMA_VERSION}:${window.targetDate}`;
     return readThroughMarketCache({
       cacheKey,

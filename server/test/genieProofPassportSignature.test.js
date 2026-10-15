@@ -48,6 +48,46 @@ test('in-process verifier rejects noncanonical Ed25519 signature encodings', () 
   }
 });
 
+test('in-process verifier distinguishes a trusted key from an invalid document signature', () => {
+  const keys = keyPair();
+  const signer = new GenieProofPassportSigner({ ...keys, keyId: 'trusted-invalid-signature' });
+  const signed = signer.signManifest({ schemaVersion: 'test/1', revision: 1, findings: [] });
+  const invalid = structuredClone(signed);
+  invalid.signature.value = 'A'.repeat(86);
+
+  const result = signer.verifySignedManifest(invalid);
+  assert.deepEqual(result, {
+    valid: false,
+    integrityValid: true,
+    trustedIssuer: false,
+    code: 'PASSPORT_SIGNATURE_INVALID',
+  });
+});
+
+test('in-process verifier rejects a signature made by an explicitly revoked rotated key', () => {
+  const retired = keyPair();
+  const retiredSigner = new GenieProofPassportSigner({ ...retired, keyId: 'retired-key-v1' });
+  const passport = retiredSigner.signManifest({ schemaVersion: 'test/1', revision: 1, findings: [] });
+  const active = keyPair();
+  const activeSigner = new GenieProofPassportSigner({
+    ...active,
+    keyId: 'active-key-v2',
+    trustedPublicKeys: { 'retired-key-v1': retired.publicKeyPem },
+    revokedKeyIds: ['retired-key-v1'],
+  });
+
+  assert.deepEqual(activeSigner.verifySignedManifest(passport), {
+    valid: false,
+    integrityValid: true,
+    trustedIssuer: false,
+    code: 'PASSPORT_SIGNING_KEY_REVOKED',
+  });
+  const invalidSignature = structuredClone(passport);
+  invalidSignature.signature.value = 'A'.repeat(86);
+  assert.equal(activeSigner.verifySignedManifest(invalidSignature).code, 'PASSPORT_SIGNATURE_INVALID',
+    'signature validity stays distinct from the separate key-revocation status');
+});
+
 test('signer refuses key type and pair mismatches', () => {
   const first = keyPair();
   const second = keyPair();
@@ -104,4 +144,14 @@ test('runtime enables GenieProof only with explicit local keys in development or
       GENIEPROOF_SIGNING_KEY_ID: 'local-v1',
     },
   }).enabled, true);
+  assert.equal(createGenieProofRuntime({
+    env: {
+      NODE_ENV: 'development',
+      GENIEPROOF_ENABLED: 'true',
+      GENIEPROOF_SIGNING_PRIVATE_KEY: keys.privateKeyPem,
+      GENIEPROOF_SIGNING_PUBLIC_KEY: keys.publicKeyPem,
+      GENIEPROOF_SIGNING_KEY_ID: 'local-v1',
+      GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON: '["local-v1"]',
+    },
+  }).enabled, false, 'a revoked active signing key cannot enable the prototype runtime');
 });

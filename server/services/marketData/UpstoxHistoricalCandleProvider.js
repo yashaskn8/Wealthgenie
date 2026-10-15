@@ -13,8 +13,14 @@ import { buildUpstoxInstrumentIdentity } from './productIdentity.js';
 import { readThroughMarketCache } from './requestCache.js';
 import { isoDateInIndia } from './indiaMarketTime.js';
 import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
+import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import {
+  evaluateMarketDataProductionRights,
+  isMarketDataProductionUseAllowed,
+} from './marketDataRights.js';
 
 export const UPSTOX_HISTORICAL_CANDLE_V3_URL = 'https://api.upstox.com/v3/historical-candle';
+export const UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL = UPSTOX_HISTORICAL_CANDLE_V3_URL + '/{instrumentKey}/days/1/{toDate}/{fromDate}';
 export const UPSTOX_HISTORY_CACHE_TTL_SECONDS = 6 * 60 * 60;
 export const UPSTOX_HISTORY_CACHE_QUALIFIER = 'unique-timestamps-2';
 export const UPSTOX_DAILY_HISTORY_FRESHNESS_SECONDS = 4 * 24 * 60 * 60;
@@ -134,11 +140,15 @@ export function parseUpstoxDailyCandles(payload, {
 
 export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
   constructor({
-    accessToken = process.env.UPSTOX_ANALYTICS_TOKEN || process.env.UPSTOX_ACCESS_TOKEN || '',
+    accessToken = resolveUpstoxAccessToken(),
+    env = process.env,
+    requestCache = readThroughMarketCache,
     ...options
   } = {}) {
-    super({ providerName: PROVIDERS.UPSTOX, ...options });
+    super({ providerName: PROVIDERS.UPSTOX, env, ...options });
     this.accessToken = String(accessToken || '').trim();
+    this.env = env;
+    this.requestCache = requestCache;
   }
 
   isConfigured() {
@@ -151,6 +161,30 @@ export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
     const normalizedToDate = requireIsoDate(toDate, 'toDate');
     if (normalizedFromDate > normalizedToDate) throw new RangeError('fromDate must not be after toDate.');
     const fetchedAt = this.nowIso();
+    if (!isMarketDataProductionUseAllowed(
+      PROVIDERS.UPSTOX,
+      UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
+      this.env,
+      this.marketDataTestFixtureRightsCapability,
+    )) {
+      const rights = evaluateMarketDataProductionRights(PROVIDERS.UPSTOX, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL);
+      return {
+        schemaVersion: MARKET_DATA_SCHEMA_VERSION,
+        provider: PROVIDERS.UPSTOX,
+        status: AVAILABILITY.UNAVAILABLE,
+        instrumentKey,
+        fetchedAt,
+        observedAt: null,
+        freshness: { status: FRESHNESS.UNKNOWN, ageSeconds: null, maxAgeSeconds: UPSTOX_DAILY_HISTORY_FRESHNESS_SECONDS },
+        candleCount: null,
+        candles: [],
+        source: { provider: PROVIDERS.UPSTOX, instrumentId: instrumentKey, url: UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL },
+        error: { code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' },
+        reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'],
+        sourceRights: { status: rights.status, sourceId: rights.sourceId, productionUseAllowed: false },
+        cache: { hit: false, backend: 'NONE', status: 'NOT_READ_SOURCE_RIGHTS_BLOCKED' },
+      };
+    }
     if (!this.isConfigured()) {
       return {
         schemaVersion: MARKET_DATA_SCHEMA_VERSION,
@@ -172,7 +206,7 @@ export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
     }
 
     const sourceUrl = sourceUrlFor(instrumentKey, normalizedToDate, normalizedFromDate);
-    return readThroughMarketCache({
+    return this.requestCache({
       cacheKey: cacheKeyFor(instrumentKey, normalizedToDate, normalizedFromDate),
       ttlSeconds: UPSTOX_HISTORY_CACHE_TTL_SECONDS,
       forceRefresh,

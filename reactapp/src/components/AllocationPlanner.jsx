@@ -281,6 +281,7 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
   const [lookupAttempt, setLookupAttempt] = useState(0);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const reviewRequestSequence = useRef(0);
+  const runRequestController = useRef(null);
   const bindingKey = `${profileId || ''}:${financialStateKey || ''}`;
   const [stateBindingKey, setStateBindingKey] = useState(bindingKey);
   const bindingIsCurrent = stateBindingKey === bindingKey;
@@ -292,13 +293,18 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
 
   useLayoutEffect(() => {
     reviewRequestSequence.current += 1;
+    return () => {
+      runRequestController.current?.abort();
+      runRequestController.current = null;
+    };
   }, [profileId, financialStateKey]);
 
   useEffect(() => {
     if (!profileId) return undefined;
     let cancelled = false;
+    const controller = new AbortController();
     const requestId = ++reviewRequestSequence.current;
-    api.getCurrentPlanReviewRun(profileId, { timeoutMs: 1500 }).then(current => {
+    api.getCurrentPlanReviewRun(profileId, { timeoutMs: 1500, signal: controller.signal }).then(current => {
       if (cancelled || requestId !== reviewRequestSequence.current) return;
       setStateBindingKey(bindingKey);
       if (!isPlanReviewRunEnvelope(current)) {
@@ -356,13 +362,17 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
         setErrorRetryAction(planReviewAuthNeedsAttention(error) ? null : 'lookup');
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [profileId, financialStateKey, bindingKey, lookupAttempt]);
 
   useEffect(() => {
     if (!visibleRun?.runId || visibleStatus !== 'running') return undefined;
     let cancelled = false;
     let timer = null;
+    const controller = new AbortController();
     let consecutiveErrors = 0;
     const pollStartedAt = Date.now();
     const stopChecking = message => {
@@ -381,7 +391,10 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
         return;
       }
       try {
-        const current = await api.getPlanReviewRun(visibleRun.runId, { timeoutMs: PLAN_REVIEW_POLL_REQUEST_TIMEOUT_MS });
+        const current = await api.getPlanReviewRun(visibleRun.runId, {
+          timeoutMs: PLAN_REVIEW_POLL_REQUEST_TIMEOUT_MS,
+          signal: controller.signal,
+        });
         if (cancelled) return;
         consecutiveErrors = 0;
         if (!isPlanReviewRunEnvelope(current)) {
@@ -454,6 +467,7 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
     void poll();
     return () => {
       cancelled = true;
+      controller.abort();
       if (timer) window.clearTimeout(timer);
     };
   }, [visibleRun?.runId, visibleStatus]);
@@ -461,6 +475,9 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
   const runReview = async () => {
     if (!profileId || (bindingIsCurrent && status === 'running')) return;
     const requestId = ++reviewRequestSequence.current;
+    const controller = new AbortController();
+    runRequestController.current?.abort();
+    runRequestController.current = controller;
     setStateBindingKey(bindingKey);
     setStatus('running');
     setRun(null);
@@ -468,7 +485,8 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
     setError(null);
     setErrorRetryAction(null);
     try {
-      const queued = await api.runPlanReview(profileId);
+      const queued = await api.runPlanReview(profileId, { signal: controller.signal });
+      if (runRequestController.current === controller) runRequestController.current = null;
       if (requestId !== reviewRequestSequence.current) return;
       if (!isPlanReviewRunEnvelope(queued)) {
         setRun(null);
@@ -512,6 +530,8 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
         toast.success('Plan review ready', { description: 'No plan changes were made.' });
       }
     } catch (err) {
+      if (runRequestController.current === controller) runRequestController.current = null;
+      if (controller.signal.aborted || err?.code === 'REQUEST_ABORTED') return;
       if (requestId !== reviewRequestSequence.current) return;
       setStatus('error');
       setError(planReviewFeatureIsDisabled(err)
@@ -638,7 +658,6 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
               {actionNeedsRecompute && run?.status === 'WAITING_FOR_APPROVAL' && typeof onRecomputePlan === 'function' && (
                 <PlanReviewAuthorization
                   run={visibleRun}
-                  onAuthorizationUnavailable={() => onRecomputePlan(profile, null)}
                   onExecutionComplete={response => onRecomputePlan(profile, response)}
                 />
               )}

@@ -70,7 +70,7 @@
     {
       "sourceId": "AMFI_HISTORICAL_NAV",
       "provider": "AMFI",
-      "url": "https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx",
+      "url": "https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt={from}&todt={to}",
       "status": "BLOCKED_REUSE_RIGHTS",
       "termsUrl": "https://www.amfiindia.com/terms-of-use",
       "rights": {

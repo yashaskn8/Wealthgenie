@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { GENIEPROOF_SOURCE_CATALOG_CANDIDATES } from '../agents/genieProof/genieProofSourceCatalog.js';
 import {
   assertUnambiguousGenieProofIndiaPostBundle,
+  computeGenieProofRetrievalReceiptHash,
   computeGenieProofSourceDefinitionHash,
   getGenieProofCurrentEvidenceStatus,
   refreshGenieProofIndiaPostPpfEvidence,
@@ -221,6 +222,31 @@ test('injected synthetic fact exercises append-only receipts and persistence ind
   const resolved = await resolveGenieProofEvidenceForClaims({ claims: [claim], sourceModel, receiptModel, evidenceModel, now: () => new Date('2026-10-11T12:00:00.000Z') });
   assert.equal(resolved.byClaimId[claim.claimId].length, 1);
   assert.equal(resolved.byClaimId[claim.claimId][0].factHash, evidenceRows[0].factHash);
+
+  const missingReceiptIndex = receipts.findIndex(receipt => receipt.retrievalId === evidenceRows[0].retrievalIds[0]);
+  assert.notEqual(missingReceiptIndex, -1, 'the evidence revision references a persisted receipt');
+  const [missingReceipt] = receipts.splice(missingReceiptIndex, 1);
+  const withoutReceipt = await resolveGenieProofEvidenceForClaims({ claims: [claim], sourceModel, receiptModel, evidenceModel, now: () => new Date('2026-10-11T12:00:00.000Z') });
+  assert.equal(withoutReceipt.byClaimId[claim.claimId].length, 0, 'a revision without every referenced retrieval receipt cannot support a claim');
+  receipts.splice(missingReceiptIndex, 0, missingReceipt);
+
+  const scriptReceipt = receipts.find(receipt => receipt.requestedUrl !== INDIA_POST_SAVINGS_URL);
+  const originalScriptReceipt = structuredClone(scriptReceipt);
+  const originalReceiptHashes = [...evidenceRows[0].retrievalReceiptHashes];
+  scriptReceipt.contentSha256 = 'd'.repeat(64);
+  scriptReceipt.receiptHash = computeGenieProofRetrievalReceiptHash(scriptReceipt);
+  evidenceRows[0].retrievalReceiptHashes = evidenceRows[0].retrievalIds.map(id => receipts.find(receipt => receipt.retrievalId === id).receiptHash);
+  const changedSourceBytes = await resolveGenieProofEvidenceForClaims({ claims: [claim], sourceModel, receiptModel, evidenceModel, now: () => new Date('2026-10-11T12:00:00.000Z') });
+  assert.equal(changedSourceBytes.byClaimId[claim.claimId].length, 0, 'a validly rehashed receipt for changed source bytes still cannot match the signed content commitment');
+  Object.assign(scriptReceipt, originalScriptReceipt);
+  evidenceRows[0].retrievalReceiptHashes = originalReceiptHashes;
+
+  const originalReceiptHash = scriptReceipt.receiptHash;
+  scriptReceipt.receiptHash = 'e'.repeat(64);
+  const tamperedReceipt = await resolveGenieProofEvidenceForClaims({ claims: [claim], sourceModel, receiptModel, evidenceModel, now: () => new Date('2026-10-11T12:00:00.000Z') });
+  assert.equal(tamperedReceipt.byClaimId[claim.claimId].length, 0, 'tampered retrieval receipts cannot qualify a source fact');
+  scriptReceipt.receiptHash = originalReceiptHash;
+
   const narrowedSource = { ...source, revision: source.revision + 1, productIds: [], claimTypes: [] };
   narrowedSource.definitionHash = computeGenieProofSourceDefinitionHash(narrowedSource);
   sourceRows.push(narrowedSource);

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FileSearch, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import * as api from '../services/api';
 
@@ -33,16 +33,18 @@ const buttonStyle = {
   fontWeight: 650,
   cursor: 'pointer',
 };
-const CURRENT_CLAIM_VERIFIER_VERSION = 'genieproof-evidence-bound/0.5.0';
+const CURRENT_CLAIM_VERIFIER_VERSION = 'genieproof-evidence-bound/0.6.0';
 
 function messageOf(error) {
   return error?.message || 'The request could not be completed.';
 }
 
-async function loadConsistentLatestPassport(caseId) {
+async function loadConsistentLatestPassport(caseId, options = {}) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const saved = await api.getGenieProofCase(caseId);
-    const verification = await api.verifyGenieProofCase(caseId);
+    const saved = await api.getGenieProofCase(caseId, options);
+    if (options.signal?.aborted) return null;
+    const verification = await api.verifyGenieProofCase(caseId, options);
+    if (options.signal?.aborted) return null;
     const passport = saved?.passport;
     if (passport?.manifest?.caseId === caseId
         && passport.manifest.revision === verification?.revision
@@ -69,24 +71,73 @@ function findingLabel(value) {
 }
 
 function findingPresentationLabel(finding, manifest) {
+  if (manifest?.verifierVersion !== CURRENT_CLAIM_VERIFIER_VERSION) {
+    if (finding?.finding === 'SUPPORTED' || finding?.finding === 'CONTRADICTED') {
+      return `Historical finding: ${findingLabel(finding.finding)}`;
+    }
+    return 'Historical verifier output; not reassessed under current claim rules';
+  }
   if (finding?.finding === 'SUPPORTED' || finding?.finding === 'CONTRADICTED') {
     return findingLabel(finding.finding);
-  }
-  if (manifest?.verifierVersion !== CURRENT_CLAIM_VERIFIER_VERSION) {
-    return 'Historical verifier output; not reassessed under current claim rules';
   }
   return findingLabel(finding?.finding);
 }
 
-function integrityLabel(result) {
-  if (result?.integrity === 'VALID' && result?.signature === 'VERIFIED' && result?.trustedIssuer === true) {
-    return 'The report signature and case binding match a trusted key.';
-  }
-  if (result?.integrity === 'INVALID') return 'The report integrity or case binding check failed.';
-  return 'The report contents match their fingerprint, but the signing key is not trusted.';
+const rejectedSignatureCodes = new Set([
+  'PASSPORT_SIGNATURE_INVALID',
+  'PASSPORT_SIGNING_KEY_REVOKED',
+  'PASSPORT_SIGNING_KEY_UNTRUSTED',
+  'PASSPORT_KEY_FINGERPRINT_MISMATCH',
+  'PASSPORT_SIGNATURE_MALFORMED',
+  'PASSPORT_MANIFEST_HASH_MISMATCH',
+  'PASSPORT_MANIFEST_INVALID',
+]);
+
+function hasTrustedSignature(result) {
+  return result?.integrity === 'VALID'
+    && result?.signature === 'VERIFIED'
+    && result?.trustedIssuer === true
+    && !rejectedSignatureCodes.has(result?.code);
 }
 
-function proofBreakClaimStatusLabel(status, sourceReasonCode = null) {
+function integrityLabel(result) {
+  if (result?.code === 'PASSPORT_SIGNATURE_INVALID') {
+    return 'A trusted signing key was found, but the document signature is invalid. Its findings are hidden.';
+  }
+  if (result?.code === 'PASSPORT_SIGNING_KEY_REVOKED') {
+    return 'The report was signed by a revoked key. Its findings are hidden.';
+  }
+  if (hasTrustedSignature(result)) return 'The report signature and case binding match a trusted key.';
+  if (result?.integrity === 'INVALID') return 'The report integrity or case binding check failed.';
+  if (result?.code === 'PASSPORT_SIGNING_KEY_UNTRUSTED' || result?.code === 'PASSPORT_KEY_FINGERPRINT_MISMATCH') {
+    return 'The report contents match their fingerprint, but the signing key is not trusted.';
+  }
+  return 'The report signature could not be verified with a trusted key. Its findings are hidden.';
+}
+
+function integrityFailureLabel(result) {
+  if (result?.code === 'PASSPORT_SIGNATURE_INVALID') {
+    return 'The report has a trusted signing key, but its document signature is invalid. Its findings are hidden.';
+  }
+  if (result?.code === 'PASSPORT_SIGNING_KEY_UNTRUSTED' || result?.code === 'PASSPORT_KEY_FINGERPRINT_MISMATCH') {
+    return 'The passport signing key is not trusted. Its findings are hidden.';
+  }
+  if (result?.code === 'PASSPORT_SIGNING_KEY_REVOKED') {
+    return 'The passport signing key has been revoked. Its findings are hidden.';
+  }
+  return 'Passport signature could not be verified by a trusted key. Its findings are hidden.';
+}
+
+function proofBreakClaimStatusLabel(status, sourceReasonCode = null, sourceStatus = 'AVAILABLE') {
+  if (sourceStatus !== 'AVAILABLE') {
+    return ({
+      RIGHTS_BLOCKED: sourceReasonCode === 'GENIEPROOF_SOURCE_REVOKED'
+        ? 'Source reuse approval was revoked'
+        : 'Source reuse approval is not recorded',
+      TECHNICALLY_BLOCKED: 'Source is not technically qualified',
+      WAITING: 'Waiting for a qualified source',
+    })[sourceStatus] || 'Monitoring availability is unknown';
+  }
   return ({
     AVAILABLE: 'Supported by an approved monitoring source',
     SOURCE_RIGHTS_BLOCKED: sourceReasonCode === 'GENIEPROOF_SOURCE_REVOKED'
@@ -181,6 +232,15 @@ function proofBreakTimelineStatusLabel(status) {
   })[status] || 'status unknown';
 }
 
+function isTerminalProofWatch(watch) {
+  return ['CANCELLED', 'DISABLED', 'EXPIRED'].includes(String(watch?.status || '').toUpperCase());
+}
+
+function selectCurrentProofWatch(watches) {
+  const records = Array.isArray(watches) ? watches : [];
+  return records.find(watch => !isTerminalProofWatch(watch)) || records[0] || null;
+}
+
 function prepareClaim(candidate) {
   return {
     claimId: candidate.claimId,
@@ -226,30 +286,103 @@ export default function GenieProofPanel() {
   const [reassessmentConsent, setReassessmentConsent] = useState(false);
   const [pendingConsentWithdrawalCaseId, setPendingConsentWithdrawalCaseId] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setErrorMessage] = useState('');
   const [status, setStatus] = useState('');
+  const mountedRef = useRef(false);
+  const viewGenerationRef = useRef(0);
+  const activeViewRequestRef = useRef(null);
+  const caseListRequestRef = useRef(null);
+  const proofBreakRequestByCaseRef = useRef(new Map());
+  const errorSourceRef = useRef(null);
 
-  const reloadCases = useCallback(async () => {
-    try {
-      const result = await api.listGenieProofCases();
-      setSavedCases(result.cases || []);
-    } catch (loadError) {
-      setError(messageOf(loadError));
-    }
+  const setError = useCallback(message => {
+    errorSourceRef.current = message ? 'operation' : null;
+    setErrorMessage(message);
+  }, []);
+  const setListError = useCallback(message => {
+    if (errorSourceRef.current === 'operation') return;
+    errorSourceRef.current = 'list';
+    setErrorMessage(message);
+  }, []);
+  const clearListError = useCallback(() => {
+    if (errorSourceRef.current !== 'list') return;
+    errorSourceRef.current = null;
+    setErrorMessage('');
   }, []);
 
+  const beginViewRequest = ({ allowNavigation = false } = {}) => {
+    activeViewRequestRef.current?.controller.abort();
+    const request = { controller: new AbortController(), allowNavigation };
+    activeViewRequestRef.current = request;
+    viewGenerationRef.current += 1;
+    return request;
+  };
+  const isViewRequestCurrent = request => mountedRef.current && activeViewRequestRef.current === request
+    && !request.controller.signal.aborted;
+  const finishViewRequest = request => {
+    if (!isViewRequestCurrent(request)) return false;
+    activeViewRequestRef.current = null;
+    return true;
+  };
+  const invalidateViewRequest = () => {
+    activeViewRequestRef.current?.controller.abort();
+    activeViewRequestRef.current = null;
+    viewGenerationRef.current += 1;
+  };
+  const beginProofBreakRequest = caseId => {
+    proofBreakRequestByCaseRef.current.get(caseId)?.controller.abort();
+    const request = { controller: new AbortController() };
+    proofBreakRequestByCaseRef.current.set(caseId, request);
+    return request;
+  };
+  const isProofBreakRequestCurrent = (caseId, request) => mountedRef.current
+    && proofBreakRequestByCaseRef.current.get(caseId) === request
+    && !request.controller.signal.aborted;
+
+  const reloadCases = useCallback(async () => {
+    caseListRequestRef.current?.controller.abort();
+    const request = { controller: new AbortController() };
+    caseListRequestRef.current = request;
+    clearListError();
+    try {
+      const result = await api.listGenieProofCases({ signal: request.controller.signal });
+      if (!mountedRef.current || caseListRequestRef.current !== request || request.controller.signal.aborted) return;
+      setSavedCases(result.cases || []);
+      clearListError();
+    } catch (loadError) {
+      if (mountedRef.current && caseListRequestRef.current === request && !request.controller.signal.aborted) {
+        setListError(messageOf(loadError));
+      }
+    }
+  }, [clearListError, setListError]);
+
   const loadProofBreak = async (caseId, { append = false } = {}) => {
+    const request = beginProofBreakRequest(caseId);
     setProofBreakByCase(current => ({ ...current, [caseId]: { ...current[caseId], loading: true, error: '' } }));
     const cursor = append ? proofBreakByCase[caseId]?.nextCursor : null;
     const [availabilityResult, watchResult, timeline] = await Promise.allSettled([
-      api.getProofWatchAvailability(caseId),
-      api.listProofWatches({ caseId, limit: 10 }),
-      api.listProofBreakEvents(caseId, { limit: 10, cursor }),
+      api.getProofWatchAvailability(caseId, { signal: request.controller.signal }),
+      api.listProofWatches({ caseId, limit: 10 }, { signal: request.controller.signal }),
+      api.listProofBreakEvents(caseId, { limit: 10, cursor }, { signal: request.controller.signal }),
     ]);
+    if (!isProofBreakRequestCurrent(caseId, request)) return false;
+    const watchSucceeded = watchResult.status === 'fulfilled';
+    const timelineSucceeded = timeline.status === 'fulfilled';
+    const consentWithdrawnByServer = availabilityResult.status === 'rejected'
+      && availabilityResult.reason?.code === 'GENIEPROOF_CONSENT_WITHDRAWN';
+    if (consentWithdrawnByServer) {
+      setPendingConsentWithdrawalCaseId(current => current === caseId ? null : current);
+      setWatchConsentByCase(consent => ({ ...consent, [caseId]: false }));
+    }
+    const currentWatch = watchSucceeded ? selectCurrentProofWatch(watchResult.value.watches) : null;
+    if (watchSucceeded && isTerminalProofWatch(currentWatch)) {
+      setWatchConsentByCase(consent => ({ ...consent, [caseId]: false }));
+    }
     setProofBreakByCase(current => {
       const previous = current[caseId] || {};
-      const watchSucceeded = watchResult.status === 'fulfilled';
-      const timelineSucceeded = timeline.status === 'fulfilled';
+      const watch = watchSucceeded ? currentWatch : previous.watch || null;
+      const consentWithdrawn = consentWithdrawnByServer
+        || (availabilityResult.status === 'rejected' && previous.consentWithdrawn === true);
       const newEvents = timelineSucceeded ? timeline.value.events || [] : [];
       const events = append
         ? [...(previous.events || []), ...newEvents.filter(event => !(previous.events || []).some(existing => existing.eventId === event.eventId))]
@@ -262,80 +395,120 @@ export default function GenieProofPanel() {
           loading: false,
           error: dataError ? messageOf(dataError.reason) : '',
           availability: availabilityResult.status === 'fulfilled' ? availabilityResult.value : null,
-          availabilityNotice: availabilityResult.status === 'rejected'
-            ? 'Current monitoring availability cannot be shown; saved watch history remains available.'
-            : '',
-          watch: watchSucceeded ? (watchResult.value.watches || [])[0] || null : previous.watch || null,
+          availabilityNotice: consentWithdrawn
+            ? 'Private processing consent is withdrawn. Future monitoring checks are off.'
+            : availabilityResult.status === 'rejected'
+              ? 'Current monitoring availability cannot be shown; saved watch history remains available.'
+              : '',
+          consentWithdrawn,
+          watch,
           events,
           nextCursor: timelineSucceeded ? timeline.value.nextCursor || null : previous.nextCursor || null,
         },
       };
     });
+    return true;
   };
 
   const enableProofBreak = async caseId => {
-    if (!watchConsentByCase[caseId] || !proofBreakByCase[caseId]?.availability?.canEnable) return;
+    const availability = proofBreakByCase[caseId]?.availability;
+    if (proofBreakByCase[caseId]?.consentWithdrawn
+        || !watchConsentByCase[caseId]
+        || availability?.sourceStatus !== 'AVAILABLE'
+        || !availability.canEnable) return;
+    const viewGeneration = viewGenerationRef.current;
+    const request = beginProofBreakRequest(caseId);
     setBusy(true);
     setError('');
     setStatus('');
     try {
-      const result = await api.createProofWatch(caseId);
-      await loadProofBreak(caseId);
+      const result = await api.createProofWatch(caseId, { signal: request.controller.signal });
+      if (!isProofBreakRequestCurrent(caseId, request)) return;
+      const refreshed = await loadProofBreak(caseId);
+      if (!refreshed || !mountedRef.current || viewGenerationRef.current !== viewGeneration) return;
       setStatus(result.watch?.status === 'ACTIVE'
         ? 'ProofBreak watch enabled for the supported claims shown above.'
         : `ProofBreak watch saved with status ${result.watch?.status || 'unavailable'}.`);
       setWatchConsentByCase(current => ({ ...current, [caseId]: false }));
+      setProofBreakByCase(current => ({
+        ...current,
+        [caseId]: { ...current[caseId], consentWithdrawn: false },
+      }));
     } catch (watchError) {
-      setError(messageOf(watchError));
+      if (isProofBreakRequestCurrent(caseId, request) && viewGenerationRef.current === viewGeneration) setError(messageOf(watchError));
     } finally {
-      setBusy(false);
+      if (mountedRef.current && viewGenerationRef.current === viewGeneration) setBusy(false);
     }
   };
 
   const updateProofBreak = async (caseId, watchId, action) => {
+    const viewGeneration = viewGenerationRef.current;
+    const request = beginProofBreakRequest(caseId);
     setBusy(true);
     setError('');
     try {
-      await api.updateProofWatch(watchId, action);
-      await loadProofBreak(caseId);
+      await api.updateProofWatch(watchId, action, { signal: request.controller.signal });
+      if (!isProofBreakRequestCurrent(caseId, request)) return;
+      const refreshed = await loadProofBreak(caseId);
+      if (!refreshed || !mountedRef.current || viewGenerationRef.current !== viewGeneration) return;
       setStatus(action === 'pause' ? 'ProofBreak checks paused.' : action === 'resume' ? 'ProofBreak watch status refreshed.' : 'ProofBreak checks disabled.');
+      if (action === 'disable') setWatchConsentByCase(current => ({ ...current, [caseId]: false }));
     } catch (watchError) {
-      setError(messageOf(watchError));
+      if (isProofBreakRequestCurrent(caseId, request) && viewGenerationRef.current === viewGeneration) setError(messageOf(watchError));
     } finally {
-      setBusy(false);
+      if (mountedRef.current && viewGenerationRef.current === viewGeneration) setBusy(false);
     }
   };
 
   const removeProofBreak = async (caseId, watchId) => {
+    const viewGeneration = viewGenerationRef.current;
+    const request = beginProofBreakRequest(caseId);
     setBusy(true);
     setError('');
     try {
-      await api.deleteProofWatch(watchId);
-      await loadProofBreak(caseId);
+      await api.deleteProofWatch(watchId, { signal: request.controller.signal });
+      if (!isProofBreakRequestCurrent(caseId, request)) return;
+      const refreshed = await loadProofBreak(caseId);
+      if (!refreshed || !mountedRef.current || viewGenerationRef.current !== viewGeneration) return;
       setStatus('ProofBreak watch and its timeline were deleted.');
     } catch (watchError) {
-      setError(messageOf(watchError));
+      if (isProofBreakRequestCurrent(caseId, request) && viewGenerationRef.current === viewGeneration) setError(messageOf(watchError));
     } finally {
-      setBusy(false);
+      if (mountedRef.current && viewGenerationRef.current === viewGeneration) setBusy(false);
     }
   };
 
   const acknowledgeProofBreak = async (caseId, eventId) => {
+    const viewGeneration = viewGenerationRef.current;
+    const request = beginProofBreakRequest(caseId);
     setBusy(true);
     setError('');
     try {
-      await api.acknowledgeProofBreakEvent(eventId);
-      await loadProofBreak(caseId);
+      await api.acknowledgeProofBreakEvent(eventId, { signal: request.controller.signal });
+      if (!isProofBreakRequestCurrent(caseId, request)) return;
+      const refreshed = await loadProofBreak(caseId);
+      if (!refreshed || !mountedRef.current || viewGenerationRef.current !== viewGeneration) return;
     } catch (ackError) {
-      setError(messageOf(ackError));
+      if (isProofBreakRequestCurrent(caseId, request) && viewGenerationRef.current === viewGeneration) setError(messageOf(ackError));
     } finally {
-      setBusy(false);
+      if (mountedRef.current && viewGenerationRef.current === viewGeneration) setBusy(false);
     }
   };
 
-  useEffect(() => { void reloadCases(); }, [reloadCases]);
+  useEffect(() => {
+    mountedRef.current = true;
+    const proofBreakRequests = proofBreakRequestByCaseRef.current;
+    void reloadCases();
+    return () => {
+      mountedRef.current = false;
+      activeViewRequestRef.current?.controller.abort();
+      caseListRequestRef.current?.controller.abort();
+      proofBreakRequests.forEach(request => request.controller.abort());
+    };
+  }, [reloadCases]);
 
   const extract = async () => {
+    const request = beginViewRequest({ allowNavigation: true });
     setBusy(true);
     setError('');
     setStatus('');
@@ -350,18 +523,20 @@ export default function GenieProofPanel() {
     setIntegrityByCase({});
     setPendingDeleteCaseId(null);
     try {
-      const result = await api.extractGenieProofClaims(offerText);
+      const result = await api.extractGenieProofClaims(offerText, { signal: request.controller.signal });
+      if (!isViewRequestCurrent(request)) return;
       setExtraction(result);
       setClaims((result.claims || []).map(prepareClaim));
       setStatus('Review each extracted statement and interpretation before saving a private passport.');
     } catch (extractError) {
-      setError(messageOf(extractError));
+      if (isViewRequestCurrent(request)) setError(messageOf(extractError));
     } finally {
-      setBusy(false);
+      if (finishViewRequest(request)) setBusy(false);
     }
   };
 
   const loadRevisionHistory = async caseId => {
+    const request = beginViewRequest({ allowNavigation: true });
     setBusy(true);
     setError('');
     setStatus('');
@@ -371,18 +546,22 @@ export default function GenieProofPanel() {
     setRevisionHistory(null);
     setComparison(null);
     try {
-      setRevisionHistory(await api.listGenieProofRevisions(caseId));
+      const history = await api.listGenieProofRevisions(caseId, { signal: request.controller.signal });
+      if (!isViewRequestCurrent(request)) return;
+      setRevisionHistory(history);
     } catch (historyError) {
-      setError(messageOf(historyError));
+      if (isViewRequestCurrent(request)) setError(messageOf(historyError));
     } finally {
-      setBusy(false);
+      if (finishViewRequest(request)) setBusy(false);
     }
   };
 
   const openRevision = revision => {
+    invalidateViewRequest();
+    setBusy(false);
     setReassessmentConsent(false);
     const verification = revision.verification;
-    if (verification.integrity !== 'VALID' || verification.signature !== 'VERIFIED' || verification.trustedIssuer !== true) {
+    if (!hasTrustedSignature(verification)) {
       setError(`Revision ${revision.revision} failed trusted signature or case-binding verification. Its findings are hidden.`);
       setSelected(null);
       setSelectedCurrentEvidenceStatus(null);
@@ -399,9 +578,9 @@ export default function GenieProofPanel() {
   };
 
   const compareRevisions = (older, newer) => {
-    const isTrusted = revision => revision?.verification?.integrity === 'VALID'
-      && revision.verification.signature === 'VERIFIED'
-      && revision.verification.trustedIssuer === true;
+    invalidateViewRequest();
+    setBusy(false);
+    const isTrusted = revision => hasTrustedSignature(revision?.verification);
     if (!isTrusted(older) || !isTrusted(newer)) {
       setComparison(null);
       setError('Both report signatures and case bindings must verify with a trusted key before comparing findings.');
@@ -413,6 +592,8 @@ export default function GenieProofPanel() {
   };
 
   const removeClaim = claimId => {
+    invalidateViewRequest();
+    setBusy(false);
     setConfirmed(false);
     setSavingConsent(false);
     setClaims(current => current.filter(claim => claim.claimId !== claimId));
@@ -420,6 +601,7 @@ export default function GenieProofPanel() {
 
   const savePassport = async () => {
     if (!extraction || extraction.claimsTruncated || !confirmed || !savingConsent || claims.length === 0) return;
+    const request = beginViewRequest();
     setBusy(true);
     setError('');
     setStatus('');
@@ -429,7 +611,8 @@ export default function GenieProofPanel() {
         submissionHash: extraction.inputHash,
         savingConsent: true,
         confirmedClaims: claims,
-      });
+      }, { signal: request.controller.signal });
+      if (!isViewRequestCurrent(request)) return;
       setSelected(null);
       setSelectedCurrentEvidenceStatus(null);
       setOfferText('');
@@ -440,13 +623,14 @@ export default function GenieProofPanel() {
       setStatus('Private claim record saved. Verify its trusted signature before viewing findings; a signature does not establish financial correctness.');
       await reloadCases();
     } catch (saveError) {
-      setError(messageOf(saveError));
+      if (isViewRequestCurrent(request)) setError(messageOf(saveError));
     } finally {
-      setBusy(false);
+      if (finishViewRequest(request)) setBusy(false);
     }
   };
 
   const openCase = async caseId => {
+    const request = beginViewRequest({ allowNavigation: true });
     setBusy(true);
     setError('');
     setStatus('');
@@ -456,10 +640,12 @@ export default function GenieProofPanel() {
     setRevisionHistory(null);
     setComparison(null);
     try {
-      const { passport, verification, currentEvidenceStatus } = await loadConsistentLatestPassport(caseId);
+      const opened = await loadConsistentLatestPassport(caseId, { signal: request.controller.signal });
+      if (!isViewRequestCurrent(request) || !opened) return;
+      const { passport, verification, currentEvidenceStatus } = opened;
       setIntegrityByCase(current => ({ ...current, [caseId]: verification }));
-      if (verification.integrity !== 'VALID' || verification.signature !== 'VERIFIED' || verification.trustedIssuer !== true) {
-        setError('Passport signature could not be verified by a trusted key. Its findings are hidden.');
+      if (!hasTrustedSignature(verification)) {
+        setError(integrityFailureLabel(verification));
         return;
       }
       setSelected(passport);
@@ -467,13 +653,14 @@ export default function GenieProofPanel() {
       setRevisionHistory(null);
       setStatus('The stored report signature is verified. This does not establish financial correctness.');
     } catch (openError) {
-      setError(messageOf(openError));
+      if (isViewRequestCurrent(request)) setError(messageOf(openError));
     } finally {
-      setBusy(false);
+      if (finishViewRequest(request)) setBusy(false);
     }
   };
 
   const checkIntegrity = async caseId => {
+    const request = beginViewRequest({ allowNavigation: true });
     setBusy(true);
     setError('');
     setStatus('');
@@ -483,21 +670,23 @@ export default function GenieProofPanel() {
       return next;
     });
     try {
-      const result = await api.verifyGenieProofCase(caseId);
+      const result = await api.verifyGenieProofCase(caseId, { signal: request.controller.signal });
+      if (!isViewRequestCurrent(request)) return;
       setIntegrityByCase(current => ({ ...current, [caseId]: result }));
       if (selected?.manifest?.caseId === caseId && selected.manifest.revision === result.revision && result.currentEvidenceStatus) {
         setSelectedCurrentEvidenceStatus(result.currentEvidenceStatus);
       }
     } catch (verifyError) {
-      setError(messageOf(verifyError));
+      if (isViewRequestCurrent(request)) setError(messageOf(verifyError));
     } finally {
-      setBusy(false);
+      if (finishViewRequest(request)) setBusy(false);
     }
   };
 
   const reassessSelectedCase = async () => {
     const caseId = selected?.manifest?.caseId;
     if (!caseId || !reassessmentConsent) return;
+    const request = beginViewRequest();
     setBusy(true);
     setError('');
     setStatus('');
@@ -507,17 +696,19 @@ export default function GenieProofPanel() {
         expectedRevision: selected.manifest.revision,
         expectedManifestHash: selected.manifestHash,
         reassessmentConsent: true,
-      });
+      }, { signal: request.controller.signal });
+      if (!isViewRequestCurrent(request)) return;
       const [verified, history, caseResult] = await Promise.all([
-        loadConsistentLatestPassport(caseId),
-        api.listGenieProofRevisions(caseId),
-        api.listGenieProofCases(),
+        loadConsistentLatestPassport(caseId, { signal: request.controller.signal }),
+        api.listGenieProofRevisions(caseId, { signal: request.controller.signal }),
+        api.listGenieProofCases({ signal: request.controller.signal }),
       ]);
+      if (!isViewRequestCurrent(request)) return;
       const { passport, verification, currentEvidenceStatus } = verified;
       setSavedCases(caseResult.cases || []);
       setRevisionHistory(history);
       setIntegrityByCase(current => ({ ...current, [caseId]: verification }));
-      if (verification.integrity === 'VALID' && verification.signature === 'VERIFIED' && verification.trustedIssuer === true) {
+      if (hasTrustedSignature(verification)) {
         setSelected(passport);
         setSelectedCurrentEvidenceStatus(currentEvidenceStatus);
         const revisionMessage = result.revision === passport.manifest.revision
@@ -531,39 +722,80 @@ export default function GenieProofPanel() {
       }
       setReassessmentConsent(false);
     } catch (reassessError) {
-      setError(messageOf(reassessError));
+      if (isViewRequestCurrent(request)) setError(messageOf(reassessError));
     } finally {
-      setBusy(false);
+      if (finishViewRequest(request)) setBusy(false);
     }
   };
 
   const withdrawConsent = async caseId => {
+    const request = beginViewRequest();
+    proofBreakRequestByCaseRef.current.get(caseId)?.controller.abort();
+    proofBreakRequestByCaseRef.current.set(caseId, request);
     setBusy(true);
     setError('');
     try {
-      await api.withdrawGenieProofConsent(caseId);
+      await api.withdrawGenieProofConsent(caseId, { signal: request.controller.signal });
+      if (!isViewRequestCurrent(request)) return;
       setPendingConsentWithdrawalCaseId(null);
-      const [watchResult, timeline] = await Promise.all([
-        api.listProofWatches({ caseId, limit: 10 }),
-        api.listProofBreakEvents(caseId, { limit: 10 }),
-      ]);
-      setProofBreakByCase(current => ({
-        ...current,
-        [caseId]: { ...current[caseId], availability: null, watch: (watchResult.watches || [])[0] || null, events: timeline.events || [], nextCursor: timeline.nextCursor || null },
-      }));
+      setWatchConsentByCase(current => ({ ...current, [caseId]: false }));
+      setProofBreakByCase(current => {
+        const previous = current[caseId] || {};
+        return {
+          ...current,
+          [caseId]: {
+            ...previous,
+            availability: null,
+            availabilityNotice: 'Private processing consent is withdrawn. Future monitoring checks are off.',
+            consentWithdrawn: true,
+            watch: previous.watch ? { ...previous.watch, status: 'CANCELLED', nextCheckAt: null } : null,
+          },
+        };
+      });
       setStatus('Private processing consent was withdrawn. Future reassessments and monitoring checks were cancelled. Delete the case separately to remove it from active storage.');
+      const [watchResult, timeline] = await Promise.allSettled([
+        api.listProofWatches({ caseId, limit: 10 }, { signal: request.controller.signal }),
+        api.listProofBreakEvents(caseId, { limit: 10 }, { signal: request.controller.signal }),
+      ]);
+      if (!isViewRequestCurrent(request) || !isProofBreakRequestCurrent(caseId, request)) return;
+      setProofBreakByCase(current => {
+        const previous = current[caseId] || {};
+        const watchReadFailed = watchResult.status === 'rejected';
+        const timelineReadFailed = timeline.status === 'rejected';
+        const refreshedWatch = watchReadFailed ? null : selectCurrentProofWatch(watchResult.value.watches);
+        const withdrawnWatch = refreshedWatch || previous.watch;
+        return {
+          ...current,
+          [caseId]: {
+            ...previous,
+            availability: null,
+            availabilityNotice: watchReadFailed || timelineReadFailed
+              ? `Consent is withdrawn and future checks are off. ${[
+                watchReadFailed ? 'The latest watch status could not be refreshed.' : '',
+                timelineReadFailed ? 'The saved event history could not be refreshed.' : '',
+              ].filter(Boolean).join(' ')}`
+              : 'Private processing consent is withdrawn. Future monitoring checks are off.',
+            consentWithdrawn: true,
+            watch: withdrawnWatch ? { ...withdrawnWatch, status: 'CANCELLED', nextCheckAt: null } : null,
+            events: timelineReadFailed ? previous.events || [] : timeline.value.events || [],
+            nextCursor: timelineReadFailed ? previous.nextCursor || null : timeline.value.nextCursor || null,
+          },
+        };
+      });
     } catch (withdrawError) {
-      setError(messageOf(withdrawError));
+      if (isViewRequestCurrent(request)) setError(messageOf(withdrawError));
     } finally {
-      setBusy(false);
+      if (finishViewRequest(request)) setBusy(false);
     }
   };
 
   const deleteCase = async caseId => {
+    const request = beginViewRequest();
     setBusy(true);
     setError('');
     try {
-      await api.deleteGenieProofCase(caseId);
+      await api.deleteGenieProofCase(caseId, { signal: request.controller.signal });
+      if (!isViewRequestCurrent(request)) return;
       if (selected?.manifest?.caseId === caseId) {
         setSelected(null);
         setSelectedCurrentEvidenceStatus(null);
@@ -584,11 +816,12 @@ export default function GenieProofPanel() {
         return next;
       });
       await reloadCases();
+      if (!isViewRequestCurrent(request)) return;
       setStatus('The case and its passport revisions were deleted from active app storage. Backups may follow separate retention schedules.');
     } catch (deleteError) {
-      setError(messageOf(deleteError));
+      if (isViewRequestCurrent(request)) setError(messageOf(deleteError));
     } finally {
-      setBusy(false);
+      if (finishViewRequest(request)) setBusy(false);
     }
   };
 
@@ -620,6 +853,8 @@ export default function GenieProofPanel() {
           value={offerText}
           disabled={busy}
           onChange={event => {
+            invalidateViewRequest();
+            setBusy(false);
             setOfferText(event.target.value);
             setExtraction(null);
             setClaims([]);
@@ -722,9 +957,9 @@ export default function GenieProofPanel() {
                   <small style={{ display: 'block', color: '#94a3b8', overflowWrap: 'anywhere' }}>{saved.manifestHash}</small>
                 </span>
                 <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button type="button" style={buttonStyle} onClick={() => void openCase(saved.caseId)} disabled={busy}>Open</button>
-                  <button type="button" style={buttonStyle} onClick={() => void loadRevisionHistory(saved.caseId)} disabled={busy}>Assessment history</button>
-                  <button type="button" style={buttonStyle} onClick={() => void checkIntegrity(saved.caseId)} disabled={busy}>Verify integrity</button>
+                  <button type="button" style={buttonStyle} onClick={() => void openCase(saved.caseId)} disabled={busy && !activeViewRequestRef.current?.allowNavigation}>Open</button>
+                  <button type="button" style={buttonStyle} onClick={() => void loadRevisionHistory(saved.caseId)} disabled={busy && !activeViewRequestRef.current?.allowNavigation}>Assessment history</button>
+                  <button type="button" style={buttonStyle} onClick={() => void checkIntegrity(saved.caseId)} disabled={busy && !activeViewRequestRef.current?.allowNavigation}>Verify integrity</button>
                   <button type="button" style={buttonStyle} onClick={() => void loadProofBreak(saved.caseId)} disabled={busy}>ProofBreak status &amp; timeline</button>
                   <button type="button" style={{ ...buttonStyle, color: '#fecaca', borderColor: 'rgba(248,113,113,.35)' }} onClick={() => setPendingDeleteCaseId(saved.caseId)} disabled={busy} aria-label={`Delete passport revision ${saved.revision}`}><Trash2 size={15} aria-hidden="true" /> Delete</button>
                 </span>
@@ -740,15 +975,20 @@ export default function GenieProofPanel() {
                         : 'The official source reuse approval is not recorded, so financial claims cannot currently be monitored.'
                       : proofBreakByCase[saved.caseId].availability.sourceStatus === 'TECHNICALLY_BLOCKED'
                         ? 'The source is blocked by technical qualification checks.'
-                        : proofBreakByCase[saved.caseId].availability.sourceStatus === 'WAITING'
+                      : proofBreakByCase[saved.caseId].availability.sourceStatus === 'WAITING'
                           ? 'No qualified source is currently available for these claims.'
-                          : 'A source is qualified for the supported claims.'}</p>
+                          : proofBreakByCase[saved.caseId].availability.sourceStatus === 'AVAILABLE'
+                            ? 'A source is qualified for the supported claims.'
+                            : 'Source qualification is unknown, so monitoring cannot be enabled.'}</p>
                     <p style={{ margin: 0 }}>Monitoring worker: {proofBreakByCase[saved.caseId].availability.workerStatus === 'AVAILABLE' ? 'recently available' : 'unavailable or without a recent heartbeat'}.</p>
                     <p style={{ margin: 0, color: '#94a3b8' }}>{proofBreakByCase[saved.caseId].availability.monitoringScope}</p>
                     <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 4 }}>
-                      {proofBreakByCase[saved.caseId].availability.claims.map(claim => <li key={claim.claimId}>{proofBreakClaimStatusLabel(claim.status, proofBreakByCase[saved.caseId].availability.sourceReasonCode)}</li>)}
+                      {(proofBreakByCase[saved.caseId].availability.claims || []).map(claim => <li key={claim.claimId}>{proofBreakClaimStatusLabel(claim.status, proofBreakByCase[saved.caseId].availability.sourceReasonCode, proofBreakByCase[saved.caseId].availability.sourceStatus)}</li>)}
                     </ul>
-                    {!proofBreakByCase[saved.caseId].watch && proofBreakByCase[saved.caseId].availability.canEnable && <>
+                    {(!proofBreakByCase[saved.caseId].watch || isTerminalProofWatch(proofBreakByCase[saved.caseId].watch))
+                      && !proofBreakByCase[saved.caseId].consentWithdrawn
+                      && proofBreakByCase[saved.caseId].availability.sourceStatus === 'AVAILABLE'
+                      && proofBreakByCase[saved.caseId].availability.canEnable && <>
                       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                         <input
                           type="checkbox"
@@ -762,13 +1002,13 @@ export default function GenieProofPanel() {
                     </>}
                   </>}
                   {proofBreakByCase[saved.caseId].watch && <>
-                    <span>Watch status: {proofBreakByCase[saved.caseId].watch.status.replaceAll('_', ' ').toLowerCase()}.</span>
+                    <span>Watch status: {String(proofBreakByCase[saved.caseId].watch.status || 'unknown').replaceAll('_', ' ').toLowerCase()}.</span>
                     {proofBreakByCase[saved.caseId].watch.lastSuccessfulCheckAt && <span>Last successful check: {new Date(proofBreakByCase[saved.caseId].watch.lastSuccessfulCheckAt).toLocaleString()}.</span>}
                     {proofBreakByCase[saved.caseId].watch.nextCheckAt && <span>Next eligible check: {new Date(proofBreakByCase[saved.caseId].watch.nextCheckAt).toLocaleString()}.</span>}
                     <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {proofBreakByCase[saved.caseId].watch.status === 'ACTIVE' && <button type="button" style={buttonStyle} onClick={() => void updateProofBreak(saved.caseId, proofBreakByCase[saved.caseId].watch.watchId, 'pause')} disabled={busy}>Pause checks</button>}
                       {proofBreakByCase[saved.caseId].watch.status === 'PAUSED' && <button type="button" style={buttonStyle} onClick={() => void updateProofBreak(saved.caseId, proofBreakByCase[saved.caseId].watch.watchId, 'resume')} disabled={busy}>Resume checks</button>}
-                      {!['CANCELLED', 'EXPIRED'].includes(proofBreakByCase[saved.caseId].watch.status) && <button type="button" style={buttonStyle} onClick={() => void updateProofBreak(saved.caseId, proofBreakByCase[saved.caseId].watch.watchId, 'disable')} disabled={busy}>Disable checks</button>}
+                      {!isTerminalProofWatch(proofBreakByCase[saved.caseId].watch) && <button type="button" style={buttonStyle} onClick={() => void updateProofBreak(saved.caseId, proofBreakByCase[saved.caseId].watch.watchId, 'disable')} disabled={busy}>Disable checks</button>}
                       <button type="button" style={{ ...buttonStyle, color: '#fecaca' }} onClick={() => void removeProofBreak(saved.caseId, proofBreakByCase[saved.caseId].watch.watchId)} disabled={busy}>Delete watch and timeline</button>
                     </span>
                   </>}
@@ -789,7 +1029,8 @@ export default function GenieProofPanel() {
                     </ul>
                     {proofBreakByCase[saved.caseId].nextCursor && <button type="button" style={{ ...buttonStyle, marginTop: 8 }} onClick={() => void loadProofBreak(saved.caseId, { append: true })} disabled={busy || proofBreakByCase[saved.caseId].loading}>Load older checks</button>}
                   </div>
-                  {proofBreakByCase[saved.caseId].availability && <div>
+                  {proofBreakByCase[saved.caseId].consentWithdrawn && <span role="status">Processing consent is withdrawn. Future checks are off.</span>}
+                  {!proofBreakByCase[saved.caseId].consentWithdrawn && <div>
                     {pendingConsentWithdrawalCaseId === saved.caseId
                       ? <span role="group" aria-label="Confirm consent withdrawal" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', color: '#fecaca' }}>
                         Withdraw private processing consent and cancel future reassessments?
@@ -813,11 +1054,9 @@ export default function GenieProofPanel() {
                   {revisionHistory.revisions.length === 0 && <span>No unexpired assessment revisions are available.</span>}
                   {revisionHistory.revisions.map(revision => <div key={revision.revision}>
                     <button type="button" style={buttonStyle} onClick={() => openRevision(revision)} disabled={busy}>
-                      Open revision {revision.revision} · {revision.verification.integrity === 'VALID' ? 'signature verified' : 'verification needs review'}
+                      Open revision {revision.revision} · {hasTrustedSignature(revision.verification) ? 'signature verified' : 'verification needs review'}
                     </button>
-                    {revision.verification.integrity === 'VALID'
-                        && revision.verification.signature === 'VERIFIED'
-                        && revision.verification.trustedIssuer === true
+                    {hasTrustedSignature(revision.verification)
                       ? <CurrentEvidenceManifestStatus currentEvidenceStatus={revision.currentEvidenceStatus} manifest={revision.passport?.manifest} />
                       : <div style={{ color: '#fbbf24', fontSize: '0.88rem' }}>Current source status is hidden until this revision verifies with a trusted signature.</div>}
                   </div>)}

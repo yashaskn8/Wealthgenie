@@ -257,7 +257,7 @@ test('TejHQ remains disabled until an operator explicitly confirms permitted use
   let calls = 0;
   const provider = new TejHqHistoricalDataProvider({
     apiKey: 'fixture-only-key',
-    env: { TEJHQ_ENABLED: 'true', TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true' },
+    env: { NODE_ENV: 'test', TEJHQ_ENABLED: 'true', TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true' },
     httpClient: { async get() { calls += 1; } },
     clock: () => NOW,
   });

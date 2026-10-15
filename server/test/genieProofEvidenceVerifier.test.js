@@ -6,6 +6,7 @@ import {
   extractGenieProofClaims,
   GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
   GENIEPROOF_LEGACY_EVIDENCE_VERIFIER_VERSION,
+  GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION,
   GENIEPROOF_PREVIOUS_EVIDENCE_VERIFIER_VERSION,
   GENIEPROOF_SUPPORTED_PRODUCT_ID,
   verifyConfirmedGenieProofClaim,
@@ -186,6 +187,94 @@ test('missing, wrong-product, expired, revoked, stale, and unpermitted evidence 
   assert.equal(verify(ppfClaim(), syntheticEvidence(signer, { reuse: 'BLOCKED' }), signer).finding, 'NOT_VERIFIABLE');
 });
 
+test('evidence with applicability conditions cannot support an unconditional claim', () => {
+  const { signer } = createSigner();
+  const conditional = syntheticEvidence(signer);
+  conditional.fact.conditions = ['A source qualification condition was not included in the submitted claim.'];
+  conditional.factHash = buildGenieProofEvidenceFactHash(conditional.fact);
+  conditional.attestation = signer.signManifest(buildGenieProofEvidenceAttestationPayload(conditional));
+
+  const finding = verify(ppfClaim(), conditional, signer);
+  assert.equal(finding.finding, 'NOT_VERIFIABLE');
+  assert.deepEqual(finding.reasonCodes, ['EVIDENCE_APPLICABILITY_CONDITIONS_UNRESOLVED']);
+
+  const malformed = syntheticEvidence(signer);
+  malformed.fact.conditions = 'unparsed conditions cannot be normalized to no conditions';
+  malformed.factHash = buildGenieProofEvidenceFactHash(malformed.fact);
+  malformed.attestation = signer.signManifest(buildGenieProofEvidenceAttestationPayload(malformed));
+  const malformedFinding = verify(ppfClaim(), malformed, signer);
+  assert.equal(malformedFinding.finding, 'NOT_VERIFIABLE');
+  assert.deepEqual(malformedFinding.reasonCodes, ['EVIDENCE_BINDING_INVALID']);
+});
+
+test('signed evidence-bound 0.5 passports preserve conditional and omitted-condition replay semantics', () => {
+  const { signer, publicKeyPem } = createSigner();
+  const cases = [
+    ['conditional evidence', evidence => {
+      evidence.fact.conditions = ['A historical source qualification condition.'];
+    }],
+    ['omitted conditions normalized by the historical contract', evidence => {
+      delete evidence.fact.conditions;
+    }],
+    ['non-array conditions normalized by the historical contract', evidence => {
+      evidence.fact.conditions = 'historically treated as no structured conditions';
+    }],
+  ];
+
+  for (const [label, mutate] of cases) {
+    const evidence = syntheticEvidence(signer);
+    mutate(evidence);
+    evidence.factHash = buildGenieProofEvidenceFactHash(evidence.fact);
+    evidence.attestation = signer.signManifest(buildGenieProofEvidenceAttestationPayload(evidence));
+    const claim = ppfClaim();
+    const finding = verifyConfirmedGenieProofClaim(claim, {
+      verifierVersion: GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION,
+      evidenceRevisions: [evidence],
+      signatureVerifier: signer,
+      now: assessedAt,
+    });
+    assert.equal(finding.finding, 'SUPPORTED', label);
+
+    const { manifest } = buildGenieProofManifest({
+      caseId: '00000000-0000-4000-8000-000000000001',
+      ownerId: '65b000000000000000000001',
+      submissionHash: 'd'.repeat(64),
+      confirmedClaims: [claim],
+      findings: [finding],
+      revision: 1,
+      assessedAt: assessedAt.toISOString(),
+      verifierVersion: GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION,
+      evidenceRegistrySnapshotHash: 'f'.repeat(64),
+    });
+    assert.equal(manifest.schemaVersion, 'genieproof-passport/0.4.0', label);
+    const replay = verifyExportedGenieProofPassport(signer.signManifest(manifest), {
+      trustedPublicKeys: { 'synthetic-evidence-test-key': publicKeyPem },
+    });
+    assert.equal(replay.findings, 'FINDING_REPRODUCIBLE', label);
+    assert.equal(replay.findingSemantics, 'LEGACY_REPLAY_ONLY', label);
+  }
+});
+
+test('evidence cannot bypass the qualified parser, rule, retrieval, or content-commitment contract', () => {
+  const { signer } = createSigner();
+  const malformedCases = [
+    ['wrong parser version', evidence => { evidence.parserVersion = 'unqualified-parser/99'; }],
+    ['wrong rule version', evidence => { evidence.ruleVersion = 'unqualified-rule/99'; }],
+    ['missing retrieval ID', evidence => { evidence.retrievalIds = []; }],
+    ['missing retrieval receipt hash', evidence => { evidence.retrievalReceiptHashes = []; }],
+    ['malformed content commitment', evidence => { evidence.sourceContentCommitment = 'not-a-hash'; }],
+  ];
+
+  for (const [label, mutate] of malformedCases) {
+    const evidence = syntheticEvidence(signer);
+    mutate(evidence);
+    evidence.attestation = signer.signManifest(buildGenieProofEvidenceAttestationPayload(evidence));
+    const finding = verify(ppfClaim(), evidence, signer);
+    assert.equal(finding.finding, 'NOT_VERIFIABLE', label);
+    assert.deepEqual(finding.reasonCodes, ['EVIDENCE_BINDING_INVALID'], label);
+  }
+});
+
 test('current verifier rejects a signed evidence revision without a bounded effective end date', () => {
   const { signer } = createSigner();
   const unbounded = syntheticEvidence(signer, { effectiveTo: null });
@@ -203,6 +292,46 @@ test('current verifier rejects a signed evidence revision without a bounded effe
     now: assessedAt,
   });
   assert.equal(priorVersionFinding.finding, 'SUPPORTED');
+});
+
+test('evidence-bound 0.5 retains its exact claim, parser, and bounded-period policy', () => {
+  const { signer } = createSigner();
+  const currentEvidence = syntheticEvidence(signer);
+  const matched = verifyConfirmedGenieProofClaim(ppfClaim(), {
+    verifierVersion: GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION,
+    evidenceRevisions: [currentEvidence],
+    signatureVerifier: signer,
+    now: assessedAt,
+  });
+  assert.equal(matched.finding, 'SUPPORTED');
+
+  const nonExactClaim = { ...ppfClaim(), statement: 'The PPF rate stands at 7.1% p.a.' };
+  assert.equal(verifyConfirmedGenieProofClaim(nonExactClaim, {
+    verifierVersion: GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION,
+    evidenceRevisions: [currentEvidence],
+    signatureVerifier: signer,
+    now: assessedAt,
+  }).finding, 'INSUFFICIENT_INPUTS');
+
+  const unbounded = syntheticEvidence(signer, { effectiveTo: null });
+  const unboundedFinding = verifyConfirmedGenieProofClaim(ppfClaim(), {
+    verifierVersion: GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION,
+    evidenceRevisions: [unbounded],
+    signatureVerifier: signer,
+    now: assessedAt,
+  });
+  assert.equal(unboundedFinding.finding, 'NOT_VERIFIABLE');
+  assert.deepEqual(unboundedFinding.reasonCodes, ['EVIDENCE_EFFECTIVE_PERIOD_INVALID']);
+
+  const legacyParser = syntheticEvidence(signer, { parserVersion: GENIEPROOF_LEGACY_PPF_PARSER_VERSION });
+  const legacyParserFinding = verifyConfirmedGenieProofClaim(ppfClaim(), {
+    verifierVersion: GENIEPROOF_PREVIOUS_CURRENT_EVIDENCE_VERIFIER_VERSION,
+    evidenceRevisions: [legacyParser],
+    signatureVerifier: signer,
+    now: assessedAt,
+  });
+  assert.equal(legacyParserFinding.finding, 'NOT_VERIFIABLE');
+  assert.deepEqual(legacyParserFinding.reasonCodes, ['EVIDENCE_BINDING_INVALID']);
 });
 
 test('offline replay preserves the signed evidence-bound 0.4 rules and manifest version', () => {
@@ -309,6 +438,7 @@ test('attestation tampering fails closed and a signed synthetic Passport replays
   assert.equal(replay.evidence, 'EVIDENCE_INTEGRITY_CHECKABLE');
   assert.equal(replay.findings, 'FINDING_REPRODUCIBLE');
   assert.equal(replay.findingSemantics, 'CURRENT_POLICY_REPLAY_ONLY');
+  assert.equal(manifest.schemaVersion, 'genieproof-passport/0.5.0');
   assert.equal(replay.financialCorrectness, 'NOT_ESTABLISHED_BY_SIGNATURE');
 
   const tampered = structuredClone(evidence);

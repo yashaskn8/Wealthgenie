@@ -17,6 +17,26 @@ import {
   isUpstoxPublicDistributionAllowed,
 } from './marketData/upstoxDistributionPolicy.js';
 import {
+  isMarketDataProductionUseAllowed,
+  isMarketDataRightsEnforcementRequired,
+} from './marketData/marketDataRights.js';
+import { matchesSourceRightsEndpoint, resolveSourceRights } from './postTaxSourceRights.js';
+import { hasMarketDataTestFixtureRightsCapability } from './marketData/marketDataTestFixtures.js';
+import { NSE_ALL_INDICES_URL } from './marketData/NseMarketDataProvider.js';
+import { MARKET_BENCHMARKS } from './marketData/marketBenchmarks.js';
+import {
+  NSE_HISTORICAL_INDEX_RIGHTS_URL,
+  NSE_HISTORICAL_INDEX_URL,
+} from './marketData/NseHistoricalDataProvider.js';
+import { NSE_TRADING_HOLIDAY_URL } from './marketData/nseTradingCalendar.js';
+import {
+  UPSTOX_QUOTE_RIGHTS_URL,
+} from './marketData/UpstoxMarketDataProvider.js';
+import {
+  NIFTY_50_INSTRUMENT_KEY,
+  UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
+} from './marketData/UpstoxHistoricalCandleProvider.js';
+import {
   MARKET_CONTEXT_POLICY_VERSION,
   applyMarketContextHysteresis,
   classifyDeterministicMarketContext,
@@ -30,7 +50,7 @@ const MARKET_CONTEXT_CLOSED_MAX_AGE_SECONDS = 36 * 60 * 60;
 const MARKET_CONTEXT_OPEN_MAX_AGE_SECONDS = 15 * 60;
 
 export const MARKET_SNAPSHOT_SCHEMA_VERSION = 'market-snapshot-1.0.0';
-export const MARKET_SNAPSHOT_CONTENT_REVISION_VERSION = 'market-snapshot-content-1.0.0';
+export const MARKET_SNAPSHOT_CONTENT_REVISION_VERSION = 'market-snapshot-content-1.1.0';
 export const MARKET_DISPLAY_STATUS = Object.freeze({
   CURRENT: 'CURRENT',
   MARKET_CLOSED: 'MARKET_CLOSED',
@@ -116,10 +136,20 @@ function snapshotContentRevision(snapshot, evidenceRevision = snapshot.evidenceR
       dataCompleteness: snapshot.dataCompleteness,
       freshness: snapshot.freshness,
       provenance: snapshot.provenance,
+      observedFacts: snapshot.observedFacts,
+      derivedFacts: snapshot.derivedFacts,
       observedAt: snapshot.observedAt,
       marketSession: snapshot.marketSession,
     }),
   };
+}
+
+function hasValidMarketSnapshotContentRevision(snapshot) {
+  const revision = snapshot?.contentRevision;
+  if (revision?.version !== MARKET_SNAPSHOT_CONTENT_REVISION_VERSION
+      || typeof revision.digest !== 'string'
+      || !/^[a-f0-9]{64}$/.test(revision.digest)) return false;
+  return revision.digest === snapshotContentRevision(snapshot).digest;
 }
 
 function evidenceRevisionFromSnapshot(snapshot) {
@@ -351,6 +381,271 @@ async function readLastKnownGood(getLkg, getDurable) {
   return { value: processLastKnownGood, storage: processLastKnownGood ? 'PROCESS_MEMORY' : 'NONE' };
 }
 
+function marketContextProviderAllowed(provider, env, fixtureCapability = null) {
+  if (provider === 'NSE') {
+    return [NSE_ALL_INDICES_URL, NSE_HISTORICAL_INDEX_RIGHTS_URL, NSE_TRADING_HOLIDAY_URL]
+      .every(url => isMarketDataProductionUseAllowed('NSE', url, env, fixtureCapability));
+  }
+  if (provider === 'UPSTOX') {
+    return isUpstoxPublicDistributionAllowed(env)
+      && [UPSTOX_QUOTE_RIGHTS_URL, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL]
+        .every(url => isMarketDataProductionUseAllowed('UPSTOX', url, env, fixtureCapability));
+  }
+  return false;
+}
+
+function hasAuthorizedMarketContextProvider(env, fixtureCapability = null) {
+  return ['NSE', 'UPSTOX'].some(provider => marketContextProviderAllowed(provider, env, fixtureCapability));
+}
+
+function marketContextSnapshotProviders(...snapshots) {
+  return [...new Set(snapshots.flatMap(snapshot => {
+    const providerStatus = snapshot?.providerStatus || {};
+    return [
+      snapshot?.provider,
+      snapshot?.providerSelection?.selectedProvider,
+      providerStatus.quotes?.provider,
+      providerStatus.history?.provider,
+      ...(snapshot?.provenance?.sources || []).map(source => source?.provider),
+      ...(snapshot?.facts || []).flatMap(fact => [fact?.sourceProvider, fact?.provider, fact?.source?.provider]),
+      ...(snapshot?.candles || []).flatMap(candle => [candle?.sourceProvider, candle?.provider, candle?.source?.provider]),
+    ].filter(provider => typeof provider === 'string' && provider.trim());
+  }))];
+}
+
+function referencesForSource(source, fallbackProvider = null) {
+  const provider = source?.provider || fallbackProvider;
+  const urls = Array.isArray(source?.requestUrls) && source.requestUrls.length > 0
+    ? source.requestUrls
+    : [source?.url];
+  return urls.filter(url => typeof url === 'string' && url.length > 0)
+    .map(url => ({ provider, url, instrumentId: source?.instrumentId ?? null }));
+}
+
+function marketContextSourceReferences(snapshot) {
+  const facts = Array.isArray(snapshot?.facts) ? snapshot.facts : [];
+  const candles = Array.isArray(snapshot?.candles) ? snapshot.candles : [];
+  const factReferences = facts.flatMap(fact => referencesForSource(
+      fact?.source || { provider: fact?.sourceProvider || fact?.provider, url: fact?.sourceUrl },
+    ));
+  const candleReferences = candles.flatMap(candle => {
+    const hasCandleSource = candle?.source || candle?.sourceUrl || candle?.sourceProvider || candle?.provider;
+    if (!hasCandleSource) return [];
+    return referencesForSource(candle.source || {
+      provider: candle?.sourceProvider || candle?.provider || snapshot?.source?.provider,
+      url: candle?.sourceUrl,
+    }, snapshot?.source?.provider);
+  });
+  const references = [...factReferences, ...candleReferences];
+  if (references.length === 0 && snapshot?.source) references.push(...referencesForSource(snapshot.source));
+  if (references.length === 0 && snapshot?.provenance?.sources?.length) {
+    references.push(...snapshot.provenance.sources.flatMap(source => referencesForSource(source)));
+  }
+  return references;
+}
+
+const MARKET_CONTEXT_ENDPOINTS = Object.freeze({
+  NSE: Object.freeze({
+    quote: Object.freeze([NSE_ALL_INDICES_URL]),
+    history: Object.freeze([NSE_HISTORICAL_INDEX_RIGHTS_URL]),
+    calendar: Object.freeze([NSE_TRADING_HOLIDAY_URL]),
+    all: Object.freeze([NSE_ALL_INDICES_URL, NSE_HISTORICAL_INDEX_RIGHTS_URL, NSE_TRADING_HOLIDAY_URL]),
+  }),
+  UPSTOX: Object.freeze({
+    quote: Object.freeze([UPSTOX_QUOTE_RIGHTS_URL]),
+    history: Object.freeze([UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL]),
+    calendar: Object.freeze([]),
+    all: Object.freeze([UPSTOX_QUOTE_RIGHTS_URL, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL]),
+  }),
+});
+
+function sourceReferenceAllowed(reference, endpointRole, env, fixtureCapability = null) {
+  const provider = String(reference?.provider || '').trim().toUpperCase();
+  const url = typeof reference?.url === 'string' ? reference.url : '';
+  const endpoints = MARKET_CONTEXT_ENDPOINTS[provider]?.[endpointRole] || [];
+  if (!url || endpoints.length === 0) return false;
+  const registered = resolveSourceRights({ provider, url });
+  const fixtureMode = hasMarketDataTestFixtureRightsCapability(fixtureCapability, env);
+  const endpointIsCanonical = endpoints.some(endpoint => {
+    const decision = resolveSourceRights({ provider, url: endpoint });
+    if (registered.sourceId && decision.sourceId && decision.url === registered.url) return true;
+    return fixtureMode && matchesSourceRightsEndpoint({
+      provider,
+      url: endpoint,
+      matchPath: new URL(endpoint).pathname,
+    }, provider, url);
+  });
+  return endpointIsCanonical && isMarketDataProductionUseAllowed(provider, url, env, fixtureCapability);
+}
+
+function nseHistorySourceSummaryAllowed(source) {
+  return source?.provider === 'NSE'
+    && source.instrumentId === MARKET_BENCHMARKS.NIFTY_50.nseIndexName
+    && source.url === NSE_HISTORICAL_INDEX_URL
+    && Array.isArray(source.requestUrls)
+    && source.requestUrls.length > 0
+    && source.requestUrls.every(url => matchesSourceRightsEndpoint(
+      { provider: 'NSE', url: NSE_HISTORICAL_INDEX_RIGHTS_URL },
+      'NSE',
+      url,
+    ) && (() => {
+      try {
+        const parsed = new URL(url);
+        return parsed.searchParams.getAll('indexType').length === 1
+          && parsed.searchParams.get('indexType') === MARKET_BENCHMARKS.NIFTY_50.nseIndexName;
+      } catch {
+        return false;
+      }
+    })());
+}
+
+function upstoxHistorySourceSummaryAllowed(source) {
+  if (source?.provider !== 'UPSTOX'
+      || source.instrumentId !== NIFTY_50_INSTRUMENT_KEY
+      || typeof source.url !== 'string'
+      || !matchesSourceRightsEndpoint(
+        { provider: 'UPSTOX', url: UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL },
+        'UPSTOX',
+        source.url,
+      )) return false;
+  try {
+    const parsed = new URL(source.url);
+    const encodedInstrumentKey = parsed.pathname.split('/')[3];
+    return parsed.search === ''
+      && parsed.hash === ''
+      && parsed.username === ''
+      && parsed.password === ''
+      && decodeURIComponent(encodedInstrumentKey) === NIFTY_50_INSTRUMENT_KEY;
+  } catch {
+    return false;
+  }
+}
+
+function historySourceSummaryAllowed(provider, source) {
+  if (provider === 'NSE') return nseHistorySourceSummaryAllowed(source);
+  if (provider === 'UPSTOX') return upstoxHistorySourceSummaryAllowed(source);
+  return false;
+}
+
+function expectedQuoteInstrumentId(provider, key) {
+  const benchmark = key === 'indiaVixCurrent'
+    ? MARKET_BENCHMARKS.INDIA_VIX
+    : MARKET_BENCHMARKS.NIFTY_50;
+  if (provider === 'NSE') return benchmark.nseIndexName;
+  if (provider === 'UPSTOX') return benchmark.upstoxInstrumentKey;
+  return null;
+}
+
+function marketContextSnapshotEvidenceAllowed(snapshot, endpointRole, env, fixtureCapability = null) {
+  const references = marketContextSourceReferences(snapshot);
+  if (references.length === 0) return false;
+  const providers = new Set(references.map(reference => String(reference?.provider || '').trim().toUpperCase()));
+  if (providers.size !== 1 || providers.has('')) return false;
+  const [provider] = providers;
+  const declaredProviders = [
+    snapshot?.provider,
+    snapshot?.providerSelection?.selectedProvider,
+    snapshot?.providerStatus?.quotes?.provider,
+    snapshot?.providerStatus?.history?.provider,
+  ].filter(value => typeof value === 'string' && value.trim())
+    .map(value => value.trim().toUpperCase());
+  if (declaredProviders.some(value => value !== provider)) return false;
+  if (!marketContextProviderAllowed(provider, env, fixtureCapability)) return false;
+  if (endpointRole === 'history' && !historySourceSummaryAllowed(provider, snapshot?.source)) return false;
+  if (!references.every(reference => sourceReferenceAllowed(reference, endpointRole, env, fixtureCapability))) return false;
+  const calendar = snapshot?.calendar;
+  if (provider === 'NSE' && calendar?.status === 'AVAILABLE'
+      && (!calendar.source || !sourceReferenceAllowed(calendar.source, 'calendar', env, fixtureCapability))) return false;
+  if (calendar?.source && !sourceReferenceAllowed(calendar.source, 'calendar', env, fixtureCapability)) return false;
+  return true;
+}
+
+function snapshotClaimsEvidence(snapshot) {
+  return snapshot?.status === AVAILABILITY.AVAILABLE
+    || snapshot?.status === AVAILABILITY.PARTIAL
+    || (Array.isArray(snapshot?.facts) && snapshot.facts.some(fact => fact?.availabilityStatus === AVAILABILITY.AVAILABLE))
+    || (Array.isArray(snapshot?.candles) && snapshot.candles.length > 0);
+}
+
+function marketSourceIdentity(source) {
+  return [
+    String(source?.provider || '').trim().toUpperCase(),
+    String(source?.instrumentId || '').trim(),
+    String(source?.url || '').trim(),
+  ].join('\u0000');
+}
+
+function lastKnownGoodFactsSourceRightsBlocked(snapshot, provider, sources, env, fixtureCapability) {
+  const observedFacts = snapshot?.observedFacts;
+  const expectedKeys = new Set(['nifty50Current', 'nifty50PreviousClose', 'indiaVixCurrent']);
+  if (!Array.isArray(observedFacts) || observedFacts.length !== expectedKeys.size
+      || observedFacts.some(fact => !expectedKeys.delete(fact?.key)
+        || fact?.semanticClass !== MARKET_FACT_SEMANTIC_CLASSES.OBSERVED
+        || fact?.availabilityStatus !== AVAILABILITY.AVAILABLE
+        || !Number.isFinite(fact?.value)
+        || String(fact?.source?.provider || '').trim().toUpperCase() !== provider
+        || fact?.source?.instrumentId !== expectedQuoteInstrumentId(provider, fact?.key)
+        || !sourceReferenceAllowed(fact.source, 'quote', env, fixtureCapability)
+        || !sources.some(source => source.role === 'quote'
+          && marketSourceIdentity(source.descriptor) === marketSourceIdentity(fact.source)))) return true;
+  if (expectedKeys.size > 0) return true;
+
+  const derivedFacts = snapshot?.derivedFacts;
+  if (!Array.isArray(derivedFacts) || derivedFacts.length === 0) return true;
+  const normalizedSources = JSON.stringify(normalizeRevisionEvidence(snapshot.provenance.sources));
+  return derivedFacts.some(fact => fact?.semanticClass !== MARKET_FACT_SEMANTIC_CLASSES.DERIVED
+    || fact?.provenance?.engine !== 'market-context-feature-engine'
+    || !Array.isArray(fact?.provenance?.evidence)
+    || JSON.stringify(normalizeRevisionEvidence(fact.provenance.evidence)) !== normalizedSources
+    || fact.provenance.evidence.some(source => (
+      String(source?.provider || '').trim().toUpperCase() !== provider
+      || !referencesForSource(source).every(reference => (
+        sourceReferenceAllowed(reference, 'all', env, fixtureCapability)
+      ))
+    )));
+}
+
+function lastKnownGoodSourceRightsBlocked(snapshot, env, fixtureCapability = null) {
+  if (!snapshot || typeof snapshot !== 'object') return true;
+  if (!hasValidMarketSnapshotContentRevision(snapshot)) return true;
+  const sources = snapshot?.provenance?.sources;
+  if (!Array.isArray(sources) || sources.length < 3) return true;
+  const providerStatus = snapshot?.providerStatus || {};
+  const quoteProvider = String(providerStatus.quotes?.provider || '').trim().toUpperCase();
+  const historyProvider = String(providerStatus.history?.provider || '').trim().toUpperCase();
+  if (!quoteProvider || quoteProvider !== historyProvider
+      || providerStatus.quotes?.status !== AVAILABILITY.AVAILABLE
+      || providerStatus.history?.status !== AVAILABILITY.AVAILABLE) return true;
+  if (quoteProvider === 'NSE' && [providerStatus.quotes?.calendar, providerStatus.history?.calendar].some(calendar => (
+    calendar?.status !== 'AVAILABLE'
+      || !calendar.source
+      || !sourceReferenceAllowed(calendar.source, 'calendar', env, fixtureCapability)
+  ))) return true;
+  const providers = [
+    snapshot?.providerSelection?.selectedProvider,
+    providerStatus.quotes?.provider,
+    providerStatus.history?.provider,
+    ...(snapshot?.provenance?.sources || []).map(source => source?.provider),
+  ].filter(provider => typeof provider === 'string' && provider.trim());
+  if (providers.length === 0 || providers.some(provider => provider.trim().toUpperCase() !== quoteProvider)
+      || !marketContextProviderAllowed(quoteProvider, env, fixtureCapability)) return true;
+
+  const classifiedSources = sources.map(descriptor => {
+    const references = referencesForSource(descriptor);
+    if (references.length === 0) return { descriptor, role: null };
+    const quote = references.every(reference => sourceReferenceAllowed(reference, 'quote', env, fixtureCapability));
+    const history = references.every(reference => sourceReferenceAllowed(reference, 'history', env, fixtureCapability));
+    return { descriptor, role: quote === history ? null : quote ? 'quote' : 'history' };
+  });
+  if (classifiedSources.some(source => !source.role)
+      || !classifiedSources.some(source => source.role === 'quote')
+      || !classifiedSources.some(source => source.role === 'history')
+      || classifiedSources.some(source => source.role === 'history'
+        && !historySourceSummaryAllowed(quoteProvider, source.descriptor))) return true;
+  if (lastKnownGoodFactsSourceRightsBlocked(snapshot, quoteProvider, classifiedSources, env, fixtureCapability)) return true;
+  return false;
+}
+
 async function writeLastKnownGood(value, setLkg, persistDurable) {
   processLastKnownGood = value;
   let durableStorage = 'PERSISTENCE_UNAVAILABLE';
@@ -369,10 +664,18 @@ async function writeLastKnownGood(value, setLkg, persistDurable) {
   }
 }
 
-function recoverLastKnownGood(lastKnownGood, now, liveReasonCodes = [], liveProviderSelection = null, env = process.env) {
+function recoverLastKnownGood(
+  lastKnownGood,
+  now,
+  liveReasonCodes = [],
+  liveProviderSelection = null,
+  env = process.env,
+  fixtureCapability = null,
+) {
   if (!lastKnownGood?.marketContext?.marketSnapshot) return null;
   const saved = lastKnownGood.marketContext;
   const savedSnapshot = saved.marketSnapshot;
+  if (lastKnownGoodSourceRightsBlocked(savedSnapshot, env, fixtureCapability)) return null;
   if (!isUpstoxPublicDistributionAllowed(env) && hasUpstoxProvenance(savedSnapshot)) return null;
   const observedAge = ageSeconds(savedSnapshot.observedAt, now);
   const recoveredStatus = observedAge !== null && observedAge <= MARKET_CONTEXT_CLOSED_MAX_AGE_SECONDS
@@ -421,6 +724,7 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
   const getDurableLkg = dependencies.getDurableLkg || (() => readLatestPersistedMarketContext());
   const persistDurableLkg = dependencies.persistDurableLkg || (value => persistMarketContextSnapshot(value));
   const env = dependencies.env || process.env;
+  const fixtureCapability = dependencies.marketDataTestFixtureRightsCapability || null;
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   if (Number.isNaN(now.getTime())) throw new TypeError('now must be a valid date.');
 
@@ -458,29 +762,44 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
     : sourceFailureSnapshot('MARKET_HISTORY_REQUEST_FAILED', historyResult.reason?.message || 'History request failed.');
   liveProviderSelection ||= quoteSnapshot.providerSelection ?? historicalSnapshot.providerSelection ?? null;
 
+  const upstoxProvenancePresent = hasUpstoxProvenance(liveProviderSelection)
+    || hasUpstoxProvenance(quoteSnapshot)
+    || hasUpstoxProvenance(historicalSnapshot);
+  const upstoxRightsBlocked = upstoxProvenancePresent
+    && !marketContextProviderAllowed('UPSTOX', env, fixtureCapability);
+  const unqualifiedSourcePresent = isMarketDataRightsEnforcementRequired(env)
+    && marketContextSnapshotProviders(liveProviderSelection, quoteSnapshot, historicalSnapshot)
+      .some(provider => !marketContextProviderAllowed(provider, env, fixtureCapability));
+  const quoteSourceEvidenceBlocked = snapshotClaimsEvidence(quoteSnapshot)
+    && !marketContextSnapshotEvidenceAllowed(quoteSnapshot, 'quote', env, fixtureCapability);
+  const historySourceEvidenceBlocked = snapshotClaimsEvidence(historicalSnapshot)
+    && !marketContextSnapshotEvidenceAllowed(historicalSnapshot, 'history', env, fixtureCapability);
   const upstoxDistributionBlocked = !isUpstoxPublicDistributionAllowed(env)
     && (hasUpstoxProvenance(liveProviderSelection)
       || hasUpstoxProvenance(quoteSnapshot)
       || hasUpstoxProvenance(historicalSnapshot));
-  if (upstoxDistributionBlocked) {
-    // This second boundary protects internal callers and test/provider
-    // injections as well as the normal provider selector. Never classify,
-    // persist, recover from, or return an Upstox-derived partial snapshot.
+  if (upstoxDistributionBlocked || upstoxRightsBlocked || unqualifiedSourcePresent
+      || quoteSourceEvidenceBlocked || historySourceEvidenceBlocked) {
+    // This boundary also protects internal callers and injected providers.
+    // Never classify, persist, recover from, or return unqualified provenance.
+    const unavailableCode = upstoxDistributionBlocked && !upstoxRightsBlocked
+      ? 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'
+      : 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED';
     quoteSnapshot = {
       status: AVAILABILITY.UNAVAILABLE,
       provider: null,
       facts: [],
       fetchedAt: now.toISOString(),
-      error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' },
-      reasonCodes: ['UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'],
+      error: { code: unavailableCode },
+      reasonCodes: [unavailableCode],
     };
     historicalSnapshot = {
       status: AVAILABILITY.UNAVAILABLE,
       provider: null,
       candles: [],
       fetchedAt: now.toISOString(),
-      error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' },
-      reasonCodes: ['UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'],
+      error: { code: unavailableCode },
+      reasonCodes: [unavailableCode],
     };
   }
 
@@ -491,8 +810,19 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
     // A partial live response is not a coherent market-context snapshot. Do
     // not combine its usable fragments with older quote/history evidence, and
     // do not let the mere presence of one live fact suppress a complete LKG.
-    const storedLkg = await readLastKnownGood(getLkg, getDurableLkg);
-    const recovered = recoverLastKnownGood(storedLkg.value, now, candidate.reasonCodes, liveProviderSelection, env);
+    const noQualifiedProvider = isMarketDataRightsEnforcementRequired(env)
+      && !hasAuthorizedMarketContextProvider(env, fixtureCapability);
+    const storedLkg = noQualifiedProvider
+      ? { value: null, storage: 'NOT_READ_SOURCE_RIGHTS_UNVERIFIED' }
+      : await readLastKnownGood(getLkg, getDurableLkg);
+    const recovered = recoverLastKnownGood(
+      storedLkg.value,
+      now,
+      candidate.reasonCodes,
+      liveProviderSelection,
+      env,
+      fixtureCapability,
+    );
     if (recovered) return recovered;
     const marketSnapshot = buildMarketSnapshot({
       quoteSnapshot,
@@ -503,8 +833,11 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
       now,
     });
     const recommendationUsability = recommendationUsabilityFor(marketSnapshot, now);
-    const unavailableReasonCodes = upstoxDistributionBlocked
+    const unavailableReasonCodes = upstoxDistributionBlocked && !upstoxRightsBlocked
       ? [...new Set([...candidate.reasonCodes, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'])]
+      : noQualifiedProvider || unqualifiedSourcePresent || upstoxRightsBlocked
+        || quoteSourceEvidenceBlocked || historySourceEvidenceBlocked
+        ? [...new Set([...candidate.reasonCodes, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'])]
       : candidate.reasonCodes;
     return {
       ...candidate,
@@ -539,7 +872,8 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
     recommendationUsability,
     statePersistence,
   };
-  if (recommendationUsability.status === 'USABLE') {
+  if (recommendationUsability.status === 'USABLE'
+      && !lastKnownGoodSourceRightsBlocked(published.marketSnapshot, env, fixtureCapability)) {
     await writeLastKnownGood({
       schemaVersion: MARKET_SNAPSHOT_SCHEMA_VERSION,
       storedAt: evaluatedAt,
@@ -563,16 +897,44 @@ export async function getLatestQualifiedMarketContextForRecommendation(options =
   const getLkg = dependencies.getLkgCache || dependencies.getCache || getCache;
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   if (Number.isNaN(now.getTime())) throw new TypeError('now must be a valid date.');
+  const env = dependencies.env || process.env;
+  const fixtureCapability = dependencies.marketDataTestFixtureRightsCapability || null;
+  if (isMarketDataRightsEnforcementRequired(env)
+      && !hasAuthorizedMarketContextProvider(env, fixtureCapability)) {
+    const reasonCode = 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED';
+    return {
+      status: 'MARKET_CONTEXT_UNAVAILABLE',
+      context: null,
+      policyVersion: MARKET_CONTEXT_POLICY_VERSION,
+      reasonCodes: [reasonCode],
+      evaluatedAt: now.toISOString(),
+      recommendationUsability: { status: 'NOT_USABLE', reasonCodes: [reasonCode] },
+      marketSnapshot: finalizeMarketSnapshot(buildMarketSnapshot({
+        quoteSnapshot: null,
+        historicalSnapshot: null,
+        features: null,
+        policy: null,
+        evaluatedAt: now.toISOString(),
+        now,
+      }), { status: 'NOT_USABLE', reasonCodes: [reasonCode] }),
+    };
+  }
   const getDurableLkg = dependencies.getDurableLkg || (() => readLatestPersistedMarketContext());
   const stored = await readLastKnownGood(getLkg, getDurableLkg);
-  const env = dependencies.env || process.env;
   const storedUpstoxBlocked = !isUpstoxPublicDistributionAllowed(env)
     && hasUpstoxProvenance(stored.value?.marketContext?.marketSnapshot);
-  const recovered = recoverLastKnownGood(stored.value, now, [], null, env);
+  const storedSourceRightsBlocked = lastKnownGoodSourceRightsBlocked(
+    stored.value?.marketContext?.marketSnapshot,
+    env,
+    fixtureCapability,
+  );
+  const recovered = recoverLastKnownGood(stored.value, now, [], null, env, fixtureCapability);
   if (!recovered) {
     const unavailableReasonCode = storedUpstoxBlocked
       ? 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'
-      : 'NO_LAST_KNOWN_GOOD_MARKET_CONTEXT';
+      : storedSourceRightsBlocked
+        ? 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'
+        : 'NO_LAST_KNOWN_GOOD_MARKET_CONTEXT';
     return {
       status: 'MARKET_CONTEXT_UNAVAILABLE',
       context: null,

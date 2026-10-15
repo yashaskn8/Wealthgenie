@@ -11,9 +11,12 @@ import { readThroughMarketCache } from './requestCache.js';
 import GovernmentSmallSavingsProvider, {
   GOVERNMENT_RATE_DATA_CLASS,
   INDIA_POST_SAVINGS_URL,
+  INDIA_POST_SCRIPT_CHUNK_RIGHTS_URL,
 } from './GovernmentSmallSavingsProvider.js';
+import { RBI_FRSB_NOTIFICATION_URL } from './marketDataSourceUrls.js';
+import { buildMarketDataRightsUnavailableSnapshot, isMarketDataProductionUseAllowed } from './marketDataRights.js';
 
-export const RBI_FRSB_NOTIFICATION_URL = 'https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11924';
+export { RBI_FRSB_NOTIFICATION_URL };
 export const RBI_RETAIL_DIRECT_URL = 'https://rbiretaildirect.org.in/index.html';
 export const RBI_FRSB_CACHE_KEY = `market:rbi:frsb-2020:${MARKET_DATA_SCHEMA_VERSION}:qualified-identities-2`;
 export const RBI_FRSB_CACHE_TTL_SECONDS = 12 * 60 * 60;
@@ -303,6 +306,25 @@ export default class RbiFloatingRateSavingsBondProvider extends MarketDataProvid
   }
 
   async getSnapshot({ forceRefresh = false, nscSnapshot = null } = {}) {
+    const deniedEndpoint = [
+      { provider: PROVIDERS.RBI, url: RBI_FRSB_NOTIFICATION_URL },
+      { provider: PROVIDERS.GOVERNMENT_OF_INDIA, url: INDIA_POST_SAVINGS_URL },
+      { provider: PROVIDERS.GOVERNMENT_OF_INDIA, url: INDIA_POST_SCRIPT_CHUNK_RIGHTS_URL },
+    ].find(({ provider, url }) => !isMarketDataProductionUseAllowed(
+      provider,
+      url,
+      this.env,
+      this.marketDataTestFixtureRightsCapability,
+    ));
+    if (deniedEndpoint) {
+      return {
+        ...buildMarketDataRightsUnavailableSnapshot(deniedEndpoint.provider, deniedEndpoint.url, {
+          now: this.clock(),
+          includeProducts: true,
+        }),
+        dataClass: RBI_RATE_DATA_CLASS,
+      };
+    }
     return readThroughMarketCache({
       cacheKey: rbiFrsbCacheKeyAt(this.clock()),
       ttlSeconds: RBI_FRSB_CACHE_TTL_SECONDS,
@@ -333,6 +355,7 @@ export default class RbiFloatingRateSavingsBondProvider extends MarketDataProvid
               const defaultGovProvider = new GovernmentSmallSavingsProvider({
                 httpClient: this.httpClient,
                 clock: this.clock,
+                env: this.env,
               });
               resolvedNscSnapshot = await defaultGovProvider.getSnapshot({ forceRefresh });
             }

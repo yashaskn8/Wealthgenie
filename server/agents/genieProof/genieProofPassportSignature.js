@@ -13,12 +13,25 @@ function readPublicKey(value) {
   }
 }
 
+function readRevokedKeyIds(value) {
+  if (!Array.isArray(value)) throw new TypeError('GenieProof revoked key IDs must be an array.');
+  const ids = new Set();
+  for (const keyId of value) {
+    if (typeof keyId !== 'string' || !/^[A-Za-z0-9._-]{1,120}$/.test(keyId)) {
+      throw new TypeError('GenieProof revoked key IDs must be valid identifiers.');
+    }
+    ids.add(keyId);
+  }
+  return ids;
+}
+
 export class GenieProofPassportVerifier {
-  constructor({ trustedPublicKeys = {} } = {}) {
+  constructor({ trustedPublicKeys = {}, revokedKeyIds = [] } = {}) {
     if (!trustedPublicKeys || Array.isArray(trustedPublicKeys) || typeof trustedPublicKeys !== 'object') {
       throw new TypeError('GenieProof verification requires an explicit public-key trust store.');
     }
     this.trustedPublicKeys = new Map();
+    this.revokedKeyIds = readRevokedKeyIds(revokedKeyIds);
     for (const [trustedId, trustedValue] of Object.entries(trustedPublicKeys)) {
       if (!/^[A-Za-z0-9._-]{1,120}$/.test(trustedId)) {
         throw new TypeError('GenieProof trust-store key IDs must be valid identifiers.');
@@ -52,7 +65,11 @@ export class GenieProofPassportVerifier {
       return { valid: false, integrityValid: false, trustedIssuer: false, code: 'PASSPORT_MANIFEST_INVALID' };
     }
     const trustedKey = this.trustedPublicKeys.get(signature.keyId);
-    if (!trustedKey) return { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_UNTRUSTED' };
+    if (!trustedKey) {
+      return this.revokedKeyIds.has(signature.keyId)
+        ? { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_REVOKED' }
+        : { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_UNTRUSTED' };
+    }
     const publicDer = trustedKey.export({ type: 'spki', format: 'der' });
     const fingerprint = crypto.createHash('sha256').update(publicDer).digest('hex');
     if (signature.publicKeyFingerprint !== fingerprint) {
@@ -64,14 +81,16 @@ export class GenieProofPassportVerifier {
     } catch {
       signatureValid = false;
     }
-    return signatureValid
-      ? { valid: true, integrityValid: true, trustedIssuer: true, code: 'PASSPORT_SIGNATURE_VERIFIED' }
-      : { valid: false, integrityValid: true, trustedIssuer: true, code: 'PASSPORT_SIGNATURE_INVALID' };
+    if (!signatureValid) return { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNATURE_INVALID' };
+    if (this.revokedKeyIds.has(signature.keyId)) {
+      return { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_REVOKED' };
+    }
+    return { valid: true, integrityValid: true, trustedIssuer: true, code: 'PASSPORT_SIGNATURE_VERIFIED' };
   }
 }
 
 export class GenieProofPassportSigner {
-  constructor({ privateKeyPem, publicKeyPem, keyId, trustedPublicKeys = {} } = {}) {
+  constructor({ privateKeyPem, publicKeyPem, keyId, trustedPublicKeys = {}, revokedKeyIds = [] } = {}) {
     if (!privateKeyPem || !publicKeyPem || typeof keyId !== 'string' || !/^[A-Za-z0-9._-]{1,120}$/.test(keyId)) {
       throw new TypeError('GenieProof signing requires an Ed25519 key pair and key ID.');
     }
@@ -91,6 +110,8 @@ export class GenieProofPassportSigner {
 
     this.keyId = keyId;
     this.publicKeyFingerprint = crypto.createHash('sha256').update(publicDer).digest('hex');
+    this.revokedKeyIds = readRevokedKeyIds(revokedKeyIds);
+    if (this.revokedKeyIds.has(keyId)) throw new TypeError('GenieProof signing key is revoked.');
     this.trustedPublicKeys = new Map();
     for (const [trustedId, trustedValue] of Object.entries(trustedPublicKeys)) {
       if (!/^[A-Za-z0-9._-]{1,120}$/.test(trustedId)) {
@@ -147,7 +168,11 @@ export class GenieProofPassportSigner {
       return { valid: false, integrityValid: false, trustedIssuer: false, code: 'PASSPORT_MANIFEST_INVALID' };
     }
     const trustedKey = this.trustedPublicKeys.get(signature.keyId);
-    if (!trustedKey) return { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_UNTRUSTED' };
+    if (!trustedKey) {
+      return this.revokedKeyIds.has(signature.keyId)
+        ? { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_REVOKED' }
+        : { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_UNTRUSTED' };
+    }
     const publicDer = trustedKey.export({ type: 'spki', format: 'der' });
     const fingerprint = crypto.createHash('sha256').update(publicDer).digest('hex');
     if (signature.publicKeyFingerprint !== fingerprint) {
@@ -159,9 +184,11 @@ export class GenieProofPassportSigner {
     } catch {
       signatureValid = false;
     }
-    return signatureValid
-      ? { valid: true, integrityValid: true, trustedIssuer: true, code: 'PASSPORT_SIGNATURE_VERIFIED' }
-      : { valid: false, integrityValid: true, trustedIssuer: true, code: 'PASSPORT_SIGNATURE_INVALID' };
+    if (!signatureValid) return { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNATURE_INVALID' };
+    if (this.revokedKeyIds.has(signature.keyId)) {
+      return { valid: false, integrityValid: true, trustedIssuer: false, code: 'PASSPORT_SIGNING_KEY_REVOKED' };
+    }
+    return { valid: true, integrityValid: true, trustedIssuer: true, code: 'PASSPORT_SIGNATURE_VERIFIED' };
   }
 }
 
@@ -177,14 +204,19 @@ export function createGenieProofRuntime({ env = process.env } = {}) {
     const trustedPublicKeys = env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON
       ? JSON.parse(env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON)
       : {};
+    const revokedKeyIds = env.GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON
+      ? JSON.parse(env.GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON)
+      : [];
     if (!trustedPublicKeys || Array.isArray(trustedPublicKeys) || typeof trustedPublicKeys !== 'object') {
       throw new TypeError('Trusted GenieProof verification keys must be an object.');
     }
+    if (!Array.isArray(revokedKeyIds)) throw new TypeError('Revoked GenieProof signing key IDs must be an array.');
     const signer = new GenieProofPassportSigner({
       privateKeyPem: env.GENIEPROOF_SIGNING_PRIVATE_KEY,
       publicKeyPem: env.GENIEPROOF_SIGNING_PUBLIC_KEY,
       keyId: env.GENIEPROOF_SIGNING_KEY_ID,
       trustedPublicKeys,
+      revokedKeyIds,
     });
     return Object.freeze({ enabled: true, signer, productionActivationAllowed: false });
   } catch {

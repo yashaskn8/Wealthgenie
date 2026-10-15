@@ -12,6 +12,7 @@ import { verifyAgentRuntimePersistence } from '../services/planHealthPersistence
 import { normalizeBuildSha } from '../../shared/buildIdentity.js';
 import { REDIS_PROBE_TIMEOUT_MS } from '../../shared/demoPreflightContracts.js';
 import { loadBuildProvenance } from '../services/buildProvenance.js';
+import { hasUpstoxAccessToken } from '../services/marketData/upstoxCredentials.js';
 import {
   isSafeDemoEnvironmentId,
   verifyDemoDatabaseIdentity,
@@ -47,7 +48,7 @@ export function createHealthRouter({
   expectedDemoEnvironmentId = process.env.DEMO_EXPECTED_MONGODB_ENVIRONMENT_ID,
   marketProvider = String(process.env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase(),
   marketProviderTokenPresent = String(process.env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase() === 'NSE'
-    || Boolean(process.env.UPSTOX_ANALYTICS_TOKEN || process.env.UPSTOX_ACCESS_TOKEN),
+    || hasUpstoxAccessToken(),
   verifyMongoTransaction = verifyConnectedMongoTransaction,
   verifyDemoEnvironmentSentinel = verifyConnectedDemoEnvironmentSentinel,
   verifyRedisConnection = verifyConnectedRedis,

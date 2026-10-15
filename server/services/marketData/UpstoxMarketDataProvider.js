@@ -12,8 +12,18 @@ import { buildUpstoxInstrumentIdentity } from './productIdentity.js';
 import { readThroughMarketCache } from './requestCache.js';
 import { isoDateInIndia } from './indiaMarketTime.js';
 import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
+import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import {
+  evaluateMarketDataProductionRights,
+  isMarketDataProductionUseAllowed,
+} from './marketDataRights.js';
+import {
+  buildUpstoxQuoteRequestUrl,
+  UPSTOX_QUOTE_RIGHTS_URL,
+  UPSTOX_QUOTE_URL,
+} from './marketDataSourceUrls.js';
 
-export const UPSTOX_QUOTE_URL = 'https://api.upstox.com/v3/market-quote/quotes';
+export { UPSTOX_QUOTE_URL, UPSTOX_QUOTE_RIGHTS_URL };
 export const UPSTOX_QUOTE_CACHE_TTL_SECONDS = 60;
 export const UPSTOX_QUOTE_FRESHNESS_SECONDS = 15 * 60;
 // The provider documents up to 500 keys per request. WealthGenie intentionally
@@ -96,11 +106,15 @@ function quoteIssue(quoteResult, quote, now) {
 
 export default class UpstoxMarketDataProvider extends MarketDataProvider {
   constructor({
-    accessToken = process.env.UPSTOX_ANALYTICS_TOKEN || process.env.UPSTOX_ACCESS_TOKEN || '',
+    accessToken = resolveUpstoxAccessToken(),
+    env = process.env,
+    requestCache = readThroughMarketCache,
     ...options
   } = {}) {
-    super({ providerName: PROVIDERS.UPSTOX, ...options });
+    super({ providerName: PROVIDERS.UPSTOX, env, ...options });
     this.accessToken = String(accessToken || '').trim();
+    this.env = env;
+    this.requestCache = requestCache;
   }
 
   isConfigured() {
@@ -109,7 +123,29 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
 
   async getQuotes(instrumentKeys, { forceRefresh = false } = {}) {
     const normalizedKeys = normalizeInstrumentKeys(instrumentKeys);
+    const requestUrl = buildUpstoxQuoteRequestUrl(normalizedKeys);
     const fetchedAt = this.nowIso();
+    if (!isMarketDataProductionUseAllowed(
+      PROVIDERS.UPSTOX,
+      requestUrl,
+      this.env,
+      this.marketDataTestFixtureRightsCapability,
+    )) {
+      const rights = evaluateMarketDataProductionRights(PROVIDERS.UPSTOX, requestUrl);
+      return {
+        schemaVersion: MARKET_DATA_SCHEMA_VERSION,
+        provider: PROVIDERS.UPSTOX,
+        status: AVAILABILITY.UNAVAILABLE,
+        fetchedAt,
+        requestedInstrumentCount: normalizedKeys.length,
+        availableFactCount: null,
+        facts: [],
+        error: { code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' },
+        reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'],
+        sourceRights: { status: rights.status, sourceId: rights.sourceId, productionUseAllowed: false },
+        cache: { hit: false, backend: 'NONE', status: 'NOT_READ_SOURCE_RIGHTS_BLOCKED' },
+      };
+    }
     if (!this.isConfigured()) {
       return {
         schemaVersion: MARKET_DATA_SCHEMA_VERSION,
@@ -127,16 +163,15 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
       };
     }
 
-    return readThroughMarketCache({
+    return this.requestCache({
       cacheKey: cacheKeyFor(normalizedKeys),
       ttlSeconds: UPSTOX_QUOTE_CACHE_TTL_SECONDS,
       forceRefresh,
       loader: async () => {
         const requestFetchedAt = this.nowIso();
         try {
-          const response = await this.httpClient.get(UPSTOX_QUOTE_URL, {
+          const response = await this.httpClient.get(requestUrl, {
             timeout: 10_000,
-            params: { instrument_key: normalizedKeys.join(',') },
             headers: {
               Accept: 'application/json',
               Authorization: `Bearer ${this.accessToken}`,
@@ -160,7 +195,7 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
               canonicalProductId: identity.canonicalProductId,
               sourceProvider: PROVIDERS.UPSTOX,
               sourceInstrumentId: instrumentKey,
-              sourceUrl: UPSTOX_QUOTE_URL,
+              sourceUrl: requestUrl,
               value: reasonCode ? null : quote?.last_price,
               currency: /^(?:NSE|BSE|MCX)_INDEX\|/.test(instrumentKey) ? null : 'INR',
               unit: /^(?:NSE|BSE|MCX)_INDEX\|/.test(instrumentKey) ? 'INDEX_POINTS' : 'PRICE',

@@ -8,17 +8,32 @@ import {
   classifyDeterministicMarketContext,
 } from '../services/marketContextPolicy.js';
 import {
+  buildMarketSnapshot,
   getLiveMarketContext,
   getLatestQualifiedMarketContextForRecommendation,
   resetMarketContextProcessStateForTest,
 } from '../services/marketContextService.js';
 import { MARKET_BENCHMARKS } from '../services/marketData/marketBenchmarks.js';
+import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
+import {
+  buildNseHistoricalIndexRequestUrl,
+  buildUpstoxQuoteRequestUrl,
+} from '../services/marketData/marketDataSourceUrls.js';
 
 const NOW = new Date('2026-09-08T12:00:00.000Z');
+const TEST_MARKET_DATA_RIGHTS_CAPABILITY = createMarketDataTestFixtureRightsCapability({
+  env: { NODE_ENV: 'test' },
+  transport: { get: async () => ({ data: null }) },
+});
 const NIFTY = 'NSE_INDEX|Nifty 50';
 const VIX = 'NSE_INDEX|India VIX';
 
-function quoteFact(instrumentId, canonicalProductId, value, { previousClose = null, freshness = 'FRESH', provider = 'NSE' } = {}) {
+function quoteFact(instrumentId, canonicalProductId, value, {
+  previousClose = null,
+  freshness = 'FRESH',
+  provider = 'NSE',
+  sourceUrl = null,
+} = {}) {
   return {
     canonicalProductId,
     value,
@@ -27,18 +42,40 @@ function quoteFact(instrumentId, canonicalProductId, value, { previousClose = nu
     fetchedAt: NOW.toISOString(),
     dataClass: 'LIVE',
     freshness: { status: freshness, ageSeconds: 60, maxAgeSeconds: 900 },
-    source: { provider, instrumentId, url: provider === 'NSE' ? 'https://www.nseindia.com/api/allIndices' : 'https://api.upstox.com/v3/market-quote/quotes' },
+    source: {
+      provider,
+      instrumentId: provider === 'NSE'
+        ? canonicalProductId === MARKET_BENCHMARKS.INDIA_VIX.canonicalProductId
+          ? MARKET_BENCHMARKS.INDIA_VIX.nseIndexName
+          : MARKET_BENCHMARKS.NIFTY_50.nseIndexName
+        : instrumentId,
+      url: sourceUrl || (provider === 'NSE'
+        ? 'https://www.nseindia.com/api/allIndices'
+        : buildUpstoxQuoteRequestUrl([NIFTY, VIX])),
+    },
     metrics: { previousClose },
   };
 }
 
 function quoteSnapshot({ nifty = 160, previousClose = 159, vix = 14, niftyFreshness = 'FRESH', vixFreshness = 'FRESH', includeVix = true, provider = 'NSE' } = {}) {
+  const sourceUrl = provider === 'NSE'
+    ? 'https://www.nseindia.com/api/allIndices'
+    : buildUpstoxQuoteRequestUrl(includeVix ? [NIFTY, VIX] : [NIFTY]);
   return {
     status: 'AVAILABLE',
     marketSession: { status: 'MARKET_CLOSED', tradingDate: '2026-09-08' },
+    ...(provider === 'NSE' ? { calendar: {
+      status: 'AVAILABLE',
+      source: { provider: 'NSE', url: 'https://www.nseindia.com/api/holiday-master?type=trading' },
+      fetchedAt: NOW.toISOString(),
+    } } : {}),
     facts: [
-      quoteFact(NIFTY, MARKET_BENCHMARKS.NIFTY_50.canonicalProductId, nifty, { previousClose, freshness: niftyFreshness, provider }),
-      ...(includeVix ? [quoteFact(VIX, MARKET_BENCHMARKS.INDIA_VIX.canonicalProductId, vix, { freshness: vixFreshness, provider })] : []),
+      quoteFact(NIFTY, MARKET_BENCHMARKS.NIFTY_50.canonicalProductId, nifty, {
+        previousClose, freshness: niftyFreshness, provider, sourceUrl,
+      }),
+      ...(includeVix ? [quoteFact(VIX, MARKET_BENCHMARKS.INDIA_VIX.canonicalProductId, vix, {
+        freshness: vixFreshness, provider, sourceUrl,
+      })] : []),
     ],
     provider,
   };
@@ -52,7 +89,21 @@ function historySnapshot(closes, { freshness = 'FRESH', status = 'AVAILABLE', pr
     fetchedAt: NOW.toISOString(),
     observedAt: new Date(start + (closes.length - 1) * 86400000).toISOString(),
     freshness: { status: freshness, ageSeconds: 86400, maxAgeSeconds: 345600 },
-    source: { provider, instrumentId: 'NIFTY 50', url: provider === 'NSE' ? 'https://www.nseindia.com/api/historicalOR/indicesHistory' : 'https://api.upstox.com/v3/historical-candle' },
+    source: {
+      provider,
+      instrumentId: provider === 'UPSTOX' ? NIFTY : 'NIFTY 50',
+      url: provider === 'NSE'
+        ? 'https://www.nseindia.com/api/historicalOR/indicesHistory'
+        : 'https://api.upstox.com/v3/historical-candle/NSE_INDEX%7CNifty%2050/days/1/2026-09-08/2026-06-01',
+      ...(provider === 'NSE' ? { requestUrls: [buildNseHistoricalIndexRequestUrl({
+        indexType: 'NIFTY 50', from: '01-06-2026', to: '30-07-2026',
+      })] } : {}),
+    },
+    ...(provider === 'NSE' ? { calendar: {
+      status: 'AVAILABLE',
+      source: { provider: 'NSE', url: 'https://www.nseindia.com/api/holiday-master?type=trading' },
+      fetchedAt: NOW.toISOString(),
+    } } : {}),
     candles: closes.map((close, index) => ({
       timestamp: new Date(start + index * 86400000).toISOString(),
       open: close,
@@ -61,6 +112,61 @@ function historySnapshot(closes, { freshness = 'FRESH', status = 'AVAILABLE', pr
       close,
     })),
   };
+}
+
+function buildQualifiedSnapshot({ session = 'MARKET_CLOSED', observedAt = '2026-09-08T11:59:00.000Z' } = {}) {
+  const quotes = quoteSnapshot();
+  quotes.marketSession = { status: session, tradingDate: '2026-09-08', checkedAt: NOW.toISOString() };
+  const originalObservedAt = quotes.facts[0].observedAt;
+  quotes.facts = quotes.facts.map(fact => ({ ...fact, observedAt: originalObservedAt }));
+  const history = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index));
+  const features = computeMarketContextFeatures({ quoteSnapshot: quotes, historicalSnapshot: history });
+  return buildMarketSnapshot({
+    quoteSnapshot: quotes,
+    historicalSnapshot: history,
+    features,
+    policy: {
+      status: 'MARKET_CONTEXT_AVAILABLE',
+      context: 'NORMAL',
+      classification: MARKET_CONTEXT_CLASSIFICATION,
+      policyVersion: MARKET_CONTEXT_POLICY_VERSION,
+      reasonCodes: [],
+      observedAt,
+      sources: features.sources,
+    },
+    evaluatedAt: NOW.toISOString(),
+    now: NOW,
+  });
+}
+
+function buildFixtureMarketSnapshot(quotes, history) {
+  const features = computeMarketContextFeatures({ quoteSnapshot: quotes, historicalSnapshot: history });
+  return buildMarketSnapshot({
+    quoteSnapshot: quotes,
+    historicalSnapshot: history,
+    features,
+    policy: {
+      status: 'MARKET_CONTEXT_AVAILABLE',
+      context: 'NORMAL',
+      classification: MARKET_CONTEXT_CLASSIFICATION,
+      policyVersion: MARKET_CONTEXT_POLICY_VERSION,
+      reasonCodes: [],
+      observedAt: '2026-09-08T11:59:00.000Z',
+      sources: features.sources,
+    },
+    evaluatedAt: NOW.toISOString(),
+    now: NOW,
+  });
+}
+
+async function assertLkgRejectsSourceIdentity(snapshot) {
+  const result = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    getCache: async () => ({ marketContext: { marketSnapshot: snapshot, reasonCodes: [] } }),
+    getDurableLkg: async () => null,
+  });
+  assert.equal(result.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert(result.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
 }
 
 function policyFeatures(overrides = {}) {
@@ -236,6 +342,7 @@ test('market snapshot preserves qualified failover diagnostics and selected-prov
     fallbackUsed: true,
   };
   const pair = await getLiveMarketContext({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     fetchQualifiedMarketContextSnapshots: async () => ({
       quoteSnapshot: { ...quoteSnapshot({ provider: 'UPSTOX' }), providerSelection: selection },
       historicalSnapshot: {
@@ -253,6 +360,66 @@ test('market snapshot preserves qualified failover diagnostics and selected-prov
   assert.equal(pair.marketSnapshot.providerSelection.fallbackUsed, true);
   assert(pair.marketSnapshot.observedFacts.every(fact => fact.source.provider === 'UPSTOX'));
   assert(pair.marketSnapshot.provenance.sources.every(source => source.provider === 'UPSTOX'));
+});
+
+test('available injected market observations without exact source provenance cannot reach policy or persistence', async () => {
+  resetMarketContextProcessStateForTest();
+  const validQuotes = quoteSnapshot();
+  const validHistory = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index));
+  const quotesWithoutSource = {
+    ...validQuotes,
+    provider: null,
+    facts: validQuotes.facts.map(({ source: _source, sourceProvider: _sourceProvider, ...fact }) => fact),
+  };
+  const historyWithWrongHost = {
+    ...validHistory,
+    source: { ...validHistory.source, url: 'https://unregistered.invalid/api/historicalOR/indicesHistory' },
+  };
+  const result = await getLiveMarketContext({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    fetchBenchmarkQuotes: async () => quotesWithoutSource,
+    fetchNiftyHistoricalCandles: async () => historyWithWrongHost,
+    env: { NODE_ENV: 'test' },
+    getCache: async () => null,
+    setCache: async () => { assert.fail('source-unverified evidence must not advance hysteresis'); },
+    persistDurableLkg: async () => { assert.fail('source-unverified evidence must not be persisted'); },
+  });
+
+  assert.equal(result.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert.equal(result.context, null);
+  assert(result.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
+  assert.deepEqual(result.marketSnapshot.provenance.sources, []);
+});
+
+test('mixed quote and history providers cannot reach policy, hysteresis, or LKG writes', async () => {
+  resetMarketContextProcessStateForTest();
+  const mixed = await getLiveMarketContext({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    fetchQualifiedMarketContextSnapshots: async () => ({
+      quoteSnapshot: quoteSnapshot({ provider: 'NSE' }),
+      historicalSnapshot: historySnapshot(
+        Array.from({ length: 60 }, (_, index) => 100 + index),
+        { provider: 'UPSTOX' },
+      ),
+      providerSelection: {
+        attemptedProviders: ['NSE', 'UPSTOX'],
+        selectedProvider: 'NSE',
+        providerFailures: [],
+        fallbackUsed: false,
+      },
+    }),
+    getLkgCache: async () => null,
+    getDurableLkg: async () => null,
+    getCache: async () => null,
+    setCache: async () => { assert.fail('mixed-source evidence must not advance hysteresis'); },
+    persistDurableLkg: async () => { assert.fail('mixed-source evidence must not be persisted'); },
+    setLkgCache: async () => { assert.fail('mixed-source evidence must not be cached as LKG'); },
+  });
+
+  assert.equal(mixed.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert.equal(mixed.context, null);
+  assert(mixed.reasonCodes.includes('MARKET_PROVIDER_PAIR_MISMATCH'));
+  assert.equal(mixed.statePersistence, 'NOT_WRITTEN_UNAVAILABLE_OBSERVATION');
 });
 
 test('production context reads suppress live Upstox evidence when distribution is unconfirmed', async () => {
@@ -281,7 +448,7 @@ test('production context reads suppress live Upstox evidence when distribution i
 
   assert.equal(suppressed.status, 'MARKET_CONTEXT_UNAVAILABLE');
   assert.equal(suppressed.context, null);
-  assert(suppressed.reasonCodes.includes('UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'));
+  assert(suppressed.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
   assert(suppressed.marketSnapshot.observedFacts.every(fact => (
     fact.value === null && fact.source === null && fact.availabilityStatus === 'UNAVAILABLE'
   )));
@@ -313,7 +480,7 @@ test('production recommendation reads do not reuse an Upstox-derived last-known-
 
   assert.equal(result.status, 'MARKET_CONTEXT_UNAVAILABLE');
   assert.equal(result.context, null);
-  assert(result.reasonCodes.includes('UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'));
+  assert(result.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
   assert.deepEqual(result.marketSnapshot.observedFacts, []);
   assert.equal(result.marketSnapshot.status, 'UNAVAILABLE');
 });
@@ -326,6 +493,7 @@ test('qualified market context survives hot-cache expiry through last-known-good
     set: async (key, value) => { values.set(key, value); return true; },
   };
   const qualified = await getLiveMarketContext({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     fetchBenchmarkQuotes: async () => quoteSnapshot(),
     fetchNiftyHistoricalCandles: async () => historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index)),
     getCache: cache.get,
@@ -335,12 +503,14 @@ test('qualified market context survives hot-cache expiry through last-known-good
   assert.equal(qualified.recommendationUsability.status, 'USABLE');
 
   const recommendationRead = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     getCache: cache.get,
   });
   assert.equal(recommendationRead.recommendationUsability.status, 'USABLE');
   assert.equal(recommendationRead.marketSnapshot.recoveredFromLastKnownGood, true);
 
   const unavailable = await getLiveMarketContext({ now: new Date('2026-09-08T12:05:00.000Z') }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     fetchBenchmarkQuotes: async () => { throw new Error('quote outage'); },
     fetchNiftyHistoricalCandles: async () => { throw new Error('history outage'); },
     getCache: cache.get,
@@ -360,6 +530,7 @@ test('partial live evidence uses one complete LKG snapshot instead of suppressin
   };
   const completeHistory = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index));
   const qualified = await getLiveMarketContext({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     fetchBenchmarkQuotes: async () => quoteSnapshot(),
     fetchNiftyHistoricalCandles: async () => completeHistory,
     getCache: cache.get,
@@ -369,6 +540,7 @@ test('partial live evidence uses one complete LKG snapshot instead of suppressin
 
   const partialQuotes = quoteSnapshot({ includeVix: false, nifty: 999 });
   const recovered = await getLiveMarketContext({ now: new Date('2026-09-08T12:05:00.000Z') }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     fetchBenchmarkQuotes: async () => partialQuotes,
     fetchNiftyHistoricalCandles: async () => completeHistory,
     getCache: cache.get,
@@ -387,6 +559,7 @@ test('qualified market context survives Redis and process-memory loss through du
   resetMarketContextProcessStateForTest();
   let durableSnapshot = null;
   const qualified = await getLiveMarketContext({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     fetchBenchmarkQuotes: async () => quoteSnapshot(),
     fetchNiftyHistoricalCandles: async () => historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index)),
     getCache: async () => null,
@@ -401,6 +574,7 @@ test('qualified market context survives Redis and process-memory loss through du
 
   resetMarketContextProcessStateForTest();
   const recovered = await getLatestQualifiedMarketContextForRecommendation({ now: new Date('2026-09-08T12:05:00.000Z') }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     getCache: async () => null,
     getDurableLkg: async () => durableSnapshot,
   });
@@ -410,14 +584,9 @@ test('qualified market context survives Redis and process-memory loss through du
 });
 
 test('LKG with an unknown market session is not recommendation-usable inside the age window', async () => {
-  const snapshot = {
-    status: 'LAST_AVAILABLE',
-    observedAt: '2026-09-07T00:00:00.000Z',
-    marketSession: { status: 'UNKNOWN' },
-    policyAvailability: 'AVAILABLE',
-    policyOutput: { status: 'MARKET_CONTEXT_AVAILABLE' },
-  };
+  const snapshot = buildQualifiedSnapshot({ session: 'UNKNOWN' });
   const result = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     getCache: async () => ({ marketContext: { marketSnapshot: snapshot, reasonCodes: [] } }),
     getDurableLkg: async () => null,
   });
@@ -426,16 +595,181 @@ test('LKG with an unknown market session is not recommendation-usable inside the
 });
 
 test('future-dated LKG market evidence is not recommendation-usable', async () => {
-  const snapshot = {
-    status: 'LAST_AVAILABLE',
-    observedAt: '2026-09-08T12:00:01.000Z',
-    marketSession: { status: 'MARKET_CLOSED' },
-    policyAvailability: 'AVAILABLE',
-    policyOutput: { status: 'MARKET_CONTEXT_AVAILABLE' },
-  };
+  const snapshot = buildQualifiedSnapshot({ observedAt: '2026-09-08T12:00:01.000Z' });
   const result = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
     getCache: async () => ({ marketContext: { marketSnapshot: snapshot, reasonCodes: [] } }),
     getDurableLkg: async () => null,
   });
   assert.equal(result.recommendationUsability.status, 'NOT_USABLE');
+  assert.deepEqual(result.recommendationUsability.reasonCodes, ['MARKET_SNAPSHOT_NOT_CURRENT_OR_LAST_AVAILABLE']);
+});
+
+test('LKG rejects forged visible fact provenance even when its content digest is recomputed', async () => {
+  const baseQuotes = quoteSnapshot();
+  const history = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index));
+  const baseFeatures = computeMarketContextFeatures({ quoteSnapshot: baseQuotes, historicalSnapshot: history });
+  const forgedFeatures = {
+    ...baseFeatures,
+    observedFacts: baseFeatures.observedFacts.map((fact, index) => index === 0
+      ? { ...fact, source: { ...fact.source, url: 'https://attacker.invalid/api/allIndices' } }
+      : fact),
+  };
+  const snapshot = buildMarketSnapshot({
+    quoteSnapshot: baseQuotes,
+    historicalSnapshot: history,
+    features: forgedFeatures,
+    policy: {
+      status: 'MARKET_CONTEXT_AVAILABLE',
+      context: 'NORMAL',
+      classification: MARKET_CONTEXT_CLASSIFICATION,
+      policyVersion: MARKET_CONTEXT_POLICY_VERSION,
+      reasonCodes: [],
+      observedAt: '2026-09-08T11:59:00.000Z',
+      sources: baseFeatures.sources,
+    },
+    evaluatedAt: NOW.toISOString(),
+    now: NOW,
+  });
+  const result = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    getCache: async () => ({ marketContext: { marketSnapshot: snapshot, reasonCodes: [] } }),
+    getDurableLkg: async () => null,
+  });
+  assert.equal(result.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert(result.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
+});
+
+test('LKG rejects visible fact mutations that no longer match the stored content revision', async () => {
+  const snapshot = buildQualifiedSnapshot();
+  snapshot.observedFacts[0].value += 1;
+  const result = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    getCache: async () => ({ marketContext: { marketSnapshot: snapshot, reasonCodes: [] } }),
+    getDurableLkg: async () => null,
+  });
+  assert.equal(result.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert(result.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
+});
+
+test('LKG rejects forged NSE calendar provenance even when its content digest is recomputed', async () => {
+  const quotes = quoteSnapshot();
+  const history = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index));
+  const baseFeatures = computeMarketContextFeatures({ quoteSnapshot: quotes, historicalSnapshot: history });
+  const forgedFeatures = {
+    ...baseFeatures,
+    providerStatus: {
+      ...baseFeatures.providerStatus,
+      quotes: {
+        ...baseFeatures.providerStatus.quotes,
+        calendar: {
+          ...baseFeatures.providerStatus.quotes.calendar,
+          source: { provider: 'NSE', url: 'https://attacker.invalid/api/holiday-master?type=trading' },
+        },
+      },
+    },
+  };
+  const snapshot = buildMarketSnapshot({
+    quoteSnapshot: quotes,
+    historicalSnapshot: history,
+    features: forgedFeatures,
+    policy: {
+      status: 'MARKET_CONTEXT_AVAILABLE',
+      context: 'NORMAL',
+      classification: MARKET_CONTEXT_CLASSIFICATION,
+      policyVersion: MARKET_CONTEXT_POLICY_VERSION,
+      reasonCodes: [],
+      observedAt: '2026-09-08T11:59:00.000Z',
+      sources: baseFeatures.sources,
+    },
+    evaluatedAt: NOW.toISOString(),
+    now: NOW,
+  });
+  const result = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    getCache: async () => ({ marketContext: { marketSnapshot: snapshot, reasonCodes: [] } }),
+    getDurableLkg: async () => null,
+  });
+  assert.equal(result.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert(result.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
+});
+
+test('LKG requires the historical source summary to bind its query URLs to the canonical NSE endpoint', async () => {
+  const quotes = quoteSnapshot();
+  const history = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index));
+  const baseFeatures = computeMarketContextFeatures({ quoteSnapshot: quotes, historicalSnapshot: history });
+  const forgedSources = baseFeatures.sources.map(source => source.instrumentId === 'NIFTY 50'
+    && source.requestUrls
+    ? { ...source, url: 'https://attacker.invalid/api/historicalOR/indicesHistory' }
+    : source);
+  const forgedFeatures = {
+    ...baseFeatures,
+    sources: forgedSources,
+    derivedFacts: baseFeatures.derivedFacts.map(fact => ({
+      ...fact,
+      provenance: { ...fact.provenance, evidence: forgedSources },
+    })),
+  };
+  const snapshot = buildMarketSnapshot({
+    quoteSnapshot: quotes,
+    historicalSnapshot: history,
+    features: forgedFeatures,
+    policy: {
+      status: 'MARKET_CONTEXT_AVAILABLE',
+      context: 'NORMAL',
+      classification: MARKET_CONTEXT_CLASSIFICATION,
+      policyVersion: MARKET_CONTEXT_POLICY_VERSION,
+      reasonCodes: [],
+      observedAt: '2026-09-08T11:59:00.000Z',
+      sources: forgedSources,
+    },
+    evaluatedAt: NOW.toISOString(),
+    now: NOW,
+  });
+  const result = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    getCache: async () => ({ marketContext: { marketSnapshot: snapshot, reasonCodes: [] } }),
+    getDurableLkg: async () => null,
+  });
+  assert.equal(result.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert(result.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
+});
+
+test('LKG binds each observed quote key to its canonical NSE instrument identity', async () => {
+  const quotes = quoteSnapshot();
+  quotes.facts = quotes.facts.map(fact => fact.canonicalProductId === MARKET_BENCHMARKS.NIFTY_50.canonicalProductId
+    ? { ...fact, source: { ...fact.source, instrumentId: MARKET_BENCHMARKS.INDIA_VIX.nseIndexName } }
+    : fact);
+  const history = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index));
+
+  await assertLkgRejectsSourceIdentity(buildFixtureMarketSnapshot(quotes, history));
+});
+
+test('LKG requires NSE historical evidence to identify and query NIFTY 50', async () => {
+  const quotes = quoteSnapshot();
+  const history = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index));
+  history.source = {
+    ...history.source,
+    instrumentId: MARKET_BENCHMARKS.INDIA_VIX.nseIndexName,
+    requestUrls: [buildNseHistoricalIndexRequestUrl({
+      indexType: MARKET_BENCHMARKS.INDIA_VIX.nseIndexName,
+      from: '01-06-2026',
+      to: '30-07-2026',
+    })],
+  };
+
+  await assertLkgRejectsSourceIdentity(buildFixtureMarketSnapshot(quotes, history));
+});
+
+test('LKG requires Upstox historical evidence to identify the NIFTY 50 instrument key', async () => {
+  const quotes = quoteSnapshot({ provider: 'UPSTOX' });
+  const history = historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index), { provider: 'UPSTOX' });
+  const vixKey = MARKET_BENCHMARKS.INDIA_VIX.upstoxInstrumentKey;
+  history.source = {
+    ...history.source,
+    instrumentId: vixKey,
+    url: `https://api.upstox.com/v3/historical-candle/${encodeURIComponent(vixKey)}/days/1/2026-09-08/2026-06-01`,
+  };
+
+  await assertLkgRejectsSourceIdentity(buildFixtureMarketSnapshot(quotes, history));
 });

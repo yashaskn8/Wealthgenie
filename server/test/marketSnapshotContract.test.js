@@ -123,6 +123,39 @@ test('content revision detects revised normalized quote/history facts even when 
   assert.notEqual(base.evidenceRevision, historyRevision.evidenceRevision);
 });
 
+test('content revision binds the visible observed and derived fact arrays', () => {
+  const base = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN', value: 25000 }),
+    historicalSnapshot,
+    features: features(),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+  const changedObserved = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN', value: 25000 }),
+    historicalSnapshot,
+    features: features('FEATURES_AVAILABLE', {
+      observedFacts: [{ key: 'nifty50Current', value: 24999, semanticClass: 'OBSERVED', dataClass: 'LIVE' }],
+    }),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+  const changedDerived = buildMarketSnapshot({
+    quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN', value: 25000 }),
+    historicalSnapshot,
+    features: features('FEATURES_AVAILABLE', {
+      derivedFacts: [{ key: 'return20DayPct', value: 99, semanticClass: 'DERIVED', dataClass: null }],
+    }),
+    policy,
+    evaluatedAt: '2026-09-08T10:01:00.000Z',
+  });
+
+  assert.equal(base.evidenceRevision, changedObserved.evidenceRevision);
+  assert.equal(base.evidenceRevision, changedDerived.evidenceRevision);
+  assert.notEqual(base.contentRevision.digest, changedObserved.contentRevision.digest);
+  assert.notEqual(base.contentRevision.digest, changedDerived.contentRevision.digest);
+});
+
 test('content revision distinguishes policy version, classification, and market session changes', () => {
   const base = buildMarketSnapshot({
     quoteSnapshot: quoteSnapshot({ session: 'MARKET_OPEN' }),

@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assessCurrentMarketContext } from '../scripts/demoPreflight.js';
-import { indiaClockParts, isoDateInIndia } from '../services/marketData/indiaMarketTime.js';
+import { isoDateInIndia } from '../services/marketData/indiaMarketTime.js';
 import { previousNseTradingDate } from '../services/marketData/nseTradingCalendar.js';
+import { buildNseHistoricalIndexRequestUrl } from '../services/marketData/marketDataSourceUrls.js';
 
 const NSE_QUALIFICATION = 'OFFICIAL_NSE_WEBSITE_ENDPOINT_UNDOCUMENTED_SCHEMA_VALIDATED';
 const NSE_QUOTES_URL = 'https://www.nseindia.com/api/allIndices';
 const NSE_HISTORY_URL = 'https://www.nseindia.com/api/historicalOR/indicesHistory';
-const NSE_CALENDAR_URL = 'https://www.nseindia.com/api/holiday-master';
+const NSE_CALENDAR_URL = 'https://www.nseindia.com/api/holiday-master?type=trading';
 
 function marketTimestamp(isoDate, hour, minute) {
   const [year, month, day] = isoDate.split('-').map(Number);
@@ -16,7 +17,6 @@ function marketTimestamp(isoDate, hour, minute) {
 
 function weekendMarketContext({ now, effectiveTradingDate }) {
   const today = isoDateInIndia(now);
-  const parts = indiaClockParts(now);
   const quoteTimestamp = marketTimestamp(effectiveTradingDate, 15, 30);
   const checkedAt = new Date(now.getTime() - 30_000).toISOString();
   const calendar = {
@@ -42,6 +42,11 @@ function weekendMarketContext({ now, effectiveTradingDate }) {
     },
     {
       provider: 'NSE', instrumentId: 'NIFTY 50', url: NSE_HISTORY_URL,
+      requestUrls: [buildNseHistoricalIndexRequestUrl({
+        indexType: 'NIFTY 50',
+        from: '01-09-2026',
+        to: effectiveTradingDate.split('-').reverse().join('-'),
+      })],
       observedAt: quoteTimestamp, providerTimestamp: quoteTimestamp, fetchedAt: checkedAt,
       freshness: { status: 'FRESH' }, effectiveTradingDate, dataClass: 'DAILY',
     },

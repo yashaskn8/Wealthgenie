@@ -34,6 +34,7 @@ const NODE_LABELS = Object.freeze({
 
 const tracer = trace.getTracer('wealthgenie-agent-runtime');
 let defaultWorker = null;
+const MAX_EXPIRED_PLAN_REVIEW_RECOVERY_BATCH_SIZE = 100;
 
 function now() { return new Date(); }
 
@@ -161,6 +162,10 @@ function isModified(result) {
   return Number(result?.modifiedCount ?? result?.nModified ?? 0) > 0;
 }
 
+function isMatched(result) {
+  return Number(result?.matchedCount ?? result?.n ?? result?.nMatched ?? result?.modifiedCount ?? result?.nModified ?? 0) > 0;
+}
+
 function classifyFailure(error) {
   if (error?.code === 'AGENT_RUN_CANCELLED') return 'CANCELLED';
   if (error?.code === 'PLAN_REVIEW_SOURCE_SUPERSEDED') return 'PLAN_REVIEW_SOURCE_SUPERSEDED';
@@ -218,13 +223,27 @@ export async function recoverExpiredPlanReviewRuns({
   productionEvaluationModel = null,
   mongo = mongoose,
   nowValue = now(),
+  batchSize = MAX_EXPIRED_PLAN_REVIEW_RECOVERY_BATCH_SIZE,
 } = {}) {
-  const candidatesQuery = model.find({
+  const safeBatchSize = Math.max(1, Math.min(
+    MAX_EXPIRED_PLAN_REVIEW_RECOVERY_BATCH_SIZE,
+    Math.floor(Number(batchSize) || MAX_EXPIRED_PLAN_REVIEW_RECOVERY_BATCH_SIZE),
+  ));
+  let candidatesQuery = model.find({
     agentType: 'PLAN_REVIEW',
     status: 'RUNNING',
     leaseUntil: { $lt: nowValue },
     attempt: { $gte: PLAN_REVIEW_BUDGETS.maxAttempts },
   });
+  if (typeof candidatesQuery.select === 'function') {
+    candidatesQuery = candidatesQuery.select('_id runId userId workerId executionGeneration attempt eventSequence currentNode traceId correlationId');
+  }
+  if (typeof candidatesQuery.sort === 'function') {
+    candidatesQuery = candidatesQuery.sort({ leaseUntil: 1, _id: 1 });
+  }
+  if (typeof candidatesQuery.limit === 'function') {
+    candidatesQuery = candidatesQuery.limit(safeBatchSize);
+  }
   const candidates = await (candidatesQuery.lean ? candidatesQuery.lean() : candidatesQuery);
   let recovered = 0;
   for (const candidate of candidates || []) {
@@ -363,8 +382,11 @@ class PlanReviewWorker {
     this.timer = null;
     this.heartbeatTimer = null;
     this.mandateReconciliationTimer = null;
+    this.mandateReconciliationPromise = null;
     this.expiredRunRecoveryTimer = null;
+    this.expiredRunRecoveryPromise = null;
     this.productionEvaluationReconciliationTimer = null;
+    this.pollPromise = null;
     this.activePromise = null;
     this.activeRun = null;
     this.activeAbortController = null;
@@ -396,15 +418,19 @@ class PlanReviewWorker {
     if (!this.activeRun || this.leaseLost) return false;
     const span = tracer.startSpan('agent.queue.heartbeat', { attributes: { 'agent.type': 'PLAN_REVIEW', 'worker.operation': 'heartbeat' } });
     try {
+      const heartbeatAt = new Date(Date.now());
       const result = await this.model.updateOne({
         ...leaseFilter(this.activeRun),
         status: 'RUNNING',
         cancellationRequested: { $ne: true },
-        leaseUntil: { $gt: now() },
+        leaseUntil: { $gt: heartbeatAt },
       }, {
-        $set: { lastHeartbeatAt: now(), leaseUntil: new Date(Date.now() + this.leaseMs) },
+        $max: {
+          lastHeartbeatAt: heartbeatAt,
+          leaseUntil: new Date(heartbeatAt.getTime() + this.leaseMs),
+        },
       });
-      if (!isModified(result)) {
+      if (!isMatched(result)) {
         this.leaseLost = true;
         this.activeAbortController?.abort(staleLeaseError());
         PrometheusMetrics.inc('agent_worker_lease_conflicts_total');
@@ -482,10 +508,9 @@ class PlanReviewWorker {
           },
           options,
         );
+        const heartbeatAt = new Date(Date.now());
         const set = {
           currentNode: payload.node || null,
-          lastHeartbeatAt: now(),
-          leaseUntil: new Date(Date.now() + this.leaseMs),
           checkpoint: { state: safeState },
           checkpointSequence: sequence,
           progress: progressFor(payload.node, completedNodes),
@@ -537,10 +562,16 @@ class PlanReviewWorker {
           ...leaseFilter(run),
           status: 'RUNNING',
           cancellationRequested: { $ne: true },
-          leaseUntil: { $gt: now() },
+          leaseUntil: { $gt: heartbeatAt },
           ...sequenceFilter,
-        }, { $set: set }, { session });
-        if (!isModified(result)) {
+        }, {
+          $set: set,
+          $max: {
+            lastHeartbeatAt: heartbeatAt,
+            leaseUntil: new Date(heartbeatAt.getTime() + this.leaseMs),
+          },
+        }, { session });
+        if (!isMatched(result)) {
           PrometheusMetrics.inc('agent_worker_stale_write_rejections_total');
           throw staleLeaseError();
         }
@@ -565,16 +596,18 @@ class PlanReviewWorker {
     }
     let result;
     try {
+      const heartbeatAt = new Date(Date.now());
       result = await this.model.updateOne({
         ...leaseFilter(run),
         status: 'RUNNING',
-        leaseUntil: { $gt: now() },
+        leaseUntil: { $gt: heartbeatAt },
       }, {
         $max: {
           modelCallCount: usage.modelCallCount,
           tokenUsage: usage.tokenUsage,
+          lastHeartbeatAt: heartbeatAt,
+          leaseUntil: new Date(heartbeatAt.getTime() + this.leaseMs),
         },
-        $set: { lastHeartbeatAt: now(), leaseUntil: new Date(Date.now() + this.leaseMs) },
       });
     } catch (cause) {
       const error = new Error('Unable to durably reserve the PlanReview provider budget.');
@@ -582,7 +615,7 @@ class PlanReviewWorker {
       error.cause = cause;
       throw error;
     }
-    if (!isModified(result)) throw staleLeaseError();
+    if (!isMatched(result)) throw staleLeaseError();
   }
 
   async appendEvent(run, sequence, event, node = null) {
@@ -990,10 +1023,26 @@ class PlanReviewWorker {
   }
 
   async processNext() {
+    if (this.draining || this.pollPromise || this.activePromise || this.runtimeConfig?.agenticPlanReviewEnabled === false) return false;
+    const pollPromise = Promise.resolve().then(() => this.processNextInternal());
+    this.pollPromise = pollPromise;
+    try {
+      return await pollPromise;
+    } finally {
+      if (this.pollPromise === pollPromise) this.pollPromise = null;
+    }
+  }
+
+  async processNextInternal() {
     if (this.draining || this.activePromise || this.runtimeConfig?.agenticPlanReviewEnabled === false) return false;
     await updateQueueMetrics(this.model);
+    if (this.draining) return false;
     const run = await claimNextPlanReviewRun({ model: this.model, worker: this.workerId, leaseMs: this.leaseMs });
     if (!run) return false;
+    if (this.draining) {
+      await this.releaseUnstartedRun(run);
+      return false;
+    }
     this.activeRun = run;
     this.leaseLost = false;
     this.activeAbortController = new AbortController();
@@ -1077,9 +1126,39 @@ class PlanReviewWorker {
     return true;
   }
 
+  async releaseUnstartedRun(run) {
+    const released = await this.model.updateOne({
+      ...leaseFilter(run),
+      status: 'RUNNING',
+      attempt: run.attempt,
+    }, {
+      $set: {
+        status: 'QUEUED',
+        workerId: null,
+        leaseUntil: null,
+        lastHeartbeatAt: null,
+        startedAt: null,
+        currentNode: null,
+        retryAt: null,
+      },
+      // The queue claim incremented the attempt, but this worker never began
+      // execution. Restore the budget while keeping executionGeneration
+      // monotonic so any stale lease remains fenced.
+      $inc: { attempt: -1 },
+    });
+    PrometheusMetrics.setGauge('agent_worker_jobs_active', 0);
+    if (!isModified(released)) {
+      PrometheusMetrics.inc('agent_worker_stale_write_rejections_total');
+      logger.warn('PlanReview queue claim changed before shutdown could release it', {
+        code: 'WORKER_SHUTDOWN_CLAIM_RELEASE_REJECTED',
+      });
+      return false;
+    }
+    return true;
+  }
+
   start({ intervalMs = 500 } = {}) {
-    if (this.timer) return this;
-    this.draining = false;
+    if (this.timer || this.draining) return this;
     this.timer = this.setIntervalImpl(() => {
       void this.processNext().catch(error => {
         PrometheusMetrics.inc('agent_worker_poll_failures_total');
@@ -1087,19 +1166,32 @@ class PlanReviewWorker {
       });
     }, intervalMs);
     this.timer.unref?.();
-    void this.reconcileMandatesImpl({ runModel: this.model, mandateModel: this.mandateModel }).catch(error => {
-      PrometheusMetrics.inc('agent_mandate_reconciliation_failures_total');
-      logger.warn('PlanReview mandate reconciliation sweep failed', { code: error.code || 'MANDATE_RECONCILIATION_FAILED' });
-    });
-    this.mandateReconciliationTimer = this.setIntervalImpl(() => {
-      void this.reconcileMandatesImpl({ runModel: this.model, mandateModel: this.mandateModel }).catch(error => {
-        PrometheusMetrics.inc('agent_mandate_reconciliation_failures_total');
-        logger.warn('PlanReview mandate reconciliation sweep failed', { code: error.code || 'MANDATE_RECONCILIATION_FAILED' });
-      });
-    }, 30000);
+    const reconcileMandates = () => {
+      if (this.draining) return Promise.resolve();
+      if (this.mandateReconciliationPromise) return this.mandateReconciliationPromise;
+      let reconciliation;
+      try {
+        reconciliation = this.reconcileMandatesImpl({ runModel: this.model, mandateModel: this.mandateModel });
+      } catch (error) {
+        reconciliation = Promise.reject(error);
+      }
+      const trackedReconciliation = Promise.resolve(reconciliation)
+        .catch(error => {
+          PrometheusMetrics.inc('agent_mandate_reconciliation_failures_total');
+          logger.warn('PlanReview mandate reconciliation sweep failed', { code: error?.code || 'MANDATE_RECONCILIATION_FAILED' });
+        })
+        .finally(() => {
+          if (this.mandateReconciliationPromise === trackedReconciliation) this.mandateReconciliationPromise = null;
+        });
+      this.mandateReconciliationPromise = trackedReconciliation;
+      return trackedReconciliation;
+    };
+    void reconcileMandates();
+    this.mandateReconciliationTimer = this.setIntervalImpl(() => { void reconcileMandates(); }, 30000);
     this.mandateReconciliationTimer.unref?.();
     if (this.productionEvaluationModel) {
       const reconcileEvaluations = () => {
+        if (this.draining) return;
         scheduleTerminalEvaluationReconciliation({
           runModel: this.model, eventModel: this.eventModel, evaluationModel: this.productionEvaluationModel,
         });
@@ -1108,10 +1200,28 @@ class PlanReviewWorker {
       this.productionEvaluationReconciliationTimer = this.setIntervalImpl(reconcileEvaluations, 30000);
       this.productionEvaluationReconciliationTimer.unref?.();
     }
-    const recover = () => this.recoverExpiredRunsImpl({ model: this.model, eventModel: this.eventModel, checkpointModel: this.checkpointModel, graphCheckpointModel: this.graphCheckpointModel, productionEvaluationModel: this.productionEvaluationModel, mongo: this.mongo }).catch(error => {
-      PrometheusMetrics.inc('agent_worker_recovery_failures_total');
-      logger.error('PlanReview expired-run recovery failed', { code: error?.code || 'EXPIRED_RUN_RECOVERY_FAILED' });
-    });
+    const recover = () => {
+      // Interval callbacks can already be queued when stop() clears the timer.
+      // Do not let one start a new transaction after shutdown has begun.
+      if (this.draining) return Promise.resolve();
+      if (this.expiredRunRecoveryPromise) return this.expiredRunRecoveryPromise;
+      let recovery;
+      try {
+        recovery = this.recoverExpiredRunsImpl({ model: this.model, eventModel: this.eventModel, checkpointModel: this.checkpointModel, graphCheckpointModel: this.graphCheckpointModel, productionEvaluationModel: this.productionEvaluationModel, mongo: this.mongo });
+      } catch (error) {
+        recovery = Promise.reject(error);
+      }
+      const trackedRecovery = Promise.resolve(recovery)
+        .catch(error => {
+          PrometheusMetrics.inc('agent_worker_recovery_failures_total');
+          logger.error('PlanReview expired-run recovery failed', { code: error?.code || 'EXPIRED_RUN_RECOVERY_FAILED' });
+        })
+        .finally(() => {
+          if (this.expiredRunRecoveryPromise === trackedRecovery) this.expiredRunRecoveryPromise = null;
+        });
+      this.expiredRunRecoveryPromise = trackedRecovery;
+      return trackedRecovery;
+    };
     void recover();
     this.expiredRunRecoveryTimer = this.setIntervalImpl(() => { void recover(); }, Math.max(5000, Math.min(this.leaseMs, 30000)));
     this.expiredRunRecoveryTimer.unref?.();
@@ -1132,10 +1242,11 @@ class PlanReviewWorker {
     this.productionEvaluationReconciliationTimer = null;
     if (this.expiredRunRecoveryTimer) this.clearIntervalImpl(this.expiredRunRecoveryTimer);
     this.expiredRunRecoveryTimer = null;
-    if (this.activePromise) {
+    const activeWorkPromise = this.pollPromise || this.activePromise;
+    if (activeWorkPromise) {
       let timeout;
       const drained = await Promise.race([
-        this.activePromise.then(() => true),
+        activeWorkPromise.then(() => true),
         new Promise(resolve => { timeout = this.setTimeoutImpl(() => resolve(false), graceMs); timeout?.unref?.(); }),
       ]);
       this.clearTimeoutImpl(timeout);
@@ -1145,15 +1256,33 @@ class PlanReviewWorker {
         this.activeAbortController?.abort(error);
         let abortTimer;
         const abortedDrain = await Promise.race([
-          this.activePromise.then(() => true),
+          activeWorkPromise.then(() => true),
           new Promise(resolve => { abortTimer = this.setTimeoutImpl(() => resolve(false), Math.min(1000, Math.max(100, graceMs))); abortTimer?.unref?.(); }),
         ]);
         this.clearTimeoutImpl(abortTimer);
         if (!abortedDrain) return { drained: false };
       }
     }
+    if (this.expiredRunRecoveryPromise) {
+      let timeout;
+      const recoveryDrained = await Promise.race([
+        this.expiredRunRecoveryPromise.then(() => true),
+        new Promise(resolve => { timeout = this.setTimeoutImpl(() => resolve(false), graceMs); timeout?.unref?.(); }),
+      ]);
+      this.clearTimeoutImpl(timeout);
+      if (!recoveryDrained) return { drained: false };
+    }
+    if (this.mandateReconciliationPromise) {
+      let timeout;
+      const mandatesDrained = await Promise.race([
+        this.mandateReconciliationPromise.then(() => true),
+        new Promise(resolve => { timeout = this.setTimeoutImpl(() => resolve(false), graceMs); timeout?.unref?.(); }),
+      ]);
+      this.clearTimeoutImpl(timeout);
+      if (!mandatesDrained) return { drained: false };
+    }
     if (!this.activePromise) this.stopHeartbeat();
-    return { drained: !this.activePromise };
+    return { drained: !this.pollPromise && !this.activePromise && !this.expiredRunRecoveryPromise && !this.mandateReconciliationPromise };
   }
 }
 
@@ -1172,8 +1301,14 @@ export function startPlanReviewWorker({ intervalMs = 500, runtimeConfig, ...opti
 
 export async function stopPlanReviewWorker(options = {}) {
   if (!defaultWorker) return;
-  await defaultWorker.stop(options);
+  const result = await defaultWorker.stop(options);
+  if (result?.drained === false) {
+    const error = new Error('PlanReview worker did not drain before shutdown deadline.');
+    error.code = 'AGENT_WORKER_DRAIN_TIMEOUT';
+    throw error;
+  }
   defaultWorker = null;
+  return result;
 }
 
 export function getPlanReviewWorkerState() {
