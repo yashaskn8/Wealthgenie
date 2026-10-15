@@ -360,6 +360,44 @@ test('exact NIFTYBEES uses versioned tax policy, explicit STT scenario, holding 
   assert.equal(failedStt.postTaxAnalysis.incrementalTax, null);
 });
 
+test('WTI requires an explicit selected-year age for tax facts and keeps profile suitability unchanged', async () => {
+  const { current, historical } = snapshots();
+  const taxContext = {
+    annualGrossIncome: 1200000,
+    incomeSource: 'salary',
+    regime: 'new',
+    fiscalYear: 'FY2026-27',
+    holdingPeriodMonths: 18,
+    section112AExemptionUsed: 0,
+    sttConditionAssumedSatisfied: true,
+    illustrativePrincipal: 100000,
+  };
+  const rank = context => rankWhereToInvestBackend(
+    canonicalProfile({ age: 35 }),
+    { parentInstrumentId: 'nifty_etf', taxCalculationContext: context },
+    {
+      fetchAmfiProductSnapshot: async () => current,
+      fetchAmfiHistoricalNavSnapshot: async () => historical,
+    },
+  );
+
+  const missingAge = await rank(taxContext);
+  const invalidYearAge = await rank({ ...taxContext, userAge: 121 });
+  const selectedYearAge = await rank({ ...taxContext, userAge: 22 });
+  assert.deepEqual(
+    selectedYearAge.metadata.riskReconciliation,
+    missingAge.metadata.riskReconciliation,
+    'tax-year age does not change profile-based suitability',
+  );
+  assert.equal(missingAge[0].postTaxAnalysis.status, 'REQUIRES_TAX_INPUTS');
+  assert.ok(missingAge[0].postTaxAnalysis.requiredTaxInputs.includes('userAge'));
+  assert.equal(missingAge[0].postTaxAnalysis.incrementalTax, null);
+  assert.equal(invalidYearAge[0].postTaxAnalysis.status, 'REQUIRES_TAX_INPUTS');
+  assert.ok(invalidYearAge[0].postTaxAnalysis.requiredTaxInputs.includes('userAge'));
+  assert.equal(invalidYearAge[0].postTaxAnalysis.incrementalTax, null);
+  assert.equal(selectedYearAge[0].postTaxAnalysis.status, 'CALCULATED');
+});
+
 test('negative NIFTYBEES historical return stays source-bound and does not enter the gain-only tax calculator', async () => {
   const { current, historical } = snapshots({
     currentFact: amfiNavFact({ value: 250 }),

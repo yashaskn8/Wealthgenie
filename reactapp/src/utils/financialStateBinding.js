@@ -99,3 +99,16 @@ export function matchesProfileState(value, profile) {
     profileVersion: profile?.version,
   });
 }
+
+export function getCurrentRecommendedInstrument(value, instrumentId, profile) {
+  const profileId = profile?.profileId || profile?.profile_id || profile?._id;
+  const profileVersion = Number(profile?.version ?? profile?.profileVersion);
+  if (!instrumentId || !profileId || !Number.isSafeInteger(profileVersion) || profileVersion < 1
+      || !hasCompleteFinancialStateBinding(value, { profileId, profileVersion })) {
+    return null;
+  }
+
+  return Array.isArray(value?.instruments)
+    ? value.instruments.find(instrument => instrument?.id === instrumentId) || null
+    : null;
+}

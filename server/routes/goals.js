@@ -156,14 +156,33 @@ async function resolveCurrentGoalSourceState({ userId, profileId, profile } = {}
   return state;
 }
 
-function validateMonteCarlo(result) {
-  if (!Number.isFinite(result.goal_probability) || result.goal_probability < 0 || result.goal_probability > 1) {
+export function _validateMonteCarlo(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)
+      || !Number.isFinite(result.goal_probability) || result.goal_probability < 0 || result.goal_probability > 1) {
     throw new Error('Monte Carlo engine returned an invalid goal probability');
   }
-  const lastIndex = result.p50.length - 1;
-  if (lastIndex < 0 || result.p10[lastIndex] > result.p90[lastIndex]) {
+  const percentileKeys = ['p10', 'p25', 'p50', 'p75', 'p90'];
+  const years = result.years_array;
+  const percentileArrays = percentileKeys.map(key => result[key]);
+  const hasAlignedArrays = Array.isArray(years) && years.length > 0
+    && percentileArrays.every(values => Array.isArray(values) && values.length === years.length);
+  if (!hasAlignedArrays || !Number.isSafeInteger(result.simulations_run) || result.simulations_run < 1) {
     throw new Error('Monte Carlo engine returned invalid percentile bands');
   }
+
+  for (let index = 0; index < years.length; index += 1) {
+    if (!Number.isFinite(years[index]) || years[index] <= 0 || years[index] > 30
+        || (index > 0 && years[index] <= years[index - 1])) {
+      throw new Error('Monte Carlo engine returned an invalid projection horizon');
+    }
+    const values = percentileArrays.map(series => series[index]);
+    if (values.some(value => !Number.isFinite(value) || value < 0)
+        || values.some((value, percentileIndex) => percentileIndex > 0 && values[percentileIndex - 1] > value)) {
+      throw new Error('Monte Carlo engine returned invalid percentile bands');
+    }
+  }
+
+  const lastIndex = years.length - 1;
   return lastIndex;
 }
 
@@ -178,17 +197,12 @@ function chartData(result) {
 async function generateGoalAdvice(goal, profile) {
   const suitability = assessSuitabilityRisk(profile);
   const context = buildLlmFinancialContext(profile, suitability);
-  const yearsRemaining = computeYearsRemaining(goal.target_date, { allowNearTarget: true });
-  const prompt = `Custom planning goal "${goal.goal_name}" targets ₹${Number(goal.target_amount).toLocaleString('en-IN')} in ${yearsRemaining} years. The computed monthly SIP is ₹${Number(goal.recommended_sip).toLocaleString('en-IN')} against a Financial Profile savings capacity of ₹${profile.monthlySavings.toLocaleString('en-IN')}. Goal status is ${String(goal.status).replace(/_/g, ' ')}. Suggest one adjustment without treating the custom goal name as a Financial Profile input.`;
+  const prompt = 'Suggest one adjustment to this saved goal using its verified status and whether the required monthly contribution fits within savings capacity. Do not calculate or assume exact amounts or returns.';
   try {
     return await getGoalAdvisory(prompt, context, {
-      goalName: goal.goal_name,
-      targetAmount: Number(goal.target_amount),
-      yearsRemaining,
       recommendedSip: Number(goal.recommended_sip),
       monthlySavingsCapacity: profile.monthlySavings,
       status: goal.status,
-      classification: 'NON_RECOMMENDATION_GOAL_PLAN',
     });
   } catch {
     return `Review the target date or target amount because the required ₹${Number(goal.recommended_sip).toLocaleString('en-IN')} monthly SIP must stay within your ₹${profile.monthlySavings.toLocaleString('en-IN')} savings capacity.`;
@@ -575,7 +589,7 @@ async function calculateGoalPlan({ profile, profileId, userId, targetAmount, tar
     targetAmount: inflationAdjustedTarget,
     currentSavings,
   });
-  const lastIndex = validateMonteCarlo(result);
+  const lastIndex = _validateMonteCarlo(result);
   await reachFinancialStateTestHook('goal.calculation.beforeStateRecheck', { userId, profileId, state: metrics.state });
   await assertGoalPlanStateCurrent({ userId, profileId, profile, plannedState: metrics.state });
   const gap = Math.max(0, requiredSip - profile.monthlySavings);
@@ -772,6 +786,13 @@ router.post('/:goalId/simulate', verifyJWT, validateStrict(goalSimulationSchema)
       { code: 'GOAL_CALCULATION_STALE', calculationFreshness: goalFreshness },
     );
   }
+  const simulatedGoalVersion = Number(goal.version ?? 1);
+  const simulatedGoalInputFingerprint = buildGoalCalculationInputFingerprint(goal);
+  if (!Number.isSafeInteger(simulatedGoalVersion) || simulatedGoalVersion < 1 || !simulatedGoalInputFingerprint) {
+    throw createError(409, 'The goal calculation identity is unavailable.', 'Refresh and recalculate this goal before running a what-if simulation.', {
+      code: 'GOAL_CALCULATION_STALE',
+    });
+  }
   const result = runMonteCarloWithGoal({
     monthlyInvestment: monthlyContribution,
     annualExpectedReturn: metrics.expectedReturn,
@@ -782,7 +803,19 @@ router.post('/:goalId/simulate', verifyJWT, validateStrict(goalSimulationSchema)
     targetAmount: goal.inflation_adjusted_target,
     currentSavings: goal.current_savings,
   });
-  const lastIndex = validateMonteCarlo(result);
+  const lastIndex = _validateMonteCarlo(result);
+  await reachFinancialStateTestHook('goal.simulation.beforeGoalRecheck', {
+    userId: String(req.user.userId),
+    goalId: String(goal._id),
+    goalVersion: simulatedGoalVersion,
+    goalCalculationInputFingerprint: simulatedGoalInputFingerprint,
+  });
+  const currentGoal = await Goal.findOne({ _id: goal._id, userId: req.user.userId }).lean();
+  if (!currentGoal
+      || Number(currentGoal.version ?? 1) !== simulatedGoalVersion
+      || buildGoalCalculationInputFingerprint(currentGoal) !== simulatedGoalInputFingerprint) {
+    throw goalVersionConflict(simulatedGoalVersion);
+  }
   await assertGoalPlanStateCurrent({
     userId: req.user.userId,
     profileId: goal.profileId,
@@ -792,6 +825,8 @@ router.post('/:goalId/simulate', verifyJWT, validateStrict(goalSimulationSchema)
   const gap = Math.max(0, goal.recommended_sip - monthlyContribution);
   res.json({
     goalId: goal._id,
+    goal_version: simulatedGoalVersion,
+    goal_calculation_input_fingerprint: simulatedGoalInputFingerprint,
     monthly_contribution: monthlyContribution,
     probability_of_success: result.goal_probability,
     status: determineGoalStatus(result.goal_probability, gap, profile.monthlySavings),

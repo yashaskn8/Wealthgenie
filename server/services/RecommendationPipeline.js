@@ -569,13 +569,10 @@ export async function rankWhereToInvestBackend(profileInput, options = {}, depen
     ...referenceMetadata(parent),
     providerCoverage: getWhereToInvestProviderCoverageMatrix().find(item => item.parentInstrumentId === catalog.id),
   };
+  // Suitability stays bound to the saved profile above. Tax age is a separate,
+  // fiscal-year-specific user fact and must remain explicit in this context.
   const taxCalculationContext = options.taxCalculationContext
-    ? {
-      ...options.taxCalculationContext,
-      // The persisted Financial Profile is the server-owned age fact used for
-      // old-regime slab selection; do not trust a client override.
-      userAge: canonical.age,
-    }
+    ? { ...options.taxCalculationContext }
     : null;
   const formatOutput = (resultProducts, metadata) => {
     const startedAt = performance.now();

@@ -181,7 +181,12 @@ async function getPlanEvidenceSnapshot(context) {
   const freshnessEntry = makeEvidenceEntry(
     'E_RECOMMENDATION_FRESHNESS',
     'RECOMMENDATION_STATUS',
-    context.freshness,
+    {
+      fresh: context.freshness.fresh === true,
+      reasonCodes: Array.isArray(context.freshness.reasonCodes)
+        ? context.freshness.reasonCodes.filter(code => typeof code === 'string' && /^[A-Z0-9_]{2,100}$/.test(code)).slice(0, 32)
+        : [],
+    },
     {
       dataClass: 'DERIVED_VALUE',
       displayValue: context.freshness.fresh

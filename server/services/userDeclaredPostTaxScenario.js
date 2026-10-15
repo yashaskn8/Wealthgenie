@@ -114,6 +114,16 @@ function taxContext(input) {
   };
 }
 
+function fiscalYearForIsoDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return null;
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const fiscalYearStart = month >= 4 ? year : year - 1;
+  return 'FY' + fiscalYearStart + '-' + String(fiscalYearStart + 1).slice(-2);
+}
+
 function calculateInterestScenario(input, taxMetadata, policy) {
   const grossGain = input.interestReceived;
   const context = taxContext(input);
@@ -160,6 +170,44 @@ function calculateInterestScenario(input, taxMetadata, policy) {
 
 function calculateEquityScenario(input, taxMetadata, policy) {
   const grossGain = input.saleProceeds - input.acquisitionCostBasis;
+  const acquisitionFiscalYear = fiscalYearForIsoDate(input.acquisitionDate);
+  if (!acquisitionFiscalYear) {
+    return unavailable({
+      input,
+      status: 'UNAVAILABLE',
+      reason: 'CAPITAL_GAINS_ACQUISITION_DATE_INVALID',
+      taxMetadata,
+      policy,
+    });
+  }
+  const redemptionFiscalYear = fiscalYearForIsoDate(input.redemptionDate);
+  if (!redemptionFiscalYear) {
+    return unavailable({
+      input,
+      status: 'UNAVAILABLE',
+      reason: 'CAPITAL_GAINS_REDEMPTION_DATE_INVALID',
+      taxMetadata,
+      policy,
+    });
+  }
+  if (input.redemptionDate < input.acquisitionDate) {
+    return unavailable({
+      input,
+      status: 'UNAVAILABLE',
+      reason: 'CAPITAL_GAINS_TRANSACTION_DATE_ORDER_INVALID',
+      taxMetadata,
+      policy,
+    });
+  }
+  if (redemptionFiscalYear !== policy.fiscalYear) {
+    return unavailable({
+      input,
+      status: 'UNAVAILABLE',
+      reason: 'CAPITAL_GAINS_REDEMPTION_FISCAL_YEAR_MISMATCH',
+      taxMetadata,
+      policy,
+    });
+  }
   const holdingPeriod = classifyHoldingPeriodByDates({
     acquisitionDate: input.acquisitionDate,
     redemptionDate: input.redemptionDate,

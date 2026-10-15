@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wealthgenie-redis-ingress
+  namespace: wealthgenie
+  labels:
+    app.kubernetes.io/name: wealthgenie
+spec:
+  podSelector:
+    matchLabels:
+      app: wealthgenie-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wealthgenie-server
+        - podSelector:
+            matchLabels:
+              app: wealthgenie-agent-worker
+      ports:
+        - protocol: TCP
+          port: 6379

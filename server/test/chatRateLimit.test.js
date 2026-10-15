@@ -63,24 +63,24 @@ test('chat quota uses the shared Redis counter when available', async () => {
       client: {
         async eval(script, command) {
           evaluations.push({ script, command });
-          return [CHAT_RATE_LIMIT, 2718];
+          return [CHAT_RATE_LIMIT, 2_718_321];
         },
       },
     },
     now: () => 12_345,
   };
 
-  assert.deepEqual(await checkChatRateLimit('user-1', options), { allowed: true, count: CHAT_RATE_LIMIT, resetAt: 2_730_345 });
-  assert.match(evaluations[0].script, /INCR[\s\S]*EXPIRE[\s\S]*TTL/);
+  assert.deepEqual(await checkChatRateLimit('user-1', options), { allowed: true, count: CHAT_RATE_LIMIT, resetAt: 2_730_666 });
+  assert.match(evaluations[0].script, /INCR[\s\S]*PEXPIRE[\s\S]*PTTL/);
   assert.deepEqual(evaluations[0].command, {
     keys: ['chat:ratelimit:user-1'],
-    arguments: ['3600'],
+    arguments: ['3600000'],
   });
 });
 
 test('a retry repairs a missing Redis TTL after an ambiguous quota response', async () => {
   let calls = 0;
-  const redisCounter = { count: 0, ttl: null };
+  const redisCounter = { count: 0, ttlMs: null };
   const client = {
     async eval(script, command) {
       calls += 1;
@@ -88,16 +88,16 @@ test('a retry repairs a missing Redis TTL after an ambiguous quota response', as
         // Model a delivered counter mutation whose reply was lost before an
         // expiry was installed, leaving state the next eval must repair.
         redisCounter.count += 1;
-        redisCounter.ttl = -1;
+        redisCounter.ttlMs = -1;
         throw new Error('response lost after command delivery');
       }
 
-      assert.match(script, /if count == 1 or ttl < 0 then[\s\S]*EXPIRE/);
+      assert.match(script, /if count == 1 or ttlMs < 0 then[\s\S]*PEXPIRE/);
       const count = ++redisCounter.count;
-      if (count === 1 || redisCounter.ttl < 0) {
-        redisCounter.ttl = Number(command.arguments[0]);
+      if (count === 1 || redisCounter.ttlMs < 0) {
+        redisCounter.ttlMs = Number(command.arguments[0]);
       }
-      return [count, redisCounter.ttl];
+      return [count, redisCounter.ttlMs];
     },
   };
   const options = {
@@ -107,8 +107,26 @@ test('a retry repairs a missing Redis TTL after an ambiguous quota response', as
   };
 
   await assert.rejects(checkChatRateLimit('user-1', options), unavailableQuota);
-  assert.deepEqual(redisCounter, { count: 1, ttl: -1 });
+  assert.deepEqual(redisCounter, { count: 1, ttlMs: -1 });
   assert.deepEqual(await checkChatRateLimit('user-1', options), { allowed: true, count: 2, resetAt: 3_612_345 });
   assert.equal(calls, 2);
-  assert.equal(redisCounter.ttl, 3600);
+  assert.equal(redisCounter.ttlMs, 3_600_000);
+});
+
+test('Redis quota preserves reset milliseconds and rounds denied retry time up', async () => {
+  const result = await checkChatRateLimit('user-1', {
+    env: { NODE_ENV: 'production' },
+    redisState: {
+      available: true,
+      client: { async eval() { return [CHAT_RATE_LIMIT + 1, 3_599_999]; } },
+    },
+    now: () => 12_345,
+  });
+
+  assert.deepEqual(result, {
+    allowed: false,
+    count: CHAT_RATE_LIMIT + 1,
+    ttl: 3600,
+    resetAt: 3_612_344,
+  });
 });

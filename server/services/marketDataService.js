@@ -91,8 +91,8 @@ export function resolvePrimaryMarketProvider(env = process.env) {
 
 export const PRIMARY_MARKET_PROVIDER = resolvePrimaryMarketProvider();
 
-function productionRightsAllow(provider, urls, env = process.env) {
-  return urls.every(url => isMarketDataProductionUseAllowed(provider, url, env));
+function productionRightsAllow(provider, urls, env = process.env, fixtureCapability = null) {
+  return urls.every(url => isMarketDataProductionUseAllowed(provider, url, env, fixtureCapability));
 }
 
 function firstUnqualifiedRightsEndpoint(provider, urls, env = process.env) {
@@ -286,6 +286,7 @@ export async function fetchQualifiedEquityHistory({
   nseCalendarProvider = nseHistoryProvider,
   env = process.env,
   clock = () => new Date(),
+  marketDataTestFixtureRightsCapability = null,
 } = {}) {
   const normalizedIdentity = normalizeTejHqIdentity({ exchange, symbol, isin });
   const from = requireHistoryDate(fromDate, 'fromDate');
@@ -299,7 +300,7 @@ export async function fetchQualifiedEquityHistory({
   const canonicalProductId = `market:equity:${request.exchange.toLowerCase()}:${request.isin}`;
   const upstoxInstrumentKey = `${request.exchange}_EQ|${request.isin}`;
   if (request.exchange === 'NSE'
-      && !productionRightsAllow(PROVIDERS.NSE, [NSE_TRADING_HOLIDAY_URL], env)) {
+      && !productionRightsAllow(PROVIDERS.NSE, [NSE_TRADING_HOLIDAY_URL], env, marketDataTestFixtureRightsCapability)) {
     return unavailableEquityHistory({
       request,
       reasonCode: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
@@ -317,7 +318,7 @@ export async function fetchQualifiedEquityHistory({
 
   let primarySnapshot = null;
   if (normalizedBasis === 'RAW') {
-    if (!productionRightsAllow(PROVIDERS.UPSTOX, [UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL], env)) {
+    if (!productionRightsAllow(PROVIDERS.UPSTOX, [UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL], env, marketDataTestFixtureRightsCapability)) {
       primarySnapshot = unavailableMarketSnapshot(PROVIDERS.UPSTOX, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL, {
         now: clock(),
         includeCandles: true,
@@ -410,7 +411,7 @@ export async function fetchQualifiedEquityHistory({
     tejHqSourceUrl(`/v1/symbols/${request.exchange.toLowerCase()}`, { isin: request.isin }),
     tejHqSourceUrl('/v1/status'),
   ];
-  if (!productionRightsAllow(PROVIDERS.TEJHQ, tejHqRightsEndpoints, env)) {
+  if (!productionRightsAllow(PROVIDERS.TEJHQ, tejHqRightsEndpoints, env, marketDataTestFixtureRightsCapability)) {
     return unavailableEquityHistory({ request, reasonCode: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED', primarySnapshot });
   }
   if (request.exchange !== 'NSE') {

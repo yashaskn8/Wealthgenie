@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 from pymongo.errors import DuplicateKeyError, OperationFailure
 
+from rag.lifecycle.errors import DocumentOwnershipError
 from rag.corpus_generation import (
     canonical_member,
     current_manifest_sha256,
@@ -380,7 +381,7 @@ class MongoRAGLifecycleStore:
             scope = revision.get("scope", "global")
             owner = revision.get("owner_user_id") or (scope[5:] if scope.startswith("user:") else None)
             if owner != requesting_user_id:
-                raise PermissionError("document is not owned by the verified user")
+                raise DocumentOwnershipError("document is not owned by the verified user")
 
     @staticmethod
     def _revision_document(document, revision_id, version, chunk_count, owner, now, state):

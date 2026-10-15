@@ -106,18 +106,27 @@ export function createPlanReviewScaffoldRunner({ dependencies = {} } = {}) {
       scaffoldSpec: candidate,
       loadPlanReviewContext: async () => fixture.context,
       goalModel: {
-        find: query => ({ sort: () => ({
-          lean: async () => {
-            if (fixtureIdentity(query?.userId) !== fixtureIdentityBinding.userId
-                || fixtureIdentity(query?.profileId) !== fixtureIdentityBinding.profileId) {
-              throw Object.assign(new Error('PlanReview requested goals outside the bound fixture identity.'), {
-                code: 'EVALUATION_FIXTURE_IDENTITY_MISMATCH',
-              });
-            }
-            if (!fixtureGoalsAvailable) throw new Error('Fixture goal evidence is unavailable.');
-            return fixtureGoals;
-          },
-        }) }),
+        find: query => {
+          let limitCount = Number.POSITIVE_INFINITY;
+          const goalQuery = {
+            sort: () => goalQuery,
+            limit: value => {
+              if (Number.isSafeInteger(value) && value >= 0) limitCount = Math.min(limitCount, value);
+              return goalQuery;
+            },
+            lean: async () => {
+              if (fixtureIdentity(query?.userId) !== fixtureIdentityBinding.userId
+                  || fixtureIdentity(query?.profileId) !== fixtureIdentityBinding.profileId) {
+                throw Object.assign(new Error('PlanReview requested goals outside the bound fixture identity.'), {
+                  code: 'EVALUATION_FIXTURE_IDENTITY_MISMATCH',
+                });
+              }
+              if (!fixtureGoalsAvailable) throw new Error('Fixture goal evidence is unavailable.');
+              return fixtureGoals.slice(0, limitCount);
+            },
+          };
+          return goalQuery;
+        },
       },
       persistAgentRun: undefined,
       modelPlannerEnabled: false,

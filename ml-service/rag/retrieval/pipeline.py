@@ -151,14 +151,14 @@ class RAGPipeline:
                 for entry in current_documents(manifest, as_of=date.today())
             }
         except (CorpusManifestError, OSError, ValueError) as exc:
-            logger.error("RAG current corpus manifest is unavailable or invalid: %s", exc)
+            logger.error("RAG current corpus manifest is unavailable or invalid", extra={"error_type": type(exc).__name__})
             qu_result = self.query_understanding.process(request.question)
             return self._abstain("corpus_unavailable", qu_result, 0.0)
         embedding_identity = getattr(self.embedder, "embedding_identity", None)
         try:
             generation_snapshot = _generation_snapshot(self.vector_store)
         except Exception as exc:
-            logger.error("RAG corpus generation could not be verified before retrieval: %s", exc)
+            logger.error("RAG corpus generation could not be verified before retrieval", extra={"error_type": type(exc).__name__})
             qu_result = self.query_understanding.process(request.question)
             return self._abstain("corpus_unavailable", qu_result, 0.0)
 
@@ -213,13 +213,13 @@ class RAGPipeline:
                 scope=request.scope,
             )
         except Exception as exc:
-            logger.error("RAG retrieval unavailable; returning abstention without citations: %s", exc)
+            logger.error("RAG retrieval unavailable; returning abstention without citations", extra={"error_type": type(exc).__name__})
             return self._abstain("retrieval_unavailable", qu_result, qu_latency)
         retrieval_latency = (time.perf_counter() - t1) * 1000.0
         try:
             post_retrieval_generation = _generation_snapshot(self.vector_store)
         except Exception as exc:
-            logger.error("RAG corpus generation could not be verified after retrieval: %s", exc)
+            logger.error("RAG corpus generation could not be verified after retrieval", extra={"error_type": type(exc).__name__})
             return self._abstain("corpus_unavailable", qu_result, qu_latency, retrieval_latency)
         if not _same_generation(generation_snapshot, post_retrieval_generation):
             logger.warning("RAG corpus generation changed during retrieval; discarding unbound evidence")

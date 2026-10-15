@@ -5,8 +5,9 @@ import test from 'node:test';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { requireRole, verifyJWT } from '../middleware/authMiddleware.js';
 import { createMarketDataAdminRouter } from '../routes/marketDataAdmin.js';
-import { fetchQualifiedEquityHistory } from '../services/marketDataService.js';
+import { fetchQualifiedEquityHistory as fetchQualifiedEquityHistoryWithRights } from '../services/marketDataService.js';
 import { MARKET_DATA_SCHEMA_VERSION, PROVIDERS } from '../services/marketData/contracts.js';
+import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
 import { NSE_TRADING_HOLIDAY_URL } from '../services/marketData/nseTradingCalendar.js';
 import { jsonRequest, withServer } from '../test-utils/httpTestUtils.js';
 
@@ -15,6 +16,19 @@ const secret = 'market-data-admin-test-secret-at-least-32-characters';
 const adminUserId = '64a000000000000000000001';
 const ordinaryUserId = '64a000000000000000000002';
 const validQuery = 'exchange=NSE&symbol=RELIANCE&isin=INE002A01018&fromDate=2026-10-08&toDate=2026-10-09';
+const testMarketDataEnv = { NODE_ENV: 'test' };
+const testFixtureRightsCapability = createMarketDataTestFixtureRightsCapability({
+  env: testMarketDataEnv,
+  transport: { get: async () => ({ data: null }) },
+});
+
+function fetchQualifiedEquityHistory(request, options = {}) {
+  return fetchQualifiedEquityHistoryWithRights(request, {
+    ...options,
+    env: options.env || testMarketDataEnv,
+    marketDataTestFixtureRightsCapability: testFixtureRightsCapability,
+  });
+}
 
 function buildApp(router) {
   const app = express();
@@ -360,7 +374,7 @@ test('malformed Upstox NSE history still falls back only through exact TejHQ ses
 
 test('production equity-history requests never fetch or return Upstox candles without source rights', async () => {
   let upstoxCalls = 0;
-  const result = await fetchQualifiedEquityHistory({
+  const result = await fetchQualifiedEquityHistoryWithRights({
     exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
     fromDate: '2026-10-08', toDate: '2026-10-09',
   }, {
@@ -369,6 +383,7 @@ test('production equity-history requests never fetch or return Upstox candles wi
       UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
       TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'false',
     },
+    marketDataTestFixtureRightsCapability: testFixtureRightsCapability,
     upstoxProvider: {
       getDailyCandles: async () => {
         upstoxCalls += 1;
@@ -381,5 +396,5 @@ test('production equity-history requests never fetch or return Upstox candles wi
   assert.equal(result.status, 'UNAVAILABLE');
   assert.equal(result.provider, null);
   assert.deepEqual(result.candles, []);
-  assert.equal(result.selection.primaryFailureCode, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+  assert.equal(result.selection.reasonCode, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
 });

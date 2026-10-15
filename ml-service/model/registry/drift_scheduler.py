@@ -13,6 +13,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from environment_policy import configured_environment_mode
+
 logger = logging.getLogger("wealthgenie.drift_scheduler")
 
 
@@ -43,7 +45,7 @@ class DriftScheduler:
         )
         if self._interval_seconds <= 0:
             raise ValueError("DRIFT_CHECK_INTERVAL_SECONDS must be a positive integer")
-        environment = os.environ.get("ENVIRONMENT", "local").strip().lower()
+        environment = configured_environment_mode(os.environ)
         if self._min_samples <= 0:
             raise ValueError("DRIFT_CHECK_MIN_SAMPLES must be a positive integer")
         if environment == "production" and self._min_samples < 100:

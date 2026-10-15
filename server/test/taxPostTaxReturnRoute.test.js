@@ -37,6 +37,23 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
     });
   });
 
+  test('post-tax route rejects conflicting request-level and deductions ages before calculation', async () => {
+    await withServer(app, async (baseUrl) => {
+      const { response, body } = await jsonRequest(`${baseUrl}/api/tax/post-tax-return`, {
+        method: 'POST',
+        body: JSON.stringify({
+          instrumentType: 'FD', nominalRate: 0.07, annualIncome: 1_000_000,
+          holdingYears: 1, regime: 'new', incomeSource: 'salary', monthlySIP: 0,
+          userAge: 45, fiscalYear: 'FY2026-27', deductions: { age: 46 },
+        }),
+      });
+
+      assert.equal(response.status, 400);
+      assert.equal(body.code, 'VALIDATION_ERROR');
+      assert.ok(body.details.some(detail => detail.includes('USER_AGE_CONFLICTING_INPUTS')));
+    });
+  });
+
   test('POST /api/tax/post-tax-return does not infer PPF exclusion without account facts', async () => {
     await withServer(app, async (baseUrl) => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/tax/post-tax-return`, {
@@ -145,6 +162,14 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
         contentType: response.headers.get('content-type'), body,
       });
       assert.equal(body.results.length, 3);
+      assert.deepEqual(body.results.map(result => result.instrumentIndex), [0, 1, 2]);
+      assert.deepEqual(body.results.map(result => result.instrumentInput), [
+        { instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
+        { instrumentType: 'PPF', nominalRate: 0.071, holdingYears: 15, monthlySIP: 10000 },
+        { instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 5, monthlySIP: 10000 },
+      ]);
+      assert.deepEqual(body.inputsUsed.deductions, {});
+      assert.deepEqual(body.assumptions.deductions, {});
 
       // FD: postTaxReturn should be 0.07 (0% tax rate at ₹10L income under new regime)
       assert.equal(body.results[0].postTaxReturn, 0.07);
@@ -276,6 +301,7 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
         inflationRate: 0.06,
         fiscalYear: 'FY2026-27',
         section112AExemptionUsed: 0,
+        deductions: { section80C: 12500 },
       };
       const instruments = [
         { instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 2, monthlySIP: 10000 },
@@ -289,6 +315,12 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
       });
       assert.equal(first.response.status, 200);
       assert.equal(reversed.response.status, 200);
+      assert.deepEqual(first.body.results.map(result => result.instrumentIndex), [0, 1]);
+      assert.deepEqual(reversed.body.results.map(result => result.instrumentIndex), [0, 1]);
+      assert.deepEqual(first.body.results.map(result => result.instrumentInput), instruments);
+      assert.deepEqual(reversed.body.results.map(result => result.instrumentInput), [...instruments].reverse());
+      assert.deepEqual(first.body.inputsUsed.deductions, shared.deductions);
+      assert.deepEqual(first.body.assumptions.deductions, shared.deductions);
       assert.equal(first.body.portfolioStatus, 'COMPLETE');
       assert.equal(first.body.assumptions.section112APortfolioAllocation.policy, 'PROPORTIONAL_QUALIFYING_LTCG_ALLOCATED_ONCE_PER_BATCH');
       assert.equal(first.body.assumptions.section112APortfolioAllocation.allocationComplete, true);

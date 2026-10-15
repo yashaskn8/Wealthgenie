@@ -69,9 +69,10 @@ def test_inference_buffer_discards_only_evaluated_prefix():
     assert buffer.get_dataframe().to_dict("records") == [{"sample": 4}]
 
 
+@pytest.mark.parametrize("environment", ["production", "prod"])
 @pytest.mark.parametrize("value", ["0", "10", "99", "-1"])
-def test_drift_scheduler_rejects_undersized_production_windows(monkeypatch, value):
-    monkeypatch.setenv("ENVIRONMENT", "production")
+def test_drift_scheduler_rejects_undersized_production_windows(monkeypatch, environment, value):
+    monkeypatch.setenv("ENVIRONMENT", environment)
     monkeypatch.setenv("DRIFT_CHECK_MIN_SAMPLES", value)
     expected = "positive integer" if int(value) <= 0 else "at least 100 in production"
     with pytest.raises(ValueError, match=expected):

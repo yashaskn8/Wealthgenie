@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, TrendingUp, TrendingDown, ShieldCheck, Layers, Award, ChevronDown, Zap, ArrowRight, Sparkles, Target } from 'lucide-react';
 import { formatINR } from './utils/recommendationPresentation';
 import { isPresentFiniteNumber, toOptionalNumber } from './utils/financialValues';
+import { assertPostTaxBatchResponse, assertPostTaxBatchSummary } from './utils/taxResponseIntegrity';
 import * as api from './services/api';
 import './PostTaxAnalysis.css';
 
@@ -12,7 +13,7 @@ const TAX_INPUT_LABELS = Object.freeze({
   incomeSource: 'income source',
   regime: 'tax regime',
   fiscalYear: 'fiscal year',
-  userAge: 'age from the saved Financial Profile',
+  userAge: 'age on March 31 of the selected fiscal year',
   holdingPeriod: 'holding period or exact transaction dates',
   holdingPeriodMonths: 'holding period or exact transaction dates',
   acquisitionDate: 'acquisition date',
@@ -82,6 +83,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
   const [incomeSource, setIncomeSource] = useState('');
   const [regime, setRegime] = useState('');
   const [fiscalYear, setFiscalYear] = useState('');
+  const [taxYearAge, setTaxYearAge] = useState('');
   const [inflationRate, setInflationRate] = useState('');
   const [section80C, setSection80C] = useState('');
   const [nps80CCD1B, setNps80CCD1B] = useState('');
@@ -103,10 +105,14 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
     instruments: (recommendations || []).map(({ id, type, nominalReturn, monthly_allocation }) => (
       { id, type, nominalReturn, monthly_allocation }
     )),
-    grossAnnualIncome, incomeSource, regime, fiscalYear, inflationRate,
+    grossAnnualIncome, incomeSource, regime, fiscalYear, taxYearAge, inflationRate,
     section80C, nps80CCD1B, section112AExemptionUsed, advancedDeductions,
   });
   const backendPostTaxData = savedAnalysis?.inputKey === inputKey ? savedAnalysis.data : null;
+
+  useEffect(() => {
+    setTaxYearAge('');
+  }, [profile?.profileId, profile?._id, profile?.version, profile?.age]);
 
   useEffect(() => {
     requestController.current?.abort();
@@ -139,7 +145,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
     const annualIncome = Number(grossAnnualIncome);
     const explicitInflationRate = Number(inflationRate);
     const horizon = Number(profile?.investment_horizon_years);
-    const age = Number(profile?.age);
+    const age = Number(taxYearAge);
     if (!isPresentFiniteNumber(grossAnnualIncome) || annualIncome < 0 || !incomeSource || !regime || !fiscalYear) {
       setError('Enter gross annual income before allowed deductions, income source, tax regime, and fiscal year explicitly.');
       return;
@@ -148,8 +154,8 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
       setError('Enter an explicit inflation rate from 0% to 100%.');
       return;
     }
-    if (!Number.isInteger(age) || !Number.isFinite(horizon) || horizon <= 0) {
-      setError('The Financial Profile must provide age and investment horizon before this analysis can run.');
+    if (!Number.isInteger(age) || age < 18 || age > 120 || !Number.isFinite(horizon) || horizon <= 0) {
+      setError('Enter a valid age for the selected fiscal year and provide an investment horizon before this analysis can run.');
       return;
     }
     if (recommendations.some(instrument => !isPresentFiniteNumber(instrument.nominalReturn)
@@ -189,6 +195,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
         section80TTA: toOptionalNumber(advancedDeductions.section80TTA),
         section80TTB: toOptionalNumber(advancedDeductions.section80TTB),
       }).filter(([, value]) => value !== undefined));
+      const explicitSection112AExemptionUsed = toOptionalNumber(section112AExemptionUsed);
       const data = await api.computePostTaxReturnBatch(
         instruments,
         annualIncome,
@@ -199,19 +206,26 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
         fiscalYear,
         { signal: controller.signal, body: {
           deductions,
-          ...(toOptionalNumber(section112AExemptionUsed) !== undefined
-            ? { section112AExemptionUsed: toOptionalNumber(section112AExemptionUsed) }
+          ...(explicitSection112AExemptionUsed !== undefined
+            ? { section112AExemptionUsed: explicitSection112AExemptionUsed }
             : {}),
         } },
       );
       if (controller.signal.aborted) return;
+      assertPostTaxBatchResponse(data, {
+        annualIncome, incomeSource, regime, userAge: age,
+        inflationRate: explicitInflationRate / 100, fiscalYear, deductions,
+        section112AExemptionUsed: explicitSection112AExemptionUsed,
+        instruments,
+      });
       const requiredResultFields = [
         'effectiveTaxPercent', 'postTaxGain', 'taxDragWealth', 'taxDragCAGR',
         'totalInvested', 'nominalReturnPercent', 'postTaxReturnPercent', 'realReturnPercent',
       ];
       const unavailableResultFields = ['effectiveTaxPercent', 'postTaxGain', 'taxDragWealth', 'taxDragCAGR', 'postTaxReturnPercent', 'realReturnPercent'];
       if (!Array.isArray(data?.results) || data.results.length !== recommendations.length
-          || data.results.some((result, index) => !result?.status || result.instrumentType !== instruments[index].instrumentType
+          || data.results.some((result, index) => !result?.status || result.instrumentIndex !== index
+            || result.instrumentType !== instruments[index].instrumentType
             || !hasValidSipReturnMetrics(result.sipReturnMetrics)
             || (result.status !== 'CALCULATED' && result.sipReturnMetrics.status !== 'UNAVAILABLE')
             || (result.status !== 'CALCULATED' && unavailableResultFields.some(field => result[field] != null))
@@ -243,6 +257,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
       if (portfolioStatus === 'UNAVAILABLE' && requiredSummaryFields.some(field => data?.summary?.[field] !== null)) {
         throw new TypeError('Unavailable tax summaries must remain null.');
       }
+      assertPostTaxBatchSummary(data);
       if (!isPresentFiniteNumber(data?.assumptions?.inflationRate)) {
         throw new TypeError('The tax service returned no inflation assumption.');
       }
@@ -414,13 +429,32 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
         </label>
         <label style={{ display: 'grid', gap: 7, color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700 }}>
           Fiscal year
-          <select aria-label="Fiscal year" value={fiscalYear} onChange={event => setFiscalYear(event.target.value)} className="tax-input">
+          <select aria-label="Fiscal year" value={fiscalYear} onChange={event => { setFiscalYear(event.target.value); setTaxYearAge(""); }} className="tax-input">
             <option value="">Choose explicitly</option>
             {(taxPolicyMetadata?.verifiedFiscalYears || []).map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
         </label>
+        <div style={{ display: 'grid', gap: 7, color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700 }}>
+          <label htmlFor="post-tax-age">Your age on March 31</label>
+          <input
+            id="post-tax-age"
+            aria-label="Your age on March 31"
+            aria-describedby="post-tax-age-help"
+            type="number"
+            min="18"
+            max="120"
+            step="1"
+            value={taxYearAge}
+            onChange={event => setTaxYearAge(event.target.value)}
+            placeholder="Enter age for this year"
+            className="tax-input"
+          />
+          <small id="post-tax-age-help" style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 400 }}>
+            Enter your age on March 31 of the selected fiscal year. The saved profile age is not substituted.
+          </small>
+        </div>
         <label style={{ display: 'grid', gap: 7, color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700 }}>
           Inflation assumption (%)
           <input

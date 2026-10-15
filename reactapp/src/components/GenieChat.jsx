@@ -4,6 +4,7 @@ import JargonTooltip from './JargonTooltip';
 import './GenieChat.css';
 import * as api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
+import { assertTaxComparisonResponse } from '../utils/taxResponseIntegrity';
 import {
   formatFullINR,
   getSuggestedQuestions,
@@ -26,7 +27,7 @@ const SESSION_STORAGE_WARNING = 'Chat session storage is unavailable. This conve
 const SESSION_BINDING_WARNING = 'Chat session could not be safely linked to this profile. This conversation may not appear after a reload.';
 const CHAT_SESSION_ID_KEY = 'genie_session_id';
 const CHAT_SESSION_BINDING_KEY = 'genie_session_binding_fingerprint';
-const CHAT_SESSION_BINDING_FINGERPRINT_VERSION = 'wg-chat-binding-v2:';
+const CHAT_SESSION_BINDING_FINGERPRINT_VERSION = 'wg-chat-binding-v3:';
 
 function createNewChatSession(bindingFingerprint = null) {
   const id = crypto.randomUUID();
@@ -70,13 +71,30 @@ async function fingerprintChatFinancialBinding(binding) {
     const persistenceBinding = JSON.stringify({
       profileId: state.profileId,
       profileVersion: state.profileVersion,
+      profileInputHash: state.profileInputHash,
       recommendationId: state.recommendationId,
       allocationRevision: state.allocationRevision,
       allocationRevisionId: state.allocationRevisionId,
+      recommendationFingerprint: state.recommendationFingerprint,
+      portfolioFingerprint: state.portfolioFingerprint,
     });
     const digest = await cryptoProvider.subtle.digest('SHA-256', new TextEncoder().encode(persistenceBinding));
     const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
     return `${CHAT_SESSION_BINDING_FINGERPRINT_VERSION}${fingerprint}`;
+  } catch {
+    return null;
+  }
+}
+
+async function fingerprintChatTurnKey(sessionId, idempotencyKey, message) {
+  const cryptoProvider = globalThis.crypto;
+  if (typeof cryptoProvider?.subtle?.digest !== 'function' || typeof TextEncoder !== 'function') return null;
+  try {
+    const digest = await cryptoProvider.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(`${sessionId}\0${idempotencyKey}\0${String(message || '').trim()}`),
+    );
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   } catch {
     return null;
   }
@@ -142,6 +160,7 @@ function mapStoredChatMessages(messages) {
     evidence_ids_used: message.metadata?.evidence_ids_used || [],
     unavailable_facts: message.metadata?.unavailable_facts || [],
     citations: message.metadata?.citations || [],
+    _clientTurnHash: message.metadata?.client_turn_hash || null,
     _streamed: true,
   }));
 }
@@ -179,6 +198,8 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   const sendGenerationRef = useRef(0);
   const sendControllerRef = useRef(null);
   const pendingSendRef = useRef(null);
+  const retryableTurnRef = useRef(null);
+  const sendInFlightRef = useRef(false);
   const clearingRef = useRef(false);
   const sessionIdRef = useRef(sessionId);
   const financialBindingRef = useRef(financialBinding);
@@ -195,6 +216,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     sendGenerationRef.current += 1;
     sendControllerRef.current?.abort();
     sendControllerRef.current = null;
+    sendInFlightRef.current = false;
     if (resetLoading) setIsLoading(false);
   }, []);
 
@@ -219,28 +241,78 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   const [taxGrossIncome, setTaxGrossIncome] = useState(300000);
   const [taxIncomeSource, setTaxIncomeSource] = useState('');
   const [taxFiscalYear, setTaxFiscalYear] = useState('');
+  const [taxAge, setTaxAge] = useState('');
   const [tax80C, setTax80C] = useState(0);
   const [taxNPS, setTaxNPS] = useState(0);
+  const [taxInputsConfirmed, setTaxInputsConfirmed] = useState(false);
   const [taxComparison, setTaxComparison] = useState(null);
   const [taxComparisonError, setTaxComparisonError] = useState(null);
   const [taxPolicyMetadata, setTaxPolicyMetadata] = useState(null);
+  const [taxPolicyMetadataStatus, setTaxPolicyMetadataStatus] = useState('loading');
+  const [taxPolicyRetryVersion, setTaxPolicyRetryVersion] = useState(0);
+  const taxProfileIdentity = JSON.stringify([
+    profile?.profileId ?? profile?._id ?? null,
+    recommendationMeta?.profile_version ?? profile?.version ?? null,
+    recommendationMeta?.profile_input_hash ?? null,
+    profile?.age ?? null,
+  ]);
+  const taxInputIdentity = JSON.stringify([
+    activeWorkspace,
+    taxProfileIdentity,
+    taxFiscalYear,
+    taxGrossIncome,
+    taxIncomeSource,
+    taxAge,
+    tax80C,
+    taxNPS,
+    taxInputsConfirmed,
+  ]);
+  const taxInputIdentityRef = useRef(taxInputIdentity);
+  taxInputIdentityRef.current = taxInputIdentity;
+  const currentTaxComparison = taxComparison?.inputIdentity === taxInputIdentity ? taxComparison.data : null;
+  const currentTaxComparisonError = taxComparisonError?.inputIdentity === taxInputIdentity
+    ? taxComparisonError.message
+    : null;
 
   useEffect(() => {
-    if (typeof api.getTaxPolicyMetadata !== 'function') return undefined;
     let cancelled = false;
-    api.getTaxPolicyMetadata()
+    const controller = new AbortController();
+    setTaxPolicyMetadata(null);
+    setTaxPolicyMetadataStatus('loading');
+    setTaxFiscalYear('');
+    setTaxAge('');
+    if (typeof api.getTaxPolicyMetadata !== 'function') {
+      setTaxPolicyMetadataStatus('error');
+      return () => { cancelled = true; };
+    }
+    api.getTaxPolicyMetadata({ signal: controller.signal })
       .then(metadata => {
         if (cancelled) return;
+        const years = metadata?.verifiedFiscalYears;
+        if (!Array.isArray(years) || years.length === 0
+            || years.some(year => typeof year !== 'string' || !/^FY\d{4}-\d{2}$/.test(year))) {
+          throw new Error('Verified fiscal-year metadata is unavailable.');
+        }
         setTaxPolicyMetadata(metadata);
-        if (metadata?.currentFiscalYearVerified && metadata.currentFiscalYear) {
+        setTaxPolicyMetadataStatus('ready');
+        if (metadata.currentFiscalYearVerified === true
+            && years.includes(metadata.currentFiscalYear)) {
           setTaxFiscalYear(current => current || metadata.currentFiscalYear);
         }
       })
       .catch(() => {
-        if (!cancelled) setTaxPolicyMetadata(null);
+        if (!cancelled) {
+          setTaxPolicyMetadata(null);
+          setTaxFiscalYear('');
+          setTaxAge('');
+          setTaxPolicyMetadataStatus('error');
+        }
       });
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [taxPolicyRetryVersion]);
 
   useEffect(() => {
     if (profile) {
@@ -310,44 +382,70 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   }, [activeWorkspace, sipMonthlyAmount, sipReturnRate, sipHorizon, sipStepUpPercent]);
 
   useEffect(() => {
-    if (activeWorkspace !== 'tax-optimizer' || !taxIncomeSource || !taxFiscalYear) return undefined;
-    let cancelled = false;
-    const timer = setTimeout(() => {
+    setTaxAge('');
+    setTaxComparison(null);
+    setTaxComparisonError(null);
+    setTaxInputsConfirmed(false);
+  }, [taxProfileIdentity]);
+
+  useEffect(() => {
+    const enteredAge = taxAge.trim() === '' ? NaN : Number(taxAge);
+    const validTaxAge = Number.isInteger(enteredAge) && enteredAge >= 18 && enteredAge <= 120;
+    if (activeWorkspace !== 'tax-optimizer' || !taxIncomeSource || !taxFiscalYear || !validTaxAge || !taxInputsConfirmed) {
+      setTaxComparison(null);
       setTaxComparisonError(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const requestIdentity = taxInputIdentity;
+    setTaxComparison(null);
+    setTaxComparisonError(null);
+    const timer = setTimeout(() => {
       api.compareTax(taxGrossIncome, {
         section80C: tax80C,
         nps80CCD1B: taxNPS,
-        age: profile?.age,
+        age: enteredAge,
         incomeSource: taxIncomeSource,
         fiscalYear: taxFiscalYear,
-      })
+      }, { signal: controller.signal })
         .then(result => {
-          if (cancelled) return;
+          if (cancelled || controller.signal.aborted || taxInputIdentityRef.current !== requestIdentity) return;
+          assertTaxComparisonResponse(result, {
+            annualIncome: taxGrossIncome,
+            incomeSource: taxIncomeSource,
+            fiscalYear: taxFiscalYear,
+            deductions: { age: enteredAge, section80C: tax80C, nps80CCD1B: taxNPS },
+          });
           setTaxComparison({
-            taxNew: result.new_regime.tax,
-            taxOld: result.old_regime.tax,
-            difference: result.saving,
-            betterRegime: result.recommended_regime,
-            standardDeductionNew: result.new_regime.standard_deduction,
-            standardDeductionOld: result.old_regime.standard_deduction,
-            oldRegimeDeductions: result.old_regime.old_regime_deductions,
-            deductionLimits: result.deduction_limits,
-            policyVersion: result.policyVersion,
-            fiscalYear: result.fiscalYear,
+            inputIdentity: requestIdentity,
+            data: {
+              taxNew: result.new_regime.tax,
+              taxOld: result.old_regime.tax,
+              difference: result.saving,
+              betterRegime: result.recommended_regime,
+              standardDeductionNew: result.new_regime.standard_deduction,
+              standardDeductionOld: result.old_regime.standard_deduction,
+              oldRegimeDeductions: result.old_regime.old_regime_deductions,
+              deductionLimits: result.deduction_limits,
+              policyVersion: result.policyVersion,
+              fiscalYear: result.fiscal_year,
+            },
           });
         })
         .catch(error => {
-          if (!cancelled) {
-            setTaxComparison(null);
-            setTaxComparisonError(error.message);
-          }
+          if (cancelled || controller.signal.aborted || error?.code === 'REQUEST_ABORTED' || taxInputIdentityRef.current !== requestIdentity) return;
+          setTaxComparison(null);
+          setTaxComparisonError({ inputIdentity: requestIdentity, message: error.message });
         });
     }, 250);
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      controller.abort();
     };
-  }, [activeWorkspace, profile?.age, taxFiscalYear, taxGrossIncome, taxIncomeSource, tax80C, taxNPS]);
+  }, [activeWorkspace, taxProfileIdentity, taxInputIdentity, taxAge, taxFiscalYear, taxGrossIncome, taxIncomeSource, tax80C, taxNPS, taxInputsConfirmed]);
 
   const visibleMessages = sessionMatchesProfile ? messages : [];
   const lastUserMessage = visibleMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
@@ -359,6 +457,8 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     historyRequestIdRef.current += 1;
     sendControllerRef.current?.abort();
     sendControllerRef.current = null;
+    retryableTurnRef.current = null;
+    sendInFlightRef.current = false;
     clearingRef.current = false;
     const nextSession = createNewChatSession(knownFingerprint);
     sessionIdRef.current = nextSession.id;
@@ -502,6 +602,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     const cancelForLogout = () => {
       if (pendingSendRef.current) {
         setError("We couldn't confirm whether your message was sent before sign-out interrupted it.");
+        setInput(retryableTurnRef.current?.message || '');
       }
       invalidatePendingSend(true);
     };
@@ -582,7 +683,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
   const sendMessage = useCallback(async (text) => {
     const messageText = (text || input).trim();
-    if (!messageText || isLoading || isClearing || clearingRef.current) return;
+    if (!messageText || isLoading || sendInFlightRef.current || isClearing || clearingRef.current) return;
     if (!recommendationContextReady || !bindingHydratedRef.current) return;
     if (!sessionMatchesProfile) {
       startFreshSession(financialBinding);
@@ -590,9 +691,30 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     }
     const requestedSessionId = sessionId;
     const requestedBinding = chatSession.financialBinding;
+    let retryableTurn = retryableTurnRef.current;
+    if (retryableTurn && (retryableTurn.sessionId !== requestedSessionId
+        || retryableTurn.binding !== requestedBinding)) {
+      retryableTurnRef.current = null;
+      retryableTurn = null;
+    }
+    if (retryableTurn && retryableTurn.message !== messageText) {
+      setInput(retryableTurn.message);
+      setError('A previous message may still be processing. Retry that same message or clear this chat before sending a different one.');
+      return;
+    }
+    if (!retryableTurn) {
+      retryableTurn = {
+        sessionId: requestedSessionId,
+        binding: requestedBinding,
+        message: messageText,
+        idempotencyKey: crypto.randomUUID(),
+      };
+      retryableTurnRef.current = retryableTurn;
+    }
     const generation = sessionGenerationRef.current;
     const sendGeneration = sendGenerationRef.current;
     const controller = new AbortController();
+    sendInFlightRef.current = true;
     sendControllerRef.current = controller;
     let settlePendingSend;
     const pendingSend = {
@@ -609,11 +731,17 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     setHistoryStatus('loaded');
     setHistoryError(null);
     setInput(''); setError(null);
-    setMessages(prev => [...prev, { role: 'user', content: messageText, timestamp: new Date().toISOString() }]);
+    setMessages(prev => (prev.some(item => item._turnKey === retryableTurn.idempotencyKey)
+      ? prev
+      : [...prev, { role: 'user', content: messageText, timestamp: new Date().toISOString(), _turnKey: retryableTurn.idempotencyKey }]));
     setIsLoading(true);
     try {
-      const data = await api.sendChatMessage(messageText, requestedSessionId, { signal: controller.signal });
+      const data = await api.sendChatMessage(messageText, requestedSessionId, {
+        signal: controller.signal,
+        headers: { 'Idempotency-Key': retryableTurn.idempotencyKey },
+      });
       if (!isCurrent()) return;
+      retryableTurnRef.current = null;
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: data.response,
@@ -627,22 +755,26 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         evidence_ids_used: data.evidence_ids_used || [],
         unavailable_facts: data.unavailable_facts || [],
         _streamed: false,
+        _turnKey: retryableTurn.idempotencyKey,
       }]);
-      const remaining = Number(data.rate_limit_remaining);
-      const nextRemaining = Number.isInteger(remaining) && remaining >= 0 && remaining <= 30
-        ? remaining
-        : null;
-      const resetAt = Date.parse(data.rate_limit_reset_at || '');
-      const retryAt = nextRemaining === 0 && Number.isFinite(resetAt) ? resetAt : null;
-      setRateLimit(current => ({ ...current, remaining: nextRemaining, retryAt }));
-      if (nextRemaining === 0) {
-        setError(retryAt
-          ? `You've used the last message in your current chat limit. Genie will be available again at ${new Date(retryAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
-          : 'You used the last message reported by the server. Genie will check availability on your next message.');
+      if (!data.idempotent_replay) {
+        const remaining = Number(data.rate_limit_remaining);
+        const nextRemaining = Number.isInteger(remaining) && remaining >= 0 && remaining <= 30
+          ? remaining
+          : null;
+        const resetAt = Date.parse(data.rate_limit_reset_at || '');
+        const retryAt = nextRemaining === 0 && Number.isFinite(resetAt) ? resetAt : null;
+        setRateLimit(current => ({ ...current, remaining: nextRemaining, retryAt }));
+        if (nextRemaining === 0) {
+          setError(retryAt
+            ? `You've used the last message in your current chat limit. Genie will be available again at ${new Date(retryAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
+            : 'You used the last message reported by the server. Genie will check availability on your next message.');
+        }
       }
     } catch (err) {
       if (isCurrent() && err?.code !== 'REQUEST_ABORTED') {
         if (err?.code === 'CHAT_RATE_LIMIT_EXCEEDED') {
+          setInput(current => current.trim() ? current : messageText);
           const seconds = retryAfterSeconds(err);
           const resetAt = Date.parse(err?.details?.resetAt ?? err?.details?.rate_limit_reset_at ?? '');
           setRateLimit(current => ({
@@ -659,6 +791,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             setError('Your profile or recommendation changed. This message was not sent. Review it and send again.');
           }
         } else {
+          setInput(current => current.trim() ? current : messageText);
           setError(err.message || 'Genie is temporarily unavailable.');
         }
       }
@@ -666,6 +799,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
       settlePendingSend();
       if (pendingSendRef.current === pendingSend) pendingSendRef.current = null;
       if (sendControllerRef.current === controller) sendControllerRef.current = null;
+      sendInFlightRef.current = false;
       if (isCurrent()) {
         setIsLoading(false);
         inputRef.current?.focus();
@@ -688,11 +822,13 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   const checkClearOutcome = async () => {
     if (isClearing || clearingRef.current || !sessionMatchesProfile) return;
     const requestedSessionId = sessionId;
+    const requestedBinding = sessionBindingRef.current;
     const requestId = ++historyRequestIdRef.current;
     const generation = sessionGenerationRef.current;
     const isCurrent = () => requestId === historyRequestIdRef.current
       && generation === sessionGenerationRef.current
       && requestedSessionId === sessionIdRef.current
+      && requestedBinding === sessionBindingRef.current
       && financialBindingRef.current === sessionBindingRef.current;
     clearingRef.current = true;
     setIsClearing(true);
@@ -707,10 +843,28 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         const storageWarning = startFreshSession(financialBindingRef.current);
         setClearStatus(storageWarning ? 'storage-warning' : 'confirmed');
       } else {
+        const pendingTurn = retryableTurnRef.current;
+        const pendingClientTurnHash = pendingTurn?.sessionId === requestedSessionId
+          ? await fingerprintChatTurnKey(requestedSessionId, pendingTurn.idempotencyKey, pendingTurn.message)
+          : null;
+        if (!isCurrent()) return;
+        const savedMessages = conversation.messages;
+        const trailingPair = savedMessages.slice(-2);
+        const pendingTurnWasSaved = Boolean(pendingTurn
+          && pendingClientTurnHash
+          && pendingTurn.binding === requestedBinding
+          && trailingPair.length === 2
+          && trailingPair[0]?.role === 'user'
+          && trailingPair[1]?.role === 'model'
+          && trailingPair.every(message => message.metadata?.client_turn_hash === pendingClientTurnHash));
+        if (pendingTurnWasSaved) retryableTurnRef.current = null;
         setMessages(mapStoredChatMessages(conversation.messages));
         setHistoryStatus('loaded');
         setHistoryError(null);
         setClearStatus('failed');
+        if (pendingTurnWasSaved) {
+          setError('Your pending message and reply were saved before clearing failed. They have been restored; you can continue with a new question.');
+        }
       }
     } catch {
       if (isCurrent()) setClearStatus('unconfirmed');
@@ -810,7 +964,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
               {sessionMatchesProfile && clearStatus === 'storage-warning' && <div role="status" className="chat-history-status">Saved conversation cleared, but the new chat session could not be remembered for the next visit.</div>}
               {sessionMatchesProfile && clearStatus === 'failed' && (
                 <div role="alert" className="chat-error-banner">
-                  <span>Saved chat history is still present. Your current messages remain visible; retry clearing when ready.</span>
+                  <span>{error || 'Saved chat history is still present. Your current messages remain visible; retry clearing when ready.'}</span>
                   <button type="button" onClick={clearChat}>Retry clear</button>
                 </div>
               )}
@@ -1076,22 +1230,29 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                 })()}
 
                 {activeWorkspace === 'tax-optimizer' && (() => {
-                  const taxes = taxComparison;
-                  const section80CLimit = Number(taxes?.deductionLimits?.section80C);
-                  const npsLimit = Number(taxes?.deductionLimits?.section80CCD1B);
+                  const taxes = currentTaxComparison;
+                  const selectedPolicy = taxPolicyMetadata?.policies?.find(policy => (
+                    policy?.verified === true && policy.fiscalYear === taxFiscalYear
+                  ));
+                  const section80CLimit = Number(
+                    selectedPolicy?.rules?.deductionLimits?.section80C ?? taxes?.deductionLimits?.section80C,
+                  );
+                  const npsLimit = Number(
+                    selectedPolicy?.rules?.deductionLimits?.section80CCD1B ?? taxes?.deductionLimits?.section80CCD1B,
+                  );
 
                   return (
                     <div className="workspace-sandbox">
                       <div className="sandbox-intro">
                         <Sparkles size={14} className="text-orange" style={{ flexShrink: 0, marginTop: 2 }} />
-                        <span>Find out which tax system saves you more money! Adjust your income and deductions below to compare.</span>
+                        <span>Compare the tax systems for a scenario you enter. Starting amounts are examples and are not taken from your saved profile.</span>
                       </div>
 
                       <div className="sandbox-group">
                         <div className="sandbox-label-row">
                           <span className="sandbox-label"><Coins size={14} /> Income Source</span>
                         </div>
-                        <select value={taxIncomeSource} onChange={e => setTaxIncomeSource(e.target.value)} className="genie-input" aria-label="Tax income source">
+                        <select value={taxIncomeSource} onChange={e => { setTaxIncomeSource(e.target.value); setTaxInputsConfirmed(false); }} className="genie-input" aria-label="Tax income source">
                           <option value="">Choose explicitly</option>
                           <option value="salary">Salary</option>
                           <option value="pension">Pension</option>
@@ -1105,17 +1266,60 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                         <div className="sandbox-label-row">
                           <span className="sandbox-label"><Coins size={14} /> Fiscal Year</span>
                         </div>
-                        <select value={taxFiscalYear} onChange={e => setTaxFiscalYear(e.target.value)} className="genie-input" aria-label="Tax fiscal year">
+                        <select value={taxFiscalYear} onChange={e => { setTaxFiscalYear(e.target.value); setTaxAge(''); setTaxInputsConfirmed(false); }} className="genie-input" aria-label="Tax fiscal year">
                           <option value="">Choose explicitly</option>
                           {(taxPolicyMetadata?.verifiedFiscalYears || []).map(year => (
                             <option key={year} value={year}>{year}</option>
                           ))}
                         </select>
+                        {taxPolicyMetadataStatus === 'loading' && (
+                          <p role="status" className="slider-limits">Loading verified tax years…</p>
+                        )}
+                        {taxPolicyMetadataStatus === 'error' && (
+                          <div role="alert" className="sandbox-intro">
+                            <span>Verified tax years are unavailable. Retry to load the server tax policy.</span>
+                            <button
+                              type="button"
+                              className="workspace-fullscreen-btn"
+                              onClick={() => setTaxPolicyRetryVersion(version => version + 1)}
+                            >
+                              <RefreshCw size={14} aria-hidden="true" /> Retry
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="sandbox-group">
+                        <div className="sandbox-label-row">
+                          <label className="sandbox-label" htmlFor="genie-tax-age">Age on March 31 of selected fiscal year</label>
+                        </div>
+                        <input
+                          id="genie-tax-age"
+                          type="number"
+                          inputMode="numeric"
+                          min="18"
+                          max="120"
+                          step="1"
+                          value={taxAge}
+                          onChange={e => { setTaxAge(e.target.value); setTaxInputsConfirmed(false); }}
+                          className="genie-input"
+                          aria-describedby="genie-tax-age-help"
+                          aria-required="true"
+                          aria-invalid={taxAge !== '' && !(Number.isInteger(Number(taxAge)) && Number(taxAge) >= 18 && Number(taxAge) <= 120)}
+                          disabled={!taxFiscalYear}
+                        />
+                        <p id="genie-tax-age-help" className="slider-limits">Enter your age on March 31 for this tax year. Your saved profile age is not used for tax comparisons.</p>
                       </div>
 
                       {!taxes && (
-                        <div role="status" className="sandbox-intro">
-                          {!taxIncomeSource || !taxFiscalYear ? 'Choose an income source and fiscal year to calculate without assumptions.' : (taxComparisonError ? `Tax service unavailable: ${taxComparisonError}` : 'Calculating with the authoritative tax service...')}
+                        <div role="status" aria-live="polite" className="sandbox-intro">
+                          {!taxIncomeSource || !taxFiscalYear
+                            ? 'Choose an income source and fiscal year to calculate without assumptions.'
+                            : !(Number.isInteger(Number(taxAge)) && taxAge.trim() !== '' && Number(taxAge) >= 18 && Number(taxAge) <= 120)
+                              ? 'Enter a whole-number age from 18 to 120 for March 31 of the selected fiscal year to calculate.'
+                              : !taxInputsConfirmed
+                                ? 'Review the income and deduction amounts, including any ₹0 values, then confirm this scenario to calculate.'
+                                : (currentTaxComparisonError ? `Tax service unavailable: ${currentTaxComparisonError}` : 'Calculating with the authoritative tax service...')}
                         </div>
                       )}
 
@@ -1124,7 +1328,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                           <span className="sandbox-label"><Coins size={14} /> Annual Gross Income</span>
                           <span className="sandbox-val text-orange">{formatFullINR(taxGrossIncome)}</span>
                         </div>
-                        <input type="range" min="300000" max="3000000" step="50000" value={taxGrossIncome} onChange={e => setTaxGrossIncome(Number(e.target.value))} className="sandbox-slider" />
+                        <input type="range" min="300000" max="3000000" step="50000" value={taxGrossIncome} onChange={e => { setTaxGrossIncome(Number(e.target.value)); setTaxInputsConfirmed(false); }} className="sandbox-slider" aria-label="Annual gross income" />
                         <div className="slider-limits"><span>₹3L</span><span>₹30L</span></div>
                       </div>
 
@@ -1133,7 +1337,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                           <span className="sandbox-label"><Percent size={14} /> <JargonTooltip term="Eligible investment deductions">Enter eligible investment deductions already counted</JargonTooltip></span>
                           <span className="sandbox-val text-orange">{formatFullINR(tax80C)}</span>
                         </div>
-                        <input type="range" min="0" max={Number.isFinite(section80CLimit) ? section80CLimit : 0} step="5000" value={tax80C} onChange={e => setTax80C(Number(e.target.value))} className="sandbox-slider" disabled={!Number.isFinite(section80CLimit)} />
+                        <input type="range" min="0" max={Number.isFinite(section80CLimit) ? section80CLimit : 0} step="5000" value={tax80C} onChange={e => { setTax80C(Number(e.target.value)); setTaxInputsConfirmed(false); }} className="sandbox-slider" disabled={!Number.isFinite(section80CLimit)} aria-label="Section 80C deduction" />
                         <div className="slider-limits"><span>₹0</span><span>{Number.isFinite(section80CLimit) ? `${formatFullINR(section80CLimit)} server-policy limit` : 'Awaiting server policy'}</span></div>
                       </div>
 
@@ -1142,9 +1346,22 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                           <span className="sandbox-label"><Coins size={14} /> <JargonTooltip term="NPS">NPS</JargonTooltip> Deduction Input</span>
                           <span className="sandbox-val text-orange">{formatFullINR(taxNPS)}</span>
                         </div>
-                        <input type="range" min="0" max={Number.isFinite(npsLimit) ? npsLimit : 0} step="5000" value={taxNPS} onChange={e => setTaxNPS(Number(e.target.value))} className="sandbox-slider" disabled={!Number.isFinite(npsLimit)} />
+                        <input type="range" min="0" max={Number.isFinite(npsLimit) ? npsLimit : 0} step="5000" value={taxNPS} onChange={e => { setTaxNPS(Number(e.target.value)); setTaxInputsConfirmed(false); }} className="sandbox-slider" disabled={!Number.isFinite(npsLimit)} aria-label="NPS deduction" />
                         <div className="slider-limits"><span>₹0</span><span>{Number.isFinite(npsLimit) ? `${formatFullINR(npsLimit)} server-policy limit` : 'Awaiting server policy'}</span></div>
                       </div>
+
+                      <p className="slider-limits">Review the example income and deduction amounts. A ₹0 deduction means you confirm that no eligible amount is included.</p>
+
+                      <label className="sandbox-intro" htmlFor="genie-tax-inputs-confirmed">
+                        <input
+                          id="genie-tax-inputs-confirmed"
+                          type="checkbox"
+                          checked={taxInputsConfirmed}
+                          onChange={event => setTaxInputsConfirmed(event.target.checked)}
+                          disabled={!taxIncomeSource || !taxFiscalYear || !(Number.isInteger(Number(taxAge)) && taxAge.trim() !== '' && Number(taxAge) >= 18 && Number(taxAge) <= 120)}
+                        />
+                        I confirm these income and deduction amounts for this comparison, including ₹0 where I have no eligible deduction.
+                      </label>
 
                       {/* Side-by-side Comparative Table */}
                       {taxes && <div className="tax-comparison-table">
@@ -1188,7 +1405,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                           {taxes.difference === 0 ? (
                             <span>Both systems charge the same tax! We recommend the New System since it's simpler — no need to collect receipts or proofs.</span>
                           ) : (
-                            <span>The <strong className="font-bold">{taxes.betterRegime === 'new' ? 'New' : 'Old'} Tax System</strong> is better for you, saving <strong className="font-bold">{formatFullINR(taxes.difference)}</strong> in taxes this year!</span>
+                            <span>For this scenario, the <strong className="font-bold">{taxes.betterRegime === 'new' ? 'New' : 'Old'} Tax System</strong> has lower calculated tax by <strong className="font-bold">{formatFullINR(taxes.difference)}</strong> for this fiscal year.</span>
                           )}
                         </div>
                       </div>}

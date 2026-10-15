@@ -67,6 +67,7 @@ assertMatches(files.explanation, /validateGroundedExplanation/, 'LLM output is v
 assertMatches(files.explanation, /DETERMINISTIC_TEMPLATE/, 'validated deterministic explanation fallback remains available');
 assertMatches(files.providers, /NvidiaNimProviderAdapter/, 'NVIDIA NIM adapter exists behind the provider abstraction');
 assertMatches(files.mlSecurity, /env_mode\s+not\s+in\s+LOCAL_ENVIRONMENTS/, 'ML service authentication fails closed outside local environments');
+assertMatches(files.mlSecurity, /def _require_supported_environment[\s\S]*env_mode not in SUPPORTED_ENVIRONMENTS/, 'ML service authentication rejects missing or unsupported environment modes');
 assertMatches(files.marketContextPolicy, /MARKET_CONTEXT_POLICY_VERSION\s*=\s*'market-context-policy-\d+\.\d+\.\d+'/, 'deterministic market-context policy is explicitly versioned');
 assertMatches(files.regimeRotationTest, /an ML shadow state cannot become an allocation context/i, 'ML shadow state remains outside allocation contexts under regression coverage');
 assertMatches(files.mongoExample, /MONGODB_URI=.*replicaSet=rs0/i, 'local Mongo configuration uses a transaction-capable replica set');

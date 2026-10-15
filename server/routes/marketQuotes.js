@@ -9,6 +9,7 @@ import { validateQuery, marketQuoteQuerySchema } from '../validation/schemas.js'
 export function createMarketQuotesRouter({
   fetchQuotes = fetchUpstoxCanonicalQuotes,
   env = process.env,
+  marketDataTestFixtureRightsCapability = null,
   limiter = createEndpointRateLimiter({
     windowMs: 60 * 1000,
     max: 20,
@@ -20,7 +21,11 @@ export function createMarketQuotesRouter({
   const router = Router();
   router.get(
     '/quotes',
-    createUpstoxPublicDataGate({ env, requiresUpstox: true }),
+    createUpstoxPublicDataGate({
+      env,
+      requiresUpstox: true,
+      marketDataTestFixtureRightsCapability,
+    }),
     limiter,
     validateQuery(marketQuoteQuerySchema),
     asyncHandler(async (req, res) => {

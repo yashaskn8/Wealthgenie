@@ -192,11 +192,16 @@ test('live evaluator executes one actual isolated PlanReview graph and scores it
     modelEvidence.entryFields.map((field, index) => [field, row[index]]),
   ));
   const requiredEntryIds = [
-    'E_PROFILE_AGE', 'E_PROFILE_SAVINGS', 'E_PROFILE_RISK', 'E_PROFILE_HORIZON',
-    'E_PROFILE_GOALS', 'E_SUITABILITY_REASONS', 'E_RECOMMENDATION_FRESHNESS', 'E_REGULATORY_NOTICE',
+    'E_RECOMMENDATION_FRESHNESS', 'E_REGULATORY_NOTICE',
   ];
   assert.ok(requiredEntryIds.every(id => restoredEntries.some(entry => entry.id === id)),
-    'all required synthetic financial and regulatory evidence remains available to the model');
+    'plan review sends only the decision evidence and regulatory notice needed for the review');
+  const freshnessEntry = restoredEntries.find(entry => entry.id === 'E_RECOMMENDATION_FRESHNESS');
+  assert.deepEqual(Object.keys(freshnessEntry.value).sort(), ['fresh', 'reasonCodes']);
+  assert.doesNotMatch(explanationUserText, /observedProfileHash|expectedProfileHash|profileInputHash/,
+    'profile-derived hashes are not disclosed to the external explanation provider');
+  assert.ok(!restoredEntries.some(entry => ['E_PROFILE_AGE', 'E_PROFILE_SAVINGS', 'E_PROFILE_GOALS', 'E_SUITABILITY_REASONS'].includes(entry.id)),
+    'raw profile attributes are not sent in the Plan Review evidence packet');
 });
 
 test('offline evaluator runs every real graph fixture without a provider or persistence', () => {

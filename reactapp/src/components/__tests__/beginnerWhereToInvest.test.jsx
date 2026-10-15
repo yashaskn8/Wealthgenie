@@ -31,12 +31,59 @@ const CURRENT_STATE_BINDING = {
   recommendationFingerprint: 'b'.repeat(64),
 };
 const CURRENT_RECOMMENDATION_META = {
+  response_state: 'CURRENT',
+  profileId: CURRENT_STATE_BINDING.profileId,
   recommendationId: CURRENT_STATE_BINDING.recommendationId,
+  recommendation_id: CURRENT_STATE_BINDING.recommendationId,
   profile_version: CURRENT_STATE_BINDING.profileVersion,
   allocation_revision: CURRENT_STATE_BINDING.allocationRevision,
   allocation_revision_id: CURRENT_STATE_BINDING.allocationRevisionId,
   portfolio_fingerprint: CURRENT_STATE_BINDING.portfolioFingerprint,
   recommendation_fingerprint: CURRENT_STATE_BINDING.recommendationFingerprint,
+  profile_input_hash: 'c'.repeat(64),
+  recommendation_policy_version: 'recommendation-policy-test-1',
+  regulatory_rule_version: 'tax-policy-test-1',
+  return_assumption_version: 'return-assumption-test-1',
+  return_assumption_hash: 'd'.repeat(64),
+  return_assumption_source: 'MODEL_POLICY',
+  current_allocation_source: 'INITIAL_ALLOCATION',
+  calculation_freshness: {
+    fresh: true,
+    reasonCodes: [],
+    expectedProfileHash: 'c'.repeat(64),
+    observedProfileHash: 'c'.repeat(64),
+    expectedProfileVersion: CURRENT_STATE_BINDING.profileVersion,
+    observedProfileVersion: CURRENT_STATE_BINDING.profileVersion,
+    allocationRevision: CURRENT_STATE_BINDING.allocationRevision,
+    currentAllocationSource: 'INITIAL_ALLOCATION',
+    observedRegulatoryVersion: 'tax-policy-test-1',
+    currentRegulatoryVersion: 'tax-policy-test-1',
+    policyVersion: 'recommendation-policy-test-1',
+    observedRecommendationPolicyVersion: 'recommendation-policy-test-1',
+    assumptionVersion: 'return-assumption-test-1',
+    assumptionHash: 'd'.repeat(64),
+    assumptionSource: 'MODEL_POLICY',
+  },
+  state_provenance: {
+    status: 'PERSISTED_REVISION',
+    stateId: '64b000000000000000000004',
+    recommendationId: CURRENT_STATE_BINDING.recommendationId,
+    allocationSource: 'INITIAL_ALLOCATION',
+    allocationRevision: CURRENT_STATE_BINDING.allocationRevision,
+    allocationRevisionId: CURRENT_STATE_BINDING.allocationRevisionId,
+    profileVersion: CURRENT_STATE_BINDING.profileVersion,
+    profileInputHash: 'c'.repeat(64),
+    portfolioFingerprint: CURRENT_STATE_BINDING.portfolioFingerprint,
+    recommendationFingerprint: CURRENT_STATE_BINDING.recommendationFingerprint,
+    recommendationPolicyVersion: 'recommendation-policy-test-1',
+    regulatoryRuleVersion: 'tax-policy-test-1',
+    returnAssumptionVersion: 'return-assumption-test-1',
+    returnAssumptionHash: 'd'.repeat(64),
+    returnAssumptionSource: 'MODEL_POLICY',
+    previousAllocationRevision: null,
+    previousAllocationRevisionId: null,
+  },
+  instruments: [{ id: 'index_mf', name: 'Index Fund', allocation_pct: null }],
 };
 
 function makeMarketContext({
@@ -112,6 +159,104 @@ function makePreviewResult({ market = makeMarketContext(), overrides = {} } = {}
   };
 }
 
+function prepareSbiInterestScenario(age = '35') {
+  fireEvent.click(screen.getByText('Use your own transaction facts'));
+  fireEvent.change(screen.getByLabelText('Fiscal year'), { target: { value: 'FY2025-26' } });
+  fireEvent.change(screen.getByLabelText(/Your age on March 31/i), { target: { value: String(age) } });
+  fireEvent.change(screen.getByLabelText(/Gross interest received in this fiscal year/i), { target: { value: '2500' } });
+  fireEvent.change(screen.getByLabelText(/Annual tax income before this scenario/i), { target: { value: '1000000' } });
+  fireEvent.change(screen.getByLabelText('Income source'), { target: { value: 'salary' } });
+  fireEvent.change(screen.getByLabelText('Tax regime'), { target: { value: 'new' } });
+  fireEvent.click(screen.getByLabelText(/I confirm these entered tax facts cover my scenario/i));
+  return screen.getByRole('button', { name: /Calculate my scenario/i }).closest('form');
+}
+
+function declaredScenarioResponse(inputsUsed, overrides = {}) {
+  const isEquity = inputsUsed.scenarioType === 'EQUITY_REALIZED_GAIN';
+  const grossGain = isEquity
+    ? inputsUsed.saleProceeds - inputsUsed.acquisitionCostBasis
+    : inputsUsed.interestReceived;
+  const productTaxClass = isEquity
+    ? 'EQUITY_MF_SECTION_112A'
+    : 'BANK_DEPOSIT_INTEREST';
+  return {
+    status: 'CALCULATED',
+    calculationClass: 'TRANSACTION_TAX_ESTIMATE',
+    dataClass: 'USER_DECLARED_TRANSACTION',
+    inputBasis: 'USER_DECLARED_SCENARIO',
+    canonicalInstrumentId: inputsUsed.canonicalInstrumentId,
+    canonicalProductId: inputsUsed.canonicalProductId ?? null,
+    taxClass: productTaxClass,
+    taxClassificationMetadata: { sourceQualified: true, taxClass: productTaxClass },
+    fiscalYear: inputsUsed.fiscalYear,
+    policyVersion: 'tax-policy-test-1',
+    inputsUsed,
+    grossGain,
+    taxableGain: grossGain,
+    exemptionApplied: 0,
+    incrementalTax: 0,
+    cess: 0,
+    surcharge: 0,
+    netGain: grossGain,
+    postTaxRatePct: null,
+    transactionGainPct: null,
+    holdingPeriod: null,
+    unavailableReasons: [],
+    sourceReferences: [],
+    assumptions: [],
+    disclosure: 'These values were entered by you and are not verified market facts.',
+    ...overrides,
+  };
+}
+
+function prepareNiftyBeesScenario({ costBasis = '100000', proceeds = '125000', sttConfirmed = false } = {}) {
+  fireEvent.click(screen.getByText('Use your own transaction facts'));
+  fireEvent.change(screen.getByLabelText(/Tax cost basis/i), { target: { value: costBasis } });
+  fireEvent.change(screen.getByLabelText(/Sale consideration/i), { target: { value: proceeds } });
+  fireEvent.change(screen.getByLabelText('Acquisition date'), { target: { value: '2024-05-01' } });
+  fireEvent.change(screen.getByLabelText('Sale date'), { target: { value: '2025-05-01' } });
+  fireEvent.change(screen.getByLabelText(/Section 112A exclusion already used/i), { target: { value: '0' } });
+  if (sttConfirmed) fireEvent.click(screen.getByLabelText(/I assume the applicable STT condition/i));
+  fireEvent.change(screen.getByLabelText(/Annual tax income before this scenario/i), { target: { value: '1000000' } });
+  fireEvent.change(screen.getByLabelText('Income source'), { target: { value: 'salary' } });
+  fireEvent.change(screen.getByLabelText('Tax regime'), { target: { value: 'new' } });
+  fireEvent.change(screen.getByLabelText('Fiscal year'), { target: { value: 'FY2025-26' } });
+  fireEvent.change(screen.getByLabelText(/Your age on March 31/i), { target: { value: '35' } });
+  fireEvent.click(screen.getByLabelText(/I confirm these entered tax facts cover my scenario/i));
+  return screen.getByRole('button', { name: /Calculate my scenario/i }).closest('form');
+}
+
+function declaredUnavailableEquityResponse(inputsUsed, overrides = {}) {
+  const response = declaredScenarioResponse(inputsUsed);
+  const unavailableResponse = { ...response };
+  delete unavailableResponse.exemptionApplied;
+  const grossGain = inputsUsed.saleProceeds - inputsUsed.acquisitionCostBasis;
+  return {
+    ...unavailableResponse,
+    status: 'UNAVAILABLE',
+    taxClass: 'EQUITY_MF_SECTION_112A',
+    grossGain,
+    taxableGain: null,
+    incrementalTax: null,
+    cess: null,
+    surcharge: null,
+    netGain: null,
+    transactionGainPct: null,
+    holdingPeriod: {
+      acquisitionDate: inputsUsed.acquisitionDate,
+      redemptionDate: inputsUsed.redemptionDate,
+      holdingPeriodBasis: 'EXACT_TRANSACTION_DATES',
+      basis: 'EXACT_USER_DECLARED_TRANSACTION_DATES',
+      isLongTerm: false,
+      thresholdMonths: 12,
+      thresholdDate: '2025-05-01',
+      holdingDays: 365,
+    },
+    unavailableReasons: ['EQUITY_TRANSFER_STT_CONDITION_NOT_ESTABLISHED'],
+    ...overrides,
+  };
+}
+
 function render(element, options) {
   if (element?.type === WhereToInvestTab) {
     element = React.cloneElement(element, {
@@ -135,9 +280,43 @@ describe('Beginner-First Where-To-Invest UX', () => {
     expect(screen.queryByText('Plan allocation')).toBeNull();
     expect(screen.queryByText('0%')).toBeNull();
 
-    view.rerender(<WhereToInvestTab inv={{ id: 'index_mf', name: 'Index Fund', allocation_pct: 0 }} userProfile={profile} recommendationMeta={CURRENT_RECOMMENDATION_META} />);
+    view.rerender(<WhereToInvestTab
+      inv={{ id: 'index_mf', name: 'Index Fund', allocation_pct: 0 }}
+      userProfile={profile}
+      recommendationMeta={{ ...CURRENT_RECOMMENDATION_META, instruments: [{ id: 'index_mf', name: 'Index Fund', allocation_pct: 0 }] }}
+    />);
     expect(screen.getByText('Plan allocation')).toBeVisible();
     expect(screen.getByText('0%')).toBeVisible();
+  });
+
+  it('does not call a catalog alternative or another profile version a plan recommendation', async () => {
+    const profile = { profileId: CURRENT_STATE_BINDING.profileId, version: CURRENT_STATE_BINDING.profileVersion };
+    const view = render(<WhereToInvestTab
+      inv={{ id: 'catalog_alternative', name: 'Catalog alternative', allocation_pct: 80 }}
+      userProfile={profile}
+      recommendationMeta={CURRENT_RECOMMENDATION_META}
+    />);
+
+    expect(screen.queryByText('YOUR PLAN RECOMMENDS')).toBeNull();
+    expect(screen.queryByText('Plan allocation')).toBeNull();
+
+    view.rerender(<WhereToInvestTab
+      inv={{ id: 'index_mf', name: 'Index Fund', allocation_pct: 40 }}
+      userProfile={{ ...profile, version: profile.version + 1 }}
+      recommendationMeta={CURRENT_RECOMMENDATION_META}
+    />);
+    expect(screen.queryByText('YOUR PLAN RECOMMENDS')).toBeNull();
+    expect(screen.queryByText('Plan allocation')).toBeNull();
+  });
+
+  it('uses the current recommendation metadata version when the profile response omits its version', () => {
+    render(<WhereToInvestTab
+      inv={{ id: 'index_mf', name: 'Index Fund', allocation_pct: null }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId }}
+      recommendationMeta={{ ...CURRENT_RECOMMENDATION_META, instruments: [{ id: 'index_mf', name: 'Index Fund', allocation_pct: 40 }] }}
+    />);
+
+    expect(screen.getByText('YOUR PLAN RECOMMENDS')).toBeVisible();
   });
 
   it('excludes an obsolete product response after profile-version replacement even if abort is ignored', async () => {
@@ -265,6 +444,19 @@ describe('Beginner-First Where-To-Invest UX', () => {
     expect(screen.queryByTestId('wti-product-ppf:fact')).toBeNull();
   });
 
+  it.each([
+    ['missing products', { financialStateBinding: CURRENT_STATE_BINDING }],
+    ['null products', { financialStateBinding: CURRENT_STATE_BINDING, products: null }],
+    ['non-array products', { financialStateBinding: CURRENT_STATE_BINDING, products: { id: 'not-a-list' } }],
+  ])('treats a malformed successful ranking response with %s as unavailable', async (_label, response) => {
+    api.rankInvestmentCandidates.mockResolvedValueOnce(response);
+    render(<WhereToInvestTab inv={{ id: 'ppf', name: 'PPF' }} userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: CURRENT_STATE_BINDING.profileVersion }} />);
+
+    expect(await screen.findByText(/Authoritative product ranking is temporarily unavailable/i)).toBeVisible();
+    expect(screen.queryByText(/No current source-qualified products are available/i)).toBeNull();
+    expect(screen.queryByTestId('wti-product-ppf:fact')).toBeNull();
+  });
+
   it('explains when production product data is unavailable because source reuse rights are not cleared', async () => {
     api.rankInvestmentCandidates.mockResolvedValueOnce({
       financialStateBinding: CURRENT_STATE_BINDING,
@@ -286,29 +478,15 @@ describe('Beginner-First Where-To-Invest UX', () => {
   });
 
   it('submits explicitly entered SBI interest and tax facts as a user-declared scenario', async () => {
-    api.computeUserDeclaredPostTaxScenario.mockResolvedValueOnce({
-      status: 'CALCULATED',
-      dataClass: 'USER_DECLARED_TRANSACTION',
-      inputBasis: 'USER_DECLARED_SCENARIO',
-      grossGain: 2500,
-      incrementalTax: 0,
-      netGain: 2500,
-      postTaxRatePct: null,
-      disclosure: 'These values were entered by you and are not verified market facts.',
-    });
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => declaredScenarioResponse(scenario));
     render(<UserDeclaredScenarioPanel
       canonicalInstrumentId="sbi_fd"
       instrumentName="SBI fixed deposit"
       initialAge={35}
       taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
     />);
-    fireEvent.click(screen.getByText('Use your own transaction facts'));
-    fireEvent.change(screen.getByLabelText(/Gross interest received in this fiscal year/i), { target: { value: '2500' } });
-    fireEvent.change(screen.getByLabelText(/Annual tax income before this scenario/i), { target: { value: '1000000' } });
-    fireEvent.change(screen.getByLabelText('Income source'), { target: { value: 'salary' } });
-    fireEvent.change(screen.getByLabelText('Tax regime'), { target: { value: 'new' } });
-    fireEvent.click(screen.getByLabelText(/I confirm these entered tax facts cover my scenario/i));
-    fireEvent.submit(screen.getByRole('button', { name: /Calculate my scenario/i }).closest('form'));
+    expect(screen.getByLabelText(/Your age on March 31/i)).toHaveValue(null);
+    fireEvent.submit(prepareSbiInterestScenario());
 
     await waitFor(() => expect(api.computeUserDeclaredPostTaxScenario).toHaveBeenCalledTimes(1));
     expect(api.computeUserDeclaredPostTaxScenario).toHaveBeenCalledWith(expect.objectContaining({
@@ -318,12 +496,209 @@ describe('Beginner-First Where-To-Invest UX', () => {
       annualGrossIncome: 1000000,
       incomeSource: 'salary',
       regime: 'new',
-      fiscalYear: 'FY2026-27',
+      fiscalYear: 'FY2025-26',
       userAge: 35,
     }));
     expect(await screen.findByText('Interest after tax')).toBeVisible();
     expect(screen.getAllByText(/not verified market facts/i)).toHaveLength(2);
     expect(screen.queryByText(/\d+(?:\.\d+)?%/)).toBeNull();
+  });
+
+  it.each([
+    ['fiscal year', scenario => ({ ...scenario, fiscalYear: 'FY2026-27' })],
+    ['age', scenario => ({ ...scenario, userAge: 36 })],
+    ['income', scenario => ({ ...scenario, annualGrossIncome: scenario.annualGrossIncome + 1 })],
+    ['income source', scenario => ({ ...scenario, incomeSource: 'business' })],
+    ['interest', scenario => ({ ...scenario, interestReceived: scenario.interestReceived + 1 })],
+  ])('rejects a user-declared result whose echoed %s differs from the submitted scenario', async (_field, alterEcho) => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => (
+      declaredScenarioResponse(alterEcho(scenario))
+    ));
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="sbi_fd"
+      instrumentName="SBI fixed deposit"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    fireEvent.submit(prepareSbiInterestScenario());
+
+    await waitFor(() => expect(api.computeUserDeclaredPostTaxScenario).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be calculated/i);
+    expect(screen.queryByText('Interest after tax')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['fiscal year', { fiscalYear: 'FY2026-27' }],
+    ['policy metadata', { policyVersion: null }],
+    ['calculation class', { calculationClass: 'MODELLED_POST_TAX_PROJECTION' }],
+    ['data class', { dataClass: 'MODEL_ASSUMPTION' }],
+    ['input basis', { inputBasis: 'PROVIDER_VERIFIED' }],
+    ['instrument identity', { canonicalInstrumentId: 'fd' }],
+    ['tax class', { taxClass: 'UNQUALIFIED_TAX_CLASS' }],
+    ['source qualification', { taxClassificationMetadata: { sourceQualified: false, taxClass: null } }],
+    ['status', { status: 'PENDING' }],
+    ['gross amount', { grossGain: Number.NaN }],
+    ['tax amount', { incrementalTax: Number.POSITIVE_INFINITY }],
+    ['net amount', { netGain: '2500' }],
+  ])('rejects a user-declared response with corrupted %s metadata or amount', async (_field, overrides) => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => (
+      declaredScenarioResponse(scenario, overrides)
+    ));
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="sbi_fd"
+      instrumentName="SBI fixed deposit"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    fireEvent.submit(prepareSbiInterestScenario());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be calculated/i);
+    expect(screen.queryByText('Interest after tax')).not.toBeInTheDocument();
+  });
+
+  it('preserves a valid explicitly unavailable equity result with null tax amounts', async () => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => (
+      declaredUnavailableEquityResponse(scenario)
+    ));
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="nifty_etf"
+      instrumentName="Nifty ETF"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    fireEvent.submit(prepareNiftyBeesScenario());
+
+    expect(await screen.findByText('No tax result calculated')).toBeVisible();
+    expect(screen.getByText(/STT condition was not confirmed/i)).toBeVisible();
+    expect(screen.queryByText('Incremental tax')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['fiscal year', { fiscalYear: 'FY2026-27' }],
+    ['scenario amount', { taxableGain: Number.POSITIVE_INFINITY }],
+    ['instrument metadata', { canonicalProductId: 'etf:isin:wrong' }],
+    ['tax classification', { taxClassificationMetadata: { sourceQualified: true, taxClass: 'WRONG_CLASS' } }],
+  ])('rejects corrupted unavailable equity %s while retaining null as a valid unavailable amount', async (_field, overrides) => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => (
+      declaredUnavailableEquityResponse(scenario, overrides)
+    ));
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="nifty_etf"
+      instrumentName="Nifty ETF"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    fireEvent.submit(prepareNiftyBeesScenario());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be calculated/i);
+    expect(screen.queryByText('No tax result calculated')).not.toBeInTheDocument();
+  });
+
+  it('accepts the explicit unsupported-fiscal-year status only with null policy metadata and amounts', async () => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => (
+      declaredScenarioResponse(scenario, {
+        status: 'FISCAL_YEAR_UNSUPPORTED',
+        fiscalYear: null,
+        policyVersion: null,
+        grossGain: null,
+        taxableGain: null,
+        incrementalTax: null,
+        cess: null,
+        surcharge: null,
+        netGain: null,
+        unavailableReasons: ['FISCAL_YEAR_UNSUPPORTED'],
+      })
+    ));
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="sbi_fd"
+      instrumentName="SBI fixed deposit"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    fireEvent.submit(prepareSbiInterestScenario());
+
+    expect(await screen.findByText('No tax result calculated')).toBeVisible();
+    expect(screen.getByText(/Verified tax policy is unavailable for that fiscal year/i)).toBeVisible();
+  });
+
+  it.each([
+    [17, false],
+    [18, true],
+    [120, true],
+    [121, false],
+    [18.5, false],
+  ])('accepts only whole-number ages from 18 through 120 for declared scenarios (%s)', async (age, isValid) => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementation(async scenario => declaredScenarioResponse(scenario));
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="sbi_fd"
+      instrumentName="SBI fixed deposit"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    const form = prepareSbiInterestScenario(age);
+    const ageInput = screen.getByLabelText(/Your age on March 31/i);
+
+    fireEvent.submit(form);
+
+    if (isValid) {
+      await waitFor(() => expect(api.computeUserDeclaredPostTaxScenario).toHaveBeenCalledTimes(1));
+      expect(api.computeUserDeclaredPostTaxScenario.mock.calls[0][0].userAge).toBe(age);
+      expect(await screen.findByText('Interest after tax')).toBeVisible();
+    } else {
+      expect(ageInput).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByRole('button', { name: /Calculate my scenario/i })).toBeDisabled();
+      expect(api.computeUserDeclaredPostTaxScenario).not.toHaveBeenCalled();
+      expect(screen.queryByText('Interest after tax')).not.toBeInTheDocument();
+    }
+  });
+
+  it('hides a resolved scenario if its instrument context changes', async () => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => declaredScenarioResponse(scenario));
+    const view = render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="sbi_fd"
+      instrumentName="SBI fixed deposit"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    fireEvent.submit(prepareSbiInterestScenario());
+    expect(await screen.findByText('Interest after tax')).toBeVisible();
+
+    view.rerender(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="fd"
+      instrumentName="Fixed deposit"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+
+    expect(screen.queryByText('Interest after tax')).not.toBeInTheDocument();
+  });
+
+  it('hides a resolved scenario as soon as the entered tax age changes', async () => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => declaredScenarioResponse(scenario));
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="sbi_fd"
+      instrumentName="SBI fixed deposit"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    fireEvent.submit(prepareSbiInterestScenario());
+    expect(await screen.findByText('Interest after tax')).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText(/Your age on March 31/i), { target: { value: '36' } });
+
+    expect(screen.queryByText('Interest after tax')).not.toBeInTheDocument();
+  });
+
+  it('requires the response to echo optional deductions exactly', async () => {
+    api.computeUserDeclaredPostTaxScenario.mockImplementationOnce(async scenario => (
+      declaredScenarioResponse({
+        ...scenario,
+        deductions: { ...scenario.deductions, section80C: 9999 },
+      })
+    ));
+    render(<UserDeclaredScenarioPanel
+      canonicalInstrumentId="sbi_fd"
+      instrumentName="SBI fixed deposit"
+      taxPolicyMetadata={{ currentFiscalYear: 'FY2026-27', currentFiscalYearVerified: true, verifiedFiscalYears: ['FY2025-26', 'FY2026-27'] }}
+    />);
+    const form = prepareSbiInterestScenario();
+    fireEvent.click(screen.getByText('Tax deductions (optional)'));
+    fireEvent.change(screen.getByLabelText(/Section 80C investments/i), { target: { value: '10000' } });
+    fireEvent.submit(form);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be calculated/i);
+    expect(screen.queryByText('Interest after tax')).not.toBeInTheDocument();
   });
 
   it('does not offer a user-entered tax result where product classification is unavailable', () => {
@@ -814,6 +1189,39 @@ describe('Beginner-First Where-To-Invest UX', () => {
     expect(screen.queryByText(/Official bank-published card rate/i)).toBeNull();
   });
 
+  it('explains specified-mutual-fund date inputs under the selected fiscal-year provision', async () => {
+    api.rankInvestmentCandidates.mockResolvedValueOnce({
+      financialStateBinding: CURRENT_STATE_BINDING,
+      products: [{
+        id: 'debt-mf:qualified',
+        name: 'Qualified debt fund',
+        parentInstrumentId: 'debt_mf',
+        postTaxAnalysis: {
+          status: 'REQUIRES_TAX_INPUTS',
+          requiredTaxInputs: ['annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear', 'userAge', 'acquisitionDate', 'redemptionDate'],
+        },
+      }],
+      ranking: { status: 'VERIFIED_COMPARABLE_OPTIONS' },
+    });
+    render(
+      <WhereToInvestTab
+        inv={{ id: 'debt_mf', name: 'Debt mutual fund', riskScore: 3 }}
+        userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, age: 40 }}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Exact-product tax illustration/i }));
+
+    const fiscalYear = screen.getByLabelText('Fiscal Year');
+    fireEvent.change(fiscalYear, { target: { value: 'FY2026-27' } });
+    expect(screen.getByText(/For this specified-mutual-fund illustration, Section 76 applies the acquisition cutoff and the selected fiscal-year rule/i)).toBeVisible();
+    fireEvent.change(fiscalYear, { target: { value: 'FY2025-26' } });
+    expect(screen.getByText(/For this specified-mutual-fund illustration, Section 50AA applies the acquisition cutoff and the selected fiscal-year rule/i)).toBeVisible();
+    expect(screen.getByLabelText('Acquisition date')).toBeVisible();
+    expect(screen.getByLabelText('Redemption date')).toBeVisible();
+    expect(screen.queryByLabelText(/Your holding period/i)).toBeNull();
+  });
+
   it('renders each backend-declared supported tax input without silently defaulting blank facts', async () => {
     api.rankInvestmentCandidates.mockResolvedValueOnce({
       financialStateBinding: CURRENT_STATE_BINDING,
@@ -838,9 +1246,24 @@ describe('Beginner-First Where-To-Invest UX', () => {
     expect(income).toHaveValue(null);
     expect(screen.getByLabelText(/Income source/i)).toBeVisible();
     expect(screen.getByLabelText(/Tax Regime/i)).toBeVisible();
-    expect(screen.getByLabelText(/Fiscal Year/i)).toBeVisible();
-    expect(screen.getByLabelText(/Your age/i)).toHaveValue(30);
+    const fiscalYear = screen.getByLabelText('Fiscal Year');
+    const age = screen.getByLabelText(/Your age on March 31/i);
+    expect(age).toHaveValue(null);
     expect(screen.getByRole('button', { name: /Apply & Calculate/i })).toBeVisible();
+
+    fireEvent.change(age, { target: { value: '30' } });
+    fireEvent.change(fiscalYear, { target: { value: 'FY2025-26' } });
+    expect(age).toHaveValue(null);
+    fireEvent.change(age, { target: { value: '31' } });
+    fireEvent.change(screen.getByLabelText(/Annual Gross Income/i), { target: { value: '1000000' } });
+    fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
+    fireEvent.change(screen.getByLabelText(/Tax Regime/i), { target: { value: 'new' } });
+    fireEvent.click(screen.getByRole('button', { name: /Apply & Calculate/i }));
+    await waitFor(() => expect(api.rankInvestmentCandidates).toHaveBeenCalledTimes(2));
+    expect(api.rankInvestmentCandidates.mock.calls[1][2]).toMatchObject({
+      fiscalYear: 'FY2025-26',
+      userAge: 31,
+    });
   });
 
   it('requires an explicit STT assumption and sends only user-entered tax context to the backend', async () => {
@@ -884,7 +1307,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
     fireEvent.change(screen.getByLabelText(/Annual Gross Income/i), { target: { value: '7500000' } });
     fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
     fireEvent.change(screen.getByLabelText(/Tax Regime/i), { target: { value: 'new' } });
-    fireEvent.change(screen.getByLabelText(/Fiscal Year/i), { target: { value: 'FY2026-27' } });
+    fireEvent.change(screen.getByLabelText('Fiscal Year'), { target: { value: 'FY2026-27' } });
     fireEvent.change(screen.getByLabelText(/Your age/i), { target: { value: '31' } });
     fireEvent.change(screen.getByLabelText(/Your holding period/i), { target: { value: '18' } });
     fireEvent.change(screen.getByLabelText(/Annual equity long-term gains exclusion already used/i), { target: { value: '0' } });

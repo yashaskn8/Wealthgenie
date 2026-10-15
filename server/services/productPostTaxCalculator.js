@@ -296,6 +296,20 @@ function isCanonicalIsoDate(value) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+function fiscalYearForIsoDate(value) {
+  if (!isCanonicalIsoDate(value)) return null;
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const fiscalYearStart = month >= 4 ? year : year - 1;
+  return 'FY' + fiscalYearStart + '-' + String(fiscalYearStart + 1).slice(-2);
+}
+
+function specifiedMutualFundProvision(fiscalYear) {
+  if (fiscalYear === 'FY2025-26') return 'Section 50AA';
+  if (fiscalYear === 'FY2026-27') return 'Section 76';
+  return null;
+}
+
 const PROVIDER_FETCH_CLOCK_SKEW_SECONDS = 120;
 // India Post may fetch its page plus up to 20 script chunks serially, each
 // with a 20-second request timeout. Its freshness age is measured only after
@@ -604,7 +618,9 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
       dataClass: 'UNAVAILABLE',
       assumptions,
       unavailableReasons: [taxMetadata.unavailableReason || 'TAX_CLASSIFICATION_UNAVAILABLE'],
-      disclosure: 'The qualified provider did not supply a tax classification for this product. No post-tax result is shown.',
+      disclosure: taxMetadata.unavailableReason === 'SPECIFIED_MUTUAL_FUND_ELIGIBILITY_EVIDENCE_UNAVAILABLE'
+        ? 'Verified annual-average portfolio-composition evidence for this exact mutual fund is unavailable. Its specified-mutual-fund tax treatment and post-tax result are not calculated.'
+        : 'The qualified provider did not supply a tax classification for this product. No post-tax result is shown.',
     });
   }
 
@@ -664,6 +680,85 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
   }
 
   const { annualIncome, regime, incomeSource, userAge, deductions } = taxContextValues(taxCalculationContext);
+  const exactCapitalGainsDateUnavailable = (reason, disclosure) => createAnalysis({
+    status: PRODUCT_TAX_STATUSES.TAX_CLASSIFICATION_UNAVAILABLE,
+    taxMetadata,
+    policy,
+    fiscalYear,
+    policyVersion: policy.policyVersion,
+    principal,
+    requiredTaxInputs,
+    dataClass: 'UNAVAILABLE',
+    assumptions,
+    unavailableReasons: [reason],
+    metricLabel: 'Historical 1Y after-tax return',
+    disclosure,
+    isHistoricalEstimate: true,
+  });
+  if (taxType === PRODUCT_TAX_CLASSES.DEBT_MF_50AA) {
+    const applicableProvision = specifiedMutualFundProvision(fiscalYear);
+    if (!isCanonicalIsoDate(taxCalculationContext.acquisitionDate)) {
+      return createAnalysis({
+        status: PRODUCT_TAX_STATUSES.TAX_CLASSIFICATION_UNAVAILABLE,
+        taxMetadata,
+        policy,
+        fiscalYear,
+        policyVersion: policy.policyVersion,
+        principal,
+        requiredTaxInputs,
+        dataClass: 'UNAVAILABLE',
+        assumptions,
+        unavailableReasons: ['SPECIFIED_MUTUAL_FUND_ACQUISITION_DATE_INVALID'],
+        disclosure: 'A valid exact acquisition date is required to evaluate the ' + applicableProvision + ' acquisition cutoff. No post-tax result is shown.',
+      });
+    }
+    const redemptionFiscalYear = fiscalYearForIsoDate(taxCalculationContext.redemptionDate);
+    if (!redemptionFiscalYear) {
+      return createAnalysis({
+        status: PRODUCT_TAX_STATUSES.TAX_CLASSIFICATION_UNAVAILABLE,
+        taxMetadata,
+        policy,
+        fiscalYear,
+        policyVersion: policy.policyVersion,
+        principal,
+        requiredTaxInputs,
+        dataClass: 'UNAVAILABLE',
+        assumptions,
+        unavailableReasons: ['SPECIFIED_MUTUAL_FUND_REDEMPTION_DATE_INVALID'],
+        disclosure: 'A valid exact redemption date is required to bind this tax result to its fiscal year.',
+      });
+    }
+    if (taxCalculationContext.redemptionDate < taxCalculationContext.acquisitionDate) {
+      return createAnalysis({
+        status: PRODUCT_TAX_STATUSES.TAX_CLASSIFICATION_UNAVAILABLE,
+        taxMetadata,
+        policy,
+        fiscalYear,
+        policyVersion: policy.policyVersion,
+        principal,
+        requiredTaxInputs,
+        dataClass: 'UNAVAILABLE',
+        assumptions,
+        unavailableReasons: ['CAPITAL_GAINS_TRANSACTION_DATE_ORDER_INVALID'],
+        disclosure: 'The redemption date cannot precede the acquisition date. No post-tax result is shown.',
+      });
+    }
+    if (redemptionFiscalYear !== fiscalYear) {
+      return createAnalysis({
+        status: PRODUCT_TAX_STATUSES.TAX_CLASSIFICATION_UNAVAILABLE,
+        taxMetadata,
+        policy,
+        fiscalYear,
+        policyVersion: policy.policyVersion,
+        principal,
+        requiredTaxInputs,
+        dataClass: 'UNAVAILABLE',
+        assumptions,
+        unavailableReasons: ['SPECIFIED_MUTUAL_FUND_REDEMPTION_FISCAL_YEAR_MISMATCH'],
+        disclosure: 'The redemption date belongs to ' + redemptionFiscalYear + ', which does not match the supplied fiscal year ' + fiscalYear + '. No post-tax result is shown.',
+      });
+    }
+  }
   if ([PRODUCT_TAX_CLASSES.BANK_DEPOSIT_INTEREST, PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST].includes(taxType)) {
     const calculationTime = normalizedDate(now);
     const rateSourceReferences = calculationTime
@@ -720,6 +815,22 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
     });
   }
 
+  if (taxType === PRODUCT_TAX_CLASSES.DEBT_MF_50AA
+      && taxCalculationContext.acquisitionDate < '2023-04-01') {
+    return createAnalysis({
+      status: PRODUCT_TAX_STATUSES.TAX_CLASSIFICATION_UNAVAILABLE,
+      taxMetadata,
+      policy,
+      fiscalYear,
+      policyVersion: policy.policyVersion,
+      principal,
+      requiredTaxInputs,
+      dataClass: 'UNAVAILABLE',
+      assumptions,
+      unavailableReasons: ['SPECIFIED_MUTUAL_FUND_ACQUISITION_CUTOFF_NOT_MET'],
+      disclosure: 'The applicable ' + specifiedMutualFundProvision(fiscalYear) + ' treatment applies only to eligible units acquired on or after 1 April 2023. This earlier acquisition requires a separately qualified tax rule.',
+    });
+  }
   const historicalFact = qualifiedHistoricalReturn(product, taxMetadata);
   const historicalRateValue = historicalFact?.valuePct;
   if (!hasExplicitFiniteNumber(historicalRateValue)) {
@@ -741,7 +852,9 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
   const historicalRate = toOptionalFinancialNumber(historicalRateValue);
   const grossGain = Math.round(principal * (historicalRate / 100));
   const holdingPeriodMonths = Number(taxCalculationContext.holdingPeriodMonths);
-  let holdingPeriodBasis = 'MODELLED_HOLDING_PERIOD';
+  let holdingPeriodBasis = taxType === PRODUCT_TAX_CLASSES.DEBT_MF_50AA
+    ? 'SPECIFIED_MUTUAL_FUND_ACQUISITION_CUTOFF_AND_REDEMPTION_FY'
+    : 'MODELLED_HOLDING_PERIOD';
   let holdingPeriodClassification = null;
   if ([PRODUCT_TAX_CLASSES.EQUITY_MF_112A, PRODUCT_TAX_CLASSES.EQUITY_MF_ELSS].includes(taxType)
       && (taxCalculationContext.acquisitionDate || taxCalculationContext.redemptionDate)) {
@@ -759,6 +872,31 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
         message: 'Acquisition and redemption dates are required together.',
         isHistoricalEstimate: true,
       });
+    }
+    if (!isCanonicalIsoDate(taxCalculationContext.acquisitionDate)) {
+      return exactCapitalGainsDateUnavailable(
+        'CAPITAL_GAINS_ACQUISITION_DATE_INVALID',
+        'A valid exact acquisition date is required to classify this capital-gains scenario. No post-tax result is shown.',
+      );
+    }
+    const redemptionFiscalYear = fiscalYearForIsoDate(taxCalculationContext.redemptionDate);
+    if (!redemptionFiscalYear) {
+      return exactCapitalGainsDateUnavailable(
+        'CAPITAL_GAINS_REDEMPTION_DATE_INVALID',
+        'A valid exact redemption date is required to bind this capital-gains result to its fiscal year.',
+      );
+    }
+    if (taxCalculationContext.redemptionDate < taxCalculationContext.acquisitionDate) {
+      return exactCapitalGainsDateUnavailable(
+        'CAPITAL_GAINS_TRANSACTION_DATE_ORDER_INVALID',
+        'The redemption date cannot precede the acquisition date. No post-tax result is shown.',
+      );
+    }
+    if (redemptionFiscalYear !== fiscalYear) {
+      return exactCapitalGainsDateUnavailable(
+        'CAPITAL_GAINS_REDEMPTION_FISCAL_YEAR_MISMATCH',
+        'The redemption date belongs to ' + redemptionFiscalYear + ', which does not match the supplied fiscal year ' + fiscalYear + '. No post-tax result is shown.',
+      );
     }
     const dateClassification = classifyHoldingPeriodByDates({
       acquisitionDate: taxCalculationContext.acquisitionDate,
@@ -796,7 +934,7 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
       assumptions: [...assumptions, 'HISTORICAL_RETURN_IS_NOT_A_FORECAST'],
       metricLabel: 'Historical 1Y after-tax return',
       historicalObservationWindowMonths: 12,
-      disclosure: 'HISTORICAL — NOT A FORECAST. Qualified debt mutual-fund tax metadata establishes the applicable slab treatment; the comparison uses the explicit holding period and current tax inputs. No future return is claimed.',
+      disclosure: 'HISTORICAL — NOT A FORECAST. The exact acquisition date binds the ' + specifiedMutualFundProvision(fiscalYear) + ' acquisition cutoff and the exact redemption date binds the applicable fiscal year; elapsed holding duration does not determine this tax classification. The comparison uses current tax inputs. No future return is claimed.',
       isHistoricalEstimate: true,
     });
   }

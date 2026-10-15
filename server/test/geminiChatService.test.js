@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import axios from 'axios';
-import { processChat } from '../services/geminiChatService.js';
+import { processChat as processChatService } from '../services/geminiChatService.js';
 import { AIToolOrchestrator } from '../services/aiToolOrchestrator.js';
 import { ConversationStateMachine, CONVERSATION_STATES } from '../services/conversationStateMachine.js';
 import { LayeredMemoryManager } from '../services/layeredMemoryManager.js';
@@ -11,14 +11,28 @@ import { ProviderManager } from '../services/providerAbstraction.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import FinancialProfileState from '../models/FinancialProfileState.js';
 import Recommendation from '../models/Recommendation.js';
+import RecommendationState from '../models/RecommendationState.js';
 import Goal from '../models/Goal.js';
 import User from '../models/User.js';
 import ConversationHistory from '../models/ConversationHistory.js';
+import { defaultChatSessionStore } from '../services/chatSessionStore.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
 import { installMockChatSessionStore } from './helpers/mockChatSessionStore.js';
 
 const mockUserId = '60d5ecb8b3b3a72d9c8e4a11';
 const mockSessionId = 'test-session-123';
+let defaultTestRateLimitOptions;
+
+function processChat(request, options = {}) {
+  return processChatService(request, {
+    rateLimitOptions: defaultTestRateLimitOptions,
+    groundedExplanationDependencies: {
+      getCache: async () => null,
+      setCache: async () => true,
+    },
+    ...options,
+  });
+}
 
 const mockUser = {
   _id: mockUserId,
@@ -62,6 +76,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
   let originalProfileFindOne;
   let originalProfileStateFindOne;
   let originalRecFindOne;
+  let originalRecommendationStateFindOne;
   let originalGoalFind;
   let originalUserFindById;
   let originalConvFindOne;
@@ -77,6 +92,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     originalProfileFindOne = FinancialProfile.findOne;
     originalProfileStateFindOne = FinancialProfileState.findOne;
     originalRecFindOne = Recommendation.findOne;
+    originalRecommendationStateFindOne = RecommendationState.findOne;
     originalGoalFind = Goal.find;
     originalUserFindById = User.findById;
     originalConvFindOne = ConversationHistory.findOne;
@@ -85,6 +101,11 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     originalEnvNvidia = process.env.NVIDIA_API_KEY;
     originalPrimaryProvider = process.env.LLM_PRIMARY_PROVIDER;
     savedMessages = [];
+    defaultTestRateLimitOptions = {
+      env: { NODE_ENV: 'test' },
+      localHits: new Map(),
+      getRedisState: () => ({ client: null, available: false }),
+    };
 
     process.env.GEMINI_API_KEY = 'mock-gemini-key';
     process.env.GROQ_API_KEY = 'mock-groq-key';
@@ -115,6 +136,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
         lean: async () => null,
       }),
     });
+    RecommendationState.findOne = () => ({ lean: async () => null });
 
     Goal.find = () => ({
       sort: () => ({
@@ -151,6 +173,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     FinancialProfile.findOne = originalProfileFindOne;
     FinancialProfileState.findOne = originalProfileStateFindOne;
     Recommendation.findOne = originalRecFindOne;
+    RecommendationState.findOne = originalRecommendationStateFindOne;
     Goal.find = originalGoalFind;
     User.findById = originalUserFindById;
     ConversationHistory.findOne = originalConvFindOne;
@@ -171,7 +194,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     const result = await processChat({
       userId: mockUserId,
       user: mockUser,
-      message: 'Rebalance portfolio',
+      message: 'Rebalance my portfolio.',
       sessionId: mockSessionId,
     });
 
@@ -185,6 +208,278 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.equal(result.explainability, undefined);
     assert.equal(result.governance, undefined);
     assert.match(result.response, /Moderate \[E_PROFILE_RISK\]/);
+  });
+
+  it('replays a completed turn by its stable key without another provider call or quota charge', async () => {
+    let providerCalls = 0;
+    axios.post = async url => {
+      if (url.includes('generativelanguage.googleapis.com')) {
+        providerCalls += 1;
+        return groundedGeminiPayload();
+      }
+      throw new Error('Unexpected URL');
+    };
+    const rateOptions = {
+      env: { NODE_ENV: 'test' },
+      localHits: new Map(),
+      now: () => 10_000,
+      getRedisState: () => ({ client: null, available: false }),
+    };
+    const request = {
+      userId: mockUserId,
+      user: mockUser,
+      message: 'Explain my suitability.',
+      sessionId: mockSessionId,
+      idempotencyKey: 'stable-chat-turn-001',
+    };
+
+    const first = await processChat(request, { rateLimitOptions: rateOptions });
+    const replay = await processChat(request, { rateLimitOptions: rateOptions });
+
+    assert.equal(providerCalls, 1);
+    assert.equal(savedMessages.length, 2);
+    assert.equal(first.idempotent_replay, false);
+    assert.equal(replay.idempotent_replay, true);
+    assert.equal(replay.response, first.response);
+    assert.equal(rateOptions.localHits.get(`chat:ratelimit:${mockUserId}`).count, 1);
+  });
+
+  it('rejects a completed receipt replay when the financial binding changes during receipt lookup', async () => {
+    let revision = 1;
+    let providerCalls = 0;
+    const originalFindReceipt = defaultChatSessionStore.findReceipt;
+    const rateLimitOptions = {
+      env: { NODE_ENV: 'test' }, localHits: new Map(), now: () => 10_000,
+      getRedisState: () => ({ client: null, available: false }),
+    };
+    FinancialProfileState.findOne = query => ({
+      lean: async () => (String(query?.userId) === mockUserId ? {
+        userId: mockUserId,
+        currentProfileId: mockProfile._id,
+        revision,
+        promotionFence: 0,
+        resolutionStatus: 'CURRENT',
+      } : null),
+    });
+    axios.post = async url => {
+      if (url.includes('generativelanguage.googleapis.com')) {
+        providerCalls += 1;
+        return groundedGeminiPayload();
+      }
+      throw new Error('Unexpected URL');
+    };
+    const request = {
+      userId: mockUserId,
+      user: mockUser,
+      message: 'Explain my suitability.',
+      sessionId: mockSessionId,
+      idempotencyKey: 'stale-replay-001',
+    };
+
+    try {
+      await processChat(request, { rateLimitOptions });
+      defaultChatSessionStore.findReceipt = async args => {
+        const receipt = await originalFindReceipt(args);
+        revision = 2;
+        return receipt;
+      };
+      await assert.rejects(processChat(request, { rateLimitOptions }), error => {
+        assert.equal(error.status, 409);
+        assert.equal(error.code, 'CHAT_PROFILE_STATE_CHANGED');
+        return true;
+      });
+      assert.equal(providerCalls, 1);
+      assert.equal(savedMessages.length, 2);
+    } finally {
+      defaultChatSessionStore.findReceipt = originalFindReceipt;
+    }
+  });
+
+  it('rejects reuse of a completed chat key for different message text', async () => {
+    let providerCalls = 0;
+    axios.post = async url => {
+      if (url.includes('generativelanguage.googleapis.com')) {
+        providerCalls += 1;
+        return groundedGeminiPayload();
+      }
+      throw new Error('Unexpected URL');
+    };
+    const request = {
+      userId: mockUserId,
+      user: mockUser,
+      message: 'Explain my suitability.',
+      sessionId: mockSessionId,
+      idempotencyKey: 'stable-chat-turn-002',
+    };
+    const rateLimitOptions = {
+      env: { NODE_ENV: 'test' }, localHits: new Map(), now: () => 10_000,
+      getRedisState: () => ({ client: null, available: false }),
+    };
+    await processChat(request, { rateLimitOptions });
+
+    await assert.rejects(processChat({ ...request, message: 'Tell me something else.' }, { rateLimitOptions }), error => {
+      assert.equal(error.status, 409);
+      assert.equal(error.code, 'CHAT_IDEMPOTENCY_KEY_REUSED');
+      return true;
+    });
+    assert.equal(providerCalls, 1);
+    assert.equal(savedMessages.length, 2);
+  });
+
+  it('uses only a bounded, provenance-matched prior pair for follow-up context', async () => {
+    let secondPrompt;
+    let call = 0;
+    const rateLimitOptions = {
+      env: { NODE_ENV: 'test' }, localHits: new Map(), now: () => 10_000,
+      getRedisState: () => ({ client: null, available: false }),
+    };
+    axios.post = async (url, body) => {
+      if (url.includes('generativelanguage.googleapis.com')) {
+        call += 1;
+        if (call === 2) secondPrompt = JSON.parse(body.contents[0].parts[0].text);
+        return groundedGeminiPayload();
+      }
+      throw new Error('Unexpected URL');
+    };
+
+    await processChat({ userId: mockUserId, user: mockUser, message: 'Explain suitability.', sessionId: mockSessionId, idempotencyKey: 'context-first-001' }, { rateLimitOptions });
+    await processChat({ userId: mockUserId, user: mockUser, message: 'Can you explain that simply?', sessionId: mockSessionId, idempotencyKey: 'context-second-001' }, { rateLimitOptions });
+
+    assert.deepEqual(secondPrompt.PRIOR_TURNS_UNTRUSTED.map(turn => turn.role), ['user', 'model']);
+    assert.equal(secondPrompt.PRIOR_TURNS_UNTRUSTED[0].content, 'Explain suitability.');
+    assert.equal(JSON.stringify(secondPrompt.PRIOR_TURNS_UNTRUSTED).includes('citations'), false);
+  });
+
+  it('does not persist or return an answer when the financial binding changes during generation', async () => {
+    let revision = 1;
+    const rateLimitOptions = {
+      env: { NODE_ENV: 'test' }, localHits: new Map(), now: () => 10_000,
+      getRedisState: () => ({ client: null, available: false }),
+    };
+    FinancialProfileState.findOne = query => ({
+      lean: async () => (String(query?.userId) === mockUserId ? {
+        userId: mockUserId,
+        currentProfileId: mockProfile._id,
+        revision,
+        promotionFence: 0,
+        resolutionStatus: 'CURRENT',
+      } : null),
+    });
+    axios.post = async url => {
+      if (url.includes('generativelanguage.googleapis.com')) {
+        revision = 2;
+        return groundedGeminiPayload();
+      }
+      throw new Error('Unexpected URL');
+    };
+
+    await assert.rejects(processChat({
+      userId: mockUserId,
+      user: mockUser,
+      message: 'Explain suitability.',
+      sessionId: mockSessionId,
+      idempotencyKey: 'stale-binding-001',
+    }, { rateLimitOptions }), error => {
+      assert.equal(error.status, 409);
+      assert.equal(error.code, 'CHAT_PROFILE_STATE_CHANGED');
+      return true;
+    });
+    assert.equal(savedMessages.length, 0);
+  });
+
+  it('rechecks the financial binding after quota admission and before the provider receives evidence', async () => {
+    let revision = 1;
+    let providerCalls = 0;
+    const settledUsage = [];
+    const rateLimitOptions = {
+      env: { NODE_ENV: 'test' }, localHits: new Map(), now: () => 10_000,
+      getRedisState: () => ({ client: null, available: false }),
+    };
+    FinancialProfileState.findOne = query => ({
+      lean: async () => (String(query?.userId) === mockUserId ? {
+        userId: mockUserId,
+        currentProfileId: mockProfile._id,
+        revision,
+        promotionFence: 0,
+        resolutionStatus: 'CURRENT',
+      } : null),
+    });
+    axios.post = async url => {
+      if (url.includes('generativelanguage.googleapis.com')) {
+        providerCalls += 1;
+        return groundedGeminiPayload();
+      }
+      throw new Error('Unexpected URL');
+    };
+
+    await assert.rejects(processChat({
+      userId: mockUserId,
+      user: mockUser,
+      message: 'Explain my suitability.',
+      sessionId: mockSessionId,
+      idempotencyKey: 'admission-binding-race-001',
+    }, {
+      rateLimitOptions,
+      reserveProviderAttempt: async () => {
+        revision = 2;
+        return { reservationId: 'admission-race', tokens: 90 };
+      },
+      settleProviderAttempt: async ({ actualTokens }) => {
+        settledUsage.push(actualTokens);
+        return { settled: true };
+      },
+    }), error => {
+      assert.equal(error.status, 409);
+      assert.equal(error.code, 'CHAT_PROFILE_STATE_CHANGED');
+      return true;
+    });
+
+    assert.equal(providerCalls, 0, 'provider must not receive stale evidence');
+    assert.deepEqual(settledUsage, [0], 'a provider attempt rejected before invocation incurs no usage');
+    assert.equal(savedMessages.length, 0);
+  });
+
+  it('discards a completed turn if the financial binding changes during persistence', async () => {
+    let revision = 1;
+    const originalComplete = defaultChatSessionStore.complete;
+    const originalFindOne = FinancialProfileState.findOne;
+    FinancialProfileState.findOne = query => ({
+      lean: async () => (String(query?.userId) === mockUserId ? {
+        userId: mockUserId,
+        currentProfileId: mockProfile._id,
+        revision,
+        promotionFence: 0,
+        resolutionStatus: 'CURRENT',
+      } : null),
+    });
+    defaultChatSessionStore.complete = async args => {
+      const completedTurn = await originalComplete(args);
+      revision = 2;
+      return completedTurn;
+    };
+
+    axios.post = async url => {
+      if (url.includes('generativelanguage.googleapis.com')) return groundedGeminiPayload();
+      throw new Error('Unexpected URL');
+    };
+
+    try {
+      await assert.rejects(processChat({
+        userId: mockUserId,
+        user: mockUser,
+        message: 'Explain suitability.',
+        sessionId: mockSessionId,
+        idempotencyKey: 'post-persist-binding-001',
+      }), error => {
+        assert.equal(error.status, 409);
+        assert.equal(error.code, 'CHAT_PROFILE_STATE_CHANGED');
+        return true;
+      });
+      assert.equal(savedMessages.length, 0);
+    } finally {
+      defaultChatSessionStore.complete = originalComplete;
+      FinancialProfileState.findOne = originalFindOne;
+    }
   });
 
   it('reports the precise quota reset after the final successful chat message and on the next denial', async () => {
@@ -356,7 +651,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     const result = await processChat({
       userId: mockUserId,
       user: mockUser,
-      message: 'What is diversification?',
+      message: 'How does diversification affect my portfolio?',
       sessionId: mockSessionId,
     });
 
@@ -374,7 +669,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     const result = await processChat({
       userId: mockUserId,
       user: mockUser,
-      message: 'Rebalance portfolio advice',
+      message: 'Rebalance my portfolio.',
       sessionId: mockSessionId,
     });
 

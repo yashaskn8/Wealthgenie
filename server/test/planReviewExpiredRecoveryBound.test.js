@@ -225,11 +225,14 @@ test('worker shutdown waits for in-flight mandate reconciliation and ignores sta
 test('worker shutdown tracks the poll before queue claim and skips claiming after drain starts', async () => {
   let releaseQueueMetrics;
   const queueMetrics = new Promise(resolve => { releaseQueueMetrics = resolve; });
+  let notifyQueueMetricRead;
+  const queueMetricReadStarted = new Promise(resolve => { notifyQueueMetricRead = resolve; });
   let queueMetricReads = 0;
   let claims = 0;
   const model = {
     findOne() {
       queueMetricReads += 1;
+      notifyQueueMetricRead();
       const query = {
         sort() { return query; },
         lean: () => queueMetrics,
@@ -248,19 +251,26 @@ test('worker shutdown tracks the poll before queue claim and skips claiming afte
       return { callback, delay, unref() {} };
     },
     clearIntervalImpl() {},
+    setTimeoutImpl(callback) {
+      const timeout = { cleared: false, unref() {} };
+      queueMicrotask(() => { if (!timeout.cleared) callback(); });
+      return timeout;
+    },
+    clearTimeoutImpl(timeout) { timeout.cleared = true; },
     recoverExpiredRunsImpl: async () => 0,
     reconcileMandatesImpl: async () => ({ scanned: 0 }),
   });
 
   worker.start();
-  await new Promise(resolve => setImmediate(resolve));
+  const initialPoll = worker.pollPromise;
+  await queueMetricReadStarted;
   assert.equal(queueMetricReads, 1, 'the worker began its queue-metrics read');
   assert.equal(await worker.processNext(), false, 'a second poll cannot overlap the pending first poll');
   assert.equal(queueMetricReads, 1, 'single-flight polling prevents a duplicate queue-metrics read');
   assert.deepEqual(await worker.stop({ graceMs: 0 }), { drained: false }, 'shutdown reports pending Mongo polling as undrained');
 
   releaseQueueMetrics(null);
-  await new Promise(resolve => setImmediate(resolve));
+  await initialPoll;
   assert.equal(claims, 0, 'no queue claim is attempted after draining begins');
   assert.deepEqual(await worker.stop({ graceMs: 1000 }), { drained: true });
 });
@@ -303,6 +313,12 @@ test('a late queue claim during shutdown is fenced back to queued without starti
       return { callback, delay, unref() {} };
     },
     clearIntervalImpl() {},
+    setTimeoutImpl(callback) {
+      const timeout = { cleared: false, unref() {} };
+      queueMicrotask(() => { if (!timeout.cleared) callback(); });
+      return timeout;
+    },
+    clearTimeoutImpl(timeout) { timeout.cleared = true; },
     recoverExpiredRunsImpl: async () => 0,
     reconcileMandatesImpl: async () => ({ scanned: 0 }),
     runPlanReviewImpl: async () => {
@@ -312,11 +328,12 @@ test('a late queue claim during shutdown is fenced back to queued without starti
   });
 
   worker.start();
+  const initialPoll = worker.pollPromise;
   await claimStarted;
   assert.deepEqual(await worker.stop({ graceMs: 0 }), { drained: false }, 'shutdown cannot claim the poll drained before Mongo settles');
 
   releaseClaim(claimedRun);
-  await new Promise(resolve => setImmediate(resolve));
+  await initialPoll;
   assert.equal(providerCalls, 0, 'a claim returned during shutdown does not start PlanReview execution');
   assert.ok(releaseUpdate, 'the unstarted queue lease is compare-and-set back to queued');
   assert.deepEqual(releaseUpdate.filter, {

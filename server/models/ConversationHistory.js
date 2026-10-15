@@ -40,12 +40,21 @@ const MessageSchema = new mongoose.Schema({
     financialProfileStateRevision: { type: Number, min: 0, validate: Number.isSafeInteger },
     profileVersion: { type: Number, min: 1 },
     profileInputHash: { type: String, match: /^[a-f0-9]{64}$/ },
+    client_turn_hash: { type: String, match: /^[a-f0-9]{64}$/ },
     recommendationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Recommendation' },
     allocationRevisionId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecommendationAllocationRevision' },
     recommendationFingerprint: { type: String, match: /^[a-f0-9]{64}$/ },
     portfolioFingerprint: { type: String, match: /^[a-f0-9]{64}$/ },
   },
 });
+
+const TurnReceiptSchema = new mongoose.Schema({
+  keyHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+  clientKeyHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+  requestHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+  response: { type: mongoose.Schema.Types.Mixed, required: true },
+  createdAt: { type: Date, required: true },
+}, { _id: false, strict: true });
 
 const ConversationHistorySchema = new mongoose.Schema({
   userId: {
@@ -77,6 +86,9 @@ const ConversationHistorySchema = new mongoose.Schema({
   processing_owner_id: { type: String, default: null, select: false },
   processing_lease_until: { type: Date, default: null, select: false },
   messages: [MessageSchema],
+  // Kept independently of the visible message cap so a lost-response retry
+  // can replay its accepted turn without calling a provider again.
+  turnReceipts: { type: [TurnReceiptSchema], default: [] },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
   message_count: { type: Number, default: 0 },

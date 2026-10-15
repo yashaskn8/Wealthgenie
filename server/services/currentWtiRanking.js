@@ -33,11 +33,11 @@ function conflict(code, message) {
   return error;
 }
 
-function invalidTaxProfileAge() {
-  const error = new Error('Tax age must match the age in the saved Financial Profile.');
+function invalidTaxYearAge() {
+  const error = new Error('Tax age for the selected fiscal year must be an integer from 18 to 120.');
   error.status = 400;
-  error.code = 'TAX_PROFILE_AGE_MISMATCH';
-  error.clientMessage = 'Refresh your saved Financial Profile before requesting a tax illustration.';
+  error.code = 'TAX_YEAR_AGE_INVALID';
+  error.clientMessage = 'Enter a valid age for the selected fiscal year before requesting a tax illustration.';
   return error;
 }
 
@@ -74,8 +74,11 @@ export async function rankWtiAgainstCurrentState({
   const profile = profileBuilder(state.profile);
   const suppliedAges = [taxCalculationContext?.userAge, taxCalculationContext?.deductions?.age]
     .filter(age => age !== undefined && age !== null);
-  if (suppliedAges.some(age => !Number.isInteger(age) || age !== profile.age)) {
-    throw invalidTaxProfileAge();
+  if (suppliedAges.some(age => !Number.isInteger(age) || age < 18 || age > 120)) {
+    throw invalidTaxYearAge();
+  }
+  if (new Set(suppliedAges).size > 1) {
+    throw invalidTaxYearAge();
   }
 
   const ranked = await rankProducts(

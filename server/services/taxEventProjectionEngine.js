@@ -753,9 +753,25 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       balance += row.contribution + row.interest;
       pendingInterest += row.interest;
       if (row.month % 12 === 0 || row.month === gross.totalMonths) {
-        const tax = calculateOrdinaryIncrementalTax({ grossGain: pendingInterest, context });
+        if (!Number.isInteger(context.userAge) || context.userAge < 18 || context.userAge > 120) {
+          throw new TypeError('userAge must be explicitly provided as an integer from 18 to 120 for projected annual tax events');
+        }
+        // `userAge` is the explicit age on March 31 of `context.fiscalYear`.
+        // This projection has no calendar start date or future-FY tax policy
+        // input, so it cannot truthfully derive ages for later fiscal years.
+        // Keep both the selected-FY policy and its verified age fixed for every
+        // modeled event instead of inferring a future age from event order.
+        const taxpayerAgeForSelectedFiscalYear = context.userAge;
+        const eventContext = { ...context, userAge: taxpayerAgeForSelectedFiscalYear };
+        const tax = calculateOrdinaryIncrementalTax({ grossGain: pendingInterest, context: eventContext });
         balance -= tax.taxAmount;
-        taxEvents.push({ month: row.month, grossIncome: pendingInterest, tax: tax.taxAmount, timing: 'ANNUAL_TAX_EVENT' });
+        taxEvents.push({
+          month: row.month,
+          grossIncome: pendingInterest,
+          tax: tax.taxAmount,
+          timing: 'ANNUAL_TAX_EVENT',
+          taxpayerAgeForSelectedFiscalYear,
+        });
         pendingInterest = 0;
       }
     }
@@ -852,6 +868,13 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
     assumptions: [
       'GROSS_CASH_FLOWS_FIRST_THEN_TAX_EVENTS_THEN_POST_TAX_FLOWS',
       'TAX_POLICY_HELD_CONSTANT_FOR_PROJECTION',
+      'SELECTED_VERIFIED_FISCAL_YEAR_POLICY_HELD_CONSTANT_AS_MODEL_ASSUMPTION',
+      ...(taxEventModel === 'ORDINARY_INTEREST_ANNUAL_INCREMENTAL_TAX_EVENTS'
+        ? [
+          'SELECTED_FISCAL_YEAR_TAXPAYER_AGE_HELD_CONSTANT_FOR_PROJECTED_TAX_EVENTS',
+          'TDS_REMAINS_INFORMATIONAL_CREDIT_NOT_AN_EXTRA_PROJECTED_TAX_SUBTRACTION',
+        ]
+        : []),
       ...(exactDatesSupplied ? ['EXACT_TRANSACTION_DATES_OWN_PROJECTION_HORIZON'] : ['MODELLED_MONTHLY_LOTS']),
     ],
   };

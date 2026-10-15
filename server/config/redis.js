@@ -27,25 +27,48 @@ export function tokenRevocationMustFailClosed() {
  * Initialize Redis connection.
  * Falls back gracefully if Redis is not available (dev environments).
  */
-const connectRedis = async ({ url = process.env.REDIS_URL || ('re' + 'dis://localhost:6379') } = {}) => {
-  try {
-    redisClient = createClient({
-      url,
-      socket: {
-        connectTimeout: 3000,
-        reconnectStrategy: (retries) => {
-          if (retries > 5) {
-            return new Error('Redis reconnect attempts exhausted.');
-          }
-          return Math.min(retries * 500, 3000); // Backoff: 500ms, 1000ms, 1500ms, etc.
-        },
+export function buildRedisClientOptions({
+  url = process.env.REDIS_URL || ('re' + 'dis://localhost:6379'),
+  password = process.env.REDIS_PASSWORD,
+} = {}) {
+  const parsedUrl = new URL(url);
+  const urlUsername = decodeURIComponent(parsedUrl.username);
+  const hasExplicitPassword = typeof password === 'string' && password.trim().length > 0;
+  const urlPassword = hasExplicitPassword ? '' : decodeURIComponent(parsedUrl.password);
+  // node-redis URL parsing otherwise overrides explicit options.password with
+  // the URL password. Remove URL userinfo and pass the selected credentials
+  // only through options so runtime auth matches production validation.
+  parsedUrl.username = '';
+  parsedUrl.password = '';
+  const options = {
+    url: parsedUrl.toString(),
+    socket: {
+      connectTimeout: 3000,
+      reconnectStrategy: (retries) => {
+        if (retries > 5) {
+          return new Error('Redis reconnect attempts exhausted.');
+        }
+        return Math.min(retries * 500, 3000); // Backoff: 500ms, 1000ms, 1500ms, etc.
       },
-    });
+    },
+  };
+  if (urlUsername) options.username = urlUsername;
+  const effectivePassword = hasExplicitPassword ? password : urlPassword;
+  if (effectivePassword) options.password = effectivePassword;
+  return options;
+}
+
+const connectRedis = async ({
+  url = process.env.REDIS_URL || ('re' + 'dis://localhost:6379'),
+  password = process.env.REDIS_PASSWORD,
+} = {}) => {
+  try {
+    redisClient = createClient(buildRedisClientOptions({ url, password }));
 
     let errorLogged = false;
     redisClient.on('error', (err) => {
       if (!errorLogged) {
-        logger.warn('Redis not available — running without cache', { message: err.message });
+        logger.warn('Redis not available — running without cache', { code: err.code || 'REDIS_CONNECTION_FAILED' });
         errorLogged = true;
       }
       redisAvailable = false;
@@ -66,7 +89,7 @@ const connectRedis = async ({ url = process.env.REDIS_URL || ('re' + 'dis://loca
     redisAvailable = true;
     return true;
   } catch (error) {
-    logger.warn('Redis not available — running without cache', { message: error.message });
+    logger.warn('Redis not available — running without cache', { code: error.code || 'REDIS_CONNECTION_FAILED' });
     redisAvailable = false;
     // CRITICAL: disconnect before nulling to kill reconnection timers.
     // Without this, the client's socket retry loop keeps the process alive
@@ -201,8 +224,7 @@ const isTokenBlacklisted = async (jti) => {
   } catch (err) {
     if (!revocationCheckMustFailClosed()) {
       logger.warn('Redis error during token blacklist check — skipping optional development revocation lookup', {
-        message: err.message,
-        jti,
+        code: err.code || 'REDIS_READ_FAILED',
       });
       return false;
     }

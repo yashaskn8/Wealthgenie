@@ -419,7 +419,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="result-icon icon-green">
             <ArrowUpRight size={20} />
           </div>
-          <span className="result-label">Extra Wealth Gained</span>
+          <span className="result-label">Extra projected corpus</span>
           <span className="result-value text-green">+ {formatCompactINR(additionalCorpus)}</span>
           <span className="result-sub text-green-bold">{additionalPercent === null ? 'Projection unavailable' : `${additionalPercent}% more projected corpus`}</span>
         </motion.div>

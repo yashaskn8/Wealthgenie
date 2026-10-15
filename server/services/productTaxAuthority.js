@@ -235,6 +235,15 @@ export function getProductTaxMetadata(product = {}, parentInstrumentId = product
     return copyNiftyBeesTaxMetadata();
   }
 
+  // A generic `sourceQualified` flag and a fund label do not establish that
+  // the fund crossed the statutory annual-average portfolio threshold. The
+  // current AMFI product contract does not carry that product-bound evidence,
+  // so no explicit metadata object may activate the specified-mutual-fund tax
+  // calculation until a qualified evidence adapter exists.
+  if (explicit?.taxClass === PRODUCT_TAX_CLASSES.DEBT_MF_50AA) {
+    return unavailableTaxMetadata('SPECIFIED_MUTUAL_FUND_ELIGIBILITY_EVIDENCE_UNAVAILABLE');
+  }
+
   if (explicit?.sourceQualified === true && VALID_EXPLICIT_CLASSES.has(explicit.taxClass)) {
     return {
       sourceQualified: true,
@@ -304,7 +313,7 @@ export function getRequiredTaxInputs(taxClass) {
     return ['annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear', 'userAge', 'redemptionChannel', 'acquiredAtOriginalIssue', 'heldContinuously'];
   }
   if (taxClass === PRODUCT_TAX_CLASSES.DEBT_MF_50AA) {
-    return ['annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear', 'userAge', 'holdingPeriodMonths'];
+    return ['annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear', 'userAge', 'acquisitionDate', 'redemptionDate'];
   }
   if ([PRODUCT_TAX_CLASSES.EQUITY_MF_112A, PRODUCT_TAX_CLASSES.EQUITY_MF_ELSS].includes(taxClass)) {
     return [

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classifyHoldingPeriodByDates,
+  computeTax,
   getCurrentFiscalYear,
 } from '../services/taxEngine.js';
 import {
@@ -233,6 +234,106 @@ test('Gold ETF remains unavailable without source-qualified product composition 
   assert.equal(result.postTaxReturn, null);
 });
 
+function expectedOrdinaryIncrementalTaxForAge(context, grossIncome, userAge) {
+  const deductions = { ...(context.deductions || {}), age: userAge };
+  const baseline = computeTax(
+    context.annualGrossIncome, context.regime, deductions, context.incomeSource,
+    context.fiscalYear, userAge,
+  );
+  const withIncome = computeTax(
+    context.annualGrossIncome + grossIncome, context.regime, deductions, context.incomeSource,
+    context.fiscalYear, userAge,
+  );
+  return Math.max(0, withIncome.taxAmount - baseline.taxAmount);
+}
+
+function makeAgeBoundaryProjection(userAge, annualGrossIncome) {
+  const context = {
+    annualGrossIncome,
+    regime: 'old',
+    incomeSource: 'salary',
+    fiscalYear: FY,
+    userAge,
+    deductions: {},
+  };
+  const instrument = { nominalRate: 0.07, monthlySIP: 30_000, holdingYears: 2 };
+  const result = calculatePostTaxReturn(
+    'FD', instrument.nominalRate, annualGrossIncome, instrument.holdingYears,
+    context.regime, instrument.monthlySIP, userAge, context.incomeSource,
+    undefined, FY, { deductions: {} },
+  );
+  assert.equal(result.status, 'CALCULATED');
+  return { context, instrument, result, projection: calculatePostTaxProjection(result, instrument, 0, context) };
+}
+
+test('ordinary-interest projection holds the selected fiscal-year age across unanchored events', () => {
+  const { context, projection } = makeAgeBoundaryProjection(59, 545_000);
+  assert.equal(projection.status, 'CALCULATED');
+  assert.deepEqual(projection.taxEvents.map(event => event.taxpayerAgeForSelectedFiscalYear), [59, 59]);
+  assert.ok(projection.taxEvents.every(event => !('projectedFiscalYearOffset' in event)));
+  for (const event of projection.taxEvents) {
+    assert.equal(event.tax, expectedOrdinaryIncrementalTaxForAge(
+      context, event.grossIncome, event.taxpayerAgeForSelectedFiscalYear,
+    ));
+  }
+  assert.ok(projection.taxEvents[0].tax > 0);
+  assert.ok(projection.assumptions.includes(
+    'SELECTED_FISCAL_YEAR_TAXPAYER_AGE_HELD_CONSTANT_FOR_PROJECTED_TAX_EVENTS',
+  ));
+  assert.ok(projection.assumptions.includes(
+    'SELECTED_VERIFIED_FISCAL_YEAR_POLICY_HELD_CONSTANT_AS_MODEL_ASSUMPTION',
+  ));
+});
+
+test('ordinary-interest projection preserves selected ages at the 80-year and maximum-age boundaries', () => {
+  const { context, projection } = makeAgeBoundaryProjection(79, 535_000);
+  assert.equal(projection.status, 'CALCULATED');
+  assert.deepEqual(projection.taxEvents.map(event => event.taxpayerAgeForSelectedFiscalYear), [79, 79]);
+  for (const event of projection.taxEvents) {
+    assert.equal(event.tax, expectedOrdinaryIncrementalTaxForAge(
+      context, event.grossIncome, event.taxpayerAgeForSelectedFiscalYear,
+    ));
+  }
+  assert.equal(projection.taxEvents[0].tax, 0);
+
+  const age80 = makeAgeBoundaryProjection(80, 535_000).projection;
+  assert.ok(age80.taxEvents.every(event => event.taxpayerAgeForSelectedFiscalYear === 80));
+  assert.ok(age80.taxEvents.every(event => event.tax === expectedOrdinaryIncrementalTaxForAge(
+    { annualGrossIncome: 535_000, regime: 'old', incomeSource: 'salary', fiscalYear: FY, deductions: {} },
+    event.grossIncome,
+    80,
+  )));
+  const capped = makeAgeBoundaryProjection(120, 535_000).projection;
+  assert.ok(capped.taxEvents.every(event => event.taxpayerAgeForSelectedFiscalYear === 120));
+});
+
+test('interest TDS remains an informational credit and is not subtracted again in projection events', () => {
+  const context = {
+    annualGrossIncome: 1_000_000,
+    regime: 'new',
+    incomeSource: 'salary',
+    fiscalYear: FY,
+    userAge: 59,
+    deductions: {},
+  };
+  const instrument = { nominalRate: 0.07, monthlySIP: 100_000, holdingYears: 2 };
+  const result = calculatePostTaxReturn(
+    'FD', instrument.nominalRate, context.annualGrossIncome, instrument.holdingYears,
+    context.regime, instrument.monthlySIP, context.userAge, context.incomeSource,
+    undefined, FY, { deductions: {} },
+  );
+  assert.equal(result.status, 'CALCULATED');
+  assert.equal(result.tdsApplicable, true);
+  assert.equal(result.tdsThreshold, 50_000);
+
+  const projection = calculatePostTaxProjection(result, instrument, 0, context);
+  assert.equal(projection.status, 'CALCULATED');
+  assert.ok(projection.assumptions.includes(
+    'TDS_REMAINS_INFORMATIONAL_CREDIT_NOT_AN_EXTRA_PROJECTED_TAX_SUBTRACTION',
+  ));
+  const projectedTaxes = projection.taxEvents.reduce((sum, event) => sum + event.tax, 0);
+  assert.ok(Math.abs(projection.postTaxFutureValue - (projection.nominalFutureValue - projectedTaxes)) <= 2);
+});
 test('ordinary-interest projection applies annual tax events after gross cash flows', () => {
   const context = {
     annualGrossIncome: 3_000_000,

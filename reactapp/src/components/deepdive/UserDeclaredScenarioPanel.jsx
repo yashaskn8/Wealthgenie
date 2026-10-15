@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../../services/api';
 import { formatINR } from '../../utils/recommendationPresentation';
+import { assertUserDeclaredScenarioResponse } from '../../utils/taxResponseIntegrity';
 
 const INTEREST_SCENARIO_PARENTS = new Set(['fd', 'sbi_fd', 'rbi_bonds', 'sgb']);
 const NIFTYBEES_ID = 'etf:isin:INF204KB14I2';
@@ -25,13 +26,13 @@ function unavailableMessage(result) {
   return 'A verified tax result is unavailable for this product and the facts entered.';
 }
 
-export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instrumentName, initialAge, taxPolicyMetadata = null, taxPolicyError = null }) {
+export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instrumentName, taxPolicyMetadata = null, taxPolicyError = null }) {
   const isInterest = INTEREST_SCENARIO_PARENTS.has(canonicalInstrumentId);
   const isNiftyBees = canonicalInstrumentId === 'nifty_etf';
   const supportsScenario = isInterest || isNiftyBees;
   const [taxFacts, setTaxFacts] = useState({
     annualGrossIncome: '', incomeSource: '', regime: '', fiscalYear: '',
-    userAge: initialAge ?? '',
+    userAge: '',
   });
   const [deductionValues, setDeductionValues] = useState({});
   const [interestReceived, setInterestReceived] = useState('');
@@ -46,6 +47,23 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
   const [requestFailed, setRequestFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const activeRequestKey = useRef(null);
+  const scenarioInputIdentity = JSON.stringify([
+    canonicalInstrumentId,
+    taxFacts,
+    deductionValues,
+    interestReceived,
+    acquisitionCostBasis,
+    saleProceeds,
+    acquisitionDate,
+    redemptionDate,
+    section112AExemptionUsed,
+    sttConfirmed,
+  ]);
+  const scenarioInputIdentityRef = useRef(scenarioInputIdentity);
+  scenarioInputIdentityRef.current = scenarioInputIdentity;
+  const currentResult = result?.inputIdentity === scenarioInputIdentity ? result.data : null;
+  const enteredAge = taxFacts.userAge.trim() === '' ? NaN : Number(taxFacts.userAge);
+  const ageIsValid = Number.isInteger(enteredAge) && enteredAge >= 18 && enteredAge <= 120;
 
   useEffect(() => {
     setTaxFacts(current => ({
@@ -55,8 +73,13 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
   }, [taxPolicyMetadata]);
 
   useEffect(() => {
-    setTaxFacts(current => ({ ...current, userAge: initialAge ?? '' }));
-  }, [initialAge]);
+    activeRequestKey.current = null;
+    setResult(null);
+    setRequestFailed(false);
+    setSubmitting(false);
+    setTaxContextConfirmed(false);
+  }, [canonicalInstrumentId]);
+
 
   const hasNpsEmployerContribution = Number(deductionValues.nps80CCD2) > 0;
   const verifiedFiscalYears = useMemo(() => taxPolicyMetadata?.verifiedFiscalYears || [], [taxPolicyMetadata]);
@@ -83,6 +106,11 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
     event.preventDefault();
     setResult(null);
     setRequestFailed(false);
+    if (!ageIsValid) {
+      setSubmitting(false);
+      return;
+    }
+    const submittedInputIdentity = scenarioInputIdentity;
     setSubmitting(true);
     const deductions = Object.fromEntries(Object.entries(deductionValues)
       .filter(([, value]) => value !== '' && value !== null)
@@ -97,7 +125,7 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
       incomeSource: taxFacts.incomeSource,
       regime: taxFacts.regime,
       fiscalYear: taxFacts.fiscalYear,
-      userAge: Number(taxFacts.userAge),
+      userAge: enteredAge,
       ...(Object.keys(deductions).length > 0 ? { deductions } : {}),
     };
     const scenario = isInterest
@@ -117,11 +145,17 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
     activeRequestKey.current = requestKey;
     try {
       const response = await api.computeUserDeclaredPostTaxScenario(scenario);
-      if (activeRequestKey.current === requestKey) setResult(response);
+      if (activeRequestKey.current === requestKey
+          && scenarioInputIdentityRef.current === submittedInputIdentity) {
+        assertUserDeclaredScenarioResponse(response, scenario);
+        setResult({ inputIdentity: submittedInputIdentity, data: response });
+      }
     } catch {
-      if (activeRequestKey.current === requestKey) setRequestFailed(true);
+      if (activeRequestKey.current === requestKey
+          && scenarioInputIdentityRef.current === submittedInputIdentity) setRequestFailed(true);
     } finally {
-      if (activeRequestKey.current === requestKey) setSubmitting(false);
+      if (activeRequestKey.current === requestKey
+          && scenarioInputIdentityRef.current === submittedInputIdentity) setSubmitting(false);
     }
   }
 
@@ -206,16 +240,22 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
               </label>
               <label className="wti-user-scenario__field">
                 Fiscal year
-                <select required value={taxFacts.fiscalYear} onChange={event => updateTaxFact('fiscalYear', event.target.value)} disabled={verifiedFiscalYears.length === 0}>
+                <select required value={taxFacts.fiscalYear} onChange={event => { setTaxFacts(current => ({ ...current, fiscalYear: event.target.value, userAge: '' })); activeRequestKey.current = null; setResult(null); setRequestFailed(false); setSubmitting(false); setTaxContextConfirmed(false); }} disabled={verifiedFiscalYears.length === 0}>
                   <option value="">Choose a verified year</option>
                   {verifiedFiscalYears.map(year => <option key={year} value={year}>{year}</option>)}
                 </select>
               </label>
-              <label className="wti-user-scenario__field">
-                Your age for this tax calculation
-                <input type="number" min="18" max="120" step="1" required
+              <div className="wti-user-scenario__field">
+                <label htmlFor="scenario-user-age">Your age on March 31</label>
+                <input id="scenario-user-age" type="number" min="18" max="120" step="1" required aria-describedby="scenario-user-age-help"
+                  aria-invalid={taxFacts.userAge !== '' && !ageIsValid}
                   value={taxFacts.userAge} onChange={event => updateTaxFact('userAge', event.target.value)} />
-              </label>
+                <small id="scenario-user-age-help">
+                  {taxFacts.userAge !== '' && !ageIsValid
+                    ? 'Enter a whole-number age from 18 to 120.'
+                    : 'Enter your age as of March 31 for the selected fiscal year.'}
+                </small>
+              </div>
             </div>
 
             <details className="wti-user-scenario__deductions">
@@ -255,23 +295,23 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
             {taxPolicyError && <p role="status">Verified tax-policy metadata is unavailable. No calculation can be requested.</p>}
             {requestFailed && <p role="alert">The scenario could not be calculated right now. Your entries were not saved.</p>}
             <button type="submit" className="wti-calc-tax-btn"
-              disabled={submitting || Boolean(taxPolicyError) || verifiedFiscalYears.length === 0 || !taxContextConfirmed}>
+              disabled={submitting || Boolean(taxPolicyError) || verifiedFiscalYears.length === 0 || !taxContextConfirmed || !ageIsValid}>
               {submitting ? 'Calculating…' : 'Calculate my scenario'}
             </button>
           </form>
 
-          {result && (
-            <div className={`wti-user-scenario__result${result.status === 'CALCULATED' ? ' wti-user-scenario__result--ready' : ''}`} role="status" aria-live="polite">
-              <strong>{result.status === 'CALCULATED' ? 'User-declared scenario' : 'No tax result calculated'}</strong>
-              {result.status === 'CALCULATED' ? (
+          {currentResult && (
+            <div className={`wti-user-scenario__result${currentResult.status === 'CALCULATED' ? ' wti-user-scenario__result--ready' : ''}`} role="status" aria-live="polite">
+              <strong>{currentResult.status === 'CALCULATED' ? 'User-declared scenario' : 'No tax result calculated'}</strong>
+              {currentResult.status === 'CALCULATED' ? (
                 <dl>
-                  <div><dt>{isInterest ? 'Interest entered' : 'Realized gain before tax'}</dt><dd>{formatINR(result.grossGain)}</dd></div>
-                  <div><dt>Incremental tax</dt><dd>{formatINR(result.incrementalTax)}</dd></div>
-                  <div><dt>{isInterest ? 'Interest after tax' : 'Gain after tax'}</dt><dd>{formatINR(result.netGain)}</dd></div>
-                  {!isInterest && <div><dt>Holding period</dt><dd>{result.holdingPeriod?.isLongTerm ? 'Long term' : 'Short term'}</dd></div>}
+                  <div><dt>{isInterest ? 'Interest entered' : 'Realized gain before tax'}</dt><dd>{formatINR(currentResult.grossGain)}</dd></div>
+                  <div><dt>Incremental tax</dt><dd>{formatINR(currentResult.incrementalTax)}</dd></div>
+                  <div><dt>{isInterest ? 'Interest after tax' : 'Gain after tax'}</dt><dd>{formatINR(currentResult.netGain)}</dd></div>
+                  {!isInterest && <div><dt>Holding period</dt><dd>{currentResult.holdingPeriod?.isLongTerm ? 'Long term' : 'Short term'}</dd></div>}
                 </dl>
-              ) : <p>{unavailableMessage(result)}</p>}
-              <small>{result.disclosure}</small>
+              ) : <p>{unavailableMessage(currentResult)}</p>}
+              <small>{currentResult.disclosure}</small>
             </div>
           )}
         </>

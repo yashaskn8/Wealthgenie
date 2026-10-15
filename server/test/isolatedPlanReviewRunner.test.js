@@ -38,7 +38,7 @@ test('isolated live PlanReview reserves a bounded explanation call within its to
     'the offline null response remains a fallback and is not presented as a live evaluation pass');
 });
 
-test('freshness target fits JSON Object Mode with the exact Groq strict-schema cost excluded only for the explainer', async () => {
+test('freshness target reserves the compact JSON Object Mode cost for its explainer', async () => {
   const dataset = await loadPlanReviewDataset();
   const caseDefinition = dataset.find(item => item.id === 'fresh-read-only-plan');
   const requests = [];
@@ -91,15 +91,15 @@ test('freshness target fits JSON Object Mode with the exact Groq strict-schema c
   const objectModeTotalEstimate = priorPlannerUsage + explainerInputEstimate + 512;
   const strictModeTotalEstimate = objectModeTotalEstimate + strictSchemaEstimate;
 
-  assert.equal(explainerPromptBytes, 4552);
-  assert.equal(explainerInputEstimate, 1309);
+  assert.equal(explainerPromptBytes, 2887);
+  assert.equal(explainerInputEstimate, 831);
   assert.equal(strictSchemaBytes, 1529);
   assert.equal(strictSchemaEstimate, 440);
-  assert.equal(objectModeTotalEstimate, 2343);
-  assert.equal(strictModeTotalEstimate, 2783);
+  assert.equal(objectModeTotalEstimate, 1865);
+  assert.equal(strictModeTotalEstimate, 2305);
   assert.ok(objectModeTotalEstimate <= 2500);
-  assert.ok(strictModeTotalEstimate > 2500,
-    'the complete strict schema envelope would exceed the unchanged per-case budget');
+  assert.ok(strictModeTotalEstimate > objectModeTotalEstimate,
+    'the strict schema envelope has a separately measurable cost');
   assert.equal(actual.result.review.execution.tokenUsage, objectModeTotalEstimate,
     'runtime admission includes the prior planner usage and full explanation reservation');
   assert.equal(actual.result.explanation.fallback, true,

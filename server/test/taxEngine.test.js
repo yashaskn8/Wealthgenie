@@ -43,6 +43,54 @@ const buildTaxSlabBreakdown = (computation, fiscalYear = TEST_FISCAL_YEAR) =>
 const analyzeTaxOptimization = (income, deductions, incomeSource, fiscalYear = TEST_FISCAL_YEAR) =>
   analyzeTaxOptimizationForFiscalYear(income, withTaxAge('old', deductions), incomeSource, fiscalYear);
 
+test('tax engine rejects conflicting 80CCD aliases and counts equal aliases once', () => {
+  const conflictingAliases = { nps80CCD1B: 0, section80CCD: 50_000, age: 35 };
+  assert.throws(
+    () => calculateTaxableIncome(2_000_000, 'old', conflictingAliases, 'salary', TEST_FISCAL_YEAR),
+    /80CCD.*conflicting amounts/,
+  );
+  assert.throws(
+    () => computeTax(2_000_000, 'old', conflictingAliases, 'salary'),
+    /80CCD.*conflicting amounts/,
+  );
+
+  const canonicalOnly = calculateTaxableIncome(2_000_000, 'old', {
+    nps80CCD1B: 50_000,
+    age: 35,
+  }, 'salary', TEST_FISCAL_YEAR);
+  const equalAliases = calculateTaxableIncome(2_000_000, 'old', {
+    nps80CCD1B: 50_000,
+    section80CCD: 50_000,
+    age: 35,
+  }, 'salary', TEST_FISCAL_YEAR);
+  assert.equal(equalAliases.oldRegimeDeductions, canonicalOnly.oldRegimeDeductions);
+  assert.equal(equalAliases.taxableIncome, canonicalOnly.taxableIncome);
+});
+
+test('tax optimization rejects conflicting 80CCD aliases and counts equal aliases once', () => {
+  assert.throws(
+    () => analyzeTaxOptimization(2_000_000, {
+      nps80CCD1B: 0,
+      section80CCD: 50_000,
+      age: 35,
+    }, 'salary', TEST_FISCAL_YEAR),
+    /80CCD.*conflicting amounts/,
+  );
+
+  const canonicalOnly = analyzeTaxOptimization(2_000_000, {
+    nps80CCD1B: 25_000,
+    age: 35,
+  }, 'salary', TEST_FISCAL_YEAR);
+  const equalAliases = analyzeTaxOptimization(2_000_000, {
+    nps80CCD1B: 25_000,
+    section80CCD: 25_000,
+    age: 35,
+  }, 'salary', TEST_FISCAL_YEAR);
+  assert.deepEqual(equalAliases.remaining, canonicalOnly.remaining);
+  assert.equal(equalAliases.potentialSaving, canonicalOnly.potentialSaving);
+  assert.equal(equalAliases.crossoverBreakpoint, canonicalOnly.crossoverBreakpoint);
+});
+
 test('new regime Section 87A rebate zeros tax at the FY2025-26 threshold', () => {
   const result = computeTax(1_275_000, 'new', {}, 'salary');
   assert.equal(result.taxableIncome, 1_200_000);
@@ -465,6 +513,11 @@ test('calculateTaxableIncome section80D fallback and self_senior flag', () => {
   // self_senior boolean flag overrides age
   const seniorFlag = calculateTaxableIncome(1_000_000, 'old', { section80D_self: 60_000, self_senior: true, age: 30 }, 'salary');
   assert.equal(seniorFlag.allowed80D, 50_000); // senior cap applied
+
+  assert.throws(
+    () => calculateTaxableIncome(1_000_000, 'old', { section80D: 50_000, section80D_self: 0, age: 30 }, 'salary'),
+    /cannot be combined/,
+  );
 });
 
 test('calculateTaxableIncome savingsInterest 80TTA vs 80TTB age boundaries', () => {

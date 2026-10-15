@@ -113,7 +113,7 @@ export async function startServer({ env = process.env } = {}) {
       await verifyEnabledApiAgentPersistence(config);
     }
     if (config.authorization.verifiableActionsEnabled) await warmAuthorizationPersistence();
-    await connectRedis({ url: env.REDIS_URL });
+    await connectRedis({ url: env.REDIS_URL, password: env.REDIS_PASSWORD });
     if (config.requireRedis && !redisAvailable) {
       throw new Error('Redis is required in this environment but is unavailable');
     }

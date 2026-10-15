@@ -6,6 +6,7 @@ import { errorHandler } from '../middleware/errorHandler.js';
 import { createUpstoxPublicDataGate } from '../middleware/upstoxPublicDataGate.js';
 import { createMarketQuotesRouter } from '../routes/marketQuotes.js';
 import { fetchUpstoxCanonicalQuotes } from '../services/marketDataService.js';
+import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
 import { buildMarketDataCoverage } from '../scripts/generateMarketDataCoverage.js';
 import {
   NSE_HISTORICAL_INDEX_RIGHTS_URL,
@@ -27,6 +28,11 @@ function buildApp(router) {
 }
 
 const passLimiter = (_req, _res, next) => next();
+const testMarketDataEnv = { NODE_ENV: 'test' };
+const testFixtureRightsCapability = createMarketDataTestFixtureRightsCapability({
+  env: testMarketDataEnv,
+  transport: { get: async () => ({ data: null }) },
+});
 
 test('Upstox quote registry contains only exact, source-documented index identities', () => {
   assert.deepEqual(Object.keys(UPSTOX_INSTRUMENT_REGISTRY).sort(), [
@@ -61,7 +67,8 @@ test('canonical resolver deduplicates request IDs and rejects unknown or oversiz
 test('canonical quote route calls only the injected allowlisted service and returns its DTO', async () => {
   const calls = [];
   const router = createMarketQuotesRouter({
-    env: { NODE_ENV: 'test' },
+    env: testMarketDataEnv,
+    marketDataTestFixtureRightsCapability: testFixtureRightsCapability,
     limiter: passLimiter,
     fetchQuotes: async ids => {
       calls.push(ids);
@@ -84,7 +91,8 @@ test('canonical quote route calls only the injected allowlisted service and retu
 test('canonical quote route rejects raw provider keys, unknown IDs, and oversized ID lists before fetching', async () => {
   let calls = 0;
   const router = createMarketQuotesRouter({
-    env: { NODE_ENV: 'test' },
+    env: testMarketDataEnv,
+    marketDataTestFixtureRightsCapability: testFixtureRightsCapability,
     limiter: passLimiter,
     fetchQuotes: async () => { calls += 1; return {}; },
   });
@@ -150,6 +158,7 @@ test('production Upstox middleware stops after operator confirmation when exact 
       NODE_ENV: 'production',
       UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'true',
     },
+    marketDataTestFixtureRightsCapability: testFixtureRightsCapability,
   });
   gate({}, {
     status(code) { statusCode = code; return this; },

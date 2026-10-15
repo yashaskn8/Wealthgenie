@@ -169,8 +169,10 @@ export function createHealthRouter({
       || expectedDemoDatabaseHost !== undefined
       || expectedDemoDatabasePort !== undefined
       || expectedDemoEnvironmentId !== undefined;
+    let demoIdentityVerified = false;
+    let demoSentinelVerified = false;
     if (demoIdentityConfigured) {
-      const identityVerified = verifyDemoDatabaseIdentity({
+      demoIdentityVerified = verifyDemoDatabaseIdentity({
         actual: getMongoDatabaseName(),
         configuredExpected: expectedDemoDatabase,
         requestedExpected: expectedDemoDatabase,
@@ -182,14 +184,14 @@ export function createHealthRouter({
         requestedExpectedPort: expectedDemoDatabasePort,
       });
       const environmentIdValid = isSafeDemoEnvironmentId(expectedDemoEnvironmentId);
-      if (!identityVerified || !environmentIdValid) {
+      if (!demoIdentityVerified || !environmentIdValid) {
         reasons.push('Configured isolated database identity is not verified');
       } else {
-        const sentinelVerified = await withTimeout(verifyDemoEnvironmentSentinel({
+        demoSentinelVerified = await withTimeout(verifyDemoEnvironmentSentinel({
           database: mongoose.connection.db,
           expectedEnvironmentId: expectedDemoEnvironmentId,
         }), timeoutMs, 'Demo database sentinel verification').catch(() => false);
-        if (!sentinelVerified) reasons.push('Configured demo environment sentinel is not verified');
+        if (!demoSentinelVerified) reasons.push('Configured demo environment sentinel is not verified');
       }
     }
     if (requireRedis && (!redisAvailable || !redisClient?.isReady)) reasons.push('Redis not connected');
@@ -200,7 +202,13 @@ export function createHealthRouter({
         reasons.push('Required MCP runtime or distributed capacity/auth controls are not ready');
       }
     }
-    if (mongoConnected) {
+    if (mongoConnected && (!demoIdentityConfigured || (demoIdentityVerified && demoSentinelVerified))) {
+      const transactionCapable = await withTimeout(
+        Promise.resolve().then(() => verifyMongoTransaction({ timeoutMs, connection: mongoose.connection })),
+        timeoutMs,
+        'Mongo transaction readiness probe',
+      ).catch(() => false);
+      if (!transactionCapable) reasons.push('MongoDB transaction capability is not ready');
       try {
         await verifyFinancialIndexes();
       } catch {

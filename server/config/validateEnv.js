@@ -8,10 +8,38 @@
 import { validateMongoCompatibilityConfig } from './mongoCompatibility.js';
 import proxyaddr from 'proxy-addr';
 
+function isPlaceholderRedisPassword(password) {
+  return /^(?:change[\s_-]*me|placeholder|your(?:[\s_-]|$)|example(?:[\s_-]|$)|replace[\s_-]*me)/i.test(password.trim());
+}
+
+function decodeRedisUrlPassword(redisUrl) {
+  try {
+    return decodeURIComponent(new URL(redisUrl || '').password);
+  } catch {
+    return '';
+  }
+}
+
 export function validateEnvironmentConfig(env = process.env) {
   const isProduction = env.NODE_ENV === 'production';
   const errors = [];
   errors.push(...validateMongoCompatibilityConfig(env).errors);
+  if (isProduction) {
+    // buildRedisClientOptions strips URL credentials and gives the dedicated
+    // REDIS_PASSWORD variable precedence, so validate that same effective value.
+    const redisUrlPassword = decodeRedisUrlPassword(env.REDIS_URL);
+    const explicitRedisPassword = typeof env.REDIS_PASSWORD === 'string' && env.REDIS_PASSWORD.trim()
+      ? env.REDIS_PASSWORD
+      : '';
+    const redisPassword = explicitRedisPassword || redisUrlPassword;
+    if (!redisPassword) {
+      errors.push('Production Redis authentication is required; configure REDIS_PASSWORD or authenticated REDIS_URL credentials');
+    } else if (redisPassword.length < 32) {
+      errors.push('Production Redis authentication must use a password of at least 32 characters');
+    } else if (isPlaceholderRedisPassword(redisPassword)) {
+      errors.push('Production Redis authentication must not use a placeholder password');
+    }
+  }
   if (env.DISABLE_RATE_LIMIT !== undefined && !['true', 'false'].includes(env.DISABLE_RATE_LIMIT)) {
     errors.push('DISABLE_RATE_LIMIT must be true or false');
   }

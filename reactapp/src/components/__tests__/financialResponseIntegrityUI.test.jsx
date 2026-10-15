@@ -117,7 +117,7 @@ function configureTaxMetadata() {
   api.getTaxPolicyMetadata.mockResolvedValue({
     currentFiscalYear: 'FY2026-27',
     currentFiscalYearVerified: true,
-    verifiedFiscalYears: ['FY2026-27'],
+    verifiedFiscalYears: ['FY2025-26', 'FY2026-27'],
     policyVersion: 'tax-policy-test-v1',
   });
 }
@@ -168,6 +168,7 @@ it('asks for explicit Section 112A prior use and sends entered zero, while unava
   fireEvent.change(screen.getByLabelText(/gross annual income/i), { target: { value: '0' } });
   fireEvent.change(screen.getByLabelText(/income source/i), { target: { value: 'salary' } });
   fireEvent.click(screen.getByRole('button', { name: 'New' }));
+  fireEvent.change(screen.getByLabelText(/Your age on March 31/i), { target: { value: '35' } });
 
   await screen.findByText(/Enter how much of the Section 112A exemption you used earlier/i);
   expect(screen.queryByText(/0\.00%/)).toBeNull();
@@ -179,6 +180,33 @@ it('asks for explicit Section 112A prior use and sends entered zero, while unava
   expect(api.computePostTaxReturn.mock.calls.at(-1)[9].body).toEqual({ section112AExemptionUsed: 0 });
 });
 
+it('requires an explicitly entered age for the selected fiscal year and clears it when that year changes', async () => {
+  configureTaxMetadata();
+  api.computePostTaxReturn.mockImplementation(async (...args) => makeTaxResponse(args, 'CALCULATED', []));
+  render(<TaxTab {...taxProps} />);
+
+  const income = screen.getByLabelText(/gross annual income/i);
+  const age = screen.getByLabelText(/Your age on March 31/i);
+  const fiscalYear = screen.getByLabelText('Fiscal year');
+  expect(age).toHaveValue(null);
+
+  fireEvent.change(income, { target: { value: '1000000' } });
+  fireEvent.change(screen.getByLabelText(/income source/i), { target: { value: 'salary' } });
+  fireEvent.click(screen.getByRole('button', { name: 'New' }));
+  expect(api.computePostTaxReturn).not.toHaveBeenCalled();
+
+  fireEvent.change(age, { target: { value: '65' } });
+  await waitFor(() => expect(api.computePostTaxReturn).toHaveBeenCalledTimes(1));
+  fireEvent.change(fiscalYear, { target: { value: 'FY2025-26' } });
+  expect(age).toHaveValue(null);
+  expect(screen.queryByText('₹5,000 (5.00% modelled net)')).toBeNull();
+  expect(api.computePostTaxReturn).toHaveBeenCalledTimes(1);
+
+  fireEvent.change(age, { target: { value: '64' } });
+  await waitFor(() => expect(api.computePostTaxReturn).toHaveBeenCalledTimes(2));
+  expect(api.computePostTaxReturn.mock.calls.at(-1)[6]).toBe(64);
+  expect(api.computePostTaxReturn.mock.calls.at(-1)[8]).toBe('FY2025-26');
+});
 it('hides a prior result immediately when the selected tax income changes', async () => {
   configureTaxMetadata();
   api.computePostTaxReturn.mockImplementation(async (...args) => makeTaxResponse(args, 'CALCULATED', []));
@@ -187,6 +215,7 @@ it('hides a prior result immediately when the selected tax income changes', asyn
   fireEvent.change(income, { target: { value: '1000000' } });
   fireEvent.change(screen.getByLabelText(/income source/i), { target: { value: 'salary' } });
   fireEvent.click(screen.getByRole('button', { name: 'New' }));
+  fireEvent.change(screen.getByLabelText(/Your age on March 31/i), { target: { value: '35' } });
 
   await waitFor(() => expect(screen.getByText('₹5,000 (5.00% modelled net)')).toBeVisible());
   fireEvent.change(income, { target: { value: '1200000' } });

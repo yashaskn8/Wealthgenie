@@ -68,6 +68,57 @@ def test_document_lifecycle_registration_and_soft_delete(tmp_path):
     assert restarted.search([1.0, 0.0], top_k=1) == []
 
 
+def test_registry_backup_write_failure_does_not_log_exception_text(tmp_path, monkeypatch, caplog):
+    import logging
+    import rag.lifecycle.manager as lifecycle_module
+
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text("{}", encoding="utf-8")
+    manager = DocumentLifecycleManager(
+        vector_store=PersistentVectorStore(index_path=tmp_path / "vectors.json", force_numpy=True),
+        registry_path=registry_path,
+    )
+    secret_canary = "PAN-987654321012 redis://user:private-password@internal:6379"
+
+    def fail_backup(*_args, **_kwargs):
+        raise OSError(secret_canary)
+
+    monkeypatch.setattr(lifecycle_module.shutil, "copy2", fail_backup)
+    monkeypatch.setattr(lifecycle_module.os, "replace", lambda _source, _destination: None)
+    caplog.set_level(logging.WARNING, logger="wealthgenie.rag.lifecycle")
+    manager.save_registry()
+
+    assert secret_canary not in caplog.text
+    assert "Could not create registry backup snapshot" in caplog.text
+    assert any(getattr(record, "error_type", None) == "OSError" for record in caplog.records)
+
+
+def test_request_driven_registry_load_failure_does_not_log_exception_text(tmp_path, monkeypatch, caplog):
+    import logging
+
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text("{}", encoding="utf-8")
+    manager = DocumentLifecycleManager(
+        vector_store=PersistentVectorStore(index_path=tmp_path / "vectors.json", force_numpy=True),
+        registry_path=registry_path,
+    )
+    secret_canary = "PAN-987654321012 redis://user:private-password@internal:6379"
+
+    def fail_load(_path):
+        raise RuntimeError(secret_canary)
+
+    monkeypatch.setattr(manager, "_load_from_path", fail_load)
+    caplog.set_level(logging.ERROR, logger="wealthgenie.rag.lifecycle")
+    with pytest.raises(RuntimeError, match="no backup is available") as error:
+        manager.list_documents()
+
+    assert error.value.__cause__ is None
+    assert error.value.__suppress_context__ is True
+    assert secret_canary not in caplog.text
+    assert "Failed to load primary document registry" in caplog.text
+    assert any(getattr(record, "error_type", None) == "RuntimeError" for record in caplog.records)
+
+
 def test_soft_deleted_document_is_not_retrievable_or_served_from_response_cache(tmp_path):
     from rag.embeddings.dense_embedding import DenseVectorEmbeddingProvider
     from rag.ingestion.pipeline import IngestionPipeline

@@ -13,6 +13,9 @@ import pytest
 _TEST_STATE_DIR = tempfile.mkdtemp(prefix="wealthgenie_ml_tests_")
 os.environ.setdefault("ML_REGISTRY_DB_PATH", os.path.join(_TEST_STATE_DIR, "model_registry.db"))
 os.environ.setdefault("ML_CANDIDATE_MODEL_DIR", os.path.join(_TEST_STATE_DIR, "candidates"))
+# Tests must opt into a named non-production mode instead of inheriting the
+# service's old implicit-development default.
+os.environ.setdefault("ENVIRONMENT", "test")
 
 
 def pytest_sessionfinish(session, exitstatus):

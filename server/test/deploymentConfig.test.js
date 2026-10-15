@@ -301,7 +301,6 @@ test('production overlay substitutes every image with an unusable digest-require
     ['wealthgenie-server', 'SERVER'],
     ['wealthgenie-frontend', 'FRONTEND'],
     ['wealthgenie-ml-service', 'ML_SERVICE'],
-    ['mongo', 'MONGODB'],
     ['redis', 'REDIS'],
   ];
   assert.equal(images.size, expectedImages.length);
@@ -327,6 +326,8 @@ test('Kind CD renders the external production overlay with Kustomize before vali
   assert.ok(steps.indexOf(dependencies) < steps.indexOf(render), 'dependency installation must precede validator execution');
   assert.match(dependencies.run, /^npm ci --prefix server$/);
   assert.deepEqual(overlay.resources, ['../../k8s'], 'the overlay must reference the base without containing it');
+  assert.ok(overlay.patches.some(patch => patch.path === 'remove-incluster-mongodb.yaml'),
+    'production must remove the unauthenticated development MongoDB resources and use its external DocumentDB URI');
   assert.match(render.run, /kubectl kustomize deploy\/production > build\/production-template\.yaml/);
   assert.match(render.run, /node server\/scripts\/validateProductionImageManifest\.js --template < build\/production-template\.yaml/);
   assert.ok(fs.existsSync(path.join(repositoryRoot, 'k8s/kustomization.yaml')));
@@ -351,17 +352,25 @@ test('deployment validator rejects a production overlay that replaces a digest m
   });
 });
 
-test('deployment validator rejects a production overlay missing database or cache image markers', () => {
+test('deployment validator rejects a production overlay missing the cache image marker', () => {
   withDeploymentFixture(root => {
     const file = 'deploy/production/kustomization.yaml';
     const overlay = readYaml(root, file);
-    overlay.images = overlay.images.filter(image => image.name !== 'mongo');
+    overlay.images = overlay.images.filter(image => image.name !== 'redis');
     writeYaml(root, file, overlay);
 
     const result = validate(root);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /every application image with an explicit digest-required fail-closed marker/);
   });
+});
+
+test('local Compose databases bind published ports to loopback only', () => {
+  const compose = readYaml(repositoryRoot, 'docker-compose.yml');
+  assert.ok(compose.services.mongodb.ports.includes('127.0.0.1:27017:27017'));
+  assert.ok(compose.services.redis.ports.includes('127.0.0.1:6379:6379'));
+  assert.equal(compose.services.mongodb.ports.includes('27017:27017'), false);
+  assert.equal(compose.services.redis.ports.includes('6379:6379'), false);
 });
 
 test('deployment validator requires the agent-worker to use its explicit non-root image UID', () => {
@@ -374,6 +383,129 @@ test('deployment validator requires the agent-worker to use its explicit non-roo
     const result = validate(root);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /agent-worker must explicitly run as non-root UID 1000/);
+  });
+});
+
+test('Kubernetes Redis is authenticated and ingress-restricted to its application clients', () => {
+  const redis = readYaml(repositoryRoot, 'k8s/redis/deployment.yaml');
+  const redisContainer = redis.spec.template.spec.containers[0];
+  assert.deepEqual(redisContainer.args, ['--requirepass', '$(REDIS_PASSWORD)']);
+  assert.ok(redisContainer.env.some(item => item.name === 'REDIS_PASSWORD'
+    && item.valueFrom?.secretKeyRef?.key === 'REDIS_PASSWORD'));
+  assert.ok(redisContainer.env.some(item => item.name === 'REDISCLI_AUTH'
+    && item.valueFrom?.secretKeyRef?.key === 'REDIS_PASSWORD'));
+
+  const policy = readYaml(repositoryRoot, 'k8s/redis/network-policy.yaml');
+  assert.deepEqual(policy.spec.podSelector.matchLabels, { app: 'wealthgenie-redis' });
+  const peerApps = policy.spec.ingress.flatMap(rule => rule.from || [])
+    .map(peer => peer.podSelector?.matchLabels?.app).sort();
+  assert.deepEqual(peerApps, ['wealthgenie-agent-worker', 'wealthgenie-server']);
+  for (const secretReference of [
+    redisContainer.env.find(item => item.name === 'REDIS_PASSWORD').valueFrom.secretKeyRef,
+    redisContainer.env.find(item => item.name === 'REDISCLI_AUTH').valueFrom.secretKeyRef,
+  ]) {
+    assert.deepEqual(secretReference, { name: 'wealthgenie-secrets', key: 'REDIS_PASSWORD' });
+  }
+
+  const result = validate(repositoryRoot);
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('deployment validator rejects a Redis deployment without password authentication', () => {
+  withDeploymentFixture(root => {
+    const redisPath = 'k8s/redis/deployment.yaml';
+    const redis = readYaml(root, redisPath);
+    redis.spec.template.spec.containers[0].args = [];
+    writeYaml(root, redisPath, redis);
+
+    const result = validate(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Redis must require the shared secret password/);
+  });
+});
+
+test('deployment validator rejects a Redis NetworkPolicy that allows cross-namespace peers', () => {
+  withDeploymentFixture(root => {
+    const policyPath = 'k8s/redis/network-policy.yaml';
+    const policy = readYaml(root, policyPath);
+    policy.spec.ingress[0].from[0].namespaceSelector = { matchLabels: { 'kubernetes.io/metadata.name': 'default' } };
+    writeYaml(root, policyPath, policy);
+
+    const result = validate(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Redis ingress must be limited to server and agent-worker pods/);
+  });
+});
+
+test('deployment validator rejects an unrestricted extra Redis ingress rule', () => {
+  withDeploymentFixture(root => {
+    const policyPath = 'k8s/redis/network-policy.yaml';
+    const policy = readYaml(root, policyPath);
+    policy.spec.ingress.push({ ports: [{ protocol: 'TCP', port: 6379 }] });
+    writeYaml(root, policyPath, policy);
+
+    const result = validate(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Redis ingress must be limited to server and agent-worker pods/);
+  });
+});
+
+test('deployment validator requires the exact shared Secret for Redis authentication', () => {
+  for (const envName of ['REDIS_PASSWORD', 'REDISCLI_AUTH']) {
+    withDeploymentFixture(root => {
+      const redisPath = 'k8s/redis/deployment.yaml';
+      const redis = readYaml(root, redisPath);
+      redis.spec.template.spec.containers[0].env.find(item => item.name === envName)
+        .valueFrom.secretKeyRef.name = 'unrelated-secret';
+      writeYaml(root, redisPath, redis);
+
+      const result = validate(root);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Redis must require the shared secret password/);
+    });
+  }
+  for (const deploymentName of ['wealthgenie-server', 'wealthgenie-agent-worker']) {
+    withDeploymentFixture(root => {
+      const deploymentPath = deploymentName === 'wealthgenie-server'
+        ? 'k8s/server/deployment.yaml'
+        : 'k8s/agent-worker/deployment.yaml';
+      const deployment = readYaml(root, deploymentPath);
+      deployment.spec.template.spec.containers[0].env.find(item => item.name === 'REDIS_PASSWORD')
+        .valueFrom.secretKeyRef.name = 'unrelated-secret';
+      writeYaml(root, deploymentPath, deployment);
+
+      const result = validate(root);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, new RegExp(`Kubernetes ${deploymentName} must receive the Redis password`));
+    });
+  }
+});
+
+test('deployment validator requires CD worker readiness and transaction/Redis verification', () => {
+  withDeploymentFixture(root => {
+    const workflowPath = '.github/workflows/cd.yml';
+    const workflow = readYaml(root, workflowPath);
+    const readiness = workflow.jobs['deploy-and-verify-kind'].steps
+      .find(step => step.name === 'Wait for Microservices to be Ready');
+    readiness.run = readiness.run.replace('deployment/wealthgenie-agent-worker', 'deployment/wealthgenie-missing-worker');
+    writeYaml(root, workflowPath, workflow);
+
+    const result = validate(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /ordered one-shot database migrations before applying application workloads/);
+  });
+
+  withDeploymentFixture(root => {
+    const workflowPath = '.github/workflows/cd.yml';
+    const workflow = readYaml(root, workflowPath);
+    const smoke = workflow.jobs['deploy-and-verify-kind'].steps
+      .find(step => step.name === 'Execute Live Smoke Tests & Prove Request Flow (Step 2)');
+    smoke.run = smoke.run.replace('/health/verification', '/health/deep');
+    writeYaml(root, workflowPath, workflow);
+
+    const result = validate(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /ordered one-shot database migrations before applying application workloads/);
   });
 });
 

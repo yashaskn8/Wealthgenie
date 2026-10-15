@@ -5,16 +5,19 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import GenieChat from '../GenieChat';
 import * as api from '../../services/api';
 
-const CHAT_SESSION_BINDING_FINGERPRINT_VERSION = 'wg-chat-binding-v2:';
+const CHAT_SESSION_BINDING_FINGERPRINT_VERSION = 'wg-chat-binding-v3:';
 
 function profileBindingFingerprint(profile, recommendations = [], recommendationMeta = null) {
   void recommendations;
   const recommendationState = {
     profileId: recommendationMeta?.profileId ?? recommendationMeta?.profile_id ?? profile?.profileId ?? profile?._id ?? null,
     profileVersion: recommendationMeta?.profile_version ?? profile?.version ?? null,
+    profileInputHash: recommendationMeta?.profile_input_hash ?? null,
     recommendationId: recommendationMeta?.recommendationId ?? recommendationMeta?.recommendation_id ?? null,
     allocationRevision: recommendationMeta?.allocation_revision ?? null,
     allocationRevisionId: recommendationMeta?.allocation_revision_id ?? null,
+    recommendationFingerprint: recommendationMeta?.recommendation_fingerprint ?? null,
+    portfolioFingerprint: recommendationMeta?.portfolio_fingerprint ?? null,
   };
   const fingerprint = createHash('sha256').update(JSON.stringify(recommendationState)).digest('hex');
   return `${CHAT_SESSION_BINDING_FINGERPRINT_VERSION}${fingerprint}`;
@@ -114,6 +117,43 @@ describe('GenieChat persisted conversation state', () => {
     await waitFor(() => expect(sessionStorage.getItem('genie_session_id')).not.toBe(originalSessionId));
     expect(screen.getByRole('textbox', { name: /ask genie/i })).toHaveValue('Keep this question for the new session');
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries an ambiguous send with the same turn key and prevents a duplicate local bubble', async () => {
+    vi.spyOn(api, 'getChatHistory').mockResolvedValue({ conversations: [] });
+    const send = vi.spyOn(api, 'sendChatMessage')
+      .mockRejectedValueOnce(new Error('Network connection was lost.'))
+      .mockResolvedValueOnce({
+        response: 'Saved answer replayed safely.',
+        rate_limit_remaining: 29,
+        idempotent_replay: true,
+      });
+    render(<GenieChat profile={null} onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Genie AI' }));
+    expect(await screen.findByText(/your personal money guide/i)).toBeInTheDocument();
+
+    const input = screen.getByRole('textbox', { name: /ask genie/i });
+    fireEvent.change(input, { target: { value: 'Question that may already be saved' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    expect(await screen.findByText('Network connection was lost.')).toBeInTheDocument();
+    expect(input).toHaveValue('Question that may already be saved');
+    expect(screen.getAllByText('Question that may already be saved')).toHaveLength(1);
+
+    fireEvent.change(input, { target: { value: 'A different question' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    expect(await screen.findByText(/retry that same message or clear this chat/i)).toBeInTheDocument();
+    expect(input).toHaveValue('Question that may already be saved');
+    expect(send).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    expect(await screen.findByText('Saved answer replayed safely.')).toBeInTheDocument();
+    expect(send).toHaveBeenCalledTimes(2);
+    const firstOptions = send.mock.calls[0][2];
+    const retryOptions = send.mock.calls[1][2];
+    expect(retryOptions.headers['Idempotency-Key']).toBe(firstOptions.headers['Idempotency-Key']);
+    expect(send.mock.calls[1][0]).toBe(send.mock.calls[0][0]);
+    expect(send.mock.calls[1][1]).toBe(send.mock.calls[0][1]);
+    expect(screen.getAllByText('Question that may already be saved')).toHaveLength(1);
   });
 
   it('rotates a saved chat session when canonical recommendation or allocation provenance changes', async () => {
@@ -255,6 +295,52 @@ describe('GenieChat persisted conversation state', () => {
     expect(screen.getAllByText('Question during clear')).toHaveLength(1);
     expect(sessionStorage.getItem('genie_session_id')).toBe('fixture-session');
     expect(history).toHaveBeenCalledTimes(2);
+  });
+
+  it('reconciles a completed in-flight turn after clear failure so replay does not duplicate the transcript', async () => {
+    const pendingSend = deferred();
+    const sessionId = 'fixture-session';
+    const idempotencyKey = 'stable-turn-key-when-clear-fails';
+    const clientTurnHash = createHash('sha256')
+      .update(`${sessionId}\0${idempotencyKey}\0Question during clear`)
+      .digest('hex');
+    const history = vi.spyOn(api, 'getChatHistory').mockResolvedValueOnce({ conversations: [] }).mockResolvedValueOnce({
+      conversations: [{ messages: [
+        {
+          role: 'user',
+          content: 'Question during clear',
+          metadata: { client_turn_hash: clientTurnHash },
+        },
+        {
+          role: 'model',
+          content: 'Persisted answer restored after failed clear',
+          metadata: { client_turn_hash: clientTurnHash },
+        },
+      ] }],
+    });
+    const send = vi.spyOn(api, 'sendChatMessage').mockReturnValue(pendingSend.promise);
+    vi.spyOn(api, 'clearChatSession').mockRejectedValue(new Error('Server unavailable'));
+    openChat();
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(idempotencyKey);
+
+    await screen.findByText(/your personal money guide/i);
+    const input = screen.getByRole('textbox', { name: /ask genie/i });
+    fireEvent.change(input, { target: { value: 'Question during clear' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear chat conversation' }));
+    await act(async () => {
+      pendingSend.resolve({ response: 'Persisted answer restored after failed clear', rate_limit_remaining: 29 });
+      await pendingSend.promise;
+    });
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Check saved history' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/pending message and reply were saved/i);
+    expect(screen.getByText('Persisted answer restored after failed clear')).toBeInTheDocument();
+    expect(history).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText('Question during clear')).toHaveLength(1);
   });
 
   it('does not restore checked history after the profile session changes', async () => {

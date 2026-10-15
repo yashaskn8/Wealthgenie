@@ -37,10 +37,15 @@ const SYNTHETIC_PROFILE_FIELDS = Object.freeze({
 });
 
 function query(value) {
+  let limitCount = Number.POSITIVE_INFINITY;
   const result = {
     sort() { return result; },
     select() { return result; },
-    lean: async () => value,
+    limit(count) {
+      if (Number.isSafeInteger(count) && count >= 0) limitCount = Math.min(limitCount, count);
+      return result;
+    },
+    lean: async () => Array.isArray(value) ? value.slice(0, limitCount) : value,
   };
   return result;
 }

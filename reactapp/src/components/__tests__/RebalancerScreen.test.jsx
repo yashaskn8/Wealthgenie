@@ -16,7 +16,134 @@ globalThis.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+
 describe('RebalancerScreen request binding', () => {
+  it('keeps profile-version-unbound goals out of the investment journey', async () => {
+    vi.spyOn(api, 'getGoals').mockResolvedValue({ goals: [{
+      profileId: '64b000000000000000000001',
+      sourceProfileVersion: 1,
+      goal_name: 'Unbound private goal',
+      years_remaining: 2,
+      target_amount: 500000,
+      calculation_freshness: { fresh: true },
+    }] });
+    vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({
+      performance_data: [{ year: 2, average: 1200000, invested: 480000, gains: 720000, wealth_multiple: 2.5 }],
+    });
+    vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+
+    render(<RebalancerScreen
+      profile={{ profileId: '64b000000000000000000001', monthly_savings: 20000, investment_horizon_years: 5 }}
+      recommendations={[{ id: 'fd', type: 'FD', name: 'Bank FD', allocationWeight: 1 }]}
+    />);
+
+    await waitFor(() => expect(api.getGoals).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('Unbound private goal')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Linked to .* goal.* from your Goal Planner/)).not.toBeInTheDocument();
+  });
+
+  it('clears same-profile projections and refetches goals when canonical financial state advances with unchanged weights', async () => {
+    const profile = { profileId: '64b000000000000000000001', version: 1, monthly_savings: 20000, investment_horizon_years: 5 };
+    const freshGoal = name => ({
+      profileId: profile.profileId,
+      sourceProfileVersion: 1,
+      goal_name: name,
+      years_remaining: 2,
+      target_amount: 500000,
+      calculation_freshness: { fresh: true },
+    });
+    const nextGoals = deferred();
+    const nextProjection = deferred();
+    vi.spyOn(api, 'getGoals')
+      .mockResolvedValueOnce({ goals: [freshGoal('Revision one goal')] })
+      .mockReturnValueOnce(nextGoals.promise);
+    const projection = vi.spyOn(api, 'getCustomPortfolioProjection')
+      .mockResolvedValueOnce({
+        performance_data: [{ year: 2, average: 1200000, invested: 480000, gains: 720000, wealth_multiple: 2.5 }],
+        portfolio_risk_score: 4.5,
+      })
+      .mockReturnValueOnce(nextProjection.promise);
+    vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+    const recommendations = [{ id: 'fd', type: 'FD', name: 'Bank FD', allocationWeight: 1 }];
+    const { rerender } = render(
+      <RebalancerScreen profile={profile} financialStateIdentity="canonical-state-revision-1" recommendations={recommendations} />,
+    );
+
+    expect(await screen.findByText('Revision one goal')).toBeInTheDocument();
+    await waitFor(() => expect(projection).toHaveBeenCalledTimes(1));
+    const riskCard = screen.getByText('Your Risk Profile').closest('.risk-thermometer-card');
+    const projectionCard = screen.getByText('Future Wealth Projection').closest('.projection-card');
+    await waitFor(() => expect(riskCard).toHaveTextContent('High Growth'));
+    expect(within(projectionCard).getByText(/Estimated Value/)).toBeInTheDocument();
+
+    rerender(
+      <RebalancerScreen profile={profile} financialStateIdentity="canonical-state-revision-2" recommendations={recommendations} />,
+    );
+
+    expect(screen.queryByText('Revision one goal')).not.toBeInTheDocument();
+    expect(riskCard).toHaveTextContent('Unavailable');
+    expect(within(projectionCard).queryByText(/Estimated Value/)).not.toBeInTheDocument();
+    await waitFor(() => expect(api.getGoals).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(projection).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      nextGoals.resolve({ goals: [freshGoal('Revision two goal')] });
+      nextProjection.resolve({
+        performance_data: [{ year: 2, average: 1300000, invested: 480000, gains: 820000, wealth_multiple: 2.7 }],
+        portfolio_risk_score: 2,
+      });
+    });
+    expect(await screen.findByText('Revision two goal')).toBeInTheDocument();
+    await waitFor(() => expect(riskCard).toHaveTextContent('Safe'));
+    expect(within(projectionCard).getByText(/Estimated Value/)).toBeInTheDocument();
+  });
+
+  it('reloads and profile-binds fresh goal milestones when the active profile changes', async () => {
+    const profileA = { profileId: '64b000000000000000000001', version: 1, monthly_savings: 20000, investment_horizon_years: 5 };
+    const profileB = { profileId: '64b000000000000000000002', version: 1, monthly_savings: 20000, investment_horizon_years: 5 };
+    const freshGoal = (profileId, goal_name) => ({
+      profileId,
+      sourceProfileVersion: 1,
+      goal_name,
+      years_remaining: 2,
+      target_amount: 500000,
+      calculation_freshness: { fresh: true },
+    });
+    const nextGoals = deferred();
+    vi.spyOn(api, 'getGoals')
+      .mockResolvedValueOnce({ goals: [
+        freshGoal(profileA.profileId, 'Profile A target'),
+        freshGoal('64b000000000000000000003', 'Historical target'),
+        { ...freshGoal(profileA.profileId, 'Stale target'), calculation_freshness: { fresh: false } },
+      ] })
+      .mockReturnValueOnce(nextGoals.promise);
+    vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({
+      performance_data: [{ year: 2, average: 1200000, invested: 480000, gains: 720000, wealth_multiple: 2.5 }],
+    });
+    vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+    const recommendations = [{ id: 'fd', type: 'FD', name: 'Bank FD', allocationWeight: 1 }];
+    const { rerender } = render(<RebalancerScreen profile={profileA} recommendations={recommendations} />);
+
+    expect(await screen.findByText('Profile A target')).toBeInTheDocument();
+    expect(screen.getByText('Linked to 1 goal from your Goal Planner')).toBeInTheDocument();
+    expect(screen.queryByText('Historical target')).not.toBeInTheDocument();
+    expect(screen.queryByText('Stale target')).not.toBeInTheDocument();
+
+    rerender(<RebalancerScreen profile={profileB} recommendations={recommendations} />);
+    expect(screen.queryByText('Profile A target')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Linked to .* goal.* from your Goal Planner/)).not.toBeInTheDocument();
+    await waitFor(() => expect(api.getGoals).toHaveBeenCalledTimes(2));
+
+    await act(async () => nextGoals.resolve({ goals: [freshGoal(profileB.profileId, 'Profile B target')] }));
+    expect(await screen.findByText('Profile B target')).toBeInTheDocument();
+    expect(screen.queryByText('Profile A target')).not.toBeInTheDocument();
+  });
+
   it('maps structured product types into category allocations for projections', async () => {
     const profileId = '64b000000000000000000001';
     vi.spyOn(api, 'getGoals').mockResolvedValue([]);
@@ -136,6 +263,25 @@ describe('RebalancerScreen request binding', () => {
     const [saved] = onSave.mock.calls[0];
     expect(saved.map(investment => investment.id)).toEqual(['hdfc_product_001', 'debt_fund_scheme_02']);
     expect(saved.map(investment => investment.allocationWeight)).toEqual([0.75, 0.25]);
+  });
+
+  it('refuses to save an empty allocation set that does not total 100 percent', () => {
+    vi.spyOn(api, 'getGoals').mockResolvedValue([]);
+    vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({});
+    vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+    const onSave = vi.fn();
+
+    render(
+      <RebalancerScreen
+        profile={{ profileId: '64b000000000000000000001', monthly_savings: 20000, investment_horizon_years: 5 }}
+        recommendations={[]}
+        onSave={onSave}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save My Investment Mix' }));
+    expect(screen.getByText(/Allocations must total exactly 100%/)).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('does not let a late optimizer result overwrite a newer manual allocation edit', async () => {

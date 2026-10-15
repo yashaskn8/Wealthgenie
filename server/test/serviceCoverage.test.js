@@ -8,6 +8,7 @@ import FinancialProfileState from '../models/FinancialProfileState.js';
 import { generateAdvisory, getGoalAdvisory } from '../services/geminiService.js';
 import { processChat } from '../services/geminiChatService.js';
 import { buildGroundedEvidencePacket } from '../services/groundedEvidence.js';
+import { buildChatEvidencePacket } from '../services/groundedExplanationService.js';
 import {
   INSTRUMENT_PARAMS,
   PROJECTION_ASSUMPTION_DATA_CLASS,
@@ -47,6 +48,7 @@ test('geminiService uses the shared grounded provider contract', async (t) => {
   const originalNvidia = process.env.NVIDIA_API_KEY;
   const originalPrimary = process.env.LLM_PRIMARY_PROVIDER;
   const calls = [];
+  const providerInputs = [];
 
   process.env.GEMINI_API_KEY = 'gemini-test-key';
   process.env.GROQ_API_KEY = 'groq-test-key';
@@ -59,8 +61,9 @@ test('geminiService uses the shared grounded provider contract', async (t) => {
     financialClaims: [],
     unavailableFacts: [],
   });
-  axios.post = async (url) => {
+  axios.post = async (url, requestBody) => {
     calls.push(url);
+    providerInputs.push(JSON.stringify(requestBody));
     return { data: { modelVersion: 'gemini-3.6-flash', candidates: [{ content: { parts: [{ text: groundedJson }] }, finishReason: 'STOP' }] } };
   };
   t.after(() => {
@@ -74,15 +77,40 @@ test('geminiService uses the shared grounded provider contract', async (t) => {
   const advisory = await generateAdvisory({
     profile: llmProfile({ age: 32, monthlySavings: 20000 }),
     instruments: [], modelVersion: 'test-model-4.0.0', policyVersion: 'suitability-freeze-1.0.0',
+    shapExplanation: {
+      top_reason: 'Your savings rate increased the likelihood of this allocation.',
+      feature_contributions: [{ feature: 'monthly_take_home', raw_value: 987654, shap_value: 0.42 }],
+    },
   });
-  const goalAdvice = await getGoalAdvisory('Suggest one adjustment.', llmProfile({ age: 32, monthlySavings: 20000 }));
+  const goalAdvice = await getGoalAdvisory('Suggest one adjustment for me based on my risk profile.', llmProfile({ age: 32, monthlySavings: 20000 }));
+  const privateGoalAdvice = await getGoalAdvisory('CUSTOM_GOAL_PRIVATE_SENTINEL target ₹9876543 over 19 years with SIP 45678', llmProfile({ age: 32, monthlySavings: 20000 }), {
+    goalName: 'CUSTOM_GOAL_PRIVATE_SENTINEL',
+    targetAmount: 9876543,
+    yearsRemaining: 19,
+    recommendedSip: 45678,
+    monthlySavingsCapacity: 12345,
+    status: 'at_risk',
+  });
 
   assert.match(advisory.text, /Moderate \[E_PROFILE_RISK\]/);
   assert.equal(advisory.provider, 'GEMINI');
   assert.equal(advisory.model, 'gemini-3.6-flash');
   assert.match(goalAdvice, /Moderate \[E_PROFILE_RISK\]/);
+  assert.equal(typeof privateGoalAdvice, 'string');
+  assert.ok(privateGoalAdvice.length > 0);
   assert.ok(calls[0].includes('generativelanguage.googleapis.com'));
   assert.ok(calls[1].includes('generativelanguage.googleapis.com'));
+  assert.match(providerInputs[0], /Your savings rate increased the likelihood/);
+  assert.doesNotMatch(providerInputs[0], /987654|feature_contributions|raw_value|shap_value/);
+  assert.match(providerInputs[2], /E_GOAL_PLAN/);
+  assert.match(providerInputs[2], /contributionWithinSavingsCapacity/);
+  const goalPacketText = JSON.parse(providerInputs[2]).contents[0].parts[0].text;
+  const goalPacket = JSON.parse(goalPacketText).EVIDENCE_PACKET;
+  const goalPlanEntry = goalPacket.entries.find(entry => entry.id === 'E_GOAL_PLAN');
+  assert.deepEqual(Object.keys(goalPlanEntry.value).sort(), ['contributionWithinSavingsCapacity', 'status']);
+  assert.deepEqual(goalPlanEntry.value, { status: 'at_risk', contributionWithinSavingsCapacity: false });
+  assert.deepEqual(goalPacket.privacy.sentProfileFields, []);
+  assert.doesNotMatch(providerInputs[2], /CUSTOM_GOAL_PRIVATE_SENTINEL|9876543|45678|12345|19 years|monthlySavingsCapacity|raw_value/);
 });
 
 test('geminiChatService returns profile setup guidance when no profile exists', async (t) => {
@@ -118,9 +146,76 @@ test('grounded evidence minimizes external profile data and excludes identity', 
     recommendation: { modelVersion: 'test', profileInputHash: 'hash', instruments: [] },
   });
   assert.ok(packet.entries.some(item => item.id === 'E_PROFILE_RISK'));
+  assert.deepEqual([...packet.privacy.sentProfileFields].sort(), ['riskTolerance', 'suitabilityReasonCodes', 'suitabilityRisk'].sort());
+  assert.equal(packet.entries.some(item => item.id === 'E_PROFILE_AGE'), false);
+  assert.equal(packet.entries.some(item => item.id === 'E_PROFILE_SAVINGS'), false);
+  assert.equal(packet.entries.some(item => item.id === 'E_PROFILE_GOALS'), false);
   assert.ok(packet.entries.some(item => item.id === 'E_REGULATORY_NOTICE'));
   assert.equal(JSON.stringify(packet).includes('p@example.com'), false);
   assert.ok(packet.privacy.excludedFields.includes('email'));
+});
+
+test('general financial education does not send personal profile or recommendation evidence externally', () => {
+  const packet = buildGroundedEvidencePacket({
+    question: 'What is NAV?',
+    profile: llmProfile({ age: 35, monthlySavings: 25000 }),
+    recommendation: {
+      modelVersion: 'test',
+      instruments: [{ id: 'private-fund', name: 'Private Fund', allocation_pct: 100 }],
+    },
+  });
+
+  assert.deepEqual(packet.privacy.sentProfileFields, []);
+  assert.equal(packet.entries.some(item => item.kind === 'PROFILE' || item.kind === 'SUITABILITY'), false);
+  assert.equal(packet.entries.some(item => item.kind === 'RECOMMENDATION'), false);
+});
+
+test('generic recommendation and portfolio education does not attach the saved profile or plan', () => {
+  for (const question of ['What is a recommendation?', 'How does portfolio rebalancing work?']) {
+    const packet = buildGroundedEvidencePacket({
+      question,
+      profile: llmProfile(),
+      recommendation: {
+        modelVersion: 'test',
+        instruments: [{ id: 'private-fund', name: 'Private Fund', allocation_pct: 100 }],
+      },
+    });
+
+    assert.deepEqual(packet.privacy.sentProfileFields, [], question);
+    assert.equal(packet.entries.some(item => item.kind === 'RECOMMENDATION'), false, question);
+  }
+});
+
+test('generic expected-return education cannot attach saved recommendation instruments', async () => {
+  const recommendation = {
+    modelVersion: 'test',
+    instruments: [{ id: 'PRIVATE_USER_INSTRUMENT_82', type: 'FD', allocation_pct: 100 }],
+  };
+  const dependencies = {
+    getInstrumentModelAssumptions: async () => ({
+      params: {
+        FD: { mean: 0.075, stdDev: 0.005, assumptionVersion: 'fixture-v1', source: 'WEALTHGENIE_MODEL_POLICY' },
+      },
+    }),
+  };
+
+  const generic = await buildChatEvidencePacket({
+    question: 'What is expected return?',
+    profile: llmProfile({ age: 35, monthlySavings: 25000 }),
+    recommendation,
+  }, dependencies);
+  const genericSerialized = JSON.stringify(generic);
+  assert.deepEqual(generic.privacy.sentProfileFields, []);
+  assert.equal(generic.entries.some(item => item.kind === 'RECOMMENDATION' || item.kind === 'PROJECTION'), false);
+  assert.doesNotMatch(genericSerialized, /PRIVATE_USER_INSTRUMENT_82/);
+
+  const personalized = await buildChatEvidencePacket({
+    question: 'What is expected return for my portfolio?',
+    profile: llmProfile({ age: 35, monthlySavings: 25000 }),
+    recommendation,
+  }, dependencies);
+  assert.ok(personalized.entries.some(item => item.kind === 'RECOMMENDATION'));
+  assert.ok(personalized.entries.some(item => item.kind === 'PROJECTION' && item.value.instrumentId === 'PRIVATE_USER_INSTRUMENT_82'));
 });
 
 test('instrumentConstants exposes immutable, versioned model assumptions', () => {

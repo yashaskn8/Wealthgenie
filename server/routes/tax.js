@@ -35,13 +35,18 @@ router.get('/policies', asyncHandler(async (req, res) => {
 function _parseTaxDeductions(input) {
   return {
     section80C: Number(input.section80C) || 0,
-    nps80CCD1B: Number(input.nps80CCD1B) || 0,
+    nps80CCD1B: input.nps80CCD1B !== undefined
+      ? Number(input.nps80CCD1B)
+      : input.section80CCD !== undefined ? undefined : 0,
+    section80CCD: input.section80CCD !== undefined ? Number(input.section80CCD) : undefined,
     nps80CCD2: Number(input.nps80CCD2) || 0,
     basicSalary: input.basicSalary !== undefined ? Number(input.basicSalary) : undefined,
     isGovtEmployee: input.isGovtEmployee === undefined
       ? undefined
       : input.isGovtEmployee === 'true' || input.isGovtEmployee === true,
-    section80D: Number(input.section80D) || 0,
+    section80D: input.section80D !== undefined
+      ? Number(input.section80D)
+      : input.section80D_self !== undefined || input.section80D_parents !== undefined ? undefined : 0,
     section80D_self: input.section80D_self !== undefined ? Number(input.section80D_self) : undefined,
     section80D_parents: input.section80D_parents !== undefined ? Number(input.section80D_parents) : undefined,
     parents_senior: input.parents_senior === undefined
@@ -52,6 +57,11 @@ function _parseTaxDeductions(input) {
       : input.self_senior === 'true' || input.self_senior === true,
     hra: Number(input.hra) || 0,
     homeLoanInterest: Number(input.homeLoanInterest) || 0,
+    section80EEA: Number(input.section80EEA) || 0,
+    savingsInterest: Number(input.savingsInterest) || 0,
+    section80TTA: Number(input.section80TTA) || 0,
+    section80TTB: Number(input.section80TTB) || 0,
+    other: input.other !== undefined ? Number(input.other) : undefined,
     age: input.age !== undefined ? Number(input.age) : undefined,
   };
 }
@@ -247,7 +257,7 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
     return sendError(req, res, 422, `Verified tax rules are unavailable for ${fiscalYear}.`, 'FISCAL_YEAR_UNSUPPORTED');
   }
 
-  const calculateBatchInstrument = (inv, section112AExemptionAppliedOverride) => {
+  const calculateBatchInstrument = (inv, instrumentIndex, section112AExemptionAppliedOverride) => {
     const section112AUsed = section112AExemptionUsed;
     const options = {
       deductions,
@@ -299,10 +309,12 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
       dataClass: 'MODEL_ASSUMPTION',
       ...projection,
       ...(taxResult.status === 'REQUIRES_TAX_INPUTS' ? { status: taxResult.status } : {}),
+      instrumentIndex,
+      instrumentInput: { ...inv },
     };
   };
 
-  let results = instruments.map(inv => calculateBatchInstrument(inv, undefined));
+  let results = instruments.map((inv, instrumentIndex) => calculateBatchInstrument(inv, instrumentIndex, undefined));
   const equityResultIndexes = results
     .map((result, index) => ({ result, index }))
     .filter(({ result }) => result.modelTaxClass === 'MODEL_TAX_CLASS_EQUITY_112A');
@@ -333,7 +345,7 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
         // equity universe. Recalculate known holdings without any additional
         // exemption rather than presenting a subset as the complete portfolio.
         results = results.map((result, index) => calculableEquityIndexes.has(index)
-          ? calculateBatchInstrument(instruments[index], 0)
+          ? calculateBatchInstrument(instruments[index], index, 0)
           : result);
         section112APortfolioAllocation = {
           policy: 'CONSERVATIVE_PARTIAL_PORTFOLIO_112A_ASSUMPTION',
@@ -355,7 +367,7 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
             allocations.set(index, exemptionApplied * (result.longTermGain / totalQualifyingGain));
           }
           results = results.map((result, index) => allocations.has(index)
-            ? calculateBatchInstrument(instruments[index], allocations.get(index))
+            ? calculateBatchInstrument(instruments[index], index, allocations.get(index))
             : result);
         }
         section112APortfolioAllocation = {
@@ -455,7 +467,7 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
       userAge,
       inflationRate,
       fiscalYear,
-      deductions,
+      deductions: { ...deductions },
       contributionGrowthRate: 0,
       calculationClass: 'MODELLED_POST_TAX_PROJECTION',
       dataClass: 'MODEL_ASSUMPTION',
@@ -464,6 +476,7 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
     },
     inputsUsed: {
       annualIncome, incomeSource, regime, userAge, inflationRate, fiscalYear,
+      deductions: { ...deductions },
       section112AExemptionUsed: section112AExemptionUsed ?? null,
       instruments: instruments.map(instrument => ({ ...instrument })),
     },
@@ -491,7 +504,11 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
  */
 router.post('/post-tax-scenario', validate(userDeclaredPostTaxScenarioSchema), asyncHandler(async (req, res) => {
   try {
-    res.json(calculateUserDeclaredPostTaxScenario(req.body));
+    const result = calculateUserDeclaredPostTaxScenario(req.body);
+    res.json({
+      ...result,
+      inputsUsed: { ...req.body },
+    });
   } catch (error) {
     if (error?.code === 'FISCAL_YEAR_UNSUPPORTED') {
       return sendError(req, res, 422, `Verified tax rules are unavailable for ${req.body.fiscalYear}.`, 'FISCAL_YEAR_UNSUPPORTED');

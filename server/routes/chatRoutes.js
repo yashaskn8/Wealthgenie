@@ -8,7 +8,12 @@ import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { validate, chatMessageSchema } from '../validation/schemas.js';
 import { chatHistoryQuerySchema, validateQuery } from '../validation/schemas.js';
 import { processChat, buildClientResponseDTO, resolveCurrentChatSessionBinding } from '../services/geminiChatService.js';
-import { checkTokenBudget, recordTokenUsage } from '../middleware/tokenBudget.js';
+import {
+  inspectTokenBudget,
+  recordTokenUsage,
+  reserveTokenBudget,
+  settleTokenBudget,
+} from '../middleware/tokenBudget.js';
 import ConversationHistory from '../models/ConversationHistory.js';
 import { defaultChatSessionStore } from '../services/chatSessionStore.js';
 
@@ -17,23 +22,54 @@ const router = Router();
 /**
  * POST /api/chat/message [Protected]
  * Send a message to the AI chat assistant.
- * Token budget middleware prevents cost/abuse spikes from long prompts.
+ * Completed turn replays are resolved before token and hourly quotas are checked.
  */
-router.post('/message', verifyJWT, checkTokenBudget(), validate(chatMessageSchema), asyncHandler(async (req, res) => {
+router.post('/message', verifyJWT, validate(chatMessageSchema), asyncHandler(async (req, res) => {
   const { message, session_id } = req.body;
-
-  const sessionId = session_id || crypto.randomUUID();
+  const suppliedIdempotencyKey = req.get('Idempotency-Key');
+  if (suppliedIdempotencyKey && !/^[A-Za-z0-9._:-]{8,128}$/.test(suppliedIdempotencyKey)) {
+    throw createError(400, 'Invalid Idempotency-Key header.', 'Invalid chat request key.', { code: 'INVALID_IDEMPOTENCY_KEY' });
+  }
+  const idempotencyKey = suppliedIdempotencyKey || crypto.randomUUID();
+  // A first-message retry without an explicit session ID must resolve to the
+  // same opaque server-owned session while it reuses the same request key.
+  const sessionId = session_id || `idem-${crypto.createHash('sha256')
+    .update(`${req.user.userId}\0${idempotencyKey}`).digest('hex')}`;
 
   const result = await processChat({
     userId: req.user.userId,
     user: req.user,
     message: message.trim(),
     sessionId,
+    idempotencyKey,
+  }, {
+    beforeGeneration: async () => {
+      const budget = await inspectTokenBudget(req);
+      if (!budget.allowed) {
+        res.setHeader('Retry-After', String(budget.retryAfterSeconds));
+        throw createError(429,
+          `You have used ${budget.totalTokens} tokens in the current window (limit: ${budget.maxTokens}).`,
+          'The chat token budget has been reached. Retry after the current window resets.',
+          { code: 'TOKEN_BUDGET_EXCEEDED', details: { retryAfterSeconds: budget.retryAfterSeconds } });
+      }
+    },
+    reserveProviderAttempt: async ({ tokenUpperBound }) => {
+      try {
+        return await reserveTokenBudget(req, tokenUpperBound);
+      } catch (error) {
+        if (error?.code === 'TOKEN_BUDGET_EXCEEDED') {
+          const retryAfter = error?.details?.retryAfterSeconds;
+          if (Number.isSafeInteger(retryAfter) && retryAfter > 0) res.setHeader('Retry-After', String(retryAfter));
+        }
+        throw error;
+      }
+    },
+    settleProviderAttempt: ({ reservation, actualTokens }) => settleTokenBudget(reservation, actualTokens),
   });
 
   // Record token usage from the AI response for budget tracking
   const tokensUsed = result?.usage?.totalTokens || result?.tokenCount || Math.ceil(message.length / 4);
-  recordTokenUsage(req, tokensUsed);
+  if (!result?.idempotent_replay && !req.tokenBudgetProviderAttempts) await recordTokenUsage(req, tokensUsed);
 
   res.json(buildClientResponseDTO(result));
 }));

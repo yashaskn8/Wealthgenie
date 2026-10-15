@@ -6,7 +6,7 @@ import { createPlanReviewTokenBudget } from '../agents/planReview/planReviewToke
 
 function packet() {
   return buildGroundedEvidencePacket({
-    question: 'Explain suitability.',
+    question: 'Given my profile, explain suitability.',
     profile: {
       age: 35,
       monthlySavings: 20000,

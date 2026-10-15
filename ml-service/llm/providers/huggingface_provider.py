@@ -121,7 +121,11 @@ class HuggingFaceLLMProvider(BaseLLMProvider):
             logger.info(f"Hugging Face model '{self.model_id}' loaded successfully.")
 
         except Exception as e:
-            logger.warning(f"Could not load native weights for '{self.model_id}': {e}.")
+            logger.warning(
+                "Could not load native weights for model '%s' (error_type=%s).",
+                self.model_id,
+                type(e).__name__,
+            )
             self._is_loaded = False
 
     def generate(self, request: LLMGenerateRequest) -> LLMGenerateResponse:
@@ -163,8 +167,12 @@ class HuggingFaceLLMProvider(BaseLLMProvider):
                 provider="huggingface",
             )
         except Exception as e:
-            logger.error(f"Hugging Face generation failed for '{self.model_id}': {e}")
-            raise RuntimeError(f"Hugging Face generation failed for '{self.model_id}': {e}") from e
+            logger.error(
+                "Hugging Face generation failed for model '%s' (error_type=%s).",
+                self.model_id,
+                type(e).__name__,
+            )
+            raise RuntimeError("Hugging Face generation failed.") from None
 
     def generate_stream(self, request: LLMGenerateRequest) -> Generator[str, None, None]:
         res = self.generate(request)

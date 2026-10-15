@@ -37,6 +37,7 @@ vi.mock('../../services/api', () => ({
 
 const profile = {
   profileId: '64b000000000000000000001',
+  version: 1,
   monthly_savings: 35000,
   investment_horizon_years: 16,
 };
@@ -45,6 +46,7 @@ const savedGoal = {
   _id: 'goal-1',
   profileId: profile.profileId,
   version: 1,
+  sourceProfileVersion: 1,
   goal_name: 'Dream Studio',
   target_amount: 500000,
   current_savings: 50000,
@@ -110,12 +112,37 @@ describe('GoalTracker custom-goal boundary', () => {
     expect(api.deleteGoal).not.toHaveBeenCalled();
   });
 
-  it('keeps the original notification banner available for goal-loading failures', async () => {
-    api.getGoals.mockRejectedValue(new Error('Goal service unavailable'));
+  it('shows a retryable unavailable state without exposing service details or claiming there are no goals', async () => {
+    api.getGoals
+      .mockRejectedValueOnce(new Error('private database detail'))
+      .mockResolvedValueOnce({ goals: [savedGoal] });
     render(<GoalTracker profile={profile} onNavigate={vi.fn()} />);
 
-    expect(await screen.findByText('Goal service unavailable')).toBeTruthy();
-    expect(screen.getByTitle('Dismiss notification')).toBeTruthy();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your saved goals could not be loaded. Please try again.');
+    expect(screen.queryByText('private database detail')).toBeNull();
+    expect(screen.queryByText('No Custom Goals Yet')).toBeNull();
+    expect(screen.queryByText('No goals linked to the active profile')).toBeNull();
+    expect(screen.queryByText('Welcome to your Goals Dashboard')).toBeNull();
+    expect(screen.queryByTitle('Dismiss notification')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Dream Studio')).toBeTruthy();
+    expect(api.getGoals).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats a malformed successful goals response as unavailable instead of empty', async () => {
+    api.getGoals
+      .mockResolvedValueOnce({ unexpected: [] })
+      .mockResolvedValueOnce({ goals: [] });
+    render(<GoalTracker profile={profile} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your saved goals could not be loaded. Please try again.');
+    expect(screen.queryByText('No Custom Goals Yet')).toBeNull();
+    expect(screen.queryByText('No goals linked to the active profile')).toBeNull();
+    expect(screen.queryByText('No Active Goals Configured')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('No Custom Goals Yet')).toBeTruthy();
+    expect(api.getGoals).toHaveBeenCalledTimes(2);
   });
 
   it('renders backend-owned goal projections in the complete premium goal card', async () => {
@@ -128,6 +155,25 @@ describe('GoalTracker custom-goal boundary', () => {
     expect(screen.getByText('Increase the goal contribution when cash flow allows.')).toBeTruthy();
     expect(screen.getAllByText('₹2.5L')).toHaveLength(2);
     expect(screen.getByText('₹3.5L')).toBeTruthy();
+  });
+
+  it('hides a fresh-looking projection immediately when the active profile version advances', async () => {
+    const refreshedGoals = createDeferred();
+    api.getGoals
+      .mockResolvedValueOnce({ goals: [savedGoal] })
+      .mockImplementationOnce(() => refreshedGoals.promise);
+    const view = render(<GoalTracker profile={profile} />);
+
+    expect(await screen.findByText('Dream Studio')).toBeTruthy();
+    expect(screen.getAllByText('₹2.5L')).toHaveLength(2);
+
+    view.rerender(<GoalTracker profile={{ ...profile, version: 2 }} />);
+
+    await waitFor(() => expect(api.getGoals).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('Slightly Behind (Needs Boost)')).toBeNull();
+    expect(screen.queryByText('Increase the goal contribution when cash flow allows.')).toBeNull();
+    expect(screen.queryByText('₹2.5L')).toBeNull();
+    expect(screen.getByText(/loading your goals/i)).toBeInTheDocument();
   });
 
   it('retains earlier-profile goals but labels and excludes them from current totals', async () => {
@@ -315,6 +361,121 @@ describe('GoalTracker custom-goal boundary', () => {
       current_savings: 50000,
     }));
     await waitFor(() => expect(api.getGoals).toHaveBeenCalledTimes(2));
+  });
+
+  it.each([
+    ['missing', { goals: [] }],
+    ['older', { goals: [savedGoal] }],
+  ])('retains a confirmed goal update across a %s retry response', async (_label, retryResponse) => {
+    const committedGoal = { ...savedGoal, version: 2, target_amount: 550000 };
+    api.getGoals
+      .mockResolvedValueOnce({ goals: [savedGoal] })
+      .mockRejectedValueOnce(new Error('private refresh detail'))
+      .mockResolvedValueOnce(retryResponse)
+      .mockResolvedValueOnce({ goals: [committedGoal] });
+    api.updateGoal.mockResolvedValueOnce({ success: true, goal: committedGoal });
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    const [targetInput] = screen.getAllByRole('spinbutton');
+    fireEvent.change(targetInput, { target: { value: '550000' } });
+    fireEvent.click(await screen.findByRole('button', { name: /save changes & update projections/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your saved goals could not be loaded. Please try again.',
+    );
+    expect(screen.queryByText('private refresh detail')).toBeNull();
+    expect(screen.queryByText('No Custom Goals Yet')).toBeNull();
+    expect(screen.queryByText('No goals linked to the active profile')).toBeNull();
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(550000);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your saved goals could not be loaded. Please try again.',
+    );
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(550000);
+    expect(screen.queryByText('No Custom Goals Yet')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(api.getGoals).toHaveBeenCalledTimes(4));
+    expect(await screen.findByText('Dream Studio')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(550000);
+  });
+
+  it('allows a confirmed deletion after retaining a committed goal through a failed refresh', async () => {
+    const committedGoal = { ...savedGoal, version: 2, target_amount: 550000 };
+    api.getGoals
+      .mockResolvedValueOnce({ goals: [savedGoal] })
+      .mockRejectedValueOnce(new Error('private refresh detail'))
+      .mockResolvedValueOnce({ goals: [] });
+    api.updateGoal.mockResolvedValueOnce({ success: true, goal: committedGoal });
+    api.deleteGoal.mockResolvedValueOnce({ deleted: true });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '550000' } });
+    fireEvent.click(await screen.findByRole('button', { name: /save changes & update projections/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your saved goals could not be loaded. Please try again.');
+
+    fireEvent.click(screen.getByTitle('Delete Goal'));
+    await waitFor(() => expect(api.deleteGoal).toHaveBeenCalledWith('goal-1', 2));
+    expect(await screen.findByText('No Custom Goals Yet')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(api.getGoals).toHaveBeenCalledTimes(3);
+  });
+
+  it('reconciles an ambiguous delete from the authoritative list after a retained goal update', async () => {
+    const committedGoal = { ...savedGoal, version: 2, target_amount: 550000 };
+    api.getGoals
+      .mockResolvedValueOnce({ goals: [savedGoal] })
+      .mockRejectedValueOnce(new Error('private refresh detail'))
+      .mockResolvedValueOnce({ goals: [] });
+    api.updateGoal.mockResolvedValueOnce({ success: true, goal: committedGoal });
+    api.deleteGoal.mockRejectedValueOnce(new Error('private timeout detail'));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '550000' } });
+    fireEvent.click(await screen.findByRole('button', { name: /save changes & update projections/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your saved goals could not be loaded. Please try again.');
+
+    fireEvent.click(screen.getByTitle('Delete Goal'));
+    await waitFor(() => expect(api.deleteGoal).toHaveBeenCalledWith('goal-1', 2));
+    expect(await screen.findByText('No Custom Goals Yet')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(alert).not.toHaveBeenCalled();
+    expect(api.getGoals).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps a pending updated goal when an ambiguous delete is not reflected in the list', async () => {
+    const committedGoal = { ...savedGoal, version: 2, target_amount: 550000 };
+    api.getGoals
+      .mockResolvedValueOnce({ goals: [savedGoal] })
+      .mockRejectedValueOnce(new Error('private refresh detail'))
+      .mockResolvedValueOnce({ goals: [committedGoal] });
+    api.updateGoal.mockResolvedValueOnce({ success: true, goal: committedGoal });
+    api.deleteGoal.mockRejectedValueOnce(new Error('private timeout detail'));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '550000' } });
+    fireEvent.click(await screen.findByRole('button', { name: /save changes & update projections/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your saved goals could not be loaded. Please try again.');
+
+    fireEvent.click(screen.getByTitle('Delete Goal'));
+    await waitFor(() => expect(api.deleteGoal).toHaveBeenCalledWith('goal-1', 2));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith(
+      'The goal could not be deleted. It remains saved in your tracker.',
+    ));
+    expect(await screen.findByText('Dream Studio')).toBeTruthy();
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(550000);
+    expect(screen.queryByText('No Custom Goals Yet')).toBeNull();
   });
 
   it('recalculates a stale current-profile goal from saved amounts without edits', async () => {

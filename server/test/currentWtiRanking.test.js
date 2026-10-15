@@ -13,13 +13,14 @@ const state = ({ revision = 1, profileVersion = 4, fingerprint = 'a', parentId =
   currentAllocation: { instruments: [{ id: parentId, allocationWeight: 1 }] },
 });
 
-test('WTI ranking rejects stale state bindings before calling the ranking service', async () => {
+test('WTI ranking rejects stale state bindings before calling the ranking service, even with a different fiscal-year age', async () => {
   let rankingCalls = 0;
   await assert.rejects(() => rankWtiAgainstCurrentState({
     userId: 'user-1',
     profileId: '64b000000000000000000001',
     parentInstrumentId: 'index_mf',
     expectedBinding: { ...currentWtiBinding(state()), profileVersion: 3 },
+    taxCalculationContext: { fiscalYear: 'FY2025-26', userAge: 34 },
     dependencies: {
       requireFreshRecommendationState: async () => state(),
       rankWhereToInvestBackend: async () => { rankingCalls += 1; return []; },
@@ -128,11 +129,51 @@ test('WTI ranking also discards results after profile or recommendation generati
   }
 });
 
-test('WTI rejects a client tax age that conflicts with the persisted profile before provider work', async () => {
+test('WTI rejects an invalid selected-year tax age before product ranking', async () => {
+  const current = state();
+  let rankingCalls = 0;
+  await assert.rejects(() => rankWtiAgainstCurrentState({
+    userId: 'user-1',
+    profileId: current.profile._id,
+    parentInstrumentId: 'index_mf',
+    expectedBinding: currentWtiBinding(current),
+    taxCalculationContext: { fiscalYear: 'FY2025-26', userAge: '34' },
+    dependencies: {
+      requireFreshRecommendationState: async () => current,
+      rankWhereToInvestBackend: async () => { rankingCalls += 1; return []; },
+    },
+  }), { code: 'TAX_YEAR_AGE_INVALID', status: 400 });
+  assert.equal(rankingCalls, 0);
+});
+
+test('WTI rejects conflicting selected-year age aliases before product ranking', async () => {
+  const current = state();
+  let rankingCalls = 0;
+  await assert.rejects(() => rankWtiAgainstCurrentState({
+    userId: 'user-1',
+    profileId: current.profile._id,
+    parentInstrumentId: 'index_mf',
+    expectedBinding: currentWtiBinding(current),
+    taxCalculationContext: {
+      fiscalYear: 'FY2025-26',
+      userAge: 34,
+      deductions: { age: 35 },
+    },
+    dependencies: {
+      requireFreshRecommendationState: async () => current,
+      rankWhereToInvestBackend: async () => { rankingCalls += 1; return []; },
+    },
+  }), { code: 'TAX_YEAR_AGE_INVALID', status: 400 });
+  assert.equal(rankingCalls, 0);
+});
+
+test('WTI accepts a valid tax-year age that differs from the saved profile while preserving profile age for suitability', async () => {
   const current = state();
   let rankingCalls = 0;
   const profileAge = Number(current.profile.age);
-  await assert.rejects(() => rankWtiAgainstCurrentState({
+  const taxYearAge = profileAge - 1;
+  let rankArguments;
+  const result = await rankWtiAgainstCurrentState({
     userId: 'user-1',
     profileId: current.profile._id,
     parentInstrumentId: 'index_mf',
@@ -141,13 +182,17 @@ test('WTI rejects a client tax age that conflicts with the persisted profile bef
       annualGrossIncome: 500000,
       incomeSource: 'salary',
       regime: 'old',
-      fiscalYear: 'FY2026-27',
-      userAge: profileAge + 1,
+      fiscalYear: 'FY2025-26',
+      userAge: taxYearAge,
     },
     dependencies: {
       requireFreshRecommendationState: async () => current,
-      rankWhereToInvestBackend: async () => { rankingCalls += 1; return []; },
+      rankWhereToInvestBackend: async (...args) => { rankArguments = args; rankingCalls += 1; return []; },
     },
-  }), { code: 'TAX_PROFILE_AGE_MISMATCH', status: 400 });
-  assert.equal(rankingCalls, 0);
+  });
+
+  assert.equal(rankArguments[0].age, profileAge, 'the canonical Financial Profile age remains the suitability input');
+  assert.equal(rankArguments[1].taxCalculationContext.userAge, taxYearAge, 'the selected fiscal-year age remains the tax input');
+  assert.equal(result.financialStateBinding.profileId, current.profile._id, 'the WTI result stays bound to the saved profile');
+  assert.equal(rankingCalls, 1);
 });

@@ -15,6 +15,9 @@ import {
   acquireChatSession,
   closeChatSession,
   completeChatTurn,
+  discardCompletedChatTurn,
+  finalizeCompletedChatTurn,
+  findChatTurnReceipt,
   releaseChatSession,
   reserveChatProviderBudget,
   verifyChatSessionIndexes,
@@ -38,6 +41,17 @@ const binding = Object.freeze({
   sourceRecommendationFingerprint: null,
   sourcePortfolioFingerprint: null,
 });
+let receiptSequence = 0;
+function testTurnReceipt(response = 'Persisted chat response.') {
+  receiptSequence += 1;
+  return {
+    keyHash: receiptSequence.toString(16).padStart(64, '0'),
+    clientKeyHash: (receiptSequence + 1000).toString(16).padStart(64, '0'),
+    requestHash: 'a'.repeat(64),
+    response: { response, session_id: 'test-session' },
+    createdAt: new Date(),
+  };
+}
 
 test.before(async () => {
   await setupTestDatabase();
@@ -125,6 +139,7 @@ test('expired chat reservation is settled once and stale owner cannot affect the
       userMessage: { role: 'user', content: 'stale worker append' },
       modelMessage: { role: 'model', content: 'stale worker response' },
       actualTokens: 0,
+      turnReceipt: testTurnReceipt('stale'),
     }),
     error => error.code === 'CHAT_SESSION_STATE_CHANGED',
   );
@@ -139,6 +154,7 @@ test('expired chat reservation is settled once and stale owner cannot affect the
     userMessage: { role: 'user', content: 'recovered worker append' },
     modelMessage: { role: 'model', content: 'recovered worker response' },
     actualTokens: 200,
+    turnReceipt: testTurnReceipt('recovered'),
   });
   const stored = await ConversationHistory.findById(first.conversation._id).lean();
   assert.equal(stored.cumulative_tokens, 600);
@@ -220,6 +236,7 @@ test('same literal session ID is isolated by user and closed IDs cannot be reope
     userMessage: { role: 'user', content: 'private owner message' },
     modelMessage: { role: 'model', content: 'private owner response' },
     actualTokens: 0,
+    turnReceipt: testTurnReceipt('private'),
   });
 
   // A same-name close from another owner must not deactivate the original row.
@@ -235,6 +252,7 @@ test('same literal session ID is isolated by user and closed IDs cannot be reope
     userMessage: { role: 'user', content: 'other user message' },
     modelMessage: { role: 'model', content: 'other user response' },
     actualTokens: 0,
+    turnReceipt: testTurnReceipt('other'),
   });
   await closeChatSession({ userId: otherUserId, sessionId });
 
@@ -252,6 +270,68 @@ test('same literal session ID is isolated by user and closed IDs cannot be reope
   );
   await ConversationHistory.deleteMany({ userId: otherUserId, session_id: sessionId });
   await releaseChatSession(owner);
+});
+
+test('discarding a stale completed turn removes only its messages and replay receipt', async () => {
+  const sessionId = 'discard-stale-completed-turn';
+  const claim = await acquireChatSession({ userId, sessionId, binding });
+  const staleReceipt = testTurnReceipt('stale answer');
+  assert.equal(await reserveChatProviderBudget(claim, 40), true);
+  await completeChatTurn({
+    claim,
+    userMessage: { role: 'user', content: 'stale question' },
+    modelMessage: { role: 'model', content: 'stale answer' },
+    actualTokens: 40,
+    turnReceipt: staleReceipt,
+  });
+
+  const currentClaim = await acquireChatSession({ userId, sessionId, binding });
+  const currentReceipt = testTurnReceipt('current answer');
+  assert.equal(await reserveChatProviderBudget(currentClaim, 30), true);
+  await completeChatTurn({
+    claim: currentClaim,
+    userMessage: { role: 'user', content: 'current question' },
+    modelMessage: { role: 'model', content: 'current answer' },
+    actualTokens: 30,
+    turnReceipt: currentReceipt,
+  });
+
+  assert.equal(await discardCompletedChatTurn({
+    userId,
+    sessionId,
+    binding,
+    keyHash: staleReceipt.keyHash,
+    clientKeyHash: staleReceipt.clientKeyHash,
+  }), true);
+  const stored = await ConversationHistory.findOne({ userId, session_id: sessionId }).lean();
+  assert.deepEqual(stored.messages.map(message => message.content), ['current question', 'current answer']);
+  assert.deepEqual(stored.turnReceipts.map(receipt => receipt.keyHash), [currentReceipt.keyHash]);
+  assert.equal(stored.message_count, 2);
+  assert.equal(stored.cumulative_tokens, 70, 'usage remains charged because the provider attempt already happened');
+});
+
+test('a completed turn keeps its session lease until source binding validation is finalized', async () => {
+  const sessionId = 'post-completion-binding-lease';
+  const claim = await acquireChatSession({ userId, sessionId, binding });
+  assert.equal(await reserveChatProviderBudget(claim, 20), true);
+  await completeChatTurn({
+    claim,
+    userMessage: { role: 'user', content: 'first question' },
+    modelMessage: { role: 'model', content: 'first answer' },
+    actualTokens: 20,
+    turnReceipt: testTurnReceipt('first answer'),
+    preserveLease: true,
+  });
+
+  await assert.rejects(
+    acquireChatSession({ userId, sessionId, binding }),
+    error => error.code === 'CHAT_SESSION_BUSY',
+  );
+  assert.equal(await finalizeCompletedChatTurn({ claim }), true);
+
+  const successor = await acquireChatSession({ userId, sessionId, binding });
+  assert.deepEqual(successor.conversation.messages.map(message => message.content), ['first question', 'first answer']);
+  await releaseChatSession(successor);
 });
 
 test('HTTP same-session POST by another user creates a separate owned row and cannot read or close the first', async () => {
@@ -452,6 +532,7 @@ test('closing an in-flight session fences its owner and permanently prevents sta
       userMessage: { role: 'user', content: 'must not append after close' },
       modelMessage: { role: 'model', content: 'must remain absent' },
       actualTokens: 0,
+      turnReceipt: testTurnReceipt('closed'),
     }),
     error => error.code === 'CHAT_SESSION_STATE_CHANGED',
   );
@@ -481,6 +562,7 @@ test('session append is atomic, ordered, and bound to its captured profile sourc
     userMessage: { role: 'user', content: 'Explain my profile.' },
     modelMessage: { role: 'model', content: 'Grounded response.', metadata: { tokens_used: 80 } },
     actualTokens: 80,
+    turnReceipt: testTurnReceipt('Grounded response.'),
   });
 
   assert.equal(saved.message_count, 2);
@@ -500,6 +582,67 @@ test('session append is atomic, ordered, and bound to its captured profile sourc
   );
 });
 
+test('session append stores dollar-prefixed untrusted text and receipt fields literally', async () => {
+  const claim = await acquireChatSession({ userId, sessionId: 'literal-dollar-session', binding });
+  const receipt = testTurnReceipt('$$NOW');
+  receipt.response.response = '$$ROOT';
+  await completeChatTurn({
+    claim,
+    userMessage: { role: 'user', content: '$messages.0.content' },
+    modelMessage: { role: 'model', content: '$$NOW' },
+    actualTokens: 0,
+    turnReceipt: receipt,
+  });
+
+  const stored = await ConversationHistory.findOne({ userId, session_id: 'literal-dollar-session' }).lean();
+  assert.deepEqual(stored.messages.map(message => message.content), ['$messages.0.content', '$$NOW']);
+  assert.equal(stored.turnReceipts[0].response.response, '$$ROOT');
+});
+
+test('completed-turn receipts replay only for the owning active session and reject changed request content', async () => {
+  const sessionId = 'receipt-owner-session';
+  const claim = await acquireChatSession({ userId, sessionId, binding });
+  const receipt = testTurnReceipt('The exact grounded answer.');
+  await completeChatTurn({
+    claim,
+    userMessage: { role: 'user', content: 'Explain the current profile.' },
+    modelMessage: { role: 'model', content: receipt.response.response },
+    actualTokens: 0,
+    turnReceipt: receipt,
+  });
+
+  assert.deepEqual(await findChatTurnReceipt({
+    userId,
+    sessionId,
+    binding,
+    keyHash: receipt.keyHash,
+    requestHash: receipt.requestHash,
+  }), receipt.response);
+  await assert.rejects(findChatTurnReceipt({
+    userId,
+    sessionId,
+    binding,
+    keyHash: receipt.keyHash,
+    requestHash: 'b'.repeat(64),
+  }), error => error.code === 'CHAT_IDEMPOTENCY_KEY_REUSED');
+  assert.equal(await findChatTurnReceipt({
+    userId: otherUserId,
+    sessionId,
+    binding,
+    keyHash: receipt.keyHash,
+    requestHash: receipt.requestHash,
+  }), null);
+
+  await closeChatSession({ userId, sessionId });
+  assert.equal(await findChatTurnReceipt({
+    userId,
+    sessionId,
+    binding,
+    keyHash: receipt.keyHash,
+    requestHash: receipt.requestHash,
+  }), null, 'cleared sessions must not replay saved answers');
+});
+
 test('competing messages to one session return an explicit busy conflict without losing either accepted turn', async () => {
   const first = await acquireChatSession({ userId, sessionId: 'competing-session', binding });
 
@@ -513,6 +656,7 @@ test('competing messages to one session return an explicit busy conflict without
     userMessage: { role: 'user', content: 'First accepted turn.' },
     modelMessage: { role: 'model', content: 'First grounded response.' },
     actualTokens: 0,
+    turnReceipt: testTurnReceipt('First grounded response.'),
   });
 
   const second = await acquireChatSession({ userId, sessionId: 'competing-session', binding });
@@ -521,6 +665,7 @@ test('competing messages to one session return an explicit busy conflict without
     userMessage: { role: 'user', content: 'Second accepted turn.' },
     modelMessage: { role: 'model', content: 'Second grounded response.' },
     actualTokens: 0,
+    turnReceipt: testTurnReceipt('Second grounded response.'),
   });
 
   const stored = await ConversationHistory.findOne({ userId, session_id: 'competing-session' }).lean();
@@ -569,6 +714,7 @@ test('closing a session fences an in-flight response from appending afterward', 
       userMessage: { role: 'user', content: 'Late message.' },
       modelMessage: { role: 'model', content: 'Must not persist.' },
       actualTokens: 0,
+      turnReceipt: testTurnReceipt('late'),
     }),
     error => error.code === 'CHAT_SESSION_STATE_CHANGED',
   );

@@ -510,13 +510,26 @@ function validateTaxContext(annualIncome, regime, incomeSource) {
     }
 }
 
+function rejectConflictingNps80CCDRepresentations(deductions = {}) {
+    if (deductions?.nps80CCD1B !== undefined
+        && deductions.section80CCD !== undefined
+        && deductions.nps80CCD1B !== deductions.section80CCD) {
+        throw new TypeError('nps80CCD1B and section80CCD cannot contain conflicting amounts');
+    }
+}
+
 export function calculateTaxableIncome(annualIncome, regime, deductions = {}, incomeSource, fiscalYear, explicitUserAge) {
     validateTaxContext(annualIncome, regime, incomeSource);
+    rejectConflictingNps80CCDRepresentations(deductions);
     const resolvedFiscalYear = fiscalYear || getCurrentFiscalYear();
     const policyRules = getTaxPolicyRules(resolvedFiscalYear);
     const deductionLimits = policyRules.deductionLimits;
     if (Number(deductions.other) > 0) {
         throw new TypeError('Unclassified deductions are not accepted; submit only a supported, explicitly named deduction.');
+    }
+    if (deductions.section80D !== undefined
+        && (deductions.section80D_self !== undefined || deductions.section80D_parents !== undefined)) {
+        throw new TypeError('section80D cannot be combined with section80D_self or section80D_parents');
     }
     const userAge = requireUserAge(regime, deductions, explicitUserAge);
     let standardDeduction = 0;
@@ -542,7 +555,8 @@ export function calculateTaxableIncome(annualIncome, regime, deductions = {}, in
         nps80CCD2 = Math.min(requestedNps80CCD2, deductions.basicSalary * nps80CCD2LimitPercent);
     }
     const section80C = Math.min(deductions.section80C || 0, deductionLimits.section80C);
-    const nps80CCD1B = Math.min(deductions.nps80CCD1B || deductions.section80CCD || 0, deductionLimits.section80CCD1B);
+    const requestedNps80CCD1B = deductions.nps80CCD1B ?? deductions.section80CCD ?? 0;
+    const nps80CCD1B = Math.min(requestedNps80CCD1B, deductionLimits.section80CCD1B);
     // Section 80D Granular Self vs. Parents
     const healthOrInterestFactsPresent = Number(deductions.section80D || 0) > 0
         || Number(deductions.section80D_self || 0) > 0
@@ -1000,6 +1014,7 @@ export function buildTaxSlabBreakdown(computation, fiscalYear) {
  */
 export function analyzeTaxOptimization(annualIncome, deductions = {}, incomeSource, fiscalYear, userAge) {
     validateTaxContext(annualIncome, 'old', incomeSource);
+    rejectConflictingNps80CCDRepresentations(deductions);
     const policyRules = getTaxPolicyRules(fiscalYear || getCurrentFiscalYear());
     const limits = policyRules.deductionLimits;
     const section80C = Math.min(Number(deductions.section80C) || 0, limits.section80C);
@@ -1028,6 +1043,9 @@ export function analyzeTaxOptimization(annualIncome, deductions = {}, incomeSour
         ...deductions,
         section80C: deductionLimits.section80C,
         nps80CCD1B: deductionLimits.section80CCD1B,
+        ...(deductions.section80CCD !== undefined
+            ? { section80CCD: deductionLimits.section80CCD1B }
+            : {}),
     };
     const optimizedOld = computeTax(annualIncome, 'old', optimizedDeductions, incomeSource, fiscalYear, userAge);
     const newRegime = computeTax(annualIncome, 'new', deductions, incomeSource, fiscalYear, userAge);
@@ -1048,6 +1066,9 @@ export function analyzeTaxOptimization(annualIncome, deductions = {}, incomeSour
                 ...deductions,
                 section80C: section80C + add80C,
                 nps80CCD1B: nps80CCD1B + addNps,
+                ...(deductions.section80CCD !== undefined
+                    ? { section80CCD: nps80CCD1B + addNps }
+                    : {}),
             }, incomeSource, fiscalYear, userAge);
             if (candidate.taxAmount <= newRegime.taxAmount) high = additional;
             else low = additional + 1;

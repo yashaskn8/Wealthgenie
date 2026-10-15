@@ -173,8 +173,11 @@ class PersistentVectorStore(BaseVectorStore):
         if self.is_using_faiss:
             try:
                 return self._search_faiss(q_vec, valid_indices, top_k, threshold, stored_dim)
-            except Exception as e:
-                logger.warning(f"FAISS search failed, falling back to NumPy search: {e}")
+            except Exception as exc:
+                logger.warning(
+                    "FAISS search failed, falling back to NumPy search",
+                    extra={"error_type": type(exc).__name__},
+                )
 
         # NumPy Fallback Path
         return self._search_numpy(q_vec, valid_indices, top_k, threshold)

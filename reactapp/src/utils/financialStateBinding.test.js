@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   hasCompleteFinancialStateBinding,
+  getCurrentRecommendedInstrument,
   isExactAllocationSuccessor,
   matchesProfileState,
   sameFinancialState,
@@ -82,6 +83,16 @@ describe('canonical financial response binding', () => {
   it('binds state to the active profile version', () => {
     expect(matchesProfileState(current(), { profileId: id(1), version: 4 })).toBe(true);
     expect(matchesProfileState(current(), { profileId: id(1), version: 5 })).toBe(false);
+  });
+
+  it('resolves recommendation display data only from the current profile-bound instrument list', () => {
+    const instrument = { id: 'index_mf', name: 'Index funds', allocation_pct: 0 };
+    const state = current({ instruments: [instrument] });
+
+    expect(getCurrentRecommendedInstrument(state, instrument.id, { profileId: id(1), version: 4 })).toBe(instrument);
+    expect(getCurrentRecommendedInstrument(state, 'catalog_alternative', { profileId: id(1), version: 4 })).toBeNull();
+    expect(getCurrentRecommendedInstrument(state, instrument.id, { profileId: id(1), version: 5 })).toBeNull();
+    expect(getCurrentRecommendedInstrument({ ...state, response_state: 'HISTORICAL_GENERATION' }, instrument.id, { profileId: id(1), version: 4 })).toBeNull();
   });
 
   it('recognizes only an exact next allocation revision from the captured predecessor', () => {

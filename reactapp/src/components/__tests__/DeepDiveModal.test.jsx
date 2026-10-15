@@ -69,6 +69,8 @@ it.each([
   ['negative', { lock_in_years: -1 }, 'Unavailable'],
   ['non-finite', { lockIn: Number.NaN }, 'Unavailable'],
   ['malformed', { lock_in_years: '' }, 'Unavailable'],
+  ['explicitly unknown despite legacy alias', { lock_in_years: null, lockIn: 5 }, 'Unavailable'],
+  ['undefined canonical value falls back to legacy alias', { lock_in_years: undefined, lockIn: 5 }, '5 Years'],
   ['verified zero', { lock_in_years: 0 }, 'None'],
   ['verified positive', { lockIn: 5 }, '5 Years'],
 ])('shows lock-in as %s only when its value is valid', (_case, lockIn, expected) => {

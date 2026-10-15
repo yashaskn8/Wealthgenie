@@ -233,7 +233,10 @@ test('DEFERRED ADVISORY: Complete decoupled recommendation and deferred advisory
   await t.test('8. Deferred advisory endpoint successfully generates advisory for owner', async () => {
     const knownExplanation = {
       top_reason: 'Nested completion explanation reaches deferred advisory generation',
-      feature_contributions: [{ feature: 'emergencyFundMonths', contribution: 0.8 }],
+      feature_contributions: [
+        { feature: 'monthly_take_home', contribution: 0.8, raw_value: 987654 },
+        { feature: 'monthly_savings', contribution: -0.3, raw_value: 321987 },
+      ],
     };
     assert.deepEqual(
       recommendationPayloadFromSnapshot({ recommendation: { explanation: knownExplanation }, completion: { recomputed: true } }),
@@ -245,7 +248,6 @@ test('DEFERRED ADVISORY: Complete decoupled recommendation and deferred advisory
     const expectedExplanation = generationResponse?.explanation
       ? {
         topReason: generationResponse.explanation.top_reason,
-        featureContributions: generationResponse.explanation.feature_contributions || [],
       }
       : null;
 
@@ -292,6 +294,8 @@ test('DEFERRED ADVISORY: Complete decoupled recommendation and deferred advisory
     assert.equal(res.status, 200);
     await assertFetchResponseMatchesOpenApi(res, 'POST', '/api/recommend/{recommendationId}/advisory');
     assert.deepEqual(receivedExplanation, expectedExplanation);
+    assert.equal(Object.hasOwn(receivedExplanation, 'featureContributions'), false);
+    assert.doesNotMatch(JSON.stringify(receivedExplanation), /987654|321987/);
     advisoryData = await res.json();
     assert.equal(advisoryData.recommendationId, recData.recommendationId);
     assert.ok(typeof advisoryData.advisory_text === 'string' && advisoryData.advisory_text.length > 0, 'Must return advisory text');

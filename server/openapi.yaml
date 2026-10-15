@@ -582,7 +582,7 @@ paths:
       x-csrf-protection: cookie-session
       parameters: [{ $ref: '#/components/parameters/GoalId' }]
       requestBody: { $ref: '#/components/requestBodies/GoalSimulation' }
-      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
+      responses: { '200': { $ref: '#/components/responses/GoalSimulation' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
   /api/goals/{goalId}:
     patch:
       operationId: updateGoal
@@ -843,7 +843,14 @@ paths:
       security: []
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/UserDeclaredPostTaxScenario' }
-      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '422': { $ref: '#/components/responses/Unprocessable' } }
+      responses:
+        '200':
+          description: User-declared transaction tax result bound to the exact validated request inputs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserDeclaredPostTaxScenarioResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
 
   /api/portfolio/optimise:
     post:
@@ -867,6 +874,7 @@ paths:
       operationId: sendChatMessage
       tags: [Chat]
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ChatIdempotencyKey' }]
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/Chat' }
       responses: { '200': { $ref: '#/components/responses/Chat' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '409': { $ref: '#/components/responses/Conflict' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
@@ -935,6 +943,7 @@ components:
     BearerAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Explicitly configured non-browser compatibility authentication. }
   parameters:
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, pattern: '^[A-Za-z0-9._:-]{8,128}$', minLength: 8, maxLength: 128 } }
+    ChatIdempotencyKey: { name: Idempotency-Key, in: header, required: false, description: Reuse the same key for a retry of one chat message. Completed turns replay without provider work or quota consumption. A key cannot be reused for different text., schema: { type: string, pattern: '^[A-Za-z0-9._:-]{8,128}$', minLength: 8, maxLength: 128 } }
     ProfileId: { name: profileId, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }
     GoalId: { name: goalId, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }
     GoalIfMatch: { name: If-Match, in: header, required: true, description: Expected current goal version. The server atomically compares this version before deletion., schema: { type: string, pattern: '^(W/)?\"?[1-9][0-9]*\"?$' } }
@@ -1005,6 +1014,12 @@ components:
               success: { type: boolean, const: true }
               goal: { $ref: '#/components/schemas/Goal' }
             additionalProperties: false
+    GoalSimulation:
+      description: A non-persisted what-if result bound to the exact saved goal version and calculation inputs used by the simulation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GoalSimulationResponse'
     GoalAdvice:
       description: Goal advisory bound to the saved goal and source financial state.
       content:
@@ -1746,6 +1761,52 @@ components:
       properties: { goal_name: { type: string, minLength: 2, maxLength: 100 }, target_amount: { type: number, minimum: 1000, maximum: 10000000000 }, target_date: { type: string, format: date }, current_savings: { type: number, minimum: 0, maximum: 10000000000 }, profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, priority: { type: string, enum: [Critical, High, Medium, Low] } }
     GoalUpdateRequest: { type: object, additionalProperties: false, minProperties: 2, required: [expectedVersion], properties: { expectedVersion: { type: integer, minimum: 1 }, target_amount: { type: number, minimum: 1000, maximum: 10000000000 }, current_savings: { type: number, minimum: 0, maximum: 10000000000 }, priority: { type: string, enum: [Critical, High, Medium, Low] } } }
     GoalSimulationRequest: { type: object, additionalProperties: false, required: [monthly_contribution], properties: { monthly_contribution: { type: number, exclusiveMinimum: 0, maximum: 10000000 } } }
+    GoalSimulationChartPoint:
+      type: object
+      additionalProperties: false
+      required: [year, p10, p25, p50, p75, p90]
+      properties:
+        year: { type: number, exclusiveMinimum: 0, maximum: 30 }
+        p10: { type: number, minimum: 0 }
+        p25: { type: number, minimum: 0 }
+        p50: { type: number, minimum: 0 }
+        p75: { type: number, minimum: 0 }
+        p90: { type: number, minimum: 0 }
+    GoalSimulationResponse:
+      type: object
+      additionalProperties: false
+      required: [goalId, goal_version, goal_calculation_input_fingerprint, monthly_contribution, probability_of_success, status, gap_amount, chartData, monte_carlo_summary, simulation_classification, return_basis, return_data_class, return_assumption_version, return_assumption_source, allocation_revision, allocation_revision_id, portfolio_fingerprint, observed_market_fact, provider_forecast, inflation_assumption]
+      properties:
+        goalId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }
+        goal_version: { type: integer, minimum: 1 }
+        goal_calculation_input_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        monthly_contribution: { type: number, exclusiveMinimum: 0, maximum: 10000000 }
+        probability_of_success: { type: number, minimum: 0, maximum: 1 }
+        status: { type: string, enum: [on_track, at_risk, off_track] }
+        gap_amount: { type: number, minimum: 0 }
+        chartData: { type: array, minItems: 1, items: { $ref: '#/components/schemas/GoalSimulationChartPoint' } }
+        monte_carlo_summary:
+          type: object
+          required: [p10, p25, p50, p75, p90, simulations_run]
+          properties:
+            p10: { type: number, minimum: 0 }
+            p25: { type: number, minimum: 0 }
+            p50: { type: number, minimum: 0 }
+            p75: { type: number, minimum: 0 }
+            p90: { type: number, minimum: 0 }
+            simulations_run: { type: integer, minimum: 1 }
+          additionalProperties: false
+        simulation_classification: { type: string, const: NON_RECOMMENDATION_GOAL_WHAT_IF }
+        return_basis: { type: string, const: PRE_TAX_NOMINAL }
+        return_data_class: { type: string, const: MODEL_ASSUMPTION }
+        return_assumption_version: { type: string, minLength: 1 }
+        return_assumption_source: { type: string, const: WEALTHGENIE_MODEL_POLICY }
+        allocation_revision: { type: integer, minimum: 1 }
+        allocation_revision_id: { type: string, pattern: '^[0-9a-fA-F]{24}$' }
+        portfolio_fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        observed_market_fact: { type: boolean, const: false }
+        provider_forecast: { type: boolean, const: false }
+        inflation_assumption: { type: number, minimum: 0, maximum: 1 }
     Goal:
       type: object
       required: [goalId, version, goal_name, target_amount, target_date, current_savings, priority, calculation_freshness, advisory_freshness, advice_stale, source_provenance]
@@ -1974,7 +2035,38 @@ components:
         semanticClass: { type: string, enum: [OBSERVED, DERIVED] }
         availabilityStatus: { type: string, enum: [AVAILABLE, UNAVAILABLE] }
       additionalProperties: true
-    TaxCalculationContext: { type: object, additionalProperties: false, required: [annualGrossIncome, incomeSource, regime, fiscalYear], properties: { fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$', description: Fiscal year used by the server-owned tax policy; FY2025-26 maps to AY2026-27. }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, annualGrossIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120, description: Required for old-regime calculations; persisted profile age is authoritative in WTI. }, deductions: { type: object, additionalProperties: true }, illustrativePrincipal: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }, holdingPeriodMonths: { type: number, minimum: 0, maximum: 1200 }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. }, sttConditionAssumedSatisfied: { type: boolean, description: Explicit scenario assumption for an equity-fund transfer; true does not verify an actual transaction. } } }
+    TaxCalculationContext:
+      type: object
+      additionalProperties: false
+      required: [annualGrossIncome, incomeSource, regime, fiscalYear]
+      properties:
+        fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$', description: Fiscal year used by the server-owned tax policy; FY2025-26 maps to AY2026-27. }
+        incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
+        annualGrossIncome: { type: number, minimum: 0, maximum: 1000000000 }
+        regime: { type: string, enum: [new, old] }
+        userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }
+        deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }
+        illustrativePrincipal: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
+        holdingPeriodMonths: { type: number, minimum: 0, maximum: 1200 }
+        section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. }
+        sttConditionAssumedSatisfied: { type: boolean, description: Explicit scenario assumption for an equity-fund transfer; true does not verify an actual transaction. }
+      allOf:
+        - if:
+            properties: { regime: { const: old } }
+            required: [regime]
+          then: { required: [userAge] }
+        - if:
+            properties:
+              deductions:
+                anyOf:
+                  - { properties: { section80D: { exclusiveMinimum: 0 } }, required: [section80D] }
+                  - { properties: { section80D_self: { exclusiveMinimum: 0 } }, required: [section80D_self] }
+                  - { properties: { section80D_parents: { exclusiveMinimum: 0 } }, required: [section80D_parents] }
+                  - { properties: { savingsInterest: { exclusiveMinimum: 0 } }, required: [savingsInterest] }
+                  - { properties: { section80TTA: { exclusiveMinimum: 0 } }, required: [section80TTA] }
+                  - { properties: { section80TTB: { exclusiveMinimum: 0 } }, required: [section80TTB] }
+            required: [deductions]
+          then: { required: [userAge] }
     RankInstrumentsRequest: { type: object, additionalProperties: false, required: [profileId, profileVersion, recommendationId, expectedAllocationRevision, expectedAllocationRevisionId, expectedPortfolioFingerprint, expectedRecommendationFingerprint, parentInstrumentId], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, profileVersion: { type: integer, minimum: 1 }, recommendationId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, expectedAllocationRevision: { type: integer, minimum: 1 }, expectedAllocationRevisionId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, expectedPortfolioFingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }, expectedRecommendationFingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }, parentInstrumentId: { type: string, maxLength: 50 }, taxCalculationContext: { $ref: '#/components/schemas/TaxCalculationContextV2' } } }
     ProjectionRequest: { type: object, additionalProperties: false, required: [profileId, instruments, monthly_investment, years], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, instruments: { type: array, minItems: 1, maxItems: 10, items: { type: string, maxLength: 50 } }, monthly_investment: { type: number, exclusiveMinimum: 0, maximum: 10000000 }, years: { type: array, minItems: 1, maxItems: 10, uniqueItems: true, items: { type: integer, minimum: 1, maximum: 30 } } } }
     ProjectionComparisonRequest: { type: object, additionalProperties: false, required: [monthlyInvestment, annualReturnRate, benchmarkRate, inflationRate, years], properties: { monthlyInvestment: { type: number, exclusiveMinimum: 0, maximum: 10000000 }, annualReturnRate: { type: number, exclusiveMinimum: -1, maximum: 1 }, benchmarkRate: { type: number, exclusiveMinimum: -1, maximum: 1 }, inflationRate: { type: number, minimum: 0, maximum: 1 }, years: { type: integer, minimum: 1, maximum: 50 } } }
@@ -2017,10 +2109,10 @@ components:
         income: { type: number, minimum: 0, maximum: 1000000000 }
         incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
         fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
-        age: { type: integer, minimum: 18, maximum: 120 }
+        age: { type: integer, minimum: 18, maximum: 120, description: Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. Required for old-regime computation or positive age-dependent health and savings-interest deductions. }
         section80C: { type: number, minimum: 0, maximum: 150000 }
-        nps80CCD1B: { type: number, minimum: 0, maximum: 50000 }
-        section80CCD: { type: number, minimum: 0, maximum: 50000 }
+        nps80CCD1B: { type: number, minimum: 0, maximum: 50000, description: 'If the legacy section80CCD alias is also supplied, the server requires both amounts to match.' }
+        section80CCD: { type: number, minimum: 0, maximum: 50000, description: 'Legacy alias for nps80CCD1B; if both are supplied, the server rejects unequal amounts.' }
         nps80CCD2: { type: number, minimum: 0, maximum: 100000000 }
         basicSalary: { type: number, minimum: 0, maximum: 1000000000 }
         isGovtEmployee: { type: boolean }
@@ -2036,6 +2128,21 @@ components:
         section80TTA: { type: number, minimum: 0, maximum: 10000 }
         section80TTB: { type: number, minimum: 0, maximum: 50000 }
         other: { type: number, const: 0 }
+      not:
+        anyOf:
+          - required: [section80D, section80D_self]
+          - required: [section80D, section80D_parents]
+      allOf:
+        - if:
+            properties: { nps80CCD2: { exclusiveMinimum: 0 } }
+            required: [nps80CCD2]
+          then:
+            required: [basicSalary, isGovtEmployee]
+        - if:
+            properties: { section80D_parents: { exclusiveMinimum: 0 } }
+            required: [section80D_parents]
+          then:
+            required: [parents_senior]
     TaxComputeRequest:
       allOf:
         - { $ref: '#/components/schemas/TaxCommonRequestInputs' }
@@ -2043,6 +2150,19 @@ components:
           required: [regime]
           properties:
             regime: { type: string, enum: [new, old] }
+        - if:
+            properties: { regime: { const: old } }
+            required: [regime]
+          then: { required: [age] }
+        - if:
+            anyOf:
+              - { properties: { section80D: { exclusiveMinimum: 0 } }, required: [section80D] }
+              - { properties: { section80D_self: { exclusiveMinimum: 0 } }, required: [section80D_self] }
+              - { properties: { section80D_parents: { exclusiveMinimum: 0 } }, required: [section80D_parents] }
+              - { properties: { savingsInterest: { exclusiveMinimum: 0 } }, required: [savingsInterest] }
+              - { properties: { section80TTA: { exclusiveMinimum: 0 } }, required: [section80TTA] }
+              - { properties: { section80TTB: { exclusiveMinimum: 0 } }, required: [section80TTB] }
+          then: { required: [age] }
       unevaluatedProperties: false
     TaxCompareRequest:
       allOf:
@@ -2050,14 +2170,108 @@ components:
         - type: object
           required: [age]
           properties:
-            age: { type: integer, minimum: 18, maximum: 120 }
+            age: { type: integer, minimum: 18, maximum: 120, description: Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. }
       unevaluatedProperties: false
     TaxCalculation: { type: object, required: [fiscalYear, policyVersion, inputsUsed], properties: { regime: { type: string, enum: [new, old] }, tax: { type: number }, taxAmount: { type: number }, effectiveRate: { type: number }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, policyVersion: { type: string }, inputsUsed: { type: object, additionalProperties: true }, rulesApplied: { type: array, items: { type: string } }, sourceReferences: { type: array, items: { type: object, additionalProperties: true } } }, additionalProperties: true }
     TaxRegimeComparison: { type: object, required: [tax, effective_rate, rebate_applied, taxable_income, standard_deduction, cess, nps80CCD2, allowed80D, slab_breakdown], properties: { tax: { type: number }, effective_rate: { type: number }, rebate_applied: { type: boolean }, taxable_income: { type: number }, standard_deduction: { type: number }, old_regime_deductions: { type: number }, marginal_relief_applied: { type: boolean }, marginal_relief_amount: { type: number }, cess: { type: number }, nps80CCD2: { type: number }, allowed80D: { type: number }, slab_breakdown: { type: array, items: { type: object, additionalProperties: true } } }, additionalProperties: true }
     TaxComparison: { type: object, required: [income, fiscal_year, verified, new_regime, old_regime, recommended_regime, saving, saving_pct, saving_with, calculation_classification, deduction_limits, remaining_deductions, optimized_old_regime_tax, potential_tax_saving, crossover_breakpoint], properties: { income: { type: number }, fiscal_year: { type: string, pattern: '^FY\d{4}-\d{2}$' }, verified: { type: boolean, const: true }, policyVersion: { type: string }, statuteMetadata: { type: object, additionalProperties: true }, verifiedRuleIds: { type: array, items: { type: string } }, sourceReferences: { type: array, items: { type: object, additionalProperties: true } }, rules: { type: object, additionalProperties: true }, inputsUsed: { type: object, additionalProperties: true }, rulesApplied: { type: array, items: { type: string } }, assumptions: { type: array, items: { type: string } }, unavailableReasons: { type: array, items: { type: string } }, new_regime: { $ref: '#/components/schemas/TaxRegimeComparison' }, old_regime: { $ref: '#/components/schemas/TaxRegimeComparison' }, recommended_regime: { type: string, enum: [old, new] }, saving: { type: number }, saving_pct: { type: number }, saving_with: { type: string, enum: [old, new] }, calculation_classification: { type: string, const: SEPARATE_TAX_WHAT_IF }, deduction_limits: { type: object, additionalProperties: true }, remaining_deductions: { type: object, additionalProperties: true }, optimized_old_regime_tax: { type: number }, potential_tax_saving: { type: number }, crossover_breakpoint: { type: [number, 'null'] } }, additionalProperties: true }
     TaxPolicyMetadata: { type: object, required: [currentFiscalYear, verifiedFiscalYears, policies], properties: { currentFiscalYear: { type: string }, currentFiscalYearVerified: { type: boolean }, verifiedFiscalYears: { type: array, items: { type: string } }, policies: { type: array, items: { type: object, required: [fiscalYear, policyVersion, sourceReferences], additionalProperties: true } } }, additionalProperties: false }
-    TaxDeductionInputs: { type: object, additionalProperties: false, description: All deduction identifiers are compatibility input names, not current statutory authority. Positive unclassified other deductions are rejected; zero is accepted only for backward compatibility., properties: { section80C: { type: number, minimum: 0, maximum: 150000, description: Legacy input name; eligibility is fiscal-year and regime specific. }, nps80CCD1B: { type: number, minimum: 0, maximum: 50000, description: Legacy input name; eligibility is fiscal-year and regime specific. }, nps80CCD2: { type: number, minimum: 0 }, basicSalary: { type: number, minimum: 0 }, isGovtEmployee: { type: boolean }, section80D: { type: number, minimum: 0 }, section80D_self: { type: number, minimum: 0 }, section80D_parents: { type: number, minimum: 0 }, parents_senior: { type: boolean }, self_senior: { type: boolean }, hra: { type: number, minimum: 0 }, homeLoanInterest: { type: number, minimum: 0 }, section80EEA: { type: number, minimum: 0 }, savingsInterest: { type: number, minimum: 0 }, section80TTA: { type: number, minimum: 0 }, section80TTB: { type: number, minimum: 0 }, other: { type: number, minimum: 0, maximum: 0, description: Deprecated compatibility input; only zero is accepted. } } }
-    TaxCalculationContextV2: { type: object, additionalProperties: false, required: [annualGrossIncome, incomeSource, regime, fiscalYear], properties: { fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, annualGrossIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120 }, deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }, illustrativePrincipal: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }, holdingPeriodMonths: { type: number, minimum: 0, maximum: 1200 }, acquisitionDate: { type: string, format: date }, redemptionDate: { type: string, format: date }, redemptionChannel: { type: string, enum: [RBI_REDEMPTION, MATURITY_REDEMPTION, SECONDARY_MARKET_SALE] }, acquiredAtOriginalIssue: { type: boolean }, heldContinuously: { type: boolean }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. }, sttConditionAssumedSatisfied: { type: boolean, description: Explicit scenario assumption for an equity-fund transfer; true does not verify an actual transaction. } } }
+    TaxDeductionInputs:
+      type: object
+      additionalProperties: false
+      description: All deduction identifiers are compatibility input names, not current statutory authority. Positive unclassified other deductions are rejected; zero is accepted only for backward compatibility. Aggregate section80D cannot be combined with granular section80D_self or section80D_parents. The server also rejects unequal nps80CCD1B and section80CCD aliases, and unequal nested age and top-level userAge values; these cross-field equality checks are enforced by request validation.
+      properties:
+        section80C: { type: number, minimum: 0, maximum: 150000, description: Legacy input name; eligibility is fiscal-year and regime specific. }
+        nps80CCD1B: { type: number, minimum: 0, maximum: 50000, description: 'Legacy input name; eligibility is fiscal-year and regime specific. If section80CCD is also supplied, the server requires both amounts to match.' }
+        section80CCD: { type: number, minimum: 0, maximum: 50000, description: 'Legacy alias for nps80CCD1B; if both are supplied, the server rejects unequal amounts.' }
+        nps80CCD2: { type: number, minimum: 0, maximum: 100000000 }
+        basicSalary: { type: number, minimum: 0, maximum: 1000000000 }
+        isGovtEmployee: { type: boolean }
+        section80D: { type: number, minimum: 0, maximum: 100000 }
+        section80D_self: { type: number, minimum: 0, maximum: 50000 }
+        section80D_parents: { type: number, minimum: 0, maximum: 50000 }
+        parents_senior: { type: boolean }
+        self_senior: { type: boolean }
+        hra: { type: number, minimum: 0, maximum: 100000000 }
+        homeLoanInterest: { type: number, minimum: 0, maximum: 200000 }
+        section80EEA: { type: number, minimum: 0, maximum: 150000 }
+        savingsInterest: { type: number, minimum: 0, maximum: 100000000 }
+        section80TTA: { type: number, minimum: 0, maximum: 10000 }
+        section80TTB: { type: number, minimum: 0, maximum: 50000 }
+        age: { type: integer, minimum: 18, maximum: 120, description: 'Tax age on March 31 of the supplied fiscalYear; when top-level userAge is also supplied, both values must match. The server rejects unequal values. Never inferred from profile age.' }
+        other: { type: number, minimum: 0, maximum: 0, description: Deprecated compatibility input; only zero is accepted. }
+      not:
+        anyOf:
+          - required: [section80D, section80D_self]
+          - required: [section80D, section80D_parents]
+      allOf:
+        - if:
+            properties: { nps80CCD2: { exclusiveMinimum: 0 } }
+            required: [nps80CCD2]
+          then:
+            required: [basicSalary, isGovtEmployee]
+        - if:
+            properties: { section80D_parents: { exclusiveMinimum: 0 } }
+            required: [section80D_parents]
+          then:
+            required: [parents_senior]
+    TaxCalculationContextV2:
+      type: object
+      additionalProperties: false
+      description: Product-only context fields may be supplied without a tax context. If any tax context field (annualGrossIncome, incomeSource, regime, fiscalYear, deductions, or userAge) is supplied, all four core tax fields are required.
+      properties:
+        fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
+        incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
+        annualGrossIncome: { type: number, minimum: 0, maximum: 1000000000 }
+        regime: { type: string, enum: [new, old] }
+        userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }
+        deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }
+        illustrativePrincipal: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
+        holdingPeriodMonths: { type: number, minimum: 0, maximum: 1200 }
+        acquisitionDate: { type: string, format: date, description: 'Must be supplied together with redemptionDate. The server rejects impossible calendar dates.' }
+        redemptionDate: { type: string, format: date, description: 'Must be supplied together with acquisitionDate and cannot precede it. The server rejects impossible calendar dates and reversed transaction chronology.' }
+        redemptionChannel: { type: string, enum: [RBI_REDEMPTION, MATURITY_REDEMPTION, SECONDARY_MARKET_SALE] }
+        acquiredAtOriginalIssue: { type: boolean }
+        heldContinuously: { type: boolean }
+        section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. }
+        sttConditionAssumedSatisfied: { type: boolean, description: Explicit scenario assumption for an equity-fund transfer; true does not verify an actual transaction. }
+      x-runtime-validation:
+        transactionDates: acquisitionDate and redemptionDate must be supplied together; both must be real calendar dates; redemptionDate must be on or after acquisitionDate.
+      allOf:
+        - if:
+            anyOf:
+              - required: [annualGrossIncome]
+              - required: [incomeSource]
+              - required: [regime]
+              - required: [fiscalYear]
+              - required: [deductions]
+              - required: [userAge]
+          then:
+            required: [annualGrossIncome, incomeSource, regime, fiscalYear]
+        - if:
+            properties: { regime: { const: old } }
+            required: [regime]
+          then: { required: [userAge] }
+        - if:
+            required: [acquisitionDate]
+          then:
+            required: [redemptionDate]
+        - if:
+            required: [redemptionDate]
+          then:
+            required: [acquisitionDate]
+        - if:
+            properties:
+              deductions:
+                anyOf:
+                  - { properties: { section80D: { exclusiveMinimum: 0 } }, required: [section80D] }
+                  - { properties: { section80D_self: { exclusiveMinimum: 0 } }, required: [section80D_self] }
+                  - { properties: { section80D_parents: { exclusiveMinimum: 0 } }, required: [section80D_parents] }
+                  - { properties: { savingsInterest: { exclusiveMinimum: 0 } }, required: [savingsInterest] }
+                  - { properties: { section80TTA: { exclusiveMinimum: 0 } }, required: [section80TTA] }
+                  - { properties: { section80TTB: { exclusiveMinimum: 0 } }, required: [section80TTB] }
+            required: [deductions]
+          then: { required: [userAge] }
     ProductPostTaxAnalysis:
       type: object
       required: [status, calculationClass, taxClass, fiscalYear, inputBasis, dataClass]
@@ -2095,7 +2309,38 @@ components:
         historicalObservationWindowMonths: { type: [integer, 'null'] }
         sourceReferences: { type: array, items: { type: object, additionalProperties: true } }
       additionalProperties: false
-    PostTaxInstrument: { type: object, additionalProperties: false, required: [instrumentType, nominalRate, holdingYears, monthlySIP], properties: { instrumentType: { type: string, maxLength: 50 }, nominalRate: { type: number, minimum: 0, maximum: 1 }, holdingYears: { type: number, minimum: 0.01, maximum: 100 }, monthlySIP: { type: number, minimum: 0, maximum: 100000000 }, acquisitionDate: { type: string, format: date }, redemptionDate: { type: string, format: date }, redemptionChannel: { type: string, enum: [RBI_REDEMPTION, MATURITY_REDEMPTION, SECONDARY_MARKET_SALE] }, acquiredAtOriginalIssue: { type: boolean }, heldContinuously: { type: boolean }, couponRate: { type: number, minimum: 0, maximum: 1 }, annuityFraction: { type: number, minimum: 0, maximum: 1 }, retirementTiming: { type: string, minLength: 2, maxLength: 100 } } }
+    PostTaxInstrumentFields:
+      type: object
+      required: [instrumentType, nominalRate, holdingYears, monthlySIP]
+      properties:
+        instrumentType: { type: string, minLength: 1, pattern: '^\s*\S(?:[\s\S]{0,48}\S)?\s*$', description: The server trims whitespace before enforcing a 1 to 50 character limit; the pattern applies that limit to the trimmed value and rejects whitespace-only input. }
+        nominalRate: { type: number, minimum: 0, maximum: 1 }
+        holdingYears: { type: number, minimum: 0.01, maximum: 100 }
+        monthlySIP: { type: number, minimum: 0, maximum: 100000000 }
+        acquisitionDate: { type: string, format: date, description: 'If supplied, redemptionDate is also required. The server rejects impossible calendar dates.' }
+        redemptionDate: { type: string, format: date, description: 'If supplied, acquisitionDate is also required and redemptionDate cannot precede it. The server rejects impossible calendar dates and reversed transaction chronology.' }
+        redemptionChannel: { type: string, enum: [RBI_REDEMPTION, MATURITY_REDEMPTION, SECONDARY_MARKET_SALE] }
+        acquiredAtOriginalIssue: { type: boolean }
+        heldContinuously: { type: boolean }
+        couponRate: { type: number, minimum: 0, maximum: 1 }
+        annuityFraction: { type: number, minimum: 0, maximum: 1 }
+        retirementTiming: { type: string, pattern: '^\s*\S[\s\S]{0,98}\S\s*$', description: The server trims whitespace before enforcing a 2 to 100 character limit; the pattern applies that limit to the trimmed value and rejects whitespace-only input. }
+      x-runtime-validation:
+        transactionDates: acquisitionDate and redemptionDate must be supplied together; both must be real calendar dates; redemptionDate must be on or after acquisitionDate.
+        trimmedText: instrumentType and retirementTiming are trimmed before the server enforces their length constraints; the OpenAPI patterns allow surrounding whitespace while bounding the post-trim value.
+      allOf:
+        - if:
+            required: [acquisitionDate]
+          then:
+            required: [redemptionDate]
+        - if:
+            required: [redemptionDate]
+          then:
+            required: [acquisitionDate]
+    PostTaxInstrument:
+      allOf:
+        - { $ref: '#/components/schemas/PostTaxInstrumentFields' }
+      unevaluatedProperties: false
     SipReturnMetrics:
       type: object
       additionalProperties: false
@@ -2110,43 +2355,174 @@ components:
         taxDragAnnualizedPercentagePoints: { type: [number, 'null'], description: Difference in percentage points between modeled pre-tax and post-tax SIP annualized rates. }
     PostTaxReturnBatchResponse:
       type: object
-      required: [results, portfolioStatus, summary]
+      required: [calculation_classification, verified, fiscalYear, policyVersion, statuteMetadata, verifiedRuleIds, sourceReferences, rules, assumptions, inputsUsed, rulesApplied, unavailableReasons, results, portfolioStatus, excludedInstruments, summary, insights]
       properties:
+        calculation_classification: { type: string, const: SEPARATE_TAX_WHAT_IF }
+        verified: { type: boolean, const: true, description: The server confirms this response uses a verified fiscal-year tax policy. }
+        fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
+        policyVersion: { type: string, minLength: 1 }
+        statuteMetadata: { type: object, additionalProperties: true }
+        verifiedRuleIds: { type: array, items: { type: string } }
+        sourceReferences: { type: array, items: { type: object, additionalProperties: true } }
+        rules: { type: object, additionalProperties: true }
+        assumptions:
+          type: object
+          required: [annualIncome, incomeSource, regime, userAge, inflationRate, fiscalYear, deductions, contributionGrowthRate, calculationClass, dataClass, taxEventModel, section112APortfolioAllocation]
+          properties:
+            annualIncome: { type: number, minimum: 0 }
+            incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
+            regime: { type: string, enum: [new, old] }
+            userAge: { type: integer, minimum: 18, maximum: 120 }
+            inflationRate: { type: number, minimum: 0, maximum: 1 }
+            fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
+            deductions: { $ref: '#/components/schemas/TaxDeductionInputs', description: Exact validated deduction object used by the calculation; an omitted request value is normalized to an empty object. }
+            contributionGrowthRate: { type: number, const: 0 }
+            calculationClass: { type: string, const: MODELLED_POST_TAX_PROJECTION }
+            dataClass: { type: string, const: MODEL_ASSUMPTION }
+            taxEventModel: { type: string, const: GROSS_FLOWS_THEN_EXPLICIT_TAX_EVENTS }
+            section112APortfolioAllocation: { type: [object, 'null'], additionalProperties: true }
+          additionalProperties: true
+        inputsUsed:
+          type: object
+          required: [annualIncome, incomeSource, regime, userAge, inflationRate, fiscalYear, deductions, section112AExemptionUsed, instruments]
+          properties:
+            annualIncome: { type: number, minimum: 0 }
+            incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
+            regime: { type: string, enum: [new, old] }
+            userAge: { type: integer, minimum: 18, maximum: 120 }
+            inflationRate: { type: number, minimum: 0, maximum: 1 }
+            fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
+            deductions: { $ref: '#/components/schemas/TaxDeductionInputs', description: Exact validated deduction object used by the calculation; an omitted request value is normalized to an empty object. }
+            section112AExemptionUsed: { type: [number, 'null'], minimum: 0, maximum: 125000, description: Null means the request omitted prior annual taxpayer-wide Section 112A usage; zero is an explicit value. }
+            instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' }, description: Exact normalized instrument array validated and used for this calculation. }
+          additionalProperties: true
+        rulesApplied: { type: array, items: { type: [string, 'null'] } }
+        unavailableReasons: { type: array, items: { type: string } }
         results:
           type: array
           items:
             type: object
-            required: [instrumentType, status, sipReturnMetrics]
+            required: [instrumentIndex, instrumentInput, instrumentType, status, sipReturnMetrics]
             properties:
+              instrumentIndex: { type: integer, minimum: 0, description: Zero-based index assigned during that instrument's calculation and retained through any Section 112A recalculation. }
+              instrumentInput: { $ref: '#/components/schemas/PostTaxInstrument', description: 'Exact normalized per-row input used for this result and preserved through any Section 112A recalculation; clients must compare it with the original request row before displaying the result.' }
               instrumentType: { type: string }
-              status: { type: string }
-              sipReturnMetrics: { $ref: '#/components/schemas/SipReturnMetrics' }
+              status: { type: string, enum: [CALCULATED, REQUIRES_TAX_INPUTS, TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS, MODEL_TAX_CLASS_UNAVAILABLE, MODELLED_POST_TAX_PROJECTION_UNAVAILABLE] }
+              modelTaxClass: { type: [string, 'null'] }
+              taxClass: { type: [string, 'null'] }
+              taxType: { type: [string, 'null'] }
+              calculationClass: { type: string, const: MODELLED_POST_TAX_PROJECTION }
+              dataClass: { type: string, const: MODEL_ASSUMPTION }
+              fiscalYear: { type: [string, 'null'] }
+              policyVersion: { type: [string, 'null'] }
+              grossGain: { type: [number, 'null'], description: Null when the required tax calculation is unavailable. }
+              taxableGain: { type: [number, 'null'], description: Null when the required tax calculation is unavailable. }
+              netGain: { type: [number, 'null'], description: Null when the required tax calculation is unavailable. }
+              postTaxReturn: { type: [number, 'null'], description: Null when tax inputs, tax classification, or the projection are unavailable. }
+              taxRate: { type: [number, 'null'], description: Null when the required tax calculation is unavailable. }
+              incrementalTax: { type: [number, 'null'] }
+              cess: { type: [number, 'null'] }
+              surcharge: { type: [number, 'null'] }
+              totalInvested: { type: number, minimum: 0 }
+              nominalFutureValue: { type: number, minimum: 0 }
+              postTaxFutureValue: { type: [number, 'null'] }
+              realFutureValue: { type: [number, 'null'] }
+              postTaxGain: { type: [number, 'null'] }
+              taxDragWealth: { type: [number, 'null'] }
+              nominalReturnPercent: { type: number }
               postTaxReturnPercent:
                 type: [number, 'null']
                 deprecated: true
-                description: Legacy percentage-valued metric derived from the total-contributed-principal CAGR, with a scalar post-tax rate fallback when CAGR is unavailable. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.postTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate.
+                description: Legacy percentage-valued metric derived from the total-contributed-principal CAGR, with a scalar post-tax rate fallback when CAGR is unavailable. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.postTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate. Null when the projection is unavailable.
               realReturnPercent:
                 type: [number, 'null']
                 deprecated: true
-                description: Legacy percentage-valued real metric derived from the total-contributed-principal CAGR, with a scalar post-tax rate fallback when CAGR is unavailable. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.realPostTaxAnnualizedReturnPercent for the modeled real SIP equivalent annual rate.
+                description: Legacy percentage-valued real metric derived from the total-contributed-principal CAGR, with a scalar post-tax rate fallback when CAGR is unavailable. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.realPostTaxAnnualizedReturnPercent for the modeled real SIP equivalent annual rate. Null when the projection is unavailable.
+              effectiveTaxPercent: { type: [number, 'null'] }
+              sipReturnMetrics: { $ref: '#/components/schemas/SipReturnMetrics' }
               taxDragCAGR:
                 type: [number, 'null']
                 deprecated: true
-                description: Legacy difference between total-contributed-principal CAGR values stored as a decimal fraction (for example, 0.01 means one percentage point). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.taxDragAnnualizedPercentagePoints for modeled SIP tax drag in percentage points.
+                description: Legacy difference between total-contributed-principal CAGR values stored as a decimal fraction (for example, 0.01 means one percentage point). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.taxDragAnnualizedPercentagePoints for modeled SIP tax drag in percentage points. Null when the projection is unavailable.
               postTaxCAGR:
                 type: [number, 'null']
                 deprecated: true
-                description: Legacy total-contributed-principal projection CAGR stored as a decimal fraction (for example, 0.07 means 7 percent). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.postTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate in percent.
+                description: Legacy total-contributed-principal projection CAGR stored as a decimal fraction (for example, 0.07 means 7 percent). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.postTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate in percent. Null when unavailable.
               nominalCAGR:
                 type: [number, 'null']
                 deprecated: true
-                description: Legacy total-contributed-principal pre-tax projection CAGR stored as a decimal fraction (for example, 0.07 means 7 percent). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.preTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate in percent.
+                description: Legacy total-contributed-principal pre-tax projection CAGR stored as a decimal fraction (for example, 0.07 means 7 percent). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.preTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate in percent. Null when unavailable.
+              unavailableReasons: { type: array, items: { type: string } }
             additionalProperties: true
         portfolioStatus: { type: string, enum: [COMPLETE, PARTIAL, UNAVAILABLE] }
-        summary: { type: object, additionalProperties: true }
+        excludedInstruments:
+          type: array
+          items:
+            type: object
+            required: [index, instrumentType, status, unavailableReasons]
+            properties:
+              index: { type: integer, minimum: 0 }
+              instrumentType: { type: string }
+              status: { type: string, enum: [CALCULATED, REQUIRES_TAX_INPUTS, TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS, MODEL_TAX_CLASS_UNAVAILABLE, MODELLED_POST_TAX_PROJECTION_UNAVAILABLE, UNAVAILABLE] }
+              unavailableReasons: { type: array, items: { type: string } }
+            additionalProperties: true
+        summary:
+          type: object
+          required: [status, totalTaxDrag, keptPerThousand, erodedPerThousand, retentionEfficiencyPercent, maxTaxRate]
+          properties:
+            status: { type: string, enum: [COMPLETE, PARTIAL, UNAVAILABLE] }
+            totalTaxDrag: { type: [number, 'null'], minimum: 0, description: Null when no instrument has a complete calculation. }
+            keptPerThousand: { type: [number, 'null'], minimum: 0, maximum: 1000, description: Null when no instrument has a complete calculation. }
+            erodedPerThousand: { type: [number, 'null'], minimum: 0, maximum: 1000, description: Null when no instrument has a complete calculation. }
+            retentionEfficiencyPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Null when no instrument has a complete calculation. }
+            maxTaxRate: { type: [number, 'null'], minimum: 0, maximum: 1, description: Null when no instrument has a complete calculation. }
+          additionalProperties: true
+        insights: { type: array, items: { type: object, required: [title, body, icon, color], properties: { title: { type: string }, body: { type: string }, icon: { type: string }, color: { type: string } }, additionalProperties: true } }
       additionalProperties: true
-    PostTaxReturnRequestV2: { allOf: [{ $ref: '#/components/schemas/PostTaxInstrument' }, { type: object, additionalProperties: false, required: [annualIncome, regime, userAge, incomeSource, fiscalYear], properties: { annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120 }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. } } }], unevaluatedProperties: false }
-    PostTaxReturnBatchRequestV2: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120 }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. } } }
+    UserDeclaredPostTaxScenarioResponse:
+      type: object
+      required: [status, calculationClass, dataClass, inputBasis, inputsUsed]
+      properties:
+        status: { type: string, enum: [CALCULATED, UNAVAILABLE, TAX_CLASSIFICATION_UNAVAILABLE, FISCAL_YEAR_UNSUPPORTED] }
+        calculationClass: { type: string, const: TRANSACTION_TAX_ESTIMATE }
+        dataClass: { type: string, const: USER_DECLARED_TRANSACTION }
+        inputBasis: { type: string, const: USER_DECLARED_SCENARIO }
+        inputsUsed: { $ref: '#/components/schemas/UserDeclaredPostTaxScenarioRequest', description: 'Exact validated and normalized request, including scenario type, age, and fiscal year. Conditional inputs remain conditional; the server does not add defaults to this echo.' }
+        canonicalInstrumentId: { type: [string, 'null'] }
+        canonicalProductId: { type: [string, 'null'] }
+        taxClass: { type: [string, 'null'] }
+        fiscalYear: { type: [string, 'null'] }
+        policyVersion: { type: [string, 'null'] }
+        grossGain: { type: [number, 'null'] }
+        taxableGain: { type: [number, 'null'] }
+        incrementalTax: { type: [number, 'null'] }
+        cess: { type: [number, 'null'] }
+        surcharge: { type: [number, 'null'] }
+        netGain: { type: [number, 'null'] }
+        transactionGainPct: { type: [number, 'null'] }
+        holdingPeriod: { type: [object, 'null'], additionalProperties: true }
+        unavailableReasons: { type: array, items: { type: string } }
+        sourceReferences: { type: array, items: { type: object, additionalProperties: true } }
+        assumptions: { type: array, items: { type: string } }
+        disclosure: { type: string }
+      additionalProperties: true
+    PostTaxReturnRequestV2:
+      allOf:
+        - { $ref: '#/components/schemas/PostTaxInstrumentFields' }
+        - type: object
+          required: [annualIncome, regime, userAge, incomeSource, fiscalYear]
+          properties:
+            annualIncome: { type: number, minimum: 0, maximum: 1000000000 }
+            regime: { type: string, enum: [new, old] }
+            userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }
+            incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
+            fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
+            deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }
+            section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. }
+      unevaluatedProperties: false
+      x-runtime-validation:
+        transactionDates: acquisitionDate and redemptionDate must be supplied together; both must be real calendar dates; redemptionDate must be on or after acquisitionDate.
+    PostTaxReturnBatchRequestV2: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. } } }
     UserDeclaredPostTaxScenarioRequest:
       type: object
       additionalProperties: false
@@ -2154,29 +2530,76 @@ components:
       properties:
         canonicalInstrumentId: { type: string, enum: [fd, sbi_fd, rbi_bonds, sgb, nifty_etf] }
         scenarioType: { type: string, enum: [INTEREST_INCOME, EQUITY_REALIZED_GAIN] }
-        canonicalProductId: { type: string, enum: ['etf:isin:INF204KB14I2'] }
+        canonicalProductId: { type: string, const: 'etf:isin:INF204KB14I2', description: Required only for the exact qualified NIFTYBEES equity scenario. }
         interestReceived: { type: number, minimum: 0, maximum: 1000000000, description: Gross user-declared interest received during the selected fiscal year. Required for INTEREST_INCOME. }
         acquisitionCostBasis: { type: number, exclusiveMinimum: 0, maximum: 1000000000, description: User-declared tax cost basis. Required for the exact qualified ETF scenario. }
         saleProceeds: { type: number, minimum: 0, maximum: 1000000000, description: User-declared sale consideration. Required for the exact qualified ETF scenario. }
-        acquisitionDate: { type: string, format: date }
-        redemptionDate: { type: string, format: date }
+        acquisitionDate: { type: string, format: date, description: Required for EQUITY_REALIZED_GAIN; must be on or before redemptionDate. }
+        redemptionDate: { type: string, format: date, description: Required for EQUITY_REALIZED_GAIN; must be on or after acquisitionDate and in the selected fiscal year. }
         section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000 }
         sttConditionAssumedSatisfied: { type: boolean, description: User assumption only; the service does not verify an actual STT event. }
         annualGrossIncome: { type: number, minimum: 0, maximum: 1000000000 }
         incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
         regime: { type: string, enum: [new, old] }
         fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
-        userAge: { type: integer, minimum: 18, maximum: 120 }
+        userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }
         deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }
-    PostTaxReturnRequest: { allOf: [{ $ref: '#/components/schemas/PostTaxInstrument' }, { type: object, required: [annualIncome, regime, userAge, incomeSource, fiscalYear], properties: { annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120 }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, fiscalYear: { type: string, pattern: '^FY\\d{4}-\\d{2}$' } } }], unevaluatedProperties: false }
-    PostTaxReturnBatchRequest: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120 }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\\d{4}-\\d{2}$' } } }
+      allOf:
+        - if:
+            properties: { canonicalInstrumentId: { const: nifty_etf } }
+            required: [canonicalInstrumentId]
+          then:
+            required: [canonicalProductId]
+          else:
+            not: { required: [canonicalProductId] }
+        - if:
+            properties: { scenarioType: { const: INTEREST_INCOME } }
+            required: [scenarioType]
+          then:
+            required: [interestReceived]
+            properties:
+              canonicalInstrumentId: { enum: [fd, sbi_fd, rbi_bonds, sgb] }
+            not:
+              anyOf:
+                - { required: [acquisitionCostBasis] }
+                - { required: [saleProceeds] }
+                - { required: [acquisitionDate] }
+                - { required: [redemptionDate] }
+                - { required: [section112AExemptionUsed] }
+                - { required: [sttConditionAssumedSatisfied] }
+        - if:
+            properties: { scenarioType: { const: EQUITY_REALIZED_GAIN } }
+            required: [scenarioType]
+          then:
+            required: [canonicalProductId, acquisitionCostBasis, saleProceeds, acquisitionDate, redemptionDate, section112AExemptionUsed, sttConditionAssumedSatisfied]
+            properties:
+              canonicalInstrumentId: { const: nifty_etf }
+              canonicalProductId: { const: 'etf:isin:INF204KB14I2' }
+            not: { required: [interestReceived] }
+      x-runtime-validation:
+        transactionDates: acquisitionDate and redemptionDate must be valid calendar dates in chronological order; the equity scenario requires both dates and redemptionDate must fall within the supplied fiscalYear.
+    PostTaxReturnRequest:
+      allOf:
+        - { $ref: '#/components/schemas/PostTaxInstrumentFields' }
+        - type: object
+          required: [annualIncome, regime, userAge, incomeSource, fiscalYear]
+          properties:
+            annualIncome: { type: number, minimum: 0, maximum: 1000000000 }
+            regime: { type: string, enum: [new, old] }
+            userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age.' }
+            incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
+            fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
+      unevaluatedProperties: false
+      x-runtime-validation:
+        transactionDates: acquisitionDate and redemptionDate must be supplied together; both must be real calendar dates; redemptionDate must be on or after acquisitionDate.
+    PostTaxReturnBatchRequest: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120, description: Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' } } }
     PortfolioOptimiseRequest: { type: object, additionalProperties: false, required: [profileId, assets, strategy], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, assets: { type: array, minItems: 2, maxItems: 20, uniqueItems: true, items: { type: string, maxLength: 50 } }, strategy: { type: string, enum: [min_variance, max_sharpe, risk_parity, max_return] } } }
     RebalanceRequest: { type: object, additionalProperties: false, required: [profileId, current_allocation, target_allocation, threshold, partial_ratio, holding_months], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, current_allocation: { type: object, minProperties: 1, maxProperties: 30, additionalProperties: { type: number, minimum: 0, maximum: 1000000000 } }, target_allocation: { type: object, minProperties: 1, maxProperties: 30, additionalProperties: { type: number, minimum: 0, maximum: 100 }, description: Weights must sum to exactly 100. }, threshold: { type: number, minimum: 0, maximum: 50 }, partial_ratio: { type: number, minimum: 0.1, maximum: 1 }, holding_months: { type: number, minimum: 0, maximum: 600 } } }
     PortfolioResult: { type: object, properties: { weights: { type: object, additionalProperties: { type: number } }, trades: { type: array, items: { type: object, additionalProperties: true } } }, additionalProperties: true }
     ChatRequest: { type: object, additionalProperties: false, required: [message], properties: { message: { type: string, minLength: 1, maxLength: 1000 }, session_id: { type: string, maxLength: 100 } } }
     ChatResponse:
       type: object
-      required: [version, response, session_id, latency_ms, grounded, provider, evidence_ids_used, unavailable_facts, validation_status, fallback, messages_this_hour, rate_limit_remaining, rate_limit_reset_at, citations, action_cards]
+      required: [version, response, session_id, latency_ms, grounded, provider, evidence_ids_used, unavailable_facts, validation_status, fallback, messages_this_hour, rate_limit_remaining, rate_limit_reset_at, citations, action_cards, idempotent_replay]
       properties:
         version: { type: string }
         response: { type: string }
@@ -2210,6 +2633,7 @@ components:
               freshness: { type: [string, object, 'null'], additionalProperties: true }
             additionalProperties: false
         action_cards: { type: array, items: { type: object, additionalProperties: true } }
+        idempotent_replay: { type: boolean }
       additionalProperties: true
     RegimeAdjustRequest: { type: object, additionalProperties: false, required: [profileId], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' } } }
     HealthStatus: { type: object, required: [status], properties: { status: { type: string }, timestamp: { type: string, format: date-time }, service: { type: string } }, additionalProperties: true }

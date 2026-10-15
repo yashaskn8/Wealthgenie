@@ -17,10 +17,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from rag.config import RAGConfig
 from rag.chunking.fixed_chunker import FixedSizeChunker
-from rag.corpus_manifest import MANIFEST_FILENAME, CorpusManifestError, current_documents, load_corpus_manifest
+from rag.corpus_manifest import MANIFEST_FILENAME, current_documents, load_corpus_manifest
 from rag.embeddings.identity import EmbeddingIdentityError, normalize_embedding_identity
 from rag.ingestion.pipeline import IngestionPipeline, UntrustedSourceError
 from rag.embeddings.dense_embedding import get_embedding_provider
+from rag.lifecycle.errors import DocumentOwnershipError
 from rag.lifecycle.manager import DocumentLifecycleManager
 from rag.retrieval.pipeline import RAGPipeline
 from rag.schema import RAGQueryRequest, RAGQueryResponse
@@ -319,8 +320,16 @@ def query_rag(
     try:
         return query_pipeline.query(request)
     except Exception as e:
-        logger.error(f"RAG query execution failed: {e}")
-        raise HTTPException(status_code=500, detail=f"RAG query error: {str(e)}")
+        correlation_id = getattr(req.state, "correlation_id", "unavailable")
+        logger.error(
+            "RAG query execution failed (error_type=%s correlation_id=%s)",
+            type(e).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="RAG query could not be completed. Please try again later.",
+        ) from None
 
 
 @rag_router.post("/index")
@@ -354,29 +363,52 @@ def index_document(
         # ephemeral DocumentLifecycleManager during ingest_document().
         lifecycle_manager.load_registry()
         return {"status": "success", "ingestion_result": res}
-    except UntrustedSourceError as e:
-        logger.warning(f"Rejected untrusted direct RAG ingestion: {e}")
+    except UntrustedSourceError:
+        correlation_id = getattr(req.state, "correlation_id", "unavailable")
+        logger.warning("Rejected untrusted direct RAG ingestion (correlation_id=%s)", correlation_id)
         raise HTTPException(status_code=400, detail="Direct user content is not accepted as authoritative advisory evidence.")
     except Exception as e:
-        logger.error(f"Document ingestion failed: {e}")
-        raise HTTPException(status_code=400, detail=f"Ingestion error: {str(e)}")
+        correlation_id = getattr(req.state, "correlation_id", "unavailable")
+        logger.error(
+            "Document ingestion failed (error_type=%s correlation_id=%s)",
+            type(e).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Document ingestion could not be completed. Please try again later.",
+        ) from None
 
 
 @rag_router.get("/documents")
 def list_documents(
+    request: Request,
     include_inactive: bool = False,
     verified_user_id: str = Depends(verify_verified_user_id),
 ):
     """Lists registered documents accessible to the verified user (global + user:{verified_user_id})."""
-    return {"documents": lifecycle_manager.list_documents(
-        include_inactive=include_inactive,
-        requesting_user_id=verified_user_id,
-    )}
+    try:
+        return {"documents": lifecycle_manager.list_documents(
+            include_inactive=include_inactive,
+            requesting_user_id=verified_user_id,
+        )}
+    except Exception as exc:
+        correlation_id = getattr(request.state, "correlation_id", "unavailable")
+        logger.error(
+            "Document listing failed (error_type=%s correlation_id=%s)",
+            type(exc).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Document listing could not be completed. Please try again later.",
+        ) from None
 
 
 @rag_router.delete("/documents/{doc_id}")
 def delete_document(
     doc_id: str,
+    request: Request,
     hard_delete: bool = True,
     verified_user_id: str = Depends(verify_verified_user_id),
 ):
@@ -390,13 +422,27 @@ def delete_document(
         if not success:
             raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found.")
         return {"status": "success", "message": f"Document '{doc_id}' deleted successfully."}
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    except HTTPException:
+        raise
+    except DocumentOwnershipError:
+        raise HTTPException(status_code=403, detail="You are not authorized to modify this document.") from None
+    except Exception as exc:
+        correlation_id = getattr(request.state, "correlation_id", "unavailable")
+        logger.error(
+            "Document deletion failed (error_type=%s correlation_id=%s)",
+            type(exc).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Document deletion could not be completed. Please try again later.",
+        ) from None
 
 
 @rag_router.put("/documents/{doc_id}")
 def update_document(
     doc_id: str,
+    request: Request,
     title: Optional[str] = None,
     author: Optional[str] = None,
     verified_user_id: str = Depends(verify_verified_user_id),
@@ -412,15 +458,41 @@ def update_document(
         if not success:
             raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found.")
         return {"status": "success", "message": f"Metadata updated for document '{doc_id}'."}
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    except HTTPException:
+        raise
+    except DocumentOwnershipError:
+        raise HTTPException(status_code=403, detail="You are not authorized to modify this document.") from None
+    except Exception as exc:
+        correlation_id = getattr(request.state, "correlation_id", "unavailable")
+        logger.error(
+            "Document metadata update failed (error_type=%s correlation_id=%s)",
+            type(exc).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Document metadata could not be updated. Please try again later.",
+        ) from None
 
 
 @rag_router.get("/reconcile")
 def reconcile_documents(
+    request: Request,
     verified_user_id: str = Depends(verify_verified_user_id),
 ):
     """Reconciles document registry entries against vector store chunks within verified user's scope."""
-    return lifecycle_manager.reconcile_registry_and_vector_store(
-        requesting_user_id=verified_user_id
-    )
+    try:
+        return lifecycle_manager.reconcile_registry_and_vector_store(
+            requesting_user_id=verified_user_id
+        )
+    except Exception as exc:
+        correlation_id = getattr(request.state, "correlation_id", "unavailable")
+        logger.error(
+            "Document reconciliation failed (error_type=%s correlation_id=%s)",
+            type(exc).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Document reconciliation could not be completed. Please try again later.",
+        ) from None

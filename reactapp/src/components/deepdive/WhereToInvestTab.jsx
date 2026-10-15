@@ -36,6 +36,7 @@ import {
 } from '../../utils/marketDataDisplay';
 import { formatINR } from '../../utils/recommendationPresentation';
 import { isPresentFiniteNumber, toOptionalNumber } from '../../utils/financialValues';
+import { getCurrentRecommendedInstrument } from '../../utils/financialStateBinding';
 import { useMarketContext } from '../../state/useMarketContext';
 import UserDeclaredScenarioPanel from './UserDeclaredScenarioPanel';
 
@@ -286,6 +287,10 @@ function sameWtiStateBinding(left, right) {
 const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   const profileId = userProfile?.profileId;
   const parentInstrumentId = inv?.id;
+  const recommendationProfile = userProfile && userProfile.version == null && userProfile.profileVersion == null
+    ? { ...userProfile, version: recommendationMeta?.profile_version }
+    : userProfile;
+  const currentRecommendation = getCurrentRecommendedInstrument(recommendationMeta, parentInstrumentId, recommendationProfile);
   const financialStateBinding = useMemo(() => ({
     profileId,
     profileVersion: Number(userProfile?.version ?? recommendationMeta?.profile_version),
@@ -357,7 +362,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   const [taxIncomeSource, setTaxIncomeSource] = useState('');
   const [taxRegime, setTaxRegime] = useState('');
   const [taxFiscalYear, setTaxFiscalYear] = useState('');
-  const [taxUserAge, setTaxUserAge] = useState(userProfile?.age ?? '');
+  const [taxUserAge, setTaxUserAge] = useState('');
   const [holdingPeriodMonths, setHoldingPeriodMonths] = useState('');
   const [useExactTransactionDates, setUseExactTransactionDates] = useState(false);
   const [acquisitionDate, setAcquisitionDate] = useState('');
@@ -397,7 +402,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
     setTaxIncomeSource('');
     setTaxRegime('');
     setTaxFiscalYear('');
-    setTaxUserAge(userProfile?.age ?? '');
+    setTaxUserAge('');
     setHoldingPeriodMonths('');
     setUseExactTransactionDates(false);
     setAcquisitionDate('');
@@ -425,11 +430,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
     };
   }, [previewBindingKey]);
 
-  useEffect(() => {
-    if (userProfile?.age !== undefined && userProfile?.age !== null) {
-      setTaxUserAge(userProfile.age);
-    }
-  }, [userProfile?.age]);
 
   const currentMarketSnapshot = marketContext?.marketSnapshot || null;
   const currentSnapshotFingerprint = marketSnapshotFingerprint(currentMarketSnapshot, marketContext);
@@ -523,7 +523,12 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           stateError.code = 'FINANCIAL_STATE_CHANGED';
           throw stateError;
         }
-        const ranked = Array.isArray(result?.products) ? result.products : [];
+        if (!Array.isArray(result?.products)) {
+          const responseError = new Error('The product ranking response did not match the expected shape.');
+          responseError.code = 'PRODUCT_RANKING_RESPONSE_INVALID';
+          throw responseError;
+        }
+        const ranked = result.products;
         setRankingResult({
           requestKey,
           financialKey,
@@ -1185,6 +1190,9 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
       {showTaxDrawer && rankingStatus === 'ready' && products.length > 0 && requiredTaxInputs.length > 0 && (
         <form className="wti-tax-drawer" onSubmit={handleApplyTaxInputs}>
           <h4>Exact-product tax illustration</h4>
+          {requiredTaxInputs.includes('acquisitionDate') && <p role="note">
+            For this specified-mutual-fund illustration, {taxFiscalYear === 'FY2026-27' ? 'Section 76' : 'Section 50AA'} applies the acquisition cutoff and the selected fiscal-year rule. The exact redemption date binds the result to that year; elapsed holding time alone does not determine the tax treatment.
+          </p>}
           {unsupportedTaxFactRequirements.length > 0 && <p role="note">
             Some listed products need product or account facts that are not available as user-entered tax controls. Their exact-product tax result remains unavailable; no tax treatment is inferred.
           </p>}
@@ -1243,7 +1251,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
               id="wti-fiscal-year"
               className="wti-tax-input"
               value={taxFiscalYear}
-              onChange={(e) => setTaxFiscalYear(e.target.value)}
+              onChange={(e) => { setTaxFiscalYear(e.target.value); setTaxUserAge(''); setActiveTaxContext(null); }}
               required
             >
               <option value="">Select verified fiscal year</option>
@@ -1255,7 +1263,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
 
           {requiredTaxInputs.includes('userAge') && (
             <div className="wti-tax-input-group">
-              <label htmlFor="wti-user-age">Your age</label>
+              <label htmlFor="wti-user-age">Your age on March 31</label>
               <input
                 id="wti-user-age"
                 type="number"
@@ -1263,10 +1271,12 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                 max="120"
                 step="1"
                 className="wti-tax-input"
+                aria-describedby="wti-user-age-help"
                 value={taxUserAge}
-                onChange={(e) => setTaxUserAge(e.target.value)}
+                onChange={(e) => { setTaxUserAge(e.target.value); setActiveTaxContext(null); }}
                 required
               />
+              <small id="wti-user-age-help">Enter your age as of March 31 for the selected fiscal year.</small>
             </div>
           )}
 
@@ -1455,23 +1465,25 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
         </form>
       )}
 
-      <section className="wti-parent-recommendation" aria-labelledby="wti-parent-recommendation-title">
-        <div className="wti-parent-recommendation-label">YOUR PLAN RECOMMENDS</div>
-        <div className="wti-parent-recommendation-content">
-          <div>
-            <h3 id="wti-parent-recommendation-title">{inv?.name || 'Selected investment category'}</h3>
-            <p>
-              This category passed the backend Financial Profile suitability check. The verified options below are a deeper product view inside it.
-            </p>
-          </div>
-          {isPresentFiniteNumber(inv?.allocation_pct) && (
-            <div className="wti-parent-recommendation-allocation">
-              <span>Plan allocation</span>
-              <strong>{inv.allocation_pct}%</strong>
+      {currentRecommendation && (
+        <section className="wti-parent-recommendation" aria-labelledby="wti-parent-recommendation-title">
+          <div className="wti-parent-recommendation-label">YOUR PLAN RECOMMENDS</div>
+          <div className="wti-parent-recommendation-content">
+            <div>
+              <h3 id="wti-parent-recommendation-title">{currentRecommendation.name || inv?.name || 'Selected investment category'}</h3>
+              <p>
+                This category passed the backend Financial Profile suitability check. The verified options below are a deeper product view inside it.
+              </p>
             </div>
-          )}
-        </div>
-      </section>
+            {isPresentFiniteNumber(currentRecommendation.allocation_pct) && (
+              <div className="wti-parent-recommendation-allocation">
+                <span>Plan allocation</span>
+                <strong>{currentRecommendation.allocation_pct}%</strong>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ─── Section Header & Sorting ─── */}
       <div className="wti-section-header-row">
@@ -1539,7 +1551,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           key={`${parentInstrumentId || 'unknown'}|${financialKey}`}
           canonicalInstrumentId={parentInstrumentId}
           instrumentName={inv?.name}
-          initialAge={userProfile?.age}
           taxPolicyMetadata={taxPolicyMetadata}
           taxPolicyError={taxPolicyError}
         />

@@ -56,6 +56,24 @@ def test_production_rejects_explicit_local_state(monkeypatch):
         store_factory.get_model_registry()
 
 
+def test_prod_alias_requires_shared_mongodb_state(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "prod")
+    monkeypatch.delenv("ML_STATE_BACKEND", raising=False)
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+
+    with pytest.raises(store_factory.SharedStateInitializationError, match="MONGODB_URI is missing"):
+        store_factory.get_model_registry()
+
+
+def test_prod_alias_rejects_explicit_local_state(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "prod")
+    monkeypatch.setenv("ML_STATE_BACKEND", "local")
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+
+    with pytest.raises(store_factory.SharedStateInitializationError, match="local JSON/SQLite"):
+        store_factory.get_model_registry()
+
+
 def test_local_environment_can_explicitly_use_local_state(monkeypatch, tmp_path):
     monkeypatch.setenv("ENVIRONMENT", "local")
     monkeypatch.setenv("ML_STATE_BACKEND", "local")

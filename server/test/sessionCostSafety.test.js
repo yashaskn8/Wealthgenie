@@ -94,7 +94,7 @@ describe('grounded chat session-cost safety', () => {
   });
 
   it('counts only final provider usage and performs no LLM-controlled replan', async () => {
-    const response = await processChat({ userId, user: {}, message: 'Explain suitability.', sessionId: 'cost-safety' });
+    const response = await processChat({ userId, user: {}, message: 'Given my profile, explain suitability.', sessionId: 'cost-safety' });
     assert.equal(providerCalls, 1);
     assert.equal(session.cumulative_tokens, 250);
     assert.equal(session.messages.at(-1).metadata.tokens_used, 250);
@@ -105,7 +105,7 @@ describe('grounded chat session-cost safety', () => {
 
   it('does not contact any external provider after the cumulative token cap', async () => {
     session.cumulative_tokens = 52000;
-    const response = await processChat({ userId, user: {}, message: 'Explain suitability.', sessionId: 'cost-safety' });
+    const response = await processChat({ userId, user: {}, message: 'Given my profile, explain suitability.', sessionId: 'cost-safety' });
     assert.equal(providerCalls, 0);
     assert.equal(response.provider, 'DETERMINISTIC_TEMPLATE');
     assert.equal(response.fallback, true);
@@ -122,7 +122,7 @@ describe('grounded chat session-cost safety', () => {
         text: JSON.stringify({ text, evidenceIdsUsed: ['E_PROFILE_RISK'], claims: [{ text, evidenceIds: ['E_PROFILE_RISK'] }], financialClaims: [], unavailableFacts: [] }),
       };
     };
-    await processChat({ userId, user: {}, message: 'Explain suitability.', sessionId: 'cost-safety' });
+    await processChat({ userId, user: {}, message: 'Given my profile, explain suitability.', sessionId: 'cost-safety' });
     const metadata = session.messages.at(-1).metadata;
     assert.equal(metadata.tokens_used, 13000);
     assert.equal(metadata.chain_of_thought, undefined);

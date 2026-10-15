@@ -13,11 +13,10 @@ import os
 import time
 from typing import List, Optional, cast
 
-import numpy as np
-
 from rag.embeddings.base import BaseEmbeddingProvider
 from rag.embeddings.cache import EmbeddingCache
 from lexical_embedding import stable_lexical_embedding, tokenize_subwords
+from environment_policy import configured_environment_mode
 
 logger = logging.getLogger("wealthgenie.rag.embeddings")
 
@@ -148,7 +147,7 @@ class SentenceTransformerEmbeddingProvider(BaseEmbeddingProvider):
         except Exception as local_error:
             offline = os.environ.get("HF_HUB_OFFLINE", "").lower() in {"1", "true", "yes"}
             offline = offline or os.environ.get("TRANSFORMERS_OFFLINE", "").lower() in {"1", "true", "yes"}
-            if offline or os.environ.get("ENVIRONMENT", "local").strip().lower() == "production":
+            if offline or configured_environment_mode(os.environ) == "production":
                 message = f"Local embedding model unavailable while offline: {local_error}"
                 self._load_failures[self._model_name] = (time.monotonic(), message)
                 raise RuntimeError(message) from local_error
@@ -251,7 +250,7 @@ def get_embedding_provider(config=None) -> BaseEmbeddingProvider:
         try:
             return SentenceTransformerEmbeddingProvider()
         except Exception as e:
-            if os.environ.get("ENVIRONMENT", "local").strip().lower() in {"production", "prod"}:
+            if configured_environment_mode(os.environ) == "production":
                 logger.error("Pinned semantic embedding provider unavailable in production: %s", e)
                 return UnavailableEmbeddingProvider(config.embedding_dim, str(e))
             logger.warning(
@@ -260,7 +259,7 @@ def get_embedding_provider(config=None) -> BaseEmbeddingProvider:
             )
             return DenseVectorEmbeddingProvider(dimension=config.embedding_dim, enable_cache=True)
     elif provider_name == "tf_idf_dense":
-        if os.environ.get("ENVIRONMENT", "local").strip().lower() in {"production", "prod"}:
+        if configured_environment_mode(os.environ) == "production":
             raise RuntimeError("production RAG requires the pinned semantic embedding provider")
         return DenseVectorEmbeddingProvider(dimension=config.embedding_dim, enable_cache=True)
     else:

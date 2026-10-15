@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Set
 
 from rag.config import RAGConfig
-from rag.schema import Document, TextChunk, is_scope_accessible
+from rag.lifecycle.errors import DocumentOwnershipError
+from rag.schema import Document, is_scope_accessible
 from rag.vector_store.base import BaseVectorStore
 from rag.vector_store.memory_vector_store import PersistentVectorStore
 
@@ -128,11 +129,11 @@ class DocumentLifecycleManager:
             if requesting_user_id is not None:
                 if doc_scope.startswith("user:") or owner is not None:
                     if owner != requesting_user_id:
-                        raise PermissionError(
+                        raise DocumentOwnershipError(
                             f"Forbidden: User '{requesting_user_id}' does not own document '{document_id}'"
                         )
                 else:
-                    raise PermissionError(
+                    raise DocumentOwnershipError(
                         "Forbidden: Global documents cannot be modified or deleted by standard users"
                     )
 
@@ -186,11 +187,11 @@ class DocumentLifecycleManager:
             if requesting_user_id is not None:
                 if doc_scope.startswith("user:") or owner is not None:
                     if owner != requesting_user_id:
-                        raise PermissionError(
+                        raise DocumentOwnershipError(
                             f"Forbidden: User '{requesting_user_id}' does not own document '{document_id}'"
                         )
                 else:
-                    raise PermissionError(
+                    raise DocumentOwnershipError(
                         "Forbidden: Global documents cannot be modified or deleted by standard users"
                     )
 
@@ -255,11 +256,11 @@ class DocumentLifecycleManager:
             if requesting_user_id is not None:
                 if doc_scope.startswith("user:") or owner is not None:
                     if owner != requesting_user_id:
-                        raise PermissionError(
+                        raise DocumentOwnershipError(
                             f"Forbidden: User '{requesting_user_id}' does not own document '{document_id}'"
                         )
                 else:
-                    raise PermissionError(
+                    raise DocumentOwnershipError(
                         "Forbidden: Global documents cannot be modified or deleted by standard users"
                     )
 
@@ -344,13 +345,16 @@ class DocumentLifecycleManager:
         if self.registry_path.exists():
             try:
                 shutil.copy2(self.registry_path, self.backup_path)
-            except Exception as e:
-                logger.warning(f"Could not create registry backup snapshot: {e}")
+            except Exception as exc:
+                logger.warning(
+                    "Could not create registry backup snapshot",
+                    extra={"error_type": type(exc).__name__},
+                )
 
         # 3. Replace Atomic Move
         os.replace(tmp_path, self.registry_path)
         logger.info(
-            f"Safely persisted document registry (v{self.VERSION}, checksum: {checksum[:8]}) to {self.registry_path}"
+            "Safely persisted document registry (v%s, checksum: %s)", self.VERSION, checksum[:8]
         )
 
     def load_registry(self) -> None:
@@ -368,40 +372,44 @@ class DocumentLifecycleManager:
         try:
             if self.registry_path.exists():
                 self._load_from_path(self.registry_path)
-                logger.info(
-                    f"Loaded {len(self._registry)} document records into DocumentLifecycleManager from {self.registry_path}"
-                )
+                logger.info("Loaded %s document records into DocumentLifecycleManager", len(self._registry))
                 return
             else:
                 raise FileNotFoundError(f"Primary registry file missing: {self.registry_path}")
-        except Exception as e:
-            logger.error(f"Failed to load primary document registry from {self.registry_path}: {e}")
+        except Exception as exc:
+            logger.error(
+                "Failed to load primary document registry",
+                extra={"error_type": type(exc).__name__},
+            )
             if self.backup_path.exists():
-                logger.warning(f"Attempting registry corruption recovery from backup: {self.backup_path}")
+                logger.warning("Attempting document registry recovery from backup")
                 try:
                     self._load_from_path(self.backup_path)
-                    logger.info(
-                        f"Successfully recovered {len(self._registry)} document records from backup snapshot: {self.backup_path}"
-                    )
+                    logger.info("Successfully recovered %s document records from backup snapshot", len(self._registry))
                     try:
                         self._save_registry_unlocked()
                     except Exception as restore_err:
-                        logger.warning(f"Could not restore primary registry from backup: {restore_err}")
+                        logger.warning(
+                            "Could not restore primary registry from backup",
+                            extra={"error_type": type(restore_err).__name__},
+                        )
                     return
                 except Exception as backup_err:
                     logger.critical(
-                        f"Fatal: Document registry backup recovery also failed: {backup_err}"
+                        "Fatal: document registry backup recovery also failed",
+                        extra={"error_type": type(backup_err).__name__},
                     )
                     raise RuntimeError(
-                        f"Corrupted document registry and backup recovery failed: primary_err={e}, backup_err={backup_err}"
-                    ) from e
+                        "Corrupted document registry and backup recovery failed."
+                    ) from None
             else:
                 logger.critical(
-                    f"Fatal: No backup snapshot available for document registry recovery: {e}"
+                    "Fatal: no backup snapshot available for document registry recovery",
+                    extra={"error_type": type(exc).__name__},
                 )
                 raise RuntimeError(
-                    f"Corrupted document registry and no backup available: {e}"
-                ) from e
+                    "Corrupted document registry and no backup is available."
+                ) from None
 
     def _load_from_path(self, file_path: Path) -> None:
         """Helper to parse and validate registry file format (v1.0 raw dict vs v2.0 wrapped dict), with backward compatibility migration."""

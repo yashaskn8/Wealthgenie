@@ -8,6 +8,22 @@ const ADVISORY_PROFILE_KEYS = Object.freeze([
   'deployableLumpSum', 'suitabilityReasonCodes', 'taxEligibilityStatus',
 ]);
 
+const GOAL_PLAN_STATUSES = new Set(['on_track', 'at_risk', 'off_track']);
+
+function compactGoalPlanEvidence(goalEvidence) {
+  if (!goalEvidence || typeof goalEvidence !== 'object' || Array.isArray(goalEvidence)) return null;
+  const requiredSip = goalEvidence.recommendedSip;
+  const savingsCapacity = goalEvidence.monthlySavingsCapacity;
+  const status = GOAL_PLAN_STATUSES.has(goalEvidence.status) ? goalEvidence.status : null;
+  const contributionWithinSavingsCapacity = Number.isFinite(requiredSip) && requiredSip >= 0
+    && Number.isFinite(savingsCapacity) && savingsCapacity >= 0
+    ? requiredSip <= savingsCapacity
+    : null;
+  return status || contributionWithinSavingsCapacity !== null
+    ? { status, contributionWithinSavingsCapacity }
+    : null;
+}
+
 export async function generateAdvisory(userContext) {
   const { profile, instruments, shapExplanation, modelVersion, policyVersion } = userContext;
 
@@ -24,10 +40,12 @@ export async function generateAdvisory(userContext) {
     throw new TypeError('generateAdvisory requires explicit model and policy versions');
   }
   const additionalEntries = [];
-  if (shapExplanation?.top_reason) {
+  const topReason = typeof shapExplanation?.top_reason === 'string'
+    ? shapExplanation.top_reason.trim()
+    : '';
+  if (topReason && topReason.length <= 240 && /^[\p{L}][\p{L}\s,'’.\-]*$/u.test(topReason)) {
     additionalEntries.push(makeEvidenceEntry('E_REC_EXPLANATION', 'RECOMMENDATION', {
-      topReason: shapExplanation.top_reason,
-      featureContributions: shapExplanation.feature_contributions || [],
+      topReason,
     }, {
       dataClass: 'AUTHORITATIVE_BACKEND_RESULT',
       displayValue: String(shapExplanation.top_reason),
@@ -55,17 +73,23 @@ export async function generateAdvisory(userContext) {
 }
 
 export async function getGoalAdvisory(message, profileContext, goalEvidence = null) {
-  const entries = goalEvidence ? [makeEvidenceEntry('E_GOAL_PLAN', 'GOAL_PLAN', goalEvidence, {
+  const compactGoalEvidence = compactGoalPlanEvidence(goalEvidence);
+  const entries = compactGoalEvidence ? [makeEvidenceEntry('E_GOAL_PLAN', 'GOAL_PLAN', compactGoalEvidence, {
     dataClass: 'AUTHORITATIVE_BACKEND_RESULT',
-    displayValue: `Goal status ${goalEvidence.status}; required monthly SIP INR ${goalEvidence.recommendedSip}; profile savings capacity INR ${profileContext.monthlySavings}`,
+    displayValue: `Goal status ${compactGoalEvidence.status || 'unavailable'}; required monthly contribution is ${compactGoalEvidence.contributionWithinSavingsCapacity === null
+      ? 'not verified against'
+      : compactGoalEvidence.contributionWithinSavingsCapacity ? 'within' : 'above'} profile savings capacity.`,
   })] : [];
+  const question = compactGoalEvidence
+    ? 'Suggest one adjustment to the saved goal using only its verified status and whether its monthly contribution fits within savings capacity. Do not calculate or assume exact amounts or returns.'
+    : message;
   const evidencePacket = buildGroundedEvidencePacket({
-    question: message,
+    question,
     profile: profileContext,
     additionalEntries: entries,
-    unavailableFacts: goalEvidence ? [] : ['GOAL_PLAN_EVIDENCE_UNAVAILABLE'],
+    unavailableFacts: compactGoalEvidence ? [] : ['GOAL_PLAN_EVIDENCE_UNAVAILABLE'],
     purpose: 'GOAL_PLAN_EXPLANATION',
   });
-  const result = await generateGroundedExplanation({ question: message, evidencePacket });
+  const result = await generateGroundedExplanation({ question, evidencePacket });
   return result.text;
 }

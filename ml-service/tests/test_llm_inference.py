@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from llm.inference.conversation import ConversationHistory
 from llm.inference.tools import ToolCallingEngine
+from llm.schema import LLMGenerateRequest
+from rag.schema import RAGQueryRequest
 
 
 def test_conversation_history_management():
@@ -119,3 +121,101 @@ def test_llm_router_batch_generate_and_tool_endpoints():
         "arguments": {"annual_income": 600000, "regime": "old", "income_source": "salary", "deductions": {"other": 600000}},
     })
     assert tax_res.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("operation", "failure_target", "public_message"),
+    [
+        ("generate", "registry", "Text generation could not be completed."),
+        ("batch", "registry", "Batch generation could not be completed."),
+        ("rag", "rag", "RAG-assisted generation could not be completed."),
+    ],
+)
+def test_llm_backend_errors_are_redacted_from_responses_and_logs(
+    operation, failure_target, public_message, monkeypatch, caplog,
+):
+    import logging
+    from llm import router as router_module
+    from starlette.requests import Request
+
+    secret_canary = "PAN-987654321012 redis://user:private-password@internal:6379"
+
+    class FailingProvider:
+        def generate(self, _request):
+            raise RuntimeError(secret_canary)
+
+    def fail_query(_request):
+        raise RuntimeError(secret_canary)
+
+    if failure_target == "registry":
+        monkeypatch.setattr(router_module.llm_registry, "get_active_provider", lambda: FailingProvider())
+    else:
+        monkeypatch.setattr(router_module.rag_llm_pipeline, "query", fail_query)
+
+    http_request = Request({
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/test",
+        "raw_path": b"/test",
+        "query_string": b"",
+        "headers": [],
+        "client": ("127.0.0.1", 1234),
+        "server": ("testserver", 80),
+        "state": {"correlation_id": "phase13-error-redaction"},
+    })
+    caplog.set_level(logging.ERROR)
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as error:
+        if operation == "generate":
+            router_module.generate_text(LLMGenerateRequest(prompt="Explain PPF."), http_request, "phase13-test-user")
+        elif operation == "batch":
+            router_module.batch_generate(
+                [LLMGenerateRequest(prompt="Explain PPF.")],
+                http_request,
+                "phase13-test-user",
+            )
+        else:
+            router_module.rag_llm_query(
+                RAGQueryRequest(question="Explain PPF."),
+                http_request,
+                "phase13-test-user",
+            )
+
+    assert error.value.status_code == 500
+    assert public_message in error.value.detail
+    assert secret_canary not in error.value.detail
+    assert secret_canary not in caplog.text
+    assert "error_type=RuntimeError" in caplog.text
+    assert "correlation_id=phase13-error-redaction" in caplog.text
+
+
+def test_llm_health_and_status_remain_available_without_a_healthy_provider(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("LLM_DEFAULT_PROVIDER", "mock")
+
+    from llm import router as router_module
+    from llm.config import LLMConfig
+    from llm.registry import LLMModelRegistry
+
+    registry = LLMModelRegistry(LLMConfig(default_provider="mock"))
+    monkeypatch.setattr(router_module, "llm_registry", registry)
+
+    health = router_module.llm_health()
+    status = router_module.llm_status()
+
+    assert health == {
+        "status": "degraded",
+        "service": "WealthGenie Open-Weight LLM Platform",
+        "active_model": None,
+        "provider": None,
+        "device": None,
+    }
+    assert status["active_model_metadata"] is None
+    assert status["registered_models_count"] == 1
+    assert status["configured_device"] == router_module.llm_config.device
+    assert status["configured_quantization"] == router_module.llm_config.quantization
+    assert status["default_max_new_tokens"] == router_module.llm_config.max_new_tokens
+    assert all(not model["is_active"] for model in registry.list_models())

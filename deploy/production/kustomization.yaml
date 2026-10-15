@@ -18,9 +18,6 @@ images:
   - name: wealthgenie-ml-service
     newName: registry-required.invalid/wealthgenie-ml-service
     digest: sha256:WEALTHGENIE_ML_SERVICE_IMAGE_DIGEST_REQUIRED
-  - name: mongo
-    newName: registry-required.invalid/mongo
-    digest: sha256:WEALTHGENIE_MONGODB_IMAGE_DIGEST_REQUIRED
   - name: redis
     newName: registry-required.invalid/redis
     digest: sha256:WEALTHGENIE_REDIS_IMAGE_DIGEST_REQUIRED
@@ -49,3 +46,4 @@ patches:
       version: v1
       kind: Deployment
       name: wealthgenie-agent-worker
+  - path: remove-incluster-mongodb.yaml

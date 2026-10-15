@@ -30,7 +30,7 @@ import { createPlanReviewTokenBudget } from '../agents/planReview/planReviewToke
 
 function evidencePacket(extraEntries = []) {
   return buildGroundedEvidencePacket({
-    question: 'Why this rate?',
+    question: 'Given my profile, explain this rate.',
     profile: {
       age: 35,
       monthlySavings: 20000,
@@ -506,6 +506,134 @@ test('profile-risk claims anchored to the cited evidence pass substantive explan
   assert.equal(result.fallback, false);
 });
 
+test('provider quota reservations charge known usage and retain the full bound when usage is absent or zero', async () => {
+  for (const tokensUsed of [undefined, 0]) {
+    const reservations = [];
+    const settlements = [];
+    const provider = {
+      name: 'nvidia_nim',
+      configuredModel: () => NVIDIA_NIM_DEFAULT_MODEL,
+      async generate() {
+        return {
+          provider: 'nvidia_nim',
+          model: NVIDIA_NIM_DEFAULT_MODEL,
+          text: JSON.stringify(candidate()),
+          ...(tokensUsed === undefined ? {} : { tokensUsed }),
+        };
+      },
+    };
+    const result = await generateGroundedExplanation({
+      question: 'Explain the verified rate.', evidencePacket: evidencePacket(),
+    }, {
+      providers: [provider],
+      getCache: async () => null,
+      setCache: async () => false,
+      reserveProviderAttempt: async () => {
+        const reservation = { reservationId: `attempt-${reservations.length}`, tokens: 90 };
+        reservations.push(reservation);
+        return reservation;
+      },
+      settleProviderAttempt: async ({ reservation, actualTokens }) => {
+        settlements.push({ reservation, actualTokens });
+        return { settled: true };
+      },
+    });
+    assert.equal(result.fallback, false);
+    assert.equal(reservations.length, 1);
+    assert.equal(settlements[0].actualTokens, null, 'zero or missing usage is unknown, not free');
+  }
+
+  const settlements = [];
+  const knownUsageProvider = {
+    name: 'nvidia_nim',
+    configuredModel: () => NVIDIA_NIM_DEFAULT_MODEL,
+    async generate() {
+      return { provider: 'nvidia_nim', model: NVIDIA_NIM_DEFAULT_MODEL, text: JSON.stringify(candidate()), tokensUsed: 17 };
+    },
+  };
+  await generateGroundedExplanation({ question: 'Explain.', evidencePacket: evidencePacket() }, {
+    providers: [knownUsageProvider], getCache: async () => null, setCache: async () => false,
+    reserveProviderAttempt: async () => ({ reservationId: 'known-usage', tokens: 90 }),
+    settleProviderAttempt: async ({ actualTokens }) => {
+      settlements.push({ actualTokens });
+      return { settled: true };
+    },
+  });
+  assert.equal(settlements.at(-1).actualTokens, 17);
+
+  const nestedUsageSettlements = [];
+  const nestedUsageProvider = {
+    name: 'nvidia_nim',
+    configuredModel: () => NVIDIA_NIM_DEFAULT_MODEL,
+    async generate() {
+      return {
+        provider: 'nvidia_nim', model: NVIDIA_NIM_DEFAULT_MODEL,
+        text: JSON.stringify(candidate()), tokensUsed: 0, usage: { totalTokens: 17 },
+      };
+    },
+  };
+  const budgetSettlements = [];
+  const nestedUsageResult = await generateGroundedExplanation({ question: 'Explain.', evidencePacket: evidencePacket() }, {
+    providers: [nestedUsageProvider], getCache: async () => null, setCache: async () => false,
+    requestBudget: { reserve: async () => ({}), settle: (_reservation, tokens) => budgetSettlements.push(tokens) },
+    reserveProviderAttempt: async () => ({ reservationId: 'nested-usage', tokens: 90 }),
+    settleProviderAttempt: async ({ actualTokens }) => {
+      nestedUsageSettlements.push(actualTokens);
+      return { settled: true };
+    },
+  });
+  assert.equal(nestedUsageResult.tokensUsed, 17);
+  assert.deepEqual(budgetSettlements, [17]);
+  assert.deepEqual(nestedUsageSettlements, [17]);
+});
+
+test('provider failure and fallback settle each separately reserved attempt', async () => {
+  const settlements = [];
+  let reserved = 0;
+  const primary = {
+    name: 'groq',
+    configuredModel: () => 'groq-test',
+    async generate() { this.lastFailureReason = 'PROVIDER_TIMEOUT'; return null; },
+  };
+  const fallback = {
+    name: 'gemini',
+    configuredModel: () => 'gemini-test',
+    async generate() {
+      return { provider: 'gemini', model: 'gemini-test', text: JSON.stringify(candidate()), tokensUsed: 23 };
+    },
+  };
+  const result = await generateGroundedExplanation({ question: 'Explain.', evidencePacket: evidencePacket() }, {
+    providers: [primary, fallback],
+    allowGeminiFallback: true,
+    requestBudget: { durableReservations: true, reserve: async () => ({}), settle: async () => true },
+    getCache: async () => null,
+    setCache: async () => false,
+    reserveProviderAttempt: async () => ({ reservationId: `attempt-${++reserved}`, tokens: 90 }),
+    settleProviderAttempt: async ({ reservation, actualTokens }) => {
+      settlements.push({ reservation, actualTokens });
+      return { settled: true };
+    },
+  });
+
+  assert.equal(result.provider, 'GEMINI');
+  assert.equal(reserved, 2);
+  assert.deepEqual(settlements.map(item => item.actualTokens), [null, 23]);
+});
+
+test('grounded explanation fails closed when a provider quota reservation cannot be settled', async () => {
+  const provider = {
+    name: 'nvidia_nim', configuredModel: () => NVIDIA_NIM_DEFAULT_MODEL,
+    async generate() {
+      return { provider: 'nvidia_nim', model: NVIDIA_NIM_DEFAULT_MODEL, text: JSON.stringify(candidate()), tokensUsed: 23 };
+    },
+  };
+  await assert.rejects(generateGroundedExplanation({ question: 'Explain.', evidencePacket: evidencePacket() }, {
+    providers: [provider], getCache: async () => null, setCache: async () => false,
+    reserveProviderAttempt: async () => ({ reservationId: 'lost-settlement', tokens: 90 }),
+    settleProviderAttempt: async () => ({ settled: false }),
+  }), error => error.code === 'TOKEN_BUDGET_SETTLEMENT_FAILED' && error.status === 503);
+});
+
 test('grounding rejects user-visible narrative that is absent from cited claim text', () => {
   const packet = evidencePacket();
   const hiddenNarrative = {
@@ -649,7 +777,7 @@ test('application regulatory disclosure insertion produces aligned text, claim, 
 
   assert.equal(result.fallback, false);
   assert.equal(result.validation.status, 'PASS');
-  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.1');
+  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.2');
   assert.equal(result.text.includes(text), true);
   assert.deepEqual(result.claims[0], { text, evidenceIds: ['E_PROFILE_RISK'] });
   assert.equal(result.evidenceIdsUsed.includes('E_PROFILE_RISK'), true);
@@ -1037,10 +1165,14 @@ test('cache keys are evidence/version/provider scoped and contain no credentials
   };
   const first = await generateGroundedExplanation({ question: 'Explain.', evidencePacket: packet }, dependencies);
   const second = await generateGroundedExplanation({ question: 'Explain.', evidencePacket: packet }, dependencies);
+  const firstCacheKey = cacheKey;
+  const differentQuestion = await generateGroundedExplanation({ question: 'Explain it another way.', evidencePacket: packet }, dependencies);
   assert.equal(first.cached, false);
   assert.equal(second.cached, true);
-  assert.equal(calls, 1);
+  assert.equal(differentQuestion.cached, false);
+  assert.equal(calls, 2);
   assert.match(cacheKey, /grounded-explanation:/);
+  assert.notEqual(cacheKey, firstCacheKey);
   assert.equal(cacheKey.includes('NVIDIA_API_KEY'), false);
   assert.equal(cacheKey.includes('test-key'), false);
 });

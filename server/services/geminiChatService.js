@@ -3,6 +3,7 @@
  * Financial authority remains in the canonical backend services. External LLMs
  * receive a minimal read-only evidence packet and no executable tools.
  */
+import crypto from 'node:crypto';
 import { redisClient, redisAvailable } from '../config/redis.js';
 import { createError } from '../middleware/errorHandler.js';
 import { ImmutableSecurityPipeline } from './immutableSecurityPipeline.js';
@@ -18,11 +19,13 @@ import {
   generateGroundedExplanation,
   getGroundedExplanationTokenUpperBound,
   isGroundingBoundaryAttack,
+  sanitizeExternalQuestion,
 } from './groundedExplanationService.js';
 import { resolveCurrentRecommendationState } from './recommendationState.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
+  chatSessionBindingMatches,
   defaultChatSessionStore,
 } from './chatSessionStore.js';
 import { CHAT_RATE_LIMIT, checkChatRateLimit } from './chatRateLimit.js';
@@ -55,6 +58,7 @@ export function buildClientResponseDTO({
   rate_limit_reset_at = null,
   citations = [],
   action_cards = [],
+  idempotent_replay = false,
 }) {
   return {
     version,
@@ -75,6 +79,7 @@ export function buildClientResponseDTO({
     rate_limit_reset_at,
     citations,
     action_cards,
+    idempotent_replay,
   };
 }
 
@@ -125,24 +130,98 @@ export async function resolveCurrentChatSessionBinding({ userId } = {}) {
   return createChatSessionBinding(canonicalProfile, storedProfile, recommendation, recommendationState);
 }
 
-export async function processChat({ userId, user: _user, message, sessionId }, {
-  sessionStore = defaultChatSessionStore,
-  rateLimitOptions,
-} = {}) {
-  const rateCheck = await checkRateLimit(userId, rateLimitOptions);
-  if (!rateCheck.allowed) {
-    throw createError(429, 'Chat user rate limit exceeded.', 'The hourly chat message limit has been reached.', {
-      code: 'CHAT_RATE_LIMIT_EXCEEDED',
-      details: {
-        retryAfterSeconds: rateCheck.ttl,
-        resetAt: new Date(rateCheck.resetAt).toISOString(),
-      },
+function buildTurnHashes(userId, sessionId, message, idempotencyKey) {
+  const keyHash = crypto.createHash('sha256')
+    .update(`${String(userId)}\0${String(sessionId)}\0${String(idempotencyKey)}`)
+    .digest('hex');
+  const requestHash = crypto.createHmac('sha256', String(idempotencyKey))
+    .update(String(message || '').trim())
+    .digest('hex');
+  const clientKeyHash = crypto.createHash('sha256')
+    .update(`${String(sessionId)}\0${String(idempotencyKey)}\0${String(message || '').trim()}`)
+    .digest('hex');
+  return { keyHash, requestHash, clientKeyHash };
+}
+
+function truncateUtf8(value, maxBytes) {
+  let output = '';
+  let byteLength = 0;
+  for (const character of String(value || '')) {
+    const nextLength = Buffer.byteLength(character, 'utf8');
+    if (byteLength + nextLength > maxBytes) break;
+    output += character;
+    byteLength += nextLength;
+  }
+  return output;
+}
+
+function sameNullableId(left, right) {
+  return (left == null && right == null) || String(left) === String(right);
+}
+
+function chatMessageMatchesBinding(message, binding) {
+  const metadata = message?.metadata || {};
+  return sameNullableId(metadata.profileId, binding.profileId)
+    && Number(metadata.profileVersion) === Number(binding.profileVersion)
+    && Number(metadata.financialProfileStateRevision) === Number(binding.financialProfileStateRevision)
+    && metadata.profileInputHash === binding.profileInputHash
+    && sameNullableId(metadata.recommendationId, binding.sourceRecommendationId)
+    && sameNullableId(metadata.allocationRevisionId, binding.sourceAllocationRevisionId)
+    && (metadata.recommendationFingerprint || null) === (binding.sourceRecommendationFingerprint || null)
+    && (metadata.portfolioFingerprint || null) === (binding.sourcePortfolioFingerprint || null);
+}
+
+function buildTrustedPriorTurns(conversation, binding) {
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const newestPairs = [];
+  for (let index = messages.length - 2; index >= 0 && newestPairs.length < 2; index -= 2) {
+    const userMessage = messages[index];
+    const modelMessage = messages[index + 1];
+    if (userMessage?.role !== 'user' || modelMessage?.role !== 'model'
+        || !chatMessageMatchesBinding(userMessage, binding)
+        || !chatMessageMatchesBinding(modelMessage, binding)) break;
+    const pair = [
+      { role: 'user', content: truncateUtf8(sanitizeExternalQuestion(userMessage.content), 1000) },
+      { role: 'model', content: truncateUtf8(sanitizeExternalQuestion(modelMessage.content), 1000) },
+    ];
+    const pairBytes = Buffer.byteLength(JSON.stringify(pair), 'utf8');
+    const priorBytes = newestPairs.reduce((total, item) => total + Buffer.byteLength(JSON.stringify(item), 'utf8'), 0);
+    if (pairBytes + priorBytes > 4096) break;
+    newestPairs.push(pair);
+  }
+  return newestPairs.reverse().flat();
+}
+
+async function requireCurrentBinding(binding, userId) {
+  const currentBinding = await resolveCurrentChatSessionBinding({ userId });
+  if (!currentBinding || !chatSessionBindingMatches(currentBinding, binding)) {
+    throw createError(409, 'The financial source state changed while the chat answer was being generated.', 'Your profile or recommendation changed. Start a new chat session.', {
+      code: 'CHAT_PROFILE_STATE_CHANGED',
     });
   }
+}
 
+export async function processChat({ userId, user: _user, message, sessionId, idempotencyKey = crypto.randomUUID() }, {
+  sessionStore = defaultChatSessionStore,
+  rateLimitOptions,
+  beforeGeneration,
+  reserveProviderAttempt,
+  settleProviderAttempt,
+  groundedExplanationDependencies = {},
+} = {}) {
   const canonicalProfile = await resolveCurrentFinancialProfile({ userId, requireRecommendation: false });
   const storedProfile = canonicalProfile.profile;
-  if (!storedProfile) return noProfileResponse(sessionId, rateCheck);
+  if (!storedProfile) {
+    await beforeGeneration?.();
+    const rateCheck = await checkRateLimit(userId, rateLimitOptions);
+    if (!rateCheck.allowed) {
+      throw createError(429, 'Chat user rate limit exceeded.', 'The hourly chat message limit has been reached.', {
+        code: 'CHAT_RATE_LIMIT_EXCEEDED',
+        details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
+      });
+    }
+    return noProfileResponse(sessionId, rateCheck);
+  }
   const profile = buildRecommendationProfile(storedProfile);
   const suitability = assessSuitabilityRisk(profile);
   const llmProfile = buildLlmFinancialContext(profile, suitability);
@@ -153,10 +232,23 @@ export async function processChat({ userId, user: _user, message, sessionId }, {
 
   const { recommendation, recommendationState } = await resolveChatRecommendation(userId, storedProfile._id, profile);
   const binding = createChatSessionBinding(canonicalProfile, storedProfile, recommendation, recommendationState);
+  const { keyHash, requestHash, clientKeyHash } = buildTurnHashes(userId, sessionId, message, idempotencyKey);
+  const previousResult = await sessionStore.findReceipt({
+    userId,
+    sessionId,
+    binding,
+    keyHash,
+    requestHash,
+  });
+  if (previousResult) {
+    await requireCurrentBinding(binding, userId);
+    return { ...previousResult, idempotent_replay: true };
+  }
 
   const claim = await sessionStore.acquire({ userId, sessionId, binding });
   let providerAttempted = false;
   let completed = false;
+  let sessionReservationSettled = false;
   let leaseFailure = null;
   let heartbeatBusy = false;
   const heartbeat = setInterval(() => {
@@ -167,15 +259,24 @@ export async function processChat({ userId, user: _user, message, sessionId }, {
   heartbeat.unref?.();
 
   try {
+    const rateCheck = await checkRateLimit(userId, rateLimitOptions);
+    if (!rateCheck.allowed) {
+      throw createError(429, 'Chat user rate limit exceeded.', 'The hourly chat message limit has been reached.', {
+        code: 'CHAT_RATE_LIMIT_EXCEEDED',
+        details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
+      });
+    }
     const evidencePacket = await buildChatEvidencePacket({
       question: securityContext.sanitizedMessage,
       profile: llmProfile,
       recommendation,
     });
     if (leaseFailure) throw leaseFailure;
+    const priorTurns = buildTrustedPriorTurns(claim.conversation, binding);
     const providerBudgetUpperBound = getGroundedExplanationTokenUpperBound({
       question: securityContext.sanitizedMessage,
       evidencePacket,
+      priorTurns,
     });
     const alreadyUsed = Number(claim.conversation.cumulative_tokens || 0)
       + Number(claim.conversation.reserved_tokens || 0);
@@ -185,19 +286,43 @@ export async function processChat({ userId, user: _user, message, sessionId }, {
     const startedAt = Date.now();
     let initialProviderReservationAvailable = canReserveProvider;
     const explanation = await generateGroundedExplanation(
-      { question: securityContext.sanitizedMessage, evidencePacket },
-      canReserveProvider ? {
+      { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
+      {
+        ...groundedExplanationDependencies,
+        ...(canReserveProvider ? {
         beforeProviderAttempt: async () => {
+          await requireCurrentBinding(binding, userId);
           if (initialProviderReservationAvailable) {
             initialProviderReservationAvailable = false;
-            providerAttempted = true;
             return true;
           }
-          const reserved = await sessionStore.reserveBudget(claim, providerBudgetUpperBound);
-          if (reserved) providerAttempted = true;
-          return reserved;
+          return sessionStore.reserveBudget(claim, providerBudgetUpperBound);
         },
-      } : { providers: [] },
+        } : { providers: [] }),
+        ...(reserveProviderAttempt ? {
+          reserveProviderAttempt: async ({ provider, providerAttemptCount }) => reserveProviderAttempt({
+            userId,
+            sessionId,
+            provider,
+            providerAttemptCount,
+            tokenUpperBound: providerBudgetUpperBound,
+          }),
+        } : {}),
+        ...(settleProviderAttempt ? {
+          settleProviderAttempt: async ({ reservation, actualTokens, provider, providerAttemptCount }) => settleProviderAttempt({
+            reservation,
+            actualTokens,
+            userId,
+            sessionId,
+            provider,
+            providerAttemptCount,
+          }),
+        } : {}),
+        onProviderAttemptStart: async () => {
+          await requireCurrentBinding(binding, userId);
+          providerAttempted = true;
+        },
+      },
     );
     if (leaseFailure) throw leaseFailure;
     const latencyMs = Date.now() - startedAt;
@@ -236,16 +361,7 @@ export async function processChat({ userId, user: _user, message, sessionId }, {
     const usageUnavailable = !explanation.cached
       && explanation.provider !== 'DETERMINISTIC_TEMPLATE'
       && actualProviderTokens === 0;
-    await sessionStore.complete({
-      claim,
-      userMessage,
-      modelMessage,
-      actualTokens: actualProviderTokens,
-      chargeReservation: attemptedProviderFailure || usageUnavailable,
-    });
-    completed = true;
-
-    return buildClientResponseDTO({
+    const result = buildClientResponseDTO({
       response: explanation.text,
       session_id: sessionId,
       latency_ms: latencyMs,
@@ -264,10 +380,52 @@ export async function processChat({ userId, user: _user, message, sessionId }, {
       citations: explanation.citations,
       action_cards: [],
     });
+    await requireCurrentBinding(binding, userId);
+    await sessionStore.complete({
+      claim,
+      userMessage,
+      modelMessage,
+      actualTokens: actualProviderTokens,
+      chargeReservation: attemptedProviderFailure || usageUnavailable,
+      preserveLease: true,
+      turnReceipt: {
+        keyHash,
+        clientKeyHash,
+        requestHash,
+        response: result,
+        createdAt: new Date(),
+      },
+    });
+    sessionReservationSettled = true;
+    try {
+      await requireCurrentBinding(binding, userId);
+      if (typeof sessionStore.finalizeCompletedTurn === 'function') {
+        await sessionStore.finalizeCompletedTurn({ claim });
+      } else {
+        await sessionStore.release(claim, { chargeReservation: false });
+      }
+      completed = true;
+    } catch (error) {
+      if (error?.code === 'CHAT_PROFILE_STATE_CHANGED'
+          && typeof sessionStore.discardCompletedTurn === 'function') {
+        await sessionStore.discardCompletedTurn({
+          userId,
+          sessionId,
+          binding,
+          keyHash,
+          clientKeyHash,
+          ownerId: claim.ownerId,
+        }).catch(() => {});
+      }
+      throw error;
+    }
+    return result;
   } finally {
     clearInterval(heartbeat);
     if (!completed) {
-      await sessionStore.release(claim, { chargeReservation: providerAttempted }).catch(() => {});
+      await sessionStore.release(claim, {
+        chargeReservation: providerAttempted && !sessionReservationSettled,
+      }).catch(() => {});
     }
   }
 }

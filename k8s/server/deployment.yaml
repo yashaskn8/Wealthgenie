@@ -37,6 +37,11 @@ spec:
                 secretKeyRef:
                   name: wealthgenie-secrets
                   key: MONGODB_URI
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: REDIS_PASSWORD
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

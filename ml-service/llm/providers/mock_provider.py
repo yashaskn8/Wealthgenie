@@ -3,10 +3,12 @@ WealthGenie Open-Weight LLM Platform - Mock Provider Implementation
 Provides high-speed, domain-aware synthetic LLM generation for testing and offline fallback.
 """
 
+import os
 import time
 from datetime import datetime, timezone
 from typing import Generator
 from llm.providers.base import BaseLLMProvider
+from environment_policy import local_mode_explicitly_enabled
 from llm.schema import (
     LLMGenerateRequest,
     LLMGenerateResponse,
@@ -14,6 +16,11 @@ from llm.schema import (
     LLMProviderType,
     QuantizationType,
 )
+
+def _mock_generation_allowed() -> bool:
+    # The synthetic provider may only run when the ML service explicitly opts
+    # into a local/test mode. An absent ENVIRONMENT must never enable it.
+    return local_mode_explicitly_enabled(os.environ)
 
 
 class MockLLMProvider(BaseLLMProvider):
@@ -24,6 +31,8 @@ class MockLLMProvider(BaseLLMProvider):
         self.loaded_at = datetime.now(timezone.utc).isoformat()
 
     def generate(self, request: LLMGenerateRequest) -> LLMGenerateResponse:
+        if not _mock_generation_allowed():
+            raise RuntimeError("The mock LLM provider is disabled outside local and test environments.")
         t0 = time.perf_counter()
 
         # Domain-aware response synthesis
@@ -79,4 +88,4 @@ class MockLLMProvider(BaseLLMProvider):
         )
 
     def is_healthy(self) -> bool:
-        return True
+        return _mock_generation_allowed()

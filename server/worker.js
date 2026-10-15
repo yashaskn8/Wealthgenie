@@ -123,7 +123,7 @@ export async function startWorker({ env = process.env } = {}) {
   const genieProofRuntime = createGenieProofRuntime({ env });
   const proofBreakEnabled = genieProofRuntime.enabled && env.GENIEPROOF_PROOFBREAK_WORKER_ENABLED === 'true';
   if (proofBreakEnabled) await verifyGenieProofPersistenceIndexes({ force: true });
-  await connectRedis({ url: env.REDIS_URL });
+  await connectRedis({ url: env.REDIS_URL, password: env.REDIS_PASSWORD });
   if (config.requireRedis && !redisAvailable) throw new Error('Redis is required in this environment but is unavailable');
 
   worker = createPlanReviewWorker({ runtimeConfig: config, eventModel: AgentRunEvent, productionEvaluationModel: ProductionAgentEvaluation });

@@ -1,41 +1,59 @@
 import React from 'react';
-import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-
-const mockApi = vi.hoisted(() => ({ getFinancialHealthScore: vi.fn() }));
-vi.mock('../../services/api', () => mockApi);
-
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import * as api from '../../services/api';
 import FinancialIndicatorsPanel from '../FinancialIndicatorsPanel';
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
-it('shows useful profile indicators without rendering the composite score or grade', async () => {
-  mockApi.getFinancialHealthScore.mockResolvedValue({
-    score: 91,
-    grade: 'Excellent',
-    sub_scores: [
-      { label: 'Savings Capacity', value: 88, weight: 30, extra: '24.0% of declared take-home is available for recurring investment.' },
-      { label: 'Emergency Safety Net', value: 100, weight: 25, extra: '6 months of emergency-fund coverage were explicitly declared.' },
-      { label: 'Investment Variety', value: 67, weight: 20, extra: '2 distinct asset classes in the authoritative allocation.' },
-      { label: 'Goal Coverage', value: 50, weight: 15, extra: '1 of 2 declared goals are represented by authoritative recommendation tags.' },
-      { label: 'Tax Efficiency', value: null, weight: 0, extra: 'Not scored: use Post-Tax Analysis.' },
-      { label: 'Risk-Timeline Match', value: 82, weight: 10, extra: 'Final suitability: Moderate. TECHNICAL_REASON_CODE' },
-    ],
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+describe('FinancialIndicatorsPanel request binding', () => {
+  it('does not request profile indicators when the profile identity is missing', () => {
+    const request = vi.spyOn(api, 'getFinancialHealthScore');
+    render(<FinancialIndicatorsPanel profile={{ version: 1 }} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Save your Financial Profile');
+    expect(request).not.toHaveBeenCalled();
   });
 
-  render(<FinancialIndicatorsPanel profile={{ profileId: 'profile-1' }} />);
+  it('fails closed on malformed responses and retries into the ready state', async () => {
+    const request = vi.spyOn(api, 'getFinancialHealthScore')
+      .mockResolvedValueOnce({ sub_scores: null })
+      .mockResolvedValueOnce({ sub_scores: [{ label: 'Savings Capacity', extra: 'Based on your saved monthly savings.' }] });
+    render(<FinancialIndicatorsPanel profile={{ profileId: 'profile-a', version: 2 }} />);
 
-  expect(await screen.findByText(/24.0% of declared take-home/)).toBeInTheDocument();
-  expect(screen.getByText(/6 months of emergency-fund coverage/)).toBeInTheDocument();
-  expect(screen.getByText(/2 distinct asset classes/)).toBeInTheDocument();
-  expect(screen.getByText(/1 of 2 declared goals/)).toBeInTheDocument();
-  expect(screen.queryByText('91')).not.toBeInTheDocument();
-  expect(screen.queryByText('Excellent')).not.toBeInTheDocument();
-  expect(screen.queryByText(/TECHNICAL_REASON_CODE|Risk-Timeline Match|Tax Efficiency/)).not.toBeInTheDocument();
-  await waitFor(() => expect(mockApi.getFinancialHealthScore).toHaveBeenCalledWith(
-    'profile-1', expect.objectContaining({ signal: expect.any(AbortSignal) }),
-  ));
+    expect(await screen.findByRole('alert')).toHaveTextContent('incomplete response');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(await screen.findByText('Based on your saved monthly savings.')).toBeInTheDocument();
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls[0][1].signal.aborted).toBe(true);
+  });
+
+  it('never displays a late response from the prior profile after profile switching', async () => {
+    const oldRequest = deferred();
+    const request = vi.spyOn(api, 'getFinancialHealthScore')
+      .mockReturnValueOnce(oldRequest.promise)
+      .mockResolvedValueOnce({ sub_scores: [{ label: 'Goal Coverage', extra: 'Current profile B detail.' }] });
+    const { rerender } = render(<FinancialIndicatorsPanel profile={{ profileId: 'profile-a', version: 1 }} />);
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+
+    rerender(<FinancialIndicatorsPanel profile={{ profileId: 'profile-b', version: 1 }} />);
+    expect(await screen.findByText('Current profile B detail.')).toBeInTheDocument();
+    await act(async () => oldRequest.resolve({
+      sub_scores: [{ label: 'Goal Coverage', extra: 'Late profile A detail.' }],
+    }));
+
+    expect(screen.getByText('Current profile B detail.')).toBeInTheDocument();
+    expect(screen.queryByText('Late profile A detail.')).not.toBeInTheDocument();
+    expect(request.mock.calls[0][1].signal.aborted).toBe(true);
+  });
 });

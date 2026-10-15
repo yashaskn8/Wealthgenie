@@ -69,18 +69,22 @@ vi.mock('../components/ProfilePage', async () => {
 vi.mock('../components/ProgressHub', async () => {
   const ReactModule = await import('react');
   return {
-    default: ({ recommendationMeta, isAdvisoryLoading, onSaveRebalance, onNavigate }) => ReactModule.createElement(
+    default: ({ financialState, financialStateIdentity, isAdvisoryLoading, onSaveRebalance, onNavigate }) => ReactModule.createElement(
       'section',
       null,
-      ReactModule.createElement('output', { 'data-testid': 'allocation-revision' }, String(recommendationMeta?.allocation_revision ?? 'missing')),
-      ReactModule.createElement('output', { 'data-testid': 'portfolio-fingerprint' }, recommendationMeta?.portfolio_fingerprint ?? 'missing'),
-      ReactModule.createElement('output', { 'data-testid': 'advisory-status' }, recommendationMeta?.advisory_explanation?.status ?? 'missing'),
-      ReactModule.createElement('output', { 'data-testid': 'advisory-text' }, recommendationMeta?.advisory_text ?? ''),
+      ReactModule.createElement('output', { 'data-testid': 'allocation-revision' }, String(financialState?.allocation_revision ?? 'missing')),
+      ReactModule.createElement('output', { 'data-testid': 'portfolio-fingerprint' }, financialState?.portfolio_fingerprint ?? 'missing'),
+      ReactModule.createElement('output', { 'data-testid': 'advisory-status' }, financialState?.advisory_explanation?.status ?? 'missing'),
+      ReactModule.createElement('output', { 'data-testid': 'advisory-text' }, financialState?.advisory_text ?? ''),
       ReactModule.createElement('output', { 'data-testid': 'advisory-loading' }, String(Boolean(isAdvisoryLoading))),
       ReactModule.createElement('button', {
         type: 'button',
-        onClick: () => void onSaveRebalance([{ id: 'fixture-instrument', allocationWeight: 1 }]),
+        onClick: () => void onSaveRebalance([{ id: 'fixture-instrument', allocationWeight: 1 }], financialStateIdentity),
       }, 'Apply revision 5'),
+      ReactModule.createElement('button', {
+        type: 'button',
+        onClick: () => void onSaveRebalance([{ id: 'fixture-instrument', allocationWeight: 1 }], `${financialStateIdentity}:stale`),
+      }, 'Apply stale rebalance'),
       ReactModule.createElement('button', { type: 'button', onClick: () => onNavigate('home') }, 'View dashboard'),
     ),
   };
@@ -111,7 +115,7 @@ vi.mock('../components/ErrorBoundary', () => ({ default: ({ children }) => child
 vi.mock('../RecommendationDashboard', async () => {
   const ReactModule = await import('react');
   return {
-    default: ({ recommendationMeta, onNavigate, fallbackNotice, onRecalculate, userProfile, isAdvisoryLoading }) => ReactModule.createElement(
+    default: ({ recommendationMeta, onNavigate, onLearnMore, fallbackNotice, onRecalculate, userProfile, isAdvisoryLoading }) => ReactModule.createElement(
       'section',
       null,
       ReactModule.createElement('output', { 'data-testid': 'allocation-revision' }, String(recommendationMeta?.allocation_revision ?? 'missing')),
@@ -122,6 +126,7 @@ vi.mock('../RecommendationDashboard', async () => {
       ReactModule.createElement('output', { 'data-testid': 'advisory-text' }, recommendationMeta?.advisory_text ?? ''),
       ReactModule.createElement('output', { 'data-testid': 'advisory-loading' }, String(Boolean(isAdvisoryLoading))),
       ReactModule.createElement('button', { type: 'button', onClick: () => void onRecalculate() }, 'Retry recompute'),
+      ReactModule.createElement('button', { type: 'button', onClick: () => onLearnMore({ id: 'ppf', name: 'PPF' }) }, 'Open deep dive'),
       ReactModule.createElement('button', { type: 'button', onClick: () => onNavigate('progress') }, 'Open progress'),
       ReactModule.createElement('button', { type: 'button', onClick: () => onNavigate('plan') }, 'Open plan'),
     ),
@@ -196,7 +201,14 @@ vi.mock('../components/AllocationPlanner', async () => {
     default: MockAllocationPlanner,
   };
 });
-vi.mock('../components/DeepDiveModal', () => ({ default: () => null }));
+vi.mock('../components/DeepDiveModal', async () => {
+  const ReactModule = await import('react');
+  return {
+    default: ({ isOpen, investment }) => isOpen
+      ? ReactModule.createElement('div', { 'data-testid': 'deep-dive-open' }, investment?.name ?? 'Unavailable')
+      : null,
+  };
+});
 
 const recommendationId = '64b000000000000000000001';
 const profileId = '64b000000000000000000002';
@@ -381,6 +393,47 @@ describe('deferred advisory allocation binding', () => {
     expect(screen.getByTestId('advisory-text')).toBeEmptyDOMElement();
     expect(screen.getByTestId('advisory-text')).not.toHaveTextContent('revision 4');
     expect(screen.getByTestId('advisory-status')).toHaveTextContent('STALE');
+  });
+
+  it('rejects a rebalance save submitted against an obsolete canonical financial-state identity', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('allocation-revision')).toHaveTextContent('4'));
+    fireEvent.click(screen.getByRole('button', { name: 'Open progress' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply stale rebalance' }));
+
+    expect(globalThis.alert).toHaveBeenCalledWith('Your portfolio changed since this page was loaded. Refresh before saving this rebalance.');
+    expect(appMocks.updateRecommendationWeights).not.toHaveBeenCalled();
+  });
+
+  it('reloads the canonical portfolio after a rebalance allocation revision conflict', async () => {
+    const canonical = {
+      ...currentState(5, {
+        fingerprint: 'f'.repeat(64),
+        stateId: '64b000000000000000000006',
+      }),
+      instruments: [],
+      advisory_text: null,
+      advisory_explanation: { status: 'STALE' },
+    };
+    appMocks.updateRecommendationWeights.mockRejectedValueOnce(Object.assign(
+      new Error('The allocation revision changed before save.'),
+      { status: 409, code: 'ALLOCATION_REVISION_CONFLICT' },
+    ));
+    appMocks.getCurrentRecommendation.mockResolvedValue(canonical);
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('allocation-revision')).toHaveTextContent('4'));
+    const initialReloadCount = appMocks.getCurrentRecommendation.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open progress' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply revision 5' }));
+
+    await waitFor(() => {
+      expect(appMocks.getCurrentRecommendation.mock.calls.length).toBeGreaterThan(initialReloadCount);
+      expect(screen.getByTestId('allocation-revision')).toHaveTextContent('5');
+      expect(screen.getByTestId('portfolio-fingerprint')).toHaveTextContent('f'.repeat(64));
+    });
+    expect(appMocks.updateRecommendationWeights).toHaveBeenCalledTimes(1);
+    expect(globalThis.alert).toHaveBeenCalledWith('Your portfolio changed since this page was loaded. Refresh before saving this rebalance.');
   });
 
   it('does not merge READY(S1) from a 409 retry after the real App advances to S2 and clears obsolete loading', async () => {
@@ -723,6 +776,42 @@ describe('profile edits trigger one authoritative recommendation recompute', () 
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+
+  it('closes a deep-dive selection as soon as the financial profile identity changes', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Test home' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open deep dive' }));
+    expect(await screen.findByTestId('deep-dive-open')).toHaveTextContent('PPF');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test account' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save next profile version' }));
+
+    await waitFor(() => expect(screen.queryByTestId('deep-dive-open')).toBeNull());
+  });
+
+  it('closes a deep-dive selection when the canonical allocation revision changes for the same profile', async () => {
+    appMocks.updateRecommendationWeights.mockResolvedValue({
+      ...currentState(5, {
+        fingerprint: 'f'.repeat(64),
+        stateId: '64b000000000000000000006',
+      }),
+      instruments: [],
+      advisory_text: null,
+      advisory_explanation: { status: 'STALE' },
+    });
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Test home' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open deep dive' }));
+    expect(await screen.findByTestId('deep-dive-open')).toHaveTextContent('PPF');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open progress' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply revision 5' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('allocation-revision')).toHaveTextContent('5');
+      expect(screen.queryByTestId('deep-dive-open')).toBeNull();
+    });
   });
 
   it('clears v1 immediately, recomputes v2 once, and ignores a late v2 after v3 is saved', async () => {

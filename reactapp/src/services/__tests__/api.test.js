@@ -44,6 +44,23 @@ describe('frontend API contracts', () => {
     expect(fetchMock.mock.calls[0][1].headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
+  it('preserves the chat turn idempotency key supplied for a retry', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ response: 'Grounded reply.' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+
+    await api.sendChatMessage('Explain my profile.', 'session-for-retry', {
+      signal: controller.signal,
+      headers: { 'Idempotency-Key': 'stable-chat-turn-001' },
+    });
+
+    const [url, config] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/chat/message');
+    expect(JSON.parse(config.body)).toEqual({ message: 'Explain my profile.', session_id: 'session-for-retry' });
+    expect(config.headers['Idempotency-Key']).toBe('stable-chat-turn-001');
+    expect(config.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('uses the authenticated ProofBreak availability, watch, timeline, and acknowledgment contracts', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ canEnable: false }))

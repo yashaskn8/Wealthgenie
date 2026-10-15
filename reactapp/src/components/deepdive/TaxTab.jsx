@@ -21,7 +21,7 @@ function getTaxInfo() {
   };
 }
 
-const TaxTab = ({ inv, calcAmount, calcYears, userProfile, profileStateKey = null, recommendationMeta = null }) => {
+const TaxTab = ({ inv, calcAmount, calcYears, profileStateKey = null, recommendationMeta = null }) => {
   const taxInfo = getTaxInfo();
   const taxBenefitKnown = typeof taxInfo.taxBenefit === 'boolean';
   const taxInterestKnown = typeof taxInfo.taxFreeInterest === 'boolean';
@@ -112,7 +112,7 @@ const TaxTab = ({ inv, calcAmount, calcYears, userProfile, profileStateKey = nul
       )}
 
       {/* Interactive Post-Tax Net Yield Simulator */}
-      <InteractiveTaxSimulator inv={inv} calcAmount={calcAmount} calcYears={calcYears} userProfile={userProfile} profileStateKey={profileStateKey} recommendationMeta={recommendationMeta} />
+      <InteractiveTaxSimulator inv={inv} calcAmount={calcAmount} calcYears={calcYears} profileStateKey={profileStateKey} recommendationMeta={recommendationMeta} />
     </div>
   );
 };
@@ -126,11 +126,12 @@ const parseFiniteNumber = value => {
 
 const formatTaxAmount = value => '₹' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value);
 
-const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile, profileStateKey, recommendationMeta }) => {
+const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, profileStateKey, recommendationMeta }) => {
   const [annualIncome, setAnnualIncome] = React.useState('');
   const [regime, setRegime] = React.useState('');
   const [incomeSource, setIncomeSource] = React.useState('');
   const [fiscalYear, setFiscalYear] = React.useState('');
+  const [taxAge, setTaxAge] = React.useState('');
   const [section112AExemptionUsed, setSection112AExemptionUsed] = React.useState('');
   const [section112ARequirementKey, setSection112ARequirementKey] = React.useState(null);
   const [resultState, setResultState] = React.useState(null);
@@ -141,7 +142,7 @@ const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile, prof
 
   const annualIncomeValue = annualIncome === '' ? null : parseFiniteNumber(annualIncome);
   const nominalReturn = parseFiniteNumber(inv?.nominalReturn);
-  const userAge = parseFiniteNumber(userProfile?.age);
+  const userAge = parseFiniteNumber(taxAge);
   const sectionIsBlank = section112AExemptionUsed === '';
   const section112AValue = sectionIsBlank ? null : parseFiniteNumber(section112AExemptionUsed);
   const verifiedFiscalYears = Array.isArray(policyMetadata?.verifiedFiscalYears) ? policyMetadata.verifiedFiscalYears : [];
@@ -361,13 +362,18 @@ const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, userProfile, prof
         </label>
         <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
           Fiscal year
-          <select value={fiscalYear} onChange={event => setFiscalYear(event.target.value)} style={{ width: '100%', marginTop: 6, padding: '9px 10px', borderRadius: 8, color: '#f8fafc', background: '#111827', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <select value={fiscalYear} onChange={event => { const nextYear = event.target.value; if (nextYear !== fiscalYear) setTaxAge(''); setFiscalYear(nextYear); }} style={{ width: '100%', marginTop: 6, padding: '9px 10px', borderRadius: 8, color: '#f8fafc', background: '#111827', border: '1px solid rgba(255,255,255,0.1)' }}>
             <option value="">Select fiscal year</option>
             {verifiedFiscalYears.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
         </label>
+        <div>
+          <label htmlFor="tax-user-age" style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>Your age on March 31</label>
+          <input id="tax-user-age" type="number" min="18" max="120" step="1" required aria-describedby="tax-user-age-help" value={taxAge} onChange={event => setTaxAge(event.target.value)} placeholder="Enter age for this year" style={{ width: '100%', marginTop: 6, padding: '9px 10px', borderRadius: 8, color: '#f8fafc', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
+          <span id="tax-user-age-help" style={{ display: 'block', marginTop: 5, fontWeight: 400 }}>Enter your age as of March 31 for the selected fiscal year.</span>
+        </div>
       </div>
 
       {requiresSection112A && (

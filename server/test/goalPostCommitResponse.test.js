@@ -187,6 +187,17 @@ function refreshAdvice(goalId) {
   });
 }
 
+function simulateGoal(goalId, monthlyContribution = 10000) {
+  return fetch(`${baseUrl}/api/goals/${goalId}/simulate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${signToken()}`,
+    },
+    body: JSON.stringify({ monthly_contribution: monthlyContribution }),
+  });
+}
+
 async function deleteGoal(goalId, version) {
   const response = await fetch(`${baseUrl}/api/goals/${goalId}`, {
     method: 'DELETE',
@@ -329,6 +340,47 @@ test.after(async () => {
 
 test('committed PATCH reconciles to the latest owner-scoped goal after vN+2 wins', async () => {
   await raceCommittedOperationWithUpdate({ operation: 'patch' });
+});
+
+test('goal what-if rejects when the saved goal version advances during Monte Carlo', async () => {
+  const profile = await createFinancialFixture();
+  const created = await createGoal(profile);
+  const goalId = String(created._id);
+  const barrier = createBarrier();
+  let paused = false;
+  const uninstall = installFinancialStateTestHook(async (boundary, context) => {
+    if (boundary === 'goal.simulation.beforeGoalRecheck'
+        && !paused
+        && String(context.goalId) === goalId
+        && Number(context.goalVersion) === Number(created.version)) {
+      paused = true;
+      await barrier.pause();
+    }
+  });
+
+  const pendingSimulation = simulateGoal(goalId);
+  try {
+    await barrier.entered;
+    const update = await patchGoal(goalId, {
+      expectedVersion: created.version,
+      priority: 'Low',
+    });
+    const updateBody = await update.json();
+    assert.equal(update.status, 200, JSON.stringify(updateBody));
+    assert.equal(updateBody.goal.version, created.version + 1);
+  } finally {
+    barrier.release();
+    uninstall();
+  }
+
+  const simulation = await pendingSimulation;
+  const simulationBody = await simulation.json();
+  assert.equal(simulation.status, 409, JSON.stringify(simulationBody));
+  assert.equal(simulationBody.code, 'GOAL_VERSION_CONFLICT');
+  assert.equal(simulationBody.details.expectedVersion, created.version);
+  const savedGoal = await Goal.findOne({ _id: goalId, userId }).lean();
+  assert.equal(savedGoal.version, created.version + 1);
+  assert.equal(savedGoal.priority, 'Low');
 });
 
 test('goal post-commit snapshot retries when its resource version changes after the snapshot read', async () => {

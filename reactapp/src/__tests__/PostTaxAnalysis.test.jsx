@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PostTaxAnalysis from '../PostTaxAnalysis';
 import * as apiModule from '../services/api';
+import { assertPostTaxBatchResponse, assertPostTaxBatchSummary, assertTaxComparisonResponse } from '../utils/taxResponseIntegrity';
 
 vi.mock('../services/api', () => ({
   computePostTaxReturnBatch: vi.fn(),
@@ -34,11 +35,28 @@ const unavailableSipReturnMetrics = (unavailableReason = 'PROJECTION_UNAVAILABLE
   realPostTaxAnnualizedReturnPercent: null,
   taxDragAnnualizedPercentagePoints: null,
 });
+const fdInstrumentInput = { instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 };
+const etfInstrumentInput = { ...fdInstrumentInput, instrumentType: 'ETF' };
 const calculated = {
-  portfolioStatus: 'COMPLETE', assumptions: { inflationRate: 0.06 },
-  results: [{ instrumentType: 'FD', status: 'CALCULATED', taxType: 'Slab Rate', nominalReturnPercent: 7,
-    postTaxReturnPercent: 0, realReturnPercent: -5.66, effectiveTaxPercent: 0,
+  calculation_classification: 'SEPARATE_TAX_WHAT_IF',
+  fiscalYear: 'FY2026-27',
+  policyVersion: 'tax-policy-FY2026-27-v2',
+  verified: true,
+  inputsUsed: {
+    annualIncome: 1000000, incomeSource: 'salary', regime: 'new', userAge: 30,
+    inflationRate: 0.06, fiscalYear: 'FY2026-27', section112AExemptionUsed: null,
+    instruments: [fdInstrumentInput],
+    deductions: {},
+  },
+  portfolioStatus: 'COMPLETE',
+  assumptions: {
+    annualIncome: 1000000, incomeSource: 'salary', regime: 'new', userAge: 30,
+    inflationRate: 0.06, fiscalYear: 'FY2026-27', deductions: {},
+  },
+  results: [{ instrumentIndex: 0, instrumentInput: fdInstrumentInput, instrumentType: 'FD', status: 'CALCULATED', taxType: 'Slab Rate', nominalReturnPercent: 7,
+    postTaxReturnPercent: 0, realReturnPercent: -5.66, effectiveTaxPercent: 0, taxRate: 0,
     postTaxGain: 0, taxDragWealth: 123456.7, taxDragCAGR: 0.025, totalInvested: 360000,
+    nominalFutureValue: 400000, postTaxFutureValue: 360000,
     sipReturnMetrics: calculatedSipReturnMetrics }],
   summary: { totalTaxDrag: 123456.7, keptPerThousand: 0, erodedPerThousand: 1000, retentionEfficiencyPercent: 0, maxTaxRate: 0 },
 };
@@ -47,6 +65,7 @@ async function explicitInputs() {
   fireEvent.change(screen.getByLabelText(/Gross annual income before allowed deductions/i), { target: { value: '1000000' } });
   fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
   fireEvent.change(screen.getByLabelText(/Tax regime/i), { target: { value: 'new' } });
+  fireEvent.change(screen.getByLabelText('Your age on March 31'), { target: { value: '30' } });
   fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
 }
 const submit = () => fireEvent.click(screen.getByRole('button', { name: /calculate explicit tax what-if/i }));
@@ -54,6 +73,20 @@ const submit = () => fireEvent.click(screen.getByRole('button', { name: /calcula
 describe('PostTaxAnalysis separate tax what-if', () => {
   beforeEach(() => { cleanup(); vi.clearAllMocks(); });
 
+  it('rejects selected-year ages outside the supported 18-to-120 range', async () => {
+    render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
+    await explicitInputs();
+    const form = screen.getByRole('button', { name: /calculate explicit tax what-if/i }).closest('form');
+
+    for (const age of ['17', '121']) {
+      fireEvent.change(screen.getByLabelText('Your age on March 31'), { target: { value: age } });
+      // Submit the form event directly so browser-native min/max validation
+      // does not prevent exercising the component's server-boundary guard.
+      fireEvent.submit(form);
+      expect(await screen.findByRole('alert')).toHaveTextContent(/valid age for the selected fiscal year/i);
+      expect(apiModule.computePostTaxReturnBatch).not.toHaveBeenCalled();
+    }
+  });
   it('renders every server metric exactly, including zero, negative real return and Indian grouping', async () => {
     apiModule.computePostTaxReturnBatch.mockResolvedValue(calculated);
     render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
@@ -68,6 +101,34 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     expect(row.getByTestId('effective-tax')).toHaveTextContent('0.0%');
     expect(row.getByTestId('tax-drag-wealth')).toHaveTextContent('₹1,23,457');
     expect(row.getByTestId('tax-drag-cagr')).toHaveTextContent('0.25 pp');
+  });
+
+  it('rejects swapped response rows for same-type instruments even when echoed inputs remain ordered', async () => {
+    const recommendations = [
+      demoRecommendations[0],
+      { ...demoRecommendations[0], id: 'fd-second', name: 'Second Fixed Deposit', nominalReturn: 8, monthly_allocation: 20000 },
+    ];
+    const requestInstruments = [
+      { instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
+      { instrumentType: 'FD', nominalRate: 0.08, holdingYears: 3, monthlySIP: 20000 },
+    ];
+    const firstRow = { ...calculated.results[0], instrumentIndex: 0, instrumentInput: requestInstruments[0], postTaxReturnPercent: 1, postTaxGain: 111 };
+    const secondRow = { ...calculated.results[0], instrumentIndex: 1, instrumentInput: requestInstruments[1], postTaxReturnPercent: 9, postTaxGain: 999 };
+    apiModule.computePostTaxReturnBatch.mockResolvedValue({
+      ...calculated,
+      inputsUsed: { ...calculated.inputsUsed, instruments: requestInstruments },
+      results: [
+        { ...secondRow, instrumentIndex: 0 },
+        { ...firstRow, instrumentIndex: 1 },
+      ],
+    });
+
+    render(<PostTaxAnalysis profile={demoProfile} recommendations={recommendations} />);
+    await explicitInputs(); submit();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/different or unverified tax request/i);
+    expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();
+    expect(screen.queryByTestId('post-tax-row-fd-second')).toBeNull();
   });
 
   it('renders an exact-zero real return neutrally without an up or down icon', async () => {
@@ -87,7 +148,13 @@ describe('PostTaxAnalysis separate tax what-if', () => {
   });
 
   it('hides persisted calculations immediately when tax inputs or the allocation identity change', async () => {
-    apiModule.computePostTaxReturnBatch.mockResolvedValue(calculated);
+    apiModule.computePostTaxReturnBatch
+      .mockResolvedValueOnce(calculated)
+      .mockResolvedValueOnce({
+        ...calculated,
+        inputsUsed: { ...calculated.inputsUsed, inflationRate: 0.07 },
+        assumptions: { ...calculated.assumptions, inflationRate: 0.07 },
+      });
     const view = render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} recommendationMeta={{ recommendationId: 'r1' }} />);
     await explicitInputs(); submit();
     await screen.findByTestId('post-tax-row-fd');
@@ -121,16 +188,30 @@ describe('PostTaxAnalysis separate tax what-if', () => {
   });
 
   it('keeps partial results explicit and rejects an incomplete calculated row', async () => {
-    const unavailable = { instrumentType: 'FD', status: 'MODEL_TAX_CLASS_UNAVAILABLE', nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null, totalInvested: 360000,
+    const unavailable = { instrumentIndex: 1, instrumentInput: { ...fdInstrumentInput }, instrumentType: 'FD', status: 'MODEL_TAX_CLASS_UNAVAILABLE', nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null, totalInvested: 360000,
       sipReturnMetrics: unavailableSipReturnMetrics() };
-    apiModule.computePostTaxReturnBatch.mockResolvedValue({ ...calculated, portfolioStatus: 'PARTIAL', results: [calculated.results[0], unavailable] });
+    apiModule.computePostTaxReturnBatch.mockResolvedValue({
+      ...calculated,
+      inputsUsed: {
+        ...calculated.inputsUsed,
+        instruments: [...calculated.inputsUsed.instruments, { ...calculated.inputsUsed.instruments[0] }],
+      },
+      portfolioStatus: 'PARTIAL', results: [calculated.results[0], unavailable],
+    });
     render(<PostTaxAnalysis profile={demoProfile} recommendations={[...demoRecommendations, { ...demoRecommendations[0], id: 'etf', name: 'ETF' }]} />);
     await explicitInputs(); submit();
     const row = within(await screen.findByTestId('post-tax-row-etf'));
     expect(row.getByTestId('post-tax-return')).toHaveTextContent('—');
     expect(row.getByTestId('post-tax-gain')).toHaveTextContent('—');
     await waitFor(() => expect(screen.getByText(/1 of 2 instruments are included/i)).toBeVisible(), { timeout: 5000 });
-    apiModule.computePostTaxReturnBatch.mockResolvedValue({ ...calculated, results: [{ ...calculated.results[0], postTaxGain: null }, unavailable] });
+    apiModule.computePostTaxReturnBatch.mockResolvedValue({
+      ...calculated,
+      inputsUsed: {
+        ...calculated.inputsUsed,
+        instruments: [...calculated.inputsUsed.instruments, { ...calculated.inputsUsed.instruments[0] }],
+      },
+      results: [{ ...calculated.results[0], postTaxGain: null }, unavailable],
+    });
     submit();
     expect(await screen.findByRole('alert')).toHaveTextContent(/incomplete instrument analysis/i);
     expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();
@@ -138,13 +219,20 @@ describe('PostTaxAnalysis separate tax what-if', () => {
 
   it('rejects a portfolio status that contradicts the row calculation statuses', async () => {
     const unavailable = {
-      instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
+      instrumentIndex: 1, instrumentInput: etfInstrumentInput, instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
       nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null,
       totalInvested: 360000,
       sipReturnMetrics: unavailableSipReturnMetrics(),
     };
     apiModule.computePostTaxReturnBatch.mockResolvedValue({
       ...calculated,
+      inputsUsed: {
+        ...calculated.inputsUsed,
+        instruments: [
+          calculated.inputsUsed.instruments[0],
+          etfInstrumentInput,
+        ],
+      },
       portfolioStatus: 'COMPLETE',
       summary: { ...calculated.summary, status: 'COMPLETE' },
       results: [calculated.results[0], unavailable],
@@ -171,14 +259,175 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();
   });
 
+  it.each([
+    ['omitted instrument echo', undefined],
+    ['changed instrument type', [{ instrumentType: 'PPF', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 }]],
+    ['changed nominal rate', [{ instrumentType: 'FD', nominalRate: 0.08, holdingYears: 3, monthlySIP: 10000 }]],
+    ['changed holding period', [{ instrumentType: 'FD', nominalRate: 0.07, holdingYears: 4, monthlySIP: 10000 }]],
+    ['changed SIP amount', [{ instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 1 }]],
+    ['extra unsupported input fact', [{ instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000, acquisitionDate: '2025-04-01' }]],
+  ])('rejects a response with %s in the echoed batch inputs', async (_description, instruments) => {
+    apiModule.computePostTaxReturnBatch.mockResolvedValue({
+      ...calculated,
+      inputsUsed: { ...calculated.inputsUsed, instruments },
+    });
+    render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
+    await explicitInputs(); submit();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/different or unverified tax request/i);
+    expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();
+  });
+
+  it('matches the ordered batch echo including supported optional instrument facts', () => {
+    const first = {
+      instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000,
+      acquisitionDate: '2025-04-01', redemptionDate: '2028-04-01',
+      redemptionChannel: 'MATURITY_REDEMPTION', acquiredAtOriginalIssue: true,
+      heldContinuously: true, couponRate: 0.065, annuityFraction: 0.25,
+      retirementTiming: 'before retirement',
+    };
+    const second = { instrumentType: 'ETF', nominalRate: 0.1, holdingYears: 5, monthlySIP: 2000 };
+    const expected = {
+      annualIncome: 1000000, incomeSource: 'salary', regime: 'new', userAge: 30,
+      inflationRate: 0.06, fiscalYear: 'FY2026-27', deductions: {},
+      instruments: [first, second],
+    };
+    const response = {
+      ...calculated,
+      inputsUsed: { ...calculated.inputsUsed, instruments: [{ ...first }, { ...second }] },
+      results: [
+        { ...calculated.results[0], instrumentIndex: 0, instrumentInput: { ...first } },
+        { ...calculated.results[0], instrumentIndex: 1, instrumentInput: { ...second } },
+      ],
+    };
+
+    expect(() => assertPostTaxBatchResponse(response, expected)).not.toThrow();
+    expect(() => assertPostTaxBatchResponse({
+      ...response,
+      inputsUsed: { ...response.inputsUsed, instruments: [{ ...second }, { ...first }] },
+    }, expected)).toThrow(/different or unverified tax request/i);
+    expect(() => assertPostTaxBatchResponse({
+      ...response,
+      inputsUsed: {
+        ...response.inputsUsed,
+        instruments: [{ ...first, heldContinuously: false }, second],
+      },
+    }, expected)).toThrow(/different or unverified tax request/i);
+    expect(() => assertPostTaxBatchResponse({
+      ...response,
+      inputsUsed: { ...response.inputsUsed, deductions: { unsupportedClaim: 0 } },
+    }, expected)).toThrow(/different or unverified tax request/i);
+    expect(() => assertPostTaxBatchResponse({
+      ...response,
+      assumptions: { ...response.assumptions, deductions: { unsupportedClaim: 0 } },
+    }, expected)).toThrow(/different or unverified tax request/i);
+    expect(() => assertPostTaxBatchResponse({
+      ...response,
+      results: [
+        { ...response.results[0], instrumentInput: { ...first, monthlySIP: 1 } },
+        response.results[1],
+      ],
+    }, expected)).toThrow(/different or unverified tax request/i);
+  });
+
+  it.each([
+    ['total tax drag', 'totalTaxDrag', 1],
+    ['retained profits per thousand', 'keptPerThousand', 1],
+    ['eroded profits per thousand', 'erodedPerThousand', 999],
+    ['retention percentage', 'retentionEfficiencyPercent', 0.1],
+    ['maximum tax rate', 'maxTaxRate', 0.1],
+  ])('rejects a portfolio summary whose %s disagrees with calculated rows', (_label, field, value) => {
+    expect(() => assertPostTaxBatchSummary({
+      ...calculated,
+      summary: { ...calculated.summary, [field]: value },
+    })).toThrow(/portfolio summary inconsistent with its calculated rows/i);
+  });
+
+  it('requires null summary metrics when no response rows are calculated', () => {
+    const response = {
+      results: [{ status: 'MODEL_TAX_CLASS_UNAVAILABLE' }],
+      summary: {
+        totalTaxDrag: null, keptPerThousand: null, erodedPerThousand: null,
+        retentionEfficiencyPercent: null, maxTaxRate: null,
+      },
+    };
+    expect(() => assertPostTaxBatchSummary(response)).not.toThrow();
+    expect(() => assertPostTaxBatchSummary({
+      ...response,
+      summary: { ...response.summary, keptPerThousand: 1000 },
+    })).toThrow(/unavailable tax summaries must remain null/i);
+  });
+
+  it('rejects unrequested tax-comparison deductions while accepting documented normalized zero defaults', () => {
+    const fiscalYear = 'FY2026-27';
+    const regime = {
+      tax: 0, effective_rate: 0, taxable_income: 0, standard_deduction: 0, cess: 0,
+      nps80CCD2: 0, allowed80D: 0, rebate_applied: false,
+      marginal_relief_applied: false, marginal_relief_amount: 0,
+      slab_breakdown: [{ label: 'Your Total Tax', rate: '', taxableInSlab: 0, taxInSlab: 0, isTotalRow: true }],
+    };
+    const response = {
+      verified: true,
+      fiscal_year: fiscalYear,
+      income: 100000,
+      policyVersion: 'tax-policy-FY2026-27-v2',
+      calculation_classification: 'SEPARATE_TAX_WHAT_IF',
+      inputsUsed: {
+        annualIncome: 100000, incomeSource: 'salary', fiscalYear,
+        deductions: { age: 30, section80C: 0, nps80CCD2: 0 },
+      },
+      new_regime: regime,
+      old_regime: { ...regime, old_regime_deductions: 0 },
+      recommended_regime: 'new', saving: 0, saving_pct: 0, saving_with: 'new',
+      optimized_old_regime_tax: 0, potential_tax_saving: 0, crossover_breakpoint: null,
+      deduction_limits: {}, remaining_deductions: {},
+    };
+    const expected = {
+      annualIncome: 100000, incomeSource: 'salary', fiscalYear,
+      deductions: { age: 30, section80C: 0 },
+    };
+
+    expect(() => assertTaxComparisonResponse(response, expected)).not.toThrow();
+    expect(() => assertTaxComparisonResponse({
+      ...response,
+      inputsUsed: { ...response.inputsUsed, deductions: { ...response.inputsUsed.deductions, unsupportedClaim: 0 } },
+    }, expected)).toThrow(/submitted input fields.*deductions/i);
+    expect(() => assertTaxComparisonResponse({
+      ...response,
+      inputsUsed: { ...response.inputsUsed, deductions: { ...response.inputsUsed.deductions, nps80CCD1B: 50 } },
+    }, expected)).toThrow(/submitted input fields.*deductions/i);
+  });
+  it('requires a selected-fiscal-year age instead of substituting the profile age', async () => {
+    render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
+    await waitFor(() => expect(screen.getByLabelText(/Fiscal year/i).value).toBe('FY2026-27'));
+    fireEvent.change(screen.getByLabelText(/Gross annual income before allowed deductions/i), { target: { value: '1000000' } });
+    fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
+    fireEvent.change(screen.getByLabelText(/Tax regime/i), { target: { value: 'new' } });
+    fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
+    submit();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/age for the selected fiscal year/i);
+    expect(apiModule.computePostTaxReturnBatch).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Your age on March 31')).toHaveValue(null);
+  });
+
+  it('clears the selected-year age when the fiscal year changes', async () => {
+    render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
+    await explicitInputs();
+    fireEvent.change(screen.getByLabelText(/Fiscal year/i), { target: { value: 'FY2025-26' } });
+    expect(screen.getByLabelText('Your age on March 31')).toHaveValue(null);
+  });
   it('does not infer gross income and submits every explicit tax input', async () => {
     apiModule.computePostTaxReturnBatch.mockResolvedValue({
+      ...calculated,
       calculation_classification: 'SEPARATE_TAX_WHAT_IF',
       portfolioStatus: 'COMPLETE',
-      assumptions: { inflationRate: 0.06 },
+      assumptions: calculated.assumptions,
       results: [{
+        instrumentIndex: 0,
+        instrumentInput: fdInstrumentInput,
         instrumentType: 'FD',
         status: 'CALCULATED',
+        taxRate: 0,
         postTaxReturn: 0.07,
         taxType: 'Slab Rate (0%)',
         effectiveTaxPercent: 0,
@@ -186,6 +435,8 @@ describe('PostTaxAnalysis separate tax what-if', () => {
         taxDragWealth: 0,
         taxDragCAGR: 0,
         totalInvested: 360000,
+        nominalFutureValue: 360000,
+        postTaxFutureValue: 360000,
         nominalReturnPercent: 7,
         postTaxReturnPercent: 7,
         realReturnPercent: 0.9434,
@@ -212,6 +463,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
     fireEvent.change(screen.getByLabelText(/Tax regime/i), { target: { value: 'new' } });
     fireEvent.change(screen.getByLabelText(/Fiscal year/i), { target: { value: 'FY2026-27' } });
+  fireEvent.change(screen.getByLabelText('Your age on March 31'), { target: { value: '30' } });
     fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
     fireEvent.click(screen.getByRole('button', { name: /calculate explicit tax what-if/i }));
     await waitFor(() => expect(apiModule.computePostTaxReturnBatch).toHaveBeenCalledWith(
@@ -232,11 +484,28 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     expect(screen.queryByTestId('post-tax-unavailable-explanation')).toBeNull();
   });
 
+  it.each([
+    { ...calculated, fiscalYear: 'FY2025-26' },
+    { ...calculated, inputsUsed: { ...calculated.inputsUsed, annualIncome: 900000 } },
+  ])('rejects a post-tax result that does not echo the selected year and financial inputs', async response => {
+    apiModule.computePostTaxReturnBatch.mockResolvedValue(response);
+    render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
+    await explicitInputs(); submit();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/different or unverified tax request/i);
+    expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();
+  });
   it('keeps an unavailable portfolio summary unavailable in the UI', async () => {
     apiModule.computePostTaxReturnBatch.mockResolvedValue({
+      ...calculated,
+      inputsUsed: {
+        ...calculated.inputsUsed,
+        instruments: [{ ...calculated.inputsUsed.instruments[0], instrumentType: 'ETF', nominalRate: 0.12 }],
+      },
       portfolioStatus: 'UNAVAILABLE',
-      assumptions: { inflationRate: 0.06 },
+      assumptions: calculated.assumptions,
       results: [{
+        instrumentIndex: 0,
+        instrumentInput: { ...calculated.inputsUsed.instruments[0], instrumentType: 'ETF', nominalRate: 0.12 },
         instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
         unavailableReasons: ['MODEL_TAX_CLASS_UNAVAILABLE_FOR_GENERIC_INSTRUMENT_TYPE'],
         sipReturnMetrics: unavailableSipReturnMetrics(),
@@ -260,6 +529,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
     fireEvent.change(screen.getByLabelText(/Tax regime/i), { target: { value: 'new' } });
     fireEvent.change(screen.getByLabelText(/Fiscal year/i), { target: { value: 'FY2026-27' } });
+  fireEvent.change(screen.getByLabelText('Your age on March 31'), { target: { value: '30' } });
     fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
     fireEvent.click(screen.getByRole('button', { name: /calculate explicit tax what-if/i }));
     expect(await screen.findByText(/Profit retention unavailable/i)).toBeInTheDocument();
@@ -273,11 +543,27 @@ describe('PostTaxAnalysis separate tax what-if', () => {
   it('keeps tax projection status while showing SIP return as unavailable when monthly contributions are zero', async () => {
     apiModule.computePostTaxReturnBatch.mockResolvedValue({
       ...calculated,
+      inputsUsed: {
+        ...calculated.inputsUsed,
+        instruments: [{ ...calculated.inputsUsed.instruments[0], monthlySIP: 0 }],
+      },
       results: [{
         ...calculated.results[0],
+        instrumentInput: { ...calculated.inputsUsed.instruments[0], monthlySIP: 0 },
         totalInvested: 0,
+        taxDragWealth: 0,
+        taxRate: 0,
+        nominalFutureValue: 0,
+        postTaxFutureValue: 0,
         sipReturnMetrics: unavailableSipReturnMetrics('NO_MONTHLY_CONTRIBUTIONS'),
       }],
+      summary: {
+        totalTaxDrag: 0,
+        keptPerThousand: 1000,
+        erodedPerThousand: 0,
+        retentionEfficiencyPercent: 100,
+        maxTaxRate: 0,
+      },
     });
     render(<PostTaxAnalysis
       profile={demoProfile}

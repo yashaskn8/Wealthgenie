@@ -38,7 +38,8 @@ def test_llm_config_defaults_and_env(monkeypatch):
     assert env_config.max_new_tokens == 1024
 
 
-def test_mock_llm_provider():
+def test_mock_llm_provider(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "test")
     provider = MockLLMProvider(model_name="Test-Mock-0.5B")
     assert provider.is_healthy()
 
@@ -54,6 +55,35 @@ def test_mock_llm_provider():
 
     stream_tokens = list(provider.generate_stream(req))
     assert len(stream_tokens) > 0
+
+
+def test_production_mock_provider_cannot_emit_synthetic_financial_facts(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    config = LLMConfig(default_provider="mock")
+    registry = LLMModelRegistry(config)
+    provider = MockLLMProvider()
+    request = LLMGenerateRequest(prompt="What is the Section 87A rebate?")
+
+    assert not provider.is_healthy()
+    assert all(not model["is_active"] for model in registry.list_models())
+    with pytest.raises(RuntimeError, match="No healthy LLM provider is active"):
+        registry.get_active_provider()
+    with pytest.raises(RuntimeError, match="mock LLM provider is disabled"):
+        provider.generate(request)
+    with pytest.raises(RuntimeError, match="mock LLM provider is disabled"):
+        list(provider.generate_stream(request))
+
+
+@pytest.mark.parametrize("environment", [None, "", "staging-typo"])
+def test_mock_provider_is_disabled_without_an_explicit_local_environment(monkeypatch, environment):
+    from llm.providers.mock_provider import _mock_generation_allowed
+
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    monkeypatch.delenv("NODE_ENV", raising=False)
+    if environment is not None:
+        monkeypatch.setenv("ENVIRONMENT", environment)
+
+    assert _mock_generation_allowed() is False
 
 
 def test_api_llm_provider():

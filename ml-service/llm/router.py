@@ -5,7 +5,7 @@ Exposes dedicated endpoints (/llm/generate, /llm/rag-query, /llm/batch-generate,
 
 import logging
 from typing import Dict, Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from llm.config import LLMConfig
@@ -36,7 +36,16 @@ class ToolQueryRequest(BaseModel):
 @llm_router.get("/health")
 def llm_health():
     """Health check endpoint for the LLM infrastructure."""
-    active_provider = llm_registry.get_active_provider()
+    try:
+        active_provider = llm_registry.get_active_provider()
+    except RuntimeError:
+        return {
+            "status": "degraded",
+            "service": "WealthGenie Open-Weight LLM Platform",
+            "active_model": None,
+            "provider": None,
+            "device": None,
+        }
     is_healthy = active_provider.is_healthy()
     meta = active_provider.get_metadata()
     return {
@@ -51,10 +60,14 @@ def llm_health():
 @llm_router.get("/status")
 def llm_status():
     """Returns runtime execution metrics, device bindings, and quantization options."""
-    active_provider = llm_registry.get_active_provider()
-    meta = active_provider.get_metadata()
+    try:
+        active_provider = llm_registry.get_active_provider()
+    except RuntimeError:
+        active_metadata = None
+    else:
+        active_metadata = active_provider.get_metadata().model_dump()
     return {
-        "active_model_metadata": meta.model_dump(),
+        "active_model_metadata": active_metadata,
         "registered_models_count": len(llm_registry.list_models()),
         "configured_device": llm_config.device,
         "configured_quantization": llm_config.quantization,
@@ -71,6 +84,7 @@ def list_models():
 @llm_router.post("/generate", response_model=LLMGenerateResponse)
 def generate_text(
     request: LLMGenerateRequest,
+    http_request: Request,
     verified_user_id: str = Depends(verify_verified_user_id),
 ):
     """
@@ -82,13 +96,22 @@ def generate_text(
         provider = llm_registry.get_active_provider()
         return provider.generate(request)
     except Exception as e:
-        logger.error(f"LLM generation failed: {e}")
-        raise HTTPException(status_code=500, detail=f"LLM generation error: {str(e)}")
+        correlation_id = getattr(http_request.state, "correlation_id", "unavailable")
+        logger.error(
+            "LLM generation failed (error_type=%s correlation_id=%s)",
+            type(e).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Text generation could not be completed. Please try again later.",
+        ) from None
 
 
 @llm_router.post("/batch-generate")
 def batch_generate(
     requests: List[LLMGenerateRequest],
+    http_request: Request,
     verified_user_id: str = Depends(verify_verified_user_id),
 ):
     """Runs batch inference generation across multiple LLM requests."""
@@ -99,13 +122,22 @@ def batch_generate(
         responses = [provider.generate(req) for req in requests]
         return {"batch_count": len(responses), "responses": [r.model_dump() for r in responses]}
     except Exception as e:
-        logger.error(f"Batch generation failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Batch generation error: {str(e)}")
+        correlation_id = getattr(http_request.state, "correlation_id", "unavailable")
+        logger.error(
+            "Batch generation failed (error_type=%s correlation_id=%s)",
+            type(e).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Batch generation could not be completed. Please try again later.",
+        ) from None
 
 
 @llm_router.post("/rag-query", response_model=RAGQueryResponse)
 def rag_llm_query(
     request: RAGQueryRequest,
+    http_request: Request,
     verified_user_id: str = Depends(verify_verified_user_id),
 ):
     """Returns trust-gated extractive RAG evidence or explicit abstention."""
@@ -115,8 +147,16 @@ def rag_llm_query(
     try:
         return rag_llm_pipeline.query(request)
     except Exception as e:
-        logger.error(f"RAG LLM query failed: {e}")
-        raise HTTPException(status_code=500, detail=f"RAG LLM query error: {str(e)}")
+        correlation_id = getattr(http_request.state, "correlation_id", "unavailable")
+        logger.error(
+            "RAG LLM query failed (error_type=%s correlation_id=%s)",
+            type(e).__name__,
+            correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="RAG-assisted generation could not be completed. Please try again later.",
+        ) from None
 
 
 @llm_router.post("/tool-query")

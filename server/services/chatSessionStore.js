@@ -6,6 +6,7 @@ import { verifyPersistenceIndexes } from './persistenceIndexReadiness.js';
 
 export const CHAT_SESSION_TOKEN_CAP = 50000;
 export const CHAT_SESSION_LEASE_MS = 90000;
+export const CHAT_TURN_RECEIPT_LIMIT = 200;
 
 function persistenceError() {
   return createError(503, 'Chat session persistence is unavailable.', 'Chat is temporarily unavailable.', {
@@ -25,7 +26,7 @@ function sameNullableId(left, right) {
   return (left == null && right == null) || String(left) === String(right);
 }
 
-function isBindingMatch(conversation, binding) {
+export function chatSessionBindingMatches(conversation, binding) {
   return String(conversation.profileId) === String(binding.profileId)
     && Number(conversation.profileVersion) === Number(binding.profileVersion)
     && Number(conversation.financialProfileStateRevision) === Number(binding.financialProfileStateRevision)
@@ -44,11 +45,36 @@ function requireSessionBinding(conversation, binding) {
       code: 'CHAT_SESSION_PROVENANCE_MISSING',
     });
   }
-  if (!isBindingMatch(conversation, binding)) {
+  if (!chatSessionBindingMatches(conversation, binding)) {
     throw createError(409, 'The chat session is bound to a different financial source state.', 'Your profile or recommendation changed. Start a new chat session.', {
       code: 'CHAT_PROFILE_STATE_CHANGED',
     });
   }
+}
+
+export async function findChatTurnReceipt({ userId, sessionId, binding, keyHash, requestHash }) {
+  let conversation;
+  try {
+    conversation = await ConversationHistory.findOne({
+      userId,
+      session_id: sessionId,
+      is_active: true,
+      ...binding,
+      'turnReceipts.keyHash': keyHash,
+    }).select('turnReceipts').lean();
+  } catch {
+    throw persistenceError();
+  }
+  if (!conversation) return null;
+  const receipt = (conversation.turnReceipts || []).find(item => item.keyHash === keyHash);
+  if (!receipt) return null;
+  if (receipt.requestHash !== requestHash) {
+    throw createError(409, 'The idempotency key was already used for a different chat message.', 'This chat request key cannot be reused for different text.', {
+      code: 'CHAT_IDEMPOTENCY_KEY_REUSED',
+    });
+  }
+  if (!receipt.response || typeof receipt.response.response !== 'string') throw persistenceError();
+  return receipt.response;
 }
 
 async function settleExpiredReservation({ userId, sessionId, now }) {
@@ -210,7 +236,7 @@ export async function renewChatSessionLease(claim, now = new Date()) {
   }
 }
 
-export async function completeChatTurn({ claim, userMessage, modelMessage, actualTokens, chargeReservation = false }) {
+export async function completeChatTurn({ claim, userMessage, modelMessage, actualTokens, chargeReservation = false, turnReceipt, preserveLease = false }) {
   const reservation = claim.tokenReservation || 0;
   if (!Number.isSafeInteger(actualTokens) || actualTokens < 0
       || (!chargeReservation && actualTokens > reservation)) {
@@ -218,11 +244,21 @@ export async function completeChatTurn({ claim, userMessage, modelMessage, actua
       code: 'CHAT_PROVIDER_USAGE_EXCEEDED_RESERVATION',
     });
   }
+  if (!/^[a-f0-9]{64}$/.test(turnReceipt?.keyHash || '')
+      || !/^[a-f0-9]{64}$/.test(turnReceipt?.clientKeyHash || '')
+      || !/^[a-f0-9]{64}$/.test(turnReceipt?.requestHash || '')
+      || !turnReceipt?.response
+      || Buffer.byteLength(JSON.stringify(turnReceipt.response), 'utf8') > 32 * 1024) {
+    throw createError(503, 'Chat turn receipt could not be safely persisted.', 'Chat is temporarily unavailable.', {
+      code: 'CHAT_TURN_RECEIPT_INVALID',
+    });
+  }
   const chargedTokens = chargeReservation ? reservation : actualTokens;
   const nextMessages = [userMessage, modelMessage].map((message, index) => ({
     ...message,
     metadata: {
       ...message.metadata,
+      client_turn_hash: turnReceipt.clientKeyHash,
       message_sequence: Number(claim.conversation.message_sequence || 0) + index + 1,
       profileId: claim.conversation.profileId,
       profileVersion: claim.conversation.profileVersion,
@@ -243,17 +279,24 @@ export async function completeChatTurn({ claim, userMessage, modelMessage, actua
       processing_owner_id: claim.ownerId,
       profileId: claim.conversation.profileId,
       profileVersion: claim.conversation.profileVersion,
+      financialProfileStateRevision: claim.conversation.financialProfileStateRevision,
       profileInputHash: claim.conversation.profileInputHash,
+      sourceRecommendationId: claim.conversation.sourceRecommendationId ?? null,
+      sourceAllocationRevisionId: claim.conversation.sourceAllocationRevisionId ?? null,
+      sourceRecommendationFingerprint: claim.conversation.sourceRecommendationFingerprint ?? null,
+      sourcePortfolioFingerprint: claim.conversation.sourcePortfolioFingerprint ?? null,
     }, [{
       $set: {
-        messages: { $slice: [{ $concatArrays: [{ $ifNull: ['$messages', []] }, nextMessages] }, -200] },
+        // Update pipelines interpret strings beginning with "$" as field
+        // references. Conversation content and receipts are untrusted data.
+        messages: { $slice: [{ $concatArrays: [{ $ifNull: ['$messages', []] }, { $literal: nextMessages }] }, -200] },
+        turnReceipts: { $slice: [{ $concatArrays: [{ $ifNull: ['$turnReceipts', []] }, { $literal: [turnReceipt] }] }, -CHAT_TURN_RECEIPT_LIMIT] },
         message_count: { $min: [200, { $add: [{ $size: { $ifNull: ['$messages', []] } }, 2] }] },
         message_sequence: { $add: [{ $ifNull: ['$message_sequence', 0] }, 2] },
         session_version: { $add: [{ $ifNull: ['$session_version', 1] }, 1] },
         cumulative_tokens: { $add: [{ $ifNull: ['$cumulative_tokens', 0] }, chargedTokens] },
         reserved_tokens: { $max: [0, { $subtract: [{ $ifNull: ['$reserved_tokens', 0] }, reservation] }] },
-        processing_owner_id: null,
-        processing_lease_until: null,
+        ...(!preserveLease ? { processing_owner_id: null, processing_lease_until: null } : {}),
         updated_at: new Date(),
       },
     }], { new: true }).lean();
@@ -266,6 +309,82 @@ export async function completeChatTurn({ claim, userMessage, modelMessage, actua
     });
   }
   return updated;
+}
+
+export async function finalizeCompletedChatTurn({ claim }) {
+  let result;
+  try {
+    result = await ConversationHistory.updateOne({
+      _id: claim.conversation._id,
+      userId: claim.conversation.userId,
+      is_active: true,
+      processing_owner_id: claim.ownerId,
+    }, { $set: { processing_owner_id: null, processing_lease_until: null, updated_at: new Date() } });
+  } catch {
+    throw persistenceError();
+  }
+  if (result.matchedCount !== 1) {
+    throw createError(409, 'The chat session changed before this message was finalized.', 'The chat session changed. Start a new message.', {
+      code: 'CHAT_SESSION_STATE_CHANGED',
+    });
+  }
+  return true;
+}
+
+/** Remove a just-completed turn if its source binding changed during persistence. */
+export async function discardCompletedChatTurn({ userId, sessionId, binding, keyHash, clientKeyHash, ownerId }) {
+  if (!/^[a-f0-9]{64}$/.test(keyHash || '') || !/^[a-f0-9]{64}$/.test(clientKeyHash || '')) return false;
+  try {
+    const result = await ConversationHistory.updateOne({
+      userId,
+      session_id: sessionId,
+      is_active: true,
+      profileId: binding.profileId,
+      profileVersion: binding.profileVersion,
+      financialProfileStateRevision: binding.financialProfileStateRevision,
+      profileInputHash: binding.profileInputHash,
+      sourceRecommendationId: binding.sourceRecommendationId ?? null,
+      sourceAllocationRevisionId: binding.sourceAllocationRevisionId ?? null,
+      sourceRecommendationFingerprint: binding.sourceRecommendationFingerprint ?? null,
+      sourcePortfolioFingerprint: binding.sourcePortfolioFingerprint ?? null,
+      ...(ownerId ? { processing_owner_id: ownerId } : {}),
+    }, [{
+      $set: {
+        messages: {
+          $filter: {
+            input: { $ifNull: ['$messages', []] },
+            as: 'message',
+            cond: { $ne: ['$$message.metadata.client_turn_hash', { $literal: clientKeyHash }] },
+          },
+        },
+        turnReceipts: {
+          $filter: {
+            input: { $ifNull: ['$turnReceipts', []] },
+            as: 'receipt',
+            cond: { $not: [{ $and: [
+              { $eq: ['$$receipt.keyHash', { $literal: keyHash }] },
+              { $eq: ['$$receipt.clientKeyHash', { $literal: clientKeyHash }] },
+            ] }] },
+          },
+        },
+        message_count: {
+          $size: {
+            $filter: {
+              input: { $ifNull: ['$messages', []] },
+              as: 'message',
+              cond: { $ne: ['$$message.metadata.client_turn_hash', { $literal: clientKeyHash }] },
+            },
+          },
+        },
+        session_version: { $add: [{ $ifNull: ['$session_version', 1] }, 1] },
+        updated_at: new Date(),
+        ...(ownerId ? { processing_owner_id: null, processing_lease_until: null } : {}),
+      },
+    }]);
+    return result.matchedCount === 1;
+  } catch {
+    throw persistenceError();
+  }
 }
 
 export async function releaseChatSession(claim, { chargeReservation = false } = {}) {
@@ -313,10 +432,13 @@ export async function closeChatSession({ userId, sessionId }) {
 }
 
 export const defaultChatSessionStore = {
+  findReceipt: findChatTurnReceipt,
   acquire: acquireChatSession,
   reserveBudget: reserveChatProviderBudget,
   renew: renewChatSessionLease,
   complete: completeChatTurn,
+  finalizeCompletedTurn: finalizeCompletedChatTurn,
+  discardCompletedTurn: discardCompletedChatTurn,
   release: releaseChatSession,
   close: closeChatSession,
 };

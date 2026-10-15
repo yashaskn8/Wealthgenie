@@ -5,14 +5,16 @@ the production topology contract: HTTPS redirect is enabled, the browser origin
 is HTTPS-only, and the server is configured for TLS-protected DocumentDB.
 
 The production overlay deliberately rewrites all three application images and
-the MongoDB and Redis images present in the rendered topology to
+the Redis image present in the rendered topology to
 `registry-required.invalid/...@sha256:WEALTHGENIE_*_IMAGE_DIGEST_REQUIRED`
 sentinels. These are not deployable image identities. Do not apply the overlay
 directly. A release workspace must replace each sentinel with its approved
 repository path and verified `sha256:<64 lowercase hex>` digest. The validator
 currently binds WealthGenie application images to `ghcr.io/yashaskn8/wealthgenie-*`
-and MongoDB/Redis to `docker.io/library/{mongo,redis}`. Other registry owners or
-mirrors fail closed and require an explicit release-policy and test update.
+and Redis to `docker.io/library/redis`. MongoDB is not part of the production
+Kustomize overlay; production uses the separately provisioned external
+DocumentDB endpoint described below. Other registry owners or mirrors fail
+closed and require an explicit release-policy and test update.
 Before apply, pipe the rendered overlay through the fail-closed image filter:
 
 ```sh
@@ -42,6 +44,14 @@ Before applying, replace all `${WEALTHGENIE_PRODUCTION_HOST}`,
 The referenced TLS and DocumentDB CA secrets must already exist. Applying this
 overlay with placeholders is intentionally unsupported and must be rejected by
 the deployment pipeline.
+
+The production secret provider must supply a strong, randomly generated
+`REDIS_PASSWORD`. Redis requires authentication, and the checked-in
+NetworkPolicy limits Redis ingress to the WealthGenie server and agent-worker
+pods. The production cluster CNI must enforce Kubernetes NetworkPolicy; Redis
+authentication remains required even when that network control is unavailable.
+The Redis service uses in-cluster TCP, so deploy it only on a trusted cluster
+network with node and pod traffic protected by the cluster boundary.
 
 The Terraform in this repository provisions network, database, ALB, and DNS
 scaffolding only. Application compute/runtime attachment remains a separate

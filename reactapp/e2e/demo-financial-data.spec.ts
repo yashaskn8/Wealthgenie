@@ -337,7 +337,7 @@ async function market(dialog: Locator, body: JsonObject) {
     Array.isArray(providerStatus.attemptedProviders) ? providerStatus.attemptedProviders : []
   )].filter((provider): provider is string => typeof provider === 'string' && provider.trim().length > 0);
   const attemptedProviders = [...new Set(selectedAttempts.length ? selectedAttempts : fallbackAttempts)];
-  const displayAttemptedProvider = attemptedProviders.length ? attemptedProviders.join(', ') : 'Unavailable';
+  const displayAttemptedProvider = attemptedProviders.length ? attemptedProviders.join(', ') : 'UNAVAILABLE';
   const marketStatus = region.getByTestId('market-data-status');
   await expect(marketStatus).toContainText(`As of: ${snapshotObserved ? ist(snapshotObserved) : 'Unavailable'}`);
   await expect(marketStatus).toContainText(displaySource);

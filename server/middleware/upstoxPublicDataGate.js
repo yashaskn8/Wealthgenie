@@ -7,7 +7,11 @@ import { UPSTOX_QUOTE_URL } from '../services/marketData/UpstoxMarketDataProvide
  * Public Upstox-derived output requires both the operator's enablement flag
  * and exact source-rights approval. The flag cannot grant the source rights.
  */
-export function createUpstoxPublicDataGate({ env = process.env, requiresUpstox = false } = {}) {
+export function createUpstoxPublicDataGate({
+  env = process.env,
+  requiresUpstox = false,
+  marketDataTestFixtureRightsCapability = null,
+} = {}) {
   return function upstoxPublicDataGate(req, res, next) {
     const primaryProvider = String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase();
     const usesUpstox = requiresUpstox || primaryProvider === 'UPSTOX';
@@ -20,7 +24,12 @@ export function createUpstoxPublicDataGate({ env = process.env, requiresUpstox =
         'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED',
       );
     }
-    if (usesUpstox && !isMarketDataProductionUseAllowed('UPSTOX', UPSTOX_QUOTE_URL, env)) {
+    if (usesUpstox && !isMarketDataProductionUseAllowed(
+      'UPSTOX',
+      UPSTOX_QUOTE_URL,
+      env,
+      marketDataTestFixtureRightsCapability,
+    )) {
       return sendError(
         req,
         res,

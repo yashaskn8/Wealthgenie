@@ -142,15 +142,22 @@ const toBackendAllocations = (allocations, recommendations = []) => {
   return result;
 };
 
-const buildCalculationBinding = ({ profile, recommendations, allocations, horizon, totalSavings }) => JSON.stringify({
+const buildCalculationBinding = ({ profile, financialStateIdentity, recommendations, allocations, horizon, totalSavings }) => JSON.stringify({
   profile: profile ?? null,
+  financialStateIdentity: financialStateIdentity ?? null,
   recommendations: recommendations ?? [],
   allocations: Object.entries(allocations || {}).sort(([left], [right]) => left.localeCompare(right)),
   horizon,
   totalSavings,
 });
 
-const RebalancerScreen = ({ profile, recommendations, onSave }) => {
+const RebalancerScreen = ({ profile, financialStateIdentity = null, recommendations, onSave }) => {
+  const currentProfileIdValue = profile?.profileId || profile?.profile_id || profile?._id || null;
+  const currentProfileId = currentProfileIdValue ? String(currentProfileIdValue) : null;
+  const currentProfileVersion = Number.isSafeInteger(Number(profile?.version)) && Number(profile?.version) > 0
+    ? Number(profile.version)
+    : null;
+  const goalsBinding = JSON.stringify([currentProfileId, currentProfileVersion, financialStateIdentity]);
   const totalSavingsCandidate = Number(profile?.monthly_savings);
   const totalSavings = Number.isFinite(totalSavingsCandidate) && totalSavingsCandidate > 0 ? totalSavingsCandidate : null;
   const horizonCandidate = Number(profile?.investment_horizon_years);
@@ -159,11 +166,13 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
   const recs = useMemo(() => recommendations || [], [recommendations]);
 
   const [allocations, setAllocations] = useState(() => buildAllocations(recs));
-  const calculationBinding = buildCalculationBinding({ profile, recommendations: recs, allocations, horizon, totalSavings });
+  const calculationBinding = buildCalculationBinding({ profile, financialStateIdentity, recommendations: recs, allocations, horizon, totalSavings });
   const allocationEditRevision = useRef(0);
   const optimizerRequestId = useRef(0);
   const projectionRequestId = useRef(0);
   const monteCarloRequestId = useRef(0);
+  const profileBindingRef = useRef(goalsBinding);
+  profileBindingRef.current = goalsBinding;
   const [preset, setPreset] = useState('AI Recommended');
   const [prevRecs, setPrevRecs] = useState(recommendations);
 
@@ -196,7 +205,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     try {
       setLoadingProjection(true);
       
-      const profileId = profile?.profileId;
+      const profileId = currentProfileId;
       if (!profileId) {
         throw new Error("No profile ID available");
       }
@@ -215,7 +224,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     } finally {
       if (isCurrent()) setLoadingProjection(false);
     }
-  }, [profile?.profileId, horizon, totalSavings, recs]);
+  }, [currentProfileId, horizon, totalSavings, recs]);
 
   const [loadingMC, setLoadingMC] = useState(false);
   const [monteCarloState, setMonteCarloState] = useState({ binding: null, data: null, error: null });
@@ -230,7 +239,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     try {
       setLoadingMC(true);
       
-      const profileId = profile?.profileId;
+      const profileId = currentProfileId;
       if (!profileId) {
         throw new Error("No profile ID available");
       }
@@ -250,7 +259,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     } finally {
       if (isCurrent()) setLoadingMC(false);
     }
-  }, [profile?.profileId, projectionDisplayYear, totalSavings, recs]);
+  }, [currentProfileId, projectionDisplayYear, totalSavings, recs]);
 
   // Debounce backend requests
   useEffect(() => {
@@ -344,20 +353,33 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
   }, [profile, totalSavings, horizon, projectionData]);
 
   // ─── Goals Integration for Investment Journey ──────────────────
-  const [userGoals, setUserGoals] = useState([]);
+  const [userGoalsRequest, setUserGoalsRequest] = useState({ binding: null, goals: [] });
+  const userGoals = useMemo(
+    () => userGoalsRequest.binding === goalsBinding ? userGoalsRequest.goals : [],
+    [goalsBinding, userGoalsRequest.binding, userGoalsRequest.goals],
+  );
 
   useEffect(() => {
-    const fetchGoals = async () => {
-      try {
-        const goals = await api.getGoals();
-        if (Array.isArray(goals)) setUserGoals(goals);
-        else if (goals?.goals) setUserGoals(goals.goals);
-      } catch {
-        setUserGoals([]);
-      }
-    };
-    fetchGoals();
-  }, []);
+    let active = true;
+    setUserGoalsRequest({ binding: goalsBinding, goals: [] });
+    if (!currentProfileId) return () => { active = false; };
+
+    api.getGoals().then(response => {
+      if (!active) return;
+      const goals = Array.isArray(response) ? response : response?.goals;
+      const currentGoals = Array.isArray(goals) ? goals.filter(goal => (
+        String(goal?.profileId || '') === currentProfileId
+        && goal?.calculation_freshness?.fresh === true
+        && currentProfileVersion !== null
+        && Number(goal?.sourceProfileVersion) === currentProfileVersion
+      )) : [];
+      setUserGoalsRequest({ binding: goalsBinding, goals: currentGoals });
+    }).catch(() => {
+      if (active) setUserGoalsRequest({ binding: goalsBinding, goals: [] });
+    });
+
+    return () => { active = false; };
+  }, [currentProfileId, currentProfileVersion, goalsBinding]);
 
   const weightedReturnRate = projectionData?.portfolio_nominal_return ?? null;
 
@@ -371,7 +393,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
       userGoals.forEach(g => {
         const yrs = Number(g.years_remaining);
         const amount = valueAt(yrs);
-        if (!Number.isInteger(yrs) || yrs < 1 || yrs > horizon || amount === null) return;
+        if (!Number.isInteger(yrs) || yrs < 1 || yrs > horizon || !isPresentFiniteNumber(amount)) return;
         milestones.push({
           year: yrs,
           amount,
@@ -465,15 +487,17 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
       Growth: 'max_sharpe',
       'High Growth': 'max_return',
     };
-    const profileId = profile?.profileId;
+    const profileId = currentProfileId;
     if (!profileId) {
       setProjectionError('No Financial Profile ID is available');
       return;
     }
     const requestId = ++optimizerRequestId.current;
     const startingEditRevision = allocationEditRevision.current;
+    const startingProfileBinding = goalsBinding;
     const isCurrent = () => requestId === optimizerRequestId.current
-      && startingEditRevision === allocationEditRevision.current;
+      && startingEditRevision === allocationEditRevision.current
+      && startingProfileBinding === profileBindingRef.current;
     try {
       setLoadingProjection(true);
       setProjectionError(null);
@@ -544,7 +568,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     } finally {
       if (requestId === optimizerRequestId.current) setLoadingProjection(false);
     }
-  }, [allocations, profile?.profileId, recs, setProjectionError]);
+  }, [allocations, currentProfileId, goalsBinding, recs, setProjectionError]);
 
   const handleSave = () => {
     const percentages = recs.map(inv => Number(allocations[inv.id]));
@@ -565,7 +589,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
         allocation_pct: Number((allocationWeight * 100).toFixed(2)),
       };
     });
-    if (onSave) onSave(updated);
+    if (onSave) onSave(updated, financialStateIdentity);
   };
 
   return (

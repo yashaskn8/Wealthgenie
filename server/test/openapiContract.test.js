@@ -16,7 +16,7 @@ import chatRoutes from '../routes/chatRoutes.js';
 import recommendRoutes from '../routes/recommend.js';
 import goalsRoutes from '../routes/goals.js';
 import marketRoutes from '../routes/market.js';
-import marketQuotesRoutes from '../routes/marketQuotes.js';
+import { createMarketQuotesRouter } from '../routes/marketQuotes.js';
 import marketDataAdminRoutes from '../routes/marketDataAdmin.js';
 import agentRoutes from '../routes/agentRoutes.js';
 import genieProofRoutes from '../routes/genieProofRoutes.js';
@@ -37,11 +37,42 @@ import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 import { buildRecommendationProfile, toProfilePersistence } from '../services/recommendationProfile.js';
 import { assessSuitabilityRisk } from '../services/riskProfiler.js';
 import { runOpenApiHttpCase } from './helpers/openapiRuntimeContract.js';
+import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
+import { taxDeductionSchema } from '../validation/taxSchemas.js';
+import { postTaxReturnSchema } from '../validation/schemas.js';
 
 const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const appSource = fs.readFileSync(path.join(serverRoot, 'app.js'), 'utf8');
 const contract = parse(fs.readFileSync(path.join(serverRoot, 'openapi.yaml'), 'utf8'));
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete']);
+const marketDataTestEnv = { NODE_ENV: 'test' };
+const marketDataFixtureRightsCapability = createMarketDataTestFixtureRightsCapability({
+  env: marketDataTestEnv,
+  transport: { get: async () => ({ data: null }) },
+});
+
+test('goal simulation chart contract requires complete nonnegative percentile points', () => {
+  const pointSchema = contract.components.schemas.GoalSimulationChartPoint;
+  const responseSchema = contract.components.schemas.GoalSimulationResponse;
+  const validatePoint = new Ajv2020({ allErrors: true, strict: false }).compile(pointSchema);
+
+  assert.deepEqual(pointSchema.required, ['year', 'p10', 'p25', 'p50', 'p75', 'p90']);
+  assert.equal(pointSchema.additionalProperties, false);
+  assert.equal(responseSchema.properties.chartData.minItems, 1);
+  assert.equal(responseSchema.properties.chartData.items.$ref, '#/components/schemas/GoalSimulationChartPoint');
+  assert.equal(validatePoint({ year: 1, p10: 10, p25: 15, p50: 20, p75: 25, p90: 30 }), true);
+  for (const malformed of [
+    {},
+    { year: 1, p10: 10, p25: 15, p50: 20, p75: 25 },
+    { year: 1, p10: 10, p25: null, p50: 20, p75: 25, p90: 30 },
+    { year: 1, p10: -1, p25: 15, p50: 20, p75: 25, p90: 30 },
+    { year: 0, p10: 10, p25: 15, p50: 20, p75: 25, p90: 30 },
+    { year: 31, p10: 10, p25: 15, p50: 20, p75: 25, p90: 30 },
+    { year: 1, p10: 10, p25: 15, p50: 20, p75: 25, p90: 30, extra: true },
+  ]) {
+    assert.equal(validatePoint(malformed), false);
+  }
+});
 
 test('GenieProof offer text OpenAPI schemas document the shared UTF-8 byte limit', () => {
   for (const schemaName of ['GenieProofExtractRequest', 'GenieProofCreateRequest']) {
@@ -56,7 +87,8 @@ test('GenieProof offer text OpenAPI schemas document the shared UTF-8 byte limit
 });
 
 test('post-tax batch documents legacy principal-based fields and the SIP MWR replacements', () => {
-  const itemProperties = contract.components.schemas.PostTaxReturnBatchResponse
+  const responseSchema = contract.components.schemas.PostTaxReturnBatchResponse;
+  const itemProperties = responseSchema
     .properties.results.items.properties;
   const replacements = {
     nominalCAGR: 'sipReturnMetrics.preTaxAnnualizedReturnPercent',
@@ -76,6 +108,47 @@ test('post-tax batch documents legacy principal-based fields and the SIP MWR rep
   assert.match(itemProperties.taxDragCAGR.description, /decimal fraction/);
   assert.match(itemProperties.postTaxCAGR.description, /decimal fraction/);
   assert.match(itemProperties.postTaxReturnPercent.description, /percentage-valued/);
+
+  for (const field of [
+    'calculation_classification', 'verified', 'fiscalYear', 'policyVersion', 'inputsUsed',
+    'assumptions', 'results', 'portfolioStatus', 'excludedInstruments', 'summary',
+  ]) {
+    assert.ok(responseSchema.required.includes(field), `batch response requires ${field}`);
+  }
+  assert.equal(responseSchema.properties.calculation_classification.const, 'SEPARATE_TAX_WHAT_IF');
+  assert.equal(responseSchema.properties.verified.const, true);
+  assert.ok(responseSchema.properties.inputsUsed.required.includes('deductions'),
+    'the effective validated deduction context is always echoed');
+  assert.equal(responseSchema.properties.inputsUsed.properties.instruments.items.$ref, '#/components/schemas/PostTaxInstrument');
+  assert.ok(responseSchema.properties.assumptions.required.includes('deductions'));
+  assert.deepEqual(responseSchema.properties.results.items.required,
+    ['instrumentIndex', 'instrumentInput', 'instrumentType', 'status', 'sipReturnMetrics']);
+  assert.equal(itemProperties.instrumentIndex.minimum, 0);
+  assert.equal(itemProperties.instrumentInput.$ref, '#/components/schemas/PostTaxInstrument');
+  assert.match(itemProperties.instrumentInput.description, /Section 112A recalculation/);
+  assert.ok(itemProperties.status.enum.includes('REQUIRES_TAX_INPUTS'));
+  assert.ok(itemProperties.status.enum.includes('MODELLED_POST_TAX_PROJECTION_UNAVAILABLE'));
+  for (const field of ['postTaxReturn', 'postTaxFutureValue', 'realFutureValue', 'postTaxGain', 'taxDragWealth', 'postTaxReturnPercent', 'realReturnPercent', 'effectiveTaxPercent']) {
+    assert.ok(itemProperties[field].type.includes('null'), `${field} remains nullable when a calculation is unavailable`);
+  }
+  const summary = responseSchema.properties.summary;
+  assert.deepEqual(summary.required, ['status', 'totalTaxDrag', 'keptPerThousand', 'erodedPerThousand', 'retentionEfficiencyPercent', 'maxTaxRate']);
+  for (const field of ['totalTaxDrag', 'keptPerThousand', 'erodedPerThousand', 'retentionEfficiencyPercent', 'maxTaxRate']) {
+    assert.ok(summary.properties[field].type.includes('null'), `${field} remains null when no instrument is calculable`);
+  }
+});
+
+test('user-declared post-tax scenario documents an exact validated-input echo and nullable result values', () => {
+  const operation = contract.paths['/api/tax/post-tax-scenario'].post;
+  const responseRef = operation.responses['200'].content['application/json'].schema.$ref;
+  assert.equal(responseRef, '#/components/schemas/UserDeclaredPostTaxScenarioResponse');
+  const responseSchema = contract.components.schemas.UserDeclaredPostTaxScenarioResponse;
+  assert.ok(responseSchema.required.includes('inputsUsed'));
+  assert.equal(responseSchema.properties.inputsUsed.$ref, '#/components/schemas/UserDeclaredPostTaxScenarioRequest');
+  assert.match(responseSchema.properties.inputsUsed.description, /scenario type, age, and fiscal year/);
+  for (const field of ['taxableGain', 'incrementalTax', 'cess', 'surcharge', 'netGain', 'fiscalYear', 'policyVersion']) {
+    assert.ok(responseSchema.properties[field].type.includes('null'), `${field} may be unavailable and must remain null`);
+  }
 });
 
 // Only externally supported route modules belong in the public contract.
@@ -192,6 +265,12 @@ test('auth session documents the typed token revocation outage response', () => 
 
 function buildContractTestApp() {
   const app = express();
+  const marketQuotesTestRouter = createMarketQuotesRouter({
+    env: marketDataTestEnv,
+    marketDataTestFixtureRightsCapability: marketDataFixtureRightsCapability,
+    limiter: (_req, _res, next) => next(),
+    fetchQuotes: async () => ({ provider: 'UPSTOX', status: 'UNAVAILABLE', facts: [] }),
+  });
   app.use(express.json());
   app.use('/api/auth', authRoutes);
   app.use('/api/profile', profileRoutes);
@@ -200,7 +279,7 @@ function buildContractTestApp() {
   app.use('/api/chat', chatRoutes);
   app.use('/api/recommend', recommendRoutes);
   app.use('/api/market', marketRoutes);
-  app.use('/api/market-data', marketQuotesRoutes);
+  app.use('/api/market-data', marketQuotesTestRouter);
   app.use('/api/market-data', marketDataAdminRoutes);
   app.use('/api/agent', agentRoutes);
   app.use('/api/genieproof', genieProofRoutes);
@@ -514,6 +593,360 @@ test('tax calculation OpenAPI moves sensitive inputs to strict POST bodies', () 
     assert.equal(validateBody(validBody), true, JSON.stringify(validateBody.errors));
     assert.equal(validateBody({ ...validBody, income: 1_000_000_001 }), false);
     assert.equal(validateBody({ ...validBody, sensitiveExtra: true }), false);
+    assert.equal(validateBody({ ...validBody, section80D: 50000, section80D_self: 0 }), false);
+  }
+});
+
+test('OpenAPI nested tax deductions include the supported legacy alias and reject mixed 80D forms', () => {
+  const deductionSchema = inlineLocalRefs(resolveLocalRef('#/components/schemas/TaxDeductionInputs'));
+  const validateDeductions = responseAjv.compile(deductionSchema);
+  assert.equal(validateDeductions({ section80CCD: 50000 }), true, JSON.stringify(validateDeductions.errors));
+  assert.equal(validateDeductions({ section80D: 50000 }), true, JSON.stringify(validateDeductions.errors));
+  assert.equal(validateDeductions({ section80D_self: 25000 }), true, JSON.stringify(validateDeductions.errors));
+  assert.equal(validateDeductions({ section80D: 50000, section80D_self: 0 }), false);
+  assert.equal(validateDeductions({ unknownDeduction: 0 }), false);
+});
+
+test('OpenAPI nested deduction maxima match the runtime Joi schema at and above each boundary', () => {
+  const validateDeductions = responseAjv.compile(
+    inlineLocalRefs(resolveLocalRef('#/components/schemas/TaxDeductionInputs')),
+  );
+  const maxima = {
+    section80C: 150_000,
+    nps80CCD1B: 50_000,
+    section80CCD: 50_000,
+    nps80CCD2: 100_000_000,
+    basicSalary: 1_000_000_000,
+    section80D: 100_000,
+    section80D_self: 50_000,
+    section80D_parents: 50_000,
+    hra: 100_000_000,
+    homeLoanInterest: 200_000,
+    section80EEA: 150_000,
+    savingsInterest: 100_000_000,
+    section80TTA: 10_000,
+    section80TTB: 50_000,
+    age: 120,
+    other: 0,
+  };
+
+  for (const [field, maximum] of Object.entries(maxima)) {
+    const dependencyFacts = field === 'nps80CCD2'
+      ? { basicSalary: 0, isGovtEmployee: false }
+      : field === 'section80D_parents'
+        ? { parents_senior: false }
+        : {};
+    const atMaximum = { ...dependencyFacts, [field]: maximum };
+    const aboveMaximum = { ...dependencyFacts, [field]: maximum + 1 };
+    assert.equal(taxDeductionSchema.validate(atMaximum).error, undefined, `${field} Joi maximum`);
+    assert.equal(validateDeductions(atMaximum), true, `${field} OpenAPI maximum: ${JSON.stringify(validateDeductions.errors)}`);
+    assert.ok(taxDeductionSchema.validate(aboveMaximum).error, `${field} rejects above Joi maximum`);
+    assert.equal(validateDeductions(aboveMaximum), false, `${field} rejects above OpenAPI maximum`);
+  }
+});
+
+test('post-tax OpenAPI compositions accept valid bodies, stay strict, and document date chronology', () => {
+  const validateRequest = responseAjv.compile(
+    inlineLocalRefs({ $ref: '#/components/schemas/PostTaxReturnRequestV2' }),
+  );
+  const base = {
+    instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0,
+    annualIncome: 1_000_000, regime: 'new', userAge: 35, incomeSource: 'salary', fiscalYear: 'FY2026-27',
+  };
+  assert.equal(validateRequest(base), true, JSON.stringify(validateRequest.errors));
+  assert.equal(validateRequest({ ...base, instrumentTaxOverride: true }), false);
+  assert.equal(validateRequest({ ...base, acquisitionDate: '2026-01-01' }), false, 'dates must be paired');
+  assert.equal(validateRequest({ ...base, acquisitionDate: '2026-02-30', redemptionDate: '2026-03-01' }), false,
+    'date format rejects an impossible calendar date');
+  assert.match(
+    contract.components.schemas.PostTaxReturnRequestV2['x-runtime-validation'].transactionDates,
+    /redemptionDate must be on or after acquisitionDate/,
+  );
+  assert.match(
+    contract.components.schemas.PostTaxInstrumentFields['x-runtime-validation'].transactionDates,
+    /redemptionDate must be on or after acquisitionDate/,
+  );
+
+  const validateInstrument = responseAjv.compile(
+    inlineLocalRefs({ $ref: '#/components/schemas/PostTaxInstrument' }),
+  );
+  const instrument = {
+    instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0,
+  };
+  assert.equal(validateInstrument(instrument), true, JSON.stringify(validateInstrument.errors));
+  assert.equal(validateInstrument({ ...instrument, instrumentType: '' }), false);
+  assert.equal(validateInstrument({ ...instrument, instrumentType: '   ' }), false);
+  assert.equal(validateInstrument({ ...instrument, retirementTiming: '  ' }), false);
+  assert.equal(validateInstrument({ ...instrument, unexpected: 1 }), false);
+  assert.equal(validateInstrument({ ...instrument, redemptionDate: '2026-01-01' }), false);
+  assert.match(
+    contract.components.schemas.PostTaxInstrumentFields['x-runtime-validation'].trimmedText,
+    /trimmed before the server enforces their length constraints/,
+  );
+
+  const normalizedTextBoundaries = [
+    [{ instrumentType: `${'x'.repeat(50)} ` }, true],
+    [{ instrumentType: 'x'.repeat(51) }, false],
+    [{ retirementTiming: ' x ' }, false],
+    [{ retirementTiming: `${'ab'}${' '.repeat(99)}` }, true],
+    [{ retirementTiming: 'x'.repeat(100) }, true],
+    [{ retirementTiming: 'x'.repeat(101) }, false],
+  ];
+  for (const [textOverride, expectedValid] of normalizedTextBoundaries) {
+    const request = { ...base, ...textOverride };
+    assert.equal(postTaxReturnSchema.validate(request).error === undefined, expectedValid,
+      `Joi trimmed text boundary: ${JSON.stringify(textOverride)}`);
+    assert.equal(validateRequest(request), expectedValid,
+      `OpenAPI trimmed text boundary ${JSON.stringify(textOverride)}: ${JSON.stringify(validateRequest.errors)}`);
+  }
+
+  const validateLegacyRequest = responseAjv.compile(
+    inlineLocalRefs({ $ref: '#/components/schemas/PostTaxReturnRequest' }),
+  );
+  const legacyBase = { ...base };
+  delete legacyBase.section112AExemptionUsed;
+  delete legacyBase.deductions;
+  assert.equal(validateLegacyRequest(legacyBase), true, JSON.stringify(validateLegacyRequest.errors));
+  assert.equal(validateLegacyRequest({ ...legacyBase, unexpected: true }), false);
+
+  const batchBase = {
+    instruments: [instrument], annualIncome: 1_000_000, regime: 'new', userAge: 35,
+    incomeSource: 'salary', inflationRate: 0.02, fiscalYear: 'FY2026-27',
+  };
+  for (const schemaName of ['PostTaxReturnBatchRequestV2', 'PostTaxReturnBatchRequest']) {
+    const validateBatch = responseAjv.compile(inlineLocalRefs({ $ref: `#/components/schemas/${schemaName}` }));
+    assert.equal(validateBatch(batchBase), true, `${schemaName}: ${JSON.stringify(validateBatch.errors)}`);
+    assert.equal(validateBatch({ ...batchBase, unknownTaxInput: 1 }), false, `${schemaName} rejects unknown fields`);
+  }
+});
+
+test('user-declared scenario OpenAPI conditions match the two supported scenario contracts', () => {
+  const validateScenario = responseAjv.compile(
+    inlineLocalRefs({ $ref: '#/components/schemas/UserDeclaredPostTaxScenarioRequest' }),
+  );
+  const common = {
+    annualGrossIncome: 1_000_000, incomeSource: 'salary', regime: 'new', fiscalYear: 'FY2026-27', userAge: 35,
+  };
+  const interest = {
+    ...common, canonicalInstrumentId: 'sbi_fd', scenarioType: 'INTEREST_INCOME', interestReceived: 0,
+  };
+  assert.equal(validateScenario(interest), true, JSON.stringify(validateScenario.errors));
+  const interestWithoutAmount = { ...interest };
+  delete interestWithoutAmount.interestReceived;
+  assert.equal(validateScenario(interestWithoutAmount), false);
+  assert.equal(validateScenario({ ...interest, canonicalInstrumentId: 'nifty_etf' }), false);
+  assert.equal(validateScenario({ ...interest, canonicalProductId: 'etf:isin:INF204KB14I2' }), false);
+  assert.equal(validateScenario({ ...interest, acquisitionCostBasis: 1 }), false);
+
+  const equity = {
+    ...common,
+    annualGrossIncome: 3_000_000,
+    canonicalInstrumentId: 'nifty_etf',
+    canonicalProductId: 'etf:isin:INF204KB14I2',
+    scenarioType: 'EQUITY_REALIZED_GAIN',
+    acquisitionCostBasis: 100_000,
+    saleProceeds: 110_000,
+    acquisitionDate: '2026-01-01',
+    redemptionDate: '2026-12-31',
+    section112AExemptionUsed: 0,
+    sttConditionAssumedSatisfied: true,
+  };
+  assert.equal(validateScenario(equity), true, JSON.stringify(validateScenario.errors));
+  const equityWithoutCostBasis = { ...equity };
+  delete equityWithoutCostBasis.acquisitionCostBasis;
+  assert.equal(validateScenario(equityWithoutCostBasis), false);
+  assert.equal(validateScenario({ ...equity, canonicalInstrumentId: 'fd' }), false);
+  assert.equal(validateScenario({ ...equity, canonicalProductId: 'etf:isin:OTHER' }), false);
+  assert.equal(validateScenario({ ...equity, interestReceived: 0 }), false);
+  const equityWithoutRedemptionDate = { ...equity };
+  delete equityWithoutRedemptionDate.redemptionDate;
+  assert.equal(validateScenario(equityWithoutRedemptionDate), false);
+  assert.equal(validateScenario({ ...equity, acquisitionDate: '2026-02-30' }), false);
+  assert.match(
+    contract.components.schemas.UserDeclaredPostTaxScenarioRequest['x-runtime-validation'].transactionDates,
+    /redemptionDate must fall within the supplied fiscalYear/,
+  );
+});
+test('tax OpenAPI age inputs are explicit and bounded for the supplied fiscal year', () => {
+  const propertiesFor = (schemaName, allOfIndex) => {
+    const schema = contract.components.schemas[schemaName];
+    return allOfIndex === undefined ? schema.properties : schema.allOf[allOfIndex].properties;
+  };
+  const taxAgeProperties = [
+    propertiesFor('TaxCommonRequestInputs'),
+    propertiesFor('TaxCompareRequest', 1),
+    propertiesFor('TaxDeductionInputs'),
+    propertiesFor('TaxCalculationContext'),
+    propertiesFor('TaxCalculationContextV2'),
+    propertiesFor('PostTaxReturnRequestV2', 1),
+    propertiesFor('PostTaxReturnBatchRequestV2'),
+    propertiesFor('UserDeclaredPostTaxScenarioRequest'),
+    propertiesFor('PostTaxReturnRequest', 1),
+    propertiesFor('PostTaxReturnBatchRequest'),
+  ];
+  for (const properties of taxAgeProperties) {
+    const age = properties.age || properties.userAge;
+    assert.match(age.description, /age on March 31 of the supplied fiscalYear/i);
+    assert.match(age.description, /never inferred from profile age/i);
+    assert.equal(age.type, 'integer');
+    assert.equal(age.minimum, 18);
+    assert.equal(age.maximum, 120);
+  }
+
+  const nestedAgeDescription = propertiesFor('TaxDeductionInputs').age.description;
+  assert.match(nestedAgeDescription, /when top-level userAge is also supplied, both values must match/i);
+  assert.match(nestedAgeDescription, /server rejects unequal values/i);
+  const topLevelUserAgeProperties = [
+    propertiesFor('TaxCalculationContext').userAge,
+    propertiesFor('TaxCalculationContextV2').userAge,
+    propertiesFor('PostTaxReturnRequestV2', 1).userAge,
+    propertiesFor('PostTaxReturnBatchRequestV2').userAge,
+    propertiesFor('UserDeclaredPostTaxScenarioRequest').userAge,
+  ];
+  for (const userAge of topLevelUserAgeProperties) {
+    assert.match(userAge.description, /if deductions\.age is also supplied, the server rejects unequal values/i);
+  }
+
+  const commonInputs = propertiesFor('TaxCommonRequestInputs');
+  assert.match(commonInputs.section80CCD.description, /server rejects unequal amounts/i);
+  assert.match(commonInputs.nps80CCD1B.description, /server requires both amounts to match/i);
+  const deductionProperties = propertiesFor('TaxDeductionInputs');
+  assert.match(deductionProperties.section80CCD.description, /server rejects unequal amounts/i);
+  assert.match(deductionProperties.nps80CCD1B.description, /server requires both amounts to match/i);
+
+  const deductionsSchema = inlineLocalRefs(resolveLocalRef('#/components/schemas/TaxDeductionInputs'));
+  const validateDeductions = responseAjv.compile(deductionsSchema);
+  for (const age of [18, 120]) assert.equal(validateDeductions({ age }), true);
+  for (const age of [17, 121, 18.5]) assert.equal(validateDeductions({ age }), false);
+  assert.equal(validateDeductions({ age: 35, unexpected: 1 }), false);
+  assert.equal(validateDeductions({ age: 35, section80CCD: 0, other: 0 }), true);
+  assert.equal(validateDeductions({ age: 35, other: 1 }), false);
+});
+
+test('tax OpenAPI mirrors Joi conditional age requirements and compare compatibility', () => {
+  const validateSchema = schemaName => responseAjv.compile(
+    inlineLocalRefs({ $ref: `#/components/schemas/${schemaName}` }),
+  );
+  const taxInputs = { income: 1_000_000, incomeSource: 'salary', fiscalYear: 'FY2026-27' };
+  const validateCompute = validateSchema('TaxComputeRequest');
+  assert.equal(validateCompute({ ...taxInputs, regime: 'new' }), true);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'old' }), false);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'old', age: 45 }), true);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D: 1 }), false);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D: 1, age: 45 }), true);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D_self: 1 }), false);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D_parents: 1, age: 45 }), false, 'parents Section 80D requires explicit senior status');
+  assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D_parents: 1, age: 45, parents_senior: false }), true);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'new', nps80CCD2: 1 }), false, 'employer NPS deduction requires salary and employment facts');
+  assert.equal(validateCompute({
+    ...taxInputs, regime: 'new', nps80CCD2: 1, basicSalary: 500_000, isGovtEmployee: false,
+  }), true);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D: 0 }), true);
+  for (const field of ['savingsInterest', 'section80TTA', 'section80TTB']) {
+    assert.equal(validateCompute({ ...taxInputs, regime: 'new', [field]: 1 }), false, `${field} requires age`);
+    assert.equal(validateCompute({ ...taxInputs, regime: 'new', [field]: 1, age: 45 }), true);
+    assert.equal(validateCompute({ ...taxInputs, regime: 'new', [field]: 0 }), true);
+  }
+
+  const validateCompare = validateSchema('TaxCompareRequest');
+  assert.equal(validateCompare({ ...taxInputs }), false);
+  assert.equal(validateCompare({ ...taxInputs, age: 18 }), true);
+  assert.equal(validateCompare({ ...taxInputs, age: 121 }), false);
+  assert.equal(validateCompare({ ...taxInputs, age: 45, section80D: 1, section80D_self: 0 }), false);
+  assert.equal(validateCompare({ ...taxInputs, age: 45, section80D_parents: 1 }), false);
+  assert.equal(validateCompare({ ...taxInputs, age: 45, section80D_parents: 1, parents_senior: false }), true);
+  assert.equal(validateCompare({ ...taxInputs, age: 45, nps80CCD2: 1 }), false);
+  assert.equal(validateCompare({
+    ...taxInputs, age: 45, nps80CCD2: 1, basicSalary: 500_000, isGovtEmployee: false,
+  }), true);
+
+  const context = {
+    annualGrossIncome: 1_000_000,
+    incomeSource: 'salary',
+    regime: 'new',
+    fiscalYear: 'FY2026-27',
+  };
+  const validateLegacyContext = validateSchema('TaxCalculationContext');
+  assert.equal(validateLegacyContext(context), true);
+  assert.equal(validateLegacyContext({ ...context, regime: 'old' }), false);
+  assert.equal(validateLegacyContext({ ...context, regime: 'old', userAge: 45 }), true);
+  assert.equal(validateLegacyContext({ ...context, deductions: { section80D: 1 } }), false);
+  assert.equal(validateLegacyContext({ ...context, deductions: { section80D: 1 }, userAge: 45 }), true);
+  assert.equal(validateLegacyContext({ ...context, deductions: { section80D: 0 } }), true);
+  for (const field of ['savingsInterest', 'section80TTA', 'section80TTB']) {
+    assert.equal(validateLegacyContext({ ...context, deductions: { [field]: 1 } }), false, `${field} requires userAge`);
+    assert.equal(validateLegacyContext({ ...context, deductions: { [field]: 1 }, userAge: 45 }), true);
+    assert.equal(validateLegacyContext({ ...context, deductions: { [field]: 0 } }), true);
+  }
+
+  const validateContext = validateSchema('TaxCalculationContextV2');
+  assert.equal(validateContext({}), true, 'empty optional context is accepted by the runtime Joi schema');
+  assert.equal(validateContext({ illustrativePrincipal: 10_000 }), true, 'product-only context does not require tax inputs');
+  assert.equal(validateContext({ acquisitionDate: '2026-01-01', redemptionDate: '2026-01-01' }), true);
+  assert.equal(validateContext({ annualGrossIncome: 1 }), false, 'any tax-context input requires all four core tax fields');
+  assert.equal(validateContext(context), true);
+  const rankRequestBase = {
+    profileId: '507f1f77bcf86cd799439011',
+    profileVersion: 1,
+    recommendationId: '507f1f77bcf86cd799439012',
+    expectedAllocationRevision: 1,
+    expectedAllocationRevisionId: '507f1f77bcf86cd799439013',
+    expectedPortfolioFingerprint: 'a'.repeat(64),
+    expectedRecommendationFingerprint: 'b'.repeat(64),
+    parentInstrumentId: 'large_cap_mf',
+  };
+  const validateRankWti = validateSchema('RankInstrumentsRequest');
+  assert.equal(validateRankWti({
+    ...rankRequestBase,
+    taxCalculationContext: { illustrativePrincipal: 10_000 },
+  }), true, 'the ranking endpoint accepts a product-only context');
+  assert.equal(validateRankWti({
+    ...rankRequestBase,
+    taxCalculationContext: { acquisitionDate: '2026-01-01', redemptionDate: '2026-01-01' },
+  }), true, 'the ranking endpoint accepts a valid date-only context');
+  assert.equal(validateRankWti({
+    ...rankRequestBase,
+    taxCalculationContext: { annualGrossIncome: 1 },
+  }), false, 'the ranking endpoint rejects incomplete tax context');
+  assert.equal(validateContext({ ...context, acquisitionDate: '2026-01-01' }), false);
+  assert.equal(validateContext({ ...context, redemptionDate: '2026-01-02' }), false);
+  assert.equal(validateContext({
+    ...context,
+    acquisitionDate: '2026-01-01',
+    redemptionDate: '2026-01-02',
+  }), true);
+  assert.equal(validateContext({
+    ...context,
+    acquisitionDate: '2026-02-30',
+    redemptionDate: '2026-03-01',
+  }), false, 'date format rejects impossible calendar dates');
+  const contextV2Schema = contract.components.schemas.TaxCalculationContextV2;
+  assert.match(contextV2Schema['x-runtime-validation'].transactionDates, /redemptionDate must be on or after acquisitionDate/);
+  assert.match(contextV2Schema.properties.redemptionDate.description, /cannot precede it/);
+  assert.equal(validateContext({ ...context, regime: 'old' }), false);
+  assert.equal(validateContext({ ...context, regime: 'old', userAge: 45 }), true);
+  assert.equal(validateContext({ ...context, deductions: { section80D: 1 } }), false);
+  assert.equal(validateContext({ ...context, deductions: { section80D: 1 }, userAge: 45 }), true);
+  assert.equal(validateContext({ ...context, deductions: { section80D: 0 } }), true);
+  assert.equal(validateContext({ ...context, deductions: { nps80CCD2: 1 } }), false);
+  assert.equal(validateContext({
+    ...context,
+    deductions: { nps80CCD2: 1, basicSalary: 500_000, isGovtEmployee: false },
+  }), true);
+  assert.equal(validateContext({
+    ...context,
+    userAge: 45,
+    deductions: { section80D_parents: 1 },
+  }), false);
+  assert.equal(validateContext({
+    ...context,
+    userAge: 45,
+    deductions: { section80D_parents: 1, parents_senior: false },
+  }), true);
+  for (const field of ['savingsInterest', 'section80TTA', 'section80TTB']) {
+    assert.equal(validateContext({ ...context, deductions: { [field]: 1 } }), false, `${field} requires userAge`);
+    assert.equal(validateContext({ ...context, deductions: { [field]: 1 }, userAge: 45 }), true);
+    assert.equal(validateContext({ ...context, deductions: { [field]: 0 } }), true);
   }
 });
 

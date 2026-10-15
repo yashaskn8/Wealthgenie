@@ -38,8 +38,28 @@ export const taxDeductionFields = {
 };
 
 export const taxDeductionSchema = Joi.object(taxDeductionFields).unknown(false);
+function rejectMixedSection80DRepresentations(deductions, helpers) {
+  if (deductions?.section80D !== undefined
+      && (deductions.section80D_self !== undefined || deductions.section80D_parents !== undefined)) {
+    return helpers.message({ custom: 'section80D cannot be combined with section80D_self or section80D_parents' });
+  }
+  return null;
+}
+
+function hasAgeDependentDeductionFacts(deductions = {}) {
+  return Number(deductions.section80D || 0) > 0
+    || Number(deductions.section80D_self || 0) > 0
+    || Number(deductions.section80D_parents || 0) > 0
+    || Number(deductions.savingsInterest || 0) > 0
+    || Number(deductions.section80TTA || 0) > 0
+    || Number(deductions.section80TTB || 0) > 0;
+}
 
 export function requireTaxDependencyFacts(value, helpers) {
+  const section80DValidation = rejectMixedSection80DRepresentations(value, helpers);
+  if (section80DValidation) return section80DValidation;
+  const npsDeductionValidation = rejectConflictingNps80CCDRepresentations(value, helpers);
+  if (npsDeductionValidation) return npsDeductionValidation;
   // Regime comparison always computes the old regime, while a single new-regime
   // request may omit age because the new slabs are age-neutral.
   if (value.regime !== 'new' && !Number.isInteger(value.age)) {
@@ -49,10 +69,8 @@ export function requireTaxDependencyFacts(value, helpers) {
       && (!Number.isFinite(value.basicSalary) || typeof value.isGovtEmployee !== 'boolean')) {
     return helpers.message({ custom: 'basicSalary and isGovtEmployee are required when nps80CCD2 is claimed' });
   }
-  const healthDeduction = Number(value.section80D || 0)
-    + Number(value.section80D_self || 0) + Number(value.section80D_parents || 0);
-  if (healthDeduction > 0 && !Number.isInteger(value.age)) {
-    return helpers.message({ custom: 'age is required when a Section 80D deduction is claimed' });
+  if (hasAgeDependentDeductionFacts(value) && !Number.isInteger(value.age)) {
+    return helpers.message({ custom: 'age is required for age-dependent health and interest deductions' });
   }
   if (Number(value.section80D_parents) > 0 && typeof value.parents_senior !== 'boolean') {
     return helpers.message({ custom: 'parents_senior is required when a parents Section 80D deduction is claimed' });
@@ -60,11 +78,41 @@ export function requireTaxDependencyFacts(value, helpers) {
   return value;
 }
 
+// Post-tax endpoints accept age at the request level and inside deductions for
+// compatibility. If both aliases are present, they must describe the same
+// selected-fiscal-year age; never silently choose one over the other.
+function rejectConflictingAgeAliases(value, helpers) {
+  const requestAge = value.userAge ?? value.age;
+  const deductionAge = value.deductions?.age;
+  if (requestAge !== undefined && deductionAge !== undefined && requestAge !== deductionAge) {
+    return helpers.message({ custom: 'USER_AGE_CONFLICTING_INPUTS' });
+  }
+  return null;
+}
+
+// The tax engine accepts the legacy `section80CCD` alias for 80CCD(1B) and
+// uses `nps80CCD1B` first when both are present. Require callers to send one
+// unambiguous amount instead of silently discarding a conflicting alias.
+function rejectConflictingNps80CCDRepresentations(deductions, helpers) {
+  if (deductions?.nps80CCD1B !== undefined
+      && deductions.section80CCD !== undefined
+      && deductions.nps80CCD1B !== deductions.section80CCD) {
+    return helpers.message({ custom: 'NPS_80CCD1B_CONFLICTING_INPUTS' });
+  }
+  return null;
+}
+
 // Post-tax routes keep deductions nested and expose age/regime at the request
 // level. Validate the same dependency facts before the tax engine is called so
 // a missing fact cannot be silently treated as zero or as a default.
 export function requirePostTaxDependencyFacts(value, helpers) {
+  const ageAliasValidation = rejectConflictingAgeAliases(value, helpers);
+  if (ageAliasValidation) return ageAliasValidation;
   const deductions = value.deductions || {};
+  const npsDeductionValidation = rejectConflictingNps80CCDRepresentations(deductions, helpers);
+  if (npsDeductionValidation) return npsDeductionValidation;
+  const section80DValidation = rejectMixedSection80DRepresentations(deductions, helpers);
+  if (section80DValidation) return section80DValidation;
   if (value.regime === 'old' && !Number.isInteger(value.userAge)) {
     return helpers.message({ custom: 'USER_AGE_REQUIRED_FOR_OLD_REGIME' });
   }
@@ -72,10 +120,8 @@ export function requirePostTaxDependencyFacts(value, helpers) {
       && (!Number.isFinite(deductions.basicSalary) || typeof deductions.isGovtEmployee !== 'boolean')) {
     return helpers.message({ custom: 'basicSalary and isGovtEmployee are required when nps80CCD2 is claimed' });
   }
-  const healthDeduction = Number(deductions.section80D || 0)
-    + Number(deductions.section80D_self || 0) + Number(deductions.section80D_parents || 0);
-  if (healthDeduction > 0 && !Number.isInteger(value.userAge)) {
-    return helpers.message({ custom: 'age is required when a Section 80D deduction is claimed' });
+  if (hasAgeDependentDeductionFacts(deductions) && !Number.isInteger(value.userAge)) {
+    return helpers.message({ custom: 'age is required for age-dependent health and interest deductions' });
   }
   if (Number(deductions.section80D_parents) > 0 && typeof deductions.parents_senior !== 'boolean') {
     return helpers.message({ custom: 'parents_senior is required when a parents Section 80D deduction is claimed' });
@@ -110,17 +156,6 @@ export const taxCalculationContextSchema = Joi.object({
   annuityFraction: Joi.number().min(0).max(1).optional(),
   retirementTiming: Joi.string().trim().min(2).max(100).optional(),
 }).custom((value, helpers) => {
-  const taxKeys = ['annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear', 'deductions', 'userAge'];
-  const hasTaxContext = taxKeys.some(key => value[key] !== undefined);
-  if (!hasTaxContext) return value;
-  const missing = ['annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear']
-    .filter(key => value[key] === undefined);
-  if (missing.length > 0) {
-    return helpers.message({ custom: `taxCalculationContext requires: ${missing.join(', ')}` });
-  }
-  if (value.regime === 'old' && !Number.isInteger(value.userAge)) {
-    return helpers.message({ custom: 'USER_AGE_REQUIRED_FOR_OLD_REGIME' });
-  }
   if ((value.acquisitionDate === undefined) !== (value.redemptionDate === undefined)) {
     return helpers.message({ custom: 'acquisitionDate and redemptionDate must be supplied together' });
   }
@@ -134,6 +169,18 @@ export const taxCalculationContextSchema = Joi.object({
     if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) {
       return helpers.message({ custom: key + ' must be a real calendar date' });
     }
+  }
+
+  const taxKeys = ['annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear', 'deductions', 'userAge'];
+  const hasTaxContext = taxKeys.some(key => value[key] !== undefined);
+  if (!hasTaxContext) return value;
+  const missing = ['annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear']
+    .filter(key => value[key] === undefined);
+  if (missing.length > 0) {
+    return helpers.message({ custom: `taxCalculationContext requires: ${missing.join(', ')}` });
+  }
+  if (value.regime === 'old' && !Number.isInteger(value.userAge)) {
+    return helpers.message({ custom: 'USER_AGE_REQUIRED_FOR_OLD_REGIME' });
   }
   return requirePostTaxDependencyFacts(value, helpers);
 }).unknown(false);

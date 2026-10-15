@@ -103,6 +103,7 @@ const nextProfileFinancialState = financialState(2);
 const nextAllocationFinancialState = financialState(1, 4);
 const freshGoal = {
   _id: 'goal-1',
+  version: 1,
   profileId: id(1),
   goal_name: 'Home Deposit',
   target_amount: 900000,
@@ -132,6 +133,7 @@ const freshGoal = {
     returnAssumptionVersion: 'assumption-1',
     returnAssumptionHash: hash('d'),
     modelVersion: 'model-v1',
+    goalCalculationInputFingerprint: hash('e'),
   },
   advisory_freshness: { fresh: true, reasonCodes: [] },
   gemini_advice: 'Fresh advice tied to this profile and portfolio.',
@@ -144,6 +146,139 @@ describe('GoalPlanner financial freshness boundary', () => {
   });
 
   afterEach(() => cleanup());
+
+  it('keeps a pending goal load distinct from a successfully empty goal list', async () => {
+    let resolveGoals;
+    api.getGoals.mockReturnValueOnce(new Promise(resolve => { resolveGoals = resolve; }));
+    render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
+
+    expect(screen.getByText('Loading saved goals…')).toBeTruthy();
+    expect(screen.queryByText('No Active Goals Configured')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Initialize Target Goal/i })).toBeNull();
+
+    await act(async () => resolveGoals({ goals: [] }));
+    expect(await screen.findByText('No Active Goals Configured')).toBeTruthy();
+  });
+
+  it('shows a recoverable load error instead of an empty-account message', async () => {
+    api.getGoals.mockRejectedValueOnce(new Error('private server detail'));
+    render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your goals could not be loaded. Retry to check again.');
+    expect(screen.queryByText('private server detail')).toBeNull();
+    expect(screen.queryByText('No Active Goals Configured')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('No Active Goals Configured')).toBeTruthy();
+    expect(api.getGoals).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats a malformed successful goals response as a recoverable load error', async () => {
+    api.getGoals
+      .mockResolvedValueOnce({ unexpected: [] })
+      .mockResolvedValueOnce({ goals: [] });
+    render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your goals could not be loaded. Retry to check again.');
+    expect(screen.queryByText('No Active Goals Configured')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('No Active Goals Configured')).toBeTruthy();
+    expect(api.getGoals).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['rejected', 'reject'],
+    ['malformed', 'malformed'],
+    ['older or missing committed goal', 'older'],
+    ['missing version', 'missing-version'],
+    ['invalid version', 'invalid-version'],
+    ['string version', 'string-version'],
+    ['boolean version', 'boolean-version'],
+  ])('keeps a confirmed goal update visible when the follow-up refresh is %s', async (_label, failureKind) => {
+    const committedGoal = {
+      ...freshGoal,
+      version: 2,
+      target_amount: 1000000,
+      source_provenance: { ...freshGoal.source_provenance, goalCalculationInputFingerprint: hash('f') },
+    };
+    const siblingGoal = { ...freshGoal, _id: 'goal-2', goal_name: 'Emergency Reserve' };
+    api.getGoals.mockResolvedValueOnce({ goals: [freshGoal] });
+    if (failureKind === 'reject') {
+      api.getGoals.mockRejectedValueOnce(new Error('private refresh detail'));
+    } else if (failureKind === 'malformed') {
+      api.getGoals.mockResolvedValueOnce({ unexpected: [] });
+    } else if (failureKind === 'missing-version') {
+      api.getGoals.mockResolvedValueOnce({ goals: [{ ...freshGoal, version: undefined }] });
+    } else if (failureKind === 'invalid-version') {
+      api.getGoals.mockResolvedValueOnce({ goals: [{ ...freshGoal, version: 1.5 }] });
+    } else if (failureKind === 'string-version') {
+      api.getGoals.mockResolvedValueOnce({ goals: [{ ...freshGoal, version: '1' }] });
+    } else if (failureKind === 'boolean-version') {
+      api.getGoals.mockResolvedValueOnce({ goals: [{ ...freshGoal, version: true }] });
+    } else {
+      api.getGoals.mockResolvedValueOnce({ goals: [freshGoal] });
+    }
+    api.getGoals.mockResolvedValueOnce({ goals: [committedGoal, siblingGoal] });
+    api.updateGoal.mockResolvedValueOnce({ success: true, goal: committedGoal });
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
+    await screen.findByText(freshGoal.gemini_advice);
+    fireEvent.click(screen.getByRole('button', { name: 'Modify Parameters' }));
+    const [targetInput] = await screen.findAllByRole('spinbutton');
+    fireEvent.change(targetInput, { target: { value: '1000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Target Changes' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your goal update was saved. The confirmed changes are shown, but the latest goal list could not be refreshed.',
+    );
+    expect(screen.getAllByText('₹10.0 L').length).toBeGreaterThan(0);
+    expect(screen.queryByText('No Active Goals Configured')).toBeNull();
+    expect(alert).not.toHaveBeenCalled();
+    expect(api.getGoals).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry goal refresh' }));
+    expect(await screen.findByText('Emergency Reserve')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(api.getGoals).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([
+    ['wrong id', goal => ({ ...goal, _id: 'goal-other', version: 2 })],
+    ['wrong profile', goal => ({ ...goal, profileId: id(2), version: 2 })],
+    ['missing version', goal => ({ ...goal, version: undefined })],
+    ['fractional version', goal => ({ ...goal, version: 1.5 })],
+    ['string version', goal => ({ ...goal, version: '2' })],
+    ['boolean version', goal => ({ ...goal, version: true })],
+    ['unsafe version', goal => ({ ...goal, version: Number.MAX_SAFE_INTEGER + 1 })],
+  ])('reconciles a committed-update response with %s before presenting it', async (_label, makeResponseGoal) => {
+    const malformedResponseGoal = makeResponseGoal({
+      ...freshGoal,
+      target_amount: 1000000,
+      source_provenance: { ...freshGoal.source_provenance, goalCalculationInputFingerprint: hash('f') },
+    });
+    api.getGoals
+      .mockResolvedValueOnce({ goals: [freshGoal] })
+      .mockResolvedValueOnce({ goals: [freshGoal] });
+    api.updateGoal.mockResolvedValueOnce({ success: true, goal: malformedResponseGoal });
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
+    await screen.findByText(freshGoal.gemini_advice);
+    fireEvent.click(screen.getByRole('button', { name: 'Modify Parameters' }));
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '1000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Target Changes' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith(
+      'The goal update could not be confirmed directly. Saved goals were reloaded; check the current values.',
+    ));
+    expect(api.getGoals).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText('No Active Goals Configured')).toBeNull();
+    expect(screen.getAllByText('₹9.0 L').length).toBeGreaterThan(0);
+    expect(screen.queryByText('₹10.0 L')).toBeNull();
+  });
 
   it('removes prior-profile advice and calculated values when the refreshed goal is stale', async () => {
     api.getGoals
@@ -237,5 +372,50 @@ describe('GoalPlanner financial freshness boundary', () => {
     expect(screen.queryByText('Home Deposit')).toBeNull();
     expect(screen.queryByText('82%')).toBeNull();
     expect(screen.queryByText('₹5,000/mo')).toBeNull();
+  });
+
+  it('submits the canonical profile_id alias when creating a goal', async () => {
+    api.getGoals.mockResolvedValue({ goals: [] });
+    render(<GoalPlanner profile={{ profile_id: id(1), version: 1, monthly_savings: 30000 }} financialState={currentFinancialState} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Target Goal/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Emergency Fund/i }));
+    fireEvent.change(screen.getByTestId('goal-target-amount'), { target: { value: '900000' } });
+    fireEvent.change(screen.getByTestId('goal-target-date'), { target: { value: '2032-01-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next Step' }));
+    fireEvent.change(screen.getByTestId('goal-current-savings'), { target: { value: '100000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
+    fireEvent.click(screen.getByTestId('goal-submit'));
+
+    await waitFor(() => expect(api.createGoal).toHaveBeenCalledTimes(1));
+    expect(api.createGoal).toHaveBeenCalledWith(expect.objectContaining({ profileId: id(1) }));
+  });
+
+  it('rejects a what-if result bound to another goal version', async () => {
+    const versionedGoal = {
+      ...freshGoal,
+      version: 2,
+      simulated_monthly_contribution: 5000,
+      source_provenance: {
+        ...freshGoal.source_provenance,
+        goalCalculationInputFingerprint: hash('e'),
+      },
+    };
+    api.getGoals.mockResolvedValue({ goals: [versionedGoal] });
+    api.simulateGoal.mockResolvedValue({
+      goal_version: 3,
+      goal_calculation_input_fingerprint: hash('e'),
+      probability_of_success: 0.99,
+      chartData: [],
+      monte_carlo_summary: { simulations_run: 1000 },
+    });
+    render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
+
+    await screen.findByText('Fresh advice tied to this profile and portfolio.');
+    fireEvent.click(screen.getByRole('button', { name: '+25%' }));
+
+    await waitFor(() => expect(api.simulateGoal).toHaveBeenCalledTimes(1), { timeout: 2500 });
+    expect(await screen.findByRole('alert')).toHaveTextContent(/goal changed while the what-if calculation was running/i);
+    expect(screen.queryByText('99%')).toBeNull();
   });
 });

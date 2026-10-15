@@ -209,6 +209,22 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
     });
   });
 
+  it('POST /api/chat/message rejects malformed idempotency keys', async () => {
+    await withServer(buildApp(), async (baseUrl) => {
+      const res = await rawRequest(`${baseUrl}/api/chat/message`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${validToken}`,
+          'Idempotency-Key': 'not a valid key',
+        },
+        body: JSON.stringify({ message: 'Hello' }),
+      });
+      assert.equal(res.status, 400);
+      assert.equal((await res.json()).code, 'INVALID_IDEMPOTENCY_KEY');
+    });
+  });
+
   it('same literal session ID never reveals or closes another user conversation over HTTP', async () => {
     const otherUserId = '60d5ecb8b3b3a72d9c8e4a99';
     const otherToken = jwt.sign({ userId: otherUserId, email: 'other@example.com' }, JWT_SECRET, { expiresIn: '1h' });
@@ -375,6 +391,7 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
           headers: {
             'content-type': 'application/json',
             authorization: `Bearer ${validToken}`,
+            'Idempotency-Key': 'route-chat-idempotency-001',
           },
           body: JSON.stringify({ message: 'Explain my suitability.' }),
         });
@@ -392,6 +409,22 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
         assert.match(data.response, /Moderate \[E_PROFILE_RISK\]/);
         assert.equal(data.tool_results, undefined, 'Tool results must not leak to client response');
         assert.equal(data.audit, undefined, 'Audit metadata must not leak to client response');
+
+        const replayResponse = await rawRequest(`${baseUrl}/api/chat/message`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${validToken}`,
+            'Idempotency-Key': 'route-chat-idempotency-001',
+          },
+          body: JSON.stringify({ message: 'Explain my suitability.' }),
+        });
+        assert.equal(replayResponse.status, 200);
+        const replay = await replayResponse.json();
+        assert.equal(replay.idempotent_replay, true);
+        assert.equal(replay.session_id, data.session_id);
+        assert.equal(replay.response, data.response);
+        assert.equal(callCount, 1, 'a response-loss retry must not invoke the provider twice');
       });
     } finally {
       ProviderManager.gemini.generate = originalGenerate;

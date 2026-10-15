@@ -18,7 +18,7 @@ class LLMModelRegistry:
     def __init__(self, config: Optional[LLMConfig] = None):
         self.config = config or LLMConfig.from_env()
         self._providers: Dict[str, BaseLLMProvider] = {}
-        self._active_provider_key: str = self.config.default_provider
+        self._active_provider_key: Optional[str] = None
 
         # Auto-initialize default provider
         self._initialize_default_provider()
@@ -39,33 +39,46 @@ class LLMModelRegistry:
         )
 
         if not provider.is_healthy():
-            # Keep the configured provider visible as degraded, but never leave the
-            # public inference endpoints pointing at a backend that can only raise.
+            # Keep the configured provider visible as degraded. A mock provider is
+            # disabled in production, so do not activate it as a fallback there.
             from llm.providers.mock_provider import MockLLMProvider
 
-            logger.warning(
-                "Configured LLM provider '%s' is unhealthy; activating the local "
-                "deterministic fallback provider.",
-                self.config.default_provider,
-            )
-            self.register_provider("mock", MockLLMProvider(), make_active=True)
+            fallback = MockLLMProvider()
+            if fallback.is_healthy():
+                logger.warning(
+                    "Configured LLM provider '%s' is unhealthy; activating the local "
+                    "deterministic fallback provider.",
+                    self.config.default_provider,
+                )
+                self.register_provider("mock", fallback, make_active=True)
+            else:
+                logger.error(
+                    "Configured LLM provider '%s' is unhealthy and mock fallback is disabled "
+                    "outside local and test environments.",
+                    self.config.default_provider,
+                )
 
     def register_provider(self, key: str, provider: BaseLLMProvider, make_active: bool = False) -> None:
         """Registers an LLM provider backend under a unique key."""
         self._providers[key] = provider
         logger.info(f"Registered LLM provider '{key}' (Model: {provider.get_metadata().model_name}).")
         if make_active:
-            self._active_provider_key = key
+            if provider.is_healthy():
+                self._active_provider_key = key
+            else:
+                if self._active_provider_key == key:
+                    self._active_provider_key = None
+                logger.warning("Refusing to activate unhealthy LLM provider '%s'.", key)
+        elif self._active_provider_key == key and not provider.is_healthy():
+            self._active_provider_key = None
 
     def get_active_provider(self) -> BaseLLMProvider:
         """Returns the currently active LLM provider."""
-        if self._active_provider_key not in self._providers:
-            # Fallback to mock if active provider key missing
-            from llm.providers.mock_provider import MockLLMProvider
-            mock_p = MockLLMProvider()
-            self._providers["mock"] = mock_p
-            self._active_provider_key = "mock"
-        return self._providers[self._active_provider_key]
+        provider = self._providers.get(self._active_provider_key) if self._active_provider_key else None
+        if provider is None or not provider.is_healthy():
+            self._active_provider_key = None
+            raise RuntimeError("No healthy LLM provider is active.")
+        return provider
 
     def set_active_provider(self, key: str) -> bool:
         """Switches the active LLM provider dynamically at runtime."""

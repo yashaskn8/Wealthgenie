@@ -29,6 +29,7 @@ test('Config Validation: production rejects attempts to disable HTTP rate limiti
     MONGODB_URI: 'mongodb://mongodb:27017/wealthgenie',
     ML_SERVICE_API_KEY: 'production-secret-api-key-value-secure',
     METRICS_TOKEN: 'production-metrics-token-at-least-32-characters',
+    REDIS_PASSWORD: 'production-redis-password-at-least-32-chars',
     CORS_ORIGINS: 'https://app.wealthgenie.example',
     NODE_ENV: 'production',
   };
@@ -88,6 +89,7 @@ test('Config Validation: Valid production configuration passes', () => {
     MONGODB_URI: 'mongodb://mongodb:27017/wealthgenie',
     ML_SERVICE_API_KEY: 'production-secret-api-key-value-secure',
     METRICS_TOKEN: 'production-metrics-token-at-least-32-characters',
+    REDIS_PASSWORD: 'production-redis-password-at-least-32-chars',
     CORS_ORIGINS: 'https://app.wealthgenie.example',
     NODE_ENV: 'production',
   });
@@ -124,6 +126,7 @@ test('Config Validation: every required production value fails clearly when miss
     MONGODB_URI: 'mongodb://mongodb:27017/wealthgenie?replicaSet=rs0',
     ML_SERVICE_API_KEY: 'production-secret-api-key-value-secure',
     METRICS_TOKEN: 'production-metrics-token-at-least-32-characters',
+    REDIS_PASSWORD: 'production-redis-password-at-least-32-chars',
     CORS_ORIGINS: 'https://wealthgenie.example',
     NODE_ENV: 'production',
   };
@@ -132,6 +135,7 @@ test('Config Validation: every required production value fails clearly when miss
     MONGODB_URI: 'MONGODB_URI',
     ML_SERVICE_API_KEY: 'ML_SERVICE_API_KEY',
     METRICS_TOKEN: 'METRICS_TOKEN',
+    REDIS_PASSWORD: 'Redis authentication',
     CORS_ORIGINS: 'CORS_ORIGINS',
   };
 
@@ -232,6 +236,7 @@ test('MCP production remote enablement requires one exact audience and scope plu
     MCP_ALLOWED_ORIGINS: 'https://app.wealthgenie.example',
     REQUIRE_REDIS: 'true',
     REDIS_URL: 'rediss://redis.wealthgenie.example:6379',
+    REDIS_PASSWORD: 'production-redis-password-at-least-32-chars',
     TRUSTED_PROXY_CIDRS: '10.0.0.0/8,2001:db8::/32',
   };
   assert.equal(validateEnvironmentConfig(productionBase).valid, true);
@@ -248,6 +253,55 @@ test('MCP production remote enablement requires one exact audience and scope plu
   const malformedRedisUrl = validateEnvironmentConfig({ ...productionBase, REDIS_URL: 'https://redis.example' });
   assert.equal(malformedRedisUrl.valid, false);
   assert.ok(malformedRedisUrl.errors.some(error => error.includes('valid redis:// or rediss:// URL')));
+  const missingRedisAuthentication = validateEnvironmentConfig({ ...productionBase, REDIS_PASSWORD: '' });
+  assert.equal(missingRedisAuthentication.valid, false);
+  assert.ok(missingRedisAuthentication.errors.some(error => error.includes('Redis authentication is required')));
+  const shortRedisPassword = validateEnvironmentConfig({ ...productionBase, REDIS_PASSWORD: 'too-short' });
+  assert.equal(shortRedisPassword.valid, false);
+  assert.ok(shortRedisPassword.errors.some(error => error.includes('at least 32 characters')));
+  const placeholderRedisPassword = validateEnvironmentConfig({
+    ...productionBase,
+    REDIS_PASSWORD: 'CHANGE_ME_REDIS_PASSWORD_AT_LEAST_32_CHARACTERS',
+  });
+  assert.equal(placeholderRedisPassword.valid, false);
+  assert.ok(placeholderRedisPassword.errors.some(error => error.includes('placeholder password')));
+  const placeholderRedisUrlPassword = validateEnvironmentConfig({
+    ...productionBase,
+    REDIS_PASSWORD: '',
+    REDIS_URL: 'rediss://wealthgenie:CHANGE_ME_REDIS_PASSWORD_AT_LEAST_32_CHARACTERS@redis.wealthgenie.example:6379',
+  });
+  assert.equal(placeholderRedisUrlPassword.valid, false);
+  assert.ok(placeholderRedisUrlPassword.errors.some(error => error.includes('placeholder password')));
+  const encodedShortRedisUrlPassword = validateEnvironmentConfig({
+    ...productionBase,
+    REDIS_PASSWORD: '',
+    REDIS_URL: `rediss://wealthgenie:${encodeURIComponent('@'.repeat(11))}@redis.wealthgenie.example:6379`,
+  });
+  assert.equal(encodedShortRedisUrlPassword.valid, false);
+  assert.ok(encodedShortRedisUrlPassword.errors.some(error => error.includes('at least 32 characters')));
+  const explicitRedisPasswordWinsOverUrlCredentials = validateEnvironmentConfig({
+    ...productionBase,
+    REDIS_PASSWORD: 'explicit-production-redis-password-is-long-enough',
+    REDIS_URL: 'rediss://wealthgenie:short@redis.wealthgenie.example:6379',
+  });
+  assert.equal(explicitRedisPasswordWinsOverUrlCredentials.valid, true, explicitRedisPasswordWinsOverUrlCredentials.errors.join('; '));
+  const whitespaceRedisPasswordUsesUrlCredentials = validateEnvironmentConfig({
+    ...productionBase,
+    REDIS_PASSWORD: '   ',
+    REDIS_URL: 'rediss://wealthgenie:0123456789abcdef0123456789abcdef@redis.wealthgenie.example:6379',
+  });
+  assert.equal(whitespaceRedisPasswordUsesUrlCredentials.valid, true, whitespaceRedisPasswordUsesUrlCredentials.errors.join('; '));
+  const exampleRedisSecret = validateEnvironmentConfig({
+    ...productionBase,
+    REDIS_PASSWORD: 'CHANGE_ME_REDIS_PASSWORD_AT_LEAST_32_CHARACTERS',
+  });
+  assert.equal(exampleRedisSecret.valid, false, 'The checked-in example Secret must never satisfy production validation');
+  const authenticatedRedisUrl = validateEnvironmentConfig({
+    ...productionBase,
+    REDIS_PASSWORD: '',
+    REDIS_URL: 'rediss://wealthgenie:0123456789abcdef0123456789abcdef@redis.wealthgenie.example:6379',
+  });
+  assert.equal(authenticatedRedisUrl.valid, true, authenticatedRedisUrl.errors.join('; '));
   const malformedTrustedProxy = validateEnvironmentConfig({ ...productionBase, TRUSTED_PROXY_CIDRS: '10.0.0.0/not-a-mask' });
   assert.equal(malformedTrustedProxy.valid, false);
   assert.ok(malformedTrustedProxy.errors.some(error => error.includes('valid proxy CIDR/range')));

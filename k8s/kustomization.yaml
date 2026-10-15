@@ -11,6 +11,7 @@ resources:
   - mongodb/service.yaml
   - redis/deployment.yaml
   - redis/service.yaml
+  - redis/network-policy.yaml
   - ml-service/deployment.yaml
   - ml-service/service.yaml
   - server/deployment.yaml

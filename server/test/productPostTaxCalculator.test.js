@@ -533,6 +533,41 @@ test('FRSB rejects stale or implausibly delayed NSC fetch timestamps', () => {
   }
 });
 
+test('specified-mutual-fund tax fails closed without product-bound annual-average evidence', () => {
+  const product = qualifiedHistoricalProduct(9, {
+    name: 'Unverified debt-fund fixture',
+    taxMetadata: {
+      sourceQualified: true,
+      taxClass: 'DEBT_MF_SECTION_50AA',
+      sourceReferences: [{ authority: 'Fund source', title: 'Product description only', url: 'https://example.test/debt-fund-tax' }],
+      rulesApplied: ['SPECIFIED_MUTUAL_FUND_CLASSIFICATION'],
+    },
+  });
+  assert.equal(classifyProductTaxType(product), 'TAX_CLASSIFICATION_UNAVAILABLE');
+
+  for (const fiscalYear of ['FY2025-26', 'FY2026-27']) {
+    const outcome = calculateProductPostTaxOutcome({
+      product,
+      taxCalculationContext: {
+        annualGrossIncome: 1_000_000,
+        regime: 'new',
+        fiscalYear,
+        incomeSource: 'salary',
+        userAge: 35,
+        acquisitionDate: '2023-04-01',
+        redemptionDate: fiscalYear === 'FY2025-26' ? '2026-03-31' : '2026-04-01',
+        illustrativePrincipal: 10_000,
+      },
+    });
+    assert.equal(outcome.status, 'TAX_CLASSIFICATION_UNAVAILABLE');
+    assert.ok(outcome.unavailableReasons.includes('SPECIFIED_MUTUAL_FUND_ELIGIBILITY_EVIDENCE_UNAVAILABLE'));
+    assert.match(outcome.disclosure, /annual-average portfolio-composition evidence/i);
+    for (const field of ['grossGain', 'taxableGain', 'netGain', 'postTaxRatePct', 'incrementalTax']) {
+      assert.equal(outcome[field], null, `${field} remains unavailable in ${fiscalYear}`);
+    }
+  }
+});
+
 test('Mutual fund returns are labelled HISTORICAL and NOT A FORECAST', () => {
   const equityMf = qualifiedHistoricalProduct(15, {
     name: 'Nifty 50 Index Fund',
@@ -590,8 +625,8 @@ test('exact-date WTI tax classification keeps the anniversary short-term without
       fiscalYear: 'FY2026-27',
       incomeSource: 'salary',
       userAge: 35,
-      acquisitionDate: '2024-04-01',
-      redemptionDate: '2025-04-01',
+      acquisitionDate: '2025-04-01',
+      redemptionDate: '2026-04-01',
       section112AExemptionUsed: 125000,
       sttConditionAssumedSatisfied: true,
       illustrativePrincipal: 10000,
@@ -603,6 +638,53 @@ test('exact-date WTI tax classification keeps the anniversary short-term without
   assert.ok(outcome.rulesApplied.includes('INCOME_TAX_ACT_2025_EQUITY_STCG_SPECIAL_RATE_POLICY'));
   assert.ok(!outcome.rulesApplied.includes('INCOME_TAX_ACT_2025_EQUITY_LTCG_SPECIAL_RATE_POLICY'));
   assert.ok(outcome.taxRuleMetadata.legacyAliases.includes('SECTION_111A_STCG_SPECIAL_RATE'));
+});
+
+test('exact-date equity tax binds the redemption date to the supplied fiscal year at the March-April boundary', () => {
+  const product = qualifiedHistoricalProduct(15, {
+    name: 'Qualified equity fund',
+    taxMetadata: {
+      sourceQualified: true,
+      taxClass: 'EQUITY_MF_SECTION_112A',
+      sourceReferences: [{ authority: 'AMFI', title: 'Qualified product tax adapter', url: 'https://www.amfiindia.com/' }],
+    },
+  });
+  const calculate = (fiscalYear, acquisitionDate, redemptionDate) => calculateProductPostTaxOutcome({
+    product,
+    taxCalculationContext: {
+      annualGrossIncome: 1_500_000,
+      regime: 'new',
+      fiscalYear,
+      incomeSource: 'salary',
+      userAge: 35,
+      acquisitionDate,
+      redemptionDate,
+      section112AExemptionUsed: 0,
+      sttConditionAssumedSatisfied: true,
+      illustrativePrincipal: 10_000,
+    },
+  });
+
+  for (const [fiscalYear, redemptionDate] of [
+    ['FY2025-26', '2026-03-31'],
+    ['FY2026-27', '2026-04-01'],
+  ]) {
+    const matchingYear = calculate(fiscalYear, '2025-04-01', redemptionDate);
+    assert.equal(matchingYear.status, 'CALCULATED');
+    assert.equal(matchingYear.fiscalYear, fiscalYear);
+  }
+
+  for (const [fiscalYear, redemptionDate] of [
+    ['FY2025-26', '2026-04-01'],
+    ['FY2026-27', '2026-03-31'],
+  ]) {
+    const mismatchedYear = calculate(fiscalYear, '2025-04-01', redemptionDate);
+    assert.equal(mismatchedYear.status, 'TAX_CLASSIFICATION_UNAVAILABLE');
+    assert.ok(mismatchedYear.unavailableReasons.includes('CAPITAL_GAINS_REDEMPTION_FISCAL_YEAR_MISMATCH'));
+    for (const field of ['grossGain', 'taxableGain', 'netGain', 'postTaxRatePct', 'incrementalTax']) {
+      assert.equal(mismatchedYear[field], null, `${field} stays null when redemption FY conflicts with supplied policy`);
+    }
+  }
 });
 
 test('generateBeginnerSuitability produces deterministic plain-English reasons, risk tiers, and liquidity copy', () => {
@@ -849,6 +931,15 @@ test('WTI tax context accepts only a boolean STT scenario assumption and remains
     acquisitionDate: '2026-02-30',
     redemptionDate: '2026-03-01',
   }).error);
+  assert.ok(taxCalculationContextSchema.validate({
+    ...context,
+    acquisitionDate: '2026-01-01',
+  }).error, 'acquisition and redemption dates must be supplied together');
+  assert.ok(taxCalculationContextSchema.validate({
+    ...context,
+    acquisitionDate: '2026-01-02',
+    redemptionDate: '2026-01-01',
+  }).error, 'redemption cannot precede acquisition');
   assert.equal(taxCalculationContextSchema.validate({
     ...context,
     acquisitionDate: '2024-02-29',

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { getCache, setCache } from '../config/redis.js';
 import { ProviderManager } from './providerAbstraction.js';
 import {
@@ -5,6 +6,7 @@ import {
   evidenceEntryFromMarketContext,
   evidenceEntryFromOfficialRate,
   evidenceEntryFromProjectionAssumption,
+  isPersonalizedRecommendationQuestion,
   makeEvidenceEntry,
   GROUNDED_EVIDENCE_VERSION,
 } from './groundedEvidence.js';
@@ -23,7 +25,7 @@ import { compareVerifiedFixedIncomeProducts } from './fixedIncomeProductRanking.
 import { PrometheusMetrics } from './metricsCollector.js';
 import { getProviderOutputContract, validateProviderOutputContract } from './providerOutputContracts.js';
 
-export const GROUNDED_EXPLANATION_PROMPT_VERSION = 'grounded-financial-explanation-prompt-1.3.1';
+export const GROUNDED_EXPLANATION_PROMPT_VERSION = 'grounded-financial-explanation-prompt-1.3.2';
 export const GROUNDED_LLM_TOOL_ALLOWLIST = Object.freeze([]);
 // Matches the existing default PlanReview execution timeout; provider failover
 // is not allowed to stack three independent 20–30s adapter timeouts.
@@ -37,7 +39,7 @@ const PROVIDER_LABELS = Object.freeze({
   deterministic_template: 'DETERMINISTIC_TEMPLATE',
 });
 
-function sanitizeExternalQuestion(question) {
+export function sanitizeExternalQuestion(question) {
   return String(question || '')
     .slice(0, 1000)
     .replace(/https?:\/\/\S+/gi, '[external URL omitted]')
@@ -135,20 +137,28 @@ function compactModelEvidencePacket(evidencePacket) {
   return modelPacket;
 }
 
-function userPrompt(question, evidencePacket, { compactEvidence = false } = {}) {
+function sanitizePriorTurns(priorTurns = []) {
+  return (Array.isArray(priorTurns) ? priorTurns : []).slice(-4).map(turn => ({
+    role: turn?.role === 'model' ? 'model' : 'user',
+    content: sanitizeExternalQuestion(turn?.content).slice(0, 1000),
+  }));
+}
+
+function userPrompt(question, evidencePacket, { compactEvidence = false, priorTurns = [] } = {}) {
   const modelEvidencePacket = compactEvidence
     ? compactModelEvidencePacket(evidencePacket)
     : evidencePacket;
   return JSON.stringify({
     QUESTION_UNTRUSTED: sanitizeExternalQuestion(question),
+    PRIOR_TURNS_UNTRUSTED: sanitizePriorTurns(priorTurns),
     EVIDENCE_PACKET: modelEvidencePacket,
   });
 }
 
 // Counting UTF-8 bytes, not model-specific estimated tokens, intentionally
 // over-reserves bounded text input. The provider's output limit is 1,200.
-export function getGroundedExplanationTokenUpperBound({ question, evidencePacket }) {
-  const inputBytes = Buffer.byteLength(`${buildSystemPrompt()}\n${userPrompt(question, evidencePacket)}`, 'utf8');
+export function getGroundedExplanationTokenUpperBound({ question, evidencePacket, priorTurns = [] }) {
+  const inputBytes = Buffer.byteLength(`${buildSystemPrompt()}\n${userPrompt(question, evidencePacket, { priorTurns })}`, 'utf8');
   return inputBytes + 1200 + 2048;
 }
 
@@ -185,6 +195,18 @@ function deterministicCandidate(packet) {
     financialClaims: [],
     unavailableFacts: packet.unavailableFacts,
   };
+}
+
+function firstPositiveTokenUsage(response) {
+  // Provider adapters normalize absent usage metadata to 0, so zero is not proof
+  // that a successful external request consumed no tokens. Keep it unknown and
+  // retain the reservation unless another usage field reports a positive count.
+  for (const value of [response?.tokensUsed, response?.routing?.tokensUsed, response?.usage?.totalTokens]) {
+    if (value === null || value === undefined || value === '') continue;
+    const tokens = Number(value);
+    if (Number.isSafeInteger(tokens) && tokens > 0) return tokens;
+  }
+  return null;
 }
 
 function outputResult({ candidate, packet, provider, providerAdapter = null, model, latencyMs, tokensUsed, fallback, reasonCodes, cached = false, requireSubstantive = false }) {
@@ -274,7 +296,7 @@ function outputResult({ candidate, packet, provider, providerAdapter = null, mod
   };
 }
 
-export async function generateGroundedExplanation({ question, evidencePacket }, dependencies = {}) {
+export async function generateGroundedExplanation({ question, evidencePacket, priorTurns = [] }, dependencies = {}) {
   const getCached = dependencies.getCache || getCache;
   const setCached = dependencies.setCache || setCache;
   const failures = [];
@@ -282,6 +304,10 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
   let providerAttemptFailureCount = 0;
   let fallbackAttempted = false;
   const requestBudget = dependencies.requestBudget || null;
+  const contextHash = crypto.createHash('sha256').update(JSON.stringify({
+    question: sanitizeExternalQuestion(question),
+    priorTurns: sanitizePriorTurns(priorTurns),
+  })).digest('hex');
   const providers = providerOrder(dependencies).slice(0, 2);
   const parentSignal = dependencies.signal;
   if (parentSignal?.aborted) {
@@ -356,7 +382,7 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
         && ['groq', 'model-gateway'].includes(providerName)
         ? 'GROQ_JSON_OBJECT'
         : null;
-      const cacheKey = `grounded-explanation:${evidencePacket.evidenceHash}:${GROUNDED_EXPLANATION_PROMPT_VERSION}:${GROUNDED_EVIDENCE_VERSION}:${providerName}:${model || 'unconfigured'}${providerOutputMode ? `:${providerOutputMode}` : ''}`;
+      const cacheKey = `grounded-explanation:${evidencePacket.evidenceHash}:${contextHash}:${GROUNDED_EXPLANATION_PROMPT_VERSION}:${GROUNDED_EVIDENCE_VERSION}:${providerName}:${model || 'unconfigured'}${providerOutputMode ? `:${providerOutputMode}` : ''}`;
       let cached = null;
       try {
         cached = await getCached(cacheKey);
@@ -398,17 +424,53 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
       const startedAt = Date.now();
       let response = null;
       let reservation = null;
+      let tokenQuotaReservation = null;
+      let tokenQuotaSettled = false;
+      let providerStarted = false;
+      const settleTokenQuota = async actualTokens => {
+        if (!tokenQuotaReservation || tokenQuotaSettled) return;
+        if (typeof dependencies.settleProviderAttempt !== 'function') {
+          throw Object.assign(new Error('Token quota settlement is unavailable.'), { code: 'TOKEN_BUDGET_STORE_UNAVAILABLE' });
+        }
+        const settlement = await dependencies.settleProviderAttempt({
+          reservation: tokenQuotaReservation,
+          actualTokens,
+          provider,
+          providerAttemptCount: providerAttemptCount + 1,
+        });
+        if (settlement?.settled !== true) {
+          throw Object.assign(new Error('Chat token quota reservation could not be settled.'), {
+            code: 'TOKEN_BUDGET_SETTLEMENT_FAILED',
+            status: 503,
+          });
+        }
+        tokenQuotaSettled = true;
+      };
       try {
         const systemPrompt = buildSystemPrompt({ includeJsonShape: providerOutputMode === 'GROQ_JSON_OBJECT' });
         const explanationMaxTokens = providerOutputMode === 'GROQ_JSON_OBJECT' ? 512 : 1200;
         const recentHistory = [{ role: 'user', parts: [{ text: userPrompt(question, evidencePacket, {
           compactEvidence: providerOutputMode === 'GROQ_JSON_OBJECT',
+          priorTurns,
         }) }] }];
         if (requestBudget) {
           reservation = await requestBudget.reserve({ systemPrompt, recentHistory, maxTokens: explanationMaxTokens });
         }
+        if (typeof dependencies.reserveProviderAttempt === 'function') {
+          tokenQuotaReservation = await dependencies.reserveProviderAttempt({
+            provider,
+            providerAttemptCount: providerAttemptCount + 1,
+          });
+          if (!tokenQuotaReservation) {
+            throw Object.assign(new Error('Chat token quota could not admit this provider attempt.'), {
+              code: 'TOKEN_BUDGET_EXCEEDED',
+            });
+          }
+        }
         if (isFallbackProvider) fallbackAttempted = true;
+        await dependencies.onProviderAttemptStart?.({ provider, providerAttemptCount: providerAttemptCount + 1 });
         providerAttemptCount += 1;
+        providerStarted = true;
         response = await awaitWithSignal(provider.generate({
           systemPrompt,
           recentHistory,
@@ -420,12 +482,16 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
           signal: providerController.signal,
         }));
         if (reservation && response) {
-          const usage = response.tokensUsed ?? response.routing?.tokensUsed ?? response.usage?.totalTokens;
-          requestBudget.settle(reservation, usage);
+          requestBudget.settle(reservation, firstPositiveTokenUsage(response));
         }
       } catch (error) {
+        await settleTokenQuota(providerStarted ? null : 0);
         if (parentSignal?.aborted || (!deadlineExpired && (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED'))
-            || error?.code === 'AGENT_BUDGET_EXCEEDED' || error?.code === 'AGENT_BUDGET_PERSISTENCE_UNAVAILABLE') throw error;
+            || error?.code === 'AGENT_BUDGET_EXCEEDED' || error?.code === 'AGENT_BUDGET_PERSISTENCE_UNAVAILABLE'
+            || error?.code === 'TOKEN_BUDGET_EXCEEDED' || error?.code === 'TOKEN_BUDGET_STORE_UNAVAILABLE'
+            || error?.code === 'TOKEN_BUDGET_RESERVATION_CONFLICT'
+            || error?.code === 'TOKEN_BUDGET_SETTLEMENT_FAILED'
+            || error?.code === 'CHAT_PROFILE_STATE_CHANGED') throw error;
         if (deadlineExpired || error?.code === 'PROVIDER_CHAIN_DEADLINE_EXCEEDED') {
           failures.push('PROVIDER_CHAIN_DEADLINE_EXCEEDED');
           providerAttemptFailureCount += 1;
@@ -448,6 +514,7 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
         break;
       }
       if (!response) {
+        await settleTokenQuota(null);
         const reason = provider.lastFailureReason || `${providerName.toUpperCase()}_UNAVAILABLE`;
         failures.push(reason);
         providerAttemptFailureCount += 1;
@@ -462,6 +529,7 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
         break;
       }
       if (response.wasCompleted === false) {
+        await settleTokenQuota(null);
         const reason = response.diagnostics?.errorClassification || 'PROVIDER_INCOMPLETE_OUTPUT';
         provider.recordOutputValidation?.({ errorClassification: reason });
         failures.push(reason);
@@ -469,6 +537,7 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
         break;
       }
       if (typeof response.text !== 'string' || !response.text.trim()) {
+        await settleTokenQuota(null);
         provider.recordOutputValidation?.({ jsonSyntaxValid: false, errorClassification: 'EMPTY_COMPLETION' });
         failures.push('EMPTY_COMPLETION');
         providerAttemptFailureCount += 1;
@@ -478,6 +547,7 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
       try {
         candidate = parseGroundedModelJson(response.text);
       } catch {
+        await settleTokenQuota(null);
         provider.recordOutputValidation?.({ jsonSyntaxValid: false, errorClassification: 'MALFORMED_GROUNDED_JSON' });
         providerAttemptFailureCount += 1;
         failures.push('MALFORMED_GROUNDED_JSON');
@@ -486,6 +556,7 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
       const contractValidation = validateProviderOutputContract('GROUNDED_EXPLANATION_V1', candidate);
       provider.recordOutputValidation?.({ jsonSyntaxValid: true, jsonSchemaValid: contractValidation.valid });
       if (!contractValidation.valid) {
+        await settleTokenQuota(null);
         provider.recordOutputValidation?.({ errorClassification: 'INVALID_GROUNDED_EXPLANATION_SCHEMA' });
         providerAttemptFailureCount += 1;
         failures.push('INVALID_GROUNDED_EXPLANATION_SCHEMA');
@@ -506,13 +577,14 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
           providerAdapter: provider,
           model: response.model || model,
           latencyMs: Date.now() - startedAt,
-          tokensUsed: response.tokensUsed,
+          tokensUsed: firstPositiveTokenUsage(response) || 0,
           fallback: providerFallbackUsed,
           reasonCodes: providerFallbackUsed && providerFallbackReason ? [providerFallbackReason] : [],
           requireSubstantive: true,
         });
         result.providerAttemptCount = providerAttemptCount;
         result.providerAttemptFailureCount = providerAttemptFailureCount;
+        await settleTokenQuota(firstPositiveTokenUsage(response));
         try {
           await setCached(cacheKey, result, EXPLANATION_CACHE_TTL_SECONDS);
         } catch {
@@ -520,6 +592,7 @@ export async function generateGroundedExplanation({ question, evidencePacket }, 
         }
         return result;
       } catch (error) {
+        await settleTokenQuota(null);
         providerAttemptFailureCount += 1;
         failures.push(error.message === 'LLM_GROUNDING_VALIDATION_FAILED'
           ? 'LLM_GROUNDING_VALIDATION_FAILED'
@@ -568,7 +641,7 @@ const GOVERNMENT_QUERY_TO_PARENT = Object.freeze([
 export async function buildChatEvidencePacket({ question, profile, recommendation }, dependencies = {}) {
   const entries = [];
   const unavailableFacts = [];
-  const recommendationRelevant = /\b(?:why|recommend|allocation|portfolio|invest|avoid|suitab|risk|instrument|product|fund)\b/i.test(question);
+  const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
   if (/market context|cautious|risk.off|high.volatility|nifty|india vix/i.test(question)) {
     try {
       const marketContext = await (dependencies.getLiveMarketContext || getLiveMarketContext)();
@@ -602,7 +675,7 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     }
   }
 
-  if (/projection|simulation|assumption|expected return|future value|percentile/i.test(question)) {
+  if (recommendationRelevant && /projection|simulation|assumption|expected return|future value|percentile/i.test(question)) {
     const assumptions = await (dependencies.getInstrumentModelAssumptions || getInstrumentModelAssumptions)();
     const instruments = recommendation?.instruments || [];
     for (const instrument of instruments.slice(0, 5)) {

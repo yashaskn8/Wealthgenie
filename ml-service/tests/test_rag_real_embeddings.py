@@ -16,6 +16,7 @@ from rag.config import RAGConfig
 from rag.embeddings.dense_embedding import (
     DenseVectorEmbeddingProvider,
     SentenceTransformerEmbeddingProvider,
+    UnavailableEmbeddingProvider,
     get_embedding_provider,
 )
 from rag.vector_store.memory_vector_store import PersistentVectorStore
@@ -206,6 +207,31 @@ def test_production_rejects_explicit_lexical_embedding_provider(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     with pytest.raises(RuntimeError, match="requires the pinned semantic embedding provider"):
         get_embedding_provider(RAGConfig(embedding_provider="tf_idf_dense", embedding_dim=64))
+
+
+def test_prod_alias_fails_closed_when_pinned_embedding_snapshot_is_missing(monkeypatch):
+    from types import ModuleType
+
+    monkeypatch.setenv("ENVIRONMENT", "prod")
+    monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
+    monkeypatch.delenv("TRANSFORMERS_OFFLINE", raising=False)
+    monkeypatch.setattr(SentenceTransformerEmbeddingProvider, "_shared_models", {})
+    monkeypatch.setattr(SentenceTransformerEmbeddingProvider, "_load_failures", {})
+    calls = []
+
+    def missing_snapshot(model_name, **kwargs):
+        calls.append((model_name, kwargs))
+        raise OSError("pinned model snapshot is unavailable")
+
+    fake_sentence_transformers = ModuleType("sentence_transformers")
+    fake_sentence_transformers.SentenceTransformer = missing_snapshot
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_sentence_transformers)
+
+    provider = get_embedding_provider(RAGConfig())
+
+    assert isinstance(provider, UnavailableEmbeddingProvider)
+    assert len(calls) == 1
+    assert calls[0][1]["local_files_only"] is True
 
 
 def test_factory_raises_for_unknown_provider():

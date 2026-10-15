@@ -172,12 +172,14 @@ jobs:
           EPHEMERAL_ML_KEY=$(openssl rand -hex 16)
           EPHEMERAL_ML_OPERATOR_KEY=$(openssl rand -hex 16)
           EPHEMERAL_METRICS_TOKEN=$(openssl rand -hex 32)
+          EPHEMERAL_REDIS_PASSWORD=$(openssl rand -hex 32)
           kubectl create secret generic wealthgenie-secrets -n wealthgenie \
             --from-literal=JWT_SECRET="$EPHEMERAL_JWT" \
             --from-literal=GEMINI_API_KEY="ci-mock-gemini-key" \
             --from-literal=ML_SERVICE_API_KEY="$EPHEMERAL_ML_KEY" \
             --from-literal=ML_OPERATOR_KEY="$EPHEMERAL_ML_OPERATOR_KEY" \
             --from-literal=METRICS_TOKEN="$EPHEMERAL_METRICS_TOKEN" \
+            --from-literal=REDIS_PASSWORD="$EPHEMERAL_REDIS_PASSWORD" \
             --from-literal=MONGODB_URI="mongodb://wealthgenie-mongodb.wealthgenie.svc.cluster.local:27017/wealthgenie-ci-demo?replicaSet=rs0" \
             --dry-run=client -o yaml | kubectl apply -f -
 
@@ -431,6 +433,15 @@ jobs:
           ML_POD=$(kubectl get pods -n wealthgenie -l app=wealthgenie-ml-service -o jsonpath='{.items[0].metadata.name}')
           kubectl exec "$ML_POD" -n wealthgenie -- python -c "import os,urllib.request; req=urllib.request.Request('http://127.0.0.1:8000/rag/readyz',headers={'X-API-Key':os.environ['ML_SERVICE_API_KEY']}); print(urllib.request.urlopen(req,timeout=10).read().decode())"
 
+          echo "Waiting for external agent worker Deployment to be Ready..."
+          kubectl rollout status deployment/wealthgenie-agent-worker -n wealthgenie --timeout=300s || {
+            echo "--- Agent Worker Pod Describe ---"
+            kubectl describe pods -n wealthgenie -l app=wealthgenie-agent-worker
+            echo "--- Agent Worker Pod Logs ---"
+            kubectl logs -n wealthgenie -l app=wealthgenie-agent-worker --tail=80
+            exit 1
+          }
+
           echo "Waiting for Express Server Deployment to be Ready..."
           kubectl rollout status deployment/wealthgenie-server -n wealthgenie --timeout=300s || {
             echo "--- Server Pod Describe ---"
@@ -520,6 +531,10 @@ jobs:
           EXPECTED_SERVER_IMAGE_ID: ${{ steps.build.outputs.server_image_id }}
           EXPECTED_FRONTEND_IMAGE_ID: ${{ steps.build.outputs.frontend_image_id }}
           EXPECTED_ML_IMAGE_ID: ${{ steps.build.outputs.ml_image_id }}
+          DEMO_DATABASE: ${{ steps.phase15-database.outputs.database }}
+          DEMO_MONGO_HOST: ${{ steps.phase15-database.outputs.mongo_host }}
+          DEMO_MONGO_PORT: ${{ steps.phase15-database.outputs.mongo_port }}
+          DEMO_ENVIRONMENT_ID: ${{ steps.phase15-database.outputs.environment_id }}
         run: |
           set -euo pipefail
           echo "### Live Endpoint Smoke Test Verification (Step 2)" >> $GITHUB_STEP_SUMMARY
@@ -639,7 +654,17 @@ jobs:
           echo "Deep Response: $DEEP_RES"
           echo "- **Deep Health Probe (/health/deep)**: \`$DEEP_RES\`" >> $GITHUB_STEP_SUMMARY
 
-          echo "4. Testing Business Endpoint /api/tax/compare..."
+          echo "4. Verifying transaction-capable MongoDB and required Redis..."
+          VERIFY_RES=$(curl --silent --show-error --fail --connect-timeout 5 --max-time 15 \
+            --header "x-demo-expected-mongodb-database: $DEMO_DATABASE" \
+            --header "x-demo-expected-mongodb-host: $DEMO_MONGO_HOST" \
+            --header "x-demo-expected-mongodb-port: $DEMO_MONGO_PORT" \
+            --header "x-demo-expected-mongodb-environment-id: $DEMO_ENVIRONMENT_ID" \
+            http://127.0.0.1:5000/health/verification)
+          echo "Verification Response: $VERIFY_RES"
+          node -e 'const result=JSON.parse(process.argv[1]); if (result.status !== "DEMO_DATABASE_VERIFIED" || result.mongo?.transactionCapable !== true || result.mongo?.databaseIdentityVerified !== true || result.mongo?.environmentSentinelVerified !== true || result.redis?.required !== true || result.redis?.connected !== true) process.exit(1)' "$VERIFY_RES"
+
+          echo "5. Testing Business Endpoint /api/tax/compare..."
           TAX_URL="http://127.0.0.1:5000/api/tax/compare"
           TAX_BODY='{"income":1200000,"incomeSource":"salary","fiscalYear":"FY2026-27","age":30}'
           if ! TAX_RES=$(curl --silent --show-error --fail --connect-timeout 5 --max-time 10 \

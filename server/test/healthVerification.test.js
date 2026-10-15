@@ -28,6 +28,20 @@ async function withVerificationServer(options, callback) {
   }
 }
 
+async function invokeHealthRoute(router, path) {
+  const layer = router.stack.find(item => item.route?.path === path);
+  assert.ok(layer, `health route ${path} exists`);
+  const handler = layer.route.stack[0].handle;
+  return new Promise((resolve, reject) => {
+    const response = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(body) { resolve({ statusCode: this.statusCode, body }); return this; },
+    };
+    handler({ headers: {} }, response, reject);
+  });
+}
+
 test('runtime verification reports only the running process build and connected dependency capabilities', async () => {
   await withVerificationServer({
     requireRedis: true,
@@ -244,6 +258,59 @@ test('readiness fails when configured isolated Mongo identity is not the connect
     assert.equal(verificationBody.mongo.databaseIdentityVerified, false);
   });
   assert.equal(transactionCalls, 0);
+});
+
+test('readiness fails closed when Mongo transaction capability is unavailable', async () => {
+  let transactionCalls = 0;
+  const router = createHealthRouter({
+    isMongoConnected: () => true,
+    verifyMongoTransaction: async () => { transactionCalls += 1; return false; },
+    verifyFinancialIndexes: async () => {},
+    verifyMarketDataIndexes: async () => {},
+  });
+  const { statusCode, body } = await invokeHealthRoute(router, '/ready');
+  assert.equal(statusCode, 503);
+  assert.equal(body.status, 'NOT_READY');
+  assert.ok(body.reasons.includes('MongoDB transaction capability is not ready'));
+  assert.equal(transactionCalls, 1);
+});
+
+test('readiness fails closed when the Mongo transaction probe exceeds its timeout', async () => {
+  let transactionCalls = 0;
+  const router = createHealthRouter({
+    timeoutMs: 25,
+    isMongoConnected: () => true,
+    verifyMongoTransaction: () => {
+      transactionCalls += 1;
+      // Keep a referenced timer so the route's unref'd timeout can fire in
+      // this socket-free test; do not assert elapsed wall time.
+      return new Promise(resolve => setTimeout(() => resolve(true), 100));
+    },
+    verifyFinancialIndexes: async () => {},
+    verifyMarketDataIndexes: async () => {},
+  });
+  const { statusCode, body } = await invokeHealthRoute(router, '/ready');
+  assert.equal(statusCode, 503);
+  assert.equal(body.status, 'NOT_READY');
+  assert.ok(body.reasons.includes('MongoDB transaction capability is not ready'));
+  assert.equal(transactionCalls, 1);
+});
+
+test('readiness accepts a transaction-capable Mongo deployment', async () => {
+  let transactionCalls = 0;
+  const router = createHealthRouter({
+    isMongoConnected: () => true,
+    verifyMongoTransaction: async () => { transactionCalls += 1; return true; },
+    verifyFinancialIndexes: async () => {},
+    verifyMarketDataIndexes: async () => {},
+  });
+  const { statusCode, body } = await invokeHealthRoute(router, '/ready');
+  assert.equal(statusCode, 200);
+  assert.equal(body.status, 'READY');
+  assert.deepEqual(body.buildProvenance, { status: 'UNAVAILABLE', provenanceSha256: null });
+  assert.equal(body.lifecycle, null);
+  assert.ok(Number.isFinite(Date.parse(body.timestamp)));
+  assert.equal(transactionCalls, 1);
 });
 
 test('readiness fails closed when the exact demo database sentinel is absent', async () => {

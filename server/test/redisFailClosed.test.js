@@ -60,6 +60,7 @@ import {
   setRedisAvailable,
   setRedisClient,
   setForceFailClosedInTest,
+  buildRedisClientOptions,
   connectRedis,
   redisAvailable,
   redisClient,
@@ -70,6 +71,40 @@ import {
 import { authLimiter, apiLimiter, HybridStore, createEndpointRateLimiter } from '../middleware/rateLimiter.js';
 
 process.env.NODE_ENV = 'test';
+
+test('Redis client options pass the secret credential without embedding it in the URL', () => {
+  const options = buildRedisClientOptions({
+    url: 'redis://wealthgenie-redis:6379',
+    password: 'unit-test-redis-password',
+  });
+  assert.equal(options.url, 'redis://wealthgenie-redis:6379');
+  assert.equal(options.password, 'unit-test-redis-password');
+  assert.equal(options.socket.connectTimeout, 3000);
+});
+
+test('Redis client options decode URL auth, strip it from the URL, and prefer the dedicated password', () => {
+  const options = buildRedisClientOptions({
+    url: 'rediss://wealthgenie%40service:url%40password@redis.wealthgenie.example:6379/2?name=cache',
+    password: 'dedicated-secret-value',
+  });
+  assert.equal(options.url, 'rediss://redis.wealthgenie.example:6379/2?name=cache');
+  assert.equal(options.username, 'wealthgenie@service');
+  assert.equal(options.password, 'dedicated-secret-value');
+
+  const urlCredentialOptions = buildRedisClientOptions({
+    url: 'redis://wealthgenie%40service:url%40password@localhost:6379',
+    password: '',
+  });
+  assert.equal(urlCredentialOptions.url, 'redis://localhost:6379');
+  assert.equal(urlCredentialOptions.username, 'wealthgenie@service');
+  assert.equal(urlCredentialOptions.password, 'url@password');
+
+  const whitespacePasswordUsesUrlAuth = buildRedisClientOptions({
+    url: 'redis://wealthgenie:url-password@localhost:6379',
+    password: '   ',
+  });
+  assert.equal(whitespacePasswordUsesUrlAuth.password, 'url-password');
+});
 
 // ── Helper: create a mock Redis client that works then breaks ──
 function createBreakableClient() {

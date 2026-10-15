@@ -32,6 +32,48 @@ if (workerPodSpec.securityContext?.runAsNonRoot !== true || workerPodSpec.securi
 }
 if (!container.readinessProbe?.httpGet?.path || !container.livenessProbe?.httpGet?.path) throw new Error('Kubernetes agent-worker probes are required');
 
+const redisDeployment = docs.find(item => item.value?.kind === 'Deployment'
+  && item.value?.metadata?.name === 'wealthgenie-redis');
+const redisContainer = redisDeployment?.value.spec.template.spec.containers
+  .find(item => item.name === 'redis');
+const redisEnv = new Map((redisContainer?.env || []).map(item => [item.name, item]));
+if (!redisContainer?.args?.includes('--requirepass')
+    || !redisContainer.args.includes('$(REDIS_PASSWORD)')
+    || redisEnv.get('REDIS_PASSWORD')?.valueFrom?.secretKeyRef?.name !== 'wealthgenie-secrets'
+    || redisEnv.get('REDIS_PASSWORD')?.valueFrom?.secretKeyRef?.key !== 'REDIS_PASSWORD'
+    || redisEnv.get('REDISCLI_AUTH')?.valueFrom?.secretKeyRef?.name !== 'wealthgenie-secrets'
+    || redisEnv.get('REDISCLI_AUTH')?.valueFrom?.secretKeyRef?.key !== 'REDIS_PASSWORD') {
+  throw new Error('Kubernetes Redis must require the shared secret password and authenticate its probes');
+}
+for (const deploymentName of ['wealthgenie-server', 'wealthgenie-agent-worker']) {
+  const deployment = docs.find(item => item.value?.kind === 'Deployment'
+    && item.value?.metadata?.name === deploymentName);
+  const appContainer = deployment?.value.spec.template.spec.containers[0];
+  if (!appContainer?.env?.some(item => item.name === 'REDIS_PASSWORD'
+      && item.valueFrom?.secretKeyRef?.name === 'wealthgenie-secrets'
+      && item.valueFrom?.secretKeyRef?.key === 'REDIS_PASSWORD')) {
+    throw new Error(`Kubernetes ${deploymentName} must receive the Redis password from the secret store`);
+  }
+}
+const redisNetworkPolicy = docs.find(item => item.value?.kind === 'NetworkPolicy'
+  && item.value?.metadata?.name === 'wealthgenie-redis-ingress')?.value;
+const redisIngressRules = redisNetworkPolicy?.spec?.ingress || [];
+const redisPeers = redisIngressRules.flatMap(rule => rule.from || []);
+const redisPeerApps = new Set(redisPeers.map(peer => peer.podSelector?.matchLabels?.app));
+if (redisNetworkPolicy?.spec?.podSelector?.matchLabels?.app !== 'wealthgenie-redis'
+    || redisNetworkPolicy.spec.policyTypes?.includes('Ingress') !== true
+    || redisIngressRules.length !== 1
+    || redisIngressRules.some(rule => !Array.isArray(rule.from) || rule.from.length === 0)
+    || redisPeers.length !== 2
+    || redisPeerApps.size !== 2
+    || !redisPeerApps.has('wealthgenie-server')
+    || !redisPeerApps.has('wealthgenie-agent-worker')
+    || redisPeers.some(peer => !peer.podSelector || peer.namespaceSelector || peer.ipBlock)
+    || redisNetworkPolicy.spec.ingress.some(rule => rule.ports?.length !== 1
+      || rule.ports[0].protocol !== 'TCP' || rule.ports[0].port !== 6379)) {
+  throw new Error('Kubernetes Redis ingress must be limited to server and agent-worker pods on TCP 6379');
+}
+
 const migration = docs.find(item => item.value?.kind === 'Job'
   && item.value?.metadata?.labels?.app === 'wealthgenie-phase2-index-migration');
 if (!migration) throw new Error('The one-shot Phase 2 index migration Job is missing');
@@ -131,7 +173,6 @@ const requiredProductionImages = new Map([
   ['wealthgenie-server', 'sha256:WEALTHGENIE_SERVER_IMAGE_DIGEST_REQUIRED'],
   ['wealthgenie-frontend', 'sha256:WEALTHGENIE_FRONTEND_IMAGE_DIGEST_REQUIRED'],
   ['wealthgenie-ml-service', 'sha256:WEALTHGENIE_ML_SERVICE_IMAGE_DIGEST_REQUIRED'],
-  ['mongo', 'sha256:WEALTHGENIE_MONGODB_IMAGE_DIGEST_REQUIRED'],
   ['redis', 'sha256:WEALTHGENIE_REDIS_IMAGE_DIGEST_REQUIRED'],
 ]);
 const configuredProductionImages = new Map((productionKustomization.images || []).map(image => [image.name, image]));
@@ -258,6 +299,7 @@ const cdPhase5Migration = namedStep(cdSteps, 'Run the one-shot Phase 5 durable a
 const cdPhase7Migration = namedStep(cdSteps, 'Run the one-shot Phase 7 ResearchAgent task migration');
 const appApply = namedStep(cdSteps, 'Apply application manifests after database migrations');
 const appReady = namedStep(cdSteps, 'Wait for Microservices to be Ready');
+const liveSmoke = namedStep(cdSteps, 'Execute Live Smoke Tests & Prove Request Flow (Step 2)');
 if (!(dbApply.index < secrets.index
     && secrets.index < dbReady.index
     && dbReady.index < cdPhase2Migration.index
@@ -284,7 +326,15 @@ if (!(dbApply.index < secrets.index
     || !cdPhase7Migration.step.run?.includes('kubectl wait --for=condition=complete')
     || !appApply.step.run?.includes('kubectl kustomize k8s/')
     || !appApply.step.run?.includes('kubectl apply -f build/k8s-pinned.yaml')
-    || !appApply.step.run?.includes('GITHUB_SHA')) {
+    || !appApply.step.run?.includes('GITHUB_SHA')
+    || !secrets.step.run?.includes('EPHEMERAL_REDIS_PASSWORD=$(openssl rand -hex 32)')
+    || !secrets.step.run?.includes('--from-literal=REDIS_PASSWORD="$EPHEMERAL_REDIS_PASSWORD"')
+    || !appReady.step.run?.includes('kubectl rollout status deployment/wealthgenie-agent-worker')
+    || !(appReady.index < liveSmoke.index)
+    || !liveSmoke.step.run?.includes('/health/verification')
+    || !liveSmoke.step.run?.includes('transactionCapable')
+    || !liveSmoke.step.run?.includes('environmentSentinelVerified')
+    || !liveSmoke.step.run?.includes('redis?.connected')) {
   throw new Error('Kind CD must wait for all ordered one-shot database migrations before applying application workloads');
 }
 

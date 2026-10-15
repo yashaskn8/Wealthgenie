@@ -24,6 +24,7 @@ const ProgressHub = ({
   onTabChange,
   profile,
   financialState,
+  financialStateIdentity = null,
   recommendations,
   onNavigate,
   onSaveRebalance,
@@ -144,7 +145,10 @@ const ProgressHub = ({
         <div role="tabpanel" id="panel-grow-sip" aria-labelledby="tab-grow-sip" data-testid="panel-grow-sip" hidden={currentTab !== 'grow-sip'}>
           {currentTab === 'grow-sip' && (
             <ErrorBoundary>
-              <StepUpPlanner key={`${profile.profileId}:${profile.version}`} profile={profile} />
+              <StepUpPlanner
+                key={`${profile?.profileId || profile?.profile_id || profile?._id || 'unavailable'}:${profile?.version ?? 'unknown'}`}
+                profile={profile}
+              />
             </ErrorBoundary>
           )}
         </div>
@@ -152,8 +156,9 @@ const ProgressHub = ({
           {currentTab === 'rebalancer' && (
             <ErrorBoundary>
               <RebalancerScreen
-                key={recommendations.map(item => `${item.id}:${item.allocationWeight}`).join('|')}
+                key={`${profile?.profileId || profile?.profile_id || profile?._id || 'unavailable'}:${profile?.version ?? 'unknown'}:${financialStateIdentity || 'unavailable'}:${(recommendations || []).map(item => `${item.id}:${item.allocationWeight}`).join('|')}`}
                 profile={profile}
+                financialStateIdentity={financialStateIdentity}
                 recommendations={recommendations}
                 onSave={onSaveRebalance}
               />

@@ -76,6 +76,13 @@ function clampValue(val, min = 0, max = MAX_TARGET) {
   return Math.max(min, Math.min(max, Math.round(num)));
 }
 
+function isGoalCalculationFreshForProfile(goal, profileVersion) {
+  return isFinancialCalculationFresh(goal?.calculation_freshness)
+    && Number.isSafeInteger(profileVersion)
+    && profileVersion > 0
+    && Number(goal?.sourceProfileVersion) === profileVersion;
+}
+
 /* ─── Goal Card ───────────────────────────────────────────────────── */
 const GoalCard = ({ 
   goalName, 
@@ -86,6 +93,7 @@ const GoalCard = ({
   onDeleteGoal,
   profileScopeLabel,
   isEditable,
+  profileVersion,
   monthlyAllocation, 
   horizon, 
   index, 
@@ -93,7 +101,7 @@ const GoalCard = ({
 }) => {
   // Target facts are editable; every computed value is read from the stored backend goal.
   const isDbGoal = !!goalObj;
-  const isCalculationFresh = isFinancialCalculationFresh(goalObj?.calculation_freshness);
+  const isCalculationFresh = isGoalCalculationFreshForProfile(goalObj, profileVersion);
   const recalculationHorizonStatus = getGoalRecalculationHorizonStatus(goalObj?.target_date);
   const initialTarget = isDbGoal ? goalObj.target_amount : defaults.target;
   const initialSaved = isDbGoal ? goalObj.current_savings : defaults.currentSaved;
@@ -185,8 +193,8 @@ const GoalCard = ({
         target_amount: actualTarget,
         current_savings: actualSaved,
       });
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error('Goal card save failed:', err?.name || 'UnknownError');
     } finally {
       setIsUpdating(false);
     }
@@ -203,8 +211,8 @@ const GoalCard = ({
         target_amount: initialTargetValue,
         current_savings: initialSavedValue,
       });
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error('Goal card recalculation failed:', err?.name || 'UnknownError');
     } finally {
       setIsUpdating(false);
     }
@@ -485,31 +493,82 @@ const GoalTracker = ({ profile, onNavigate }) => {
   const [isInitializing, setIsInitializing] = useState(false);
   const [bootstrapResult, setBootstrapResult] = useState(null);
   const goalsFetchGeneration = useRef(0);
+  const pendingCommittedGoals = useRef(new Map());
 
   const totalSavings = isPresentFiniteNumber(profile?.monthly_savings) ? Number(profile.monthly_savings) : NaN;
   const currentProfileId = profile?.profileId || profile?.profile_id || profile?._id || null;
+  const parsedProfileVersion = Number(profile?.version ?? profile?.profile_version ?? profile?.profileVersion ?? 1);
+  const currentProfileVersion = Number.isSafeInteger(parsedProfileVersion) && parsedProfileVersion > 0
+    ? parsedProfileVersion
+    : null;
 
-  const fetchActiveGoals = useCallback(async ({ clearCurrent = false } = {}) => {
+  const fetchActiveGoals = useCallback(async ({
+    clearCurrent = false,
+    preserveCurrentOnFailure = false,
+    committedGoal = null,
+    reconcileDeleteGoalId = null,
+    returnGoalList = false,
+  } = {}) => {
     const generation = ++goalsFetchGeneration.current;
-    if (clearCurrent) setDbGoals([]);
+    if (committedGoal) {
+      const committedId = String(committedGoal._id || committedGoal.goalId || '');
+      pendingCommittedGoals.current.set(
+        JSON.stringify([String(currentProfileId || ''), committedId]),
+        committedGoal,
+      );
+    }
+    const pendingForProfile = Array.from(pendingCommittedGoals.current.entries())
+      .filter(([, goal]) => String(goal?.profileId || '') === String(currentProfileId || ''));
+    const preserveConfirmedData = preserveCurrentOnFailure || pendingForProfile.length > 0;
+    let observedGoalList = null;
+    if (clearCurrent && !preserveConfirmedData) setDbGoals([]);
     try {
       setLoading(true);
       setBootstrapResult(null);
       const res = await api.getGoals();
-      if (generation !== goalsFetchGeneration.current) return;
-      setDbGoals(Array.isArray(res?.goals) ? res.goals : []);
-    } catch (e) {
-      console.error("Failed to load goals for tracker:", e);
-      if (generation !== goalsFetchGeneration.current) return;
-      setDbGoals([]);
+      if (generation !== goalsFetchGeneration.current) {
+        return returnGoalList ? { success: false, goals: null } : undefined;
+      }
+      if (!Array.isArray(res?.goals)) {
+        throw new Error('Your saved goals could not be loaded. Please try again.');
+      }
+      observedGoalList = res.goals;
+      const confirmedKeys = [];
+      for (const [key, pendingGoal] of pendingForProfile) {
+        const committedId = String(pendingGoal._id || pendingGoal.goalId || '');
+        const refreshedGoal = res.goals.find(goal => String(goal?._id || goal?.goalId || '') === committedId
+          && String(goal?.profileId || '') === String(currentProfileId || ''));
+        if (!refreshedGoal && String(reconcileDeleteGoalId || '') === committedId) {
+          pendingCommittedGoals.current.delete(key);
+          setDbGoals(current => current.filter(goal => String(goal?._id || goal?.goalId || '') !== committedId));
+          continue;
+        }
+        const committedVersion = pendingGoal.version;
+        const refreshedVersion = refreshedGoal?.version;
+        if (!refreshedGoal
+          || !Number.isSafeInteger(committedVersion) || committedVersion < 1
+          || !Number.isSafeInteger(refreshedVersion) || refreshedVersion < committedVersion) {
+          throw new Error('The saved goal list did not confirm the committed update.');
+        }
+        confirmedKeys.push(key);
+      }
+      confirmedKeys.forEach(key => pendingCommittedGoals.current.delete(key));
+      setDbGoals(res.goals);
+      return returnGoalList ? { success: true, goals: res.goals } : true;
+    } catch {
+      if (generation !== goalsFetchGeneration.current) {
+        return returnGoalList ? { success: false, goals: null } : undefined;
+      }
+      if (!preserveConfirmedData) setDbGoals([]);
       setBootstrapResult({
         type: 'error',
-        message: e?.message || 'Your saved goals could not be loaded. Please try again.',
+        message: 'Your saved goals could not be loaded. Please try again.',
       });
+      return returnGoalList ? { success: false, goals: observedGoalList } : false;
     } finally {
       if (generation === goalsFetchGeneration.current) setLoading(false);
     }
-  }, []);
+  }, [currentProfileId]);
 
   useEffect(() => {
     // A changed financial profile invalidates the freshness proof held by the
@@ -537,30 +596,68 @@ const GoalTracker = ({ profile, onNavigate }) => {
     // authoritative mutation settles, a new fenced read becomes the sole
     // writer of the visible list.
     goalsFetchGeneration.current += 1;
+    let committedGoal = null;
+    let updateCouldNotBeConfirmed = false;
     try {
       const res = await api.updateGoal(goalId, patchData);
       if (!res?.success) throw new Error('The goal update was not confirmed by the server.');
+      if (res.goal) {
+        const responseGoalId = String(res.goal._id || res.goal.goalId || '');
+        const responseVersion = res.goal.version;
+        if (responseGoalId !== String(goalId)
+          || String(res.goal.profileId || '') !== String(currentProfileId || '')
+          || !Number.isSafeInteger(responseVersion) || responseVersion < 1) {
+          throw new Error('The server returned an invalid committed goal.');
+        }
+        committedGoal = res.goal;
+        setDbGoals(previous => previous.some(goal => String(goal._id || goal.goalId) === responseGoalId)
+          ? previous.map(goal => (String(goal._id || goal.goalId) === responseGoalId ? committedGoal : goal))
+          : [...previous, committedGoal]);
+      }
     } catch (err) {
-      alert("Failed to save changes: " + (err.message || "Unknown error"));
-    } finally {
-      // Even a lost/ambiguous mutation response must reconcile from the
-      // backend. Clearing first prevents old projections/advice from being
-      // presented as current while the authoritative DTO is fetched.
-      await fetchActiveGoals({ clearCurrent: true });
+      updateCouldNotBeConfirmed = true;
+      console.error('Goal update could not be confirmed:', err?.name || 'UnknownError');
+    }
+    // A confirmed same-profile DTO stays visible if the follow-up list read
+    // fails or returns an older version. Ambiguous writes are reconciled with
+    // a fresh read and never treated as confirmed from the submitted values.
+    const refreshed = await fetchActiveGoals({
+      clearCurrent: !committedGoal,
+      preserveCurrentOnFailure: Boolean(committedGoal),
+      committedGoal,
+    });
+    if (updateCouldNotBeConfirmed) {
+      alert(refreshed
+        ? 'The goal update could not be confirmed directly. Saved goals were reloaded; check the current values.'
+        : 'The goal update could not be confirmed and saved goals are unavailable. Retry before relying on displayed values.');
     }
   };
 
   const handleDeleteGoal = async (goalId) => {
     if (!window.confirm("Are you sure you want to delete this goal? This will permanently remove it from your tracker.")) return;
     goalsFetchGeneration.current += 1;
+    let deleteCouldNotBeConfirmed = false;
     try {
       const goal = dbGoals.find(item => String(item._id || item.goalId) === String(goalId));
       const res = await api.deleteGoal(goalId, goal?.version ?? 1);
       if (!res?.deleted) throw new Error('The goal deletion was not confirmed by the server.');
+      pendingCommittedGoals.current.delete(JSON.stringify([String(currentProfileId || ''), String(goalId)]));
     } catch (err) {
-      alert("Failed to delete goal: " + (err.message || "Unknown error"));
-    } finally {
-      await fetchActiveGoals({ clearCurrent: true });
+      deleteCouldNotBeConfirmed = true;
+      console.error('Goal deletion could not be confirmed:', err?.name || 'UnknownError');
+    }
+    const refreshed = await fetchActiveGoals({
+      clearCurrent: true,
+      reconcileDeleteGoalId: deleteCouldNotBeConfirmed ? String(goalId) : null,
+      returnGoalList: true,
+    });
+    if (deleteCouldNotBeConfirmed) {
+      if (!Array.isArray(refreshed?.goals)) {
+        alert('The goal deletion could not be confirmed and saved goals are unavailable. Retry before relying on the displayed list.');
+      } else if (refreshed.goals.some(goal => String(goal?._id || goal?.goalId || '') === String(goalId)
+        && String(goal?.profileId || '') === String(currentProfileId || ''))) {
+        alert('The goal could not be deleted. It remains saved in your tracker.');
+      }
     }
   };
 
@@ -578,12 +675,12 @@ const GoalTracker = ({ profile, onNavigate }) => {
       profileScopeLabel: Boolean(currentProfileId) && String(g.profileId || '') === String(currentProfileId)
         ? 'Current profile'
         : currentProfileId ? 'Earlier profile' : 'Profile not matched',
-      horizon: isFinancialCalculationFresh(g.calculation_freshness) && isPresentFiniteNumber(g.years_remaining)
+      horizon: isGoalCalculationFreshForProfile(g, currentProfileVersion) && isPresentFiniteNumber(g.years_remaining)
         ? Number(g.years_remaining)
         : NaN,
       defaults: getDisplayDefaults(g),
     }));
-  }, [dbGoals, currentProfileId]);
+  }, [dbGoals, currentProfileId, currentProfileVersion]);
 
   const currentProfileGoals = useMemo(() => mappedGoals.filter(goal => goal.isCurrentProfile), [mappedGoals]);
   const historicalGoals = useMemo(() => mappedGoals.filter(goal => !goal.isCurrentProfile), [mappedGoals]);
@@ -593,13 +690,13 @@ const GoalTracker = ({ profile, onNavigate }) => {
     const allocs = {};
 
     currentProfileGoals.forEach(g => {
-      const value = isFinancialCalculationFresh(g.obj?.calculation_freshness) && isPresentFiniteNumber(g.obj?.recommended_sip)
+      const value = isGoalCalculationFreshForProfile(g.obj, currentProfileVersion) && isPresentFiniteNumber(g.obj?.recommended_sip)
         ? Number(g.obj.recommended_sip)
         : NaN;
       allocs[g.name] = Number.isFinite(value) && value >= 0 ? value : null;
     });
     return allocs;
-  }, [currentProfileGoals]);
+  }, [currentProfileGoals, currentProfileVersion]);
 
   // Combined calculations for the HUD
   const totalTarget = useMemo(() => {
@@ -617,33 +714,33 @@ const GoalTracker = ({ profile, onNavigate }) => {
   }, [currentProfileGoals]);
 
   const totalProjected = useMemo(() => {
-    const values = currentProfileGoals.map(g => isFinancialCalculationFresh(g.obj?.calculation_freshness)
+    const values = currentProfileGoals.map(g => isGoalCalculationFreshForProfile(g.obj, currentProfileVersion)
       && isPresentFiniteNumber(g.obj?.monte_carlo_summary?.p50)
       ? Number(g.obj?.monte_carlo_summary?.p50)
       : NaN);
     return values.length > 0 && values.every(value => Number.isFinite(value) && value >= 0)
       ? values.reduce((sum, value) => sum + value, 0)
       : null;
-  }, [currentProfileGoals]);
+  }, [currentProfileGoals, currentProfileVersion]);
 
   const totalMonthlySIP = useMemo(() => {
-    const values = currentProfileGoals.map(g => isFinancialCalculationFresh(g.obj.calculation_freshness) && isPresentFiniteNumber(g.obj.recommended_sip)
+    const values = currentProfileGoals.map(g => isGoalCalculationFreshForProfile(g.obj, currentProfileVersion) && isPresentFiniteNumber(g.obj.recommended_sip)
       ? Number(g.obj.recommended_sip)
       : NaN);
     return values.length > 0 && values.every(value => Number.isFinite(value) && value >= 0)
       ? values.reduce((sum, value) => sum + value, 0)
       : null;
-  }, [currentProfileGoals]);
+  }, [currentProfileGoals, currentProfileVersion]);
 
   // MC projections target inflation-adjusted amounts, so use those for health calculation
   const totalInflationAdjustedTarget = useMemo(() => {
-    const values = currentProfileGoals.map(g => isFinancialCalculationFresh(g.obj.calculation_freshness) && isPresentFiniteNumber(g.obj.inflation_adjusted_target)
+    const values = currentProfileGoals.map(g => isGoalCalculationFreshForProfile(g.obj, currentProfileVersion) && isPresentFiniteNumber(g.obj.inflation_adjusted_target)
       ? Number(g.obj.inflation_adjusted_target)
       : NaN);
     return values.length > 0 && values.every(value => Number.isFinite(value) && value > 0)
       ? values.reduce((sum, value) => sum + value, 0)
       : null;
-  }, [currentProfileGoals]);
+  }, [currentProfileGoals, currentProfileVersion]);
 
   const overallHealth = Number.isFinite(totalProjected) && Number.isFinite(totalInflationAdjustedTarget) && totalInflationAdjustedTarget > 0
     ? Math.min(Math.round((totalProjected / totalInflationAdjustedTarget) * 100), 100)
@@ -664,6 +761,7 @@ const GoalTracker = ({ profile, onNavigate }) => {
       onDeleteGoal={handleDeleteGoal}
       profileScopeLabel={g.profileScopeLabel}
       isEditable={g.isCurrentProfile}
+      profileVersion={currentProfileVersion}
       monthlyAllocation={goalAllocations[g.name]}
       horizon={g.horizon}
       totalSavings={totalSavings}
@@ -700,7 +798,7 @@ const GoalTracker = ({ profile, onNavigate }) => {
       >
         <div className="gt-page-badge">
           <Target size={11} />
-          {showDbGoals ? 'Your Saved Goals' : 'No Custom Goals Yet'}
+          {showDbGoals ? 'Your Saved Goals' : bootstrapResult?.type === 'error' ? 'Goals unavailable' : 'No Custom Goals Yet'}
         </div>
         <h1 className="gt-page-title">My Financial Goals</h1>
         <p className="gt-page-subtitle">
@@ -716,6 +814,7 @@ const GoalTracker = ({ profile, onNavigate }) => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           className="gt-bootstrap-result-banner"
+          role={bootstrapResult.type === 'error' ? 'alert' : undefined}
           style={{
             background: bootstrapResult.type === 'partial' 
               ? 'rgba(245, 158, 11, 0.15)' 
@@ -746,29 +845,48 @@ const GoalTracker = ({ profile, onNavigate }) => {
               {bootstrapResult.message}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setBootstrapResult(null)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              fontSize: '1.2rem',
-              fontWeight: 700,
-              padding: '4px 8px',
-              borderRadius: 8,
-              lineHeight: 1,
-            }}
-            title="Dismiss notification"
-          >
-            ✕
-          </button>
+          {bootstrapResult.type === 'error' && (
+            <button
+              type="button"
+              onClick={() => void fetchActiveGoals({ clearCurrent: true })}
+              style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: 8,
+                color: '#f8fafc',
+                cursor: 'pointer',
+                fontWeight: 700,
+                padding: '8px 12px',
+              }}
+            >
+              Retry
+            </button>
+          )}
+          {bootstrapResult.type !== 'error' && (
+            <button
+              type="button"
+              onClick={() => setBootstrapResult(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                fontWeight: 700,
+                padding: '4px 8px',
+                borderRadius: 8,
+                lineHeight: 1,
+              }}
+              title="Dismiss notification"
+            >
+              ✕
+            </button>
+          )}
         </motion.div>
       )}
 
       {/* Bootstrap Defaults Banner */}
-      {!showDbGoals && (
+      {!showDbGoals && bootstrapResult?.type !== 'error' && (
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -821,7 +939,8 @@ const GoalTracker = ({ profile, onNavigate }) => {
           <span className="goal-overview-value text-gradient-primary">{formatShort(totalTarget)}</span>
           <span className="goal-overview-sub">{currentProfileGoals.length > 0
             ? `Across ${currentProfileGoals.length} current-profile goals`
-            : 'No goals linked to the active profile'}</span>
+            : bootstrapResult?.type === 'error' ? 'Saved goals could not be loaded'
+              : 'No goals linked to the active profile'}</span>
         </div>
         
         <div className="goal-overview-divider"></div>

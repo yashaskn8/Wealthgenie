@@ -175,7 +175,9 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
   // Normalize fields
   const inv = useMemo(() => {
     if (!investment) return {};
-    const lockInCandidate = investment.lock_in_years ?? investment.lockIn;
+    const hasCanonicalLockIn = Object.prototype.hasOwnProperty.call(investment, 'lock_in_years')
+      && investment.lock_in_years !== undefined;
+    const lockInCandidate = hasCanonicalLockIn ? investment.lock_in_years : investment.lockIn;
     const lockInYears = typeof lockInCandidate === 'number'
       && Number.isFinite(lockInCandidate)
       && lockInCandidate >= 0

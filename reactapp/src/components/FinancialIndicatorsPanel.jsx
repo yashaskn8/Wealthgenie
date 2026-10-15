@@ -9,7 +9,7 @@ const INDICATOR_LABELS = new Set([
 ]);
 
 const FinancialIndicatorsPanel = ({ profile }) => {
-  const profileId = profile?.profileId || null;
+  const profileId = profile?.profileId || profile?.profile_id || profile?._id || null;
   const requestKey = JSON.stringify([profileId, profile?.version ?? profile?.profile_version ?? null]);
   const [retryKey, setRetryKey] = useState(0);
   const [request, setRequest] = useState({ profileId: null, indicators: null, error: null });
@@ -17,8 +17,10 @@ const FinancialIndicatorsPanel = ({ profile }) => {
   useEffect(() => {
     if (!profileId) return undefined;
     const controller = new AbortController();
+    let active = true;
     api.getFinancialHealthScore(profileId, { signal: controller.signal })
       .then(data => {
+        if (!active || controller.signal.aborted) return;
         if (!Array.isArray(data?.sub_scores)) {
           throw new TypeError('The financial indicator service returned an incomplete response.');
         }
@@ -28,11 +30,15 @@ const FinancialIndicatorsPanel = ({ profile }) => {
         setRequest({ profileId: requestKey, indicators, error: null });
       })
       .catch(error => {
-        if (error?.code !== 'REQUEST_ABORTED' && error?.name !== 'AbortError') {
+        if (active && !controller.signal.aborted
+            && error?.code !== 'REQUEST_ABORTED' && error?.name !== 'AbortError') {
           setRequest({ profileId: requestKey, indicators: null, error: error?.message || 'Financial indicators are unavailable.' });
         }
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [profileId, requestKey, retryKey]);
 
   const currentRequest = request.profileId === requestKey ? request : null;

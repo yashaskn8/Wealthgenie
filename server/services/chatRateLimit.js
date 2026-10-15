@@ -5,16 +5,16 @@ const MAX_LOCAL_RATE_LIMIT_USERS = 10_000;
 const localChatRateLimits = new Map();
 const INCREMENT_CHAT_QUOTA_SCRIPT = `
 local count = tonumber(redis.call('INCR', KEYS[1]))
-local ttl = tonumber(redis.call('TTL', KEYS[1]))
-if count == 1 or ttl < 0 then
-  if redis.call('EXPIRE', KEYS[1], ARGV[1]) ~= 1 then return { 0, -2 } end
-  ttl = tonumber(redis.call('TTL', KEYS[1]))
+local ttlMs = tonumber(redis.call('PTTL', KEYS[1]))
+if count == 1 or ttlMs < 0 then
+  if redis.call('PEXPIRE', KEYS[1], ARGV[1]) ~= 1 then return { 0, -2 } end
+  ttlMs = tonumber(redis.call('PTTL', KEYS[1]))
 end
-return { count, ttl }
+return { count, ttlMs }
 `;
 
-function resetAtFromTtl(currentTime, ttl) {
-  const resetAt = Number(currentTime) + (Number(ttl) * 1000);
+function resetAtFromTtlMs(currentTime, ttlMs) {
+  const resetAt = Number(currentTime) + Number(ttlMs);
   if (!Number.isFinite(resetAt) || Number.isNaN(new Date(resetAt).getTime())) {
     throw quotaUnavailableError();
   }
@@ -51,23 +51,23 @@ export async function checkChatRateLimit(userId, {
     try {
       const quota = await redisState.client.eval(INCREMENT_CHAT_QUOTA_SCRIPT, {
         keys: [key],
-        arguments: [String(CHAT_RATE_LIMIT_WINDOW_SECONDS)],
+        arguments: [String(CHAT_RATE_LIMIT_WINDOW_SECONDS * 1000)],
       });
       const count = Array.isArray(quota) ? Number(quota[0]) : NaN;
-      const ttl = Array.isArray(quota) ? Number(quota[1]) : NaN;
-      if (!Number.isSafeInteger(count) || count < 1 || !Number.isSafeInteger(ttl) || ttl < 0) {
+      const ttlMs = Array.isArray(quota) ? Number(quota[1]) : NaN;
+      if (!Number.isSafeInteger(count) || count < 1 || !Number.isSafeInteger(ttlMs) || ttlMs < 0) {
         throw new Error('Invalid chat quota counter response.');
       }
       if (count > CHAT_RATE_LIMIT) {
-        const retryAfterSeconds = Math.max(1, ttl);
+        const retryAfterSeconds = Math.max(1, Math.ceil(ttlMs / 1000));
         return {
           allowed: false,
           count,
           ttl: retryAfterSeconds,
-          resetAt: resetAtFromTtl(now(), retryAfterSeconds),
+          resetAt: resetAtFromTtlMs(now(), ttlMs),
         };
       }
-      return { allowed: true, count, resetAt: resetAtFromTtl(now(), ttl) };
+      return { allowed: true, count, resetAt: resetAtFromTtlMs(now(), ttlMs) };
     } catch {
       if (requiresSharedQuota) throw quotaUnavailableError();
     }

@@ -459,6 +459,20 @@ test('POST /api/goals/:goalId/simulate returns a schema-valid deterministic what
     });
     assert.equal(created.response.status, 201, JSON.stringify(created.body));
     const goalId = String(created.body.goal._id);
+    const goalBeforeSimulation = await Goal.findById(goalId).lean();
+
+    for (const monthlyContribution of [0, -1, 10000001, null, '10000']) {
+      const invalidSimulation = await jsonRequest(`${baseUrl}/api/goals/${goalId}/simulate`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+        body: JSON.stringify({ monthly_contribution: monthlyContribution }),
+      });
+      assert.equal(invalidSimulation.response.status, 400, JSON.stringify(invalidSimulation.body));
+    }
+
+    const goalAfterInvalidSimulations = await Goal.findById(goalId).lean();
+    assert.equal(goalAfterInvalidSimulations.version, goalBeforeSimulation.version);
+    assert.equal(goalAfterInvalidSimulations.updatedAt.getTime(), goalBeforeSimulation.updatedAt.getTime());
 
     const simulated = await jsonRequest(`${baseUrl}/api/goals/${goalId}/simulate`, {
       method: 'POST',
@@ -472,6 +486,15 @@ test('POST /api/goals/:goalId/simulate returns a schema-valid deterministic what
     });
     assert.equal(simulated.body.simulation_classification, 'NON_RECOMMENDATION_GOAL_WHAT_IF');
     assert.equal(simulated.body.provider_forecast, false);
+    assert.equal(simulated.body.goal_version, created.body.goal.version);
+    assert.match(simulated.body.goal_calculation_input_fingerprint, /^[a-f0-9]{64}$/);
+    const goalAfterValidSimulation = await Goal.findById(goalId).lean();
+    assert.equal(goalAfterValidSimulation.version, goalBeforeSimulation.version);
+    assert.equal(goalAfterValidSimulation.target_amount, goalBeforeSimulation.target_amount);
+    assert.equal(goalAfterValidSimulation.current_savings, goalBeforeSimulation.current_savings);
+    assert.equal(goalAfterValidSimulation.recommended_sip, goalBeforeSimulation.recommended_sip);
+    assert.equal(goalAfterValidSimulation.mc_computed_at.getTime(), goalBeforeSimulation.mc_computed_at.getTime());
+    assert.equal(goalAfterValidSimulation.updatedAt.getTime(), goalBeforeSimulation.updatedAt.getTime());
   });
 });
 

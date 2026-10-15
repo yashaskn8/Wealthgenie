@@ -6,6 +6,7 @@ import { ShieldCheck, Calculator, Wallet, Receipt, Percent, PiggyBank, TrendingD
 import JargonTooltip from './JargonTooltip';
 import api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
+import { assertTaxComparisonResponse } from '../utils/taxResponseIntegrity';
 import './TaxScreen.css';
 
 const MAX_ANNUAL_INCOME = 1_000_000_000;
@@ -14,6 +15,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
   const [annualIncome, setAnnualIncome] = useState(null);
   const [incomeSource, setIncomeSource] = useState('');
   const [fiscalYear, setFiscalYear] = useState('');
+  const [taxYearAge, setTaxYearAge] = useState('');
   const [regime, setRegime] = useState('');
   const [existing80C, setExisting80C] = useState('');
   const [existing80CCD, setExisting80CCD] = useState('');
@@ -26,9 +28,10 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
 
   // Server state tracking
   const taxInputKey = JSON.stringify([
+    profile?.profileId, profile?._id, profile?.version, profile?.age,
     annualIncome, fiscalYear, incomeSource, existing80C, existing80CCD,
     existingHRA, existingHomeLoan, existing80DSelf, existing80DParents,
-    parentsSenior, profile?.age,
+    parentsSenior, taxYearAge,
   ]);
   const [serverTaxResult, setServerTaxResult] = useState(null);
   const serverTaxData = serverTaxResult?.inputKey === taxInputKey ? serverTaxResult.data : null;
@@ -43,10 +46,14 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
   const annualIncomeIsValid = normalizedAnnualIncome !== null
     && normalizedAnnualIncome >= 0
     && normalizedAnnualIncome <= MAX_ANNUAL_INCOME;
-  const ageValue = isPresentFiniteNumber(profile?.age) ? Number(profile.age) : null;
+  const ageValue = isPresentFiniteNumber(taxYearAge) ? Number(taxYearAge) : null;
   const ageIsValid = Number.isInteger(ageValue) && ageValue >= 18 && ageValue <= 120;
   const verifiedFiscalYears = taxPolicyMetadata?.verifiedFiscalYears || [];
   const fiscalYearIsVerified = taxPolicyStatus === 'ready' && verifiedFiscalYears.includes(fiscalYear);
+
+  useEffect(() => {
+    setTaxYearAge('');
+  }, [profile?.profileId, profile?._id, profile?.version, profile?.age]);
 
   useEffect(() => {
     if (typeof api.getTaxPolicyMetadata !== 'function') {
@@ -71,8 +78,10 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             ? metadata.currentFiscalYear
             : ''));
       })
-      .catch(error => {
-        if (controller.signal.aborted || error?.code === 'REQUEST_ABORTED') return;
+      .catch(() => {
+        // Auth refreshes can reject with REQUEST_ABORTED without aborting this
+        // effect's controller. Only cleanup aborts should suppress the retry UI.
+        if (controller.signal.aborted) return;
         setTaxPolicyMetadata(null);
         setFiscalYear('');
         setTaxPolicyStatus('failed');
@@ -103,11 +112,15 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
           section80D_self: existing80DSelf === '' ? 0 : Number(existing80DSelf),
           section80D_parents: existing80DParents === '' ? 0 : Number(existing80DParents),
           parents_senior: existing80DParents === '' ? undefined : parentsSenior,
-          age: profile?.age,
+          age: ageValue,
           incomeSource,
           fiscalYear,
         };
         const response = await api.compareTax(normalizedAnnualIncome, payload, { signal: controller.signal });
+        assertTaxComparisonResponse(response, {
+          annualIncome: normalizedAnnualIncome, incomeSource, fiscalYear,
+          deductions: Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'incomeSource' && key !== 'fiscalYear')),
+        });
         if (active) {
           setServerTaxResult({ inputKey: taxInputKey, data: response });
           setApiError(null);
@@ -130,7 +143,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [annualIncomeIsValid, ageIsValid, normalizedAnnualIncome, fiscalYearIsVerified, fiscalYear, incomeSource, existing80C, existing80CCD, existingHRA, existingHomeLoan, existing80DSelf, existing80DParents, parentsSenior, profile?.age, taxInputKey]);
+  }, [annualIncomeIsValid, ageIsValid, ageValue, normalizedAnnualIncome, fiscalYearIsVerified, fiscalYear, incomeSource, existing80C, existing80CCD, existingHRA, existingHomeLoan, existing80DSelf, existing80DParents, parentsSenior, taxInputKey]);
 
   const section80CLimit = serverTaxData?.deduction_limits?.section80C ?? null;
   const section80CCDLimit = serverTaxData?.deduction_limits?.section80CCD1B ?? null;
@@ -143,14 +156,20 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
     return recommendations
       .filter(item => item.goalTags?.includes('Tax Saving'))
       .map(item => {
+        const monthlyAllocation = isPresentFiniteNumber(item.monthly_allocation)
+          ? Number(item.monthly_allocation)
+          : null;
+        const nominalReturn = isPresentFiniteNumber(item.nominalReturn)
+          ? Number(item.nominalReturn)
+          : null;
         return {
           ...item,
           taxClassification: item.taxClassification?.dataClass === 'VERIFIED_PRODUCT_FACT'
             ? item.taxClassification
             : null,
-          suggestedAmount: Number(item.monthly_allocation) * 12,
-          expected_return_min: Number(item.nominalReturn),
-          expected_return_max: Number(item.nominalReturn),
+          suggestedAmount: monthlyAllocation === null ? null : monthlyAllocation * 12,
+          expected_return_min: nominalReturn,
+          expected_return_max: nominalReturn,
         };
       });
   }, [recommendations]);
@@ -270,7 +289,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             ) : !incomeSource || !fiscalYearIsVerified ? (
               <span>Select your income source and a verified fiscal year below to run a server-verified tax comparison.</span>
             ) : !ageIsValid ? (
-              <span>Your age is required to compare both tax regimes. Add a valid age to your Financial Profile.</span>
+              <span>Enter your age on March 31 of the selected fiscal year. The saved profile age is not substituted.</span>
             ) : apiError ? (
               <span>Authoritative tax results are unavailable. No local fallback calculation is being shown.</span>
             ) : !serverTaxData ? (
@@ -414,6 +433,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             disabled={taxPolicyStatus !== 'ready'}
             onChange={(event) => {
               setFiscalYear(event.target.value);
+              setTaxYearAge('');
               if (!event.target.value) setServerTaxResult(null);
             }}
             aria-label="Fiscal year for tax calculation"
@@ -423,6 +443,25 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
+          <label className="tax-input-label" htmlFor="tax-year-age" style={{ marginTop: 12 }}>
+            Age on March 31 of selected fiscal year
+          </label>
+          <input
+            id="tax-year-age"
+            className="tax-input"
+            type="number"
+            min="18"
+            max="120"
+            step="1"
+            inputMode="numeric"
+            value={taxYearAge}
+            onChange={event => setTaxYearAge(event.target.value)}
+            aria-label="Age on March 31 of selected fiscal year"
+            aria-describedby="tax-year-age-help"
+          />
+          <div id="tax-year-age-help" className="tax-income-sub">
+            Enter your age on March 31 of this fiscal year. Your saved profile age is not substituted.
+          </div>
           {taxPolicyStatus === 'loading' && <div role="status">Loading verified tax years…</div>}
           {taxPolicyError && (
             <div role="alert" className="tax-offline-notice">
@@ -1005,7 +1044,9 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
                     <div className="tax-rec-stat">
                       <span className="tax-rec-stat-label">Pre-tax Nominal Assumption</span>
                       <span className="tax-rec-stat-value text-green">
-                        {Number(rec.expected_return_min).toFixed(1)}% pre-tax nominal
+                        {isPresentFiniteNumber(rec.expected_return_min)
+                          ? `${Number(rec.expected_return_min).toFixed(1)}% pre-tax nominal`
+                          : 'Unavailable'}
                       </span>
                     </div>
                   </div>

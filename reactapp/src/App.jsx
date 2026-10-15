@@ -177,7 +177,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
     setSearchParams(toSearchParams(resolved), options);
   };
 
-  const [deepDiveInvestment, setDeepDiveInvestment] = useState(null);
+  const [deepDiveSelection, setDeepDiveSelection] = useState(null);
   const [deepDiveInitialTab, setDeepDiveInitialTab] = useState('Overview');
   const [showComparisonTable, setShowComparisonTable] = useState(false);
   const [backendRecs, setBackendRecs] = useState(null);
@@ -195,6 +195,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
   const profileKey = useMemo(() => financialProfileKey(userProfile), [userProfile]);
   const profileId = userProfile.profileId;
   const profileVersion = Number(userProfile.version ?? 1);
+  const currentProfileIdentity = profileOperationIdentity({ profileId, profileVersion, profileKey });
   const activeProfileRef = useRef({ profileId, profileVersion, profileKey });
   activeProfileRef.current = { profileId, profileVersion, profileKey };
 
@@ -416,6 +417,38 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
       && matchesProfileState(backendRecs, userProfile)
     ? backendRecs
     : null;
+  const currentFinancialStateIdentity = currentRecommendationState
+    ? JSON.stringify([
+      currentRecommendationState.profileId,
+      currentRecommendationState.profile_version,
+      currentRecommendationState.state_provenance?.stateId,
+      currentRecommendationState.recommendationId,
+      currentRecommendationState.allocation_revision,
+      currentRecommendationState.allocation_revision_id,
+      currentRecommendationState.profile_input_hash,
+      currentRecommendationState.portfolio_fingerprint,
+      currentRecommendationState.recommendation_fingerprint,
+    ])
+    : null;
+  const deepDiveInvestment = deepDiveSelection?.profileIdentity === currentProfileIdentity
+      && deepDiveSelection?.financialStateIdentity === currentFinancialStateIdentity
+    ? deepDiveSelection.investment
+    : null;
+  const setDeepDiveInvestment = (investment) => {
+    setDeepDiveSelection(investment && currentFinancialStateIdentity
+      ? {
+        investment,
+        profileIdentity: currentProfileIdentity,
+        financialStateIdentity: currentFinancialStateIdentity,
+      }
+      : null);
+  };
+  useEffect(() => {
+    if (deepDiveSelection && (deepDiveSelection.profileIdentity !== currentProfileIdentity
+        || deepDiveSelection.financialStateIdentity !== currentFinancialStateIdentity)) {
+      setDeepDiveSelection(null);
+    }
+  }, [deepDiveSelection, currentProfileIdentity, currentFinancialStateIdentity]);
 
   const recommendations = useMemo(() => {
     if (!backendRecs) return [];
@@ -497,7 +530,11 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
     setDeepDiveInvestment(investment);
   };
 
-  const handleRebalanceSave = async (updated) => {
+  const handleRebalanceSave = async (updated, expectedFinancialStateIdentity) => {
+    if (expectedFinancialStateIdentity !== currentFinancialStateIdentity) {
+      alert('Your portfolio changed since this page was loaded. Refresh before saving this rebalance.');
+      return;
+    }
     const predecessor = backendRecsRef.current;
     const token = beginOperation();
     // The prior advisory request is bound to the predecessor state and has
@@ -703,6 +740,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
 
   const handleProfileChangeStart = () => {
     invalidateOperations();
+    setDeepDiveSelection(null);
     writeBackendRecs(null);
     // Keep personalized chat history/session binding paused until this profile
     // edit is either confirmed or its canonical recommendation is restored.
@@ -805,6 +843,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
               onTabChange={(newTab) => navigateTo({ page: NAV_PAGES.PROGRESS, tab: newTab })}
               profile={userProfile}
               financialState={currentRecommendationState}
+              financialStateIdentity={currentFinancialStateIdentity}
               recommendations={recommendations}
               onNavigate={navigateTo}
               onSaveRebalance={handleRebalanceSave}

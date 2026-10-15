@@ -148,6 +148,7 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
   const profileKeyRef = useRef(profileKey);
   const profileEpochRef = useRef(0);
   const [goals, setGoals] = useState([]);
+  const [goalListState, setGoalListState] = useState({ profileKey: null, status: 'loading' });
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState(null);
@@ -183,6 +184,9 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
   const currentGoals = presentedGoals;
   const displayedSelectedGoalId = selectedGoal?._id || selectedGoal?.goalId;
   const displayedSelectedGoal = presentedGoals.find(goal => String(goal._id || goal.goalId) === String(displayedSelectedGoalId)) || null;
+  const currentGoalListState = goalListState.profileKey === profileKey
+    ? goalListState
+    : { profileKey, status: 'loading' };
 
   const fetchGoals = useCallback(async () => {
     const operation = beginProfileOperation();
@@ -190,15 +194,21 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
       setGoals([]);
       setSelectedGoal(null);
       setSimulatedSips({});
-      return;
+      setGoalListState({ profileKey: operation.profileKey, status: 'unavailable' });
+      return false;
     }
     const generation = ++goalsFetchGeneration.current;
+    setGoalListState({ profileKey: operation.profileKey, status: 'loading' });
     try {
       const res = await api.getGoals();
-      if (generation !== goalsFetchGeneration.current || !isProfileOperationCurrent(operation)) return;
-      const nextGoals = (Array.isArray(res?.goals) ? res.goals : [])
+      if (generation !== goalsFetchGeneration.current || !isProfileOperationCurrent(operation)) return false;
+      if (!Array.isArray(res?.goals)) {
+        throw new Error('The goals response did not match the expected shape.');
+      }
+      const nextGoals = res.goals
         .filter(goal => String(goal?.profileId || '') === currentProfileId);
       setGoals(nextGoals);
+      setGoalListState({ profileKey: operation.profileKey, status: 'ready' });
       setGoalSimulations({});
       setSimulationError(null);
       setSimulatedSips(Object.fromEntries(nextGoals.map(goal => [
@@ -214,17 +224,61 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
           || nextGoals[0]
           || null;
       });
+      return true;
     } catch (err) {
       console.error('Failed to fetch goals:', err);
-      if (generation !== goalsFetchGeneration.current || !isProfileOperationCurrent(operation)) return;
+      if (generation !== goalsFetchGeneration.current || !isProfileOperationCurrent(operation)) return false;
       // A failed refresh cannot leave an earlier profile/allocation's
       // personalized calculations visible as if they were still current.
       setGoals([]);
       setSelectedGoal(null);
       setSimulatedSips({});
       setGoalSimulations({});
+      setGoalListState({ profileKey: operation.profileKey, status: 'error' });
+      return false;
     }
   }, [beginProfileOperation, currentProfileId, financialProfileBinding, isProfileOperationCurrent]);
+
+  const refreshGoalsAfterCommittedUpdate = useCallback(async (operation, committedGoal) => {
+    const goalId = committedGoal?._id || committedGoal?.goalId;
+    try {
+      const freshList = await api.getGoals();
+      if (!isProfileOperationCurrent(operation)) return;
+      if (!Array.isArray(freshList?.goals)) throw new Error('Malformed goal list');
+
+      const nextGoals = freshList.goals
+        .filter(goal => String(goal?.profileId || '') === currentProfileId);
+      const refreshedGoal = nextGoals.find(goal => String(goal?._id || goal?.goalId || '') === String(goalId || ''));
+      if (!refreshedGoal) throw new Error('Committed goal missing from refreshed list');
+
+      const committedVersion = committedGoal?.version;
+      const refreshedVersion = refreshedGoal?.version;
+      if (!Number.isSafeInteger(committedVersion) || committedVersion < 1
+        || !Number.isSafeInteger(refreshedVersion) || refreshedVersion < committedVersion) {
+        throw new Error('Refreshed goal is older than the committed update');
+      }
+
+      setGoals(nextGoals);
+      setGoalSimulations({});
+      setSimulationError(null);
+      setSimulatedSips(Object.fromEntries(nextGoals.map(goal => [
+        goal._id || goal.goalId,
+        isGoalFreshForState(goal, financialProfileBinding, financialStateRef.current)
+          && isPresentFiniteNumber(goal.simulated_monthly_contribution)
+          ? Number(goal.simulated_monthly_contribution)
+          : null,
+      ])));
+      setSelectedGoal(nextGoals.find(goal => String(goal._id || goal.goalId) === String(goalId))
+        || nextGoals[0]
+        || null);
+      setGoalListState({ profileKey: operation.profileKey, status: 'ready' });
+    } catch {
+      if (!isProfileOperationCurrent(operation)) return;
+      // The mutation response is already confirmed and remains visible. A
+      // failed read must not turn that committed update into an empty list.
+      setGoalListState({ profileKey: operation.profileKey, status: 'refresh_error' });
+    }
+  }, [currentProfileId, financialProfileBinding, isProfileOperationCurrent]);
 
   useEffect(() => {
     goalsFetchGeneration.current += 1;
@@ -298,7 +352,17 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
       setSimulationError(null);
       api.simulateGoal(selectedGoalId, selectedSip, { signal: controller.signal })
         .then(result => {
-          if (!cancelled && isProfileOperationCurrent(operation)) setGoalSimulations(prev => ({ ...prev, [selectedGoalId]: result }));
+          if (!cancelled && isProfileOperationCurrent(operation)) {
+            const expectedFingerprint = displayedSelectedGoal.source_provenance?.goalCalculationInputFingerprint;
+            const resultIsBound = Number(result?.goal_version) === Number(displayedSelectedGoal.version)
+              && typeof expectedFingerprint === 'string'
+              && result?.goal_calculation_input_fingerprint === expectedFingerprint;
+            if (!resultIsBound) {
+              setSimulationError('This goal changed while the what-if calculation was running. Refresh the goal and try again.');
+              return;
+            }
+            setGoalSimulations(prev => ({ ...prev, [selectedGoalId]: result }));
+          }
         })
         .catch(error => {
           if (!cancelled && isProfileOperationCurrent(operation) && error.code !== 'REQUEST_ABORTED') setSimulationError(error.message);
@@ -320,7 +384,7 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
     try {
       const res = await submitGoal(api, {
         ...goalData,
-        profileId: profile?.profileId || profile?._id,
+        profileId: currentProfileId,
       });
 
       if (!isProfileOperationCurrent(operation)) return;
@@ -416,37 +480,37 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
         current_savings: updates.currentSavings
       });
       if (!isProfileOperationCurrent(operation)) return;
-      if (res.goal) {
-        if (String(res.goal.profileId || '') !== currentProfileId) return;
-        setGoals(previous => previous.map(goal => (
-          (goal._id === gid || goal.goalId === gid) ? res.goal : goal
-        )));
-        setSelectedGoal(res.goal);
-        setGoalSimulations({});
-        setSimulationError(null);
-        const freshList = await api.getGoals();
-        if (!isProfileOperationCurrent(operation)) return;
-        const nextGoals = (Array.isArray(freshList?.goals) ? freshList.goals : [])
-          .filter(goal => String(goal?.profileId || '') === currentProfileId);
-        setGoals(nextGoals);
-        setSimulatedSips(Object.fromEntries(nextGoals.map(goal => [
-          goal._id || goal.goalId,
-          isGoalFreshForState(goal, financialProfileBinding, financialState)
-            && isPresentFiniteNumber(goal.simulated_monthly_contribution)
-            ? Number(goal.simulated_monthly_contribution)
-            : null,
-        ])));
-        setSelectedGoal(nextGoals.find(goal => (goal._id || goal.goalId) === gid)
-          || nextGoals[0]
-          || null);
+      if (!res?.success || !res.goal) throw new Error('The server did not confirm the goal update.');
+      const responseGoalId = String(res.goal._id || res.goal.goalId || '');
+      const responseVersion = res.goal.version;
+      if (responseGoalId !== String(gid)
+        || String(res.goal.profileId || '') !== String(currentProfileId || '')
+        || !Number.isSafeInteger(responseVersion) || responseVersion < 1) {
+        throw new Error('The server returned an invalid committed goal.');
       }
-    } catch (err) {
-      if (!isProfileOperationCurrent(operation)) return;
-      alert('Failed to update goal settings: ' + err.message);
-      setGoals([]);
-      setSelectedGoal(null);
-      setSimulatedSips({});
+      setGoals(previous => previous.some(goal => String(goal._id || goal.goalId) === String(gid))
+        ? previous.map(goal => (String(goal._id || goal.goalId) === String(gid) ? res.goal : goal))
+        : [...previous, res.goal]);
+      setSelectedGoal(res.goal);
       setGoalSimulations({});
+      setSimulationError(null);
+      setSimulatedSips(previous => ({
+        ...previous,
+        [gid]: isGoalFreshForState(res.goal, financialProfileBinding, financialState)
+          && isPresentFiniteNumber(res.goal.simulated_monthly_contribution)
+          ? Number(res.goal.simulated_monthly_contribution)
+          : null,
+      }));
+      await refreshGoalsAfterCommittedUpdate(operation, res.goal);
+    } catch {
+      if (!isProfileOperationCurrent(operation)) return;
+      // A failed/ambiguous mutation response may follow a server-side commit.
+      // Reconcile from the authoritative list before reporting that outcome.
+      const reloaded = await fetchGoals();
+      if (!isProfileOperationCurrent(operation)) return;
+      alert(reloaded
+        ? 'The goal update could not be confirmed directly. Saved goals were reloaded; check the current values.'
+        : 'The goal update could not be confirmed and saved goals are unavailable. Retry before relying on displayed values.');
     }
   };
 
@@ -681,8 +745,34 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
             )}
           </AnimatePresence>
 
+          {currentGoalListState.status === 'refresh_error' && (
+            <div role="alert">
+              <p>Your goal update was saved. The confirmed changes are shown, but the latest goal list could not be refreshed.</p>
+              <button
+                type="button"
+                onClick={() => displayedSelectedGoal
+                  && void refreshGoalsAfterCommittedUpdate(beginProfileOperation(), displayedSelectedGoal)}
+                disabled={!displayedSelectedGoal}
+              >
+                Retry goal refresh
+              </button>
+            </div>
+          )}
+
           {/* Goal Cards */}
-          {currentGoals.length === 0 && !showForm && (
+          {currentGoals.length === 0 && !showForm && currentGoalListState.status === 'loading' && (
+            <p role="status" aria-live="polite">Loading saved goals…</p>
+          )}
+          {currentGoals.length === 0 && !showForm && currentGoalListState.status === 'error' && (
+            <div role="alert">
+              <p>Your goals could not be loaded. Retry to check again.</p>
+              <button type="button" onClick={() => void fetchGoals()}>Retry</button>
+            </div>
+          )}
+          {currentGoals.length === 0 && !showForm && currentGoalListState.status === 'unavailable' && (
+            <p role="status">Save a Financial Profile to plan goals.</p>
+          )}
+          {currentGoals.length === 0 && !showForm && currentGoalListState.status === 'ready' && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -900,7 +990,17 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
           <GoalDetailPane 
             selectedGoal={displayedSelectedGoal}
             simulatedSips={simulatedSips}
-            onChangeSimulatedSip={(val) => setSimulatedSips(prev => ({ ...prev, [displayedSelectedGoal._id || displayedSelectedGoal.goalId]: val }))}
+            onChangeSimulatedSip={val => {
+              const goalId = displayedSelectedGoal._id || displayedSelectedGoal.goalId;
+              setSimulatedSips(prev => ({ ...prev, [goalId]: val }));
+              setGoalSimulations(prev => {
+                if (!prev[goalId]) return prev;
+                const next = { ...prev };
+                delete next[goalId];
+                return next;
+              });
+              setSimulationError(null);
+            }}
             onPriorityChange={handlePriorityChange}
             onSaveGoalUpdates={handleSaveGoalUpdates}
             getLiveProbability={getLiveProbability}

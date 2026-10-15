@@ -17,6 +17,7 @@ When MONGODB_URI is absent (local dev):
 
 import logging
 import os
+from environment_policy import configured_environment_mode
 
 logger = logging.getLogger("wealthgenie.store_factory")
 
@@ -26,7 +27,7 @@ class SharedStateInitializationError(RuntimeError):
 
 
 def _environment() -> str:
-    return os.environ.get("ENVIRONMENT", "local").strip().lower()
+    return configured_environment_mode(os.environ) or "local"
 
 
 def _state_backend() -> str:
