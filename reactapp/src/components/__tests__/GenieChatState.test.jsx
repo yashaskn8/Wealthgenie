@@ -144,9 +144,12 @@ describe('GenieChat persisted conversation state', () => {
       render(<GenieChat profile={profile} recommendations={recommendations} recommendationMeta={{ ...baseMeta, ...change }} recommendationContextReady />);
       fireEvent.click(screen.getByRole('button', { name: 'Genie AI' }));
 
-      await waitFor(() => expect(sessionStorage.getItem('genie_session_id')).not.toBe(oldSessionId));
+      await waitFor(() => {
+        const currentSessionId = sessionStorage.getItem('genie_session_id');
+        expect(currentSessionId).not.toBe(oldSessionId);
+        expect(history).toHaveBeenLastCalledWith(currentSessionId);
+      });
       expect(history).not.toHaveBeenCalledWith(oldSessionId);
-      expect(history).toHaveBeenLastCalledWith(sessionStorage.getItem('genie_session_id'));
     }
   });
   it('shows a retryable error when history cannot be loaded', async () => {

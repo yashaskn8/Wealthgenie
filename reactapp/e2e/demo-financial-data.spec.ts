@@ -84,10 +84,26 @@ async function screenshots(page: Page, info: TestInfo, name: string, assertRende
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await assertRendered();
-    const overflow = await page.locator('.ddm-content, .ddm-sticky-header, .ddm-scroll-container, .wti-beginner-market-card, .pta-root, .pta-table-scroll').evaluateAll(elements => elements
+    const overflow = await page.locator('.ddm-content, .ddm-sticky-header, .ddm-scroll-container, .wti-beginner-market-card, .pta-root').evaluateAll(elements => elements
       .filter(element => element.scrollWidth > element.clientWidth + 2)
       .map(element => ({ className: element.className, width: element.clientWidth, content: element.scrollWidth })));
-    expect(overflow, 'critical demo containers must not clip horizontally').toEqual([]);
+    expect(overflow, 'non-scrollable demo containers must not clip horizontally').toEqual([]);
+    const tableScrollers = await page.locator('.pta-table-scroll').evaluateAll(elements => elements.map(element => {
+      const bounds = element.getBoundingClientRect();
+      const rootBounds = element.closest('.pta-root')?.getBoundingClientRect();
+      return {
+        overflowX: getComputedStyle(element).overflowX,
+        keyboardAccessible: element.getAttribute('tabindex') === '0',
+        containedByRoot: Boolean(rootBounds
+          && bounds.left >= rootBounds.left - 2
+          && bounds.right <= rootBounds.right + 2),
+      };
+    }));
+    for (const scroller of tableScrollers) {
+      expect(scroller, 'post-tax table overflow must stay in its keyboard-accessible scroll region').toEqual({
+        overflowX: 'auto', keyboardAccessible: true, containedByRoot: true,
+      });
+    }
     await page.screenshot({ path: info.outputPath(`${name}-${viewport.width}x${viewport.height}.png`), fullPage: false });
   }
   await page.setViewportSize(VIEWPORTS[0]);
