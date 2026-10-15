@@ -640,10 +640,13 @@ jobs:
           echo "- **Deep Health Probe (/health/deep)**: \`$DEEP_RES\`" >> $GITHUB_STEP_SUMMARY
 
           echo "4. Testing Business Endpoint /api/tax/compare..."
-          TAX_URL="http://127.0.0.1:5000/api/tax/compare?income=1200000&incomeSource=salary&fiscalYear=FY2026-27&age=30"
-          if ! TAX_RES=$(curl --silent --show-error --fail --connect-timeout 5 --max-time 10 "$TAX_URL"); then
+          TAX_URL="http://127.0.0.1:5000/api/tax/compare"
+          TAX_BODY='{"income":1200000,"incomeSource":"salary","fiscalYear":"FY2026-27","age":30}'
+          if ! TAX_RES=$(curl --silent --show-error --fail --connect-timeout 5 --max-time 10 \
+            --request POST --header 'Content-Type: application/json' --data "$TAX_BODY" "$TAX_URL"); then
             echo "ERROR: tax compare smoke request failed: $TAX_URL"
-            curl --silent --show-error --connect-timeout 5 --max-time 10 "$TAX_URL" || true
+            curl --silent --show-error --connect-timeout 5 --max-time 10 \
+              --request POST --header 'Content-Type: application/json' --data "$TAX_BODY" "$TAX_URL" || true
             print_server_diagnostics
             exit 1
           fi
@@ -763,15 +766,17 @@ jobs:
           done
           echo "Initial server metrics: $SERVER_METRICS"
 
-          LOAD_URL="http://127.0.0.1:5000/api/tax/compare?income=1200000&incomeSource=salary&fiscalYear=FY2026-27&age=30"
-          if ! curl --fail --silent --connect-timeout 5 --max-time 10 "$LOAD_URL" > /dev/null; then
+          LOAD_URL="http://127.0.0.1:5000/api/tax/compare"
+          TAX_BODY='{"income":1200000,"incomeSource":"salary","fiscalYear":"FY2026-27","age":30}'
+          if ! curl --fail --silent --connect-timeout 5 --max-time 10 \
+            --request POST --header 'Content-Type: application/json' --data "$TAX_BODY" "$LOAD_URL" > /dev/null; then
             echo "ERROR: valid HPA load probe failed: $LOAD_URL"
             cat hpa-port-forward.log || true
             exit 1
           fi
 
           echo "Generating 15s synthetic compute load against cluster..."
-          npx autocannon -c 40 -d 15 "$LOAD_URL"
+          npm exec --prefix server -- autocannon -c 40 -d 15 -m POST -H 'content-type=application/json' -b "$TAX_BODY" "$LOAD_URL"
 
           HPA_TARGET=$(kubectl get hpa wealthgenie-server-hpa -n wealthgenie -o jsonpath='{.spec.metrics[0].resource.target.averageUtilization}')
           HPA_CURRENT=""

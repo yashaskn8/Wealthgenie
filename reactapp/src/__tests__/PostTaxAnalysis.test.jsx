@@ -16,11 +16,30 @@ vi.mock('../services/api', () => ({
 
 const demoProfile = { profileId: 'profile-a', version: 1, age: 30, investment_horizon_years: 3 };
 const demoRecommendations = [{ id: 'fd', name: 'Fixed Deposit', type: 'FD', nominalReturn: 7, monthly_allocation: 10000 }];
+const calculatedSipReturnMetrics = {
+  basis: 'MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE',
+  status: 'CALCULATED',
+  unavailableReason: null,
+  preTaxAnnualizedReturnPercent: 7.25,
+  postTaxAnnualizedReturnPercent: 7,
+  realPostTaxAnnualizedReturnPercent: 0.9434,
+  taxDragAnnualizedPercentagePoints: 0.25,
+};
+const unavailableSipReturnMetrics = (unavailableReason = 'PROJECTION_UNAVAILABLE') => ({
+  basis: 'MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE',
+  status: 'UNAVAILABLE',
+  unavailableReason,
+  preTaxAnnualizedReturnPercent: null,
+  postTaxAnnualizedReturnPercent: null,
+  realPostTaxAnnualizedReturnPercent: null,
+  taxDragAnnualizedPercentagePoints: null,
+});
 const calculated = {
   portfolioStatus: 'COMPLETE', assumptions: { inflationRate: 0.06 },
   results: [{ instrumentType: 'FD', status: 'CALCULATED', taxType: 'Slab Rate', nominalReturnPercent: 7,
     postTaxReturnPercent: 0, realReturnPercent: -5.66, effectiveTaxPercent: 0,
-    postTaxGain: 0, taxDragWealth: 123456.7, taxDragCAGR: 0.025, totalInvested: 360000 }],
+    postTaxGain: 0, taxDragWealth: 123456.7, taxDragCAGR: 0.025, totalInvested: 360000,
+    sipReturnMetrics: calculatedSipReturnMetrics }],
   summary: { totalTaxDrag: 123456.7, keptPerThousand: 0, erodedPerThousand: 1000, retentionEfficiencyPercent: 0, maxTaxRate: 0 },
 };
 async function explicitInputs() {
@@ -41,18 +60,20 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     await explicitInputs(); submit();
     const row = within(await screen.findByTestId('post-tax-row-fd'));
     expect(row.getByTestId('nominal-return')).toHaveTextContent('7.0%');
-    expect(row.getByTestId('post-tax-return')).toHaveTextContent('0.0%');
-    expect(row.getByTestId('real-return')).toHaveTextContent('-5.7%');
+    expect(row.getByTestId('pre-tax-sip-return')).toHaveTextContent('7.3%');
+    expect(row.getByTestId('post-tax-return')).toHaveTextContent('7.0%');
+    expect(row.getByTestId('real-return')).toHaveTextContent('+0.9%');
     expect(row.getByTestId('post-tax-gain')).toHaveTextContent('₹0');
     expect(row.getByTestId('total-invested')).toHaveTextContent('₹3,60,000');
     expect(row.getByTestId('effective-tax')).toHaveTextContent('0.0%');
     expect(row.getByTestId('tax-drag-wealth')).toHaveTextContent('₹1,23,457');
-    expect(row.getByTestId('tax-drag-cagr')).toHaveTextContent('2.50%');
+    expect(row.getByTestId('tax-drag-cagr')).toHaveTextContent('0.25 pp');
   });
 
   it('renders an exact-zero real return neutrally without an up or down icon', async () => {
     const zeroRealReturn = structuredClone(calculated);
     zeroRealReturn.results[0].realReturnPercent = 0;
+    zeroRealReturn.results[0].sipReturnMetrics.realPostTaxAnnualizedReturnPercent = 0;
     apiModule.computePostTaxReturnBatch.mockResolvedValue(zeroRealReturn);
     render(<PostTaxAnalysis profile={demoProfile} recommendations={demoRecommendations} />);
     await explicitInputs(); submit();
@@ -100,7 +121,8 @@ describe('PostTaxAnalysis separate tax what-if', () => {
   });
 
   it('keeps partial results explicit and rejects an incomplete calculated row', async () => {
-    const unavailable = { instrumentType: 'FD', status: 'MODEL_TAX_CLASS_UNAVAILABLE', nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null, totalInvested: 360000 };
+    const unavailable = { instrumentType: 'FD', status: 'MODEL_TAX_CLASS_UNAVAILABLE', nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null, totalInvested: 360000,
+      sipReturnMetrics: unavailableSipReturnMetrics() };
     apiModule.computePostTaxReturnBatch.mockResolvedValue({ ...calculated, portfolioStatus: 'PARTIAL', results: [calculated.results[0], unavailable] });
     render(<PostTaxAnalysis profile={demoProfile} recommendations={[...demoRecommendations, { ...demoRecommendations[0], id: 'etf', name: 'ETF' }]} />);
     await explicitInputs(); submit();
@@ -112,6 +134,29 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     submit();
     expect(await screen.findByRole('alert')).toHaveTextContent(/incomplete instrument analysis/i);
     expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();
+  });
+
+  it('rejects a portfolio status that contradicts the row calculation statuses', async () => {
+    const unavailable = {
+      instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
+      nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null,
+      totalInvested: 360000,
+      sipReturnMetrics: unavailableSipReturnMetrics(),
+    };
+    apiModule.computePostTaxReturnBatch.mockResolvedValue({
+      ...calculated,
+      portfolioStatus: 'COMPLETE',
+      summary: { ...calculated.summary, status: 'COMPLETE' },
+      results: [calculated.results[0], unavailable],
+    });
+    render(<PostTaxAnalysis
+      profile={demoProfile}
+      recommendations={[...demoRecommendations, { ...demoRecommendations[0], id: 'etf', name: 'ETF', type: 'ETF' }]}
+    />);
+    await explicitInputs(); submit();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/contradictory portfolio status/i);
+    expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();
+    expect(screen.queryByTestId('post-tax-row-etf')).toBeNull();
   });
 
   it.each([
@@ -144,6 +189,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
         nominalReturnPercent: 7,
         postTaxReturnPercent: 7,
         realReturnPercent: 0.9434,
+        sipReturnMetrics: calculatedSipReturnMetrics,
       }],
       summary: {
         totalTaxDrag: 0,
@@ -193,6 +239,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
       results: [{
         instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
         unavailableReasons: ['MODEL_TAX_CLASS_UNAVAILABLE_FOR_GENERIC_INSTRUMENT_TYPE'],
+        sipReturnMetrics: unavailableSipReturnMetrics(),
       }],
       summary: {
         status: 'UNAVAILABLE',
@@ -221,5 +268,28 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     expect(screen.getByTestId('post-tax-unavailable-explanation'))
       .not.toHaveTextContent('MODEL_TAX_CLASS_UNAVAILABLE_FOR_GENERIC_INSTRUMENT_TYPE');
     expect(screen.queryByText('RETAINED')).not.toBeInTheDocument();
+  });
+
+  it('keeps tax projection status while showing SIP return as unavailable when monthly contributions are zero', async () => {
+    apiModule.computePostTaxReturnBatch.mockResolvedValue({
+      ...calculated,
+      results: [{
+        ...calculated.results[0],
+        totalInvested: 0,
+        sipReturnMetrics: unavailableSipReturnMetrics('NO_MONTHLY_CONTRIBUTIONS'),
+      }],
+    });
+    render(<PostTaxAnalysis
+      profile={demoProfile}
+      recommendations={[{ ...demoRecommendations[0], monthly_allocation: 0 }]}
+    />);
+    await explicitInputs(); submit();
+    const row = within(await screen.findByTestId('post-tax-row-fd'));
+    expect(row.getByTestId('post-tax-return')).toHaveTextContent('—');
+    expect(row.getByTestId('pre-tax-sip-return')).toHaveTextContent('—');
+    expect(row.getByTestId('real-return')).toHaveTextContent('—');
+    expect(row.getByTestId('sip-return-unavailable-explanation'))
+      .toHaveTextContent(/No monthly contributions were supplied/i);
+    expect(row.getByTestId('effective-tax')).toHaveTextContent('0.0%');
   });
 });

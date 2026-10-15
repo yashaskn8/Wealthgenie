@@ -109,17 +109,27 @@ async function main() {
     });
   }
 
-  // Scenario 2: Compute-Heavy (GET /api/tax/compare — query params)
+  // Scenario 2: Compute-Heavy (POST /api/tax/compare — sensitive inputs in JSON body)
   for (const c of concurrencyLevels) {
     const filename = `scenario2_compute_heavy_c${c}`;
     const res = await runBenchmark(`Scenario 2 (Compute-Heavy Tax Compare) - ${c} Connections`, filename, {
-      path: '/api/tax/compare?income=1500000&incomeSource=salary&section80C=150000&nps80CCD1B=50000&section80D=25000&age=35&hra=120000',
-      method: 'GET',
+      path: '/api/tax/compare',
+      method: 'POST',
       connections: c,
+      body: {
+        income: 1500000,
+        incomeSource: 'salary',
+        fiscalYear: 'FY2026-27',
+        section80C: 150000,
+        nps80CCD1B: 50000,
+        section80D: 25000,
+        age: 35,
+        hra: 120000,
+      },
     });
     summaryResults.push({
       scenario: 'Scenario 2 (Compute-Heavy Tax)',
-      endpoint: 'GET /api/tax/compare',
+      endpoint: 'POST /api/tax/compare',
       concurrency: c,
       p50: res.latency.p50,
       p95: res.latency.p95,
@@ -161,13 +171,21 @@ async function main() {
   // Scenario 4: Stress / Ceilings Check (High Concurrency 200)
   const filenameStress = `scenario4_stress_c200`;
   const resStress = await runBenchmark(`Scenario 4 (Stress Ceiling Check) - 200 Connections`, filenameStress, {
-    path: '/api/tax/compare?income=2000000&incomeSource=salary&section80C=150000&section80D=50000&age=35',
-    method: 'GET',
+    path: '/api/tax/compare',
+    method: 'POST',
     connections: 200,
+    body: {
+      income: 2000000,
+      incomeSource: 'salary',
+      fiscalYear: 'FY2026-27',
+      section80C: 150000,
+      section80D: 50000,
+      age: 35,
+    },
   });
   summaryResults.push({
     scenario: 'Scenario 4 (Stress Ceiling)',
-    endpoint: 'GET /api/tax/compare',
+    endpoint: 'POST /api/tax/compare',
     concurrency: 200,
     p50: resStress.latency.p50,
     p95: resStress.latency.p95,

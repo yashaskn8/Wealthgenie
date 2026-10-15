@@ -167,7 +167,13 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
     '/api/market/benchmarks',
     '/api/regime/current',
     '/api/regime/adjust',
+    '/api/market-data/admin/equity-history',
+    '/api/profile/precompute',
+    '/api/profile/complete',
+    '/api/profile/:profileId/health-score',
+    '/api/recommend',
   ], createUpstoxPublicDataGate({ env }));
+  app.put('/api/profile/:profileId', createUpstoxPublicDataGate({ env }));
   const healthRoutes = createHealthRouter({
     runtimeState: lifecycle,
     requireRedis: config.requireRedis,

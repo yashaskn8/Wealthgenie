@@ -1,6 +1,10 @@
 import { AVAILABILITY, FACT_KINDS, FRESHNESS, MARKET_DATA_SCHEMA_VERSION, PROVIDERS } from './marketData/contracts.js';
 import { GOVERNMENT_RATE_DATA_CLASS, INDIA_POST_SAVINGS_URL } from './marketData/GovernmentSmallSavingsProvider.js';
-import { RBI_FRSB_NOTIFICATION_URL, RBI_RATE_DATA_CLASS } from './marketData/RbiFloatingRateSavingsBondProvider.js';
+import {
+  calculateFrsbResetPeriod,
+  RBI_FRSB_NOTIFICATION_URL,
+  RBI_RATE_DATA_CLASS,
+} from './marketData/RbiFloatingRateSavingsBondProvider.js';
 import { SBI_RATE_DATA_CLASS, SBI_TERM_DEPOSIT_URL } from './marketData/SbiTermDepositProvider.js';
 
 export const FIXED_INCOME_RANKING_VERSION = 'wti-fixed-income-comparison-1.0.0';
@@ -18,6 +22,7 @@ const GOVERNMENT_PARENT_SCHEMES = Object.freeze({
 
 const SBI_PARENT_IDS = new Set(['fd', 'sbi_fd']);
 const RBI_PARENT_IDS = new Set(['rbi_bonds']);
+const INDIA_POST_FETCH_AGE_TOLERANCE_SECONDS = 21 * 20 + 120;
 
 export function fixedIncomeProviderForParent(parentInstrumentId) {
   if (Object.hasOwn(GOVERNMENT_PARENT_SCHEMES, parentInstrumentId)) return PROVIDERS.GOVERNMENT_OF_INDIA;
@@ -124,6 +129,34 @@ function isStrictCalendarDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function hasQualifiedIndiaPostReferenceFreshness(referenceFact, now) {
+  const effectiveFrom = referenceFact?.effectiveFrom;
+  const effectiveTo = referenceFact?.effectiveTo;
+  const freshness = referenceFact?.freshness;
+  if (!isStrictCalendarDate(effectiveFrom) || !isStrictCalendarDate(effectiveTo)) return false;
+
+  const intervalStart = Date.parse(`${effectiveFrom}T00:00:00.000+05:30`);
+  const intervalEnd = Date.parse(`${effectiveTo}T23:59:59.999+05:30`);
+  const fetchedAt = Date.parse(referenceFact?.fetchedAt);
+  const nowMs = now.getTime();
+  if (!Number.isFinite(intervalStart) || !Number.isFinite(intervalEnd)
+      || !Number.isFinite(fetchedAt) || !Number.isFinite(nowMs)
+      || intervalEnd < intervalStart
+      || fetchedAt < intervalStart || fetchedAt > intervalEnd || fetchedAt > nowMs) return false;
+
+  // India Post timestamps the fetch before reading its page and up to 20
+  // same-origin script chunks. Match captured age to that bounded fetch window,
+  // while allowing the original quarter's reset-date evidence to be reused
+  // throughout the FRSB coupon period.
+  const expectedMaxAgeSeconds = Math.floor((intervalEnd - intervalStart) / 1000);
+  const expectedAgeAtFetch = Math.floor((fetchedAt - intervalStart) / 1000);
+  return freshness?.status === FRESHNESS.FRESH
+    && freshness.maxAgeSeconds === expectedMaxAgeSeconds
+    && Number.isFinite(freshness.ageSeconds)
+    && freshness.ageSeconds >= 0
+    && Math.abs(freshness.ageSeconds - expectedAgeAtFetch) <= INDIA_POST_FETCH_AGE_TOLERANCE_SECONDS;
 }
 
 function isUsableFact(fact, now) {
@@ -272,6 +305,34 @@ function selectRbiProduct(snapshot, now) {
     : [];
   const product = matchingProducts.length === 1 ? matchingProducts[0] : null;
   const fact = selectCurrentEffectiveFact(snapshot?.facts, canonicalId, now);
+  const expectedReset = calculateFrsbResetPeriod(now);
+  const referenceFact = fact?.referenceRateFact;
+  const referenceFreshness = referenceFact?.freshness;
+  const referenceObservedAt = Date.parse(referenceFact?.observedAt);
+  const referenceFetchedAt = Date.parse(referenceFact?.fetchedAt);
+  const qualifiedNscReference = referenceFact?.canonicalProductId === 'government:india-post:nsc'
+    && referenceFact?.kind === FACT_KINDS.SCHEME_INTEREST_RATE
+    && referenceFact?.availabilityStatus === AVAILABILITY.AVAILABLE
+    && referenceFact?.source?.provider === PROVIDERS.GOVERNMENT_OF_INDIA
+    && referenceFact?.source?.instrumentId === 'nsc'
+    && referenceFact?.source?.url === INDIA_POST_SAVINGS_URL
+    && typeof referenceFact?.value === 'number'
+    && Number.isFinite(referenceFact.value) && referenceFact.value > 0
+    && referenceFact?.unit === 'PERCENT_PER_ANNUM'
+    && referenceFact?.rateBasis === 'OFFICIAL_NOMINAL_RATE_PER_ANNUM'
+    && referenceFact?.dataClass === GOVERNMENT_RATE_DATA_CLASS
+    && referenceFreshness?.status === FRESHNESS.FRESH
+    && Number.isFinite(referenceFreshness.ageSeconds) && referenceFreshness.ageSeconds >= 0
+    && Number.isFinite(referenceFreshness.maxAgeSeconds) && referenceFreshness.maxAgeSeconds > 0
+    && hasQualifiedIndiaPostReferenceFreshness(referenceFact, now)
+    && Number.isFinite(referenceObservedAt)
+    && Number.isFinite(referenceFetchedAt)
+    && referenceFact.observedAt === `${referenceFact.effectiveFrom}T00:00:00.000Z`
+    && referenceFetchedAt >= referenceObservedAt
+    && isStrictCalendarDate(referenceFact?.effectiveFrom)
+    && isStrictCalendarDate(referenceFact?.effectiveTo)
+    && referenceFact.effectiveFrom <= expectedReset.resetDate
+    && referenceFact.effectiveTo >= expectedReset.resetDate;
   const productValid = hasQualifiedProduct(product, {
     canonicalProductId: canonicalId,
     provider: PROVIDERS.RBI,
@@ -296,7 +357,13 @@ function selectRbiProduct(snapshot, now) {
     && typeof fact.referenceRateValue === 'number'
     && Number.isFinite(fact.referenceRateValue)
     && fact.referenceRateValue > 0
-    && fact.value === Number((fact.referenceRateValue + 0.35).toFixed(4));
+    && fact.referenceRateValue === referenceFact?.value
+    && fact.resetDate === expectedReset.resetDate
+    && fact.effectiveFrom === expectedReset.effectiveFrom
+    && fact.effectiveTo === expectedReset.effectiveTo
+    && fact.observedAt === `${expectedReset.resetDate}T00:00:00.000Z`
+    && fact.value === Number((fact.referenceRateValue + 0.35).toFixed(4))
+    && qualifiedNscReference;
   return productValid && factValid ? { product, fact } : null;
 }
 
@@ -371,6 +438,11 @@ export function compareVerifiedFixedIncomeProducts({ parentInstrumentId, snapsho
     dto.interestPaymentFrequency = selected.product.interestPaymentFrequency;
     dto.referenceRate = selected.product.referenceRate;
     dto.spreadBps = selected.product.spreadBps;
+    dto.officialRate.referenceRate = selected.fact.referenceRate;
+    dto.officialRate.referenceRateValue = selected.fact.referenceRateValue;
+    dto.officialRate.spreadBps = selected.fact.spreadBps;
+    dto.officialRate.resetDate = selected.fact.resetDate;
+    dto.officialRate.referenceRateFact = selected.fact.referenceRateFact;
     dto.rankingReasonCodes = [
       'OFFICIAL_SOURCE_FACT_VERIFIED',
       'SINGLE_CANONICAL_PRODUCT',

@@ -255,6 +255,69 @@ test('market snapshot preserves qualified failover diagnostics and selected-prov
   assert(pair.marketSnapshot.provenance.sources.every(source => source.provider === 'UPSTOX'));
 });
 
+test('production context reads suppress live Upstox evidence when distribution is unconfirmed', async () => {
+  resetMarketContextProcessStateForTest();
+  const selection = {
+    attemptedProviders: ['UPSTOX'],
+    selectedProvider: 'UPSTOX',
+    providerFailures: [],
+    fallbackUsed: false,
+  };
+  const suppressed = await getLiveMarketContext({ now: NOW }, {
+    env: { NODE_ENV: 'production', UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false' },
+    fetchQualifiedMarketContextSnapshots: async () => ({
+      quoteSnapshot: { ...quoteSnapshot({ provider: 'UPSTOX' }), providerSelection: selection },
+      historicalSnapshot: {
+        ...historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index), { provider: 'UPSTOX' }),
+        providerSelection: selection,
+      },
+      providerSelection: selection,
+    }),
+    getCache: async () => null,
+    getDurableLkg: async () => null,
+    setCache: async () => { assert.fail('unavailable Upstox evidence must not advance hysteresis'); },
+    persistDurableLkg: async () => { assert.fail('blocked Upstox evidence must not be persisted'); },
+  });
+
+  assert.equal(suppressed.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert.equal(suppressed.context, null);
+  assert(suppressed.reasonCodes.includes('UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'));
+  assert(suppressed.marketSnapshot.observedFacts.every(fact => (
+    fact.value === null && fact.source === null && fact.availabilityStatus === 'UNAVAILABLE'
+  )));
+  assert.deepEqual(suppressed.marketSnapshot.provenance.sources, []);
+  assert.equal(suppressed.marketSnapshot.providerStatus.quotes.provider, null);
+});
+
+test('production recommendation reads do not reuse an Upstox-derived last-known-good snapshot', async () => {
+  resetMarketContextProcessStateForTest();
+  const result = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    env: { NODE_ENV: 'production', UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false' },
+    getCache: async () => ({ marketContext: {
+      status: 'MARKET_CONTEXT_AVAILABLE',
+      context: 'RISK_OFF',
+      reasonCodes: [],
+      marketSnapshot: {
+        status: 'LAST_AVAILABLE',
+        observedAt: '2026-09-08T11:59:00.000Z',
+        providerSelection: { selectedProvider: 'UPSTOX' },
+        providerStatus: {
+          quotes: { provider: 'UPSTOX', status: 'AVAILABLE' },
+          history: { provider: 'UPSTOX', status: 'AVAILABLE' },
+        },
+        observedFacts: [{ value: 25000, source: { provider: 'UPSTOX' } }],
+      },
+    } }),
+    getDurableLkg: async () => null,
+  });
+
+  assert.equal(result.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert.equal(result.context, null);
+  assert(result.reasonCodes.includes('UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'));
+  assert.deepEqual(result.marketSnapshot.observedFacts, []);
+  assert.equal(result.marketSnapshot.status, 'UNAVAILABLE');
+});
+
 test('qualified market context survives hot-cache expiry through last-known-good recommendation reads', async () => {
   resetMarketContextProcessStateForTest();
   const values = new Map();

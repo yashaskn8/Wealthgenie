@@ -37,6 +37,35 @@ const TAX_UNAVAILABLE_REASON_COPY = Object.freeze({
   SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE: 'All relevant qualifying equity gains must be available before the shared exemption can be allocated.',
   FISCAL_YEAR_UNSUPPORTED: 'A verified tax policy is not available for the selected fiscal year.',
 });
+const SIP_RETURN_METRIC_BASIS = 'MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE';
+const SIP_RETURN_METRIC_FIELDS = Object.freeze([
+  'preTaxAnnualizedReturnPercent', 'postTaxAnnualizedReturnPercent',
+  'realPostTaxAnnualizedReturnPercent', 'taxDragAnnualizedPercentagePoints',
+]);
+const SIP_RETURN_UNAVAILABLE_REASONS = Object.freeze([
+  'NO_MONTHLY_CONTRIBUTIONS', 'PROJECTION_UNAVAILABLE', 'RETURN_SOLVER_UNAVAILABLE',
+]);
+
+function hasValidSipReturnMetrics(metrics) {
+  if (metrics?.basis !== SIP_RETURN_METRIC_BASIS) return false;
+  if (metrics.status === 'CALCULATED') {
+    return metrics.unavailableReason === null
+      && SIP_RETURN_METRIC_FIELDS.every(field => isPresentFiniteNumber(metrics[field]));
+  }
+  return metrics.status === 'UNAVAILABLE'
+    && SIP_RETURN_UNAVAILABLE_REASONS.includes(metrics.unavailableReason)
+    && SIP_RETURN_METRIC_FIELDS.every(field => metrics[field] === null);
+}
+
+function describeUnavailableSipReturn(metrics) {
+  if (metrics?.unavailableReason === 'NO_MONTHLY_CONTRIBUTIONS') {
+    return 'No monthly contributions were supplied, so no annualized SIP return is calculated.';
+  }
+  if (metrics?.unavailableReason === 'PROJECTION_UNAVAILABLE') {
+    return 'Annualized SIP return is unavailable because the post-tax projection could not be calculated.';
+  }
+  return 'Annualized SIP return is unavailable because the contribution cash flows could not be solved.';
+}
 
 function describeUnavailableResult(result) {
   const reasons = Array.isArray(result?.unavailableReasons) ? result.unavailableReasons : [];
@@ -183,6 +212,8 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
       const unavailableResultFields = ['effectiveTaxPercent', 'postTaxGain', 'taxDragWealth', 'taxDragCAGR', 'postTaxReturnPercent', 'realReturnPercent'];
       if (!Array.isArray(data?.results) || data.results.length !== recommendations.length
           || data.results.some((result, index) => !result?.status || result.instrumentType !== instruments[index].instrumentType
+            || !hasValidSipReturnMetrics(result.sipReturnMetrics)
+            || (result.status !== 'CALCULATED' && result.sipReturnMetrics.status !== 'UNAVAILABLE')
             || (result.status !== 'CALCULATED' && unavailableResultFields.some(field => result[field] != null))
             || (result.status === 'CALCULATED' && (!result.taxType || requiredResultFields.some(
               field => !Number.isFinite(result[field]),
@@ -193,9 +224,18 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
         'totalTaxDrag', 'keptPerThousand', 'erodedPerThousand',
         'retentionEfficiencyPercent', 'maxTaxRate',
       ];
-      const portfolioStatus = data?.portfolioStatus || data?.summary?.status;
+      const portfolioStatus = data?.portfolioStatus ?? data?.summary?.status;
       if (!['COMPLETE', 'PARTIAL', 'UNAVAILABLE'].includes(portfolioStatus)) {
         throw new TypeError('The tax service returned no truthful portfolio status.');
+      }
+      const calculatedResultCount = data.results.filter(result => result.status === 'CALCULATED').length;
+      const expectedPortfolioStatus = data.results.length > 0 && calculatedResultCount === data.results.length
+        ? 'COMPLETE'
+        : calculatedResultCount > 0 ? 'PARTIAL' : 'UNAVAILABLE';
+      if (portfolioStatus !== expectedPortfolioStatus
+          || (data?.portfolioStatus != null && data?.summary?.status != null
+            && data.portfolioStatus !== data.summary.status)) {
+        throw new TypeError('The tax service returned a contradictory portfolio status.');
       }
       if (portfolioStatus !== 'UNAVAILABLE' && requiredSummaryFields.some(field => !isPresentFiniteNumber(data?.summary?.[field]))) {
         throw new TypeError('The tax service returned an incomplete portfolio summary.');
@@ -227,15 +267,23 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
           taxRatePercent: result.effectiveTaxPercent,
           postTaxGain: result.postTaxGain,
           taxDragWealth: result.taxDragWealth,
-          taxDragCAGR: isPresentFiniteNumber(result.taxDragCAGR) ? Number(result.taxDragCAGR) * 100 : null,
+          taxDragAnnualized: result.sipReturnMetrics.status === 'CALCULATED'
+            ? result.sipReturnMetrics.taxDragAnnualizedPercentagePoints : null,
           unavailableExplanation: describeUnavailableResult(result),
+          sipReturnUnavailableExplanation: result.sipReturnMetrics.status === 'UNAVAILABLE'
+            ? describeUnavailableSipReturn(result.sipReturnMetrics) : null,
         },
         totalInvested: result.totalInvested,
         wealthGained: isPresentFiniteNumber(result.postTaxGain) ? Number(result.postTaxGain) : null,
         nominalReturn: result.nominalReturnPercent,
-        postTaxReturn: result.postTaxReturnPercent,
-        realReturn: result.realReturnPercent,
+        preTaxSipAnnualizedReturn: result.sipReturnMetrics.status === 'CALCULATED'
+          ? result.sipReturnMetrics.preTaxAnnualizedReturnPercent : null,
+        postTaxReturn: result.sipReturnMetrics.status === 'CALCULATED'
+          ? result.sipReturnMetrics.postTaxAnnualizedReturnPercent : null,
+        realReturn: result.sipReturnMetrics.status === 'CALCULATED'
+          ? result.sipReturnMetrics.realPostTaxAnnualizedReturnPercent : null,
         resultStatus: result.status,
+        sipReturnMetricStatus: result.sipReturnMetrics.status,
       };
     });
   }, [recommendations, backendPostTaxData]);
@@ -583,7 +631,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
             <div className="pta-card-header">
               <div>
                 <h3 className="pta-card-title">Return Drag Comparison</h3>
-                <p className="pta-card-subtitle">Model assumption → estimated after tax → inflation-adjusted estimate</p>
+                <p className="pta-card-subtitle">Compares the entered rate with modeled monthly SIP results after tax and inflation. These are model outputs, not forecasts.</p>
               </div>
             </div>
 
@@ -599,6 +647,10 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
                     <linearGradient id="gradPostTax" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#c084fc" stopOpacity={0.95}/>
                       <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.6}/>
+                    </linearGradient>
+                    <linearGradient id="gradSipPreTax" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.95}/>
+                      <stop offset="100%" stopColor="#d97706" stopOpacity={0.6}/>
                     </linearGradient>
                     <linearGradient id="gradReal" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#34d399" stopOpacity={0.95}/>
@@ -617,8 +669,9 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
                   />
                   <Legend verticalAlign="top" height={40} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.3px' }}/>
                   <Bar dataKey="nominalReturn" name="Model assumption (pre-tax)" fill="url(#gradNominal)" radius={[6,6,0,0]} barSize={22} />
-                  <Bar dataKey="postTaxReturn" name="Estimated after tax" fill="url(#gradPostTax)" radius={[6,6,0,0]} barSize={22} />
-                  <Bar dataKey="realReturn" name="Real return after inflation" fill="url(#gradReal)" radius={[6,6,0,0]} barSize={22} />
+                  <Bar dataKey="preTaxSipAnnualizedReturn" name="Modeled SIP annualized (pre-tax)" fill="url(#gradSipPreTax)" radius={[6,6,0,0]} barSize={22} />
+                  <Bar dataKey="postTaxReturn" name="Modeled SIP annualized (after tax)" fill="url(#gradPostTax)" radius={[6,6,0,0]} barSize={22} />
+                  <Bar dataKey="realReturn" name="Real after-tax SIP annualized" fill="url(#gradReal)" radius={[6,6,0,0]} barSize={22} />
                 </BarChart>
               </ResponsiveContainer>}
             </div>
@@ -664,15 +717,16 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
                           <th className="pta-th--left">Asset</th>
                           <th className="pta-th--left">Tax Treatment</th>
                           <th className="pta-th--center">Model assumption (pre-tax)</th>
-                          <th className="pta-th--center">Estimated after tax</th>
-                          <th className="pta-th--center">Real return after inflation</th>
+                          <th className="pta-th--center">Modeled SIP annualized (pre-tax)</th>
+                          <th className="pta-th--center">Modeled SIP annualized (after tax)</th>
+                          <th className="pta-th--center">Real after-tax SIP annualized</th>
                           <th className="pta-th--right">Post-tax gain</th>
                         </tr>
                       </thead>
                       <tbody>
                         {!backendPostTaxData && (
                           <tr>
-                            <td colSpan={6} style={{ padding: '18px 14px', color: '#94a3b8', textAlign: 'center' }}>
+                            <td colSpan={7} style={{ padding: '18px 14px', color: '#94a3b8', textAlign: 'center' }}>
                               After-tax estimates have not been calculated for {displayedAssetCountLabel}. Enter explicit tax inputs above and calculate to view them.
                             </td>
                           </tr>
@@ -701,8 +755,16 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
                             <td data-testid="nominal-return" className="pta-td--mono pta-td--center pta-td--dim">
                               {Number.isFinite(data.nominalReturn) ? `${data.nominalReturn.toFixed(1)}%` : '—'}
                             </td>
+                            <td data-testid="pre-tax-sip-return" className="pta-td--mono pta-td--center pta-td--dim">
+                              {Number.isFinite(data.preTaxSipAnnualizedReturn) ? `${data.preTaxSipAnnualizedReturn.toFixed(1)}%` : '—'}
+                            </td>
                             <td data-testid="post-tax-return" className="pta-td--mono pta-td--center pta-td--purple">
                               {Number.isFinite(data.postTaxReturn) ? `${data.postTaxReturn.toFixed(1)}%` : '—'}
+                              {data.sipReturnMetricStatus === 'UNAVAILABLE' && (
+                                <span className="pta-asset-cat" data-testid="sip-return-unavailable-explanation">
+                                  {data.taxDetails.sipReturnUnavailableExplanation}
+                                </span>
+                              )}
                             </td>
                             <td data-testid="real-return" className={`pta-td--mono pta-td--center ${data.realReturn > 0 ? 'pta-td--green' : data.realReturn < 0 ? 'pta-td--rose' : 'pta-td--dim'}`}>
                               <span className="pta-real-cell">
@@ -720,7 +782,8 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
                                   <dt>Total invested</dt><dd data-testid="total-invested">{formatINR(data.totalInvested)}</dd>
                                   <dt>Effective tax</dt><dd data-testid="effective-tax">{isPresentFiniteNumber(data.taxDetails.taxRatePercent) ? `${Number(data.taxDetails.taxRatePercent).toFixed(1)}%` : '—'}</dd>
                                   <dt>Tax drag (wealth)</dt><dd data-testid="tax-drag-wealth">{formatINR(data.taxDetails.taxDragWealth)}</dd>
-                                  <dt>Tax drag (CAGR)</dt><dd data-testid="tax-drag-cagr">{isPresentFiniteNumber(data.taxDetails.taxDragCAGR) ? `${data.taxDetails.taxDragCAGR.toFixed(2)}%` : '—'}</dd>
+                                  <dt>Tax drag (annualized percentage points)</dt><dd data-testid="tax-drag-cagr">{isPresentFiniteNumber(data.taxDetails.taxDragAnnualized) ? `${data.taxDetails.taxDragAnnualized.toFixed(2)} pp` : '—'}</dd>
+                                  <dt>Return metric basis</dt><dd>Modeled monthly SIP money-weighted equivalent annual rate</dd>
                                   <dt>Calculation status</dt><dd>{data.resultStatus}</dd>
                                 </dl>
                               </details>

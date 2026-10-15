@@ -39,6 +39,11 @@ function number(value: unknown, field: string): number {
   return value as number;
 }
 
+function nullableNumber(value: unknown, field: string): number | null {
+  if (value === null) return null;
+  return number(value, field);
+}
+
 function timestamp(value: unknown, field: string, nullable = false): string | null {
   if (nullable && value === null) return null;
   const text = string(value, field);
@@ -380,11 +385,16 @@ async function taxTable(panel: Locator, body: JsonObject, instruments: JsonObjec
   await expect(rows).toHaveCount(results.length);
   expect((await rows.evaluateAll(elements => elements.map(element => element.getAttribute('data-testid')))).sort())
     .toEqual(instruments.map(instrument => `post-tax-row-${string(instrument.id, 'id')}`).sort());
-  const metrics: Array<[string, string, (value: number) => string]> = [
-    ['nominal-return', 'nominalReturnPercent', percent], ['post-tax-return', 'postTaxReturnPercent', percent],
-    ['real-return', 'realReturnPercent', signedPercent], ['post-tax-gain', 'postTaxGain', inr],
-    ['total-invested', 'totalInvested', inr], ['effective-tax', 'effectiveTaxPercent', percent],
-    ['tax-drag-wealth', 'taxDragWealth', inr], ['tax-drag-cagr', 'taxDragCAGR', value => `${(value * 100).toFixed(2)}%`],
+  const metrics: Array<[string, (result: JsonObject) => number | null, (value: number) => string, boolean?]> = [
+    ['nominal-return', result => number(result.nominalReturnPercent, 'nominalReturnPercent'), percent],
+    ['pre-tax-sip-return', result => nullableNumber(object(result.sipReturnMetrics, 'sipReturnMetrics').preTaxAnnualizedReturnPercent, 'preTaxAnnualizedReturnPercent'), percent, true],
+    ['post-tax-return', result => nullableNumber(object(result.sipReturnMetrics, 'sipReturnMetrics').postTaxAnnualizedReturnPercent, 'postTaxAnnualizedReturnPercent'), percent, true],
+    ['real-return', result => nullableNumber(object(result.sipReturnMetrics, 'sipReturnMetrics').realPostTaxAnnualizedReturnPercent, 'realPostTaxAnnualizedReturnPercent'), signedPercent, true],
+    ['post-tax-gain', result => nullableNumber(result.postTaxGain, 'postTaxGain'), inr],
+    ['total-invested', result => nullableNumber(result.totalInvested, 'totalInvested'), inr],
+    ['effective-tax', result => nullableNumber(result.effectiveTaxPercent, 'effectiveTaxPercent'), percent],
+    ['tax-drag-wealth', result => nullableNumber(result.taxDragWealth, 'taxDragWealth'), inr],
+    ['tax-drag-cagr', result => nullableNumber(object(result.sipReturnMetrics, 'sipReturnMetrics').taxDragAnnualizedPercentagePoints, 'taxDragAnnualizedPercentagePoints'), value => `${value.toFixed(2)} pp`, true],
   ];
   for (const [index, result] of results.entries()) {
     const instrument = instruments[index];
@@ -393,6 +403,20 @@ async function taxTable(panel: Locator, body: JsonObject, instruments: JsonObjec
     expect(result.calculationClass).toBe('MODELLED_POST_TAX_PROJECTION');
     expect(result.dataClass).toBe('MODEL_ASSUMPTION');
     expect(['CALCULATED', ...UNAVAILABLE_TAX_STATUSES]).toContain(result.status);
+    const sipMetrics = object(result.sipReturnMetrics, 'sipReturnMetrics');
+    expect(sipMetrics.basis).toBe('MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE');
+    expect(['CALCULATED', 'UNAVAILABLE']).toContain(sipMetrics.status);
+    if (sipMetrics.status === 'UNAVAILABLE') {
+      expect(['NO_MONTHLY_CONTRIBUTIONS', 'PROJECTION_UNAVAILABLE', 'RETURN_SOLVER_UNAVAILABLE']).toContain(sipMetrics.unavailableReason);
+      for (const field of ['preTaxAnnualizedReturnPercent', 'postTaxAnnualizedReturnPercent', 'realPostTaxAnnualizedReturnPercent', 'taxDragAnnualizedPercentagePoints']) {
+        expect(sipMetrics[field], `${field} must remain null for an unavailable SIP return`).toBeNull();
+      }
+    } else {
+      expect(sipMetrics.unavailableReason).toBeNull();
+      for (const field of ['preTaxAnnualizedReturnPercent', 'postTaxAnnualizedReturnPercent', 'realPostTaxAnnualizedReturnPercent', 'taxDragAnnualizedPercentagePoints']) {
+        number(sipMetrics[field], `sipReturnMetrics.${field}`);
+      }
+    }
     await expect(row.locator('.pta-asset-name')).toHaveText(string(instrument.name, 'name'));
     if (result.status === 'CALCULATED') {
       await expect(row.locator('.pta-badge')).toHaveText(string(result.taxType, 'taxType'));
@@ -401,17 +425,19 @@ async function taxTable(panel: Locator, body: JsonObject, instruments: JsonObjec
       for (const field of ['postTaxReturnPercent', 'realReturnPercent', 'postTaxGain', 'effectiveTaxPercent', 'taxDragWealth', 'taxDragCAGR']) {
         expect(result[field], `${field} must remain null for ${result.status}`).toBeNull();
       }
+      expect(sipMetrics.status).toBe('UNAVAILABLE');
       await expect(row.locator('.pta-badge')).toHaveText('Unavailable — tax class or inputs required');
       await expect(row).toContainText('No zero substituted');
     }
-    for (const [testId, field, format] of metrics) {
+    for (const [testId, getValue, format, isSipMetric] of metrics) {
       await expect(row.getByTestId(testId)).toBeVisible();
-      const value = result[field];
+      const value = getValue(result);
       if (value === null) {
-        expect(result.status, `${field} cannot be null in a calculated result`).not.toBe('CALCULATED');
+        if (isSipMetric) expect(sipMetrics.status).toBe('UNAVAILABLE');
+        else expect(result.status, `${testId} cannot be null in a calculated result`).not.toBe('CALCULATED');
         await expect(row.getByTestId(testId)).toHaveText('—');
       } else {
-        await expect(row.getByTestId(testId)).toHaveText(format(number(value, `results[${index}].${field}`)));
+        await expect(row.getByTestId(testId)).toHaveText(format(number(value, `results[${index}].${testId}`)));
       }
     }
   }

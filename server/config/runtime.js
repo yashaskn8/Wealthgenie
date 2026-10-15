@@ -304,6 +304,9 @@ export function assertValidRuntimeConfig(config) {
     throw new Error('Live ResearchMesh search requires the configured approved search provider and endpoint');
   }
   if (config.agentWorkerMode === 'embedded' && config.agentWorkerEnabled === false) {
+    if (config.agenticPlanReviewEnabled) {
+      throw new Error('AGENTIC_PLAN_REVIEW_ENABLED=true requires an embedded worker when AGENT_WORKER_MODE=embedded; enable AGENT_WORKER_ENABLED or use external worker mode.');
+    }
     return;
   }
   if (config.agentPlanReview.heartbeatMs >= config.agentPlanReview.leaseMs) {

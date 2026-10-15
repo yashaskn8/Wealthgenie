@@ -18,6 +18,7 @@ import { errorHandler } from '../middleware/errorHandler.js';
 import { registerSchema } from '../validation/schemas.js';
 import { canonicalProfilePayload } from './helpers/canonicalProfile.js';
 import { customGoalSchema } from '../validation/financialSchemas.js';
+import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 
 process.env.JWT_SECRET = 'validation-test-secret';
 process.env.NODE_ENV = 'test';
@@ -70,13 +71,15 @@ function buildApp() {
 }
 
 async function withServer(fn) {
-  const server = buildApp().listen(0);
-  await new Promise(resolve => server.once('listening', resolve));
-  try {
-    return await fn(`http://127.0.0.1:${server.address().port}`);
-  } finally {
-    await new Promise(resolve => server.close(resolve));
-  }
+  return withMockAuthAccountState(async () => {
+    const server = buildApp().listen(0);
+    await new Promise(resolve => server.once('listening', resolve));
+    try {
+      return await fn(`http://127.0.0.1:${server.address().port}`);
+    } finally {
+      await new Promise(resolve => server.close(resolve));
+    }
+  });
 }
 
 async function rawFetch(url, options = {}) {

@@ -39,6 +39,16 @@ import {
 } from './productTaxAuthority.js';
 import { buildTaxRuleMetadata, LEGACY_RULE_SEMANTICS } from './taxRuleMetadata.js';
 import { resolvePostTaxProductRights } from './postTaxSourceRights.js';
+import { AMFI_NAV_URL } from './marketData/AmfiNavProvider.js';
+import { AMFI_HISTORY_WINDOW_RADIUS_DAYS, isQualifiedAmfiNavHistoryUrl } from './marketData/AmfiNavHistoryProvider.js';
+import { RBI_FRSB_NOTIFICATION_URL, RBI_RATE_DATA_CLASS } from './marketData/RbiFloatingRateSavingsBondProvider.js';
+import { GOVERNMENT_RATE_DATA_CLASS, INDIA_POST_SAVINGS_URL } from './marketData/GovernmentSmallSavingsProvider.js';
+import {
+  SBI_RATE_DATA_CLASS,
+  SBI_TERM_DEPOSIT_FRESHNESS_SECONDS,
+  SBI_TERM_DEPOSIT_URL,
+} from './marketData/SbiTermDepositProvider.js';
+import { evaluateFreshness } from './marketData/contracts.js';
 
 export const POST_TAX_SERVICE_VERSION = 'product-post-tax-calculator-2.0.0';
 
@@ -79,6 +89,7 @@ function createAnalysis({
   message = null,
   isHistoricalEstimate = false,
   historicalObservationWindowMonths = null,
+  inputSourceReferences = [],
   rulesApplied = [],
   legacyRuleAliases = [],
 }) {
@@ -99,6 +110,7 @@ function createAnalysis({
     }
   };
   addReferences(taxMetadata?.sourceReferences, 'PRODUCT_RULE');
+  addReferences(inputSourceReferences, 'PRODUCT_FACT');
   addReferences(policy?.sourceReferences, 'TAX_POLICY');
 
   const rawRulesApplied = [
@@ -171,6 +183,355 @@ function hasExplicitFiniteNumber(value) {
   return isPresentFiniteFinancialNumber(value);
 }
 
+function isHttpsSourceUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+function isQualifiedAmfiHistoryObservation(value, historyTargetDate, observationDate) {
+  if (!isQualifiedAmfiNavHistoryUrl(value, historyTargetDate)) return false;
+  const observedTime = /^\d{4}-\d{2}-\d{2}$/.test(observationDate || '')
+    ? Date.parse(`${observationDate}T00:00:00.000Z`)
+    : Number.NaN;
+  const observationDateIsCanonical = Number.isFinite(observedTime)
+    && new Date(observedTime).toISOString().slice(0, 10) === observationDate;
+  const targetTime = Date.parse(`${historyTargetDate}T00:00:00.000Z`);
+  return observationDateIsCanonical
+    && Number.isFinite(targetTime)
+    && Math.abs(observedTime - targetTime) <= AMFI_HISTORY_WINDOW_RADIUS_DAYS * 86_400_000;
+}
+
+function hasAmfiProductIdentity(product, taxMetadata, schemeCode) {
+  if (product?.productType === 'MUTUAL_FUND') {
+    return product?.canonicalProductId === `mf:amfi:${schemeCode}`;
+  }
+  const binding = taxMetadata?.productEvidence?.binding;
+  return product?.productType === 'ETF'
+    && taxMetadata?.sourceQualified === true
+    && binding?.canonicalProductId === product?.canonicalProductId
+    && binding?.amfiSchemeCode === schemeCode
+    && binding?.isin === product?.isin;
+}
+
+function qualifiedHistoricalReturn(product, taxMetadata) {
+  const historical = product?.historicalReturn;
+  const source = historical?.source;
+  const productSource = product?.source;
+  const nav = product?.nav;
+  const startTime = Date.parse(`${historical?.startDate || ''}T00:00:00.000Z`);
+  const endTime = Date.parse(`${historical?.endDate || ''}T00:00:00.000Z`);
+  const elapsedDays = (endTime - startTime) / 86_400_000;
+  const startNav = historical?.startNav;
+  const endNav = historical?.endNav;
+  const schemeCode = productSource?.instrumentId;
+  const expectedValuePct = Number.isFinite(startNav) && Number.isFinite(endNav)
+    && Number.isFinite(historical?.elapsedDays) && historical.elapsedDays > 0
+    ? (Math.pow(endNav / startNav, 365 / historical.elapsedDays) - 1) * 100
+    : Number.NaN;
+  const navDate = nav?.valuationDate || nav?.observedAt?.slice?.(0, 10);
+  const freshCurrentAmfiNav = product?.availabilityStatus === 'AVAILABLE'
+    && product?.freshness?.status === 'FRESH'
+    && Number.isFinite(product?.freshness?.ageSeconds)
+    && product.freshness.ageSeconds >= 0
+    && Number.isFinite(product?.freshness?.maxAgeSeconds)
+    && product.freshness.maxAgeSeconds > 0
+    && product.freshness.ageSeconds <= product.freshness.maxAgeSeconds
+    && productSource?.provider === 'AMFI'
+    && typeof schemeCode === 'string'
+    && /^\d+$/.test(schemeCode)
+    && hasAmfiProductIdentity(product, taxMetadata, schemeCode)
+    && productSource.url === AMFI_NAV_URL
+    && nav?.unit === 'NAV_PER_UNIT'
+    && Number.isFinite(nav?.value) && nav.value > 0
+    && navDate === historical?.endDate;
+
+  if (!freshCurrentAmfiNav
+      || historical?.basis !== 'HISTORICAL_POINT_TO_POINT_NAV_RETURN_1Y'
+      || product?.returnBasis !== historical.basis
+      || product?.expectedReturn !== null
+      || historical?.annualized !== true
+      || historical?.isExpectedReturn !== false
+      || source?.provider !== 'AMFI'
+      || source.startInstrumentId !== schemeCode
+      || source.endInstrumentId !== schemeCode
+      || !isQualifiedAmfiHistoryObservation(source.startObservationUrl, source.historyTargetDate, historical?.startDate)
+      || source.endObservationUrl !== productSource.url
+      || !Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime
+      || elapsedDays < 330 || elapsedDays > 400
+      || !Number.isFinite(historical?.elapsedDays)
+      || Math.abs(elapsedDays - historical.elapsedDays) > 1
+      || !Number.isFinite(startNav) || startNav <= 0
+      || !Number.isFinite(endNav) || endNav <= 0
+      || endNav !== nav.value
+      || !Number.isFinite(historical?.valuePct)
+      || !Number.isFinite(expectedValuePct)
+      || Math.abs(Number(historical.valuePct.toFixed(6)) - Number(expectedValuePct.toFixed(6))) > 0.000001) {
+    return null;
+  }
+
+  return historical;
+}
+
+function factSourceReference(source, title, details = {}) {
+  if (!source?.provider || !isHttpsSourceUrl(source.url)) return null;
+  return {
+    authority: source.provider,
+    title,
+    url: source.url,
+    role: 'PRODUCT_FACT',
+    provider: source.provider,
+    ...(source.instrumentId ? { instrumentId: source.instrumentId } : {}),
+    ...details,
+  };
+}
+
+function isCanonicalIsoDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+const PROVIDER_FETCH_CLOCK_SKEW_SECONDS = 120;
+// India Post may fetch its page plus up to 20 script chunks serially, each
+// with a 20-second request timeout. Its freshness age is measured only after
+// the matching chunk is parsed, so allow that bounded fetch duration in
+// addition to the ordinary timestamp tolerance.
+const INDIA_POST_MAX_FETCH_DURATION_SECONDS = 21 * 20;
+const INDIA_STANDARD_OFFSET = '+05:30';
+
+function normalizedDate(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function hasOrderedSourceTimestamps({ observedAt, fetchedAt, now }) {
+  if (typeof observedAt !== 'string' || typeof fetchedAt !== 'string') return false;
+  const observedMs = Date.parse(observedAt);
+  const fetchedMs = Date.parse(fetchedAt);
+  const nowMs = now?.getTime();
+  return Number.isFinite(observedMs)
+    && Number.isFinite(fetchedMs)
+    && Number.isFinite(nowMs)
+    && observedMs <= fetchedMs
+    && fetchedMs <= nowMs;
+}
+
+function isFreshnessCloseToAge(freshness, expectedAgeSeconds, toleranceSeconds = PROVIDER_FETCH_CLOCK_SKEW_SECONDS) {
+  return freshness?.status === 'FRESH'
+    && Number.isFinite(freshness.ageSeconds)
+    && freshness.ageSeconds >= 0
+    && Math.abs(freshness.ageSeconds - expectedAgeSeconds) <= toleranceSeconds;
+}
+
+function isSbiRateFreshnessConsistent({ freshness, observedAt, fetchedAt, now }) {
+  if (!hasOrderedSourceTimestamps({ observedAt, fetchedAt, now })) return false;
+  const observedMs = Date.parse(observedAt);
+  const fetchedMs = Date.parse(fetchedAt);
+  const expectedAgeAtFetch = Math.floor((fetchedMs - observedMs) / 1000);
+  const currentFreshness = evaluateFreshness({
+    observedAt,
+    fetchedAt,
+    maxAgeSeconds: SBI_TERM_DEPOSIT_FRESHNESS_SECONDS,
+    now,
+  });
+  return freshness?.maxAgeSeconds === SBI_TERM_DEPOSIT_FRESHNESS_SECONDS
+    && isFreshnessCloseToAge(freshness, expectedAgeAtFetch)
+    && currentFreshness.status === 'FRESH';
+}
+
+function isIndiaPeriodFreshnessConsistent({
+  freshness,
+  effectiveFrom,
+  effectiveTo,
+  fetchedAt,
+  now,
+  requireCurrentPeriod,
+}) {
+  if (!isCanonicalIsoDate(effectiveFrom) || !isCanonicalIsoDate(effectiveTo)) return false;
+  const intervalStart = Date.parse(`${effectiveFrom}T00:00:00.000${INDIA_STANDARD_OFFSET}`);
+  const intervalEnd = Date.parse(`${effectiveTo}T23:59:59.999${INDIA_STANDARD_OFFSET}`);
+  const fetchedMs = Date.parse(fetchedAt);
+  const nowMs = now?.getTime();
+  if (!Number.isFinite(intervalStart) || !Number.isFinite(intervalEnd)
+      || !Number.isFinite(fetchedMs) || !Number.isFinite(nowMs)
+      || intervalEnd < intervalStart || fetchedMs < intervalStart || fetchedMs > intervalEnd
+      || (requireCurrentPeriod && (nowMs < intervalStart || nowMs > intervalEnd))) return false;
+
+  // Government-rate providers measure age from the India-local effective
+  // period start, while their observation timestamps are normalized at 00Z.
+  const expectedMaxAgeSeconds = Math.floor((intervalEnd - intervalStart) / 1000);
+  const expectedAgeAtFetch = Math.floor((fetchedMs - intervalStart) / 1000);
+  const fetchDurationAllowance = requireCurrentPeriod
+    ? PROVIDER_FETCH_CLOCK_SKEW_SECONDS
+    : INDIA_POST_MAX_FETCH_DURATION_SECONDS + PROVIDER_FETCH_CLOCK_SKEW_SECONDS;
+  return freshness?.maxAgeSeconds === expectedMaxAgeSeconds
+    && isFreshnessCloseToAge(freshness, expectedAgeAtFetch, fetchDurationAllowance);
+}
+
+function qualifiedFrsbReferenceRateFact(product, now) {
+  const officialRate = product?.officialRate;
+  const referenceFact = officialRate?.referenceRateFact;
+  const freshness = referenceFact?.freshness;
+  const resetDate = officialRate?.resetDate;
+  if (typeof resetDate !== 'string' || !/^\d{4}-(?:01|07)-01$/.test(resetDate)) return null;
+  const resetYear = resetDate.slice(0, 4);
+  const expectedEffectiveTo = resetDate.endsWith('-01-01')
+    ? `${resetYear}-06-30`
+    : `${resetYear}-12-31`;
+  const resetDateIsCanonical = isCanonicalIsoDate(resetDate);
+  const referenceObservedAt = Date.parse(referenceFact?.observedAt);
+  const referenceFetchedAt = Date.parse(referenceFact?.fetchedAt);
+  const referenceQualified = resetDateIsCanonical
+    && officialRate?.referenceRate === 'NSC'
+    && officialRate?.spreadBps === 35
+    && Number.isFinite(officialRate?.referenceRateValue)
+    && officialRate.referenceRateValue > 0
+    && officialRate.effectiveFrom === resetDate
+    && officialRate.effectiveTo === expectedEffectiveTo
+    && officialRate.observedAt === `${resetDate}T00:00:00.000Z`
+    && officialRate.value === Number((officialRate.referenceRateValue + 0.35).toFixed(4))
+    && referenceFact?.canonicalProductId === 'government:india-post:nsc'
+    && referenceFact?.kind === 'SCHEME_INTEREST_RATE'
+    && referenceFact?.availabilityStatus === 'AVAILABLE'
+    && referenceFact?.source?.provider === 'GOVERNMENT_OF_INDIA'
+    && referenceFact?.source?.instrumentId === 'nsc'
+    && referenceFact?.source?.url === INDIA_POST_SAVINGS_URL
+    && referenceFact.value === officialRate.referenceRateValue
+    && Number.isFinite(referenceFact.value) && referenceFact.value > 0
+    && referenceFact.unit === 'PERCENT_PER_ANNUM'
+    && referenceFact.rateBasis === 'OFFICIAL_NOMINAL_RATE_PER_ANNUM'
+    && referenceFact.dataClass === GOVERNMENT_RATE_DATA_CLASS
+    && Number.isFinite(referenceObservedAt)
+    && Number.isFinite(referenceFetchedAt)
+    && hasOrderedSourceTimestamps({
+      observedAt: referenceFact.observedAt,
+      fetchedAt: referenceFact.fetchedAt,
+      now,
+    })
+    && referenceFact.observedAt === `${referenceFact.effectiveFrom}T00:00:00.000Z`
+    && isCanonicalIsoDate(referenceFact.effectiveFrom)
+    && isCanonicalIsoDate(referenceFact.effectiveTo)
+    && referenceFact.effectiveFrom <= resetDate
+    && referenceFact.effectiveTo >= resetDate
+    && isIndiaPeriodFreshnessConsistent({
+      freshness,
+      effectiveFrom: referenceFact.effectiveFrom,
+      effectiveTo: referenceFact.effectiveTo,
+      fetchedAt: referenceFact.fetchedAt,
+      now,
+      requireCurrentPeriod: false,
+    });
+  return referenceQualified ? referenceFact : null;
+}
+
+function officialRateSourceReferences(product, taxType, now) {
+  const fact = product?.officialRate;
+  const source = product?.source;
+  const nscReferenceFact = taxType === PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST
+    ? qualifiedFrsbReferenceRateFact(product, now)
+    : null;
+  const sbiIdentity = /^deposit:sbi:retail-domestic:([a-z0-9-]+):(public|senior)$/.exec(product?.canonicalProductId || '');
+  const expected = taxType === PRODUCT_TAX_CLASSES.BANK_DEPOSIT_INTEREST && sbiIdentity
+    ? {
+      provider: 'SBI',
+      url: SBI_TERM_DEPOSIT_URL,
+      instrumentId: `retail-domestic:${sbiIdentity[1]}:${sbiIdentity[2]}`,
+      dataClass: SBI_RATE_DATA_CLASS,
+      basis: 'OFFICIAL_NOMINAL_CARD_RATE_PER_ANNUM',
+      productType: 'BANK_TERM_DEPOSIT',
+    }
+    : taxType === PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST
+      && product?.canonicalProductId === 'government:rbi:frsb-2020-taxable'
+      ? {
+        provider: 'RBI',
+        url: RBI_FRSB_NOTIFICATION_URL,
+        instrumentId: 'frsb-2020-taxable',
+        dataClass: RBI_RATE_DATA_CLASS,
+        basis: 'NSC_REFERENCE_RATE_PLUS_35_BPS',
+        productType: 'GOVERNMENT_BOND',
+      }
+      : null;
+  const freshness = product?.freshness;
+  const rateFreshnessConsistent = taxType === PRODUCT_TAX_CLASSES.BANK_DEPOSIT_INTEREST
+    ? isSbiRateFreshnessConsistent({
+      freshness,
+      observedAt: fact?.observedAt,
+      fetchedAt: fact?.fetchedAt,
+      now,
+    })
+    : hasOrderedSourceTimestamps({ observedAt: fact?.observedAt, fetchedAt: fact?.fetchedAt, now })
+      && isIndiaPeriodFreshnessConsistent({
+        freshness,
+        effectiveFrom: fact?.effectiveFrom,
+        effectiveTo: fact?.effectiveTo,
+        fetchedAt: fact?.fetchedAt,
+        now,
+        requireCurrentPeriod: true,
+      });
+  const hasQualifiedRateFact = expected
+    && product?.productType === expected.productType
+    && source?.provider === expected.provider
+    && source?.instrumentId === expected.instrumentId
+    && source?.url === expected.url
+    && product?.availabilityStatus === 'AVAILABLE'
+    && rateFreshnessConsistent
+    && Number.isFinite(fact?.value) && fact.value >= 0
+    && fact.unit === 'PERCENT_PER_ANNUM'
+    && fact.basis === expected.basis
+    && fact.dataClass === expected.dataClass
+    && Number.isFinite(Date.parse(fact.observedAt))
+    && Number.isFinite(Date.parse(fact.fetchedAt))
+    && (taxType !== PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST || Boolean(nscReferenceFact));
+  if (!hasQualifiedRateFact) return [];
+  const reference = factSourceReference(source, 'Official product rate observation', {
+    observedValue: fact?.value ?? null,
+    unit: fact?.unit ?? null,
+    basis: fact?.basis ?? null,
+    dataClass: fact?.dataClass ?? null,
+    observedAt: fact?.observedAt ?? null,
+    fetchedAt: fact?.fetchedAt ?? null,
+    effectiveFrom: fact?.effectiveFrom ?? null,
+    effectiveTo: fact?.effectiveTo ?? null,
+    publicationDate: fact?.publicationDate ?? null,
+  });
+  if (!reference) return [];
+  if (taxType !== PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST) return [reference];
+  const nscReference = factSourceReference(nscReferenceFact.source, 'NSC reference rate used for the current FRSB reset', {
+    observedValue: nscReferenceFact.value,
+    unit: nscReferenceFact.unit,
+    basis: nscReferenceFact.rateBasis,
+    dataClass: nscReferenceFact.dataClass,
+    observedAt: nscReferenceFact.observedAt,
+    fetchedAt: nscReferenceFact.fetchedAt,
+    effectiveFrom: nscReferenceFact.effectiveFrom,
+    effectiveTo: nscReferenceFact.effectiveTo,
+    freshness: nscReferenceFact.freshness,
+  });
+  return nscReference ? [reference, nscReference] : [];
+}
+
+function historicalReturnSourceReferences(historical) {
+  const source = historical?.source;
+  if (source?.provider !== 'AMFI') return [];
+  return [
+    factSourceReference({ provider: source.provider, instrumentId: source.startInstrumentId, url: source.startObservationUrl }, 'Historical starting NAV observation', {
+      observedValue: historical.startNav,
+      unit: 'NAV_PER_UNIT',
+      observedAt: historical.startDate,
+    }),
+    factSourceReference({ provider: source.provider, instrumentId: source.endInstrumentId, url: source.endObservationUrl }, 'Historical ending NAV observation', {
+      observedValue: historical.endNav,
+      unit: 'NAV_PER_UNIT',
+      observedAt: historical.endDate,
+    }),
+  ].filter(Boolean);
+}
+
 function getTaxPolicyOrUnavailable(fiscalYear) {
   try {
     return { policy: getTaxPolicyMetadata(fiscalYear), unavailable: null };
@@ -221,7 +582,7 @@ function taxContextValues(taxCalculationContext) {
  * Calculate defensible after-tax outcome for a single product.
  * Returns postTaxAnalysis object.
  */
-export function calculateProductPostTaxOutcome({ product, profile: _profile = {}, taxCalculationContext = null }) {
+export function calculateProductPostTaxOutcome({ product, profile: _profile = {}, taxCalculationContext = null, now = new Date() }) {
   const principal = getPrincipal(taxCalculationContext);
   const parentInstrumentId = product?.parentInstrumentId;
   const taxMetadata = getProductTaxMetadata(product, parentInstrumentId);
@@ -304,7 +665,11 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
 
   const { annualIncome, regime, incomeSource, userAge, deductions } = taxContextValues(taxCalculationContext);
   if ([PRODUCT_TAX_CLASSES.BANK_DEPOSIT_INTEREST, PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST].includes(taxType)) {
-    if (!Number.isFinite(annualRate) || annualRate < 0) {
+    const calculationTime = normalizedDate(now);
+    const rateSourceReferences = calculationTime
+      ? officialRateSourceReferences(product, taxType, calculationTime)
+      : [];
+    if (!Number.isFinite(annualRate) || annualRate < 0 || rateSourceReferences.length === 0) {
       return createAnalysis({
         status: PRODUCT_TAX_STATUSES.PRODUCT_FACTS_UNAVAILABLE,
         taxMetadata,
@@ -315,7 +680,9 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
         requiredTaxInputs,
         dataClass: 'UNAVAILABLE',
         assumptions,
-        unavailableReasons: ['CURRENT_OFFICIAL_RATE_UNAVAILABLE'],
+        unavailableReasons: !Number.isFinite(annualRate) || annualRate < 0
+          ? ['CURRENT_OFFICIAL_RATE_UNAVAILABLE']
+          : ['QUALIFIED_OFFICIAL_RATE_UNAVAILABLE'],
         metricLabel: taxType === PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST
           ? 'Current coupon after tax'
           : 'Current after-tax rate',
@@ -342,6 +709,7 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
       netGain,
       postTaxRatePct: Number(((netGain / principal) * 100).toFixed(2)),
       assumptions: [...assumptions, 'INCREMENTAL_TAX_BASELINE_AND_WITH_PRODUCT_INCOME'],
+      inputSourceReferences: rateSourceReferences,
       metricLabel: taxType === PRODUCT_TAX_CLASSES.RBI_FRSB_INTEREST
         ? 'Current coupon after tax'
         : 'Current after-tax rate',
@@ -352,7 +720,8 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
     });
   }
 
-  const historicalRateValue = product?.historicalReturn?.valuePct;
+  const historicalFact = qualifiedHistoricalReturn(product, taxMetadata);
+  const historicalRateValue = historicalFact?.valuePct;
   if (!hasExplicitFiniteNumber(historicalRateValue)) {
     return createAnalysis({
       status: PRODUCT_TAX_STATUSES.PRODUCT_FACTS_UNAVAILABLE,
@@ -517,6 +886,7 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
         : 'HISTORICAL — NOT A FORECAST. The qualified one-year provider NAV comparison is not a realized gain or a future return. This standalone illustration has no positive capital gain, so no tax is charged on this zero result; tax on other income is not determined and no realized transaction is asserted. The applicable STT condition is assumed for the hypothetical transfer and is not verified for an actual transaction.',
       isHistoricalEstimate: true,
       historicalObservationWindowMonths: 12,
+      inputSourceReferences: historicalReturnSourceReferences(historicalFact),
       rulesApplied: [applicableRule],
     });
   }
@@ -579,6 +949,7 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
     disclosure: `HISTORICAL — NOT A FORECAST. The provider return window is a verified 1-year observation; it is not the user's realized gain or a future return. ${capitalGains.taxClass === 'EQUITY_LTCG_SECTION_112A' ? 'Equity long-term capital-gains treatment uses the explicit holding period and remaining taxpayer-level annual exemption.' : 'Equity short-term capital-gains treatment uses the explicit holding period.'} This hypothetical illustration assumes, but does not verify, that the applicable STT condition is met for the transfer. Special-rate tax is separate from ordinary slab tax and applicable rebate rules.`,
     isHistoricalEstimate: true,
     historicalObservationWindowMonths: 12,
+    inputSourceReferences: historicalReturnSourceReferences(historicalFact),
     rulesApplied: capitalGains.rulesApplied,
     legacyRuleAliases: capitalGains.taxRuleMetadata?.legacyAliases || [],
   });
@@ -759,6 +1130,7 @@ export function enrichProductsWithPostTaxAndSuitability(products, {
   profile = {},
   parentCatalog = null,
   taxCalculationContext = null,
+  now = new Date(),
   enforceSourceRights = process.env.NODE_ENV === 'production',
   sourceRightsResolver = resolvePostTaxProductRights,
 } = {}) {
@@ -767,7 +1139,7 @@ export function enrichProductsWithPostTaxAndSuitability(products, {
   return products.map((product) => {
     const beginnerSuitability = generateBeginnerSuitability({ product, profile, parentCatalog });
     const taxMetadata = getProductTaxMetadata(product, product?.parentInstrumentId);
-    const postTaxSourceRights = sourceRightsResolver(product);
+    const postTaxSourceRights = sourceRightsResolver(product, taxMetadata);
     const rightsBlock = enforceSourceRights && !postTaxSourceRights.productionPostTaxUseAllowed;
     const postTaxAnalysis = rightsBlock
       ? {
@@ -783,7 +1155,7 @@ export function enrichProductsWithPostTaxAndSuitability(products, {
         sourceRights: postTaxSourceRights,
       }
       : {
-        ...calculateProductPostTaxOutcome({ product, profile, taxCalculationContext }),
+        ...calculateProductPostTaxOutcome({ product, profile, taxCalculationContext, now }),
         sourceRights: postTaxSourceRights,
       };
 

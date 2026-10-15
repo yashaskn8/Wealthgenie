@@ -3,6 +3,10 @@
  * Mean-variance portfolio optimisation for Indian asset classes.
  */
 import { INSTRUMENT_PARAMS as CENTRAL_PARAMS, RISK_FREE_RATE } from './instrumentConstants.js';
+import {
+    normalizeAllocationWeights,
+    REBALANCE_TARGET_TOTAL_TOLERANCE_PERCENT,
+} from '../utils/allocationWeights.js';
 const INSTRUMENT_PARAMS = CENTRAL_PARAMS;
 export const ASSET_KEYS = [
     'Equity_MF', 'ELSS', 'ETF', 'Debt_MF', 'FD', 'Gold', 'NPS', 'PPF',
@@ -570,11 +574,15 @@ export function computeRebalance(currentAllocation, targetAllocation, threshold,
         throw new TypeError('Every target allocation must be an explicit percentage from 0 to 100');
     }
     const targetSum = targetVals.reduce((s, v) => s + v, 0);
-    if (Math.abs(targetSum - 100) > 0.01) throw new RangeError('targetAllocation must sum to exactly 100');
+    if (Math.abs(targetSum - 100) > REBALANCE_TARGET_TOTAL_TOLERANCE_PERCENT) throw new RangeError('targetAllocation must sum to exactly 100');
+    const normalizedTargetWeights = normalizeAllocationWeights(targetVals.map(value => value / 100));
     const resolvedTarget = {};
-    for (const [k, val] of Object.entries(targetAllocation)) {
+    const targetEntries = Object.entries(targetAllocation);
+    for (let index = 0; index < targetEntries.length; index += 1) {
+        const [k] = targetEntries[index];
         const resolved = resolveAssetKey(k);
         if (!INSTRUMENT_PARAMS[resolved]) throw new Error(`Unknown target allocation instrument "${k}"`);
+        const val = normalizedTargetWeights[index] * 100;
         resolvedTarget[resolved] = (resolvedTarget[resolved] || 0) + val;
     }
     const allKeys = Array.from(new Set([

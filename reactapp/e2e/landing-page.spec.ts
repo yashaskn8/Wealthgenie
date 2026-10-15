@@ -69,7 +69,7 @@ test('matches the reference hierarchy and stays within each required viewport', 
   }
 });
 
-test('loads and plays the supplied unmodified 10-second video, advances, and loops', async ({ page }, testInfo) => {
+test('autoplays the supplied 10-second video without custom playback controls', async ({ page }, testInfo) => {
   const mediaResponses: number[] = [];
   page.on('response', (response) => {
     if (response.url().endsWith('/media/wealthgenie-hero.mp4')) mediaResponses.push(response.status());
@@ -110,9 +110,11 @@ test('loads and plays the supplied unmodified 10-second video, advances, and loo
   expect(proof.loop).toBe(true);
   expect(proof.filter).toBe('none');
   expect(mediaResponses.some((status) => status === 200 || status === 206)).toBe(true);
-  await expect(page.getByRole('button', { name: 'Background video playback' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /background video/i })).toHaveCount(0);
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => !element.paused)).toBe(true);
 
   await page.mouse.move(90, 140);
+  await page.mouse.click(90, 140);
   await expect.poll(() => page.locator('.wg-landing__hero').evaluate((hero) => (hero as HTMLElement).style.getPropertyValue('--scene-tilt-x'))).not.toBe('0deg');
 
   await page.screenshot({ path: testInfo.outputPath('reference-layout-video-playing.png'), animations: 'allow' });
@@ -200,20 +202,24 @@ test('uses the poster without motion under reduced-motion settings', async ({ pa
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test('keeps the playback control removed as reduced-motion preference changes', async ({ page }) => {
+test('removes the background video when reduced motion is enabled and restores it when disabled', async ({ page }) => {
   await page.goto('/');
   const hero = page.locator('.wg-landing__hero');
   await expect(hero).toHaveAttribute('data-motion', 'full');
-  await expect(page.getByRole('button', { name: 'Background video playback' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /background video/i })).toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(hero).toHaveAttribute('data-motion', 'reduced');
   await expect(page.locator('.wg-landing__video')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /background video/i })).toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await expect(hero).toHaveAttribute('data-motion', 'full');
-  await expect(page.locator('.wg-landing__video')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Background video playback' })).toHaveCount(0);
+  const remountedVideo = page.locator('.wg-landing__video');
+  await expect(remountedVideo).toBeVisible();
+  await remountedVideo.evaluate((element: HTMLVideoElement) => element.pause());
+  await expect.poll(() => remountedVideo.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
+  await expect(page.getByRole('button', { name: /background video/i })).toHaveCount(0);
 });
 
 test('uses the poster and preserves the CTAs when the video request fails', async ({ page }) => {

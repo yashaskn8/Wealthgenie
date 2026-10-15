@@ -242,6 +242,21 @@ export function deriveRbiFloatingRateSavingsBondSnapshot({
   fact.referenceRateValue = nscValue;
   fact.spreadBps = rule.spreadBps;
   fact.referenceSource = nscFact.source?.url || null;
+  fact.referenceRateFact = {
+    canonicalProductId: nscFact.canonicalProductId,
+    kind: nscFact.kind,
+    availabilityStatus: nscFact.availabilityStatus,
+    source: { ...nscFact.source },
+    value: nscFact.value,
+    unit: nscFact.unit,
+    rateBasis: nscFact.rateBasis,
+    dataClass: nscFact.dataClass,
+    observedAt: nscFact.observedAt,
+    fetchedAt: nscFact.fetchedAt,
+    effectiveFrom: nscFact.effectiveFrom,
+    effectiveTo: nscFact.effectiveTo,
+    freshness: { ...nscFact.freshness },
+  };
   fact.resetDate = resetDate;
 
   const product = {

@@ -18,6 +18,7 @@ import User from '../models/User.js';
 import FinancialProfileState from '../models/FinancialProfileState.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
 import { installMockChatSessionStore } from './helpers/mockChatSessionStore.js';
+import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-wealthgenie-2026';
 process.env.JWT_SECRET = JWT_SECRET;
@@ -115,6 +116,7 @@ describe('Phase 1 Architecture Truth — RAG Chat Integration Tests', () => {
     }));
 
     User.findById = () => ({
+      select() { return this; },
       lean: async () => ({ name: 'Test User', email: 'test@example.com' }),
     });
   });
@@ -135,7 +137,7 @@ describe('Phase 1 Architecture Truth — RAG Chat Integration Tests', () => {
   it('keeps a factual tax question unavailable without canonical tax inputs and a tax-engine result', async () => {
     const app = buildApp();
 
-    await withServer(app, async (baseUrl) => {
+    await withMockAuthAccountState(() => withServer(app, async (baseUrl) => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/chat/message`, {
         method: 'POST',
         headers: {
@@ -154,13 +156,13 @@ describe('Phase 1 Architecture Truth — RAG Chat Integration Tests', () => {
       assert.ok(body.unavailable_facts.includes('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS'));
       assert.equal(body.retrieved_chunks, undefined);
       assert.equal(body.tool_results, undefined);
-    });
+    }), { preserveUserLookup: true });
   });
 
   it('never exposes the old direct RAG provider path', async () => {
     const app = buildApp();
 
-    await withServer(app, async (baseUrl) => {
+    await withMockAuthAccountState(() => withServer(app, async (baseUrl) => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/chat/message`, {
         method: 'POST',
         headers: {
@@ -174,7 +176,7 @@ describe('Phase 1 Architecture Truth — RAG Chat Integration Tests', () => {
       assert.equal(response.status, 200);
       assert.equal(body.provider, 'DETERMINISTIC_TEMPLATE');
       assert.notEqual(body.provider, 'rag');
-    });
+    }), { preserveUserLookup: true });
   });
 
   it('ConversationHistory accepts Phase 6 grounded-provider audit metadata', async () => {

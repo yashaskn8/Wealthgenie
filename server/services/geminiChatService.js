@@ -25,26 +25,15 @@ import {
   CHAT_SESSION_TOKEN_CAP,
   defaultChatSessionStore,
 } from './chatSessionStore.js';
+import { CHAT_RATE_LIMIT, checkChatRateLimit } from './chatRateLimit.js';
 
-const CHAT_RATE_LIMIT = 30;
 const SESSION_CUMULATIVE_TOKEN_CAP = CHAT_SESSION_TOKEN_CAP;
 
-async function checkRateLimit(userId) {
-  const key = `chat:ratelimit:${userId}`;
-  if (redisClient && redisAvailable) {
-    try {
-      const count = await redisClient.incr(key);
-      if (count === 1) await redisClient.expire(key, 3600);
-      if (count > CHAT_RATE_LIMIT) {
-        const ttl = await redisClient.ttl(key);
-        return { allowed: false, count, ttl };
-      }
-      return { allowed: true, count };
-    } catch {
-      // Chat remains available if the non-authoritative rate-limit cache fails.
-    }
-  }
-  return { allowed: true, count: 1 };
+export async function checkRateLimit(userId, {
+  getRedisState = () => ({ client: redisClient, available: redisAvailable }),
+  ...options
+} = {}) {
+  return checkChatRateLimit(userId, { ...options, redisState: getRedisState() });
 }
 
 export function buildClientResponseDTO({
@@ -63,6 +52,7 @@ export function buildClientResponseDTO({
   fallback = false,
   messages_this_hour = 1,
   rate_limit_remaining = 30,
+  rate_limit_reset_at = null,
   citations = [],
   action_cards = [],
 }) {
@@ -82,6 +72,7 @@ export function buildClientResponseDTO({
     fallback,
     messages_this_hour,
     rate_limit_remaining,
+    rate_limit_reset_at,
     citations,
     action_cards,
   };
@@ -95,14 +86,57 @@ function noProfileResponse(sessionId, rateCheck) {
     provider: 'SYSTEM',
     messages_this_hour: rateCheck.count,
     rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+    rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
   });
 }
 
-export async function processChat({ userId, user: _user, message, sessionId }, { sessionStore = defaultChatSessionStore } = {}) {
-  const rateCheck = await checkRateLimit(userId);
+async function resolveChatRecommendation(userId, profileId, profile) {
+  try {
+    const state = await resolveCurrentRecommendationState({ userId, profileId, profile });
+    const recommendation = state.freshness.fresh ? state.currentRecommendationView : null;
+    return recommendation ? { recommendation, recommendationState: state } : { recommendation: null, recommendationState: null };
+  } catch {
+    // Chat remains available as a non-personalized grounded explanation when
+    // the authoritative recommendation is stale or unavailable.
+    return { recommendation: null, recommendationState: null };
+  }
+}
+
+function createChatSessionBinding(canonicalProfile, storedProfile, recommendation, recommendationState) {
+  const modelVersion = recommendation?.modelVersion || 'chat-profile-only-v1';
+  return {
+    profileId: storedProfile._id,
+    profileVersion: Number(storedProfile.version || 1),
+    financialProfileStateRevision: Number(canonicalProfile.state.revision),
+    profileInputHash: buildRecommendationProfileHash(storedProfile, { modelVersion }),
+    sourceRecommendationId: recommendation?._id || null,
+    sourceAllocationRevisionId: recommendationState?.allocationRevision?._id || null,
+    sourceRecommendationFingerprint: recommendationState?.recommendationFingerprint || null,
+    sourcePortfolioFingerprint: recommendationState?.portfolioFingerprint || null,
+  };
+}
+
+export async function resolveCurrentChatSessionBinding({ userId } = {}) {
+  const canonicalProfile = await resolveCurrentFinancialProfile({ userId, requireRecommendation: false });
+  const storedProfile = canonicalProfile.profile;
+  if (!storedProfile) return null;
+  const profile = buildRecommendationProfile(storedProfile);
+  const { recommendation, recommendationState } = await resolveChatRecommendation(userId, storedProfile._id, profile);
+  return createChatSessionBinding(canonicalProfile, storedProfile, recommendation, recommendationState);
+}
+
+export async function processChat({ userId, user: _user, message, sessionId }, {
+  sessionStore = defaultChatSessionStore,
+  rateLimitOptions,
+} = {}) {
+  const rateCheck = await checkRateLimit(userId, rateLimitOptions);
   if (!rateCheck.allowed) {
-    throw createError(429, 'Chat user rate limit exceeded.', `Chat limit reached (${CHAT_RATE_LIMIT}/hour). Resets in ${Math.ceil(rateCheck.ttl / 60)} minutes.`, {
+    throw createError(429, 'Chat user rate limit exceeded.', 'The hourly chat message limit has been reached.', {
       code: 'CHAT_RATE_LIMIT_EXCEEDED',
+      details: {
+        retryAfterSeconds: rateCheck.ttl,
+        resetAt: new Date(rateCheck.resetAt).toISOString(),
+      },
     });
   }
 
@@ -117,28 +151,8 @@ export async function processChat({ userId, user: _user, message, sessionId }, {
     || isGroundingBoundaryAttack(securityContext.sanitizedMessage);
   if (promptInjectionDetected) PrometheusMetrics.inc('prompt_injection_attempts_total');
 
-  let recommendation = null;
-  let recommendationState = null;
-  try {
-    recommendationState = await resolveCurrentRecommendationState({ userId, profileId: storedProfile._id, profile });
-    recommendation = recommendationState.freshness.fresh ? recommendationState.currentRecommendationView : null;
-    if (!recommendation) recommendationState = null;
-  } catch {
-    // Chat remains available as a non-personalized grounded explanation when
-    // the authoritative recommendation is stale or unavailable.
-  }
-
-  const modelVersion = recommendation?.modelVersion || 'chat-profile-only-v1';
-  const binding = {
-    profileId: storedProfile._id,
-    profileVersion: Number(storedProfile.version || 1),
-    financialProfileStateRevision: Number(canonicalProfile.state.revision),
-    profileInputHash: buildRecommendationProfileHash(storedProfile, { modelVersion }),
-    sourceRecommendationId: recommendation?._id || null,
-    sourceAllocationRevisionId: recommendationState?.allocationRevision?._id || null,
-    sourceRecommendationFingerprint: recommendationState?.recommendationFingerprint || null,
-    sourcePortfolioFingerprint: recommendationState?.portfolioFingerprint || null,
-  };
+  const { recommendation, recommendationState } = await resolveChatRecommendation(userId, storedProfile._id, profile);
+  const binding = createChatSessionBinding(canonicalProfile, storedProfile, recommendation, recommendationState);
 
   const claim = await sessionStore.acquire({ userId, sessionId, binding });
   let providerAttempted = false;
@@ -246,6 +260,7 @@ export async function processChat({ userId, user: _user, message, sessionId }, {
       fallback: explanation.fallback,
       messages_this_hour: rateCheck.count,
       rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+      rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
       citations: explanation.citations,
       action_cards: [],
     });

@@ -50,7 +50,7 @@ test('app factory rejects unapproved browser origins and returns traceable 404s'
   });
 });
 
-test('production blocks every public Upstox-derived quote or market-context route without distribution clearance', async () => {
+test('production blocks public market, profile, and recommendation outputs when Upstox distribution is unconfirmed', async () => {
   const env = {
     ...process.env,
     NODE_ENV: 'production',
@@ -61,15 +61,35 @@ test('production blocks every public Upstox-derived quote or market-context rout
   const app = createApp({ env });
 
   await withServer(app, async baseUrl => {
-    for (const path of [
-      '/api/market/rates',
-      '/api/market/benchmarks',
-      '/api/regime/current',
-      '/api/market-data/quotes?ids=market:index:nifty-50',
+    for (const request of [
+      { path: '/api/market/rates' },
+      { path: '/api/market/benchmarks' },
+      { path: '/api/regime/current' },
+      { path: '/api/market-data/quotes?ids=market:index:nifty-50' },
+      { path: '/api/market-data/admin/equity-history?exchange=NSE&symbol=RELIANCE&isin=INE002A01018&fromDate=2026-10-08&toDate=2026-10-09' },
+      { path: '/api/profile/precompute', method: 'POST', body: {} },
+      { path: '/api/profile/complete', method: 'POST', body: {} },
+      { path: '/api/profile/64a000000000000000000001', method: 'PUT', body: {} },
+      { path: '/api/profile/64a000000000000000000001/health-score' },
+      { path: '/api/recommend', method: 'POST', body: {} },
+      { path: '/api/recommend/current?profileId=64a000000000000000000001' },
+      { path: '/api/recommend/64a000000000000000000001/advisory', method: 'POST', body: {} },
     ]) {
-      const response = await jsonRequest(`${baseUrl}${path}`);
-      assert.equal(response.response.status, 503, path);
-      assert.equal(response.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED', path);
+      const response = await jsonRequest(`${baseUrl}${request.path}`, {
+        ...request,
+        body: request.body === undefined ? undefined : JSON.stringify(request.body),
+      });
+      assert.equal(response.response.status, 503, request.path);
+      assert.equal(response.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED', request.path);
+    }
+
+    // Pure profile restore/build routes do not contain recommendation context.
+    for (const path of ['/api/profile/current', '/api/profile/build']) {
+      const response = await jsonRequest(`${baseUrl}${path}`, path.endsWith('/build')
+        ? { method: 'POST', body: JSON.stringify({}) }
+        : {});
+      assert.equal(response.response.status, 401, path);
+      assert.equal(response.body.code, 'AUTH_REQUIRED', path);
     }
   });
 });

@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import ConversationHistory from '../models/ConversationHistory.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import FinancialProfileState from '../models/FinancialProfileState.js';
+import User from '../models/User.js';
 import chatRoutes from '../routes/chatRoutes.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import {
@@ -269,6 +270,10 @@ test('HTTP same-session POST by another user creates a separate owned row and ca
     ...profileValues,
   });
   try {
+    await User.create([
+      { _id: userId, name: 'Chat Test Owner', email: `chat-owner-${userId}@example.test`, passwordHash: 'test-only-hash' },
+      { _id: otherUserId, name: 'Chat Test Other', email: `chat-other-${otherUserId}@example.test`, passwordHash: 'test-only-hash' },
+    ]);
     await FinancialProfile.create([
       profileRecord(profileAId, userId),
       profileRecord(profileBId, otherUserId),
@@ -360,6 +365,7 @@ test('HTTP same-session POST by another user creates a separate owned row and ca
     await ConversationHistory.deleteMany({ userId: { $in: [userId, otherUserId] }, session_id: sessionId });
     await FinancialProfile.deleteMany({ _id: { $in: [profileAId, profileBId] } });
     await FinancialProfileState.deleteMany({ userId: { $in: [userId, otherUserId] } });
+    await User.deleteMany({ _id: { $in: [userId, otherUserId] } });
     if (previousSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = previousSecret;
   }
@@ -384,6 +390,12 @@ test('HTTP same-user chat turn returns a schema-valid busy conflict while a dura
   let activeClaim;
 
   try {
+    await User.create({
+      _id: userId,
+      name: 'Chat Test Owner',
+      email: `chat-busy-owner-${userId}@example.test`,
+      passwordHash: 'test-only-hash',
+    });
     await FinancialProfile.create(profileRecord);
     await FinancialProfileState.create({
       userId, currentProfileId: profileId, revision: 1, promotionFence: 0, resolutionStatus: 'CURRENT',
@@ -423,6 +435,7 @@ test('HTTP same-user chat turn returns a schema-valid busy conflict while a dura
     await ConversationHistory.deleteMany({ userId, session_id: sessionId });
     await FinancialProfile.deleteOne({ _id: profileId, userId });
     await FinancialProfileState.deleteMany({ userId });
+    await User.deleteOne({ _id: userId });
     if (previousSecret === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = previousSecret;
   }
 });

@@ -44,6 +44,8 @@ const ProfilePage = ({ onCompleteProfile: _onCompleteProfile, children }) => {
 
   const [isComplete, setIsComplete] = useState(false);
   const [isRestoringProfile, setIsRestoringProfile] = useState(true);
+  const [profileRestoreAttempt, setProfileRestoreAttempt] = useState(0);
+  const [profileRestoreError, setProfileRestoreError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialRecommendation, setInitialRecommendation] = useState(null);
   const candidateIdRef = useRef(null);
@@ -286,18 +288,38 @@ const ProfilePage = ({ onCompleteProfile: _onCompleteProfile, children }) => {
         setIsComplete(true);
       })
       .catch(error => {
-        if (error?.status !== 404 && error?.code !== 'REQUEST_ABORTED') {
-          console.warn('[Profile] Secure profile restore failed:', error.message);
-        }
+        if (error?.code === 'REQUEST_ABORTED' || error?.status === 404) return;
+        console.warn('[Profile] Secure profile restore failed:', error?.message || 'Unknown error');
+        setProfileRestoreError('We could not verify whether a saved financial profile exists. Retry loading it before creating a profile.');
       })
       .finally(() => {
         if (!controller.signal.aborted) setIsRestoringProfile(false);
       });
     return () => controller.abort();
-  }, [handleProfileUpdate]);
+  }, [handleProfileUpdate, profileRestoreAttempt]);
+
+  const retryProfileRestore = () => {
+    setProfileRestoreError(null);
+    setIsRestoringProfile(true);
+    setProfileRestoreAttempt(attempt => attempt + 1);
+  };
 
   if (isRestoringProfile) {
     return <div role="status" aria-live="polite" className="route-loading">Loading your secure financial profile...</div>;
+  }
+
+  if (profileRestoreError) {
+    return (
+      <main className="profile-page" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '24px', boxSizing: 'border-box', background: '#020617' }}>
+        <section role="alert" aria-live="assertive" className="profile-form-card" style={{ width: 'min(100%, 520px)', padding: '28px', boxSizing: 'border-box' }}>
+          <h1 className="profile-page-title">Your saved profile could not be loaded</h1>
+          <p>{profileRestoreError}</p>
+          <button type="button" className="btn-save-continue" onClick={retryProfileRestore}>
+            Retry loading profile
+          </button>
+        </section>
+      </main>
+    );
   }
 
   if (isComplete) {
@@ -309,36 +331,13 @@ const ProfilePage = ({ onCompleteProfile: _onCompleteProfile, children }) => {
   }
 
   return (
-    <main
-      className="profile-page"
-      style={{
-        height: '100vh',
-        width: '100vw',
-        maxHeight: '100vh',
-        overflow: 'hidden',
-        display: 'flex',
-        background: '#020617',
-        position: 'relative',
-      }}
-    >
+    <main className="profile-page">
       {/* Form content on the left */}
       <div
         className="profile-content"
         role="region"
         aria-label="Financial profile form"
         tabIndex={0}
-        style={{
-          height: '100vh',
-          maxHeight: '100vh',
-          width: '45%',
-          padding: '20px 28px 20px 32px',
-          boxSizing: 'border-box',
-          position: 'relative',
-          zIndex: 10,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
       >
         <h1 className="profile-page-title" style={{ marginBottom: '14px', textAlign: 'center', fontSize: '1.85rem' }}>
           Create Your <span className="gradient-text">Financial Profile</span>
@@ -649,18 +648,7 @@ const ProfilePage = ({ onCompleteProfile: _onCompleteProfile, children }) => {
       </div>
       
       {/* Right image pane */}
-      <div
-        className="profile-side-image"
-        style={{
-          width: '55%',
-          height: '100vh',
-          overflow: 'hidden',
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <div className="profile-side-image">
         <img src={profileImg} alt="Financial Profile" className="profile-img-element" />
         <div className="profile-img-overlay"></div>
       </div>

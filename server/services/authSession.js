@@ -100,7 +100,9 @@ export function readCsrfCookie(req) {
 }
 
 export function ensureCsrfCookie(req, res, env = process.env) {
-  const csrfToken = readCsrfCookie(req) || createCsrfToken();
+  const existingCsrfToken = readCsrfCookie(req);
+  if (existingCsrfToken) return existingCsrfToken;
+  const csrfToken = createCsrfToken();
   setCsrfCookie(res, csrfToken, env);
   return csrfToken;
 }

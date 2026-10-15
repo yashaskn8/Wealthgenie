@@ -63,3 +63,22 @@ it('keeps the retained investment detail tabs without exposing the crash stress 
   ]);
   expect(screen.queryByRole('tab', { name: /stress test/i })).toBeNull();
 });
+
+it.each([
+  ['missing', {}, 'Unavailable'],
+  ['negative', { lock_in_years: -1 }, 'Unavailable'],
+  ['non-finite', { lockIn: Number.NaN }, 'Unavailable'],
+  ['malformed', { lock_in_years: '' }, 'Unavailable'],
+  ['verified zero', { lock_in_years: 0 }, 'None'],
+  ['verified positive', { lockIn: 5 }, '5 Years'],
+])('shows lock-in as %s only when its value is valid', (_case, lockIn, expected) => {
+  render(<DeepDiveModal
+    isOpen
+    investment={{ id: 'ppf', name: 'Server PPF', ...lockIn }}
+    onClose={vi.fn()}
+    allRecommendations={[]}
+  />);
+
+  const lockInLabel = screen.getByText('Lock-in Period');
+  expect(lockInLabel.closest('.metric-item').querySelector('.metric-value')).toHaveTextContent(expected);
+});

@@ -133,10 +133,16 @@ const GOAL_PUBLIC_FIELDS = Object.freeze([
  * A stale or unavailable source never gets a warning-only response: all
  * allocation-dependent fields are explicitly unavailable.
  */
-export function buildCurrentGoalResponse(goal, { state = null } = {}) {
+export function buildCurrentGoalResponse(goal, { state = null, resolutionFailure = false, now = new Date() } = {}) {
   const raw = plain(goal);
-  const calculationFreshness = state?.recommendation
-    ? assessGoalCalculationFreshness(raw, state)
+  const calculationFreshness = resolutionFailure === true
+    ? {
+      fresh: false,
+      reasonCodes: ['STATE_RESOLUTION_FAILED'],
+      resolution: { status: 'FAILED', code: 'GOAL_STATE_RESOLUTION_FAILED' },
+    }
+    : state?.recommendation
+    ? assessGoalCalculationFreshness(raw, state, { now })
     : {
       fresh: false,
       reasonCodes: state?.financialProfileState

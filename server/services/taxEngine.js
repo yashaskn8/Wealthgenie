@@ -273,6 +273,7 @@ export const TAX_SLABS_BY_FY = Object.freeze({
             'FY2025-26_SAVINGS_INTEREST_LIMITS', 'FY2025-26_EMPLOYER_NPS_LIMITS',
             'FY2025-26_REBATE', 'FY2025-26_MARGINAL_RELIEF', 'FY2025-26_SURCHARGE',
             'FY2025-26_CESS', 'FY2025-26_CAPITAL_GAINS', 'FY2025-26_BANK_INTEREST_TDS',
+            'FY2025-26_SECURITY_INTEREST_TDS',
         ]),
         new: FY2025_26_NEW_SLABS,
         old: FY2025_26_OLD_NON_SENIOR_SLABS,
@@ -294,6 +295,7 @@ export const TAX_SLABS_BY_FY = Object.freeze({
             'FY2026-27_SAVINGS_INTEREST_LIMITS', 'FY2026-27_EMPLOYER_NPS_LIMITS',
             'FY2026-27_REBATE', 'FY2026-27_MARGINAL_RELIEF', 'FY2026-27_SURCHARGE',
             'FY2026-27_CESS', 'FY2026-27_CAPITAL_GAINS', 'FY2026-27_BANK_INTEREST_TDS',
+            'FY2026-27_SECURITY_INTEREST_TDS',
             'FY2026-27_PPF_CONDITIONAL_EXCLUSION', 'FY2026-27_SSY_CONDITIONAL_EXCLUSION',
             'FY2026-27_SGB_MATURITY_QUALIFICATION',
         ]),
@@ -759,15 +761,26 @@ export function computeCapitalGainsTaxBuckets({
         };
     }
 
-    // Sections 196(2), 197(2), and 198(3) permit a resident individual/HUF
-    // to offset unused basic-exemption headroom against qualifying gains.
-    // Residency is not collected by this product, so fail closed whenever
-    // that interaction could change the result instead of silently omitting it.
+    const available112AExemption = Math.max(0, policyRules.capitalGains112AExemption - section112AExemptionUsed);
+    if (section112AExemptionAppliedOverride !== null && section112AExemptionAppliedOverride > available112AExemption) {
+        throw new RangeError('section112AExemptionAppliedOverride exceeds the remaining fiscal-year policy exemption');
+    }
+    const exemptionApplied = section112AExemptionAppliedOverride === null
+        ? Math.min(longTerm112AGain, available112AExemption)
+        : Math.min(longTerm112AGain, section112AExemptionAppliedOverride);
+    const taxable112A = Math.max(0, longTerm112AGain - exemptionApplied);
+    const taxableGain = shortTerm111AGain + taxable112A + longTermOtherGain;
+
+    // Resident individuals/HUFs may use unused basic-exemption headroom
+    // against taxable special-rate gains: Sections 111A/112/112A for
+    // FY2025-26 and Sections 196/197/198 for FY2026-27. Residency is not
+    // collected by this product, so fail closed only when a taxable gain
+    // remains and that interaction could change the result.
     const maximumNotChargeable = getRegimeSlabs(regime, fiscalYear, ordinary.userAge)[0]?.max;
     const unusedBasicExemption = Number.isFinite(maximumNotChargeable)
         ? Math.max(0, maximumNotChargeable - ordinary.taxableIncome)
         : 0;
-    if (totalGain > 0 && unusedBasicExemption > 0) {
+    if (taxableGain > 0 && unusedBasicExemption > 0) {
         return {
             status: 'UNAVAILABLE',
             grossGain: totalGain,
@@ -787,15 +800,6 @@ export function computeCapitalGainsTaxBuckets({
         };
     }
 
-    const available112AExemption = Math.max(0, policyRules.capitalGains112AExemption - section112AExemptionUsed);
-    if (section112AExemptionAppliedOverride !== null && section112AExemptionAppliedOverride > available112AExemption) {
-        throw new RangeError('section112AExemptionAppliedOverride exceeds the remaining fiscal-year policy exemption');
-    }
-    const exemptionApplied = section112AExemptionAppliedOverride === null
-        ? Math.min(longTerm112AGain, available112AExemption)
-        : Math.min(longTerm112AGain, section112AExemptionAppliedOverride);
-    const taxable112A = Math.max(0, longTerm112AGain - exemptionApplied);
-    const taxableGain = shortTerm111AGain + taxable112A + longTermOtherGain;
     const taxBeforeSurcharge = (shortTerm111AGain * policyRules.capitalGains111ARate)
         + (taxable112A * policyRules.capitalGains112ARate)
         + (longTermOtherGain * policyRules.capitalGains112ARate);

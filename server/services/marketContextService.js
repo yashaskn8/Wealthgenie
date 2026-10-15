@@ -13,6 +13,10 @@ import {
 import { computeMarketContextFeatures } from './marketContextFeatureEngine.js';
 import { readLatestPersistedMarketContext, persistMarketContextSnapshot } from './marketData/MarketDataRepository.js';
 import {
+  hasUpstoxProvenance,
+  isUpstoxPublicDistributionAllowed,
+} from './marketData/upstoxDistributionPolicy.js';
+import {
   MARKET_CONTEXT_POLICY_VERSION,
   applyMarketContextHysteresis,
   classifyDeterministicMarketContext,
@@ -365,10 +369,11 @@ async function writeLastKnownGood(value, setLkg, persistDurable) {
   }
 }
 
-function recoverLastKnownGood(lastKnownGood, now, liveReasonCodes = [], liveProviderSelection = null) {
+function recoverLastKnownGood(lastKnownGood, now, liveReasonCodes = [], liveProviderSelection = null, env = process.env) {
   if (!lastKnownGood?.marketContext?.marketSnapshot) return null;
   const saved = lastKnownGood.marketContext;
   const savedSnapshot = saved.marketSnapshot;
+  if (!isUpstoxPublicDistributionAllowed(env) && hasUpstoxProvenance(savedSnapshot)) return null;
   const observedAge = ageSeconds(savedSnapshot.observedAt, now);
   const recoveredStatus = observedAge !== null && observedAge <= MARKET_CONTEXT_CLOSED_MAX_AGE_SECONDS
     ? MARKET_DISPLAY_STATUS.LAST_AVAILABLE
@@ -415,6 +420,7 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
   const setLkg = dependencies.setLkgCache || setState;
   const getDurableLkg = dependencies.getDurableLkg || (() => readLatestPersistedMarketContext());
   const persistDurableLkg = dependencies.persistDurableLkg || (value => persistMarketContextSnapshot(value));
+  const env = dependencies.env || process.env;
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   if (Number.isNaN(now.getTime())) throw new TypeError('now must be a valid date.');
 
@@ -429,6 +435,7 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
         forceHistoryRefresh: options.forceHistoryRefresh === true,
         now,
         persist: true,
+        env,
       });
       quoteResult = { status: 'fulfilled', value: pair.quoteSnapshot };
       historyResult = { status: 'fulfilled', value: pair.historicalSnapshot };
@@ -443,13 +450,39 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
       fetchHistory({ forceRefresh: options.forceHistoryRefresh === true, now }),
     ]);
   }
-  const quoteSnapshot = quoteResult.status === 'fulfilled'
+  let quoteSnapshot = quoteResult.status === 'fulfilled'
     ? quoteResult.value
     : sourceFailureSnapshot('MARKET_QUOTE_REQUEST_FAILED', quoteResult.reason?.message || 'Quote request failed.');
-  const historicalSnapshot = historyResult.status === 'fulfilled'
+  let historicalSnapshot = historyResult.status === 'fulfilled'
     ? historyResult.value
     : sourceFailureSnapshot('MARKET_HISTORY_REQUEST_FAILED', historyResult.reason?.message || 'History request failed.');
   liveProviderSelection ||= quoteSnapshot.providerSelection ?? historicalSnapshot.providerSelection ?? null;
+
+  const upstoxDistributionBlocked = !isUpstoxPublicDistributionAllowed(env)
+    && (hasUpstoxProvenance(liveProviderSelection)
+      || hasUpstoxProvenance(quoteSnapshot)
+      || hasUpstoxProvenance(historicalSnapshot));
+  if (upstoxDistributionBlocked) {
+    // This second boundary protects internal callers and test/provider
+    // injections as well as the normal provider selector. Never classify,
+    // persist, recover from, or return an Upstox-derived partial snapshot.
+    quoteSnapshot = {
+      status: AVAILABILITY.UNAVAILABLE,
+      provider: null,
+      facts: [],
+      fetchedAt: now.toISOString(),
+      error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' },
+      reasonCodes: ['UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'],
+    };
+    historicalSnapshot = {
+      status: AVAILABILITY.UNAVAILABLE,
+      provider: null,
+      candles: [],
+      fetchedAt: now.toISOString(),
+      error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' },
+      reasonCodes: ['UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'],
+    };
+  }
 
   const features = computeMarketContextFeatures({ quoteSnapshot, historicalSnapshot });
   const candidate = classifyDeterministicMarketContext(features);
@@ -459,7 +492,7 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
     // not combine its usable fragments with older quote/history evidence, and
     // do not let the mere presence of one live fact suppress a complete LKG.
     const storedLkg = await readLastKnownGood(getLkg, getDurableLkg);
-    const recovered = recoverLastKnownGood(storedLkg.value, now, candidate.reasonCodes, liveProviderSelection);
+    const recovered = recoverLastKnownGood(storedLkg.value, now, candidate.reasonCodes, liveProviderSelection, env);
     if (recovered) return recovered;
     const marketSnapshot = buildMarketSnapshot({
       quoteSnapshot,
@@ -470,8 +503,12 @@ export async function getLiveMarketContext(options = {}, dependencies = {}) {
       now,
     });
     const recommendationUsability = recommendationUsabilityFor(marketSnapshot, now);
+    const unavailableReasonCodes = upstoxDistributionBlocked
+      ? [...new Set([...candidate.reasonCodes, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'])]
+      : candidate.reasonCodes;
     return {
       ...candidate,
+      reasonCodes: unavailableReasonCodes,
       evaluatedAt,
       marketSnapshot: finalizeMarketSnapshot(marketSnapshot, recommendationUsability),
       recommendationUsability,
@@ -528,15 +565,21 @@ export async function getLatestQualifiedMarketContextForRecommendation(options =
   if (Number.isNaN(now.getTime())) throw new TypeError('now must be a valid date.');
   const getDurableLkg = dependencies.getDurableLkg || (() => readLatestPersistedMarketContext());
   const stored = await readLastKnownGood(getLkg, getDurableLkg);
-  const recovered = recoverLastKnownGood(stored.value, now);
+  const env = dependencies.env || process.env;
+  const storedUpstoxBlocked = !isUpstoxPublicDistributionAllowed(env)
+    && hasUpstoxProvenance(stored.value?.marketContext?.marketSnapshot);
+  const recovered = recoverLastKnownGood(stored.value, now, [], null, env);
   if (!recovered) {
+    const unavailableReasonCode = storedUpstoxBlocked
+      ? 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'
+      : 'NO_LAST_KNOWN_GOOD_MARKET_CONTEXT';
     return {
       status: 'MARKET_CONTEXT_UNAVAILABLE',
       context: null,
       policyVersion: MARKET_CONTEXT_POLICY_VERSION,
-      reasonCodes: ['NO_LAST_KNOWN_GOOD_MARKET_CONTEXT'],
+      reasonCodes: [unavailableReasonCode],
       evaluatedAt: now.toISOString(),
-      recommendationUsability: { status: 'NOT_USABLE', reasonCodes: ['NO_LAST_KNOWN_GOOD_MARKET_CONTEXT'] },
+      recommendationUsability: { status: 'NOT_USABLE', reasonCodes: [unavailableReasonCode] },
       marketSnapshot: finalizeMarketSnapshot(buildMarketSnapshot({
         quoteSnapshot: null,
         historicalSnapshot: null,
@@ -544,7 +587,7 @@ export async function getLatestQualifiedMarketContextForRecommendation(options =
         policy: null,
         evaluatedAt: now.toISOString(),
         now,
-      }), { status: 'NOT_USABLE', reasonCodes: ['NO_LAST_KNOWN_GOOD_MARKET_CONTEXT'] }),
+      }), { status: 'NOT_USABLE', reasonCodes: [unavailableReasonCode] }),
     };
   }
   return recovered;

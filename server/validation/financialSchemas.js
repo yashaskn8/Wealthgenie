@@ -1,6 +1,7 @@
 import Joi from 'joi';
 import { sendError } from '../middleware/errorHandler.js';
 import { taxCalculationContextSchema } from './taxSchemas.js';
+import { ALLOCATION_WEIGHT_TOTAL_TOLERANCE } from '../utils/allocationWeights.js';
 
 const objectId = Joi.string().pattern(/^[0-9a-fA-F]{24}$/).message('Invalid ID format');
 const investmentGoals = ['Retirement', 'Wealth Growth', 'Tax Saving', 'Emergency Fund'];
@@ -20,7 +21,7 @@ export const recommendationWeightsSchema = Joi.object({
   ).min(1).max(30).required(),
 }).custom((value, helpers) => {
   const total = Object.values(value.weights).reduce((sum, weight) => sum + weight, 0);
-  return Math.abs(total - 1) <= 0.0001
+  return Math.abs(total - 1) <= ALLOCATION_WEIGHT_TOTAL_TOLERANCE
     ? value
     : helpers.message({ custom: 'Recommendation weights must sum to exactly 1' });
 }).unknown(false);
@@ -118,7 +119,7 @@ const portfolioWeights = Joi.object().pattern(
   Joi.number().min(0).max(1),
 ).min(1).max(30).required().custom((value, helpers) => {
   const total = Object.values(value).reduce((sum, weight) => sum + weight, 0);
-  return Math.abs(total - 1) <= 0.0001
+  return Math.abs(total - 1) <= ALLOCATION_WEIGHT_TOTAL_TOLERANCE
     ? value
     : helpers.message({ custom: 'Portfolio allocations must sum to exactly 1' });
 });

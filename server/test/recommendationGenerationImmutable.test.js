@@ -27,6 +27,7 @@ test('generation allocation and response snapshot cannot be changed by query upd
   for (const update of [
     { $set: { instruments: [] } },
     { $set: { 'responseSnapshot.instruments': [] } },
+    { $set: { 'marketAdjustment.sourceProvider': 'UPSTOX' } },
     { $unset: { responseSnapshot: 1 } },
     { $rename: { 'responseSnapshot.instruments': 'advisoryText' } },
     [{ $set: { instruments: [] } }],

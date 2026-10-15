@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import ComparisonTableModal from '../../ComparisonTableModal';
 
 afterEach(cleanup);
@@ -26,7 +26,7 @@ it('keeps backend suitability values and sort order without synthetic risk lines
   fireEvent.click(within(rows[2]).getByRole('checkbox'));
   fireEvent.click(screen.getByRole('button', { name: /deep compare/i }));
 
-  expect(await screen.findByText('Match Score')).toBeVisible();
+  await waitFor(() => expect(screen.getByText('Match Score')).toBeVisible());
   expect(screen.getAllByText('91%').length).toBeGreaterThan(0);
   expect(screen.getAllByText('42%').length).toBeGreaterThan(0);
   expect(screen.queryByText('AI Match Verdict')).toBeNull();

@@ -3,6 +3,10 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { optimisePortfolio, computeRebalance, evaluatePortfolio } from '../services/portfolioEngine.js';
 import {
+  normalizeAllocationWeights,
+  REBALANCE_TARGET_TOTAL_TOLERANCE_PERCENT,
+} from '../utils/allocationWeights.js';
+import {
   INSTRUMENT_PARAMS,
   PROJECTION_ASSUMPTION_DATA_CLASS,
   PROJECTION_ASSUMPTION_SOURCE,
@@ -106,14 +110,20 @@ router.post('/rebalance', verifyJWT, validateStrict(personalizedRebalanceSchema)
     throw createError(400, 'Target allocation contains an unknown instrument.', 'Unknown instrument.');
   }
   const targetTotal = Object.values(target_allocation).reduce((sum, value) => sum + Number(value), 0);
-  if (Math.abs(targetTotal - 100) > 0.01) {
+  if (Math.abs(targetTotal - 100) > REBALANCE_TARGET_TOTAL_TOLERANCE_PERCENT) {
     throw createError(400, 'Target allocation must sum to exactly 100%.', 'Invalid target allocation.');
   }
-  const positiveTargets = Object.entries(target_allocation).filter(([, weight]) => weight > 0).map(([key]) => key);
+  const targetEntries = Object.entries(target_allocation);
+  const normalizedTargetWeights = normalizeAllocationWeights(targetEntries.map(([, weight]) => weight / 100));
+  const normalizedTargetAllocation = Object.fromEntries(targetEntries.map(([key], index) => [
+    key,
+    normalizedTargetWeights[index] * 100,
+  ]));
+  const positiveTargets = Object.entries(normalizedTargetAllocation).filter(([, weight]) => weight > 0).map(([key]) => key);
   const suitability = assertPortfolioSuitable(profile, positiveTargets);
-  validateTargetConcentration(target_allocation);
+  validateTargetConcentration(normalizedTargetAllocation);
 
-  const result = computeRebalance(current_allocation, target_allocation, threshold, partial_ratio, holding_months);
+  const result = computeRebalance(current_allocation, normalizedTargetAllocation, threshold, partial_ratio, holding_months);
   res.json({
     ...result,
     simulation_classification: 'PROFILE_GROUNDED',

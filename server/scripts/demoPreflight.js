@@ -397,6 +397,7 @@ const TRUSTED_TAX_SOURCE_HOSTS = Object.freeze([
   'incometaxindia.gov.in',
   'indiabudget.gov.in',
   'mf.nipponindiaim.com',
+  'portal.amfiindia.com',
   'rbi.org.in',
   'sbi.co.in',
 ]);
@@ -597,7 +598,30 @@ export function qualifiesWtiResponse(body, recommendation, parentInstrumentId) {
     && ranking?.hasUniqueLeader === false;
 }
 
+function hasQualifiedProductFactReference(reference) {
+  if (!reference || reference.role !== 'PRODUCT_FACT'
+      || reference.authority !== 'AMFI' || reference.provider !== 'AMFI'
+      || !['Historical starting NAV observation', 'Historical ending NAV observation'].includes(reference.title)
+      || reference.unit !== 'NAV_PER_UNIT'
+      || !Number.isFinite(reference.observedValue) || reference.observedValue <= 0
+      || typeof reference.observedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(reference.observedAt)) return false;
+  try {
+    const url = new URL(reference.url);
+    const validHistoryPath = reference.title === 'Historical starting NAV observation'
+      && url.origin === 'https://portal.amfiindia.com'
+      && url.pathname === '/DownloadNAVHistoryReport_Po.aspx';
+    const validCurrentNavPath = reference.title === 'Historical ending NAV observation'
+      && url.origin === 'https://portal.amfiindia.com'
+      && url.pathname === '/spages/NAVAll.txt'
+      && url.search === '';
+    return validHistoryPath || validCurrentNavPath;
+  } catch {
+    return false;
+  }
+}
+
 function hasQualifiedTaxReference(reference) {
+  if (reference?.role === 'PRODUCT_FACT') return hasQualifiedProductFactReference(reference);
   if (!reference || typeof reference !== 'object'
       || typeof reference.authority !== 'string' || !reference.authority.trim()
       || typeof reference.title !== 'string' || !reference.title.trim()

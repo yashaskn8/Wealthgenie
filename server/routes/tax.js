@@ -2,7 +2,6 @@
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import {
   validate,
-  validateQuery,
   taxComputeSchema,
   taxCompareSchema,
   postTaxReturnSchema,
@@ -33,39 +32,38 @@ router.get('/policies', asyncHandler(async (req, res) => {
   res.json(getTaxPolicyCatalog());
 }));
 
-function _parseTaxDeductionsFromQuery(query) {
+function _parseTaxDeductions(input) {
   return {
-    section80C: Number(query.section80C) || 0,
-    nps80CCD1B: Number(query.nps80CCD1B) || 0,
-    nps80CCD2: Number(query.nps80CCD2) || 0,
-    basicSalary: query.basicSalary !== undefined ? Number(query.basicSalary) : undefined,
-    isGovtEmployee: query.isGovtEmployee === undefined
+    section80C: Number(input.section80C) || 0,
+    nps80CCD1B: Number(input.nps80CCD1B) || 0,
+    nps80CCD2: Number(input.nps80CCD2) || 0,
+    basicSalary: input.basicSalary !== undefined ? Number(input.basicSalary) : undefined,
+    isGovtEmployee: input.isGovtEmployee === undefined
       ? undefined
-      : query.isGovtEmployee === 'true' || query.isGovtEmployee === true,
-    section80D: Number(query.section80D) || 0,
-    section80D_self: query.section80D_self !== undefined ? Number(query.section80D_self) : undefined,
-    section80D_parents: query.section80D_parents !== undefined ? Number(query.section80D_parents) : undefined,
-    parents_senior: query.parents_senior === undefined
+      : input.isGovtEmployee === 'true' || input.isGovtEmployee === true,
+    section80D: Number(input.section80D) || 0,
+    section80D_self: input.section80D_self !== undefined ? Number(input.section80D_self) : undefined,
+    section80D_parents: input.section80D_parents !== undefined ? Number(input.section80D_parents) : undefined,
+    parents_senior: input.parents_senior === undefined
       ? undefined
-      : query.parents_senior === 'true' || query.parents_senior === true,
-    self_senior: query.self_senior === undefined
+      : input.parents_senior === 'true' || input.parents_senior === true,
+    self_senior: input.self_senior === undefined
       ? undefined
-      : query.self_senior === 'true' || query.self_senior === true,
-    hra: Number(query.hra) || 0,
-    homeLoanInterest: Number(query.homeLoanInterest) || 0,
-    age: query.age !== undefined ? Number(query.age) : undefined,
+      : input.self_senior === 'true' || input.self_senior === true,
+    hra: Number(input.hra) || 0,
+    homeLoanInterest: Number(input.homeLoanInterest) || 0,
+    age: input.age !== undefined ? Number(input.age) : undefined,
   };
 }
 
 /**
- * GET /api/tax/compute?income=1200000&regime=new
+ * POST /api/tax/compute
  * Compute tax for a specific income and regime.
  */
-router.get('/compute', validateQuery(taxComputeSchema), asyncHandler(async (req, res) => {
-  // Joi coerces query strings to numbers via taxComputeSchema
-  const income = Number(req.query.income);
-  const regime = req.query.regime;
-  const { fiscalYear } = req.query;
+router.post('/compute', validate(taxComputeSchema), asyncHandler(async (req, res) => {
+  const income = Number(req.body.income);
+  const regime = req.body.regime;
+  const { fiscalYear } = req.body;
 
   if (!Number.isFinite(income) || income < 0) {
     return sendError(req, res, 400, 'Income must be a valid positive number.', 'INCOME_INVALID');
@@ -75,18 +73,18 @@ router.get('/compute', validateQuery(taxComputeSchema), asyncHandler(async (req,
     return sendError(req, res, 422, `Verified tax slabs are unavailable for ${fiscalYear}.`, 'FISCAL_YEAR_UNSUPPORTED');
   }
 
-  const deductions = _parseTaxDeductionsFromQuery(req.query);
-  const result = computeTax(income, regime, deductions, req.query.incomeSource, fiscalYear, deductions.age);
+  const deductions = _parseTaxDeductions(req.body);
+  const result = computeTax(income, regime, deductions, req.body.incomeSource, fiscalYear, deductions.age);
   res.json({ ...result, fiscal_year: fiscalYear, ...getTaxPolicyMetadata(fiscalYear) });
 }));
 
 /**
- * GET /api/tax/compare?income=1200000
+ * POST /api/tax/compare
  * Compare both tax regimes and return the recommended one.
  */
-router.get('/compare', validateQuery(taxCompareSchema), asyncHandler(async (req, res) => {
-  const income = Number(req.query.income);
-  const { fiscalYear } = req.query;
+router.post('/compare', validate(taxCompareSchema), asyncHandler(async (req, res) => {
+  const income = Number(req.body.income);
+  const { fiscalYear } = req.body;
 
   if (!Number.isFinite(income) || income < 0) {
     return sendError(req, res, 400, 'Income must be a valid positive number.', 'INCOME_INVALID');
@@ -96,9 +94,9 @@ router.get('/compare', validateQuery(taxCompareSchema), asyncHandler(async (req,
     return sendError(req, res, 422, `Verified tax slabs are unavailable for ${fiscalYear}.`, 'FISCAL_YEAR_UNSUPPORTED');
   }
 
-  const deductions = _parseTaxDeductionsFromQuery(req.query);
-  const { newRegime, oldRegime, recommended } = compareTaxRegimes(income, deductions, req.query.incomeSource, fiscalYear, deductions.age);
-  const optimization = analyzeTaxOptimization(income, deductions, req.query.incomeSource, fiscalYear, deductions.age);
+  const deductions = _parseTaxDeductions(req.body);
+  const { newRegime, oldRegime, recommended } = compareTaxRegimes(income, deductions, req.body.incomeSource, fiscalYear, deductions.age);
+  const optimization = analyzeTaxOptimization(income, deductions, req.body.incomeSource, fiscalYear, deductions.age);
   const saving = Math.abs(newRegime.taxAmount - oldRegime.taxAmount);
 
   const response = {
@@ -108,7 +106,7 @@ router.get('/compare', validateQuery(taxCompareSchema), asyncHandler(async (req,
     ...getTaxPolicyMetadata(fiscalYear),
     inputsUsed: {
       annualIncome: income,
-      incomeSource: req.query.incomeSource,
+      incomeSource: req.body.incomeSource,
       fiscalYear,
       deductions,
     },

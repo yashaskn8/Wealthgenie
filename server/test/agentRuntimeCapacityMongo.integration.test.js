@@ -9,7 +9,7 @@ import { migratePlanHealthPersistence } from '../services/planHealthPersistence.
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 
 test('transactional admission fence keeps 50-way queue pressure at limit one for 100 deterministic rounds', async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
   const userId = new mongoose.Types.ObjectId();
   const runIds = [];
   try {

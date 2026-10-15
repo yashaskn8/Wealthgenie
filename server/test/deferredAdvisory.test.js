@@ -27,6 +27,7 @@ import recommendRoutes, { recommendationPayloadFromSnapshot } from '../routes/re
 import profileRoutes from '../routes/profile.js';
 import Recommendation from '../models/Recommendation.js';
 import AuditRecord from '../models/AuditRecord.js';
+import User from '../models/User.js';
 import { ProviderManager } from '../services/providerAbstraction.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { assertFetchResponseMatchesOpenApi } from './helpers/openapiRuntimeContract.js';
@@ -50,7 +51,7 @@ function signToken(userId, role = 'user') {
 }
 
 test.before(async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
 
   app = express();
   app.use(express.json());
@@ -75,6 +76,23 @@ test.after(async () => {
 test('DEFERRED ADVISORY: Complete decoupled recommendation and deferred advisory flow', async (t) => {
   const userAId = new mongoose.Types.ObjectId();
   const userBId = new mongoose.Types.ObjectId();
+  await User.create([
+    {
+      _id: userAId,
+      name: 'Deferred Advisory User A',
+      email: `deferred-advisory-${userAId}@example.test`,
+      passwordHash: 'unused-test-password-hash',
+    },
+    {
+      _id: userBId,
+      name: 'Deferred Advisory User B',
+      email: `deferred-advisory-${userBId}@example.test`,
+      passwordHash: 'unused-test-password-hash',
+    },
+  ]);
+  t.after(async () => {
+    await User.deleteMany({ _id: { $in: [userAId, userBId] } });
+  });
   const tokenA = signToken(userAId);
   const tokenB = signToken(userBId);
 

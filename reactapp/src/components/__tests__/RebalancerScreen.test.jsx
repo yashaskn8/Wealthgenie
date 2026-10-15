@@ -17,6 +17,127 @@ globalThis.ResizeObserver = class ResizeObserver {
 };
 
 describe('RebalancerScreen request binding', () => {
+  it('maps structured product types into category allocations for projections', async () => {
+    const profileId = '64b000000000000000000001';
+    vi.spyOn(api, 'getGoals').mockResolvedValue([]);
+    const projection = vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({});
+    const monteCarlo = vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+
+    render(
+      <RebalancerScreen
+        profile={{ profileId, monthly_savings: 20000, investment_horizon_years: 5, risk_tolerance: 'Conservative', investment_goals: ['Wealth Growth'] }}
+        recommendations={[
+          { id: 'kotak_fd', type: 'FD', name: 'Kotak Mahindra FD', allocationWeight: 0.6, riskLabel: 'Very Low' },
+          { id: 'hdfc_fd', type: 'FD', name: 'HDFC Bank FD', allocationWeight: 0.2, riskLabel: 'Very Low' },
+          { id: 'debt_mf', type: 'Debt_MF', name: 'Debt Mutual Fund', allocationWeight: 0.2, riskLabel: 'Low' },
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(projection).toHaveBeenCalledTimes(1));
+    expect(projection).toHaveBeenCalledWith(profileId, { FD: 0.8, Debt_MF: 0.2 }, 5);
+    expect(monteCarlo).toHaveBeenCalledWith(profileId, { FD: 0.8, Debt_MF: 0.2 }, 5, null);
+  });
+
+  it('keeps category allocations within 100% after summing multiple product weights', async () => {
+    vi.spyOn(api, 'getGoals').mockResolvedValue([]);
+    const projection = vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({});
+    vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+    const fdRecommendations = [
+      ['kotak_fd', 0.1267], ['axis_fd', 0.1265], ['hdfc_fd', 0.1265], ['icici_fd', 0.1262],
+      ['bob_fd', 0.1258], ['pnb_fd', 0.1258], ['sbi_fd', 0.1258], ['mahindra_finance_fd', 0.1167],
+    ].map(([id, allocationWeight]) => ({ id, type: 'FD', allocationWeight }));
+
+    render(
+      <RebalancerScreen
+        profile={{ profileId: '64b000000000000000000001', monthly_savings: 20000, investment_horizon_years: 5, risk_tolerance: 'Conservative' }}
+        recommendations={fdRecommendations}
+      />,
+    );
+
+    await waitFor(() => expect(projection).toHaveBeenCalledTimes(1));
+    const allocations = projection.mock.calls[0][1];
+    expect(allocations.FD).toBeLessThanOrEqual(1);
+    expect(allocations.FD).toBeCloseTo(1, 12);
+  });
+
+  it('optimizes canonical categories and redistributes each category weight proportionally', async () => {
+    const profileId = '64b000000000000000000001';
+    vi.spyOn(api, 'getGoals').mockResolvedValue([]);
+    vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({});
+    vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+    const optimize = vi.spyOn(api, 'optimisePortfolio').mockResolvedValue({
+      weights: { FD: 0.5, Debt_MF: 0.5 },
+    });
+
+    render(
+      <RebalancerScreen
+        profile={{ profileId, monthly_savings: 20000, investment_horizon_years: 5, risk_tolerance: 'Conservative', investment_goals: ['Wealth Growth'] }}
+        recommendations={[
+          { id: 'kotak_fd', type: 'FD', name: 'Kotak Mahindra FD', allocationWeight: 0.6, riskLabel: 'Very Low' },
+          { id: 'hdfc_fd', type: 'FD', name: 'HDFC Bank FD', allocationWeight: 0.2, riskLabel: 'Very Low' },
+          { id: 'debt_mf', type: 'Debt_MF', name: 'Debt Mutual Fund', allocationWeight: 0.2, riskLabel: 'Low' },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Safe' }));
+    await waitFor(() => expect(optimize).toHaveBeenCalledWith(profileId, ['FD', 'Debt_MF'], 'min_variance'));
+    await waitFor(() => {
+      expect(screen.getByRole('slider', { name: 'Allocation percentage for Kotak Mahindra FD' })).toHaveValue('37.5');
+      expect(screen.getByRole('slider', { name: 'Allocation percentage for HDFC Bank FD' })).toHaveValue('12.5');
+      expect(screen.getByRole('slider', { name: 'Allocation percentage for Debt Mutual Fund' })).toHaveValue('50');
+    });
+  });
+
+  it('rejects a conflicting structured type and mapped product identity before model calls', async () => {
+    vi.spyOn(api, 'getGoals').mockResolvedValue([]);
+    const projection = vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({});
+    const monteCarlo = vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+    const optimize = vi.spyOn(api, 'optimisePortfolio').mockResolvedValue({ weights: { PPF: 0.5, FD: 0.5 } });
+
+    render(
+      <RebalancerScreen
+        profile={{ profileId: '64b000000000000000000001', monthly_savings: 20000, investment_horizon_years: 5, risk_tolerance: 'Conservative' }}
+        recommendations={[
+          { id: 'ppf', type: 'FD', name: 'Conflicting category', allocationWeight: 0.5 },
+          { id: 'fd', type: 'FD', name: 'Fixed Deposit', allocationWeight: 0.5 },
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getAllByText(/verified model category is unavailable/i).length).toBeGreaterThan(0));
+    expect(projection).not.toHaveBeenCalled();
+    expect(monteCarlo).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Safe' }));
+    expect(optimize).not.toHaveBeenCalled();
+  });
+
+  it('preserves exact provider product IDs when saving category-modeled allocations', async () => {
+    vi.spyOn(api, 'getGoals').mockResolvedValue([]);
+    vi.spyOn(api, 'getCustomPortfolioProjection').mockResolvedValue({});
+    vi.spyOn(api, 'runPortfolioMonteCarlo').mockResolvedValue({});
+    const onSave = vi.fn();
+    const recommendations = [
+      { id: 'hdfc_product_001', type: 'FD', name: 'HDFC Fixed Deposit', allocationWeight: 0.75 },
+      { id: 'debt_fund_scheme_02', type: 'Debt_MF', name: 'Debt Mutual Fund', allocationWeight: 0.25 },
+    ];
+
+    render(
+      <RebalancerScreen
+        profile={{ profileId: '64b000000000000000000001', monthly_savings: 20000, investment_horizon_years: 5, risk_tolerance: 'Conservative' }}
+        recommendations={recommendations}
+        onSave={onSave}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save My Investment Mix' }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const [saved] = onSave.mock.calls[0];
+    expect(saved.map(investment => investment.id)).toEqual(['hdfc_product_001', 'debt_fund_scheme_02']);
+    expect(saved.map(investment => investment.allocationWeight)).toEqual([0.75, 0.25]);
+  });
+
   it('does not let a late optimizer result overwrite a newer manual allocation edit', async () => {
     let finishOptimization;
     vi.spyOn(api, 'getGoals').mockResolvedValue([]);
@@ -31,7 +152,7 @@ describe('RebalancerScreen request binding', () => {
         profile={{ profileId: '64b000000000000000000001', monthly_savings: 30000, investment_horizon_years: 10, risk_tolerance: 'Moderate', investment_goals: ['Wealth Growth'] }}
         recommendations={[
           { id: 'ppf', name: 'Public Provident Fund', allocationWeight: 0.6, riskLabel: 'Very Low' },
-          { id: 'index-fund', name: 'Nifty 50 Index Fund', allocationWeight: 0.4, riskLabel: 'Moderate' },
+          { id: 'index_mf', name: 'Nifty 50 Index Fund', allocationWeight: 0.4, riskLabel: 'Moderate' },
         ]}
       />,
     );
@@ -43,7 +164,7 @@ describe('RebalancerScreen request binding', () => {
     expect(ppfSlider).toHaveValue('70');
 
     const ppfId = localToBackendInstrument('ppf');
-    const indexId = localToBackendInstrument('index-fund');
+    const indexId = localToBackendInstrument('index_mf');
     await act(async () => {
       finishOptimization({ weights: { [ppfId]: 0.2, [indexId]: 0.8 } });
     });
@@ -70,7 +191,7 @@ describe('RebalancerScreen request binding', () => {
         profile={{ profileId: '64b000000000000000000001', monthly_savings: 30000, investment_horizon_years: 10, risk_tolerance: 'Moderate', investment_goals: ['Wealth Growth'] }}
         recommendations={[
           { id: 'ppf', name: 'Public Provident Fund', allocationWeight: 0.6, riskLabel: 'Very Low' },
-          { id: 'index-fund', name: 'Nifty 50 Index Fund', allocationWeight: 0.4, riskLabel: 'Moderate' },
+          { id: 'index_mf', name: 'Nifty 50 Index Fund', allocationWeight: 0.4, riskLabel: 'Moderate' },
         ]}
       />,
     );
@@ -119,7 +240,7 @@ describe('RebalancerScreen request binding', () => {
         profile={{ profileId: '64b000000000000000000001', monthly_savings: 30000, investment_horizon_years: 10, risk_tolerance: 'Moderate', investment_goals: ['Wealth Growth'] }}
         recommendations={[
           { id: 'ppf', name: 'Public Provident Fund', allocationWeight: 0.6, riskLabel: 'Very Low' },
-          { id: 'index-fund', name: 'Nifty 50 Index Fund', allocationWeight: 0.4, riskLabel: 'Moderate' },
+          { id: 'index_mf', name: 'Nifty 50 Index Fund', allocationWeight: 0.4, riskLabel: 'Moderate' },
         ]}
       />,
     );

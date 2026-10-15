@@ -667,50 +667,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
     : { ...RISK_LEVELS[level], desc: `${RISK_LEVELS[level].desc} This is the parent-category suitability tier, not a verified product Risk-o-Meter.` };
   const riskBaseDesc = level !== null ? RISK_LEVELS[level].desc : risk.desc;
 
-  const suitabilityChips = useMemo(() => {
-    if (level === null) return [];
-    if (level === 0) {
-      return [
-        { label: 'Capital Safety', value: 'Highest · Sovereign Backed', icon: 'shield', highlight: true },
-        { label: 'Price Volatility', value: 'Zero to Minimal', icon: 'activity' },
-        { label: 'Investor Profile', value: 'Conservative & Beginner', icon: 'target' },
-      ];
-    }
-    if (level === 1) {
-      return [
-        { label: 'Capital Safety', value: 'High · Regulated Bank', icon: 'shield', highlight: true },
-        { label: 'Price Volatility', value: 'Low & Predictable', icon: 'activity' },
-        { label: 'Investor Profile', value: 'Stability Focused', icon: 'target' },
-      ];
-    }
-    if (level === 2) {
-      return [
-        { label: 'Capital Safety', value: 'Moderate Capital Buffer', icon: 'shield', highlight: true },
-        { label: 'Price Volatility', value: 'Controlled Fluctuations', icon: 'activity' },
-        { label: 'Investor Profile', value: 'Balanced Growth', icon: 'target' },
-      ];
-    }
-    if (level === 3) {
-      return [
-        { label: 'Capital Safety', value: 'Market Sensitive', icon: 'shield', highlight: false },
-        { label: 'Price Volatility', value: 'Moderate to High', icon: 'activity' },
-        { label: 'Investor Profile', value: 'Active Wealth Builder', icon: 'target' },
-      ];
-    }
-    if (level === 4) {
-      return [
-        { label: 'Capital Safety', value: 'Equity Market Linked', icon: 'shield', highlight: false },
-        { label: 'Price Volatility', value: 'Substantial Drawdowns', icon: 'activity' },
-        { label: 'Investor Profile', value: 'Growth & High Horizon', icon: 'target' },
-      ];
-    }
-    return [
-      { label: 'Capital Safety', value: 'High Risk / Unhedged', icon: 'shield', highlight: false },
-      { label: 'Price Volatility', value: 'Significant Volatility', icon: 'activity' },
-      { label: 'Investor Profile', value: 'Aggressive Horizon Only', icon: 'target' },
-    ];
-  }, [level]);
-
   if (!wtiData) {
     return (
       <div style={{ textAlign: 'center', padding: '80px 0' }}>
@@ -1716,7 +1672,14 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           </div>
 
           {/* 6-Tier Interactive Spectrum Bar */}
-          <div className="risk-meter-spectrum-bar" role="meter" aria-label={`Parent Category Risk: ${risk.label}`} aria-valuemin="1" aria-valuemax="6" aria-valuenow={level !== null ? level + 1 : 1}>
+          <div
+            className="risk-meter-spectrum-bar"
+            role={level !== null ? 'meter' : 'img'}
+            aria-label={`Parent Category Risk: ${risk.label}`}
+            aria-valuemin={level !== null ? '1' : undefined}
+            aria-valuemax={level !== null ? '6' : undefined}
+            aria-valuenow={level !== null ? level + 1 : undefined}
+          >
             <div className="risk-meter-spectrum-segments">
               {RISK_LEVELS.map((r, i) => {
                 const isActive = i === level;
@@ -1747,34 +1710,11 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
               <Shield size={16} style={{ color: risk.color }} aria-hidden="true" />
               <span>Parent Category Suitability</span>
             </div>
-            <div className="risk-card-eyebrow-tags">
-              <span className="risk-gate-badge">
-                <CheckCircle2 size={13} aria-hidden="true" />
-                <span>Suitability Gate Passed</span>
-              </span>
-              <span className="risk-filter-badge">Financial Profile Match</span>
-            </div>
           </div>
 
           <div className="risk-summary-text">
             <p>{riskBaseDesc}</p>
           </div>
-
-          {suitabilityChips.length > 0 && (
-            <div className="risk-telemetry-grid" aria-label="Key suitability criteria">
-              {suitabilityChips.map((chip, idx) => (
-                <div key={idx} className={`risk-telemetry-cell ${chip.highlight ? 'risk-telemetry-cell--highlight' : ''}`}>
-                  <div className="risk-telemetry-header">
-                    {chip.icon === 'shield' && <ShieldCheck size={13} className="risk-telemetry-icon" aria-hidden="true" />}
-                    {chip.icon === 'activity' && <Activity size={13} className="risk-telemetry-icon" aria-hidden="true" />}
-                    {chip.icon === 'target' && <Target size={13} className="risk-telemetry-icon" aria-hidden="true" />}
-                    <span className="risk-telemetry-label">{chip.label}</span>
-                  </div>
-                  <strong className="risk-telemetry-val">{chip.value}</strong>
-                </div>
-              ))}
-            </div>
-          )}
 
           <footer className="risk-compliance-footer">
             <Info size={13} className="risk-compliance-icon" aria-hidden="true" />

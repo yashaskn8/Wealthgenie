@@ -253,7 +253,7 @@ describe('Tool Execution Error & Parameter Validation Fallback Tests', () => {
     RecommendationState.findOne = () => ({ lean: async () => null });
     RecommendationAllocationRevision.findOne = () => ({ sort() { return this; }, lean: async () => null });
     Goal.find = () => ({ sort: () => ({ lean: async () => [] }) });
-    User.findById = () => ({ lean: async () => mockUser });
+    User.findById = () => ({ select() { return this; }, lean: async () => mockUser });
     ConversationHistory.findOne = async () => ({
       userId: mockUserId,
       session_id: mockSessionId,

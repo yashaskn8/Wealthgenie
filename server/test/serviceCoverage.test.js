@@ -21,6 +21,7 @@ import { fetchIndexStatistics, fetchMutualFundNAVs, checkFDRateStaleness, resolv
 import { checkMLHealth, getMLPrediction, getRuleBasedFallback } from '../services/mlClient.js';
 import { queryRAG } from '../services/ragClient.js';
 import { computeCAGR, generateAllocationSplit, generatePortfolioProjection, generateProjectionComparison, generateProjections, lumpSumFV, realReturn, reverseSIPFromFV, sipFV, stepUpSipFV } from '../services/projectionEngine.js';
+import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
 import { calculatePostTaxReturn, calculatePostTaxReturnSafe } from '../services/postTaxCalculator.js';
 import { assessSuitabilityRisk, encodeRiskCategory, getRiskProfile } from '../services/riskProfiler.js';
 import { buildLlmFinancialContext, buildMlProfileInput } from '../services/recommendationProfile.js';
@@ -370,6 +371,119 @@ test('dashboard portfolio projection uses exact authorized weights and excludes 
     horizonYears: 5,
     instruments: [{ id: 'equity', nominalReturn: 12, allocationWeight: 0.9 }],
   }), /weights must total 1/);
+});
+
+test('portfolio projection normalizes tolerated weight drift consistently across every instrument cashflow', () => {
+  const nearUnitWeights = [0.50005, 0.5];
+  const normalizedWeights = normalizeAllocationWeights(nearUnitWeights);
+  assert.equal(normalizedWeights.reduce((sum, weight) => sum + weight, 0), 1);
+  assert.ok(Math.abs(normalizedWeights[0] - 0.5) < 0.0001);
+
+  const projectionArgs = {
+    monthlyContribution: 1_000_000.01,
+    initialLumpSum: 10_000_000,
+    horizonYears: 10,
+  };
+  const toleratedProjection = generatePortfolioProjection({
+    ...projectionArgs,
+    instruments: [
+      { id: 'equity', nominalReturn: 12, allocationWeight: nearUnitWeights[0] },
+      { id: 'debt', nominalReturn: 6, allocationWeight: nearUnitWeights[1] },
+    ],
+  });
+  const explicitlyNormalizedProjection = generatePortfolioProjection({
+    ...projectionArgs,
+    instruments: [
+      { id: 'equity', nominalReturn: 12, allocationWeight: normalizedWeights[0] },
+      { id: 'debt', nominalReturn: 6, allocationWeight: normalizedWeights[1] },
+    ],
+  });
+
+  assert.deepEqual(toleratedProjection.instrument_monthly_allocations, explicitlyNormalizedProjection.instrument_monthly_allocations);
+  assert.deepEqual(toleratedProjection.instrument_projected_values, explicitlyNormalizedProjection.instrument_projected_values);
+  assert.equal(toleratedProjection.total_projected, explicitlyNormalizedProjection.total_projected);
+  assert.equal(
+    Number(Object.values(toleratedProjection.instrument_monthly_allocations).reduce((sum, amount) => sum + amount, 0).toFixed(2)),
+    1_000_000.01,
+  );
+
+  assert.equal(normalizeAllocationWeights([0.5001, 0.5]).reduce((sum, weight) => sum + weight, 0), 1);
+  assert.equal(normalizeAllocationWeights([0.4999, 0.5]).reduce((sum, weight) => sum + weight, 0), 1);
+  assert.throws(() => normalizeAllocationWeights([0.50010001, 0.5]), /must total 1 within/);
+  assert.throws(() => normalizeAllocationWeights([0.49989999, 0.5]), /must total 1 within/);
+});
+
+test('dashboard portfolio projection preserves explicit zero allocations and rejects missing weights', () => {
+  const projection = generatePortfolioProjection({
+    monthlyContribution: 20_000,
+    initialLumpSum: 100_000,
+    horizonYears: 5,
+    instruments: [
+      { id: 'equity', nominalReturn: 12, allocationWeight: 0.4 },
+      { id: 'excluded', nominalReturn: 8, allocationWeight: 0 },
+      { id: 'debt', nominalReturn: 7, allocationWeight: 0.6 },
+    ],
+  });
+
+  assert.deepEqual(projection.instrument_monthly_allocations, { equity: 8_000, excluded: 0, debt: 12_000 });
+  assert.equal(projection.instrument_projected_values.excluded, 0);
+  assert.equal(projection.total_projected, projection.instrument_projected_values.equity + projection.instrument_projected_values.debt);
+
+  const zeroTailProjection = generatePortfolioProjection({
+    monthlyContribution: 20_000,
+    initialLumpSum: 0,
+    horizonYears: 1,
+    instruments: [
+      { id: 'equity', nominalReturn: 12, allocationWeight: 0.6 },
+      { id: 'debt', nominalReturn: 7, allocationWeight: 0.4 },
+      { id: 'excluded-tail', nominalReturn: 8, allocationWeight: 0 },
+    ],
+  });
+  assert.deepEqual(zeroTailProjection.instrument_monthly_allocations, { equity: 12_000, debt: 8_000, 'excluded-tail': 0 });
+
+  const tinyContributionProjection = generatePortfolioProjection({
+    monthlyContribution: 1.01,
+    initialLumpSum: 0,
+    horizonYears: 1,
+    instruments: [
+      { id: 'equity-a', nominalReturn: 12, allocationWeight: 0.3333 },
+      { id: 'equity-b', nominalReturn: 12, allocationWeight: 0.3333 },
+      { id: 'equity-c', nominalReturn: 12, allocationWeight: 0.3333 },
+      { id: 'tiny-active', nominalReturn: 7, allocationWeight: 0.0001 },
+      { id: 'excluded', nominalReturn: 7, allocationWeight: 0 },
+    ],
+  });
+  const tinyAllocations = Object.values(tinyContributionProjection.instrument_monthly_allocations);
+  assert.ok(tinyAllocations.every(amount => amount >= 0));
+  assert.equal(Number(tinyAllocations.reduce((sum, amount) => sum + amount, 0).toFixed(2)), 1.01);
+  assert.equal(tinyContributionProjection.instrument_monthly_allocations.excluded, 0);
+
+  const tiedRemainderProjection = generatePortfolioProjection({
+    monthlyContribution: 1.01,
+    initialLumpSum: 0,
+    horizonYears: 1,
+    instruments: [
+      { id: 'first-equal-share', nominalReturn: 8, allocationWeight: 1 / 3 },
+      { id: 'second-equal-share', nominalReturn: 8, allocationWeight: 1 / 3 },
+      { id: 'third-equal-share', nominalReturn: 8, allocationWeight: 1 / 3 },
+      { id: 'explicit-zero-share', nominalReturn: 8, allocationWeight: 0 },
+    ],
+  });
+  assert.deepEqual(tiedRemainderProjection.instrument_monthly_allocations, {
+    'first-equal-share': 0.34,
+    'second-equal-share': 0.34,
+    'third-equal-share': 0.33,
+    'explicit-zero-share': 0,
+  });
+
+  for (const allocationWeight of [null, undefined, '', false, []]) {
+    assert.throws(() => generatePortfolioProjection({
+      monthlyContribution: 20_000,
+      initialLumpSum: 0,
+      horizonYears: 5,
+      instruments: [{ id: 'missing-weight', nominalReturn: 8, allocationWeight }],
+    }), /explicit number from 0 to 1/);
+  }
 });
 
 test('dashboard portfolio projection preserves negative net gains instead of reporting zero', () => {

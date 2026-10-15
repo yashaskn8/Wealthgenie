@@ -66,7 +66,37 @@ const VALID_PROFILE_BODY = canonicalProfilePayload({
 });
 
 async function ensureDb() {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
+  await ensureSecurityUsers();
+}
+
+async function ensureSecurityUsers() {
+  await Promise.all([
+    User.updateOne(
+      { _id: USER_A_ID },
+      {
+        $set: {
+          name: 'Security Test User A',
+          email: 'security-a-' + USER_A_ID + '@test.local',
+          passwordHash: 'test-only-hash',
+          role: 'user',
+        },
+      },
+      { upsert: true },
+    ),
+    User.updateOne(
+      { _id: USER_B_ID },
+      {
+        $set: {
+          name: 'Security Test User B',
+          email: 'security-b-' + USER_B_ID + '@test.local',
+          passwordHash: 'test-only-hash',
+          role: 'user',
+        },
+      },
+      { upsert: true },
+    ),
+  ]);
 }
 
 async function clearUserFinancialState(userId) {
@@ -98,8 +128,18 @@ async function completeCurrentProfile(baseUrl, token) {
 test.after(async () => {
   try {
     await FinancialProfile.deleteMany({ userId: { $in: [USER_A_ID, USER_B_ID] } });
+    await User.deleteMany({ _id: { $in: [USER_A_ID, USER_B_ID] } });
   } catch (_) {}
   await teardownTestDatabase();
+});
+
+test.before(async () => {
+  await ensureDb();
+});
+
+test.beforeEach(async () => {
+  // Restore both JWT account fixtures after tests that deliberately delete them.
+  await ensureSecurityUsers();
 });
 
 // ── 1. Mass Assignment Prevention ────────────────────────────────────
@@ -226,6 +266,7 @@ test('WG-005: POST /api/instruments/rank-wti returns 401 without auth', async ()
 });
 
 test('WG-005: POST /api/instruments/rank-wti rejects a client-supplied product universe', async () => {
+  await ensureDb();
   const token = signToken(USER_A_ID);
   await withServer(buildInstrumentApp(), async (baseUrl) => {
     const { response, body } = await jsonFetch(`${baseUrl}/api/instruments/rank-wti`, {
@@ -243,6 +284,7 @@ test('WG-005: POST /api/instruments/rank-wti rejects a client-supplied product u
 });
 
 test('WG-005: POST /api/instruments/rank-wti rejects legacy inline user profiles', async () => {
+  await ensureDb();
   const token = signToken(USER_A_ID);
   await withServer(buildInstrumentApp(), async (baseUrl) => {
     // age outside valid range (18-80)
@@ -343,6 +385,7 @@ test('WG-018: GET /api/metrics returns 401 without auth', async () => {
 });
 
 test('WG-018: GET /api/metrics rejects a normal authenticated user', async () => {
+  await ensureDb();
   const token = signToken(USER_A_ID);
   await withServer(buildMetricsApp(), async (baseUrl) => {
     const { response } = await jsonFetch(`${baseUrl}/api/metrics`, {
@@ -357,7 +400,14 @@ test('WG-018: GET /api/metrics returns 200 for an administrator', async () => {
   await ensureDb();
   await User.updateOne(
     { _id: USER_A_ID },
-    { $setOnInsert: { name: 'Metrics Admin', email: `metrics-admin-${USER_A_ID}@test.local`, passwordHash: 'test-only-hash', role: 'admin' } },
+    {
+      $set: {
+        name: 'Metrics Admin',
+        email: 'metrics-admin-' + USER_A_ID + '@test.local',
+        passwordHash: 'test-only-hash',
+        role: 'admin',
+      },
+    },
     { upsert: true },
   );
   const token = signToken(USER_A_ID, crypto.randomUUID(), '1h', 'admin');
@@ -371,6 +421,7 @@ test('WG-018: GET /api/metrics returns 200 for an administrator', async () => {
     });
   } finally {
     await User.deleteOne({ _id: USER_A_ID });
+    await ensureSecurityUsers();
   }
 });
 

@@ -101,6 +101,12 @@ describe('ProfilePage backend version contract', () => {
     expect(formCard.className).toContain('profile-form-card');
     expect(formCard.style.overflowY).toBe('auto');
     expect(formCard.contains(saveButton)).toBe(true);
+
+    const page = scrollRegion.closest('.profile-page');
+    const imagePane = page.querySelector('.profile-side-image');
+    expect(page.style.cssText).toBe('');
+    expect(scrollRegion.style.cssText).toBe('');
+    expect(imagePane.style.cssText).toBe('');
   });
 
   it('restores the latest backend version in memory without browser persistence', async () => {
@@ -322,5 +328,54 @@ describe('ProfilePage backend version contract', () => {
     await waitFor(() => expect(screen.getByTestId('restored-recommendation-id')).toHaveTextContent('64b000000000000000000006'));
     expect(api.getCurrentRecommendation).toHaveBeenCalledWith(VALID_PROFILE.profileId, expect.any(Object));
     expect(api.completeFinancialProfile).not.toHaveBeenCalled();
+  });
+
+  it.each([503, 409])('restores the saved profile when its recommendation lookup returns %s', async status => {
+    vi.spyOn(api, 'getCurrentProfile').mockResolvedValue(VALID_PROFILE);
+    vi.spyOn(api, 'getCurrentRecommendation').mockRejectedValue({
+      status,
+      message: status === 503 ? 'Recommendation service unavailable.' : 'Recommendation is stale.',
+    });
+    const complete = vi.spyOn(api, 'completeFinancialProfile');
+    const build = vi.spyOn(api, 'buildProfile');
+    const DashboardRestoreProbe = ({ userProfile, initialRecommendation }) => (
+      <main data-testid="restored-dashboard">
+        <span data-testid="restored-profile-id">{userProfile.profileId}</span>
+        <span data-testid="restored-recommendation-state">
+          {initialRecommendation ? 'available' : 'unavailable'}
+        </span>
+      </main>
+    );
+
+    render(<ProfilePage><DashboardRestoreProbe /></ProfilePage>);
+
+    expect(await screen.findByTestId('restored-dashboard')).toBeInTheDocument();
+    expect(screen.getByTestId('restored-profile-id')).toHaveTextContent(VALID_PROFILE.profileId);
+    expect(screen.getByTestId('restored-recommendation-state')).toHaveTextContent('unavailable');
+    expect(screen.queryByTestId('profile-save')).not.toBeInTheDocument();
+    expect(api.getCurrentProfile).toHaveBeenCalledTimes(1);
+    expect(api.getCurrentRecommendation).toHaveBeenCalledTimes(1);
+    expect(api.getCurrentRecommendation).toHaveBeenCalledWith(VALID_PROFILE.profileId, expect.any(Object));
+    expect(complete).not.toHaveBeenCalled();
+    expect(build).not.toHaveBeenCalled();
+  });
+
+  it('blocks profile creation after a failed restore and retries the authoritative lookup', async () => {
+    vi.spyOn(api, 'getCurrentProfile')
+      .mockRejectedValueOnce({ status: 503, message: 'Profile state unavailable.' })
+      .mockRejectedValueOnce({ status: 404, message: 'No current profile.' });
+    const complete = vi.spyOn(api, 'completeFinancialProfile');
+
+    render(<ProfilePage><ProfileProbe /></ProfilePage>);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/retry loading it before creating a profile/i);
+    expect(screen.queryByTestId('profile-save')).not.toBeInTheDocument();
+    expect(complete).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading profile' }));
+    await screen.findByTestId('profile-save');
+
+    expect(api.getCurrentProfile).toHaveBeenCalledTimes(2);
+    expect(complete).not.toHaveBeenCalled();
   });
 });

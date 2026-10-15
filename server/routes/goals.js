@@ -34,11 +34,16 @@ import {
   resolveCurrentRecommendationState,
 } from '../services/recommendationState.js';
 import { buildCurrentGoalResponse, buildGoalAdvisoryMetadata } from '../services/goalResponse.js';
-import { buildGoalCalculationInputFingerprint, GOAL_CALCULATION_POLICY_VERSION } from '../services/goalCalculationProvenance.js';
+import {
+  buildGoalCalculationInputFingerprint,
+  getGoalProjectionYearsRemaining,
+  GOAL_CALCULATION_POLICY_VERSION,
+} from '../services/goalCalculationProvenance.js';
 import { reachFinancialStateTestHook } from '../services/financialStateTestHooks.js';
 
 const router = Router();
 const GOAL_INFLATION_ASSUMPTION = 0.05;
+const MAX_GOAL_PROJECTION_YEARS = 30;
 
 function determineGoalStatus(probability, gap, monthlyCapacity) {
   if (probability >= 0.65 && gap <= 0) return 'on_track';
@@ -51,17 +56,31 @@ async function findOwnedProfile(profileId, userId) {
   return FinancialProfile.findOne({ _id: profileId, userId }).lean();
 }
 
-function computeYearsRemaining(targetDate) {
+function computeYearsRemaining(targetDate, { allowNearTarget = false } = {}) {
   const date = new Date(targetDate);
   const now = new Date();
   const sixMonthsFromNow = new Date(now);
   sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
-  const fiftyYearsFromNow = new Date(now);
-  fiftyYearsFromNow.setFullYear(fiftyYearsFromNow.getFullYear() + 50);
-  if (!Number.isFinite(date.getTime()) || date < sixMonthsFromNow || date > fiftyYearsFromNow) {
-    throw createError(400, 'Goal target date must be between 6 months and 50 years from today.', 'Invalid target date.');
+  const maximumProjectionDate = new Date(now);
+  maximumProjectionDate.setFullYear(maximumProjectionDate.getFullYear() + MAX_GOAL_PROJECTION_YEARS);
+  const invalidTargetClientMessage = allowNearTarget
+    ? 'Choose a future goal date within the supported projection horizon of 30 years.'
+    : 'Choose a goal date at least 6 months from now and within the supported projection horizon of 30 years.';
+  if (!Number.isFinite(date.getTime()) || date <= now || date > maximumProjectionDate
+      || (!allowNearTarget && date < sixMonthsFromNow)) {
+    throw createError(400, 'Goal target date is outside the supported range.', invalidTargetClientMessage);
   }
-  return Math.floor(((date - now) / (365.25 * 24 * 60 * 60 * 1000)) * 4) / 4;
+  // Keep route calculations identical to the projection engine's rounded
+  // month count. A positive target date that rounds below one month cannot be
+  // projected and must remain unavailable instead of being rounded upward.
+  const yearsRemaining = getGoalProjectionYearsRemaining(date, now);
+  if (yearsRemaining === null) {
+    throw createError(400, 'Goal target date is below the minimum supported monthly projection horizon.', 'Invalid target date.');
+  }
+  if (yearsRemaining > MAX_GOAL_PROJECTION_YEARS) {
+    throw createError(400, 'Goal target date exceeds the projection engine limit.', invalidTargetClientMessage);
+  }
+  return yearsRemaining;
 }
 
 function toDecimalRate(value) {
@@ -92,11 +111,14 @@ export async function _getBlendedPortfolioMetrics(userId, profileId, profile = u
       throw error;
     }
   }
-  if (instruments.some(instrument => (
-    !instrument.type || !Number.isFinite(Number(instrument.allocationWeight))
-    || Number(instrument.allocationWeight) <= 0 || !Number.isFinite(Number(instrument.nominalReturn))
-    || instrument.returnBasis !== 'PRE_TAX_NOMINAL' || instrument.postTaxReturn !== null
-  ))) throw new TypeError('Persisted recommendation contains an invalid instrument');
+  if (instruments.some(instrument => {
+    const rawWeight = instrument.allocationWeight;
+    const hasExplicitWeight = typeof rawWeight === 'number'
+      || (typeof rawWeight === 'string' && rawWeight.trim() !== '');
+    return !instrument.type || !hasExplicitWeight || !Number.isFinite(Number(rawWeight))
+      || Number(rawWeight) < 0 || !Number.isFinite(Number(instrument.nominalReturn))
+      || instrument.returnBasis !== 'PRE_TAX_NOMINAL' || instrument.postTaxReturn !== null;
+  })) throw new TypeError('Persisted recommendation contains an invalid instrument');
   const totalWeight = instruments.reduce((sum, instrument) => sum + Number(instrument.allocationWeight), 0);
   if (!Number.isFinite(totalWeight) || Math.abs(totalWeight - 1) > 0.001) {
     throw new TypeError('Persisted recommendation allocation weights must total 1');
@@ -104,12 +126,14 @@ export async function _getBlendedPortfolioMetrics(userId, profileId, profile = u
   const weights = instruments.map(instrument => Number(instrument.allocationWeight));
   const returns = instruments.map(instrument => toDecimalRate(instrument.nominalReturn));
   const assetKeys = instruments.map(instrument => instrument.type);
+  const primaryInstrument = instruments.find(instrument => Number(instrument.allocationWeight) > 0)?.type;
+  if (!primaryInstrument) throw new TypeError('Persisted recommendation must allocate weight to at least one instrument');
   const expectedReturn = Number(portfolioReturn(weights, returns).toFixed(4));
   const volatility = Number(portfolioVol(buildCovarianceMatrix(assetKeys).matrix, weights).toFixed(4));
   return {
     expectedReturn,
     volatility,
-    primaryInstrument: instruments[0].type,
+    primaryInstrument,
     returnBasis: 'PRE_TAX_NOMINAL',
     returnDataClass: PROJECTION_ASSUMPTION_DATA_CLASS,
     returnAssumptionVersion: PROJECTION_ASSUMPTION_VERSION,
@@ -154,7 +178,7 @@ function chartData(result) {
 async function generateGoalAdvice(goal, profile) {
   const suitability = assessSuitabilityRisk(profile);
   const context = buildLlmFinancialContext(profile, suitability);
-  const yearsRemaining = computeYearsRemaining(goal.target_date);
+  const yearsRemaining = computeYearsRemaining(goal.target_date, { allowNearTarget: true });
   const prompt = `Custom planning goal "${goal.goal_name}" targets ₹${Number(goal.target_amount).toLocaleString('en-IN')} in ${yearsRemaining} years. The computed monthly SIP is ₹${Number(goal.recommended_sip).toLocaleString('en-IN')} against a Financial Profile savings capacity of ₹${profile.monthlySavings.toLocaleString('en-IN')}. Goal status is ${String(goal.status).replace(/_/g, ' ')}. Suggest one adjustment without treating the custom goal name as a Financial Profile input.`;
   try {
     return await getGoalAdvisory(prompt, context, {
@@ -530,9 +554,12 @@ async function resolveGoalCreateReplay(req, operation) {
   return { goal: buildCurrentGoalResponse(goal, { state: state.recommendation ? state : null }) };
 }
 
-async function calculateGoalPlan({ profile, profileId, userId, targetAmount, targetDate, currentSavings }) {
-  const yearsRemaining = computeYearsRemaining(targetDate);
+async function calculateGoalPlan({ profile, profileId, userId, targetAmount, targetDate, currentSavings, allowNearTarget = false }) {
+  // Establish that this is still the caller's current profile and that its
+  // authoritative recommendation is current before relaxing the creation
+  // window for an existing goal's explicit recalculation.
   const metrics = await _getBlendedPortfolioMetrics(userId, profileId, profile);
+  const yearsRemaining = computeYearsRemaining(targetDate, { allowNearTarget });
   const inflationAdjustedTarget = Math.round(targetAmount * (1 + GOAL_INFLATION_ASSUMPTION) ** yearsRemaining);
   const rawSip = reverseSIP(inflationAdjustedTarget, metrics.expectedReturn, yearsRemaining, currentSavings);
   if (!Number.isFinite(rawSip)) throw new Error('Unable to calculate required SIP');
@@ -708,13 +735,18 @@ router.get('/', verifyJWT, asyncHandler(async (req, res) => {
         promotionFence: Number(profileState.state.promotionFence),
       };
       stateByProfile.set(profileId, state);
-    } catch (error) {
-      stateByProfile.set(profileId, { error });
+    } catch {
+      // Resolver/provider/database messages may contain internal details. The
+      // response exposes only a stable failure marker, never the raw error.
+      stateByProfile.set(profileId, { resolutionFailure: true });
     }
   }));
   res.json({ goals: goals.map(goal => {
     const state = stateByProfile.get(String(goal.profileId));
-    return buildCurrentGoalResponse(goal, { state: state?.recommendation ? state : null });
+    return buildCurrentGoalResponse(goal, {
+      state: state?.recommendation || state?.financialProfileState ? state : null,
+      resolutionFailure: state?.resolutionFailure === true,
+    });
   }) });
 }));
 
@@ -729,8 +761,8 @@ router.post('/:goalId/simulate', verifyJWT, validateStrict(goalSimulationSchema)
   if (monthlyContribution > profile.monthlySavings) {
     throw createError(400, 'Monthly contribution exceeds the Financial Profile savings capacity.', 'Contribution exceeds monthly savings capacity.');
   }
-  const yearsRemaining = computeYearsRemaining(goal.target_date);
   const metrics = await _getBlendedPortfolioMetrics(req.user.userId, goal.profileId, profile);
+  const yearsRemaining = computeYearsRemaining(goal.target_date, { allowNearTarget: true });
   const goalFreshness = assessGoalCalculationFreshness(goal, metrics.state);
   if (!goalFreshness.fresh) {
     throw createError(
@@ -850,6 +882,7 @@ router.patch('/:goalId', verifyJWT, validateStrict(customGoalUpdateSchema), asyn
       profile, profileId: goal.profileId, userId: req.user.userId,
       targetAmount: goal.target_amount, targetDate: goal.target_date,
       currentSavings: goal.current_savings,
+      allowNearTarget: true,
     });
     recalculationState = plan.metrics.state;
     goal.inflation_adjusted_target = plan.inflationAdjustedTarget;

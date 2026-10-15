@@ -24,6 +24,7 @@ import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
 
 import FinancialProfile from '../models/FinancialProfile.js';
 import FinancialProfileState from '../models/FinancialProfileState.js';
+import User from '../models/User.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
 import RecommendationAllocationRevision from '../models/RecommendationAllocationRevision.js';
@@ -61,10 +62,15 @@ function buildTestApp() {
 }
 
 test.before(async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
 
   userAId = new mongoose.Types.ObjectId().toString();
   userBId = new mongoose.Types.ObjectId().toString();
+
+  await User.create([
+    { _id: userAId, name: 'Authorization Test User A', email: `usera-${userAId}@authtest.com`, passwordHash: 'test-only-hash' },
+    { _id: userBId, name: 'Authorization Test User B', email: `userb-${userBId}@authtest.com`, passwordHash: 'test-only-hash' },
+  ]);
 
   tokenA = jwt.sign({ userId: userAId, email: 'usera@authtest.com' }, JWT_SECRET, { expiresIn: '1h' });
   tokenB = jwt.sign({ userId: userBId, email: 'userb@authtest.com' }, JWT_SECRET, { expiresIn: '1h' });
@@ -166,6 +172,9 @@ test.before(async () => {
 });
 
 test.after(async () => {
+  try {
+    await User.deleteMany({ _id: { $in: [userAId, userBId] } });
+  } catch (_) {}
   try {
     await FinancialProfile.deleteMany({ userId: { $in: [userAId, userBId] } });
     await Goal.deleteMany({ userId: { $in: [userAId, userBId] } });

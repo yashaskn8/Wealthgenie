@@ -6,6 +6,13 @@ export function formatINR(value) {
   return Number.isFinite(number) ? `₹${Math.round(number).toLocaleString('en-IN')}` : '—';
 }
 
+export function assertBackendMonthlyAllocation(value, instrumentId) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new TypeError(`Backend monthly allocation is invalid for ${instrumentId || 'an investment'}.`);
+  }
+  return value;
+}
+
 export function assertBackendRecommendationInstrument(instrument) {
   if (!instrument || typeof instrument !== 'object' || Array.isArray(instrument)) {
     throw new TypeError('Backend recommendation instrument must be an object.');

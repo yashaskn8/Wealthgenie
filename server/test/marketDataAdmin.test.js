@@ -13,6 +13,7 @@ import { jsonRequest, withServer } from '../test-utils/httpTestUtils.js';
 const passLimiter = (_req, _res, next) => next();
 const secret = 'market-data-admin-test-secret-at-least-32-characters';
 const adminUserId = '64a000000000000000000001';
+const ordinaryUserId = '64a000000000000000000002';
 const validQuery = 'exchange=NSE&symbol=RELIANCE&isin=INE002A01018&fromDate=2026-10-08&toDate=2026-10-09';
 
 function buildApp(router) {
@@ -49,7 +50,7 @@ test('admin market-data routes authenticate, enforce current admin role, and val
       const unauthenticated = await jsonRequest(`${baseUrl}/api/market-data/admin/tejhq/status`);
       assert.equal(unauthenticated.response.status, 401);
 
-      const userHeaders = { Authorization: `Bearer ${token('ordinary-user', 'user')}` };
+      const userHeaders = { Authorization: `Bearer ${token(ordinaryUserId, 'user')}` };
       const forbidden = await jsonRequest(`${baseUrl}/api/market-data/admin/tejhq/status`, { headers: userHeaders });
       assert.equal(forbidden.response.status, 403);
       assert.equal(calls.length, 0);
@@ -133,4 +134,30 @@ test('Upstox primary history is accepted only when identity, range, ordering, an
   assert.equal(fallback.selection.primaryFailureCode, 'UPSTOX_HISTORY_RESPONSE_UNQUALIFIED');
   assert.equal(fallback.coverage.expectedSessionCount, 2);
   assert.equal(fallback.candles.length, 2);
+});
+
+test('production equity-history requests never fetch or return Upstox candles without distribution confirmation', async () => {
+  let upstoxCalls = 0;
+  const result = await fetchQualifiedEquityHistory({
+    exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
+    fromDate: '2026-10-08', toDate: '2026-10-09',
+  }, {
+    env: {
+      NODE_ENV: 'production',
+      UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
+      TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'false',
+    },
+    upstoxProvider: {
+      getDailyCandles: async () => {
+        upstoxCalls += 1;
+        return { status: 'AVAILABLE', provider: 'UPSTOX', candles: [{ close: 999 }] };
+      },
+    },
+  });
+
+  assert.equal(upstoxCalls, 0);
+  assert.equal(result.status, 'UNAVAILABLE');
+  assert.equal(result.provider, null);
+  assert.deepEqual(result.candles, []);
+  assert.equal(result.selection.primaryFailureCode, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED');
 });

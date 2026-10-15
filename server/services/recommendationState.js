@@ -12,7 +12,12 @@ import { getCurrentRegulatoryRuleVersion } from './taxEngine.js';
 import { PROJECTION_ASSUMPTION_POLICY_HASH, PROJECTION_ASSUMPTION_SOURCE, PROJECTION_ASSUMPTION_VERSION } from './instrumentConstants.js';
 import { assessRecommendationFreshness, RECOMMENDATION_FRESHNESS_REASON_CODES } from './recommendationFreshness.js';
 import { buildPortfolioFingerprint, buildRecommendationFingerprint } from './recommendationFingerprint.js';
-import { buildGoalCalculationInputFingerprint, GOAL_CALCULATION_POLICY_VERSION } from './goalCalculationProvenance.js';
+import {
+  buildGoalCalculationInputFingerprint,
+  getGoalProjectionYearsRemaining,
+  GOAL_CALCULATION_POLICY_VERSION,
+} from './goalCalculationProvenance.js';
+import { assertRecommendationMarketDistributionAllowed } from './recommendationMarketProvenance.js';
 
 export const ALLOCATION_SOURCES = Object.freeze({
   ORIGINAL_RECOMMENDATION: 'ORIGINAL_RECOMMENDATION',
@@ -327,6 +332,14 @@ export async function resolveCurrentRecommendationState({
     };
   }
 
+  // Every current-state consumer, including deferred advisory and read-only
+  // projections, must honor the immutable source attached at generation time.
+  // Unadjusted legacy recommendations have no such provider dependency.
+  assertRecommendationMarketDistributionAllowed(recommendation, {
+    environment: dependencies.environment || process.env,
+    isDistributionAllowed: dependencies.isUpstoxPublicDistributionAllowed,
+  });
+
   const pointer = statePointer;
   const hasState = Boolean(pointer);
   const persistedRevisionQuery = modelQuery(revisionModel, 'findOne', {
@@ -549,7 +562,7 @@ export async function requireFreshRecommendationState(options = {}) {
   return resolveCurrentRecommendationState({ ...options, requireFresh: true });
 }
 
-export function assessGoalCalculationFreshness(goal, state) {
+export function assessGoalCalculationFreshness(goal, state, { now = new Date() } = {}) {
   const reasonCodes = [];
   if (!goal || !state?.recommendation || !state?.allocationRevision) {
     return { fresh: false, reasonCodes: ['SOURCE_MISSING'] };
@@ -573,6 +586,10 @@ export function assessGoalCalculationFreshness(goal, state) {
   if (goal.return_assumption_source !== state.allocationRevision.returnAssumptionSource) reasonCodes.push('STALE_ASSUMPTION');
   if (goal.sourceRecommendationFingerprint !== state.recommendationFingerprint) reasonCodes.push('STALE_RECOMMENDATION');
   if (goal.sourcePortfolioFingerprint !== state.portfolioFingerprint) reasonCodes.push('STALE_ALLOCATION');
+  const currentModeledHorizon = getGoalProjectionYearsRemaining(goal.target_date, now);
+  if (currentModeledHorizon === null || Number(goal.years_remaining) !== currentModeledHorizon) {
+    reasonCodes.push('STALE_GOAL_HORIZON');
+  }
   const currentGoalInputFingerprint = buildGoalCalculationInputFingerprint(goal);
   if (!currentGoalInputFingerprint
       || goal.sourceGoalCalculationInputFingerprint !== currentGoalInputFingerprint

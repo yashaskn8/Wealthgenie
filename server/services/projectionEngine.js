@@ -1,4 +1,5 @@
 import { toMonthlyRate } from './instrumentConstants.js';
+import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
 
 const ILLUSTRATIVE_PURCHASE_POWER_MILESTONES = Object.freeze([
   { min: 20_000, icon: '🎧', label: 'Premium wireless earbuds', amount: '~₹20K' },
@@ -478,36 +479,41 @@ export function generatePortfolioProjection({
     throw new TypeError('instruments must be a non-empty recommendation portfolio');
   }
 
-  let weightTotal = 0;
   const authorized = instruments.map(instrument => {
     const id = String(instrument?.id || '').trim();
     const nominalReturn = Number(instrument?.nominalReturn);
-    const allocationWeight = Number(instrument?.allocationWeight);
+    const rawAllocationWeight = instrument?.allocationWeight;
+    const hasExplicitAllocationWeight = typeof rawAllocationWeight === 'number'
+      || (typeof rawAllocationWeight === 'string' && rawAllocationWeight.trim() !== '');
+    const allocationWeight = Number(rawAllocationWeight);
     if (!id) throw new TypeError('every projection instrument must have an id');
     if (!Number.isFinite(nominalReturn) || nominalReturn <= -100 || nominalReturn > 100) {
       throw new RangeError(`nominalReturn for ${id} must be greater than -100 and at most 100`);
     }
-    if (!Number.isFinite(allocationWeight) || allocationWeight <= 0 || allocationWeight > 1) {
-      throw new RangeError(`allocationWeight for ${id} must be greater than 0 and at most 1`);
+    if (!hasExplicitAllocationWeight || !Number.isFinite(allocationWeight) || allocationWeight < 0 || allocationWeight > 1) {
+      throw new RangeError(`allocationWeight for ${id} must be an explicit number from 0 to 1`);
     }
-    weightTotal += allocationWeight;
     return {
       id,
       annualRate: nominalReturn / 100,
       allocationWeight,
-      monthlyContribution: monthlyContribution * allocationWeight,
-      initialLumpSum: initialLumpSum * allocationWeight,
     };
   });
-  if (Math.abs(weightTotal - 1) > 0.0001) {
-    throw new RangeError(`projection allocation weights must total 1; received ${weightTotal}`);
-  }
+  const normalizedWeights = normalizeAllocationWeights(authorized.map(instrument => instrument.allocationWeight));
+  const normalizedAuthorized = authorized.map((instrument, index) => ({
+    ...instrument,
+    allocationWeight: normalizedWeights[index],
+    monthlyContribution: monthlyContribution * normalizedWeights[index],
+    initialLumpSum: initialLumpSum * normalizedWeights[index],
+  }));
 
   const valueAtYears = (instrument, years) => (
-    sipFV(instrument.monthlyContribution, instrument.annualRate, years)
-      + lumpSumFV(instrument.initialLumpSum, instrument.annualRate, years)
+    instrument.allocationWeight === 0
+      ? 0
+      : sipFV(instrument.monthlyContribution, instrument.annualRate, years)
+        + lumpSumFV(instrument.initialLumpSum, instrument.annualRate, years)
   );
-  const portfolioValueAtYears = years => authorized.reduce(
+  const portfolioValueAtYears = years => normalizedAuthorized.reduce(
     (sum, instrument) => sum + valueAtYears(instrument, years),
     0,
   );
@@ -543,18 +549,32 @@ export function generatePortfolioProjection({
     invested: Math.round(initialLumpSum + (monthlyContribution * month)),
   }));
 
-  const instrumentProjectedValues = Object.fromEntries(authorized.map(instrument => [
+  const instrumentProjectedValues = Object.fromEntries(normalizedAuthorized.map(instrument => [
     instrument.id,
     Math.round(valueAtYears(instrument, horizonYears)),
   ]));
-  let assignedMonthly = 0;
-  const instrumentMonthlyAllocations = Object.fromEntries(authorized.map((instrument, index) => {
-    const amount = index === authorized.length - 1
-      ? Number((monthlyContribution - assignedMonthly).toFixed(2))
-      : Number((monthlyContribution * instrument.allocationWeight).toFixed(2));
-    assignedMonthly = Number((assignedMonthly + amount).toFixed(2));
-    return [instrument.id, amount];
-  }));
+  const targetMonthlyCents = Math.round(monthlyContribution * 100);
+  const monthlyShareCents = new Array(normalizedAuthorized.length).fill(0);
+  const normalizedWeightTotal = normalizedAuthorized.reduce((sum, instrument) => sum + instrument.allocationWeight, 0);
+  const positiveShares = normalizedAuthorized.flatMap((instrument, index) => {
+    if (instrument.allocationWeight === 0) return [];
+    const exactCents = targetMonthlyCents * (instrument.allocationWeight / normalizedWeightTotal);
+    const floorCents = Math.floor(exactCents);
+    monthlyShareCents[index] = floorCents;
+    return [{ index, fractionalCents: exactCents - floorCents }];
+  });
+  const remainingCents = targetMonthlyCents - monthlyShareCents.reduce((sum, cents) => sum + cents, 0);
+  if (remainingCents < 0 || remainingCents > positiveShares.length) {
+    throw new RangeError('monthly allocations could not be distributed to currency precision');
+  }
+  positiveShares
+    .sort((left, right) => right.fractionalCents - left.fractionalCents || left.index - right.index)
+    .slice(0, remainingCents)
+    .forEach(({ index }) => { monthlyShareCents[index] += 1; });
+  const instrumentMonthlyAllocations = Object.fromEntries(normalizedAuthorized.map((instrument, index) => [
+    instrument.id,
+    monthlyShareCents[index] / 100,
+  ]));
   const totalProjected = Math.round(portfolioValueAtYears(horizonYears));
   const totalInvested = Math.round(initialLumpSum + (monthlyContribution * 12 * horizonYears));
 

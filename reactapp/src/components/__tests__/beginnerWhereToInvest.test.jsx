@@ -248,6 +248,9 @@ describe('Beginner-First Where-To-Invest UX', () => {
     api.getCurrentMarketContext.mockResolvedValueOnce({ status: 'MARKET_CONTEXT_AVAILABLE', context: 'NORMAL', marketSnapshot: { status: 'CURRENT' }, signals: {} });
     render(<WhereToInvestTab inv={{ id: 'ppf', name: 'PPF', riskScore: null }} userProfile={{ profileId: '64b000000000000000000001' }} />);
     expect(await screen.findByText('Current verified data')).toBeVisible();
+    const unavailableRisk = screen.getByRole('img', { name: 'Parent Category Risk: Not available' });
+    expect(unavailableRisk).not.toHaveAttribute('aria-valuenow');
+    expect(screen.queryByRole('meter', { name: /Parent Category Risk/ })).toBeNull();
     api.getCurrentMarketContext.mockRejectedValueOnce(new Error('503 provider unavailable'));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh market data' }));
     expect(await screen.findByText('Last available data')).toBeVisible();
@@ -366,9 +369,9 @@ describe('Beginner-First Where-To-Invest UX', () => {
           officialRate: { value: 7.1 },
           presentationStatus: 'VERIFIED_COMPARABLE_OPTION',
           beginnerSuitability: {
-            whyThisFitsYou: 'Shown because you selected Retirement and Wealth Growth. Backed by the Government of India with 100% sovereign safety.',
-            riskTier: 'Very Low Risk',
-            accessToMoney: '15-year term (partial withdrawal permitted from year 7)',
+            whyThisFitsYou: 'This product is shown under Public Provident Fund. Individual-product suitability, eligibility, risk rating, and redemption terms have not been established.',
+            riskTier: 'Product-specific risk unavailable',
+            accessToMoney: 'Product-specific access terms unavailable',
             verifiedFactLabel: 'Current official rate',
             verifiedFactValue: '7.10% p.a.',
             sourceProvider: 'India Post',
@@ -671,18 +674,33 @@ describe('Beginner-First Where-To-Invest UX', () => {
 
     expect(await screen.findByText('Public Provident Fund')).toBeTruthy();
 
-    // Product card renders "Very Low Risk" chip — getAllsince the text
-    // may appear in more than one rendered card instance.
-    const riskChips = screen.getAllByText('Very Low Risk');
+    // Product facts stay unavailable without qualified product-level evidence.
+    const riskChips = screen.getAllByText('Product-specific risk unavailable');
     expect(riskChips.length).toBeGreaterThanOrEqual(1);
 
-    const accessTexts = screen.getAllByText(/15-year term/i);
+    const accessTexts = screen.getAllByText(/Product-specific access terms unavailable/i);
     expect(accessTexts.length).toBeGreaterThanOrEqual(1);
 
     const whyFitsLabels = screen.getAllByText(/Why this fits you/i);
     expect(whyFitsLabels.length).toBeGreaterThanOrEqual(1);
 
-    expect(screen.getAllByText(/Backed by the Government of India with 100% sovereign safety/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Individual-product suitability, eligibility, risk rating, and redemption terms have not been established/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/guaranteed|100% sovereign safety/i)).toBeNull();
+  });
+
+  it('does not turn a parent risk tier into capital guarantees or profile-match claims', async () => {
+    render(
+      <WhereToInvestTab
+        inv={{ id: 'ppf', name: 'Public Provident Fund', riskScore: 1 }}
+        userProfile={{ profileId: '64b000000000000000000001' }}
+      />
+    );
+
+    await screen.findByText('Public Provident Fund');
+    expect(screen.getByRole('meter', { name: 'Parent Category Risk: Low' })).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.queryByText(/Sovereign Backed|Zero to Minimal|Regulated Bank|Low & Predictable|Conservative & Beginner/i)).toBeNull();
+    expect(screen.queryByText('Suitability Gate Passed')).toBeNull();
+    expect(screen.queryByText('Financial Profile Match')).toBeNull();
   });
 
   it('keeps PPF tax treatment unavailable without account facts and retains only relevant principal controls', async () => {

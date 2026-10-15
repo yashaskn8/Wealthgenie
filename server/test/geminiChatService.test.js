@@ -123,6 +123,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     });
 
     User.findById = () => ({
+      select() { return this; },
       lean: async () => mockUser,
     });
 
@@ -186,6 +187,61 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.match(result.response, /Moderate \[E_PROFILE_RISK\]/);
   });
 
+  it('reports the precise quota reset after the final successful chat message and on the next denial', async () => {
+    const originalStateFindOne = FinancialProfileState.findOne;
+    const localHits = new Map();
+    const options = {
+      env: { NODE_ENV: 'test' },
+      localHits,
+      now: () => 12_345,
+      getRedisState: () => ({ client: null, available: false }),
+    };
+    FinancialProfileState.findOne = () => ({
+      lean: async () => ({
+        userId: mockUserId,
+        currentProfileId: null,
+        revision: 0,
+        promotionFence: 0,
+        resolutionStatus: 'NO_CURRENT',
+      }),
+    });
+
+    try {
+      for (let count = 0; count < 29; count += 1) {
+        await processChat({
+          userId: mockUserId,
+          user: mockUser,
+          message: 'Use a prior quota slot',
+          sessionId: mockSessionId,
+        }, { rateLimitOptions: options });
+      }
+
+      const finalAllowed = await processChat({
+        userId: mockUserId,
+        user: mockUser,
+        message: 'Check remaining quota',
+        sessionId: mockSessionId,
+      }, { rateLimitOptions: options });
+      const resetAt = new Date(12_345 + (60 * 60 * 1000)).toISOString();
+      assert.equal(finalAllowed.rate_limit_remaining, 0);
+      assert.equal(finalAllowed.rate_limit_reset_at, resetAt);
+
+      await assert.rejects(processChat({
+        userId: mockUserId,
+        user: mockUser,
+        message: 'Check exhausted quota',
+        sessionId: mockSessionId,
+      }, { rateLimitOptions: options }), error => {
+        assert.equal(error.status, 429);
+        assert.equal(error.code, 'CHAT_RATE_LIMIT_EXCEEDED');
+        assert.equal(error.clientDetails.retryAfterSeconds, 3600);
+        assert.equal(error.clientDetails.resetAt, resetAt);
+        return true;
+      });
+    } finally {
+      FinancialProfileState.findOne = originalStateFindOne;
+    }
+  });
   it('Phase 1: AIToolOrchestrator resolves parallel tool calls in a DAG graph', async () => {
     const toolRequests = [
       { tool: 'sip_projection', arguments: { monthlyInvestment: 10000, annualRate: 0.12, years: 10 } },

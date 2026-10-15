@@ -4,7 +4,7 @@ import express from 'express';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 import { correlationIdMiddleware } from '../middleware/correlation.js';
 import { errorHandler } from '../middleware/errorHandler.js';
-import { validate, validateQuery, taxComputeSchema, chatMessageSchema } from '../validation/schemas.js';
+import { validate, taxComputeSchema, chatMessageSchema } from '../validation/schemas.js';
 import { personalizedMonteCarloSchema, validateStrict } from '../validation/financialSchemas.js';
 import { getRuleBasedFallback } from '../services/mlClient.js';
 import { queryRAG } from '../services/ragClient.js';
@@ -20,7 +20,7 @@ describe('CLAIM 1 — Enterprise-Grade Verification Suite', () => {
     app.use(correlationIdMiddleware);
     app.use(express.json());
 
-    app.post('/api/tax/compute', validateQuery(taxComputeSchema), (req, res) => {
+    app.post('/api/tax/compute', validate(taxComputeSchema), (req, res) => {
       res.json({ success: true });
     });
 

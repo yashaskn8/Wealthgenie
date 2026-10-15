@@ -6,6 +6,7 @@ import Goal from '../models/Goal.js';
 import goalsRouter from '../routes/goals.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
+import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 import { assertRuntimeResponseMatchesContract } from './helpers/openapiRuntimeContract.js';
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'goals-read-only-test-secret-2026';
@@ -41,7 +42,7 @@ test('GET /api/goals is read-only and does not regenerate stale advice', async (
   app.use(errorHandler);
 
   try {
-    await withServer(app, async baseUrl => {
+    await withMockAuthAccountState(() => withServer(app, async baseUrl => {
       const response = await rawRequest(`${baseUrl}/api/goals`, {
         method: 'GET',
         headers: { authorization: `Bearer ${token}` },
@@ -56,7 +57,7 @@ test('GET /api/goals is read-only and does not regenerate stale advice', async (
       assert.equal(body.goals[0].advice_stale, true);
       assert.deepEqual(body.goals[0].chartData, []);
       assert.equal(saveCalled, false);
-    });
+    }));
   } finally {
     Goal.find = originalFind;
   }

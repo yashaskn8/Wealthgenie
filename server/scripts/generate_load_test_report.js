@@ -37,13 +37,13 @@ function generateReport(postPatchData = null) {
     { scenario: 'Read-heavy: GET /api/instruments', file: 'scenario1_read_heavy_c10.json', concurrency: 10, runMode: 'Initial Run' },
     { scenario: 'Read-heavy: GET /api/instruments', file: 'scenario1_read_heavy_c50.json', concurrency: 50, runMode: 'Initial Run (Cold-Start Artifact)' },
     { scenario: 'Read-heavy: GET /api/instruments', file: 'scenario1_read_heavy_c100.json', concurrency: 100, runMode: 'Initial Run' },
-    { scenario: 'Compute-heavy: GET /api/tax/compare', file: 'scenario2_compute_heavy_c10.json', concurrency: 10, runMode: 'Steady State' },
-    { scenario: 'Compute-heavy: GET /api/tax/compare', file: 'scenario2_compute_heavy_c50.json', concurrency: 50, runMode: 'Steady State' },
-    { scenario: 'Compute-heavy: GET /api/tax/compare', file: 'scenario2_compute_heavy_c100.json', concurrency: 100, runMode: 'Steady State' },
+    { scenario: 'Historical GET /api/tax/compare benchmark', file: 'scenario2_compute_heavy_c10.json', concurrency: 10, runMode: 'Steady State' },
+    { scenario: 'Historical GET /api/tax/compare benchmark', file: 'scenario2_compute_heavy_c50.json', concurrency: 50, runMode: 'Steady State' },
+    { scenario: 'Historical GET /api/tax/compare benchmark', file: 'scenario2_compute_heavy_c100.json', concurrency: 100, runMode: 'Steady State' },
     { scenario: 'Agentic chat: POST /api/chat/message', file: 'scenario3_agentic_llm_c10.json', concurrency: 10, runMode: 'Pre-patch' },
     { scenario: 'Agentic chat: POST /api/chat/message', file: 'scenario3_agentic_llm_c50.json', concurrency: 50, runMode: 'Pre-patch' },
     { scenario: 'Agentic chat: POST /api/chat/message', file: 'scenario3_agentic_llm_c100.json', concurrency: 100, runMode: 'Pre-patch' },
-    { scenario: 'Stress ceiling: GET /api/tax/compare', file: 'scenario4_stress_c200.json', concurrency: 200, runMode: 'Steady State' },
+    { scenario: 'Historical GET /api/tax/compare stress benchmark', file: 'scenario4_stress_c200.json', concurrency: 200, runMode: 'Steady State' },
   ];
 
   const scenarios = files.flatMap(item => {

@@ -43,6 +43,7 @@ const CURRENT_RULE_SEMANTICS = Object.freeze({
   HEALTH_AND_EDUCATION_CESS: 'HEALTH_EDUCATION_CESS_POLICY',
   BANK_DEPOSIT_INTEREST_TAXED_AT_INCOME_TAX_RATES: 'BANK_DEPOSIT_INTEREST_TAXATION',
   BANK_INTEREST_TDS_THRESHOLD: 'BANK_INTEREST_TDS_THRESHOLD_POLICY',
+  SECURITY_INTEREST_TDS_THRESHOLD: 'SECURITY_INTEREST_TDS_THRESHOLD_POLICY',
   BANK_INTEREST_TDS: 'BANK_INTEREST_TDS_POLICY',
   PPF_ACCOUNT_TAX_TREATMENT: 'PPF_SCHEDULE_II_PROVIDENT_FUND_EXCLUSION',
   SSY_ACCOUNT_TAX_TREATMENT: 'SSY_SCHEDULE_II_ACCOUNT_EXCLUSION',
@@ -93,6 +94,7 @@ const VERIFIED_CURRENT_REFERENCES = Object.freeze({
   SGB_MATURITY_CAPITAL_GAINS_EXEMPTION_POLICY: 'Section 70(1)(x)',
   SGB_SECONDARY_MARKET_EXEMPTION_EXCLUSION_POLICY: 'Section 70(1)(x)',
   BANK_INTEREST_TDS_THRESHOLD_POLICY: 'Section 393(1), Table 5(ii)',
+  SECURITY_INTEREST_TDS_THRESHOLD_POLICY: 'Section 393(1), Table 5(i)',
   PPF_SCHEDULE_II_PROVIDENT_FUND_EXCLUSION: 'Schedule II, Table, Sl. No. 3 (conditional)',
   SSY_SCHEDULE_II_ACCOUNT_EXCLUSION: 'Schedule II, Table, Sl. No. 5 (account-qualified payment)',
   PPF_ACCOUNT_EXCLUSION_CONDITIONAL: 'Schedule II, Table, Sl. No. 3 (conditional)',
@@ -113,7 +115,7 @@ function referencesForRule(ruleId) {
     { authority: 'Income Tax Department — Government of India', title: 'Income-tax Act, 2025 as amended by Finance Act, 2026', url: OFFICIAL_2025_ACT_URL },
     { authority: 'Income Tax Department — Government of India', title: 'Updated Budget 2026 tax FAQs', url: OFFICIAL_BUDGET_2026_FAQ_URL },
   ];
-  if (ruleId === 'BANK_INTEREST_TDS_THRESHOLD_POLICY') {
+  if (ruleId === 'BANK_INTEREST_TDS_THRESHOLD_POLICY' || ruleId === 'SECURITY_INTEREST_TDS_THRESHOLD_POLICY') {
     sources.push({ authority: 'Income Tax Department — Government of India', title: 'Income-tax Act, 2025 section 393', url: OFFICIAL_TDS_SECTION_URL });
   }
   if (ruleId === 'STANDARD_DEDUCTION') {

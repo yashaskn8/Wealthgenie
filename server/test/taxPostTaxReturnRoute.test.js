@@ -149,6 +149,15 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
       // FD: postTaxReturn should be 0.07 (0% tax rate at ₹10L income under new regime)
       assert.equal(body.results[0].postTaxReturn, 0.07);
       assert.equal(body.results[0].taxRate, 0);
+      assert.equal(body.results[0].sipReturnMetrics.basis, 'MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE');
+      assert.equal(body.results[0].sipReturnMetrics.status, 'CALCULATED');
+      assert.ok(Number.isFinite(body.results[0].sipReturnMetrics.preTaxAnnualizedReturnPercent));
+      assert.ok(Number.isFinite(body.results[0].sipReturnMetrics.postTaxAnnualizedReturnPercent));
+      assert.equal(body.results[0].sipReturnMetrics.taxDragAnnualizedPercentagePoints, 0);
+      for (const field of ['nominalCAGR', 'postTaxCAGR', 'postTaxReturnPercent', 'realReturnPercent', 'taxDragCAGR']) {
+        assert.ok(Object.hasOwn(body.results[0], field), `${field} remains in the compatibility response`);
+        assert.ok(body.results[0][field] === null || Number.isFinite(body.results[0][field]), `${field} remains nullable numeric data`);
+      }
 
       // No account/payment facts are supplied, so no PPF exclusion is inferred.
       assert.equal(body.results[1].status, 'TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertBackendRecommendationInstrument, formatINR } from './recommendationPresentation';
+import { assertBackendMonthlyAllocation, assertBackendRecommendationInstrument, formatINR } from './recommendationPresentation';
 import { assertKnownBackendInstrumentTypes, backendToLocalInstrument } from './instrumentTypeMap';
 
 const valid = {
@@ -21,6 +21,14 @@ describe('recommendation presentation authority boundary', () => {
     expect(backendToLocalInstrument('Index_MF')).toBe('index_mf');
     expect(backendToLocalInstrument('Arbitrage_MF')).toBe('arbitrage_mf');
     expect(assertKnownBackendInstrumentTypes(['Index_MF', 'Arbitrage_MF'])).toEqual([]);
+  });
+
+  it('preserves an explicit zero monthly allocation and rejects missing or malformed allocations', () => {
+    expect(assertBackendMonthlyAllocation(0, 'debt')).toBe(0);
+    expect(assertBackendMonthlyAllocation(1250, 'debt')).toBe(1250);
+    for (const value of [null, undefined, '', ' ', '0', -1, NaN, Infinity]) {
+      expect(() => assertBackendMonthlyAllocation(value, 'debt')).toThrow(/monthly allocation is invalid/);
+    }
   });
 
   it.each([

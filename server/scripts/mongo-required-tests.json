@@ -24,6 +24,7 @@
   "test/proofBreakWorkerMongo.integration.test.js",
   "test/rbacRole.test.js",
   "test/recommendationAllocationRevisionBehavior.test.js",
+  "test/recommendationAuditProvenanceRoutes.test.js",
   "test/recommendPostCommitCurrentState.test.js",
   "test/recommendRestore.test.js",
   "test/researchTaskLease.integration.test.js",

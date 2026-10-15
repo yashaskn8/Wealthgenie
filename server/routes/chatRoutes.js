@@ -7,7 +7,7 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { validate, chatMessageSchema } from '../validation/schemas.js';
 import { chatHistoryQuerySchema, validateQuery } from '../validation/schemas.js';
-import { processChat, buildClientResponseDTO } from '../services/geminiChatService.js';
+import { processChat, buildClientResponseDTO, resolveCurrentChatSessionBinding } from '../services/geminiChatService.js';
 import { checkTokenBudget, recordTokenUsage } from '../middleware/tokenBudget.js';
 import ConversationHistory from '../models/ConversationHistory.js';
 import { defaultChatSessionStore } from '../services/chatSessionStore.js';
@@ -48,7 +48,23 @@ router.get('/history', verifyJWT, validateQuery(chatHistoryQuerySchema), asyncHa
   // Clamp limit to prevent excessive queries
   const limit = req.query.limit === undefined ? 50 : Number(req.query.limit);
 
-  const query = { userId: req.user.userId, is_active: true };
+  const binding = await resolveCurrentChatSessionBinding({ userId: req.user.userId });
+  if (!binding) return res.json({ conversations: [] });
+
+  // History is exposed only when the stored conversation matches the current
+  // server-owned profile, recommendation and allocation revision.
+  const query = {
+    userId: req.user.userId,
+    is_active: true,
+    profileId: binding.profileId,
+    profileVersion: binding.profileVersion,
+    financialProfileStateRevision: binding.financialProfileStateRevision,
+    profileInputHash: binding.profileInputHash,
+    sourceRecommendationId: binding.sourceRecommendationId,
+    sourceAllocationRevisionId: binding.sourceAllocationRevisionId,
+    sourceRecommendationFingerprint: binding.sourceRecommendationFingerprint,
+    sourcePortfolioFingerprint: binding.sourcePortfolioFingerprint,
+  };
   if (session_id) query.session_id = session_id;
 
   const conversations = await ConversationHistory

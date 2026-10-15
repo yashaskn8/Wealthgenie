@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import GoalTracker from '../GoalTracker';
 import api from '../../services/api';
@@ -43,6 +43,7 @@ const profile = {
 
 const savedGoal = {
   _id: 'goal-1',
+  profileId: profile.profileId,
   version: 1,
   goal_name: 'Dream Studio',
   target_amount: 500000,
@@ -105,6 +106,8 @@ describe('GoalTracker custom-goal boundary', () => {
     fireEvent.click(screen.getByRole('button', { name: /create custom goal/i }));
     expect(onNavigate).toHaveBeenCalledWith('goal-planner');
     expect(api.getGoals).toHaveBeenCalledTimes(1);
+    expect(api.updateGoal).not.toHaveBeenCalled();
+    expect(api.deleteGoal).not.toHaveBeenCalled();
   });
 
   it('keeps the original notification banner available for goal-loading failures', async () => {
@@ -127,6 +130,49 @@ describe('GoalTracker custom-goal boundary', () => {
     expect(screen.getByText('₹3.5L')).toBeTruthy();
   });
 
+  it('retains earlier-profile goals but labels and excludes them from current totals', async () => {
+    const earlierGoal = {
+      ...savedGoal,
+      _id: 'goal-previous-profile',
+      profileId: 'previous-profile-id',
+      goal_name: 'Earlier Education Goal',
+      target_amount: 9000000,
+      current_savings: 8000000,
+      calculation_freshness: { fresh: false, reasonCodes: ['STALE_PROFILE'] },
+      advisory_freshness: { fresh: false, reasonCodes: ['STALE_PROFILE'] },
+    };
+    api.getGoals.mockResolvedValue({ goals: [savedGoal, earlierGoal] });
+    render(<GoalTracker profile={profile} />);
+
+    expect(await screen.findByText('Dream Studio')).toBeTruthy();
+    expect(screen.getByText('Earlier Education Goal')).toBeTruthy();
+    expect(screen.getByText('Current profile goals')).toBeTruthy();
+    expect(screen.getByText('Earlier profile goals')).toBeTruthy();
+    expect(screen.getAllByText('Current profile')).toHaveLength(1);
+    expect(screen.getAllByText('Earlier profile')).toHaveLength(1);
+    expect(screen.getByText(/excluded from current-profile totals and projections/i)).toBeTruthy();
+
+    const overview = screen.getByText("What You're Saving For").closest('.goal-overview-card');
+    expect(within(overview).getByText('Across 1 current-profile goals')).toBeTruthy();
+    expect(within(overview).getByText('₹5.0L')).toBeTruthy();
+    expect(within(overview).getByText('₹50K')).toBeTruthy();
+    expect(within(overview).getByText('₹2.5L')).toBeTruthy();
+    expect(within(overview).getByText('Monthly Savings Needed: ₹5,000/mo')).toBeTruthy();
+    expect(within(overview).getByText('42%')).toBeTruthy();
+    expect(within(overview).queryByText('₹95.0L')).toBeNull();
+    expect(within(overview).queryByText('₹80.5L')).toBeNull();
+
+    const earlierCard = screen.getByText('Earlier Education Goal').closest('.goal-card-item');
+    const earlierCardContent = within(earlierCard);
+    const earlierInputs = earlierCardContent.getAllByRole('spinbutton');
+    expect(earlierInputs).toHaveLength(2);
+    expect(earlierInputs.every(input => input.disabled)).toBe(true);
+    fireEvent.change(earlierInputs[0], { target: { value: '10000000' } });
+    expect(earlierCardContent.queryByRole('button', { name: /save changes & update projections/i })).toBeNull();
+    expect(earlierCardContent.getByTitle('Delete Goal')).toBeTruthy();
+    expect(api.updateGoal).not.toHaveBeenCalled();
+  });
+
   it('does not render derived values or advice when freshness proof is missing', async () => {
     api.getGoals.mockResolvedValue({ goals: [{ ...savedGoal, calculation_freshness: undefined, advisory_freshness: undefined }] });
     render(<GoalTracker profile={profile} />);
@@ -134,6 +180,53 @@ describe('GoalTracker custom-goal boundary', () => {
     expect(await screen.findByText('Dream Studio')).toBeTruthy();
     expect(screen.getAllByText('Awaiting backend calculation').length).toBeGreaterThan(0);
     expect(screen.queryByText('Increase the goal contribution when cash flow allows.')).toBeNull();
+  });
+
+  it('keeps a missing target unavailable and does not offer save until both amount facts are valid', async () => {
+    const missingTarget = { ...savedGoal };
+    delete missingTarget.target_amount;
+    api.getGoals.mockResolvedValue({ goals: [missingTarget] });
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    const card = screen.getByText('Dream Studio').closest('.goal-card-item');
+    expect(card.querySelector('.goal-progress-legend').textContent).toContain('Saved (Unavailable)');
+    expect(card.querySelector('.goal-progress-legend').textContent).not.toContain('0% of Target');
+    expect(within(card).queryByRole('button', { name: /save changes & update projections/i })).toBeNull();
+
+    const [targetInput] = within(card).getAllByRole('spinbutton');
+    fireEvent.change(targetInput, { target: { value: '600000' } });
+    fireEvent.click(await within(card).findByRole('button', { name: /save changes & update projections/i }));
+
+    await waitFor(() => expect(api.updateGoal).toHaveBeenCalledWith('goal-1', {
+      expectedVersion: 1,
+      target_amount: 600000,
+      current_savings: 50000,
+    }));
+  });
+
+  it('keeps missing savings unavailable, then treats an explicitly repaired zero as a real amount', async () => {
+    const missingSavings = { ...savedGoal };
+    delete missingSavings.current_savings;
+    api.getGoals.mockResolvedValue({ goals: [missingSavings] });
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    const card = screen.getByText('Dream Studio').closest('.goal-card-item');
+    expect(card.querySelector('.goal-progress-legend').textContent).toContain('Saved (Unavailable)');
+    expect(card.querySelector('.goal-progress-legend').textContent).not.toContain('0% of Target');
+    expect(within(card).queryByRole('button', { name: /save changes & update projections/i })).toBeNull();
+
+    const [, savingsInput] = within(card).getAllByRole('spinbutton');
+    fireEvent.change(savingsInput, { target: { value: '0' } });
+    expect(card.querySelector('.goal-progress-legend').textContent).toContain('Saved (0% of Target)');
+    fireEvent.click(await within(card).findByRole('button', { name: /save changes & update projections/i }));
+
+    await waitFor(() => expect(api.updateGoal).toHaveBeenCalledWith('goal-1', {
+      expectedVersion: 1,
+      target_amount: 500000,
+      current_savings: 0,
+    }));
   });
 
   it.each([
@@ -222,6 +315,94 @@ describe('GoalTracker custom-goal boundary', () => {
       current_savings: 50000,
     }));
     await waitFor(() => expect(api.getGoals).toHaveBeenCalledTimes(2));
+  });
+
+  it('recalculates a stale current-profile goal from saved amounts without edits', async () => {
+    api.getGoals
+      .mockResolvedValueOnce({ goals: [{
+        ...savedGoal,
+        calculation_freshness: { fresh: false, reasonCodes: ['STALE_GOAL_HORIZON'] },
+        advisory_freshness: { fresh: false, reasonCodes: ['STALE_GOAL_HORIZON'] },
+      }] })
+      .mockResolvedValueOnce({ goals: [savedGoal] });
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    expect(screen.getByRole('button', { name: 'Recalculate goal using saved amounts' })).toBeTruthy();
+    expect(api.updateGoal).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recalculate goal using saved amounts' }));
+
+    await waitFor(() => expect(api.updateGoal).toHaveBeenCalledWith('goal-1', {
+      expectedVersion: 1,
+      target_amount: 500000,
+      current_savings: 50000,
+    }));
+    await waitFor(() => expect(api.getGoals).toHaveBeenCalledTimes(2));
+  });
+
+  it('does not offer stale-plan recalculation for historical-profile goals', async () => {
+    api.getGoals.mockResolvedValue({ goals: [{
+      ...savedGoal,
+      profileId: 'previous-profile-id',
+      calculation_freshness: { fresh: false, reasonCodes: ['STALE_PROFILE'] },
+    }] });
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    expect(screen.queryByRole('button', { name: 'Recalculate goal using saved amounts' })).toBeNull();
+    expect(api.updateGoal).not.toHaveBeenCalled();
+  });
+
+  it('keeps the stale status but explains and blocks recalculation below the one-month horizon', async () => {
+    api.getGoals.mockResolvedValue({ goals: [{
+      ...savedGoal,
+      target_date: new Date(Date.now() + (14 * 24 * 60 * 60 * 1000)).toISOString(),
+      calculation_freshness: { fresh: false, reasonCodes: ['STALE_GOAL_HORIZON'] },
+      advisory_freshness: { fresh: false, reasonCodes: ['STALE_GOAL_HORIZON'] },
+    }] });
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    expect(screen.getByText('Recalculation Required')).toBeTruthy();
+    expect(screen.getByRole('note').textContent).toMatch(/too close.*at least one modeled month remaining/i);
+    expect(screen.queryByRole('button', { name: 'Recalculate goal using saved amounts' })).toBeNull();
+    expect(api.updateGoal).not.toHaveBeenCalled();
+  });
+
+  it('keeps the stale status but blocks recalculation beyond the 30-year horizon', async () => {
+    const targetDate = new Date();
+    targetDate.setFullYear(targetDate.getFullYear() + 31);
+    api.getGoals.mockResolvedValue({ goals: [{
+      ...savedGoal,
+      target_date: targetDate.toISOString(),
+      calculation_freshness: { fresh: false, reasonCodes: ['STALE_GOAL_HORIZON'] },
+      advisory_freshness: { fresh: false, reasonCodes: ['STALE_GOAL_HORIZON'] },
+    }] });
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    expect(screen.getByText('Recalculation Required')).toBeTruthy();
+    expect(screen.getByRole('note').textContent).toMatch(/more than 30 years away.*within 30 years/i);
+    expect(screen.queryByRole('button', { name: 'Recalculate goal using saved amounts' })).toBeNull();
+    expect(api.updateGoal).not.toHaveBeenCalled();
+  });
+
+  it('keeps recalculation available at the supported 30-year horizon', async () => {
+    const targetDate = new Date();
+    targetDate.setFullYear(targetDate.getFullYear() + 30);
+    api.getGoals.mockResolvedValue({ goals: [{
+      ...savedGoal,
+      target_date: targetDate.toISOString(),
+      calculation_freshness: { fresh: false, reasonCodes: ['STALE_GOAL_HORIZON'] },
+      advisory_freshness: { fresh: false, reasonCodes: ['STALE_GOAL_HORIZON'] },
+    }] });
+    render(<GoalTracker profile={profile} />);
+
+    await screen.findByText('Dream Studio');
+    expect(screen.getByRole('button', { name: 'Recalculate goal using saved amounts' })).toBeTruthy();
+    expect(screen.queryByRole('note')).toBeNull();
+    expect(api.updateGoal).not.toHaveBeenCalled();
   });
 
   it('deletes only the selected custom goal after confirmation', async () => {

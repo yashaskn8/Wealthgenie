@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { createRegimeRouter } from '../routes/regime.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
+import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 
 const USER_ID = '64b000000000000000000001';
 const PROFILE_ID = '64b000000000000000000002';
@@ -104,33 +105,35 @@ test('authenticated preview returns the exact server market snapshot and current
   });
 
   try {
-    await withServer(app, async baseUrl => {
-      const { response, body } = await jsonRequest(`${baseUrl}/api/regime/adjust`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ profileId: PROFILE_ID }),
+    await withMockAuthAccountState(async () => {
+      await withServer(app, async baseUrl => {
+        const { response, body } = await jsonRequest(`${baseUrl}/api/regime/adjust`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ profileId: PROFILE_ID }),
+        });
+        assert.equal(response.status, 200);
+        assert.equal(body.marketContext.marketSnapshot.contentRevision.digest, 'd'.repeat(64));
+        assert.equal(body.profileId, PROFILE_ID);
+        assert.equal(body.profile_version, 3);
+        assert.equal(body.recommendationId, RECOMMENDATION_ID);
+        assert.equal(body.allocation_revision, 2);
+        assert.equal(body.allocation_revision_id, REVISION_ID);
+        assert.equal(body.portfolio_fingerprint, PORTFOLIO_FINGERPRINT);
+        assert.equal(body.recommendation_fingerprint, RECOMMENDATION_FINGERPRINT);
+        assert.equal(body.persisted, false);
+        assert.deepEqual(body.adjustedWeights, { 'low-risk-option': 0.62, 'higher-risk-option': 0.38 });
       });
-      assert.equal(response.status, 200);
-      assert.equal(body.marketContext.marketSnapshot.contentRevision.digest, 'd'.repeat(64));
-      assert.equal(body.profileId, PROFILE_ID);
-      assert.equal(body.profile_version, 3);
-      assert.equal(body.recommendationId, RECOMMENDATION_ID);
-      assert.equal(body.allocation_revision, 2);
-      assert.equal(body.allocation_revision_id, REVISION_ID);
-      assert.equal(body.portfolio_fingerprint, PORTFOLIO_FINGERPRINT);
-      assert.equal(body.recommendation_fingerprint, RECOMMENDATION_FINGERPRINT);
-      assert.equal(body.persisted, false);
-      assert.deepEqual(body.adjustedWeights, { 'low-risk-option': 0.62, 'higher-risk-option': 0.38 });
+      assert.deepEqual(calls, { profile: 1, state: 1, calculation: 1 });
+      assert.deepEqual({
+        profileVersion: state.profileVersion,
+        recommendation: state.recommendation,
+        currentAllocation: state.currentAllocation,
+        allocationRevision: state.allocationRevision,
+        portfolioFingerprint: state.portfolioFingerprint,
+        recommendationFingerprint: state.recommendationFingerprint,
+      }, originalState);
     });
-    assert.deepEqual(calls, { profile: 1, state: 1, calculation: 1 });
-    assert.deepEqual({
-      profileVersion: state.profileVersion,
-      recommendation: state.recommendation,
-      currentAllocation: state.currentAllocation,
-      allocationRevision: state.allocationRevision,
-      portfolioFingerprint: state.portfolioFingerprint,
-      recommendationFingerprint: state.recommendationFingerprint,
-    }, originalState);
   } finally {
     if (oldSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = oldSecret;
@@ -143,14 +146,14 @@ test('preview route rejects client-supplied weights and does not run the adjustm
   const token = jwt.sign({ userId: USER_ID, role: 'user' }, process.env.JWT_SECRET, { algorithm: 'HS256' });
   const { app, calls } = buildTestApp();
   try {
-    await withServer(app, async baseUrl => {
+    await withMockAuthAccountState(() => withServer(app, async baseUrl => {
       const { response } = await jsonRequest(`${baseUrl}/api/regime/adjust`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ profileId: PROFILE_ID, baseWeights: { attacker: 1 } }),
       });
       assert.equal(response.status, 400);
-    });
+    }));
     assert.deepEqual(calls, { profile: 0, state: 0, calculation: 0 });
   } finally {
     if (oldSecret === undefined) delete process.env.JWT_SECRET;

@@ -78,6 +78,44 @@ test('special-rate gains fail closed when residency could change the basic-exemp
   assert.equal(noBasicExemptionHeadroom.taxable112A, 475_000);
 });
 
+test('residency is required only when Section 112A taxable gains remain after the annual exemption', () => {
+  for (const fiscalYear of [OLD_FY, CURRENT_FY]) {
+    const fullyExempt = computeCapitalGainsTaxBuckets({
+      longTerm112AGain: 100_000,
+      annualIncome: 0,
+      regime: 'new',
+      incomeSource: 'other',
+      fiscalYear,
+      section112AExemptionUsed: 0,
+    });
+    assert.equal(fullyExempt.status, 'CALCULATED', fiscalYear);
+    assert.equal(fullyExempt.grossGain, 100_000, fiscalYear);
+    assert.equal(fullyExempt.taxableGain, 0, fiscalYear);
+    assert.equal(fullyExempt.taxable112A, 0, fiscalYear);
+    assert.equal(fullyExempt.exemptionApplied, 100_000, fiscalYear);
+    assert.equal(fullyExempt.taxAmount, 0, fiscalYear);
+
+    const taxableRemainder = computeCapitalGainsTaxBuckets({
+      longTerm112AGain: 200_000,
+      annualIncome: 0,
+      regime: 'new',
+      incomeSource: 'other',
+      fiscalYear,
+      section112AExemptionUsed: 0,
+    });
+    assert.equal(taxableRemainder.status, 'UNAVAILABLE', fiscalYear);
+    assert.equal(taxableRemainder.grossGain, 200_000, fiscalYear);
+    assert.equal(taxableRemainder.taxableGain, null, fiscalYear);
+    assert.equal(taxableRemainder.taxable112A, null, fiscalYear);
+    assert.equal(taxableRemainder.taxAmount, null, fiscalYear);
+    assert.deepEqual(
+      taxableRemainder.unavailableReasons,
+      ['TAX_RESIDENCY_REQUIRED_FOR_BASIC_EXEMPTION_INTERACTION'],
+      fiscalYear,
+    );
+  }
+});
+
 test('capital-gains helpers require explicit Section 112A usage while accepting explicit zero', () => {
   const buckets = {
     longTerm112AGain: 200_000,

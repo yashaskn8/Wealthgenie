@@ -55,6 +55,19 @@ const PRIORITY_CONFIG = {
 
 const MAX_TARGET = 1000000000;
 const MAX_SAVED = 500000000;
+const MILLISECONDS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+const MAX_GOAL_HORIZON_YEARS = 30;
+
+function getGoalRecalculationHorizonStatus(targetDate, now = new Date()) {
+  const parsedTargetDate = targetDate ? new Date(targetDate) : null;
+  if (!parsedTargetDate || Number.isNaN(parsedTargetDate.getTime())) return 'invalid';
+  if (parsedTargetDate <= now) return 'past';
+  const maximumSupportedTargetDate = new Date(now);
+  maximumSupportedTargetDate.setFullYear(maximumSupportedTargetDate.getFullYear() + MAX_GOAL_HORIZON_YEARS);
+  if (parsedTargetDate > maximumSupportedTargetDate) return 'beyond-maximum';
+  const modeledMonths = Math.round(((parsedTargetDate - now) / MILLISECONDS_PER_YEAR) * 12);
+  return modeledMonths >= 1 ? 'supported' : 'below-minimum';
+}
 
 function clampValue(val, min = 0, max = MAX_TARGET) {
   if (val === '') return '';
@@ -69,7 +82,10 @@ const GoalCard = ({
   defaults, 
   goalObj, 
   onSaveUpdates, 
+  onRecalculate,
   onDeleteGoal,
+  profileScopeLabel,
+  isEditable,
   monthlyAllocation, 
   horizon, 
   index, 
@@ -78,6 +94,7 @@ const GoalCard = ({
   // Target facts are editable; every computed value is read from the stored backend goal.
   const isDbGoal = !!goalObj;
   const isCalculationFresh = isFinancialCalculationFresh(goalObj?.calculation_freshness);
+  const recalculationHorizonStatus = getGoalRecalculationHorizonStatus(goalObj?.target_date);
   const initialTarget = isDbGoal ? goalObj.target_amount : defaults.target;
   const initialSaved = isDbGoal ? goalObj.current_savings : defaults.currentSaved;
 
@@ -99,8 +116,8 @@ const GoalCard = ({
     setCurrentSaved(initialSaved);
   }, [initialTarget, initialSaved]);
 
-  const actualTarget = isPresentFiniteNumber(target) ? Number(target) : null;
-  const actualSaved = isPresentFiniteNumber(currentSaved) ? Number(currentSaved) : null;
+  const actualTarget = isPresentFiniteNumber(target) && Number(target) > 0 ? Number(target) : null;
+  const actualSaved = isPresentFiniteNumber(currentSaved) && Number(currentSaved) >= 0 ? Number(currentSaved) : null;
   const projectedCandidate = isCalculationFresh && isPresentFiniteNumber(goalObj?.monte_carlo_summary?.p50)
     ? Number(goalObj.monte_carlo_summary.p50)
     : NaN;
@@ -115,8 +132,8 @@ const GoalCard = ({
   const comparisonTarget = hasComparisonTarget ? comparisonTargetCandidate : null;
 
   const progressPercent = actualSaved !== null && actualTarget !== null
-    ? Math.min((actualSaved / (actualTarget || 1)) * 100, 100)
-    : 0;
+    ? Math.min((actualSaved / actualTarget) * 100, 100)
+    : null;
   const projectedPercent = hasProjection && hasComparisonTarget
     ? Math.min((projectedValue / comparisonTarget) * 100, 100)
     : 0;
@@ -151,16 +168,40 @@ const GoalCard = ({
   const IconComponent = defaults.icon || Target;
   const priority = isDbGoal ? goalObj.priority || 'Unspecified' : defaults.priority || 'Unspecified';
 
-  const hasChanged = Number(target) !== Number(initialTarget) || Number(currentSaved) !== Number(initialSaved);
+  const initialTargetValue = isPresentFiniteNumber(initialTarget) && Number(initialTarget) > 0 ? Number(initialTarget) : null;
+  const initialSavedValue = isPresentFiniteNumber(initialSaved) && Number(initialSaved) >= 0 ? Number(initialSaved) : null;
+  const hasValidEditableFacts = actualTarget !== null && actualSaved !== null;
+  const hasChanged = hasValidEditableFacts && (
+    (initialTargetValue === null ? actualTarget !== null : actualTarget !== initialTargetValue)
+    || (initialSavedValue === null ? actualSaved !== null : actualSaved !== initialSavedValue)
+  );
 
   const handleCommitUpdates = async () => {
-    if (!isDbGoal) return;
+    if (!isDbGoal || !isEditable) return;
     setIsUpdating(true);
     try {
       await onSaveUpdates(goalObj._id || goalObj.goalId, {
         expectedVersion: goalObj.version ?? 1,
         target_amount: actualTarget,
         current_savings: actualSaved,
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRecalculate = async () => {
+    if (!isDbGoal || !isEditable || !hasValidEditableFacts || hasChanged) return;
+    setIsUpdating(true);
+    try {
+      // Explicitly re-use the persisted facts. This PATCH triggers the
+      // authoritative calculation without asking the user to edit an amount.
+      await onRecalculate(goalObj._id || goalObj.goalId, {
+        expectedVersion: goalObj.version ?? 1,
+        target_amount: initialTargetValue,
+        current_savings: initialSavedValue,
       });
     } catch (e) {
       console.error(e);
@@ -197,6 +238,12 @@ const GoalCard = ({
             }}>
               {priority}
             </span>
+            <span className="goal-profile-scope" style={{
+              fontSize: '0.62rem', padding: '2px 7px', borderRadius: 6, fontWeight: 700,
+              color: profileScopeLabel === 'Current profile' ? '#67e8f9' : '#cbd5e1',
+              background: profileScopeLabel === 'Current profile' ? 'rgba(6, 182, 212, 0.12)' : 'rgba(148, 163, 184, 0.12)',
+              border: '1px solid rgba(148, 163, 184, 0.24)',
+            }}>{profileScopeLabel}</span>
           </div>
           <p className="goal-card-desc">{isDbGoal && isCalculationFresh && goalObj.recommended_instrument ? `Saving through ${goalObj.recommended_instrument.replace('_', ' ')}` : defaults.description}</p>
         </div>
@@ -249,11 +296,11 @@ const GoalCard = ({
             <span className="goal-input-prefix">₹</span>
             <input
               type="number"
-              value={target}
+              value={target ?? ''}
               placeholder="0"
               min={1000}
               max={MAX_TARGET}
-              disabled={!isDbGoal}
+              disabled={!isEditable}
               onChange={e => setTarget(clampValue(e.target.value, 1000, MAX_TARGET))}
               className="goal-amount-input"
             />
@@ -268,11 +315,11 @@ const GoalCard = ({
             <span className="goal-input-prefix">₹</span>
             <input
               type="number"
-              value={currentSaved}
+              value={currentSaved ?? ''}
               placeholder="0"
               min={0}
               max={MAX_SAVED}
-              disabled={!isDbGoal}
+              disabled={!isEditable}
               onChange={e => setCurrentSaved(clampValue(e.target.value, 0, MAX_SAVED))}
               className="goal-amount-input"
             />
@@ -281,7 +328,7 @@ const GoalCard = ({
       </div>
 
       {/* Save Button for DB Goal changes */}
-      {isDbGoal && hasChanged && (
+      {isEditable && hasChanged && (
         <motion.button
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
@@ -298,6 +345,40 @@ const GoalCard = ({
           {isUpdating ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
           Save Changes & Update Projections
         </motion.button>
+      )}
+
+      {isEditable && isDbGoal && !isCalculationFresh && hasValidEditableFacts
+        && recalculationHorizonStatus === 'supported' && (
+        <motion.button
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={handleRecalculate}
+          disabled={isUpdating || hasChanged}
+          aria-label="Recalculate goal using saved amounts"
+          title={hasChanged ? 'Save or discard your amount edits before recalculating.' : undefined}
+          style={{
+            background: 'rgba(14, 165, 233, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: 10, padding: '8px 16px', color: '#bae6fd', fontWeight: 700,
+            cursor: isUpdating || hasChanged ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: '0.8rem', width: '100%', justifyContent: 'center', marginBottom: 20,
+            opacity: isUpdating || hasChanged ? 0.6 : 1,
+          }}
+        >
+          {isUpdating ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          Recalculate with saved amounts
+        </motion.button>
+      )}
+
+      {isEditable && isDbGoal && !isCalculationFresh && recalculationHorizonStatus !== 'supported' && (
+        <p role="note" style={{ color: '#fcd34d', fontSize: '0.78rem', margin: '0 0 20px' }}>
+          {recalculationHorizonStatus === 'below-minimum'
+            ? 'This target is too close for a supported projection. Recalculation needs at least one modeled month remaining.'
+            : recalculationHorizonStatus === 'past'
+              ? 'This target date has passed, so its projection cannot be recalculated.'
+              : recalculationHorizonStatus === 'beyond-maximum'
+                ? 'This target is more than 30 years away, beyond the supported projection horizon. Recalculation is available only within 30 years.'
+              : 'A valid future target date is needed before this projection can be recalculated.'}
+        </p>
       )}
 
       {/* Visual Progress */}
@@ -324,7 +405,8 @@ const GoalCard = ({
           <div 
             className="goal-progress-fill goal-progress-fill--current" 
             style={{ 
-              width: `${progressPercent}%`,
+              display: progressPercent === null ? 'none' : undefined,
+              width: progressPercent === null ? undefined : `${progressPercent}%`,
               background: `linear-gradient(90deg, ${defaults.themeColor || '#6366f1'}, #fff)`,
               boxShadow: `0 0 10px rgba(${defaults.themeColorRGB || '99,102,241'}, 0.5)`
             }} 
@@ -334,7 +416,7 @@ const GoalCard = ({
         <div className="goal-progress-legend">
           <div className="legend-item">
             <span className="legend-dot" style={{ background: defaults.themeColor || '#6366f1', boxShadow: `0 0 6px rgba(${defaults.themeColorRGB || '99,102,241'}, 0.8)` }}></span>
-            Saved <span className="legend-pct">({progressPercent.toFixed(0)}% of Target)</span>
+            Saved <span className="legend-pct">({progressPercent === null ? 'Unavailable' : `${progressPercent.toFixed(0)}% of Target`})</span>
           </div>
           <div className="legend-item">
             <span className="legend-dot" style={{ background: defaults.themeColor || '#6366f1', opacity: 0.5 }}></span>
@@ -405,6 +487,7 @@ const GoalTracker = ({ profile, onNavigate }) => {
   const goalsFetchGeneration = useRef(0);
 
   const totalSavings = isPresentFiniteNumber(profile?.monthly_savings) ? Number(profile.monthly_savings) : NaN;
+  const currentProfileId = profile?.profileId || profile?.profile_id || profile?._id || null;
 
   const fetchActiveGoals = useCallback(async ({ clearCurrent = false } = {}) => {
     const generation = ++goalsFetchGeneration.current;
@@ -491,73 +574,101 @@ const GoalTracker = ({ profile, onNavigate }) => {
       isDb: true,
       obj: g,
       key: g._id || g.goalId,
+      isCurrentProfile: Boolean(currentProfileId) && String(g.profileId || '') === String(currentProfileId),
+      profileScopeLabel: Boolean(currentProfileId) && String(g.profileId || '') === String(currentProfileId)
+        ? 'Current profile'
+        : currentProfileId ? 'Earlier profile' : 'Profile not matched',
       horizon: isFinancialCalculationFresh(g.calculation_freshness) && isPresentFiniteNumber(g.years_remaining)
         ? Number(g.years_remaining)
         : NaN,
       defaults: getDisplayDefaults(g),
     }));
-  }, [dbGoals]);
+  }, [dbGoals, currentProfileId]);
+
+  const currentProfileGoals = useMemo(() => mappedGoals.filter(goal => goal.isCurrentProfile), [mappedGoals]);
+  const historicalGoals = useMemo(() => mappedGoals.filter(goal => !goal.isCurrentProfile), [mappedGoals]);
 
   // Compute total monthly allocations per goal
   const goalAllocations = useMemo(() => {
     const allocs = {};
 
-    mappedGoals.forEach(g => {
+    currentProfileGoals.forEach(g => {
       const value = isFinancialCalculationFresh(g.obj?.calculation_freshness) && isPresentFiniteNumber(g.obj?.recommended_sip)
         ? Number(g.obj.recommended_sip)
         : NaN;
       allocs[g.name] = Number.isFinite(value) && value >= 0 ? value : null;
     });
     return allocs;
-  }, [mappedGoals]);
+  }, [currentProfileGoals]);
 
   // Combined calculations for the HUD
   const totalTarget = useMemo(() => {
-    const values = dbGoals.map(goal => isPresentFiniteNumber(goal.target_amount) ? Number(goal.target_amount) : NaN);
-    return values.every(value => Number.isFinite(value) && value > 0)
+    const values = currentProfileGoals.map(goal => isPresentFiniteNumber(goal.obj.target_amount) ? Number(goal.obj.target_amount) : NaN);
+    return values.length > 0 && values.every(value => Number.isFinite(value) && value > 0)
       ? values.reduce((sum, value) => sum + value, 0)
       : null;
-  }, [dbGoals]);
+  }, [currentProfileGoals]);
 
   const totalCurrent = useMemo(() => {
-    const values = dbGoals.map(goal => isPresentFiniteNumber(goal.current_savings) ? Number(goal.current_savings) : NaN);
-    return values.every(value => Number.isFinite(value) && value >= 0)
+    const values = currentProfileGoals.map(goal => isPresentFiniteNumber(goal.obj.current_savings) ? Number(goal.obj.current_savings) : NaN);
+    return values.length > 0 && values.every(value => Number.isFinite(value) && value >= 0)
       ? values.reduce((sum, value) => sum + value, 0)
       : null;
-  }, [dbGoals]);
+  }, [currentProfileGoals]);
 
   const totalProjected = useMemo(() => {
-    const values = mappedGoals.map(g => isFinancialCalculationFresh(g.obj?.calculation_freshness)
+    const values = currentProfileGoals.map(g => isFinancialCalculationFresh(g.obj?.calculation_freshness)
       && isPresentFiniteNumber(g.obj?.monte_carlo_summary?.p50)
       ? Number(g.obj?.monte_carlo_summary?.p50)
       : NaN);
-    return values.every(value => Number.isFinite(value) && value >= 0)
+    return values.length > 0 && values.every(value => Number.isFinite(value) && value >= 0)
       ? values.reduce((sum, value) => sum + value, 0)
       : null;
-  }, [mappedGoals]);
+  }, [currentProfileGoals]);
 
   const totalMonthlySIP = useMemo(() => {
-    const values = dbGoals.map(g => isFinancialCalculationFresh(g.calculation_freshness) && isPresentFiniteNumber(g.recommended_sip)
-      ? Number(g.recommended_sip)
+    const values = currentProfileGoals.map(g => isFinancialCalculationFresh(g.obj.calculation_freshness) && isPresentFiniteNumber(g.obj.recommended_sip)
+      ? Number(g.obj.recommended_sip)
       : NaN);
-    return values.every(value => Number.isFinite(value) && value >= 0)
+    return values.length > 0 && values.every(value => Number.isFinite(value) && value >= 0)
       ? values.reduce((sum, value) => sum + value, 0)
       : null;
-  }, [dbGoals]);
+  }, [currentProfileGoals]);
 
   // MC projections target inflation-adjusted amounts, so use those for health calculation
   const totalInflationAdjustedTarget = useMemo(() => {
-    const values = dbGoals.map(g => isFinancialCalculationFresh(g.calculation_freshness) && isPresentFiniteNumber(g.inflation_adjusted_target)
-      ? Number(g.inflation_adjusted_target)
+    const values = currentProfileGoals.map(g => isFinancialCalculationFresh(g.obj.calculation_freshness) && isPresentFiniteNumber(g.obj.inflation_adjusted_target)
+      ? Number(g.obj.inflation_adjusted_target)
       : NaN);
-    return values.every(value => Number.isFinite(value) && value > 0)
+    return values.length > 0 && values.every(value => Number.isFinite(value) && value > 0)
       ? values.reduce((sum, value) => sum + value, 0)
       : null;
-  }, [dbGoals]);
+  }, [currentProfileGoals]);
 
   const overallHealth = Number.isFinite(totalProjected) && Number.isFinite(totalInflationAdjustedTarget) && totalInflationAdjustedTarget > 0
     ? Math.min(Math.round((totalProjected / totalInflationAdjustedTarget) * 100), 100)
     : null;
+  const monthlySavingsSummary = currentProfileGoals.length > 0
+    ? (Number.isFinite(totalMonthlySIP) ? `₹${Math.round(totalMonthlySIP).toLocaleString('en-IN')}/mo` : 'Awaiting calculation')
+    : showDbGoals ? 'No active-profile calculation'
+      : Number.isFinite(totalSavings) ? `₹${Math.round(totalSavings).toLocaleString('en-IN')}/mo` : 'Unavailable';
+  const renderGoalCard = (g, index) => (
+    <GoalCard
+      key={g.key}
+      index={index}
+      goalName={g.name}
+      defaults={g.defaults}
+      goalObj={g.obj}
+      onSaveUpdates={handleGoalCardUpdate}
+      onRecalculate={handleGoalCardUpdate}
+      onDeleteGoal={handleDeleteGoal}
+      profileScopeLabel={g.profileScopeLabel}
+      isEditable={g.isCurrentProfile}
+      monthlyAllocation={goalAllocations[g.name]}
+      horizon={g.horizon}
+      totalSavings={totalSavings}
+    />
+  );
 
   if (loading) {
     return (
@@ -708,7 +819,9 @@ const GoalTracker = ({ profile, onNavigate }) => {
         <div className="goal-overview-stat">
           <span className="goal-overview-label">What You're Saving For</span>
           <span className="goal-overview-value text-gradient-primary">{formatShort(totalTarget)}</span>
-          <span className="goal-overview-sub">Across {mappedGoals.length} goals</span>
+          <span className="goal-overview-sub">{currentProfileGoals.length > 0
+            ? `Across ${currentProfileGoals.length} current-profile goals`
+            : 'No goals linked to the active profile'}</span>
         </div>
         
         <div className="goal-overview-divider"></div>
@@ -716,7 +829,9 @@ const GoalTracker = ({ profile, onNavigate }) => {
         <div className="goal-overview-stat">
           <span className="goal-overview-label">Already Saved</span>
           <span className="goal-overview-value">{formatShort(totalCurrent)}</span>
-          <span className="goal-overview-sub">{totalTarget > 0 ? `${Math.round((totalCurrent / totalTarget) * 100)}% of target` : ''}</span>
+          <span className="goal-overview-sub">{Number.isFinite(totalTarget) && totalTarget > 0 && Number.isFinite(totalCurrent)
+            ? `${Math.round((totalCurrent / totalTarget) * 100)}% of target`
+            : ''}</span>
         </div>
         
         <div className="goal-overview-divider"></div>
@@ -724,7 +839,7 @@ const GoalTracker = ({ profile, onNavigate }) => {
         <div className="goal-overview-stat">
           <span className="goal-overview-label">Projected Median Value</span>
           <span className="goal-overview-value">{formatShort(totalProjected)}</span>
-          <span className="goal-overview-sub">Monthly Savings Needed: {showDbGoals ? (Number.isFinite(totalMonthlySIP) ? `₹${Math.round(totalMonthlySIP).toLocaleString('en-IN')}/mo` : 'Awaiting calculation') : (Number.isFinite(totalSavings) ? `₹${Math.round(totalSavings).toLocaleString('en-IN')}/mo` : 'Unavailable')}</span>
+          <span className="goal-overview-sub">Monthly Savings Needed: {monthlySavingsSummary}</span>
         </div>
         
         <div className="goal-overview-divider"></div>
@@ -748,24 +863,36 @@ const GoalTracker = ({ profile, onNavigate }) => {
       </motion.div>
 
       {/* ── Goal Cards ────────────────────────────────────── */}
-      <div className="goal-cards-grid">
-        <AnimatePresence>
-          {mappedGoals.map((g, index) => (
-            <GoalCard
-              key={g.key}
-              index={index}
-              goalName={g.name}
-              defaults={g.defaults}
-              goalObj={g.obj}
-              onSaveUpdates={handleGoalCardUpdate}
-              onDeleteGoal={handleDeleteGoal}
-              monthlyAllocation={goalAllocations[g.name]}
-              horizon={g.horizon}
-              totalSavings={totalSavings}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
+      {showDbGoals && (
+        <section aria-label="Current profile goals">
+          <h2 style={{ color: '#e2e8f0', fontSize: '1.05rem', margin: '28px 0 14px' }}>Current profile goals</h2>
+          {currentProfileGoals.length === 0 ? (
+            <p style={{ color: '#94a3b8', margin: '0 0 18px' }}>No saved goals are linked to the active profile.</p>
+          ) : (
+            <div className="goal-cards-grid">
+              <AnimatePresence>
+                {currentProfileGoals.map(renderGoalCard)}
+              </AnimatePresence>
+            </div>
+          )}
+        </section>
+      )}
+
+      {historicalGoals.length > 0 && (
+        <section aria-label={currentProfileId ? 'Earlier profile goals' : 'Unmatched profile goals'}>
+          <h2 style={{ color: '#cbd5e1', fontSize: '1.05rem', margin: '28px 0 8px' }}>
+            {currentProfileId ? 'Earlier profile goals' : 'Goals not matched to the active profile'}
+          </h2>
+          <p style={{ color: '#94a3b8', margin: '0 0 14px', fontSize: '0.85rem' }}>
+            These saved records are kept for reference and are excluded from current-profile totals and projections.
+          </p>
+          <div className="goal-cards-grid">
+            <AnimatePresence>
+              {historicalGoals.map((goal, index) => renderGoalCard(goal, currentProfileGoals.length + index))}
+            </AnimatePresence>
+          </div>
+        </section>
+      )}
     </motion.div>
   );
 };

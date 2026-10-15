@@ -89,6 +89,48 @@ test('a historical calculation requires rights for every source observation', ()
   assert.equal(rights.productionPostTaxUseAllowed, false);
 });
 
+test('RBI post-tax rights include the India Post NSC coupon dependency', () => {
+  const rights = resolvePostTaxProductRights({
+    source: {
+      provider: PROVIDERS.RBI,
+      url: 'https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11924',
+    },
+    officialRate: {
+      referenceRateFact: {
+        source: {
+          provider: PROVIDERS.GOVERNMENT_OF_INDIA,
+          instrumentId: 'nsc',
+          url: 'https://www.indiapost.gov.in/banking-services/savings',
+        },
+      },
+    },
+  });
+  const indiaPost = rights.sources.find(source => source.provider === PROVIDERS.GOVERNMENT_OF_INDIA);
+  assert.ok(indiaPost);
+  assert.equal(indiaPost.status, POST_TAX_SOURCE_RIGHTS_STATES.BLOCKED_REUSE_RIGHTS);
+  assert.equal(rights.productionPostTaxUseAllowed, false);
+});
+
+test('tax-classification evidence is included in the post-tax source-rights decision', () => {
+  const classificationUrl = 'https://mf.nipponindiaim.com/InvestorServices/SIDETF/NipponIndia-ETF-Nifty-50-BeES.pdf';
+  const rights = resolvePostTaxProductRights({
+    source: { provider: PROVIDERS.AMFI, url: 'https://portal.amfiindia.com/spages/NAVAll.txt' },
+    taxMetadata: {
+      sourceReferences: [{ authority: 'Nippon India Mutual Fund', title: 'NiftyBeES SID', url: classificationUrl }],
+      productEvidence: { provider: 'NIPPON_INDIA_MUTUAL_FUND', officialSourceUrl: classificationUrl },
+    },
+  });
+
+  const classificationSources = rights.sources.filter(source => source.url === classificationUrl);
+  assert.equal(classificationSources.length, 2);
+  assert.deepEqual(classificationSources.map(source => source.provider).sort(), [
+    'NIPPON_INDIA_MUTUAL_FUND',
+    'Nippon India Mutual Fund',
+  ]);
+  assert.ok(classificationSources.every(source => source.productionPostTaxUseAllowed === false));
+  assert.equal(rights.productionPostTaxUseAllowed, false);
+});
+
 test('production enrichment returns no numeric amount when source permission is unqualified', () => {
   const [product] = enrichProductsWithPostTaxAndSuitability([{
     id: 'sbi:fd:1',

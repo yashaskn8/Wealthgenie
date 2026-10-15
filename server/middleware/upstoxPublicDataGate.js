@@ -1,4 +1,5 @@
 import { sendError } from './errorHandler.js';
+import { isUpstoxPublicDistributionAllowed } from '../services/marketData/upstoxDistributionPolicy.js';
 
 /**
  * Public Upstox-derived output is blocked in production until an operator has
@@ -9,8 +10,7 @@ export function createUpstoxPublicDataGate({ env = process.env, requiresUpstox =
   return function upstoxPublicDataGate(req, res, next) {
     const primaryProvider = String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase();
     const usesUpstox = requiresUpstox || primaryProvider === 'UPSTOX';
-    const distributionConfirmed = env.UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED === 'true';
-    if (env.NODE_ENV === 'production' && usesUpstox && !distributionConfirmed) {
+    if (usesUpstox && !isUpstoxPublicDistributionAllowed(env)) {
       return sendError(
         req,
         res,

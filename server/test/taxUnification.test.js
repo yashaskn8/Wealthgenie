@@ -63,6 +63,48 @@ test('equity projection requires explicit prior 112A exemption usage and accepts
   assert.equal(explicitZero.status, 'CALCULATED');
 });
 
+test('short-term equity SIP does not calculate without residency for basic-exemption interaction', () => {
+  const outcome = calculateCanonicalPostTaxOutcome({
+    instrumentType: 'Equity_MF', nominalRate: 0.12, annualIncome: 0,
+    holdingYears: 0.5, regime: 'new', monthlySIP: 10_000, userAge: 35,
+    incomeSource: 'salary', fiscalYear: FY, deductions: {},
+    options: { section112AExemptionUsed: 0 },
+  });
+
+  assert.equal(outcome.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.ok(outcome.unavailableReasons.includes('TAX_RESIDENCY_REQUIRED_FOR_BASIC_EXEMPTION_INTERACTION'));
+  assert.equal(outcome.grossGain, null);
+  assert.equal(outcome.incrementalTax, null);
+  assert.equal(outcome.postTaxReturn, null);
+});
+
+test('interest TDS evidence distinguishes FRSB security interest, bank interest, and unidentified government securities', () => {
+  const shared = {
+    nominalRate: 0.12, annualIncome: 2_000_000, holdingYears: 1,
+    regime: 'new', monthlySIP: 10_000, userAge: 35,
+    incomeSource: 'salary', fiscalYear: FY, deductions: {}, options: {},
+  };
+  const frsb = calculateCanonicalPostTaxOutcome({ instrumentType: 'RBI_Bond', ...shared });
+  const bankDeposit = calculateCanonicalPostTaxOutcome({ instrumentType: 'FD', ...shared });
+  const unidentifiedSecurity = calculateCanonicalPostTaxOutcome({ instrumentType: 'G-Sec', ...shared });
+  const priorFiscalYearFrsb = calculateCanonicalPostTaxOutcome({
+    instrumentType: 'RBI_Bond', ...shared, fiscalYear: 'FY2025-26',
+  });
+
+  assert.ok(frsb.taxRuleMetadata.currentRuleIds.includes('INCOME_TAX_ACT_2025_SECURITY_INTEREST_TDS_THRESHOLD_POLICY'));
+  assert.ok(frsb.taxRuleMetadata.currentRuleReferences.some(reference =>
+    reference.ruleId === 'INCOME_TAX_ACT_2025_SECURITY_INTEREST_TDS_THRESHOLD_POLICY'
+      && reference.reference === 'Section 393(1), Table 5(i)'
+      && reference.sourceReferences.some(source => source.url.endsWith('/w/section-393-5'))));
+  assert.ok(bankDeposit.taxRuleMetadata.currentRuleIds.includes('INCOME_TAX_ACT_2025_BANK_INTEREST_TDS_THRESHOLD_POLICY'));
+  assert.ok(bankDeposit.taxRuleMetadata.currentRuleReferences.some(reference =>
+    reference.reference === 'Section 393(1), Table 5(ii)'));
+  assert.equal(unidentifiedSecurity.tdsTreatment, 'SECURITY_IDENTITY_REQUIRED');
+  assert.ok(!unidentifiedSecurity.taxRuleMetadata.currentRuleIds.includes('INCOME_TAX_ACT_2025_SECURITY_INTEREST_TDS_THRESHOLD_POLICY'));
+  assert.ok(priorFiscalYearFrsb.taxRuleMetadata.rulesApplied.includes('FY2025-26_SECURITY_INTEREST_TDS'));
+  assert.deepEqual(priorFiscalYearFrsb.taxRuleMetadata.currentRuleReferences, []);
+});
+
 test('SIP lots retain FIFO acquisition order and produce mixed short/long buckets', () => {
   const lots = buildMonthlySipLots({ monthlySIP: 10_000, annualRate: 0.12, holdingYears: 2 });
   assert.equal(lots.length, 24);
@@ -208,6 +250,117 @@ test('ordinary-interest projection applies annual tax events after gross cash fl
   assert.ok(projection.postTaxFutureValue < projection.nominalFutureValue);
   assert.ok(Number.isFinite(projection.postTaxCAGR));
   assert.ok(projection.assumptions.includes('TAX_POLICY_HELD_CONSTANT_FOR_PROJECTION'));
+});
+
+function futureValueForBeginningOfMonthContributions(monthlyContribution, monthlyRate, months) {
+  let balance = 0;
+  for (let month = 0; month < months; month += 1) {
+    balance = (balance + monthlyContribution) * (1 + monthlyRate);
+  }
+  return balance;
+}
+
+test('SIP annualized return metrics round-trip the modeled start-of-month contribution schedule', () => {
+  const context = {
+    annualGrossIncome: 0, regime: 'new', incomeSource: 'salary', fiscalYear: FY,
+    userAge: 35, deductions: {},
+  };
+  const instrument = { nominalRate: 0.12, monthlySIP: 10_000, holdingYears: 2 };
+  const taxResult = calculatePostTaxReturn('FD', instrument.nominalRate, 0, 2,
+    'new', instrument.monthlySIP, 35, 'salary', undefined, FY, { deductions: {} });
+  const projection = calculatePostTaxProjection(taxResult, instrument, 0, context);
+
+  assert.equal(projection.status, 'CALCULATED');
+  assert.equal(projection.nominalReturnPercent, 12);
+  assert.deepEqual(projection.sipReturnMetrics, {
+    basis: 'MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE',
+    status: 'CALCULATED',
+    unavailableReason: null,
+    preTaxAnnualizedReturnPercent: 12.6825,
+    postTaxAnnualizedReturnPercent: 12.6825,
+    realPostTaxAnnualizedReturnPercent: 12.6825,
+    taxDragAnnualizedPercentagePoints: 0,
+  });
+  const impliedMonthlyRate = (1 + projection.sipReturnMetrics.postTaxAnnualizedReturnPercent / 100) ** (1 / 12) - 1;
+  const reconstructedFutureValue = futureValueForBeginningOfMonthContributions(
+    instrument.monthlySIP, impliedMonthlyRate, 24,
+  );
+  assert.ok(Math.abs(reconstructedFutureValue - projection.postTaxFutureValue) < 1);
+});
+
+test('taxable-interest SIP reports after-tax annualized money-weighted return separately from the model rate', () => {
+  const context = {
+    annualGrossIncome: 5_000_000, regime: 'new', incomeSource: 'salary', fiscalYear: FY,
+    userAge: 35, deductions: {},
+  };
+  const instrument = { nominalRate: 0.07, monthlySIP: 10_000, holdingYears: 3 };
+  const taxResult = calculatePostTaxReturn('FD', instrument.nominalRate, context.annualGrossIncome,
+    instrument.holdingYears, context.regime, instrument.monthlySIP, context.userAge,
+    context.incomeSource, undefined, FY, { deductions: {} });
+  const projection = calculatePostTaxProjection(taxResult, instrument, 0.06, context);
+
+  assert.equal(projection.status, 'CALCULATED');
+  assert.equal(projection.nominalReturnPercent, 7);
+  assert.equal(projection.sipReturnMetrics.status, 'CALCULATED');
+  assert.ok(projection.sipReturnMetrics.preTaxAnnualizedReturnPercent > 7);
+  assert.ok(projection.sipReturnMetrics.postTaxAnnualizedReturnPercent
+    < projection.sipReturnMetrics.preTaxAnnualizedReturnPercent);
+  assert.ok(projection.sipReturnMetrics.taxDragAnnualizedPercentagePoints > 0);
+  assert.ok(Number.isFinite(projection.sipReturnMetrics.realPostTaxAnnualizedReturnPercent));
+  const impliedMonthlyRate = (1 + projection.sipReturnMetrics.postTaxAnnualizedReturnPercent / 100) ** (1 / 12) - 1;
+  const reconstructedFutureValue = futureValueForBeginningOfMonthContributions(
+    instrument.monthlySIP, impliedMonthlyRate, 36,
+  );
+  assert.ok(Math.abs(reconstructedFutureValue - projection.postTaxFutureValue) < 1);
+});
+
+test('SIP return metrics remain explicitly unavailable for zero contributions and unqualified projections', () => {
+  const context = {
+    annualGrossIncome: 0, regime: 'new', incomeSource: 'salary', fiscalYear: FY,
+    userAge: 35, deductions: {},
+  };
+  const zeroContributionInstrument = { nominalRate: 0.07, monthlySIP: 0, holdingYears: 2 };
+  const zeroContributionTax = calculatePostTaxReturn('FD', 0.07, 0, 2, 'new', 0, 35, 'salary', undefined, FY);
+  const zeroContributionProjection = calculatePostTaxProjection(
+    zeroContributionTax, zeroContributionInstrument, 0.06, context,
+  );
+  assert.equal(zeroContributionProjection.status, 'CALCULATED');
+  assert.equal(zeroContributionProjection.totalInvested, 0);
+  assert.deepEqual(zeroContributionProjection.sipReturnMetrics, {
+    basis: 'MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE',
+    status: 'UNAVAILABLE',
+    unavailableReason: 'NO_MONTHLY_CONTRIBUTIONS',
+    preTaxAnnualizedReturnPercent: null,
+    postTaxAnnualizedReturnPercent: null,
+    realPostTaxAnnualizedReturnPercent: null,
+    taxDragAnnualizedPercentagePoints: null,
+  });
+
+  const exactDatesProjection = calculatePostTaxProjection(zeroContributionTax, {
+    ...zeroContributionInstrument, monthlySIP: 10_000,
+  }, 0.06, { ...context, acquisitionDate: '2024-01-01' });
+  assert.equal(exactDatesProjection.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.equal(exactDatesProjection.sipReturnMetrics.status, 'UNAVAILABLE');
+  assert.equal(exactDatesProjection.sipReturnMetrics.unavailableReason, 'PROJECTION_UNAVAILABLE');
+  assert.equal(exactDatesProjection.sipReturnMetrics.postTaxAnnualizedReturnPercent, null);
+});
+
+test('zero nominal rate produces a finite zero SIP annualized result without a fallback assumption', () => {
+  const context = {
+    annualGrossIncome: 0, regime: 'new', incomeSource: 'salary', fiscalYear: FY,
+    userAge: 35, deductions: {},
+  };
+  const taxResult = calculatePostTaxReturn('FD', 0, 0, 2, 'new', 10_000, 35,
+    'salary', undefined, FY, { deductions: {} });
+  const projection = calculatePostTaxProjection(
+    taxResult, { nominalRate: 0, monthlySIP: 10_000, holdingYears: 2 }, 0, context,
+  );
+
+  assert.equal(projection.status, 'CALCULATED');
+  assert.equal(projection.sipReturnMetrics.status, 'CALCULATED');
+  assert.equal(projection.sipReturnMetrics.preTaxAnnualizedReturnPercent, 0);
+  assert.equal(projection.sipReturnMetrics.postTaxAnnualizedReturnPercent, 0);
+  assert.equal(projection.sipReturnMetrics.realPostTaxAnnualizedReturnPercent, 0);
 });
 
 for (const { name, nominalRate, inflationRate, expectedSign } of [

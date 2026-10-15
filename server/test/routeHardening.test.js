@@ -11,6 +11,7 @@ import FinancialProfileState from '../models/FinancialProfileState.js';
 import Recommendation from '../models/Recommendation.js';
 import RecommendationState from '../models/RecommendationState.js';
 import RecommendationAllocationRevision from '../models/RecommendationAllocationRevision.js';
+import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 
 function buildApp() {
   const app = express();
@@ -106,7 +107,7 @@ test('market-context adjustment rejects a recommendation from an older profile s
   process.env.JWT_SECRET = 'test_jwt_secret_that_is_at_least_32_chars';
   try {
     const token = jwt.sign({ userId, role: 'user' }, process.env.JWT_SECRET, { algorithm: 'HS256' });
-    await withServer(buildApp(), async (baseUrl) => {
+    await withMockAuthAccountState(() => withServer(buildApp(), async (baseUrl) => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/regime/adjust`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -114,7 +115,7 @@ test('market-context adjustment rejects a recommendation from an older profile s
       });
       assert.equal(response.status, 409);
       assert.equal(body.code, 'STALE_RECOMMENDATION_PROFILE');
-    });
+    }));
   } finally {
     FinancialProfile.findOne = oldProfileFind;
     FinancialProfile.exists = oldProfileExists;

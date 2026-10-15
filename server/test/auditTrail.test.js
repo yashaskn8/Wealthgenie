@@ -7,6 +7,7 @@ import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelp
 import { canonicalProfilePayload } from './helpers/canonicalProfile.js';
 
 import AuditRecord from '../models/AuditRecord.js';
+import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Recommendation from '../models/Recommendation.js';
 import FinancialProfileState from '../models/FinancialProfileState.js';
@@ -45,7 +46,11 @@ describe('AuditRecord - Complete Advisory Audit Trail Verification', () => {
   let profile;
 
   before(async () => {
-    await setupTestDatabase();
+    await setupTestDatabase({ requireReplicaSet: true });
+    await User.create([
+      { _id: testUserId, name: 'Audit Trail Test User', email: `audit-${testUserId}@example.test`, passwordHash: 'test-only-hash' },
+      { _id: otherUserId, name: 'Audit Trail Other User', email: `audit-${otherUserId}@example.test`, passwordHash: 'test-only-hash' },
+    ]);
 
     await withServer(buildApp(), async baseUrl => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/profile/complete`, {
@@ -65,6 +70,7 @@ describe('AuditRecord - Complete Advisory Audit Trail Verification', () => {
   });
 
   after(async () => {
+    await User.deleteMany({ _id: { $in: [testUserId, otherUserId] } });
     await FinancialProfile.deleteMany({ userId: { $in: [testUserId, otherUserId] } });
     await Recommendation.deleteMany({ userId: { $in: [testUserId, otherUserId] } });
     await AuditRecord.collection.deleteMany({ userId: { $in: [testUserId, otherUserId] } });
@@ -134,6 +140,7 @@ describe('AuditRecord - Complete Advisory Audit Trail Verification', () => {
   });
 
   it('2. GET /api/recommend/audit retrieves user audit history with pagination', async () => {
+    const storedBeforeRead = await AuditRecord.find({ userId: testUserId }).sort({ chain_sequence: 1 }).lean();
     await withServer(buildApp(), async (baseUrl) => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/recommend/audit?limit=10&skip=0`, {
         method: 'GET',
@@ -153,6 +160,8 @@ describe('AuditRecord - Complete Advisory Audit Trail Verification', () => {
       assert.equal(body.records[0].userId.toString(), testUserId.toString());
       assert.ok(body.records[0].input_hash, 'Record should have input_hash');
     });
+    const storedAfterRead = await AuditRecord.find({ userId: testUserId }).sort({ chain_sequence: 1 }).lean();
+    assert.deepEqual(storedAfterRead, storedBeforeRead, 'audit list reads must not modify persisted append-only records');
   });
 
   it('GET /api/recommend/audit/verify validates the authenticated user chain', async () => {
@@ -175,6 +184,7 @@ describe('AuditRecord - Complete Advisory Audit Trail Verification', () => {
     // Find an existing audit record for testUserId
     const auditDoc = await AuditRecord.findOne({ userId: testUserId });
     assert.ok(auditDoc, 'Pre-existing auditDoc required');
+    const storedBeforeRead = await AuditRecord.findById(auditDoc._id).lean();
 
     await withServer(buildApp(), async (baseUrl) => {
       // Authorized owner request
@@ -201,6 +211,8 @@ describe('AuditRecord - Complete Advisory Audit Trail Verification', () => {
         contentType: denyRes.headers.get('content-type'), body: denyBody,
       });
     });
+    const storedAfterRead = await AuditRecord.findById(auditDoc._id).lean();
+    assert.deepEqual(storedAfterRead, storedBeforeRead, 'audit detail reads must not modify persisted append-only records');
   });
 
   it('4. Strict Fail-Loudly: If AuditRecord.create fails, recommendation request FAILS with HTTP 500', async () => {

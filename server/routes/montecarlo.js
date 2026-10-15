@@ -23,6 +23,7 @@ import {
   PROJECTION_ASSUMPTION_VERSION,
 } from '../services/instrumentConstants.js';
 import { ASSET_KEYS, evaluatePortfolio } from '../services/portfolioEngine.js';
+import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
 
 const router = Router();
 const MONTE_CARLO_INFLATION_ASSUMPTION = 0.05;
@@ -91,7 +92,10 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
   const stored = await FinancialProfile.findOne({ _id: profileId, userId: req.user.userId }).lean();
   if (!stored) throw createError(404, 'Profile not found or access denied', 'Profile not found.');
   const profile = buildRecommendationProfile(stored);
-  const keys = Object.keys(allocations).filter(key => allocations[key] > 0);
+  const allocationEntries = Object.entries(allocations);
+  const normalizedWeights = normalizeAllocationWeights(allocationEntries.map(([, weight]) => weight));
+  const normalizedAllocations = Object.fromEntries(allocationEntries.map(([key], index) => [key, normalizedWeights[index]]));
+  const keys = Object.keys(normalizedAllocations).filter(key => normalizedAllocations[key] > 0);
   if (keys.some(key => !INSTRUMENT_PARAMS[key])) {
     throw createError(400, 'Allocation contains an unknown instrument.', 'Unknown instrument.');
   }
@@ -99,16 +103,16 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
     throw createError(422, 'Portfolio covariance is unavailable for one or more instruments.', 'Portfolio simulation is unavailable for this mix.');
   }
   const suitability = assertPortfolioSuitable(profile, keys);
-  validatePortfolioConcentration(allocations);
+  validatePortfolioConcentration(normalizedAllocations);
   const simulation = buildProfileGroundedSimulation(profile, {
     monthlyInvestment: profile.monthlySavings,
     years,
   });
   const nominalReturns = keys.map(key => INSTRUMENT_PARAMS[key].nominalRate / 100);
-  const weights = Object.fromEntries(keys.map(key => [key, allocations[key]]));
+  const weights = Object.fromEntries(keys.map(key => [key, normalizedAllocations[key]]));
   const metrics = evaluatePortfolio(keys, nominalReturns, weights);
   const profileHash = buildRecommendationProfileHash(profile, { modelVersion: 'portfolio-monte-carlo-1.0.0' });
-  const allocationKey = keys.sort().map(key => `${key}:${allocations[key].toFixed(6)}`).join(',');
+  const allocationKey = [...keys].sort().map(key => `${key}:${normalizedAllocations[key].toFixed(6)}`).join(',');
   const targetKey = target_amount === undefined ? 'none' : String(Math.round(target_amount));
   const cacheKey = [
     'portfolio-mc-v2', req.user.userId, profileId, profileHash, years,
@@ -133,7 +137,7 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
     years: simulation.years,
     monthly_investment: simulation.monthlyContribution,
     initial_capital: simulation.initialCapital,
-    allocations,
+    allocations: normalizedAllocations,
     portfolio_return_assumption: metrics.expectedReturn,
     portfolio_volatility: metrics.volatility,
     portfolio_sharpe_ratio: metrics.sharpe,

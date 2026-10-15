@@ -1721,11 +1721,34 @@ test('WTI verifier requires a coherent exact single-product route response', () 
 
 function qualifiedNiftyTaxProductFixture(taxCalculationContext = demoTaxContext()) {
   const product = qualifiedNiftyEtf();
+  const startDate = '2025-10-01';
+  const endDate = '2026-10-01';
+  const elapsedDays = 365;
+  const endNav = product.nav.value;
+  const startNav = endNav / 1.124;
+  product.source.instrumentId = '140084';
+  product.availabilityStatus = 'AVAILABLE';
+  product.freshness = { status: 'FRESH', ageSeconds: 60, maxAgeSeconds: 3600 };
+  product.returnBasis = 'HISTORICAL_POINT_TO_POINT_NAV_RETURN_1Y';
+  product.expectedReturn = null;
   product.historicalReturn = {
-    valuePct: 12.4,
+    valuePct: Number(((Math.pow(endNav / startNav, 365 / elapsedDays) - 1) * 100).toFixed(6)),
     basis: 'HISTORICAL_POINT_TO_POINT_NAV_RETURN_1Y',
     annualized: true,
     isExpectedReturn: false,
+    startNav,
+    startDate,
+    endNav,
+    endDate,
+    elapsedDays,
+    source: {
+      provider: 'AMFI',
+      startInstrumentId: '140084',
+      endInstrumentId: '140084',
+      historyTargetDate: startDate,
+      startObservationUrl: 'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=28-Sep-2025&todt=04-Oct-2025',
+      endObservationUrl: product.source.url,
+    },
   };
   product.taxMetadata = getProductTaxMetadata(product, 'nifty_etf');
   product.postTaxAnalysis = calculateProductPostTaxOutcome({
@@ -1767,6 +1790,14 @@ test('NIFTY ETF tax verifier fails closed unless a calculated result has matchin
     product => { product.postTaxAnalysis.rulesApplied = product.postTaxAnalysis.rulesApplied.filter(rule => rule !== 'INCOME_TAX_ACT_2025_EQUITY_LTCG_SPECIAL_RATE_POLICY'); },
     product => { product.postTaxAnalysis.assumptions = product.postTaxAnalysis.assumptions.filter(item => !item.startsWith('STT_CONDITION_ASSUMED_SATISFIED')); },
     product => { product.postTaxAnalysis.sourceReferences = product.postTaxAnalysis.sourceReferences.filter(reference => reference.role !== 'TAX_POLICY'); },
+    product => {
+      const reference = product.postTaxAnalysis.sourceReferences.find(item => item.role === 'PRODUCT_FACT');
+      reference.url = 'https://example.invalid/nav.txt';
+    },
+    product => {
+      const reference = product.postTaxAnalysis.sourceReferences.find(item => item.role === 'PRODUCT_FACT');
+      reference.unit = 'PERCENT_PER_ANNUM';
+    },
     product => { delete product.postTaxAnalysis.policyVersion; },
     product => { product.postTaxAnalysis.fiscalYear = 'FY2025-26'; },
     product => { delete product.postTaxAnalysis.calculationClass; },

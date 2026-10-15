@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import chatRouter from '../routes/chatRoutes.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
@@ -15,6 +16,7 @@ import ConversationHistory from '../models/ConversationHistory.js';
 import User from '../models/User.js';
 import { defaultChatSessionStore } from '../services/chatSessionStore.js';
 import { ProviderManager } from '../services/providerAbstraction.js';
+import { resolveCurrentChatSessionBinding } from '../services/geminiChatService.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
 import { installMockChatSessionStore } from './helpers/mockChatSessionStore.js';
 import { assertRuntimeResponseMatchesContract } from './helpers/openapiRuntimeContract.js';
@@ -49,7 +51,9 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
   let originalConvFindOne;
   let originalConvFind;
   let originalUserFindById;
+  let originalConnectionReadyState;
   let restoreChatStore;
+  let lastHistoryQuery;
 
   beforeEach(() => {
     process.env.GEMINI_API_KEY = 'mock-gemini-key';
@@ -66,6 +70,8 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
     originalConvFindOne = ConversationHistory.findOne;
     originalConvFind = ConversationHistory.find;
     originalUserFindById = User.findById;
+    originalConnectionReadyState = mongoose.connection.readyState;
+    mongoose.connection.readyState = 1;
 
     FinancialProfile.findOne = query => ({
       sort() { return this; },
@@ -78,7 +84,13 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
         revision: 1,
         promotionFence: 1,
         resolutionStatus: 'CURRENT',
-      } : null),
+      } : {
+        userId: query?.userId,
+        currentProfileId: null,
+        revision: 0,
+        promotionFence: 0,
+        resolutionStatus: 'NO_CURRENT',
+      }),
     });
 
     Recommendation.findOne = () => ({
@@ -101,12 +113,15 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
       messages: [],
       save: async () => true,
     });
-    ConversationHistory.find = () => ({
+    ConversationHistory.find = query => {
+      lastHistoryQuery = query;
+      return ({
       sort() { return this; },
       limit() { return this; },
       select() { return this; },
       lean: async () => [],
-    });
+      });
+    };
     restoreChatStore = installMockChatSessionStore(async ({ userId, sessionId }) => ({
       userId,
       profileId: mockProfile._id,
@@ -120,8 +135,9 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
       reserved_tokens: 0,
     }));
 
-    User.findById = (id) => ({
-      lean: async () => ({ name: 'Test User', email: 'test@example.com' }),
+    User.findById = () => ({
+      select() { return this; },
+      lean: async () => ({ role: 'user', name: 'Test User', email: 'test@example.com' }),
     });
   });
 
@@ -135,6 +151,7 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
     ConversationHistory.findOne = originalConvFindOne;
     ConversationHistory.find = originalConvFind;
     User.findById = originalUserFindById;
+    mongoose.connection.readyState = originalConnectionReadyState;
     restoreChatStore?.();
   });
 
@@ -197,17 +214,33 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
     const otherToken = jwt.sign({ userId: otherUserId, email: 'other@example.com' }, JWT_SECRET, { expiresIn: '1h' });
     const originalFind = ConversationHistory.find;
     const originalClose = defaultChatSessionStore.close;
+    const binding = await resolveCurrentChatSessionBinding({ userId: mockUserId });
+    assert.ok(binding);
     const ownerConversation = {
+      ...binding,
       userId: mockUserId,
       session_id: 'shared-name',
+      is_active: true,
       messages: [{ role: 'user', content: 'private owner message', sourceIds: ['private-source'] }],
       message_count: 1,
+    };
+    const staleConversation = {
+      ...ownerConversation,
+      profileInputHash: 'stale-profile-input-hash',
+      messages: [{ role: 'user', content: 'stale private owner message' }],
     };
     const queries = [];
     let closedBy;
     ConversationHistory.find = query => {
       queries.push(query);
-      const conversations = String(query.userId) === mockUserId ? [ownerConversation] : [];
+      const matchesQuery = conversation => Object.entries(query).every(([key, expected]) => (
+        expected == null && conversation[key] == null
+          ? true
+          : String(conversation[key]) === String(expected)
+      ));
+      const conversations = String(query.userId) === mockUserId
+        ? [ownerConversation, staleConversation].filter(matchesQuery)
+        : [];
       return {
         sort() { return this; },
         limit() { return this; },
@@ -229,6 +262,17 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
           contentType: ownerResponse.headers.get('content-type'), body: ownerBody,
         });
         assert.equal(ownerBody.conversations[0].messages[0].content, 'private owner message');
+        assert.equal(ownerBody.conversations.length, 1);
+        assert.ok([
+          'profileId',
+          'profileVersion',
+          'financialProfileStateRevision',
+          'profileInputHash',
+          'sourceRecommendationId',
+          'sourceAllocationRevisionId',
+          'sourceRecommendationFingerprint',
+          'sourcePortfolioFingerprint',
+        ].every(key => Object.hasOwn(queries[0], key)));
 
         const otherResponse = await rawRequest(`${baseUrl}/api/chat/history?session_id=shared-name`, {
           headers: { authorization: `Bearer ${otherToken}` },
@@ -240,7 +284,7 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
           contentType: otherResponse.headers.get('content-type'), body: otherBody,
         });
         assert.deepEqual(otherBody.conversations, []);
-        assert.deepEqual(queries.map(query => String(query.userId)), [mockUserId, otherUserId]);
+        assert.deepEqual(queries.map(query => String(query.userId)), [mockUserId]);
 
         const deleteResponse = await rawRequest(`${baseUrl}/api/chat/session/shared-name`, {
           method: 'DELETE',
@@ -387,6 +431,7 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
   });
 
   it('GET /api/chat/history validates the live authenticated response envelope', async () => {
+    lastHistoryQuery = null;
     await withServer(buildApp(), async baseUrl => {
       const res = await rawRequest(`${baseUrl}/api/chat/history?limit=10`, {
         headers: { authorization: `Bearer ${validToken}` },
@@ -396,6 +441,13 @@ describe('Chat Routes Integration & Input Validation Tests', () => {
         method: 'GET', path: '/api/chat/history', status: res.status,
         contentType: res.headers.get('content-type'), body: await res.json(),
       });
+      assert.equal(String(lastHistoryQuery.userId), mockUserId);
+      assert.equal(String(lastHistoryQuery.profileId), mockProfile._id);
+      assert.equal(lastHistoryQuery.profileVersion, 1);
+      assert.equal(lastHistoryQuery.financialProfileStateRevision, 1);
+      assert.match(lastHistoryQuery.profileInputHash, /^[a-f0-9]{64}$/);
+      assert.equal(lastHistoryQuery.sourceRecommendationId, null);
+      assert.equal(lastHistoryQuery.sourceAllocationRevisionId, null);
     });
   });
 });

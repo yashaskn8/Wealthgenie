@@ -71,6 +71,7 @@ function fixture() {
     profileVersion: 1,
     profileInputHash: buildRecommendationProfileHash(profile, { modelVersion: 'test-model-1' }),
     returnAssumptionHash: PROJECTION_ASSUMPTION_POLICY_HASH,
+    marketAdjustment: { applied: true, status: 'APPLIED', sourceProvider: 'NSE' },
     responseSnapshot: {
       audit_id: '64b000000000000000000008',
       audit_hash: 'a'.repeat(64),
@@ -154,6 +155,12 @@ test('current response cannot resurrect generation-snapshot allocation fields', 
 test('a rebalance never presents the generation-time explanation as current', () => {
   const { recommendation, revision } = fixture();
   recommendation.responseSnapshot.explanation = { summary: 'Explains original portfolio' };
+  recommendation.marketAdjustment.sourceProvider = 'UPSTOX';
+  recommendation.responseSnapshot.generation_market_adjustment = {
+    applied: true,
+    sourceProvider: 'UPSTOX',
+    changedInstruments: [{ instrumentId: 'fd' }],
+  };
   const currentRevision = {
     ...revision,
     _id: '64b000000000000000000006',
@@ -176,8 +183,9 @@ test('a rebalance never presents the generation-time explanation as current', ()
   assert.equal(response.market_adjustment, null);
   assert.deepEqual(response.generation_market_adjustment, {
     applied: true,
-    currentAllocationSource: 'MARKET_CONTEXT_ADJUSTED',
+    changedInstruments: [{ instrumentId: 'fd' }],
   });
+  assert.equal(JSON.stringify(response).includes('sourceProvider'), false);
 });
 
 function responseBinding(recommendation, revision, state) {
@@ -247,6 +255,56 @@ test('valid canonical pointer resolves only the pointed revision', async () => {
     dependencies,
   });
   assert.equal(state.currentAllocation.revision, 1);
+  assert.equal(state.provenance.status, 'PERSISTED_REVISION');
+});
+
+test('current state rejects applied legacy market adjustments with missing or unknown provenance', async () => {
+  for (const sourceProvider of [undefined, null, 'UNRECOGNIZED']) {
+    const { dependencies, recommendation } = fixture();
+    recommendation.marketAdjustment = { applied: true, sourceProvider };
+    await assert.rejects(
+      resolveCurrentRecommendationState({
+        userId: ids.user,
+        profileId: ids.profile,
+        profile,
+        requireFresh: true,
+        dependencies,
+      }),
+      error => error.status === 503 && error.code === 'MARKET_ADJUSTMENT_PROVIDER_PROVENANCE_MISSING',
+    );
+  }
+});
+
+test('current state leaves demonstrably unadjusted legacy recommendations available for ordinary inspection', async () => {
+  const { dependencies, recommendation } = fixture();
+  recommendation.marketAdjustment = { applied: false, status: 'NOT_APPLIED', sourceProvider: null };
+  recommendation.currentAllocationSource = 'ORIGINAL_RECOMMENDATION';
+  recommendation.responseSnapshot.market_adjustment = { applied: false, status: 'NOT_APPLIED' };
+  dependencies.stateModel = { findOne: () => query(null) };
+  dependencies.revisionModel = { findOne: () => query(null) };
+
+  const state = await resolveCurrentRecommendationState({
+    userId: ids.user,
+    profileId: ids.profile,
+    profile,
+    dependencies,
+  });
+  assert.equal(state.provenance.status, 'LEGACY_GENERATION_STATE');
+  assert.equal(state.freshness.fresh, false);
+});
+
+test('confirmed production Upstox provenance resolves through the current-state boundary', async () => {
+  const { dependencies, recommendation } = fixture();
+  recommendation.marketAdjustment.sourceProvider = 'UPSTOX';
+  dependencies.environment = { NODE_ENV: 'production', UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'true' };
+
+  const state = await resolveCurrentRecommendationState({
+    userId: ids.user,
+    profileId: ids.profile,
+    profile,
+    requireFresh: true,
+    dependencies,
+  });
   assert.equal(state.provenance.status, 'PERSISTED_REVISION');
 });
 

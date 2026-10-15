@@ -11,6 +11,7 @@ import ConversationHistory from '../models/ConversationHistory.js';
 import { ProviderManager } from '../services/providerAbstraction.js';
 import { processChat } from '../services/geminiChatService.js';
 import { installMockChatSessionStore } from './helpers/mockChatSessionStore.js';
+import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
 
@@ -121,7 +122,7 @@ describe('grounded chat DTO and persistence isolation', () => {
   });
 
   it('returns grounded metadata but never exposes raw prompts, tools, or audit internals', async () => {
-    await withServer(buildApp(), async baseUrl => {
+    await withMockAuthAccountState(() => withServer(buildApp(), async baseUrl => {
       const response = await rawRequest(`${baseUrl}/api/chat/message`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
@@ -138,7 +139,7 @@ describe('grounded chat DTO and persistence isolation', () => {
       for (const forbidden of ['original_llm_response', 'execution_graph', 'tool_outputs', 'tool_calls', 'tool_results', 'replans', 'governance', 'verification', 'audit', 'state']) {
         assert.equal(body[forbidden], undefined, `${forbidden} must not be exposed`);
       }
-    });
+    }));
 
     const modelMessage = conversation.messages.find(message => message.role === 'model');
     assert.ok(modelMessage);

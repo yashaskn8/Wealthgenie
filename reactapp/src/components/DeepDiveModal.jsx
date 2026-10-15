@@ -175,13 +175,19 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
   // Normalize fields
   const inv = useMemo(() => {
     if (!investment) return {};
+    const lockInCandidate = investment.lock_in_years ?? investment.lockIn;
+    const lockInYears = typeof lockInCandidate === 'number'
+      && Number.isFinite(lockInCandidate)
+      && lockInCandidate >= 0
+      ? lockInCandidate
+      : null;
     return {
       ...investment,
       expected_return_min: investment.expected_return_min ?? investment.returnRange?.min ?? investment.nominalReturn,
       expected_return_max: investment.expected_return_max ?? investment.returnRange?.max ?? investment.nominalReturn,
       category: investment.category || investment.cat,
       risk_level: investment.risk_level || investment.riskLabel,
-      lock_in_years: investment.lock_in_years ?? investment.lockIn ?? null,
+      lock_in_years: lockInYears,
       tax_benefit: investment.tax_benefit ?? null,
       tax_section: investment.tax_section || 'N/A',
       tax_free_interest: investment.tax_free_interest ?? null,

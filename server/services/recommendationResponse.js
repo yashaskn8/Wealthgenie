@@ -16,6 +16,13 @@ function snapshotResponse(snapshot) {
   return snapshot;
 }
 
+function publicMarketAdjustment(adjustment) {
+  if (!adjustment || typeof adjustment !== 'object' || Array.isArray(adjustment)) return adjustment;
+  const publicMetadata = { ...adjustment };
+  delete publicMetadata.sourceProvider;
+  return publicMetadata;
+}
+
 function buildComputedWeights(instruments) {
   return Object.fromEntries(instruments.map(instrument => [
     instrument.id,
@@ -173,7 +180,9 @@ export function buildCurrentRecommendationResponse({
     throw error;
   }
   const generationInstruments = recommendation.instruments || historical.instruments || [];
-  const generationMarketAdjustment = historical.generation_market_adjustment || historical.market_adjustment || null;
+  const generationMarketAdjustment = publicMarketAdjustment(
+    historical.generation_market_adjustment || historical.market_adjustment || null,
+  );
   const currentFingerprint = portfolioFingerprint || allocationRevision.portfolioFingerprint || null;
 
   return {
@@ -186,7 +195,7 @@ export function buildCurrentRecommendationResponse({
     // allocation revision, do not present that historical adjustment as if it
     // were applied to the current allocation.
     market_adjustment: Number(allocationRevision.revision) === 1
-      ? (historical.market_adjustment || generationMarketAdjustment)
+      ? publicMarketAdjustment(historical.market_adjustment || generationMarketAdjustment)
       : null,
     // The model explanation was generated for the original portfolio. Keep it
     // explicitly historical after a user changes allocation weights.

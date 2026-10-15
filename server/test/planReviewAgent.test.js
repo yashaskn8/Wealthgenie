@@ -8,7 +8,11 @@ import { advancePlanReviewStep } from '../agents/planReview/planReviewGraph.js';
 import { createModelGateway } from '../agents/modelGateway.js';
 import { loadPlanReviewContext } from '../agents/planReview/planReviewTools.js';
 import { buildPlanReviewSnapshotBinding, hashPlanReviewSnapshot } from '../agents/planReview/planReviewRuntime.js';
-import { PLAN_REVIEW_TOOL_CAPABILITIES, validatePlanReviewResponse } from '../agents/planReview/planReviewSchemas.js';
+import {
+  PLAN_REVIEW_TOOL_CAPABILITIES,
+  isPlanReviewRecomputeApprovalRun,
+  validatePlanReviewResponse,
+} from '../agents/planReview/planReviewSchemas.js';
 
 const profileId = '64b000000000000000000001';
 const userId = '64b000000000000000000010';
@@ -539,11 +543,130 @@ test('PlanReview schema continues to accept persisted 1.0 results without typed 
     profile,
     freshness: { fresh: true, reasonCodes: [] },
     goalSummary: { status: 'NONE', items: [] },
-    evidence: { status: 'AVAILABLE', entries: [], unavailableFacts: [] },
+    evidence: {
+      status: 'AVAILABLE',
+      entries: [{ id: 'E_RECOMMENDATION_FRESHNESS' }],
+      unavailableFacts: [],
+    },
   });
   const legacy = { ...current, version: 'plan-review-1.0.0' };
   delete legacy.financialClaims;
   assert.equal(validatePlanReviewResponse(legacy).error, undefined);
+});
+
+test('PlanReview AVAILABLE evidence requires a nonempty array of unique valid evidence IDs', () => {
+  const valid = buildSafeReview({
+    runId: '4f4f4f4f-1111-4111-8111-111111111111',
+    profile,
+    freshness: { fresh: true, reasonCodes: [] },
+    goalSummary: { status: 'NONE', items: [] },
+    evidence: {
+      status: 'AVAILABLE',
+      entries: [{ id: 'E_RECOMMENDATION_FRESHNESS' }],
+      unavailableFacts: [],
+    },
+  });
+  assert.equal(validatePlanReviewResponse(valid).error, undefined);
+
+  const empty = { ...valid, evidence: { ...valid.evidence, entries: [] } };
+  assert.ok(validatePlanReviewResponse(empty).error);
+
+  const missingId = { ...valid, evidence: { ...valid.evidence, entries: [{}] } };
+  assert.ok(validatePlanReviewResponse(missingId).error);
+
+  const invalidId = { ...valid, evidence: { ...valid.evidence, entries: [{ id: 'not-an-evidence-id' }] } };
+  assert.ok(validatePlanReviewResponse(invalidId).error);
+
+  const duplicateIds = {
+    ...valid,
+    evidence: {
+      ...valid.evidence,
+      entries: [{ id: 'E_RECOMMENDATION_FRESHNESS' }, { id: 'E_RECOMMENDATION_FRESHNESS' }],
+    },
+  };
+  assert.ok(validatePlanReviewResponse(duplicateIds).error);
+});
+
+test('PlanReview evidence entries reject malformed displayed fields and unbounded source records', () => {
+  const valid = buildSafeReview({
+    runId: '4f4f4f4f-1111-4111-8111-111111111111',
+    profile,
+    freshness: { fresh: true, reasonCodes: [] },
+    goalSummary: { status: 'NONE', items: [] },
+    evidence: {
+      status: 'AVAILABLE',
+      entries: [{ id: 'E_RECOMMENDATION_FRESHNESS', displayValue: 'Current', source: { provider: 'Backend' } }],
+      unavailableFacts: [],
+    },
+  });
+  assert.equal(validatePlanReviewResponse(valid).error, undefined);
+
+  const deepValue = {};
+  let nested = deepValue;
+  for (let depth = 0; depth < 10; depth += 1) {
+    nested.child = {};
+    nested = nested.child;
+  }
+  for (const entry of [
+    { id: 'E_RECOMMENDATION_FRESHNESS', displayValue: { current: true } },
+    { id: 'E_RECOMMENDATION_FRESHNESS', source: { provider: { name: 'Backend' } } },
+    { id: 'E_RECOMMENDATION_FRESHNESS', source: { provider: 'Backend', url: 'javascript:alert(1)' } },
+    { id: 'E_RESEARCH_CLAIM_1', value: { claimId: { id: 'claim' }, supportStatus: 'SUPPORTED' } },
+    { id: 'E_RECOMMENDATION_FRESHNESS', displayValue: 'x'.repeat(4097) },
+    { id: 'E_RECOMMENDATION_FRESHNESS', value: deepValue },
+  ]) {
+    const malformed = {
+      ...valid,
+      evidence: { ...valid.evidence, entries: [entry] },
+    };
+    assert.ok(validatePlanReviewResponse(malformed).error);
+  }
+});
+
+test('PlanReview 1.0 persisted AVAILABLE empty evidence remains readable', () => {
+  const legacy = buildSafeReview({
+    runId: '4f4f4f4f-1111-4111-8111-111111111111',
+    profile,
+    freshness: { fresh: true, reasonCodes: [] },
+    goalSummary: { status: 'NONE', items: [] },
+    evidence: { status: 'AVAILABLE', entries: [], unavailableFacts: [] },
+  });
+  legacy.version = 'plan-review-1.0.0';
+  delete legacy.financialClaims;
+  assert.equal(validatePlanReviewResponse(legacy).error, undefined);
+
+  const current = { ...legacy, version: 'plan-review-1.1.0' };
+  assert.ok(validatePlanReviewResponse(current).error);
+});
+
+test('recompute approval requires a consistent durable run and embedded review binding', () => {
+  const result = buildSafeReview({
+    runId: '4f4f4f4f-1111-4111-8111-111111111111',
+    profile,
+    freshness: { fresh: false, reasonCodes: ['PROFILE_CHANGED'] },
+    goalSummary: { status: 'NONE', items: [] },
+    evidence: { status: 'UNAVAILABLE', entries: [], unavailableFacts: ['PROFILE_CHANGED'] },
+  });
+  result.recommendedAction = 'RECOMPUTE_PLAN';
+  const run = {
+    runId: result.runId,
+    status: 'WAITING_FOR_APPROVAL',
+    recommendedAction: 'RECOMPUTE_PLAN',
+    result,
+  };
+  assert.equal(isPlanReviewRecomputeApprovalRun(run), true);
+  assert.equal(isPlanReviewRecomputeApprovalRun({
+    ...run,
+    recommendedAction: 'NONE',
+  }), false);
+  assert.equal(isPlanReviewRecomputeApprovalRun({
+    ...run,
+    result: { ...result, runId: '5f5f5f5f-1111-4111-8111-111111111111' },
+  }), false);
+  assert.equal(isPlanReviewRecomputeApprovalRun({
+    ...run,
+    result: { ...result, recommendedAction: 'NONE' },
+  }), false);
 });
 
 test('policy rejection has a safe no-mutation fallback', () => {

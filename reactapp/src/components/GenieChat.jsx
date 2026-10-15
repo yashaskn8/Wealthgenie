@@ -22,8 +22,133 @@ function formatLakhs(value) {
   return `₹${(numericValue / 100000).toFixed(1)}L`;
 }
 
+const SESSION_STORAGE_WARNING = 'Chat session storage is unavailable. This conversation is temporary on this device and may not appear after a reload.';
+const SESSION_BINDING_WARNING = 'Chat session could not be safely linked to this profile. This conversation may not appear after a reload.';
+const CHAT_SESSION_ID_KEY = 'genie_session_id';
+const CHAT_SESSION_BINDING_KEY = 'genie_session_binding_fingerprint';
+const CHAT_SESSION_BINDING_FINGERPRINT_VERSION = 'wg-chat-binding-v2:';
+
+function createNewChatSession(bindingFingerprint = null) {
+  const id = crypto.randomUUID();
+  try {
+    sessionStorage.setItem(CHAT_SESSION_ID_KEY, id);
+    sessionStorage.removeItem(CHAT_SESSION_BINDING_KEY);
+    if (bindingFingerprint) sessionStorage.setItem(CHAT_SESSION_BINDING_KEY, bindingFingerprint);
+    return { id, storageWarning: null };
+  } catch {
+    return { id, storageWarning: SESSION_STORAGE_WARNING };
+  }
+}
+
+function restoreOrCreateChatSession() {
+  let storageReadFailed = false;
+  try {
+    const stored = sessionStorage.getItem(CHAT_SESSION_ID_KEY);
+    if (stored) {
+      return {
+        id: stored,
+        storedBindingFingerprint: sessionStorage.getItem(CHAT_SESSION_BINDING_KEY),
+        storageWarning: null,
+      };
+    }
+  } catch {
+    storageReadFailed = true;
+  }
+  const created = createNewChatSession();
+  return {
+    ...created,
+    storedBindingFingerprint: null,
+    storageWarning: storageReadFailed ? SESSION_STORAGE_WARNING : created.storageWarning,
+  };
+}
+
+async function fingerprintChatFinancialBinding(binding) {
+  const cryptoProvider = globalThis.crypto;
+  if (typeof cryptoProvider?.subtle?.digest !== 'function' || typeof TextEncoder !== 'function') return null;
+  try {
+    const state = JSON.parse(binding);
+    const persistenceBinding = JSON.stringify({
+      profileId: state.profileId,
+      profileVersion: state.profileVersion,
+      recommendationId: state.recommendationId,
+      allocationRevision: state.allocationRevision,
+      allocationRevisionId: state.allocationRevisionId,
+    });
+    const digest = await cryptoProvider.subtle.digest('SHA-256', new TextEncoder().encode(persistenceBinding));
+    const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    return `${CHAT_SESSION_BINDING_FINGERPRINT_VERSION}${fingerprint}`;
+  } catch {
+    return null;
+  }
+}
+
+function persistChatSessionBinding(sessionId, fingerprint) {
+  if (!fingerprint) return false;
+  try {
+    if (sessionStorage.getItem(CHAT_SESSION_ID_KEY) !== sessionId) return false;
+    sessionStorage.setItem(CHAT_SESSION_BINDING_KEY, fingerprint);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function retryAfterSeconds(error) {
+  const resetAt = Date.parse(error?.details?.resetAt ?? error?.details?.rate_limit_reset_at ?? '');
+  if (Number.isFinite(resetAt)) return Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+  const structuredSeconds = Number(error?.details?.retryAfterSeconds ?? error?.details?.retry_after_seconds);
+  if (Number.isSafeInteger(structuredSeconds) && structuredSeconds > 0) return structuredSeconds;
+  return null;
+}
+
+function formatRetryAfter(seconds) {
+  if (seconds < 60) return `about ${seconds} seconds`;
+  const minutes = Math.ceil(seconds / 60);
+  return `about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+}
+
+function chatRateLimitMessage(error) {
+  const seconds = retryAfterSeconds(error);
+  if (seconds) {
+    return `You've reached Genie’s hourly message limit. The server says you can retry in ${formatRetryAfter(seconds)}.`;
+  }
+  return error?.message || "You've reached Genie’s hourly message limit. Try again when the limit resets.";
+}
+
+function buildChatFinancialBinding(profile, recommendationMeta) {
+  const recommendationState = {
+    profileId: recommendationMeta?.profileId ?? recommendationMeta?.profile_id ?? profile?.profileId ?? profile?._id ?? null,
+    profileVersion: recommendationMeta?.profile_version ?? profile?.version ?? null,
+    profileInputHash: recommendationMeta?.profile_input_hash ?? null,
+    recommendationId: recommendationMeta?.recommendationId ?? recommendationMeta?.recommendation_id ?? null,
+    allocationRevision: recommendationMeta?.allocation_revision ?? null,
+    allocationRevisionId: recommendationMeta?.allocation_revision_id ?? null,
+    recommendationFingerprint: recommendationMeta?.recommendation_fingerprint ?? null,
+    portfolioFingerprint: recommendationMeta?.portfolio_fingerprint ?? null,
+  };
+  return JSON.stringify(recommendationState);
+}
+
+function mapStoredChatMessages(messages) {
+  return messages.map(message => ({
+    role: message.role === 'model' ? 'assistant' : 'user',
+    content: message.content,
+    timestamp: message.timestamp || new Date().toISOString(),
+    latency_ms: message.metadata?.latency_ms,
+    grounded: message.metadata?.grounded_on_profile,
+    provider: message.metadata?.provider,
+    model: message.metadata?.model,
+    grounding_version: message.metadata?.grounding_version,
+    evidence_ids_used: message.metadata?.evidence_ids_used || [],
+    unavailable_facts: message.metadata?.unavailable_facts || [],
+    citations: message.metadata?.citations || [],
+    _streamed: true,
+  }));
+}
+
 // ── Main Component ────────────────────────────────────────────────
-const GenieChat = ({ profile, onNavigate }) => {
+const GenieChat = ({ profile, recommendationMeta = null, recommendationContextReady = true, cancelPendingSendRef = null, onNavigate }) => {
+  const financialBinding = buildChatFinancialBinding(profile, recommendationMeta);
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -36,17 +161,42 @@ const GenieChat = ({ profile, onNavigate }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [rateLimit, setRateLimit] = useState({ remaining: 30, total: 30 });
   const [isListening, setIsListening] = useState(false);
-  const [sessionId, setSessionId] = useState(() => {
-    const stored = sessionStorage.getItem('genie_session_id');
-    if (stored) return stored;
-    const newId = crypto.randomUUID();
-    sessionStorage.setItem('genie_session_id', newId);
-    return newId;
-  });
+  const [chatSession, setChatSession] = useState(() => ({
+    ...restoreOrCreateChatSession(),
+    financialBinding: null,
+    bindingReady: false,
+  }));
+  const sessionId = chatSession.id;
+  const sessionMatchesProfile = recommendationContextReady
+    && chatSession.bindingReady
+    && chatSession.financialBinding === financialBinding;
+  const [sessionStorageWarning, setSessionStorageWarning] = useState(chatSession.storageWarning);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
   const historyRequestIdRef = useRef(0);
+  const sessionGenerationRef = useRef(0);
+  const sendGenerationRef = useRef(0);
+  const sendControllerRef = useRef(null);
+  const pendingSendRef = useRef(null);
+  const clearingRef = useRef(false);
+  const sessionIdRef = useRef(sessionId);
+  const financialBindingRef = useRef(financialBinding);
+  const sessionBindingRef = useRef(chatSession.financialBinding);
+  const initialSessionIdRef = useRef(chatSession.id);
+  const initialBindingFingerprintRef = useRef(chatSession.storedBindingFingerprint);
+  const bindingHydratedRef = useRef(false);
+  sessionIdRef.current = sessionId;
+  financialBindingRef.current = financialBinding;
+  sessionBindingRef.current = chatSession.financialBinding;
+  const previousFinancialBindingRef = useRef(financialBinding);
+  const rateLimitRetryAt = rateLimit.retryAt;
+  const invalidatePendingSend = useCallback((resetLoading = false) => {
+    sendGenerationRef.current += 1;
+    sendControllerRef.current?.abort();
+    sendControllerRef.current = null;
+    if (resetLoading) setIsLoading(false);
+  }, []);
 
   // ── 2026 Agentic Workspace State ────────────────────────────────
   const [activeWorkspace, setActiveWorkspace] = useState(null); // null | 'rebalancer' | 'sip-planner' | 'tax-optimizer'
@@ -199,52 +349,169 @@ const GenieChat = ({ profile, onNavigate }) => {
     };
   }, [activeWorkspace, profile?.age, taxFiscalYear, taxGrossIncome, taxIncomeSource, tax80C, taxNPS]);
 
-  const lastUserMessage = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
-  const lastAssistantMsg = messages.filter(m => m.role === 'assistant').slice(-1)[0];
+  const visibleMessages = sessionMatchesProfile ? messages : [];
+  const lastUserMessage = visibleMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+  const lastAssistantMsg = visibleMessages.filter(m => m.role === 'assistant').slice(-1)[0];
+
+  const startFreshSession = useCallback((nextFinancialBinding, knownFingerprint = null) => {
+    sessionGenerationRef.current += 1;
+    sendGenerationRef.current += 1;
+    historyRequestIdRef.current += 1;
+    sendControllerRef.current?.abort();
+    sendControllerRef.current = null;
+    clearingRef.current = false;
+    const nextSession = createNewChatSession(knownFingerprint);
+    sessionIdRef.current = nextSession.id;
+    sessionBindingRef.current = nextFinancialBinding;
+    previousFinancialBindingRef.current = nextFinancialBinding;
+    bindingHydratedRef.current = true;
+    setChatSession({ ...nextSession, financialBinding: nextFinancialBinding, bindingReady: true });
+    setSessionStorageWarning(nextSession.storageWarning);
+    setMessages([]);
+    setInput('');
+    setIsLoading(false);
+    setIsClearing(false);
+    setError(null);
+    setHistoryStatus('idle');
+    setHistoryError(null);
+    setClearStatus('idle');
+    setActiveWorkspace(null);
+    setAllocationSplit(null);
+    setAllocationSplitError(null);
+    setSipProjection(null);
+    setSipProjectionError(null);
+    setTaxComparison(null);
+    setTaxComparisonError(null);
+    void (knownFingerprint
+      ? Promise.resolve(knownFingerprint)
+      : fingerprintChatFinancialBinding(nextFinancialBinding))
+      .then(fingerprint => {
+        if (sessionIdRef.current !== nextSession.id) return;
+        if (!fingerprint) {
+          setSessionStorageWarning(current => current || SESSION_BINDING_WARNING);
+          return;
+        }
+        if (!persistChatSessionBinding(nextSession.id, fingerprint)) {
+          setSessionStorageWarning(current => current || SESSION_STORAGE_WARNING);
+        }
+      });
+    return nextSession.storageWarning;
+  }, []);
+
+  useEffect(() => {
+    if (!recommendationContextReady || bindingHydratedRef.current) return undefined;
+    let cancelled = false;
+    const requestedSessionId = initialSessionIdRef.current;
+    void fingerprintChatFinancialBinding(financialBinding).then(fingerprint => {
+      if (cancelled || bindingHydratedRef.current || requestedSessionId !== sessionIdRef.current) return;
+      const storedFingerprint = initialBindingFingerprintRef.current;
+      const hasCurrentFingerprint = typeof storedFingerprint === 'string'
+        && storedFingerprint.startsWith(CHAT_SESSION_BINDING_FINGERPRINT_VERSION);
+      if (fingerprint && fingerprint === storedFingerprint) {
+        bindingHydratedRef.current = true;
+        sessionBindingRef.current = financialBinding;
+        previousFinancialBindingRef.current = financialBinding;
+        setChatSession(current => (current.id === requestedSessionId
+          ? { ...current, financialBinding, bindingReady: true }
+          : current));
+        return;
+      }
+      if (!hasCurrentFingerprint) {
+        // Older clients stored a digest of profile values and recommendation
+        // data. Keep the opaque session ID so the server can decide whether
+        // its history still matches current provenance; then replace the old
+        // digest with the privacy-safe versioned binding.
+        bindingHydratedRef.current = true;
+        sessionBindingRef.current = financialBinding;
+        previousFinancialBindingRef.current = financialBinding;
+        setChatSession(current => (current.id === requestedSessionId
+          ? { ...current, financialBinding, bindingReady: true }
+          : current));
+        if (fingerprint && persistChatSessionBinding(requestedSessionId, fingerprint)) {
+          setSessionStorageWarning(null);
+        } else if (!fingerprint) {
+          setSessionStorageWarning(current => current || SESSION_BINDING_WARNING);
+        }
+        return;
+      }
+      startFreshSession(financialBinding, fingerprint);
+    });
+    return () => { cancelled = true; };
+  }, [financialBinding, recommendationContextReady, startFreshSession]);
+
+  useEffect(() => {
+    if (!Number.isFinite(rateLimitRetryAt)) return undefined;
+    const delay = Math.max(0, rateLimitRetryAt - Date.now());
+    const timer = setTimeout(() => {
+      setRateLimit(current => (current.retryAt === rateLimitRetryAt
+        ? { ...current, remaining: null, retryAt: null }
+        : current));
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [rateLimitRetryAt]);
+
+  const rateLimitBlocked = rateLimit.remaining === 0
+    && Number.isFinite(rateLimit.retryAt)
+    && rateLimit.retryAt > Date.now();
+
+  useEffect(() => {
+    if (!recommendationContextReady || !bindingHydratedRef.current) return;
+    if (previousFinancialBindingRef.current === financialBinding) return;
+    previousFinancialBindingRef.current = financialBinding;
+    startFreshSession(financialBinding);
+  }, [financialBinding, recommendationContextReady, startFreshSession]);
 
   const loadHistory = useCallback(async () => {
+    if (!sessionMatchesProfile) return;
     const requestId = ++historyRequestIdRef.current;
+    const generation = sessionGenerationRef.current;
     const requestedSessionId = sessionId;
+    const requestedBinding = chatSession.financialBinding;
+    const isCurrent = () => requestId === historyRequestIdRef.current
+      && generation === sessionGenerationRef.current
+      && requestedSessionId === sessionIdRef.current
+      && requestedBinding === sessionBindingRef.current
+      && requestedBinding === financialBindingRef.current;
     setHistoryStatus('loading');
     setHistoryError(null);
     try {
       const data = await api.getChatHistory(requestedSessionId);
-      if (requestId !== historyRequestIdRef.current || requestedSessionId !== sessionId) return;
+      if (!isCurrent()) return;
       if (!Array.isArray(data?.conversations)) throw new Error('Invalid chat history response');
       const conversation = data.conversations[0];
       if (conversation && !Array.isArray(conversation.messages)) throw new Error('Invalid chat history response');
       if (conversation?.messages) {
-        setMessages(conversation.messages.map(m => ({
-          role: m.role === 'model' ? 'assistant' : 'user',
-          content: m.content,
-          timestamp: m.timestamp || new Date().toISOString(),
-          latency_ms: m.metadata?.latency_ms,
-          grounded: m.metadata?.grounded_on_profile,
-          provider: m.metadata?.provider,
-          model: m.metadata?.model,
-          grounding_version: m.metadata?.grounding_version,
-          evidence_ids_used: m.metadata?.evidence_ids_used || [],
-          unavailable_facts: m.metadata?.unavailable_facts || [],
-          citations: m.metadata?.citations || [],
-          _streamed: true,
-        })));
+        setMessages(mapStoredChatMessages(conversation.messages));
       } else {
         setMessages([]);
       }
       setHistoryStatus('loaded');
     } catch {
-      if (requestId !== historyRequestIdRef.current || requestedSessionId !== sessionId) return;
+      if (!isCurrent()) return;
       setHistoryStatus('failed');
       setHistoryError('Saved chat history could not be loaded. Check your connection and retry.');
     }
-  }, [sessionId]);
+  }, [chatSession.financialBinding, sessionId, sessionMatchesProfile]);
 
   useEffect(() => {
     if (isOpen && sessionId && historyStatus === 'idle') {
       loadHistory();
     }
   }, [isOpen, sessionId, historyStatus, loadHistory]);
-  useEffect(() => () => { historyRequestIdRef.current += 1; }, []);
+  useEffect(() => {
+    const cancelForLogout = () => {
+      if (pendingSendRef.current) {
+        setError("We couldn't confirm whether your message was sent before sign-out interrupted it.");
+      }
+      invalidatePendingSend(true);
+    };
+    if (cancelPendingSendRef) cancelPendingSendRef.current = cancelForLogout;
+    return () => {
+      if (cancelPendingSendRef?.current === cancelForLogout) cancelPendingSendRef.current = null;
+      invalidatePendingSend(false);
+      historyRequestIdRef.current += 1;
+    };
+  }, [cancelPendingSendRef, invalidatePendingSend]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isLoading]);
 
   // Voice recognition setup
@@ -315,12 +582,38 @@ const GenieChat = ({ profile, onNavigate }) => {
 
   const sendMessage = useCallback(async (text) => {
     const messageText = (text || input).trim();
-    if (!messageText || isLoading) return;
+    if (!messageText || isLoading || isClearing || clearingRef.current) return;
+    if (!recommendationContextReady || !bindingHydratedRef.current) return;
+    if (!sessionMatchesProfile) {
+      startFreshSession(financialBinding);
+      return;
+    }
+    const requestedSessionId = sessionId;
+    const requestedBinding = chatSession.financialBinding;
+    const generation = sessionGenerationRef.current;
+    const sendGeneration = sendGenerationRef.current;
+    const controller = new AbortController();
+    sendControllerRef.current = controller;
+    let settlePendingSend;
+    const pendingSend = {
+      sessionId: requestedSessionId,
+      settled: new Promise(resolve => { settlePendingSend = resolve; }),
+    };
+    pendingSendRef.current = pendingSend;
+    const isCurrent = () => generation === sessionGenerationRef.current
+      && sendGeneration === sendGenerationRef.current
+      && requestedSessionId === sessionIdRef.current
+      && requestedBinding === sessionBindingRef.current
+      && requestedBinding === financialBindingRef.current;
+    historyRequestIdRef.current += 1;
+    setHistoryStatus('loaded');
+    setHistoryError(null);
     setInput(''); setError(null);
     setMessages(prev => [...prev, { role: 'user', content: messageText, timestamp: new Date().toISOString() }]);
     setIsLoading(true);
     try {
-      const data = await api.sendChatMessage(messageText, sessionId);
+      const data = await api.sendChatMessage(messageText, requestedSessionId, { signal: controller.signal });
+      if (!isCurrent()) return;
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: data.response,
@@ -335,38 +628,137 @@ const GenieChat = ({ profile, onNavigate }) => {
         unavailable_facts: data.unavailable_facts || [],
         _streamed: false,
       }]);
-      setRateLimit({ remaining: data.rate_limit_remaining, total: 30 });
-    } catch (err) { setError(err.message || 'Genie is temporarily unavailable.'); }
-    finally { setIsLoading(false); inputRef.current?.focus(); }
-  }, [input, isLoading, sessionId]);
+      const remaining = Number(data.rate_limit_remaining);
+      const nextRemaining = Number.isInteger(remaining) && remaining >= 0 && remaining <= 30
+        ? remaining
+        : null;
+      const resetAt = Date.parse(data.rate_limit_reset_at || '');
+      const retryAt = nextRemaining === 0 && Number.isFinite(resetAt) ? resetAt : null;
+      setRateLimit(current => ({ ...current, remaining: nextRemaining, retryAt }));
+      if (nextRemaining === 0) {
+        setError(retryAt
+          ? `You've used the last message in your current chat limit. Genie will be available again at ${new Date(retryAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
+          : 'You used the last message reported by the server. Genie will check availability on your next message.');
+      }
+    } catch (err) {
+      if (isCurrent() && err?.code !== 'REQUEST_ABORTED') {
+        if (err?.code === 'CHAT_RATE_LIMIT_EXCEEDED') {
+          const seconds = retryAfterSeconds(err);
+          const resetAt = Date.parse(err?.details?.resetAt ?? err?.details?.rate_limit_reset_at ?? '');
+          setRateLimit(current => ({
+            ...current,
+            remaining: 0,
+            retryAt: Number.isFinite(resetAt) ? resetAt : (seconds ? Date.now() + (seconds * 1000) : null),
+          }));
+          setError(chatRateLimitMessage(err));
+        } else if (['CHAT_PROFILE_STATE_CHANGED', 'CHAT_SESSION_PROVENANCE_MISSING'].includes(err?.code)) {
+          const nextFingerprint = await fingerprintChatFinancialBinding(financialBinding);
+          if (isCurrent()) {
+            startFreshSession(financialBinding, nextFingerprint);
+            setInput(messageText);
+            setError('Your profile or recommendation changed. This message was not sent. Review it and send again.');
+          }
+        } else {
+          setError(err.message || 'Genie is temporarily unavailable.');
+        }
+      }
+    } finally {
+      settlePendingSend();
+      if (pendingSendRef.current === pendingSend) pendingSendRef.current = null;
+      if (sendControllerRef.current === controller) sendControllerRef.current = null;
+      if (isCurrent()) {
+        setIsLoading(false);
+        inputRef.current?.focus();
+      }
+    }
+  }, [
+    chatSession.financialBinding,
+    financialBinding,
+    input,
+    isClearing,
+    isLoading,
+    recommendationContextReady,
+    sessionId,
+    sessionMatchesProfile,
+    startFreshSession,
+  ]);
 
   const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
-  const clearChat = async () => {
-    if (isClearing) return;
+  const checkClearOutcome = async () => {
+    if (isClearing || clearingRef.current || !sessionMatchesProfile) return;
+    const requestedSessionId = sessionId;
+    const requestId = ++historyRequestIdRef.current;
+    const generation = sessionGenerationRef.current;
+    const isCurrent = () => requestId === historyRequestIdRef.current
+      && generation === sessionGenerationRef.current
+      && requestedSessionId === sessionIdRef.current
+      && financialBindingRef.current === sessionBindingRef.current;
+    clearingRef.current = true;
     setIsClearing(true);
+    setClearStatus('checking');
+    try {
+      const data = await api.getChatHistory(requestedSessionId);
+      if (!isCurrent()) return;
+      if (!Array.isArray(data?.conversations)) throw new Error('Invalid chat history response');
+      const conversation = data.conversations[0];
+      if (conversation && !Array.isArray(conversation.messages)) throw new Error('Invalid chat history response');
+      if (!conversation || conversation.messages.length === 0) {
+        const storageWarning = startFreshSession(financialBindingRef.current);
+        setClearStatus(storageWarning ? 'storage-warning' : 'confirmed');
+      } else {
+        setMessages(mapStoredChatMessages(conversation.messages));
+        setHistoryStatus('loaded');
+        setHistoryError(null);
+        setClearStatus('failed');
+      }
+    } catch {
+      if (isCurrent()) setClearStatus('unconfirmed');
+    } finally {
+      if (generation === sessionGenerationRef.current) {
+        clearingRef.current = false;
+        setIsClearing(false);
+      }
+    }
+  };
+
+  const clearChat = async () => {
+    if (isClearing || clearingRef.current) return;
+    if (!recommendationContextReady || !bindingHydratedRef.current) return;
+    if (!sessionMatchesProfile) {
+      startFreshSession(financialBinding);
+      return;
+    }
+    const requestedSessionId = sessionId;
+    const generation = sessionGenerationRef.current;
+    const pendingSend = pendingSendRef.current?.sessionId === requestedSessionId
+      ? pendingSendRef.current.settled
+      : Promise.resolve();
+    clearingRef.current = true;
+    sendGenerationRef.current += 1;
+    setIsClearing(true);
+    setIsLoading(false);
     setClearStatus('pending');
     setHistoryError(null);
     try {
-      await api.clearChatSession(sessionId);
-      historyRequestIdRef.current += 1;
-      setMessages([]);
-      setError(null);
-      setRateLimit({ remaining: 30, total: 30 });
-      const newId = crypto.randomUUID();
-      setSessionId(newId);
-      setHistoryStatus('idle');
-      setClearStatus('confirmed');
-      try {
-        sessionStorage.setItem('genie_session_id', newId);
-      } catch {
-        setClearStatus('storage-warning');
-      }
+      await pendingSend;
+      if (generation !== sessionGenerationRef.current || requestedSessionId !== sessionIdRef.current) return;
+      await api.clearChatSession(requestedSessionId);
+      if (generation !== sessionGenerationRef.current || requestedSessionId !== sessionIdRef.current) return;
+      const storageWarning = startFreshSession(financialBindingRef.current);
+      setClearStatus(storageWarning ? 'storage-warning' : 'confirmed');
     } catch {
-      setClearStatus('failed');
+      if (generation === sessionGenerationRef.current && requestedSessionId === sessionIdRef.current) {
+        // DELETE may have committed before its response was lost. Keep the
+        // local transcript, but reconcile server history before describing it.
+        setClearStatus('unconfirmed');
+      }
     }
     finally {
-      setIsClearing(false);
+      if (generation === sessionGenerationRef.current) {
+        clearingRef.current = false;
+        setIsClearing(false);
+      }
     }
   };
 
@@ -392,32 +784,44 @@ const GenieChat = ({ profile, onNavigate }) => {
                 <button onClick={() => setIsExpanded(prev => !prev)} title={isExpanded ? "Restore compact size" : "Expand size"} aria-label={isExpanded ? "Restore compact size" : "Expand size"}>
                   {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                 </button>
-                <button onClick={clearChat} title="Clear chat" aria-label="Clear chat conversation" disabled={isClearing}><Trash2 size={16} /></button>
+                <button onClick={clearChat} title="Clear chat" aria-label="Clear chat conversation" disabled={isClearing || !recommendationContextReady || !chatSession.bindingReady}><Trash2 size={16} /></button>
                 <button onClick={() => setIsOpen(false)} title="Close" aria-label="Close chat helper"><X size={18} /></button>
               </div>
             </div>
 
             {/* Messages */}
             <div className="genie-messages">
-              {historyStatus === 'loading' && messages.length === 0 && (
+              {sessionStorageWarning && <div role="status" className="chat-history-status">{sessionStorageWarning}</div>}
+              {(!recommendationContextReady || !chatSession.bindingReady) && (
+                <div role="status" className="chat-history-status">Verifying your current financial plan before restoring chat history…</div>
+              )}
+              {sessionMatchesProfile && historyStatus === 'loading' && visibleMessages.length === 0 && (
                 <div role="status" className="chat-history-status">Loading saved conversation…</div>
               )}
-              {historyError && (
+              {sessionMatchesProfile && historyError && (
                 <div role="alert" className="chat-error-banner">
                   <span>{historyError}</span>
                   <button type="button" onClick={loadHistory}>Retry loading history</button>
                 </div>
               )}
-              {clearStatus === 'pending' && <div role="status" className="chat-history-status">Clearing saved conversation…</div>}
-              {clearStatus === 'confirmed' && <div role="status" className="chat-history-status">Saved conversation cleared.</div>}
-              {clearStatus === 'storage-warning' && <div role="status" className="chat-history-status">Saved conversation cleared, but the new chat session could not be remembered for the next visit.</div>}
-              {clearStatus === 'failed' && (
+              {sessionMatchesProfile && clearStatus === 'pending' && <div role="status" className="chat-history-status">Clearing saved conversation…</div>}
+              {sessionMatchesProfile && clearStatus === 'checking' && <div role="status" className="chat-history-status">Checking saved conversation status…</div>}
+              {sessionMatchesProfile && clearStatus === 'confirmed' && <div role="status" className="chat-history-status">Saved conversation cleared.</div>}
+              {sessionMatchesProfile && clearStatus === 'storage-warning' && <div role="status" className="chat-history-status">Saved conversation cleared, but the new chat session could not be remembered for the next visit.</div>}
+              {sessionMatchesProfile && clearStatus === 'failed' && (
                 <div role="alert" className="chat-error-banner">
-                  <span>The conversation could not be cleared. Your saved messages are still available.</span>
+                  <span>Saved chat history is still present. Your current messages remain visible; retry clearing when ready.</span>
                   <button type="button" onClick={clearChat}>Retry clear</button>
                 </div>
               )}
-              {messages.length === 0 && !isLoading && historyStatus === 'loaded' && !historyError && (
+              {sessionMatchesProfile && clearStatus === 'unconfirmed' && (
+                <div role="alert" className="chat-error-banner">
+                  <span>We could not confirm whether saved chat history was cleared. Your current messages remain visible here; saved history status is unknown.</span>
+                  <button type="button" onClick={checkClearOutcome} disabled={isClearing}>Check saved history</button>
+                  <button type="button" onClick={clearChat} disabled={isClearing}>Retry clear</button>
+                </div>
+              )}
+              {visibleMessages.length === 0 && !isLoading && historyStatus === 'loaded' && !historyError && sessionMatchesProfile && (
                 <div className="genie-welcome">
                   <div className="genie-welcome-glow" />
                   <div className="genie-welcome-avatar"><div className="welcome-avatar-ring"><span className="ba-letter ba-large">G</span></div></div>
@@ -440,9 +844,9 @@ const GenieChat = ({ profile, onNavigate }) => {
 
               <ProactiveNudge profile={profile} onAsk={sendMessage} />
 
-              {messages.map((msg, i) => <MessageBubble key={i} msg={msg} onAction={handleAction} isLatest={i === messages.length - 1} />)}
+              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg} onAction={handleAction} isLatest={i === visibleMessages.length - 1} />)}
 
-              {isLoading && (
+              {sessionMatchesProfile && isLoading && (
                 <div className="chat-bubble chat-bubble--genie">
                   <div className="bubble-avatar"><span className="ba-letter">G</span></div>
                   <div className="typing-indicator">
@@ -451,12 +855,12 @@ const GenieChat = ({ profile, onNavigate }) => {
                   </div>
                 </div>
               )}
-              {error && <div className="chat-error-banner">{error}</div>}
+              {sessionMatchesProfile && error && <div role="status" className="chat-error-banner">{error}</div>}
               <div ref={chatEndRef} />
             </div>
 
             {/* Follow-up pills */}
-            {messages.length > 0 && !isLoading && lastAssistantMsg?.content?.length > 50 && (
+            {visibleMessages.length > 0 && !isLoading && lastAssistantMsg?.content?.length > 50 && (
               <div className="quick-replies">
                 {pills.map((p, i) => <button key={i} className="quick-chip follow-up" onClick={() => sendMessage(p)}><Sparkles size={12} /> {p}</button>)}
               </div>
@@ -469,8 +873,8 @@ const GenieChat = ({ profile, onNavigate }) => {
                   {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
               )}
-              <input ref={inputRef} type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder={isListening ? 'Listening...' : 'Ask me anything about saving & investing...'} aria-label="Ask Genie a financial question" className="genie-input" maxLength={1000} disabled={isLoading || rateLimit.remaining === 0} />
-              <button className="genie-send-btn" onClick={() => sendMessage()} aria-label="Send message" disabled={isLoading || !input.trim() || rateLimit.remaining === 0}>
+              <input ref={inputRef} type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder={isListening ? 'Listening...' : 'Ask me anything about saving & investing...'} aria-label="Ask Genie a financial question" className="genie-input" maxLength={1000} disabled={isLoading || isClearing || !sessionMatchesProfile || !chatSession.bindingReady || rateLimitBlocked} />
+              <button className="genie-send-btn" onClick={() => sendMessage()} aria-label="Send message" disabled={isLoading || isClearing || !input.trim() || !sessionMatchesProfile || !chatSession.bindingReady || rateLimitBlocked}>
                 {isLoading ? <RefreshCw size={18} className="spin-icon" /> : <Send size={18} />}
               </button>
             </div>

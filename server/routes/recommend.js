@@ -34,6 +34,7 @@ import { persistAdvisoryAtomically } from '../services/advisoryPersistence.js';
 import { resolveStablePostCommitCurrentState } from '../services/advisoryResponse.js';
 import { setCache, delCache } from '../config/redis.js';
 import { verifyAuditChain } from '../services/auditChain.js';
+import { assertRecommendationMarketDistributionAllowed } from '../services/recommendationMarketProvenance.js';
 import { triggerPlanHealthCheck } from '../services/planHealthMonitor.js';
 import { requireFreshRecommendationState, createManualAllocationRevision } from '../services/recommendationState.js';
 import { buildCurrentRecommendationResponse } from '../services/recommendationResponse.js';
@@ -624,6 +625,7 @@ router.get('/audit', verifyJWT, validateQuery(recommendationAuditQuerySchema), a
     AuditRecord.find(query).sort({ timestamp: -1 }).skip(skip).limit(limit).lean(),
     AuditRecord.countDocuments(query),
   ]);
+  records.forEach(assertRecommendationMarketDistributionAllowed);
   res.json({ status: 'success', total, count: records.length, skip, limit, records });
 }));
 
@@ -639,6 +641,7 @@ router.get('/audit/:id', verifyJWT, asyncHandler(async (req, res) => {
   if (record.userId.toString() !== req.user.userId.toString() && req.user.role !== 'admin') {
     throw createError(403, 'Access denied to audit record', 'Access denied.');
   }
+  assertRecommendationMarketDistributionAllowed(record);
   res.json({ status: 'success', record });
 }));
 

@@ -55,6 +55,14 @@ export function buildAmfiHistoryWindow(targetDate) {
   };
 }
 
+export function isQualifiedAmfiNavHistoryUrl(sourceUrl, targetDate) {
+  if (typeof targetDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return false;
+  const target = new Date(`${targetDate}T00:00:00.000Z`);
+  if (!Number.isFinite(target.getTime()) || target.toISOString().slice(0, 10) !== targetDate) return false;
+  const window = buildAmfiHistoryWindow(targetDate);
+  return sourceUrl === `${AMFI_NAV_HISTORY_URL}?frmdt=${window.fromParam}&todt=${window.toParam}`;
+}
+
 function findColumn(headers, aliases, required = true) {
   const index = headers.findIndex(header => aliases.includes(header));
   if (index === -1 && required) throw new Error(`AMFI_HISTORY_SCHEMA_MISMATCH:${aliases[0]}`);

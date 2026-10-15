@@ -8,7 +8,11 @@ import {
   PROJECTION_ASSUMPTION_POLICY_HASH,
   PROJECTION_ASSUMPTION_VERSION,
 } from '../services/instrumentConstants.js';
-import { buildGoalCalculationInputFingerprint, GOAL_CALCULATION_POLICY_VERSION } from '../services/goalCalculationProvenance.js';
+import {
+  buildGoalCalculationInputFingerprint,
+  getGoalProjectionYearsRemaining,
+  GOAL_CALCULATION_POLICY_VERSION,
+} from '../services/goalCalculationProvenance.js';
 
 const profile = {
   version: 1,
@@ -122,6 +126,7 @@ test('goal freshness identifies allocation and source-state changes', () => {
     target_date: new Date('2035-01-01T00:00:00.000Z'),
     current_savings: 100000,
     inflation_assumption: 0.05,
+    years_remaining: getGoalProjectionYearsRemaining(new Date('2035-01-01T00:00:00.000Z')),
     sourceRecommendationId: current.recommendation._id,
     sourceAllocationRevision: 2,
     sourceAllocationRevisionId: current.allocationRevision._id,

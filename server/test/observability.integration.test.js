@@ -29,7 +29,7 @@ async function withServer(fn) {
 }
 
 async function ensureDb() {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
 }
 
 test.after(async () => {

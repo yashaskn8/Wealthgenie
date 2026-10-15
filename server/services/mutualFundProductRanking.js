@@ -1,4 +1,5 @@
 import { AVAILABILITY, FRESHNESS, MARKET_DATA_SCHEMA_VERSION, PROVIDERS } from './marketData/contracts.js';
+import { isQualifiedAmfiNavHistoryUrl } from './marketData/AmfiNavHistoryProvider.js';
 
 export const MUTUAL_FUND_RANKING_VERSION = 'wti-mutual-fund-ranking-2.0.1';
 export const MUTUAL_FUND_RESULT_LIMIT = 5;
@@ -211,7 +212,7 @@ function isQualifiedHistoricalNavFactForProduct(fact, product, schemeCode, snaps
     && fact?.unit === 'NAV_PER_UNIT'
     && fact?.source?.provider === PROVIDERS.AMFI
     && String(fact?.source?.instrumentId ?? '') === schemeCode
-    && isOfficialAmfiUrl(fact?.source?.url)
+    && isQualifiedAmfiNavHistoryUrl(fact?.source?.url, targetDate)
     && /^\d{4}-\d{2}-\d{2}$/.test(targetDate)
     && Number.isFinite(targetTime)
     && Number.isFinite(observedAt)
@@ -276,6 +277,7 @@ function annualizedHistoricalReturn(currentFact, historicalFact) {
     valuePct: Number(valuePct.toFixed(6)),
     basis: HISTORICAL_RETURN_BASIS,
     annualized: true,
+    isExpectedReturn: false,
     startNav,
     startDate: historicalFact.observedAt.slice(0, 10),
     endNav,
@@ -283,8 +285,11 @@ function annualizedHistoricalReturn(currentFact, historicalFact) {
     elapsedDays: Number(elapsedDays.toFixed(2)),
     source: {
       provider: PROVIDERS.AMFI,
+      startInstrumentId: historicalFact.source?.instrumentId ?? null,
+      endInstrumentId: currentFact.source?.instrumentId ?? null,
       startObservationUrl: historicalFact.source?.url ?? null,
       endObservationUrl: currentFact.source?.url ?? null,
+      historyTargetDate: historicalFact.historicalContext?.targetDate ?? null,
     },
   };
 }

@@ -143,23 +143,7 @@ export function reconcileRisk(profileInput) {
   };
 }
 
-function exclusionReason(instrument, profile, finalLevel) {
-  if (!resolveBackendType(instrument)) return 'INSTRUMENT_TYPE_NOT_ESTABLISHED';
-  const risk = getInstrumentRisk(instrument);
-  if (risk === null) return 'RISK_CLASSIFICATION_NOT_ESTABLISHED';
-  if (risk > finalLevel) return 'RISK_EXCEEDS_FINAL_SUITABILITY';
-
-  const expectedReturn = instrument.expectedReturn ?? instrument.dynamicData?.expectedReturn?.avg;
-  if (!isEstablishedNumber(expectedReturn)) return 'RETURN_ASSUMPTION_NOT_ESTABLISHED';
-  const liquidityScore = instrument.liquidityScore ?? instrument.dynamicData?.liquidity?.score;
-  if (!isEstablishedNumber(liquidityScore)
-      || Number(liquidityScore) < 0 || Number(liquidityScore) > 5) return 'LIQUIDITY_CLASSIFICATION_NOT_ESTABLISHED';
-  const expenseRatio = instrument.expenseRatio ?? instrument.dynamicData?.expenseRatio;
-  if (!isEstablishedNumber(expenseRatio)
-      || Number(expenseRatio) < 0 || Number(expenseRatio) > 1) return 'COST_ASSUMPTION_NOT_ESTABLISHED';
-  const goalTags = instrument.goalTags ?? instrument.dynamicData?.goalTags;
-  if (!Array.isArray(goalTags)) return 'GOAL_CLASSIFICATION_NOT_ESTABLISHED';
-
+function eligibilityExclusionReason(instrument, profile) {
   if (!instrument.eligibility || typeof instrument.eligibility !== 'object'
       || Array.isArray(instrument.eligibility)) return 'ELIGIBILITY_NOT_ESTABLISHED';
   const eligibility = instrument.eligibility;
@@ -193,8 +177,29 @@ function exclusionReason(instrument, profile, finalLevel) {
   if (eligibility.hasGirlChild === true) return 'GIRL_CHILD_ELIGIBILITY_NOT_ESTABLISHED';
   if (eligibility.requiresDemat === true) return 'DEMAT_ELIGIBILITY_NOT_ESTABLISHED';
 
-  const minMonthly = Number(eligibility.minMonthlySavings);
-  if (Number.isFinite(minMonthly) && profile.monthlySavings < minMonthly) return 'MINIMUM_INVESTMENT_NOT_MET';
+  if (profile.monthlySavings < Number(eligibility.minMonthlySavings)) return 'MINIMUM_INVESTMENT_NOT_MET';
+  return null;
+}
+
+function exclusionReason(instrument, profile, finalLevel) {
+  if (!resolveBackendType(instrument)) return 'INSTRUMENT_TYPE_NOT_ESTABLISHED';
+  const risk = getInstrumentRisk(instrument);
+  if (risk === null) return 'RISK_CLASSIFICATION_NOT_ESTABLISHED';
+  if (risk > finalLevel) return 'RISK_EXCEEDS_FINAL_SUITABILITY';
+
+  const expectedReturn = instrument.expectedReturn ?? instrument.dynamicData?.expectedReturn?.avg;
+  if (!isEstablishedNumber(expectedReturn)) return 'RETURN_ASSUMPTION_NOT_ESTABLISHED';
+  const liquidityScore = instrument.liquidityScore ?? instrument.dynamicData?.liquidity?.score;
+  if (!isEstablishedNumber(liquidityScore)
+      || Number(liquidityScore) < 0 || Number(liquidityScore) > 5) return 'LIQUIDITY_CLASSIFICATION_NOT_ESTABLISHED';
+  const expenseRatio = instrument.expenseRatio ?? instrument.dynamicData?.expenseRatio;
+  if (!isEstablishedNumber(expenseRatio)
+      || Number(expenseRatio) < 0 || Number(expenseRatio) > 1) return 'COST_ASSUMPTION_NOT_ESTABLISHED';
+  const goalTags = instrument.goalTags ?? instrument.dynamicData?.goalTags;
+  if (!Array.isArray(goalTags)) return 'GOAL_CLASSIFICATION_NOT_ESTABLISHED';
+
+  const eligibilityReasonCode = eligibilityExclusionReason(instrument, profile);
+  if (eligibilityReasonCode) return eligibilityReasonCode;
 
   const minimumHorizonRaw = instrument.idealHorizon?.min ?? instrument.dynamicData?.idealHorizon?.min;
   const maximumHorizonRaw = instrument.idealHorizon?.max ?? instrument.dynamicData?.idealHorizon?.max;
@@ -755,26 +760,34 @@ export function assertPortfolioSuitable(profileInput, instruments) {
   const violations = [];
   for (const input of instruments || []) {
     const exactCatalog = investmentDatabase.find(instrument => instrument.id === input);
+    const mappedCatalogEntries = investmentDatabase.filter(instrument => resolveBackendType(instrument) === input);
+    const mappedCatalog = mappedCatalogEntries[0] || null;
     if (exactCatalog) {
       const reasonCode = exclusionReason(exactCatalog, canonical, suitability.finalLevel);
       if (reasonCode) violations.push({ instrument: input, reasonCode });
       continue;
     }
-    const mappedCatalog = investmentDatabase.find(instrument => resolveBackendType(instrument) === input);
+    const modelParams = INSTRUMENT_PARAMS[input];
+    if (modelParams) {
+      // A unique model-key mapping is still a specific catalog product. Preserve
+      // its explicit age, contribution, child, and account-eligibility gates
+      // before applying the generic model risk and lock-in checks.
+      if (mappedCatalogEntries.length === 1) {
+        const eligibilityReasonCode = eligibilityExclusionReason(mappedCatalog, canonical);
+        if (eligibilityReasonCode) violations.push({ instrument: input, reasonCode: eligibilityReasonCode });
+      }
+      const risk = getInstrumentRisk(modelParams);
+      if (risk === null) violations.push({ instrument: input, reasonCode: 'RISK_CLASSIFICATION_NOT_ESTABLISHED' });
+      else if (risk > suitability.finalLevel) violations.push({ instrument: input, reasonCode: 'RISK_EXCEEDS_FINAL_SUITABILITY' });
+      else if (!Number.isFinite(modelParams.lockIn)) violations.push({ instrument: input, reasonCode: 'LOCK_IN_NOT_ESTABLISHED' });
+      else if (modelParams.lockIn > canonical.investmentHorizonYears) violations.push({ instrument: input, reasonCode: 'LOCK_IN_EXCEEDS_HORIZON' });
+      continue;
+    }
     if (mappedCatalog) {
       const reasonCode = exclusionReason(mappedCatalog, canonical, suitability.finalLevel);
       if (reasonCode) violations.push({ instrument: input, reasonCode });
     } else {
-      const params = INSTRUMENT_PARAMS[input];
-      if (!params) {
-        violations.push({ instrument: input, reasonCode: 'CATALOG_INSTRUMENT_NOT_ESTABLISHED' });
-        continue;
-      }
-      const risk = getInstrumentRisk(params);
-      if (risk === null) violations.push({ instrument: input, reasonCode: 'RISK_CLASSIFICATION_NOT_ESTABLISHED' });
-      else if (risk > suitability.finalLevel) violations.push({ instrument: input, reasonCode: 'RISK_EXCEEDS_FINAL_SUITABILITY' });
-      else if (!Number.isFinite(params.lockIn)) violations.push({ instrument: input, reasonCode: 'LOCK_IN_NOT_ESTABLISHED' });
-      else if (params.lockIn > canonical.investmentHorizonYears) violations.push({ instrument: input, reasonCode: 'LOCK_IN_EXCEEDS_HORIZON' });
+      violations.push({ instrument: input, reasonCode: 'CATALOG_INSTRUMENT_NOT_ESTABLISHED' });
     }
   }
   if (violations.length) {

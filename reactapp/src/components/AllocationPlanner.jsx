@@ -115,12 +115,170 @@ const PLAN_REVIEW_STAGES = [
   'Preparing a grounded review',
 ];
 
+const PLAN_REVIEW_POLL_INTERVAL_MS = 2000;
+const PLAN_REVIEW_POLL_MAX_DURATION_MS = 2 * 60 * 1000;
+const PLAN_REVIEW_POLL_MAX_CONSECUTIVE_ERRORS = 4;
+const PLAN_REVIEW_POLL_REQUEST_TIMEOUT_MS = 10000;
+const PLAN_REVIEW_RUN_STATUSES = new Set([
+  'QUEUED', 'RUNNING', 'WAITING_FOR_APPROVAL', 'COMPLETED',
+  'FAILED', 'CANCELLED', 'SUPERSEDED', 'BUDGET_EXCEEDED', 'FEATURE_UNAVAILABLE',
+]);
+const PLAN_REVIEW_RUN_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PLAN_REVIEW_ACTIONS = new Set([
+  'NONE', 'REVIEW_PROFILE', 'RECOMPUTE_PLAN', 'REVIEW_GOALS', 'INSUFFICIENT_EVIDENCE',
+]);
+
+function planReviewFeatureIsDisabled(error) {
+  return error?.code === 'FEATURE_UNAVAILABLE';
+}
+
+function planReviewAuthNeedsAttention(error) {
+  return error?.status === 401 || error?.status === 403;
+}
+
+function isPlanReviewRunEnvelope(run) {
+  return run !== null
+    && typeof run === 'object'
+    && !Array.isArray(run)
+    && typeof run.runId === 'string'
+    && PLAN_REVIEW_RUN_ID_PATTERN.test(run.runId)
+    && PLAN_REVIEW_RUN_STATUSES.has(run.status)
+    && (run.recommendedAction == null || PLAN_REVIEW_ACTIONS.has(run.recommendedAction))
+    && typeof run.currentStateMatch === 'boolean';
+}
+
+function isBoundedEvidenceValue(value, depth = 0, budget = { nodes: 0 }) {
+  budget.nodes += 1;
+  if (budget.nodes > 512 || depth > 8) return false;
+  if (value === null || typeof value === 'boolean') return true;
+  if (typeof value === 'string') return value.length <= 4096;
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (Array.isArray(value)) {
+    return value.length <= 100
+      && value.every(item => isBoundedEvidenceValue(item, depth + 1, budget));
+  }
+  if (typeof value !== 'object') return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  const keys = Object.keys(value);
+  return keys.length <= 64 && keys.every(key => key.length <= 128
+    && isBoundedEvidenceValue(value[key], depth + 1, budget));
+}
+
+function isOptionalBoundedText(record, key, maxLength) {
+  return !Object.prototype.hasOwnProperty.call(record, key)
+    || record[key] === null
+    || (typeof record[key] === 'string' && record[key].length <= maxLength);
+}
+
+function isSafeEvidenceSource(source) {
+  if (source === null) return true;
+  if (!source || typeof source !== 'object' || Array.isArray(source)
+      || !isBoundedEvidenceValue(source)
+      || !isOptionalBoundedText(source, 'provider', 200)
+      || !isOptionalBoundedText(source, 'publicationDate', 80)
+      || !isOptionalBoundedText(source, 'instrumentId', 128)) return false;
+  if (Object.prototype.hasOwnProperty.call(source, 'url') && source.url !== null) {
+    if (typeof source.url !== 'string' || source.url.length > 2048) return false;
+    try {
+      const url = new URL(source.url);
+      if (!['http:', 'https:'].includes(url.protocol)) return false;
+    } catch {
+      return false;
+    }
+  }
+  if (typeof source.publicationDate === 'string' && !Number.isFinite(Date.parse(source.publicationDate))) return false;
+  return true;
+}
+
+function planReviewResult(run) {
+  const result = run && Object.prototype.hasOwnProperty.call(run, 'result') ? run.result : run;
+  const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const evidenceIdPattern = /^E_[A-Z0-9_:-]+$/;
+  const entries = result?.evidence?.entries;
+  const entryIds = new Set(Array.isArray(entries)
+    ? entries.filter(entry => isRecord(entry) && typeof entry.id === 'string').map(entry => entry.id)
+    : []);
+  const isEvidenceId = id => typeof id === 'string' && evidenceIdPattern.test(id);
+  const citesReturnedEvidence = id => isEvidenceId(id) && entryIds.has(id);
+  const validEvidenceEntry = entry => isRecord(entry)
+    && isEvidenceId(entry.id)
+    && isBoundedEvidenceValue(entry)
+    && isOptionalBoundedText(entry, 'kind', 80)
+    && isOptionalBoundedText(entry, 'dataClass', 120)
+    && isOptionalBoundedText(entry, 'displayValue', 4096)
+    && isOptionalBoundedText(entry, 'authority', 120)
+    && (!Object.prototype.hasOwnProperty.call(entry, 'source') || entry.source === null
+      || isSafeEvidenceSource(entry.source))
+    && (!String(entry.id).startsWith('E_RESEARCH_')
+      || (entry.value === null || isRecord(entry.value))
+        && (!isRecord(entry.value)
+          || (isOptionalBoundedText(entry.value, 'supportStatus', 80)
+            && isOptionalBoundedText(entry.value, 'claimId', 120))))
+    && (!Object.prototype.hasOwnProperty.call(entry, 'observedAt') || entry.observedAt === null
+      || (typeof entry.observedAt === 'string' && entry.observedAt.length <= 80
+        && Number.isFinite(Date.parse(entry.observedAt))));
+  const validUnavailableFact = fact => typeof fact === 'string'
+    && /^[A-Z][A-Z0-9_:-]{1,119}$/.test(fact);
+  const validFinding = finding => isRecord(finding)
+    && typeof finding.code === 'string'
+    && /^[A-Z0-9_]{2,80}$/.test(finding.code)
+    && ['INFO', 'ATTENTION', 'BLOCKED'].includes(finding.severity)
+    && typeof finding.title === 'string' && finding.title.trim().length > 0
+    && typeof finding.detail === 'string' && finding.detail.trim().length > 0
+    && Array.isArray(finding.evidenceIds)
+    && finding.evidenceIds.every(citesReturnedEvidence);
+
+  if (!isRecord(result)
+      || (isRecord(run) && Object.prototype.hasOwnProperty.call(run, 'result')
+        && (run.runId !== result.runId || run.recommendedAction !== result.recommendedAction))
+      || (isRecord(run) && Object.prototype.hasOwnProperty.call(run, 'result')
+        && run.status === 'WAITING_FOR_APPROVAL' && result.recommendedAction !== 'RECOMPUTE_PLAN')
+      || (isRecord(run) && Object.prototype.hasOwnProperty.call(run, 'result')
+        && run.status === 'COMPLETED' && result.recommendedAction === 'RECOMPUTE_PLAN')
+      || !['plan-review-1.0.0', 'plan-review-1.1.0'].includes(result.version)
+      || typeof result.runId !== 'string'
+      || !PLAN_REVIEW_RUN_ID_PATTERN.test(result.runId)
+      || result.status !== 'COMPLETED'
+      || !PLAN_REVIEW_ACTIONS.has(result.recommendedAction)
+      || typeof result.summary !== 'string' || result.summary.trim().length === 0
+      || !Array.isArray(result.findings) || !result.findings.every(validFinding)
+      || !isRecord(result.freshness) || typeof result.freshness.fresh !== 'boolean'
+      || !Array.isArray(result.freshness.reasonCodes)
+      || !result.freshness.reasonCodes.every(code => typeof code === 'string' && /^[A-Z0-9_]{2,100}$/.test(code))
+      || !isRecord(result.goals) || !['AVAILABLE', 'NONE', 'UNAVAILABLE'].includes(result.goals.status)
+      || !Array.isArray(result.goals.items)
+      || !isRecord(result.evidence) || !['AVAILABLE', 'UNAVAILABLE'].includes(result.evidence.status)
+      || !Array.isArray(entries) || entries.length > 40
+      || !entries.every(validEvidenceEntry)
+      || entryIds.size !== entries.length
+      || (result.version === 'plan-review-1.1.0'
+        && result.evidence.status === 'AVAILABLE' && entries.length === 0)
+      || !Array.isArray(result.evidence.unavailableFacts)
+      || result.evidence.unavailableFacts.length > 20
+      || !result.evidence.unavailableFacts.every(validUnavailableFact)
+      || (result.evidence.status === 'UNAVAILABLE'
+        && (result.evidence.unavailableFacts.length === 0
+          || result.evidence.unavailableFacts.length > 20))
+      || !isRecord(result.provider) || typeof result.provider.name !== 'string'
+      || !(result.provider.model === null || typeof result.provider.model === 'string')
+      || typeof result.provider.fallback !== 'boolean'
+      || (result.financialClaims !== undefined
+        && (!Array.isArray(result.financialClaims)
+          || result.financialClaims.length > 40
+          || !result.financialClaims.every(claim => isRecord(claim) && citesReturnedEvidence(claim.evidenceId))))) return null;
+
+  return result;
+}
+
 const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePlan }) => {
   const prefersReducedMotion = useReducedMotion();
   const [status, setStatus] = useState('idle');
   const [run, setRun] = useState(null);
   const [review, setReview] = useState(null);
   const [error, setError] = useState(null);
+  const [errorRetryAction, setErrorRetryAction] = useState(null);
+  const [lookupAttempt, setLookupAttempt] = useState(0);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const reviewRequestSequence = useRef(0);
   const bindingKey = `${profileId || ''}:${financialStateKey || ''}`;
@@ -130,6 +288,7 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
   const visibleRun = bindingIsCurrent ? run : null;
   const visibleReview = bindingIsCurrent ? review : null;
   const visibleError = bindingIsCurrent ? error : null;
+  const visibleErrorRetryAction = bindingIsCurrent ? errorRetryAction : null;
 
   useLayoutEffect(() => {
     reviewRequestSequence.current += 1;
@@ -138,67 +297,165 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
   useEffect(() => {
     if (!profileId) return undefined;
     let cancelled = false;
+    const requestId = ++reviewRequestSequence.current;
     api.getCurrentPlanReviewRun(profileId, { timeoutMs: 1500 }).then(current => {
-      if (cancelled || !current) return;
+      if (cancelled || requestId !== reviewRequestSequence.current) return;
       setStateBindingKey(bindingKey);
-      if (current.currentStateMatch !== true || current.status === 'SUPERSEDED') {
+      if (!isPlanReviewRunEnvelope(current)) {
+        setStatus('error');
+        setError('We could not verify the existing plan review status. Check the status again before starting another review.');
+        setErrorRetryAction('lookup');
+        return;
+      }
+      if (current.currentStateMatch === false || current.status === 'SUPERSEDED') {
         setStatus('error');
         setError('This plan review no longer matches your current saved plan. Run it again.');
+        setErrorRetryAction('run');
         return;
       }
       setRun(current);
-      if (current.result) setReview(current.result);
-      if (current.status === 'COMPLETED' || current.status === 'WAITING_FOR_APPROVAL') setStatus('completed');
+      const result = planReviewResult(current);
+      if (result) setReview(result);
+      if (current.status === 'COMPLETED' || current.status === 'WAITING_FOR_APPROVAL') {
+        if (!result) {
+          setStatus('error');
+          setError('The run reported completion, but its review result and evidence are unavailable. We cannot confirm that the review is ready.');
+          setErrorRetryAction(current.runId ? 'poll' : 'lookup');
+          return;
+        }
+        setStatus('completed');
+      }
       else if (['QUEUED', 'RUNNING'].includes(current.status)) setStatus('running');
-      else if (['FAILED', 'CANCELLED', 'BUDGET_EXCEEDED', 'SUPERSEDED'].includes(current.status)) {
+      else if (current.status === 'FEATURE_UNAVAILABLE') {
         setStatus('error');
+        setError('This saved plan review is unavailable in this environment. Your plan was not changed.');
+        setErrorRetryAction(null);
+      } else if (['FAILED', 'CANCELLED', 'BUDGET_EXCEEDED', 'SUPERSEDED'].includes(current.status)) {
+        setStatus('error');
+        setErrorRetryAction('run');
         setError(current.status === 'SUPERSEDED'
           ? 'This plan review no longer matches your current saved plan. Run it again.'
           : current.status === 'CANCELLED'
             ? 'This plan review was cancelled.'
             : current.failure?.message || 'The plan review did not complete.');
       }
-    }).catch(() => {
-      // A missing run is the normal initial state; it is not a panel error.
+    }).catch(error => {
+      if (cancelled || requestId !== reviewRequestSequence.current) return;
+      setStateBindingKey(bindingKey);
+      if (planReviewFeatureIsDisabled(error)) {
+        setStatus('error');
+        setError('Plan Review is disabled in this environment. Your plan was not changed.');
+        setErrorRetryAction(null);
+      } else if (error?.status === 404 && error?.code === 'PLAN_REVIEW_RUN_NOT_FOUND') {
+        setStatus('idle');
+        setError(null);
+        setErrorRetryAction(null);
+      } else {
+        setStatus('error');
+        setError(error?.message || 'We could not check for an existing plan review. Retry the status check.');
+        setErrorRetryAction(planReviewAuthNeedsAttention(error) ? null : 'lookup');
+      }
     });
     return () => { cancelled = true; };
-  }, [profileId, financialStateKey, bindingKey]);
+  }, [profileId, financialStateKey, bindingKey, lookupAttempt]);
 
   useEffect(() => {
     if (!visibleRun?.runId || visibleStatus !== 'running') return undefined;
     let cancelled = false;
-    const poll = async () => {
+    let timer = null;
+    let consecutiveErrors = 0;
+    const pollStartedAt = Date.now();
+    const stopChecking = message => {
+      if (cancelled) return;
+      setStatus('error');
+      setError(message);
+      setErrorRetryAction('poll');
+    };
+    const schedulePoll = delay => {
+      timer = window.setTimeout(() => { void poll(); }, delay);
+    };
+    async function poll() {
+      if (cancelled) return;
+      if (Date.now() - pollStartedAt >= PLAN_REVIEW_POLL_MAX_DURATION_MS) {
+        stopChecking('The review may still be queued or running. Status checks paused after two minutes; the durable review was not cancelled. You can check its status again.');
+        return;
+      }
       try {
-        const current = await api.getPlanReviewRun(visibleRun.runId);
+        const current = await api.getPlanReviewRun(visibleRun.runId, { timeoutMs: PLAN_REVIEW_POLL_REQUEST_TIMEOUT_MS });
         if (cancelled) return;
-        if (current.currentStateMatch !== true || current.status === 'SUPERSEDED') {
+        consecutiveErrors = 0;
+        if (!isPlanReviewRunEnvelope(current)) {
+          setStatus('error');
+          setError('We could not verify this plan review status. Check the status again before relying on its result.');
+          setErrorRetryAction('poll');
+          return;
+        }
+        if (current.currentStateMatch === false || current.status === 'SUPERSEDED') {
           setRun(null);
           setReview(null);
           setStatus('error');
           setError('Your saved plan changed while this review was running. Run it again.');
+          setErrorRetryAction('run');
           return;
         }
         setRun(current);
-        if (current.result) setReview(current.result);
+        const result = planReviewResult(current);
+        if (result) setReview(result);
         if (current.status === 'COMPLETED' || current.status === 'WAITING_FOR_APPROVAL') {
+          if (!result) {
+            setStatus('error');
+            setError('The run reported completion, but its review result and evidence are unavailable. We cannot confirm that the review is ready.');
+            setErrorRetryAction('poll');
+            return;
+          }
           setStatus('completed');
+          setErrorRetryAction(null);
           toast.success('Plan review ready', { description: 'No plan changes were made.' });
+        } else if (current.status === 'FEATURE_UNAVAILABLE') {
+          setStatus('error');
+          setError('This plan review is unavailable in this environment. The durable review was not cancelled.');
+          setErrorRetryAction(null);
         } else if (['FAILED', 'CANCELLED', 'BUDGET_EXCEEDED', 'SUPERSEDED'].includes(current.status)) {
           setStatus('error');
+          setErrorRetryAction('run');
           setError(current.status === 'SUPERSEDED'
             ? 'Your saved plan changed while this review was running. Run it again.'
             : current.failure?.message || 'The plan review did not complete.');
+        } else if (Date.now() - pollStartedAt >= PLAN_REVIEW_POLL_MAX_DURATION_MS) {
+          stopChecking('The review may still be queued or running. Status checks paused after two minutes; the durable review was not cancelled. You can check its status again.');
+        } else {
+          schedulePoll(PLAN_REVIEW_POLL_INTERVAL_MS);
         }
       } catch (err) {
-        if (!cancelled && err?.status && err.status >= 400 && err.status < 500) {
+        if (cancelled) return;
+        if (planReviewFeatureIsDisabled(err)) {
           setStatus('error');
-          setError(err.message || 'Plan review is unavailable.');
+          setError('Plan Review is disabled in this environment. The durable review, if any, was not cancelled.');
+          setErrorRetryAction(null);
+        } else if (planReviewAuthNeedsAttention(err)) {
+          setStatus('error');
+          setError(err.message || 'Sign in again to check this plan review. The review was not cancelled.');
+          setErrorRetryAction(null);
+        } else if (err?.status === 404) {
+          setStatus('error');
+          setError(err.message || 'This review status is no longer available. Its execution state could not be confirmed.');
+          setErrorRetryAction(null);
+        } else {
+          consecutiveErrors += 1;
+          if (consecutiveErrors >= PLAN_REVIEW_POLL_MAX_CONSECUTIVE_ERRORS
+              || Date.now() - pollStartedAt >= PLAN_REVIEW_POLL_MAX_DURATION_MS) {
+            stopChecking('The review may still be queued or running. Status checks paused after repeated connection failures; the durable review was not cancelled. You can check its status again.');
+          } else {
+            schedulePoll(Math.min(1000 * (2 ** (consecutiveErrors - 1)), 8000));
+          }
         }
       }
-    };
+    }
     void poll();
-    const timer = window.setInterval(poll, 1000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
   }, [visibleRun?.runId, visibleStatus]);
 
   const runReview = async () => {
@@ -209,33 +466,76 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
     setRun(null);
     setReview(null);
     setError(null);
+    setErrorRetryAction(null);
     try {
       const queued = await api.runPlanReview(profileId);
       if (requestId !== reviewRequestSequence.current) return;
-      if (queued.currentStateMatch !== true || queued.status === 'SUPERSEDED') {
+      if (!isPlanReviewRunEnvelope(queued)) {
+        setRun(null);
+        setReview(null);
+        setStatus('error');
+        setError('We could not verify whether the plan review was queued. Check for an existing review before trying again.');
+        setErrorRetryAction('lookup');
+        return;
+      }
+      if (queued.currentStateMatch === false || queued.status === 'SUPERSEDED') {
         setRun(null);
         setReview(null);
         setStatus('error');
         setError('Your saved plan changed before the review could be bound. Refresh your recommendation and try again.');
         return;
       }
+      if (queued.status === 'FEATURE_UNAVAILABLE') {
+        setRun(queued);
+        setReview(null);
+        setStatus('error');
+        setError('This plan review is unavailable in this environment. Your plan was not changed.');
+        setErrorRetryAction(null);
+        return;
+      }
       setRun(queued);
-      if (queued.result) setReview(queued.result);
+      const result = planReviewResult(queued);
+      if (result) setReview(result);
       if (queued.status === 'COMPLETED' && queued.recommendedAction === 'RECOMPUTE_PLAN') {
         setStatus('error');
         setError('The review recommended a recompute but is not awaiting authorization. Refresh the review before continuing.');
         return;
       }
       if (queued.status === 'COMPLETED' || queued.status === 'WAITING_FOR_APPROVAL') {
-        setReview(queued.result || queued);
+        if (!result) {
+          setStatus('error');
+          setError('The run reported completion, but its review result and evidence are unavailable. We cannot confirm that the review is ready.');
+          setErrorRetryAction(queued.runId ? 'poll' : 'lookup');
+          return;
+        }
         setStatus('completed');
         toast.success('Plan review ready', { description: 'No plan changes were made.' });
       }
     } catch (err) {
       if (requestId !== reviewRequestSequence.current) return;
       setStatus('error');
-      setError(err?.message || 'Plan review is temporarily unavailable.');
+      setError(planReviewFeatureIsDisabled(err)
+        ? 'Plan Review is disabled in this environment. Your plan was not changed.'
+        : err?.message || 'Plan review is temporarily unavailable.');
+      // A timed-out POST may already have created a durable run. Check for that
+      // run before offering another POST, which could enqueue duplicate work.
+      setErrorRetryAction(planReviewFeatureIsDisabled(err) || planReviewAuthNeedsAttention(err) ? null : 'lookup');
       toast.error('Plan review unavailable', { description: err?.message || 'Try again later.' });
+    }
+  };
+
+  const retryPlanReviewAction = () => {
+    if (visibleErrorRetryAction === 'lookup') {
+      setError(null);
+      setErrorRetryAction(null);
+      setStatus('idle');
+      setLookupAttempt(attempt => attempt + 1);
+    } else if (visibleErrorRetryAction === 'poll') {
+      setError(null);
+      setErrorRetryAction(null);
+      setStatus('running');
+    } else if (visibleErrorRetryAction === 'run') {
+      void runReview();
     }
   };
 
@@ -274,16 +574,26 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
           </button>
         )}
         {visibleStatus === 'running' && (
-          <div className="ap-review-progress" role="status" aria-live="polite">
-            <div className="ap-review-progress-label"><LoaderCircle className="ap-spin" size={17} aria-hidden="true" /><span>{progressLabel}…</span><strong>{progressPercent}%</strong></div>
-            <div className="ap-review-progress-track"><span style={{ width: `${progressPercent}%` }} /></div>
-          </div>
+          visibleRun?.status === 'QUEUED' ? (
+            <div className="ap-review-progress" role="status" aria-live="polite">
+              <div className="ap-review-progress-label"><span>Queued, waiting for the review to start.</span></div>
+            </div>
+          ) : (
+            <div className="ap-review-progress" role="status" aria-live="polite">
+              <div className="ap-review-progress-label"><LoaderCircle className="ap-spin" size={17} aria-hidden="true" /><span>{progressLabel}…</span><strong>{progressPercent}%</strong></div>
+              <div className="ap-review-progress-track"><span style={{ width: `${progressPercent}%` }} /></div>
+            </div>
+          )
         )}
         {visibleStatus === 'error' && (
           <div className="ap-review-result ap-review-error" role="alert">
             <AlertTriangle size={17} aria-hidden="true" />
             <span>{visibleError}</span>
-            <button type="button" className="ap-review-link-button" onClick={runReview}>Try again</button>
+            {visibleErrorRetryAction && (
+              <button type="button" className="ap-review-link-button" onClick={retryPlanReviewAction}>
+                {visibleErrorRetryAction === 'lookup' ? 'Retry status check' : visibleErrorRetryAction === 'poll' ? 'Check status' : 'Try again'}
+              </button>
+            )}
           </div>
         )}
         {visibleStatus === 'completed' && visibleReview && (
@@ -371,16 +681,16 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
         themeColor: grad.primary,
         glowColor: grad.glow,
       };
-    })
-    .filter(item => item.monthlyAmount > 0), [recommendations]);
+    }), [recommendations]);
 
   const blendedReturn = toOptionalNumber(recommendationMeta?.portfolio_return_assumption);
+  const activeAllocation = useMemo(() => allocation.filter(item => item.allocationWeight > 0), [allocation]);
   const allocatedMonthlyTotal = allocation.reduce((sum, item) => sum + item.monthlyAmount, 0);
   const allocationPctTotal = allocation.reduce((sum, item) => sum + item.allocationPct, 0);
 
   const categoryBreakdown = useMemo(() => {
     const groups = {};
-    for (const item of allocation) {
+    for (const item of activeAllocation) {
       const groupKey = String(item.cat || 'Other').trim().toLowerCase();
       const groupLabel = formatSubtype(item.cat) || 'Other';
       const groupColor = item.themeColor || '#38bdf8';
@@ -400,7 +710,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
       groups[groupKey].count += 1;
     }
     return Object.values(groups).sort((a, b) => b.pct - a.pct);
-  }, [allocation]);
+  }, [activeAllocation]);
 
   const rationaleText = recommendationMeta?.advisory_text
     || (['PENDING', 'GENERATING'].includes(recommendationMeta?.advisory_explanation?.status)
@@ -410,7 +720,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
     .split(/\n+|(?<=[.!?])\s+/)
     .map(item => item.trim())
     .filter(Boolean), [rationaleText]);
-  const assetClassCount = new Set(allocation.map(item => item.cat)).size;
+  const assetClassCount = new Set(activeAllocation.map(item => item.cat)).size;
   const horizonYears = Number(profile?.investment_horizon_years);
   const goals = Array.isArray(profile?.investment_goals) ? profile.investment_goals.filter(Boolean) : [];
   const isLoading = recommendationMeta?.loading === true || recommendationMeta?.status === 'LOADING';
@@ -452,7 +762,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
     );
   }
 
-  if (savings === undefined || savings <= 0 || allocation.length === 0) {
+  if (savings === undefined || savings <= 0 || activeAllocation.length === 0) {
     return (
       <Tooltip.Provider delayDuration={220} skipDelayDuration={120}>
         <motion.div className="ap-page ap-state-page" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
@@ -491,7 +801,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
               <strong>{formatCurrency(savings)}</strong>
               <span className="ap-metric-help">Your current monthly savings</span>
             </div>
-            <div className="ap-summary-metric"><span className="ap-metric-label">Investments</span><strong>{allocation.length}</strong><span className="ap-metric-help">Across your plan</span></div>
+            <div className="ap-summary-metric"><span className="ap-metric-label">Investments</span><strong>{activeAllocation.length}</strong><span className="ap-metric-help">With a positive monthly allocation</span></div>
             <div className="ap-summary-metric"><span className="ap-metric-label">Allocation share</span><strong>{isPresentFiniteNumber(allocationPctTotal) ? `${allocationPctTotal.toFixed(1)}%` : 'Unavailable'}</strong><span className="ap-metric-help">From the backend recommendation</span></div>
             <div className="ap-summary-metric"><span className="ap-metric-label">Risk profile</span><strong>{riskLabel}</strong><span className="ap-metric-help">Suitability context</span></div>
           </div>
@@ -621,7 +931,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
                 </div>
                 <strong>{formatCurrency(allocatedMonthlyTotal)}</strong>
                 <div className="ap-stat-lead-sub">
-                  <span>Allocated across <strong>{allocation.length} investment{allocation.length === 1 ? '' : 's'}</strong> in <strong>{categoryBreakdown.length} asset {categoryBreakdown.length === 1 ? 'class' : 'classes'}</strong></span>
+                  <span>Allocated across <strong>{activeAllocation.length} investment{activeAllocation.length === 1 ? '' : 's'}</strong> in <strong>{categoryBreakdown.length} asset {categoryBreakdown.length === 1 ? 'class' : 'classes'}</strong></span>
                 </div>
               </div>
 

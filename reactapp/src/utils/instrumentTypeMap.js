@@ -49,6 +49,11 @@ export const OPTIMISABLE_BACKEND_KEYS = new Set([
   'Midcap_MF', 'Smallcap_MF', 'SCSS', 'SSY',
 ]);
 
+// Keep optimizer support aligned with server/services/portfolioEngine.js
+// ASSET_KEYS and COVARIANCE_ALIAS. SCSS and SSY are explicit optimizer aliases;
+// Monte Carlo can still report them unavailable because it requires ASSET_KEYS.
+export const PORTFOLIO_OPTIMIZER_SUPPORTED_KEYS = new Set(OPTIMISABLE_BACKEND_KEYS);
+
 export function backendToLocalInstrument(type) {
   if (!type) return null;
   return BACKEND_TO_LOCAL_MAP[type] || null;

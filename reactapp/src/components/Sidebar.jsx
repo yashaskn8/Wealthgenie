@@ -70,6 +70,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = false }
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const moreButtonRef = useRef(null);
@@ -81,6 +82,10 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = false }
     setIsLoggingOut(true);
     try {
       await onLogout();
+      setLogoutError('');
+    } catch {
+      setCollapsed(false);
+      setLogoutError('Sign-out could not be confirmed. Your session may still be active. Retry sign-out to verify.');
     } finally {
       setIsLoggingOut(false);
     }
@@ -394,6 +399,14 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = false }
               )}
             </button>
           )}
+          {logoutError && (
+            <div className="sidebar-logout-feedback" role="alert">
+              <p>{logoutError}</p>
+              <button type="button" onClick={handleLogout} disabled={isLoggingOut}>
+                {isLoggingOut ? 'Retrying…' : 'Retry sign-out'}
+              </button>
+            </div>
+          )}
 
           {!collapsed && (
             <div className="sidebar-powered">
@@ -516,15 +529,20 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = false }
                 <button
                   type="button"
                   className="mobile-drawer-btn mobile-drawer-btn--logout"
-                  onClick={() => {
-                    closeMobileDrawer();
-                    handleLogout();
-                  }}
+                  onClick={handleLogout}
                   disabled={isLoggingOut}
                 >
                   <LogOut size={18} color="#f43f5e" />
                   <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
                 </button>
+              )}
+              {logoutError && (
+                <div className="sidebar-logout-feedback" role="alert">
+                  <p>{logoutError}</p>
+                  <button type="button" onClick={handleLogout} disabled={isLoggingOut}>
+                    {isLoggingOut ? 'Retrying…' : 'Retry sign-out'}
+                  </button>
+                </div>
               )}
             </div>
           </div>

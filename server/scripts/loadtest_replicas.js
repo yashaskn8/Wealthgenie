@@ -22,8 +22,8 @@ function createBenchmarkApp() {
     res.json({ status: 'ok', pid: process.pid });
   });
 
-  app.get('/api/tax/compare', (req, res) => {
-    const requestedIncome = Number(req.query.income);
+  app.post('/api/tax/compare', (req, res) => {
+    const requestedIncome = Number(req.body.income);
     const income = Number.isFinite(requestedIncome) && requestedIncome >= 0 ? requestedIncome : 1500000;
     const comparison = compareTaxRegimes(
       income,
@@ -41,11 +41,14 @@ function createBenchmarkApp() {
   return app;
 }
 
-async function runAutocannon(url, connections = 50, duration = 10) {
+async function runAutocannon(url, connections = 50, duration = 10, body) {
   return new Promise((resolve, reject) => {
     autocannon(
       {
         url,
+        method: body ? 'POST' : 'GET',
+        headers: body ? { 'content-type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
         connections,
         duration,
         pipelining: 1,
@@ -71,7 +74,8 @@ async function runBenchmarkSuite() {
 
   console.log('  Running 10s load test (50 connections) on 1 replica...');
   const res1_health = await runAutocannon('http://127.0.0.1:5051/health', 50, 10);
-  const res1_compute = await runAutocannon('http://127.0.0.1:5051/api/tax/compare?income=1500000', 50, 10);
+  const taxRequest = { income: 1500000 };
+  const res1_compute = await runAutocannon('http://127.0.0.1:5051/api/tax/compare', 50, 10, taxRequest);
   await new Promise(r => server1.close(r));
 
   console.log(`  1-Replica Health:  ${res1_health.requests.average.toFixed(1)} req/s, p50=${res1_health.latency.p50}ms, p99=${res1_health.latency.p99}ms`);
@@ -91,8 +95,8 @@ import { compareTaxRegimes } from '../services/taxEngine.js';
 const app = express();
 app.use(express.json());
 app.get('/health', (req, res) => res.json({ status: 'ok', pid: process.pid }));
-app.get('/api/tax/compare', (req, res) => {
-  const requestedIncome = Number(req.query.income);
+app.post('/api/tax/compare', (req, res) => {
+  const requestedIncome = Number(req.body.income);
   const income = Number.isFinite(requestedIncome) && requestedIncome >= 0 ? requestedIncome : 1500000;
   const comparison = compareTaxRegimes(
     income,
@@ -136,7 +140,7 @@ http.createServer(app).listen(port, () => console.log('Worker listening on ' + p
 
   console.log('  Running 10s load test (50 connections) across 2 load-balanced replicas...');
   const res2_health = await runAutocannon('http://127.0.0.1:5054/health', 50, 10);
-  const res2_compute = await runAutocannon('http://127.0.0.1:5054/api/tax/compare?income=1500000', 50, 10);
+  const res2_compute = await runAutocannon('http://127.0.0.1:5054/api/tax/compare', 50, 10, taxRequest);
 
   // Clean up
   await new Promise(r => proxyServer.close(r));

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
+import User from '../models/User.js';
 import authRoutes from '../routes/auth.js';
 import { verifyJWT } from '../middleware/authMiddleware.js';
 import { errorHandler } from '../middleware/errorHandler.js';
@@ -11,9 +13,21 @@ import { assertRuntimeResponseMatchesContract } from './helpers/openapiRuntimeCo
 
 process.env.JWT_SECRET = 'logout-integration-test-secret';
 process.env.NODE_ENV = 'test';
+const originalFindById = User.findById;
+const originalConnectionReadyState = mongoose.connection.readyState;
+
+test.beforeEach(() => {
+  mongoose.connection.readyState = 1;
+  User.findById = () => ({
+    select() { return this; },
+    lean: async () => ({ role: 'user', name: 'Test User', email: 'test@example.com' }),
+  });
+});
 
 test.afterEach(() => {
   process.env.NODE_ENV = 'test';
+  User.findById = originalFindById;
+  mongoose.connection.readyState = originalConnectionReadyState;
   setRedisAvailable(false);
   setRedisClient(null);
   setForceFailClosedInTest(false);
@@ -74,7 +88,95 @@ test('JWT logout revokes token and blocks subsequent access', async () => {
   });
 });
 
-test('logout returns canonical 503 and clears cookies when Redis revocation write fails', async () => {
+test('protected routes fail closed during revocation outages without clearing a valid session cookie', async () => {
+  process.env.NODE_ENV = 'production';
+  setForceFailClosedInTest(true);
+  setRedisAvailable(false);
+  setRedisClient(null);
+
+  await withServer(buildApp(), async (baseUrl) => {
+    const token = jwt.sign(
+      { userId: '64b000000000000000000006', email: 'test@example.com', jti: 'protected-outage-jti' },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' },
+    );
+    const unavailable = await jsonFetch(`${baseUrl}/api/protected`, {
+      headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
+    });
+
+    assert.equal(unavailable.response.status, 503);
+    assert.equal(unavailable.body.code, 'TOKEN_REVOCATION_UNAVAILABLE');
+    assert.doesNotMatch(unavailable.response.headers.get('set-cookie') || '', /wg_session=;/);
+
+    setRedisAvailable(true);
+    setRedisClient({ get: async () => null });
+    const recovered = await jsonFetch(`${baseUrl}/api/protected`, {
+      headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
+    });
+    assert.equal(recovered.response.status, 200);
+    assert.equal(recovered.body.user.jti, 'protected-outage-jti');
+  });
+});
+
+test('invalid, revoked, and expired cookie sessions do not mutate browser cookies', async () => {
+  process.env.NODE_ENV = 'production';
+  setForceFailClosedInTest(true);
+  setRedisAvailable(true);
+  setRedisClient({ get: async () => 'revoked' });
+
+  await withServer(buildApp(), async (baseUrl) => {
+    const tokens = [
+      jwt.sign(
+        { userId: '64b000000000000000000007', jti: 'bad-signature-jti' },
+        'not-the-session-secret',
+        { expiresIn: '1h' },
+      ),
+      jwt.sign(
+        { userId: '64b000000000000000000008', jti: 'revoked-cookie-jti' },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' },
+      ),
+      jwt.sign(
+        { userId: '64b000000000000000000009', jti: 'expired-cookie-jti' },
+        process.env.JWT_SECRET,
+        { expiresIn: -1 },
+      ),
+    ];
+
+    for (const token of tokens) {
+      const result = await jsonFetch(`${baseUrl}/api/protected`, {
+        headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
+      });
+      assert.equal(result.response.status, 401);
+      assert.equal(result.response.headers.get('set-cookie'), null);
+    }
+  });
+});
+
+test('session restoration for a missing user does not mutate cookies on its 401 response', async () => {
+  const originalFindById = User.findById;
+  User.findById = () => ({ select() { return this; }, lean: async () => null });
+
+  try {
+    await withServer(buildApp(), async (baseUrl) => {
+      const token = jwt.sign(
+        { userId: '64b000000000000000000015', jti: 'missing-session-user-jti' },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' },
+      );
+      const result = await jsonFetch(`${baseUrl}/api/auth/session`, {
+        headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
+      });
+
+      assert.equal(result.response.status, 401);
+      assert.equal(result.response.headers.get('set-cookie'), null);
+    });
+  } finally {
+    User.findById = originalFindById;
+  }
+});
+
+test('logout returns canonical 503 without clearing cookies when Redis revocation write fails', async () => {
   process.env.NODE_ENV = 'production';
   setForceFailClosedInTest(true);
   setRedisAvailable(true);
@@ -91,7 +193,7 @@ test('logout returns canonical 503 and clears cookies when Redis revocation writ
     );
     const { response, body } = await jsonFetch(`${baseUrl}/api/auth/logout`, {
       method: 'POST',
-      headers: { authorization: `Bearer ${token}` },
+      headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
     });
 
     assert.equal(response.status, 503);
@@ -104,8 +206,7 @@ test('logout returns canonical 503 and clears cookies when Redis revocation writ
       method: 'POST', path: '/api/auth/logout', status: response.status,
       contentType: response.headers.get('content-type'), body,
     });
-    const cookies = response.headers.get('set-cookie') || [];
-    assert.ok((Array.isArray(cookies) ? cookies : [cookies]).some((cookie) => /^wg_session=;/.test(cookie)));
+    assert.equal(response.headers.get('set-cookie'), null);
 
     const persisted = new Set();
     setRedisClient({
@@ -113,10 +214,11 @@ test('logout returns canonical 503 and clears cookies when Redis revocation writ
       setEx: async (key, _ttl, value) => { persisted.add(key); assert.equal(value, 'revoked'); return 'OK'; },
     });
     const recovered = await jsonFetch(`${baseUrl}/api/auth/logout`, {
-      method: 'POST', headers: { authorization: `Bearer ${token}` },
+      method: 'POST', headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
     });
     assert.equal(recovered.response.status, 200, 'recovery may succeed only after a confirmed write');
     assert.match(recovered.body.message, /Logout successful/i);
+    assert.equal(recovered.response.headers.get('set-cookie'), null, 'a confirmed production revocation leaves no response cookie mutation that could race a newer login');
     const copiedToken = await jsonFetch(`${baseUrl}/api/protected`, {
       headers: { authorization: `Bearer ${token}` },
     });
@@ -137,13 +239,12 @@ test('logout succeeds only after revocation is confirmed and retries cannot reus
       { expiresIn: '1h' },
     );
     const unavailable = await jsonFetch(`${baseUrl}/api/auth/logout`, {
-      method: 'POST', headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
+      method: 'POST', headers: { cookie: 'wg_session=' + encodeURIComponent(token) },
     });
     assert.equal(unavailable.response.status, 503, 'revocation lookup outage must fail closed as unavailable');
     assert.equal(unavailable.body.code, 'TOKEN_REVOCATION_UNAVAILABLE');
     assert.notEqual(unavailable.body.message, 'Logout successful.');
-    const clearedCookies = unavailable.response.headers.get('set-cookie') || [];
-    assert.ok((Array.isArray(clearedCookies) ? clearedCookies : [clearedCookies]).some((cookie) => /^wg_session=;/.test(cookie)));
+    assert.equal(unavailable.response.headers.get('set-cookie'), null);
 
     const revoked = new Set();
     setRedisAvailable(true);
@@ -152,16 +253,24 @@ test('logout succeeds only after revocation is confirmed and retries cannot reus
       setEx: async (key, _ttl, value) => { revoked.add(key); assert.equal(value, 'revoked'); return 'OK'; },
     });
     const { response, body } = await jsonFetch(`${baseUrl}/api/auth/logout`, {
-      method: 'POST', headers: { authorization: `Bearer ${token}` },
+      method: 'POST', headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
     });
     assert.equal(response.status, 200);
     assert.match(body.message, /Logout successful/i);
+    assert.equal(response.headers.get('set-cookie'), null, 'a confirmed production revocation does not clear a newer session cookie');
 
     const replay = await jsonFetch(`${baseUrl}/api/protected`, {
       headers: { authorization: `Bearer ${token}` },
     });
     assert.equal(replay.response.status, 401);
     assert.equal(replay.body.code, 'AUTH_TOKEN_REVOKED');
+
+    const retainedCookieReplay = await jsonFetch(`${baseUrl}/api/protected`, {
+      headers: { cookie: `wg_session=${encodeURIComponent(token)}` },
+    });
+    assert.equal(retainedCookieReplay.response.status, 401);
+    assert.equal(retainedCookieReplay.body.code, 'AUTH_TOKEN_REVOKED');
+    assert.equal(retainedCookieReplay.response.headers.get('set-cookie'), null);
   });
 });
 

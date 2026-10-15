@@ -199,6 +199,57 @@ test('unknown eligibility and unknown portfolio instruments are explicit exclusi
   ));
 });
 
+test('canonical model instruments use model risk and lock-in instead of an arbitrary catalog product', () => {
+  const conservativeFiveYear = canonicalProfile({
+    riskTolerance: 'Conservative',
+    investmentHorizonYears: 5,
+  });
+
+  assert.equal(assertPortfolioSuitable(conservativeFiveYear, ['FD']).finalLevel, 1);
+  assert.throws(() => assertPortfolioSuitable(conservativeFiveYear, ['Equity_MF']), error => (
+    error.code === 'PORTFOLIO_SUITABILITY_VIOLATION'
+      && error.violations[0].reasonCode === 'RISK_EXCEEDS_FINAL_SUITABILITY'
+  ));
+  assert.throws(() => assertPortfolioSuitable(conservativeFiveYear, ['PPF']), error => (
+    error.code === 'PORTFOLIO_SUITABILITY_VIOLATION'
+      && error.violations[0].reasonCode === 'LOCK_IN_EXCEEDS_HORIZON'
+  ));
+});
+
+test('catalog-backed model keys retain explicit eligibility gates', () => {
+  assert.throws(() => assertPortfolioSuitable(canonicalProfile({
+    age: 59,
+    monthlySavings: 2000,
+  }), ['SCSS']), error => (
+    error.code === 'PORTFOLIO_SUITABILITY_VIOLATION'
+      && error.violations.some(violation => violation.reasonCode === 'MINIMUM_AGE_NOT_MET')
+  ));
+
+  assert.throws(() => assertPortfolioSuitable(canonicalProfile({
+    age: 35,
+    monthlySavings: 2000,
+    investmentHorizonYears: 21,
+  }), ['SSY']), error => (
+    error.code === 'PORTFOLIO_SUITABILITY_VIOLATION'
+      && error.violations.some(violation => violation.reasonCode === 'GIRL_CHILD_ELIGIBILITY_NOT_ESTABLISHED')
+  ));
+
+  assert.throws(() => assertPortfolioSuitable(canonicalProfile({
+    age: 41,
+    monthlySavings: 2000,
+    investmentHorizonYears: 21,
+  }), ['SSY']), error => (
+    error.code === 'PORTFOLIO_SUITABILITY_VIOLATION'
+      && error.violations.some(violation => violation.reasonCode === 'MAXIMUM_AGE_EXCEEDED')
+  ));
+
+  assert.doesNotThrow(() => assertPortfolioSuitable(canonicalProfile({
+    age: 60,
+    monthlySavings: 2000,
+    investmentHorizonYears: 10,
+  }), ['SCSS']));
+});
+
 test('ML and LLM DTOs contain only approved facts and deterministic derived outputs', () => {
   const suitability = assessSuitabilityRisk(canonicalProfile());
   const ml = buildMlProfileInput(canonicalProfile(), suitability);

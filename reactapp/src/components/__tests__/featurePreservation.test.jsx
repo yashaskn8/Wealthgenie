@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { cwd } from 'node:process';
@@ -146,6 +146,33 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('panel-goals')).toBeInTheDocument();
     });
 
+    it('keeps every aria-controls target present while mounting only the active view', () => {
+      render(
+        <ProgressHub
+          activeTab="goals"
+          onTabChange={vi.fn()}
+          profile={mockProfile}
+          recommendations={mockRecommendations}
+        />,
+      );
+
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs).toHaveLength(5);
+      for (const tab of tabs) {
+        const panel = document.getElementById(tab.getAttribute('aria-controls'));
+        expect(panel).not.toBeNull();
+        expect(panel).toHaveAttribute('role', 'tabpanel');
+      }
+
+      const activePanel = screen.getByTestId('panel-goals');
+      expect(activePanel).not.toHaveAttribute('hidden');
+      for (const panelId of ['panel-indicators', 'panel-plan-goal', 'panel-grow-sip', 'panel-rebalancer']) {
+        const panel = screen.getByTestId(panelId);
+        expect(panel).toHaveAttribute('hidden');
+        expect(panel).toBeEmptyDOMElement();
+      }
+    });
+
     it('wraps the tab list instead of hiding overflow behind a hidden scrollbar', () => {
       const source = readFileSync(resolve(cwd(), 'src/components/HubStyles.css'), 'utf8');
       const tabListRule = source.match(/\.hub-tabs-list\s*\{([^}]+)\}/)?.[1] || '';
@@ -181,7 +208,8 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       );
 
       expect(screen.getByTestId('panel-goals')).toBeInTheDocument();
-      expect(screen.queryByTestId('panel-plan-goal')).not.toBeInTheDocument();
+      expect(screen.getByTestId('panel-plan-goal')).toHaveAttribute('hidden');
+      expect(screen.getByTestId('panel-plan-goal')).toBeEmptyDOMElement();
     });
 
     it('mounts GoalPlanner on plan-goal tab', () => {
@@ -253,6 +281,19 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
 
       expect(screen.getByTestId('wti-category-ppf')).toBeInTheDocument();
       expect(screen.getByTestId('wti-category-index_mf')).toBeInTheDocument();
+    });
+
+    it('describes the selected parent as a suitable category, not verified product execution', () => {
+      render(
+        <WhereToInvestScreen
+          recommendations={mockRecommendations}
+          userProfile={mockProfile}
+          onLearnMore={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('PROFILE-SUITABLE CATEGORIES · PRODUCTS VERIFIED SEPARATELY')).toBeInTheDocument();
+      expect(screen.queryByText(/VERIFIED EXECUTION/i)).toBeNull();
     });
 
     it('exposes Deep Dive action bar and triggers onLearnMore with activeParent', () => {
@@ -350,6 +391,22 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
     it('shows the existing GenieProof entry only when its feature gate is enabled', () => {
       render(<Sidebar activePage={NAV_PAGES.HOME} onNavigate={vi.fn()} genieProofEnabled />);
       expect(screen.getByTestId('nav-genieproof')).toBeInTheDocument();
+    });
+
+    it('keeps the user in the app and exposes retry when sign-out is not confirmed', async () => {
+      const onLogout = vi.fn()
+        .mockRejectedValueOnce(new Error('TOKEN_REVOCATION_UNAVAILABLE'))
+        .mockResolvedValueOnce({ message: 'Logout successful.' });
+      render(<Sidebar activePage={NAV_PAGES.HOME} onNavigate={vi.fn()} onLogout={onLogout} />);
+
+      fireEvent.click(screen.getByTestId('nav-sign-out'));
+      expect(await screen.findByRole('alert')).toHaveTextContent(/session may still be active/i);
+      expect(screen.getByRole('button', { name: 'Retry sign-out' })).toBeInTheDocument();
+      expect(screen.getByTestId('nav-home')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry sign-out' }));
+      await waitFor(() => expect(onLogout).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
     });
   });
 });

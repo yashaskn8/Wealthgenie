@@ -10,7 +10,7 @@ import { useAuth } from './context/AuthContext';
 import { assertKnownBackendInstrumentTypes } from './utils/instrumentTypeMap';
 import { investmentDatabase } from './investmentDatabase';
 import { financialProfileKey } from './utils/financialProfile';
-import { assertBackendRecommendationInstrument } from './utils/recommendationPresentation';
+import { assertBackendMonthlyAllocation, assertBackendRecommendationInstrument } from './utils/recommendationPresentation';
 import { isFinancialCalculationFresh } from './utils/financialFreshness';
 import {
   hasCompleteFinancialStateBinding,
@@ -188,6 +188,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
   const skipProfileRestoreRef = useRef(null);
   const operationRef = useRef(0);
   const controllerRef = useRef(null);
+  const chatLogoutCancellationRef = useRef(null);
   const backendRecsRef = useRef(backendRecs);
 
   // Stable serialized key - changes ONLY when profile data changes, not on every render
@@ -384,13 +385,30 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId, profileVersion, profileKey, initialRecommendation, profileReloadGeneration]);
 
+  useEffect(() => () => {
+    // Cross-tab sign-out and route teardown bypass handleLogout. Invalidate
+    // any in-flight recompute before its promise can update an unmounted shell.
+    operationRef.current += 1;
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+  }, []);
+
   const handleLogout = async () => {
+    invalidateOperations();
+    chatLogoutCancellationRef.current?.();
     try {
       await logout();
-    } finally {
-      // The local session is cleared by api.logout even when the server is offline.
-      navigate('/login', { replace: true });
+    } catch (error) {
+      // Logout can fail while the authenticated dashboard remains mounted. The
+      // recommendation request above was aborted, so start a fresh canonical
+      // restore instead of leaving its loading/context state stuck forever.
+      // A same-profile save can leave the normal restore skip armed when its
+      // effect dependencies did not change; it must not suppress this retry.
+      skipProfileRestoreRef.current = null;
+      setProfileReloadGeneration(generation => generation + 1);
+      throw error;
     }
+    navigate('/login', { replace: true });
   };
 
   // Backend response is the only source of personalized recommendation truth.
@@ -421,10 +439,10 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
         throw new Error(`Backend returned an invalid allocation weight for ${bi.id || bi.type}`);
       }
 
-      const allocation = Number(currentRecommendationState.dashboard_projection?.instrument_monthly_allocations?.[bi.id]);
-      if (!Number.isFinite(allocation) || allocation <= 0) {
-        throw new Error(`Backend did not return a valid monthly allocation for ${bi.id || bi.type}`);
-      }
+      const allocation = assertBackendMonthlyAllocation(
+        currentRecommendationState.dashboard_projection?.instrument_monthly_allocations?.[bi.id],
+        bi.id || bi.type,
+      );
 
       return {
         ...dbMatch,
@@ -686,7 +704,9 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
   const handleProfileChangeStart = () => {
     invalidateOperations();
     writeBackendRecs(null);
-    setIsRecommendationLoading(false);
+    // Keep personalized chat history/session binding paused until this profile
+    // edit is either confirmed or its canonical recommendation is restored.
+    setIsRecommendationLoading(true);
     setIsAdvisoryLoading(false);
     setBackendFallback({ message: 'Your financial profile is changing. Recommendations are temporarily unavailable.' });
   };
@@ -889,7 +909,14 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
       )}
 
       {/* Genie Chatbot FAB */}
-      <GenieChat profile={userProfile} recommendations={recommendations} onNavigate={navigateTo} />
+      <GenieChat
+        profile={userProfile}
+        recommendations={recommendations}
+        recommendationMeta={currentRecommendationState}
+        recommendationContextReady={!isRecommendationLoading && Boolean(currentRecommendationState)}
+        cancelPendingSendRef={chatLogoutCancellationRef}
+        onNavigate={navigateTo}
+      />
     </div>
   );
 };

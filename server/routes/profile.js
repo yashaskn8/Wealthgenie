@@ -316,7 +316,13 @@ router.post(
 );
 
 router.get('/current', verifyJWT, asyncHandler(async (req, res) => {
-  const { profile } = await resolveCurrentFinancialProfile({ userId: req.user.userId });
+  // Profile restoration is independent from recommendation availability. The
+  // frontend restores the profile first and resolves its current recommendation
+  // through the separately freshness-checked recommendation endpoint.
+  const { profile } = await resolveCurrentFinancialProfile({
+    userId: req.user.userId,
+    requireRecommendation: false,
+  });
   if (!profile) {
     throw createError(404, 'Financial profile not found', 'Financial profile not found.');
   }

@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import goalsRoutes from '../routes/goals.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import Goal from '../models/Goal.js';
+import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import FinancialProfileState from '../models/FinancialProfileState.js';
 import Recommendation from '../models/Recommendation.js';
@@ -291,6 +292,12 @@ async function raceCommittedOperationWithDelete({ operation }) {
 
 test.before(async () => {
   await setupTestDatabase({ requireReplicaSet: true });
+  await User.create({
+    _id: userId,
+    name: 'Goal Post-Commit Test User',
+    email: `goal-post-commit-${userId}@example.test`,
+    passwordHash: 'test-only-hash',
+  });
   app = express();
   app.use(express.json());
   app.use('/api/goals', goalsRoutes);
@@ -316,6 +323,7 @@ test.beforeEach(async () => {
 
 test.after(async () => {
   if (server) await new Promise(resolve => server.close(resolve));
+  await User.deleteOne({ _id: userId });
   await teardownTestDatabase();
 });
 

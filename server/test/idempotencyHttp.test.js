@@ -19,6 +19,7 @@ import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
 import IdempotencyKey from '../models/IdempotencyKey.js';
+import User from '../models/User.js';
 import { setRedisAvailable, setRedisClient } from '../config/redis.js';
 import { canonicalProfilePayload } from './helpers/canonicalProfile.js';
 import { installFinancialStateTestHook } from '../services/financialStateTestHooks.js';
@@ -40,6 +41,17 @@ function signToken(userId) {
     JWT_SECRET,
     { expiresIn: '1h' }
   );
+}
+
+async function createTestUser(userId = new mongoose.Types.ObjectId()) {
+  const normalizedId = String(userId);
+  await User.create({
+    _id: normalizedId,
+    name: 'Idempotency HTTP test user',
+    email: `idempotency-${normalizedId}@example.test`,
+    passwordHash: 'test-only-password-hash',
+  });
+  return normalizedId;
 }
 
 function createBarrier() {
@@ -73,7 +85,7 @@ function createRendezvousBarrier(parties) {
 }
 
 test.before(async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
 
   app = express();
   app.use(express.json());
@@ -97,7 +109,7 @@ test.after(async () => {
 });
 
 test('IDEMPOTENCY HTTP VERIFICATION: duplicate mutating request returns cached response without duplicate DB insert', async () => {
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const token = signToken(userId);
   const idempotencyKey = crypto.randomUUID();
 
@@ -324,7 +336,7 @@ test('operation identity and request hash bind operation, method, route, resourc
 });
 
 test('financial profile ownership cannot be rewritten through save, updateOne, or findOneAndUpdate', async () => {
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const response = await fetch(`${baseUrl}/api/profile/build`, {
     method: 'POST',
     headers: {
@@ -360,7 +372,7 @@ test('financial profile ownership cannot be rewritten through save, updateOne, o
 });
 
 test('crash-equivalent response loss after profile commit replays the committed resource', async () => {
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const token = signToken(userId);
   const key = crypto.randomUUID();
   const payload = canonicalProfilePayload({ age: 38, monthlyTakeHome: 190000, monthlySavings: 60000 });
@@ -400,8 +412,8 @@ test('crash-equivalent response loss after profile commit replays the committed 
 });
 
 test('same idempotency key is isolated by authenticated user identity', async () => {
-  const userA = new mongoose.Types.ObjectId().toString();
-  const userB = new mongoose.Types.ObjectId().toString();
+  const userA = await createTestUser();
+  const userB = await createTestUser();
   const key = 'same-key-across-users-2026';
   const payload = canonicalProfilePayload({ age: 41, monthlyTakeHome: 210000, monthlySavings: 70000 });
   const build = (userId) => fetch(`${baseUrl}/api/profile/build`, {
@@ -424,7 +436,7 @@ test('same idempotency key is isolated by authenticated user identity', async ()
 });
 
 test('missing, malformed, short, and oversized idempotency keys fail before profile mutation', async () => {
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const token = signToken(userId);
   const payload = canonicalProfilePayload({ age: 36, monthlyTakeHome: 180000, monthlySavings: 55000 });
   const invalidKeys = [undefined, 'short', 'invalid/key-123', 'x'.repeat(129)];
@@ -443,7 +455,7 @@ test('missing, malformed, short, and oversized idempotency keys fail before prof
 });
 
 test('same-key concurrent profile requests wait for the transactional durable completion', async () => {
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const token = signToken(userId);
   const key = 'concurrent-profile-operation-2026';
   const payload = canonicalProfilePayload({ age: 44, monthlyTakeHome: 240000, monthlySavings: 80000 });
@@ -494,7 +506,7 @@ test('same-key concurrent profile requests wait for the transactional durable co
 });
 
 test('expired idempotency lease takeover fences the paused old worker and keeps one committed profile', async () => {
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const token = signToken(userId);
   const key = 'expired-lease-takeover-profile-2026';
   const payload = canonicalProfilePayload({ age: 41, monthlyTakeHome: 210000, monthlySavings: 70000 });
@@ -570,7 +582,7 @@ test('expired idempotency lease takeover fences the paused old worker and keeps 
 
 test('heartbeat storage failure marks the real claim lost and aborts profile creation before commit', async () => {
   const previousUpdateOne = IdempotencyKey.updateOne;
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const key = 'heartbeat-storage-failure-profile-2026';
   let markReleased;
   const releaseObserved = new Promise(resolve => { markReleased = resolve; });
@@ -629,7 +641,7 @@ test('heartbeat storage failure marks the real claim lost and aborts profile cre
 
 test('profile build fails closed before mutation when Redis quota execution fails', async () => {
   const previousNodeEnv = process.env.NODE_ENV;
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const token = signToken(userId);
   process.env.NODE_ENV = 'production';
   setRedisAvailable(true);
@@ -666,7 +678,7 @@ test('profile build fails closed before mutation when Redis quota execution fail
 
 test('profile build returns an OpenAPI-valid 429 and releases its uncommitted idempotency claim', async () => {
   const previousDisableRateLimit = process.env.DISABLE_RATE_LIMIT;
-  const userId = new mongoose.Types.ObjectId().toString();
+  const userId = await createTestUser();
   const token = signToken(userId);
   const key = 'profile-rate-limit-exceeded-2026';
   let markReleased;

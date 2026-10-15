@@ -80,6 +80,37 @@ describe('frontend API contracts', () => {
     expect(JSON.parse(config.body)).toMatchObject({ deductions: { section80C: 0 }, inflationRate: 0.06 });
     expect(JSON.parse(config.body)).not.toHaveProperty('signal');
   });
+
+  it('sends tax compute and comparison inputs in POST bodies, never in request URLs', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ taxAmount: 1 }))
+      .mockResolvedValueOnce(jsonResponse({ saving: 2 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+
+    await api.computeTax(1_200_000, 'new', {
+      incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 35, section80C: 150_000,
+    }, { signal: controller.signal });
+    await api.compareTax(1_200_000, {
+      incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 35, section80C: 150_000,
+    }, { signal: controller.signal });
+
+    for (const [url, config] of fetchMock.mock.calls) {
+      expect(String(url)).toMatch(/\/api\/tax\/(compute|compare)$/);
+      expect(String(url)).not.toContain('income');
+      expect(String(url)).not.toContain('section80C');
+      expect(config.method).toBe('POST');
+      expect(config.signal).toBeInstanceOf(AbortSignal);
+    }
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 35, section80C: 150_000,
+      income: 1_200_000, regime: 'new',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 35, section80C: 150_000,
+      income: 1_200_000,
+    });
+  });
   beforeEach(() => {
     api.clearAuthToken();
     localStorage.clear();
@@ -331,6 +362,21 @@ describe('frontend API contracts', () => {
     });
   });
 
+  it('preserves the server chat-quota reset time for the chat input cooldown', async () => {
+    const resetAt = '2026-10-14T11:00:00.000Z';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      message: 'The hourly chat message limit has been reached.',
+      code: 'CHAT_RATE_LIMIT_EXCEEDED',
+      details: { retryAfterSeconds: 245, resetAt },
+    }, 429)));
+
+    await expect(api.sendChatMessage('A question', 'session-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 429,
+      code: 'CHAT_RATE_LIMIT_EXCEEDED',
+      details: { retryAfterSeconds: 245, resetAt },
+    });
+  });
   it('aborts requests that exceed their timeout', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn((url, config) => new Promise((resolve, reject) => {
@@ -362,6 +408,102 @@ describe('frontend API contracts', () => {
     expect(api.getUserInfo()).toBeNull();
     expect(localStorage.getItem('wealthgenie_user_profile')).toBeNull();
     expect(sessionStorage.getItem('genie_session_id')).toBeNull();
+  });
+
+  it('preserves local auth after failed logout and clears it only after a successful retry', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ code: 'TOKEN_REVOCATION_UNAVAILABLE', message: 'Retry logout.' }, 503))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Logout successful.' }));
+    vi.stubGlobal('fetch', fetchMock);
+    api.setAuthToken('retryable-logout-token');
+    api.setUserInfo({ id: 'user-retry' });
+    localStorage.setItem('wealthgenie_user_profile', '{"age":30}');
+
+    await expect(api.logout()).rejects.toMatchObject({ status: 503, code: 'TOKEN_REVOCATION_UNAVAILABLE' });
+    expect(api.getAuthToken()).toBe('retryable-logout-token');
+    expect(api.getUserInfo()).toMatchObject({ id: 'user-retry' });
+    expect(localStorage.getItem('wealthgenie_user_profile')).not.toBeNull();
+
+    await api.logout();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(api.getAuthToken()).toBeNull();
+    expect(api.getUserInfo()).toBeNull();
+    expect(localStorage.getItem('wealthgenie_user_profile')).toBeNull();
+  });
+
+  it('clears local auth when logout receives an explicit invalid-session response', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 'AUTH_TOKEN_EXPIRED' }, 401));
+    vi.stubGlobal('fetch', fetchMock);
+    api.setAuthToken('expired-logout-token');
+    api.setUserInfo({ id: 'expired-user' });
+
+    await expect(api.logout()).resolves.toMatchObject({ alreadyInvalid: true });
+
+    expect(api.getAuthToken()).toBeNull();
+    expect(api.getUserInfo()).toBeNull();
+  });
+
+  it('clears local auth when logout confirms no server session was supplied', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 'AUTH_REQUIRED' }, 401));
+    vi.stubGlobal('fetch', fetchMock);
+    api.setAuthToken('missing-server-session-token');
+    api.setUserInfo({ id: 'already-signed-out-user' });
+
+    await expect(api.logout()).resolves.toMatchObject({ alreadyInvalid: true });
+
+    expect(api.getAuthToken()).toBeNull();
+    expect(api.getUserInfo()).toBeNull();
+  });
+
+  it('does not let a late successful logout replace a newer authenticated user', async () => {
+    let finishLogout;
+    const pendingLogout = new Promise(resolve => { finishLogout = resolve; });
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(pendingLogout)
+      .mockResolvedValueOnce(jsonResponse({ token: 'user-b-token', user: { id: 'user-b' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    api.setAuthToken('user-a-token');
+    api.setUserInfo({ id: 'user-a' });
+
+    const logoutResult = api.logout().then(value => ({ value }), error => ({ error }));
+    await api.login('b@example.com', 'safe-test-password');
+    finishLogout(jsonResponse({ message: 'Logout successful.' }));
+    const result = await logoutResult;
+
+    expect(result.error).toMatchObject({ code: 'REQUEST_ABORTED' });
+    expect(api.getAuthToken()).toBe('user-b-token');
+    expect(api.getUserInfo()).toMatchObject({ id: 'user-b' });
+  });
+
+  it('preserves local auth when logout failure does not prove the session invalid', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 'HTTP_ERROR' }, 401));
+    vi.stubGlobal('fetch', fetchMock);
+    api.setAuthToken('ambiguous-logout-token');
+    api.setUserInfo({ id: 'user-still-present' });
+
+    await expect(api.logout()).rejects.toMatchObject({ status: 401, code: 'HTTP_ERROR' });
+
+    expect(api.getAuthToken()).toBe('ambiguous-logout-token');
+    expect(api.getUserInfo()).toMatchObject({ id: 'user-still-present' });
+  });
+
+  it('preserves local auth when protected API access is temporarily unavailable for revocation verification', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      code: 'TOKEN_REVOCATION_UNAVAILABLE',
+      message: 'Authentication session status is temporarily unavailable.',
+    }, 503));
+    vi.stubGlobal('fetch', fetchMock);
+    api.setAuthToken('redis-outage-session-token');
+    api.setUserInfo({ id: 'redis-outage-user' });
+
+    await expect(api.healthCheck({ retries: 0 })).rejects.toMatchObject({
+      status: 503,
+      code: 'TOKEN_REVOCATION_UNAVAILABLE',
+    });
+
+    expect(api.getAuthToken()).toBe('redis-outage-session-token');
+    expect(api.getUserInfo()).toMatchObject({ id: 'redis-outage-user' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('encodes chat session IDs as query data', async () => {
@@ -417,11 +559,40 @@ describe('frontend API contracts', () => {
     api.setAuthToken('user-a-token');
     api.setUserInfo({ id: 'user-a' });
 
-    const oldRequestResult = api.healthCheck({ retries: 0 }).catch(error => error);
+    const oldRequestResult = api.healthCheck({ retries: 0 }).then(
+      value => ({ value }),
+      error => ({ error }),
+    );
     await api.login('b@example.com', 'safe-test-password');
     finishOldRequest(jsonResponse({ code: 'SESSION_EXPIRED' }, 401));
-    await oldRequestResult;
+    const result = await oldRequestResult;
 
+    expect(result.error).toMatchObject({ code: 'REQUEST_ABORTED' });
+    expect(result.value).toBeUndefined();
+    expect(api.getUserInfo()).toMatchObject({ id: 'user-b' });
+    expect(api.getAuthToken()).toBe('user-b-token');
+  });
+
+  it('does not return a late successful response from an old identity after a newer login', async () => {
+    let finishOldRequest;
+    const oldRequest = new Promise(resolve => { finishOldRequest = resolve; });
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(oldRequest)
+      .mockResolvedValueOnce(jsonResponse({ token: 'user-b-token', user: { id: 'user-b' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    api.setAuthToken('user-a-token');
+    api.setUserInfo({ id: 'user-a' });
+
+    const oldRequestResult = api.healthCheck({ retries: 0 }).then(
+      value => ({ value }),
+      error => ({ error }),
+    );
+    await api.login('b@example.com', 'safe-test-password');
+    finishOldRequest(jsonResponse({ privateData: 'user-a-only' }));
+    const result = await oldRequestResult;
+
+    expect(result.error).toMatchObject({ code: 'REQUEST_ABORTED' });
+    expect(result.value).toBeUndefined();
     expect(api.getUserInfo()).toMatchObject({ id: 'user-b' });
     expect(api.getAuthToken()).toBe('user-b-token');
   });
@@ -508,6 +679,29 @@ describe('frontend API contracts', () => {
     expect(mutation.credentials).toBe('include');
     expect(mutation.headers.Authorization).toBeUndefined();
     expect(mutation.headers['X-CSRF-Token']).toBe('server-csrf-token');
+  });
+
+  it('uses the current CSRF cookie if a late session restore replaced a cached login token', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        csrfToken: 'new-login-csrf-token',
+        user: { id: 'new-login-user' },
+      }))
+      .mockResolvedValueOnce(jsonResponse({ id: 'goal-1' }, 201));
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      await api.login('cookie@example.com', 'StrongPass1!');
+      // Model a delayed Set-Cookie from a restore request that started before
+      // this login. Browser cookie processing happens outside the auth revision
+      // fence, so the mutation must follow the cookie jar the server receives.
+      document.cookie = 'wg_csrf=late-restore-csrf-token; path=/';
+      await api.createGoal({ goal_name: 'Retirement' });
+
+      expect(fetchMock.mock.calls[1][1].headers['X-CSRF-Token']).toBe('late-restore-csrf-token');
+    } finally {
+      document.cookie = 'wg_csrf=; Max-Age=0; path=/';
+    }
   });
 
   it('honours Retry-After when retrying safe requests', async () => {

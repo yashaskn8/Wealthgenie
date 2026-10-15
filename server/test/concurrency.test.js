@@ -18,6 +18,8 @@ import profileRoutes from '../routes/profile.js';
 import goalsRoutes from '../routes/goals.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import FinancialProfile from '../models/FinancialProfile.js';
+import RecommendationState from '../models/RecommendationState.js';
+import User from '../models/User.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { canonicalProfile, canonicalProfilePayload } from './helpers/canonicalProfile.js';
 import { assertRuntimeResponseMatchesContract } from './helpers/openapiRuntimeContract.js';
@@ -74,11 +76,25 @@ const VALID_PROFILE_BODY = canonicalProfilePayload({
 
 // ── Setup ─────────────────────────────────────────────────────────────
 async function ensureDb() {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
+  await User.updateOne(
+    { _id: TEST_USER_ID },
+    { $setOnInsert: { name: 'Concurrency Test User 1', email: `concurrency-${TEST_USER_ID}@test.local`, passwordHash: 'test-only-hash' } },
+    { upsert: true },
+  );
+  await User.updateOne(
+    { _id: TEST_USER_ID_2 },
+    { $setOnInsert: { name: 'Concurrency Test User 2', email: `concurrency-${TEST_USER_ID_2}@test.local`, passwordHash: 'test-only-hash' } },
+    { upsert: true },
+  );
 }
 
 test.after(async () => {
-  await teardownTestDatabase();
+  try {
+    await User.deleteMany({ _id: { $in: [TEST_USER_ID, TEST_USER_ID_2] } });
+  } finally {
+    await teardownTestDatabase();
+  }
 });
 
 
@@ -120,6 +136,20 @@ test('OCC: PUT /api/profile/:id with stale version returns 409 Conflict', async 
       method: 'GET', path: '/api/profile/current', status: currentProfile.response.status,
       contentType: currentProfile.response.headers.get('content-type'), body: currentProfile.body,
     });
+
+    const recommendationState = await RecommendationState.findOne({ userId: TEST_USER_ID, profileId }).lean();
+    assert.ok(recommendationState, 'completed profile fixture must have a recommendation state');
+    await RecommendationState.deleteOne({ _id: recommendationState._id });
+    try {
+      const profileWithoutRecommendationState = await jsonFetch(`${baseUrl}/api/profile/current`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      assert.equal(profileWithoutRecommendationState.response.status, 200, JSON.stringify(profileWithoutRecommendationState.body));
+      assert.equal(profileWithoutRecommendationState.body.profileId, profileId);
+    } finally {
+      await RecommendationState.create(recommendationState);
+    }
+
     const healthScore = await jsonFetch(`${baseUrl}/api/profile/${profileId}/health-score`, {
       headers: { authorization: `Bearer ${token}` },
     });

@@ -4,7 +4,7 @@ import {
   PROVIDERS,
 } from './marketData/contracts.js';
 import { AMFI_NAV_URL } from './marketData/AmfiNavProvider.js';
-import { AMFI_NAV_HISTORY_URL } from './marketData/AmfiNavHistoryProvider.js';
+import { isQualifiedAmfiNavHistoryUrl } from './marketData/AmfiNavHistoryProvider.js';
 
 export const NIFTY_ETF_RANKING_VERSION = 'wti-nifty-etf-1.0.0';
 export const NIFTY_ETF_PARENT_ID = 'nifty_etf';
@@ -100,7 +100,7 @@ function validSnapshotFact(snapshot, canonicalProductId, { historical = false } 
       || fact?.unit !== 'NAV_PER_UNIT'
       || !isTrustedOfficialEvidence(fact.source, 'portal.amfiindia.com')
       || !(historical
-        ? fact.source.url.startsWith(`${AMFI_NAV_HISTORY_URL}?`)
+        ? isQualifiedAmfiNavHistoryUrl(fact.source.url, snapshot?.targetDate)
         : fact.source.url === AMFI_NAV_URL)
       || fact.availabilityStatus !== AVAILABILITY.AVAILABLE
       || !Number.isFinite(Number(fact.value))
@@ -109,6 +109,7 @@ function validSnapshotFact(snapshot, canonicalProductId, { historical = false } 
       || !Number.isFinite(fetchedAt)
       || observedAt > fetchedAt + 60_000) return null;
   if (!historical && fact.freshness?.status !== 'FRESH') return null;
+  if (historical && fact.historicalContext?.targetDate !== snapshot?.targetDate) return null;
   return fact;
 }
 
@@ -134,8 +135,11 @@ function historicalNavReturn(currentFact, historicalFact) {
     elapsedDays: Number(elapsedDays.toFixed(2)),
     source: {
       provider: PROVIDERS.AMFI,
+      startInstrumentId: historicalFact.source.instrumentId,
+      endInstrumentId: currentFact.source.instrumentId,
       startObservationUrl: historicalFact.source.url,
       endObservationUrl: currentFact.source.url,
+      historyTargetDate: historicalFact.historicalContext.targetDate,
     },
     isExpectedReturn: false,
   };

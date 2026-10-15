@@ -6,7 +6,7 @@ import { completePlanReviewMandateAction } from '../agents/planReview/planReview
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 
 test('Mongo CAS permits only one terminal mandate outcome for a waiting PlanReview run', async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
   const userId = new mongoose.Types.ObjectId();
   const runId = `plan-review-mandate-race-${new mongoose.Types.ObjectId()}`;
   const mandateId = `mandate-${new mongoose.Types.ObjectId()}`;

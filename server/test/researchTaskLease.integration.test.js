@@ -62,7 +62,7 @@ test('ResearchTask brief fixtures remain valid for UUIDs with private-identifier
 });
 
 test('Mongo task execution claims fence stale workers and persist recovery idempotently', { skip: noMongoPartition, timeout: 30_000 }, async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
   const taskId = `phase7-lease-${crypto.randomUUID()}`;
   const context = caller();
   const storeA = new MongoResearchTaskStore({ env: { NODE_ENV: 'test' }, leaseMs: 3_000 });
@@ -124,7 +124,7 @@ test('Mongo task execution claims fence stale workers and persist recovery idemp
 });
 
 test('Mongo global ResearchAgent capacity admits only its configured cross-replica limit and releases on completion', { skip: noMongoPartition, timeout: 30_000 }, async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
   const context = caller();
   const firstId = `phase7-capacity-a-${crypto.randomUUID()}`;
   const secondId = `phase7-capacity-b-${crypto.randomUUID()}`;
@@ -169,7 +169,7 @@ test('Mongo global ResearchAgent capacity admits only its configured cross-repli
 });
 
 test('Mongo semantic ResearchBrief deduplication is owner-scoped and ignores transport IDs/timestamps', { skip: noMongoPartition, timeout: 30_000 }, async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
   const taskId = `phase7-dedupe-${crypto.randomUUID()}`;
   const sameOwner = caller();
   const otherOwner = { user: { identity: { provider: 'development', authenticated: true, subject: 'different-plan-review', agentType: 'PLAN_REVIEW' } } };

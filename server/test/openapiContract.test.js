@@ -33,6 +33,7 @@ import RecommendationAllocationRevision from '../models/RecommendationAllocation
 import FinancialProfileState from '../models/FinancialProfileState.js';
 import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
 import { canonicalProfilePayload } from './helpers/canonicalProfile.js';
+import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 import { buildRecommendationProfile, toProfilePersistence } from '../services/recommendationProfile.js';
 import { assessSuitabilityRisk } from '../services/riskProfiler.js';
 import { runOpenApiHttpCase } from './helpers/openapiRuntimeContract.js';
@@ -52,6 +53,29 @@ test('GenieProof offer text OpenAPI schemas document the shared UTF-8 byte limit
   const candidate = contract.components.schemas.GenieProofCandidate.properties;
   assert.match(candidate.startOffset.description, /UTF-16 code-unit offset into the exact submitted offerText/);
   assert.match(candidate.endOffset.description, /Exclusive zero-based UTF-16 code-unit offset/);
+});
+
+test('post-tax batch documents legacy principal-based fields and the SIP MWR replacements', () => {
+  const itemProperties = contract.components.schemas.PostTaxReturnBatchResponse
+    .properties.results.items.properties;
+  const replacements = {
+    nominalCAGR: 'sipReturnMetrics.preTaxAnnualizedReturnPercent',
+    postTaxCAGR: 'sipReturnMetrics.postTaxAnnualizedReturnPercent',
+    postTaxReturnPercent: 'sipReturnMetrics.postTaxAnnualizedReturnPercent',
+    realReturnPercent: 'sipReturnMetrics.realPostTaxAnnualizedReturnPercent',
+    taxDragCAGR: 'sipReturnMetrics.taxDragAnnualizedPercentagePoints',
+  };
+
+  for (const [field, replacement] of Object.entries(replacements)) {
+    const schema = itemProperties[field];
+    assert.deepEqual(schema.type, ['number', 'null'], `${field} remains nullable numeric compatibility data`);
+    assert.equal(schema.deprecated, true, `${field} is documented as legacy`);
+    assert.ok(schema.description.includes(replacement), `${field} points clients to ${replacement}`);
+    assert.match(schema.description, /does not account for monthly contribution timing/);
+  }
+  assert.match(itemProperties.taxDragCAGR.description, /decimal fraction/);
+  assert.match(itemProperties.postTaxCAGR.description, /decimal fraction/);
+  assert.match(itemProperties.postTaxReturnPercent.description, /percentage-valued/);
 });
 
 // Only externally supported route modules belong in the public contract.
@@ -150,6 +174,22 @@ function assertResponseMatchesSchemaRef(schemaRef, body, context) {
   assert.equal(validateBody(body), true, `${context} violates OpenAPI: ${JSON.stringify(validateBody.errors)}`);
 }
 
+test('auth session documents the typed token revocation outage response', () => {
+  const response = contract.paths['/api/auth/session'].get.responses['503'];
+  assert.ok(response, 'Session restore must document the revocation availability response');
+  const schema = inlineLocalRefs(response.content['application/json'].schema);
+  const validateBody = responseAjv.compile(schema);
+  const outage = {
+    error: 'Service Unavailable',
+    message: 'Authentication session status is temporarily unavailable.',
+    code: 'TOKEN_REVOCATION_UNAVAILABLE',
+    request_id: 'request-123',
+  };
+
+  assert.equal(validateBody(outage), true, JSON.stringify(validateBody.errors));
+  assert.equal(validateBody({ ...outage, code: 'SERVICE_UNAVAILABLE' }), false);
+});
+
 function buildContractTestApp() {
   const app = express();
   app.use(express.json());
@@ -177,8 +217,8 @@ function buildContractTestApp() {
 // These are actual requests against mounted Express routers. Keep case identity
 // separate from the URL so templated OpenAPI paths remain explicit in reviews.
 export const LIVE_CONTRACT_CASES = Object.freeze([
-  { operation: 'GET /api/tax/compare', method: 'GET', path: '/api/tax/compare', url: '/api/tax/compare?income=1200000&incomeSource=salary&fiscalYear=FY2026-27&age=30', expectedStatus: 200 },
-  { operation: 'GET /api/tax/compute', method: 'GET', path: '/api/tax/compute', url: '/api/tax/compute?income=1200000&incomeSource=salary&fiscalYear=FY2026-27&age=30&regime=new', expectedStatus: 200 },
+  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30 }, expectedStatus: 200 },
+  { operation: 'POST /api/tax/compute', method: 'POST', path: '/api/tax/compute', url: '/api/tax/compute', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30, regime: 'new' }, expectedStatus: 200 },
   { operation: 'GET /api/tax/policies', method: 'GET', path: '/api/tax/policies', url: '/api/tax/policies', expectedStatus: 200 },
   { operation: 'POST /api/tax/post-tax-scenario', method: 'POST', path: '/api/tax/post-tax-scenario', url: '/api/tax/post-tax-scenario', expectedStatus: 200, body: { canonicalInstrumentId: 'sbi_fd', scenarioType: 'INTEREST_INCOME', interestReceived: 2500, annualGrossIncome: 1000000, incomeSource: 'salary', regime: 'new', fiscalYear: 'FY2026-27', userAge: 35 } },
   { operation: 'GET /api/instruments', method: 'GET', path: '/api/instruments', url: '/api/instruments?page=1&limit=10', expectedStatus: 200 },
@@ -194,8 +234,8 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'POST /api/portfolio/rebalance', method: 'POST', path: '/api/portfolio/rebalance', url: '/api/portfolio/rebalance', expectedStatus: 200, body: { profileId: '65b000000000000000000002', current_allocation: { FD: 50, Debt_MF: 50 }, target_allocation: { FD: 50, Debt_MF: 50 }, threshold: 5, partial_ratio: 0.5, holding_months: 12 } },
   { operation: 'POST /api/montecarlo/montecarlo', method: 'POST', path: '/api/montecarlo/montecarlo', url: '/api/montecarlo/montecarlo', expectedStatus: 200, body: { profileId: '65b000000000000000000002', instrument: 'FD', monthly_investment: 5000, years: 2 } },
   { operation: 'POST /api/montecarlo/portfolio', method: 'POST', path: '/api/montecarlo/portfolio', url: '/api/montecarlo/portfolio', expectedStatus: 200, body: { profileId: '65b000000000000000000002', allocations: { FD: 1 }, years: 2 } },
-  { operation: 'GET /api/tax/compare', method: 'GET', path: '/api/tax/compare', url: '/api/tax/compare?income=bad&incomeSource=salary&fiscalYear=FY2026-27&age=30', expectedStatus: 400 },
-  { operation: 'GET /api/tax/compare', method: 'GET', path: '/api/tax/compare', url: '/api/tax/compare?income=1200000&incomeSource=salary&fiscalYear=FY2099-00&age=30', expectedStatus: 422 },
+  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 'bad', incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30 }, expectedStatus: 400 },
+  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2099-00', age: 30 }, expectedStatus: 422 },
   { operation: 'GET /api/chat/history', method: 'GET', path: '/api/chat/history', url: '/api/chat/history', expectedStatus: 401 },
   { operation: 'GET /api/instruments', method: 'GET', path: '/api/instruments', url: '/api/instruments?notAFilter=x', expectedStatus: 400 },
   { operation: 'GET /api/recommend/audit', method: 'GET', path: '/api/recommend/audit', url: '/api/recommend/audit?profileId=garbage', expectedStatus: 400, authenticated: true },
@@ -254,8 +294,8 @@ const LIVE_SUCCESS_PROOFS = Object.freeze({
   'DELETE /api/chat/session/{sessionId}': { file: 'chatRoutes.test.js', anchor: '/api/chat/session/{sessionId}' },
   'GET /api/instruments': { file: 'openapiContract.test.js', anchor: 'GET /api/instruments' },
   'POST /api/instruments/rank-wti': { file: 'security.test.js', anchor: '/api/instruments/rank-wti' },
-  'GET /api/tax/compare': { file: 'openapiContract.test.js', anchor: 'GET /api/tax/compare' },
-  'GET /api/tax/compute': { file: 'openapiContract.test.js', anchor: 'GET /api/tax/compute' },
+  'POST /api/tax/compare': { file: 'openapiContract.test.js', anchor: 'POST /api/tax/compare' },
+  'POST /api/tax/compute': { file: 'openapiContract.test.js', anchor: 'POST /api/tax/compute' },
   'GET /api/tax/policies': { file: 'openapiContract.test.js', anchor: 'GET /api/tax/policies' },
   'POST /api/tax/post-tax-return': { file: 'taxPostTaxReturnRoute.test.js', anchor: '/api/tax/post-tax-return' },
   'POST /api/tax/post-tax-return/batch': { file: 'taxPostTaxReturnRoute.test.js', anchor: '/api/tax/post-tax-return/batch' },
@@ -307,7 +347,12 @@ function requestSchema(operation) {
 const sourceOperations = publicMounts.flatMap(([filename, prefix]) => {
   const moduleSource = fs.readFileSync(path.join(serverRoot, 'routes', filename), 'utf8');
   return extractRoutes(moduleSource, 'router', prefix);
-}).concat(extractRoutes(appSource, 'app'));
+}).concat(extractRoutes(appSource, 'app').filter((route) => {
+  // This app-level PUT registration installs only a provider gate and calls
+  // through to the authenticated profile router. It is middleware, not a
+  // second public endpoint whose security should be inferred from app.js.
+  return !(route.method === 'put' && route.path === '/api/profile/{profileId}');
+}));
 
 test('live contract coverage manifest accounts for public routes and required success families', () => {
   const inventory = new Set(sourceOperations.map(operationKey));
@@ -430,6 +475,8 @@ test('OpenAPI preserves major runtime-required request fields', () => {
       'profileId', 'current_allocation', 'target_allocation', 'threshold', 'partial_ratio', 'holding_months',
     ]],
     ['POST /api/chat/message', ['message']],
+    ['POST /api/tax/compute', ['income', 'incomeSource', 'fiscalYear', 'regime']],
+    ['POST /api/tax/compare', ['income', 'incomeSource', 'fiscalYear', 'age']],
   ]);
   const operations = new Map(contractOperations().map((entry) => [operationKey(entry), entry.operation]));
 
@@ -437,6 +484,36 @@ test('OpenAPI preserves major runtime-required request fields', () => {
     const schema = requestSchema(operations.get(key));
     assert.ok(schema, `${key} has no JSON request schema`);
     assert.deepEqual(new Set(schema.required ?? []), new Set(requiredFields), `${key} required fields drifted`);
+  }
+});
+
+test('tax calculation OpenAPI moves sensitive inputs to strict POST bodies', () => {
+  const contracts = [
+    ['/api/tax/compute', 'TaxComputeRequest', {
+      income: 1_000_000_000,
+      incomeSource: 'salary',
+      fiscalYear: 'FY2026-27',
+      regime: 'new',
+    }],
+    ['/api/tax/compare', 'TaxCompareRequest', {
+      income: 1_000_000_000,
+      incomeSource: 'salary',
+      fiscalYear: 'FY2026-27',
+      age: 35,
+    }],
+  ];
+
+  for (const [routePath, schemaName, validBody] of contracts) {
+    const pathItem = contract.paths[routePath];
+    assert.equal(pathItem.get, undefined, `${routePath} must not expose sensitive GET inputs`);
+    assert.deepEqual(pathItem.post.parameters || [], [], `${routePath} must keep tax inputs out of query parameters`);
+    const requestBody = resolveLocalRef(pathItem.post.requestBody.$ref);
+    assert.equal(requestBody.content['application/json'].schema.$ref, `#/components/schemas/${schemaName}`);
+
+    const validateBody = responseAjv.compile(inlineLocalRefs({ $ref: `#/components/schemas/${schemaName}` }));
+    assert.equal(validateBody(validBody), true, JSON.stringify(validateBody.errors));
+    assert.equal(validateBody({ ...validBody, income: 1_000_000_001 }), false);
+    assert.equal(validateBody({ ...validBody, sensitiveExtra: true }), false);
   }
 });
 
@@ -549,7 +626,7 @@ test('OpenAPI runtime contracts exercise real HTTP success and canonical error r
   RecommendationAllocationRevision.findOne = () => emptyQuery(null);
 
   try {
-    await withServer(buildContractTestApp(), async baseUrl => {
+    await withMockAuthAccountState(() => withServer(buildContractTestApp(), async baseUrl => {
       const authToken = jwt.sign({ userId, jti: 'openapi-contract-jti' }, process.env.JWT_SECRET, { expiresIn: '5m' });
       const authorization = { Authorization: `Bearer ${authToken}` };
       for (const item of LIVE_CONTRACT_CASES) {
@@ -589,7 +666,7 @@ test('OpenAPI runtime contracts exercise real HTTP success and canonical error r
       } finally {
         Instrument.find = priorFind;
       }
-    });
+    }));
   } finally {
     Instrument.find = oldFind;
     Instrument.countDocuments = oldCountDocuments;
@@ -616,7 +693,7 @@ test('enabled GenieProof routes reject invalid consent and unknown fields over a
   const url = '/api/genieproof/cases/00000000-0000-4000-8000-000000000001/watch';
 
   try {
-    await withServer(app, async baseUrl => {
+    await withMockAuthAccountState(() => withServer(app, async baseUrl => {
       for (const body of [{ watchConsent: false }, { watchConsent: true, userId }]) {
         const response = await rawRequest(`${baseUrl}${url}`, {
           method: 'POST',
@@ -634,7 +711,7 @@ test('enabled GenieProof routes reject invalid consent and unknown fields over a
       });
       assert.equal(missingIdempotency.status, 400, 'valid consent proceeds to the route-level idempotency check without reaching persistence');
       assert.equal((await missingIdempotency.json()).code, 'GENIEPROOF_IDEMPOTENCY_KEY_REQUIRED');
-    });
+    }));
   } finally {
     if (oldSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = oldSecret;

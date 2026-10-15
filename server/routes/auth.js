@@ -130,7 +130,6 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
  * Revokes the current user's session JWT.
  */
 router.post('/logout', verifyJWTWithRevocationAvailability, asyncHandler(async (req, res) => {
-  clearAuthCookies(res);
   const { jti, exp } = req.user;
   const required = tokenRevocationMustFailClosed();
   const remainingTime = Number.isFinite(exp) ? exp - Math.floor(Date.now() / 1000) : 0;
@@ -145,6 +144,12 @@ router.post('/logout', verifyJWTWithRevocationAvailability, asyncHandler(async (
       { code: 'TOKEN_REVOCATION_UNAVAILABLE' },
     );
   }
+  // In fail-closed environments, the revoked cookie is harmless and must not
+  // be cleared by a late response: Set-Cookie is applied by the browser before
+  // client-side auth-revision fencing can reject a stale logout response.
+  // Keep cookie cleanup only for non-production fail-open mode, where Redis
+  // revocation may be unavailable and local logout still matters.
+  if (!required) clearAuthCookies(res);
   res.json({ message: 'Logout successful.' });
 }));
 
@@ -155,7 +160,6 @@ router.post('/logout', verifyJWTWithRevocationAvailability, asyncHandler(async (
 router.get('/session', verifyJWT, asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.userId).lean();
   if (!user) {
-    clearAuthCookies(res);
     throw createError(401, `Session user not found: ${req.user.userId}`, 'Session is no longer valid.');
   }
   const csrfToken = ensureCsrfCookie(req, res);

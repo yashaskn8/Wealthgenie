@@ -43,6 +43,7 @@ function GenieMark() {
 
 function LandingPage() {
   const heroRef = useRef(null);
+  const videoRef = useRef(null);
   const [preferences, setPreferences] = useState(getMediaPreferences);
   const [videoUnavailable, setVideoUnavailable] = useState(false);
   const showVideo = !preferences.reducedMotion && !preferences.saveData && !videoUnavailable;
@@ -55,10 +56,20 @@ function LandingPage() {
     const updateMotion = () => {
       const reducedMotion = motionQuery?.matches === true;
       setPreferences((current) => ({ ...current, reducedMotion }));
+      if (reducedMotion) {
+        videoRef.current?.pause();
+      } else {
+        setVideoUnavailable(false);
+      }
     };
     const updateData = () => {
       const saveData = connection?.saveData === true;
       setPreferences((current) => ({ ...current, saveData }));
+      if (saveData) {
+        videoRef.current?.pause();
+      } else {
+        setVideoUnavailable(false);
+      }
     };
 
     if (motionQuery?.addEventListener) motionQuery.addEventListener('change', updateMotion);
@@ -118,7 +129,8 @@ function LandingPage() {
     };
   }, [preferences.reducedMotion, preferences.saveData]);
 
-  const handleVideoError = () => {
+  const handleVideoError = (event) => {
+    if (event.currentTarget !== videoRef.current) return;
     setVideoUnavailable(true);
   };
 
@@ -133,6 +145,7 @@ function LandingPage() {
           <img className="wg-landing__poster" src={HERO_POSTER} alt="" />
           {showVideo && (
             <video
+              ref={videoRef}
               className="wg-landing__video"
               autoPlay
               muted

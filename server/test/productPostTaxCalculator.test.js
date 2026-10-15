@@ -8,6 +8,147 @@ import {
 } from '../services/productPostTaxCalculator.js';
 import { taxCalculationContextSchema } from '../validation/taxSchemas.js';
 import whereToInvestCatalog from '../data/whereToInvestCatalog.js';
+import { RBI_FRSB_NOTIFICATION_URL, RBI_RATE_DATA_CLASS } from '../services/marketData/RbiFloatingRateSavingsBondProvider.js';
+import { SBI_RATE_DATA_CLASS, SBI_TERM_DEPOSIT_URL } from '../services/marketData/SbiTermDepositProvider.js';
+
+const AMFI_CURRENT_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt';
+const AMFI_HISTORY_URL = 'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=28-Sep-2025&todt=04-Oct-2025';
+const FIXED_INCOME_CALCULATION_NOW = new Date('2026-10-14T15:00:00.000Z');
+const SBI_RATE_OBSERVED_AT = '2026-10-14T14:58:00.000Z';
+const SBI_RATE_FETCHED_AT = '2026-10-14T14:59:00.000Z';
+
+function indiaPeriodFreshness(effectiveFrom, effectiveTo, fetchedAt, evaluatedAt = fetchedAt) {
+  const intervalStart = Date.parse(`${effectiveFrom}T00:00:00.000+05:30`);
+  const intervalEnd = Date.parse(`${effectiveTo}T23:59:59.999+05:30`);
+  return {
+    status: 'FRESH',
+    ageSeconds: Math.floor((Date.parse(evaluatedAt) - intervalStart) / 1000),
+    maxAgeSeconds: Math.floor((intervalEnd - intervalStart) / 1000),
+  };
+}
+
+function qualifiedSbiRateProduct(value, tenureId = '1y-lt2y', depositor = 'public', overrides = {}) {
+  const canonicalProductId = `deposit:sbi:retail-domestic:${tenureId}:${depositor}`;
+  return {
+    id: canonicalProductId,
+    canonicalProductId,
+    name: 'SBI Retail Domestic Term Deposit',
+    productType: 'BANK_TERM_DEPOSIT',
+    parentInstrumentId: 'sbi_fd',
+    source: {
+      provider: 'SBI',
+      instrumentId: `retail-domestic:${tenureId}:${depositor}`,
+      url: SBI_TERM_DEPOSIT_URL,
+      ...(overrides.source || {}),
+    },
+    availabilityStatus: 'AVAILABLE',
+    freshness: {
+      status: 'FRESH',
+      ageSeconds: 60,
+      maxAgeSeconds: 180 * 24 * 60 * 60,
+      ...overrides.freshness,
+    },
+    officialRate: {
+      value,
+      unit: 'PERCENT_PER_ANNUM',
+      basis: 'OFFICIAL_NOMINAL_CARD_RATE_PER_ANNUM',
+      dataClass: SBI_RATE_DATA_CLASS,
+      observedAt: SBI_RATE_OBSERVED_AT,
+      fetchedAt: SBI_RATE_FETCHED_AT,
+      ...overrides.officialRate,
+    },
+    ...overrides,
+  };
+}
+
+function qualifiedRbiRateProduct(value) {
+  const referenceRateValue = Number((value - 0.35).toFixed(4));
+  return {
+    id: 'government:rbi:frsb-2020-taxable',
+    canonicalProductId: 'government:rbi:frsb-2020-taxable',
+    name: 'Floating Rate Savings Bonds, 2020 (Taxable)',
+    productType: 'GOVERNMENT_BOND',
+    parentInstrumentId: 'rbi_bonds',
+    source: { provider: 'RBI', instrumentId: 'frsb-2020-taxable', url: RBI_FRSB_NOTIFICATION_URL },
+    availabilityStatus: 'AVAILABLE',
+    freshness: indiaPeriodFreshness('2026-07-01', '2026-12-31', '2026-09-08T12:00:00.000Z'),
+    officialRate: {
+      value,
+      unit: 'PERCENT_PER_ANNUM',
+      basis: 'NSC_REFERENCE_RATE_PLUS_35_BPS',
+      dataClass: RBI_RATE_DATA_CLASS,
+      observedAt: '2026-07-01T00:00:00.000Z',
+      fetchedAt: '2026-09-08T12:00:00.000Z',
+      effectiveFrom: '2026-07-01',
+      effectiveTo: '2026-12-31',
+      referenceRate: 'NSC',
+      referenceRateValue,
+      spreadBps: 35,
+      resetDate: '2026-07-01',
+      referenceRateFact: {
+        canonicalProductId: 'government:india-post:nsc',
+        kind: 'SCHEME_INTEREST_RATE',
+        availabilityStatus: 'AVAILABLE',
+        source: {
+          provider: 'GOVERNMENT_OF_INDIA',
+          instrumentId: 'nsc',
+          url: 'https://www.indiapost.gov.in/banking-services/savings',
+        },
+        value: referenceRateValue,
+        unit: 'PERCENT_PER_ANNUM',
+        rateBasis: 'OFFICIAL_NOMINAL_RATE_PER_ANNUM',
+        dataClass: 'QUARTERLY_OFFICIAL_RATE',
+        observedAt: '2026-07-01T00:00:00.000Z',
+        fetchedAt: '2026-09-08T12:00:00.000Z',
+        effectiveFrom: '2026-07-01',
+        effectiveTo: '2026-09-30',
+        freshness: indiaPeriodFreshness('2026-07-01', '2026-09-30', '2026-09-08T12:00:00.000Z'),
+      },
+    },
+  };
+}
+
+function qualifiedHistoricalProduct(valuePct, product = {}, historicalOverrides = {}) {
+  const startDate = '2025-10-01';
+  const endDate = '2026-10-01';
+  const elapsedDays = 365;
+  const startNav = 100;
+  const endNav = startNav * Math.pow(1 + valuePct / 100, elapsedDays / 365);
+  const historicalReturn = {
+    valuePct: Number(((Math.pow(endNav / startNav, 365 / elapsedDays) - 1) * 100).toFixed(6)),
+    basis: 'HISTORICAL_POINT_TO_POINT_NAV_RETURN_1Y',
+    annualized: true,
+    isExpectedReturn: false,
+    startNav,
+    startDate,
+    endNav,
+    endDate,
+    elapsedDays,
+    source: {
+      provider: 'AMFI',
+      startInstrumentId: '101',
+      endInstrumentId: '101',
+      startObservationUrl: AMFI_HISTORY_URL,
+      endObservationUrl: AMFI_CURRENT_URL,
+      historyTargetDate: '2025-10-01',
+    },
+    ...historicalOverrides,
+  };
+  return {
+    id: 'mf:amfi:101',
+    canonicalProductId: 'mf:amfi:101',
+    productType: 'MUTUAL_FUND',
+    parentInstrumentId: 'large_cap_mf',
+    source: { provider: 'AMFI', instrumentId: '101', url: AMFI_CURRENT_URL },
+    nav: { value: endNav, unit: 'NAV_PER_UNIT', valuationDate: endDate, observedAt: `${endDate}T00:00:00.000Z` },
+    availabilityStatus: 'AVAILABLE',
+    freshness: { status: 'FRESH', ageSeconds: 60, maxAgeSeconds: 3600 },
+    returnBasis: historicalReturn.basis,
+    expectedReturn: null,
+    historicalReturn,
+    ...product,
+  };
+}
 
 test('classifyProductTaxType identifies correct tax categories', () => {
   assert.equal(classifyProductTaxType({}, 'ppf'), 'PPF_ACCOUNT_EXCLUSION_CONDITIONAL');
@@ -61,15 +202,11 @@ test('Taxable product without explicit tax context returns REQUIRES_TAX_INPUTS w
 });
 
 test('Taxable SBI FD calculates incremental tax using versioned taxEngine', () => {
-  const fdProduct = {
-    id: 'sbi:fd:1y',
-    name: 'SBI 1-Year Term Deposit',
-    parentInstrumentId: 'sbi_fd',
-    officialRate: { value: 7.0 },
-  };
+  const fdProduct = qualifiedSbiRateProduct(7.0);
   const outcome = calculateProductPostTaxOutcome({
     product: fdProduct,
     profile: { age: 35 },
+    now: FIXED_INCOME_CALCULATION_NOW,
     taxCalculationContext: {
       annualGrossIncome: 1500000,
       regime: 'new',
@@ -89,8 +226,13 @@ test('Taxable SBI FD calculates incremental tax using versioned taxEngine', () =
   assert.ok(outcome.postTaxRatePct > 0);
   assert.deepEqual(
     [...new Set(outcome.sourceReferences.map(source => source.role))].sort(),
-    ['TAX_POLICY'],
+    ['PRODUCT_FACT', 'TAX_POLICY'],
   );
+  assert.ok(outcome.sourceReferences.some(source => source.role === 'PRODUCT_FACT'
+    && source.provider === 'SBI'
+    && source.instrumentId === 'retail-domestic:1y-lt2y:public'
+    && source.observedValue === 7
+    && source.url === fdProduct.source.url));
   assert.equal(
     outcome.sourceReferences.length,
     new Set(outcome.sourceReferences.map(source => [source.authority, source.title, source.url, source.role].join('|'))).size,
@@ -100,12 +242,8 @@ test('Taxable SBI FD calculates incremental tax using versioned taxEngine', () =
 
 test('an explicit zero official rate remains a calculated zero after-tax result', () => {
   const outcome = calculateProductPostTaxOutcome({
-    product: {
-      id: 'sbi:fd:zero',
-      name: 'SBI deposit with an explicit zero rate',
-      parentInstrumentId: 'sbi_fd',
-      officialRate: { value: 0 },
-    },
+    product: qualifiedSbiRateProduct(0, '1y-lt2y', 'public', { name: 'SBI deposit with an explicit zero rate' }),
+    now: FIXED_INCOME_CALCULATION_NOW,
     taxCalculationContext: {
       annualGrossIncome: 0,
       regime: 'new',
@@ -121,13 +259,44 @@ test('an explicit zero official rate remains a calculated zero after-tax result'
   assert.equal(outcome.postTaxRatePct, 0);
 });
 
-test('missing or blank annual income stays required while an explicit zero income is accepted', () => {
-  const product = {
-    id: 'sbi:fd:1y',
-    name: 'SBI 1-Year Term Deposit',
-    parentInstrumentId: 'sbi_fd',
-    officialRate: { value: 7.0 },
+test('fixed-income tax results require a fresh rate fact bound to the official source and product identity', () => {
+  const context = {
+    annualGrossIncome: 500000,
+    incomeSource: 'salary',
+    regime: 'new',
+    fiscalYear: 'FY2026-27',
+    userAge: 35,
+    illustrativePrincipal: 10000,
   };
+  const invalidFacts = [
+    product => { delete product.source; },
+    product => { delete product.source.instrumentId; },
+    product => { product.source.url = 'https://example.invalid/rates'; },
+    product => { product.freshness.status = 'STALE'; },
+    product => { product.officialRate.dataClass = 'MODEL_ASSUMPTION'; },
+    product => { product.officialRate.observedAt = '2026-10-14T15:00:01.000Z'; },
+    product => { product.officialRate.fetchedAt = '2026-10-14T15:00:01.000Z'; },
+    product => { product.freshness.ageSeconds = 3600; },
+    product => { product.officialRate.observedAt = '2026-03-01T00:00:00.000Z'; },
+  ];
+  for (const mutate of invalidFacts) {
+    const product = qualifiedSbiRateProduct(7);
+    mutate(product);
+    const outcome = calculateProductPostTaxOutcome({
+      product,
+      taxCalculationContext: context,
+      now: FIXED_INCOME_CALCULATION_NOW,
+    });
+    assert.equal(outcome.status, 'PRODUCT_FACTS_UNAVAILABLE');
+    assert.ok(outcome.unavailableReasons.includes('QUALIFIED_OFFICIAL_RATE_UNAVAILABLE'));
+    for (const field of ['grossGain', 'incrementalTax', 'netGain', 'postTaxRatePct']) {
+      assert.equal(outcome[field], null, `${field} remains unknown without a qualified source rate`);
+    }
+  }
+});
+
+test('missing or blank annual income stays required while an explicit zero income is accepted', () => {
+  const product = qualifiedSbiRateProduct(7.0, '1y-lt2y', 'public', { name: 'SBI 1-Year Term Deposit' });
   const taxContext = {
     incomeSource: 'salary',
     regime: 'new',
@@ -139,6 +308,7 @@ test('missing or blank annual income stays required while an explicit zero incom
   for (const annualGrossIncome of [null, '']) {
     const outcome = calculateProductPostTaxOutcome({
       product,
+      now: FIXED_INCOME_CALCULATION_NOW,
       taxCalculationContext: { ...taxContext, annualGrossIncome },
     });
 
@@ -149,6 +319,7 @@ test('missing or blank annual income stays required while an explicit zero incom
 
   const zeroIncomeOutcome = calculateProductPostTaxOutcome({
     product,
+    now: FIXED_INCOME_CALCULATION_NOW,
     taxCalculationContext: { ...taxContext, annualGrossIncome: 0 },
   });
   assert.equal(zeroIncomeOutcome.status, 'CALCULATED');
@@ -156,17 +327,14 @@ test('missing or blank annual income stays required while an explicit zero incom
 });
 
 test('missing or blank historical return facts are unavailable while an explicit zero remains calculated', () => {
-  const product = {
-    id: 'amfi:101',
+  const product = qualifiedHistoricalProduct(15, {
     name: 'Qualified equity fund',
-    productType: 'MUTUAL_FUND',
-    parentInstrumentId: 'large_cap_mf',
     taxMetadata: {
       sourceQualified: true,
       taxClass: 'EQUITY_MF_SECTION_112A',
       sourceReferences: [{ authority: 'AMFI', title: 'Qualified product tax adapter', url: 'https://www.amfiindia.com/' }],
     },
-  };
+  });
   const taxCalculationContext = {
     annualGrossIncome: 1000000,
     incomeSource: 'salary',
@@ -180,7 +348,7 @@ test('missing or blank historical return facts are unavailable while an explicit
 
   for (const valuePct of [null, '']) {
     const outcome = calculateProductPostTaxOutcome({
-      product: { ...product, historicalReturn: { valuePct } },
+      product: { ...product, historicalReturn: { ...product.historicalReturn, valuePct } },
       taxCalculationContext,
     });
 
@@ -190,24 +358,69 @@ test('missing or blank historical return facts are unavailable while an explicit
   }
 
   const zeroReturnOutcome = calculateProductPostTaxOutcome({
-    product: { ...product, historicalReturn: { valuePct: 0 } },
+    product: qualifiedHistoricalProduct(0, { name: product.name, taxMetadata: product.taxMetadata }),
     taxCalculationContext,
   });
   assert.equal(zeroReturnOutcome.status, 'CALCULATED');
   assert.equal(zeroReturnOutcome.grossGain, 0);
   assert.equal(zeroReturnOutcome.postTaxRatePct, 0);
+  assert.deepEqual(zeroReturnOutcome.sourceReferences.filter(reference => reference.role === 'PRODUCT_FACT')
+    .map(({ authority, instrumentId, title, url, observedValue, unit, observedAt, role }) => ({
+      authority, instrumentId, title, url, observedValue, unit, observedAt, role,
+    })), [
+    {
+      authority: 'AMFI',
+      instrumentId: '101',
+      title: 'Historical starting NAV observation',
+      url: AMFI_HISTORY_URL,
+      observedValue: 100,
+      unit: 'NAV_PER_UNIT',
+      observedAt: '2025-10-01',
+      role: 'PRODUCT_FACT',
+    },
+    {
+      authority: 'AMFI',
+      instrumentId: '101',
+      title: 'Historical ending NAV observation',
+      url: AMFI_CURRENT_URL,
+      observedValue: 100,
+      unit: 'NAV_PER_UNIT',
+      observedAt: '2026-10-01',
+      role: 'PRODUCT_FACT',
+    },
+  ]);
+
+  const malformedFacts = [
+    product => ({ ...product, historicalReturn: { ...product.historicalReturn, basis: 'EXPECTED_RETURN' } }),
+    product => ({ ...product, historicalReturn: { ...product.historicalReturn, annualized: false } }),
+    product => ({ ...product, historicalReturn: { ...product.historicalReturn, isExpectedReturn: true } }),
+    product => ({ ...product, historicalReturn: { ...product.historicalReturn, source: { ...product.historicalReturn.source, startInstrumentId: '102' } } }),
+    product => ({ ...product, historicalReturn: { ...product.historicalReturn, source: { ...product.historicalReturn.source, endInstrumentId: '102' } } }),
+    product => ({ ...product, historicalReturn: { ...product.historicalReturn, source: { ...product.historicalReturn.source, startObservationUrl: 'https://portal.amfiindia.com/ReportPublication.aspx?SchemeCode=101' } } }),
+    product => ({ ...product, historicalReturn: { ...product.historicalReturn, source: { ...product.historicalReturn.source, endObservationUrl: 'https://example.invalid/nav' } } }),
+    product => ({ ...product, freshness: { ...product.freshness, status: 'STALE' } }),
+    product => ({ ...product, nav: { ...product.nav, value: product.nav.value + 1 } }),
+    product => ({ ...product, historicalReturn: { ...product.historicalReturn, valuePct: product.historicalReturn.valuePct + 1 } }),
+  ];
+  for (const mutate of malformedFacts) {
+    const unavailable = calculateProductPostTaxOutcome({
+      product: mutate(product),
+      taxCalculationContext,
+    });
+    assert.equal(unavailable.status, 'PRODUCT_FACTS_UNAVAILABLE');
+    assert.ok(unavailable.unavailableReasons.includes('QUALIFIED_HISTORICAL_RETURN_UNAVAILABLE'));
+    for (const field of ['grossGain', 'incrementalTax', 'netGain', 'postTaxRatePct']) {
+      assert.equal(unavailable[field], null, `${field} remains unknown when historical evidence is invalid`);
+    }
+  }
 });
 
 test('RBI FRSB labels outcome as Current coupon after tax and disclaims 6-month reset without 7-year guarantee', () => {
-  const rbiBond = {
-    id: 'rbi:frsb:current',
-    name: 'RBI Floating Rate Savings Bond',
-    parentInstrumentId: 'rbi_bonds',
-    officialRate: { value: 8.05 },
-  };
+  const rbiBond = qualifiedRbiRateProduct(8.05);
   const outcome = calculateProductPostTaxOutcome({
     product: rbiBond,
     profile: { age: 40 },
+    now: FIXED_INCOME_CALCULATION_NOW,
     taxCalculationContext: {
       annualGrossIncome: 1200000,
       regime: 'new',
@@ -223,22 +436,113 @@ test('RBI FRSB labels outcome as Current coupon after tax and disclaims 6-month 
   assert.ok(outcome.disclosure.includes('resets every six months'));
   assert.ok(outcome.disclosure.includes('not a fixed 7-year return'));
   assert.equal(outcome.isHistoricalEstimate, false);
+  assert.ok(outcome.sourceReferences.some(reference => reference.provider === 'GOVERNMENT_OF_INDIA'));
+});
+
+test('RBI FRSB post-tax calculation requires qualified NSC reset evidence and coupon arithmetic', () => {
+  const malformedProducts = [
+    product => ({ ...product, officialRate: { ...product.officialRate, referenceRateFact: null } }),
+    product => ({ ...product, officialRate: { ...product.officialRate, referenceRateFact: {
+      ...product.officialRate.referenceRateFact,
+      source: { ...product.officialRate.referenceRateFact.source, url: 'https://www.indiapost.gov.in/not-the-rate-table' },
+    } } }),
+    product => ({ ...product, officialRate: { ...product.officialRate, referenceRateFact: {
+      ...product.officialRate.referenceRateFact, effectiveFrom: '2026-04-01', effectiveTo: '2026-06-30',
+    } } }),
+    product => ({ ...product, officialRate: { ...product.officialRate, referenceRateValue: 7.8 } }),
+    product => ({ ...product, officialRate: { ...product.officialRate, spreadBps: 50 } }),
+    product => ({ ...product, officialRate: { ...product.officialRate, observedAt: '2026-09-08T12:00:01.000Z' } }),
+    product => ({ ...product, officialRate: { ...product.officialRate, fetchedAt: '2026-10-14T15:00:01.000Z' } }),
+    product => ({ ...product, freshness: { ...product.freshness, ageSeconds: 0 } }),
+    product => ({ ...product, officialRate: { ...product.officialRate, referenceRateFact: {
+      ...product.officialRate.referenceRateFact,
+      freshness: { ...product.officialRate.referenceRateFact.freshness, ageSeconds: 0 },
+    } } }),
+    product => ({ ...product, officialRate: { ...product.officialRate, referenceRateFact: {
+      ...product.officialRate.referenceRateFact,
+      fetchedAt: '2026-10-14T15:00:01.000Z',
+    } } }),
+  ];
+  for (const mutate of malformedProducts) {
+    const outcome = calculateProductPostTaxOutcome({
+      product: mutate(qualifiedRbiRateProduct(8.05)),
+      now: FIXED_INCOME_CALCULATION_NOW,
+      taxCalculationContext: {
+        annualGrossIncome: 1200000, regime: 'new', fiscalYear: 'FY2025-26',
+        incomeSource: 'salary', userAge: 40, illustrativePrincipal: 10000,
+      },
+    });
+    assert.equal(outcome.status, 'PRODUCT_FACTS_UNAVAILABLE');
+    assert.ok(outcome.unavailableReasons.includes('QUALIFIED_OFFICIAL_RATE_UNAVAILABLE'));
+    assert.equal(outcome.grossGain, null);
+    assert.equal(outcome.postTaxRatePct, null);
+  }
+});
+
+test('FRSB accepts NSC evidence evaluated after India Post’s bounded sequential fetch window', () => {
+  const product = qualifiedRbiRateProduct(8.05);
+  const referenceFact = product.officialRate.referenceRateFact;
+  const evaluatedAt = new Date(Date.parse(referenceFact.fetchedAt) + 6 * 60 * 1000).toISOString();
+  referenceFact.freshness = indiaPeriodFreshness(
+    referenceFact.effectiveFrom,
+    referenceFact.effectiveTo,
+    referenceFact.fetchedAt,
+    evaluatedAt,
+  );
+
+  const outcome = calculateProductPostTaxOutcome({
+    product,
+    now: FIXED_INCOME_CALCULATION_NOW,
+    taxCalculationContext: {
+      annualGrossIncome: 1200000, regime: 'new', fiscalYear: 'FY2025-26',
+      incomeSource: 'salary', userAge: 40, illustrativePrincipal: 10000,
+    },
+  });
+
+  assert.equal(outcome.status, 'CALCULATED');
+  assert.equal(outcome.metricLabel, 'Current coupon after tax');
+});
+
+test('FRSB rejects stale or implausibly delayed NSC fetch timestamps', () => {
+  const context = {
+    annualGrossIncome: 1200000, regime: 'new', fiscalYear: 'FY2025-26',
+    incomeSource: 'salary', userAge: 40, illustrativePrincipal: 10000,
+  };
+  const stale = qualifiedRbiRateProduct(8.05);
+  stale.officialRate.referenceRateFact.fetchedAt = '2026-10-01T00:00:00.000Z';
+  const implausiblyDelayed = qualifiedRbiRateProduct(8.05);
+  const lateReference = implausiblyDelayed.officialRate.referenceRateFact;
+  const evaluatedAt = new Date(Date.parse(lateReference.fetchedAt) + 10 * 60 * 1000).toISOString();
+  lateReference.freshness = indiaPeriodFreshness(
+    lateReference.effectiveFrom,
+    lateReference.effectiveTo,
+    lateReference.fetchedAt,
+    evaluatedAt,
+  );
+
+  for (const product of [stale, implausiblyDelayed]) {
+    const outcome = calculateProductPostTaxOutcome({
+      product,
+      now: FIXED_INCOME_CALCULATION_NOW,
+      taxCalculationContext: context,
+    });
+    assert.equal(outcome.status, 'PRODUCT_FACTS_UNAVAILABLE');
+    assert.ok(outcome.unavailableReasons.includes('QUALIFIED_OFFICIAL_RATE_UNAVAILABLE'));
+    assert.equal(outcome.grossGain, null);
+    assert.equal(outcome.postTaxRatePct, null);
+  }
 });
 
 test('Mutual fund returns are labelled HISTORICAL and NOT A FORECAST', () => {
-  const equityMf = {
-    id: 'amfi:101',
+  const equityMf = qualifiedHistoricalProduct(15, {
     name: 'Nifty 50 Index Fund',
-    productType: 'MUTUAL_FUND',
-    parentInstrumentId: 'large_cap_mf',
-    historicalReturn: { valuePct: 15.0 },
     taxMetadata: {
       sourceQualified: true,
       taxClass: 'EQUITY_MF_SECTION_112A',
       sourceReferences: [{ authority: 'AMFI', title: 'Qualified product tax adapter', url: 'https://www.amfiindia.com/' }],
       rulesApplied: ['SECTION_112A_LTCG_SPECIAL_RATE'],
     },
-  };
+  });
   const outcome = calculateProductPostTaxOutcome({
     product: equityMf,
     profile: { age: 30 },
@@ -262,20 +566,24 @@ test('Mutual fund returns are labelled HISTORICAL and NOT A FORECAST', () => {
   assert.ok(outcome.postTaxRatePct <= 15.0);
   assert.ok(outcome.sourceReferences.some(source => source.role === 'TAX_POLICY'));
   assert.ok(outcome.sourceReferences.some(source => source.authority === 'AMFI' && source.role === 'PRODUCT_RULE'));
+  assert.ok(outcome.sourceReferences.filter(source => source.role === 'PRODUCT_FACT')
+    .every(source => source.instrumentId === '101'));
+  assert.deepEqual(outcome.sourceReferences.filter(source => source.role === 'PRODUCT_FACT').map(source => source.url).sort(), [
+    AMFI_CURRENT_URL,
+    AMFI_HISTORY_URL,
+  ].sort());
 });
 
 test('exact-date WTI tax classification keeps the anniversary short-term without fake month conversion', () => {
   const outcome = calculateProductPostTaxOutcome({
-    product: {
+    product: qualifiedHistoricalProduct(15, {
       name: 'Qualified equity fund',
-      parentInstrumentId: 'large_cap_mf',
-      historicalReturn: { valuePct: 15 },
       taxMetadata: {
         sourceQualified: true,
         taxClass: 'EQUITY_MF_SECTION_112A',
         sourceReferences: [{ authority: 'AMFI', title: 'Qualified product tax adapter', url: 'https://www.amfiindia.com/' }],
       },
-    },
+    }),
     taxCalculationContext: {
       annualGrossIncome: 1500000,
       regime: 'new',
@@ -418,22 +726,16 @@ test('FRSB issuer and administrator claims remain unavailable without source-bou
 });
 
 test('enrichProductsWithPostTaxAndSuitability enriches product array without mutating historicalReturn', () => {
-  const products = [
-    {
-      id: 'amfi:101',
-      name: 'Test Fund',
-    productType: 'MUTUAL_FUND',
-    parentInstrumentId: 'large_cap_mf',
-    historicalReturn: { valuePct: 18.25 },
+  const products = [qualifiedHistoricalProduct(18.25, {
+    name: 'Test Fund',
     taxMetadata: {
       sourceQualified: true,
       taxClass: 'EQUITY_MF_SECTION_112A',
       sourceReferences: [{ authority: 'AMFI', title: 'Qualified product tax adapter', url: 'https://www.amfiindia.com/' }],
       rulesApplied: ['SECTION_112A_LTCG_SPECIAL_RATE'],
     },
-      postTaxReturn: null,
-    },
-  ];
+    postTaxReturn: null,
+  })];
   const enriched = enrichProductsWithPostTaxAndSuitability(products, {
     profile: { investmentGoals: ['Wealth Growth'], investmentHorizonYears: 10 },
     parentCatalog: { id: 'large_cap_mf' },
@@ -458,15 +760,15 @@ test('enrichProductsWithPostTaxAndSuitability enriches product array without mut
 });
 
 test('product enrichment calculates every returned top-five option in order and does not pad shorter results', () => {
-  const products = [5, 6, 7, 8, 9].map((rate, index) => ({
-    id: `sbi:fd:${index + 1}`,
-    parentInstrumentId: 'sbi_fd',
+  const products = [
+    ['7d-45d', 5], ['46d-179d', 6], ['180d-210d', 7], ['211d-lt1y', 8], ['1y-lt2y', 9],
+  ].map(([tenureId, rate], index) => qualifiedSbiRateProduct(rate, tenureId, 'public', {
     name: `SBI deposit option ${index + 1}`,
     rank: index + 1,
-    officialRate: { value: rate },
     postTaxReturn: null,
   }));
   const options = {
+    now: FIXED_INCOME_CALCULATION_NOW,
     taxCalculationContext: {
       annualGrossIncome: 1500000,
       incomeSource: 'salary',
@@ -491,17 +793,14 @@ test('product enrichment calculates every returned top-five option in order and 
 });
 
 test('equity fund tax requires an explicit STT scenario assumption and never calculates when absent or false', () => {
-  const product = {
-    id: 'amfi:101',
+  const product = qualifiedHistoricalProduct(15, {
     name: 'Qualified equity fund',
-    parentInstrumentId: 'large_cap_mf',
-    historicalReturn: { valuePct: 15 },
     taxMetadata: {
       sourceQualified: true,
       taxClass: 'EQUITY_MF_SECTION_112A',
       sourceReferences: [{ authority: 'AMFI', title: 'Qualified product tax adapter', url: 'https://www.amfiindia.com/', role: 'PRODUCT_RULE' }],
     },
-  };
+  });
   const requiredContext = {
     annualGrossIncome: 500000,
     incomeSource: 'salary',

@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import { isTokenBlacklisted, TokenRevocationUnavailableError } from '../config/redis.js';
-import { clearAuthCookies, readSessionCookie } from '../services/authSession.js';
+import { readSessionCookie } from '../services/authSession.js';
 import { sendError } from './errorHandler.js';
 
 /**
@@ -14,7 +14,7 @@ export function verifyJWTWithRevocationAvailability(req, res, next) {
 }
 
 export async function verifyJWT(req, res, next, {
-  revocationUnavailableStatus = null,
+  revocationUnavailableStatus = 503,
   getCurrentUser = userId => User.findById(userId).select('role').lean(),
   isDatabaseReady = () => mongoose.connection.readyState === 1,
 } = {}) {
@@ -23,9 +23,11 @@ export async function verifyJWT(req, res, next, {
     return sendError(req, res, 401, 'Access denied. Invalid authorization scheme.', 'AUTH_SCHEME_INVALID');
   }
 
+  // Authentication failures must not mutate browser cookies. A delayed 401
+  // can arrive after a newer login and its Set-Cookie deletion would erase
+  // that valid session; rejected tokens remain unusable on the server.
   const cookieToken = authHeader ? null : readSessionCookie(req);
   const token = authHeader?.slice('Bearer '.length).trim() || cookieToken;
-  const usingCookie = Boolean(cookieToken);
   if (!token || token === 'null' || token === 'undefined') {
     return sendError(req, res, 401, 'Access denied. No token or valid session provided.', 'AUTH_REQUIRED');
   }
@@ -40,14 +42,12 @@ export async function verifyJWT(req, res, next, {
     const revocationRequired = process.env.NODE_ENV === 'production' || process.env.REQUIRE_REDIS === 'true';
     if (!decoded.userId || (!validJti && (!missingJti || revocationRequired))
         || (decoded.token_use && decoded.token_use !== 'session')) {
-      if (usingCookie) clearAuthCookies(res);
       return sendError(req, res, 401, 'Invalid token payload.', 'AUTH_TOKEN_INVALID');
     }
 
     if (decoded.jti) {
       const blacklisted = await isTokenBlacklisted(decoded.jti);
       if (blacklisted) {
-        if (usingCookie) clearAuthCookies(res);
         return sendError(req, res, 401, 'Token has been revoked. Please log in again.', 'AUTH_TOKEN_REVOKED');
       }
     }
@@ -58,45 +58,47 @@ export async function verifyJWT(req, res, next, {
       decoded.role = 'user';
     }
 
-    // A signed JWT may outlive an administrator demotion. Recheck only tokens
-    // that claim elevated access, keeping ordinary authenticated requests off
-    // this additional database path.
-    if (decoded.role === 'admin') {
-      if (!isValidObjectId(decoded.userId)) {
-        if (usingCookie) clearAuthCookies(res);
-        return sendError(req, res, 401, 'Invalid token payload.', 'AUTH_TOKEN_INVALID');
-      }
-      if (!isDatabaseReady()) {
-        return sendError(req, res, 503, 'Administrator access could not be verified right now.', 'AUTH_ROLE_STATE_UNAVAILABLE');
-      }
-      let currentUser;
-      try {
-        currentUser = await getCurrentUser(decoded.userId);
-      } catch {
-        return sendError(req, res, 503, 'Administrator access could not be verified right now.', 'AUTH_ROLE_STATE_UNAVAILABLE');
-      }
-      if (!currentUser) {
-        if (usingCookie) clearAuthCookies(res);
-        return sendError(req, res, 401, 'Invalid or expired token.', 'AUTH_TOKEN_INVALID');
-      }
+    // A valid signature does not prove the account still exists. Check current
+    // account state for every session token so deleted users lose access
+    // immediately. Keep elevated-role demotion behavior for admin-claim tokens.
+    if (!isValidObjectId(decoded.userId)) {
+      return sendError(req, res, 401, 'Invalid token payload.', 'AUTH_TOKEN_INVALID');
+    }
+    const adminClaim = decoded.role === 'admin';
+    const unavailableCode = adminClaim ? 'AUTH_ROLE_STATE_UNAVAILABLE' : 'AUTH_ACCOUNT_STATE_UNAVAILABLE';
+    const unavailableMessage = adminClaim
+      ? 'Administrator access could not be verified right now.'
+      : 'Account access could not be verified right now.';
+    if (!isDatabaseReady()) {
+      return sendError(req, res, 503, unavailableMessage, unavailableCode);
+    }
+    let currentUser;
+    try {
+      currentUser = await getCurrentUser(decoded.userId);
+    } catch {
+      return sendError(req, res, 503, unavailableMessage, unavailableCode);
+    }
+    if (!currentUser) {
+      return sendError(req, res, 401, 'Invalid or expired token.', 'AUTH_TOKEN_INVALID');
+    }
+    if (adminClaim) {
       decoded.role = currentUser.role === 'admin' ? 'admin' : 'user';
     }
 
     req.user = decoded;
     next();
   } catch (err) {
-    if (usingCookie) clearAuthCookies(res);
-    if (
-      revocationUnavailableStatus === 503
-      && (err instanceof TokenRevocationUnavailableError || err?.code === 'TOKEN_REVOCATION_UNAVAILABLE')
-    ) {
-      return sendError(
-        req,
-        res,
-        503,
-        'Authentication session status is temporarily unavailable.',
-        'TOKEN_REVOCATION_UNAVAILABLE',
-      );
+    if (err instanceof TokenRevocationUnavailableError || err?.code === 'TOKEN_REVOCATION_UNAVAILABLE') {
+      if (revocationUnavailableStatus === 503) {
+        return sendError(
+          req,
+          res,
+          503,
+          'Authentication session status is temporarily unavailable.',
+          'TOKEN_REVOCATION_UNAVAILABLE',
+        );
+      }
+      return sendError(req, res, 401, 'Invalid or expired token.', 'AUTH_TOKEN_INVALID');
     }
     if (err.name === 'TokenExpiredError') {
       return sendError(req, res, 401, 'Token expired. Please log in again.', 'AUTH_TOKEN_EXPIRED');

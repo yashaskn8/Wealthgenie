@@ -14,6 +14,7 @@ import RecommendationState from '../models/RecommendationState.js';
 import AuditRecord from '../models/AuditRecord.js';
 import AuditChainHead from '../models/AuditChainHead.js';
 import IdempotencyKey from '../models/IdempotencyKey.js';
+import User from '../models/User.js';
 import { persistAdvisoryAtomically } from '../services/advisoryPersistence.js';
 import { installFinancialStateTestHook } from '../services/financialStateTestHooks.js';
 import { verifyAuditChain } from '../services/auditChain.js';
@@ -30,6 +31,7 @@ import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelp
 const JWT_SECRET = 'recommend-post-commit-current-state-test-secret';
 process.env.JWT_SECRET = JWT_SECRET;
 process.env.NODE_ENV = 'test';
+const authenticatedUserIds = new Set();
 
 function createBarrier() {
   let markEntered;
@@ -154,6 +156,7 @@ function authToken(userId) {
 
 async function clearUser(userId) {
   await Promise.all([
+    User.deleteOne({ _id: userId }),
     FinancialProfile.deleteMany({ userId }),
     FinancialProfileState.deleteMany({ userId }),
     Recommendation.deleteMany({ userId }),
@@ -168,6 +171,7 @@ async function clearUser(userId) {
 test.before(async () => {
   await setupTestDatabase({ requireReplicaSet: true });
   await Promise.all([
+    User.init(),
     FinancialProfile.init(),
     FinancialProfileState.init(),
     Recommendation.init(),
@@ -179,6 +183,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
+  await Promise.all([...authenticatedUserIds].map(clearUser));
   await teardownTestDatabase();
 });
 
@@ -255,6 +260,14 @@ test('committed recommendation reconciles and replays as the user current profil
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   try {
+    authenticatedUserIds.add(userId);
+    await User.create({
+      _id: userId,
+      name: 'Post-commit test user',
+      email: `${userId}@post-commit.example.test`,
+      passwordHash: 'test-only-not-a-real-password-hash',
+      role: 'user',
+    });
     const result = await fetch(`http://127.0.0.1:${server.address().port}/api/recommend`, {
       method: 'POST',
       headers: {

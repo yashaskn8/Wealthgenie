@@ -53,6 +53,9 @@ const recommendationUsabilitySchema = new mongoose.Schema({
 // allowing additive fields from older/newer snapshots to round-trip safely.
 const marketAdjustmentSchema = new mongoose.Schema({
   status: { type: String, enum: ['APPLIED', 'NOT_APPLIED', 'UNAVAILABLE'], default: null },
+  // Internal generation-time provenance. It is intentionally excluded from
+  // recommendation response snapshots and public DTOs.
+  sourceProvider: { type: String, enum: ['NSE', 'UPSTOX', null], default: null },
   contextStatus: { type: String, default: null },
   context: { type: String, default: null },
   policyVersion: { type: String, default: null },
@@ -118,6 +121,7 @@ const IMMUTABLE_GENERATION_FIELDS = new Set([
   'returnAssumptionHash',
   'recommendationGeneration',
   'responseSnapshot',
+  'marketAdjustment',
   'currentAllocationSource',
   'generatedAt',
   'userId',

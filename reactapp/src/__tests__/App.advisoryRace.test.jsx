@@ -15,6 +15,12 @@ const appMocks = vi.hoisted(() => ({
   getRecommendations: vi.fn(),
   subscribeProfileChanges: vi.fn(),
   updateRecommendationWeights: vi.fn(),
+  logout: vi.fn(),
+  cancelChatSend: vi.fn(),
+  getChatHistory: vi.fn(),
+  getTaxPolicyMetadata: vi.fn(),
+  sendChatMessage: vi.fn(),
+  mountActualChat: false,
 }));
 
 vi.mock('../services/api', async (importOriginal) => {
@@ -25,6 +31,9 @@ vi.mock('../services/api', async (importOriginal) => {
     getCurrentProfile: appMocks.getCurrentProfile,
     getCurrentRecommendation: appMocks.getCurrentRecommendation,
     getRecommendations: appMocks.getRecommendations,
+    getChatHistory: appMocks.getChatHistory,
+    getTaxPolicyMetadata: appMocks.getTaxPolicyMetadata,
+    sendChatMessage: appMocks.sendChatMessage,
     subscribeProfileChanges: listener => {
       appMocks.profileChangeListener = listener;
       return () => { appMocks.profileChangeListener = null; };
@@ -34,7 +43,7 @@ vi.mock('../services/api', async (importOriginal) => {
 });
 
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ isAuthenticated: true, isInitializing: false, logout: vi.fn() }),
+  useAuth: () => ({ isAuthenticated: true, isInitializing: false, logout: appMocks.logout }),
 }));
 
 vi.mock('../components/ProfilePage', async () => {
@@ -80,12 +89,24 @@ vi.mock('../components/ProgressHub', async () => {
 vi.mock('../components/Sidebar', async () => {
   const ReactModule = await import('react');
   return {
-    default: ({ onNavigate }) => ReactModule.createElement('nav', null,
+    default: ({ onNavigate, onLogout }) => ReactModule.createElement('nav', null,
       ReactModule.createElement('button', { type: 'button', onClick: () => onNavigate('home') }, 'Test home'),
-      ReactModule.createElement('button', { type: 'button', onClick: () => onNavigate('account') }, 'Test account')),
+      ReactModule.createElement('button', { type: 'button', onClick: () => onNavigate('account') }, 'Test account'),
+      ReactModule.createElement('button', { type: 'button', onClick: () => { void onLogout().catch(() => {}); } }, 'Test logout')),
   };
 });
-vi.mock('../components/GenieChat', () => ({ default: () => null }));
+vi.mock('../components/GenieChat', async (importOriginal) => {
+  const ReactModule = await import('react');
+  const actual = await importOriginal();
+  return {
+    default: (props) => {
+      if (appMocks.mountActualChat) return ReactModule.createElement(actual.default, props);
+      const { recommendationContextReady, cancelPendingSendRef } = props;
+      if (cancelPendingSendRef) cancelPendingSendRef.current = appMocks.cancelChatSend;
+      return ReactModule.createElement('output', { 'data-testid': 'chat-context-ready' }, String(Boolean(recommendationContextReady)));
+    },
+  };
+});
 vi.mock('../components/ErrorBoundary', () => ({ default: ({ children }) => children }));
 vi.mock('../RecommendationDashboard', async () => {
   const ReactModule = await import('react');
@@ -149,6 +170,13 @@ vi.mock('../ProfileEditor', async () => {
           });
         },
       }, 'Save atomically committed profile version'),
+      ReactModule.createElement('button', {
+        type: 'button',
+        onClick: () => {
+          onProfileChangeStart?.();
+          onProfileUpdate({ ...userProfile });
+        },
+      }, 'Commit unchanged profile snapshot'),
     ),
   };
 });
@@ -679,6 +707,15 @@ describe('profile edits trigger one authoritative recommendation recompute', () 
     appMocks.getCurrentRecommendation.mockResolvedValue(revision4);
     appMocks.getRecommendations.mockReset();
     appMocks.updateRecommendationWeights.mockReset();
+    appMocks.logout.mockReset();
+    appMocks.cancelChatSend.mockReset();
+    appMocks.getChatHistory.mockReset();
+    appMocks.getChatHistory.mockResolvedValue({ conversations: [] });
+    appMocks.getTaxPolicyMetadata.mockReset();
+    appMocks.getTaxPolicyMetadata.mockResolvedValue({ verifiedFiscalYears: [] });
+    appMocks.sendChatMessage.mockReset();
+    appMocks.mountActualChat = false;
+    sessionStorage.clear();
     window.history.replaceState({}, '', '/profile?page=account');
     vi.stubGlobal('alert', vi.fn());
   });
@@ -794,6 +831,158 @@ describe('profile edits trigger one authoritative recommendation recompute', () 
     expect(appMocks.getCurrentProfile).toHaveBeenCalledTimes(1);
     expect(appMocks.getRecommendations).toHaveBeenCalledTimes(1);
     expect(appMocks.getCurrentRecommendation).not.toHaveBeenCalled();
+  });
+
+  it('keeps chat context unready when the canonical recommendation fetch fails', async () => {
+    appMocks.initialRecommendation = null;
+    appMocks.getCurrentRecommendation.mockRejectedValue(new Error('temporary recommendation outage'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Test home' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('false');
+      expect(screen.getByTestId('recommendation-fallback')).toHaveTextContent('Authoritative recommendations are temporarily unavailable');
+    });
+    expect(appMocks.getCurrentRecommendation).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
+  it('aborts pending recommendation and chat work before logout', async () => {
+    appMocks.initialRecommendation = null;
+    appMocks.logout.mockImplementation(() => new Promise(resolve => { appMocks.finishLogout = resolve; }));
+    let resolveRecommendation;
+    let recommendationSignal;
+    const pendingRecommendation = new Promise(resolve => { resolveRecommendation = resolve; });
+    appMocks.getCurrentRecommendation.mockImplementation((_id, { signal }) => {
+      recommendationSignal = signal;
+      return pendingRecommendation;
+    });
+    render(<App />);
+    await waitFor(() => expect(appMocks.getCurrentRecommendation).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test logout' }));
+    expect(recommendationSignal.aborted).toBe(true);
+    expect(appMocks.cancelChatSend).toHaveBeenCalledTimes(1);
+    expect(appMocks.logout).toHaveBeenCalledTimes(1);
+    expect(appMocks.cancelChatSend.mock.invocationCallOrder[0]).toBeLessThan(appMocks.logout.mock.invocationCallOrder[0]);
+
+    await act(async () => resolveRecommendation(revision4));
+    expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('false');
+    await act(async () => appMocks.finishLogout());
+  });
+
+  it('restores canonical recommendation context when logout fails after aborting its pending fetch', async () => {
+    appMocks.initialRecommendation = null;
+    appMocks.logout.mockRejectedValue(new Error('temporary sign-out outage'));
+    let resolveAbortedRecommendation;
+    const abortedRecommendation = new Promise(resolve => { resolveAbortedRecommendation = resolve; });
+    appMocks.getCurrentRecommendation
+      .mockImplementationOnce(() => abortedRecommendation)
+      .mockResolvedValueOnce(revision4);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Test home' }));
+    await waitFor(() => expect(appMocks.getCurrentRecommendation).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('false');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test logout' }));
+    await waitFor(() => {
+      expect(appMocks.getCurrentRecommendation).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('true');
+    });
+    expect(screen.getByTestId('recommendation-fallback')).toBeEmptyDOMElement();
+
+    await act(async () => resolveAbortedRecommendation({
+      ...revision4,
+      advisory_text: 'stale response from the aborted restore',
+    }));
+    expect(screen.getByTestId('advisory-text')).not.toHaveTextContent('stale response from the aborted restore');
+  });
+
+  it('does not let a same-profile restore skip suppress logout-failure recovery', async () => {
+    appMocks.initialRecommendation = null;
+    appMocks.logout.mockRejectedValue(new Error('temporary sign-out outage'));
+    let resolveAbortedRecompute;
+    let recomputeSignal;
+    const abortedRecompute = new Promise(resolve => { resolveAbortedRecompute = resolve; });
+    appMocks.getRecommendations.mockImplementationOnce((_id, { signal }) => {
+      recomputeSignal = signal;
+      return abortedRecompute;
+    });
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Test home' }));
+    await waitFor(() => {
+      expect(appMocks.getCurrentRecommendation).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('true');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Commit unchanged profile snapshot' }));
+    await waitFor(() => expect(appMocks.getRecommendations).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('false');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test logout' }));
+    expect(recomputeSignal.aborted).toBe(true);
+    await waitFor(() => {
+      expect(appMocks.getCurrentRecommendation).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('true');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Test home' }));
+
+    await act(async () => resolveAbortedRecompute({
+      ...revision4,
+      advisory_text: 'stale same-profile recompute',
+    }));
+    expect(screen.getByTestId('advisory-text')).not.toHaveTextContent('stale same-profile recompute');
+  });
+
+  it('keeps mounted GenieChat honest and usable after same-profile logout recovery', async () => {
+    appMocks.initialRecommendation = null;
+    appMocks.mountActualChat = true;
+    appMocks.logout.mockRejectedValue(new Error('temporary sign-out outage'));
+    appMocks.getCurrentRecommendation.mockResolvedValue(revision4);
+    let resolvePendingSend;
+    let sendSignal;
+    const pendingSend = new Promise(resolve => { resolvePendingSend = resolve; });
+    appMocks.sendChatMessage.mockImplementation((_message, _sessionId, { signal }) => {
+      sendSignal = signal;
+      return pendingSend;
+    });
+    let resolveAbortedRecompute;
+    const abortedRecompute = new Promise(resolve => { resolveAbortedRecompute = resolve; });
+    appMocks.getRecommendations.mockImplementationOnce(() => abortedRecompute);
+    render(<App />);
+    await waitFor(() => {
+      expect(appMocks.getCurrentRecommendation).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Genie AI' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Genie AI' }));
+    expect(await screen.findByText(/your personal money guide/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: /ask genie/i }), {
+      target: { value: 'A message interrupted by an unsuccessful sign-out' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() => expect(appMocks.sendChatMessage).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Commit unchanged profile snapshot' }));
+    await waitFor(() => expect(appMocks.getRecommendations).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('A message interrupted by an unsuccessful sign-out')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test logout' }));
+    expect(sendSignal.aborted).toBe(true);
+    await waitFor(() => {
+      expect(appMocks.getCurrentRecommendation).toHaveBeenCalledTimes(2);
+      expect(screen.getByText(/couldn't confirm whether your message was sent before sign-out interrupted it/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText('A message interrupted by an unsuccessful sign-out')).toBeInTheDocument();
+
+    await act(async () => {
+      resolvePendingSend({ response: 'A late Genie response after sign-out', rate_limit_remaining: 29 });
+      resolveAbortedRecompute(revision4);
+    });
+    expect(screen.queryByText('A late Genie response after sign-out')).not.toBeInTheDocument();
+    expect(screen.queryByText('A message interrupted by an unsuccessful sign-out')).toBeInTheDocument();
   });
 
   it('keeps recommendations unavailable after recompute failure and supports an explicit retry', async () => {

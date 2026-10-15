@@ -99,6 +99,73 @@ const financialClaimSchema = Joi.object({
   statement: Joi.string().trim().min(1).max(500).required(),
 }).unknown(false);
 
+const evidenceEntrySchema = Joi.object({
+  id: Joi.string().pattern(/^E_[A-Z0-9_:-]+$/).required(),
+  kind: Joi.string().max(80).allow(null),
+  dataClass: Joi.string().max(120).allow(null),
+  displayValue: Joi.string().max(4096).allow(null),
+  authority: Joi.string().max(120).allow(null),
+  source: Joi.alternatives().try(Joi.object().unknown(true), Joi.valid(null)),
+  observedAt: Joi.alternatives().try(Joi.string().max(80), Joi.date()).allow(null),
+}).unknown(true).custom((entry, helpers) => {
+  const boundedValue = (value, depth = 0, budget = { nodes: 0 }) => {
+    budget.nodes += 1;
+    if (budget.nodes > 512 || depth > 8) return false;
+    if (value === null || typeof value === 'boolean') return true;
+    if (typeof value === 'string') return value.length <= 4096;
+    if (typeof value === 'number') return Number.isFinite(value);
+    if (value instanceof Date) return Number.isFinite(value.getTime());
+    if (Array.isArray(value)) {
+      return value.length <= 100 && value.every(item => boundedValue(item, depth + 1, budget));
+    }
+    if (typeof value !== 'object') return false;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return false;
+    const keys = Object.keys(value);
+    return keys.length <= 64 && keys.every(key => key.length <= 128
+      && boundedValue(value[key], depth + 1, budget));
+  };
+  const boundedText = (record, key, length) => !Object.hasOwn(record, key)
+    || record[key] === null
+    || (typeof record[key] === 'string' && record[key].length <= length);
+  const safeSource = !Object.hasOwn(entry, 'source') || entry.source === null
+    || (entry.source && typeof entry.source === 'object' && !Array.isArray(entry.source)
+      && boundedText(entry.source, 'provider', 200)
+      && boundedText(entry.source, 'publicationDate', 80)
+      && boundedText(entry.source, 'instrumentId', 128)
+      && (!Object.hasOwn(entry.source, 'url') || entry.source.url === null
+        || (typeof entry.source.url === 'string'
+          && entry.source.url.length <= 2048
+          && ['http:', 'https:'].includes((() => {
+            try { return new URL(entry.source.url).protocol; } catch { return ''; }
+          })())))
+      && (typeof entry.source.publicationDate !== 'string'
+        || Number.isFinite(Date.parse(entry.source.publicationDate))));
+  const safeObservedAt = !Object.hasOwn(entry, 'observedAt') || entry.observedAt === null
+    || entry.observedAt instanceof Date
+    || (typeof entry.observedAt === 'string' && entry.observedAt.length <= 80
+      && Number.isFinite(Date.parse(entry.observedAt)));
+  const valid = boundedValue(entry)
+    && boundedText(entry, 'kind', 80)
+    && boundedText(entry, 'dataClass', 120)
+    && boundedText(entry, 'displayValue', 4096)
+    && boundedText(entry, 'authority', 120)
+    && safeSource
+    && safeObservedAt
+    && (!String(entry.id).startsWith('E_RESEARCH_')
+      || (entry.value === null || (entry.value && typeof entry.value === 'object' && !Array.isArray(entry.value)))
+        && (!entry.value || typeof entry.value !== 'object' || (
+          boundedText(entry.value, 'supportStatus', 80)
+          && boundedText(entry.value, 'claimId', 120)
+        )));
+  return valid ? entry : helpers.error('any.invalid');
+});
+
+const evidenceEntriesSchema = Joi.array()
+  .items(evidenceEntrySchema)
+  .unique('id')
+  .max(40);
+
 export const planReviewResponseSchema = Joi.object({
   version: Joi.string().valid(...SUPPORTED_PLAN_REVIEW_VERSIONS).required(),
   runId: Joi.string().guid({ version: ['uuidv4'] }).required(),
@@ -116,7 +183,9 @@ export const planReviewResponseSchema = Joi.object({
   }).unknown(false).required(),
   evidence: Joi.object({
     status: Joi.string().valid('AVAILABLE', 'UNAVAILABLE').required(),
-    entries: Joi.array().max(40).required(),
+    // Version 1.0 historically allowed AVAILABLE with an empty entries array.
+    // Keep that persisted shape readable while making the current contract strict.
+    entries: evidenceEntriesSchema.required(),
     unavailableFacts: Joi.array().items(Joi.string().max(120)).max(20).required(),
   }).unknown(false).required(),
   financialClaims: Joi.array().items(financialClaimSchema).max(40).default([]),
@@ -132,7 +201,13 @@ export const planReviewResponseSchema = Joi.object({
     tokenUsage: Joi.number().integer().min(0).max(PLAN_REVIEW_BUDGETS.maxTotalTokens).optional(),
   }).unknown(false).required(),
   policyReasonCodes: Joi.array().items(Joi.string().max(120)).max(20).optional(),
-}).unknown(false);
+}).unknown(false).custom((value, helpers) => {
+  if (value.version === PLAN_REVIEW_VERSION
+      && value.evidence?.status === 'AVAILABLE'
+      && Array.isArray(value.evidence.entries)
+      && value.evidence.entries.length === 0) return helpers.error('any.invalid');
+  return value;
+});
 
 export function validatePlannerPlan(value) {
   return plannerPlanSchema.validate(value, { abortEarly: false, convert: false });
@@ -140,4 +215,16 @@ export function validatePlannerPlan(value) {
 
 export function validatePlanReviewResponse(value) {
   return planReviewResponseSchema.validate(value, { abortEarly: false, convert: false });
+}
+
+export function isPlanReviewRecomputeApprovalRun(run) {
+  const result = run?.result;
+  if (!run || typeof run !== 'object' || Array.isArray(run)
+      || run.status !== 'WAITING_FOR_APPROVAL'
+      || run.recommendedAction !== 'RECOMPUTE_PLAN'
+      || !result || typeof result !== 'object' || Array.isArray(result)
+      || result.runId !== run.runId
+      || result.status !== 'COMPLETED'
+      || result.recommendedAction !== 'RECOMPUTE_PLAN') return false;
+  return !validatePlanReviewResponse(result).error;
 }

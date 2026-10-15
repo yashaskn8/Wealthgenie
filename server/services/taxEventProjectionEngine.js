@@ -330,6 +330,7 @@ function assessInterestTds({ instrumentType, grossGain, userAge, policy }) {
       tdsRate: null,
       tdsThreshold: null,
       tdsTreatment: 'SECURITY_IDENTITY_REQUIRED',
+      taxRuleIdentifier: null,
     };
   }
 
@@ -340,6 +341,10 @@ function assessInterestTds({ instrumentType, grossGain, userAge, policy }) {
       ? policy.rules.bankInterestTdsThreshold.senior
       : policy.rules.bankInterestTdsThreshold.general;
   const tdsApplicable = grossGain > tdsThreshold;
+  const currentStatute = policy.statuteMetadata?.statute === 'INCOME_TAX_ACT_2025';
+  const taxRuleIdentifier = securityInterest
+    ? currentStatute ? 'SECURITY_INTEREST_TDS_THRESHOLD' : `${policy.fiscalYear}_SECURITY_INTEREST_TDS`
+    : currentStatute ? 'BANK_INTEREST_TDS_THRESHOLD' : `${policy.fiscalYear}_BANK_INTEREST_TDS`;
   return {
     tdsApplicable,
     tdsRate: tdsApplicable
@@ -347,6 +352,7 @@ function assessInterestTds({ instrumentType, grossGain, userAge, policy }) {
       : 0,
     tdsThreshold,
     tdsTreatment: securityInterest ? 'FRSB_SECURITY_INTEREST' : 'BANK_OR_NOTIFIED_DEPOSIT_INTEREST',
+    taxRuleIdentifier,
   };
 }
 
@@ -391,14 +397,19 @@ export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, 
     const grossGain = annualPrincipal * nominalRate;
     const tax = calculateOrdinaryIncrementalTax({ grossGain, context });
     const tdsAssessment = assessInterestTds({ instrumentType, grossGain, userAge, policy });
+    const { taxRuleIdentifier, ...tdsDetails } = tdsAssessment;
     return finalizeOutcome({
       instrumentType, modelTaxClass, nominalRate, grossGain, taxAmount: tax.taxAmount, cess: tax.cess, surcharge: tax.surcharge,
       taxType: 'Ordinary income — incremental tax under selected regime',
       policy,
-      taxRuleMetadata: combineTaxRuleMetadata(policy, [tax.baseline.taxRuleMetadata, tax.withGain.taxRuleMetadata]),
+      taxRuleMetadata: combineTaxRuleMetadata(policy, [
+        tax.baseline.taxRuleMetadata,
+        tax.withGain.taxRuleMetadata,
+        { rulesApplied: taxRuleIdentifier ? [taxRuleIdentifier] : [] },
+      ]),
       assumptions: ['INCREMENTAL_TAX_BASELINE_AND_WITH_PRODUCT_INCOME', 'TDS_NOT_MODELLED_AS_SECOND_FINAL_TAX'],
       details: {
-        ...tdsAssessment,
+        ...tdsDetails,
         fiscalYear: policy.fiscalYear,
         policyVersion: policy.policyVersion,
       },
@@ -557,6 +568,99 @@ function calculateCagr(finalValue, totalInvested, holdingYears) {
   return Math.pow(finalValue / totalInvested, 1 / holdingYears) - 1;
 }
 
+const SIP_RETURN_METRIC_BASIS = 'MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE';
+
+function unavailableSipReturnMetrics(reason) {
+  return {
+    basis: SIP_RETURN_METRIC_BASIS,
+    status: 'UNAVAILABLE',
+    unavailableReason: reason,
+    preTaxAnnualizedReturnPercent: null,
+    postTaxAnnualizedReturnPercent: null,
+    realPostTaxAnnualizedReturnPercent: null,
+    taxDragAnnualizedPercentagePoints: null,
+  };
+}
+
+function futureValueForBeginningOfMonthContributions(monthlyContribution, monthlyRate, totalMonths, stopAbove = Infinity) {
+  let balance = 0;
+  for (let month = 0; month < totalMonths; month += 1) {
+    balance = (balance + monthlyContribution) * (1 + monthlyRate);
+    if (balance > stopAbove) return Infinity;
+  }
+  return balance;
+}
+
+function solveMonthlySipAnnualizedReturn(finalValue, monthlyContribution, totalMonths) {
+  if (!Number.isFinite(finalValue) || finalValue <= 0
+      || !Number.isFinite(monthlyContribution) || monthlyContribution <= 0
+      || !Number.isInteger(totalMonths) || totalMonths < 1) return null;
+
+  const contributionTotal = monthlyContribution * totalMonths;
+  if (finalValue === contributionTotal) return 0;
+
+  // The cash-flow recurrence matches projectGrossCashFlows exactly: each
+  // monthly contribution is deposited at the start of its month, then earns
+  // that month's return. The bisection avoids a fragile closed-form near 0%.
+  let low = -1 + 1e-12;
+  let high = 1;
+  const lowValue = futureValueForBeginningOfMonthContributions(
+    monthlyContribution, low, totalMonths, finalValue,
+  );
+  if (lowValue > finalValue) return null;
+  while (futureValueForBeginningOfMonthContributions(
+    monthlyContribution, high, totalMonths, finalValue,
+  ) < finalValue && high < 16) {
+    high *= 2;
+  }
+  if (futureValueForBeginningOfMonthContributions(
+    monthlyContribution, high, totalMonths, finalValue,
+  ) < finalValue) return null;
+
+  for (let iteration = 0; iteration < 100; iteration += 1) {
+    const middle = (low + high) / 2;
+    const value = futureValueForBeginningOfMonthContributions(
+      monthlyContribution, middle, totalMonths, finalValue,
+    );
+    if (!Number.isFinite(value) || value > finalValue) high = middle;
+    else low = middle;
+  }
+  const monthlyRate = (low + high) / 2;
+  const annualizedPercent = (Math.pow(1 + monthlyRate, 12) - 1) * 100;
+  return Number.isFinite(annualizedPercent) ? round4(annualizedPercent) : null;
+}
+
+function calculateSipReturnMetrics({ monthlySIP, totalMonths, nominalFutureValue, postTaxFutureValue, inflationRate }) {
+  if (monthlySIP <= 0) return unavailableSipReturnMetrics('NO_MONTHLY_CONTRIBUTIONS');
+  const preTaxAnnualizedReturnPercent = solveMonthlySipAnnualizedReturn(
+    nominalFutureValue, monthlySIP, totalMonths,
+  );
+  const postTaxAnnualizedReturnPercent = solveMonthlySipAnnualizedReturn(
+    postTaxFutureValue, monthlySIP, totalMonths,
+  );
+  if (preTaxAnnualizedReturnPercent === null || postTaxAnnualizedReturnPercent === null) {
+    return unavailableSipReturnMetrics('RETURN_SOLVER_UNAVAILABLE');
+  }
+  const realPostTaxAnnualizedReturnPercent = ((
+    (1 + postTaxAnnualizedReturnPercent / 100) / (1 + inflationRate)
+  ) - 1) * 100;
+  if (!Number.isFinite(realPostTaxAnnualizedReturnPercent)) {
+    return unavailableSipReturnMetrics('RETURN_SOLVER_UNAVAILABLE');
+  }
+  return {
+    basis: SIP_RETURN_METRIC_BASIS,
+    status: 'CALCULATED',
+    unavailableReason: null,
+    preTaxAnnualizedReturnPercent,
+    postTaxAnnualizedReturnPercent,
+    realPostTaxAnnualizedReturnPercent: round4(realPostTaxAnnualizedReturnPercent),
+    taxDragAnnualizedPercentagePoints: round4(Math.max(
+      0,
+      preTaxAnnualizedReturnPercent - postTaxAnnualizedReturnPercent,
+    )),
+  };
+}
+
 export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {}, inflationRate }) {
   if (!postTaxResult || !instrument) throw new TypeError('postTaxResult and instrument are required');
   requireNumber(instrument.monthlySIP, 'monthlySIP');
@@ -605,6 +709,7 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       realReturnPercent: null,
       effectiveTaxPercent: null,
       postTaxCAGR: null,
+      sipReturnMetrics: unavailableSipReturnMetrics('PROJECTION_UNAVAILABLE'),
       taxEvents: [],
       taxEventModel: 'UNAVAILABLE',
       assumptions: ['ACCOUNT_TAX_QUALIFICATION_NOT_ESTABLISHED'],
@@ -628,6 +733,7 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       realReturnPercent: null,
       effectiveTaxPercent: null,
       postTaxCAGR: null,
+      sipReturnMetrics: unavailableSipReturnMetrics('PROJECTION_UNAVAILABLE'),
       taxEvents,
       taxEventModel: 'UNAVAILABLE',
       assumptions: ['MODELLED_POST_TAX_PROJECTION_UNAVAILABLE'],
@@ -712,6 +818,13 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
 
   const nominalCagr = calculateCagr(gross.balance, gross.totalInvested, projectionHoldingYears);
   const postTaxCagr = calculateCagr(postTaxFutureValue, gross.totalInvested, projectionHoldingYears);
+  const sipReturnMetrics = calculateSipReturnMetrics({
+    monthlySIP: instrument.monthlySIP,
+    totalMonths: gross.totalMonths,
+    nominalFutureValue: gross.balance,
+    postTaxFutureValue,
+    inflationRate,
+  });
   const realFutureValue = postTaxFutureValue === null
     ? null
     : postTaxFutureValue / Math.pow(1 + inflationRate, projectionHoldingYears);
@@ -733,6 +846,7 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       : 0,
     postTaxCAGR: postTaxCagr,
     nominalCAGR: nominalCagr,
+    sipReturnMetrics,
     taxEvents,
     taxEventModel,
     assumptions: [

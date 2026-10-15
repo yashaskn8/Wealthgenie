@@ -45,6 +45,7 @@ import {
 import { isoDateInIndia } from './marketData/indiaMarketTime.js';
 import { isUsableNseTradingCalendar } from './marketData/nseTradingCalendar.js';
 import { persistVerifiedMarketSnapshot } from './marketData/MarketDataRepository.js';
+import { isUpstoxPublicDistributionAllowed } from './marketData/upstoxDistributionPolicy.js';
 
 const amfiProvider = new AmfiNavProvider();
 const amfiHistoryProvider = new AmfiNavHistoryProvider();
@@ -214,11 +215,21 @@ export async function fetchQualifiedEquityHistory({
 
   let primarySnapshot = null;
   if (normalizedBasis === 'RAW') {
-    primarySnapshot = await upstoxProvider.getDailyCandles(upstoxInstrumentKey, {
-      fromDate: from,
-      toDate: to,
-      forceRefresh,
-    });
+    if (!isUpstoxPublicDistributionAllowed(env)) {
+      primarySnapshot = {
+        status: AVAILABILITY.UNAVAILABLE,
+        provider: PROVIDERS.UPSTOX,
+        instrumentKey: upstoxInstrumentKey,
+        candles: [],
+        error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' },
+      };
+    } else {
+      primarySnapshot = await upstoxProvider.getDailyCandles(upstoxInstrumentKey, {
+        fromDate: from,
+        toDate: to,
+        forceRefresh,
+      });
+    }
     if (isQualifiedUpstoxDailyHistory(primarySnapshot, {
       instrumentKey: upstoxInstrumentKey,
       fromDate: from,
@@ -695,6 +706,7 @@ export async function fetchQualifiedMarketContextSnapshots({
   forceHistoryRefresh = forceRefresh,
   now = new Date(),
   persist = true,
+  env = process.env,
 } = {}) {
   const window = buildNiftyHistoryWindow(now);
   const providerPairs = [
@@ -706,15 +718,17 @@ export async function fetchQualifiedMarketContextSnapshots({
         forceRefresh: forceHistoryRefresh,
       }),
     },
-    {
+  ];
+  if (isUpstoxPublicDistributionAllowed(env)) {
+    providerPairs.push({
       name: 'UPSTOX',
       fetchQuotes: () => upstoxProvider.getQuotes(DEFAULT_BENCHMARK_INSTRUMENT_KEYS, { forceRefresh: forceQuoteRefresh }),
       fetchHistory: () => upstoxHistoryProvider.getDailyCandles(NIFTY_50_INSTRUMENT_KEY, {
         ...window,
         forceRefresh: forceHistoryRefresh,
       }),
-    },
-  ];
+    });
+  }
   const result = await fetchQualifiedMarketPair({
     providers: providerPairs,
     preferredProvider: PRIMARY_MARKET_PROVIDER,

@@ -54,10 +54,13 @@ function mockResponse() {
 }
 
 test.before(async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
 });
 
 test.after(async () => {
+  try {
+    await User.deleteOne({ _id: '64b000000000000000000001' });
+  } catch (_) {}
   await teardownTestDatabase();
 });
 
@@ -65,8 +68,15 @@ test.after(async () => {
 // PROOF 1: Pre-existing token without role claim decodes with req.user.role === 'user'
 // ==============================================================================
 test('PROOF 1: verifyJWT defaults legacy/missing role claim to "user"', async () => {
+  const legacyUserId = '64b000000000000000000001';
+  await User.updateOne(
+    { _id: legacyUserId },
+    { $set: { name: 'Legacy Token User', email: 'legacy@wealthgenie.test', passwordHash: 'test-only-hash', role: 'user' } },
+    { upsert: true },
+  );
+
   const legacyToken = jwt.sign(
-    { userId: '64b000000000000000000001', email: 'legacy@wealthgenie.test', jti: 'legacy-role-token' },
+    { userId: legacyUserId, email: 'legacy@wealthgenie.test', jti: 'legacy-role-token' },
     process.env.JWT_SECRET,
     { expiresIn: '1h' }
   );
@@ -80,7 +90,7 @@ test('PROOF 1: verifyJWT defaults legacy/missing role claim to "user"', async ()
   });
 
   assert.equal(nextCalled, true);
-  assert.equal(req.user.userId, '64b000000000000000000001');
+  assert.equal(req.user.userId, legacyUserId);
   assert.equal(req.user.role, 'user');
 });
 

@@ -23,7 +23,7 @@ function buildApp() {
 }
 
 test('HttpOnly cookie session authenticates restore and logout without exposing JWT', async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
   try {
     await withServer(buildApp(), async (baseUrl) => {
       const registration = await jsonRequest(`${baseUrl}/api/auth/register`, {
@@ -66,6 +66,7 @@ test('HttpOnly cookie session authenticates restore and logout without exposing 
       });
       assert.equal(restored.response.status, 200);
       assert.equal(restored.body.user.email, 'cookie-session@example.com');
+      assert.equal(restored.response.headers.get('set-cookie'), null, 'session restore must not reissue an existing CSRF cookie after a concurrent login could rotate it');
       assertRuntimeResponseMatchesContract({
         method: 'GET', path: '/api/auth/session', status: restored.response.status,
         contentType: restored.response.headers.get('content-type'), body: restored.body,

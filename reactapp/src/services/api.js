@@ -300,6 +300,7 @@ async function request(method, path, data = null, options = {}) {
     retries = isMutating ? 0 : 1,
     signal: externalSignal,
     suppressAuthBroadcast = false,
+    preserveAuthOn401 = false,
     ...fetchOptions
   } = options;
   const headers = { Accept: 'application/json', ...optionHeaders };
@@ -314,7 +315,10 @@ async function request(method, path, data = null, options = {}) {
     if (!headers['Idempotency-Key'] && !headers['idempotency-key']) {
       headers['Idempotency-Key'] = generateUUID();
     }
-    const activeCsrfToken = csrfToken || readCookie('wg_csrf');
+    // A late /auth/session Set-Cookie can update the browser cookie jar after
+    // this module cached a token from a newer login. The cookie is the value
+    // the server will compare, so prefer it over the in-memory copy.
+    const activeCsrfToken = readCookie('wg_csrf') || csrfToken;
     if (!authToken && activeCsrfToken && !headers['X-CSRF-Token'] && !headers['x-csrf-token']) {
       headers['X-CSRF-Token'] = activeCsrfToken;
     }
@@ -361,9 +365,12 @@ async function request(method, path, data = null, options = {}) {
         // Some proxies and valid 204 responses do not return a JSON body.
       }
 
+      if (requestWasAuthenticated && authRevision !== requestAuthRevision) {
+        throw new ApiError('Request cancelled because authentication changed.', { code: 'REQUEST_ABORTED' });
+      }
       const requestId = res.headers?.get?.('x-correlation-id') || json?.request_id || headers['X-Correlation-ID'];
       if (!res.ok) {
-        if (res.status === 401 && authRevision === requestAuthRevision) {
+        if (res.status === 401 && authRevision === requestAuthRevision && !preserveAuthOn401) {
           clearLocalAuthState({ includeChatSession: true });
           if (!suppressAuthBroadcast) broadcastAuthSignal('AUTH_INVALIDATED');
           if (typeof window !== 'undefined' && window.location.pathname !== '/' && window.location.pathname !== '/login') {
@@ -386,9 +393,6 @@ async function request(method, path, data = null, options = {}) {
             retryAfterMs: parseRetryAfter(res.headers?.get?.('retry-after')),
           }
         );
-      }
-      if (requestWasAuthenticated && authRevision !== requestAuthRevision) {
-        throw new ApiError('Request cancelled because authentication changed.', { code: 'REQUEST_ABORTED' });
       }
       return json;
     } catch (error) {
@@ -443,14 +447,27 @@ export async function login(email, password) {
   return data;
 }
 
+const INVALID_LOGOUT_SESSION_CODES = new Set([
+  'AUTH_REQUIRED',
+  'AUTH_TOKEN_INVALID',
+  'AUTH_TOKEN_EXPIRED',
+  'AUTH_TOKEN_REVOKED',
+]);
+
 export async function logout() {
+  if (!authToken && !currentUser) return null;
   try {
-    if (authToken || currentUser) {
-      return await request('POST', '/auth/logout', {}, { timeoutMs: 5000, retries: 0 });
-    }
-    return null;
-  } finally {
+    const result = await request('POST', '/auth/logout', {}, { timeoutMs: 5000, retries: 0, preserveAuthOn401: true });
     clearUserSession();
+    return result;
+  } catch (error) {
+    // These server-authenticated responses prove this credential is already unusable.
+    // Unavailable or ambiguous failures retain the current session so the user can retry.
+    if (error.status === 401 && INVALID_LOGOUT_SESSION_CODES.has(error.code)) {
+      clearUserSession();
+      return { alreadyInvalid: true };
+    }
+    throw error;
   }
 }
 
@@ -892,24 +909,16 @@ export async function clearChatSession(sessionId) {
   return request('DELETE', `/chat/session/${encodeURIComponent(sessionId)}`);
 }
 
-export async function computeTax(income, regime, deductions = {}) {
-  const params = new URLSearchParams({ income: String(income), regime });
-  Object.entries(deductions).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') {
-      params.set(k, String(v));
-    }
-  });
-  return request('GET', `/tax/compute?${params.toString()}`);
+function omitEmptyTaxInputs(inputs) {
+  return Object.fromEntries(Object.entries(inputs).filter(([, value]) => value !== undefined && value !== null && value !== ''));
+}
+
+export async function computeTax(income, regime, deductions = {}, options = {}) {
+  return request('POST', '/tax/compute', { ...omitEmptyTaxInputs(deductions), income, regime }, options);
 }
 
 export async function compareTax(income, deductions = {}, options = {}) {
-  const params = new URLSearchParams({ income: String(income) });
-  Object.entries(deductions).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') {
-      params.set(k, String(v));
-    }
-  });
-  return request('GET', `/tax/compare?${params.toString()}`, null, options);
+  return request('POST', '/tax/compare', { ...omitEmptyTaxInputs(deductions), income }, options);
 }
 
 export async function getTaxPolicyMetadata(options = {}) {

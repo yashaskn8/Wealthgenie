@@ -74,7 +74,7 @@ jobs:
 
       - name: Run explicit Phase 5 Mongo durable-runtime gates
         env:
-          MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_phase5_test'
+          MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_phase5_test?replicaSet=rs0'
         run: node --test --test-concurrency=1 server/test/planHealthRuntimeMongo.integration.test.js
 
       - name: Run Backend ESLint Check
@@ -89,13 +89,15 @@ jobs:
 
       - name: Run Backend Tests & Coverage
         env:
-          MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_test'
+          MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0'
+          CI_JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
         run: |
-          JWT_SECRET="${{ secrets.CI_JWT_SECRET }}"
-          if [ -z "$JWT_SECRET" ]; then
-            JWT_SECRET=$(openssl rand -hex 32)
+          if [ -n "${CI_JWT_SECRET:-}" ]; then
+            export JWT_SECRET="$CI_JWT_SECRET"
+          else
+            export JWT_SECRET="$(openssl rand -hex 32)"
           fi
-          export JWT_SECRET
+          unset CI_JWT_SECRET
           node server/scripts/test-partition.js verify
           cd server
           npm run test:coverage
@@ -193,16 +195,53 @@ jobs:
           MONGO_TEST_PARTITION: NO_MONGO
           USE_MMS: 'false'
           USE_TESTCONTAINERS: 'false'
+          CI_JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
         run: |
-          $JWT_SECRET = "${{ secrets.CI_JWT_SECRET }}"
+          $JWT_SECRET = $env:CI_JWT_SECRET
           if (-not $JWT_SECRET) {
             $JWT_SECRET = -join ((48..57) + (97..122) | Get-Random -Count 64 | ForEach-Object { [char]$_ })
           }
           $env:JWT_SECRET = $JWT_SECRET
+          Remove-Item Env:CI_JWT_SECRET -ErrorAction SilentlyContinue
           Remove-Item Env:MONGODB_URI -ErrorAction SilentlyContinue
           Remove-Item Env:MONGO_URI -ErrorAction SilentlyContinue
           cd server
           node scripts/test-partition.js no-mongo
+
+  backend-standalone-mongo-windows:
+    name: Backend Windows (standalone Mongo, no transaction suites)
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install Backend Dependencies
+        run: npm ci --prefix server
+
+      - name: Run Backend Standalone Mongo Tests (No Transactions)
+        env:
+          CI_JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+        run: |
+          $JWT_SECRET = $env:CI_JWT_SECRET
+          if (-not $JWT_SECRET) {
+            $JWT_SECRET = -join ((48..57) + (97..122) | Get-Random -Count 64 | ForEach-Object { [char]$_ })
+          }
+          $env:JWT_SECRET = $JWT_SECRET
+          Remove-Item Env:CI_JWT_SECRET -ErrorAction SilentlyContinue
+          Remove-Item Env:MONGODB_URI -ErrorAction SilentlyContinue
+          Remove-Item Env:MONGO_URI -ErrorAction SilentlyContinue
+          cd server
+          node scripts/test-partition.js standalone-mongo
 
   frontend-quality-matrix:
     name: Frontend (Node ${{ matrix.node-version }}, ${{ matrix.os }})

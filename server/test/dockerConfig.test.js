@@ -203,8 +203,11 @@ test('Kind smoke verification owns and cleans up its server port-forward', () =>
   assert.match(smokeStep, /jq -e --arg expected "\$GITHUB_SHA" '\.buildSha == \$expected'/);
   assert.match(smokeStep, /http:\/\/127\.0\.0\.1:8080\/build-provenance\/provenance\.json > build\/frontend-provenance\.json/);
   assert.match(smokeStep, /build\/frontend-provenance\.json > \/dev\/null/);
-  assert.match(smokeStep, /curl[^\n]*--max-time 10[^\n]*"\$TAX_URL"/);
-  assert.match(smokeStep, /income=1200000&incomeSource=salary&fiscalYear=FY2026-27&age=30/);
+  assert.match(smokeStep, /TAX_RES=\$\(curl[\s\S]*?--max-time 10[\s\S]*?"\$TAX_URL"\)/);
+  assert.match(smokeStep, /TAX_URL="http:\/\/127\.0\.0\.1:5000\/api\/tax\/compare"/);
+  assert.match(smokeStep, /TAX_BODY='\{"income":1200000,"incomeSource":"salary","fiscalYear":"FY2026-27","age":30\}'/);
+  assert.match(smokeStep, /--request POST[\s\S]*?--header 'Content-Type: application\/json'[\s\S]*?--data "\$TAX_BODY" "\$TAX_URL"/);
+  assert.doesNotMatch(smokeStep, /TAX_URL=.*income=/);
   assert.doesNotMatch(cdWorkflow, /- name: Port-Forward Express Server for Live Request Verification/);
 });
 
@@ -281,7 +284,11 @@ test('Kind HPA verification owns a separate port-forward and uses a valid tax co
   assert.ok(hpaStep, 'Kind HPA verification step is missing');
   assert.match(hpaStep, /kubectl port-forward[^\n]+svc\/wealthgenie-server 5000:5000/);
   assert.match(hpaStep, /HPA_PORT_FORWARD_PID=\$!/);
-  assert.match(hpaStep, /income=1200000&incomeSource=salary&fiscalYear=FY2026-27&age=30/);
+  assert.match(hpaStep, /LOAD_URL="http:\/\/127\.0\.0\.1:5000\/api\/tax\/compare"/);
+  assert.match(hpaStep, /TAX_BODY='\{"income":1200000,"incomeSource":"salary","fiscalYear":"FY2026-27","age":30\}'/);
+  assert.match(hpaStep, /--request POST[\s\S]*?--data "\$TAX_BODY" "\$LOAD_URL"/);
+  assert.match(hpaStep, /autocannon[^\n]+-m POST[^\n]+-b "\$TAX_BODY" "\$LOAD_URL"/);
+  assert.doesNotMatch(hpaStep, /LOAD_URL=.*income=/);
   assert.match(hpaStep, /kubectl top pods[^\n]+--no-headers/);
   assert.match(hpaStep, /currentMetrics\[0\]\.resource\.current\.averageUtilization/);
 });

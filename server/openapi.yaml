@@ -36,7 +36,20 @@ paths:
       operationId: restoreSession
       tags: [Authentication]
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
-      responses: { '200': { $ref: '#/components/responses/AuthSession' }, '401': { $ref: '#/components/responses/Unauthorized' } }
+      responses:
+        '200': { $ref: '#/components/responses/AuthSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503':
+          description: Session revocation status could not be verified because the revocation service is unavailable.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: object
+                    required: [code]
+                    properties:
+                      code: { type: string, const: TOKEN_REVOCATION_UNAVAILABLE }
 
   /api/profile/build:
     post:
@@ -140,7 +153,7 @@ paths:
       tags: [Advisory]
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: Owned audit record, content: { application/json: { schema: { $ref: '#/components/schemas/AuditMetadata' } } } }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' } }
+      responses: { '200': { description: Owned audit record with distributable generation evidence, content: { application/json: { schema: { $ref: '#/components/schemas/AuditMetadata' } } } }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' }, '503': { $ref: '#/components/responses/Unavailable' } }
   /api/recommend/weights:
     post:
       operationId: updateRecommendationWeights
@@ -778,34 +791,12 @@ paths:
       responses: { '202': { $ref: '#/components/responses/Object' }, '401': { $ref: '#/components/responses/Unauthorized' }, '503': { $ref: '#/components/responses/Unavailable' } }
 
   /api/tax/compute:
-    get:
+    post:
       operationId: computeTax
       tags: [Tax]
       security: []
-      parameters:
-        - { $ref: '#/components/parameters/Income' }
-        - { $ref: '#/components/parameters/IncomeSource' }
-        - { $ref: '#/components/parameters/FiscalYear' }
-        - { name: age, in: query, required: false, schema: { type: integer, minimum: 18, maximum: 120 } }
-        - { name: regime, in: query, required: true, schema: { type: string, enum: [new, old] } }
-        - { name: section80C, in: query, required: false, schema: { type: number, minimum: 0, maximum: 150000 } }
-        - { name: nps80CCD1B, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: section80CCD, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: nps80CCD2, in: query, required: false, schema: { type: number, minimum: 0, maximum: 100000000 } }
-        - { name: basicSalary, in: query, required: false, schema: { type: number, minimum: 0, maximum: 1000000000 } }
-        - { name: isGovtEmployee, in: query, required: false, schema: { type: boolean } }
-        - { name: section80D, in: query, required: false, schema: { type: number, minimum: 0, maximum: 100000 } }
-        - { name: section80D_self, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: section80D_parents, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: parents_senior, in: query, required: false, schema: { type: boolean } }
-        - { name: self_senior, in: query, required: false, schema: { type: boolean } }
-        - { name: hra, in: query, required: false, schema: { type: number, minimum: 0, maximum: 100000000 } }
-        - { name: homeLoanInterest, in: query, required: false, schema: { type: number, minimum: 0, maximum: 200000 } }
-        - { name: section80EEA, in: query, required: false, schema: { type: number, minimum: 0, maximum: 150000 } }
-        - { name: savingsInterest, in: query, required: false, schema: { type: number, minimum: 0, maximum: 100000000 } }
-        - { name: section80TTA, in: query, required: false, schema: { type: number, minimum: 0, maximum: 10000 } }
-        - { name: section80TTB, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: other, in: query, required: false, schema: { type: number, const: 0 } }
+      x-csrf-protection: cookie-session
+      requestBody: { $ref: '#/components/requestBodies/TaxCompute' }
       responses: { '200': { $ref: '#/components/responses/TaxCalculation' }, '400': { $ref: '#/components/responses/BadRequest' }, '422': { $ref: '#/components/responses/Unprocessable' } }
   /api/tax/policies:
     get:
@@ -814,33 +805,12 @@ paths:
       security: []
       responses: { '200': { $ref: '#/components/responses/Object' } }
   /api/tax/compare:
-    get:
+    post:
       operationId: compareTaxRegimes
       tags: [Tax]
       security: []
-      parameters:
-        - { $ref: '#/components/parameters/Income' }
-        - { $ref: '#/components/parameters/IncomeSource' }
-        - { $ref: '#/components/parameters/FiscalYear' }
-        - { name: age, in: query, required: true, schema: { type: integer, minimum: 18, maximum: 120 } }
-        - { name: section80C, in: query, required: false, schema: { type: number, minimum: 0, maximum: 150000 } }
-        - { name: nps80CCD1B, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: section80CCD, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: nps80CCD2, in: query, required: false, schema: { type: number, minimum: 0, maximum: 100000000 } }
-        - { name: basicSalary, in: query, required: false, schema: { type: number, minimum: 0, maximum: 1000000000 } }
-        - { name: isGovtEmployee, in: query, required: false, schema: { type: boolean } }
-        - { name: section80D, in: query, required: false, schema: { type: number, minimum: 0, maximum: 100000 } }
-        - { name: section80D_self, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: section80D_parents, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: parents_senior, in: query, required: false, schema: { type: boolean } }
-        - { name: self_senior, in: query, required: false, schema: { type: boolean } }
-        - { name: hra, in: query, required: false, schema: { type: number, minimum: 0, maximum: 100000000 } }
-        - { name: homeLoanInterest, in: query, required: false, schema: { type: number, minimum: 0, maximum: 200000 } }
-        - { name: section80EEA, in: query, required: false, schema: { type: number, minimum: 0, maximum: 150000 } }
-        - { name: savingsInterest, in: query, required: false, schema: { type: number, minimum: 0, maximum: 100000000 } }
-        - { name: section80TTA, in: query, required: false, schema: { type: number, minimum: 0, maximum: 10000 } }
-        - { name: section80TTB, in: query, required: false, schema: { type: number, minimum: 0, maximum: 50000 } }
-        - { name: other, in: query, required: false, schema: { type: number, const: 0 } }
+      x-csrf-protection: cookie-session
+      requestBody: { $ref: '#/components/requestBodies/TaxCompare' }
       responses: { '200': { $ref: '#/components/responses/TaxComparison' }, '400': { $ref: '#/components/responses/BadRequest' }, '422': { $ref: '#/components/responses/Unprocessable' } }
   /api/tax/post-tax-return:
     post:
@@ -857,7 +827,13 @@ paths:
       security: []
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/PostTaxReturnBatch' }
-      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' } }
+      responses:
+        '200':
+          description: Batch tax projection with separately identified modeled SIP annualized return metrics.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostTaxReturnBatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
   /api/tax/post-tax-scenario:
     post:
       operationId: calculateUserDeclaredPostTaxScenario
@@ -962,9 +938,6 @@ components:
     ProfileId: { name: profileId, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }
     GoalId: { name: goalId, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }
     GoalIfMatch: { name: If-Match, in: header, required: true, description: Expected current goal version. The server atomically compares this version before deletion., schema: { type: string, pattern: '^(W/)?\"?[1-9][0-9]*\"?$' } }
-    Income: { name: income, in: query, required: true, schema: { type: number, minimum: 0, maximum: 1000000000 } }
-    IncomeSource: { name: incomeSource, in: query, required: true, schema: { type: string, enum: [salary, pension, family_pension, business, other] } }
-    FiscalYear: { name: fiscalYear, in: query, required: true, schema: { type: string, enum: [FY2025-26, FY2026-27] } }
   requestBodies:
     Register: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RegisterRequest' } } } }
     Login: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/LoginRequest' } } } }
@@ -988,6 +961,8 @@ components:
     PortfolioMonteCarlo: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PortfolioMonteCarloRequest' } } } }
     PostTaxReturn: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PostTaxReturnRequestV2' } } } }
     PostTaxReturnBatch: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PostTaxReturnBatchRequestV2' } } } }
+    TaxCompute: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TaxComputeRequest' } } } }
+    TaxCompare: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TaxCompareRequest' } } } }
     UserDeclaredPostTaxScenario: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UserDeclaredPostTaxScenarioRequest' } } } }
     PortfolioOptimise: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PortfolioOptimiseRequest' } } } }
     Rebalance: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RebalanceRequest' } } } }
@@ -1075,7 +1050,7 @@ components:
     Error: { description: Canonical API error envelope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     PreconditionRequired: { description: A version precondition is required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     Unprocessable: { description: A well-formed request cannot be processed under current policy, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-    Unavailable: { description: Service or dependency unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Unavailable: { description: Service or dependency unavailable. Current recommendation consumers may return MARKET_ADJUSTMENT_PROVIDER_PROVENANCE_MISSING or UPSTOX_PUBLIC_DISTRIBUTION_NOT_CONFIRMED when a generation-time market tilt cannot be safely distributed., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     BadGateway: { description: An upstream service could not provide valid output, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   schemas:
     Error:
@@ -1084,7 +1059,7 @@ components:
       properties:
         error: { type: string, description: Backward-compatible summary }
         message: { type: string }
-        code: { type: string, pattern: '^[A-Z0-9_]+$' }
+        code: { type: string, pattern: '^[A-Z0-9_]+$', description: Stable recommendation-distribution failures include MARKET_ADJUSTMENT_PROVIDER_PROVENANCE_MISSING and UPSTOX_PUBLIC_DISTRIBUTION_NOT_CONFIRMED. }
         request_id: { type: [string, 'null'] }
         details: { oneOf: [{ type: array, items: { type: string } }, { type: object, additionalProperties: true }] }
     GenieProofExtractRequest:
@@ -2035,6 +2010,48 @@ components:
             currentValue: { type: number, exclusiveMinimum: 0, maximum: 10000000000 }
     MonteCarloRequest: { type: object, additionalProperties: false, required: [profileId, instrument, monthly_investment, years], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, instrument: { type: string, maxLength: 50 }, monthly_investment: { type: number, exclusiveMinimum: 0, maximum: 10000000 }, years: { type: integer, minimum: 1, maximum: 30 }, target_amount: { type: number, minimum: 1000, maximum: 10000000000 } } }
     PortfolioMonteCarloRequest: { type: object, additionalProperties: false, required: [profileId, allocations, years], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, allocations: { $ref: '#/components/schemas/PortfolioWeights' }, years: { type: integer, minimum: 1, maximum: 30 }, target_amount: { type: number, minimum: 1000, maximum: 10000000000 } } }
+    TaxCommonRequestInputs:
+      type: object
+      required: [income, incomeSource, fiscalYear]
+      properties:
+        income: { type: number, minimum: 0, maximum: 1000000000 }
+        incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
+        fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
+        age: { type: integer, minimum: 18, maximum: 120 }
+        section80C: { type: number, minimum: 0, maximum: 150000 }
+        nps80CCD1B: { type: number, minimum: 0, maximum: 50000 }
+        section80CCD: { type: number, minimum: 0, maximum: 50000 }
+        nps80CCD2: { type: number, minimum: 0, maximum: 100000000 }
+        basicSalary: { type: number, minimum: 0, maximum: 1000000000 }
+        isGovtEmployee: { type: boolean }
+        section80D: { type: number, minimum: 0, maximum: 100000 }
+        section80D_self: { type: number, minimum: 0, maximum: 50000 }
+        section80D_parents: { type: number, minimum: 0, maximum: 50000 }
+        parents_senior: { type: boolean }
+        self_senior: { type: boolean }
+        hra: { type: number, minimum: 0, maximum: 100000000 }
+        homeLoanInterest: { type: number, minimum: 0, maximum: 200000 }
+        section80EEA: { type: number, minimum: 0, maximum: 150000 }
+        savingsInterest: { type: number, minimum: 0, maximum: 100000000 }
+        section80TTA: { type: number, minimum: 0, maximum: 10000 }
+        section80TTB: { type: number, minimum: 0, maximum: 50000 }
+        other: { type: number, const: 0 }
+    TaxComputeRequest:
+      allOf:
+        - { $ref: '#/components/schemas/TaxCommonRequestInputs' }
+        - type: object
+          required: [regime]
+          properties:
+            regime: { type: string, enum: [new, old] }
+      unevaluatedProperties: false
+    TaxCompareRequest:
+      allOf:
+        - { $ref: '#/components/schemas/TaxCommonRequestInputs' }
+        - type: object
+          required: [age]
+          properties:
+            age: { type: integer, minimum: 18, maximum: 120 }
+      unevaluatedProperties: false
     TaxCalculation: { type: object, required: [fiscalYear, policyVersion, inputsUsed], properties: { regime: { type: string, enum: [new, old] }, tax: { type: number }, taxAmount: { type: number }, effectiveRate: { type: number }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, policyVersion: { type: string }, inputsUsed: { type: object, additionalProperties: true }, rulesApplied: { type: array, items: { type: string } }, sourceReferences: { type: array, items: { type: object, additionalProperties: true } } }, additionalProperties: true }
     TaxRegimeComparison: { type: object, required: [tax, effective_rate, rebate_applied, taxable_income, standard_deduction, cess, nps80CCD2, allowed80D, slab_breakdown], properties: { tax: { type: number }, effective_rate: { type: number }, rebate_applied: { type: boolean }, taxable_income: { type: number }, standard_deduction: { type: number }, old_regime_deductions: { type: number }, marginal_relief_applied: { type: boolean }, marginal_relief_amount: { type: number }, cess: { type: number }, nps80CCD2: { type: number }, allowed80D: { type: number }, slab_breakdown: { type: array, items: { type: object, additionalProperties: true } } }, additionalProperties: true }
     TaxComparison: { type: object, required: [income, fiscal_year, verified, new_regime, old_regime, recommended_regime, saving, saving_pct, saving_with, calculation_classification, deduction_limits, remaining_deductions, optimized_old_regime_tax, potential_tax_saving, crossover_breakpoint], properties: { income: { type: number }, fiscal_year: { type: string, pattern: '^FY\d{4}-\d{2}$' }, verified: { type: boolean, const: true }, policyVersion: { type: string }, statuteMetadata: { type: object, additionalProperties: true }, verifiedRuleIds: { type: array, items: { type: string } }, sourceReferences: { type: array, items: { type: object, additionalProperties: true } }, rules: { type: object, additionalProperties: true }, inputsUsed: { type: object, additionalProperties: true }, rulesApplied: { type: array, items: { type: string } }, assumptions: { type: array, items: { type: string } }, unavailableReasons: { type: array, items: { type: string } }, new_regime: { $ref: '#/components/schemas/TaxRegimeComparison' }, old_regime: { $ref: '#/components/schemas/TaxRegimeComparison' }, recommended_regime: { type: string, enum: [old, new] }, saving: { type: number }, saving_pct: { type: number }, saving_with: { type: string, enum: [old, new] }, calculation_classification: { type: string, const: SEPARATE_TAX_WHAT_IF }, deduction_limits: { type: object, additionalProperties: true }, remaining_deductions: { type: object, additionalProperties: true }, optimized_old_regime_tax: { type: number }, potential_tax_saving: { type: number }, crossover_breakpoint: { type: [number, 'null'] } }, additionalProperties: true }
@@ -2079,6 +2096,55 @@ components:
         sourceReferences: { type: array, items: { type: object, additionalProperties: true } }
       additionalProperties: false
     PostTaxInstrument: { type: object, additionalProperties: false, required: [instrumentType, nominalRate, holdingYears, monthlySIP], properties: { instrumentType: { type: string, maxLength: 50 }, nominalRate: { type: number, minimum: 0, maximum: 1 }, holdingYears: { type: number, minimum: 0.01, maximum: 100 }, monthlySIP: { type: number, minimum: 0, maximum: 100000000 }, acquisitionDate: { type: string, format: date }, redemptionDate: { type: string, format: date }, redemptionChannel: { type: string, enum: [RBI_REDEMPTION, MATURITY_REDEMPTION, SECONDARY_MARKET_SALE] }, acquiredAtOriginalIssue: { type: boolean }, heldContinuously: { type: boolean }, couponRate: { type: number, minimum: 0, maximum: 1 }, annuityFraction: { type: number, minimum: 0, maximum: 1 }, retirementTiming: { type: string, minLength: 2, maxLength: 100 } } }
+    SipReturnMetrics:
+      type: object
+      additionalProperties: false
+      required: [basis, status, unavailableReason, preTaxAnnualizedReturnPercent, postTaxAnnualizedReturnPercent, realPostTaxAnnualizedReturnPercent, taxDragAnnualizedPercentagePoints]
+      properties:
+        basis: { type: string, const: MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE }
+        status: { type: string, enum: [CALCULATED, UNAVAILABLE] }
+        unavailableReason: { type: [string, 'null'], enum: [NO_MONTHLY_CONTRIBUTIONS, PROJECTION_UNAVAILABLE, RETURN_SOLVER_UNAVAILABLE, null] }
+        preTaxAnnualizedReturnPercent: { type: [number, 'null'], description: Modeled equivalent annual rate for the start-of-month contribution schedule; not a product forecast. }
+        postTaxAnnualizedReturnPercent: { type: [number, 'null'], description: Modeled equivalent annual rate after the projection's tax events; not a product forecast. }
+        realPostTaxAnnualizedReturnPercent: { type: [number, 'null'], description: Post-tax annualized rate adjusted by the explicit annual inflation assumption. }
+        taxDragAnnualizedPercentagePoints: { type: [number, 'null'], description: Difference in percentage points between modeled pre-tax and post-tax SIP annualized rates. }
+    PostTaxReturnBatchResponse:
+      type: object
+      required: [results, portfolioStatus, summary]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [instrumentType, status, sipReturnMetrics]
+            properties:
+              instrumentType: { type: string }
+              status: { type: string }
+              sipReturnMetrics: { $ref: '#/components/schemas/SipReturnMetrics' }
+              postTaxReturnPercent:
+                type: [number, 'null']
+                deprecated: true
+                description: Legacy percentage-valued metric derived from the total-contributed-principal CAGR, with a scalar post-tax rate fallback when CAGR is unavailable. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.postTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate.
+              realReturnPercent:
+                type: [number, 'null']
+                deprecated: true
+                description: Legacy percentage-valued real metric derived from the total-contributed-principal CAGR, with a scalar post-tax rate fallback when CAGR is unavailable. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.realPostTaxAnnualizedReturnPercent for the modeled real SIP equivalent annual rate.
+              taxDragCAGR:
+                type: [number, 'null']
+                deprecated: true
+                description: Legacy difference between total-contributed-principal CAGR values stored as a decimal fraction (for example, 0.01 means one percentage point). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.taxDragAnnualizedPercentagePoints for modeled SIP tax drag in percentage points.
+              postTaxCAGR:
+                type: [number, 'null']
+                deprecated: true
+                description: Legacy total-contributed-principal projection CAGR stored as a decimal fraction (for example, 0.07 means 7 percent). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.postTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate in percent.
+              nominalCAGR:
+                type: [number, 'null']
+                deprecated: true
+                description: Legacy total-contributed-principal pre-tax projection CAGR stored as a decimal fraction (for example, 0.07 means 7 percent). It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.preTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate in percent.
+            additionalProperties: true
+        portfolioStatus: { type: string, enum: [COMPLETE, PARTIAL, UNAVAILABLE] }
+        summary: { type: object, additionalProperties: true }
+      additionalProperties: true
     PostTaxReturnRequestV2: { allOf: [{ $ref: '#/components/schemas/PostTaxInstrument' }, { type: object, additionalProperties: false, required: [annualIncome, regime, userAge, incomeSource, fiscalYear], properties: { annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120 }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. } } }], unevaluatedProperties: false }
     PostTaxReturnBatchRequestV2: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120 }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. } } }
     UserDeclaredPostTaxScenarioRequest:
@@ -2110,7 +2176,7 @@ components:
     ChatRequest: { type: object, additionalProperties: false, required: [message], properties: { message: { type: string, minLength: 1, maxLength: 1000 }, session_id: { type: string, maxLength: 100 } } }
     ChatResponse:
       type: object
-      required: [version, response, session_id, latency_ms, grounded, provider, evidence_ids_used, unavailable_facts, validation_status, fallback, messages_this_hour, rate_limit_remaining, citations, action_cards]
+      required: [version, response, session_id, latency_ms, grounded, provider, evidence_ids_used, unavailable_facts, validation_status, fallback, messages_this_hour, rate_limit_remaining, rate_limit_reset_at, citations, action_cards]
       properties:
         version: { type: string }
         response: { type: string }
@@ -2127,6 +2193,7 @@ components:
         fallback: { type: boolean }
         messages_this_hour: { type: integer, minimum: 0 }
         rate_limit_remaining: { type: integer, minimum: 0 }
+        rate_limit_reset_at: { type: [string, 'null'], format: date-time }
         citations:
           type: array
           items:

@@ -50,6 +50,7 @@ function amfiNavFact({
     unit: 'NAV_PER_UNIT',
     observedAt,
     fetchedAt,
+    historicalContext: { targetDate: '2025-10-01' },
     availabilityStatus: 'AVAILABLE',
     freshness: { status: freshness, ageSeconds: 300, maxAgeSeconds: 345600 },
     source: { provider: 'AMFI', instrumentId: schemeCode, url: sourceUrl },
@@ -69,6 +70,7 @@ function snapshots({ product, currentFact, historyFact } = {}) {
       provider: 'AMFI',
       status: 'AVAILABLE',
       fetchedAt: NOW,
+      targetDate: '2025-10-01',
       facts: [historyFact || amfiNavFact({
         value: 200,
         observedAt: '2025-10-01T09:55:00.000Z',
@@ -139,6 +141,9 @@ test('an exact scheme with fresh AMFI NAV is returned as one comparable option, 
   assert.equal(product.primaryFact.canonicalProductId, 'mf:amfi:140084');
   assert.equal(product.primaryFact.value, product.nav.value);
   assert.equal(product.historicalReturn.isExpectedReturn, false);
+  assert.equal(product.historicalReturn.source.startInstrumentId, product.source.instrumentId);
+  assert.equal(product.historicalReturn.source.endInstrumentId, product.source.instrumentId);
+  assert.equal(product.historicalReturn.source.historyTargetDate, '2025-10-01');
   assert.equal(product.returnBasis, 'HISTORICAL_POINT_TO_POINT_NAV_RETURN_1Y');
   assert.equal(product.expectedReturn, null);
   assert.equal(product.nominalReturn, null);
@@ -154,6 +159,31 @@ test('an exact scheme with fresh AMFI NAV is returned as one comparable option, 
   assert.equal(result.ranking.status, 'VERIFIED_COMPARABLE_OPTIONS');
   assert.equal(result.ranking.hasUniqueLeader, false);
   assert.equal(product.rank, null);
+});
+
+test('ETF historical NAV requires the exact AMFI query window bound to the snapshot target date', () => {
+  const malformedUrls = [
+    'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=28-Sep-2025&todt=04-Oct-2025&extra=1',
+    'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=27-Sep-2025&todt=03-Oct-2025',
+    'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=28-Sep-2025&frmdt=28-Sep-2025&todt=04-Oct-2025',
+  ];
+  for (const sourceUrl of malformedUrls) {
+    const { current, historical } = snapshots();
+    historical.facts[0].source.url = sourceUrl;
+    const [product] = rankQualifiedNiftyEtfProducts({
+      parentInstrumentId: 'nifty_etf', currentSnapshot: current, historicalSnapshot: historical,
+    }).products;
+    assert.equal(product.historicalReturn, null);
+  }
+
+  const missingTargetDate = snapshots();
+  delete missingTargetDate.historical.targetDate;
+  const [withoutTarget] = rankQualifiedNiftyEtfProducts({
+    parentInstrumentId: 'nifty_etf',
+    currentSnapshot: missingTargetDate.current,
+    historicalSnapshot: missingTargetDate.historical,
+  }).products;
+  assert.equal(withoutTarget.historicalReturn, null);
 });
 
 test('name-only and wrong-benchmark-like ETF rows cannot pass exact ID matching', () => {

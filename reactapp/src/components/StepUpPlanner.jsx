@@ -30,15 +30,23 @@ const StepUpPlanner = ({ profile }) => {
   const [years, setYears] = useState(profile?.investment_horizon_years ?? 1);
   const [returnRate, setReturnRate] = useState(12);
   const [showDetails, setShowDetails] = useState(false);
-  const [projection, setProjection] = useState(null);
-  const [projectionError, setProjectionError] = useState(null);
-  const [isCalculating, setIsCalculating] = useState(false);
+  const projectionBinding = JSON.stringify([baseSIP, stepUpPercent, years, returnRate]);
+  const [projectionState, setProjectionState] = useState({ binding: null, status: 'idle', data: null, error: null });
+  const projectionIsCurrent = projectionState.binding === projectionBinding;
 
   // Safe numerical fallback during manual typing states
   const safeBaseSIP = Number(baseSIP) || 0;
   const safeReturnRate = Number(returnRate) || 0;
   const safeYears = Number(years) || 0;
   const safeStepUpPercent = Number(stepUpPercent) || 0;
+  const projectionInputsValid = baseSIP !== '' && stepUpPercent !== '' && years !== '' && returnRate !== ''
+    && Number.isFinite(safeBaseSIP) && safeBaseSIP > 0
+    && Number.isFinite(safeReturnRate) && safeReturnRate > -100
+    && Number.isFinite(safeYears) && safeYears > 0
+    && Number.isFinite(safeStepUpPercent) && safeStepUpPercent >= 0;
+  const projection = projectionIsCurrent && projectionState.status === 'ready' ? projectionState.data : null;
+  const projectionError = projectionIsCurrent && projectionState.status === 'error' ? projectionState.error : null;
+  const isCalculating = projectionInputsValid && !projectionIsCurrent;
 
   // Compute dynamic percentage fills for track bars
   const baseSipPct = Math.min(100, Math.max(0, ((Math.min(100000, Math.max(1000, safeBaseSIP)) - 1000) / 99000) * 100));
@@ -47,12 +55,10 @@ const StepUpPlanner = ({ profile }) => {
   const cagrPct = Math.min(100, Math.max(0, ((Math.min(30, Math.max(1, safeReturnRate)) - 1) / 29) * 100));
 
   useEffect(() => {
-    if (!(safeBaseSIP > 0 && safeReturnRate > -100 && safeYears > 0 && safeStepUpPercent >= 0)) return undefined;
+    if (!projectionInputsValid) return undefined;
     const controller = new AbortController();
     let cancelled = false;
     const timer = setTimeout(() => {
-      setIsCalculating(true);
-      setProjectionError(null);
       api.calculateStepUpProjection(
         safeBaseSIP,
         safeReturnRate / 100,
@@ -60,14 +66,18 @@ const StepUpPlanner = ({ profile }) => {
         safeStepUpPercent / 100,
         { signal: controller.signal },
       ).then(result => {
-        if (!cancelled) setProjection(result);
+        if (!cancelled) setProjectionState({ binding: projectionBinding, status: 'ready', data: result, error: null });
       }).catch(error => {
-        if (!cancelled && error?.code !== 'REQUEST_ABORTED') {
-          setProjection(null);
-          setProjectionError(error.message || 'Projection service is unavailable.');
+        if (!cancelled && error?.code === 'REQUEST_ABORTED') {
+          setProjectionState({ binding: projectionBinding, status: 'cancelled', data: null, error: null });
+        } else if (!cancelled) {
+          setProjectionState({
+            binding: projectionBinding,
+            status: 'error',
+            data: null,
+            error: error.message || 'Projection service is unavailable.',
+          });
         }
-      }).finally(() => {
-        if (!cancelled) setIsCalculating(false);
       });
     }, 250);
     return () => {
@@ -75,7 +85,18 @@ const StepUpPlanner = ({ profile }) => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [safeBaseSIP, safeReturnRate, safeYears, safeStepUpPercent]);
+  }, [
+    baseSIP,
+    returnRate,
+    safeBaseSIP,
+    safeReturnRate,
+    safeStepUpPercent,
+    safeYears,
+    stepUpPercent,
+    years,
+    projectionBinding,
+    projectionInputsValid,
+  ]);
 
   const flatFinal = projection?.flatFinal ?? null;
   const stepUpFinal = projection?.stepUpFinal ?? null;

@@ -15,6 +15,7 @@ import RecommendationState from '../models/RecommendationState.js';
 import AuditRecord from '../models/AuditRecord.js';
 import AuditChainHead from '../models/AuditChainHead.js';
 import IdempotencyKey from '../models/IdempotencyKey.js';
+import User from '../models/User.js';
 import { claimAdvisoryIdempotency } from '../middleware/idempotency.js';
 import { persistAdvisoryAtomically } from '../services/advisoryPersistence.js';
 import { createManualAllocationRevision, requireFreshRecommendationState } from '../services/recommendationState.js';
@@ -30,7 +31,7 @@ import { assessSuitabilityRisk } from '../services/riskProfiler.js';
 import { getCurrentRegulatoryRuleVersion } from '../services/taxEngine.js';
 import { runPipeline } from '../services/RecommendationPipeline.js';
 import Goal from '../models/Goal.js';
-import goalsRoutes from '../routes/goals.js';
+import goalsRoutes, { _getBlendedPortfolioMetrics } from '../routes/goals.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { canonicalProfilePayload } from './helpers/canonicalProfile.js';
 import { ProviderManager } from '../services/providerAbstraction.js';
@@ -54,6 +55,16 @@ const userB = new mongoose.Types.ObjectId();
 
 function signToken(userId) {
   return jwt.sign({ userId: String(userId), jti: crypto.randomUUID() }, JWT_SECRET, { expiresIn: '1h' });
+}
+
+function authenticatedUserFixture(userId, label) {
+  return {
+    _id: userId,
+    name: `Recommendation restore test user ${label}`,
+    email: `${userId}@recommend-restore.example.test`,
+    passwordHash: 'test-only-not-a-real-password-hash',
+    role: 'user',
+  };
 }
 
 async function createFixture({ userId = userA, stale = false, regulatoryRuleVersion = getCurrentRegulatoryRuleVersion() } = {}) {
@@ -432,7 +443,8 @@ async function recommendationAdvisoryPersistenceInput(state) {
 }
 
 test.before(async () => {
-  await setupTestDatabase();
+  await setupTestDatabase({ requireReplicaSet: true });
+  await User.init();
   app = express();
   app.use(express.json());
   app.use('/api/recommend', recommendRoutes);
@@ -449,6 +461,7 @@ test.before(async () => {
 
 test.beforeEach(async () => {
   await Promise.all([
+    User.deleteMany({ _id: { $in: [userA, userB] } }),
     FinancialProfile.deleteMany({ userId: { $in: [userA, userB] } }),
     Recommendation.deleteMany({ userId: { $in: [userA, userB] } }),
     RecommendationState.deleteMany({ userId: { $in: [userA, userB] } }),
@@ -458,10 +471,15 @@ test.beforeEach(async () => {
     AuditChainHead.deleteMany({ _id: { $in: [userA, userB] } }),
     IdempotencyKey.deleteMany({ userId: { $in: [userA, userB] } }),
   ]);
+  await User.create([
+    authenticatedUserFixture(userA, 'A'),
+    authenticatedUserFixture(userB, 'B'),
+  ]);
 });
 
 test.after(async () => {
   if (server) await new Promise(resolve => server.close(resolve));
+  await User.deleteMany({ _id: { $in: [userA, userB] } });
   await teardownTestDatabase();
 });
 
@@ -705,6 +723,43 @@ test('concurrent manual rebalances create exactly one immutable next allocation 
   assert.equal(allocationAudit.allocation_transition.regulatoryRuleVersion, newRevision.regulatoryRuleVersion);
   assert.equal(allocationAudit.allocation_transition.returnAssumptionHash, newRevision.returnAssumptionHash);
   assert.equal(await verifyAuditChain(userA).then(result => result.valid), true);
+});
+
+test('zero-weight rebalance restores zero projection and goal metrics select an allocated instrument', async () => {
+  const profile = await createFixture();
+  const initialResponse = await request(profile._id);
+  assert.equal(initialResponse.status, 200);
+  const initial = await initialResponse.json();
+  const zeroedId = initial.instruments[0].id;
+  const originalZeroedWeight = initial.instruments[0].allocationWeight;
+  const activeInstruments = initial.instruments.slice(1);
+  const weights = { [zeroedId]: 0 };
+  for (const instrument of activeInstruments) {
+    weights[instrument.id] = Number((instrument.allocationWeight / (1 - originalZeroedWeight)).toFixed(4));
+  }
+  const roundedTotal = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+  const lastActiveId = activeInstruments.at(-1).id;
+  weights[lastActiveId] = Number((weights[lastActiveId] + 1 - roundedTotal).toFixed(4));
+
+  const rebalanceResponse = await submitWeights({
+    profileId: String(profile._id),
+    recommendationId: initial.recommendationId,
+    expectedAllocationRevision: initial.allocation_revision,
+    expectedPortfolioFingerprint: initial.portfolio_fingerprint,
+    weights,
+  });
+  const currentResponse = await rebalanceResponse.json();
+  assert.equal(rebalanceResponse.status, 200, JSON.stringify(currentResponse));
+  assert.equal(currentResponse.instruments.find(item => item.id === zeroedId).allocationWeight, 0);
+  assert.equal(currentResponse.dashboard_projection.instrument_monthly_allocations[zeroedId], 0);
+  assert.equal(currentResponse.dashboard_projection.instrument_projected_values[zeroedId], 0);
+
+  const metrics = await _getBlendedPortfolioMetrics(userA, profile._id);
+  const activeInstrument = currentResponse.instruments.find(instrument => instrument.allocationWeight > 0);
+  assert.equal(metrics.primaryInstrument, activeInstrument.type);
+  assert.notEqual(metrics.primaryInstrument, currentResponse.instruments[0].type);
+  assert.ok(Number.isFinite(metrics.expectedReturn));
+  assert.ok(Number.isFinite(metrics.volatility));
 });
 
 test('committed rebalance reconciles to a later canonical revision instead of reporting failure', async () => {

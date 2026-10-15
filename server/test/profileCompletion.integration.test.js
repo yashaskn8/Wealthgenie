@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import profileRoutes from '../routes/profile.js';
 import { errorHandler } from '../middleware/errorHandler.js';
+import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Recommendation from '../models/Recommendation.js';
 import RecommendationAllocationRevision from '../models/RecommendationAllocationRevision.js';
@@ -45,6 +46,12 @@ test('profile completion persists one profile, recommendation, and audit and rep
 
   try {
     await setupTestDatabase({ requireReplicaSet: true });
+    await User.create({
+      _id: userId,
+      name: 'Profile Completion Test User',
+      email: `profile-completion-${userId}@example.test`,
+      passwordHash: 'test-only-hash',
+    });
 
     const app = express();
     app.use(express.json());
@@ -501,6 +508,7 @@ test('profile completion persists one profile, recommendation, and audit and rep
     await FinancialProfile.deleteMany({ userId }).catch(() => {});
     await Recommendation.deleteMany({ userId }).catch(() => {});
     await AuditRecord.collection.deleteMany({ userId }).catch(() => {});
+    await User.deleteOne({ _id: userId }).catch(() => {});
     await teardownTestDatabase();
   }
 });
@@ -523,6 +531,12 @@ test('same-profile post-commit reconciliation retries v2 snapshot after v3 wins 
 
   try {
     await setupTestDatabase({ requireReplicaSet: true });
+    await User.create({
+      _id: userId,
+      name: 'Profile Completion Race Test User',
+      email: `profile-completion-race-${userId}@example.test`,
+      passwordHash: 'test-only-hash',
+    });
     const app = express();
     app.use(express.json());
     app.use('/api/profile', profileRoutes);
@@ -658,6 +672,7 @@ test('same-profile post-commit reconciliation retries v2 snapshot after v3 wins 
       RecommendationState.deleteMany({ userId }).catch(() => {}),
       IdempotencyKey.deleteMany({ userId }).catch(() => {}),
       AuditRecord.collection.deleteMany({ userId }).catch(() => {}),
+      User.deleteOne({ _id: userId }).catch(() => {}),
     ]);
     await teardownTestDatabase();
   }
@@ -681,6 +696,14 @@ test('50 concurrent profile completions from one captured state revision produce
 
   try {
     await setupTestDatabase({ requireReplicaSet: true });
+    // Persist account state before issuing contenders so every request passes
+    // authentication and can reach the captured-state synchronization hook.
+    await User.create({
+      _id: userId,
+      name: 'Profile Completion Contention Test User',
+      email: `profile-completion-contention-${userId}@example.test`,
+      passwordHash: 'test-only-hash',
+    });
     const app = express();
     app.use(express.json());
     app.use('/api/profile', profileRoutes);
@@ -760,6 +783,7 @@ test('50 concurrent profile completions from one captured state revision produce
       RecommendationState.deleteMany({ userId }).catch(() => {}),
       IdempotencyKey.deleteMany({ userId }).catch(() => {}),
       AuditRecord.collection.deleteMany({ userId }).catch(() => {}),
+      User.deleteOne({ _id: userId }).catch(() => {}),
     ]);
     await teardownTestDatabase();
   }

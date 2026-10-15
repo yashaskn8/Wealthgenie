@@ -35,7 +35,7 @@ test('Config Validation: production rejects attempts to disable HTTP rate limiti
   assert.equal(validateEnvironmentConfig(base).valid, true);
   const disabled = validateEnvironmentConfig({ ...base, DISABLE_RATE_LIMIT: 'true' });
   assert.equal(disabled.valid, false);
-  assert.ok(disabled.errors.some(error => error.includes('DISABLE_RATE_LIMIT cannot be enabled in production')));
+  assert.ok(disabled.errors.some(error => error.includes('DISABLE_RATE_LIMIT must not be enabled in production')));
 });
 
 test('Config Validation: Production rejects JWT_SECRET shorter than 32 chars', () => {
@@ -191,6 +191,27 @@ test('MCP runtime defaults keep remote access disabled in production and follow 
   };
   const localValidation = validateEnvironmentConfig(validBase);
   assert.equal(localValidation.valid, true, localValidation.errors.join('; '));
+});
+
+test('enabled Plan Review rejects embedded mode without a worker and preserves external queue mode', () => {
+  const noEmbeddedWorker = getRuntimeConfig({
+    NODE_ENV: 'development',
+    AGENTIC_PLAN_REVIEW_ENABLED: 'true',
+    AGENT_WORKER_MODE: 'embedded',
+    AGENT_WORKER_ENABLED: 'false',
+  });
+  assert.throws(
+    () => assertValidRuntimeConfig(noEmbeddedWorker),
+    /AGENTIC_PLAN_REVIEW_ENABLED=true requires an embedded worker/i,
+  );
+
+  const externalQueueApi = getRuntimeConfig({
+    NODE_ENV: 'development',
+    AGENTIC_PLAN_REVIEW_ENABLED: 'true',
+    AGENT_WORKER_MODE: 'external',
+    AGENT_WORKER_ENABLED: 'false',
+  });
+  assert.doesNotThrow(() => assertValidRuntimeConfig(externalQueueApi));
 });
 
 test('MCP production remote enablement requires one exact audience and scope plus Redis and trusted origin/host', () => {

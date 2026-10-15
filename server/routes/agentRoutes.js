@@ -4,6 +4,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { planReviewLimiter } from '../middleware/rateLimiter.js';
 import { planReviewRequestSchema } from '../agents/planReview/planReviewSchemas.js';
 import { planReviewActionSchema } from '../agents/planReview/planReviewSchemas.js';
+import { isPlanReviewRecomputeApprovalRun } from '../agents/planReview/planReviewSchemas.js';
 import { enqueuePlanReviewRun, getCurrentPlanReviewRun, getPlanReviewRun } from '../agents/planReview/planReviewService.js';
 import { persistPlanReviewAction } from '../agents/planReview/planReviewApproval.js';
 import { completePlanReviewMandateAction } from '../agents/planReview/planReviewApproval.js';
@@ -84,7 +85,7 @@ router.post('/plan-review', verifyJWT, planReviewLimiter, validateStrict(planRev
 router.get('/plan-review/current', verifyJWT, validateQuery(agentProfileQuerySchema), asyncHandler(async (req, res) => {
   if (!isEnabled(req)) return featureUnavailable();
   const run = await getCurrentPlanReviewRun({ userId: req.user.userId, profileId: req.query.profileId });
-  if (!run) throw createError(404, 'No plan review run found.', 'No plan review run found.');
+  if (!run) throw createError(404, 'No plan review run found.', 'No plan review run found.', { code: 'PLAN_REVIEW_RUN_NOT_FOUND' });
   return res.json(run);
 }));
 
@@ -213,8 +214,11 @@ router.post('/plan-review/:runId/action', verifyJWT, validateStrict(planReviewAc
   if (run.currentStateMatch !== true || run.status === 'SUPERSEDED') {
     throw createError(409, 'This review is bound to an outdated financial state.', 'Refresh the plan review before taking action.', { code: 'PLAN_REVIEW_SOURCE_SUPERSEDED' });
   }
-  if (['APPROVE_RECOMPUTE', 'REJECT_RECOMPUTE'].includes(req.body.action) && run.status !== 'WAITING_FOR_APPROVAL') {
-    throw createError(409, 'This plan review is not waiting for approval.', 'Plan review approval is not available.');
+  if (['APPROVE_RECOMPUTE', 'REJECT_RECOMPUTE'].includes(req.body.action)
+      && !isPlanReviewRecomputeApprovalRun(run)) {
+    throw createError(409, 'This plan review is not valid for recompute approval.', 'Plan review approval is not available.', {
+      code: 'PLAN_REVIEW_APPROVAL_UNAVAILABLE',
+    });
   }
   const descriptor = buildApprovalAction(req.body.action, run);
   if (req.body.action === 'APPROVE_RECOMPUTE' && authorizationEnabled(req)) {

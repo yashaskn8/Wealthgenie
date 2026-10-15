@@ -90,7 +90,7 @@ describe('Groq Provider Native Tool-Calling Integration Tests', () => {
     });
     Recommendation.findOne = () => ({ sort: () => ({ lean: async () => null }) });
     Goal.find = () => ({ sort: () => ({ lean: async () => [] }) });
-    User.findById = () => ({ lean: async () => mockUser });
+    User.findById = () => ({ select() { return this; }, lean: async () => mockUser });
     ConversationHistory.findOne = async () => ({
       userId: mockUserId,
       session_id: mockSessionId,

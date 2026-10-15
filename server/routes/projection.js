@@ -4,6 +4,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { allocationSplitSchema, customPortfolioProjectionSchema, historicalXirrSchema, personalizedProjectionSchema, projectionComparisonSchema, stepUpProjectionSchema, stressScenarioSchema, validateStrict } from '../validation/financialSchemas.js';
 import { requireCurrentFinancialProfile } from '../services/currentFinancialProfile.js';
 import { generateAllocationSplit, generatePortfolioProjection, generateProjectionComparison, generateProjections, sipFV, stepUpSipFV } from '../services/projectionEngine.js';
+import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
 import { computeXIRR, computeSIPXIRR } from '../services/xirrCalculator.js';
 import {
   getNominalRate,
@@ -93,12 +94,15 @@ router.post('/custom-portfolio', verifyJWT, validateStrict(customPortfolioProjec
   const { profile: stored } = await requireCurrentFinancialProfile({ userId: req.user.userId, profileId });
   if (!stored) throw createError(404, 'Profile not found or access denied', 'Profile not found.');
   const profile = buildRecommendationProfile(stored);
-  const keys = Object.keys(allocations).filter(key => allocations[key] > 0);
+  const allocationEntries = Object.entries(allocations);
+  const normalizedWeights = normalizeAllocationWeights(allocationEntries.map(([, weight]) => weight));
+  const normalizedAllocations = Object.fromEntries(allocationEntries.map(([key], index) => [key, normalizedWeights[index]]));
+  const keys = Object.keys(normalizedAllocations).filter(key => normalizedAllocations[key] > 0);
   if (keys.some(key => !INSTRUMENT_PARAMS[key])) {
     throw createError(400, 'Allocation contains an unknown instrument.', 'Unknown instrument.');
   }
   const suitability = assertPortfolioSuitable(profile, keys);
-  assertCustomConcentration(allocations);
+  assertCustomConcentration(normalizedAllocations);
   const simulation = buildProfileGroundedSimulation(profile, {
     monthlyInvestment: profile.monthlySavings,
     years,
@@ -106,7 +110,7 @@ router.post('/custom-portfolio', verifyJWT, validateStrict(customPortfolioProjec
   const instruments = keys.map(key => ({
     id: key,
     nominalReturn: getNominalRate(key),
-    allocationWeight: allocations[key],
+    allocationWeight: normalizedAllocations[key],
   }));
   const projection = generatePortfolioProjection({
     monthlyContribution: simulation.monthlyContribution,
@@ -142,9 +146,9 @@ router.post('/custom-portfolio', verifyJWT, validateStrict(customPortfolioProjec
       const key = resolveAssetKey(instrument.id);
       reference[key] = (reference[key] || 0) + Number(instrument.allocationWeight);
     }
-    const allKeys = new Set([...Object.keys(reference), ...Object.keys(allocations)]);
+    const allKeys = new Set([...Object.keys(reference), ...Object.keys(normalizedAllocations)]);
     const totalVariation = [...allKeys].reduce(
-      (sum, key) => sum + Math.abs((reference[key] || 0) - (allocations[key] || 0)),
+      (sum, key) => sum + Math.abs((reference[key] || 0) - (normalizedAllocations[key] || 0)),
       0,
     ) / 2;
     recommendationMatchPct = Math.max(0, Math.round((1 - totalVariation) * 100));
@@ -163,8 +167,11 @@ router.post('/custom-portfolio', verifyJWT, validateStrict(customPortfolioProjec
     affordability_match_pct: 100,
     liquidity_warning: safeWeight < 0.15,
     asset_class_allocation: Object.fromEntries(Object.entries(assetClassAllocation).map(([key, value]) => [key, Math.round(value)])),
-    allocation_percentages: Object.fromEntries(Object.entries(allocations).map(([key, weight]) => [key, Number((weight * 100).toFixed(4))])),
-    monthly_instrument_allocations: Object.fromEntries(Object.entries(allocations).map(([key, weight]) => [key, Number((profile.monthlySavings * weight).toFixed(2))])),
+    allocation_percentages: Object.fromEntries(Object.entries(normalizedAllocations).map(([key, weight]) => [key, Number((weight * 100).toFixed(4))])),
+    monthly_instrument_allocations: Object.fromEntries(Object.keys(normalizedAllocations).map(key => [
+      key,
+      projection.instrument_monthly_allocations[key] ?? 0,
+    ])),
     final_suitability_risk: suitability.finalRisk,
     suitability_reason_codes: suitability.reasonCodes,
   });

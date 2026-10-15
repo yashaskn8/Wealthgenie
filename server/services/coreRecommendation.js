@@ -31,20 +31,24 @@ import {
 import { generatePortfolioProjection } from './projectionEngine.js';
 import { getCurrentRegulatoryRuleVersion } from './taxEngine.js';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
+import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
+import { persistRecommendationMarketAdjustment } from './recommendationMarketProvenance.js';
 
 export const CORE_RECOMMENDATION_VERSION = 'core-recommendation-1.0.0';
 
 function buildPortfolioReturnAssumption(instruments) {
+  const weights = normalizeAllocationWeights(instruments.map(instrument => Number(instrument.allocationWeight)));
   return Number(instruments.reduce(
-    (sum, instrument) => sum + Number(instrument.nominalReturn) * Number(instrument.allocationWeight),
+    (sum, instrument, index) => sum + Number(instrument.nominalReturn) * weights[index],
     0,
   ).toFixed(2));
 }
 
 function buildAssetClassAllocation(instruments) {
-  return Object.fromEntries(Object.entries(instruments.reduce((totals, instrument) => {
+  const weights = normalizeAllocationWeights(instruments.map(instrument => Number(instrument.allocationWeight)));
+  return Object.fromEntries(Object.entries(instruments.reduce((totals, instrument, index) => {
     const assetClass = instrument.assetClass || 'Other';
-    totals[assetClass] = (totals[assetClass] || 0) + (Number(instrument.allocationWeight) * 100);
+    totals[assetClass] = (totals[assetClass] || 0) + (weights[index] * 100);
     return totals;
   }, {})).map(([assetClass, percentage]) => [assetClass, Number(percentage.toFixed(2))]));
 }
@@ -215,6 +219,7 @@ function buildCorePersistencePayload({
   mlResult,
   pipelineResult,
   marketAdjustment,
+  marketContext,
   response,
   recommendationId,
   auditId,
@@ -240,7 +245,7 @@ function buildCorePersistencePayload({
       profileInputHash: inputHash,
       profileVersion,
       returnAssumptionHash: PROJECTION_ASSUMPTION_POLICY_HASH,
-      marketAdjustment,
+      marketAdjustment: persistRecommendationMarketAdjustment(marketAdjustment, marketContext),
       currentAllocationSource: marketAdjustment.currentAllocationSource,
     },
     auditRecordData: {
@@ -262,7 +267,7 @@ function buildCorePersistencePayload({
         returnAssumptionHash: PROJECTION_ASSUMPTION_POLICY_HASH,
         modelVersion,
         recommendationPolicyVersion: RECOMMENDATION_POLICY_VERSION,
-        marketAdjustment,
+        marketAdjustment: persistRecommendationMarketAdjustment(marketAdjustment, marketContext),
         advisorySummary: '',
       },
       cited_rag_chunk_ids: mlResult.cited_chunk_ids || [],
@@ -421,6 +426,7 @@ export async function computeCoreRecommendation({
     mlResult,
     pipelineResult: { ...pipelineResult, instruments },
     marketAdjustment,
+    marketContext,
     response: baseResponse,
     recommendationId,
     auditId,

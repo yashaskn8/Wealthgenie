@@ -132,6 +132,28 @@ test('computeRebalance returns deterministic drift directives and rejects zero v
   assert.ok(typeof result.portfolio_tracking_error === 'number');
 });
 
+test('rebalance target sum tolerance accepts only the documented ±0.01 percentage-point boundary', () => {
+  const currentAllocation = { FD: 100_000 };
+  const normalizedTarget = computeRebalance(currentAllocation, { FD: 50, Debt_MF: 50.0099 }, 5, 0.5, 12);
+  assert.ok(Math.abs(normalizedTarget.assets.reduce((sum, asset) => sum + asset.target_pct, 0) - 100) < 0.0001);
+
+  for (const targetAllocation of [
+    { FD: 50, Debt_MF: 50.0099 },
+    { FD: 49.9901, Debt_MF: 50 },
+  ]) {
+    assert.doesNotThrow(() => computeRebalance(currentAllocation, targetAllocation, 5, 0.5, 12));
+  }
+  for (const targetAllocation of [
+    { FD: 50, Debt_MF: 50.0101 },
+    { FD: 49.9899, Debt_MF: 50 },
+  ]) {
+    assert.throws(
+      () => computeRebalance(currentAllocation, targetAllocation, 5, 0.5, 12),
+      /targetAllocation must sum to exactly 100/,
+    );
+  }
+});
+
 test('computeRebalance transaction cost rules and drift severities', () => {
   // High drift (> 12) scenario with holdingMonths < 12 (exit loads apply)
   const highDrift = computeRebalance(

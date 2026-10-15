@@ -47,16 +47,47 @@ test('admin-claim authentication fails closed when current role state cannot be 
   assert.doesNotMatch(JSON.stringify(res.body), /database unavailable/);
 });
 
-test('a normal user token does not require an elevated-role database lookup', async () => {
+test('a normal user token requires current account state and authenticates an existing user', async () => {
   const req = requestFor('user');
   const res = response();
   let passed = false;
+  let lookups = 0;
 
   await verifyJWT(req, res, () => { passed = true; }, {
-    isDatabaseReady: () => false,
-    getCurrentUser: async () => assert.fail('normal-user role should not trigger an elevated-role lookup'),
+    isDatabaseReady: () => true,
+    getCurrentUser: async () => { lookups += 1; return { role: 'user' }; },
   });
 
   assert.equal(passed, true);
   assert.equal(req.user.role, 'user');
+  assert.equal(lookups, 1);
+});
+
+test('a deleted user account invalidates an otherwise valid session token', async () => {
+  const req = requestFor('user');
+  const res = response();
+
+  await verifyJWT(req, res, () => assert.fail('deleted account must not authenticate'), {
+    isDatabaseReady: () => true,
+    getCurrentUser: async () => null,
+  });
+
+  assert.equal(res.statusCode, 401);
+  assert.equal(res.body.code, 'AUTH_TOKEN_INVALID');
+});
+
+test('ordinary user authentication fails closed when account state is unavailable', async () => {
+  for (const dependencies of [
+    { isDatabaseReady: () => false, getCurrentUser: async () => assert.fail('database is not ready') },
+    { isDatabaseReady: () => true, getCurrentUser: async () => { throw new Error('database unavailable'); } },
+  ]) {
+    const req = requestFor('user');
+    const res = response();
+
+    await verifyJWT(req, res, () => assert.fail('unverified account state must not authenticate'), dependencies);
+
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.code, 'AUTH_ACCOUNT_STATE_UNAVAILABLE');
+    assert.doesNotMatch(JSON.stringify(res.body), /database unavailable/);
+  }
 });

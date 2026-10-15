@@ -8,6 +8,8 @@ import api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
 import './TaxScreen.css';
 
+const MAX_ANNUAL_INCOME = 1_000_000_000;
+
 const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
   const [annualIncome, setAnnualIncome] = useState(null);
   const [incomeSource, setIncomeSource] = useState('');
@@ -40,7 +42,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
   const normalizedAnnualIncome = isPresentFiniteNumber(annualIncome) ? Number(annualIncome) : null;
   const annualIncomeIsValid = normalizedAnnualIncome !== null
     && normalizedAnnualIncome >= 0
-    && normalizedAnnualIncome <= 12000000;
+    && normalizedAnnualIncome <= MAX_ANNUAL_INCOME;
   const ageValue = isPresentFiniteNumber(profile?.age) ? Number(profile.age) : null;
   const ageIsValid = Number.isInteger(ageValue) && ageValue >= 18 && ageValue <= 120;
   const verifiedFiscalYears = taxPolicyMetadata?.verifiedFiscalYears || [];
@@ -325,7 +327,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             <div>
               <div style={{ fontWeight: 800 }}>You Pay Zero Tax</div>
               <div style={{ fontSize: '0.85rem', color: '#a7f3d0', marginTop: 2 }}>
-                Your income is below the tax-free limit. You do not need to pay any income tax under the {regime === 'new' ? 'New' : 'Old'} Regime.
+                Based on the selected fiscal year, income source, and inputs, the server-calculated tax under the {regime === 'new' ? 'New' : 'Old'} Regime is {formatINR(totalTax)}.
               </div>
             </div>
           </motion.div>
@@ -352,13 +354,13 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             type="range" 
             aria-label="Yearly gross income before tax"
             min="0" 
-            max="12000000" 
+            max={MAX_ANNUAL_INCOME}
             step="50000" 
             value={annualIncome ?? 0}
             onChange={(e) => setAnnualIncome(Number(e.target.value))}
             className="tax-slider"
             style={{ 
-              '--val': `${((annualIncome ?? 0) / 12000000) * 100}%`
+              '--val': `${((annualIncome ?? 0) / MAX_ANNUAL_INCOME) * 100}%`
             }}
           />
 
@@ -368,7 +370,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
             className="tax-input"
             type="number"
             min="0"
-            max="12000000"
+            max={MAX_ANNUAL_INCOME}
             step="1"
             inputMode="numeric"
             value={annualIncome ?? ''}
@@ -643,7 +645,7 @@ const TaxScreen = ({ profile, recommendations = [], onLearnMore }) => {
       >
         <div className="tax-summary-card">
           <div className="tax-sum-icon"><Wallet size={20} /></div>
-          <span className="tax-sum-label">Taxable Income (Salary after deductions)</span>
+          <span className="tax-sum-label">Taxable Income (after deductions)</span>
           <span className="tax-sum-value">{formatINR(taxableIncome)}</span>
         </div>
         <div className="tax-summary-card">

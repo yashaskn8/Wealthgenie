@@ -130,70 +130,26 @@ const ProgressHub = ({
         </div>
       </div>
 
-      {/* Active Tab Panel — ONLY ACTIVE COMPONENT IS MOUNTED */}
+      {/* Keep every tab target in the accessibility tree; only the active view mounts. */}
       <div className="hub-panel-content">
-        {currentTab === 'goals' && (
-          <div
-            role="tabpanel"
-            id="panel-goals"
-            aria-labelledby="tab-goals"
-            data-testid="panel-goals"
-          >
+        <div role="tabpanel" id="panel-indicators" aria-labelledby="tab-indicators" data-testid="panel-indicators" hidden={currentTab !== 'indicators'}>
+          {currentTab === 'indicators' && <ErrorBoundary><FinancialIndicatorsPanel profile={profile} /></ErrorBoundary>}
+        </div>
+        <div role="tabpanel" id="panel-goals" aria-labelledby="tab-goals" data-testid="panel-goals" hidden={currentTab !== 'goals'}>
+          {currentTab === 'goals' && <ErrorBoundary><GoalTracker profile={profile} onNavigate={onNavigate} /></ErrorBoundary>}
+        </div>
+        <div role="tabpanel" id="panel-plan-goal" aria-labelledby="tab-plan-goal" data-testid="panel-plan-goal" hidden={currentTab !== 'plan-goal'}>
+          {currentTab === 'plan-goal' && <ErrorBoundary><GoalPlanner profile={profile} financialState={financialState} /></ErrorBoundary>}
+        </div>
+        <div role="tabpanel" id="panel-grow-sip" aria-labelledby="tab-grow-sip" data-testid="panel-grow-sip" hidden={currentTab !== 'grow-sip'}>
+          {currentTab === 'grow-sip' && (
             <ErrorBoundary>
-              <GoalTracker profile={profile} onNavigate={onNavigate} />
+              <StepUpPlanner key={`${profile.profileId}:${profile.version}`} profile={profile} />
             </ErrorBoundary>
-          </div>
-        )}
-
-        {currentTab === 'plan-goal' && (
-          <div
-            role="tabpanel"
-            id="panel-plan-goal"
-            aria-labelledby="tab-plan-goal"
-            data-testid="panel-plan-goal"
-          >
-            <ErrorBoundary>
-              <GoalPlanner profile={profile} financialState={financialState} />
-            </ErrorBoundary>
-          </div>
-        )}
-
-        {currentTab === 'grow-sip' && (
-          <div
-            role="tabpanel"
-            id="panel-grow-sip"
-            aria-labelledby="tab-grow-sip"
-            data-testid="panel-grow-sip"
-          >
-            <ErrorBoundary>
-              <StepUpPlanner
-                key={`${profile.profileId}:${profile.version}`}
-                profile={profile}
-              />
-            </ErrorBoundary>
-          </div>
-        )}
-
-        {currentTab === 'indicators' && (
-          <div
-            role="tabpanel"
-            id="panel-indicators"
-            aria-labelledby="tab-indicators"
-            data-testid="panel-indicators"
-          >
-            <ErrorBoundary>
-              <FinancialIndicatorsPanel profile={profile} />
-            </ErrorBoundary>
-          </div>
-        )}
-
-        {currentTab === 'rebalancer' && (
-          <div
-            role="tabpanel"
-            id="panel-rebalancer"
-            aria-labelledby="tab-rebalancer"
-            data-testid="panel-rebalancer"
-          >
+          )}
+        </div>
+        <div role="tabpanel" id="panel-rebalancer" aria-labelledby="tab-rebalancer" data-testid="panel-rebalancer" hidden={currentTab !== 'rebalancer'}>
+          {currentTab === 'rebalancer' && (
             <ErrorBoundary>
               <RebalancerScreen
                 key={recommendations.map(item => `${item.id}:${item.allocationWeight}`).join('|')}
@@ -202,8 +158,8 @@ const ProgressHub = ({
                 onSave={onSaveRebalance}
               />
             </ErrorBoundary>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

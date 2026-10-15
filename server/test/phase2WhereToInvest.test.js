@@ -180,6 +180,8 @@ test('Phase 2 ranks at most five exact-category Direct Growth options by verifie
   assert.ok(result.products.every(product => product.benchmark === null));
   assert.equal(result.products[0].nav.value, 125);
   assert.equal(result.products[0].historicalReturn.endNav, 125);
+  assert.equal(result.products[0].historicalReturn.source.startInstrumentId, result.products[0].source.instrumentId);
+  assert.equal(result.products[0].historicalReturn.source.endInstrumentId, result.products[0].source.instrumentId);
   assert.equal(result.comparisonUniverse.verifiedCategoryProductCount, 7);
   assert.equal(result.comparisonUniverse.sourceEstablishedDirectPlanProductCount, 7);
   assert.equal(result.comparisonUniverse.historicalEvidenceProductCount, 6);
@@ -250,6 +252,28 @@ test('historical NAV ranking requires a recent query fetch and a fact bound to t
   });
   assert.equal(mismatch.ranking.status, 'VERIFIED_COMPARABLE_OPTIONS');
   assert.equal(mismatch.comparisonUniverse.historicalEvidenceProductCount, 0);
+
+  const malformedUrls = [
+    'https://portal.amfiindia.com/spages/NAVAll.txt',
+    'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=03-Sep-2025&todt=09-Sep-2025',
+    'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=04-Sep-2025&todt=10-Sep-2025&extra=1',
+    'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=04-Sep-2025&frmdt=04-Sep-2025&todt=10-Sep-2025',
+  ];
+  for (const sourceUrl of malformedUrls) {
+    const malformed = snapshots();
+    malformed.historical.facts = malformed.historical.facts.map(fact => ({
+      ...fact,
+      source: { ...fact.source, url: sourceUrl },
+    }));
+    const rejected = rankVerifiedMutualFundProducts({
+      parentInstrumentId: 'large_cap_mf',
+      currentSnapshot: malformed.current,
+      historicalSnapshot: malformed.historical,
+      now: new Date(FETCHED_AT),
+    });
+    assert.equal(rejected.ranking.status, 'VERIFIED_COMPARABLE_OPTIONS');
+    assert.equal(rejected.comparisonUniverse.historicalEvidenceProductCount, 0);
+  }
 });
 
 test('Direct and Regular plans never share a merit universe', () => {
@@ -261,9 +285,9 @@ test('Direct and Regular plans never share a merit universe', () => {
   ];
   current.facts = [navFact('181', 125), navFact('182', 110), navFact('183', 250)];
   historical.facts = [
-    navFact('181', 100, '2025-09-07T00:00:00.000Z'),
-    navFact('182', 100, '2025-09-07T00:00:00.000Z'),
-    navFact('183', 100, '2025-09-07T00:00:00.000Z'),
+    navFact('181', 100, '2025-09-07T00:00:00.000Z', 'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=04-Sep-2025&todt=10-Sep-2025'),
+    navFact('182', 100, '2025-09-07T00:00:00.000Z', 'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=04-Sep-2025&todt=10-Sep-2025'),
+    navFact('183', 100, '2025-09-07T00:00:00.000Z', 'https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=04-Sep-2025&todt=10-Sep-2025'),
   ];
   const result = rankVerifiedMutualFundProducts({
     parentInstrumentId: 'large_cap_mf',

@@ -5,6 +5,7 @@ import test from 'node:test';
 import { hasRecentSessionAuthentication, PASSKEY_ENROLLMENT_MAX_AUTH_AGE_SECONDS } from '../agents/authorization/recentAuthentication.js';
 import agentRoutes from '../routes/agentRoutes.js';
 import { errorHandler } from '../middleware/errorHandler.js';
+import { withMockAuthAccountState } from './helpers/mockAuthAccountState.js';
 import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
 
 test('passkey enrollment requires a signed session issued within five minutes', () => {
@@ -34,7 +35,7 @@ test('passkey registration routes reject stale or missing signed iat before invo
     id: 'response-id', rawId: 'response-id', type: 'public-key', response: {}, clientExtensionResults: {},
   });
   try {
-    await withServer(app, async baseUrl => {
+    await withMockAuthAccountState(() => withServer(app, async baseUrl => {
       for (const token of [stale, missingIat]) {
         for (const [route, body] of [
           ['/passkeys/registration/options', null],
@@ -53,7 +54,7 @@ test('passkey registration routes reject stale or missing signed iat before invo
           assert.equal(payload.code, 'AUTH_REAUTH_REQUIRED');
         }
       }
-    });
+    }));
   } finally {
     if (previousSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = previousSecret;

@@ -593,8 +593,23 @@ test('idempotency replay reconstructs the canonical allocation after rebalance a
   const key = 'atomic-current-replay-001';
   const payload = { profileId: profileId.toString(), mode: 'replay-current' };
   const originalClaim = await claim(key, payload);
-  const original = await persistAdvisoryAtomically(makeOperation(originalClaim, 'replay-original'));
+  const originalOperation = makeOperation(originalClaim, 'replay-original');
+  originalOperation.recommendation.marketAdjustment = {
+    applied: true,
+    status: 'APPLIED',
+    sourceProvider: 'NSE',
+    currentAllocationSource: 'MARKET_CONTEXT_ADJUSTED',
+  };
+  originalOperation.response.market_adjustment = {
+    applied: true,
+    status: 'APPLIED',
+    sourceProvider: 'UPSTOX',
+    currentAllocationSource: 'MARKET_CONTEXT_ADJUSTED',
+  };
+  const original = await persistAdvisoryAtomically(originalOperation);
   const originalId = String(original.recommendationId);
+  assert.equal((await Recommendation.findById(originalId).lean()).marketAdjustment.sourceProvider, 'NSE');
+  assert.equal(JSON.stringify(original).includes('sourceProvider'), false);
   const initialRevision = await RecommendationAllocationRevision.findById(original.allocation_revision_id).lean();
 
   await createManualAllocationRevision({
@@ -613,6 +628,9 @@ test('idempotency replay reconstructs the canonical allocation after rebalance a
   assert.equal(afterRebalance.response.body.response_state, 'CURRENT');
   assert.equal(String(afterRebalance.response.body.recommendationId), originalId);
   assert.equal(afterRebalance.response.body.allocation_revision, 2);
+  assert.equal(afterRebalance.response.body.market_adjustment, null);
+  assert.equal(afterRebalance.response.body.generation_market_adjustment.applied, true);
+  assert.equal(JSON.stringify(afterRebalance.response.body).includes('sourceProvider'), false);
   assert.notEqual(afterRebalance.response.body.allocation_revision_id, original.allocation_revision_id);
 
   const newerClaim = await claim('atomic-current-replay-newer-001', { profileId: profileId.toString(), mode: 'new-generation' });

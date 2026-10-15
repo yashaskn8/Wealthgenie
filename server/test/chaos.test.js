@@ -24,8 +24,9 @@
  * ┌─────────────────────────────────────────────┬───────────────┬──────────────────────────────────────────────────────────────────┐
  * │ Test                                         │ NOW           │ Method                                                            │
  * ├─────────────────────────────────────────────┼───────────────┼──────────────────────────────────────────────────────────────────┤
- * │ 1. MongoDB loss during profile write         │ REAL          │ mongoose.disconnect() severs the real MongoDB connection; then    │
- * │                                             │               │ a real HTTP request exercises the real error handler path.         │
+ * │ 1. MongoDB loss during auth account check     │ REAL          │ mongoose.disconnect() severs the real MongoDB connection; the     │
+ * │                                             │               │ auth middleware returns AUTH_ACCOUNT_STATE_UNAVAILABLE before     │
+ * │                                             │               │ profile persistence is reached.                                    │
  * │                                             │               │                                                                  │
  * │ 2. Redis offline fallback                   │ REAL          │ redisClient.disconnect() kills the real Redis TCP connection;     │
  * │                                             │               │ HybridStore.increment() fails on real sendCommand error.          │
@@ -57,6 +58,7 @@ import {
   setRedisAvailable,
 } from '../config/redis.js';
 import FinancialProfile from '../models/FinancialProfile.js';
+import User from '../models/User.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { canonicalProfilePayload } from './helpers/canonicalProfile.js';
 
@@ -118,12 +120,27 @@ const VALID_PROFILE_BODY = canonicalProfilePayload({
 
 // Ensure DB is connected via helper
 async function ensureDb() {
-  return await setupTestDatabase();
+  const database = await setupTestDatabase({ requireReplicaSet: true });
+  await User.updateOne(
+    { _id: TEST_USER_ID },
+    {
+      $setOnInsert: {
+        name: 'Chaos Test User',
+        email: `chaos-${TEST_USER_ID}@example.test`,
+        passwordHash: 'unused-test-password-hash',
+      },
+    },
+    { upsert: true },
+  );
+  return database;
 }
 
 test.after(async () => {
   try {
     await FinancialProfile.deleteMany({ userId: TEST_USER_ID });
+  } catch (_) {}
+  try {
+    await User.deleteOne({ _id: TEST_USER_ID });
   } catch (_) {}
   await teardownTestDatabase();
   // Force-close any lingering Redis client to kill reconnection timers
@@ -135,14 +152,14 @@ test.after(async () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════
-// 1. REAL MongoDB Disconnection
+// 1. REAL MongoDB Disconnection during account-state verification
 // ══════════════════════════════════════════════════════════════════════
 // METHOD: mongoose.disconnect() severs the real TCP connection to MongoDB.
-// With bufferCommands=false, the next Mongoose operation throws immediately
-// with a real MongooseError. The error flows through asyncHandler → errorHandler
-// which detects readyState !== 1 and returns 503.
+// Authentication checks current account state before entering the profile
+// route. With MongoDB unavailable, the middleware returns its explicit 503
+// account-state error, so this request does not reach profile persistence.
 // ══════════════════════════════════════════════════════════════════════
-test('Chaos: MongoDB loss during a profile write returns 503 Service Unavailable', async (t) => {
+test('Chaos: MongoDB loss during auth account-state verification returns 503', async (t) => {
   const { uri } = await ensureDb();
   console.log(`[CHAOS-1] MongoDB connected (readyState=${mongoose.connection.readyState}), URI prefix: ${uri.substring(0, 30)}...`);
 
@@ -158,7 +175,7 @@ test('Chaos: MongoDB loss during a profile write returns 503 Service Unavailable
   t.after(async () => {
     // Restore and reconnect for subsequent tests
     mongoose.set('bufferCommands', originalBufferCommands ?? true);
-    await setupTestDatabase();
+    await setupTestDatabase({ requireReplicaSet: true });
     console.log(`[CHAOS-1] MongoDB reconnected (readyState=${mongoose.connection.readyState})`);
   });
 
@@ -171,9 +188,9 @@ test('Chaos: MongoDB loss during a profile write returns 503 Service Unavailable
     });
 
     console.log(`[CHAOS-1] Response: status=${response.status}, body=${JSON.stringify(body)}`);
-    assert.equal(response.status, 503, `Expected 503 Service Unavailable from REAL MongoDB loss, got ${response.status}`);
-    assert.match(body.error, /temporarily unavailable|database/i,
-      'Error message should indicate database unavailability');
+    assert.equal(response.status, 503, `Expected 503 while account state cannot be verified, got ${response.status}`);
+    assert.equal(body.code, 'AUTH_ACCOUNT_STATE_UNAVAILABLE');
+    assert.match(body.error, /Account access could not be verified/i);
   });
 });
 

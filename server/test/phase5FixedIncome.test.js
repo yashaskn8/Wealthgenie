@@ -518,6 +518,11 @@ test('TEST 1, 2, 3: RBI provider constructs one canonical FRSB product, NSC 7.7 
   assert.equal(fact.referenceRateValue, 7.7);
   assert.equal(fact.spreadBps, 35);
   assert.equal(fact.rateBasis, 'NSC_REFERENCE_RATE_PLUS_35_BPS');
+  assert.equal(fact.referenceRateFact.canonicalProductId, 'government:india-post:nsc');
+  assert.equal(fact.referenceRateFact.source.url, 'https://www.indiapost.gov.in/banking-services/savings');
+  assert.equal(fact.referenceRateFact.value, fact.referenceRateValue);
+  assert.equal(fact.referenceRateFact.effectiveFrom, '2026-07-01');
+  assert.equal(fact.referenceRateFact.effectiveTo, '2026-09-30');
 
   // TEST 3: FRSB uses PERCENT_PER_ANNUM
   assert.equal(fact.unit, 'PERCENT_PER_ANNUM');
@@ -686,6 +691,37 @@ test('RBI FRSB refuses stale or unqualified NSC facts and contradictory spread r
   });
   assert.equal(booleanRejected.ranking.status, 'UNAVAILABLE');
 
+  for (const mutateReference of [
+    reference => ({ ...reference, observedAt: '2026-04-01T00:00:00.000Z' }),
+    reference => ({ ...reference, fetchedAt: '2026-06-30T23:59:59.999Z' }),
+    reference => ({ ...reference, fetchedAt: '2099-09-08T12:00:00.000Z' }),
+    reference => ({
+      ...reference,
+      freshness: { ...reference.freshness, ageSeconds: 0 },
+    }),
+    reference => ({
+      ...reference,
+      freshness: { ...reference.freshness, maxAgeSeconds: reference.freshness.maxAgeSeconds + 1 },
+    }),
+  ]) {
+    const inconsistentTimestamps = structuredClone(deriveRbiFloatingRateSavingsBondSnapshot({
+      rbiRule: rule,
+      nscSnapshot: qualifiedNsc,
+      fetchedAt: NOW.toISOString(),
+      now: NOW,
+    }));
+    inconsistentTimestamps.facts[0].referenceRateFact = mutateReference(
+      inconsistentTimestamps.facts[0].referenceRateFact,
+    );
+    const timestampRejected = compareVerifiedFixedIncomeProducts({
+      parentInstrumentId: 'rbi_bonds',
+      snapshot: inconsistentTimestamps,
+      profile: canonicalProfile({ investmentHorizonYears: 10 }),
+      now: NOW,
+    });
+    assert.equal(timestampRejected.ranking.status, 'UNAVAILABLE');
+  }
+
   validSnapshot.facts[0].value += 1;
   const rejected = compareVerifiedFixedIncomeProducts({
     parentInstrumentId: 'rbi_bonds',
@@ -694,6 +730,51 @@ test('RBI FRSB refuses stale or unqualified NSC facts and contradictory spread r
     now: NOW,
   });
   assert.equal(rejected.ranking.status, 'UNAVAILABLE');
+});
+
+test('FRSB ranking keeps verified reset-date NSC evidence usable after its quarter ends', () => {
+  const julyNow = new Date('2026-07-02T00:00:00.000Z');
+  const octoberNow = new Date('2026-10-15T12:00:00.000Z');
+  const julyNsc = parseIndiaPostSavingsBundle(
+    governmentBundle('01.07.2026', '30.09.2026'),
+    { fetchedAt: julyNow.toISOString(), now: julyNow },
+  );
+  const octoberFrsb = deriveRbiFloatingRateSavingsBondSnapshot({
+    rbiHtml: RBI_RULE_FIXTURE,
+    nscSnapshot: julyNsc,
+    fetchedAt: octoberNow.toISOString(),
+    now: octoberNow,
+  });
+
+  const validPriorQuarter = compareVerifiedFixedIncomeProducts({
+    parentInstrumentId: 'rbi_bonds',
+    snapshot: octoberFrsb,
+    profile: canonicalProfile({ investmentHorizonYears: 10 }),
+    now: octoberNow,
+  });
+  assert.equal(validPriorQuarter.ranking.status, 'VERIFIED_COMPARABLE_OPTIONS');
+  assert.equal(validPriorQuarter.products[0].officialRate.resetDate, '2026-07-01');
+  assert.equal(validPriorQuarter.products[0].officialRate.referenceRateFact.effectiveTo, '2026-09-30');
+
+  for (const mutateReference of [
+    reference => ({ ...reference, fetchedAt: '2026-10-01T00:00:00.000Z' }),
+    reference => ({
+      ...reference,
+      freshness: { ...reference.freshness, status: 'STALE' },
+    }),
+  ]) {
+    const invalidPriorQuarter = structuredClone(octoberFrsb);
+    invalidPriorQuarter.facts[0].referenceRateFact = mutateReference(
+      invalidPriorQuarter.facts[0].referenceRateFact,
+    );
+    const unavailable = compareVerifiedFixedIncomeProducts({
+      parentInstrumentId: 'rbi_bonds',
+      snapshot: invalidPriorQuarter,
+      profile: canonicalProfile({ investmentHorizonYears: 10 }),
+      now: octoberNow,
+    });
+    assert.equal(unavailable.ranking.status, 'UNAVAILABLE');
+  }
 });
 
 test('TEST 10: No static coupon fallback', () => {
@@ -752,6 +833,10 @@ test('TEST 11, 12, 13, 14, 16, 17: WTI for rbi_bonds returns exactly one verifie
   assert.equal(p.officialRate.unit, 'PERCENT_PER_ANNUM');
   assert.equal(p.officialRate.basis, 'NSC_REFERENCE_RATE_PLUS_35_BPS');
   assert.equal(p.officialRate.dataClass, 'OFFICIAL_RBI_FLOATING_COUPON_RATE');
+  assert.equal(p.officialRate.referenceRateValue, 7.7);
+  assert.equal(p.officialRate.spreadBps, 35);
+  assert.equal(p.officialRate.resetDate, '2026-07-01');
+  assert.equal(p.officialRate.referenceRateFact.canonicalProductId, 'government:india-post:nsc');
 
   assert.equal(p.source.provider, 'RBI');
   assert.equal(p.source.url, RBI_FRSB_NOTIFICATION_URL);

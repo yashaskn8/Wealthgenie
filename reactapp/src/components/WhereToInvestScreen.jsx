@@ -47,10 +47,11 @@ const WhereToInvestScreen = ({
     }
     return recommendedParents[0];
   }, [recommendedParents, selectedId]);
+  const hasActiveParent = Boolean(activeParent);
 
   // Ensure active category tab smoothly scrolls into view when selection changes
   useEffect(() => {
-    if (activeParent && railRef.current) {
+    if (hasActiveParent && railRef.current) {
       const activeEl = railRef.current.querySelector('[aria-selected="true"]');
       if (activeEl) {
         const rail = railRef.current;
@@ -61,7 +62,7 @@ const WhereToInvestScreen = ({
         }
       }
     }
-  }, [activeParent]);
+  }, [activeParent?.id, hasActiveParent]);
 
   const handleScrollRail = useCallback((direction) => {
     if (railRef.current) {
@@ -113,7 +114,7 @@ const WhereToInvestScreen = ({
           <span className="wti-eyebrow-status-ring" aria-hidden="true">
             <span className="wti-eyebrow-dot" />
           </span>
-          <span>SUITABILITY MATCHED · VERIFIED EXECUTION</span>
+          <span>PROFILE-SUITABLE CATEGORIES · PRODUCTS VERIFIED SEPARATELY</span>
         </div>
         <h1 className="wti-title">
           Your recommended categories

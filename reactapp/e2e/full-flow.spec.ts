@@ -133,9 +133,13 @@ test.describe('real WealthGenie dependency lifecycle', () => {
 
     const precomputeResponse = precomputeResponses[0];
     if (precomputeResponse) {
-      expect(precomputeResponse.status()).toBe(200);
-      const candidate = await precomputeResponse.json();
-      expect(candidate.candidateId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      expect([200, 503]).toContain(precomputeResponse.status());
+      const precomputeBody = await precomputeResponse.json();
+      if (precomputeResponse.status() === 200) {
+        expect(precomputeBody.candidateId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      } else {
+        expect(precomputeBody.code).toBe('PROFILE_PRECOMPUTE_UNAVAILABLE');
+      }
     }
 
     const advisory = completionBody.recommendation;
@@ -352,13 +356,19 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     await page.getByTestId('nav-tax-optimizer').click();
     await page.getByLabel('Yearly gross income before tax').fill('1100000');
     await page.getByLabel('Income source for tax calculation').selectOption('salary');
-    const taxPromise = page.waitForResponse(response => {
-      const url = new URL(response.url());
-      return response.request().method() === 'GET' && url.pathname === '/api/tax/compare';
-    });
+    const taxPromise = page.waitForResponse(apiResponse('POST', '/api/tax/compare'));
     await page.getByLabel('Fiscal year for tax calculation').selectOption('FY2026-27');
     const taxResponse = await taxPromise;
     expect(taxResponse.status()).toBe(200);
+    const taxRequest = taxResponse.request();
+    expect(taxRequest.method()).toBe('POST');
+    expect(new URL(taxRequest.url()).search).toBe('');
+    expect(JSON.parse(taxRequest.postData() || '{}')).toMatchObject({
+      income: 1100000,
+      incomeSource: 'salary',
+      fiscalYear: 'FY2026-27',
+      age: 34,
+    });
     const tax = await taxResponse.json();
     expect(tax.new_regime.tax).toBeGreaterThanOrEqual(0);
     expect(tax.old_regime.tax).toBeGreaterThanOrEqual(0);

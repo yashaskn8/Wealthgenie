@@ -12,7 +12,7 @@ import marketRoutes from '../routes/market.js';
 import taxRoutes from '../routes/tax.js';
 import chatRoutes from '../routes/chatRoutes.js';
 import { errorHandler } from '../middleware/errorHandler.js';
-import { withServer, jsonRequest as jsonFetch } from '../test-utils/httpTestUtils.js';
+import { rawRequest, withServer, jsonRequest as jsonFetch } from '../test-utils/httpTestUtils.js';
 import { canonicalProfilePayload } from './helpers/canonicalProfile.js';
 
 process.env.JWT_SECRET = 'route-coverage-test-secret';
@@ -90,17 +90,35 @@ test('instruments route validates public query inputs', async () => {
 
 test('tax route computes and compares regimes without authentication', async () => {
   await withServer(buildApp(), async (baseUrl) => {
-    const compute = await jsonFetch(`${baseUrl}/api/tax/compute?income=1200000&regime=new&incomeSource=salary&fiscalYear=FY2026-27`);
-    const compare = await jsonFetch(`${baseUrl}/api/tax/compare?income=1200000&incomeSource=salary&age=35&fiscalYear=FY2026-27`);
+    const compute = await jsonFetch(`${baseUrl}/api/tax/compute`, {
+      method: 'POST',
+      body: JSON.stringify({ income: 1200000, regime: 'new', incomeSource: 'salary', age: 35, fiscalYear: 'FY2026-27' }),
+    });
+    const compare = await jsonFetch(`${baseUrl}/api/tax/compare`, {
+      method: 'POST',
+      body: JSON.stringify({ income: 1200000, incomeSource: 'salary', age: 35, fiscalYear: 'FY2026-27' }),
+    });
+    const maximumIncome = await jsonFetch(`${baseUrl}/api/tax/compute`, {
+      method: 'POST',
+      body: JSON.stringify({ income: 1000000000, regime: 'new', incomeSource: 'salary', age: 35, fiscalYear: 'FY2026-27' }),
+    });
+    const aboveMaximumIncome = await jsonFetch(`${baseUrl}/api/tax/compute`, {
+      method: 'POST',
+      body: JSON.stringify({ income: 1000000001, regime: 'new', incomeSource: 'salary', age: 35, fiscalYear: 'FY2026-27' }),
+    });
+    const legacyQuery = await rawRequest(`${baseUrl}/api/tax/compare`);
 
     assert.equal(compute.response.status, 200);
     assert.ok(Number.isFinite(compute.body.taxAmount));
-      assert.equal(compare.response.status, 200);
-      assert.ok(['new', 'old'].includes(compare.body.recommended_regime));
-      assert.equal(compare.body.calculation_classification, 'SEPARATE_TAX_WHAT_IF');
-      assert.ok(Array.isArray(compare.body.new_regime.slab_breakdown));
-      assert.ok(Array.isArray(compare.body.old_regime.slab_breakdown));
-      assert.equal(compare.body.deduction_limits.section80C, 150000);
-      assert.ok(Number.isFinite(compare.body.optimized_old_regime_tax));
+    assert.equal(maximumIncome.response.status, 200);
+    assert.equal(aboveMaximumIncome.response.status, 400);
+    assert.equal(compare.response.status, 200);
+    assert.ok(['new', 'old'].includes(compare.body.recommended_regime));
+    assert.equal(compare.body.calculation_classification, 'SEPARATE_TAX_WHAT_IF');
+    assert.ok(Array.isArray(compare.body.new_regime.slab_breakdown));
+    assert.ok(Array.isArray(compare.body.old_regime.slab_breakdown));
+    assert.equal(compare.body.deduction_limits.section80C, 150000);
+    assert.ok(Number.isFinite(compare.body.optimized_old_regime_tax));
+    assert.equal(legacyQuery.status, 404);
   });
 });

@@ -5,7 +5,11 @@ import { formatINR } from '../utils/indianNumberFormat';
 import { isPresentFiniteNumber } from '../utils/financialValues';
 import JargonTooltip from './JargonTooltip';
 import * as api from '../services/api';
-import { localToBackendInstrument } from '../utils/instrumentTypeMap';
+import {
+  localToBackendInstrument,
+  OPTIMISABLE_BACKEND_KEYS,
+  PORTFOLIO_OPTIMIZER_SUPPORTED_KEYS,
+} from '../utils/instrumentTypeMap';
 import './RebalancerScreen.css';
 
 const RISK_COLORS = {
@@ -106,13 +110,35 @@ const buildAllocations = (recs) => {
   return allocs;
 };
 
-const toBackendAllocations = allocations => {
+const backendKeyForRecommendation = investment => {
+  if (!investment || typeof investment.id !== 'string' || !investment.id) return null;
+  const mappedKey = localToBackendInstrument(investment.id);
+  const keyFromId = OPTIMISABLE_BACKEND_KEYS.has(mappedKey) ? mappedKey : null;
+  const hasExplicitType = investment.type !== undefined && investment.type !== null && investment.type !== '';
+  if (!hasExplicitType) return keyFromId;
+  if (!OPTIMISABLE_BACKEND_KEYS.has(investment.type)) return null;
+  if (keyFromId && keyFromId !== investment.type) return null;
+  return keyFromId || investment.type;
+};
+
+const toBackendAllocations = (allocations, recommendations = []) => {
   const result = {};
+  const recommendationsById = new Map(recommendations.map(investment => [investment.id, investment]));
   for (const [localId, percentage] of Object.entries(allocations)) {
-    const key = localToBackendInstrument(localId);
-    if (!key || percentage <= 0) continue;
-    result[key] = (result[key] || 0) + (percentage / 100);
+    const numericPercentage = Number(percentage);
+    if (!Number.isFinite(numericPercentage) || numericPercentage < 0 || numericPercentage > 100) {
+      throw new TypeError(`Allocation for ${localId} must be a percentage from 0 to 100`);
+    }
+    if (numericPercentage === 0) continue;
+    const key = backendKeyForRecommendation(recommendationsById.get(localId) || { id: localId });
+    if (!key) throw new TypeError(`A verified model category is unavailable for ${localId}`);
+    result[key] = (result[key] || 0) + (numericPercentage / 100);
   }
+  const total = Object.values(result).reduce((sum, weight) => sum + weight, 0);
+  if (total <= 0 || Math.abs(total - 1) > 0.0001) {
+    throw new RangeError('Model preview allocations must total 100%');
+  }
+  for (const key of Object.keys(result)) result[key] /= total;
   return result;
 };
 
@@ -178,7 +204,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
       if (!horizon || !totalSavings) throw new Error('Complete Financial Profile data is required');
       const response = await api.getCustomPortfolioProjection(
         profileId,
-        toBackendAllocations(currentAllocs),
+        toBackendAllocations(currentAllocs, recs),
         horizon,
       );
       if (isCurrent()) setProjectionState({ binding, data: response, error: null });
@@ -189,7 +215,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     } finally {
       if (isCurrent()) setLoadingProjection(false);
     }
-  }, [profile?.profileId, horizon, totalSavings]);
+  }, [profile?.profileId, horizon, totalSavings, recs]);
 
   const [loadingMC, setLoadingMC] = useState(false);
   const [monteCarloState, setMonteCarloState] = useState({ binding: null, data: null, error: null });
@@ -212,7 +238,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
       if (!projectionDisplayYear || !totalSavings) throw new Error('Complete Financial Profile data is required');
       const result = await api.runPortfolioMonteCarlo(
         profileId,
-        toBackendAllocations(currentAllocs),
+        toBackendAllocations(currentAllocs, recs),
         projectionDisplayYear,
         null,
       );
@@ -224,7 +250,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     } finally {
       if (isCurrent()) setLoadingMC(false);
     }
-  }, [profile?.profileId, projectionDisplayYear, totalSavings]);
+  }, [profile?.profileId, projectionDisplayYear, totalSavings, recs]);
 
   // Debounce backend requests
   useEffect(() => {
@@ -451,16 +477,64 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     try {
       setLoadingProjection(true);
       setProjectionError(null);
-      const assets = [...new Set(recs.map(inv => localToBackendInstrument(inv.id)))];
-      const result = await api.optimisePortfolio(profileId, assets, strategyByPreset[presetName]);
-      const next = {};
-      recs.forEach(inv => {
-        const weight = Number(result.weights?.[localToBackendInstrument(inv.id)]);
-        if (!Number.isFinite(weight) || weight < 0 || weight > 1) {
-          throw new Error(`Optimizer returned an invalid weight for ${inv.name}`);
+      const assetsByRecommendation = recs.map(investment => {
+        const key = backendKeyForRecommendation(investment);
+        if (!key || !PORTFOLIO_OPTIMIZER_SUPPORTED_KEYS.has(key)) {
+          throw new Error(`A verified optimizer category is unavailable for ${investment?.name || investment?.id || 'an investment'}`);
         }
-        next[inv.id] = weight * 100;
+        return { investment, key };
       });
+      if (new Set(assetsByRecommendation.map(({ investment }) => investment.id)).size !== assetsByRecommendation.length) {
+        throw new Error('The recommendation list contains duplicate product IDs.');
+      }
+      const assets = [...new Set(assetsByRecommendation.map(({ key }) => key))];
+      if (assets.length < 2) {
+        throw new Error('At least two supported investment categories are required for optimization.');
+      }
+      const result = await api.optimisePortfolio(profileId, assets, strategyByPreset[presetName]);
+      if (!result?.weights || typeof result.weights !== 'object' || Array.isArray(result.weights)) {
+        throw new Error('Optimizer returned no category weights.');
+      }
+      if (Object.keys(result.weights).some(key => !assets.includes(key))) {
+        throw new Error('Optimizer returned weights for an unrequested category.');
+      }
+      const categoryWeightTotal = assets.reduce((sum, key) => {
+        const weight = Number(result.weights[key]);
+        if (!Number.isFinite(weight) || weight < 0 || weight > 1) {
+          throw new Error(`Optimizer returned an invalid weight for ${key}`);
+        }
+        return sum + weight;
+      }, 0);
+      if (categoryWeightTotal <= 0 || Math.abs(categoryWeightTotal - 1) > 0.001) {
+        throw new Error('Optimizer category weights must total 100%.');
+      }
+
+      const recommendationsByCategory = new Map();
+      for (const entry of assetsByRecommendation) {
+        const members = recommendationsByCategory.get(entry.key) || [];
+        members.push(entry.investment);
+        recommendationsByCategory.set(entry.key, members);
+      }
+      const next = {};
+      for (const [key, members] of recommendationsByCategory) {
+        const baseTotal = members.reduce((sum, investment) => {
+          const weight = Number(allocations[investment.id]);
+          return sum + (Number.isFinite(weight) && weight > 0 ? weight : 0);
+        }, 0);
+        const categoryWeight = Number(result.weights[key]) / categoryWeightTotal;
+        members.forEach(investment => {
+          const previousWeight = Number(allocations[investment.id]);
+          const share = baseTotal > 0 && Number.isFinite(previousWeight) && previousWeight > 0
+            ? previousWeight / baseTotal
+            : baseTotal > 0 ? 0 : 1 / members.length;
+          next[investment.id] = categoryWeight * share * 100;
+        });
+      }
+      const totalPercentage = Object.values(next).reduce((sum, percentage) => sum + percentage, 0);
+      if (!Number.isFinite(totalPercentage) || totalPercentage <= 0 || Math.abs(totalPercentage - 100) > 0.01) {
+        throw new Error('Optimizer product allocations must total 100%.');
+      }
+      Object.keys(next).forEach(id => { next[id] = (next[id] / totalPercentage) * 100; });
       if (!isCurrent()) return;
       allocationEditRevision.current += 1;
       setAllocations(next);
@@ -470,7 +544,7 @@ const RebalancerScreen = ({ profile, recommendations, onSave }) => {
     } finally {
       if (requestId === optimizerRequestId.current) setLoadingProjection(false);
     }
-  }, [profile?.profileId, recs, setProjectionError]);
+  }, [allocations, profile?.profileId, recs, setProjectionError]);
 
   const handleSave = () => {
     const percentages = recs.map(inv => Number(allocations[inv.id]));

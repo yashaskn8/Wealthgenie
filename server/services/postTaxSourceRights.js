@@ -270,7 +270,7 @@ export function resolvePostTaxProviderRights(provider) {
   };
 }
 
-function productSources(product) {
+function productSources(product, taxMetadata = product?.taxMetadata) {
   const sources = [];
   const historySource = product?.historicalReturn?.source;
   const historyObservationUrls = [historySource?.startObservationUrl, historySource?.endObservationUrl].filter(Boolean);
@@ -278,6 +278,7 @@ function productSources(product) {
     product?.source,
     product?.primaryFact?.source,
     product?.officialRate?.source,
+    product?.officialRate?.referenceRateFact?.source,
     product?.nav?.source,
     ...(historyObservationUrls.length === 0 ? [historySource] : []),
   ]) {
@@ -286,6 +287,21 @@ function productSources(product) {
   for (const url of historyObservationUrls) {
     if (historySource?.provider) sources.push({ provider: historySource.provider, url });
   }
+  const classificationSources = [
+    ...(Array.isArray(taxMetadata?.sourceReferences) ? taxMetadata.sourceReferences : []),
+    ...(Array.isArray(product?.taxMetadata?.sourceReferences) ? product.taxMetadata.sourceReferences : []),
+  ];
+  for (const reference of classificationSources) {
+    const provider = reference?.provider || reference?.authority;
+    if (provider && reference?.url) sources.push({ provider, url: reference.url });
+  }
+  const productEvidenceUrl = taxMetadata?.productEvidence?.officialSourceUrl
+    || product?.taxMetadata?.productEvidence?.officialSourceUrl;
+  const productEvidenceProvider = taxMetadata?.productEvidence?.provider
+    || product?.taxMetadata?.productEvidence?.provider;
+  if (productEvidenceProvider && productEvidenceUrl) {
+    sources.push({ provider: productEvidenceProvider, url: productEvidenceUrl });
+  }
   if (sources.length === 0 && product?.provider) {
     sources.push({ provider: product.provider, url: null });
   }
@@ -293,8 +309,8 @@ function productSources(product) {
   return [...unique.values()];
 }
 
-export function resolvePostTaxProductRights(product = {}) {
-  const sources = productSources(product).map(resolvePostTaxSourceRights);
+export function resolvePostTaxProductRights(product = {}, taxMetadata = product?.taxMetadata) {
+  const sources = productSources(product, taxMetadata).map(resolvePostTaxSourceRights);
   if (sources.length === 0) return unknownDecision(null);
   const order = [
     POST_TAX_SOURCE_RIGHTS_STATES.BLOCKED_REUSE_RIGHTS,
