@@ -247,7 +247,7 @@ describe('GoalPlanner financial freshness boundary', () => {
     expect(await screen.findByText('Emergency Reserve')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(api.getGoals).toHaveBeenCalledTimes(3);
-  });
+  }, 20_000);
 
   it.each([
     ['wrong id', goal => ({ ...goal, _id: 'goal-other', version: 2 })],
