@@ -8,21 +8,18 @@ const APPLICATION_IMAGES = new Set([
 ]);
 const REQUIRED_PRODUCTION_IMAGES = new Set([
   ...APPLICATION_IMAGES,
-  'mongo',
   'redis',
 ]);
 const APPROVED_PRODUCTION_IMAGE_REPOSITORIES = new Map([
   ['wealthgenie-server', 'ghcr.io/yashaskn8/wealthgenie-server'],
   ['wealthgenie-frontend', 'ghcr.io/yashaskn8/wealthgenie-frontend'],
   ['wealthgenie-ml-service', 'ghcr.io/yashaskn8/wealthgenie-ml-service'],
-  ['mongo', 'docker.io/library/mongo'],
   ['redis', 'docker.io/library/redis'],
 ]);
 const PRODUCTION_TEMPLATE_IMAGES = new Map([
   ['wealthgenie-server', 'registry-required.invalid/wealthgenie-server@sha256:WEALTHGENIE_SERVER_IMAGE_DIGEST_REQUIRED'],
   ['wealthgenie-frontend', 'registry-required.invalid/wealthgenie-frontend@sha256:WEALTHGENIE_FRONTEND_IMAGE_DIGEST_REQUIRED'],
   ['wealthgenie-ml-service', 'registry-required.invalid/wealthgenie-ml-service@sha256:WEALTHGENIE_ML_SERVICE_IMAGE_DIGEST_REQUIRED'],
-  ['mongo', 'registry-required.invalid/mongo@sha256:WEALTHGENIE_MONGODB_IMAGE_DIGEST_REQUIRED'],
   ['redis', 'registry-required.invalid/redis@sha256:WEALTHGENIE_REDIS_IMAGE_DIGEST_REQUIRED'],
 ]);
 
@@ -108,6 +105,7 @@ export function validateProductionImageManifest(source, {
       continue;
     }
 
+    if (name === 'mongo') errors.push('IN_CLUSTER_MONGODB_NOT_ALLOWED_IN_PRODUCTION');
     if (name.startsWith('wealthgenie-')) {
       if (!APPLICATION_IMAGES.has(name)) errors.push('UNKNOWN_WEALTHGENIE_IMAGE');
     }

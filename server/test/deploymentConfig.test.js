@@ -89,7 +89,6 @@ test('production image filter accepts fully qualified registry digests for every
     ['wealthgenie-server', 'ghcr.io/yashaskn8/wealthgenie-server'],
     ['wealthgenie-frontend', 'ghcr.io/yashaskn8/wealthgenie-frontend'],
     ['wealthgenie-ml-service', 'ghcr.io/yashaskn8/wealthgenie-ml-service'],
-    ['mongo', 'docker.io/library/mongo'],
     ['redis', 'docker.io/library/redis'],
   ];
   const manifest = images.map(([name, repository], index) => {
@@ -120,7 +119,6 @@ test('production image filter rejects unapproved repositories for every required
     ['wealthgenie-server', 'ghcr.io/yashaskn8/wealthgenie-server'],
     ['wealthgenie-frontend', 'ghcr.io/yashaskn8/wealthgenie-frontend'],
     ['wealthgenie-ml-service', 'ghcr.io/yashaskn8/wealthgenie-ml-service'],
-    ['mongo', 'docker.io/library/mongo'],
     ['redis', 'docker.io/library/redis'],
   ];
 
@@ -143,7 +141,6 @@ test('production image filter rejects each missing application or infrastructure
     ['wealthgenie-server', 'ghcr.io/yashaskn8/wealthgenie-server'],
     ['wealthgenie-frontend', 'ghcr.io/yashaskn8/wealthgenie-frontend'],
     ['wealthgenie-ml-service', 'ghcr.io/yashaskn8/wealthgenie-ml-service'],
-    ['mongo', 'docker.io/library/mongo'],
     ['redis', 'docker.io/library/redis'],
   ];
 
@@ -187,12 +184,34 @@ test('production image filter also rejects mutable database and cache image refe
   assert.equal(result.stdout, '', 'invalid manifests must not be emitted to an apply pipeline');
 });
 
+test('production image filter rejects in-cluster MongoDB images', () => {
+  const images = [
+    ['wealthgenie-server', 'ghcr.io/yashaskn8/wealthgenie-server'],
+    ['wealthgenie-frontend', 'ghcr.io/yashaskn8/wealthgenie-frontend'],
+    ['wealthgenie-ml-service', 'ghcr.io/yashaskn8/wealthgenie-ml-service'],
+    ['redis', 'docker.io/library/redis'],
+    ['mongo', 'docker.io/library/mongo'],
+  ];
+  const manifest = images.map(([name, repository], index) => {
+    const digest = String(index + 1).repeat(64);
+    return `apiVersion: apps/v1\nkind: Deployment\nmetadata: { name: ${name} }\nspec:\n  template:\n    spec:\n      containers:\n        - { name: app, image: ${repository}@sha256:${digest} }\n`;
+  }).join('---\n');
+  const result = spawnSync(process.execPath, [productionImageValidatorPath], {
+    encoding: 'utf8',
+    input: manifest,
+    timeout: 15000,
+  });
+
+  assert.notEqual(result.status, 0, 'production must use external DocumentDB instead of an in-cluster MongoDB image');
+  assert.match(result.stderr, /IN_CLUSTER_MONGODB_NOT_ALLOWED_IN_PRODUCTION/);
+  assert.equal(result.stdout, '', 'invalid manifests must not be emitted to an apply pipeline');
+});
+
 test('production template filter accepts only the checked-in non-deployable image markers', () => {
   const images = [
     ['wealthgenie-server', 'SERVER'],
     ['wealthgenie-frontend', 'FRONTEND'],
     ['wealthgenie-ml-service', 'ML_SERVICE'],
-    ['mongo', 'MONGODB'],
     ['redis', 'REDIS'],
   ];
   const manifest = images.map(([name, markerName]) => {
@@ -207,6 +226,17 @@ test('production template filter accepts only the checked-in non-deployable imag
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, manifest);
+
+  const withInClusterMongo = `${manifest}\n---\napiVersion: apps/v1\nkind: Deployment\nspec:\n  template:\n    spec:\n      containers:\n        - { name: mongo, image: registry-required.invalid/mongo@sha256:${'0'.repeat(64)} }\n`;
+  const mongoResult = spawnSync(process.execPath, [productionImageValidatorPath, '--template'], {
+    encoding: 'utf8',
+    input: withInClusterMongo,
+    timeout: 15000,
+  });
+
+  assert.notEqual(mongoResult.status, 0, 'production templates must use external DocumentDB instead of in-cluster MongoDB');
+  assert.match(mongoResult.stderr, /UNEXPECTED_PRODUCTION_TEMPLATE_IMAGE:mongo/);
+  assert.equal(mongoResult.stdout, '', 'invalid templates must not be emitted to an apply pipeline');
 });
 
 test('Kind CD uses a containerd-v4-compatible release and verifies the fixed Metrics Server manifest digest', () => {
