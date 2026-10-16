@@ -299,7 +299,8 @@ def test_fail_closed_when_api_key_unset_in_production(monkeypatch):
 
 def test_fail_closed_when_operator_key_unset_in_production(monkeypatch):
     """When ML_OPERATOR_KEY is unset in production, FastAPI startup fails closed with RuntimeError."""
-    monkeypatch.setenv("ML_SERVICE_API_KEY", API_KEY)
+    # Use a production-valid service key so startup reaches the operator-key check.
+    monkeypatch.setenv("ML_SERVICE_API_KEY", "ci-ml-service-key-valid-production-2026")
     monkeypatch.delenv("ML_OPERATOR_KEY", raising=False)
     monkeypatch.setenv("ENVIRONMENT", "production")
 

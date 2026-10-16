@@ -47,3 +47,18 @@ patches:
       kind: Deployment
       name: wealthgenie-agent-worker
   - path: remove-incluster-mongodb.yaml
+    target:
+      version: v1
+      kind: PersistentVolumeClaim
+      name: mongodb-pvc
+  - path: remove-incluster-mongodb-service.yaml
+    target:
+      version: v1
+      kind: Service
+      name: wealthgenie-mongodb
+  - path: remove-incluster-mongodb-statefulset.yaml
+    target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: wealthgenie-mongodb

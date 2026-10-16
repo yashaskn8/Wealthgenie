@@ -267,6 +267,7 @@ describe('GoalPlanner financial freshness boundary', () => {
     render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
     await screen.findByText(freshGoal.gemini_advice);
     fireEvent.click(screen.getByRole('button', { name: 'Modify Parameters' }));
+    await screen.findByRole('button', { name: 'Save Target Changes' }, { timeout: 5000 });
     fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '1000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Target Changes' }));
 
@@ -326,7 +327,8 @@ describe('GoalPlanner financial freshness boundary', () => {
 
     render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
 
-    expect(await screen.findByText('Horizon unavailable')).toBeTruthy();
+    await screen.findByRole('heading', { level: 3, name: freshGoal.goal_name }, { timeout: 5000 });
+    expect(screen.getByText('Horizon unavailable')).toBeTruthy();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     expect(screen.queryByText('0%')).toBeNull();
     expect(screen.queryByText('₹0/mo')).toBeNull();

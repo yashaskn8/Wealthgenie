@@ -358,6 +358,9 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     await page.getByLabel('Income source for tax calculation').selectOption('salary');
     const taxPromise = page.waitForResponse(apiResponse('POST', '/api/tax/compare'));
     await page.getByLabel('Fiscal year for tax calculation').selectOption('FY2026-27');
+    // The tax screen requires a taxpayer age explicitly for this fiscal year;
+    // it does not reuse the saved profile age.
+    await page.getByLabel('Age on March 31 of selected fiscal year').fill('34');
     const taxResponse = await taxPromise;
     expect(taxResponse.status()).toBe(200);
     const taxRequest = taxResponse.request();

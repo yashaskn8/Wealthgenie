@@ -326,8 +326,21 @@ test('Kind CD renders the external production overlay with Kustomize before vali
   assert.ok(steps.indexOf(dependencies) < steps.indexOf(render), 'dependency installation must precede validator execution');
   assert.match(dependencies.run, /^npm ci --prefix server$/);
   assert.deepEqual(overlay.resources, ['../../k8s'], 'the overlay must reference the base without containing it');
-  assert.ok(overlay.patches.some(patch => patch.path === 'remove-incluster-mongodb.yaml'),
-    'production must remove the unauthenticated development MongoDB resources and use its external DocumentDB URI');
+  const mongoRemovalPatches = overlay.patches.filter(patch => patch.path.startsWith('remove-incluster-mongodb'));
+  assert.deepEqual(mongoRemovalPatches.map(patch => patch.path), [
+    'remove-incluster-mongodb.yaml',
+    'remove-incluster-mongodb-service.yaml',
+    'remove-incluster-mongodb-statefulset.yaml',
+  ], 'each MongoDB resource must have its own strategic-delete patch document');
+  assert.deepEqual(mongoRemovalPatches.map(({ target }) => [target.kind, target.name]), [
+    ['PersistentVolumeClaim', 'mongodb-pvc'],
+    ['Service', 'wealthgenie-mongodb'],
+    ['StatefulSet', 'wealthgenie-mongodb'],
+  ]);
+  for (const patch of mongoRemovalPatches) {
+    const deletion = readYaml(repositoryRoot, `deploy/production/${patch.path}`);
+    assert.equal(deletion.$patch, 'delete');
+  }
   assert.match(render.run, /kubectl kustomize deploy\/production > build\/production-template\.yaml/);
   assert.match(render.run, /node server\/scripts\/validateProductionImageManifest\.js --template < build\/production-template\.yaml/);
   assert.ok(fs.existsSync(path.join(repositoryRoot, 'k8s/kustomization.yaml')));

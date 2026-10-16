@@ -299,7 +299,7 @@ def test_registry_corruption_fails_loudly_without_backup(tmp_path):
 
     with pytest.raises(RuntimeError) as exc_info:
         DocumentLifecycleManager(vector_store=store, registry_path=reg_file)
-    assert "Corrupted document registry and no backup available" in str(exc_info.value)
+    assert str(exc_info.value) == "Corrupted document registry and no backup is available."
 
     # 2. Corrupt primary AND corrupt backup
     bak_file = reg_file.with_suffix(".json.bak")
@@ -349,8 +349,8 @@ def test_mid_operation_resync_recovers_from_valid_backup(tmp_path):
 def test_mid_operation_resync_raises_when_backup_also_corrupted(tmp_path):
     """
     Proves that an ALREADY-INITIALIZED, live DocumentLifecycleManager instance
-    raises RuntimeError with both primary and backup failure details when
-    _sync_registry_unlocked() encounters corruption on both primary and .bak during mid-operation resync.
+    raises a redacted RuntimeError when _sync_registry_unlocked() encounters
+    corruption on both primary and .bak during mid-operation resync.
     """
     reg_file = tmp_path / "mid_op_fail_registry.json"
     store = PersistentVectorStore(index_path=tmp_path / "mid_op_fail_store.json")
@@ -377,9 +377,9 @@ def test_mid_operation_resync_raises_when_backup_also_corrupted(tmp_path):
     with pytest.raises(RuntimeError) as exc_info:
         manager.register_document(doc3, chunk_count=1)
 
-    assert "Corrupted document registry and backup recovery failed" in str(exc_info.value)
-    assert "primary_err" in str(exc_info.value)
-    assert "backup_err" in str(exc_info.value)
+    assert str(exc_info.value) == "Corrupted document registry and backup recovery failed."
+    assert "primary_err" not in str(exc_info.value)
+    assert "backup_err" not in str(exc_info.value)
 
 
 def test_reconciliation_detects_orphaned_chunks(tmp_path):

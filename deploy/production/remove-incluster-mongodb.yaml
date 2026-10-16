@@ -3,15 +3,3 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mongodb-pvc
----
-$patch: delete
-apiVersion: v1
-kind: Service
-metadata:
-  name: wealthgenie-mongodb
----
-$patch: delete
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: wealthgenie-mongodb

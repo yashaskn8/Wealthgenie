@@ -639,6 +639,9 @@ test('real backend financial facts match the dashboard, product details, tax wha
     await panel.getByLabel('Income source', { exact: true }).selectOption('salary');
     await panel.getByLabel('Tax regime', { exact: true }).selectOption('new');
     await panel.getByLabel('Fiscal year', { exact: true }).selectOption('FY2026-27');
+    // Tax calculations require an explicit age for the selected fiscal year;
+    // the saved profile age is intentionally not substituted by the UI.
+    await panel.getByLabel('Your age on March 31', { exact: true }).fill('34');
     await panel.getByLabel('Inflation assumption', { exact: true }).fill('6');
     const calculated = page.waitForResponse(apiResponse('POST', '/tax/post-tax-return/batch'), { timeout: RESPONSE_TIMEOUT });
     await panel.getByRole('button', { name: 'Calculate explicit tax what-if', exact: true }).click();
