@@ -46,6 +46,17 @@ describe('RecommendationDashboard authority boundary', () => {
     expect(screen.queryByRole('heading', { name: 'Market overview' })).toBeNull();
   });
 
+  it('shows the plan with a truthful delayed state after bounded advisory retries', () => {
+    render(<RecommendationDashboard
+      userProfile={profile}
+      recommendations={[{ id: 'fd', name: 'Server Deposit', cat: 'Debt', allocation_pct: 100, monthly_allocation: 20000 }]}
+      recommendationMeta={{ advisory_text: null, advisory_explanation: { status: 'DELAYED' } }}
+    />);
+    expect(screen.getByTestId('recommendation-row-fd')).toBeInTheDocument();
+    expect(screen.getByTestId('advisory-delayed')).toHaveTextContent('Refresh this page later');
+    expect(screen.queryByTestId('advisory-loading-skeleton')).toBeNull();
+  });
+
   it('renders only supplied server instruments and explains the property-proceeds invariant', () => {
     render(<RecommendationDashboard
       userProfile={profile}

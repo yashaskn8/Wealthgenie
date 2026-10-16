@@ -37,8 +37,10 @@ const GENIEPROOF_LOCAL_UI_ENABLED = !import.meta.env.PROD && import.meta.env.VIT
 const NAVIGATION_OPTIONS = { allowGenieProof: GENIEPROOF_LOCAL_UI_ENABLED };
 
 // ── Bounded retry helper for deferred advisory generation ──
+// A crashed server claim becomes reclaimable after two minutes. Continue the
+// secondary advisory check past that boundary without delaying the core plan.
 // eslint-disable-next-line react-refresh/only-export-components
-export const ADVISORY_RETRY_DELAYS_MS = [1000, 1500];
+export const ADVISORY_RETRY_DELAYS_MS = [1000, 1500, 2500, 4000, 6000, 9000, 13500, 15000, 15000, 15000, 15000, 15000, 15000];
 const ADVISORY_GENERATION_CONFLICT_CODE = 'ADVISORY_GENERATION_IN_PROGRESS';
 
 function isAdvisoryGenerationConflict(error) {
@@ -95,11 +97,11 @@ export async function fetchDeferredAdvisoryWithBoundedRetry(
           await wait(delayMs, signal);
           continue;
         }
-        // Exceeded bounded retries while status is still GENERATING.
-        // Return synthetic response with GENERATING status so UI does NOT mark FAILED.
+        // The bounded retry window ended without a terminal server result.
+        // Keep the financial recommendation and show a truthful delayed state.
         return {
           advisory_text: null,
-          advisory_explanation: { status: 'GENERATING' },
+          advisory_explanation: { status: 'DELAYED' },
         };
       }
       // Genuine terminal error
@@ -319,7 +321,8 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
             );
             if (operationIsCurrent(token) && advResponse) {
               writeBackendRecs(prev => {
-                if (!advisoryMatchesCurrentFinancialState(prev, advResponse)) return prev;
+                const delayed = advResponse.advisory_explanation?.status === 'DELAYED';
+                if (!advisoryMatchesCurrentFinancialState(prev, delayed ? recResponse : advResponse)) return prev;
                 return {
                   ...prev,
                   // A null/omitted server value means the advisory is not
@@ -652,7 +655,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
             },
           });
           if (advisory && operationIsCurrent(token)) {
-            writeBackendRecs(prev => advisoryMatchesCurrentFinancialState(prev, advisory)
+            writeBackendRecs(prev => advisoryMatchesCurrentFinancialState(prev, advisory.advisory_explanation?.status === 'DELAYED' ? recResponse : advisory)
               ? { ...prev, advisory_text: advisory.advisory_text ?? null, advisory_explanation: advisory.advisory_explanation || { status: 'GENERATING' } }
               : prev);
           }

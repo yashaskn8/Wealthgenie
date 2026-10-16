@@ -734,6 +734,8 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
   const rationaleText = recommendationMeta?.advisory_text
     || (['PENDING', 'GENERATING'].includes(recommendationMeta?.advisory_explanation?.status)
       ? 'Generating grounded explanation…'
+      : recommendationMeta?.advisory_explanation?.status === 'DELAYED'
+        ? 'The separate explanation is taking longer than expected. Refresh later to check again.'
       : 'The recommendation service did not return an advisory explanation.');
   const rationaleBullets = useMemo(() => normalizeRationaleForDisplay(rationaleText)
     .split(/\n+|(?<=[.!?])\s+/)

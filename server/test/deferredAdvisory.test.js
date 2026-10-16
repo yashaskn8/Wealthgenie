@@ -385,6 +385,29 @@ test('DEFERRED ADVISORY: Complete decoupled recommendation and deferred advisory
     assert.ok(body.request_id);
   });
 
+  await t.test('13b. An expired generation claim is recovered with a new token', async () => {
+    const expiredToken = crypto.randomUUID();
+    await Recommendation.updateOne(
+      { _id: recData.recommendationId, userId: userAId },
+      { $set: { advisoryText: null, advisoryMetadata: {
+        status: 'GENERATING',
+        claimedAt: new Date(Date.now() - 5 * 60 * 1000),
+        claimToken: expiredToken,
+      } } },
+    );
+
+    const res = await fetch(`${baseUrl}/api/recommend/${recData.recommendationId}/advisory`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenA}` },
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(['GROUNDED_EXPLANATION_AVAILABLE', 'GROUNDED_EXPLANATION_FALLBACK', 'READY'].includes(body.advisory_explanation?.status));
+    assertAdvisoryBinding(body, sourceState);
+    const stored = await Recommendation.findById(recData.recommendationId).lean();
+    assert.notEqual(stored.advisoryMetadata?.claimToken, expiredToken);
+  });
+
   await t.test('14. Retrying is permitted when advisory status is FAILED', async () => {
     await Recommendation.updateOne(
       { _id: recData.recommendationId, userId: userAId },

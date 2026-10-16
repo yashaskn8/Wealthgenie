@@ -48,8 +48,8 @@ describe('Deferred Advisory 409 / Concurrency Hardening', () => {
     expect(result.advisory_explanation?.status).not.toBe('FAILED');
   });
 
-  // TEST 2: fetchAdvisory returns 409 multiple bounded times -> stops retrying, status remains GENERATING, no FAILED
-  it('TEST 2: stops retrying after bounded attempts on continuous 409, status remains GENERATING without FAILED', async () => {
+  // TEST 2: an exhausted conflict window is delayed, not a fabricated failure.
+  it('TEST 2: stops retrying after bounded attempts on continuous 409 and reports a delayed explanation', async () => {
     let callCount = 0;
     const onConflict = vi.fn();
 
@@ -69,7 +69,7 @@ describe('Deferred Advisory 409 / Concurrency Hardening', () => {
     // 1 initial + 2 retries = 3 calls total
     expect(callCount).toBe(3);
     expect(onConflict).toHaveBeenCalledTimes(3);
-    expect(result.advisory_explanation?.status).toBe('GENERATING');
+    expect(result.advisory_explanation?.status).toBe('DELAYED');
     expect(result.advisory_explanation?.status).not.toBe('FAILED');
     expect(result.advisory_text).toBeNull();
   });
@@ -272,7 +272,9 @@ describe('Deferred Advisory 409 / Concurrency Hardening', () => {
     expect(merged.advisory_explanation?.status).toBe('READY');
   });
 
-  it('verifies default retry delays adhere to [1000, 1500] spec', () => {
-    expect(ADVISORY_RETRY_DELAYS_MS).toEqual([1000, 1500]);
+  it('keeps a bounded retry window past the server stale-claim threshold', () => {
+    expect(ADVISORY_RETRY_DELAYS_MS.slice(0, 2)).toEqual([1000, 1500]);
+    expect(ADVISORY_RETRY_DELAYS_MS.reduce((sum, delay) => sum + delay, 0)).toBeGreaterThan(120000);
+    expect(Math.max(...ADVISORY_RETRY_DELAYS_MS)).toBeLessThanOrEqual(15000);
   });
 });

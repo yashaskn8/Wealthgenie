@@ -48,6 +48,11 @@ import {
 export { buildRecommendationCacheKey, canonicalAuditInputs } from '../services/coreRecommendation.js';
 
 const router = Router();
+// The grounded provider chain has a bounded deadline. Give the database and
+// response path additional time before another request may reclaim a worker
+// claim abandoned by process loss. Claim-token fencing prevents the old worker
+// from persisting if it later resumes.
+const ADVISORY_STALE_CLAIM_MS = 2 * 60 * 1000;
 
 export function recommendationPayloadFromSnapshot(snapshot) {
   if (snapshot?.recommendation && snapshot?.completion) return snapshot.recommendation;
@@ -413,7 +418,8 @@ router.post('/:recommendationId/advisory', verifyJWT, asyncHandler(async (req, r
   });
 
   const claimToken = crypto.randomUUID();
-  // Atomic PENDING/FAILED -> GENERATING claim via conditional update
+  const staleClaimBefore = new Date(Date.now() - ADVISORY_STALE_CLAIM_MS);
+  // Atomic PENDING/FAILED/expired GENERATING -> GENERATING claim.
   const claimed = await Recommendation.findOneAndUpdate(
     {
       _id: recommendationId,
@@ -421,6 +427,10 @@ router.post('/:recommendationId/advisory', verifyJWT, asyncHandler(async (req, r
       $or: [
         { 'advisoryMetadata.status': 'PENDING' },
         { 'advisoryMetadata.status': 'FAILED' },
+        {
+          'advisoryMetadata.status': 'GENERATING',
+          'advisoryMetadata.claimedAt': { $lte: staleClaimBefore },
+        },
         { advisoryMetadata: null },
         { advisoryMetadata: { $exists: false } },
         {

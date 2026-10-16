@@ -1885,7 +1885,14 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
               </div>
             </div>
           );
-        })() : (isAdvisoryLoading || recommendationMeta?.advisory_explanation?.status === 'PENDING' || recommendationMeta?.advisory_explanation?.status === 'GENERATING') ? (
+        })() : recommendationMeta?.advisory_explanation?.status === 'DELAYED' ? (
+          <div role="status" data-testid="advisory-delayed" className="holographic-card" style={{ marginTop: 36, marginBottom: 36, padding: '24px 28px' }}>
+            <h3 style={{ margin: 0, color: '#f8fafc' }}>Explanation is taking longer than expected</h3>
+            <p style={{ color: '#94a3b8', marginBottom: 0 }}>
+              Your investment plan is available. Refresh this page later to check the separate explanation.
+            </p>
+          </div>
+        ) : (isAdvisoryLoading || recommendationMeta?.advisory_explanation?.status === 'PENDING' || recommendationMeta?.advisory_explanation?.status === 'GENERATING') ? (
           <div className="holographic-card" data-testid="advisory-loading-skeleton" style={{
             marginTop: 36,
             marginBottom: 36,
