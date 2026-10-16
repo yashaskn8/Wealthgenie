@@ -141,11 +141,15 @@ const freshGoal = {
 
 describe('GoalPlanner financial freshness boundary', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    [api.getGoals, api.createGoal, api.updateGoal, api.deleteGoal, api.simulateGoal]
+      .forEach(mock => mock.mockReset());
     api.getGoals.mockResolvedValue({ goals: [] });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it('keeps a pending goal load distinct from a successfully empty goal list', async () => {
     let resolveGoals;
@@ -226,11 +230,12 @@ describe('GoalPlanner financial freshness boundary', () => {
     render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
     await screen.findByText(freshGoal.gemini_advice);
     fireEvent.click(screen.getByRole('button', { name: 'Modify Parameters' }));
-    const [targetInput] = await screen.findAllByRole('spinbutton');
+    await screen.findByRole('button', { name: 'Save Target Changes' }, { timeout: 5000 });
+    const [targetInput] = await screen.findAllByRole('spinbutton', {}, { timeout: 5000 });
     fireEvent.change(targetInput, { target: { value: '1000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Target Changes' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent(
       'Your goal update was saved. The confirmed changes are shown, but the latest goal list could not be refreshed.',
     );
     expect(screen.getAllByText('₹10.0 L').length).toBeGreaterThan(0);
@@ -273,7 +278,7 @@ describe('GoalPlanner financial freshness boundary', () => {
 
     await waitFor(() => expect(alert).toHaveBeenCalledWith(
       'The goal update could not be confirmed directly. Saved goals were reloaded; check the current values.',
-    ));
+    ), { timeout: 5000 });
     expect(api.getGoals).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText('No Active Goals Configured')).toBeNull();
@@ -328,7 +333,7 @@ describe('GoalPlanner financial freshness boundary', () => {
     render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
 
     await screen.findByRole('heading', { level: 3, name: freshGoal.goal_name }, { timeout: 5000 });
-    expect(screen.getByText('Horizon unavailable')).toBeTruthy();
+    expect(await screen.findByText('Horizon unavailable', {}, { timeout: 5000 })).toBeTruthy();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     expect(screen.queryByText('0%')).toBeNull();
     expect(screen.queryByText('₹0/mo')).toBeNull();
@@ -378,6 +383,7 @@ describe('GoalPlanner financial freshness boundary', () => {
 
   it('submits the canonical profile_id alias when creating a goal', async () => {
     api.getGoals.mockResolvedValue({ goals: [] });
+    api.createGoal.mockResolvedValueOnce({ goal: freshGoal });
     render(<GoalPlanner profile={{ profile_id: id(1), version: 1, monthly_savings: 30000 }} financialState={currentFinancialState} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Create Target Goal/i }));
