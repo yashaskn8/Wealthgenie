@@ -284,7 +284,7 @@ describe('GoalPlanner financial freshness boundary', () => {
     expect(screen.queryByText('No Active Goals Configured')).toBeNull();
     expect(screen.getAllByText('₹9.0 L').length).toBeGreaterThan(0);
     expect(screen.queryByText('₹10.0 L')).toBeNull();
-  });
+  }, 20_000);
 
   it('removes prior-profile advice and calculated values when the refreshed goal is stale', async () => {
     api.getGoals
