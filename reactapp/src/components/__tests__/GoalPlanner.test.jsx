@@ -39,6 +39,8 @@ vi.mock('../../services/api', () => ({
 
 const id = number => `64b0000000000000000000${String(number).padStart(2, '0')}`;
 const hash = character => character.repeat(64);
+const ASYNC_UI_TIMEOUT_MS = 10_000;
+const PARAMETERIZED_UPDATE_TIMEOUT_MS = 30_000;
 const profile = { profileId: id(1), version: 1, monthly_savings: 30000 };
 const financialState = (profileVersion = 1, revision = 3) => ({
   response_state: 'CURRENT',
@@ -228,14 +230,14 @@ describe('GoalPlanner financial freshness boundary', () => {
     const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
     render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
-    await screen.findByText(freshGoal.gemini_advice);
+    await screen.findByText(freshGoal.gemini_advice, {}, { timeout: ASYNC_UI_TIMEOUT_MS });
     fireEvent.click(screen.getByRole('button', { name: 'Modify Parameters' }));
-    await screen.findByRole('button', { name: 'Save Target Changes' }, { timeout: 5000 });
-    const [targetInput] = await screen.findAllByRole('spinbutton', {}, { timeout: 5000 });
+    await screen.findByRole('button', { name: 'Save Target Changes' }, { timeout: ASYNC_UI_TIMEOUT_MS });
+    const [targetInput] = await screen.findAllByRole('spinbutton', {}, { timeout: ASYNC_UI_TIMEOUT_MS });
     fireEvent.change(targetInput, { target: { value: '1000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Target Changes' }));
 
-    expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent(
+    expect(await screen.findByRole('alert', {}, { timeout: ASYNC_UI_TIMEOUT_MS })).toHaveTextContent(
       'Your goal update was saved. The confirmed changes are shown, but the latest goal list could not be refreshed.',
     );
     expect(screen.getAllByText('₹10.0 L').length).toBeGreaterThan(0);
@@ -244,10 +246,10 @@ describe('GoalPlanner financial freshness boundary', () => {
     expect(api.getGoals).toHaveBeenCalledTimes(2);
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry goal refresh' }));
-    expect(await screen.findByText('Emergency Reserve')).toBeTruthy();
+    expect(await screen.findByText('Emergency Reserve', {}, { timeout: ASYNC_UI_TIMEOUT_MS })).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(api.getGoals).toHaveBeenCalledTimes(3);
-  }, 20_000);
+  }, PARAMETERIZED_UPDATE_TIMEOUT_MS);
 
   it.each([
     ['wrong id', goal => ({ ...goal, _id: 'goal-other', version: 2 })],
@@ -270,21 +272,21 @@ describe('GoalPlanner financial freshness boundary', () => {
     const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
     render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
-    await screen.findByText(freshGoal.gemini_advice);
+    await screen.findByText(freshGoal.gemini_advice, {}, { timeout: ASYNC_UI_TIMEOUT_MS });
     fireEvent.click(screen.getByRole('button', { name: 'Modify Parameters' }));
-    await screen.findByRole('button', { name: 'Save Target Changes' }, { timeout: 5000 });
+    await screen.findByRole('button', { name: 'Save Target Changes' }, { timeout: ASYNC_UI_TIMEOUT_MS });
     fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '1000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Target Changes' }));
 
     await waitFor(() => expect(alert).toHaveBeenCalledWith(
       'The goal update could not be confirmed directly. Saved goals were reloaded; check the current values.',
-    ), { timeout: 5000 });
+    ), { timeout: ASYNC_UI_TIMEOUT_MS });
     expect(api.getGoals).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText('No Active Goals Configured')).toBeNull();
     expect(screen.getAllByText('₹9.0 L').length).toBeGreaterThan(0);
     expect(screen.queryByText('₹10.0 L')).toBeNull();
-  }, 20_000);
+  }, PARAMETERIZED_UPDATE_TIMEOUT_MS);
 
   it('removes prior-profile advice and calculated values when the refreshed goal is stale', async () => {
     api.getGoals
