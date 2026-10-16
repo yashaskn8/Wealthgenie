@@ -25,15 +25,11 @@ function findStep(job, name) {
   return step;
 }
 
-test('CI passes the JWT secret through the environment, not shell source', () => {
-  for (const [job, name] of [
-    ['backend-integration-linux', 'Run Backend Tests & Coverage'],
-    ['backend-unit-windows', 'Run Backend Unit Tests (No MongoDB Required)'],
-  ]) {
-    const step = findStep(job, name);
-    assert.equal(step.env?.CI_JWT_SECRET, '${{ secrets.CI_JWT_SECRET }}');
-    assert.doesNotMatch(step.run, /\$\{\{\s*secrets\.CI_JWT_SECRET\s*\}\}/);
-  }
+test('CI uses an ephemeral backend JWT and exposes no repository secret to pull-request tests', () => {
+  const step = findStep('backend-financial-integrity', 'Run Backend Tests & Coverage');
+  assert.match(step.run, /export JWT_SECRET="\$\(openssl rand -hex 32\)"/);
+  assert.doesNotMatch(step.run, /\$\{\{\s*secrets\./);
+  assert.ok(!Object.hasOwn(step.env, 'CI_JWT_SECRET'));
 });
 
 test('Mongo-required suites are partitioned exhaustively between standalone and replica-set requirements', () => {
@@ -51,28 +47,37 @@ test('Mongo-required suites are partitioned exhaustively between standalone and 
   assert.deepEqual([...new Set([...replicaSetRequiredTests, ...standalone])].sort(), [...mongoRequiredTests].sort());
 });
 
-test('Windows separates no-Mongo and standalone-Mongo suites while Linux retains Mongo integration coverage', () => {
-  const windowsJob = workflow.jobs['backend-unit-windows'];
-  assert.equal(windowsJob['runs-on'], 'windows-latest');
-  const windowsRun = findStep('backend-unit-windows', 'Run Backend Unit Tests (No MongoDB Required)');
-  assert.match(windowsRun.run, /node scripts\/test-partition\.js no-mongo/);
+test('four Linux CI jobs retain full Mongo-backed backend and integration coverage', () => {
+  assert.deepEqual(Object.keys(workflow.jobs), [
+    'backend-financial-integrity', 'frontend-quality', 'ai-ml-rag-safety', 'integration-security',
+  ]);
+  assert.ok(Object.values(workflow.jobs).every(job => job['runs-on'] === 'ubuntu-latest' && !job.strategy));
+  assert.deepEqual(workflow.on.push.branches, ['main']);
+  assert.deepEqual(workflow.on.pull_request.branches, ['main']);
+  assert.ok(Object.hasOwn(workflow.on, 'workflow_dispatch'));
 
-  const standaloneJob = workflow.jobs['backend-standalone-mongo-windows'];
-  assert.equal(standaloneJob['runs-on'], 'windows-latest');
-  const standaloneRun = standaloneJob.steps.find(step => step.name === 'Run Backend Standalone Mongo Tests (No Transactions)');
-  assert.ok(standaloneRun, 'Expected the Windows standalone Mongo partition');
-  assert.match(standaloneRun.run, /node scripts\/test-partition\.js standalone-mongo/);
-  assert.equal(standaloneRun.env?.CI_JWT_SECRET, '${{ secrets.CI_JWT_SECRET }}');
-  assert.doesNotMatch(standaloneRun.run, /\$\{\{\s*secrets\.CI_JWT_SECRET\s*\}\}/);
+  const backend = workflow.jobs['backend-financial-integrity'];
+  assert.equal(backend.steps.find(step => step.name === 'Start MongoDB 7 replica set')?.with?.['mongodb-version'], '7.0');
+  const backendRun = findStep('backend-financial-integrity', 'Run Backend Tests & Coverage');
+  assert.equal(backendRun.env.MONGODB_URI, 'mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0');
+  assert.match(backendRun.run, /node server\/scripts\/test-partition\.js verify/);
+  assert.match(backendRun.run, /npm run test:coverage --prefix server/);
 
-  const linuxJob = workflow.jobs['backend-integration-linux'];
-  assert.equal(linuxJob['runs-on'], 'ubuntu-latest');
-  assert.deepEqual(linuxJob.strategy.matrix['mongodb-version'], ['6.0', '7.0']);
-  const phase5Gate = findStep('backend-integration-linux', 'Run explicit Phase 5 Mongo durable-runtime gates');
-  assert.equal(phase5Gate.env.MONGODB_URI, 'mongodb://127.0.0.1:27017/wealthgenie_phase5_test?replicaSet=rs0');
-  const linuxRun = findStep('backend-integration-linux', 'Run Backend Tests & Coverage');
-  assert.equal(linuxRun.env.MONGODB_URI, 'mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0');
-  assert.match(linuxRun.run, /npm run test:coverage/);
+  const integration = workflow.jobs['integration-security'];
+  assert.equal(integration.steps.find(step => step.name === 'Start transaction-capable MongoDB')?.with?.['mongodb-version'], '7.0');
+  assert.match(findStep('integration-security', 'Start Redis for browser and MCP integration').run, /docker compose up -d redis/);
+  assert.match(findStep('integration-security', 'Verify Redis-backed MCP rate and lease fencing').run, /testMcpRedisCapacity\.js/);
+  assert.ok(integration.steps.some(step => step.name === 'Run real-dependency Playwright lifecycle'));
+  assert.ok(integration.steps.some(step => step.name === 'Run production-edge Playwright test through Nginx'));
+  assert.ok(integration.steps.some(step => step.name === 'Audit Python dependencies'));
+  assert.ok(integration.steps.some(step => step.name === 'Audit frontend npm dependencies'));
+  assert.ok(integration.steps.some(step => step.name === 'Audit backend npm dependencies'));
+});
+
+test('Kind deployment verification is manual only and keeps strict preflight disabled by default', () => {
+  assert.deepEqual(Object.keys(cdWorkflow.on), ['workflow_dispatch']);
+  assert.equal(cdWorkflow.on.workflow_dispatch.inputs.run_live_market_preflight.default, false);
+  assert.deepEqual(Object.keys(cdWorkflow.jobs), ['deploy-and-verify-kind']);
 });
 
 test('standalone Mongo partition owns and stops a disposable 7.0.5 loopback _test server', () => {

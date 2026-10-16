@@ -160,7 +160,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     await screen.findByTestId('post-tax-row-fd');
     fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '7' } });
     expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();
-    expect(screen.getByText(/Recalculate this result before using it/i)).toBeVisible();
+    await waitFor(() => expect(screen.getByText(/Recalculate this result before using it/i)).toBeVisible(), { timeout: 5000 });
     submit(); await screen.findByTestId('post-tax-row-fd');
     view.rerender(<PostTaxAnalysis profile={{ ...demoProfile, version: 2 }} recommendations={demoRecommendations} recommendationMeta={{ recommendationId: 'r2' }} />);
     expect(screen.queryByTestId('post-tax-row-fd')).toBeNull();

@@ -158,17 +158,23 @@ export const GoalDetailPane = ({
   const [editTarget, setEditTarget] = useState('');
   const [editSavings, setEditSavings] = useState('');
   const [showMonteCarlo, setShowMonteCarlo] = useState(false);
+  const hasSelectedGoal = Boolean(selectedGoal);
+  const selectedGoalId = selectedGoal?._id ?? selectedGoal?.goalId;
+  const selectedGoalProfileId = selectedGoal?.profileId;
+  const selectedGoalVersion = selectedGoal?.version;
+  const selectedGoalTarget = selectedGoal?.target_amount;
+  const selectedGoalSavings = selectedGoal?.current_savings;
 
   useEffect(() => {
-    if (selectedGoal) {
+    if (hasSelectedGoal) {
       const resetState = () => {
-        setEditTarget(selectedGoal.target_amount ?? '');
-        setEditSavings(selectedGoal.current_savings ?? '');
+        setEditTarget(selectedGoalTarget ?? '');
+        setEditSavings(selectedGoalSavings ?? '');
         setIsEditingSettings(false);
       };
       resetState();
     }
-  }, [selectedGoal]);
+  }, [hasSelectedGoal, selectedGoalId, selectedGoalProfileId, selectedGoalVersion, selectedGoalTarget, selectedGoalSavings]);
 
   const handleSave = () => {
     onSaveGoalUpdates({

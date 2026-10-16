@@ -193,7 +193,7 @@ function namedStep(steps, name) {
 }
 
 const ci = parse(read('.github/workflows/ci.yml'));
-const browserSteps = ci.jobs?.['browser-real-dependencies']?.steps || [];
+const browserSteps = ci.jobs?.['integration-security']?.steps || [];
 if (browserSteps.filter(step => step.name === 'Migrate Phase 7 ResearchAgent task persistence').length !== 1) {
   throw new Error('Browser CI must run exactly one Phase 7 ResearchAgent task migration');
 }
@@ -207,8 +207,8 @@ const browserPhase7Migration = namedStep(browserSteps, 'Migrate Phase 7 Research
 const browserModelActivation = namedStep(browserSteps, 'Verify transactional ML model activation');
 const browserArtifactVerification = namedStep(browserSteps, 'Verify trusted serving artifact bundles');
 const browserStart = namedStep(browserSteps, 'Start real application services');
-if (!(browserMongo.index < browserInstall.index
-    && browserInstall.index < browserPhase2Migration.index
+if (!(browserInstall.index < browserMongo.index
+    && browserMongo.index < browserPhase2Migration.index
     && browserPhase2Migration.index < browserPhase3Migration.index
     && browserPhase3Migration.index < browserPhase4Migration.index
     && browserPhase4Migration.index < browserPhase5Migration.index
@@ -225,7 +225,7 @@ if (!(browserMongo.index < browserInstall.index
   throw new Error('Browser CI must run all ordered database migrations and artifact checks before starting application services');
 }
 
-const edgeSteps = ci.jobs?.['production-edge-e2e']?.steps || [];
+const edgeSteps = ci.jobs?.['integration-security']?.steps || [];
 const edgeMongo = namedStep(edgeSteps, 'Start MongoDB for the explicit ML/RAG state migration');
 const edgeMongoReady = namedStep(edgeSteps, 'Wait for transaction-capable MongoDB primary');
 const edgePhase2 = namedStep(edgeSteps, 'Run the explicit Phase 2 persistence migration');
@@ -338,7 +338,7 @@ if (!(dbApply.index < secrets.index
   throw new Error('Kind CD must wait for all ordered one-shot database migrations before applying application workloads');
 }
 
-const tckWorkflow = read('.github/workflows/a2a-tck.yml');
+const tckManualRunner = read('scripts/run_a2a_tck.sh');
 const pinnedTckSha = '263b9cfaf16a554bdfb166a7ba5b67716e946349';
 const tckPolicy = JSON.parse(read('.github/a2a-tck-known-blockers.json'));
 const expectedTckUntrackedPaths = [
@@ -371,15 +371,14 @@ const tckIssueClasses = Object.fromEntries(
 const tckCoreSendException = Array.isArray(tckPolicy.known_failures)
   ? tckPolicy.known_failures.find(testCase => testCase?.requirement_id === 'CORE-SEND-003')
   : null;
-if (!tckWorkflow.includes(`A2A_TCK_SHA: ${pinnedTckSha}`)
-    || !tckWorkflow.includes('git -C .a2a-tck fetch --depth 1 origin "$A2A_TCK_SHA"')
-    || !tckWorkflow.includes('test "$(git -C .a2a-tck rev-parse HEAD)" = "$A2A_TCK_SHA"')
-    || !tckWorkflow.includes('git -C .a2a-tck status --porcelain=v1 --untracked-files=all')
-    || !tckWorkflow.includes('python run_tck.py --sut-host http://127.0.0.1:5088 --transport http_json --level must')
-    || !tckWorkflow.includes('python ../scripts/validate_a2a_tck_policy.py')
-    || !tckWorkflow.includes('RAW_TCK_EXIT_CODE=$raw_tck_exit_code')
-    || !tckWorkflow.includes('$GITHUB_STEP_SUMMARY')
-    || tckWorkflow.includes('continue-on-error: true')
+if (!tckManualRunner.includes(`tck_sha=${pinnedTckSha}`)
+    || !tckManualRunner.includes('git -C "$tck_dir" fetch --depth 1 origin "$tck_sha"')
+    || !tckManualRunner.includes('test "$(git -C "$tck_dir" rev-parse HEAD)" = "$tck_sha"')
+    || !tckManualRunner.includes('git -C "$tck_dir" status --porcelain=v1 --untracked-files=all')
+    || !tckManualRunner.includes('python run_tck.py --sut-host http://127.0.0.1:5088 --transport http_json --level must')
+    || !tckManualRunner.includes('scripts/validate_a2a_tck_policy.py')
+    || !tckManualRunner.includes('RAW_TCK_EXIT_CODE=%s')
+    || !tckManualRunner.includes('--summary-path "$work_dir/summary.md"')
     || tckPolicy.tck_sha !== pinnedTckSha
     || tckPolicy.tck_repository !== 'a2aproject/a2a-tck'
     || tckPolicy.policy_schema_version !== 5
@@ -410,6 +409,6 @@ if (!tckWorkflow.includes(`A2A_TCK_SHA: ${pinnedTckSha}`)
     || tckPolicy.acceptance?.allow_tracked_tck_changes !== false
     || tckPolicy.acceptance?.allow_unknown_failures !== false
     || tckPolicy.acceptance?.allow_skipped_known_tests !== false) {
-  throw new Error('A2A TCK workflow must run the pinned upstream suite through the exact fail-closed exception policy');
+  throw new Error('A2A TCK manual runner must retain the pinned upstream suite and exact fail-closed exception policy');
 }
 console.log(`Validated ${deploymentFiles.length} deployment YAML files, fail-closed production image markers, ordered Phase 2/3/4/5/7 migrations in Browser CI, production-edge E2E and Kind CD, Compose API/worker separation, and worker probes.`);

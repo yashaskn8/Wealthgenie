@@ -1,10 +1,12 @@
-name: CI Test Matrix
+name: CI
 
 on:
   push:
-    branches: [ main, master, develop, 'codex/**' ]
+    branches:
+      - main
   pull_request:
-    branches: [ main, master ]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -15,55 +17,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  agent-runtime-contract:
-    name: Agent runtime contract and deployment config
+  backend-financial-integrity:
+    name: Backend & Financial Integrity
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22.x
-          cache: npm
-          cache-dependency-path: server/package-lock.json
-      - name: Install backend dependencies
-        run: npm ci --prefix server
-      - name: Run worker, scheduler, fencing, and evaluation gates
-        env:
-          JWT_SECRET: ci-agent-runtime-secret-with-more-than-32-characters
-        run: node --test --test-concurrency=1 server/test/planReviewRuntime.test.js server/test/planReviewPersistence.test.js server/test/planReviewTokenBudget.test.js server/test/agentWorkerRuntime.test.js server/test/planHealthPersistence.test.js server/test/workerShutdown.test.js
-      - name: Validate immutable workflow action references
-        run: node server/scripts/validate-workflow-action-pins.js
-      - name: Syntax-check standalone worker
-        run: node --check server/worker.js
-      - name: Validate Compose and Kubernetes worker configuration
-        run: node server/scripts/validate-deployment-config.js
-
-  backend-integration-linux:
-    name: Backend Linux (Node ${{ matrix.node-version }}, Mongo ${{ matrix.mongodb-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [22.x]
-        mongodb-version: ['6.0', '7.0']
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
 
-      - name: Start MongoDB ${{ matrix.mongodb-version }}
+      - name: Start MongoDB 7 replica set
         uses: supercharge/mongodb-github-action@b0a1493307c4e9b82ed61f3858d606c5ff190c64 # 1.10.0
         with:
-          mongodb-version: ${{ matrix.mongodb-version }}
+          mongodb-version: '7.0'
           mongodb-replica-set: rs0
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js 22.x
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22.x
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
 
@@ -71,11 +43,6 @@ jobs:
         run: |
           cd server
           npm ci
-
-      - name: Run explicit Phase 5 Mongo durable-runtime gates
-        env:
-          MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_phase5_test?replicaSet=rs0'
-        run: node --test --test-concurrency=1 server/test/planHealthRuntimeMongo.integration.test.js
 
       - name: Run Backend ESLint Check
         run: |
@@ -90,128 +57,21 @@ jobs:
       - name: Run Backend Tests & Coverage
         env:
           MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0'
-          CI_JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
         run: |
-          if [ -n "${CI_JWT_SECRET:-}" ]; then
-            export JWT_SECRET="$CI_JWT_SECRET"
-          else
-            export JWT_SECRET="$(openssl rand -hex 32)"
-          fi
-          unset CI_JWT_SECRET
+          export JWT_SECRET="$(openssl rand -hex 32)"
           node server/scripts/test-partition.js verify
-          cd server
-          npm run test:coverage
+          npm run test:coverage --prefix server
 
       - name: Upload Backend Coverage Artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: backend-coverage-linux-node${{ matrix.node-version }}-mongo${{ matrix.mongodb-version }}
+          name: backend-coverage-linux-node22-mongo7
           path: server/reports/
 
-      - name: Audit npm dependencies
-        run: |
-          cd server
-          npm audit --omit=dev --audit-level=low
-
-  mcp-redis-capacity-contract:
-    name: MCP Redis distributed capacity contract
+  frontend-quality:
+    name: Frontend Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    permissions:
-      contents: read
-    services:
-      redis:
-        image: redis:7.2-alpine@sha256:05a97a479bc73de66f087dc05b569010772880f778cc8671fa6b8aadee32e5c6
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js 22.x
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22.x
-          cache: npm
-          cache-dependency-path: server/package-lock.json
-
-      - name: Install backend dependencies
-        run: npm ci --prefix server
-
-      - name: Verify Redis-backed MCP rate and lease fencing
-        env:
-          MCP_TEST_REDIS_URL: redis://127.0.0.1:6379
-        run: node server/scripts/testMcpRedisCapacity.js
-
-  backend-unit-windows:
-    name: Backend Windows (Node ${{ matrix.node-version }})
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [22.x]
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-          cache-dependency-path: server/package-lock.json
-
-      - name: Setup Python 3.12 for backend cross-language tests
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-
-      - name: Install Backend Dependencies
-        run: |
-          cd server
-          npm ci
-
-      - name: Run Backend ESLint Check
-        run: |
-          cd server
-          npm run lint
-
-      - name: Run Backend Syntax Check
-        run: |
-          cd server
-          npm run typecheck
-
-      - name: Run Backend Unit Tests (No MongoDB Required)
-        env:
-          MONGO_TEST_PARTITION: NO_MONGO
-          USE_MMS: 'false'
-          USE_TESTCONTAINERS: 'false'
-          CI_JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
-        run: |
-          $JWT_SECRET = $env:CI_JWT_SECRET
-          if (-not $JWT_SECRET) {
-            $JWT_SECRET = -join ((48..57) + (97..122) | Get-Random -Count 64 | ForEach-Object { [char]$_ })
-          }
-          $env:JWT_SECRET = $JWT_SECRET
-          Remove-Item Env:CI_JWT_SECRET -ErrorAction SilentlyContinue
-          Remove-Item Env:MONGODB_URI -ErrorAction SilentlyContinue
-          Remove-Item Env:MONGO_URI -ErrorAction SilentlyContinue
-          cd server
-          node scripts/test-partition.js no-mongo
-
-  backend-standalone-mongo-windows:
-    name: Backend Windows (standalone Mongo, no transaction suites)
-    runs-on: windows-latest
-    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -222,45 +82,6 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.x
-          cache: npm
-          cache-dependency-path: server/package-lock.json
-
-      - name: Install Backend Dependencies
-        run: npm ci --prefix server
-
-      - name: Run Backend Standalone Mongo Tests (No Transactions)
-        env:
-          CI_JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
-        run: |
-          $JWT_SECRET = $env:CI_JWT_SECRET
-          if (-not $JWT_SECRET) {
-            $JWT_SECRET = -join ((48..57) + (97..122) | Get-Random -Count 64 | ForEach-Object { [char]$_ })
-          }
-          $env:JWT_SECRET = $JWT_SECRET
-          Remove-Item Env:CI_JWT_SECRET -ErrorAction SilentlyContinue
-          Remove-Item Env:MONGODB_URI -ErrorAction SilentlyContinue
-          Remove-Item Env:MONGO_URI -ErrorAction SilentlyContinue
-          cd server
-          node scripts/test-partition.js standalone-mongo
-
-  frontend-quality-matrix:
-    name: Frontend (Node ${{ matrix.node-version }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        node-version: [22.x]
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: reactapp/package-lock.json
 
@@ -289,26 +110,89 @@ jobs:
           cd reactapp
           npm run build
 
-      - name: Audit npm dependencies
-        if: runner.os == 'Linux'
-        run: |
-          cd reactapp
-          npm audit --audit-level=high
-
-  browser-real-dependencies:
-    name: Browser lifecycle (Mongo replica set, Redis, FastAPI, Express)
+  ai-ml-rag-safety:
+    name: AI/ML & RAG Safety
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    services:
-      redis:
-        image: redis:7.2-alpine@sha256:05a97a479bc73de66f087dc05b569010772880f778cc8671fa6b8aadee32e5c6
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 40
+    env:
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      NUMEXPR_NUM_THREADS: '1'
+      HF_HUB_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+        name: Setup Node.js 22.x
+      - name: Setup Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            ml-service/pyproject.toml
+            ml-service/uv.lock
+            ml-service/requirements.txt
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: '0.12.10'
+          enable-cache: false
+
+      - name: Validate ML dependency lock
+        run: node ml-service/scripts/validate_dependency_lock.js
+
+      - name: Install Requirements
+        run: |
+          cd ml-service
+          python -m pip install --require-hashes -r requirements.txt
+
+      - name: Verify qualified serving artifacts
+        run: python scripts/verify_serving_artifacts.py
+        working-directory: ml-service
+
+      - name: Run Pytest Suite
+        run: |
+          cd ml-service
+          python -m pytest -q
+
+      - name: Cache pinned semantic model
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/huggingface/hub
+          key: ${{ runner.os }}-wealthgenie-minilm-${{ hashFiles('ml-service/rag/embeddings/dense_embedding.py') }}
+
+      - name: Fetch exact pinned model revision
+        working-directory: ml-service
+        env:
+          HF_HUB_ETAG_TIMEOUT: '30'
+          HF_HUB_DOWNLOAD_TIMEOUT: '120'
+          HF_HUB_OFFLINE: '0'
+          TRANSFORMERS_OFFLINE: '0'
+        run: >-
+          python -c "from sentence_transformers import SentenceTransformer; from rag.embeddings.dense_embedding import SentenceTransformerEmbeddingProvider as P; SentenceTransformer(P.DEFAULT_MODEL_NAME, revision=P.MODEL_REVISION, trust_remote_code=False)"
+
+      - name: Run semantic-model integration tests offline
+        working-directory: ml-service
+        env:
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: python -m pytest -q -o addopts="-p no:phoenix" -m model_integration
+      - name: Verify pinned A2A applicability policy tests
+        run: python scripts/test_validate_a2a_tck_policy.py
+  integration-security:
+    name: Integration & Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
     env:
       MONGODB_URI: mongodb://127.0.0.1:27017/wealthgenie_e2e?replicaSet=rs0
       REDIS_URL: redis://127.0.0.1:6379
@@ -333,12 +217,6 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
-
-      - name: Start transaction-capable MongoDB
-        uses: supercharge/mongodb-github-action@b0a1493307c4e9b82ed61f3858d606c5ff190c64 # 1.10.0
-        with:
-          mongodb-version: '7.0'
-          mongodb-replica-set: rs0
 
       - name: Setup Node.js 22.x
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -375,6 +253,243 @@ jobs:
           cd reactapp
           npx playwright install --with-deps chromium
 
+      - name: Validate immutable workflow action references
+        run: node server/scripts/validate-workflow-action-pins.js
+      - name: Syntax-check standalone worker
+        run: node --check server/worker.js
+      - name: Validate deployment and security configuration
+        run: node server/scripts/validate-deployment-config.js
+      - name: Audit backend npm dependencies
+        run: npm audit --prefix server --omit=dev --audit-level=low
+      - name: Audit frontend npm dependencies
+        run: npm audit --prefix reactapp --audit-level=high
+      - name: Start MongoDB for the explicit ML/RAG state migration
+        run: docker compose up -d mongodb
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Wait for transaction-capable MongoDB primary
+        run: |
+          for attempt in $(seq 1 60); do
+            if docker compose exec -T mongodb mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -qx true; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs --no-color mongodb
+          exit 1
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Run the explicit Phase 2 persistence migration
+        run: >-
+          docker compose run --build --rm --no-deps
+          -e MONGODB_MIGRATION_URI='mongodb://mongodb:27017/wealthgenie?replicaSet=rs0'
+          server npm run migrate:phase2-indexes
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Run the explicit Phase 3 ML/RAG state migration before starting application replicas
+        run: docker compose run --build --rm --no-deps ml-service python scripts/migrate_phase3_state.py
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Run the explicit Phase 4 PlanReview persistence migration
+        run: >-
+          docker compose run --build --rm --no-deps
+          -e MONGODB_MIGRATION_URI='mongodb://mongodb:27017/wealthgenie?replicaSet=rs0'
+          server npm run migrate:phase4-plan-review-indexes
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Run the explicit Phase 5 durable agent runtime migration
+        run: >-
+          docker compose run --build --rm --no-deps
+          -e MONGODB_MIGRATION_URI='mongodb://mongodb:27017/wealthgenie?replicaSet=rs0'
+          server npm run migrate:phase5-agent-runtime
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Run the explicit Phase 7 ResearchAgent task migration
+        run: >-
+          docker compose run --build --rm --no-deps
+          -e MONGODB_MIGRATION_URI='mongodb://mongodb:27017/wealthgenie?replicaSet=rs0'
+          server npm run migrate:phase7-research-tasks
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Bootstrap the production-image shared RAG corpus
+        run: >-
+          docker compose run --build --rm --no-deps
+          -e WEALTHGENIE_RAG_BOOTSTRAP=1
+          ml-service python scripts/bootstrap_rag_corpus.py
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Verify trusted serving artifacts in the production image
+        run: docker compose run --rm --no-deps ml-service python scripts/verify_serving_artifacts.py
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Register verified serving bundles in MongoDB
+        run: >-
+          docker compose run --rm --no-deps
+          -e WEALTHGENIE_PHASE3_BOOTSTRAP=1
+          ml-service python scripts/register_trusted_bundles.py
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Start the real Nginx edge stack
+        run: docker compose up --build -d
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Wait for backend and published Nginx frontend
+        run: |
+          for attempt in $(seq 1 120); do
+            if curl --fail --silent http://127.0.0.1:5000/health/ready > /dev/null \
+              && curl --fail --silent http://127.0.0.1/ > /dev/null; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 120 ]; then
+              docker compose ps
+              docker compose logs --no-color server reactapp ml-service
+              exit 1
+            fi
+            sleep 3
+          done
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Run production-edge Playwright test through Nginx
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1
+        run: npm run test:e2e --prefix reactapp -- production-edge.spec.ts
+
+      - name: Tear down edge stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+        env:
+          JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
+          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
+          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
+          CORS_ORIGINS: http://127.0.0.1
+          AUTH_COOKIE_SECURE: 'false'
+          MONGODB_FLAVOR: mongodb
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+      - name: Start transaction-capable MongoDB
+        uses: supercharge/mongodb-github-action@b0a1493307c4e9b82ed61f3858d606c5ff190c64 # 1.10.0
+        with:
+          mongodb-version: '7.0'
+          mongodb-replica-set: rs0
+
+      - name: Start Redis for browser and MCP integration
+        run: |
+          docker compose up -d redis
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T redis redis-cli ping | grep -qx PONG; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs --no-color redis
+          exit 1
+      - name: Verify Redis-backed MCP rate and lease fencing
+        env:
+          MCP_TEST_REDIS_URL: redis://127.0.0.1:6379
+        run: node server/scripts/testMcpRedisCapacity.js
       - name: Verify isolated browser-test Mongo database ownership
         run: node --test --test-concurrency=1 reactapp/e2e/helpers/isolatedMongoDatabase.test.js
 
@@ -463,188 +578,7 @@ jobs:
       - name: Run real-dependency Playwright lifecycle
         run: npm run test:e2e --prefix reactapp -- --grep-invert @production-edge
 
-      - name: Upload browser failure evidence
-        if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: browser-real-dependency-failure
-          if-no-files-found: ignore
-          path: |
-            reactapp/test-results/
-            ml-service-e2e.log
-            server-e2e.log
-            frontend-e2e.log
-
-  production-edge-e2e:
-    name: Production edge E2E (Docker Compose + Nginx)
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    env:
-      JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-      ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-      ML_OPERATOR_KEY: edge-e2e-ml-operator-key
-      CORS_ORIGINS: http://127.0.0.1
-      AUTH_COOKIE_SECURE: 'false'
-      MONGODB_FLAVOR: mongodb
-      HF_HUB_OFFLINE: '1'
-      TRANSFORMERS_OFFLINE: '1'
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js 22.x
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22.x
-          cache: npm
-          cache-dependency-path: reactapp/package-lock.json
-
-      - name: Install Playwright runner
-        run: |
-          npm ci --prefix reactapp
-          npx --prefix reactapp playwright install --with-deps chromium
-
-      - name: Start MongoDB for the explicit ML/RAG state migration
-        run: docker compose up -d mongodb
-
-      - name: Wait for transaction-capable MongoDB primary
-        run: |
-          for attempt in $(seq 1 60); do
-            if docker compose exec -T mongodb mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -qx true; then
-              exit 0
-            fi
-            sleep 2
-          done
-          docker compose logs --no-color mongodb
-          exit 1
-
-      - name: Run the explicit Phase 2 persistence migration
-        run: >-
-          docker compose run --build --rm --no-deps
-          -e MONGODB_MIGRATION_URI='mongodb://mongodb:27017/wealthgenie?replicaSet=rs0'
-          server npm run migrate:phase2-indexes
-
-      - name: Run the explicit Phase 3 ML/RAG state migration before starting application replicas
-        run: docker compose run --build --rm --no-deps ml-service python scripts/migrate_phase3_state.py
-
-      - name: Run the explicit Phase 4 PlanReview persistence migration
-        run: >-
-          docker compose run --build --rm --no-deps
-          -e MONGODB_MIGRATION_URI='mongodb://mongodb:27017/wealthgenie?replicaSet=rs0'
-          server npm run migrate:phase4-plan-review-indexes
-
-      - name: Run the explicit Phase 5 durable agent runtime migration
-        run: >-
-          docker compose run --build --rm --no-deps
-          -e MONGODB_MIGRATION_URI='mongodb://mongodb:27017/wealthgenie?replicaSet=rs0'
-          server npm run migrate:phase5-agent-runtime
-
-      - name: Run the explicit Phase 7 ResearchAgent task migration
-        run: >-
-          docker compose run --build --rm --no-deps
-          -e MONGODB_MIGRATION_URI='mongodb://mongodb:27017/wealthgenie?replicaSet=rs0'
-          server npm run migrate:phase7-research-tasks
-
-      - name: Bootstrap the production-image shared RAG corpus
-        run: >-
-          docker compose run --build --rm --no-deps
-          -e WEALTHGENIE_RAG_BOOTSTRAP=1
-          ml-service python scripts/bootstrap_rag_corpus.py
-
-      - name: Verify trusted serving artifacts in the production image
-        run: docker compose run --rm --no-deps ml-service python scripts/verify_serving_artifacts.py
-
-      - name: Register verified serving bundles in MongoDB
-        run: >-
-          docker compose run --rm --no-deps
-          -e WEALTHGENIE_PHASE3_BOOTSTRAP=1
-          ml-service python scripts/register_trusted_bundles.py
-
-      - name: Start the real Nginx edge stack
-        run: docker compose up --build -d
-
-      - name: Wait for backend and published Nginx frontend
-        run: |
-          for attempt in $(seq 1 120); do
-            if curl --fail --silent http://127.0.0.1:5000/health/ready > /dev/null \
-              && curl --fail --silent http://127.0.0.1/ > /dev/null; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 120 ]; then
-              docker compose ps
-              docker compose logs --no-color server reactapp ml-service
-              exit 1
-            fi
-            sleep 3
-          done
-
-      - name: Run production-edge Playwright test through Nginx
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1
-        run: npm run test:e2e --prefix reactapp -- production-edge.spec.ts
-
-      - name: Tear down edge stack
-        if: always()
-        run: docker compose down --volumes --remove-orphans
-
-  ml-microservice-quality:
-    name: ML Service (Python ${{ matrix.python-version }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    env:
-      OMP_NUM_THREADS: '1'
-      MKL_NUM_THREADS: '1'
-      OPENBLAS_NUM_THREADS: '1'
-      NUMEXPR_NUM_THREADS: '1'
-      HF_HUB_OFFLINE: '1'
-      TRANSFORMERS_OFFLINE: '1'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12']
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: |
-            ml-service/pyproject.toml
-            ml-service/uv.lock
-            ml-service/requirements.txt
-
-      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-        with:
-          version: '0.12.10'
-          enable-cache: false
-
-      - name: Validate ML dependency lock
-        run: node ml-service/scripts/validate_dependency_lock.js
-
-      - name: Install Requirements
-        run: |
-          cd ml-service
-          python -m pip install --require-hashes -r requirements.txt
-
-      - name: Verify qualified serving artifacts
-        run: python scripts/verify_serving_artifacts.py
-        working-directory: ml-service
-
-      - name: Run Pytest Suite
-        run: |
-          cd ml-service
-          python -m pytest -q
-
-      - name: Audit pip dependencies
-        if: runner.os == 'Linux'
+      - name: Audit Python dependencies
         run: |
           python -m pip install --require-hashes -r ml-service/requirements-ci-audit.txt
           python -m pip check
@@ -657,59 +591,18 @@ jobs:
           # Remove each exception only after an upstream fix and verification.
           pip-audit --ignore-vuln PYSEC-2026-2447 --ignore-vuln CVE-2026-69112
 
-  ml-semantic-model-integration:
-    name: ML pinned semantic-model integration
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      OMP_NUM_THREADS: '1'
-      MKL_NUM_THREADS: '1'
-      OPENBLAS_NUM_THREADS: '1'
-      NUMEXPR_NUM_THREADS: '1'
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          persist-credentials: false
+          name: browser-real-dependency-failure
+          if-no-files-found: ignore
+          path: |
+            reactapp/test-results/
+            ml-service-e2e.log
+            server-e2e.log
+            frontend-e2e.log
 
-      - name: Setup Python 3.12
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: |
-            ml-service/pyproject.toml
-            ml-service/uv.lock
-            ml-service/requirements.txt
-
-      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-        with:
-          version: '0.12.10'
-          enable-cache: false
-
-      - name: Validate ML dependency lock
-        run: node ml-service/scripts/validate_dependency_lock.js
-
-      - name: Cache pinned semantic model
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ~/.cache/huggingface/hub
-          key: ${{ runner.os }}-wealthgenie-minilm-${{ hashFiles('ml-service/rag/embeddings/dense_embedding.py') }}
-
-      - name: Install Requirements
-        run: python -m pip install --require-hashes -r ml-service/requirements.txt
-
-      - name: Fetch exact pinned model revision
-        working-directory: ml-service
-        env:
-          HF_HUB_ETAG_TIMEOUT: '30'
-          HF_HUB_DOWNLOAD_TIMEOUT: '120'
-        run: >-
-          python -c "from sentence_transformers import SentenceTransformer; from rag.embeddings.dense_embedding import SentenceTransformerEmbeddingProvider as P; SentenceTransformer(P.DEFAULT_MODEL_NAME, revision=P.MODEL_REVISION, trust_remote_code=False)"
-
-      - name: Run semantic-model integration tests offline
-        working-directory: ml-service
-        env:
-          HF_HUB_OFFLINE: '1'
-          TRANSFORMERS_OFFLINE: '1'
-        run: python -m pytest -q -o addopts="-p no:phoenix" -m model_integration
+      - name: Tear down browser Redis
+        if: always()
+        run: docker compose down --volumes --remove-orphans

@@ -16,6 +16,8 @@ function withDeploymentFixture(run) {
   try {
     fs.cpSync(path.join(repositoryRoot, '.github/workflows'), path.join(root, '.github/workflows'), { recursive: true });
     fs.copyFileSync(path.join(repositoryRoot, '.github/a2a-tck-known-blockers.json'), path.join(root, '.github/a2a-tck-known-blockers.json'));
+    fs.mkdirSync(path.join(root, 'scripts'));
+    fs.copyFileSync(path.join(repositoryRoot, 'scripts/run_a2a_tck.sh'), path.join(root, 'scripts/run_a2a_tck.sh'));
     fs.cpSync(path.join(repositoryRoot, 'k8s'), path.join(root, 'k8s'), { recursive: true });
     fs.cpSync(path.join(repositoryRoot, 'deploy'), path.join(root, 'deploy'), { recursive: true });
     fs.copyFileSync(path.join(repositoryRoot, 'docker-compose.yml'), path.join(root, 'docker-compose.yml'));
@@ -596,7 +598,7 @@ test('deployment validator rejects Browser application startup before Phase 3 mi
   withDeploymentFixture(root => {
     const workflowPath = '.github/workflows/ci.yml';
     const workflow = readYaml(root, workflowPath);
-    const steps = workflow.jobs['browser-real-dependencies'].steps;
+    const steps = workflow.jobs['integration-security'].steps;
     const migrationIndex = steps.findIndex(step => step.name === 'Migrate Phase 3 ML/RAG shared-state indexes');
     const [migration] = steps.splice(migrationIndex, 1);
     const startIndex = steps.findIndex(step => step.name === 'Start real application services');
@@ -613,7 +615,7 @@ test('deployment validator rejects Browser application startup before Phase 5 ru
   withDeploymentFixture(root => {
     const workflowPath = '.github/workflows/ci.yml';
     const workflow = readYaml(root, workflowPath);
-    const steps = workflow.jobs['browser-real-dependencies'].steps;
+    const steps = workflow.jobs['integration-security'].steps;
     const [migration] = steps.splice(steps.findIndex(step => step.name === 'Migrate Phase 5 durable agent runtime persistence'), 1);
     steps.splice(steps.findIndex(step => step.name === 'Start real application services'), 0, migration);
     writeYaml(root, workflowPath, workflow);
@@ -628,7 +630,7 @@ test('deployment validator rejects production edge startup before persistence mi
   withDeploymentFixture(root => {
     const workflowPath = '.github/workflows/ci.yml';
     const workflow = readYaml(root, workflowPath);
-    const steps = workflow.jobs['production-edge-e2e'].steps;
+    const steps = workflow.jobs['integration-security'].steps;
     const startIndex = steps.findIndex(step => step.name === 'Start the real Nginx edge stack');
     const [phase2Migration] = steps.splice(steps.findIndex(step => step.name === 'Run the explicit Phase 2 persistence migration'), 1);
     steps.splice(startIndex, 0, phase2Migration);

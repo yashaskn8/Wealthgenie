@@ -3,6 +3,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import GoalPlanner from '../GoalPlanner';
+import { GoalDetailPane } from '../GoalDetailPane';
 import api from '../../services/api';
 
 vi.mock('framer-motion', async () => {
@@ -151,6 +152,33 @@ describe('GoalPlanner financial freshness boundary', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+  });
+
+  it('keeps an in-progress goal edit when equivalent goal data is refreshed', () => {
+    const paneProps = {
+      selectedGoal: freshGoal,
+      simulatedSips: {},
+      onChangeSimulatedSip: vi.fn(),
+      onPriorityChange: vi.fn(),
+      onSaveGoalUpdates: vi.fn(),
+      getLiveProbability: () => 0.82,
+      getSimulatedChartData: () => [],
+      monthlySavingsCapacity: 30000,
+      simulationLoading: false,
+      simulationError: null,
+      simulationResult: null,
+      calculationFreshness: freshGoal.calculation_freshness,
+    };
+    const view = render(<GoalDetailPane {...paneProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Modify Parameters' }));
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '1000000' } });
+
+    view.rerender(<GoalDetailPane {...paneProps} selectedGoal={{ ...freshGoal }} />);
+    expect(screen.getByRole('button', { name: 'Save Target Changes' })).toBeInTheDocument();
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(1000000);
+
+    view.rerender(<GoalDetailPane {...paneProps} selectedGoal={{ ...freshGoal, version: 2, target_amount: 950000 }} />);
+    expect(screen.getByRole('button', { name: 'Modify Parameters' })).toBeInTheDocument();
   });
 
   it('keeps a pending goal load distinct from a successfully empty goal list', async () => {

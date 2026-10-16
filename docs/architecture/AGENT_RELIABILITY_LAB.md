@@ -37,7 +37,7 @@ The benchmark groups scenarios into short, medium, and long virtual-duration buc
 
 ## CI
 
-`.github/workflows/reliability-lab.yml` runs the smoke suite on pull requests and pushes, and the extended deterministic suite on manual dispatch. It uses Node only. Docker, Kubernetes, live providers, live models, and production data are not required or invoked.
+The complete backend test partition in `.github/workflows/ci.yml` runs `server/test/reliabilityLab.test.js` on pull requests targeting `main` and pushes to `main`. Run `npm run test:reliability --prefix server` for an isolated deterministic replay. It uses Node only. Docker, Kubernetes, live providers, live models, and production data are not required or invoked.
 
 ## Limitations
 

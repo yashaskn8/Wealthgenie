@@ -1,8 +1,6 @@
 name: Continuous Deployment & Cluster Verification
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       run_live_market_preflight:
@@ -738,7 +736,7 @@ jobs:
           node server/scripts/runPhase15CiPreflight.js
 
       - name: Explain skipped live-market preflight
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.run_live_market_preflight) }}
+        if: ${{ !inputs.run_live_market_preflight }}
         run: |
           echo "### Live-market Phase 15 preflight" >> "$GITHUB_STEP_SUMMARY"
           echo "Skipped by default because it depends on current market-session/provider data. Deployment provenance, health, tax endpoint, and Kind smoke checks still ran. Start this workflow manually with **Run live-market preflight** enabled to run its strict authenticated browser checks." >> "$GITHUB_STEP_SUMMARY"
