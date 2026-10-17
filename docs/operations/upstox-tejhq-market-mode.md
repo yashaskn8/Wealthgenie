@@ -9,7 +9,7 @@ Set `MARKET_DATA_MODE=UPSTOX_TEJHQ` to select the bounded market-data ingestion 
 | Capability | Selected source | Server path | Qualified result |
 | --- | --- | --- | --- |
 | NIFTY 50 and India VIX quote | Upstox V3 full quote | `fetchBenchmarkQuotes`, `fetchQualifiedMarketContextSnapshots` | The actual `last_trade_time`, price, instrument key and source URL are retained. A response received now does not refresh the trade timestamp. |
-| Exchange session | Upstox V2 annual holidays, date timings, exchange status | `UpstoxTradingCalendarProvider.getCurrentSession` | Calendar and status must agree; only `NORMAL_OPEN` within the documented session window is `MARKET_OPEN`. Pre-open, closing and conflicting evidence remain `UNKNOWN`. |
+| Exchange session | Upstox V2 annual holidays, date timings, exchange status | `UpstoxTradingCalendarProvider.getCurrentSession` | Calendar and status must agree; only a `NORMAL_OPEN` observation no older than five minutes within the per-date session window is `MARKET_OPEN`. Cached observations retain their source time. Pre-open, closing auction and conflicting evidence remain `UNKNOWN`; CAS status is checked separately. |
 | NIFTY benchmark history | Upstox V3 daily candles | `fetchQualifiedMarketContextSnapshots` | Current-year sessions must exactly match Upstox's qualified NSE calendar, including documented special Saturday sessions. Missing days, early-year fewer than 50 sessions and unsupported calendar ranges fail closed. |
 | NSE equity raw history | Upstox V3 daily candles; TejHQ raw EOD fallback | `fetchQualifiedEquityHistory` | Requires exact ISIN, ordered daily candles and the Upstox calendar. TejHQ additionally requires symbol intervals and publication through the last expected session. |
 | NSE equity adjusted history | TejHQ adjusted EOD | `fetchQualifiedEquityHistory` | Raw OHLC and adjusted close remain distinct. Symbol history, publication and session completeness are required. |
@@ -17,7 +17,7 @@ Set `MARKET_DATA_MODE=UPSTOX_TEJHQ` to select the bounded market-data ingestion 
 | BSE expected-session history | None qualified | `fetchQualifiedEquityHistory` | Unavailable. No NSE calendar is used as a BSE substitute. |
 | Mutual-fund NAV and official fixed-income rates | Their existing official source adapters | AMFI, India Post, SBI, RBI services | Independently rights-gated. Upstox/TejHQ prices never fill a missing NAV, coupon or official rate. |
 
-The selected market-context path attempts one Upstox quote/history pair. If it fails, it does not call the NSE website or mix TejHQ EOD equity prices into NIFTY context. An existing NSE last-known-good context is rejected after mode selection. The authoritative recommendation remains separate from market-data failure; unqualified market context cannot adjust suitability or allocation.
+The selected market-context path attempts one Upstox quote/history pair only when source rights and public distribution are qualified. If it fails, it does not call the NSE website or mix TejHQ EOD equity prices into NIFTY context. An existing NSE last-known-good context is rejected after mode selection. When permission is absent, core profile and recommendation routes remain reachable and market facts are unavailable; direct Upstox quotes remain blocked. A previously applied market tilt is not served if its source is no longer qualified. Unqualified market context cannot adjust suitability or allocation.
 
 ## Endpoint and permission matrix
 
@@ -50,7 +50,7 @@ Production requires operator evidence for **every** right dimension (`access`, `
 | HMM regime model | Shadow diagnostic | No allocation authority |
 | Frontend market context | Backend API consumer | Receives source, observed time, display status and unavailable states; no direct provider calls |
 
-The current-year holiday endpoint cannot prove a complete previous-year calendar. The selected mode abstains for cross-year equity-history qualification and for benchmark context until enough exact current-year sessions are available. Closing-auction/pre-open phase is carried as a provider phase with `UNKNOWN` recommendation session authority. BSE history remains unavailable without a BSE calendar. These are deliberate bounds, not missing-value zeroes.
+The current-year holiday endpoint cannot prove a complete previous-year calendar. The selected mode abstains for cross-year equity-history qualification and for benchmark context until enough exact current-year sessions are available. Closing-auction/pre-open phase is carried as a provider phase with `UNKNOWN` recommendation session authority. Upstox documents `last_updated` as a status-update time but does not promise a heartbeat. The five-minute session age rule intentionally abstains when a phase remains unchanged beyond that limit; ordinary-session live availability is therefore unverified. BSE history remains unavailable without a BSE calendar. These are deliberate bounds, not missing-value zeroes.
 
 ## Verified and unverified evidence
 

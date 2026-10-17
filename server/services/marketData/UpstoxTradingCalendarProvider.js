@@ -15,6 +15,16 @@ import {
 export { UPSTOX_TRADING_HOLIDAYS_URL };
 export const UPSTOX_TRADING_CALENDAR_TTL_SECONDS = 60 * 60;
 export const UPSTOX_MARKET_SESSION_TTL_SECONDS = 30;
+// Provider last_updated is source evidence, not a cache or fetch timestamp. Upstox
+// does not document a heartbeat cadence, so an older phase cannot establish the
+// current session even when its trading date is today.
+export const UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS = 5 * 60 * 1000;
+
+const UPSTOX_CAS_PHASES = new Set([
+  'NORMAL_OPEN', 'NORMAL_CLOSE', 'PRE_OPEN_START', 'PRE_OPEN_END',
+  'CLOSING_START', 'CLOSING_END', 'CTS_CLOSE', 'CAS_LM_START',
+  'CAS_M_STOP', 'CAS_STOP',
+]);
 
 function validDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -117,6 +127,7 @@ function classifyCurrentSession(statusPayload, timingPayload, tradingDate, now, 
   const nseTimings = Array.isArray(timingRows)
     ? timingRows.filter(row => row?.exchange === 'NSE') : [];
   const updatedAt = status?.last_updated;
+  const cas = status?.cas_eligible_status;
   const timing = nseTimings[0];
   if (statusPayload?.status !== 'success' || timingPayload?.status !== 'success'
       || status?.exchange !== 'NSE'
@@ -124,6 +135,10 @@ function classifyCurrentSession(statusPayload, timingPayload, tradingDate, now, 
         'CLOSING_START', 'CLOSING_END'].includes(status?.status)
       || !Number.isSafeInteger(updatedAt) || updatedAt > now.getTime()
       || isoDateInIndia(new Date(updatedAt)) !== tradingDate
+      || (cas !== undefined && (!cas || !UPSTOX_CAS_PHASES.has(cas.status)
+        || !Number.isSafeInteger(cas.last_updated)
+        || cas.last_updated > now.getTime()
+        || isoDateInIndia(new Date(cas.last_updated)) !== tradingDate))
       || nseTimings.length !== 1
       || !Number.isSafeInteger(timing.start_time) || !Number.isSafeInteger(timing.end_time)
       || timing.start_time >= timing.end_time
@@ -138,14 +153,22 @@ function classifyCurrentSession(statusPayload, timingPayload, tradingDate, now, 
   }
   const within = now.getTime() >= timing.start_time && now.getTime() <= timing.end_time;
   const sessionStatus = status.status === 'NORMAL_OPEN' && within
+    && (!cas || cas.status === 'NORMAL_OPEN')
     ? 'MARKET_OPEN'
     : ['NORMAL_CLOSE', 'CLOSING_END'].includes(status.status) && now.getTime() > timing.end_time
+      && (!cas || ['NORMAL_CLOSE', 'CLOSING_END'].includes(cas.status))
       ? 'MARKET_CLOSED' : 'UNKNOWN';
   return {
     status: sessionStatus,
     phase: status.status,
+    casPhase: cas?.status ?? null,
+    casObservedAt: cas ? new Date(cas.last_updated).toISOString() : null,
     tradingDate,
     observedAt: new Date(updatedAt).toISOString(),
+    sessionWindow: {
+      startAt: new Date(timing.start_time).toISOString(),
+      endAt: new Date(timing.end_time).toISOString(),
+    },
     source: {
       provider: PROVIDERS.UPSTOX,
       url: UPSTOX_NSE_MARKET_STATUS_URL,
@@ -153,6 +176,45 @@ function classifyCurrentSession(statusPayload, timingPayload, tradingDate, now, 
         UPSTOX_MARKET_TIMINGS_RIGHTS_URL.replace('{date}', tradingDate)],
     },
   };
+}
+
+function requalifyCurrentSession(session, now, tradingDate) {
+  if (session?.status === 'UNKNOWN') return session;
+  const observedAt = Date.parse(session?.observedAt);
+  const casObservedAt = session?.casPhase == null ? null : Date.parse(session.casObservedAt);
+  const startAt = Date.parse(session?.sessionWindow?.startAt);
+  const endAt = Date.parse(session?.sessionWindow?.endAt);
+  const nowMs = now.getTime();
+  const validEvidence = ['MARKET_OPEN', 'MARKET_CLOSED'].includes(session?.status)
+    && session?.source?.provider === PROVIDERS.UPSTOX
+    && session?.source?.url === UPSTOX_NSE_MARKET_STATUS_URL
+    && session?.tradingDate === tradingDate
+    && Number.isFinite(observedAt) && observedAt <= nowMs
+    && isoDateInIndia(new Date(observedAt)) === tradingDate
+    && nowMs - observedAt <= UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS
+    && (session.casPhase == null || (Number.isFinite(casObservedAt)
+      && casObservedAt <= nowMs
+      && isoDateInIndia(new Date(casObservedAt)) === tradingDate
+      && nowMs - casObservedAt <= UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS))
+    && Number.isFinite(startAt) && Number.isFinite(endAt) && startAt < endAt
+    && isoDateInIndia(new Date(startAt)) === tradingDate
+    && isoDateInIndia(new Date(endAt)) === tradingDate;
+  if (!validEvidence) return {
+    ...session, status: 'UNKNOWN', error: { code: 'UPSTOX_SESSION_STATUS_STALE_OR_INVALID' },
+  };
+  if (session.status === 'MARKET_OPEN'
+      && (session.phase !== 'NORMAL_OPEN'
+        || (session.casPhase != null && session.casPhase !== 'NORMAL_OPEN')
+        || nowMs < startAt || nowMs > endAt)) return {
+    ...session, status: 'UNKNOWN', error: { code: 'UPSTOX_SESSION_TIMING_CONFLICT' },
+  };
+  if (session.status === 'MARKET_CLOSED'
+      && (!['NORMAL_CLOSE', 'CLOSING_END'].includes(session.phase)
+        || (session.casPhase != null && !['NORMAL_CLOSE', 'CLOSING_END'].includes(session.casPhase))
+        || nowMs <= endAt)) return {
+    ...session, status: 'UNKNOWN', error: { code: 'UPSTOX_SESSION_TIMING_CONFLICT' },
+  };
+  return session;
 }
 
 export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
@@ -242,7 +304,7 @@ export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
         calendar,
       };
     }
-    return this.requestCache({
+    const session = await this.requestCache({
       cacheKey: `market:upstox:nse-session:${MARKET_DATA_SCHEMA_VERSION}:${tradingDate}`,
       ttlSeconds: UPSTOX_MARKET_SESSION_TTL_SECONDS,
       forceRefresh,
@@ -254,10 +316,10 @@ export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
             getUpstoxWithRetry(this.httpClient, UPSTOX_NSE_MARKET_STATUS_URL, { timeout: 10_000, headers }),
             getUpstoxWithRetry(this.httpClient, timingUrl, { timeout: 10_000, headers }),
           ]);
-          return {
+          return requalifyCurrentSession({
             ...classifyCurrentSession(statusResponse.data, timingResponse.data, tradingDate, this.clock(), calendar),
             calendar,
-          };
+          }, this.clock(), tradingDate);
         } catch (error) {
           return {
             ...unknown(classifyUpstoxError(error)),
@@ -266,5 +328,7 @@ export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
         }
       },
     });
+    // Cache TTL and cachedAt never refresh the provider's last_updated evidence.
+    return requalifyCurrentSession(session, this.clock(), tradingDate);
   }
 }

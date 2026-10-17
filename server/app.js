@@ -174,8 +174,8 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
     '/api/profile/complete',
     '/api/profile/:profileId/health-score',
     '/api/recommend',
-  ], createUpstoxPublicDataGate({ env }));
-  app.put('/api/profile/:profileId', createUpstoxPublicDataGate({ env }));
+  ], createUpstoxPublicDataGate({ env, allowUnavailableTwoProviderMode: true }));
+  app.put('/api/profile/:profileId', createUpstoxPublicDataGate({ env, allowUnavailableTwoProviderMode: true }));
   const healthRoutes = createHealthRouter({
     runtimeState: lifecycle,
     requireRedis: config.requireRedis,

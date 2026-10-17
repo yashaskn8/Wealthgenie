@@ -207,6 +207,8 @@ jobs:
       HF_HUB_OFFLINE: '1'
       TRANSFORMERS_OFFLINE: '1'
       NODE_ENV: development
+      MARKET_DATA_MODE: UPSTOX_TEJHQ
+      UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false'
       DISABLE_RATE_LIMIT: 'true'
       CORS_ORIGINS: http://127.0.0.1:5173
       VITE_API_URL: http://127.0.0.1:5000/api
@@ -579,6 +581,7 @@ jobs:
         run: npm run test:e2e --prefix reactapp -- --grep-invert @production-edge
 
       - name: Audit Python dependencies
+        if: ${{ !cancelled() }}
         run: |
           python -m pip install --require-hashes -r ml-service/requirements-ci-audit.txt
           python -m pip check

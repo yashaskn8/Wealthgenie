@@ -11,9 +11,14 @@ import { isTwoProviderMarketDataMode } from '../services/marketDataService.js';
 export function createUpstoxPublicDataGate({
   env = process.env,
   requiresUpstox = false,
+  allowUnavailableTwoProviderMode = false,
   marketDataTestFixtureRightsCapability = null,
 } = {}) {
   return function upstoxPublicDataGate(req, res, next) {
+    // These routes have their own source-rights checks and can return an
+    // unavailable market DTO while profile/recommendation work continues.
+    // Direct Upstox quote publication must still use the strict gate.
+    if (!requiresUpstox && allowUnavailableTwoProviderMode && isTwoProviderMarketDataMode(env)) return next();
     const primaryProvider = String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase();
     const usesUpstox = requiresUpstox || primaryProvider === 'UPSTOX' || isTwoProviderMarketDataMode(env);
     if (usesUpstox && !isUpstoxPublicDistributionAllowed(env)) {

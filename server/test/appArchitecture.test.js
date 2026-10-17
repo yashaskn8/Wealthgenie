@@ -94,6 +94,62 @@ test('production blocks public market, profile, and recommendation outputs when 
   });
 });
 
+test('selected two-provider mode keeps core routes reachable and reports unqualified market facts as unavailable', async () => {
+  const previousMode = process.env.MARKET_DATA_MODE;
+  process.env.MARKET_DATA_MODE = 'UPSTOX_TEJHQ';
+  try {
+    const env = {
+      ...process.env,
+      NODE_ENV: 'production',
+      MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
+      CORS_ORIGINS: 'https://wealth.example',
+    };
+    const app = createApp({ env });
+    await withServer(app, async baseUrl => {
+      const market = await jsonRequest(`${baseUrl}/api/regime/current`);
+      assert.equal(market.response.status, 200);
+      assert.equal(market.body.status, 'MARKET_CONTEXT_UNAVAILABLE');
+      assert.equal(market.body.context, null);
+      assert.ok(market.body.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
+      assert.ok(market.body.marketSnapshot.observedFacts.every(fact =>
+        fact.value === null && fact.source === null && fact.availabilityStatus === 'UNAVAILABLE'));
+      assert.deepEqual(market.body.marketSnapshot.provenance.sources, []);
+
+      const benchmarks = await jsonRequest(`${baseUrl}/api/market/benchmarks`);
+      assert.equal(benchmarks.response.status, 200);
+      assert.equal(benchmarks.body.status, 'UNAVAILABLE');
+      assert.deepEqual(benchmarks.body.facts, []);
+      assert.equal(benchmarks.body.error.code, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+
+      for (const request of [
+        { path: '/api/profile/precompute', method: 'POST', body: {} },
+        { path: '/api/profile/complete', method: 'POST', body: {} },
+        { path: '/api/profile/64a000000000000000000001', method: 'PUT', body: {} },
+        { path: '/api/profile/64a000000000000000000001/health-score' },
+        { path: '/api/recommend', method: 'POST', body: {} },
+        { path: '/api/recommend/current?profileId=64a000000000000000000001' },
+        { path: '/api/regime/adjust', method: 'POST', body: {} },
+        { path: '/api/market-data/admin/equity-history?exchange=NSE&symbol=RELIANCE&isin=INE002A01018&fromDate=2026-10-08&toDate=2026-10-09' },
+      ]) {
+        const response = await jsonRequest(`${baseUrl}${request.path}`, {
+          ...request,
+          body: request.body === undefined ? undefined : JSON.stringify(request.body),
+        });
+        assert.equal(response.response.status, 401, request.path);
+        assert.equal(response.body.code, 'AUTH_REQUIRED', request.path);
+      }
+
+      const quotes = await jsonRequest(`${baseUrl}/api/market-data/quotes?ids=market:index:nifty-50`);
+      assert.equal(quotes.response.status, 503);
+      assert.equal(quotes.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED');
+    });
+  } finally {
+    if (previousMode === undefined) delete process.env.MARKET_DATA_MODE;
+    else process.env.MARKET_DATA_MODE = previousMode;
+  }
+});
+
 test('admin-only TejHQ market-history endpoints reject unauthenticated requests', async () => {
   const app = createApp({ env: { ...process.env, NODE_ENV: 'test' } });
   await withServer(app, async baseUrl => {

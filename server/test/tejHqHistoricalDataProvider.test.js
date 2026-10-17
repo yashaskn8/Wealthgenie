@@ -236,6 +236,39 @@ test('adjusted history uses bearer auth, bounded internal budget, and never puts
   assert.equal(budgetCalls, 1);
 });
 
+test('adjusted-only mode can read required symbol history without enabling raw fallback', async () => {
+  const requests = [];
+  let budgetCalls = 0;
+  const provider = new TejHqHistoricalDataProvider({
+    apiKey: 'fixture-only-key',
+    env: {
+      NODE_ENV: 'test',
+      TEJHQ_ENABLED: 'true',
+      TEJHQ_LICENSE_CONFIRMED: 'true',
+      TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'false',
+      TEJHQ_ADJUSTED_HISTORY_ENABLED: 'true',
+    },
+    clock: () => NOW,
+    budget: async () => { budgetCalls += 1; return { allowed: true, used: budgetCalls, limit: 200 }; },
+    requestCache: async ({ loader }) => loader(),
+    httpClient: { async get(url, options) {
+      requests.push({ url, options });
+      return successResponse(symbolPayload());
+    } },
+  });
+
+  const symbols = await provider.getSymbolHistory({ exchange: REQUEST.exchange, isin: REQUEST.isin });
+  assert.equal(symbols.status, 'AVAILABLE');
+  assert.equal(symbols.intervals[0].isin, REQUEST.isin);
+  assert.equal(budgetCalls, 1);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].options.headers.Authorization, 'Bearer fixture-only-key');
+
+  const raw = await provider.getRawHistory(REQUEST);
+  assert.equal(raw.error.code, 'TEJHQ_FEATURE_DISABLED');
+  assert.equal(requests.length, 1);
+});
+
 test('keyed operations fail closed without credentials and do not contact TejHQ', async () => {
   let calls = 0;
   const provider = configuredProvider({ apiKey: '', httpClient: { async get() { calls += 1; } } });

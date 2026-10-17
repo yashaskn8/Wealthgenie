@@ -15,6 +15,7 @@ import {
 } from '../services/marketContextService.js';
 import { MARKET_BENCHMARKS } from '../services/marketData/marketBenchmarks.js';
 import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
+import { fetchQualifiedMarketContextSnapshots } from '../services/marketDataService.js';
 import {
   buildNseHistoricalIndexRequestUrl,
   buildUpstoxQuoteRequestUrl,
@@ -476,7 +477,10 @@ test('production context reads suppress live Upstox evidence when distribution i
     fallbackUsed: false,
   };
   const suppressed = await getLiveMarketContext({ now: NOW }, {
-    env: { NODE_ENV: 'production', UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false' },
+    env: {
+      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
+    },
     fetchQualifiedMarketContextSnapshots: async () => ({
       quoteSnapshot: { ...quoteSnapshot({ provider: 'UPSTOX' }), providerSelection: selection },
       historicalSnapshot: {
@@ -499,6 +503,28 @@ test('production context reads suppress live Upstox evidence when distribution i
   )));
   assert.deepEqual(suppressed.marketSnapshot.provenance.sources, []);
   assert.equal(suppressed.marketSnapshot.providerStatus.quotes.provider, null);
+});
+
+test('selected mode with unconfirmed public distribution makes no market-provider request', async () => {
+  const neverCall = async () => assert.fail('market provider must not be called');
+  const pair = await fetchQualifiedMarketContextSnapshots({
+    env: {
+      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
+    },
+    persist: false,
+    now: NOW,
+    upstoxQuoteProvider: { getQuotes: neverCall },
+    upstoxHistoryProviderOverride: { getDailyCandles: neverCall },
+    upstoxCalendarProviderOverride: { getCurrentSession: neverCall, getCalendar: neverCall },
+    nseQuoteProvider: { getQuotes: neverCall },
+    nseHistoryProviderOverride: { getDailyCandles: neverCall },
+  });
+  assert.deepEqual(pair.providerSelection.attemptedProviders, []);
+  assert.equal(pair.providerSelection.selectedProvider, null);
+  assert.equal(pair.quoteSnapshot.status, 'UNAVAILABLE');
+  assert.deepEqual(pair.quoteSnapshot.facts, []);
+  assert.deepEqual(pair.historicalSnapshot.candles, []);
 });
 
 test('production recommendation reads do not reuse an Upstox-derived last-known-good snapshot', async () => {

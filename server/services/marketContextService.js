@@ -387,7 +387,7 @@ async function readLastKnownGood(getLkg, getDurable) {
   return { value: processLastKnownGood, storage: processLastKnownGood ? 'PROCESS_MEMORY' : 'NONE' };
 }
 
-function marketContextProviderAllowed(provider, env, fixtureCapability = null) {
+export function marketContextProviderAllowed(provider, env, fixtureCapability = null) {
   if (isTwoProviderMarketDataMode(env) && provider !== 'UPSTOX') return false;
   if (provider === 'NSE') {
     return [NSE_ALL_INDICES_URL, NSE_HISTORICAL_INDEX_RIGHTS_URL, NSE_TRADING_HOLIDAY_URL]

@@ -626,7 +626,7 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
       forceRefresh,
       cacheTtlSeconds: TEJHQ_SYMBOLS_CACHE_TTL_SECONDS,
       parse: (data, meta) => parseTejHqSymbolHistoryEnvelope(data, { exchange: normalizedExchange, isin: normalizedIsin, ...meta }),
-      enabledFlag: 'TEJHQ_HISTORICAL_FALLBACK_ENABLED',
+      enabledFlag: ['TEJHQ_HISTORICAL_FALLBACK_ENABLED', 'TEJHQ_ADJUSTED_HISTORY_ENABLED'],
     });
   }
 
@@ -724,7 +724,9 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
       };
     }
     const cacheKey = cacheKeyFor(operation, { params, identity: normalizedIdentity });
-    if (!this.enabled || this.env[enabledFlag] !== 'true') {
+    const featureEnabled = (Array.isArray(enabledFlag) ? enabledFlag : [enabledFlag])
+      .some(flag => this.env[flag] === 'true');
+    if (!this.enabled || !featureEnabled) {
       const code = !this.configuredEnabled
         ? 'TEJHQ_DISABLED'
         : !this.licenseConfirmed ? 'TEJHQ_LICENSE_NOT_CONFIRMED' : 'TEJHQ_FEATURE_DISABLED';

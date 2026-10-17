@@ -285,6 +285,11 @@ const MARKET_LABELS: Record<string, string> = {
   CURRENT: 'Current verified data', MARKET_CLOSED: 'Market closed', LAST_AVAILABLE: 'Last available data',
   STALE: 'Stale market data', PARTIAL_DATA: 'Partial market data', UNAVAILABLE: 'Market data unavailable',
 };
+const MARKET_RIGHTS_CODES = new Set([
+  'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
+  'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED',
+  'UPSTOX_PERMISSION_DENIED',
+]);
 
 async function market(dialog: Locator, body: JsonObject) {
   expect(['MARKET_CONTEXT_AVAILABLE', 'MARKET_CONTEXT_UNAVAILABLE']).toContain(body.status);
@@ -296,6 +301,15 @@ async function market(dialog: Locator, body: JsonObject) {
   const sources = array(body.sources, 'market.sources').map((item, i) => object(item, `sources[${i}]`));
   const signals = object(body.signals, 'market.signals');
   const reasons = array(body.reasonCodes, 'market.reasonCodes').map((item, i) => string(item, `reasonCodes[${i}]`));
+  const policyOutput = snapshot.policyOutput && typeof snapshot.policyOutput === 'object' && !Array.isArray(snapshot.policyOutput)
+    ? object(snapshot.policyOutput, 'marketSnapshot.policyOutput') : null;
+  const policyReasons = Array.isArray(policyOutput?.reasonCodes)
+    ? policyOutput.reasonCodes.map((item, i) => string(item, `marketSnapshot.policyOutput.reasonCodes[${i}]`)) : [];
+  const snapshotError = snapshot.error && typeof snapshot.error === 'object' && !Array.isArray(snapshot.error)
+    ? object(snapshot.error, 'marketSnapshot.error') : null;
+  const rightsUnavailable = [...reasons, ...policyReasons, snapshotError?.code]
+    .some(code => MARKET_RIGHTS_CODES.has(code as string));
+  const expectedMarketLabel = rightsUnavailable ? 'Market data permission unavailable' : MARKET_LABELS[displayStatus];
   const observed = timestamp(body.observedAt, 'market.observedAt', !available);
   timestamp(body.evaluatedAt, 'market.evaluatedAt');
   const snapshotObserved = timestamp(snapshot.observedAt, 'marketSnapshot.observedAt', !available);
@@ -309,10 +323,19 @@ async function market(dialog: Locator, body: JsonObject) {
     expect(body.context).toBeNull();
     expect(reasons.length).toBeGreaterThan(0);
   }
+  if (rightsUnavailable) {
+    expect(available, 'unverified source rights cannot yield authoritative market context').toBe(false);
+    expect(sources, 'unapproved market evidence cannot be distributed').toEqual([]);
+    for (const [key, raw] of Object.entries(signals)) {
+      const signal = object(raw, `signals.${key}`);
+      expect(signal.available, `signals.${key} must be unavailable when source rights are denied`).toBe(false);
+      expect(signal.value, `signals.${key} must remain null when source rights are denied`).toBeNull();
+    }
+  }
   const region = dialog.getByRole('region', { name: 'Market conditions overview' });
   await expect(region).toBeVisible();
-  await expect(region.locator('.wti-beginner-market-badge')).toHaveText(available ? string(body.context, 'context').replace(/_/g, ' ') : MARKET_LABELS[displayStatus]);
-  await expect(region.getByTestId('market-data-status')).toContainText(MARKET_LABELS[displayStatus]);
+  await expect(region.locator('.wti-beginner-market-badge')).toHaveText(available ? string(body.context, 'context').replace(/_/g, ' ') : expectedMarketLabel);
+  await expect(region.getByTestId('market-data-status')).toContainText(expectedMarketLabel);
   const providerStatus = object(snapshot.providerStatus, 'marketSnapshot.providerStatus');
   const quotes = object(providerStatus.quotes, 'marketSnapshot.providerStatus.quotes');
   const observedFacts = Array.isArray(snapshot.observedFacts)

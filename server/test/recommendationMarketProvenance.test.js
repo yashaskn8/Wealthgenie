@@ -4,6 +4,7 @@ import Recommendation from '../models/Recommendation.js';
 import mongoose from 'mongoose';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
 import { computeCoreRecommendation } from '../services/coreRecommendation.js';
+import { getLatestQualifiedMarketContextForRecommendation } from '../services/marketContextService.js';
 import { calculateAuditRecordHash } from '../services/auditChain.js';
 import {
   assertRecommendationMarketDistributionAllowed,
@@ -124,6 +125,50 @@ test('unadjusted legacy recommendations remain eligible for ordinary resolution'
     responseSnapshot: { market_adjustment: { applied: false, status: 'NOT_APPLIED' } },
     currentAllocationSource: 'ORIGINAL_RECOMMENDATION',
   }));
+});
+
+test('selected two-provider mode serves unadjusted recommendations but blocks stored unqualified market tilts', () => {
+  const environment = {
+    NODE_ENV: 'production',
+    MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+    UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'true',
+  };
+  assert.doesNotThrow(() => assertRecommendationMarketDistributionAllowed({
+    marketAdjustment: { applied: false, sourceProvider: null },
+    currentAllocationSource: 'ORIGINAL_RECOMMENDATION',
+  }, { environment }));
+  for (const sourceProvider of ['NSE', 'UPSTOX']) {
+    assert.throws(() => assertRecommendationMarketDistributionAllowed({
+      marketAdjustment: { applied: true, sourceProvider },
+    }, { environment }), error => error.status === 503
+      && error.code === 'MARKET_ADJUSTMENT_SOURCE_RIGHTS_UNVERIFIED');
+  }
+});
+
+test('selected mode still computes a suitable core plan when market rights are unavailable', async () => {
+  const marketContext = await getLatestQualifiedMarketContextForRecommendation({}, {
+    env: {
+      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
+    },
+    getLkgCache: async () => assert.fail('unqualified last-known-good must not be read'),
+    getDurableLkg: async () => assert.fail('unqualified durable snapshot must not be read'),
+  });
+  assert.equal(marketContext.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert.equal(marketContext.context, null);
+  assert.ok(marketContext.marketSnapshot.observedFacts.every(fact =>
+    fact.value === null && fact.source === null && fact.availabilityStatus === 'UNAVAILABLE'));
+
+  const core = await computeCoreRecommendation({
+    canonicalProfile: canonicalProfile({ liquidSavings: null }),
+    userId: new mongoose.Types.ObjectId(),
+    profileId: new mongoose.Types.ObjectId(),
+    marketContext,
+  });
+  assert.ok(core.response.instruments.length > 0);
+  assert.equal(core.recommendationData.marketAdjustment.applied, false);
+  assert.equal(core.recommendationData.marketAdjustment.sourceProvider, null);
+  assert.equal(core.recommendationData.currentAllocationSource, 'ORIGINAL_RECOMMENDATION');
 });
 
 test('Upstox adjustment fails closed until production distribution is confirmed', () => {
