@@ -2,7 +2,9 @@ export function classifyUpstoxError(error) {
   if (error?.code === 'UPSTOX_RESPONSE_SCHEMA_INVALID'
       || error?.code === 'ERR_BAD_RESPONSE'
       || error instanceof SyntaxError
-      || String(error?.message || '').startsWith('UPSTOX_HISTORY_')) return 'UPSTOX_RESPONSE_INVALID';
+      || String(error?.message || '').startsWith('UPSTOX_HISTORY_')
+      || String(error?.message || '').startsWith('UPSTOX_CALENDAR_')
+      || String(error?.message || '').startsWith('UPSTOX_SESSION_')) return 'UPSTOX_RESPONSE_INVALID';
   const status = Number(error?.response?.status);
   if (status === 401) return 'UPSTOX_AUTHENTICATION_FAILED';
   if (status === 403) return 'UPSTOX_PERMISSION_DENIED';

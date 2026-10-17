@@ -13,6 +13,7 @@ import { normalizeBuildSha } from '../../shared/buildIdentity.js';
 import { REDIS_PROBE_TIMEOUT_MS } from '../../shared/demoPreflightContracts.js';
 import { loadBuildProvenance } from '../services/buildProvenance.js';
 import { hasUpstoxAccessToken } from '../services/marketData/upstoxCredentials.js';
+import { isTwoProviderMarketDataMode } from '../services/marketDataService.js';
 import {
   isSafeDemoEnvironmentId,
   verifyDemoDatabaseIdentity,
@@ -46,8 +47,9 @@ export function createHealthRouter({
   expectedDemoDatabaseHost = process.env.DEMO_EXPECTED_MONGODB_HOST,
   expectedDemoDatabasePort = process.env.DEMO_EXPECTED_MONGODB_PORT,
   expectedDemoEnvironmentId = process.env.DEMO_EXPECTED_MONGODB_ENVIRONMENT_ID,
-  marketProvider = String(process.env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase(),
-  marketProviderTokenPresent = String(process.env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase() === 'NSE'
+  marketProvider = isTwoProviderMarketDataMode() ? 'UPSTOX' : String(process.env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase(),
+  marketProviderTokenPresent = (!isTwoProviderMarketDataMode()
+    && String(process.env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase() === 'NSE')
     || hasUpstoxAccessToken(),
   verifyMongoTransaction = verifyConnectedMongoTransaction,
   verifyDemoEnvironmentSentinel = verifyConnectedDemoEnvironmentSentinel,

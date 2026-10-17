@@ -11,6 +11,16 @@ export const NSE_TRADING_HOLIDAY_URL = `${NSE_TRADING_HOLIDAY_BASE_URL}?type=tra
 
 export const UPSTOX_QUOTE_URL = 'https://api.upstox.com/v3/market-quote/quotes';
 export const UPSTOX_QUOTE_RIGHTS_URL = `${UPSTOX_QUOTE_URL}?instrument_key={instrumentKeys}`;
+export const UPSTOX_TRADING_HOLIDAYS_URL = 'https://api.upstox.com/v2/market/holidays';
+export const UPSTOX_NSE_MARKET_STATUS_URL = 'https://api.upstox.com/v2/market/status/NSE';
+export const UPSTOX_MARKET_TIMINGS_RIGHTS_URL = 'https://api.upstox.com/v2/market/timings/{date}';
+export const UPSTOX_HISTORICAL_CANDLE_V3_URL = 'https://api.upstox.com/v3/historical-candle';
+export const UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL = `${UPSTOX_HISTORICAL_CANDLE_V3_URL}/{instrumentKey}/days/1/{toDate}/{fromDate}`;
+export const TEJHQ_RAW_EOD_RIGHTS_URL = 'https://api.tejhq.dev/v1/ohlcv/{exchange}/{symbol}?from={from}&to={to}';
+export const TEJHQ_ADJUSTED_RIGHTS_URL = 'https://api.tejhq.dev/v1/adjusted/{exchange}/{symbol}?from={from}&to={to}';
+export const TEJHQ_SYMBOL_HISTORY_RIGHTS_URL = 'https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}';
+export const TEJHQ_CORPORATE_ACTIONS_RIGHTS_URL = 'https://api.tejhq.dev/v1/actions/{symbol}';
+export const TEJHQ_PUBLICATION_STATUS_RIGHTS_URL = 'https://api.tejhq.dev/v1/status';
 
 export function buildMarketDataRequestUrl(baseUrl, parameters = {}) {
   const url = new URL(baseUrl);

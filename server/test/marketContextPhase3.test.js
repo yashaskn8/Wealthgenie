@@ -362,6 +362,51 @@ test('market snapshot preserves qualified failover diagnostics and selected-prov
   assert(pair.marketSnapshot.provenance.sources.every(source => source.provider === 'UPSTOX'));
 });
 
+test('selected two-provider mode rejects injected NSE evidence and an old NSE last-known-good snapshot', async () => {
+  resetMarketContextProcessStateForTest();
+  const legacyEnv = { NODE_ENV: 'test', MARKET_DATA_MODE: 'LEGACY' };
+  const selectedEnv = { NODE_ENV: 'test', MARKET_DATA_MODE: 'UPSTOX_TEJHQ' };
+  let stored = null;
+  const legacy = await getLiveMarketContext({ now: NOW }, {
+    env: legacyEnv,
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    fetchQualifiedMarketContextSnapshots: async () => ({
+      quoteSnapshot: quoteSnapshot(),
+      historicalSnapshot: historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index)),
+    }),
+    getCache: async () => null,
+    setCache: async () => false,
+    persistDurableLkg: async value => { stored = value; return { status: 'PERSISTED' }; },
+  });
+  assert.equal(legacy.status, 'MARKET_CONTEXT_AVAILABLE');
+  assert.ok(stored);
+
+  const selected = await getLiveMarketContext({ now: NOW }, {
+    env: selectedEnv,
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    fetchQualifiedMarketContextSnapshots: async () => ({
+      quoteSnapshot: quoteSnapshot(),
+      historicalSnapshot: historySnapshot(Array.from({ length: 60 }, (_, index) => 100 + index)),
+    }),
+    getCache: async () => null,
+    getLkgCache: async () => stored,
+    getDurableLkg: async () => null,
+    setCache: async () => { assert.fail('rejected NSE evidence cannot advance state'); },
+  });
+  assert.equal(selected.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert.ok(selected.reasonCodes.includes('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'));
+  assert.deepEqual(selected.marketSnapshot.provenance.sources, []);
+
+  const recommendation = await getLatestQualifiedMarketContextForRecommendation({ now: NOW }, {
+    env: selectedEnv,
+    marketDataTestFixtureRightsCapability: TEST_MARKET_DATA_RIGHTS_CAPABILITY,
+    getLkgCache: async () => stored,
+    getDurableLkg: async () => null,
+  });
+  assert.equal(recommendation.status, 'MARKET_CONTEXT_UNAVAILABLE');
+  assert.deepEqual(recommendation.reasonCodes, ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED']);
+});
+
 test('available injected market observations without exact source provenance cannot reach policy or persistence', async () => {
   resetMarketContextProcessStateForTest();
   const validQuotes = quoteSnapshot();

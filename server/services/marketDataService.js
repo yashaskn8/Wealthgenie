@@ -24,6 +24,7 @@ import UpstoxMarketDataProvider, {
   UPSTOX_QUOTE_URL,
 } from './marketData/UpstoxMarketDataProvider.js';
 import { buildUpstoxQuoteRequestUrl } from './marketData/marketDataSourceUrls.js';
+import { UPSTOX_NSE_MARKET_STATUS_URL, UPSTOX_MARKET_TIMINGS_RIGHTS_URL } from './marketData/marketDataSourceUrls.js';
 import UpstoxHistoricalCandleProvider, {
   NIFTY_50_INSTRUMENT_KEY,
   UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
@@ -59,6 +60,10 @@ import {
 } from './marketData/contracts.js';
 import { isoDateInIndia } from './marketData/indiaMarketTime.js';
 import { isUsableNseTradingCalendar, NSE_TRADING_HOLIDAY_URL } from './marketData/nseTradingCalendar.js';
+import UpstoxTradingCalendarProvider, {
+  expectedUpstoxNseSessions,
+  UPSTOX_TRADING_HOLIDAYS_URL,
+} from './marketData/UpstoxTradingCalendarProvider.js';
 import { persistVerifiedMarketSnapshot } from './marketData/MarketDataRepository.js';
 import { isUpstoxPublicDistributionAllowed } from './marketData/upstoxDistributionPolicy.js';
 import {
@@ -70,6 +75,7 @@ const amfiProvider = new AmfiNavProvider();
 const amfiHistoryProvider = new AmfiNavHistoryProvider();
 const upstoxProvider = new UpstoxMarketDataProvider();
 const upstoxHistoryProvider = new UpstoxHistoricalCandleProvider();
+const upstoxCalendarProvider = new UpstoxTradingCalendarProvider();
 const nseProvider = new NseMarketDataProvider();
 const nseHistoryProvider = new NseHistoricalDataProvider();
 const tejHqProvider = new TejHqHistoricalDataProvider();
@@ -90,6 +96,16 @@ export function resolvePrimaryMarketProvider(env = process.env) {
 }
 
 export const PRIMARY_MARKET_PROVIDER = resolvePrimaryMarketProvider();
+
+export const TWO_PROVIDER_MARKET_DATA_MODE = 'UPSTOX_TEJHQ';
+
+export function isTwoProviderMarketDataMode(env = process.env) {
+  const mode = String(env.MARKET_DATA_MODE || 'LEGACY').trim().toUpperCase();
+  if (!['LEGACY', TWO_PROVIDER_MARKET_DATA_MODE].includes(mode)) {
+    throw new Error('MARKET_DATA_MODE must be LEGACY or UPSTOX_TEJHQ.');
+  }
+  return mode === TWO_PROVIDER_MARKET_DATA_MODE;
+}
 
 function productionRightsAllow(provider, urls, env = process.env, fixtureCapability = null) {
   return urls.every(url => isMarketDataProductionUseAllowed(provider, url, env, fixtureCapability));
@@ -117,9 +133,14 @@ function unavailableDistributionSnapshot(provider, code, now = new Date(), { inc
   };
 }
 
-function upstoxMarketContextRightsAllowed(env = process.env) {
+function upstoxMarketContextRightsAllowed(env = process.env, fixtureCapability = null) {
+  const endpoints = [UPSTOX_QUOTE_RIGHTS_URL, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL];
+  if (isTwoProviderMarketDataMode(env)) {
+    endpoints.push(UPSTOX_TRADING_HOLIDAYS_URL, UPSTOX_NSE_MARKET_STATUS_URL,
+      UPSTOX_MARKET_TIMINGS_RIGHTS_URL);
+  }
   return isUpstoxPublicDistributionAllowed(env)
-    && productionRightsAllow(PROVIDERS.UPSTOX, [UPSTOX_QUOTE_RIGHTS_URL, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL], env);
+    && productionRightsAllow(PROVIDERS.UPSTOX, endpoints, env, fixtureCapability);
 }
 
 function tejHqSourceUrl(path, parameters = {}) {
@@ -236,6 +257,65 @@ function qualifyUpstoxNseSessionCoverage(snapshot, calendarSnapshot, { fromDate,
   return { expectedDates, failureCode: null };
 }
 
+function qualifyUpstoxCalendarCoverage(snapshot, calendarSnapshot, { fromDate, toDate, now = new Date() } = {}) {
+  const expectedDates = expectedUpstoxNseSessions(fromDate, toDate, calendarSnapshot, now);
+  if (!expectedDates) {
+    return { expectedDates: [], failureCode: calendarSnapshot?.error?.code || 'UPSTOX_TRADING_CALENDAR_UNAVAILABLE' };
+  }
+  if (expectedDates.length === 0) return { expectedDates, failureCode: 'NO_EXPECTED_NSE_TRADING_SESSIONS' };
+  if (expectedDates.includes(isoDateInIndia(now))) {
+    return { expectedDates, failureCode: 'UPSTOX_CURRENT_SESSION_NOT_VERIFIED_FINAL' };
+  }
+  const observedDates = snapshot.candles.map(candle => isoDateInIndia(candle.timestamp));
+  if (observedDates.length !== expectedDates.length
+      || observedDates.some((date, index) => date !== expectedDates[index])) {
+    return { expectedDates, failureCode: 'UPSTOX_HISTORY_SESSION_COVERAGE_INCOMPLETE' };
+  }
+  return { expectedDates, failureCode: null };
+}
+
+export function qualifyUpstoxBenchmarkHistory(snapshot, calendarSnapshot, { now = new Date(), toDate } = {}) {
+  const currentYear = isoDateInIndia(now)?.slice(0, 4);
+  const fromDate = currentYear ? `${currentYear}-01-01` : null;
+  const expectedDates = fromDate
+    ? expectedUpstoxNseSessions(fromDate, toDate, calendarSnapshot, now) : null;
+  const candles = Array.isArray(snapshot?.candles)
+    ? snapshot.candles.filter(candle => {
+      const date = isoDateInIndia(candle?.timestamp);
+      return date && date >= fromDate && date <= toDate;
+    }) : [];
+  const candidate = { ...snapshot, candles };
+  const observedDates = candles.map(candle => isoDateInIndia(candle.timestamp));
+  const failureCode = !expectedDates
+    ? calendarSnapshot?.error?.code || 'UPSTOX_BENCHMARK_CALENDAR_UNAVAILABLE'
+    : expectedDates.length < 50
+      ? 'UPSTOX_BENCHMARK_SESSION_COVERAGE_INSUFFICIENT'
+      : !isQualifiedUpstoxDailyHistory(candidate, {
+        instrumentKey: NIFTY_50_INSTRUMENT_KEY, fromDate, toDate,
+      }) || observedDates.length !== expectedDates.length
+        || observedDates.some((date, index) => date !== expectedDates[index])
+        ? 'UPSTOX_BENCHMARK_SESSION_COVERAGE_INCOMPLETE' : null;
+  if (failureCode) {
+    return {
+      ...snapshot, status: AVAILABILITY.SOURCE_ERROR, candles: [], candleCount: 0,
+      calendar: calendarSnapshot,
+      error: { code: failureCode }, reasonCodes: [failureCode],
+    };
+  }
+  return {
+    ...snapshot, candles, candleCount: candles.length,
+    calendar: calendarSnapshot,
+    coverage: {
+      status: 'COMPLETE_FOR_UPSTOX_CURRENT_YEAR_NSE_CALENDAR',
+      fromDate, toDate,
+      expectedSessionCount: expectedDates.length,
+      observedSessionCount: candles.length,
+      calendarProvider: PROVIDERS.UPSTOX,
+      calendarFetchedAt: calendarSnapshot.fetchedAt,
+    },
+  };
+}
+
 function unavailableEquityHistory({ request, reasonCode, primarySnapshot = null, providerStatus = null } = {}) {
   return {
     schemaVersion: MARKET_DATA_SCHEMA_VERSION,
@@ -284,6 +364,7 @@ export async function fetchQualifiedEquityHistory({
   upstoxProvider = upstoxHistoryProvider,
   tejHqHistoricalProvider = tejHqProvider,
   nseCalendarProvider = nseHistoryProvider,
+  upstoxCalendarProviderOverride = upstoxCalendarProvider,
   env = process.env,
   clock = () => new Date(),
   marketDataTestFixtureRightsCapability = null,
@@ -299,21 +380,26 @@ export async function fetchQualifiedEquityHistory({
   const request = { ...normalizedIdentity, fromDate: from, toDate: to, basis: normalizedBasis };
   const canonicalProductId = `market:equity:${request.exchange.toLowerCase()}:${request.isin}`;
   const upstoxInstrumentKey = `${request.exchange}_EQ|${request.isin}`;
+  const twoProviderMode = isTwoProviderMarketDataMode(env);
   if (request.exchange === 'NSE'
-      && !productionRightsAllow(PROVIDERS.NSE, [NSE_TRADING_HOLIDAY_URL], env, marketDataTestFixtureRightsCapability)) {
+      && !(twoProviderMode
+        ? productionRightsAllow(PROVIDERS.UPSTOX, [UPSTOX_TRADING_HOLIDAYS_URL], env, marketDataTestFixtureRightsCapability)
+        : productionRightsAllow(PROVIDERS.NSE, [NSE_TRADING_HOLIDAY_URL], env, marketDataTestFixtureRightsCapability))) {
     return unavailableEquityHistory({
       request,
       reasonCode: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
     });
   }
-  let nseCalendarPromise = null;
-  const loadNseCalendar = () => {
-    if (!nseCalendarPromise) {
-      nseCalendarPromise = Promise.resolve()
-        .then(() => nseCalendarProvider.holidayLoader({ forceRefresh: false }))
+  let calendarPromise = null;
+  const loadCalendar = () => {
+    if (!calendarPromise) {
+      calendarPromise = Promise.resolve()
+        .then(() => twoProviderMode
+          ? upstoxCalendarProviderOverride.getCalendar({ fromDate: from, toDate: to, forceRefresh: false })
+          : nseCalendarProvider.holidayLoader({ forceRefresh: false }))
         .catch(() => null);
     }
-    return nseCalendarPromise;
+    return calendarPromise;
   };
 
   let primarySnapshot = null;
@@ -344,12 +430,10 @@ export async function fetchQualifiedEquityHistory({
       toDate: to,
     })) {
       if (request.exchange === 'NSE') {
-        const calendarSnapshot = await loadNseCalendar();
-        const coverage = qualifyUpstoxNseSessionCoverage(primarySnapshot, calendarSnapshot, {
-          fromDate: from,
-          toDate: to,
-          now: clock(),
-        });
+        const calendarSnapshot = await loadCalendar();
+        const coverage = twoProviderMode
+          ? qualifyUpstoxCalendarCoverage(primarySnapshot, calendarSnapshot, { fromDate: from, toDate: to, now: clock() })
+          : qualifyUpstoxNseSessionCoverage(primarySnapshot, calendarSnapshot, { fromDate: from, toDate: to, now: clock() });
         if (!coverage.failureCode) {
           return {
             ...primarySnapshot,
@@ -360,10 +444,10 @@ export async function fetchQualifiedEquityHistory({
             priceBasis: 'UPSTOX_PROVIDER_NATIVE',
             fallbackUsed: false,
             coverage: {
-              status: 'COMPLETE_FOR_NSE_WEEKDAY_HOLIDAY_CALENDAR',
+              status: twoProviderMode ? 'COMPLETE_FOR_UPSTOX_NSE_CALENDAR' : 'COMPLETE_FOR_NSE_WEEKDAY_HOLIDAY_CALENDAR',
               expectedSessionCount: coverage.expectedDates.length,
               observedSessionCount: primarySnapshot.candles.length,
-              calendarProvider: PROVIDERS.NSE,
+              calendarProvider: twoProviderMode ? PROVIDERS.UPSTOX : PROVIDERS.NSE,
               calendarFetchedAt: calendarSnapshot.fetchedAt,
             },
             selection: {
@@ -418,17 +502,24 @@ export async function fetchQualifiedEquityHistory({
     return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_EXCHANGE_CALENDAR_NOT_QUALIFIED_FOR_FALLBACK', primarySnapshot });
   }
 
-  const calendarSnapshot = await loadNseCalendar();
-  const now = new Date();
-  if (!isUsableNseTradingCalendar(calendarSnapshot, now)) {
-    return unavailableEquityHistory({ request, reasonCode: 'NSE_TRADING_CALENDAR_UNAVAILABLE', primarySnapshot });
+  const calendarSnapshot = await loadCalendar();
+  const now = clock();
+  let expectedDates;
+  if (twoProviderMode) {
+    expectedDates = expectedUpstoxNseSessions(from, to, calendarSnapshot, now);
+    if (!expectedDates) {
+      return unavailableEquityHistory({ request, reasonCode: calendarSnapshot?.error?.code || 'UPSTOX_TRADING_CALENDAR_UNAVAILABLE', primarySnapshot });
+    }
+  } else {
+    if (!isUsableNseTradingCalendar(calendarSnapshot, now)) {
+      return unavailableEquityHistory({ request, reasonCode: 'NSE_TRADING_CALENDAR_UNAVAILABLE', primarySnapshot });
+    }
+    const requestedYears = new Set([from.slice(0, 4), to.slice(0, 4)]);
+    if ([...requestedYears].some(year => !calendarSnapshot.dates.some(date => date.startsWith(`${year}-`)))) {
+      return unavailableEquityHistory({ request, reasonCode: 'NSE_CALENDAR_RANGE_NOT_COVERED', primarySnapshot });
+    }
+    expectedDates = expectedNseSessions(from, to, calendarSnapshot.dates);
   }
-
-  const requestedYears = new Set([from.slice(0, 4), to.slice(0, 4)]);
-  if ([...requestedYears].some(year => !calendarSnapshot.dates.some(date => date.startsWith(`${year}-`)))) {
-    return unavailableEquityHistory({ request, reasonCode: 'NSE_CALENDAR_RANGE_NOT_COVERED', primarySnapshot });
-  }
-  const expectedDates = expectedNseSessions(from, to, calendarSnapshot.dates);
   if (expectedDates.length === 0) {
     return unavailableEquityHistory({ request, reasonCode: 'NO_EXPECTED_NSE_TRADING_SESSIONS', primarySnapshot });
   }
@@ -540,7 +631,7 @@ export async function fetchQualifiedEquityHistory({
       requestedRangePublicationStatus: 'PUBLISHED_THROUGH_REQUESTED_SESSION',
     },
     coverage: {
-      status: 'COMPLETE_FOR_NSE_WEEKDAY_HOLIDAY_CALENDAR',
+      status: twoProviderMode ? 'COMPLETE_FOR_UPSTOX_NSE_CALENDAR' : 'COMPLETE_FOR_NSE_WEEKDAY_HOLIDAY_CALENDAR',
       expectedSessionCount: expectedDates.length,
       observedSessionCount: candles.length,
       calendarSource: calendarSnapshot.source,
@@ -821,7 +912,7 @@ export async function fetchMutualFundNAVs(options = {}) {
 }
 
 export async function fetchBenchmarkQuotes({ forceRefresh = false, persist = true, env = process.env, now = new Date() } = {}) {
-  const provider = PRIMARY_MARKET_PROVIDER;
+  const provider = isTwoProviderMarketDataMode(env) ? 'UPSTOX' : PRIMARY_MARKET_PROVIDER;
   let snapshot;
   if (provider === 'UPSTOX') {
     snapshot = !productionRightsAllow(PROVIDERS.UPSTOX, [UPSTOX_QUOTE_RIGHTS_URL], env)
@@ -834,6 +925,11 @@ export async function fetchBenchmarkQuotes({ forceRefresh = false, persist = tru
     snapshot = productionRightsAllow(PROVIDERS.NSE, urls, env)
       ? await nseProvider.getQuotes(DEFAULT_BENCHMARK_IDS, { forceRefresh })
       : unavailableMarketSnapshot(PROVIDERS.NSE, NSE_ALL_INDICES_URL, { now });
+  }
+  if (provider === 'UPSTOX' && isTwoProviderMarketDataMode(env)
+      && snapshot.status === AVAILABILITY.AVAILABLE) {
+    const session = await upstoxCalendarProvider.getCurrentSession({ forceRefresh });
+    snapshot = { ...snapshot, marketSession: session, calendar: session.calendar ?? null };
   }
   const persistence = persist ? await persistFreshSnapshot(snapshot) : { status: 'NOT_REQUESTED' };
   return { ...snapshot, persistence };
@@ -941,7 +1037,7 @@ export async function fetchNiftyHistoricalCandles({
   env = process.env,
 } = {}) {
   const window = buildNiftyHistoryWindow(now);
-  const providerName = PRIMARY_MARKET_PROVIDER;
+  const providerName = isTwoProviderMarketDataMode(env) ? 'UPSTOX' : PRIMARY_MARKET_PROVIDER;
   const provider = providerName === 'UPSTOX' ? upstoxHistoryProvider : nseHistoryProvider;
   const instrumentId = providerName === 'UPSTOX'
     ? NIFTY_50_INSTRUMENT_KEY
@@ -974,16 +1070,19 @@ export async function fetchQualifiedMarketContextSnapshots({
   env = process.env,
   upstoxQuoteProvider = upstoxProvider,
   upstoxHistoryProviderOverride = upstoxHistoryProvider,
+  upstoxCalendarProviderOverride = upstoxCalendarProvider,
   nseQuoteProvider = nseProvider,
   nseHistoryProviderOverride = nseHistoryProvider,
+  marketDataTestFixtureRightsCapability = null,
 } = {}) {
   const window = buildNiftyHistoryWindow(now);
+  const twoProviderMode = isTwoProviderMarketDataMode(env);
   const providerPairs = [
-    ...(productionRightsAllow(PROVIDERS.NSE, [
+    ...(!twoProviderMode && productionRightsAllow(PROVIDERS.NSE, [
       NSE_ALL_INDICES_URL,
       NSE_HISTORICAL_INDEX_RIGHTS_URL,
       NSE_TRADING_HOLIDAY_URL,
-    ], env) ? [{
+    ], env, marketDataTestFixtureRightsCapability) ? [{
       name: 'NSE',
       fetchQuotes: () => nseQuoteProvider.getQuotes(DEFAULT_BENCHMARK_IDS, { forceRefresh: forceQuoteRefresh }),
       fetchHistory: () => nseHistoryProviderOverride.getDailyCandles(MARKET_BENCHMARKS.NIFTY_50.canonicalProductId, {
@@ -992,19 +1091,46 @@ export async function fetchQualifiedMarketContextSnapshots({
       }),
     }] : []),
   ];
-  if (upstoxMarketContextRightsAllowed(env)) {
+  if (upstoxMarketContextRightsAllowed(env, marketDataTestFixtureRightsCapability)) {
     providerPairs.push({
       name: 'UPSTOX',
-      fetchQuotes: () => upstoxQuoteProvider.getQuotes(DEFAULT_BENCHMARK_INSTRUMENT_KEYS, { forceRefresh: forceQuoteRefresh }),
-      fetchHistory: () => upstoxHistoryProviderOverride.getDailyCandles(NIFTY_50_INSTRUMENT_KEY, {
-        ...window,
-        forceRefresh: forceHistoryRefresh,
-      }),
+      fetchQuotes: async () => {
+        const quoteSnapshot = await upstoxQuoteProvider.getQuotes(DEFAULT_BENCHMARK_INSTRUMENT_KEYS, {
+          forceRefresh: forceQuoteRefresh,
+        });
+        if (!twoProviderMode) return quoteSnapshot;
+        if (quoteSnapshot?.status !== AVAILABILITY.AVAILABLE) {
+          return { ...quoteSnapshot, marketSession: { status: 'UNKNOWN', tradingDate: null } };
+        }
+        const session = await upstoxCalendarProviderOverride.getCurrentSession({ forceRefresh: forceQuoteRefresh });
+        return { ...quoteSnapshot, marketSession: session, calendar: session.calendar ?? null };
+      },
+      fetchHistory: async () => {
+        const history = await upstoxHistoryProviderOverride.getDailyCandles(NIFTY_50_INSTRUMENT_KEY, {
+          ...window,
+          forceRefresh: forceHistoryRefresh,
+        });
+        if (!twoProviderMode || history?.status !== AVAILABILITY.AVAILABLE) return history;
+        const currentYear = isoDateInIndia(now)?.slice(0, 4);
+        const fromDate = `${currentYear}-01-01`;
+        if (window.toDate < fromDate) {
+          return qualifyUpstoxBenchmarkHistory(history, {
+            status: AVAILABILITY.UNAVAILABLE,
+            error: { code: 'UPSTOX_CALENDAR_RANGE_NOT_COVERED' },
+          }, { now, toDate: window.toDate });
+        }
+        const calendar = await upstoxCalendarProviderOverride.getCalendar({
+          fromDate,
+          toDate: window.toDate,
+          forceRefresh: forceHistoryRefresh,
+        });
+        return qualifyUpstoxBenchmarkHistory(history, calendar, { now, toDate: window.toDate });
+      },
     });
   }
   if (providerPairs.length === 0) {
-    const provider = PRIMARY_MARKET_PROVIDER === 'UPSTOX' ? PROVIDERS.UPSTOX : PROVIDERS.NSE;
-    const url = PRIMARY_MARKET_PROVIDER === 'UPSTOX' ? UPSTOX_QUOTE_URL : NSE_ALL_INDICES_URL;
+    const provider = twoProviderMode || PRIMARY_MARKET_PROVIDER === 'UPSTOX' ? PROVIDERS.UPSTOX : PROVIDERS.NSE;
+    const url = provider === PROVIDERS.UPSTOX ? UPSTOX_QUOTE_URL : NSE_ALL_INDICES_URL;
     const quoteSnapshot = unavailableMarketSnapshot(provider, url, { now });
     const historyUrl = provider === PROVIDERS.UPSTOX ? UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL : NSE_HISTORICAL_INDEX_URL;
     const historySnapshot = unavailableMarketSnapshot(provider, historyUrl, { now, includeCandles: true });
@@ -1022,7 +1148,7 @@ export async function fetchQualifiedMarketContextSnapshots({
   }
   const result = await fetchQualifiedMarketPair({
     providers: providerPairs,
-    preferredProvider: PRIMARY_MARKET_PROVIDER,
+    preferredProvider: twoProviderMode ? 'UPSTOX' : PRIMARY_MARKET_PROVIDER,
   });
   const persistence = persist
     ? await Promise.all([
@@ -1163,7 +1289,7 @@ function sourceSummary(snapshot) {
     provider: snapshot.provider,
     status: snapshot.status,
     fetchedAt: snapshot.fetchedAt ?? null,
-    availableFactCount: snapshot.availableFactCount ?? 0,
+    availableFactCount: snapshot.availableFactCount ?? null,
     productCount: snapshot.productCount ?? null,
     cache: snapshot.cache ?? null,
     freshness,
@@ -1195,7 +1321,7 @@ export async function getMarketDataSummary(options = {}) {
       governmentSmallSavings: sourceSummary(government),
       sbiTermDeposits: sourceSummary(sbi),
     },
-    primaryMarketProvider: PRIMARY_MARKET_PROVIDER,
+    primaryMarketProvider: isTwoProviderMarketDataMode(options.env || process.env) ? 'UPSTOX' : PRIMARY_MARKET_PROVIDER,
     benchmarks: market.facts || [],
   };
 }

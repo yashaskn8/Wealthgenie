@@ -183,6 +183,7 @@ test('concurrent refreshes coalesce to one source load per active adapter', asyn
     const results = await Promise.all([first, second]);
     assert.equal(results[0].status, 'SOURCE_ERROR', name);
     assert.equal(results[1].status, 'SOURCE_ERROR', name);
-    assert.equal(calls, name.startsWith('NSE ') ? 2 : 1, `${name} must share one retry sequence`);
+    const expectedCalls = name.startsWith('Upstox ') ? 3 : name.startsWith('NSE ') ? 2 : 1;
+    assert.equal(calls, expectedCalls, `${name} must share one bounded retry sequence`);
   }
 });

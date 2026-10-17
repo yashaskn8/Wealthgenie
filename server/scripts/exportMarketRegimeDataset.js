@@ -6,6 +6,7 @@ import { NSE_TRADING_HOLIDAY_URL } from '../services/marketData/nseTradingCalend
 import { assertMarketDataQualificationRights } from '../services/marketData/marketDataRights.js';
 import { MARKET_BENCHMARKS } from '../services/marketData/marketBenchmarks.js';
 import { buildMarketRegimeDataset } from '../services/marketData/marketRegimeDataset.js';
+import { isTwoProviderMarketDataMode } from '../services/marketDataService.js';
 
 function argumentsByName(args) {
   const parsed = new Map();
@@ -29,6 +30,11 @@ if (!fromDate || !toDate || !output) {
 }
 
 try {
+  if (isTwoProviderMarketDataMode()) {
+    const error = new Error('NSE market-data export is disabled in UPSTOX_TEJHQ mode.');
+    error.code = 'NSE_MARKET_DATA_DISABLED_IN_TWO_PROVIDER_MODE';
+    throw error;
+  }
   assertMarketDataQualificationRights([
     { provider: 'NSE', url: NSE_HISTORICAL_INDEX_RIGHTS_URL },
     { provider: 'NSE', url: NSE_TRADING_HOLIDAY_URL },

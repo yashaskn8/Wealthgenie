@@ -19,6 +19,7 @@ export const MARKET_DISPLAY_STATES = Object.freeze({
   LAST_AVAILABLE: 'LAST_AVAILABLE',
   STALE: 'STALE',
   PARTIAL_DATA: 'PARTIAL_DATA',
+  RIGHTS_UNAVAILABLE: 'RIGHTS_UNAVAILABLE',
   UNAVAILABLE: 'UNAVAILABLE',
 });
 
@@ -47,6 +48,10 @@ const MARKET_DISPLAY_COPY = Object.freeze({
     label: 'Partial market data',
     detail: 'Some verified market facts are available; the rest are unavailable.',
   },
+  RIGHTS_UNAVAILABLE: {
+    label: 'Market data permission unavailable',
+    detail: 'The market source is not approved for this use. Market data cannot adjust a financial plan until permission is verified.',
+  },
   UNAVAILABLE: {
     label: 'Market data unavailable',
     detail: 'Verified market context is temporarily unavailable.',
@@ -54,8 +59,21 @@ const MARKET_DISPLAY_COPY = Object.freeze({
 });
 
 export function getMarketDisplayState(marketContext, { loading = false, refreshFailed = false } = {}) {
+  const reasonCodes = [
+    ...(Array.isArray(marketContext?.reasonCodes) ? marketContext.reasonCodes : []),
+    ...(Array.isArray(marketContext?.marketSnapshot?.policyOutput?.reasonCodes)
+      ? marketContext.marketSnapshot.policyOutput.reasonCodes : []),
+    marketContext?.marketSnapshot?.error?.code,
+  ];
+  const rightsUnavailable = reasonCodes.some(code => [
+    'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
+    'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED',
+    'UPSTOX_PERMISSION_DENIED',
+  ].includes(code));
   const key = loading
     ? MARKET_DISPLAY_STATES.LOADING
+    : rightsUnavailable
+      ? MARKET_DISPLAY_STATES.RIGHTS_UNAVAILABLE
     : refreshFailed && marketContext
       ? MARKET_DISPLAY_STATES.LAST_AVAILABLE
     : marketContext?.marketSnapshot?.status

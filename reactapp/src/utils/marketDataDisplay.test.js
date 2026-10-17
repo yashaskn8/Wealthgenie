@@ -28,6 +28,17 @@ describe('nullable market-data presentation', () => {
     expect(getMarketDisplayState({ status: 'MARKET_CONTEXT_UNAVAILABLE' }).key).toBe('UNAVAILABLE');
   });
 
+  it('shows permission failures as unavailable even when an older snapshot exists', () => {
+    const blocked = {
+      reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'],
+      marketSnapshot: { status: 'CURRENT' },
+    };
+    expect(getMarketDisplayState(blocked, { refreshFailed: true }).key).toBe('RIGHTS_UNAVAILABLE');
+    expect(getMarketDisplayState({
+      marketSnapshot: { policyOutput: { reasonCodes: ['UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'] } },
+    }).label).toBe('Market data permission unavailable');
+  });
+
   it('humanizes provenance without accepting unsafe evidence links', () => {
     expect(readableSource('GOVERNMENT_OF_INDIA')).toBe('Government of India');
     expect(readableSource('OFFICIAL_BANK_PUBLISHED_RATE')).toBe('Official bank published rate');

@@ -13,6 +13,7 @@ import { readThroughMarketCache } from './requestCache.js';
 import { isoDateInIndia } from './indiaMarketTime.js';
 import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
 import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import { getUpstoxWithRetry } from './upstoxRequestPolicy.js';
 import {
   evaluateMarketDataProductionRights,
   isMarketDataProductionUseAllowed,
@@ -170,7 +171,7 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
       loader: async () => {
         const requestFetchedAt = this.nowIso();
         try {
-          const response = await this.httpClient.get(requestUrl, {
+          const response = await getUpstoxWithRetry(this.httpClient, requestUrl, {
             timeout: 10_000,
             headers: {
               Accept: 'application/json',

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wealthgenie-market-data-coverage-1.3.0",
   "catalogVersion": "1.1.0",
-  "generatedAt": "2026-10-15T11:47:32.888Z",
+  "generatedAt": "2026-10-17T08:48:47.215Z",
   "totalCatalogEntries": 155,
   "classificationCounts": {
     "AUCTION_OR_BOND_TERMS": 1,
@@ -18,6 +18,371 @@
     "repositoryRightsRegisterEvaluated": true
   },
   "providerPaths": [
+    {
+      "pathId": "two-provider.upstox-market-context",
+      "marketMode": "UPSTOX_TEJHQ",
+      "provider": "UPSTOX",
+      "rightsEndpoints": [
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}"
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v3/historical-candle/{instrumentKey}/days/1/{toDate}/{fromDate}"
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/holidays"
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/status/NSE"
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/timings/{date}"
+        }
+      ],
+      "exactIdentity": [
+        "market:index:nifty-50",
+        "market:index:india-vix"
+      ],
+      "dataTypes": [
+        "LIVE_INDEX_QUOTES",
+        "NIFTY_50_DAILY_HISTORY",
+        "NSE_SESSION"
+      ],
+      "authorizationGate": "All exact Upstox endpoint rights and the separate public-distribution gate are required.",
+      "implementationAvailability": "IMPLEMENTED",
+      "runtimeAvailability": "NOT_PROBED",
+      "freshnessSemantics": "Trade time, exchange phase and current-year exact session coverage are independently checked; incomplete evidence abstains.",
+      "implementedConsumers": {
+        "api": [
+          {
+            "method": "GET",
+            "path": "/api/regime/current",
+            "use": "Selected-mode deterministic context."
+          }
+        ],
+        "internal": [
+          "marketDataService.fetchQualifiedMarketContextSnapshots",
+          "marketContextService.getLiveMarketContext"
+        ],
+        "frontend": [
+          {
+            "component": "useMarketContext",
+            "api": "GET /api/regime/current",
+            "status": "ACTIVE_CALLER"
+          }
+        ]
+      },
+      "missingPrerequisites": [
+        "Endpoint rights, account tier, approved use and live response are not verified.",
+        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
+      ],
+      "rightsChecks": [
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_QUOTES_V3",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-full-market-quote-v3/",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v3/historical-candle/{instrumentKey}/days/1/{toDate}/{fromDate}",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_HISTORICAL_CANDLES_V3",
+          "termsUrl": "https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/holidays",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_TRADING_HOLIDAYS",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-market-holidays/",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/status/NSE",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_NSE_MARKET_STATUS",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-market-status/",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/timings/{date}",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_MARKET_TIMINGS",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-market-timings/",
+          "productionUseAllowed": false
+        }
+      ],
+      "authorizedUseStatus": "LICENSE_UNVERIFIED",
+      "productionUseAllowed": false,
+      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
+      "validConsumers": {
+        "api": [],
+        "internal": [],
+        "frontend": []
+      }
+    },
+    {
+      "pathId": "two-provider.upstox-equity-history",
+      "marketMode": "UPSTOX_TEJHQ",
+      "provider": "UPSTOX",
+      "rightsEndpoints": [
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v3/historical-candle/{instrumentKey}/days/1/{toDate}/{fromDate}"
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/holidays"
+        }
+      ],
+      "exactIdentity": null,
+      "dataTypes": [
+        "RAW_DAILY_OHLC_HISTORY"
+      ],
+      "authorizationGate": "Exact historical-candle and annual-calendar rights and the public-distribution gate are required.",
+      "implementationAvailability": "IMPLEMENTED",
+      "runtimeAvailability": "NOT_PROBED",
+      "freshnessSemantics": "ISIN-keyed candles must cover every verified current-year NSE session; BSE and cross-year ranges abstain.",
+      "implementedConsumers": {
+        "api": [
+          {
+            "method": "GET",
+            "path": "/api/market-data/admin/equity-history",
+            "use": "Admin raw history."
+          }
+        ],
+        "internal": [
+          "marketDataService.fetchQualifiedEquityHistory",
+          "UpstoxTradingCalendarProvider.getCalendar"
+        ],
+        "frontend": []
+      },
+      "missingPrerequisites": [
+        "Endpoint rights, exact ISIN identity and live coverage are not verified.",
+        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
+      ],
+      "rightsChecks": [
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v3/historical-candle/{instrumentKey}/days/1/{toDate}/{fromDate}",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_HISTORICAL_CANDLES_V3",
+          "termsUrl": "https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/holidays",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_TRADING_HOLIDAYS",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-market-holidays/",
+          "productionUseAllowed": false
+        }
+      ],
+      "authorizedUseStatus": "LICENSE_UNVERIFIED",
+      "productionUseAllowed": false,
+      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
+      "validConsumers": {
+        "api": [],
+        "internal": [],
+        "frontend": []
+      }
+    },
+    {
+      "pathId": "two-provider.tejhq-raw-eod",
+      "marketMode": "UPSTOX_TEJHQ",
+      "provider": "TEJHQ",
+      "rightsEndpoints": [
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/ohlcv/{exchange}/{symbol}?from={from}&to={to}"
+        },
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}"
+        },
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/status"
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/holidays"
+        }
+      ],
+      "exactIdentity": null,
+      "dataTypes": [
+        "RAW_DAILY_OHLC_HISTORY"
+      ],
+      "authorizationGate": "Exact TejHQ history, symbol and publication rights plus Upstox calendar rights are required.",
+      "implementationAvailability": "IMPLEMENTED",
+      "runtimeAvailability": "NOT_PROBED",
+      "freshnessSemantics": "ISIN intervals, publication and each current-year NSE session must agree; adjusted values never replace raw OHLC.",
+      "implementedConsumers": {
+        "api": [
+          {
+            "method": "GET",
+            "path": "/api/market-data/admin/equity-history",
+            "use": "Admin raw history."
+          }
+        ],
+        "internal": [
+          "marketDataService.fetchQualifiedEquityHistory",
+          "TejHqHistoricalDataProvider.getStatus",
+          "UpstoxTradingCalendarProvider.getCalendar"
+        ],
+        "frontend": []
+      },
+      "missingPrerequisites": [
+        "Endpoint rights, account tier, exact symbol history and live publication are not verified.",
+        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
+      ],
+      "rightsChecks": [
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/ohlcv/{exchange}/{symbol}?from={from}&to={to}",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "TEJHQ_RAW_EOD",
+          "termsUrl": "https://tejhq.dev/docs",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "TEJHQ_SYMBOL_HISTORY",
+          "termsUrl": "https://tejhq.dev/docs",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/status",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "TEJHQ_PUBLICATION_STATUS",
+          "termsUrl": "https://tejhq.dev/docs",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/holidays",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_TRADING_HOLIDAYS",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-market-holidays/",
+          "productionUseAllowed": false
+        }
+      ],
+      "authorizedUseStatus": "LICENSE_UNVERIFIED",
+      "productionUseAllowed": false,
+      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
+      "validConsumers": {
+        "api": [],
+        "internal": [],
+        "frontend": []
+      }
+    },
+    {
+      "pathId": "two-provider.tejhq-adjusted-eod",
+      "marketMode": "UPSTOX_TEJHQ",
+      "provider": "TEJHQ",
+      "rightsEndpoints": [
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/adjusted/{exchange}/{symbol}?from={from}&to={to}"
+        },
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}"
+        },
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/status"
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/holidays"
+        }
+      ],
+      "exactIdentity": null,
+      "dataTypes": [
+        "ADJUSTED_DAILY_OHLC_HISTORY"
+      ],
+      "authorizationGate": "Exact TejHQ history, symbol and publication rights plus Upstox calendar rights are required.",
+      "implementationAvailability": "IMPLEMENTED",
+      "runtimeAvailability": "NOT_PROBED",
+      "freshnessSemantics": "ISIN intervals, publication and each current-year NSE session must agree; adjusted values never replace raw OHLC.",
+      "implementedConsumers": {
+        "api": [
+          {
+            "method": "GET",
+            "path": "/api/market-data/admin/equity-history",
+            "use": "Admin adjusted history."
+          }
+        ],
+        "internal": [
+          "marketDataService.fetchQualifiedEquityHistory",
+          "TejHqHistoricalDataProvider.getStatus",
+          "UpstoxTradingCalendarProvider.getCalendar"
+        ],
+        "frontend": []
+      },
+      "missingPrerequisites": [
+        "Endpoint rights, account tier, exact symbol history and live publication are not verified.",
+        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
+      ],
+      "rightsChecks": [
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/adjusted/{exchange}/{symbol}?from={from}&to={to}",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "TEJHQ_ADJUSTED_HISTORY",
+          "termsUrl": "https://tejhq.dev/docs",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "TEJHQ_SYMBOL_HISTORY",
+          "termsUrl": "https://tejhq.dev/docs",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "TEJHQ",
+          "url": "https://api.tejhq.dev/v1/status",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "TEJHQ_PUBLICATION_STATUS",
+          "termsUrl": "https://tejhq.dev/docs",
+          "productionUseAllowed": false
+        },
+        {
+          "provider": "UPSTOX",
+          "url": "https://api.upstox.com/v2/market/holidays",
+          "status": "LICENSE_UNVERIFIED",
+          "sourceId": "UPSTOX_TRADING_HOLIDAYS",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-market-holidays/",
+          "productionUseAllowed": false
+        }
+      ],
+      "authorizedUseStatus": "LICENSE_UNVERIFIED",
+      "productionUseAllowed": false,
+      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
+      "validConsumers": {
+        "api": [],
+        "internal": [],
+        "frontend": []
+      }
+    },
     {
       "pathId": "nse.market-context-pair",
       "provider": "NSE",
@@ -337,16 +702,16 @@
           "provider": "UPSTOX",
           "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "UPSTOX_QUOTES_V3",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-full-market-quote-v3/",
           "productionUseAllowed": false
         },
         {
           "provider": "UPSTOX",
           "url": "https://api.upstox.com/v3/historical-candle/{instrumentKey}/days/1/{toDate}/{fromDate}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "UPSTOX_HISTORICAL_CANDLES_V3",
+          "termsUrl": "https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/",
           "productionUseAllowed": false
         }
       ],
@@ -426,8 +791,8 @@
           "provider": "UPSTOX",
           "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "UPSTOX_QUOTES_V3",
+          "termsUrl": "https://upstox.com/developer/api-documentation/get-full-market-quote-v3/",
           "productionUseAllowed": false
         }
       ],
@@ -489,8 +854,8 @@
           "provider": "UPSTOX",
           "url": "https://api.upstox.com/v3/historical-candle/{instrumentKey}/days/1/{toDate}/{fromDate}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "UPSTOX_HISTORICAL_CANDLES_V3",
+          "termsUrl": "https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/",
           "productionUseAllowed": false
         },
         {
@@ -570,24 +935,24 @@
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/ohlcv/nse/{symbol}?from={fromDate}&to={toDate}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_RAW_EOD",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         },
         {
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/symbols/nse?isin={isin}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_SYMBOL_HISTORY",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         },
         {
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/status",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_PUBLICATION_STATUS",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         },
         {
@@ -667,24 +1032,24 @@
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/adjusted/nse/{symbol}?from={fromDate}&to={toDate}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_ADJUSTED_HISTORY",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         },
         {
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/symbols/nse?isin={isin}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_SYMBOL_HISTORY",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         },
         {
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/status",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_PUBLICATION_STATUS",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         },
         {
@@ -753,16 +1118,16 @@
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/actions/{symbol}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_CORPORATE_ACTIONS",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         },
         {
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_SYMBOL_HISTORY",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         }
       ],
@@ -816,8 +1181,8 @@
           "provider": "TEJHQ",
           "url": "https://api.tejhq.dev/v1/status",
           "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
+          "sourceId": "TEJHQ_PUBLICATION_STATUS",
+          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         }
       ],

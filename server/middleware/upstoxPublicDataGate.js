@@ -2,6 +2,7 @@ import { sendError } from './errorHandler.js';
 import { isUpstoxPublicDistributionAllowed } from '../services/marketData/upstoxDistributionPolicy.js';
 import { isMarketDataProductionUseAllowed } from '../services/marketData/marketDataRights.js';
 import { UPSTOX_QUOTE_URL } from '../services/marketData/UpstoxMarketDataProvider.js';
+import { isTwoProviderMarketDataMode } from '../services/marketDataService.js';
 
 /**
  * Public Upstox-derived output requires both the operator's enablement flag
@@ -14,7 +15,7 @@ export function createUpstoxPublicDataGate({
 } = {}) {
   return function upstoxPublicDataGate(req, res, next) {
     const primaryProvider = String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase();
-    const usesUpstox = requiresUpstox || primaryProvider === 'UPSTOX';
+    const usesUpstox = requiresUpstox || primaryProvider === 'UPSTOX' || isTwoProviderMarketDataMode(env);
     if (usesUpstox && !isUpstoxPublicDistributionAllowed(env)) {
       return sendError(
         req,

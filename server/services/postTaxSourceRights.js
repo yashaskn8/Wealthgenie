@@ -5,6 +5,16 @@ import {
   INDIA_POST_SAVINGS_URL,
   SBI_TERM_DEPOSIT_URL,
   RBI_FRSB_NOTIFICATION_URL,
+  UPSTOX_TRADING_HOLIDAYS_URL,
+  UPSTOX_NSE_MARKET_STATUS_URL,
+  UPSTOX_MARKET_TIMINGS_RIGHTS_URL,
+  UPSTOX_QUOTE_RIGHTS_URL,
+  UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
+  TEJHQ_RAW_EOD_RIGHTS_URL,
+  TEJHQ_ADJUSTED_RIGHTS_URL,
+  TEJHQ_SYMBOL_HISTORY_RIGHTS_URL,
+  TEJHQ_CORPORATE_ACTIONS_RIGHTS_URL,
+  TEJHQ_PUBLICATION_STATUS_RIGHTS_URL,
 } from './marketData/marketDataSourceUrls.js';
 
 export const POST_TAX_SOURCE_RIGHTS_STATES = Object.freeze({
@@ -115,6 +125,42 @@ const SOURCE_RECORDS = Object.freeze([
 
 const POTENTIAL_SOURCE_RECORDS = Object.freeze([
   ...SOURCE_RECORDS,
+  ...[
+    ['UPSTOX_QUOTES_V3', PROVIDERS.UPSTOX, UPSTOX_QUOTE_RIGHTS_URL,
+      'https://upstox.com/developer/api-documentation/get-full-market-quote-v3/'],
+    ['UPSTOX_HISTORICAL_CANDLES_V3', PROVIDERS.UPSTOX, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
+      'https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/'],
+    ['TEJHQ_RAW_EOD', PROVIDERS.TEJHQ, TEJHQ_RAW_EOD_RIGHTS_URL, 'https://tejhq.dev/docs'],
+    ['TEJHQ_ADJUSTED_HISTORY', PROVIDERS.TEJHQ, TEJHQ_ADJUSTED_RIGHTS_URL, 'https://tejhq.dev/docs'],
+    ['TEJHQ_SYMBOL_HISTORY', PROVIDERS.TEJHQ, TEJHQ_SYMBOL_HISTORY_RIGHTS_URL, 'https://tejhq.dev/docs'],
+    ['TEJHQ_CORPORATE_ACTIONS', PROVIDERS.TEJHQ, TEJHQ_CORPORATE_ACTIONS_RIGHTS_URL, 'https://tejhq.dev/docs'],
+    ['TEJHQ_PUBLICATION_STATUS', PROVIDERS.TEJHQ, TEJHQ_PUBLICATION_STATUS_RIGHTS_URL, 'https://tejhq.dev/docs'],
+  ].map(([sourceId, provider, url, termsUrl]) => sourceRecord({
+    sourceId, provider, url, status: LICENSE_UNVERIFIED, termsUrl,
+    rights: { ...UNKNOWN_RIGHTS },
+    basis: 'Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required.',
+  })),
+  sourceRecord({
+    sourceId: 'UPSTOX_TRADING_HOLIDAYS', provider: PROVIDERS.UPSTOX,
+    url: UPSTOX_TRADING_HOLIDAYS_URL, status: LICENSE_UNVERIFIED,
+    termsUrl: 'https://upstox.com/developer/api-documentation/get-market-holidays/',
+    rights: { ...UNKNOWN_RIGHTS },
+    basis: 'The endpoint documents current-year holiday and special-session access. Production extraction, storage, derived-calculation, public-display and redistribution rights require operator evidence.',
+  }),
+  sourceRecord({
+    sourceId: 'UPSTOX_NSE_MARKET_STATUS', provider: PROVIDERS.UPSTOX,
+    url: UPSTOX_NSE_MARKET_STATUS_URL, status: LICENSE_UNVERIFIED,
+    termsUrl: 'https://upstox.com/developer/api-documentation/get-market-status/',
+    rights: { ...UNKNOWN_RIGHTS },
+    basis: 'The documented read-only endpoint exposes exchange status. Production use and redistribution remain unverified without operator evidence.',
+  }),
+  sourceRecord({
+    sourceId: 'UPSTOX_MARKET_TIMINGS', provider: PROVIDERS.UPSTOX,
+    url: UPSTOX_MARKET_TIMINGS_RIGHTS_URL, status: LICENSE_UNVERIFIED,
+    termsUrl: 'https://upstox.com/developer/api-documentation/get-market-timings/',
+    rights: { ...UNKNOWN_RIGHTS },
+    basis: 'The documented read-only endpoint supplies exchange session times for one date. Production extraction and public-use permission remain unverified.',
+  }),
   sourceRecord({
     sourceId: 'NSE_MCP_BHAVCOPY', provider: 'NSE_MCP',
     url: 'https://mcp.nseindia.in/bhavcopy/cm/mcp', matchPath: '/bhavcopy/cm/mcp',

@@ -14,13 +14,17 @@ import { readThroughMarketCache } from './requestCache.js';
 import { isoDateInIndia } from './indiaMarketTime.js';
 import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
 import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import { getUpstoxWithRetry } from './upstoxRequestPolicy.js';
 import {
   evaluateMarketDataProductionRights,
   isMarketDataProductionUseAllowed,
 } from './marketDataRights.js';
+import {
+  UPSTOX_HISTORICAL_CANDLE_V3_URL,
+  UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
+} from './marketDataSourceUrls.js';
 
-export const UPSTOX_HISTORICAL_CANDLE_V3_URL = 'https://api.upstox.com/v3/historical-candle';
-export const UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL = UPSTOX_HISTORICAL_CANDLE_V3_URL + '/{instrumentKey}/days/1/{toDate}/{fromDate}';
+export { UPSTOX_HISTORICAL_CANDLE_V3_URL, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL };
 export const UPSTOX_HISTORY_CACHE_TTL_SECONDS = 6 * 60 * 60;
 export const UPSTOX_HISTORY_CACHE_QUALIFIER = 'unique-timestamps-2';
 export const UPSTOX_DAILY_HISTORY_FRESHNESS_SECONDS = 4 * 24 * 60 * 60;
@@ -213,7 +217,7 @@ export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
       loader: async () => {
         const requestFetchedAt = this.nowIso();
         try {
-          const response = await this.httpClient.get(sourceUrl, {
+          const response = await getUpstoxWithRetry(this.httpClient, sourceUrl, {
             timeout: 15_000,
             headers: {
               Accept: 'application/json',

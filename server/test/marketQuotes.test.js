@@ -12,6 +12,10 @@ import {
   NSE_HISTORICAL_INDEX_RIGHTS_URL,
   NSE_TRADING_HOLIDAY_URL,
   UPSTOX_QUOTE_RIGHTS_URL,
+  UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
+  UPSTOX_TRADING_HOLIDAYS_URL,
+  UPSTOX_NSE_MARKET_STATUS_URL,
+  UPSTOX_MARKET_TIMINGS_RIGHTS_URL,
 } from '../services/marketData/marketDataSourceUrls.js';
 import {
   MAX_CANONICAL_UPSTOX_QUOTE_IDS,
@@ -273,7 +277,23 @@ test('coverage matrix accounts for all catalog entries without treating parent c
   assert.ok(tejHqCorporateActionsPath.rightsChecks.some(check => check.url.endsWith('/v1/symbols/{exchange}?isin={isin}')));
   assert.ok(!tejHqCorporateActionsPath.rightsChecks.some(check => check.url.endsWith('/v1/actions/symbol')));
   assert.deepEqual(tejHqCorporateActionsPath.validConsumers.api, []);
+  const selectedPaths = coverage.providerPaths.filter(path => path.marketMode === 'UPSTOX_TEJHQ');
+  assert.equal(selectedPaths.length, 4);
+  assert.ok(selectedPaths.every(path => path.rightsChecks.every(check => check.provider !== 'NSE')));
+  const selectedContext = selectedPaths.find(path => path.pathId === 'two-provider.upstox-market-context');
+  assert.deepEqual(selectedContext.rightsChecks.map(check => check.url), [
+    UPSTOX_QUOTE_RIGHTS_URL,
+    UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
+    UPSTOX_TRADING_HOLIDAYS_URL,
+    UPSTOX_NSE_MARKET_STATUS_URL,
+    UPSTOX_MARKET_TIMINGS_RIGHTS_URL,
+  ]);
+  assert.ok(selectedPaths.every(path => path.productionUseAllowed === false));
   for (const pathId of [
+    'two-provider.upstox-market-context',
+    'two-provider.upstox-equity-history',
+    'two-provider.tejhq-raw-eod',
+    'two-provider.tejhq-adjusted-eod',
     'nse.market-context-pair',
     'nse.index-quotes',
     'nse.index-history',

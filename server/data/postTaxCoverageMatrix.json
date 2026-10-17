@@ -148,6 +148,206 @@
       "basis": "The official RBI source establishes bond-rule evidence; no exact automated retrieval, storage, derived-calculation, public-display, or commercial-use permission record is present in the repository."
     },
     {
+      "sourceId": "UPSTOX_QUOTES_V3",
+      "provider": "UPSTOX",
+      "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://upstox.com/developer/api-documentation/get-full-market-quote-v3/",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required."
+    },
+    {
+      "sourceId": "UPSTOX_HISTORICAL_CANDLES_V3",
+      "provider": "UPSTOX",
+      "url": "https://api.upstox.com/v3/historical-candle/{instrumentKey}/days/1/{toDate}/{fromDate}",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required."
+    },
+    {
+      "sourceId": "TEJHQ_RAW_EOD",
+      "provider": "TEJHQ",
+      "url": "https://api.tejhq.dev/v1/ohlcv/{exchange}/{symbol}?from={from}&to={to}",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://tejhq.dev/docs",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required."
+    },
+    {
+      "sourceId": "TEJHQ_ADJUSTED_HISTORY",
+      "provider": "TEJHQ",
+      "url": "https://api.tejhq.dev/v1/adjusted/{exchange}/{symbol}?from={from}&to={to}",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://tejhq.dev/docs",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required."
+    },
+    {
+      "sourceId": "TEJHQ_SYMBOL_HISTORY",
+      "provider": "TEJHQ",
+      "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://tejhq.dev/docs",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required."
+    },
+    {
+      "sourceId": "TEJHQ_CORPORATE_ACTIONS",
+      "provider": "TEJHQ",
+      "url": "https://api.tejhq.dev/v1/actions/{symbol}",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://tejhq.dev/docs",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required."
+    },
+    {
+      "sourceId": "TEJHQ_PUBLICATION_STATUS",
+      "provider": "TEJHQ",
+      "url": "https://api.tejhq.dev/v1/status",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://tejhq.dev/docs",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required."
+    },
+    {
+      "sourceId": "UPSTOX_TRADING_HOLIDAYS",
+      "provider": "UPSTOX",
+      "url": "https://api.upstox.com/v2/market/holidays",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://upstox.com/developer/api-documentation/get-market-holidays/",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "The endpoint documents current-year holiday and special-session access. Production extraction, storage, derived-calculation, public-display and redistribution rights require operator evidence."
+    },
+    {
+      "sourceId": "UPSTOX_NSE_MARKET_STATUS",
+      "provider": "UPSTOX",
+      "url": "https://api.upstox.com/v2/market/status/NSE",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://upstox.com/developer/api-documentation/get-market-status/",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "The documented read-only endpoint exposes exchange status. Production use and redistribution remain unverified without operator evidence."
+    },
+    {
+      "sourceId": "UPSTOX_MARKET_TIMINGS",
+      "provider": "UPSTOX",
+      "url": "https://api.upstox.com/v2/market/timings/{date}",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://upstox.com/developer/api-documentation/get-market-timings/",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "The documented read-only endpoint supplies exchange session times for one date. Production extraction and public-use permission remain unverified."
+    },
+    {
       "sourceId": "NSE_MCP_BHAVCOPY",
       "provider": "NSE_MCP",
       "url": "https://mcp.nseindia.in/bhavcopy/cm/mcp",

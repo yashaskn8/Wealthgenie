@@ -11,6 +11,15 @@ import {
   UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
 } from '../services/marketData/UpstoxHistoricalCandleProvider.js';
 import { UPSTOX_QUOTE_RIGHTS_URL } from '../services/marketData/UpstoxMarketDataProvider.js';
+import {
+  UPSTOX_TRADING_HOLIDAYS_URL,
+  UPSTOX_NSE_MARKET_STATUS_URL,
+  UPSTOX_MARKET_TIMINGS_RIGHTS_URL,
+  TEJHQ_RAW_EOD_RIGHTS_URL,
+  TEJHQ_ADJUSTED_RIGHTS_URL,
+  TEJHQ_SYMBOL_HISTORY_RIGHTS_URL,
+  TEJHQ_PUBLICATION_STATUS_RIGHTS_URL,
+} from '../services/marketData/marketDataSourceUrls.js';
 import { UPSTOX_INSTRUMENT_REGISTRY } from '../services/marketData/upstoxInstrumentRegistry.js';
 import { TEJHQ_API_BASE_URL } from '../services/marketData/TejHqHistoricalDataProvider.js';
 import {
@@ -32,6 +41,61 @@ const INDIA_POST_RIGHTS_ENDPOINTS = Object.freeze([
 ]);
 
 const PROVIDER_PATHS = Object.freeze([
+  {
+    pathId: 'two-provider.upstox-market-context', marketMode: 'UPSTOX_TEJHQ', provider: 'UPSTOX',
+    rightsEndpoints: [UPSTOX_QUOTE_RIGHTS_URL, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
+      UPSTOX_TRADING_HOLIDAYS_URL, UPSTOX_NSE_MARKET_STATUS_URL,
+      UPSTOX_MARKET_TIMINGS_RIGHTS_URL].map(url => ({ provider: 'UPSTOX', url })),
+    exactIdentity: ['market:index:nifty-50', 'market:index:india-vix'],
+    dataTypes: ['LIVE_INDEX_QUOTES', 'NIFTY_50_DAILY_HISTORY', 'NSE_SESSION'],
+    authorizationGate: 'All exact Upstox endpoint rights and the separate public-distribution gate are required.',
+    implementationAvailability: 'IMPLEMENTED', runtimeAvailability: NOT_PROBED,
+    freshnessSemantics: 'Trade time, exchange phase and current-year exact session coverage are independently checked; incomplete evidence abstains.',
+    implementedConsumers: {
+      api: [{ method: 'GET', path: '/api/regime/current', use: 'Selected-mode deterministic context.' }],
+      internal: ['marketDataService.fetchQualifiedMarketContextSnapshots', 'marketContextService.getLiveMarketContext'],
+      frontend: [{ component: 'useMarketContext', api: 'GET /api/regime/current', status: 'ACTIVE_CALLER' }],
+    },
+    missingPrerequisites: ['Endpoint rights, account tier, approved use and live response are not verified.'],
+  },
+  {
+    pathId: 'two-provider.upstox-equity-history', marketMode: 'UPSTOX_TEJHQ', provider: 'UPSTOX',
+    rightsEndpoints: [UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL, UPSTOX_TRADING_HOLIDAYS_URL]
+      .map(url => ({ provider: 'UPSTOX', url })),
+    exactIdentity: null, dataTypes: ['RAW_DAILY_OHLC_HISTORY'],
+    authorizationGate: 'Exact historical-candle and annual-calendar rights and the public-distribution gate are required.',
+    implementationAvailability: 'IMPLEMENTED', runtimeAvailability: NOT_PROBED,
+    freshnessSemantics: 'ISIN-keyed candles must cover every verified current-year NSE session; BSE and cross-year ranges abstain.',
+    implementedConsumers: {
+      api: [{ method: 'GET', path: '/api/market-data/admin/equity-history', use: 'Admin raw history.' }],
+      internal: ['marketDataService.fetchQualifiedEquityHistory', 'UpstoxTradingCalendarProvider.getCalendar'],
+      frontend: [],
+    },
+    missingPrerequisites: ['Endpoint rights, exact ISIN identity and live coverage are not verified.'],
+  },
+  ...[
+    { pathId: 'two-provider.tejhq-raw-eod', basis: 'RAW', url: TEJHQ_RAW_EOD_RIGHTS_URL },
+    { pathId: 'two-provider.tejhq-adjusted-eod', basis: 'ADJUSTED', url: TEJHQ_ADJUSTED_RIGHTS_URL },
+  ].map(({ pathId, basis, url }) => ({
+    pathId, marketMode: 'UPSTOX_TEJHQ', provider: 'TEJHQ',
+    rightsEndpoints: [
+      { provider: 'TEJHQ', url },
+      { provider: 'TEJHQ', url: TEJHQ_SYMBOL_HISTORY_RIGHTS_URL },
+      { provider: 'TEJHQ', url: TEJHQ_PUBLICATION_STATUS_RIGHTS_URL },
+      { provider: 'UPSTOX', url: UPSTOX_TRADING_HOLIDAYS_URL },
+    ],
+    exactIdentity: null, dataTypes: [`${basis}_DAILY_OHLC_HISTORY`],
+    authorizationGate: 'Exact TejHQ history, symbol and publication rights plus Upstox calendar rights are required.',
+    implementationAvailability: 'IMPLEMENTED', runtimeAvailability: NOT_PROBED,
+    freshnessSemantics: 'ISIN intervals, publication and each current-year NSE session must agree; adjusted values never replace raw OHLC.',
+    implementedConsumers: {
+      api: [{ method: 'GET', path: '/api/market-data/admin/equity-history', use: `Admin ${basis.toLowerCase()} history.` }],
+      internal: ['marketDataService.fetchQualifiedEquityHistory', 'TejHqHistoricalDataProvider.getStatus',
+        'UpstoxTradingCalendarProvider.getCalendar'],
+      frontend: [],
+    },
+    missingPrerequisites: ['Endpoint rights, account tier, exact symbol history and live publication are not verified.'],
+  })),
   {
     pathId: 'nse.market-context-pair',
     provider: 'NSE',

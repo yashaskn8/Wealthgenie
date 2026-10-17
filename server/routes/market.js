@@ -18,6 +18,7 @@ import {
   getMarketDataSummary,
   getMutualFundNavsBySchemeCodes,
   PRIMARY_MARKET_PROVIDER,
+  isTwoProviderMarketDataMode,
 } from '../services/marketDataService.js';
 import { getLiveMarketContext } from '../services/marketContextService.js';
 
@@ -66,7 +67,8 @@ export function respondToManualMarketRefresh(req, res, refreshResult) {
 
   return res.status(202).json({
     status: 'REFRESH_COMPLETED',
-    sources: ['AMFI_CURRENT_NAV', 'AMFI_HISTORICAL_NAV', 'GOVERNMENT_SMALL_SAVINGS', 'SBI_TERM_DEPOSITS', `${PRIMARY_MARKET_PROVIDER}_MARKET_CONTEXT`],
+    sources: ['AMFI_CURRENT_NAV', 'AMFI_HISTORICAL_NAV', 'GOVERNMENT_SMALL_SAVINGS', 'SBI_TERM_DEPOSITS',
+      `${isTwoProviderMarketDataMode() ? 'UPSTOX' : PRIMARY_MARKET_PROVIDER}_MARKET_CONTEXT`],
     results: refreshResult.map(result => result.status),
     message: 'A bounded administrative refresh completed. Provider failures remain explicitly unavailable.',
   });

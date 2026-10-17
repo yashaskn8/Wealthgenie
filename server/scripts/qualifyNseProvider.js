@@ -11,11 +11,16 @@ import {
   applyMarketContextHysteresis,
   classifyDeterministicMarketContext,
 } from '../services/marketContextPolicy.js';
-import { buildNiftyHistoryWindow } from '../services/marketDataService.js';
+import { buildNiftyHistoryWindow, isTwoProviderMarketDataMode } from '../services/marketDataService.js';
 import { assertMarketDataQualificationRights } from '../services/marketData/marketDataRights.js';
 import { NSE_TRADING_HOLIDAY_URL } from '../services/marketData/nseTradingCalendar.js';
 
 try {
+  if (isTwoProviderMarketDataMode()) {
+    const error = new Error('NSE live qualification is disabled in UPSTOX_TEJHQ mode.');
+    error.code = 'NSE_MARKET_DATA_DISABLED_IN_TWO_PROVIDER_MODE';
+    throw error;
+  }
   assertMarketDataQualificationRights([
     { provider: 'NSE', url: NSE_ALL_INDICES_URL },
     { provider: 'NSE', url: NSE_HISTORICAL_INDEX_RIGHTS_URL },
