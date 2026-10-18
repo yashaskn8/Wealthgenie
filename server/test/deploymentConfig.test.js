@@ -659,6 +659,20 @@ test('deployment validator rejects Kind application rollout before Phase 5 runti
 });
 
 
+test('production LLM selection does not inherit the deterministic demo mock model', () => {
+  const demoConfig = readYaml(repositoryRoot, 'k8s/configmap.yaml');
+  const production = readYaml(repositoryRoot, 'deploy/production/config-patch.yaml');
+  assert.equal(demoConfig.data.LLM_DEFAULT_PROVIDER, 'mock',
+    'Kind/demo must remain offline and safe by default');
+  assert.equal(production.data.LLM_DEFAULT_PROVIDER, 'GROQ',
+    'production must not silently suppress an externally configured provider');
+  assert.equal(production.data.LLM_PRIMARY_PROVIDER, 'GROQ');
+  assert.equal(production.data.LLM_GEMINI_FALLBACK_ENABLED, 'false',
+    'fallback cost and privacy must be separately opted in');
+  assert.equal(production.data.AGENTIC_PLAN_REVIEW_ENABLED, 'false',
+    'PlanReview stays behind its deliberate production release gate');
+});
+
 test('two-provider market and AI credentials are delivered only server-side and remain opt-in', () => {
   const compose = readYaml(repositoryRoot, 'docker-compose.yml');
   const configMap = readYaml(repositoryRoot, 'k8s/configmap.yaml');
