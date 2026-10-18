@@ -82,6 +82,16 @@ test('root-context application images include authoritative shared modules witho
   assert.match(frontendDockerfile, /COPY\s+shared\s+\/shared/);
 });
 
+test('production Nginx permits consent-gated first-party voice input but blocks external origins', () => {
+  const rootDir = fs.existsSync(path.join(process.cwd(), 'docker-compose.yml'))
+    ? process.cwd() : path.resolve(process.cwd(), '..');
+  const nginxConfig = fs.readFileSync(path.join(rootDir, 'reactapp', 'nginx.conf'), 'utf8');
+  assert.match(nginxConfig, /Permissions-Policy[^\n]*microphone=\(self\)/);
+  assert.doesNotMatch(nginxConfig, /Permissions-Policy[^\n]*microphone=\(\)/);
+  assert.match(nginxConfig, /Permissions-Policy[^\n]*camera=\(\)/);
+  assert.match(nginxConfig, /Permissions-Policy[^\n]*geolocation=\(\)/);
+});
+
 test('production edge timeout hierarchy is explicit and above the 90-second client deadline', () => {
   const rootDir = fs.existsSync(path.join(process.cwd(), 'docker-compose.yml'))
     ? process.cwd()
