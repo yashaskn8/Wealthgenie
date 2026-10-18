@@ -8,4 +8,11 @@ data:
   MONGODB_FLAVOR: "documentdb"
   AUTH_COOKIE_SECURE: "true"
   AUTH_COOKIE_SAME_SITE: "strict"
+  # Demo/Kind uses LLM_DEFAULT_PROVIDER=mock. Production must never
+  # accidentally inherit mock routing when an external model is configured.
+  # A missing or unauthorized provider credential still fails closed in the
+  # model gateway; it must not silently claim an external response.
+  LLM_DEFAULT_PROVIDER: "GROQ"
+  LLM_PRIMARY_PROVIDER: "GROQ"
+  LLM_GEMINI_FALLBACK_ENABLED: "false"
   AGENTIC_PLAN_REVIEW_ENABLED: "false"
