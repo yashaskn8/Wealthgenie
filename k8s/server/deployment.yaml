@@ -52,6 +52,39 @@ spec:
                 secretKeyRef:
                   name: wealthgenie-secrets
                   key: GEMINI_API_KEY
+            # Provider credentials are optional while the corresponding
+            # capabilities are disabled; missing keys never grant access.
+            # These are injected server-side only, never into the Vite build.
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: GROQ_API_KEY
+                  optional: true
+            - name: NVIDIA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: NVIDIA_API_KEY
+                  optional: true
+            - name: UPSTOX_ANALYTICS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: UPSTOX_ANALYTICS_TOKEN
+                  optional: true
+            - name: UPSTOX_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: UPSTOX_ACCESS_TOKEN
+                  optional: true
+            - name: TEJHQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: TEJHQ_API_KEY
+                  optional: true
             - name: ML_SERVICE_API_KEY
               valueFrom:
                 secretKeyRef:
