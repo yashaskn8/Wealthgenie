@@ -99,6 +99,12 @@ services:
       - AGENT_WORKER_HEALTH_PORT=5050
       - JWT_SECRET=${JWT_SECRET:-local-compose-jwt-secret-at-least-32-characters}
       - ML_SERVICE_API_KEY=${ML_SERVICE_API_KEY:-}
+      # External PlanReview execution runs in this separate worker process.
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      - LLM_PRIMARY_PROVIDER=${LLM_PRIMARY_PROVIDER:-GROQ}
+      - LLM_GEMINI_FALLBACK_ENABLED=${LLM_GEMINI_FALLBACK_ENABLED:-false}
       - REQUIRE_REDIS=${REQUIRE_REDIS:-false}
       - MONGODB_FLAVOR=${MONGODB_FLAVOR:-mongodb}
     depends_on:
@@ -138,12 +144,6 @@ services:
       - ENVIRONMENT=production
       - ML_STATE_BACKEND=mongodb
       - ML_SERVICE_API_KEY=${ML_SERVICE_API_KEY:-}
-      # External PlanReview execution runs in this separate worker process.
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
-      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
-      - LLM_PRIMARY_PROVIDER=${LLM_PRIMARY_PROVIDER:-GROQ}
-      - LLM_GEMINI_FALLBACK_ENABLED=${LLM_GEMINI_FALLBACK_ENABLED:-false}
       - ML_OPERATOR_KEY=${ML_OPERATOR_KEY:-}
       - MONGODB_URI=mongodb://mongodb:27017/wealthgenie?replicaSet=rs0
     depends_on:
