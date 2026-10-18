@@ -331,3 +331,20 @@ test('paid-tier, quota, timeout, TLS, and malformed failures are typed and not r
     assert.equal(JSON.stringify(result).includes('provider response'), false);
   }
 });
+
+
+test('TejHQ adapter uses the injected API key without process-global fallback', () => {
+  const env = {
+    NODE_ENV: 'production',
+    TEJHQ_ENABLED: 'true',
+    TEJHQ_LICENSE_CONFIRMED: 'true',
+    TEJHQ_API_KEY: '  injected-tejhq-key  ',
+  };
+  const injected = new TejHqHistoricalDataProvider({ env });
+  assert.equal(injected.apiKey, 'injected-tejhq-key');
+  assert.equal(injected.keyFingerprint?.length, 64);
+  const explicitEmpty = new TejHqHistoricalDataProvider({ env, apiKey: '' });
+  assert.equal(explicitEmpty.apiKey, '', 'explicit empty key must not fall back');
+  const missing = new TejHqHistoricalDataProvider({ env: { NODE_ENV: 'production' } });
+  assert.equal(missing.apiKey, '', 'must not borrow unrelated process credentials');
+});
