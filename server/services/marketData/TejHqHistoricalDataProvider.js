@@ -557,7 +557,7 @@ function errorSnapshot({ fetchedAt, source, code, provider = PROVIDERS.TEJHQ, id
 export default class TejHqHistoricalDataProvider extends MarketDataProvider {
   constructor(options = {}) {
     const {
-      apiKey = process.env.TEJHQ_API_KEY || '',
+      apiKey = undefined,
       env = process.env,
       httpClient = axios,
       clock = () => new Date(),
@@ -571,7 +571,7 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
       env,
     });
     this.env = env;
-    this.apiKey = String(apiKey || '').trim();
+    this.apiKey = String(apiKey ?? env.TEJHQ_API_KEY ?? '').trim();
     this.configuredEnabled = env.TEJHQ_ENABLED === 'true';
     this.licenseConfirmed = env.TEJHQ_LICENSE_CONFIRMED === 'true';
     this.enabled = this.configuredEnabled && this.licenseConfirmed;
