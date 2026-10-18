@@ -14,8 +14,36 @@ function csrfHeaders(context: BrowserContext, origin: string) {
 }
 
 async function register(page: Page, unique: string) {
-  await page.goto('/login');
-  await page.locator('#login-view a', { hasText: 'Register' }).click();
+  const browserErrors: string[] = [];
+  const assetFailures: string[] = [];
+  page.on('pageerror', error => browserErrors.push(String(error.name || 'Error') + ': ' + String(error.message || '').slice(0, 300)));
+  page.on('console', message => {
+    if (message.type() === 'error') browserErrors.push('console: ' + message.text().slice(0, 300));
+  });
+  page.on('response', response => {
+    const url = new URL(response.url());
+    if (response.status() >= 400 && (url.pathname.startsWith('/assets/') || url.pathname === '/login')) {
+      assetFailures.push(url.pathname + ': HTTP ' + response.status());
+    }
+  });
+  const navigation = await page.goto('/login');
+  const registerLink = page.locator('#login-view a', { hasText: 'Register' });
+  try {
+    await expect(registerLink, 'Login page must render before any account mutation').toBeVisible({ timeout: 10000 });
+  } catch {
+    // Log only scrubbed error categories and same-origin asset paths; never
+    // dump browser cookies, document HTML, access tokens or request headers.
+    throw new Error(JSON.stringify({
+      code: 'PRODUCTION_LOGIN_RENDER_FAILED',
+      navigationStatus: navigation?.status() ?? null,
+      path: new URL(page.url()).pathname,
+      browserErrors: browserErrors.slice(0, 8),
+      assetFailures: assetFailures.slice(0, 8),
+      loginFormCount: await page.locator('#login-view').count(),
+      rootChildCount: await page.locator('#root > *').count(),
+    }));
+  }
+  await registerLink.click();
   await page.locator('#reg-name').fill(`Edge E2E ${unique}`);
   await page.locator('#reg-email').fill(`edge-${unique}@example.com`);
   await page.locator('#reg-mobile').fill('9876543210');
