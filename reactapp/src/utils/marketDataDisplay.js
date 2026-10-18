@@ -59,11 +59,27 @@ const MARKET_DISPLAY_COPY = Object.freeze({
 });
 
 export function getMarketDisplayState(marketContext, { loading = false, refreshFailed = false } = {}) {
+  const snapshot = marketContext?.marketSnapshot;
+  const selection = marketContext?.liveProviderSelection || snapshot?.providerSelection;
+  // Source-rights errors may be nested under an unqualified provider attempt.
+  // Do not make the whole snapshot unavailable if another qualified provider
+  // was actually selected; never treat a failed attempt as selected evidence.
+  const failedProviderReasonCodes = selection && !selection.selectedProvider
+    ? (selection.providerFailures || []).flatMap(failure => failure?.reasonCodes || [])
+    : [];
   const reasonCodes = [
     ...(Array.isArray(marketContext?.reasonCodes) ? marketContext.reasonCodes : []),
-    ...(Array.isArray(marketContext?.marketSnapshot?.policyOutput?.reasonCodes)
-      ? marketContext.marketSnapshot.policyOutput.reasonCodes : []),
-    marketContext?.marketSnapshot?.error?.code,
+    ...(Array.isArray(snapshot?.reasonCodes) ? snapshot.reasonCodes : []),
+    ...(Array.isArray(snapshot?.policyOutput?.reasonCodes)
+      ? snapshot.policyOutput.reasonCodes : []),
+    ...(Array.isArray(snapshot?.providerStatus?.quotes?.reasonCodes)
+      ? snapshot.providerStatus.quotes.reasonCodes : []),
+    ...(Array.isArray(snapshot?.providerStatus?.history?.reasonCodes)
+      ? snapshot.providerStatus.history.reasonCodes : []),
+    snapshot?.providerStatus?.quotes?.error?.code,
+    snapshot?.providerStatus?.history?.error?.code,
+    snapshot?.error?.code,
+    ...failedProviderReasonCodes,
   ];
   const rightsUnavailable = reasonCodes.some(code => [
     'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
