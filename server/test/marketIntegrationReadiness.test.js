@@ -42,6 +42,24 @@ test('default market mode is not silently treated as an enabled Upstox integrati
   assert(result.marketContext.blockers.includes('UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'));
 });
 
+test('local market doctor never treats a development exception as production market rights', () => {
+  for (const nodeEnv of ['development', 'test', 'production']) {
+    const result = getMarketIntegrationReadiness({
+      NODE_ENV: nodeEnv,
+      MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      UPSTOX_ANALYTICS_TOKEN: 'fixture-never-printed',
+      TEJHQ_ENABLED: 'true',
+      TEJHQ_LICENSE_CONFIRMED: 'true',
+      TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true',
+      TEJHQ_API_KEY: 'fixture-never-printed',
+    });
+    assert.equal(result.marketContext.publicDistributionFlagEnabled, false);
+    assert.ok(result.marketContext.blockers.includes('UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'));
+    assert.equal(result.status, 'BLOCKED');
+    assert.doesNotMatch(JSON.stringify(result), /fixture-never-printed/);
+  }
+});
+
 test('admin diagnostics are authenticated, unauthorized requests never evaluate readiness', async () => {
   let reads = 0;
   const app = express();
