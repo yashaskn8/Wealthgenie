@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Compass, ShieldCheck, Target, Calculator, PieChart, Activity, Sparkles, ChevronRight, Mail, MessageCircle, X, ExternalLink, BookOpen, Lightbulb, CheckCircle, HelpCircle } from 'lucide-react';
+import { Compass, ShieldCheck, Target, Calculator, PieChart, Activity, Sparkles, ChevronRight, Mail, MessageCircle, X, BookOpen, Lightbulb, HelpCircle } from 'lucide-react';
 /* styles */
 import './HelpTourScreen.css';
 
 const HelpTourScreen = () => {
   const [showContactModal, setShowContactModal] = useState(false);
-  const [contactSent, setContactSent] = useState(false);
   const [expandedCard, setExpandedCard] = useState(null);
   const [expandedGlossary, setExpandedGlossary] = useState(null);
 
@@ -175,14 +174,6 @@ const HelpTourScreen = () => {
       step: '05'
     }
   ];
-
-  const handleContactSubmit = () => {
-    setContactSent(true);
-    setTimeout(() => {
-      setContactSent(false);
-      setShowContactModal(false);
-    }, 2500);
-  };
 
   return (
     <div className="help-page">
@@ -355,10 +346,11 @@ const HelpTourScreen = () => {
         </div>
         <h3 className="help-cta-title">Need Human Support?</h3>
         <p className="help-cta-desc">
-          While the algorithm calculates optimal paths, execution sometimes requires a human touch. Connect with a certified wealth advisor.
+          This application does not currently provide a verified advisor-contact or support-request service.
+          Please use an independently verified licensed professional for personalized financial advice.
         </p>
           <button className="help-cta-btn help-cta-btn-primary" onClick={() => setShowContactModal(true)}>
-            <Mail size={15} /> Contact Wealth Manager
+            <Mail size={15} /> Human Support Availability
           </button>
       </motion.div>
 
@@ -374,72 +366,30 @@ const HelpTourScreen = () => {
           >
             <motion.div
               className="help-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="help-human-support-title"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               onClick={e => e.stopPropagation()}
             >
-              {contactSent ? (
-                <div className="help-modal-success">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', damping: 12 }}
-                  >
-                    <CheckCircle size={56} color="#10b981" />
-                  </motion.div>
-                  <h3>Request Submitted!</h3>
-                  <p>A certified wealth advisor will reach out within 24 hours.</p>
-                </div>
-              ) : (
-                <>
-                  <button className="help-modal-close" onClick={() => setShowContactModal(false)}>
-                    <X size={18} />
-                  </button>
-                  <div className="help-modal-header">
-                    <div className="help-modal-icon">
-                      <Mail size={22} color="#38bdf8" />
-                    </div>
-                    <h3>Contact Wealth Manager</h3>
-                    <p>Fill in your details and our certified advisor will get back to you.</p>
-                  </div>
-                  <div className="help-modal-form">
-                    <div className="help-form-group">
-                      <label>Full Name</label>
-                      <input type="text" placeholder="Your name" className="help-form-input" />
-                    </div>
-                    <div className="help-form-row">
-                      <div className="help-form-group">
-                        <label>Email</label>
-                        <input type="email" placeholder="you@example.com" className="help-form-input" />
-                      </div>
-                      <div className="help-form-group">
-                        <label>Phone</label>
-                        <input type="tel" placeholder="+91 98765 43210" className="help-form-input" />
-                      </div>
-                    </div>
-                    <div className="help-form-group">
-                      <label>What do you need help with?</label>
-                      <select className="help-form-input">
-                        <option>Portfolio Review</option>
-                        <option>Tax Optimization</option>
-                        <option>Retirement Planning</option>
-                        <option>Goal-Based Investment</option>
-                        <option>Risk Assessment</option>
-                        <option>Other</option>
-                      </select>
-                    </div>
-                    <div className="help-form-group">
-                      <label>Message (optional)</label>
-                      <textarea className="help-form-input help-form-textarea" placeholder="Describe your query..." rows={3} />
-                    </div>
-                    <button className="help-form-submit" onClick={handleContactSubmit}>
-                      Submit Request <ExternalLink size={14} />
-                    </button>
-                  </div>
-                </>
-              )}
+              <button className="help-modal-close" type="button" aria-label="Close support availability" onClick={() => setShowContactModal(false)}>
+                <X size={18} />
+              </button>
+              <div className="help-modal-header">
+                <div className="help-modal-icon"><Mail size={22} color="#38bdf8" /></div>
+                <h3 id="help-human-support-title">Human support is not connected</h3>
+                <p>WealthGenie cannot accept or deliver advisor requests from this screen.</p>
+              </div>
+              <p className="help-cta-desc">
+                No contact information has been collected or sent. No advisor callback or response time is promised.
+                If you need regulated, personal financial advice, contact a licensed professional independently.
+              </p>
+              <button type="button" className="help-form-submit" onClick={() => setShowContactModal(false)}>
+                Close
+              </button>
             </motion.div>
           </motion.div>
         )}
