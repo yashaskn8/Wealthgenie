@@ -1,5 +1,8 @@
 [CmdletBinding()]
 param(
+  # Main is the normal release. An explicit switch enables only the named
+  # reviewed PR branch for a local rehearsal, never an arbitrary checkout.
+  [switch]$AllowAuditBranch,
   [switch]$RequireRedis,
   [string]$RedisServerPath,
   [ValidateRange(1024, 65535)]
@@ -29,7 +32,12 @@ $expectedEnvironmentId = 'f9cca306-e0be-4b82-95db-4c2cf0132d75'
 $redisPort = 6380
 $backendPort = $BackendPort
 $frontendPort = $FrontendPort
-$expectedOrigin = 'https://github.com/yashaskn8/WealthGenie-AI-Powered-Financial-AdvisoryPlatform.git'
+$expectedOrigins = @(
+  'https://github.com/yashaskn8/Wealthgenie.git',
+  'https://github.com/yashaskn8/Wealthgenie',
+  'git@github.com:yashaskn8/Wealthgenie.git'
+)
+$expectedBranch = if ($AllowAuditBranch) { 'audit/market-data-fail-closed-diagnostics-20261018' } else { 'main' }
 $backendPid = $null
 $frontendPid = $null
 $priorProcessState = $null
@@ -246,8 +254,8 @@ if ((-not (Test-Path -LiteralPath $cacheRoot -PathType Container)) -or (-not (Te
 
 $remote = (& git -C $repoRoot remote get-url origin 2>$null).Trim()
 $branch = (& git -C $repoRoot branch --show-current 2>$null).Trim()
-if ($remote -ne $expectedOrigin -or $branch -ne 'main') {
-  throw 'The canonical origin or main branch does not match; no service was started.'
+if (($remote -cnotin $expectedOrigins) -or ($branch -cne $expectedBranch)) {
+  throw 'The canonical Wealthgenie origin or exact selected branch does not match; no service was started.'
 }
 $head = (& git -C $repoRoot rev-parse HEAD).Trim()
 $gitStatus = (& git -C $repoRoot status --porcelain --untracked-files=all | Out-String).Trim()
@@ -447,7 +455,7 @@ if (Test-ListeningPort $backendPort) {
   }
   $priorProcessState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
   $backendOwners = @(Get-NetTCPConnection -State Listen -LocalPort $backendPort -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
-  $backendMatches = ($priorProcessState.repository -eq $repoRoot) -and ($priorProcessState.branch -eq 'main') `
+  $backendMatches = ($priorProcessState.repository -eq $repoRoot) -and ($priorProcessState.branch -ceq $expectedBranch) `
     -and ($priorProcessState.head -eq $head) -and ($priorProcessState.checkoutFingerprint -eq $checkoutFingerprint) `
     -and ($priorProcessState.rootEnvIdentity -eq $rootEnvIdentity) -and $priorProcessState.backendPid `
     -and ($backendOwners -contains [int]$priorProcessState.backendPid) `
@@ -502,7 +510,7 @@ if (-not (Test-ListeningPort $frontendPort)) {
     $priorProcessState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
   }
   $frontendOwners = @(Get-NetTCPConnection -State Listen -LocalPort $frontendPort -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
-  $frontendMatches = ($priorProcessState.repository -eq $repoRoot) -and ($priorProcessState.branch -eq 'main') `
+  $frontendMatches = ($priorProcessState.repository -eq $repoRoot) -and ($priorProcessState.branch -ceq $expectedBranch) `
     -and ($priorProcessState.head -eq $head) -and ($priorProcessState.checkoutFingerprint -eq $checkoutFingerprint) `
     -and ($priorProcessState.rootEnvIdentity -eq $rootEnvIdentity) -and $priorProcessState.frontendPid `
     -and ($frontendOwners -contains [int]$priorProcessState.frontendPid) `
@@ -535,7 +543,7 @@ $processState = [pscustomobject]@{
 }
 $processState | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
 Write-Host "Backend VERIFIED: loopback port $backendPort, READY, connected to the existing demo sentinel and transaction-capable replica set."
-Write-Host "Frontend VERIFIED: loopback port $frontendPort, login document returned HTTP 200 with the React root element."
+Write-Host "Frontend HTTP VERIFIED: loopback port $frontendPort returned the React root document. Browser rendering, protected screens, and account journeys require a separate Playwright run."
 Write-Host 'Credentials source: project-root .env only; server/.env was not loaded. Credential values were not printed.'
 if ($serverPassword -and $serverPassword -cne $demoPassword) {
   Write-Host 'Environment note: root/server demo passwords differ; the verified root .env value was selected without changing either file.'
