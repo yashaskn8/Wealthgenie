@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logoImg from '../assets/logo.png';
@@ -6,10 +6,8 @@ import genieVideo from '../assets/genie.mp4';
 import { useAuth } from '../context/AuthContext';
 
 function AuthPage() {
-  const [showUI, setShowUI] = useState(false);
   const [activeView, setActiveView] = useState('login');
   const [showPopup, setShowPopup] = useState(false);
-  const videoRef = useRef(null);
   const navigate = useNavigate();
   const { login, register } = useAuth();
 
@@ -23,23 +21,6 @@ function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [regErrors, setRegErrors] = useState({});
   const [isRegistering, setIsRegistering] = useState(false);
-
-  // ===== Video Event Handling =====
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleEnded = () => setShowUI(true);
-    const handleError = () => setShowUI(true);
-
-    video.addEventListener('ended', handleEnded);
-    video.addEventListener('error', handleError);
-
-    return () => {
-      video.removeEventListener('ended', handleEnded);
-      video.removeEventListener('error', handleError);
-    };
-  }, []);
 
   // ===== Password Validation Rules (Regex-based) =====
   const passwordRules = [
@@ -162,14 +143,14 @@ function AuthPage() {
     <>
       <div className="video-container">
         <div className="overlay"></div>
-        <video autoPlay muted playsInline ref={videoRef} id="bg-video">
+        <video autoPlay muted playsInline aria-hidden="true" id="bg-video">
           <source src={genieVideo} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </div>
 
       <main className="ui-layer">
-        <div className={`glass-card login-card ${showUI ? 'visible' : ''}`} id="login-container">
+        <div className="glass-card login-card visible" id="login-container">
           <div className="card-header">
             <div className="logo-icon">
               <img src={logoImg} alt="Wealth Genie Logo" />
@@ -182,8 +163,8 @@ function AuthPage() {
             <div className={`form-view ${activeView === 'login' ? 'active' : 'hidden'}`} id="login-view">
               <form id="login-form" onSubmit={handleLoginSubmit}>
                 <div className="input-group">
-                  <label htmlFor="login-email">Username</label>
-                  <input type="text" id="login-email" placeholder="e.g. admin" required autoComplete="username" />
+                  <label htmlFor="login-email">Email address</label>
+                  <input type="email" id="login-email" placeholder="you@example.com" required autoComplete="email" />
                 </div>
                 <div className="input-group">
                   <label htmlFor="login-password">Password</label>
@@ -204,11 +185,9 @@ function AuthPage() {
                   </div>
                 </div>
                 <div className="form-actions">
-                  <label className="remember-me">
-                    <input type="checkbox" />
-                    <span>Remember me</span>
-                  </label>
-                  <a href="#" className="forgot-password">Forgot Password?</a>
+                  <span className="forgot-password" role="status">
+                    Password recovery is not available in this version.
+                  </span>
                 </div>
                 <button type="submit" className="btn-primary">Login</button>
               </form>
