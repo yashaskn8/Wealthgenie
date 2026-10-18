@@ -77,6 +77,17 @@ describe('nullable market-data presentation', () => {
     }).key).toBe('CURRENT');
   });
 
+  it('does not crash on malformed provider-failure data from a partial backend DTO', () => {
+    for (const providerFailures of [null, {}, 'not-a-list', [{ reasonCodes: {} }]]) {
+      expect(getMarketDisplayState({
+        marketSnapshot: {
+          status: 'UNAVAILABLE',
+          providerSelection: { selectedProvider: null, providerFailures },
+        },
+      }).key).toBe('UNAVAILABLE');
+    }
+  });
+
   it('humanizes provenance without accepting unsafe evidence links', () => {
     expect(readableSource('GOVERNMENT_OF_INDIA')).toBe('Government of India');
     expect(readableSource('OFFICIAL_BANK_PUBLISHED_RATE')).toBe('Official bank published rate');
