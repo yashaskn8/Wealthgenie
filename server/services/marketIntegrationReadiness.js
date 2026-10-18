@@ -81,12 +81,17 @@ export function getMarketIntegrationReadiness(env = process.env) {
   const blockers = [
     ...(!selected ? ['UPSTOX_TEJHQ_MODE_NOT_SELECTED'] : []),
     ...upstoxBlockers,
+    // The selected two-provider mode is not fully ready merely because its
+    // Upstox half is configured. Expose missing TejHQ key/flags/rights as
+    // mode-level blockers while keeping per-provider diagnostics separate.
+    ...(selected ? tejHqBlockers : []),
   ];
   return {
     schemaVersion: 'market-integration-readiness-1.0.0',
     mode,
     primaryProvider: selected ? 'UPSTOX' : primary,
     status: blockers.length ? 'BLOCKED' : 'PREREQUISITES_CONFIGURED_NOT_LIVE_VERIFIED',
+    blockers: [...new Set(blockers)],
     liveProviderAccess: 'NOT_VERIFIED',
     providerEntitlements: 'NOT_VERIFIED',
     publicDistributionRights: 'NOT_VERIFIED_BY_LIVE_REQUEST',
