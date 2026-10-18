@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
 const launcher = readFileSync(new URL('../../scripts/start_local_demo.ps1', import.meta.url), 'utf8');
 
@@ -25,4 +24,20 @@ test('local presentation startup retains previously verified and isolated MongoD
   assert.match(launcher, /read-only transaction PASS/);
   assert.match(launcher, /-ne 'DEMO_DATABASE_VERIFIED'/);
   assert.match(launcher, /Browser rendering, protected screens, and account journeys require a separate Playwright run/);
+});
+
+test('local demo explicitly describes ML fallback and never silently claims real prediction availability', () => {
+  assert.match(launcher, /\[switch\]\$RequireMlService/);
+  assert.match(launcher, /ML_SERVICE_URL must be a loopback HTTP service origin/);
+  assert.match(launcher, /\$mlUri\.Host -notin @\('127\.0\.0\.1', 'localhost'\)/);
+  assert.match(launcher, /\$mlServiceUrl\/readyz/);
+  assert.match(launcher, /\$mlReadinessVerified = \$mlHealth\.status -eq 'ready'/);
+  assert.match(launcher, /ML_SERVICE_URL = \$mlServiceUrl/);
+  assert.match(launcher, /\$commonEnv\.ML_SERVICE_API_KEY = \$mlServiceApiKey/);
+  assert.match(launcher, /Model inference and API-key authorization were not exercised/);
+  assert.match(launcher, /ML service readiness: NOT VERIFIED/);
+  const mongoPosition = launcher.indexOf('MongoDB VERIFIED:');
+  const probePosition = launcher.indexOf('$mlHealth = Invoke-RestMethod');
+  assert.ok(mongoPosition >= 0 && probePosition > mongoPosition,
+    'probe ML after isolated Mongo readiness; Python may depend on the local database');
 });
