@@ -122,7 +122,8 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
         body: JSON.stringify({
           calculation_classification: 'PROFILE_GROUNDED_FINANCIAL_HEALTH',
           methodology_version: 'financial-health-1.0.0',
-          score: 60,
+          // 79 is the weighted sum of this fully synthetic fixture's scores.
+          score: 79,
           grade: 'Good',
           sub_scores: [
             { label: 'Savings Capacity', value: 70, weight: 30, extra: 'Synthetic savings fixture' },
