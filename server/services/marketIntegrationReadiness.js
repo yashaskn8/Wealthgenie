@@ -1,6 +1,6 @@
 import { evaluateMarketDataProductionRights } from './marketData/marketDataRights.js';
 import { hasUpstoxAccessToken } from './marketData/upstoxCredentials.js';
-import { isUpstoxPublicDistributionAllowed } from './marketData/upstoxDistributionPolicy.js';
+
 import {
   UPSTOX_QUOTE_RIGHTS_URL,
   UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
@@ -52,7 +52,10 @@ export function getMarketIntegrationReadiness(env = process.env) {
   const upstoxRights = rightsFor('UPSTOX', UPSTOX_SOURCES);
   const tejHqRights = rightsFor('TEJHQ', TEJHQ_SOURCES);
   const tokenConfigured = hasUpstoxAccessToken(env);
-  const publicDistributionEnabled = isUpstoxPublicDistributionAllowed(env);
+  // This report audits *production* prerequisites, even when invoked from a
+  // local developer process. Development's in-process distribution exception
+  // is not proof of a production/public display license.
+  const publicDistributionEnabled = env.UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED === 'true';
   const upstoxRightsQualified = Object.values(upstoxRights).every(source => source.productionUseAllowed);
   const upstoxBlockers = [
     ...(!tokenConfigured ? ['UPSTOX_TOKEN_NOT_CONFIGURED'] : []),
