@@ -288,6 +288,9 @@ describe('ProfilePage backend version contract', () => {
   });
 
   it('reuses the completion key for retries and rotates it after a payload change', async () => {
+    const secureKeys = vi.spyOn(api, 'generateUUID')
+      .mockReturnValueOnce('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+      .mockReturnValueOnce('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
     vi.spyOn(api, 'getCurrentProfile').mockRejectedValue({ status: 404 });
     const complete = vi.spyOn(api, 'completeFinancialProfile')
       .mockRejectedValueOnce(new Error('network failure'))
@@ -307,11 +310,14 @@ describe('ProfilePage backend version contract', () => {
     const firstKey = complete.mock.calls[0][2].headers['Idempotency-Key'];
     const retryKey = complete.mock.calls[1][2].headers['Idempotency-Key'];
     expect(retryKey).toBe(firstKey);
+    expect(firstKey).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(secureKeys).toHaveBeenCalledTimes(1);
 
     fireEvent.change(screen.getByTestId('profile-input-monthly_savings'), { target: { value: '26000' } });
     fireEvent.click(screen.getByTestId('profile-save'));
     await act(async () => {});
-    expect(complete.mock.calls[2][2].headers['Idempotency-Key']).not.toBe(retryKey);
+    expect(complete.mock.calls[2][2].headers['Idempotency-Key']).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    expect(secureKeys).toHaveBeenCalledTimes(2);
   });
 
   it('restores an existing authoritative recommendation before entering the dashboard', async () => {
