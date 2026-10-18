@@ -63,7 +63,11 @@ export function getMarketIntegrationReadiness(env = process.env) {
   const tejHqLicenseFlag = String(env.TEJHQ_LICENSE_CONFIRMED).toLowerCase() === 'true';
   const tejHqKeyConfigured = Boolean(String(env.TEJHQ_API_KEY || '').trim());
   const tejHqFallbackEnabled = env.TEJHQ_HISTORICAL_FALLBACK_ENABLED === 'true';
-  const tejHqRightsQualified = Object.values(tejHqRights).every(source => source.productionUseAllowed);
+  // Only capabilities required by the raw EOD fallback are hard prerequisites.
+  // Adjusted history and corporate actions are separately licensed features.
+  const tejHqRightsQualified = [
+    'rawDailyHistory', 'symbolHistory', 'publicationStatus',
+  ].every(capability => tejHqRights[capability].productionUseAllowed);
   const tejHqBlockers = [
     ...(!tejHqEnabled ? ['TEJHQ_DISABLED'] : []),
     ...(!tejHqLicenseFlag ? ['TEJHQ_LICENSE_FLAG_DISABLED'] : []),
