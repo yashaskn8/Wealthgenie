@@ -24,7 +24,13 @@ data:
   TEJHQ_LICENSE_CONFIRMED: "false"
   TEJHQ_HISTORICAL_FALLBACK_ENABLED: "false"
   TEJHQ_ADJUSTED_HISTORY_ENABLED: "false"
+  TEJHQ_CORPORATE_ACTIONS_ENABLED: "false"
+  TEJHQ_INTERNAL_DAILY_REQUEST_BUDGET: "200"
   LLM_PRIMARY_PROVIDER: "GROQ"
+  GROQ_MODEL: "openai/gpt-oss-120b"
+  NVIDIA_NIM_BASE_URL: "https://integrate.api.nvidia.com/v1"
+  NVIDIA_NIM_MODEL: "nvidia/nemotron-3.5-lightning-30b-a3b"
+  LLM_GEMINI_FALLBACK_ENABLED: "false"
   ML_SERVICE_URL: "http://wealthgenie-ml-service.wealthgenie.svc.cluster.local:8000"
   REDIS_URL: "redis://wealthgenie-redis.wealthgenie.svc.cluster.local:6379"
   # Kind/demo ingress origin. Production overlays must replace this with the

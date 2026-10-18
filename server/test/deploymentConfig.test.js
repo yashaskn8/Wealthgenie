@@ -715,3 +715,33 @@ test('two-provider market and AI credentials are delivered only server-side and 
   assert.equal(compose.services.reactapp.environment?.some?.(value => /UPSTOX|TEJHQ|GROQ|NVIDIA/.test(value)) ?? false, false,
     'provider secrets must never be forwarded to the browser');
 });
+
+test('optional market and model configuration remains operator-controlled across Compose and K8s', () => {
+  const compose = readYaml(repositoryRoot, 'docker-compose.yml');
+  const config = readYaml(repositoryRoot, 'k8s/configmap.yaml').data;
+  const serverEnv = compose.services.server.environment;
+  const workerEnv = compose.services['agent-worker'].environment;
+  const marketConfig = {
+    TEJHQ_CORPORATE_ACTIONS_ENABLED: 'false',
+    TEJHQ_INTERNAL_DAILY_REQUEST_BUDGET: '200',
+  };
+  const modelConfig = {
+    GROQ_MODEL: 'openai/gpt-oss-120b',
+    NVIDIA_NIM_BASE_URL: 'https://integrate.api.nvidia.com/v1',
+    NVIDIA_NIM_MODEL: 'nvidia/nemotron-3.5-lightning-30b-a3b',
+    LLM_GEMINI_FALLBACK_ENABLED: 'false',
+  };
+  for (const [variable, safeDefault] of Object.entries({ ...marketConfig, ...modelConfig })) {
+    assert.equal(config[variable], safeDefault, variable + ' must have an explicit safe K8s default');
+    assert.ok(serverEnv.some(entry => entry.startsWith(variable + '=\u0024{'+variable+':-')),
+      variable + ' must remain configurable on the API server in Compose');
+  }
+  for (const variable of Object.keys(modelConfig)) {
+    assert.ok(workerEnv.some(entry => entry.startsWith(variable + '=\u0024{'+variable+':-')),
+      variable + ' must be independently available to the external PlanReview worker');
+  }
+  for (const variable of Object.keys(marketConfig)) {
+    assert.equal(workerEnv.some(entry => entry.startsWith(variable + '=')), false,
+      'market-only flags must not leak to the external AI worker');
+  }
+});
