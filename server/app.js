@@ -170,12 +170,13 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
     '/api/regime/current',
     '/api/regime/adjust',
     '/api/market-data/admin/equity-history',
-    '/api/profile/precompute',
-    '/api/profile/complete',
-    '/api/profile/:profileId/health-score',
-    '/api/recommend',
   ], createUpstoxPublicDataGate({ env, allowUnavailableTwoProviderMode: true }));
-  app.put('/api/profile/:profileId', createUpstoxPublicDataGate({ env, allowUnavailableTwoProviderMode: true }));
+  // Financial profile and recommendation routes must remain independently
+  // usable when public Upstox distribution is unlicensed. Their own market
+  // context service already rejects unqualified evidence and any market tilt.
+  // Never place the provider-publication gate in front of authenticated core
+  // finance routes: it would block profile creation and portfolio updates
+  // before authorization or financial validation could even execute.
   const healthRoutes = createHealthRouter({
     runtimeState: lifecycle,
     requireRedis: config.requireRedis,
