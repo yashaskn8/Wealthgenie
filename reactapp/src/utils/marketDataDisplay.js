@@ -93,7 +93,11 @@ export function getMarketDisplayState(marketContext, { loading = false, refreshF
     ? MARKET_DISPLAY_STATES.LOADING
     : rightsUnavailable
       ? MARKET_DISPLAY_STATES.RIGHTS_UNAVAILABLE
-    : refreshFailed && marketContext
+    : refreshFailed && [
+      MARKET_DISPLAY_STATES.CURRENT,
+      MARKET_DISPLAY_STATES.MARKET_CLOSED,
+      MARKET_DISPLAY_STATES.LAST_AVAILABLE,
+    ].includes(snapshot?.status)
       ? MARKET_DISPLAY_STATES.LAST_AVAILABLE
     : marketContext?.marketSnapshot?.status
       || (marketContext?.status === 'MARKET_CONTEXT_AVAILABLE'
