@@ -163,14 +163,13 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
 
   app.use('/api/auth', authLimiter);
   app.use('/api', apiLimiter);
+  // Only direct quote publication is blocked at the HTTP perimeter.
+  // Read-only market summaries, regime snapshots, and admin history instead
+  // enforce exact source rights inside their provider facades and return
+  // explicit unavailable DTOs. This avoids masking auth with a 503, allows
+  // the UI to distinguish permission failures from transport failures, and
+  // never makes an unapproved provider call or emits an invented quote.
   app.use('/api/market-data/quotes', createUpstoxPublicDataGate({ env, requiresUpstox: true }));
-  app.use([
-    '/api/market/rates',
-    '/api/market/benchmarks',
-    '/api/regime/current',
-    '/api/regime/adjust',
-    '/api/market-data/admin/equity-history',
-  ], createUpstoxPublicDataGate({ env, allowUnavailableTwoProviderMode: true }));
   // Financial profile and recommendation routes must remain independently
   // usable when public Upstox distribution is unlicensed. Their own market
   // context service already rejects unqualified evidence and any market tilt.
