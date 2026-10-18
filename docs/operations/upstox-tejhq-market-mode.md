@@ -38,6 +38,14 @@ These exact endpoints are represented by `postTaxSourceRights.js` and enforced b
 
 Production requires operator evidence for **every** right dimension (`access`, `extraction`, `derivedCalculation`, `storage`, `publicDisplay`, `commercialUse`, `redistribution`), the approved production scope, exact endpoints, account tier and permitted use case. The existing Upstox public-distribution and TejHQ enablement flags are additional gates; they cannot approve missing rights. Ordinary CI uses injected synthetic transports only.
 
+## Local diagnostics without Docker or provider requests
+
+From the `server/` directory, run `npm run market:doctor` after configuring a private `.env`. The process reports mode, whether credentials are present, feature gates, and source-rights decisions. It **does not** display credential contents, contact Upstox/TejHQ, verify account entitlements, or require MongoDB, Redis, a browser, or Docker. Exit code `2` means required Upstox market-context preconditions are blocked. The report includes TejHQ fallback readiness separately.
+
+For authenticated administrators, `GET /api/market-data/admin/diagnostics` returns the same zero-network report behind the existing JWT/role guard and read limiter. A `BLOCKED` result is expected while the source rights register has unapproved production-use rights. Do not change the source-rights register or turn on licensing flags merely to force a green check. Validate account-specific rights separately before enabling production reads. This endpoint is not a live connectivity test.
+
+This diagnostic does not fix a missing OAuth callback. The current integration reads `UPSTOX_ANALYTICS_TOKEN` or `UPSTOX_ACCESS_TOKEN` from the server environment; signing in to an Upstox brokerage account by itself does not populate either variable.
+
 ## Source and execution inventory
 
 | Source | Current code status | Selected-mode behavior |
