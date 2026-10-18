@@ -61,10 +61,14 @@ export function getMarketIntegrationReadiness(env = process.env) {
   ];
   const tejHqEnabled = String(env.TEJHQ_ENABLED).toLowerCase() === 'true';
   const tejHqLicenseFlag = String(env.TEJHQ_LICENSE_CONFIRMED).toLowerCase() === 'true';
+  const tejHqKeyConfigured = Boolean(String(env.TEJHQ_API_KEY || '').trim());
+  const tejHqFallbackEnabled = env.TEJHQ_HISTORICAL_FALLBACK_ENABLED === 'true';
   const tejHqRightsQualified = Object.values(tejHqRights).every(source => source.productionUseAllowed);
   const tejHqBlockers = [
     ...(!tejHqEnabled ? ['TEJHQ_DISABLED'] : []),
     ...(!tejHqLicenseFlag ? ['TEJHQ_LICENSE_FLAG_DISABLED'] : []),
+    ...(!tejHqFallbackEnabled ? ['TEJHQ_HISTORICAL_FALLBACK_DISABLED'] : []),
+    ...(!tejHqKeyConfigured ? ['TEJHQ_KEY_NOT_CONFIGURED'] : []),
     ...(!tejHqRightsQualified ? ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'] : []),
   ];
   const blockers = [
@@ -91,6 +95,8 @@ export function getMarketIntegrationReadiness(env = process.env) {
       provider: 'TEJHQ',
       enabled: tejHqEnabled,
       licenseFlagEnabled: tejHqLicenseFlag,
+      historicalFallbackFlagEnabled: tejHqFallbackEnabled,
+      keyConfigured: tejHqKeyConfigured,
       prerequisitesSatisfied: tejHqBlockers.length === 0,
       blockers: [...new Set(tejHqBlockers)],
       exactSourceRights: tejHqRights,
