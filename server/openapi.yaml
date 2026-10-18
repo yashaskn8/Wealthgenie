@@ -715,6 +715,19 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /api/market-data/admin/diagnostics:
+    get:
+      operationId: getAdminMarketIntegrationReadiness
+      tags: [Market]
+      summary: Inspect configured market-data prerequisites without calling providers
+      description: Admin-only, read-only, zero-network diagnostic. Reports selected mode, provider credential presence, exact source-rights decisions, and blocked feature flags; never returns provider keys or tokens. Even when prerequisites pass, it does not prove live API access or entitlement.
+      security: [{ BearerAuth: [] }]
+      x-required-roles: [admin]
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/market-data/admin/equity-history:
     get:
       operationId: getAdminQualifiedEquityHistory
