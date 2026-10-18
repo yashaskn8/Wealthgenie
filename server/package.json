@@ -24,6 +24,7 @@
     "qualify:fixed-income": "node scripts/qualifyFixedIncomeProviders.js",
     "qualify:nim": "node scripts/qualifyNvidiaNim.js",
     "market-data:coverage": "node scripts/generateMarketDataCoverage.js",
+    "market:doctor": "node scripts/marketIntegrationDoctor.js",
     "post-tax:coverage": "node scripts/exportPostTaxCoverageMatrix.js --check",
     "demo:preflight": "node scripts/demoPreflight.js",
     "demo:doctor": "node scripts/demoDoctor.js",
