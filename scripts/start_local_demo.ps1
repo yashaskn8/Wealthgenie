@@ -285,19 +285,6 @@ if ((-not [Uri]::TryCreate($mlServiceUrl, [UriKind]::Absolute, [ref]$mlUri)) -or
   throw 'Local demo ML_SERVICE_URL must be a loopback HTTP service origin, without credentials, path, query or fragment.'
 }
 $mlServiceUrl = $mlUri.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
-$mlReadinessVerified = $false
-try {
-  $mlHealth = Invoke-RestMethod -Uri "$mlServiceUrl/readyz" -TimeoutSec 3 -ErrorAction Stop
-  $mlReadinessVerified = $mlHealth.status -eq 'ready'
-} catch { $mlReadinessVerified = $false }
-if ($RequireMlService -and (-not $mlReadinessVerified -or -not $mlServiceApiKey)) {
-  throw 'Required local Python ML service readiness or ML_SERVICE_API_KEY is unavailable; no demo services were started.'
-}
-if ($mlReadinessVerified) {
-  Write-Host 'ML service readiness: READY on verified loopback origin. Model inference and API-key authorization were not exercised.'
-} else {
-  Write-Host 'ML service readiness: NOT VERIFIED. Recommendation inference will use the explicitly labeled deterministic rule fallback when the Python service is unavailable.'
-}
 
 
 if (-not $demoEmail -or -not $demoPassword -or $demoPassword.Length -lt 8 -or $demoPassword.Length -gt 128) {
@@ -374,6 +361,21 @@ if (-not $mongoIdentity.verified) {
   throw 'The listener does not match the existing verified demo database identity; no backend or frontend was started.'
 }
 Write-Host "MongoDB VERIFIED: $($mongoIdentity.database), loopback port $($mongoIdentity.port), replica set $($mongoIdentity.replicaSet), read-only transaction PASS."
+
+$mlReadinessVerified = $false
+try {
+  $mlHealth = Invoke-RestMethod -Uri "$mlServiceUrl/readyz" -TimeoutSec 3 -ErrorAction Stop
+  $mlReadinessVerified = $mlHealth.status -eq 'ready'
+} catch { $mlReadinessVerified = $false }
+if ($RequireMlService -and (-not $mlReadinessVerified -or -not $mlServiceApiKey)) {
+  throw 'Required local Python ML service readiness or ML_SERVICE_API_KEY is unavailable; no backend or frontend service was started.'
+}
+if ($mlReadinessVerified) {
+  Write-Host 'ML service readiness: READY on verified loopback origin. Model inference and API-key authorization were not exercised.'
+} else {
+  Write-Host 'ML service readiness: NOT VERIFIED. Recommendation inference will use the explicitly labeled deterministic rule fallback when the Python service is unavailable.'
+}
+
 
 $redisAvailable = $false
 $redisExe = $RedisServerPath
