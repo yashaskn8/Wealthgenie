@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import UpstoxHistoricalCandleProvider from '../services/marketData/UpstoxHistoricalCandleProvider.js';
 import UpstoxMarketDataProvider from '../services/marketData/UpstoxMarketDataProvider.js';
+import UpstoxTradingCalendarProvider from '../services/marketData/UpstoxTradingCalendarProvider.js';
 import { createHealthRouter } from '../routes/health.js';
 import { hasUpstoxAccessToken, resolveUpstoxAccessToken } from '../services/marketData/upstoxCredentials.js';
 
@@ -107,5 +108,24 @@ test('quote and history adapters use the same fallback and fail closed when both
       if (previous[name] === undefined) delete process.env[name];
       else process.env[name] = previous[name];
     }
+  }
+});
+
+
+test('all Upstox adapters resolve credentials from the same injected server environment', () => {
+  const injectedEnv = {
+    NODE_ENV: 'production',
+    UPSTOX_ANALYTICS_TOKEN: '  injected-analytics-only  ',
+    UPSTOX_ACCESS_TOKEN: ' injected-fallback-only ',
+  };
+  for (const Provider of [UpstoxMarketDataProvider, UpstoxHistoricalCandleProvider, UpstoxTradingCalendarProvider]) {
+    const configured = new Provider({ env: injectedEnv });
+    assert.equal(configured.accessToken, 'injected-analytics-only');
+    const fallback = new Provider({ env: { ...injectedEnv, UPSTOX_ANALYTICS_TOKEN: ' ' } });
+    assert.equal(fallback.accessToken, 'injected-fallback-only');
+    const explicitEmpty = new Provider({ env: injectedEnv, accessToken: '' });
+    assert.equal(explicitEmpty.accessToken, '', 'explicit empty credentials must not silently fall back');
+    const missing = new Provider({ env: { NODE_ENV: 'production' } });
+    assert.equal(missing.accessToken, '', 'must never borrow credentials from unrelated process env');
   }
 });
