@@ -3,6 +3,7 @@ import { verifyJWT, requireRole } from '../middleware/authMiddleware.js';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { validateQuery, marketEquityHistoryQuerySchema, marketEquityIdentityQuerySchema } from '../validation/schemas.js';
+import { getMarketIntegrationReadiness } from '../services/marketIntegrationReadiness.js';
 import {
   fetchQualifiedEquityHistory,
   fetchTejHqCorporateActionEvidence,
@@ -30,11 +31,19 @@ export function createMarketDataAdminRouter({
   fetchHistory = fetchQualifiedEquityHistory,
   fetchActions = fetchTejHqCorporateActionEvidence,
   fetchStatus = fetchTejHqProviderPublicationStatus,
+  getReadiness = getMarketIntegrationReadiness,
+  env = process.env,
   authenticate = verifyJWT,
   authorizeAdmin = requireRole('admin'),
   limiter = createAdminRateLimiter(),
 } = {}) {
   const router = Router();
+
+  // Requires live user-role lookup through authorizeAdmin; no credentials or
+  // network calls are performed by the diagnostic itself.
+  router.get('/admin/diagnostics', authenticate, authorizeAdmin, limiter, (_req, res) => {
+    res.json(getReadiness(env));
+  });
 
   router.get('/admin/equity-history', authenticate, authorizeAdmin, limiter, validateQuery(marketEquityHistoryQuerySchema), asyncHandler(async (req, res) => {
     try {
