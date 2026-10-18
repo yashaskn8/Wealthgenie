@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Target, TrendingUp, Calendar, DollarSign, Sliders, Sparkles, Save, AlertTriangle, ChevronRight, Info, Zap, Shield, Activity, Cpu, Umbrella, Home, GraduationCap, Car, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProjectionBand from './ProjectionBand';
@@ -155,8 +155,11 @@ export const GoalDetailPane = ({
   calculationFreshness,
 }) => {
   const [isEditingSettings, setIsEditingSettings] = useState(false);
-  const [editTarget, setEditTarget] = useState('');
-  const [editSavings, setEditSavings] = useState('');
+  // Seed from the mounted goal. Resetting unconditionally in the first
+  // passive effect can close a freshly opened edit form if the user clicks
+  // before that effect flushes (observed intermittently in CI).
+  const [editTarget, setEditTarget] = useState(() => selectedGoal?.target_amount ?? '');
+  const [editSavings, setEditSavings] = useState(() => selectedGoal?.current_savings ?? '');
   const [showMonteCarlo, setShowMonteCarlo] = useState(false);
   const hasSelectedGoal = Boolean(selectedGoal);
   const selectedGoalId = selectedGoal?._id ?? selectedGoal?.goalId;
@@ -164,17 +167,28 @@ export const GoalDetailPane = ({
   const selectedGoalVersion = selectedGoal?.version;
   const selectedGoalTarget = selectedGoal?.target_amount;
   const selectedGoalSavings = selectedGoal?.current_savings;
+  const editSourceIdentity = JSON.stringify([
+    hasSelectedGoal, selectedGoalId, selectedGoalProfileId,
+    selectedGoalVersion, selectedGoalTarget, selectedGoalSavings,
+  ]);
+  const previousEditSourceIdentity = useRef(editSourceIdentity);
 
   useEffect(() => {
-    if (hasSelectedGoal) {
-      const resetState = () => {
-        setEditTarget(selectedGoalTarget ?? '');
-        setEditSavings(selectedGoalSavings ?? '');
-        setIsEditingSettings(false);
-      };
-      resetState();
+    if (previousEditSourceIdentity.current === editSourceIdentity) return;
+    previousEditSourceIdentity.current = editSourceIdentity;
+    if (!hasSelectedGoal) {
+      setIsEditingSettings(false);
+      setEditTarget('');
+      setEditSavings('');
+      return;
     }
-  }, [hasSelectedGoal, selectedGoalId, selectedGoalProfileId, selectedGoalVersion, selectedGoalTarget, selectedGoalSavings]);
+    // Only a genuinely different committed goal/goal version/goal input
+    // invalidates an in-progress edit. An equivalent async parent refresh
+    // must not silently discard user typing.
+    setEditTarget(selectedGoalTarget ?? '');
+    setEditSavings(selectedGoalSavings ?? '');
+    setIsEditingSettings(false);
+  }, [editSourceIdentity, hasSelectedGoal, selectedGoalTarget, selectedGoalSavings]);
 
   const handleSave = () => {
     onSaveGoalUpdates({
