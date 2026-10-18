@@ -680,6 +680,15 @@ test('two-provider market and AI credentials are delivered only server-side and 
     assert.equal(ref?.name, 'wealthgenie-secrets');
     assert.equal(ref?.key, variable);
   }
+  const mlServiceEnv = compose.services['ml-service'].environment;
+  for (const variable of ['GEMINI_API_KEY', 'GROQ_API_KEY', 'NVIDIA_API_KEY', 'LLM_PRIMARY_PROVIDER']) {
+    assert.equal(mlServiceEnv.some(value => value.startsWith(variable + '=')), false,
+      'PlanReview model credentials belong on the worker, not on FastAPI ML');
+  }
+  for (const variable of ['UPSTOX_ANALYTICS_TOKEN', 'UPSTOX_ACCESS_TOKEN', 'TEJHQ_API_KEY']) {
+    assert.equal(compose.services['agent-worker'].environment.some(value => value.startsWith(variable + '=')), false,
+      'Market credentials belong on the market-data API server, not on the worker');
+  }
   for (const [name, expected] of Object.entries({
     MARKET_DATA_MODE: 'LEGACY',
     UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
