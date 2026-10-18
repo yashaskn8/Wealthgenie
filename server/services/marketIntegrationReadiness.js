@@ -78,12 +78,14 @@ export function getMarketIntegrationReadiness(env = process.env) {
     ...(!tejHqKeyConfigured ? ['TEJHQ_KEY_NOT_CONFIGURED'] : []),
     ...(!tejHqRightsQualified ? ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'] : []),
   ];
-  const blockers = [
+  const marketContextBlockers = [
     ...(!selected ? ['UPSTOX_TEJHQ_MODE_NOT_SELECTED'] : []),
     ...upstoxBlockers,
-    // The selected two-provider mode is not fully ready merely because its
-    // Upstox half is configured. Expose missing TejHQ key/flags/rights as
-    // mode-level blockers while keeping per-provider diagnostics separate.
+  ];
+  const blockers = [
+    ...marketContextBlockers,
+    // Overall readiness must include the selected EOD fallback, without
+    // contaminating Upstox-specific diagnostics with unrelated TejHQ errors.
     ...(selected ? tejHqBlockers : []),
   ];
   return {
@@ -97,8 +99,8 @@ export function getMarketIntegrationReadiness(env = process.env) {
     publicDistributionRights: 'NOT_VERIFIED_BY_LIVE_REQUEST',
     marketContext: {
       selectedProvider: selected ? 'UPSTOX' : primary,
-      prerequisitesSatisfied: selected && upstoxBlockers.length === 0,
-      blockers: [...new Set(blockers)],
+      prerequisitesSatisfied: marketContextBlockers.length === 0,
+      blockers: [...new Set(marketContextBlockers)],
       tokenConfigured,
       publicDistributionFlagEnabled: publicDistributionEnabled,
       exactSourceRights: upstoxRights,
