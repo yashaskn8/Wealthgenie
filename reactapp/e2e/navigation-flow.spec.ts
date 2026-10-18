@@ -401,6 +401,40 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
+  test('tablet viewport (721px): all Progress and Taxes tabs are reachable without clipping', async ({ page }) => {
+    await page.setViewportSize({ width: 721, height: 900 });
+    await page.goto('http://127.0.0.1:5173/profile?page=progress&tab=goals');
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByTestId('mobile-nav-progress')).toBeVisible();
+
+    for (const tab of ['indicators', 'goals', 'plan-goal', 'grow-sip', 'rebalancer']) {
+      const button = page.getByTestId(`tab-${tab}`);
+      await expect(button).toBeVisible();
+      await button.click();
+      await expect(page).toHaveURL(new RegExp(`page=progress&tab=${tab}`));
+      await expect(page.getByTestId(`panel-${tab}`)).toBeVisible();
+    }
+
+    await page.getByTestId('mobile-nav-taxes').click();
+    await expect(page).toHaveURL(/page=taxes&tab=regime-savings/);
+    for (const tab of ['real-returns', 'regime-savings']) {
+      const button = page.getByTestId(`tab-${tab}`);
+      await expect(button).toBeVisible();
+      await button.click();
+      await expect(page.getByTestId(`panel-${tab}`)).toBeVisible();
+    }
+    const tabLists = page.locator('.hub-tabs-list');
+    expect(await tabLists.evaluateAll(elements => elements.every(element => {
+      const viewportWidth = document.documentElement.clientWidth;
+      const bounds = element.getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= viewportWidth
+        && [...element.querySelectorAll('button')].every(button => {
+          const rect = button.getBoundingClientRect();
+          return rect.left >= 0 && rect.right <= viewportWidth;
+        });
+    }))).toBe(true);
+  });
+
   test('mobile viewport (390px): bottom tab bar, More drawer, focus trap, and Escape handling', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('http://127.0.0.1:5173/profile?page=home');
