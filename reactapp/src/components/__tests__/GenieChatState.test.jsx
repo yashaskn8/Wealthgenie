@@ -49,6 +49,25 @@ function deferred() {
 }
 
 describe('GenieChat persisted conversation state', () => {
+  it('explains denied microphone permission and allows typing instead of silently stopping', async () => {
+    let recognition;
+    class DeniedSpeechRecognition {
+      constructor() { recognition = this; }
+      start() { }
+      stop() { }
+    }
+    vi.stubGlobal('SpeechRecognition', DeniedSpeechRecognition);
+    openChat();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Start voice input' }));
+    expect(recognition).toBeDefined();
+    await act(async () => { recognition.onerror({ error: 'not-allowed' }); });
+
+    expect(screen.getByText(/Microphone access was blocked/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start voice input' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /Ask Genie a financial question/i })).toBeInTheDocument();
+  });
+
   it('waits for canonical recommendation context before binding or restoring the saved chat session', async () => {
     const profile = { profileId: '64b000000000000000000101', version: 3, name: 'Canonical Profile', monthly_savings: 1000 };
     const recommendations = [{ id: 'scheme-a', allocationWeight: 0.7, allocation_pct: 70 }];
