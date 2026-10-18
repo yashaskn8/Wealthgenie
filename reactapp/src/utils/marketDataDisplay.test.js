@@ -28,6 +28,19 @@ describe('nullable market-data presentation', () => {
     expect(getMarketDisplayState({ status: 'MARKET_CONTEXT_UNAVAILABLE' }).key).toBe('UNAVAILABLE');
   });
 
+  it('does not invent previously available evidence on a failed refresh', () => {
+    for (const status of ['UNAVAILABLE', 'STALE', 'PARTIAL_DATA']) {
+      const context = { marketSnapshot: { status } };
+      expect(getMarketDisplayState(context, { refreshFailed: true }).key).toBe(status);
+    }
+    expect(getMarketDisplayState(
+      { status: 'MARKET_CONTEXT_UNAVAILABLE' }, { refreshFailed: true },
+    ).key).toBe('UNAVAILABLE');
+    expect(getMarketDisplayState(
+      { marketSnapshot: { status: 'MARKET_CLOSED' } }, { refreshFailed: true },
+    ).key).toBe('LAST_AVAILABLE');
+  });
+
   it('shows permission failures as unavailable even when an older snapshot exists', () => {
     const blocked = {
       reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'],
