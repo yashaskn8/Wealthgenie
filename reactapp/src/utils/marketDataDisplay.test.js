@@ -39,6 +39,44 @@ describe('nullable market-data presentation', () => {
     }).label).toBe('Market data permission unavailable');
   });
 
+
+  it('retains exact blocked-rights explanation when provider pair validation fails', () => {
+    const unqualifiedPair = {
+      marketSnapshot: {
+        status: 'UNAVAILABLE',
+        providerSelection: {
+          attemptedProviders: ['UPSTOX'],
+          selectedProvider: null,
+          providerFailures: [{ provider: 'UPSTOX',
+            reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'] }],
+        },
+      },
+    };
+    expect(getMarketDisplayState(unqualifiedPair).key).toBe('RIGHTS_UNAVAILABLE');
+    expect(getMarketDisplayState({
+      marketSnapshot: {
+        status: 'UNAVAILABLE',
+        providerStatus: {
+          quotes: { error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' } },
+        },
+      },
+    }).key).toBe('RIGHTS_UNAVAILABLE');
+  });
+
+  it('does not mark qualified fallback data unlicensed due to an unused provider failure', () => {
+    expect(getMarketDisplayState({
+      marketSnapshot: {
+        status: 'CURRENT',
+        providerSelection: {
+          attemptedProviders: ['NSE', 'UPSTOX'],
+          selectedProvider: 'UPSTOX',
+          providerFailures: [{ provider: 'NSE',
+            reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'] }],
+        },
+      },
+    }).key).toBe('CURRENT');
+  });
+
   it('humanizes provenance without accepting unsafe evidence links', () => {
     expect(readableSource('GOVERNMENT_OF_INDIA')).toBe('Government of India');
     expect(readableSource('OFFICIAL_BANK_PUBLISHED_RATE')).toBe('Official bank published rate');
