@@ -5,6 +5,7 @@ param(
   [switch]$AllowAuditBranch,
   [switch]$RequireRedis,
   [switch]$RequireMlService,
+  [switch]$RequireBrowser,
   [string]$RedisServerPath,
   [ValidateRange(1024, 65535)]
   [int]$BackendPort = 5001,
@@ -553,6 +554,20 @@ if (-not (Test-ListeningPort $frontendPort)) {
 }
 $frontendVerified = Wait-Frontend "http://127.0.0.1:$frontendPort/login"
 if (-not $frontendVerified) { throw 'The local frontend did not become reachable.' }
+
+if ($RequireBrowser) {
+  $browserSmoke = Join-Path $repoRoot 'scripts/demoBrowserSmoke.mjs'
+  if (-not (Test-Path -LiteralPath $browserSmoke -PathType Leaf)) {
+    throw 'The read-only demo browser verification script is missing.'
+  }
+  & $nodeExe $browserSmoke "http://127.0.0.1:$frontendPort"
+  if ($LASTEXITCODE -ne 0) {
+    throw 'The local demo browser did not prove login and landing screen rendering. Check local Chromium and Vite output.'
+  }
+  Write-Host 'Frontend BROWSER VERIFIED: login form, registration CTA and landing CTA rendered; no account mutation was attempted.'
+} else {
+  Write-Host 'Frontend BROWSER NOT VERIFIED: launch with -RequireBrowser to require a real read-only Chromium render check.'
+}
 
 $processState = [pscustomobject]@{
   repository = $repoRoot
