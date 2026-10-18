@@ -107,13 +107,13 @@ function quoteIssue(quoteResult, quote, now) {
 
 export default class UpstoxMarketDataProvider extends MarketDataProvider {
   constructor({
-    accessToken = resolveUpstoxAccessToken(),
+    accessToken = undefined,
     env = process.env,
     requestCache = readThroughMarketCache,
     ...options
   } = {}) {
     super({ providerName: PROVIDERS.UPSTOX, env, ...options });
-    this.accessToken = String(accessToken || '').trim();
+    this.accessToken = String(accessToken ?? resolveUpstoxAccessToken(env)).trim();
     this.env = env;
     this.requestCache = requestCache;
   }
