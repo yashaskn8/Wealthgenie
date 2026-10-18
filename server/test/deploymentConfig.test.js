@@ -657,3 +657,38 @@ test('deployment validator rejects Kind application rollout before Phase 5 runti
     assert.match(result.stderr, /Kind CD must wait for all ordered one-shot database migrations/);
   });
 });
+
+
+test('two-provider market and AI credentials are delivered only server-side and remain opt-in', () => {
+  const compose = readYaml(repositoryRoot, 'docker-compose.yml');
+  const configMap = readYaml(repositoryRoot, 'k8s/configmap.yaml');
+  const server = readYaml(repositoryRoot, 'k8s/server/deployment.yaml');
+  const worker = readYaml(repositoryRoot, 'k8s/agent-worker/deployment.yaml');
+  const serverContainer = server.spec.template.spec.containers.find(item => item.name === 'server');
+  const workerContainer = worker.spec.template.spec.containers.find(item => item.name === 'agent-worker');
+
+  for (const variable of ['UPSTOX_ANALYTICS_TOKEN', 'UPSTOX_ACCESS_TOKEN', 'TEJHQ_API_KEY', 'GROQ_API_KEY', 'NVIDIA_API_KEY']) {
+    const composeValue = compose.services.server.environment.find(value => value.startsWith(variable + '='));
+    assert.ok(composeValue, 'Compose must forward ' + variable + ' to the server');
+    const ref = serverContainer.env.find(value => value.name === variable)?.valueFrom?.secretKeyRef;
+    assert.deepEqual(ref, { name: 'wealthgenie-secrets', key: variable, optional: true });
+  }
+  for (const variable of ['GEMINI_API_KEY', 'GROQ_API_KEY', 'NVIDIA_API_KEY']) {
+    const composeValue = compose.services['agent-worker'].environment.find(value => value.startsWith(variable + '='));
+    assert.ok(composeValue, 'Compose must forward ' + variable + ' to the external PlanReview worker');
+    const ref = workerContainer.env.find(value => value.name === variable)?.valueFrom?.secretKeyRef;
+    assert.equal(ref?.name, 'wealthgenie-secrets');
+    assert.equal(ref?.key, variable);
+  }
+  for (const [name, expected] of Object.entries({
+    MARKET_DATA_MODE: 'LEGACY',
+    UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
+    TEJHQ_ENABLED: 'false',
+    TEJHQ_LICENSE_CONFIRMED: 'false',
+    TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'false',
+  })) {
+    assert.equal(configMap.data[name], expected, name + ' must fail closed by default');
+  }
+  assert.equal(compose.services.reactapp.environment?.some?.(value => /UPSTOX|TEJHQ|GROQ|NVIDIA/.test(value)) ?? false, false,
+    'provider secrets must never be forwarded to the browser');
+});
