@@ -50,10 +50,11 @@ test('app factory rejects unapproved browser origins and returns traceable 404s'
   });
 });
 
-test('production blocks public market, profile, and recommendation outputs when Upstox distribution is unconfirmed', async () => {
+test('legacy Upstox mode blocks public market publication but keeps core financial routes accessible', async () => {
   const env = {
     ...process.env,
     NODE_ENV: 'production',
+    MARKET_DATA_MODE: 'LEGACY',
     MARKET_DATA_PRIMARY_PROVIDER: 'UPSTOX',
     UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
     CORS_ORIGINS: 'https://wealth.example',
@@ -61,12 +62,23 @@ test('production blocks public market, profile, and recommendation outputs when 
   const app = createApp({ env });
 
   await withServer(app, async baseUrl => {
+    // Public market-data endpoints remain fail-closed: no unauthorized prices,
+    // historical series, or market-regime outputs can be published.
     for (const request of [
       { path: '/api/market/rates' },
       { path: '/api/market/benchmarks' },
       { path: '/api/regime/current' },
       { path: '/api/market-data/quotes?ids=market:index:nifty-50' },
       { path: '/api/market-data/admin/equity-history?exchange=NSE&symbol=RELIANCE&isin=INE002A01018&fromDate=2026-10-08&toDate=2026-10-09' },
+    ]) {
+      const response = await jsonRequest(`${baseUrl}${request.path}`);
+      assert.equal(response.response.status, 503, request.path);
+      assert.equal(response.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED', request.path);
+    }
+
+    // Core routes still enforce identity, even if no market provider is
+    // approved. Previously these were blocked with 503 before authentication.
+    for (const request of [
       { path: '/api/profile/precompute', method: 'POST', body: {} },
       { path: '/api/profile/complete', method: 'POST', body: {} },
       { path: '/api/profile/64a000000000000000000001', method: 'PUT', body: {} },
@@ -79,11 +91,10 @@ test('production blocks public market, profile, and recommendation outputs when 
         ...request,
         body: request.body === undefined ? undefined : JSON.stringify(request.body),
       });
-      assert.equal(response.response.status, 503, request.path);
-      assert.equal(response.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED', request.path);
+      assert.equal(response.response.status, 401, request.path);
+      assert.equal(response.body.code, 'AUTH_REQUIRED', request.path);
     }
 
-    // Pure profile restore/build routes do not contain recommendation context.
     for (const path of ['/api/profile/current', '/api/profile/build']) {
       const response = await jsonRequest(`${baseUrl}${path}`, path.endsWith('/build')
         ? { method: 'POST', body: JSON.stringify({}) }
