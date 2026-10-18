@@ -159,7 +159,11 @@ test('routes authentication actions and omits the removed landing sections', asy
   await page.goto('/');
   await page.getByRole('link', { name: 'Summon Genie' }).click();
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 20000 });
+  // Login and registration intentionally share the same accessible field label.
+  // Scope to the active login view so hidden registration fields do not cause
+  // Playwright strict-mode ambiguity.
+  await expect(page.locator('#login-view').getByRole('textbox', { name: 'Email address' }))
+    .toBeVisible({ timeout: 20000 });
   await expect(page.getByRole('button', { name: 'Login', exact: true })).toBeVisible();
 
   await page.goto('/');
