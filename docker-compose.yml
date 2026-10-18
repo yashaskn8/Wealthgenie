@@ -138,6 +138,12 @@ services:
       - ENVIRONMENT=production
       - ML_STATE_BACKEND=mongodb
       - ML_SERVICE_API_KEY=${ML_SERVICE_API_KEY:-}
+      # External PlanReview execution runs in this separate worker process.
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      - LLM_PRIMARY_PROVIDER=${LLM_PRIMARY_PROVIDER:-GROQ}
+      - LLM_GEMINI_FALLBACK_ENABLED=${LLM_GEMINI_FALLBACK_ENABLED:-false}
       - ML_OPERATOR_KEY=${ML_OPERATOR_KEY:-}
       - MONGODB_URI=mongodb://mongodb:27017/wealthgenie?replicaSet=rs0
     depends_on:
