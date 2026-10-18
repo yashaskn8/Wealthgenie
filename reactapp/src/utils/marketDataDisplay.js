@@ -65,7 +65,10 @@ export function getMarketDisplayState(marketContext, { loading = false, refreshF
   // Do not make the whole snapshot unavailable if another qualified provider
   // was actually selected; never treat a failed attempt as selected evidence.
   const failedProviderReasonCodes = selection && !selection.selectedProvider
-    ? (selection.providerFailures || []).flatMap(failure => failure?.reasonCodes || [])
+    && Array.isArray(selection.providerFailures)
+    ? selection.providerFailures.flatMap(failure => (
+      Array.isArray(failure?.reasonCodes) ? failure.reasonCodes : []
+    ))
     : [];
   const reasonCodes = [
     ...(Array.isArray(marketContext?.reasonCodes) ? marketContext.reasonCodes : []),
