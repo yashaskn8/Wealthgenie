@@ -41,3 +41,13 @@ test('local demo explicitly describes ML fallback and never silently claims real
   assert.ok(mongoPosition >= 0 && probePosition > mongoPosition,
     'probe ML after isolated Mongo readiness; Python may depend on the local database');
 });
+
+test('local demo browser verification is opt-in, read-only and fail-closed', () => {
+  assert.match(launcher, /\[switch\]\$RequireBrowser/);
+  assert.match(launcher, /scripts\/demoBrowserSmoke\.mjs/);
+  assert.match(launcher, /\$nodeExe \$browserSmoke "http:\/\/127\.0\.0\.1:\$frontendPort"/);
+  assert.match(launcher, /if \(\$LASTEXITCODE -ne 0\)/);
+  assert.match(launcher, /Frontend BROWSER VERIFIED: login form, registration CTA and landing CTA rendered/);
+  assert.match(launcher, /Frontend BROWSER NOT VERIFIED: launch with -RequireBrowser/);
+  assert.match(launcher, /no account mutation was attempted/);
+});
