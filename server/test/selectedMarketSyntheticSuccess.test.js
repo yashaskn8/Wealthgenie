@@ -187,8 +187,10 @@ test('selected mode carries synthetic Upstox HTTP responses through adapters, co
       assert.equal(current.body.marketSnapshot.providerSelection.selectedProvider,
         'UPSTOX');
       assert.equal(getMarketDisplayState(current.body).key, 'CURRENT');
-      assert.equal(getMarketEvidenceSource(current.body), 'UPSTOX');
-      assert.equal(getMarketAttemptedProvider(current.body), 'UPSTOX');
+      // Canonical provider ID stays UPSTOX in the server contract; the UI
+      // deliberately renders the human-readable provider label.
+      assert.equal(getMarketEvidenceSource(current.body), 'Upstox');
+      assert.equal(getMarketAttemptedProvider(current.body), 'Upstox');
       const unauthorized = await jsonRequest(`${baseUrl}/api/regime/adjust`, {
         method: 'POST', body: JSON.stringify({ profileId }),
       });
