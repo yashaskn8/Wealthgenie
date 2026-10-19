@@ -87,12 +87,17 @@ test('Kind deployment runs only on successful main CI or explicit manual dispatc
   assert.deepEqual(Object.keys(cdWorkflow.jobs), ['deploy-and-verify-kind']);
 
   const gate = cdWorkflow.jobs['deploy-and-verify-kind'].if;
-  assert.match(gate, /github\\.event_name == 'workflow_dispatch'/);
-  assert.match(gate, /github\\.event\\.workflow_run\\.event == 'push'/);
-  assert.match(gate, /github\\.event\\.workflow_run\\.conclusion == 'success'/);
-  assert.match(gate, /github\\.event\\.workflow_run\\.head_branch == 'main'/);
-  assert.match(gate, /github\\.event\\.workflow_run\\.head_repository\\.full_name == github\\.repository/);
-  assert.match(gate, /github\\.event\\.workflow_run\\.head_sha == github\\.sha/);
+  for (const required of [
+    "github.event_name == 'workflow_dispatch'",
+    "github.event_name == 'workflow_run'",
+    "github.event.workflow_run.event == 'push'",
+    "github.event.workflow_run.conclusion == 'success'",
+    "github.event.workflow_run.head_branch == 'main'",
+    'github.event.workflow_run.head_repository.full_name == github.repository',
+    'github.event.workflow_run.head_sha == github.sha',
+  ]) {
+    assert.ok(gate.includes(required), 'Missing CD gate condition: ' + required);
+  }
 });
 
 test('standalone Mongo partition owns and stops a disposable 7.0.5 loopback _test server', () => {
