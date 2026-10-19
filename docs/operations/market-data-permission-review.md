@@ -1,10 +1,12 @@
 # Market-data permission review
 
-Status: **operator evidence required; no live production qualification**. This register supplements `postTaxSourceRights.js`. It does not grant access or change any runtime gate.
+Status: **API capabilities documented; account entitlement and production-use qualification remain unverified**. This register supplements `postTaxSourceRights.js`. It does not grant access or change any runtime gate.
 
 ## Decision for each exact endpoint
 
-For every row below, the repository has **no approved record** for access, private/internal analysis, automated extraction, retention/cache, derived calculations, public display, commercial use, or redistribution. Account tier, approval authority, effective date, permitted environment, permitted consumers, and a signed evidence document are also **unverified**. The runtime's `LICENSE_UNVERIFIED` status is therefore correct. An API response, token, documentation page, or feature flag cannot change this decision.
+The supplied TejHQ OpenAPI specification documents keyless access for `/v1/ohlcv`, `/v1/snapshot`, and `/v1/actions`; a free key adds `/v1/adjusted` and `/v1/symbols` with stated limits of 1,000 calls/day and 300/minute. It describes EOD datasets and a 18:30 IST refresh with a 21:30 IST retry, so these endpoints do not establish intraday live-quote coverage. The same specification labels Retail as personal use and Pro as commercial use (500,000 calls/day, 3,000/minute). The configured key's account tier is not inferable from its presence in `.env` and remains unverified.
+
+The supplied spec does not establish this account's tier, endpoint-specific retention and derived-use permissions, public-display/redistribution terms, permitted deployment environment, or the exact authorization boundary for the proposed WealthGenie consumers. Its top-level OpenAPI `info.license: MIT` is metadata on the API description; it is not treated here as a license for the underlying market records. Accordingly, the runtime's exact endpoint rights gate remains fail-closed until its required scope is established. This is a release-rights status, not evidence that the documented API adapter is technically broken.
 
 | Provider | Endpoint represented in source register | Capability | Account tier / limits | Rights decision |
 | --- | --- | --- | --- | --- |
@@ -13,13 +15,13 @@ For every row below, the repository has **no approved record** for access, priva
 | Upstox | `GET /v2/market/holidays` | Current-year holidays and special sessions | Actual account entitlement unverified | All use dimensions unverified |
 | Upstox | `GET /v2/market/timings/{date}` | Session times for a date | Actual account entitlement unverified | All use dimensions unverified |
 | Upstox | `GET /v2/market/status/NSE` | Current exchange phase | Actual account entitlement unverified | All use dimensions unverified |
-| TejHQ | `GET /v1/ohlcv/{exchange}/{symbol}` | Raw EOD | Actual account entitlement unverified | All use dimensions unverified |
-| TejHQ | `GET /v1/adjusted/{exchange}/{symbol}` | Adjusted EOD | Actual account entitlement unverified | All use dimensions unverified |
-| TejHQ | `GET /v1/symbols/{exchange}?isin=...` | Symbol history | Actual account entitlement unverified | All use dimensions unverified |
-| TejHQ | `GET /v1/actions/{symbol}` | Corporate actions | Actual account entitlement unverified | All use dimensions unverified |
-| TejHQ | `GET /v1/status` | Publication status | Actual account entitlement unverified | All use dimensions unverified |
+| TejHQ | `GET /v1/ohlcv/{exchange}/{symbol}` | Raw EOD; documented keyless | API capability documented; account/use scope unverified | Keyless availability documented; retention, derived use, and public distribution not established |
+| TejHQ | `GET /v1/adjusted/{exchange}/{symbol}` | Adjusted EOD; documented free-key endpoint | Free-key capability documented; configured account tier unverified | Tier-specific account and downstream use scope unverified |
+| TejHQ | `GET /v1/symbols/{exchange}?isin=...` | Symbol history; documented free-key endpoint | Free-key capability documented; configured account tier unverified | Tier-specific account and downstream use scope unverified |
+| TejHQ | `GET /v1/actions/{symbol}` | Corporate actions; documented keyless | API capability documented; account/use scope unverified | Keyless availability documented; retention, derived use, and public distribution not established |
+| TejHQ | `GET /v1/status` | Pipeline publication freshness; documented keyless and edge-cached 60 seconds | API capability documented | Account-independent endpoint capability documented; downstream scope unverified |
 
-The table lists exact endpoint families known to the code. Review the concrete URL and query scope in `marketDataSourceUrls.js` and the exact match decision in `postTaxSourceRights.js` for any proposed deployment. Provider reference documents: [Upstox V3 quotes](https://upstox.com/developer/api-documentation/get-full-market-quote-v3/), [Upstox market status](https://upstox.com/developer/api-documentation/get-market-status/), [TejHQ API](https://tejhq.dev/docs), [TejHQ keys](https://tejhq.dev/keys). Published capability and published quota are not proof of the account's rights.
+The table lists exact endpoint families known to the code. Review the concrete URL and query scope in `marketDataSourceUrls.js` and the exact match decision in `postTaxSourceRights.js` for any proposed deployment. Provider reference documents: [Upstox V3 quotes](https://upstox.com/developer/api-documentation/get-full-market-quote-v3/), [Upstox market status](https://upstox.com/developer/api-documentation/get-market-status/), [TejHQ API](https://tejhq.dev/docs), [TejHQ keys and tiers](https://tejhq.dev/keys), [TejHQ upgrade tiers](https://tejhq.dev/upgrade). Published capability and quota are not proof of the configured account's tier or downstream reuse rights.
 
 ## Three distinct operating scopes
 
