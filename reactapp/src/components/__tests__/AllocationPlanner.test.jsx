@@ -137,8 +137,33 @@ describe('AllocationPlanner', () => {
     rerender(<AllocationPlanner profile={profile} recommendations={recommendations} recommendationMeta={{ status: 'ERROR' }} />);
     expect(screen.getByRole('heading', { name: "We couldn't load your plan" })).toBeInTheDocument();
 
+    expect(screen.getByRole('heading', { name: 'Review my plan' })).toBeInTheDocument();
+
     rerender(<AllocationPlanner profile={profile} recommendations={[]} />);
     expect(screen.getByRole('heading', { name: 'No allocation available' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Review my plan' })).toBeInTheDocument();
+  });
+
+  it('retains a working review action when the allocation is missing', async () => {
+    vi.spyOn(api, 'getCurrentPlanReviewRun').mockRejectedValue(noPlanReviewRun);
+    const runReview = vi.spyOn(api, 'runPlanReview').mockResolvedValue({
+      runId: '4f4f4f4f-1111-4111-8111-111111111111',
+      currentStateMatch: true,
+      status: 'COMPLETED',
+      recommendedAction: 'REVIEW_PROFILE',
+      result: validPlanReviewResult({
+        recommendedAction: 'REVIEW_PROFILE',
+        summary: 'Update the saved profile and regenerate the plan before reviewing allocation.',
+      }),
+    });
+
+    render(<AllocationPlanner profile={profile} recommendations={[]} recommendationMeta={{ status: 'ERROR' }} />);
+    expect(screen.getByRole('heading', { name: 'Review my plan' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Run plan review/i }));
+    await waitFor(() => expect(runReview).toHaveBeenCalledWith(profile.profileId,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })));
+    expect(await screen.findByText('Review complete')).toBeInTheDocument();
+    expect(screen.getByText(/Update the saved profile and regenerate the plan/i)).toBeInTheDocument();
   });
 
   it('runs a read-only review and exposes only returned evidence in the dialog', async () => {
