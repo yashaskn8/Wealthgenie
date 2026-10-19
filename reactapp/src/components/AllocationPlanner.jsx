@@ -304,7 +304,7 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
     let cancelled = false;
     const controller = new AbortController();
     const requestId = ++reviewRequestSequence.current;
-    api.getCurrentPlanReviewRun(profileId, { timeoutMs: 1500, signal: controller.signal }).then(current => {
+    api.getCurrentPlanReviewRun(profileId, { timeoutMs: 10000, signal: controller.signal }).then(current => {
       if (cancelled || requestId !== reviewRequestSequence.current) return;
       setStateBindingKey(bindingKey);
       if (!isPlanReviewRunEnvelope(current)) {
@@ -778,6 +778,12 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
       <Tooltip.Provider delayDuration={220} skipDelayDuration={120}>
         <motion.div className="ap-page ap-state-page" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
           <PlanState kind="error" title="We couldn't load your plan" message="The recommendation service did not return a usable plan. Your saved profile is unchanged; please try again from the profile screen." />
+          <PlanReviewPanel
+            profile={profile}
+            profileId={profile?.profileId || recommendationMeta?.profileId}
+            financialStateKey={financialStateKey}
+            onRecomputePlan={onRecomputePlan}
+          />
         </motion.div>
       </Tooltip.Provider>
     );
@@ -788,6 +794,12 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
       <Tooltip.Provider delayDuration={220} skipDelayDuration={120}>
         <motion.div className="ap-page ap-state-page" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
           <PlanState kind="empty" title="No allocation available" message="Complete or update your financial profile to unlock personalized investment options." />
+          <PlanReviewPanel
+            profile={profile}
+            profileId={profile?.profileId || recommendationMeta?.profileId}
+            financialStateKey={financialStateKey}
+            onRecomputePlan={onRecomputePlan}
+          />
         </motion.div>
       </Tooltip.Provider>
     );
