@@ -39,6 +39,7 @@ import { isPresentFiniteNumber, toOptionalNumber } from '../../utils/financialVa
 import { getCurrentRecommendedInstrument } from '../../utils/financialStateBinding';
 import { useMarketContext } from '../../state/useMarketContext';
 import UserDeclaredScenarioPanel from './UserDeclaredScenarioPanel';
+import PrivateMarketDemoPanel from './PrivateMarketDemoPanel';
 import QualifiedMarketEvidencePanel from './QualifiedMarketEvidencePanel';
 import PrivateMarketDataDemo from './PrivateMarketDataDemo';
 
@@ -800,6 +801,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
 
   return (
     <div className="tab-fade-in">
+      <PrivateMarketDemoPanel />
       {/* ─── Beginner-First Market Summary Card ─── */}
       <section
         className="wti-beginner-market-card"
