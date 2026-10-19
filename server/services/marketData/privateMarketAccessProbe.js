@@ -6,6 +6,7 @@
 import { MARKET_BENCHMARKS } from './marketBenchmarks.js';
 import { buildUpstoxQuoteRequestUrl, UPSTOX_NSE_MARKET_STATUS_URL } from './marketDataSourceUrls.js';
 import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import { POST_TAX_SOURCE_RIGHTS_STATES, resolveSourceRights } from '../postTaxSourceRights.js';
 
 export const PRIVATE_MARKET_PROBE_ENV = 'PRIVATE_MARKET_READ_ONLY_PROBE_ENABLED';
 const TIMEOUT_MS = 8000;
@@ -13,7 +14,7 @@ const TIMEOUT_MS = 8000;
 export function assertPrivateMarketProbeAllowed(env, acknowledged) {
   if (env?.NODE_ENV !== 'development' || env?.CI === 'true' || env?.GITHUB_ACTIONS === 'true'
       || env?.[PRIVATE_MARKET_PROBE_ENV] !== 'true' || acknowledged !== true) {
-    const error = new Error('Private market probe requires development, explicit opt-in, and provider-terms acknowledgement.');
+    const error = new Error('Private market probe requires development and explicit opt-in; each endpoint must also have an exact qualified private-use scope.');
     error.code = 'PRIVATE_MARKET_PROBE_DISABLED';
     throw error;
   }
@@ -27,6 +28,20 @@ function offsetDate(days, reference) {
 
 function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasQualifiedPrivateProbeRights(probe, env, acknowledged) {
+  if (env?.NODE_ENV !== 'development' || env?.[PRIVATE_MARKET_PROBE_ENV] !== 'true' || acknowledged !== true) {
+    return false;
+  }
+  const rights = resolveSourceRights({ provider: probe.provider, url: probe.url });
+  const allowedSourceIds = probe.provider === 'UPSTOX'
+    ? ['UPSTOX_QUOTES_V3']
+    : ['TEJHQ_RAW_EOD', 'TEJHQ_ADJUSTED_HISTORY', 'TEJHQ_SYMBOL_HISTORY',
+      'TEJHQ_CORPORATE_ACTIONS', 'TEJHQ_PUBLICATION_STATUS'];
+  return allowedSourceIds.includes(rights.sourceId)
+    && rights.status === POST_TAX_SOURCE_RIGHTS_STATES.DEVELOPMENT_RESEARCH_ONLY
+    && rights.approvedScopes.includes('PRIVATE_LOCAL_EDUCATIONAL_DEMO');
 }
 
 export function privateMarketProbeRequests(env, now = new Date()) {
@@ -69,7 +84,7 @@ export function privateMarketProbeRequests(env, now = new Date()) {
   ];
 }
 
-/** At most five fixed read-only GETs; returns sanitized status only. */
+/** Reports all fixed endpoints, requesting only exact private-scope-qualified sources. */
 export async function runPrivateMarketAccessProbe({
   env = process.env,
   acknowledgeProviderTerms = false,
@@ -80,6 +95,17 @@ export async function runPrivateMarketAccessProbe({
   if (typeof fetchImpl !== 'function') throw new TypeError('A GET-capable fetch implementation is required.');
   const results = [];
   for (const probe of privateMarketProbeRequests(env, now)) {
+    if (!hasQualifiedPrivateProbeRights(probe, env, acknowledgeProviderTerms)) {
+      const rights = resolveSourceRights({ provider: probe.provider, url: probe.url });
+      results.push({
+        provider: probe.provider,
+        operation: probe.operation,
+        verdict: 'SOURCE_RIGHTS_UNVERIFIED',
+        sourceId: rights.sourceId,
+        rightsStatus: rights.status,
+      });
+      continue;
+    }
     const credentialRequired = probe.provider === 'UPSTOX' || probe.operation === 'KEY_ENTITLEMENT';
     if (credentialRequired && !probe.credential) {
       results.push({ provider: probe.provider, operation: probe.operation, verdict: 'CREDENTIAL_NOT_CONFIGURED' });

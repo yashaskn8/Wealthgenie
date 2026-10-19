@@ -3,19 +3,16 @@
  * writes, Redis writes, derived financial recommendations, or raw payload logs.
  * Only fixed benchmark identities and one bounded EOD instrument are allowed.
  */
-import crypto from 'node:crypto';
 import { MARKET_BENCHMARKS } from './marketBenchmarks.js';
 import { buildUpstoxQuoteRequestUrl } from './marketDataSourceUrls.js';
 import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import { isMarketDataPrivateDemoUseAllowed } from './marketDataRights.js';
 
 export const PRIVATE_MARKET_DEMO_FLAG = 'PRIVATE_MARKET_DEMO_ENABLED';
-const QUOTE_TTL_MS = 60_000;
-const EOD_TTL_MS = 15 * 60_000;
 const QUOTE_KEYS = Object.freeze([
   MARKET_BENCHMARKS.NIFTY_50.upstoxInstrumentKey,
   MARKET_BENCHMARKS.INDIA_VIX.upstoxInstrumentKey,
 ]);
-const memoryCache = new Map();
 
 export function isPrivateMarketDemoConfigured(env = process.env) {
   return env?.NODE_ENV === 'development'
@@ -54,7 +51,6 @@ function isoDate(value) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null;
 }
 function fail(code) { return { status: 'UNAVAILABLE', code }; }
-function shortKey(value) { return crypto.createHash('sha256').update(String(value || '')).digest('hex'); }
 function recentWindow(now) {
   const to = new Date(now);
   to.setUTCDate(to.getUTCDate() - 2);
@@ -135,55 +131,42 @@ export function normalizePrivateTejHqEod(body, { from, to, receivedAt }) {
     candles, reasonCode: candles.length ? null : 'NO_EOD_OBSERVATIONS' };
 }
 
-/** Fetch at most two GETs per cold private view, with isolated process-memory TTLs. */
+/** Fetch only exact private-demo-qualified endpoints and retain no response data. */
 export async function readPrivateMarketDemo({
-  env = process.env, fetchImpl = globalThis.fetch, now = () => new Date(), cache = memoryCache,
+  env = process.env, fetchImpl = globalThis.fetch, now = () => new Date(), privateDemoCapability = null,
 } = {}) {
   if (!isPrivateMarketDemoConfigured(env)) return { status: 'DISABLED', code: 'PRIVATE_DEMO_NOT_CONFIGURED' };
   if (typeof fetchImpl !== 'function') throw new TypeError('Fetch implementation required.');
   const token = resolveUpstoxAccessToken(env);
   const clock = now();
-  const stamp = clock.toISOString();
-  const key = 'private-market-demo:' + shortKey(token);
-  const existing = cache.get(key) || {};
-  // Credentials are never stored in the cache; only normalized facts.
-  const quoteFresh = existing.quotes && existing.quotesExpiresAt > clock.getTime();
-  let quotes = quoteFresh ? existing.quotes : fail('UPSTOX_TOKEN_NOT_CONFIGURED');
-  if (!quoteFresh && token) {
-    const response = await getJson(fetchImpl, buildUpstoxQuoteRequestUrl(QUOTE_KEYS), token);
+  const quoteUrl = buildUpstoxQuoteRequestUrl(QUOTE_KEYS);
+  const quoteAllowed = isMarketDataPrivateDemoUseAllowed('UPSTOX', quoteUrl, env, privateDemoCapability);
+  let quotes = fail(quoteAllowed ? 'UPSTOX_TOKEN_NOT_CONFIGURED' : 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+  if (quoteAllowed && token) {
+    const response = await getJson(fetchImpl, quoteUrl, token);
     quotes = response.error ? fail(response.error) : normalizePrivateBenchmarkQuotes(response.data, now().toISOString());
   }
   const window = recentWindow(clock);
-  const eodFresh = existing.eod && existing.eodExpiresAt > clock.getTime()
-    && existing.windowTo === window.to;
-  let eod = eodFresh ? existing.eod : fail('TEJHQ_DEMO_NOT_ENABLED');
-  if (!eodFresh && env.PRIVATE_MARKET_DEMO_TEJHQ_ENABLED === 'true') {
-    const url = 'https://api.tejhq.dev/v1/ohlcv/nse/RELIANCE?from='
-      + window.from + '&to=' + window.to;
-    const response = await getJson(fetchImpl, url, null);
-    eod = response.error ? fail(response.error) : normalizePrivateTejHqEod(response.data, {
-      ...window, receivedAt: now().toISOString(),
-    });
-  }
-  // Failed reads are negatively cached for 30 seconds to protect rate limits.
-  cache.set(key, {
-    quotes, eod, windowTo: window.to,
-    quotesExpiresAt: clock.getTime() + (quotes.status === 'AVAILABLE' ? QUOTE_TTL_MS : 30_000),
-    eodExpiresAt: clock.getTime() + (eod.status === 'AVAILABLE' ? EOD_TTL_MS : 30_000),
-  });
-  // Prevent credential-rotation remnants and excessive local memory growth.
-  if (cache.size > 3) {
-    const first = cache.keys().next().value;
-    cache.delete(first);
+  const eodUrl = 'https://api.tejhq.dev/v1/ohlcv/nse/RELIANCE?from='
+    + window.from + '&to=' + window.to;
+  const eodAllowed = isMarketDataPrivateDemoUseAllowed('TEJHQ', eodUrl, env, privateDemoCapability);
+  let eod = fail('TEJHQ_DEMO_NOT_ENABLED');
+  if (env.PRIVATE_MARKET_DEMO_TEJHQ_ENABLED === 'true') {
+    if (!eodAllowed) eod = fail('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+    else {
+      const response = await getJson(fetchImpl, eodUrl, null);
+      eod = response.error ? fail(response.error) : normalizePrivateTejHqEod(response.data, {
+        ...window, receivedAt: now().toISOString(),
+      });
+    }
   }
   return {
     status: 'PRIVATE_DEVELOPMENT_ONLY',
     productionDataPublicationAuthorized: false,
-    sourceRightsScope: 'READ_ONLY_PRIVATE_EDUCATIONAL_VIEW',
-    storedIn: 'PROCESS_MEMORY_ONLY',
+    storedIn: 'NONE',
     persistentWrites: 0,
     checkedAt: now().toISOString(),
-    cache: { quoteHit: Boolean(quoteFresh), eodHit: Boolean(eodFresh) },
+    cache: { quoteHit: false, eodHit: false },
     quotes, eod,
   };
 }

@@ -1104,7 +1104,7 @@ export async function fetchPrivateMarketDemoData({
       dataClass: 'HISTORICAL_EOD',
       candles: [],
       observedAt: null,
-      fetchedAt: now.toISOString(),
+      checkedAt: now.toISOString(),
       source: { provider: PROVIDERS.TEJHQ, url: tejHqUrl },
       sourceRights: {
         status: tejHqRights.status,
@@ -1129,7 +1129,7 @@ export async function fetchPrivateMarketDemoData({
       ? AVAILABILITY.AVAILABLE
       : availableProviders === 1 ? AVAILABILITY.PARTIAL : AVAILABILITY.UNAVAILABLE,
     mode: 'AUTHENTICATED_LOOPBACK_PRIVATE_DEMO',
-    fetchedAt: new Date().toISOString(),
+    fetchedAt: now.toISOString(),
     persistence: 'NOT_PERSISTED',
     upstox: {
       ...upstox,

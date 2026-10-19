@@ -1,136 +1,96 @@
-# Local private market-API probe (not production authorization)
+# Private market API probe and local demo
 
-This command checks that the owner's own Upstox and TejHQ credentials work for
-read-only connectivity within applicable provider terms. It does not modify
-production rights, public routes, caches, or financial calculations.
+These commands provide bounded, local technical checks. They do not authorize
+commercial use, public display, provider-data retention, or redistribution.
+The endpoint-specific rights registry is checked before each real provider
+request; a successful HTTP response never changes that registry.
 
-## Sources to review
+## Current endpoint rights
 
-- Upstox read-only Analytics Token: https://upstox.com/developer/api-documentation/analytics-token/
-- Upstox private noncommercial research: https://community.upstox.com/t/can-upstox-historical-api-data-be-retained-locally-for-private-ml-backtesting-research/17302
-- Upstox educational public display vs commercial use: https://community.upstox.com/t/request-api-licensing-for-public-website-paper-trading-display-of-upstox-data/17752
-- TejHQ API terms/capability/tier information: https://tejhq.dev/docs
-- TejHQ account/key management: https://tejhq.dev/keys
+- Upstox NIFTY 50 and India VIX quote endpoint has an explicit, narrow
+  `PRIVATE_LOCAL_EDUCATIONAL_DEMO` scope. It can be requested only from the
+  authenticated loopback development demo. The response is ephemeral and is
+  not cached or persisted.
+- TejHQ raw EOD, adjusted history, symbol history, corporate actions,
+  publication status, and account endpoints remain `LICENSE_UNVERIFIED` in
+  the source registry. The probe reports those operations as
+  `SOURCE_RIGHTS_UNVERIFIED` without making a network request. The local UI
+  labels TejHQ as historical EOD and shows its unavailable reason. Having an
+  API key or endpoint documentation does not change this gate.
+- Production/public market-data rights remain disabled unless the exact source
+  record qualifies the requested production scopes.
 
-These sources document access and limited use cases, not every intended public
-distribution, storage, retention, or commercial WealthGenie right.
+## Run the bounded connectivity probe
 
-## Running locally (Node 22; Docker not required)
+Use Node 22 with the repository dependencies installed. Keep credentials in
+the uncommitted `server/.env` or a private process environment.
 
-Keep secrets in uncommitted server/.env or private process environment.
-Install the repository's normal backend dependencies first.
+PowerShell, from the repository root:
 
-PowerShell, from repository root:
+```powershell
+$env:NODE_ENV = "development"
+$env:PRIVATE_MARKET_READ_ONLY_PROBE_ENABLED = "true"
+node server/scripts/probePrivateMarketAccess.js --i-accept-provider-terms
+```
 
-    $env:NODE_ENV="development"
-    $env:PRIVATE_MARKET_READ_ONLY_PROBE_ENABLED="true"
-    node server/scripts/probePrivateMarketAccess.js --i-accept-provider-terms
+Bash:
 
-Bash, from repository root:
+```bash
+NODE_ENV=development PRIVATE_MARKET_READ_ONLY_PROBE_ENABLED=true \
+  node server/scripts/probePrivateMarketAccess.js --i-accept-provider-terms
+```
 
-    NODE_ENV=development PRIVATE_MARKET_READ_ONLY_PROBE_ENABLED=true \
-      node server/scripts/probePrivateMarketAccess.js --i-accept-provider-terms
+The probe reports five fixed candidate operations. It sends a request only when
+that exact endpoint has an approved private-demo scope; with the current
+registry, only the Upstox quote operation qualifies. Results omit provider
+payloads, prices, account data, credentials, and raw network error messages.
+The acknowledgement flag is an operator confirmation, not a grant of rights.
 
-The acknowledgement means you reviewed the provider terms for the private
-read-only operations; it does not certify commercial redistribution rights.
+Run the deterministic regression test:
 
-The CLI reads server/.env without overriding existing environment variables.
-It refuses production, CI, and runs without explicit opt-in. It does not
-change MARKET_DATA_MODE, public routes, or production deployment settings.
+```bash
+node --test server/test/privateMarketAccessProbe.test.js
+```
 
-## Checks performed: five fixed GET operations, no retries
+## Use the authenticated local React demo
 
-1. Upstox V3 NIFTY 50 and India VIX quotes (token authenticated)
-2. Upstox V2 NSE status (token authenticated)
-3. TejHQ status (keyless)
-4. TejHQ RELIANCE bounded recent raw EOD data (keyless)
-5. TejHQ GET /v1/me (authenticated, does not prove downstream rights)
+Set the explicit backend opt-in in the private, uncommitted `server/.env`:
 
-No data is persisted or returned to WealthGenie users. Output consists only
-of provider, operation, sanitized verdict and HTTP status, not raw provider
-responses, financial prices, account numbers, tokens or keys. Network exception
-messages are not printed. A successful 200 establishes only this narrow
-technical check, not storage/display/redistribution permission.
+```dotenv
+NODE_ENV=development
+MARKET_DATA_PRIVATE_DEMO_ENABLED=true
+```
 
-Run targeted regression tests:
+Ensure `UPSTOX_ANALYTICS_TOKEN` is configured on the server. Do not copy it to
+the frontend. The `/api/market-data/private-demo` route requires a valid
+WealthGenie session, a loopback socket peer and Host, development mode, and the
+explicit backend opt-in. It is rate limited. The React panel appears only in
+a Vite development build and fetches only when the user selects “Load provider
+data.”
 
-    node --test server/test/privateMarketAccessProbe.test.js
+The active Upstox request is uncached and not persisted. TejHQ EOD is shown as
+unavailable until its exact endpoint is qualified for this private scope; the
+`PRIVATE_MARKET_DEMO_TEJHQ_ENABLED` flag cannot override that decision. The
+panel is separate from market-context policy and recommendations.
 
-## Production remains restricted
+Run focused regression tests:
 
-Do NOT flip the following booleans based on probe output:
+```bash
+node --test server/test/marketQuotes.test.js server/test/marketDataRights.test.js
+npm test --prefix reactapp -- src/components/deepdive/PrivateMarketDataDemo.test.jsx
+```
 
-- UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED
-- TEJHQ_LICENSE_CONFIRMED
-- MARKET_DATA_QUALIFICATION_LIVE_ENABLED
+A fixture test verifies DTO mapping and fail-closed states only. To claim live
+connectivity or browser integration, capture a permitted real provider
+response through the authenticated local route and confirm the browser shows
+the same source timestamps and provenance. Do not substitute fetch time for
+the provider observation time.
 
-Do not mark UNKNOWN rights approved in server/services/postTaxSourceRights.js.
-Existing marketDataRights.js and upstoxDistributionPolicy.js gates continue
-to protect public users until applicable source-specific permissions exist.
+## Production restrictions
 
-
-## Integrated local React preview (private only)
-
-A separate *optional* local-only backend route and Where-to-Invest panel now
-display real validated Upstox NIFTY 50 / India VIX quotes and a bounded TejHQ
-RELIANCE raw EOD history if those private retrieval/display uses are allowed
-under the actual provider terms.
-
-The new backend route is GET /api/market-data/private-demo. It:
-- Is absent unless NODE_ENV=development, PRIVATE_MARKET_DEMO_ENABLED=true,
-  PRIVATE_MARKET_DEMO_TERMS_ACKNOWLEDGED=true, and no CI environment is set.
-- Rejects non-loopback TCP peers, non-loopback Host and Origin values.
-- Requires an authenticated current WealthGenie session using verifyJWT.
-- Has a per-IP limit of six requests per minute, with secret-free failure codes.
-- Uses a 60-second Upstox in-process snapshot cache and a 15-minute TejHQ EOD
-  in-process snapshot cache; failed snapshots are revalidated after 30 seconds.
-- Fetches at most two upstream requests on a cold panel load, no retries.
-- Never stores raw provider response bodies, sends keys to the browser,
-  or writes fetched observations to MongoDB/Redis.
-- Never updates authoritative recommendations, suitability or public market
-  context; production routes and source rights ledgers are unchanged.
-
-Edit ONLY the private server/.env with the following lines, after reviewing
-the provider terms for your personal/private demo:
-
-    NODE_ENV=development
-    PRIVATE_MARKET_DEMO_ENABLED=true
-    PRIVATE_MARKET_DEMO_TERMS_ACKNOWLEDGED=true
-    PRIVATE_MARKET_DEMO_TEJHQ_ENABLED=true
-
-Ensure UPSTOX_ANALYTICS_TOKEN is present and valid. TejHQ's raw EOD
-endpoint is documented keyless; the backend does not send a TejHQ API key
-for that endpoint. Leave PRIVATE_MARKET_DEMO_TEJHQ_ENABLED=false if the
-actual TejHQ access terms do not permit the intended demonstration.
-
-Do not duplicate existing environment keys. Start the backend using the
-normal documented commands and sign into WealthGenie locally. In addition, set `VITE_PRIVATE_MARKET_DEMO_ENABLED=true` in the private,
-uncommitted `reactapp/.env.local` (not `server/.env`) and restart Vite.
-Navigate to Where-to-Invest: a panel labeled "Read-only market API
-verification" appears only in a locally running development Vite build
-with this explicit frontend opt-in, accessed via localhost/127.0.0.1.
-Ordinary development builds, browser-test builds and production builds
-omit this panel; the backend's own opt-in/auth/loopback checks remain mandatory.
-
-The preview is separate from the main Market Today policy context.
-A successful quote-only preview does not establish a sufficiently complete
-quote/history/session pair for investment-policy adjustments.
-
-Supported provider breadth is deliberately small:
-- Two fixed benchmark Upstox quote identities.
-- One bounded, date-checked NSE RELIANCE raw TejHQ EOD history window.
-
-No full-market scraping, uncontrolled backfills or claims of long-term
-retention rights have been added. Expansion and MongoDB persistence need
-separate endpoint/account/retention authorization and must use verified
-source identities.
-
-Regression tests:
-
-    node --test server/test/privateMarketDemo.test.js
-    node --test server/test/privateMarketAccessProbe.test.js
-
-Browser acceptance requires actual permitted provider responses reaching the
-signed-in local browser; synthetic tests and successful 200 diagnostics are
-not proof of that outcome. Check the original observed timestamps rather than
-substituting fetch time for last-trade time.
+Do not enable `UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED`,
+`TEJHQ_LICENSE_CONFIRMED`, or
+`MARKET_DATA_QUALIFICATION_LIVE_ENABLED` based on these private checks. Keep
+unknown rights unapproved in `server/services/postTaxSourceRights.js` and
+`server/services/marketData/marketDataRights.js` until the source-specific
+production permission is established.

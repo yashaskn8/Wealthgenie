@@ -22,7 +22,7 @@ test('private probe fails closed for production, CI, and missing acknowledgement
   assert.doesNotThrow(() => assertPrivateMarketProbeAllowed(env, true));
 });
 
-test('private diagnostics use only fixed GET provider endpoints and keep credentials in headers', async () => {
+test('private diagnostics request only exact-scope qualified endpoints and skip unverified sources', async () => {
   const calls = [];
   const fetchImpl = async (url, options) => {
     calls.push({ url, options });
@@ -40,13 +40,7 @@ test('private diagnostics use only fixed GET provider endpoints and keep credent
         b: { instrument_token: 'NSE_INDEX|India VIX' },
       } }),
     };
-    if (url.includes('/v2/market/status/NSE')) return {
-      status: 200, json: async () => ({ status: 'success', data: { exchange: 'NSE' } }),
-    };
-    if (url.includes('/v1/ohlcv/')) return {
-      status: 200, json: async () => ({ data: [], meta: { exchange: 'NSE' } }),
-    };
-    return { status: 200, json: async () => ({ ok: true }) };
+    assert.fail('Unverified provider endpoints must not reach the network.');
   };
   const report = await runPrivateMarketAccessProbe({
     env, acknowledgeProviderTerms: true, fetchImpl, now: new Date('2026-10-19T06:00:00.000Z'),
@@ -55,23 +49,26 @@ test('private diagnostics use only fixed GET provider endpoints and keep credent
   assert.equal(report.productionAuthorization, 'NOT_ESTABLISHED');
   assert.equal(report.persistentWrites, 0);
   assert.equal(report.results.length, 5);
-  assert.ok(report.results.every(item => item.verdict === 'HTTP_200_SCHEMA_OK'));
-  assert.equal(calls.length, 5);
-  assert.equal(calls.filter(x => x.options.headers.Authorization).length, 3);
+  assert.equal(report.results.filter(item => item.verdict === 'HTTP_200_SCHEMA_OK').length, 1);
+  assert.equal(report.results.filter(item => item.verdict === 'SOURCE_RIGHTS_UNVERIFIED').length, 4);
+  assert.ok(report.results.filter(item => item.provider === 'TEJHQ')
+    .every(item => item.verdict === 'SOURCE_RIGHTS_UNVERIFIED' && item.rightsStatus === 'LICENSE_UNVERIFIED'));
+  assert.equal(calls.length, 1);
+  assert.equal(calls.filter(x => x.options.headers.Authorization).length, 1);
   assert.ok(calls.every(x => !x.url.includes('private-fixture-')));
   assert.ok(!JSON.stringify(report).includes('private-fixture-'));
 });
 
-test('probe skips authenticated endpoints if keys are absent and never leaks errors', async () => {
+test('probe skips uncredentialed qualified endpoints and all unverified endpoints without network calls', async () => {
   const missing = { ...env, UPSTOX_ANALYTICS_TOKEN: '', TEJHQ_API_KEY: '' };
   let calls = 0;
   const report = await runPrivateMarketAccessProbe({
     env: missing, acknowledgeProviderTerms: true,
     fetchImpl: async () => { calls++; throw new Error('sensitive-token-should-not-leak'); },
   });
-  assert.equal(calls, 2);
-  assert.equal(report.results.filter(item => item.verdict === 'CREDENTIAL_NOT_CONFIGURED').length, 3);
-  assert.equal(report.results.filter(item => item.verdict === 'NETWORK_OR_TIMEOUT').length, 2);
+  assert.equal(calls, 0);
+  assert.equal(report.results.filter(item => item.verdict === 'CREDENTIAL_NOT_CONFIGURED').length, 1);
+  assert.equal(report.results.filter(item => item.verdict === 'SOURCE_RIGHTS_UNVERIFIED').length, 4);
   assert.ok(!JSON.stringify(report).includes('sensitive-token-should-not-leak'));
 });
 
@@ -81,5 +78,6 @@ test('HTTP entitlement denial is classified separately from schema mismatches', 
     env, acknowledgeProviderTerms: true,
     fetchImpl: async () => ({ status: 402, json: async () => { throw new Error('should not parse'); } }),
   });
-  assert.ok(report.results.every(x => x.verdict === 'ACCESS_OR_ENTITLEMENT_DENIED' && x.httpStatus === 402));
+  assert.equal(report.results.filter(x => x.verdict === 'ACCESS_OR_ENTITLEMENT_DENIED' && x.httpStatus === 402).length, 1);
+  assert.equal(report.results.filter(x => x.verdict === 'SOURCE_RIGHTS_UNVERIFIED').length, 4);
 });

@@ -413,6 +413,9 @@ test('private market demo reports TejHQ rights as unavailable without making a T
     assert.equal(result.tejHq.sourceRights.status, 'LICENSE_UNVERIFIED');
     assert.equal(result.tejHq.sourceRights.productionUseAllowed, false);
     assert.equal(result.tejHq.cache.status, 'PRIVATE_DEMO_NO_STORE');
+    assert.equal(result.tejHq.fetchedAt, undefined);
+    assert.equal(result.tejHq.checkedAt, '2026-10-19T12:00:00.000Z');
+    assert.equal(result.fetchedAt, '2026-10-19T12:00:00.000Z');
   } finally {
     axios.get = originalGet;
   }

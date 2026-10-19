@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
+import { createPrivateMarketDataDemoCapability } from '../services/marketData/marketDataRights.js';
 import {
   isPrivateMarketDemoConfigured,
   isPrivateMarketDemoLoopback,
@@ -12,6 +13,7 @@ export function createPrivateMarketDemoRouter({
   env = process.env,
   readSnapshot = options => readPrivateMarketDemo(options),
   authenticate = verifyJWT,
+  createDemoCapability = createPrivateMarketDataDemoCapability,
   limiter = createEndpointRateLimiter({
     windowMs: 60_000, max: 6,
     prefix: 'rl:private-market-demo:',
@@ -28,10 +30,14 @@ export function createPrivateMarketDemoRouter({
     }
     return next();
   }, authenticate, limiter, asyncHandler(async (req, res) => {
+    const privateDemoCapability = createDemoCapability(req, env);
+    if (!privateDemoCapability) {
+      return sendError(req, res, 404, 'Route not found.', 'ROUTE_NOT_FOUND');
+    }
     res.set('Cache-Control', 'private, no-store');
     res.set('Pragma', 'no-cache');
     res.set('X-Robots-Tag', 'noindex, nofollow');
-    const response = await readSnapshot({ env });
+    const response = await readSnapshot({ env, privateDemoCapability });
     return res.json(response);
   }));
 
