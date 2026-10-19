@@ -189,7 +189,7 @@ function extractRoutes(source, receiver, prefix = '') {
       path: normalizePath(`${prefix}${match[2] === '/' ? '' : match[2]}`),
       // Authentication middleware appears in the route's argument preamble.
       // Limit the scan so a later route cannot make a long handler look protected.
-      authenticated: /\b(?:verifyJWT|verifyJWTWithRevocationAvailability|authenticate)\b/.test(declaration.slice(0, 300)),
+      authenticated: /\b(?:verifyJWT|verifyJWTWithRevocationAvailability|verifySession|authenticate)\b/.test(declaration.slice(0, 300)),
     };
   });
 }
