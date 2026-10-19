@@ -44,6 +44,16 @@ Production requires operator evidence for **every** right dimension (`access`, `
 
 Keyed TejHQ cache entries are partitioned by a one-way fingerprint of the configured key. A response cached under one credential cannot establish a rotated credential's entitlement. The fingerprint and any raw key must not be logged or returned by API routes.
 
+## Read-only diagnostics without Docker
+
+From the `server/` directory, run `npm run market:doctor` after configuring your private `.env`. The diagnostic inspects selected mode, credential *presence*, provider enablement and registered source-rights decisions; it makes **no network requests** and never prints token contents. Exit code `2` indicates that required provider prerequisites remain blocked. It does **not** verify account entitlements or legal distribution rights.
+
+For authenticated administrators, `GET /api/market-data/admin/diagnostics` returns the same no-network report behind JWT, admin-role and rate-limit gates. Do not weaken `marketDataRights.js` or turn on licensing flags merely to force a green result.
+
+Compose now forwards server-side provider credentials only when supplied, with `MARKET_DATA_MODE=LEGACY` and all publication flags disabled by default. Kubernetes mounts optional provider credentials only from `wealthgenie-secrets`, not its public ConfigMap or frontend. Set real values in a secret manager; example secret values are inert placeholders. Production user rights require separate verification and approval.
+
+These diagnostics do not repair a missing Upstox OAuth callback. Credentials must be legitimately provisioned and authorized independently.
+
 ## Source and execution inventory
 
 | Source | Current code status | Selected-mode behavior |
