@@ -219,10 +219,10 @@ function requalifyCurrentSession(session, now, tradingDate) {
 }
 
 export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
-  constructor({ accessToken = resolveUpstoxAccessToken(), env = process.env,
+  constructor({ accessToken = undefined, env = process.env,
     requestCache = readThroughMarketCache, ...options } = {}) {
     super({ providerName: PROVIDERS.UPSTOX, env, ...options });
-    this.accessToken = String(accessToken || '').trim();
+    this.accessToken = String(accessToken ?? resolveUpstoxAccessToken(env)).trim();
     this.env = env;
     this.requestCache = requestCache;
   }
