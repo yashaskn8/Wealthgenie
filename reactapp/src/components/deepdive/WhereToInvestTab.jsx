@@ -852,7 +852,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
               <span>{marketContextRefreshing ? 'Refreshing…' : 'Refresh'}</span>
             </button>
           </div>
-          {import.meta.env.DEV && <PrivateMarketDataDemo />}
         </div>
 
         <div className="wti-beginner-market-footer">
@@ -1147,6 +1146,9 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           </div>
         </div>
       </section>
+
+      {/* Keep developer diagnostics separate from the compact market summary. */}
+      {import.meta.env.DEV && <PrivateMarketDataDemo />}
 
       {/* ─── Illustrative Investment & Tax Controls Bar ─── */}
       {rankingStatus === 'ready' && products.length > 0 && (
