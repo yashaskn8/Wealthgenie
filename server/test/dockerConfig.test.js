@@ -52,6 +52,19 @@ test('Docker full-stack wiring proxies frontend API calls and supplies ML operat
   assert.match(mongoService, /publishNotReadyAddresses:\s*true/);
 });
 
+test('Nginx permits same-origin microphone access while blocking unrelated sensitive browser features', () => {
+  const rootDir = fs.existsSync(path.join(process.cwd(), 'docker-compose.yml'))
+    ? process.cwd()
+    : path.resolve(process.cwd(), '..');
+  const nginxConfig = fs.readFileSync(path.join(rootDir, 'reactapp', 'nginx.conf'), 'utf8');
+  const policy = nginxConfig.match(/add_header Permissions-Policy "([^"]+)" always;/)?.[1];
+
+  assert.ok(policy, 'Permissions-Policy response header is missing');
+  assert.match(policy, /(?:^|,\s*)microphone=\(self\)(?:,|$)/);
+  assert.match(policy, /(?:^|,\s*)camera=\(\)(?:,|$)/);
+  assert.match(policy, /(?:^|,\s*)geolocation=\(\)(?:,|$)/);
+});
+
 test('root-context application images include authoritative shared modules without host dependencies or env files', () => {
   const rootDir = fs.existsSync(path.join(process.cwd(), 'docker-compose.yml'))
     ? process.cwd()

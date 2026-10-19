@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
   [switch]$RequireRedis,
+  [switch]$RequireBrowser,
   [switch]$EnablePlanReview,
   [string]$RedisServerPath,
   [ValidateRange(1024, 65535)]
@@ -535,6 +536,20 @@ if (-not (Test-ListeningPort $frontendPort)) {
 }
 $frontendVerified = Wait-Frontend "http://127.0.0.1:$frontendPort/login"
 if (-not $frontendVerified) { throw 'The local frontend did not become reachable.' }
+$browserVerified = $false
+if ($RequireBrowser) {
+  $browserSmokeScript = Join-Path $repoRoot 'scripts/demoBrowserSmoke.mjs'
+  if (-not (Test-Path -LiteralPath $browserSmokeScript -PathType Leaf)) {
+    throw 'The read-only browser smoke script is missing; rendered UI verification was not attempted.'
+  }
+  $browserOrigin = "http://127.0.0.1:$frontendPort"
+  $browserOutput = @(& $nodeExe $browserSmokeScript $browserOrigin 2>&1)
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Rendered browser verification failed. The frontend remains available for inspection; no account or financial data was changed.'
+  }
+  $browserVerified = $true
+  Write-Host (($browserOutput | Out-String).Trim())
+}
 
 $processState = [pscustomobject]@{
   repository = $repoRoot
@@ -550,13 +565,18 @@ $processState = [pscustomobject]@{
   redisRequired = [bool]$redisAvailable
   backendPort = $backendPort
   frontendPort = $frontendPort
+  browserSmokeRequired = [bool]$RequireBrowser
+  browserVerified = $browserVerified
   sourceShaPublished = [bool]$sourceSha
   backendPid = $backendPid
   frontendPid = $frontendPid
 }
 $processState | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
 Write-Host "Backend VERIFIED: loopback port $backendPort, READY, connected to the existing demo sentinel and transaction-capable replica set."
-Write-Host "Frontend VERIFIED: loopback port $frontendPort, login document returned HTTP 200 with the React root element."
+Write-Host "Frontend HTTP VERIFIED: loopback port $frontendPort, login document returned HTTP 200 with the React root element."
+if (-not $RequireBrowser) {
+  Write-Host 'Rendered browser UI NOT VERIFIED: pass -RequireBrowser to run the read-only loopback browser smoke.'
+}
 Write-Host 'Credentials source: project-root .env only; server/.env was not loaded. Credential values were not printed.'
 if ($serverPassword -and $serverPassword -cne $demoPassword) {
   Write-Host 'Environment note: root/server demo passwords differ; the verified root .env value was selected without changing either file.'

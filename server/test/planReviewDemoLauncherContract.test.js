@@ -30,3 +30,14 @@ test('demo launcher keeps verified MongoDB and no-write protections', () => {
   assert.match(script, /existing verified demo database identity/);
   assert.doesNotMatch(script, /migratePlanReviewIndexes/);
 });
+
+test('rendered browser verification is explicit, loopback-only, and separate from HTTP readiness', () => {
+  assert.match(script, /\[switch\]\$RequireBrowser/);
+  assert.match(script, /Join-Path \$repoRoot 'scripts\/demoBrowserSmoke\.mjs'/);
+  assert.match(script, /\$browserOrigin = "http:\/\/127\.0\.0\.1:\$frontendPort"/);
+  assert.match(script, /& \$nodeExe \$browserSmokeScript \$browserOrigin/);
+  assert.match(script, /Rendered browser verification failed/);
+  assert.match(script, /Frontend HTTP VERIFIED/);
+  assert.match(script, /Rendered browser UI NOT VERIFIED/);
+  assert.doesNotMatch(script, /AllowAuditBranch/);
+});
