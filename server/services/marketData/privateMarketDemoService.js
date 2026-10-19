@@ -88,7 +88,8 @@ export function normalizePrivateBenchmarkQuotes(body, receivedAt) {
     const matches = Object.values(body.data).filter(row => row?.instrument_token === item.key);
     const row = matches.length === 1 ? matches[0] : null;
     const observedAt = isoFromEpochMs(row?.last_trade_time);
-    const valid = validPositive(row?.last_price) && observedAt && Date.parse(observedAt) <= Date.parse(receivedAt);
+    const valid = Boolean(validPositive(row?.last_price) && observedAt && Date.parse(observedAt) <= Date.parse(receivedAt));
+    const ageSeconds = valid ? Math.max(0, Math.floor((Date.parse(receivedAt) - Date.parse(observedAt)) / 1000)) : null;
     return {
       canonicalProductId: item.id, name: item.name,
       instrumentKey: item.key, provider: 'UPSTOX',
@@ -96,6 +97,8 @@ export function normalizePrivateBenchmarkQuotes(body, receivedAt) {
       price: valid ? row.last_price : null,
       observedAt: valid ? observedAt : null,
       receivedAt,
+      freshness: { status: !valid ? 'UNKNOWN' : ageSeconds <= 900 ? 'FRESH' : 'STALE',
+        ageSeconds, maxAgeSeconds: 900 },
       dataClass: 'LIVE_QUOTE_SNAPSHOT',
       reasonCode: valid ? null : matches.length > 1 ? 'DUPLICATE_OBSERVATION' : 'QUOTE_NOT_QUALIFIED',
     };
@@ -148,7 +151,7 @@ export async function readPrivateMarketDemo({
   let quotes = quoteFresh ? existing.quotes : fail('UPSTOX_TOKEN_NOT_CONFIGURED');
   if (!quoteFresh && token) {
     const response = await getJson(fetchImpl, buildUpstoxQuoteRequestUrl(QUOTE_KEYS), token);
-    quotes = response.error ? fail(response.error) : normalizePrivateBenchmarkQuotes(response.data, stamp);
+    quotes = response.error ? fail(response.error) : normalizePrivateBenchmarkQuotes(response.data, now().toISOString());
   }
   const window = recentWindow(clock);
   const eodFresh = existing.eod && existing.eodExpiresAt > clock.getTime()
@@ -159,7 +162,7 @@ export async function readPrivateMarketDemo({
       + window.from + '&to=' + window.to;
     const response = await getJson(fetchImpl, url, null);
     eod = response.error ? fail(response.error) : normalizePrivateTejHqEod(response.data, {
-      ...window, receivedAt: stamp,
+      ...window, receivedAt: now().toISOString(),
     });
   }
   // Failed reads are negatively cached for 30 seconds to protect rate limits.
@@ -179,7 +182,7 @@ export async function readPrivateMarketDemo({
     sourceRightsScope: 'READ_ONLY_PRIVATE_EDUCATIONAL_VIEW',
     storedIn: 'PROCESS_MEMORY_ONLY',
     persistentWrites: 0,
-    checkedAt: stamp,
+    checkedAt: now().toISOString(),
     cache: { quoteHit: Boolean(quoteFresh), eodHit: Boolean(eodFresh) },
     quotes, eod,
   };
