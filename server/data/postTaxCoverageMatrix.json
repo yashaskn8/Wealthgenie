@@ -128,26 +128,6 @@
       "basis": "The SBI rate-card page states that its content must not be displayed or printed, in part or whole, without prior written SBI approval. Other extraction, storage, and derived-calculation rights remain unverified."
     },
     {
-      "sourceId": "RBI_FRSB_NOTIFICATION",
-      "provider": "RBI",
-      "url": "https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11924",
-      "status": "LICENSE_UNVERIFIED",
-      "termsUrl": null,
-      "rights": {
-        "access": "LICENSE_UNVERIFIED",
-        "extraction": "LICENSE_UNVERIFIED",
-        "derivedCalculation": "LICENSE_UNVERIFIED",
-        "storage": "LICENSE_UNVERIFIED",
-        "publicDisplay": "LICENSE_UNVERIFIED",
-        "commercialUse": "LICENSE_UNVERIFIED",
-        "redistribution": "LICENSE_UNVERIFIED",
-        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
-      },
-      "approvedScopes": [],
-      "productionPostTaxUseAllowed": false,
-      "basis": "The official RBI source establishes bond-rule evidence; no exact automated retrieval, storage, derived-calculation, public-display, or commercial-use permission record is present in the repository."
-    },
-    {
       "sourceId": "UPSTOX_QUOTES_V3",
       "provider": "UPSTOX",
       "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
@@ -168,6 +148,26 @@
       ],
       "productionPostTaxUseAllowed": false,
       "basis": "Upstox developer support stated on 8 October 2026 that informational/educational sites may display market data and build tools within rate limits. This record is deliberately limited to an ephemeral authenticated loopback demo; it does not authorize commercial use, storage, or redistribution."
+    },
+    {
+      "sourceId": "RBI_FRSB_NOTIFICATION",
+      "provider": "RBI",
+      "url": "https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11924",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": null,
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "The official RBI source establishes bond-rule evidence; no exact automated retrieval, storage, derived-calculation, public-display, or commercial-use permission record is present in the repository."
     },
     {
       "sourceId": "UPSTOX_HISTORICAL_CANDLES_V3",
