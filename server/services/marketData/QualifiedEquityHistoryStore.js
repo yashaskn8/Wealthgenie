@@ -162,6 +162,24 @@ export async function persistQualifiedHistory(snapshot, request, {
   if (Model === MarketEquityDailyBar && mongoose.connection.readyState !== 1) {
     return { status: 'UNAVAILABLE', code: 'MARKET_HISTORY_DATABASE_UNAVAILABLE', written: 0 };
   }
+  // Prevent silently writing unprotected data if the additive migration was
+  // not executed. The unique identity and TTL must both be present.
+  if (Model === MarketEquityDailyBar) {
+    let indexes;
+    try { indexes = await Model.collection.indexes(); } catch {
+      return { status: 'UNAVAILABLE', code: 'MARKET_HISTORY_INDEXES_UNVERIFIED', written: 0 };
+    }
+    const identity = indexes.find(index => index.name === 'unique_qualified_equity_daily_bar'
+      && index.unique === true
+      && JSON.stringify(index.key) === JSON.stringify({
+        provider: 1, exchange: 1, isin: 1, priceBasis: 1, tradingDate: 1,
+      }));
+    const ttl = indexes.find(index => index.name === 'expire_qualified_equity_daily_bar'
+      && index.expireAfterSeconds === 0 && index.key?.retainedUntil === 1);
+    if (!identity || !ttl) {
+      return { status: 'UNAVAILABLE', code: 'MARKET_HISTORY_INDEXES_UNVERIFIED', written: 0 };
+    }
+  }
   await Model.bulkWrite(plan.operations, { ordered: true });
   return { status: 'PERSISTED', provider: plan.provider, priceBasis: plan.priceBasis,
     written: plan.operations.length };
