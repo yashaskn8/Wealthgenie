@@ -111,11 +111,15 @@ test('Upstox provider-native bars use exchange-local trading date without invent
       return { ...rest, timestamp: d + 'T18:40:00.000Z' };
     }),
   };
-  const result = buildQualifiedHistoryWriteOperations(upstox, request, { env, now, rightsCheck: allow });
+  const shifted = buildQualifiedHistoryWriteOperations(upstox, request, { env, now, rightsCheck: allow });
+  assert.equal(shifted.status, 'UNAVAILABLE');
+  const valid = { ...upstox, candles: upstox.candles.map((bar, index) => ({
+    ...bar, timestamp: ['2026-10-15', '2026-10-16'][index] + 'T04:00:00.000Z',
+  })) };
+  const result = buildQualifiedHistoryWriteOperations(valid, request, { env, now, rightsCheck: allow });
   assert.equal(result.status, 'READY');
-  assert.equal(result.operations[0].updateOne.filter.tradingDate, '2026-10-16');
-  // Both fixtures are shifted into the following IST date (first 15th -> 16th,
-  // second 16th -> 17th, which exceeds requested toDate). Reject the range.
+  assert.equal(result.operations[0].updateOne.filter.tradingDate, '2026-10-15');
+  assert.equal(result.operations[0].updateOne.update.$set.symbol, null);
 });
 test('admin persistence is explicit and return records are rechecked for rights', async () => {
   const writes = [], cacheRows = [];
