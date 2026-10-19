@@ -450,6 +450,18 @@ $commonEnv = @{
 if ($nvidiaModel) { $commonEnv.NVIDIA_NIM_MODEL = $nvidiaModel }
 if ($sourceSha) { $commonEnv.APP_BUILD_SHA = $sourceSha }
 
+if ($EnablePlanReview) {
+  # Fail before API launch if the verified isolated database lacks Phase 4/5
+  # checkpoint indexes or the durable Plan Review queue-admission fence.
+  $preflightScript = Join-Path $repoRoot 'server/scripts/verifyPlanReviewDemoReadiness.js'
+  if (-not (Test-Path -LiteralPath $preflightScript -PathType Leaf)) {
+    throw 'Plan Review readiness verifier missing; no backend started.'
+  }
+  $readinessProcess = Start-HiddenProcess $nodeExe 'scripts/verifyPlanReviewDemoReadiness.js' (Join-Path $repoRoot 'server') $commonEnv 'demo-plan-review-readiness'
+  if (-not $readinessProcess.WaitForExit(20000) -or $readinessProcess.ExitCode -ne 0) {
+    throw 'Plan Review Phase 4/5 persistence preflight failed. No migration was attempted. Back up the verified isolated demo database; apply explicit Phase 4 and Phase 5 migrations as documented in docs/operations/plan-review-recovery.md.'
+  }
+}
 if (Test-ListeningPort $backendPort) {
   if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) {
     throw "Backend port $backendPort is occupied without a matching prior startup record; it was not contacted or stopped."
