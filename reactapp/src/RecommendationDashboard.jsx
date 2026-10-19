@@ -441,10 +441,15 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                     <div className="wg-plan-action-deck">
                       <div className="wg-plan-action-badge">
                         <Sparkles size={12} aria-hidden="true" />
-                        <span>AI RECOMMENDED ACTION</span>
+                        <span>PERSONALIZED NEXT STEP</span>
                       </div>
                       <h2 id="wg-plan-next-title">What Should You Do Next?</h2>
                       <p>Review the verified financial choices selected specifically for your profile.</p>
+                      {recommendationMeta?.ml_fallback === true && (
+                        <p role="status" data-testid="recommendation-rule-fallback-note">
+                          This plan used the deterministic rule-based fallback. A trained ML prediction was not used for this recommendation.
+                        </p>
+                      )}
                       <button type="button" className="wg-plan-primary" data-testid="home-cta-where-to-invest" onClick={() => onNavigate && onNavigate('investments')}>
                         <span>See Where to Invest</span>
                         <span className="wg-plan-primary-icon-wrap"><ChevronRight size={18} aria-hidden="true" /></span>
