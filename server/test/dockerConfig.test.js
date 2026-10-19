@@ -126,6 +126,18 @@ test('Docker build contexts exclude local secrets, caches, and host dependencies
   assert.match(mlIgnore, /^__pycache__$/m);
 });
 
+test('production Nginx permits first-party microphone use while blocking other sensitive browser features', () => {
+  const rootDir = fs.existsSync(path.join(process.cwd(), 'docker-compose.yml'))
+    ? process.cwd()
+    : path.resolve(process.cwd(), '..');
+  const nginxConfig = fs.readFileSync(path.join(rootDir, 'reactapp', 'nginx.conf'), 'utf8');
+
+  assert.match(nginxConfig, /Permissions-Policy[^\n]*microphone=\(self\)/);
+  assert.doesNotMatch(nginxConfig, /Permissions-Policy[^\n]*microphone=\(\)/);
+  assert.match(nginxConfig, /Permissions-Policy[^\n]*camera=\(\)/);
+  assert.match(nginxConfig, /Permissions-Policy[^\n]*geolocation=\(\)/);
+});
+
 test('Kind image builds use repository-root contexts for shared-module Dockerfiles', () => {
   const rootDir = fs.existsSync(path.join(process.cwd(), 'docker-compose.yml'))
     ? process.cwd()

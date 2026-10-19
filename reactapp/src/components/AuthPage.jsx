@@ -163,8 +163,8 @@ function AuthPage() {
             <div className={`form-view ${activeView === 'login' ? 'active' : 'hidden'}`} id="login-view">
               <form id="login-form" onSubmit={handleLoginSubmit}>
                 <div className="input-group">
-                  <label htmlFor="login-email">Username</label>
-                  <input type="text" id="login-email" placeholder="e.g. admin" required autoComplete="username" />
+                  <label htmlFor="login-email">Email address</label>
+                  <input type="email" id="login-email" placeholder="you@example.com" required autoComplete="email" />
                 </div>
                 <div className="input-group">
                   <label htmlFor="login-password">Password</label>

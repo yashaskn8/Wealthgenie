@@ -28,6 +28,20 @@ describe('nullable market-data presentation', () => {
     expect(getMarketDisplayState({ status: 'MARKET_CONTEXT_UNAVAILABLE' }).key).toBe('UNAVAILABLE');
   });
 
+  it('preserves unavailable, stale, and partial snapshot states after a failed refresh', () => {
+    for (const status of ['UNAVAILABLE', 'STALE', 'PARTIAL_DATA']) {
+      expect(getMarketDisplayState(
+        { marketSnapshot: { status } }, { refreshFailed: true },
+      ).key).toBe(status);
+    }
+    expect(getMarketDisplayState(
+      { status: 'MARKET_CONTEXT_UNAVAILABLE' }, { refreshFailed: true },
+    ).key).toBe('UNAVAILABLE');
+    expect(getMarketDisplayState(
+      { marketSnapshot: { status: 'MARKET_CLOSED' } }, { refreshFailed: true },
+    ).key).toBe('LAST_AVAILABLE');
+  });
+
   it('shows permission failures as unavailable even when an older snapshot exists', () => {
     const blocked = {
       reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'],
@@ -37,6 +51,49 @@ describe('nullable market-data presentation', () => {
     expect(getMarketDisplayState({
       marketSnapshot: { policyOutput: { reasonCodes: ['UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'] } },
     }).label).toBe('Market data permission unavailable');
+    expect(getMarketDisplayState({
+      marketSnapshot: { providerStatus: { quotes: {
+        error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' },
+      } } },
+    }).key).toBe('RIGHTS_UNAVAILABLE');
+  });
+
+  it('preserves nested rights failures only when no qualified provider was selected', () => {
+    const unqualified = {
+      marketSnapshot: {
+        status: 'UNAVAILABLE',
+        providerSelection: {
+          attemptedProviders: ['UPSTOX'],
+          selectedProvider: null,
+          providerFailures: [{ provider: 'UPSTOX',
+            reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'] }],
+        },
+      },
+    };
+    expect(getMarketDisplayState(unqualified).key).toBe('RIGHTS_UNAVAILABLE');
+
+    expect(getMarketDisplayState({
+      marketSnapshot: {
+        status: 'CURRENT',
+        providerSelection: {
+          attemptedProviders: ['UPSTOX', 'NSE'],
+          selectedProvider: 'NSE',
+          providerFailures: [{ provider: 'UPSTOX',
+            reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'] }],
+        },
+      },
+    }).key).toBe('CURRENT');
+  });
+
+  it('keeps malformed provider-failure data from breaking market-state rendering', () => {
+    for (const providerFailures of [null, {}, 'not-a-list', [{ reasonCodes: {} }]]) {
+      expect(getMarketDisplayState({
+        marketSnapshot: {
+          status: 'UNAVAILABLE',
+          providerSelection: { selectedProvider: null, providerFailures },
+        },
+      }).key).toBe('UNAVAILABLE');
+    }
   });
 
   it('humanizes provenance without accepting unsafe evidence links', () => {

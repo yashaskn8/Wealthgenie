@@ -19,10 +19,23 @@ const composeVariable = (key, fallback = '') => key + '=$' + '{' + key + ':-' + 
 test('Compose forwards authorized provider settings only to the API server with rights disabled by default', () => {
   const compose = read('docker-compose.yml');
   const server = compose.services.server.environment;
-  const worker = compose.services['agent-worker'].environment;
   for (const key of PRIVATE_KEYS) {
     assert.ok(server.includes(composeVariable(key)), 'API server missing ' + key);
-    assert.equal(worker.some(value => value.startsWith(key + '=')), false, 'credential leaked to worker: ' + key);
+    assert.equal(
+      compose.services['agent-worker'].environment.some(value => value.startsWith(key + '=')),
+      false,
+      'credential leaked to worker: ' + key,
+    );
+  }
+  for (const key of MARKET_KEYS) {
+    for (const service of ['reactapp', 'ml-service']) {
+      const environment = compose.services[service].environment || [];
+      assert.equal(
+        environment.some(value => value.startsWith(key + '=')),
+        false,
+        'market credential leaked to ' + service + ': ' + key,
+      );
+    }
   }
   assert.ok(server.includes(composeVariable('MARKET_DATA_MODE', 'LEGACY')));
   assert.ok(server.includes(composeVariable('MARKET_DATA_PRIMARY_PROVIDER', 'NSE')));

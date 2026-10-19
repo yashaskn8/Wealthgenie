@@ -10,11 +10,11 @@ vi.mock('../../context/AuthContext', () => ({
 }));
 
 describe('login does not wait for background-video playback', () => {
-  it('shows the existing username login without media events', () => {
+  it('shows the email login without waiting for media events', () => {
     render(<MemoryRouter initialEntries={['/login']}><AuthPage /></MemoryRouter>);
     expect(document.getElementById('login-container')).toHaveClass('visible');
     expect(document.getElementById('bg-video')).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getByLabelText('Username')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email address')).toHaveAttribute('type', 'email');
     expect(screen.getByRole('button', { name: 'Login', exact: true })).toBeInTheDocument();
     // Deliberately trigger no video ended/error/loadedmetadata events.
   });

@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
   [switch]$RequireRedis,
+  [switch]$RequireMlService,
   [switch]$RequireBrowser,
   [switch]$EnablePlanReview,
   [string]$RedisServerPath,
@@ -271,6 +272,18 @@ $serverPassword = Get-DotEnvValue $serverEnvPath 'DEMO_PASSWORD'
 $jwtSecret = Get-DotEnvValue $rootEnvPath 'JWT_SECRET'
 $nvidiaKey = Get-DotEnvValue $rootEnvPath 'NVIDIA_API_KEY'
 $nvidiaModel = Get-DotEnvValue $rootEnvPath 'NVIDIA_NIM_MODEL'
+$mlServiceApiKey = Get-DotEnvValue $rootEnvPath 'ML_SERVICE_API_KEY'
+$mlServiceUrl = Get-DotEnvValue $rootEnvPath 'ML_SERVICE_URL'
+if (-not $mlServiceUrl) { $mlServiceUrl = 'http://127.0.0.1:8000' }
+$mlUri = $null
+if ((-not [Uri]::TryCreate($mlServiceUrl, [UriKind]::Absolute, [ref]$mlUri)) -or
+    $mlUri.Scheme -cne 'http' -or
+    $mlUri.Host -notin @('127.0.0.1', 'localhost') -or
+    $mlUri.UserInfo -or $mlUri.Query -or $mlUri.Fragment -or
+    $mlUri.AbsolutePath -cne '/') {
+  throw 'Local demo ML_SERVICE_URL must be a loopback HTTP service origin, without credentials, path, query or fragment.'
+}
+$mlServiceUrl = $mlUri.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
 
 if (-not $demoEmail -or -not $demoPassword -or $demoPassword.Length -lt 8 -or $demoPassword.Length -gt 128) {
   throw 'The selected root .env demo credentials are missing or fail the registration password length contract.'
@@ -346,6 +359,20 @@ if (-not $mongoIdentity.verified) {
   throw 'The listener does not match the existing verified demo database identity; no backend or frontend was started.'
 }
 Write-Host "MongoDB VERIFIED: $($mongoIdentity.database), loopback port $($mongoIdentity.port), replica set $($mongoIdentity.replicaSet), read-only transaction PASS."
+
+$mlReadinessVerified = $false
+try {
+  $mlHealth = Invoke-RestMethod -Uri "$mlServiceUrl/readyz" -TimeoutSec 3 -ErrorAction Stop
+  $mlReadinessVerified = $mlHealth.status -eq 'ready'
+} catch { $mlReadinessVerified = $false }
+if ($RequireMlService -and (-not $mlReadinessVerified -or -not $mlServiceApiKey)) {
+  throw 'Required local Python ML service readiness or ML_SERVICE_API_KEY is unavailable; no backend or frontend service was started.'
+}
+if ($mlReadinessVerified) {
+  Write-Host 'ML service readiness: READY on verified loopback origin. Model inference and API-key authorization were not exercised.'
+} else {
+  Write-Host 'ML service readiness: NOT VERIFIED. Recommendation inference uses the deterministic fallback when the Python service is unavailable.'
+}
 
 $redisAvailable = $false
 $redisExe = $RedisServerPath
@@ -443,6 +470,8 @@ $commonEnv = @{
   AGENT_AP2_RESEARCH_ENABLED = 'false'
   JWT_SECRET = $jwtSecret
   JWT_EXPIRES_IN = '7d'
+  ML_SERVICE_URL = $mlServiceUrl
+  ML_SERVICE_API_KEY = $mlServiceApiKey
   PORT = [string]$backendPort
   CORS_ORIGINS = "http://127.0.0.1:$frontendPort"
   NVIDIA_API_KEY = $nvidiaKey
