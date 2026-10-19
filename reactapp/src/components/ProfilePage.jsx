@@ -11,8 +11,9 @@ const PRECOMPUTE_DEBOUNCE_MS = 500;
 const PRECOMPUTE_SAVE_WAIT_MS = 1500;
 
 function createCompletionIdempotencyKey() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `completion-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  // A profile-completion retry key must use the same CSPRNG-backed identity
+  // as the shared API client. Never fall back to predictable Math.random().
+  return api.generateUUID();
 }
 
 function waitForBoundedPromise(promise, timeoutMs) {
