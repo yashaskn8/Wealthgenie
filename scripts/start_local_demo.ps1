@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
   [switch]$RequireRedis,
+  [switch]$EnablePlanReview,
   [string]$RedisServerPath,
   [ValidateRange(1024, 65535)]
   [int]$BackendPort = 5001,
@@ -29,7 +30,12 @@ $expectedEnvironmentId = 'f9cca306-e0be-4b82-95db-4c2cf0132d75'
 $redisPort = 6380
 $backendPort = $BackendPort
 $frontendPort = $FrontendPort
-$expectedOrigin = 'https://github.com/yashaskn8/WealthGenie-AI-Powered-Financial-AdvisoryPlatform.git'
+# Accept only the active WealthGenie repository, never its archived predecessor.
+$expectedOrigins = @(
+  'https://github.com/yashaskn8/Wealthgenie.git',
+  'https://github.com/yashaskn8/Wealthgenie',
+  'git@github.com:yashaskn8/Wealthgenie.git'
+)
 $backendPid = $null
 $frontendPid = $null
 $priorProcessState = $null
@@ -246,7 +252,7 @@ if ((-not (Test-Path -LiteralPath $cacheRoot -PathType Container)) -or (-not (Te
 
 $remote = (& git -C $repoRoot remote get-url origin 2>$null).Trim()
 $branch = (& git -C $repoRoot branch --show-current 2>$null).Trim()
-if ($remote -ne $expectedOrigin -or $branch -ne 'main') {
+if ($remote -notin $expectedOrigins -or $branch -ne 'main') {
   throw 'The canonical origin or main branch does not match; no service was started.'
 }
 $head = (& git -C $repoRoot rev-parse HEAD).Trim()
@@ -423,8 +429,11 @@ $commonEnv = @{
   DEMO_COMPLETION_IDEMPOTENCY_KEY = 'wealthgenie-local-demo-profile-v1'
   MARKET_DATA_PRIMARY_PROVIDER = 'NSE'
   MARKET_DATA_REFRESH_ENABLED = 'false'
-  AGENTIC_PLAN_REVIEW_ENABLED = 'false'
-  AGENT_WORKER_ENABLED = 'false'
+  # Keep the isolated demo deterministic unless the operator explicitly opts
+  # into durable Plan Review with previously provisioned MongoDB indexes.
+  AGENTIC_PLAN_REVIEW_ENABLED = $(if ($EnablePlanReview) { 'true' } else { 'false' })
+  AGENT_WORKER_ENABLED = $(if ($EnablePlanReview) { 'true' } else { 'false' })
+  AGENT_WORKER_MODE = 'embedded'
   MCP_ENABLED = 'false'
   MCP_REMOTE_ENABLED = 'false'
   MCP_LEGACY_SSE_ENABLED = 'false'

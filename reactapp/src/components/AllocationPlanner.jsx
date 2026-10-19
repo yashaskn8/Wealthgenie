@@ -304,7 +304,7 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
     let cancelled = false;
     const controller = new AbortController();
     const requestId = ++reviewRequestSequence.current;
-    api.getCurrentPlanReviewRun(profileId, { timeoutMs: 1500, signal: controller.signal }).then(current => {
+    api.getCurrentPlanReviewRun(profileId, { timeoutMs: 10000, signal: controller.signal }).then(current => {
       if (cancelled || requestId !== reviewRequestSequence.current) return;
       setStateBindingKey(bindingKey);
       if (!isPlanReviewRunEnvelope(current)) {
@@ -679,17 +679,21 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
 
   // Only convert backend-authoritative weights into chart presentation fields.
   // Keep the incoming recommendation order and values unchanged.
-  const allocation = useMemo(() => (Array.isArray(recommendations) ? recommendations : [])
-    .map((item, idx) => {
+  const { allocation, invalidAllocation } = (() => {
+    const normalized = [];
+    for (const [idx, item] of (Array.isArray(recommendations) ? recommendations : []).entries()) {
       const grad = SLICE_GRADIENTS[idx % SLICE_GRADIENTS.length];
       const allocationWeight = toOptionalNumber(item?.allocationWeight);
       const monthlyAmount = toOptionalNumber(item?.monthly_allocation);
       const nominalRate = toOptionalNumber(item?.nominalReturn);
       if (allocationWeight === undefined || monthlyAmount === undefined
           || allocationWeight < 0 || allocationWeight > 1 || monthlyAmount < 0) {
-        throw new TypeError(`Authoritative allocation fields are missing for ${item?.id || item?.name || 'an investment'}`);
+        // Do not render a partial allocation or fabricate missing financial
+        // amounts. Keep the read-only Plan Review available instead of
+        // crashing the entire page before its error state can render.
+        return { allocation: [], invalidAllocation: true };
       }
-      return {
+      normalized.push({
         ...item,
         allocationPct: allocationWeight * 100,
         monthlyAmount,
@@ -699,8 +703,10 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
         gradId: grad.id,
         themeColor: grad.primary,
         glowColor: grad.glow,
-      };
-    }), [recommendations]);
+      });
+    }
+    return { allocation: normalized, invalidAllocation: false };
+  })();
 
   const blendedReturn = toOptionalNumber(recommendationMeta?.portfolio_return_assumption);
   const activeAllocation = useMemo(() => allocation.filter(item => item.allocationWeight > 0), [allocation]);
@@ -745,7 +751,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
   const horizonYears = Number(profile?.investment_horizon_years);
   const goals = Array.isArray(profile?.investment_goals) ? profile.investment_goals.filter(Boolean) : [];
   const isLoading = recommendationMeta?.loading === true || recommendationMeta?.status === 'LOADING';
-  const hasError = Boolean(recommendationMeta?.error || recommendationMeta?.status === 'ERROR');
+  const hasError = Boolean(invalidAllocation || recommendationMeta?.error || recommendationMeta?.status === 'ERROR');
   const financialStateKey = [
     profile?.profileId || recommendationMeta?.profileId || '',
     profile?.version ?? profile?.profile_version ?? recommendationMeta?.profile_version ?? '',
@@ -778,6 +784,12 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
       <Tooltip.Provider delayDuration={220} skipDelayDuration={120}>
         <motion.div className="ap-page ap-state-page" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
           <PlanState kind="error" title="We couldn't load your plan" message="The recommendation service did not return a usable plan. Your saved profile is unchanged; please try again from the profile screen." />
+          <PlanReviewPanel
+            profile={profile}
+            profileId={profile?.profileId || recommendationMeta?.profileId}
+            financialStateKey={financialStateKey}
+            onRecomputePlan={onRecomputePlan}
+          />
         </motion.div>
       </Tooltip.Provider>
     );
@@ -788,6 +800,12 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
       <Tooltip.Provider delayDuration={220} skipDelayDuration={120}>
         <motion.div className="ap-page ap-state-page" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
           <PlanState kind="empty" title="No allocation available" message="Complete or update your financial profile to unlock personalized investment options." />
+          <PlanReviewPanel
+            profile={profile}
+            profileId={profile?.profileId || recommendationMeta?.profileId}
+            financialStateKey={financialStateKey}
+            onRecomputePlan={onRecomputePlan}
+          />
         </motion.div>
       </Tooltip.Provider>
     );

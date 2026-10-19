@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { Target, TrendingUp, Calendar, DollarSign, Sliders, Sparkles, Save, AlertTriangle, ChevronRight, Info, Zap, Shield, Activity, Cpu, Umbrella, Home, GraduationCap, Car, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProjectionBand from './ProjectionBand';
@@ -165,7 +165,10 @@ export const GoalDetailPane = ({
   const selectedGoalTarget = selectedGoal?.target_amount;
   const selectedGoalSavings = selectedGoal?.current_savings;
 
-  useEffect(() => {
+  // Synchronize the authoritative goal identity/version before the user can
+  // enter edit mode. A delayed passive reset could otherwise erase an edit
+  // begun immediately after a goal refresh under a busy renderer.
+  useLayoutEffect(() => {
     if (hasSelectedGoal) {
       const resetState = () => {
         setEditTarget(selectedGoalTarget ?? '');
