@@ -28,15 +28,13 @@ export default function PrivateMarketDemoPanel() {
     && typeof window !== 'undefined'
     && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
   const [snapshot, setSnapshot] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(local);
   const [error, setError] = useState(null);
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     if (!local || typeof api.getPrivateMarketDemo !== 'function') return undefined;
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
     api.getPrivateMarketDemo({ signal: controller.signal, retries: 0 })
       .then(data => {
         if (!controller.signal.aborted) setSnapshot(data);
@@ -54,6 +52,12 @@ export default function PrivateMarketDemoPanel() {
     return () => controller.abort();
   }, [local, revision]);
 
+  const refresh = () => {
+    setLoading(true);
+    setError(null);
+    setRevision(n => n + 1);
+  };
+
   if (!local) return null;
 
   const quotes = snapshot?.quotes?.facts || [];
@@ -68,7 +72,7 @@ export default function PrivateMarketDemoPanel() {
           <strong>Read-only market API verification</strong>
           <div style={muted}>Private local development only — separate from investment recommendations</div>
         </div>
-        <button type="button" onClick={() => setRevision(n => n + 1)} disabled={loading}
+        <button type="button" onClick={refresh} disabled={loading}
           aria-label="Refresh private market API evidence">
           {loading ? 'Checking…' : 'Refresh observations'}
         </button>
