@@ -27,13 +27,35 @@ must be a verified replica set, support transactions, and have the required
 agent run/checkpoint/event/index collections already migrated. The server
 verifies required indexes read-only and **refuses to start** without them.
 
-Plan Review index migration is a separate, state-changing administrator
-operation (`server/scripts/migratePlanReviewIndexes.js`). It may drop
-obsolete indexes to replace them correctly. **Back up and inspect the
-selected isolated database** before using it; never run against an
-unknown or shared production MongoDB. It requires
-`MONGODB_MIGRATION_URI` in an explicitly trusted local process.
-The demo launcher never executes this migration automatically.
+Plan Review requires **both** independently verified migrations:
+Phase 4 review-run/checkpoint indexes and Phase 5 Agent Runtime capacity and
+admission-fence state (including `AgentQueueAdmission._id = plan-review` and the
+numeric queue-priority index). Only creating the Phase 4 indexes leaves
+enqueue requests blocked by `AGENT_QUEUE_ADMISSION_UNAVAILABLE`.
+
+Both migrations are explicit, state-changing administrator operations:
+`server/scripts/migratePlanReviewIndexes.js` and
+`server/scripts/migratePhase5AgentRuntimeIndexes.js`. They can replace
+obsolete indexes or backfill persisted records. **Back up and inspect the
+selected isolated demo database** first; never run against an unknown or
+shared production database. They both require `MONGODB_MIGRATION_URI` in
+an explicitly trusted local process. The launcher itself executes a
+read-only Phase 4 + Phase 5 preflight and does not perform migrations.
+
+After verifying the database is the existing isolated `wealthgenie-demo`
+replica set, making a backup and explicitly approving its migration,
+execute from the repository root in PowerShell:
+
+    cd server
+    $env:MONGODB_MIGRATION_URI = 'mongodb://127.0.0.1:27030/wealthgenie-demo?replicaSet=rs0'
+    node scripts/migratePlanReviewIndexes.js
+    node scripts/migratePhase5AgentRuntimeIndexes.js
+    Remove-Item Env:MONGODB_MIGRATION_URI
+    cd ..
+    .\scripts\start_local_demo.ps1 -EnablePlanReview
+
+Stop on the first migration error. Do not attempt automatic repairs to a
+different MongoDB instance or reuse a production connection string.
 
 For an existing validated demo database with provisioned indexes, launch
 in PowerShell:
