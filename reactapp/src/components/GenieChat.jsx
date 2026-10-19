@@ -180,6 +180,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   const [isClearing, setIsClearing] = useState(false);
   const [rateLimit, setRateLimit] = useState({ remaining: 30, total: 30 });
   const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState(null);
   const [chatSession, setChatSession] = useState(() => ({
     ...restoreOrCreateChatSession(),
     financialBinding: null,
@@ -623,16 +624,50 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
       recognitionRef.current.lang = 'en-IN';
-      recognitionRef.current.onresult = (e) => { const t = e.results[0][0].transcript; setInput(prev => prev + t); setIsListening(false); };
-      recognitionRef.current.onerror = () => setIsListening(false);
+      recognitionRef.current.onresult = (e) => {
+        const transcript = e.results?.[0]?.[0]?.transcript;
+        if (typeof transcript === 'string' && transcript.trim()) {
+          setInput(prev => prev + transcript);
+          setVoiceError(null);
+        } else {
+          setVoiceError('No speech was captured. Please try again or type your question.');
+        }
+        setIsListening(false);
+      };
+      recognitionRef.current.onerror = (event) => {
+        const code = String(event?.error || '');
+        const message = code === 'not-allowed' || code === 'service-not-allowed'
+          ? 'Microphone access was blocked. Allow microphone permission in your browser or type your question.'
+          : code === 'audio-capture'
+            ? 'No microphone was detected. Connect a microphone or type your question.'
+            : code === 'network'
+              ? 'Speech recognition is unavailable due to a network error. Please type your question.'
+              : 'Voice input could not capture your speech. Please try again or type your question.';
+        setVoiceError(message);
+        setIsListening(false);
+      };
       recognitionRef.current.onend = () => setIsListening(false);
     }
   }, []);
 
   const toggleVoice = () => {
-    if (!recognitionRef.current) return;
-    if (isListening) { recognitionRef.current.stop(); setIsListening(false); }
-    else { recognitionRef.current.start(); setIsListening(true); }
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+      return;
+    }
+    setVoiceError(null);
+    try {
+      // Speech recognition can synchronously reject start() if the permission
+      // is denied or the recognition session is already active.
+      recognition.start();
+      setIsListening(true);
+    } catch {
+      setIsListening(false);
+      setVoiceError('Voice input could not start. Check microphone access or type your question.');
+    }
   };
 
   const handleAction = useCallback((action) => {
@@ -1032,6 +1067,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                 {isLoading ? <RefreshCw size={18} className="spin-icon" /> : <Send size={18} />}
               </button>
             </div>
+            {voiceError && <div role="status" className="chat-error-banner">{voiceError}</div>}
             <div className="genie-disclaimer">AI-powered guidance · Not SEBI-registered advice · For learning purposes</div>
           </div>
 
