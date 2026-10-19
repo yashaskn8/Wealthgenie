@@ -93,7 +93,9 @@ export default function PrivateMarketDemoPanel() {
               </div>
               <div style={muted}>Last trade: {whenText(quote.observedAt)}</div>
               <div style={muted}>Fetched: {whenText(quote.receivedAt)}</div>
-              <div style={muted}>{quote.status}</div>
+              <div style={muted}>Observation: {quote.freshness?.status || 'UNKNOWN'}
+                {quote.freshness?.ageSeconds != null ? ` · ${quote.freshness.ageSeconds}s since trade` : ''}
+              </div>
             </div>
           ))}
         </div>
