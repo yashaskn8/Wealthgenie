@@ -29,9 +29,12 @@ const isoDate = value => {
 const istDate = timestamp => {
   const date = new Date(timestamp);
   if (!Number.isFinite(date.getTime())) return null;
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(date).replaceAll('/', '-');
+  }).formatToParts(date);
+  const field = name => parts.find(part => part.type === name)?.value;
+  const y = field('year'), m = field('month'), d = field('day');
+  return y && m && d ? `${y}-${m}-${d}` : null;
 };
 
 export function qualifiedHistoryStorageConfig(env = process.env) {
@@ -71,6 +74,11 @@ function normalizeQualifiedHistory(snapshot, request, now) {
       || snapshot.instrumentIdentity?.symbol !== request.symbol
       || !snapshot.source.url.startsWith(basis === 'ADJUSTED'
         ? SOURCE_URLS.TEJHQ_ADJUSTED : SOURCE_URLS.TEJHQ_RAW))) return null;
+  const sourceUrls = snapshot.provider === 'TEJHQ'
+    ? snapshot.source.requestUrls : [snapshot.source.url];
+  if (!Array.isArray(sourceUrls) || sourceUrls.length < 1 || sourceUrls.length > 12
+      || sourceUrls.some(url => typeof url !== 'string' || !url.startsWith('https://')))
+    return null;
   const fetchedAt = new Date(snapshot.fetchedAt);
   if (!Number.isFinite(fetchedAt.getTime()) || fetchedAt.getTime() > now.getTime()) return null;
 
@@ -102,17 +110,17 @@ function normalizeQualifiedHistory(snapshot, request, now) {
     });
     lastDate = date;
   }
-  return { bars, fetchedAt };
+  return { bars, fetchedAt, sourceUrls };
 }
 
 export function buildQualifiedHistoryWriteOperations(snapshot, request, {
-  env = process.env, now = new Date(),
+  env = process.env, now = new Date(), rightsCheck = qualifiedHistoryRightsAllowed,
 } = {}) {
   const settings = qualifiedHistoryStorageConfig(env);
   if (!settings.enabled) return { status: 'DISABLED', code: 'MARKET_HISTORY_STORAGE_NOT_CONFIGURED', operations: [] };
   const normalized = normalizeQualifiedHistory(snapshot, request, now);
   if (!normalized) return { status: 'UNAVAILABLE', code: 'UNQUALIFIED_MARKET_HISTORY', operations: [] };
-  if (!qualifiedHistoryRightsAllowed(snapshot.provider, snapshot.source.url)) {
+  if (!normalized.sourceUrls.every(url => rightsCheck(snapshot.provider, url))) {
     return { status: 'UNAVAILABLE', code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED', operations: [] };
   }
   const basis = snapshot.priceBasis;
@@ -130,7 +138,8 @@ export function buildQualifiedHistoryWriteOperations(snapshot, request, {
           tradingDate: bar.tradingDate, priceBasis: basis,
           open: bar.open, high: bar.high, low: bar.low, close: bar.close,
           volume: bar.volume, adjustedClose: bar.adjustedClose, adjustmentFactor: bar.adjustmentFactor,
-          source: { url: snapshot.source.url, instrumentId: snapshot.source.instrumentId,
+          source: { url: normalized.sourceUrls[0], requestUrls: normalized.sourceUrls,
+            instrumentId: snapshot.source.instrumentId,
             datasetRevision: snapshot.sourceDatasetRevision || null },
           qualifiedCoverage: snapshot.coverage.status, fetchedAt: normalized.fetchedAt,
           providerObservedAt: bar.providerObservedAt,
@@ -146,8 +155,9 @@ export function buildQualifiedHistoryWriteOperations(snapshot, request, {
 /** Explicit, rights-gated administrative ingest. Never triggered by public GETs. */
 export async function persistQualifiedHistory(snapshot, request, {
   env = process.env, now = new Date(), Model = MarketEquityDailyBar,
+  rightsCheck = qualifiedHistoryRightsAllowed,
 } = {}) {
-  const plan = buildQualifiedHistoryWriteOperations(snapshot, request, { env, now });
+  const plan = buildQualifiedHistoryWriteOperations(snapshot, request, { env, now, rightsCheck });
   if (plan.status !== 'READY') return { status: plan.status, code: plan.code, written: 0 };
   if (Model === MarketEquityDailyBar && mongoose.connection.readyState !== 1) {
     return { status: 'UNAVAILABLE', code: 'MARKET_HISTORY_DATABASE_UNAVAILABLE', written: 0 };
@@ -160,6 +170,7 @@ export async function persistQualifiedHistory(snapshot, request, {
 /** Rights checked again at read time; expired records remain invisible even before TTL cleanup. */
 export async function readQualifiedHistory(request, {
   env = process.env, now = new Date(), Model = MarketEquityDailyBar,
+  rightsCheck = qualifiedHistoryRightsAllowed,
 } = {}) {
   if (!qualifiedHistoryStorageConfig(env).enabled) return unavailable('MARKET_HISTORY_STORAGE_NOT_CONFIGURED');
   if (Model === MarketEquityDailyBar && mongoose.connection.readyState !== 1) {
@@ -177,7 +188,9 @@ export async function readQualifiedHistory(request, {
   const records = await Model.find(query).sort({ tradingDate: 1 }).limit(MAX_BARS).lean();
   // A raw read may contain observations from two sources. Never mix them
   // into one row or silently choose a preferred feed.
-  const visible = records.filter(row => qualifiedHistoryRightsAllowed(row.provider, row.source?.url));
+  const visible = records.filter(row => Array.isArray(row.source?.requestUrls)
+    && row.source.requestUrls.length > 0
+    && row.source.requestUrls.every(url => rightsCheck(row.provider, url)));
   return {
     status: visible.length ? 'AVAILABLE' : 'UNAVAILABLE',
     code: visible.length ? null : 'NO_AUTHORIZED_PERSISTED_HISTORY',
