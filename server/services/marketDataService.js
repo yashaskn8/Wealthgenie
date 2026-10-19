@@ -438,7 +438,15 @@ export async function fetchQualifiedEquityHistory({
           return {
             ...primarySnapshot,
             canonicalProductId,
-            instrumentIdentity: normalizedIdentity,
+            // The Upstox candle key identifies the ISIN, but does not verify
+            // the caller's trading symbol. Keep the requested label separate.
+            instrumentIdentity: {
+              exchange: request.exchange,
+              symbol: null,
+              isin: request.isin,
+              requestedSymbol: request.symbol,
+              symbolBindingStatus: 'UNVERIFIED',
+            },
             provider: PROVIDERS.UPSTOX,
             dataClass: 'HISTORICAL_DAILY',
             priceBasis: 'UPSTOX_PROVIDER_NATIVE',
@@ -544,10 +552,23 @@ export async function fetchQualifiedEquityHistory({
   if (providerStatus.publication?.datasetTradingDate < lastExpectedSession) {
     return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_DATASET_NOT_PUBLISHED_THROUGH_REQUESTED_SESSION', primarySnapshot, providerStatus });
   }
+  if (normalizedBasis === 'ADJUSTED' && providerStatus.publication?.derivedDatasetStatus !== 'PUBLISHED') {
+    return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_ADJUSTED_DATASET_NOT_PUBLISHED_THROUGH_REQUESTED_SESSION', primarySnapshot, providerStatus });
+  }
 
   const segmented = buildTejHqSymbolSegments(symbolSnapshot, expectedDates, normalizedIdentity);
   if (segmented.errorCode || segmented.segments.length === 0) {
     return unavailableEquityHistory({ request, reasonCode: segmented.errorCode || 'TEJHQ_SYMBOL_HISTORY_INCOMPLETE', primarySnapshot, providerStatus });
+  }
+  // A rename can produce older segments with different symbols. The caller's
+  // label must still match the source-backed symbol for the final session.
+  if (segmented.segments.at(-1).symbol !== request.symbol) {
+    return unavailableEquityHistory({
+      request,
+      reasonCode: 'TEJHQ_REQUESTED_SYMBOL_ISIN_MISMATCH',
+      primarySnapshot,
+      providerStatus,
+    });
   }
 
   const candles = [];
@@ -944,16 +965,20 @@ export async function fetchUpstoxCanonicalQuotes(canonicalProductIds, {
   env = process.env,
   now = new Date(),
   upstoxMarketDataProvider = upstoxProvider,
+  marketDataTestFixtureRightsCapability = null,
 } = {}) {
   const identities = resolveUpstoxQuoteIdentities(canonicalProductIds);
   const quoteRequestUrl = buildUpstoxQuoteRequestUrl(identities.map(identity => identity.upstoxInstrumentKey));
-  const snapshot = productionRightsAllow(PROVIDERS.UPSTOX, [quoteRequestUrl], env)
+  const rightsAllowed = productionRightsAllow(
+    PROVIDERS.UPSTOX, [quoteRequestUrl], env, marketDataTestFixtureRightsCapability,
+  );
+  const snapshot = rightsAllowed
     && isUpstoxPublicDistributionAllowed(env)
     ? await upstoxMarketDataProvider.getQuotes(
       identities.map(identity => identity.upstoxInstrumentKey),
       { forceRefresh },
     )
-    : !productionRightsAllow(PROVIDERS.UPSTOX, [quoteRequestUrl], env)
+    : !rightsAllowed
       ? unavailableMarketSnapshot(PROVIDERS.UPSTOX, UPSTOX_QUOTE_URL, { now })
       : unavailableDistributionSnapshot(PROVIDERS.UPSTOX, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED', now);
   const factsById = new Map((snapshot.facts || []).map(fact => [fact.canonicalProductId, fact]));
@@ -982,6 +1007,9 @@ export async function fetchUpstoxCanonicalQuotes(canonicalProductIds, {
       observedAt: sourceFact?.observedAt ?? null,
       fetchedAt: sourceFact?.fetchedAt ?? snapshot.fetchedAt ?? null,
       providerTimestamp: sourceFact?.providerTimestamp ?? null,
+      quoteLastTradeAt: sourceFact?.quoteLastTradeAt ?? null,
+      quoteResponseGeneratedAt: sourceFact?.quoteResponseGeneratedAt ?? null,
+      providerResponseReceivedAt: sourceFact?.providerResponseReceivedAt ?? null,
       effectiveTradingDate: sourceFact?.effectiveTradingDate ?? null,
       availabilityStatus: sourceFact?.availabilityStatus ?? AVAILABILITY.UNAVAILABLE,
       freshness: sourceFact?.freshness ?? { status: 'UNKNOWN', ageSeconds: null, maxAgeSeconds: UPSTOX_QUOTE_FRESHNESS_SECONDS },

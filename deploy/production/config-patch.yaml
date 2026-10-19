@@ -9,3 +9,6 @@ data:
   AUTH_COOKIE_SECURE: "true"
   AUTH_COOKIE_SAME_SITE: "strict"
   AGENTIC_PLAN_REVIEW_ENABLED: "false"
+  # Keep the existing market path explicit. Change only after endpoint rights
+  # and the selected-mode production configuration have been approved.
+  MARKET_DATA_MODE: "LEGACY"

@@ -12,7 +12,7 @@ import { buildUpstoxInstrumentIdentity } from './productIdentity.js';
 import { readThroughMarketCache } from './requestCache.js';
 import { isoDateInIndia } from './indiaMarketTime.js';
 import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
-import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import { resolveUpstoxAccessToken, upstoxCredentialCacheFingerprint } from './upstoxCredentials.js';
 import { getUpstoxWithRetry } from './upstoxRequestPolicy.js';
 import {
   evaluateMarketDataProductionRights,
@@ -46,8 +46,10 @@ function normalizeInstrumentKeys(instrumentKeys) {
   return unique;
 }
 
-function cacheKeyFor(instrumentKeys) {
-  const digest = crypto.createHash('sha256').update([...instrumentKeys].sort().join('\n')).digest('hex');
+function cacheKeyFor(instrumentKeys, credentialFingerprint) {
+  const digest = crypto.createHash('sha256')
+    .update(JSON.stringify([credentialFingerprint, [...instrumentKeys].sort()]))
+    .digest('hex');
   return `market:upstox:quotes:${MARKET_DATA_SCHEMA_VERSION}:${digest}`;
 }
 
@@ -56,14 +58,11 @@ function findQuote(data, instrumentKey) {
     return { quote: null, reasonCode: 'INVALID_PROVIDER_RESPONSE' };
   }
   const exchangeSymbolKey = instrumentKey.replace('|', ':');
-  const candidates = new Set(
-    Object.entries(data)
-      .filter(([key, value]) => key === exchangeSymbolKey || value?.instrument_token === instrumentKey)
-      .map(([, value]) => value),
-  );
-  if (candidates.size > 1) return { quote: null, reasonCode: 'DUPLICATE_PROVIDER_OBSERVATION' };
-  if (candidates.size === 0) return { quote: null, reasonCode: 'MISSING_PROVIDER_OBSERVATION' };
-  const [quote] = candidates;
+  const candidates = Object.entries(data)
+    .filter(([key, value]) => key === exchangeSymbolKey || value?.instrument_token === instrumentKey);
+  if (candidates.length > 1) return { quote: null, reasonCode: 'DUPLICATE_PROVIDER_OBSERVATION' };
+  if (candidates.length === 0) return { quote: null, reasonCode: 'MISSING_PROVIDER_OBSERVATION' };
+  const [[, quote]] = candidates;
   if (quote?.instrument_token !== instrumentKey) {
     return { quote: null, reasonCode: 'INSTRUMENT_IDENTITY_MISMATCH' };
   }
@@ -73,7 +72,14 @@ function findQuote(data, instrumentKey) {
 function quoteObservedAt(quote) {
   // Upstox `timestamp` is when its quote response was generated. Only
   // `last_trade_time` describes when the observation traded at the exchange.
-  return normalizeTimestamp(quote?.last_trade_time ?? quote?.lastTradeTime);
+  const raw = quote?.last_trade_time;
+  return /^(?:\d{13})$/.test(String(raw ?? '')) ? normalizeTimestamp(raw) : null;
+}
+
+function quoteResponseGeneratedAt(quote) {
+  const raw = quote?.timestamp;
+  return typeof raw === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(raw)
+    ? normalizeTimestamp(raw) : null;
 }
 
 function invalidOhlc(quote) {
@@ -102,6 +108,14 @@ function quoteIssue(quoteResult, quote, now) {
   const observedAt = quoteObservedAt(quote);
   if (!observedAt) return 'OBSERVATION_TIMESTAMP_UNAVAILABLE';
   if (Date.parse(observedAt) > now.getTime()) return 'FUTURE_OBSERVATION_TIMESTAMP';
+  if (quote?.timestamp !== undefined && !quoteResponseGeneratedAt(quote)) {
+    return 'INVALID_PROVIDER_RESPONSE_TIMESTAMP';
+  }
+  const responseGeneratedAt = quoteResponseGeneratedAt(quote);
+  if (responseGeneratedAt && (Date.parse(responseGeneratedAt) > now.getTime()
+    || Date.parse(responseGeneratedAt) < Date.parse(observedAt))) {
+    return 'CONFLICTING_PROVIDER_TIMESTAMPS';
+  }
   return null;
 }
 
@@ -164,20 +178,21 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
       };
     }
 
+    const accessToken = this.accessToken;
     return this.requestCache({
-      cacheKey: cacheKeyFor(normalizedKeys),
+      cacheKey: cacheKeyFor(normalizedKeys, upstoxCredentialCacheFingerprint(accessToken)),
       ttlSeconds: UPSTOX_QUOTE_CACHE_TTL_SECONDS,
       forceRefresh,
       loader: async () => {
-        const requestFetchedAt = this.nowIso();
         try {
           const response = await getUpstoxWithRetry(this.httpClient, requestUrl, {
             timeout: 10_000,
             headers: {
               Accept: 'application/json',
-              Authorization: `Bearer ${this.accessToken}`,
+              Authorization: `Bearer ${accessToken}`,
             },
           });
+          const requestFetchedAt = this.nowIso();
           if (!response?.data || typeof response.data !== 'object' || Array.isArray(response.data)
               || (response.data.status !== undefined && response.data.status !== 'success')
               || !response.data.data || typeof response.data.data !== 'object' || Array.isArray(response.data.data)) {
@@ -190,33 +205,39 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
             const quote = quoteResult.quote;
             const identity = buildUpstoxInstrumentIdentity(instrumentKey);
             const observedAt = quoteObservedAt(quote);
+            const responseGeneratedAt = quoteResponseGeneratedAt(quote);
             const reasonCode = quoteIssue(quoteResult, quote, now);
-            return createMarketFact({
-              kind: FACT_KINDS.MARKET_QUOTE,
-              canonicalProductId: identity.canonicalProductId,
-              sourceProvider: PROVIDERS.UPSTOX,
-              sourceInstrumentId: instrumentKey,
-              sourceUrl: requestUrl,
-              value: reasonCode ? null : quote?.last_price,
-              currency: /^(?:NSE|BSE|MCX)_INDEX\|/.test(instrumentKey) ? null : 'INR',
-              unit: /^(?:NSE|BSE|MCX)_INDEX\|/.test(instrumentKey) ? 'INDEX_POINTS' : 'PRICE',
-              observedAt,
-              providerTimestamp: observedAt,
-              effectiveTradingDate: isoDateInIndia(observedAt),
-              fetchedAt: requestFetchedAt,
-              dataClass: 'LIVE',
-              maxAgeSeconds: UPSTOX_QUOTE_FRESHNESS_SECONDS,
-              metrics: reasonCode ? {} : {
-                open: quote?.ohlc?.open,
-                high: quote?.ohlc?.high,
-                low: quote?.ohlc?.low,
-                close: quote?.ohlc?.close,
-                previousClose: quote?.prev_close_price,
-                volume: quote?.volume,
-                openInterest: quote?.oi,
-              },
-              now,
-            });
+            return {
+              ...createMarketFact({
+                kind: FACT_KINDS.MARKET_QUOTE,
+                canonicalProductId: identity.canonicalProductId,
+                sourceProvider: PROVIDERS.UPSTOX,
+                sourceInstrumentId: instrumentKey,
+                sourceUrl: requestUrl,
+                value: reasonCode ? null : quote?.last_price,
+                currency: /^(?:NSE|BSE|MCX)_INDEX\|/.test(instrumentKey) ? null : 'INR',
+                unit: /^(?:NSE|BSE|MCX)_INDEX\|/.test(instrumentKey) ? 'INDEX_POINTS' : 'PRICE',
+                observedAt,
+                providerTimestamp: observedAt,
+                effectiveTradingDate: isoDateInIndia(observedAt),
+                fetchedAt: requestFetchedAt,
+                dataClass: 'LIVE',
+                maxAgeSeconds: UPSTOX_QUOTE_FRESHNESS_SECONDS,
+                metrics: reasonCode ? {} : {
+                  open: quote?.ohlc?.open,
+                  high: quote?.ohlc?.high,
+                  low: quote?.ohlc?.low,
+                  close: quote?.ohlc?.close,
+                  previousClose: nullableMarketValue(quote?.prev_close_price),
+                  volume: quote?.volume,
+                  openInterest: quote?.oi,
+                },
+                now,
+              }),
+              quoteLastTradeAt: observedAt,
+              quoteResponseGeneratedAt: responseGeneratedAt,
+              providerResponseReceivedAt: requestFetchedAt,
+            };
           }).map((fact, index) => {
             const quoteResult = findQuote(responseData, normalizedKeys[index]);
             const reasonCode = quoteIssue(quoteResult, quoteResult.quote, now);
@@ -241,7 +262,7 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
             schemaVersion: MARKET_DATA_SCHEMA_VERSION,
             provider: PROVIDERS.UPSTOX,
             status: AVAILABILITY.SOURCE_ERROR,
-            fetchedAt: requestFetchedAt,
+            fetchedAt: this.nowIso(),
             requestedInstrumentCount: normalizedKeys.length,
             availableFactCount: 0,
             facts: [],

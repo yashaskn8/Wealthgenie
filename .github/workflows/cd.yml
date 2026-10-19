@@ -688,6 +688,7 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_live_market_preflight }}
         env:
           NODE_ENV: production
+          MARKET_DATA_MODE: LEGACY
           MARKET_DATA_PRIMARY_PROVIDER: NSE
           DEMO_LIVE_PREFLIGHT: '1'
           DEMO_API_BASE_URL: https://127.0.0.1:8443/api

@@ -23,6 +23,25 @@ test('Config Validation: Missing MONGODB_URI fails validation', () => {
   assert.ok(result.errors.some(e => e.includes('MONGODB_URI is required')));
 });
 
+test('Config Validation: invalid market mode and provider cannot silently select legacy data', () => {
+  const base = {
+    JWT_SECRET: 'test-secret-at-least-32-chars-long-valid',
+    MONGODB_URI: 'mongodb://localhost:27017/wealthgenie',
+    NODE_ENV: 'test',
+  };
+  const invalid = validateEnvironmentConfig({
+    ...base,
+    MARKET_DATA_MODE: 'UPSTOX_TEJH',
+    MARKET_DATA_PRIMARY_PROVIDER: 'TEJHQ',
+    TEJHQ_ENABLED: 'yes',
+  });
+  assert.equal(invalid.valid, false);
+  assert.ok(invalid.errors.some(error => error.includes('MARKET_DATA_MODE')));
+  assert.ok(invalid.errors.some(error => error.includes('MARKET_DATA_PRIMARY_PROVIDER')));
+  assert.ok(invalid.errors.some(error => error.includes('TEJHQ_ENABLED')));
+  assert.equal(validateEnvironmentConfig({ ...base, MARKET_DATA_MODE: 'UPSTOX_TEJHQ' }).valid, true);
+});
+
 test('Config Validation: production rejects attempts to disable HTTP rate limiting', () => {
   const base = {
     JWT_SECRET: '0123456789abcdef0123456789abcdef0123456789abcdef',

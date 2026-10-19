@@ -126,6 +126,19 @@ test('Upstox NSE primary history requires exact qualified-calendar session cover
   assert.equal(direct.coverage.expectedSessionCount, 2);
   assert.equal(direct.coverage.observedSessionCount, 2);
   assert.equal(tejCalls, 0);
+  assert.deepEqual(direct.instrumentIdentity, {
+    exchange: 'NSE', symbol: null, isin: request.isin,
+    requestedSymbol: 'RELIANCE', symbolBindingStatus: 'UNVERIFIED',
+  });
+
+  const unverifiedSymbol = await fetchQualifiedEquityHistory({ ...request, symbol: 'OTHER' }, {
+    upstoxProvider: { getDailyCandles: async () => validPrimary },
+    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
+  });
+  assert.equal(unverifiedSymbol.status, 'AVAILABLE');
+  assert.equal(unverifiedSymbol.instrumentIdentity.symbol, null);
+  assert.equal(unverifiedSymbol.instrumentIdentity.requestedSymbol, 'OTHER');
+  assert.equal(unverifiedSymbol.instrumentIdentity.symbolBindingStatus, 'UNVERIFIED');
 
   const currentSessionTime = new Date('2026-10-09T10:00:00.000Z');
   const currentSession = await fetchQualifiedEquityHistory(request, {
@@ -156,7 +169,9 @@ test('Upstox NSE primary history requires exact qualified-calendar session cover
         status: 'AVAILABLE', exchange: 'NSE', isin: request.isin,
         intervals: [{ exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2010-01-01', validTo: '2026-10-09' }],
       }),
-      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: { datasetTradingDate: '2026-10-09' } }),
+      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: {
+        datasetTradingDate: '2026-10-09', derivedDatasetStatus: 'PUBLISHED',
+      } }),
       getAdjustedHistory: async options => ({
         status: 'AVAILABLE', provider: 'TEJHQ', priceBasis: 'BACK_ADJUSTED',
         instrumentIdentity: { exchange: options.exchange, tradingSymbol: options.symbol, isin: options.isin },
@@ -177,6 +192,46 @@ test('Upstox NSE primary history requires exact qualified-calendar session cover
   });
   assert.equal(adjusted.candles[0].close, 105);
   assert.equal(adjusted.candles[0].adjustedClose, 52.5);
+
+  let mismatchedAdjustedReads = 0;
+  const mismatchedAdjusted = await fetchQualifiedEquityHistory({
+    ...request, symbol: 'OTHER', basis: 'ADJUSTED',
+  }, {
+    tejHqHistoricalProvider: {
+      getSymbolHistory: async () => ({
+        status: 'AVAILABLE', exchange: 'NSE', isin: request.isin,
+        intervals: [{ exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2010-01-01', validTo: '2026-10-09' }],
+      }),
+      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: {
+        datasetTradingDate: '2026-10-09', derivedDatasetStatus: 'PUBLISHED',
+      } }),
+      getAdjustedHistory: async () => { mismatchedAdjustedReads += 1; return {}; },
+    },
+    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
+    env: { NODE_ENV: 'test', TEJHQ_ADJUSTED_HISTORY_ENABLED: 'true' },
+  });
+  assert.equal(mismatchedAdjusted.status, 'UNAVAILABLE');
+  assert.equal(mismatchedAdjusted.selection.reasonCode, 'TEJHQ_REQUESTED_SYMBOL_ISIN_MISMATCH');
+  assert.equal(mismatchedAdjustedReads, 0);
+
+  let prematureAdjustedReads = 0;
+  const prematureAdjusted = await fetchQualifiedEquityHistory({ ...request, basis: 'ADJUSTED' }, {
+    tejHqHistoricalProvider: {
+      getSymbolHistory: async () => ({
+        status: 'AVAILABLE', exchange: 'NSE', isin: request.isin,
+        intervals: [{ exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2010-01-01', validTo: '2026-10-09' }],
+      }),
+      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: {
+        datasetTradingDate: '2026-10-09', derivedDatasetStatus: 'STALE',
+      } }),
+      getAdjustedHistory: async () => { prematureAdjustedReads += 1; return {}; },
+    },
+    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
+    env: { NODE_ENV: 'test', TEJHQ_ADJUSTED_HISTORY_ENABLED: 'true' },
+  });
+  assert.equal(prematureAdjusted.status, 'UNAVAILABLE');
+  assert.equal(prematureAdjusted.selection.reasonCode, 'TEJHQ_ADJUSTED_DATASET_NOT_PUBLISHED_THROUGH_REQUESTED_SESSION');
+  assert.equal(prematureAdjustedReads, 0);
 
   const makeTejProvider = dates => ({
     getSymbolHistory: async () => ({
@@ -265,9 +320,10 @@ test('TejHQ fallback rejects publication lag, wrong identity, and missing sessio
   });
   const runFallback = async ({
     symbols = symbolHistory(), publicationDate = '2026-10-09', dates = ['2026-10-08', '2026-10-09'],
+    requestedSymbol = request.symbol,
   } = {}) => {
     let rawHistoryCalls = 0;
-    const result = await fetchQualifiedEquityHistory(request, {
+    const result = await fetchQualifiedEquityHistory({ ...request, symbol: requestedSymbol }, {
       upstoxProvider: { getDailyCandles: async () => primaryFailure },
       tejHqHistoricalProvider: {
         getSymbolHistory: async () => symbols,
@@ -304,6 +360,20 @@ test('TejHQ fallback rejects publication lag, wrong identity, and missing sessio
   assert.equal(mismatchedIdentity.result.selection.reasonCode, 'TEJHQ_SYMBOL_IDENTITY_UNAVAILABLE');
   assert.equal(mismatchedIdentity.rawHistoryCalls, 0);
   assert.deepEqual(mismatchedIdentity.result.candles, []);
+
+  const mismatchedRequestedSymbol = await runFallback({ requestedSymbol: 'OTHER' });
+  assert.equal(mismatchedRequestedSymbol.result.status, 'UNAVAILABLE');
+  assert.equal(mismatchedRequestedSymbol.result.selection.reasonCode, 'TEJHQ_REQUESTED_SYMBOL_ISIN_MISMATCH');
+  assert.equal(mismatchedRequestedSymbol.rawHistoryCalls, 0);
+  assert.deepEqual(mismatchedRequestedSymbol.result.candles, []);
+
+  const renamed = await runFallback({ symbols: symbolHistory({ intervals: [
+    { exchange: 'NSE', isin: request.isin, symbol: 'OLDCO', validFrom: '2010-01-01', validTo: '2026-10-08' },
+    { exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2026-10-09', validTo: '2026-10-09' },
+  ] }) });
+  assert.equal(renamed.result.status, 'AVAILABLE');
+  assert.equal(renamed.rawHistoryCalls, 2);
+  assert.equal(renamed.result.candles.length, 2);
 
   const missingSession = await runFallback({ dates: ['2026-10-08'] });
   assert.equal(missingSession.result.status, 'UNAVAILABLE');

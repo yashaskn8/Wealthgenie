@@ -3,7 +3,11 @@ import test from 'node:test';
 import UpstoxHistoricalCandleProvider from '../services/marketData/UpstoxHistoricalCandleProvider.js';
 import UpstoxMarketDataProvider from '../services/marketData/UpstoxMarketDataProvider.js';
 import { createHealthRouter } from '../routes/health.js';
-import { hasUpstoxAccessToken, resolveUpstoxAccessToken } from '../services/marketData/upstoxCredentials.js';
+import {
+  hasUpstoxAccessToken,
+  resolveUpstoxAccessToken,
+  upstoxCredentialCacheFingerprint,
+} from '../services/marketData/upstoxCredentials.js';
 
 test('Upstox credential resolution trims each candidate before applying precedence', () => {
   assert.equal(resolveUpstoxAccessToken({
@@ -29,6 +33,16 @@ test('Upstox readiness reports only a nonblank resolved credential', () => {
     UPSTOX_ANALYTICS_TOKEN: ' ',
     UPSTOX_ACCESS_TOKEN: '\t ',
   }), false);
+});
+
+test('Upstox cache fingerprints separate credentials without disclosing their values', () => {
+  const first = upstoxCredentialCacheFingerprint(' fixture-token-A ');
+  const second = upstoxCredentialCacheFingerprint('fixture-token-B');
+  assert.match(first, /^[a-f0-9]{64}$/);
+  assert.equal(first, upstoxCredentialCacheFingerprint('fixture-token-A'));
+  assert.notEqual(first, second);
+  assert.ok(!first.includes('fixture-token-A'));
+  assert.throws(() => upstoxCredentialCacheFingerprint('  '), /configured Upstox credential/);
 });
 
 test('health verification derives Upstox token presence from the trimmed fallback', { concurrency: false }, async () => {

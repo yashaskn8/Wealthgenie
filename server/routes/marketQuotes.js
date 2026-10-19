@@ -32,7 +32,10 @@ export function createMarketQuotesRouter({
       try {
         const canonicalProductIds = req.query.ids.split(',');
         resolveUpstoxQuoteIdentities(canonicalProductIds);
-        return res.json(await fetchQuotes(canonicalProductIds));
+        return res.json(await fetchQuotes(canonicalProductIds, {
+          env,
+          marketDataTestFixtureRightsCapability,
+        }));
       } catch (error) {
         if (error?.code === 'UNSUPPORTED_MARKET_INSTRUMENT') {
           return sendError(req, res, 400, error.message, error.code);

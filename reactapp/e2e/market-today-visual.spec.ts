@@ -73,7 +73,7 @@ const MARKET_CONTEXT_MOCK = {
     marketSession: { status: 'MARKET_OPEN', tradingDate: '2026-09-09' },
     recommendationUsability: { status: 'USABLE', reasonCodes: [], maxAgeSeconds: 900 },
     evidenceRevision: 'd'.repeat(64),
-    contentRevision: { version: 'market-snapshot-content-1.0.0', digest: 'c'.repeat(64) },
+    contentRevision: { version: 'market-snapshot-content-1.1.0', digest: 'c'.repeat(64) },
   },
   recommendationUsability: { status: 'USABLE', reasonCodes: [], maxAgeSeconds: 900 },
 };

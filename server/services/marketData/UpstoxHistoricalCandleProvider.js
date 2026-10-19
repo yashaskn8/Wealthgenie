@@ -13,7 +13,7 @@ import { buildUpstoxInstrumentIdentity } from './productIdentity.js';
 import { readThroughMarketCache } from './requestCache.js';
 import { isoDateInIndia } from './indiaMarketTime.js';
 import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
-import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import { resolveUpstoxAccessToken, upstoxCredentialCacheFingerprint } from './upstoxCredentials.js';
 import { getUpstoxWithRetry } from './upstoxRequestPolicy.js';
 import {
   evaluateMarketDataProductionRights,
@@ -59,9 +59,9 @@ function sourceUrlFor(instrumentKey, toDate, fromDate) {
   return `${UPSTOX_HISTORICAL_CANDLE_V3_URL}/${encodeURIComponent(instrumentKey)}/days/1/${toDate}/${fromDate}`;
 }
 
-function cacheKeyFor(instrumentKey, toDate, fromDate) {
+function cacheKeyFor(instrumentKey, toDate, fromDate, credentialFingerprint) {
   const digest = crypto.createHash('sha256')
-    .update(`${instrumentKey}\n${fromDate}\n${toDate}`)
+    .update(JSON.stringify([credentialFingerprint, instrumentKey, fromDate, toDate]))
     .digest('hex');
   return `market:upstox:daily-candles:${MARKET_DATA_SCHEMA_VERSION}:${UPSTOX_HISTORY_CACHE_QUALIFIER}:${digest}`;
 }
@@ -210,20 +210,22 @@ export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
     }
 
     const sourceUrl = sourceUrlFor(instrumentKey, normalizedToDate, normalizedFromDate);
+    const accessToken = this.accessToken;
     return this.requestCache({
-      cacheKey: cacheKeyFor(instrumentKey, normalizedToDate, normalizedFromDate),
+      cacheKey: cacheKeyFor(instrumentKey, normalizedToDate, normalizedFromDate,
+        upstoxCredentialCacheFingerprint(accessToken)),
       ttlSeconds: UPSTOX_HISTORY_CACHE_TTL_SECONDS,
       forceRefresh,
       loader: async () => {
-        const requestFetchedAt = this.nowIso();
         try {
           const response = await getUpstoxWithRetry(this.httpClient, sourceUrl, {
             timeout: 15_000,
             headers: {
               Accept: 'application/json',
-              Authorization: `Bearer ${this.accessToken}`,
+              Authorization: `Bearer ${accessToken}`,
             },
           });
+          const requestFetchedAt = this.nowIso();
           return parseUpstoxDailyCandles(response.data, {
             instrumentKey,
             fetchedAt: requestFetchedAt,
@@ -236,7 +238,7 @@ export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
             provider: PROVIDERS.UPSTOX,
             status: AVAILABILITY.SOURCE_ERROR,
             instrumentKey,
-            fetchedAt: requestFetchedAt,
+            fetchedAt: this.nowIso(),
             observedAt: null,
             freshness: { status: FRESHNESS.UNKNOWN, ageSeconds: null, maxAgeSeconds: UPSTOX_DAILY_HISTORY_FRESHNESS_SECONDS },
             candleCount: 0,

@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import AmfiNavProvider, { parseAmfiNavReport } from '../services/marketData/AmfiNavProvider.js';
 import AmfiNavHistoryProvider from '../services/marketData/AmfiNavHistoryProvider.js';
-import { buildNiftyHistoryWindow, fetchAmfiHistoricalNavSnapshot, fetchAmfiProductSnapshot } from '../services/marketDataService.js';
+import {
+  buildNiftyHistoryWindow,
+  fetchAmfiHistoricalNavSnapshot,
+  fetchAmfiProductSnapshot,
+  fetchUpstoxCanonicalQuotes,
+} from '../services/marketDataService.js';
 import UpstoxMarketDataProvider from '../services/marketData/UpstoxMarketDataProvider.js';
 import { buildUpstoxQuoteRequestUrl } from '../services/marketData/marketDataSourceUrls.js';
 import UpstoxHistoricalCandleProvider, {
@@ -220,7 +225,7 @@ test('Upstox adapter normalizes a verified quote and preserves a missing quote a
               'NSE_INDEX|Nifty 50': {
                 instrument_token: 'NSE_INDEX|Nifty 50',
                 last_price: 25123.45,
-                last_trade_time: '2026-09-08T11:59:30.000Z',
+                last_trade_time: String(Date.parse('2026-09-08T11:59:30.000Z')),
                 ohlc: { open: 25000, high: 25200, low: 24900, close: 24980 },
                 prev_close_price: 24875.5,
                 volume: 1200,
@@ -244,9 +249,58 @@ test('Upstox adapter normalizes a verified quote and preserves a missing quote a
   assert.equal(snapshot.facts[0].source.url, buildUpstoxQuoteRequestUrl(['NSE_INDEX|Nifty 50', 'NSE_INDEX|India VIX']));
   assert.equal(snapshot.facts[0].metrics.close, 24980);
   assert.equal(snapshot.facts[0].metrics.previousClose, 24875.5);
+  assert.equal(snapshot.facts[0].quoteResponseGeneratedAt, null);
   assert.notEqual(snapshot.facts[0].metrics.previousClose, snapshot.facts[0].metrics.close);
   assert.equal(snapshot.facts[1].value, null);
   assert.equal(snapshot.facts[1].availabilityStatus, AVAILABILITY.UNAVAILABLE);
+});
+
+test('Upstox quote cache cannot promote another credential after rotation', async () => {
+  const cached = new Map();
+  const keys = [];
+  const requestCache = async ({ cacheKey, loader }) => {
+    keys.push(cacheKey);
+    if (cached.has(cacheKey)) return cached.get(cacheKey);
+    const result = await loader();
+    if (result.status === AVAILABILITY.AVAILABLE) cached.set(cacheKey, result);
+    return result;
+  };
+  const accessTokenA = 'quote-credential-A';
+  const accessTokenB = 'quote-credential-B';
+  let callsA = 0;
+  let callsB = 0;
+  const providerA = new UpstoxMarketDataProvider({
+    accessToken: accessTokenA, clock: () => FIXED_NOW, requestCache,
+    httpClient: { get: async () => {
+      callsA += 1;
+      return { data: { status: 'success', data: { 'NSE_INDEX:Nifty 50': {
+        instrument_token: 'NSE_INDEX|Nifty 50', last_price: 25000,
+        last_trade_time: String(FIXED_NOW.getTime() - 30_000),
+      } } } };
+    } },
+  });
+  const providerB = new UpstoxMarketDataProvider({
+    accessToken: accessTokenB, clock: () => FIXED_NOW, requestCache,
+    httpClient: { get: async () => {
+      callsB += 1;
+      const error = new Error('Fixture credential rejected');
+      error.response = { status: 401 };
+      throw error;
+    } },
+  });
+  const instruments = ['NSE_INDEX|Nifty 50'];
+  assert.equal((await providerA.getQuotes(instruments)).status, AVAILABILITY.AVAILABLE);
+  assert.equal((await providerA.getQuotes(instruments)).status, AVAILABILITY.AVAILABLE);
+  const rotated = await providerB.getQuotes(instruments);
+  assert.equal(rotated.status, AVAILABILITY.SOURCE_ERROR);
+  assert.equal(rotated.error.code, 'UPSTOX_AUTHENTICATION_FAILED');
+  assert.equal(callsA, 1);
+  assert.equal(callsB, 1);
+  assert.equal(keys[0], keys[1]);
+  assert.notEqual(keys[0], keys[2]);
+  for (const key of keys) {
+    assert.ok(!key.includes(accessTokenA) && !key.includes(accessTokenB));
+  }
 });
 
 test('Upstox quote response identity uses the documented exchange:symbol key and trade time, not response time', async () => {
@@ -281,9 +335,95 @@ test('Upstox quote response identity uses the documented exchange:symbol key and
     { forceRefresh: true },
   );
   assert.equal(snapshot.facts[0].observedAt, '2026-09-08T11:59:30.000Z');
+  assert.equal(snapshot.facts[0].quoteLastTradeAt, '2026-09-08T11:59:30.000Z');
+  assert.equal(snapshot.facts[0].quoteResponseGeneratedAt, FIXED_NOW.toISOString());
+  assert.equal(snapshot.facts[0].providerResponseReceivedAt, FIXED_NOW.toISOString());
   assert.equal(snapshot.facts[1].observedAt, null);
   assert.equal(snapshot.facts[1].availabilityStatus, AVAILABILITY.UNAVAILABLE);
   assert.equal(snapshot.facts[1].reasonCode, 'OBSERVATION_TIMESTAMP_UNAVAILABLE');
+});
+
+test('Upstox quote keeps provider response and trade times distinct and rejects duplicate identities', async () => {
+  let now = new Date('2026-09-08T11:59:45.000Z');
+  const tradeTime = String(Date.parse('2026-09-08T11:59:30.000Z'));
+  const quote = {
+    instrument_token: 'NSE_INDEX|Nifty 50',
+    timestamp: '2026-09-08T17:29:40.000+05:30',
+    last_price: 25000,
+    last_trade_time: tradeTime,
+    prev_close_price: -1,
+  };
+  const provider = new UpstoxMarketDataProvider({
+    accessToken: 'fixture-token',
+    clock: () => now,
+    httpClient: { get: async () => {
+      now = FIXED_NOW;
+      return { data: { status: 'success', data: { 'NSE_INDEX:Nifty 50': quote } } };
+    } },
+  });
+  const snapshot = await provider.getQuotes(['NSE_INDEX|Nifty 50'], { forceRefresh: true });
+  assert.equal(snapshot.fetchedAt, FIXED_NOW.toISOString());
+  assert.equal(snapshot.facts[0].observedAt, '2026-09-08T11:59:30.000Z');
+  assert.equal(snapshot.facts[0].quoteResponseGeneratedAt, '2026-09-08T11:59:40.000Z');
+  assert.equal(snapshot.facts[0].metrics.previousClose, null);
+
+  const duplicateProvider = new UpstoxMarketDataProvider({
+    accessToken: 'fixture-token',
+    clock: () => FIXED_NOW,
+    httpClient: { get: async () => ({ data: { status: 'success', data: {
+      'NSE_INDEX:Nifty 50': quote,
+      'NSE_INDEX|Nifty 50': quote,
+    } } }) },
+  });
+  const duplicate = await duplicateProvider.getQuotes(['NSE_INDEX|Nifty 50'], { forceRefresh: true });
+  assert.equal(duplicate.facts[0].availabilityStatus, AVAILABILITY.UNAVAILABLE);
+  assert.equal(duplicate.facts[0].reasonCode, 'DUPLICATE_PROVIDER_OBSERVATION');
+});
+
+test('canonical Upstox quote DTO preserves each distinct timestamp with synthetic rights only', async () => {
+  const env = { NODE_ENV: 'test' };
+  const transport = { get: async () => ({ data: { status: 'success', data: {
+    'NSE_INDEX:Nifty 50': {
+      instrument_token: 'NSE_INDEX|Nifty 50', last_price: 25000,
+      last_trade_time: String(Date.parse('2026-09-08T11:59:30.000Z')),
+      timestamp: '2026-09-08T17:29:40.000+05:30',
+    },
+  } } }) };
+  const provider = new UpstoxMarketDataProvider({
+    env, accessToken: 'fixture-token', clock: () => FIXED_NOW,
+    httpClient: transport, requestCache: ({ loader }) => loader(),
+  });
+  const fixtureCapability = createMarketDataTestFixtureRightsCapability({ env, transport });
+  const result = await fetchUpstoxCanonicalQuotes(['market:index:nifty-50'], {
+    env, now: FIXED_NOW, upstoxMarketDataProvider: provider,
+    marketDataTestFixtureRightsCapability: fixtureCapability,
+  });
+  assert.equal(result.status, AVAILABILITY.AVAILABLE);
+  assert.equal(result.facts[0].quoteLastTradeAt, '2026-09-08T11:59:30.000Z');
+  assert.equal(result.facts[0].quoteResponseGeneratedAt, '2026-09-08T11:59:40.000Z');
+  assert.equal(result.facts[0].providerResponseReceivedAt, FIXED_NOW.toISOString());
+  assert.equal(result.facts[0].observedAt, result.facts[0].quoteLastTradeAt);
+});
+
+test('Upstox quote rejects invalid source timestamps rather than treating response receipt as a trade', async () => {
+  const cases = [
+    [{ last_trade_time: '1757332770' }, 'OBSERVATION_TIMESTAMP_UNAVAILABLE'],
+    [{ last_trade_time: '2026-09-08T11:59:30.000Z' }, 'OBSERVATION_TIMESTAMP_UNAVAILABLE'],
+    [{ last_trade_time: String(Date.parse('2026-09-08T11:59:30.000Z')), timestamp: 'not-a-timestamp' }, 'INVALID_PROVIDER_RESPONSE_TIMESTAMP'],
+    [{ last_trade_time: String(Date.parse('2026-09-08T11:59:30.000Z')), timestamp: '2026-09-08T12:01:00.000Z' }, 'CONFLICTING_PROVIDER_TIMESTAMPS'],
+  ];
+  for (const [fields, expectedReason] of cases) {
+    const provider = new UpstoxMarketDataProvider({
+      accessToken: 'fixture-token',
+      clock: () => FIXED_NOW,
+      httpClient: { get: async () => ({ data: { status: 'success', data: {
+        'NSE_INDEX:Nifty 50': { instrument_token: 'NSE_INDEX|Nifty 50', last_price: 25000, ...fields },
+      } } }) },
+    });
+    const snapshot = await provider.getQuotes(['NSE_INDEX|Nifty 50'], { forceRefresh: true });
+    assert.equal(snapshot.facts[0].availabilityStatus, AVAILABILITY.UNAVAILABLE);
+    assert.equal(snapshot.facts[0].reasonCode, expectedReason);
+  }
 });
 
 test('Upstox quote rejects mismatched identity, non-positive values, invalid OHLC, and future observations', async () => {
@@ -527,6 +667,89 @@ test('Upstox history uses the shared Redis read-through cache instead of refetch
     setRedisAvailable(false);
     setRedisClient(null);
   }
+});
+
+test('Upstox candle cache cannot reuse another credential\'s available history', async () => {
+  const cached = new Map();
+  const keys = [];
+  const requestCache = async ({ cacheKey, loader }) => {
+    keys.push(cacheKey);
+    if (cached.has(cacheKey)) return cached.get(cacheKey);
+    const result = await loader();
+    if (result.status === AVAILABILITY.AVAILABLE) cached.set(cacheKey, result);
+    return result;
+  };
+  const accessTokenA = 'history-credential-A';
+  const accessTokenB = 'history-credential-B';
+  let callsA = 0;
+  let callsB = 0;
+  const providerA = new UpstoxHistoricalCandleProvider({
+    accessToken: accessTokenA, clock: () => FIXED_NOW, requestCache,
+    httpClient: { get: async () => {
+      callsA += 1;
+      return { data: { data: { candles: [
+        ['2026-09-07T00:00:00+05:30', 25000, 25200, 24900, 25100, 1000, 0],
+      ] } } };
+    } },
+  });
+  const providerB = new UpstoxHistoricalCandleProvider({
+    accessToken: accessTokenB, clock: () => FIXED_NOW, requestCache,
+    httpClient: { get: async () => {
+      callsB += 1;
+      const error = new Error('Fixture credential rejected');
+      error.response = { status: 401 };
+      throw error;
+    } },
+  });
+  const dates = { fromDate: '2026-09-07', toDate: '2026-09-08' };
+  assert.equal((await providerA.getDailyCandles('NSE_INDEX|Nifty 50', dates)).status,
+    AVAILABILITY.AVAILABLE);
+  assert.equal((await providerA.getDailyCandles('NSE_INDEX|Nifty 50', dates)).status,
+    AVAILABILITY.AVAILABLE);
+  const rotated = await providerB.getDailyCandles('NSE_INDEX|Nifty 50', dates);
+  assert.equal(rotated.status, AVAILABILITY.SOURCE_ERROR);
+  assert.equal(rotated.error.code, 'UPSTOX_AUTHENTICATION_FAILED');
+  assert.equal(callsA, 1);
+  assert.equal(callsB, 1);
+  assert.equal(keys[0], keys[1]);
+  assert.notEqual(keys[0], keys[2]);
+  for (const key of keys) {
+    assert.ok(!key.includes(accessTokenA) && !key.includes(accessTokenB));
+  }
+});
+
+test('Upstox historical fetch time records response receipt, including failures', async () => {
+  let now = new Date('2026-09-08T11:59:00.000Z');
+  const responseTime = FIXED_NOW.toISOString();
+  const dates = { fromDate: '2026-09-07', toDate: '2026-09-08' };
+  const success = new UpstoxHistoricalCandleProvider({
+    accessToken: 'history-receipt-fixture', clock: () => now,
+    requestCache: ({ loader }) => loader(),
+    httpClient: { get: async () => {
+      now = FIXED_NOW;
+      return { data: { data: { candles: [
+        ['2026-09-07T00:00:00+05:30', 25000, 25200, 24900, 25100, 1000, 0],
+      ] } } };
+    } },
+  });
+  const snapshot = await success.getDailyCandles('NSE_INDEX|Nifty 50', dates);
+  assert.equal(snapshot.status, AVAILABILITY.AVAILABLE);
+  assert.equal(snapshot.fetchedAt, responseTime);
+
+  now = new Date('2026-09-08T11:59:00.000Z');
+  const failure = new UpstoxHistoricalCandleProvider({
+    accessToken: 'history-receipt-fixture', clock: () => now,
+    requestCache: ({ loader }) => loader(),
+    httpClient: { get: async () => {
+      now = FIXED_NOW;
+      const error = new Error('Fixture credential rejected');
+      error.response = { status: 401 };
+      throw error;
+    } },
+  });
+  const failed = await failure.getDailyCandles('NSE_INDEX|Nifty 50', dates);
+  assert.equal(failed.status, AVAILABILITY.SOURCE_ERROR);
+  assert.equal(failed.fetchedAt, responseTime);
 });
 
 test('request coalescing executes one loader for concurrent identical requests', async () => {

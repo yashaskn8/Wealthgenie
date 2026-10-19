@@ -2,12 +2,28 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { cwd } from 'node:process';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, render as rtlRender, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react';
 import WhereToInvestTab from '../deepdive/WhereToInvestTab';
 import UserDeclaredScenarioPanel from '../deepdive/UserDeclaredScenarioPanel';
 import * as api from '../../services/api';
 import { resetMarketContextStoreForTest } from '../../state/useMarketContext';
+
+// Read the backend's declared contract so a backend revision bump breaks this
+// frontend preview test until the validator and API schema are updated together.
+const backendServicePath = [
+  resolve(cwd(), 'server/services/marketContextService.js'),
+  resolve(cwd(), '../server/services/marketContextService.js'),
+].find(existsSync);
+if (!backendServicePath) throw new Error('Backend market context service source is unavailable.');
+const marketContextServiceSource = readFileSync(backendServicePath, 'utf8');
+const backendRevisionVersion = marketContextServiceSource.match(
+  /export const MARKET_SNAPSHOT_CONTENT_REVISION_VERSION = '([^']+)'/,
+)?.[1];
+if (!backendRevisionVersion) throw new Error('Backend market snapshot content revision version is unavailable.');
 
 vi.mock('../../services/api', () => ({
   getCurrentMarketContext: vi.fn(),
@@ -88,6 +104,7 @@ const CURRENT_RECOMMENDATION_META = {
 
 function makeMarketContext({
   digest = 'c'.repeat(64),
+  contentRevisionVersion = backendRevisionVersion,
   evaluatedAt = '2026-09-08T10:01:00.000Z',
   observedAt = '2026-09-08T10:00:00.000Z',
   context = 'CAUTIOUS',
@@ -125,7 +142,7 @@ function makeMarketContext({
       freshness: { status: 'FRESH', ageSeconds: 60, maxAgeSeconds: 900 },
       recommendationUsability: { status: usabilityStatus, reasonCodes: usabilityReasonCodes, maxAgeSeconds: 900 },
       evidenceRevision: 'd'.repeat(64),
-      contentRevision: { version: 'market-snapshot-content-1.0.0', digest },
+      contentRevision: { version: contentRevisionVersion, digest },
     },
   };
 }
@@ -951,6 +968,20 @@ describe('Beginner-First Where-To-Invest UX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show allocation preview' }));
     expect(screen.getByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeVisible();
     expect(api.previewMarketContextAdjustment).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a preview with an unsupported market snapshot content revision', async () => {
+    api.previewMarketContextAdjustment.mockResolvedValueOnce(makePreviewResult({
+      market: makeMarketContext({ contentRevisionVersion: 'market-snapshot-content-999.0.0' }),
+    }));
+    render(<WhereToInvestTab
+      inv={{ id: 'ppf', name: 'Public Provident Fund', riskScore: 1 }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: 1 }}
+    />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'See how this affects my plan' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/did not return a verified market snapshot/i);
+    expect(screen.queryByRole('region', { name: 'Hypothetical plan allocation preview' })).toBeNull();
   });
 
   it('keeps the preview valid across an evaluation-only market refresh', async () => {

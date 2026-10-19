@@ -442,7 +442,10 @@ export function parseTejHqStatus(payload, { fetchedAt, now = new Date() } = {}) 
       pricesPublishedAt,
       rawDatasetStatus: 'PUBLISHED',
       derivedPublishedAt,
-      derivedDatasetStatus: derivedPublishedAt ? 'PUBLISHED' : 'NOT_REPORTED',
+      // A prices publish can precede the derived rebuild. An earlier derived
+      // timestamp cannot qualify adjusted rows for this trading date.
+      derivedDatasetStatus: !derivedPublishedAt ? 'NOT_REPORTED'
+        : Date.parse(derivedPublishedAt) >= Date.parse(pricesPublishedAt) ? 'PUBLISHED' : 'STALE',
       expectedSessionStatus: 'UNKNOWN',
       expectedSessionReason: 'No qualified exchange-session calendar is supplied by the provider status endpoint.',
       stage: typeof payload.stage === 'string' ? payload.stage.slice(0, 40) : null,
@@ -516,8 +519,12 @@ function sourceUrl(path, params = {}) {
   return url.toString();
 }
 
-function cacheKeyFor(operation, identity) {
-  const digest = crypto.createHash('sha256').update(JSON.stringify(identity)).digest('hex');
+function cacheKeyFor(operation, identity, keyFingerprint = null) {
+  // Keyed responses must not survive a credential rotation or cross account
+  // boundary. The fingerprint is one way and never exposes the bearer token.
+  const digest = crypto.createHash('sha256')
+    .update(JSON.stringify({ identity, keyFingerprint }))
+    .digest('hex');
   return `market:tejhq:${operation}:${MARKET_DATA_SCHEMA_VERSION}:${TEJHQ_DATASET_CONTRACT_REVISION}:${digest}`;
 }
 
@@ -723,7 +730,11 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
         cache: { hit: false, backend: 'NONE', status: 'NOT_READ_SOURCE_RIGHTS_BLOCKED' },
       };
     }
-    const cacheKey = cacheKeyFor(operation, { params, identity: normalizedIdentity });
+    const cacheKey = cacheKeyFor(
+      operation,
+      { params, identity: normalizedIdentity },
+      keyed ? this.keyFingerprint : null,
+    );
     const featureEnabled = (Array.isArray(enabledFlag) ? enabledFlag : [enabledFlag])
       .some(flag => this.env[flag] === 'true');
     if (!this.enabled || !featureEnabled) {
@@ -747,13 +758,13 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
       shouldCache: result => result?.status === AVAILABILITY.AVAILABLE
         || (result?.status === AVAILABILITY.UNAVAILABLE && result?.reasonCodes?.includes('TEJHQ_NO_OBSERVATION')),
       loader: async () => {
-        const requestFetchedAt = this.nowIso();
+        const requestStartedAt = this.nowIso();
         let quotaObservation = null;
         if (keyed) {
           const budget = await this.budget();
           if (!budget?.allowed) {
             return errorSnapshot({
-              fetchedAt: requestFetchedAt,
+              fetchedAt: requestStartedAt,
               source: { provider: PROVIDERS.TEJHQ, url },
               code: budget?.code || 'TEJHQ_BUDGET_STORE_UNAVAILABLE',
               identity: normalizedIdentity,
@@ -772,14 +783,17 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
               ...(keyed ? { Authorization: `Bearer ${this.apiKey}` } : {}),
             },
           });
+          // Publication timestamps may advance while the request is in flight.
+          // Receipt time, not request start, bounds provider observations.
+          const responseReceivedAt = this.nowIso();
           quotaObservation = this.#recordProviderResponse(response, keyed);
-          const parsed = parse(response.data, { fetchedAt: requestFetchedAt, now: this.clock(), sourceUrl: url });
+          const parsed = parse(response.data, { fetchedAt: responseReceivedAt, now: this.clock(), sourceUrl: url });
           return { ...parsed, ...(Object.keys(quotaObservation).length ? { quotaObservation } : {}) };
         } catch (error) {
           const code = errorCodeFor(error);
           this.#recordProviderFailure(operation, code, error);
           return errorSnapshot({
-            fetchedAt: requestFetchedAt,
+            fetchedAt: this.nowIso(),
             source: { provider: PROVIDERS.TEJHQ, url },
             code,
             identity: normalizedIdentity,

@@ -194,7 +194,39 @@ test('provider-status reports publication timestamps without claiming session fr
   assert.equal(status.publication.rawDatasetStatus, 'PUBLISHED');
   assert.equal(status.publication.derivedDatasetStatus, 'PUBLISHED');
   assert.equal(status.publication.expectedSessionStatus, 'UNKNOWN');
+  const staleDerived = parseTejHqStatus({
+    trading_date: '2026-10-09',
+    prices_published_at: '2026-10-09T15:30:00+05:30',
+    derived_published_at: '2026-10-08T16:00:00+05:30',
+    generated_at: '2026-10-09T15:30:00+05:30',
+    stage: 'prices',
+  }, { fetchedAt: NOW, now: NOW });
+  assert.equal(staleDerived.publication.rawDatasetStatus, 'PUBLISHED');
+  assert.equal(staleDerived.publication.derivedDatasetStatus, 'STALE');
   assert.throws(() => parseTejHqStatus({ trading_date: '2026-10-14' }, { fetchedAt: NOW, now: NOW }), /FUTURE_STATUS_DATE/);
+});
+
+test('status generated during a slow request uses response receipt as fetchedAt', async () => {
+  let current = new Date('2026-10-13T06:00:00.000Z');
+  const provider = new TejHqHistoricalDataProvider({
+    apiKey: 'fixture-only-key',
+    env: { NODE_ENV: 'test', TEJHQ_ENABLED: 'true', TEJHQ_LICENSE_CONFIRMED: 'true' },
+    clock: () => current,
+    requestCache: async ({ loader }) => loader(),
+    httpClient: { async get() {
+      current = new Date('2026-10-13T06:02:00.000Z');
+      return successResponse({
+        trading_date: '2026-10-13',
+        prices_published_at: '2026-10-13T06:00:30.000Z',
+        derived_published_at: '2026-10-13T06:01:00.000Z',
+        generated_at: '2026-10-13T06:01:30.000Z',
+      });
+    } },
+  });
+  const status = await provider.getStatus();
+  assert.equal(status.status, 'AVAILABLE');
+  assert.equal(status.fetchedAt, '2026-10-13T06:02:00.000Z');
+  assert.equal(status.publication.derivedDatasetStatus, 'PUBLISHED');
 });
 
 test('keyless OHLCV never sends the configured API key and uses the fixed TejHQ host', async () => {
@@ -234,6 +266,55 @@ test('adjusted history uses bearer auth, bounded internal budget, and never puts
   assert.equal(new URL(request.url).searchParams.get('from'), REQUEST.fromDate);
   assert.equal(result.quotaObservation.remainingPerDay, 998);
   assert.equal(budgetCalls, 1);
+});
+
+test('keyed cache does not reuse another credential\'s adjusted-history entitlement', async () => {
+  const cache = new Map();
+  const cacheKeys = [];
+  const requestCache = async ({ cacheKey, loader, shouldCache }) => {
+    cacheKeys.push(cacheKey);
+    if (cache.has(cacheKey)) return { ...cache.get(cacheKey), cache: { hit: true } };
+    const result = await loader();
+    if (shouldCache(result)) cache.set(cacheKey, result);
+    return { ...result, cache: { hit: false } };
+  };
+  const options = {
+    env: {
+      NODE_ENV: 'test', TEJHQ_ENABLED: 'true', TEJHQ_LICENSE_CONFIRMED: 'true',
+      TEJHQ_ADJUSTED_HISTORY_ENABLED: 'true',
+    },
+    clock: () => NOW,
+    budget: async () => ({ allowed: true, used: 1, limit: 200 }),
+    requestCache,
+  };
+  let firstRequests = 0;
+  const first = new TejHqHistoricalDataProvider({
+    ...options,
+    apiKey: 'fixture-key-a',
+    httpClient: { async get() {
+      firstRequests += 1;
+      return successResponse(adjustedPayload());
+    } },
+  });
+  let secondRequests = 0;
+  const second = new TejHqHistoricalDataProvider({
+    ...options,
+    apiKey: 'fixture-key-b',
+    httpClient: { async get() {
+      secondRequests += 1;
+      throw Object.assign(new Error('not entitled'), { response: { status: 402 } });
+    } },
+  });
+
+  const entitled = await first.getAdjustedHistory(REQUEST);
+  const denied = await second.getAdjustedHistory(REQUEST);
+  assert.equal(entitled.status, 'AVAILABLE');
+  assert.equal(denied.status, 'SOURCE_ERROR');
+  assert.equal(denied.error.code, 'TEJHQ_PAID_CAPABILITY_UNAVAILABLE');
+  assert.equal(firstRequests, 1);
+  assert.equal(secondRequests, 1);
+  assert.notEqual(cacheKeys[0], cacheKeys[1]);
+  assert.equal(cacheKeys.some(key => key.includes('fixture-key-')), false);
 });
 
 test('adjusted-only mode can read required symbol history without enabling raw fallback', async () => {

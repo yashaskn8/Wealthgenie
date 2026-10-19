@@ -10,7 +10,7 @@ import UpstoxTradingCalendarProvider, {
   expectedUpstoxNseSessions,
   parseUpstoxTradingCalendar,
   UPSTOX_TRADING_HOLIDAYS_URL,
-  UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS,
+  UPSTOX_MARKET_SESSION_MAX_FETCH_AGE_MS,
 } from '../services/marketData/UpstoxTradingCalendarProvider.js';
 import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
 import { getUpstoxWithRetry } from '../services/marketData/upstoxRequestPolicy.js';
@@ -197,6 +197,7 @@ test('session adapter verifies Upstox exchange status and official date timings'
   const open = await provider.getCurrentSession();
   assert.equal(open.status, 'MARKET_OPEN');
   assert.equal(open.observedAt, '2026-10-09T04:59:00.000Z');
+  assert.equal(open.fetchedAt, '2026-10-09T05:00:00.000Z');
   assert.equal(open.source.provider, 'UPSTOX');
   assert.equal(calls.length, 3);
 
@@ -206,9 +207,121 @@ test('session adapter verifies Upstox exchange status and official date timings'
   assert.equal(special.calendar.specialTradingDates.includes('2026-10-10'), true);
 });
 
+test('Upstox calendar and current-session caches stay within one credential', async () => {
+  const now = new Date('2026-10-09T05:00:00.000Z');
+  const cached = new Map();
+  const keys = [];
+  const requestCache = async ({ cacheKey, loader, shouldCache }) => {
+    keys.push(cacheKey);
+    if (cached.has(cacheKey)) return cached.get(cacheKey);
+    const result = await loader();
+    if ((shouldCache ? shouldCache(result) : result.status === 'AVAILABLE')
+        && ['AVAILABLE', 'MARKET_OPEN'].includes(result.status)) cached.set(cacheKey, result);
+    return result;
+  };
+  const accessTokenA = 'session-credential-A';
+  const accessTokenB = 'session-credential-B';
+  let callsA = 0;
+  let callsB = 0;
+  const providerFor = (accessToken, get) => new UpstoxTradingCalendarProvider({
+    env: fixtureEnv, accessToken, requestCache, clock: () => now,
+    httpClient: { get },
+  });
+  const providerA = providerFor(accessTokenA, async url => {
+    callsA += 1;
+    if (url === UPSTOX_TRADING_HOLIDAYS_URL) return { data: calendarPayload };
+    if (url === UPSTOX_NSE_MARKET_STATUS_URL) return { data: {
+      status: 'success', data: { exchange: 'NSE', status: 'NORMAL_OPEN',
+        last_updated: now.getTime() - 60_000 },
+    } };
+    if (url === UPSTOX_MARKET_TIMINGS_RIGHTS_URL.replace('{date}', '2026-10-09')) {
+      return { data: { status: 'success', data: [{ exchange: 'NSE',
+        start_time: Date.parse('2026-10-09T03:45:00.000Z'),
+        end_time: Date.parse('2026-10-09T10:00:00.000Z') }] } };
+    }
+    throw new Error('Unexpected provider URL');
+  });
+  assert.equal((await providerA.getCurrentSession()).status, 'MARKET_OPEN');
+  assert.equal((await providerA.getCurrentSession()).status, 'MARKET_OPEN');
+  assert.equal(callsA, 3);
+
+  const denied = () => {
+    callsB += 1;
+    const error = new Error('Fixture credential rejected');
+    error.response = { status: 401 };
+    throw error;
+  };
+  const providerBNoCalendar = providerFor(accessTokenB, denied);
+  const calendar = await providerBNoCalendar.getCalendar({
+    fromDate: '2026-10-09', toDate: '2026-10-09',
+  });
+  assert.equal(calendar.status, 'SOURCE_ERROR');
+  assert.equal(calendar.error.code, 'UPSTOX_AUTHENTICATION_FAILED');
+
+  const providerBNoSession = providerFor(accessTokenB, async url => {
+    callsB += 1;
+    if (url === UPSTOX_TRADING_HOLIDAYS_URL) return { data: calendarPayload };
+    if (url === UPSTOX_NSE_MARKET_STATUS_URL) {
+      const error = new Error('Fixture credential rejected');
+      error.response = { status: 401 };
+      throw error;
+    }
+    if (url === UPSTOX_MARKET_TIMINGS_RIGHTS_URL.replace('{date}', '2026-10-09')) {
+      return { data: { status: 'success', data: [{ exchange: 'NSE',
+        start_time: Date.parse('2026-10-09T03:45:00.000Z'),
+        end_time: Date.parse('2026-10-09T10:00:00.000Z') }] } };
+    }
+    throw new Error('Unexpected provider URL');
+  });
+  const session = await providerBNoSession.getCurrentSession();
+  assert.equal(session.status, 'UNKNOWN');
+  assert.equal(session.error.code, 'UPSTOX_AUTHENTICATION_FAILED');
+  assert.equal(callsB, 4);
+  assert.equal(keys[0], keys[2]);
+  assert.equal(keys[1], keys[3]);
+  assert.notEqual(keys[0], keys[4]);
+  assert.equal(keys[4], keys[5]);
+  assert.notEqual(keys[1], keys[6]);
+  for (const key of keys) {
+    assert.ok(!key.includes(accessTokenA) && !key.includes(accessTokenB));
+  }
+});
+
+test('Upstox calendar fetch time records response receipt, including failures', async () => {
+  let now = new Date('2026-10-09T04:59:00.000Z');
+  const responseTime = '2026-10-09T05:00:00.000Z';
+  const dates = { fromDate: '2026-10-09', toDate: '2026-10-09' };
+  const success = new UpstoxTradingCalendarProvider({
+    env: fixtureEnv, accessToken: 'calendar-receipt-fixture', clock: () => now,
+    requestCache: ({ loader }) => loader(),
+    httpClient: { get: async () => {
+      now = new Date(responseTime);
+      return { data: calendarPayload };
+    } },
+  });
+  const calendar = await success.getCalendar(dates);
+  assert.equal(calendar.status, 'AVAILABLE');
+  assert.equal(calendar.fetchedAt, responseTime);
+
+  now = new Date('2026-10-09T04:59:00.000Z');
+  const failure = new UpstoxTradingCalendarProvider({
+    env: fixtureEnv, accessToken: 'calendar-receipt-fixture', clock: () => now,
+    requestCache: ({ loader }) => loader(),
+    httpClient: { get: async () => {
+      now = new Date(responseTime);
+      const error = new Error('Fixture credential rejected');
+      error.response = { status: 401 };
+      throw error;
+    } },
+  });
+  const failed = await failure.getCalendar(dates);
+  assert.equal(failed.status, 'SOURCE_ERROR');
+  assert.equal(failed.fetchedAt, responseTime);
+});
+
 function sessionFixture({ now, phase = 'NORMAL_OPEN', updatedAt = now.getTime() - 60_000,
   cas = undefined, timingStart = '03:45', timingEnd = '10:00', statusFailure = null,
-  timingFailure = null, cachedSession = null } = {}) {
+  timingFailure = null, cachedSession = null, timingWait = null, onTimingRequest = null } = {}) {
   const tradingDate = now.toISOString().slice(0, 10);
   const calls = [];
   const provider = new UpstoxTradingCalendarProvider({
@@ -225,6 +338,8 @@ function sessionFixture({ now, phase = 'NORMAL_OPEN', updatedAt = now.getTime() 
       }
       if (url === UPSTOX_MARKET_TIMINGS_RIGHTS_URL.replace('{date}', tradingDate)) {
         if (timingFailure) throw timingFailure;
+        onTimingRequest?.();
+        if (timingWait) await timingWait;
         return { data: { status: 'success', data: [{ exchange: 'NSE',
           start_time: Date.parse(`${tradingDate}T${timingStart}:00.000Z`),
           end_time: Date.parse(`${tradingDate}T${timingEnd}:00.000Z`) }] } };
@@ -235,19 +350,20 @@ function sessionFixture({ now, phase = 'NORMAL_OPEN', updatedAt = now.getTime() 
   return { provider, calls };
 }
 
-test('session adapter fails closed for stale, future, wrong-unit and timing-conflicting status', async () => {
+test('session adapter accepts old same-day transitions from a fresh response and rejects invalid source timestamps', async () => {
   const now = new Date('2026-10-09T05:00:00.000Z');
   const fresh = await sessionFixture({ now }).provider.getCurrentSession();
   assert.equal(fresh.status, 'MARKET_OPEN');
   assert.equal(fresh.phase, 'NORMAL_OPEN');
   assert.equal(fresh.sessionWindow.startAt, '2026-10-09T03:45:00.000Z');
-  const boundary = await sessionFixture({ now,
-    updatedAt: now.getTime() - UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS,
+  const unchangedPhase = await sessionFixture({ now,
+    updatedAt: Date.parse('2026-10-09T03:45:00.000Z'),
   }).provider.getCurrentSession();
-  assert.equal(boundary.status, 'MARKET_OPEN');
+  assert.equal(unchangedPhase.status, 'MARKET_OPEN');
+  assert.equal(unchangedPhase.observedAt, '2026-10-09T03:45:00.000Z');
+  assert.equal(unchangedPhase.fetchedAt, now.toISOString());
   for (const [updatedAt, expectedCode] of [
-    [now.getTime() - UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS - 1,
-      'UPSTOX_SESSION_STATUS_STALE_OR_INVALID'],
+    [Date.parse('2026-10-08T09:59:00.000Z'), 'UPSTOX_RESPONSE_INVALID'],
     [now.getTime() + 1, 'UPSTOX_RESPONSE_INVALID'],
     [Math.floor(now.getTime() / 1000), 'UPSTOX_RESPONSE_INVALID'],
     [null, 'UPSTOX_RESPONSE_INVALID'],
@@ -272,12 +388,12 @@ test('session adapter separates pre-open, closing auction, close and special ses
     status: 'NORMAL_OPEN', last_updated: auctionAt.getTime() - 10_000,
   } }).provider.getCurrentSession();
   assert.equal(freshCas.status, 'MARKET_OPEN');
-  const staleCas = await sessionFixture({ now: auctionAt, cas: {
+  const unchangedCas = await sessionFixture({ now: auctionAt, cas: {
     status: 'NORMAL_OPEN',
-    last_updated: auctionAt.getTime() - UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS - 1,
+    last_updated: Date.parse('2026-10-09T03:45:00.000Z'),
   } }).provider.getCurrentSession();
-  assert.equal(staleCas.status, 'UNKNOWN');
-  assert.equal(staleCas.error.code, 'UPSTOX_SESSION_STATUS_STALE_OR_INVALID');
+  assert.equal(unchangedCas.status, 'MARKET_OPEN');
+  assert.equal(unchangedCas.casObservedAt, '2026-10-09T03:45:00.000Z');
   const auction = await sessionFixture({ now: auctionAt, cas: {
     status: 'CAS_LM_START', last_updated: auctionAt.getTime() - 10_000,
   } }).provider.getCurrentSession();
@@ -310,10 +426,11 @@ test('session adapter separates pre-open, closing auction, close and special ses
   assert.equal(holiday.status, 'MARKET_HOLIDAY');
 });
 
-test('session adapter rechecks cached provider observation without refreshing it from cache time', async () => {
-  const observedAt = '2026-10-09T04:59:00.000Z';
+test('session adapter rechecks cached response time without refreshing it from cache metadata', async () => {
+  const observedAt = '2026-10-09T03:45:00.000Z';
   const cachedSession = {
     status: 'MARKET_OPEN', phase: 'NORMAL_OPEN', tradingDate: '2026-10-09', observedAt,
+    fetchedAt: '2026-10-09T04:59:45.000Z',
     source: { provider: 'UPSTOX', url: UPSTOX_NSE_MARKET_STATUS_URL },
     sessionWindow: { startAt: '2026-10-09T03:45:00.000Z', endAt: '2026-10-09T10:00:00.000Z' },
   };
@@ -321,15 +438,30 @@ test('session adapter rechecks cached provider observation without refreshing it
     cachedSession });
   assert.equal((await currentCache.provider.getCurrentSession()).status, 'MARKET_OPEN');
   assert.deepEqual(currentCache.calls, [UPSTOX_TRADING_HOLIDAYS_URL]);
-  const now = new Date('2026-10-09T05:07:00.000Z');
+  const boundary = await sessionFixture({
+    now: new Date(Date.parse(cachedSession.fetchedAt) + UPSTOX_MARKET_SESSION_MAX_FETCH_AGE_MS),
+    cachedSession,
+  }).provider.getCurrentSession();
+  assert.equal(boundary.status, 'MARKET_OPEN');
+  const now = new Date(Date.parse(cachedSession.fetchedAt) + UPSTOX_MARKET_SESSION_MAX_FETCH_AGE_MS + 1);
   const { provider, calls } = sessionFixture({ now, cachedSession });
   const result = await provider.getCurrentSession();
   assert.equal(result.status, 'UNKNOWN');
   assert.equal(result.observedAt, observedAt);
   assert.equal(result.error.code, 'UPSTOX_SESSION_STATUS_STALE_OR_INVALID');
   assert.deepEqual(calls, [UPSTOX_TRADING_HOLIDAYS_URL]);
+  for (const staleEvidence of [
+    { ...cachedSession, fetchedAt: undefined },
+    { ...cachedSession, fetchedAt: '2026-10-09T05:00:00.001Z' },
+  ]) {
+    const invalid = await sessionFixture({ now: new Date('2026-10-09T05:00:00.000Z'),
+      cachedSession: staleEvidence }).provider.getCurrentSession();
+    assert.equal(invalid.status, 'UNKNOWN');
+    assert.equal(invalid.error.code, 'UPSTOX_SESSION_STATUS_STALE_OR_INVALID');
+  }
   const afterClose = await sessionFixture({ now: new Date('2026-10-09T10:00:01.000Z'),
-    cachedSession: { ...cachedSession, observedAt: '2026-10-09T09:59:59.000Z' },
+    cachedSession: { ...cachedSession, observedAt: '2026-10-09T09:59:59.000Z',
+      fetchedAt: '2026-10-09T10:00:00.000Z' },
   }).provider.getCurrentSession();
   assert.equal(afterClose.status, 'UNKNOWN');
   assert.equal(afterClose.error.code, 'UPSTOX_SESSION_TIMING_CONFLICT');
@@ -344,6 +476,24 @@ test('session adapter rechecks cached provider observation without refreshing it
   }).provider.getCurrentSession();
   assert.equal(missingCasTime.status, 'UNKNOWN');
   assert.equal(missingCasTime.error.code, 'UPSTOX_SESSION_STATUS_STALE_OR_INVALID');
+});
+
+test('a delayed timing response cannot make an earlier status response appear fresh', async () => {
+  const now = new Date('2026-10-09T05:00:00.000Z');
+  let releaseTiming;
+  let timingRequested;
+  const timingWait = new Promise(resolve => { releaseTiming = resolve; });
+  const timingRequest = new Promise(resolve => { timingRequested = resolve; });
+  const { provider } = sessionFixture({ now, timingWait, onTimingRequest: timingRequested });
+  const pending = provider.getCurrentSession();
+  await timingRequest;
+  // Flush the completed status request before advancing the injected clock.
+  await new Promise(resolve => setImmediate(resolve));
+  now.setTime(now.getTime() + UPSTOX_MARKET_SESSION_MAX_FETCH_AGE_MS + 1);
+  releaseTiming();
+  const session = await pending;
+  assert.equal(session.status, 'UNKNOWN');
+  assert.equal(session.error.code, 'UPSTOX_SESSION_STATUS_STALE_OR_INVALID');
 });
 
 test('session adapter rejects malformed CAS and propagates provider failures without market authority', async () => {

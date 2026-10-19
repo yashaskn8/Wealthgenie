@@ -122,7 +122,7 @@ const MARKET_CONTEXT_COPY = {
 
 function marketSnapshotFingerprint(snapshot, marketContext = null) {
   const revision = snapshot?.contentRevision;
-  if (!revision || revision.version !== 'market-snapshot-content-1.0.0'
+  if (!revision || revision.version !== 'market-snapshot-content-1.1.0'
       || !/^[a-f0-9]{64}$/i.test(revision.digest || '')) return null;
   const usability = marketContext?.recommendationUsability || snapshot.recommendationUsability;
   const usabilityStatus = usability?.status || 'UNKNOWN';

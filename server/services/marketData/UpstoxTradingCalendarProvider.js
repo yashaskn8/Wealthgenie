@@ -3,7 +3,7 @@ import { AVAILABILITY, MARKET_DATA_SCHEMA_VERSION, PROVIDERS } from './contracts
 import { isoDateInIndia } from './indiaMarketTime.js';
 import { readThroughMarketCache } from './requestCache.js';
 import { classifyUpstoxError, safeUpstoxError } from './upstoxErrors.js';
-import { resolveUpstoxAccessToken } from './upstoxCredentials.js';
+import { resolveUpstoxAccessToken, upstoxCredentialCacheFingerprint } from './upstoxCredentials.js';
 import { getUpstoxWithRetry } from './upstoxRequestPolicy.js';
 import { isMarketDataProductionUseAllowed } from './marketDataRights.js';
 import {
@@ -15,10 +15,9 @@ import {
 export { UPSTOX_TRADING_HOLIDAYS_URL };
 export const UPSTOX_TRADING_CALENDAR_TTL_SECONDS = 60 * 60;
 export const UPSTOX_MARKET_SESSION_TTL_SECONDS = 30;
-// Provider last_updated is source evidence, not a cache or fetch timestamp. Upstox
-// does not document a heartbeat cadence, so an older phase cannot establish the
-// current session even when its trading date is today.
-export const UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS = 5 * 60 * 1000;
+// Upstox last_updated records a phase transition, not a response heartbeat. Bound
+// cache age using the time our adapter actually received the provider response.
+export const UPSTOX_MARKET_SESSION_MAX_FETCH_AGE_MS = UPSTOX_MARKET_SESSION_TTL_SECONDS * 1000;
 
 const UPSTOX_CAS_PHASES = new Set([
   'NORMAL_OPEN', 'NORMAL_CLOSE', 'PRE_OPEN_START', 'PRE_OPEN_END',
@@ -182,6 +181,7 @@ function requalifyCurrentSession(session, now, tradingDate) {
   if (session?.status === 'UNKNOWN') return session;
   const observedAt = Date.parse(session?.observedAt);
   const casObservedAt = session?.casPhase == null ? null : Date.parse(session.casObservedAt);
+  const fetchedAt = Date.parse(session?.fetchedAt);
   const startAt = Date.parse(session?.sessionWindow?.startAt);
   const endAt = Date.parse(session?.sessionWindow?.endAt);
   const nowMs = now.getTime();
@@ -191,11 +191,12 @@ function requalifyCurrentSession(session, now, tradingDate) {
     && session?.tradingDate === tradingDate
     && Number.isFinite(observedAt) && observedAt <= nowMs
     && isoDateInIndia(new Date(observedAt)) === tradingDate
-    && nowMs - observedAt <= UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS
+    && Number.isFinite(fetchedAt) && fetchedAt <= nowMs
+    && isoDateInIndia(new Date(fetchedAt)) === tradingDate
+    && nowMs - fetchedAt <= UPSTOX_MARKET_SESSION_MAX_FETCH_AGE_MS
     && (session.casPhase == null || (Number.isFinite(casObservedAt)
       && casObservedAt <= nowMs
-      && isoDateInIndia(new Date(casObservedAt)) === tradingDate
-      && nowMs - casObservedAt <= UPSTOX_MARKET_SESSION_MAX_STATUS_AGE_MS))
+      && isoDateInIndia(new Date(casObservedAt)) === tradingDate))
     && Number.isFinite(startAt) && Number.isFinite(endAt) && startAt < endAt
     && isoDateInIndia(new Date(startAt)) === tradingDate
     && isoDateInIndia(new Date(endAt)) === tradingDate;
@@ -250,23 +251,23 @@ export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
       return unavailable('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
     }
     if (!this.accessToken) return unavailable('PROVIDER_NOT_CONFIGURED');
+    const accessToken = this.accessToken;
     return this.requestCache({
-      cacheKey: `market:upstox:trading-calendar:${MARKET_DATA_SCHEMA_VERSION}:${year}`,
+      cacheKey: `market:upstox:trading-calendar:${MARKET_DATA_SCHEMA_VERSION}:${year}:${upstoxCredentialCacheFingerprint(accessToken)}`,
       ttlSeconds: UPSTOX_TRADING_CALENDAR_TTL_SECONDS,
       forceRefresh,
       loader: async () => {
-        const fetchedAt = this.nowIso();
         try {
           const response = await getUpstoxWithRetry(this.httpClient, UPSTOX_TRADING_HOLIDAYS_URL, {
             timeout: 10_000,
-            headers: { Accept: 'application/json', Authorization: `Bearer ${this.accessToken}` },
+            headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
           });
-          return parseUpstoxTradingCalendar(response.data, { year, fetchedAt });
+          return parseUpstoxTradingCalendar(response.data, { year, fetchedAt: this.nowIso() });
         } catch (error) {
           return {
             ...unavailable(classifyUpstoxError(error)),
             status: AVAILABILITY.SOURCE_ERROR,
-            fetchedAt,
+            fetchedAt: this.nowIso(),
             error: safeUpstoxError(classifyUpstoxError(error)),
           };
         }
@@ -291,6 +292,7 @@ export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
       return unknown('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
     }
     if (!this.accessToken) return unknown('PROVIDER_NOT_CONFIGURED');
+    const accessToken = this.accessToken;
     const calendar = await this.getCalendar({ fromDate: tradingDate, toDate: tradingDate, forceRefresh });
     const sessions = expectedUpstoxNseSessions(tradingDate, tradingDate, calendar, now);
     if (!sessions) return unknown(calendar?.error?.code || 'UPSTOX_TRADING_CALENDAR_UNAVAILABLE');
@@ -305,20 +307,22 @@ export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
       };
     }
     const session = await this.requestCache({
-      cacheKey: `market:upstox:nse-session:${MARKET_DATA_SCHEMA_VERSION}:${tradingDate}`,
+      cacheKey: `market:upstox:nse-session:${MARKET_DATA_SCHEMA_VERSION}:${tradingDate}:${upstoxCredentialCacheFingerprint(accessToken)}`,
       ttlSeconds: UPSTOX_MARKET_SESSION_TTL_SECONDS,
       forceRefresh,
       shouldCache: session => session?.status !== 'UNKNOWN',
       loader: async () => {
         try {
-          const headers = { Accept: 'application/json', Authorization: `Bearer ${this.accessToken}` };
-          const [statusResponse, timingResponse] = await Promise.all([
-            getUpstoxWithRetry(this.httpClient, UPSTOX_NSE_MARKET_STATUS_URL, { timeout: 10_000, headers }),
+          const headers = { Accept: 'application/json', Authorization: `Bearer ${accessToken}` };
+          const [statusEvidence, timingResponse] = await Promise.all([
+            getUpstoxWithRetry(this.httpClient, UPSTOX_NSE_MARKET_STATUS_URL,
+              { timeout: 10_000, headers }).then(response => ({ response, fetchedAt: this.nowIso() })),
             getUpstoxWithRetry(this.httpClient, timingUrl, { timeout: 10_000, headers }),
           ]);
           return requalifyCurrentSession({
-            ...classifyCurrentSession(statusResponse.data, timingResponse.data, tradingDate, this.clock(), calendar),
-            calendar,
+            ...classifyCurrentSession(statusEvidence.response.data, timingResponse.data,
+              tradingDate, this.clock(), calendar),
+            calendar, fetchedAt: statusEvidence.fetchedAt,
           }, this.clock(), tradingDate);
         } catch (error) {
           return {
@@ -328,7 +332,7 @@ export default class UpstoxTradingCalendarProvider extends MarketDataProvider {
         }
       },
     });
-    // Cache TTL and cachedAt never refresh the provider's last_updated evidence.
+    // Cache metadata cannot refresh the original provider response time.
     return requalifyCurrentSession(session, this.clock(), tradingDate);
   }
 }
