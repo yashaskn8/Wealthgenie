@@ -573,6 +573,7 @@ export async function fetchQualifiedEquityHistory({
   }
 
   const candles = [];
+  const qualifiedHistoryRequestUrls = [];
   for (const segment of segmented.segments) {
     const segmentOptions = {
       exchange: request.exchange,
@@ -602,6 +603,9 @@ export async function fetchQualifiedEquityHistory({
     if (normalizedBasis === 'ADJUSTED' && snapshot.candles.some(candle => candle.isin !== request.isin)) {
       return unavailableEquityHistory({ request, reasonCode: 'TEJHQ_ADJUSTED_ISIN_CHAIN_UNQUALIFIED', primarySnapshot, providerStatus });
     }
+    // History qualification remains compatible with isolated provider test
+    // doubles; durable storage independently requires real source URLs.
+    if (typeof snapshot.source?.url === 'string') qualifiedHistoryRequestUrls.push(snapshot.source.url);
     candles.push(...snapshot.candles);
   }
 
@@ -640,6 +644,8 @@ export async function fetchQualifiedEquityHistory({
       url: normalizedBasis === 'ADJUSTED'
         ? 'https://api.tejhq.dev/v1/adjusted'
         : 'https://api.tejhq.dev/v1/ohlcv',
+      // Preserve the actual qualified per-symbol requests across renames.
+      requestUrls: qualifiedHistoryRequestUrls,
     },
     sourceAttribution: {
       provider: PROVIDERS.TEJHQ,

@@ -725,6 +725,24 @@ export async function getBenchmarkMarketFacts(options = {}) {
   return request('GET', '/market/benchmarks', null, options);
 }
 
+/** Qualified retained equity history; server independently rechecks provider rights. */
+export async function getStoredEquityHistory({
+  exchange = 'NSE', symbol, isin, fromDate, toDate, basis = 'RAW',
+}, options = {}) {
+  const params = new URLSearchParams({ exchange, symbol, isin, fromDate, toDate, basis });
+  return request('GET', '/market-data/equity-history/persisted?' + params.toString(), null, {
+    retries: 0, ...options,
+  });
+}
+
+export async function getMutualFundNavFacts(schemeCodes, options = {}) {
+  const normalized = [...new Set((schemeCodes || []).map(value => String(value).trim()).filter(Boolean))];
+  if (normalized.length === 0 || normalized.length > 50 || normalized.some(code => !/^\d+$/.test(code))) {
+    throw new TypeError('schemeCodes must contain 1-50 AMFI numeric scheme codes.');
+  }
+  return request('GET', `/market/mutual-funds/nav?schemeCodes=${encodeURIComponent(normalized.join(','))}`, null, options);
+}
+
 export async function getMutualFundNavFacts(schemeCodes, options = {}) {
   const normalized = [...new Set((schemeCodes || []).map(value => String(value).trim()).filter(Boolean))];
   if (normalized.length === 0 || normalized.length > 50 || normalized.some(code => !/^\d+$/.test(code))) {

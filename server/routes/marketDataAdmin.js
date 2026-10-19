@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { verifyJWT, requireRole } from '../middleware/authMiddleware.js';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
-import { validateQuery, marketEquityHistoryQuerySchema, marketEquityIdentityQuerySchema } from '../validation/schemas.js';
+import { validate, validateQuery, marketEquityHistoryQuerySchema, marketEquityIdentityQuerySchema } from '../validation/schemas.js';
+import {
+  persistQualifiedHistory, readQualifiedHistory,
+} from '../services/marketData/QualifiedEquityHistoryStore.js';
 import {
   fetchQualifiedEquityHistory,
   fetchTejHqCorporateActionEvidence,
@@ -30,6 +33,8 @@ export function createMarketDataAdminRouter({
   fetchHistory = fetchQualifiedEquityHistory,
   fetchActions = fetchTejHqCorporateActionEvidence,
   fetchStatus = fetchTejHqProviderPublicationStatus,
+  persistHistory = persistQualifiedHistory,
+  readStoredHistory = readQualifiedHistory,
   authenticate = verifyJWT,
   authorizeAdmin = requireRole('admin'),
   limiter = createAdminRateLimiter(),
@@ -44,6 +49,33 @@ export function createMarketDataAdminRouter({
       return handleInvalidRequest(req, res, error);
     }
   }));
+
+  // A qualified provider fetch and an authorized durable write are two
+  // separate decisions. Neither a successful GET nor an operator Boolean
+  // silently inserts market history into the database.
+  router.post('/admin/equity-history/ingest', authenticate, authorizeAdmin, limiter,
+    validate(marketEquityHistoryQuerySchema), asyncHandler(async (req, res) => {
+      let snapshot;
+      try {
+        snapshot = await fetchHistory(req.body);
+      } catch (error) { return handleInvalidRequest(req, res, error); }
+      const persistence = await persistHistory(snapshot, req.body);
+      if (persistence.status !== 'PERSISTED') {
+        return sendError(req, res, 503, 'Qualified market history could not be stored.',
+          persistence.code || 'MARKET_HISTORY_NOT_PERSISTED');
+      }
+      res.set('Cache-Control', 'no-store');
+      return res.status(201).json(persistence);
+    }));
+
+  // Normal authenticated users can read only already-retained, authorized
+  // observations; rights are re-evaluated for each provider source on read.
+  router.get('/equity-history/persisted', authenticate, limiter,
+    validateQuery(marketEquityHistoryQuerySchema), asyncHandler(async (req, res) => {
+      res.set('Cache-Control', 'private, no-store');
+      const result = await readStoredHistory(req.query);
+      return res.json(result);
+    }));
 
   router.get('/admin/tejhq/corporate-actions', authenticate, authorizeAdmin, limiter, validateQuery(marketEquityIdentityQuerySchema), asyncHandler(async (req, res) => {
     try {

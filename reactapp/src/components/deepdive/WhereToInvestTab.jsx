@@ -40,6 +40,7 @@ import { getCurrentRecommendedInstrument } from '../../utils/financialStateBindi
 import { useMarketContext } from '../../state/useMarketContext';
 import UserDeclaredScenarioPanel from './UserDeclaredScenarioPanel';
 import PrivateMarketDemoPanel from './PrivateMarketDemoPanel';
+import QualifiedMarketEvidencePanel from './QualifiedMarketEvidencePanel';
 import PrivateMarketDataDemo from './PrivateMarketDataDemo';
 
 const RISK_LEVELS = [
@@ -978,6 +979,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           hidden={!isTechExpanded}
         >
           <div className="wti-tech-panel-inner">
+            <QualifiedMarketEvidencePanel />
             {/* Metric Signal Groups */}
             <div data-testid="market-context-signals" className="wti-tech-signals-container">
               {marketSignals.length > 0 && (
