@@ -166,6 +166,24 @@ describe('AllocationPlanner', () => {
     expect(screen.getByText(/Update the saved profile and regenerate the plan/i)).toBeInTheDocument();
   });
 
+  it('fails closed on a malformed backend allocation without hiding Plan Review', async () => {
+    vi.spyOn(api, 'getCurrentPlanReviewRun').mockRejectedValue(noPlanReviewRun);
+    render(<AllocationPlanner
+      profile={profile}
+      recommendations={[
+        recommendations[0],
+        { ...recommendations[1], allocationWeight: null },
+      ]}
+      recommendationMeta={recommendationMeta}
+    />);
+
+    expect(screen.getByRole('heading', { name: "We couldn't load your plan" })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Review my plan' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Investment allocation breakdown donut chart' }))
+      .not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Run plan review' })).toBeEnabled();
+  });
+
   it('runs a read-only review and exposes only returned evidence in the dialog', async () => {
     vi.spyOn(api, 'runPlanReview').mockResolvedValue({
       runId: '4f4f4f4f-1111-4111-8111-111111111111',
