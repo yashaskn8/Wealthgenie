@@ -76,10 +76,28 @@ test('four Linux CI jobs retain full Mongo-backed backend and integration covera
   assert.ok(integration.steps.some(step => step.name === 'Audit backend npm dependencies'));
 });
 
-test('Kind deployment verification is manual only and keeps strict preflight disabled by default', () => {
-  assert.deepEqual(Object.keys(cdWorkflow.on), ['workflow_dispatch']);
+test('Kind deployment runs only on successful main CI or explicit manual dispatch, with strict live preflight opt-in', () => {
+  assert.deepEqual(Object.keys(cdWorkflow.on), ['workflow_run', 'workflow_dispatch']);
+  assert.deepEqual(cdWorkflow.on.workflow_run, {
+    workflows: ['CI'],
+    types: ['completed'],
+    branches: ['main'],
+  });
   assert.equal(cdWorkflow.on.workflow_dispatch.inputs.run_live_market_preflight.default, false);
   assert.deepEqual(Object.keys(cdWorkflow.jobs), ['deploy-and-verify-kind']);
+
+  const gate = cdWorkflow.jobs['deploy-and-verify-kind'].if;
+  for (const required of [
+    "github.event_name == 'workflow_dispatch'",
+    "github.event_name == 'workflow_run'",
+    "github.event.workflow_run.event == 'push'",
+    "github.event.workflow_run.conclusion == 'success'",
+    "github.event.workflow_run.head_branch == 'main'",
+    'github.event.workflow_run.head_repository.full_name == github.repository',
+    'github.event.workflow_run.head_sha == github.sha',
+  ]) {
+    assert.ok(gate.includes(required), 'Missing CD gate condition: ' + required);
+  }
 });
 
 test('standalone Mongo partition owns and stops a disposable 7.0.5 loopback _test server', () => {
