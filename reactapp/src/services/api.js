@@ -743,14 +743,6 @@ export async function getMutualFundNavFacts(schemeCodes, options = {}) {
   return request('GET', `/market/mutual-funds/nav?schemeCodes=${encodeURIComponent(normalized.join(','))}`, null, options);
 }
 
-export async function getMutualFundNavFacts(schemeCodes, options = {}) {
-  const normalized = [...new Set((schemeCodes || []).map(value => String(value).trim()).filter(Boolean))];
-  if (normalized.length === 0 || normalized.length > 50 || normalized.some(code => !/^\d+$/.test(code))) {
-    throw new TypeError('schemeCodes must contain 1-50 AMFI numeric scheme codes.');
-  }
-  return request('GET', `/market/mutual-funds/nav?schemeCodes=${encodeURIComponent(normalized.join(','))}`, null, options);
-}
-
 // ─── INSTRUMENTS ─────────────────────────────────────────
 export async function getInstruments(type, sort = 'rate', order = 'desc', limit = 20) {
   const params = new URLSearchParams();
