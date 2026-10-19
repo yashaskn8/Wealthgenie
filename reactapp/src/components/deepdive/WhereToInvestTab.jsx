@@ -39,6 +39,7 @@ import { isPresentFiniteNumber, toOptionalNumber } from '../../utils/financialVa
 import { getCurrentRecommendedInstrument } from '../../utils/financialStateBinding';
 import { useMarketContext } from '../../state/useMarketContext';
 import UserDeclaredScenarioPanel from './UserDeclaredScenarioPanel';
+import PrivateMarketDemoPanel from './PrivateMarketDemoPanel';
 
 const RISK_LEVELS = [
   { label: 'Low', color: '#22c55e', desc: 'Lower relative risk. Any guarantee or insurance depends on the specific product terms.' },
@@ -798,6 +799,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
 
   return (
     <div className="tab-fade-in">
+      <PrivateMarketDemoPanel />
       {/* ─── Beginner-First Market Summary Card ─── */}
       <section
         className="wti-beginner-market-card"
