@@ -9,11 +9,20 @@ function quoteText(fact) {
   return value.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
 
-function quoteTime(fact) {
-  return formatMarketTimestamp(fact?.quoteLastTradeAt
-    || fact?.observedAt
-    || fact?.providerResponseReceivedAt
-    || fact?.fetchedAt) || 'Timestamp unavailable';
+function quoteName(fact) {
+  const names = {
+    'market:index:nifty-50': 'NIFTY 50',
+    'market:index:india-vix': 'India VIX',
+  };
+  return names[fact?.canonicalProductId]
+    || fact?.source?.instrumentId?.split('|').at(-1)
+    || 'Market instrument';
+}
+
+function reasonCode(snapshot) {
+  return snapshot?.error?.code
+    || snapshot?.reasonCodes?.find(code => typeof code === 'string')
+    || null;
 }
 
 export default function PrivateMarketDataDemo() {
@@ -62,10 +71,16 @@ export default function PrivateMarketDataDemo() {
             </div>
             <div className="private-market-demo__quotes">
               {quotes.map(fact => (
-                <div key={fact.canonicalProductId}>
-                  <span>{fact.displayName}</span>
-                  <strong>{quoteText(fact)} {fact.unit === 'INDEX_POINTS' ? 'pts' : fact.currency || ''}</strong>
-                  <small>{quoteTime(fact)} · {fact.freshness?.status || 'UNKNOWN'}</small>
+                <div key={fact.canonicalProductId} data-testid={`private-quote-${fact.canonicalProductId}`}>
+                  <span>{quoteName(fact)}</span>
+                  <strong>{fact.availabilityStatus === 'AVAILABLE'
+                    ? `${quoteText(fact)} ${fact.unit === 'INDEX_POINTS' ? 'pts' : fact.currency || ''}`
+                    : 'Unavailable'}</strong>
+                  <small>Last trade: {formatMarketTimestamp(fact.quoteLastTradeAt || fact.observedAt) || 'Unavailable'}</small>
+                  <small>Provider response: {formatMarketTimestamp(fact.quoteResponseGeneratedAt) || 'Unavailable'}</small>
+                  <small>Fetched: {formatMarketTimestamp(fact.providerResponseReceivedAt || fact.fetchedAt) || 'Unavailable'}</small>
+                  <small>{fact.freshness?.status || 'UNKNOWN'}
+                    {Number.isFinite(fact.freshness?.ageSeconds) ? ` · ${fact.freshness.ageSeconds}s since trade` : ''}</small>
                 </div>
               ))}
               {quotes.length === 0 && <span>No quote observations returned.</span>}
@@ -82,12 +97,21 @@ export default function PrivateMarketDataDemo() {
                 INFY latest returned close: <strong>{nullableMarketNumber(latestClose.close)?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong>
                 {' '}on {latestClose.date || latestClose.tradingDate || 'date unavailable'}.
               </p>
-            ) : <p>No qualified EOD candle was returned.</p>}
+            ) : <p role="status">Historical EOD unavailable{reasonCode(snapshot.tejHq)
+              ? `: ${reasonCode(snapshot.tejHq)}` : '.'}</p>}
             <small>
-              Observed: {formatMarketTimestamp(snapshot.tejHq?.observedAt) || snapshot.tejHq?.observedDate || 'Unavailable'}
+              Trading date: {snapshot.tejHq?.effectiveTradingDate
+                || snapshot.tejHq?.observedDate
+                || latestClose?.date
+                || latestClose?.tradingDate
+                || 'Unavailable'}
               {' '}· Fetched: {formatMarketTimestamp(snapshot.tejHq?.fetchedAt) || 'Unavailable'}
               {' '}· {snapshot.tejHq?.freshness?.status || 'UNKNOWN'}
             </small>
+            {snapshot.tejHq?.checkedAt && !snapshot.tejHq?.fetchedAt && (
+              <small>Rights checked: {formatMarketTimestamp(snapshot.tejHq.checkedAt) || 'Unavailable'}</small>
+            )}
+            <small>Storage: {snapshot.persistence || 'Unverified'} · Cache: {snapshot.tejHq?.cache?.status || 'Unverified'}</small>
           </div>
 
           <p className="private-market-demo__provenance">

@@ -159,7 +159,7 @@ test('routes authentication actions and omits the removed landing sections', asy
   await page.goto('/');
   await page.getByRole('link', { name: 'Summon Genie' }).click();
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByLabel('Username')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole('textbox', { name: 'Email address' })).toBeVisible({ timeout: 20000 });
 
   await page.goto('/');
   await page.getByRole('link', { name: 'Log In' }).click();

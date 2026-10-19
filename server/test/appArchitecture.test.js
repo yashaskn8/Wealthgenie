@@ -50,10 +50,11 @@ test('app factory rejects unapproved browser origins and returns traceable 404s'
   });
 });
 
-test('production blocks public market, profile, and recommendation outputs when Upstox distribution is unconfirmed', async () => {
+test('legacy Upstox mode blocks public market publication but keeps core financial routes accessible', async () => {
   const env = {
     ...process.env,
     NODE_ENV: 'production',
+    MARKET_DATA_MODE: 'LEGACY',
     MARKET_DATA_PRIMARY_PROVIDER: 'UPSTOX',
     UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
     CORS_ORIGINS: 'https://wealth.example',
@@ -61,12 +62,39 @@ test('production blocks public market, profile, and recommendation outputs when 
   const app = createApp({ env });
 
   await withServer(app, async baseUrl => {
+    // Source-authorized market facades return unavailability instead of
+    // opaque transport failures. Their unavailable DTOs have no live numbers.
+    const benchmarks = await jsonRequest(`${baseUrl}/api/market/benchmarks`);
+    assert.equal(benchmarks.response.status, 200);
+    assert.equal(benchmarks.body.status, 'UNAVAILABLE');
+    assert.deepEqual(benchmarks.body.facts, []);
+
+    const summary = await jsonRequest(`${baseUrl}/api/market/rates`);
+    assert.equal(summary.response.status, 200);
+    assert.equal(summary.body.status, 'UNAVAILABLE');
+    assert.deepEqual(summary.body.benchmarks, []);
+
+    const marketContext = await jsonRequest(`${baseUrl}/api/regime/current`);
+    assert.equal(marketContext.response.status, 200);
+    assert.equal(marketContext.body.status, 'MARKET_CONTEXT_UNAVAILABLE');
+    assert.equal(marketContext.body.context, null);
+    assert.equal(marketContext.body.marketSnapshot.recommendationUsability.status, 'NOT_USABLE');
+
+    // Direct Upstox publication is still denied before any provider request.
+    const quotes = await jsonRequest(`${baseUrl}/api/market-data/quotes?ids=market:index:nifty-50`);
+    assert.equal(quotes.response.status, 503);
+    assert.equal(quotes.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED');
+
+    // The admin history route enforces identity before provider-rights checks.
+    const adminHistory = await jsonRequest(
+      `${baseUrl}/api/market-data/admin/equity-history?exchange=NSE&symbol=RELIANCE&isin=INE002A01018&fromDate=2026-10-08&toDate=2026-10-09`,
+    );
+    assert.equal(adminHistory.response.status, 401);
+    assert.equal(adminHistory.body.code, 'AUTH_REQUIRED');
+
+    // Core routes still enforce identity, even if no market provider is
+    // approved. Previously these were blocked with 503 before authentication.
     for (const request of [
-      { path: '/api/market/rates' },
-      { path: '/api/market/benchmarks' },
-      { path: '/api/regime/current' },
-      { path: '/api/market-data/quotes?ids=market:index:nifty-50' },
-      { path: '/api/market-data/admin/equity-history?exchange=NSE&symbol=RELIANCE&isin=INE002A01018&fromDate=2026-10-08&toDate=2026-10-09' },
       { path: '/api/profile/precompute', method: 'POST', body: {} },
       { path: '/api/profile/complete', method: 'POST', body: {} },
       { path: '/api/profile/64a000000000000000000001', method: 'PUT', body: {} },
@@ -79,11 +107,10 @@ test('production blocks public market, profile, and recommendation outputs when 
         ...request,
         body: request.body === undefined ? undefined : JSON.stringify(request.body),
       });
-      assert.equal(response.response.status, 503, request.path);
-      assert.equal(response.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED', request.path);
+      assert.equal(response.response.status, 401, request.path);
+      assert.equal(response.body.code, 'AUTH_REQUIRED', request.path);
     }
 
-    // Pure profile restore/build routes do not contain recommendation context.
     for (const path of ['/api/profile/current', '/api/profile/build']) {
       const response = await jsonRequest(`${baseUrl}${path}`, path.endsWith('/build')
         ? { method: 'POST', body: JSON.stringify({}) }

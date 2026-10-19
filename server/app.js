@@ -24,7 +24,6 @@ import goalRoutes from './routes/goals.js';
 import marketRoutes from './routes/market.js';
 import marketQuotesRoutes from './routes/marketQuotes.js';
 import marketDataAdminRoutes from './routes/marketDataAdmin.js';
-import { createPrivateMarketDemoRouter } from './routes/privateMarketDemo.js';
 import taxRoutes from './routes/tax.js';
 import chatRoutes from './routes/chatRoutes.js';
 import portfolioRoutes from './routes/portfolio.js';
@@ -164,19 +163,19 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
 
   app.use('/api/auth', authLimiter);
   app.use('/api', apiLimiter);
+  // Only direct quote publication is blocked at the HTTP perimeter.
+  // Read-only market summaries, regime snapshots, and admin history instead
+  // enforce exact source rights inside their provider facades and return
+  // explicit unavailable DTOs. This avoids masking auth with a 503, allows
+  // the UI to distinguish permission failures from transport failures, and
+  // never makes an unapproved provider call or emits an invented quote.
   app.use('/api/market-data/quotes', createUpstoxPublicDataGate({ env, requiresUpstox: true }));
-  app.use([
-    '/api/market/rates',
-    '/api/market/benchmarks',
-    '/api/regime/current',
-    '/api/regime/adjust',
-    '/api/market-data/admin/equity-history',
-    '/api/profile/precompute',
-    '/api/profile/complete',
-    '/api/profile/:profileId/health-score',
-    '/api/recommend',
-  ], createUpstoxPublicDataGate({ env, allowUnavailableTwoProviderMode: true }));
-  app.put('/api/profile/:profileId', createUpstoxPublicDataGate({ env, allowUnavailableTwoProviderMode: true }));
+  // Financial profile and recommendation routes must remain independently
+  // usable when public Upstox distribution is unlicensed. Their own market
+  // context service already rejects unqualified evidence and any market tilt.
+  // Never place the provider-publication gate in front of authenticated core
+  // finance routes: it would block profile creation and portfolio updates
+  // before authorization or financial validation could even execute.
   const healthRoutes = createHealthRouter({
     runtimeState: lifecycle,
     requireRedis: config.requireRedis,
@@ -213,8 +212,6 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/market', marketRoutes);
   app.use('/api/market-data', marketQuotesRoutes);
   app.use('/api/market-data', marketDataAdminRoutes);
-  // Optional signed-in loopback-only educational provider view, never production.
-  app.use('/api/market-data', createPrivateMarketDemoRouter({ env }));
   app.use('/api/tax', taxRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/portfolio', portfolioRoutes);

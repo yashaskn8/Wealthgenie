@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
   [switch]$RequireRedis,
+  [switch]$RequireMlService,
+  [switch]$RequireBrowser,
   [switch]$EnablePlanReview,
   [string]$RedisServerPath,
   [ValidateRange(1024, 65535)]
@@ -270,6 +272,18 @@ $serverPassword = Get-DotEnvValue $serverEnvPath 'DEMO_PASSWORD'
 $jwtSecret = Get-DotEnvValue $rootEnvPath 'JWT_SECRET'
 $nvidiaKey = Get-DotEnvValue $rootEnvPath 'NVIDIA_API_KEY'
 $nvidiaModel = Get-DotEnvValue $rootEnvPath 'NVIDIA_NIM_MODEL'
+$mlServiceApiKey = Get-DotEnvValue $rootEnvPath 'ML_SERVICE_API_KEY'
+$mlServiceUrl = Get-DotEnvValue $rootEnvPath 'ML_SERVICE_URL'
+if (-not $mlServiceUrl) { $mlServiceUrl = 'http://127.0.0.1:8000' }
+$mlUri = $null
+if ((-not [Uri]::TryCreate($mlServiceUrl, [UriKind]::Absolute, [ref]$mlUri)) -or
+    $mlUri.Scheme -cne 'http' -or
+    $mlUri.Host -notin @('127.0.0.1', 'localhost') -or
+    $mlUri.UserInfo -or $mlUri.Query -or $mlUri.Fragment -or
+    $mlUri.AbsolutePath -cne '/') {
+  throw 'Local demo ML_SERVICE_URL must be a loopback HTTP service origin, without credentials, path, query or fragment.'
+}
+$mlServiceUrl = $mlUri.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
 
 if (-not $demoEmail -or -not $demoPassword -or $demoPassword.Length -lt 8 -or $demoPassword.Length -gt 128) {
   throw 'The selected root .env demo credentials are missing or fail the registration password length contract.'
@@ -345,6 +359,20 @@ if (-not $mongoIdentity.verified) {
   throw 'The listener does not match the existing verified demo database identity; no backend or frontend was started.'
 }
 Write-Host "MongoDB VERIFIED: $($mongoIdentity.database), loopback port $($mongoIdentity.port), replica set $($mongoIdentity.replicaSet), read-only transaction PASS."
+
+$mlReadinessVerified = $false
+try {
+  $mlHealth = Invoke-RestMethod -Uri "$mlServiceUrl/readyz" -TimeoutSec 3 -ErrorAction Stop
+  $mlReadinessVerified = $mlHealth.status -eq 'ready'
+} catch { $mlReadinessVerified = $false }
+if ($RequireMlService -and (-not $mlReadinessVerified -or -not $mlServiceApiKey)) {
+  throw 'Required local Python ML service readiness or ML_SERVICE_API_KEY is unavailable; no backend or frontend service was started.'
+}
+if ($mlReadinessVerified) {
+  Write-Host 'ML service readiness: READY on verified loopback origin. Model inference and API-key authorization were not exercised.'
+} else {
+  Write-Host 'ML service readiness: NOT VERIFIED. Recommendation inference uses the deterministic fallback when the Python service is unavailable.'
+}
 
 $redisAvailable = $false
 $redisExe = $RedisServerPath
@@ -442,6 +470,8 @@ $commonEnv = @{
   AGENT_AP2_RESEARCH_ENABLED = 'false'
   JWT_SECRET = $jwtSecret
   JWT_EXPIRES_IN = '7d'
+  ML_SERVICE_URL = $mlServiceUrl
+  ML_SERVICE_API_KEY = $mlServiceApiKey
   PORT = [string]$backendPort
   CORS_ORIGINS = "http://127.0.0.1:$frontendPort"
   NVIDIA_API_KEY = $nvidiaKey
@@ -535,7 +565,6 @@ if (-not (Test-ListeningPort $frontendPort)) {
 }
 $frontendVerified = Wait-Frontend "http://127.0.0.1:$frontendPort/login"
 if (-not $frontendVerified) { throw 'The local frontend did not become reachable.' }
-
 $processState = [pscustomobject]@{
   repository = $repoRoot
   branch = $branch
@@ -550,13 +579,34 @@ $processState = [pscustomobject]@{
   redisRequired = [bool]$redisAvailable
   backendPort = $backendPort
   frontendPort = $frontendPort
+  browserSmokeRequired = [bool]$RequireBrowser
+  browserVerified = $false
   sourceShaPublished = [bool]$sourceSha
   backendPid = $backendPid
   frontendPid = $frontendPid
 }
+# Record ownership before the optional browser smoke so a failed smoke can be
+# retried safely against the same launcher-owned services.
 $processState | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+if ($RequireBrowser) {
+  $browserSmokeScript = Join-Path $repoRoot 'scripts/demoBrowserSmoke.mjs'
+  if (-not (Test-Path -LiteralPath $browserSmokeScript -PathType Leaf)) {
+    throw 'The read-only browser smoke script is missing; rendered UI verification was not attempted.'
+  }
+  $browserOrigin = "http://127.0.0.1:$frontendPort"
+  $browserOutput = @(& $nodeExe $browserSmokeScript $browserOrigin 2>&1)
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Rendered browser verification failed. The frontend remains available for inspection; no account or financial data was changed.'
+  }
+  $processState.browserVerified = $true
+  $processState | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+  Write-Host (($browserOutput | Out-String).Trim())
+}
 Write-Host "Backend VERIFIED: loopback port $backendPort, READY, connected to the existing demo sentinel and transaction-capable replica set."
-Write-Host "Frontend VERIFIED: loopback port $frontendPort, login document returned HTTP 200 with the React root element."
+Write-Host "Frontend HTTP VERIFIED: loopback port $frontendPort, login document returned HTTP 200 with the React root element."
+if (-not $RequireBrowser) {
+  Write-Host 'Rendered browser UI NOT VERIFIED: pass -RequireBrowser to run the read-only loopback browser smoke.'
+}
 Write-Host 'Credentials source: project-root .env only; server/.env was not loaded. Credential values were not printed.'
 if ($serverPassword -and $serverPassword -cne $demoPassword) {
   Write-Host 'Environment note: root/server demo passwords differ; the verified root .env value was selected without changing either file.'

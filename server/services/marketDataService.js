@@ -68,6 +68,7 @@ import { persistVerifiedMarketSnapshot } from './marketData/MarketDataRepository
 import { isUpstoxPublicDistributionAllowed } from './marketData/upstoxDistributionPolicy.js';
 import {
   buildMarketDataRightsUnavailableSnapshot,
+  evaluateMarketDataProductionRights,
   isMarketDataPrivateDemoUseAllowed,
   isMarketDataProductionUseAllowed,
 } from './marketData/marketDataRights.js';
@@ -1083,12 +1084,15 @@ export async function fetchPrivateMarketDemoData({
     toDate: to.toISOString().slice(0, 10),
     privateDemoCapability,
   };
-  const tejHq = isMarketDataPrivateDemoUseAllowed(
-    PROVIDERS.TEJHQ,
-    tejHqSourceUrl('/v1/ohlcv/nse/INFY', { from: historyRequest.fromDate, to: historyRequest.toDate }),
-    env,
-    privateDemoCapability,
-  )
+  const tejHqUrl = tejHqSourceUrl('/v1/ohlcv/nse/INFY', {
+    from: historyRequest.fromDate,
+    to: historyRequest.toDate,
+  });
+  const tejHqPrivateDemoAllowed = isMarketDataPrivateDemoUseAllowed(
+    PROVIDERS.TEJHQ, tejHqUrl, env, privateDemoCapability,
+  );
+  const tejHqRights = evaluateMarketDataProductionRights(PROVIDERS.TEJHQ, tejHqUrl);
+  const tejHq = tejHqPrivateDemoAllowed
     ? await new TejHqHistoricalDataProvider({
       env,
       apiKey: env.TEJHQ_API_KEY || '',
@@ -1096,12 +1100,26 @@ export async function fetchPrivateMarketDemoData({
     }).getRawHistory(historyRequest)
     : {
       provider: PROVIDERS.TEJHQ,
-      status: AVAILABILITY.PROVIDER_NOT_CONFIGURED,
+      status: AVAILABILITY.UNAVAILABLE,
       dataClass: 'HISTORICAL_EOD',
       candles: [],
       observedAt: null,
-      fetchedAt: now.toISOString(),
-      reasonCodes: ['TEJHQ_PRIVATE_DEMO_NOT_ENABLED'],
+      checkedAt: now.toISOString(),
+      source: { provider: PROVIDERS.TEJHQ, url: tejHqUrl },
+      sourceRights: {
+        status: tejHqRights.status,
+        sourceId: tejHqRights.sourceId,
+        productionUseAllowed: tejHqRights.productionUseAllowed,
+      },
+      error: {
+        code: tejHqRights.productionUseAllowed
+          ? 'TEJHQ_PRIVATE_DEMO_NOT_ENABLED'
+          : 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
+        message: 'TejHQ historical data was not requested because this use is not qualified.',
+      },
+      reasonCodes: [tejHqRights.productionUseAllowed
+        ? 'TEJHQ_PRIVATE_DEMO_NOT_ENABLED'
+        : 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'],
     };
 
   const availableProviders = [upstox, tejHq].filter(snapshot => snapshot.status === AVAILABILITY.AVAILABLE).length;
@@ -1111,7 +1129,7 @@ export async function fetchPrivateMarketDemoData({
       ? AVAILABILITY.AVAILABLE
       : availableProviders === 1 ? AVAILABILITY.PARTIAL : AVAILABILITY.UNAVAILABLE,
     mode: 'AUTHENTICATED_LOOPBACK_PRIVATE_DEMO',
-    fetchedAt: new Date().toISOString(),
+    fetchedAt: now.toISOString(),
     persistence: 'NOT_PERSISTED',
     upstox: {
       ...upstox,

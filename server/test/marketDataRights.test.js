@@ -12,6 +12,7 @@ import {
   fetchQualifiedMarketContextSnapshots,
   fetchRbiFloatingRateSavingsBondSnapshot,
   fetchSbiTermDepositSnapshot,
+  fetchPrivateMarketDemoData,
   fetchTejHqCorporateActionEvidence,
   fetchTejHqProviderPublicationStatus,
   fetchUpstoxCanonicalQuotes,
@@ -127,7 +128,8 @@ test('private demo capability is authenticated, loopback-only, development-only,
   const quoteUrl = buildUpstoxQuoteRequestUrl(['NSE_INDEX|Nifty 50', 'NSE_INDEX|India VIX']);
   assert.equal(isMarketDataPrivateDemoUseAllowed('UPSTOX', quoteUrl, env, capability), true);
   assert.equal(isMarketDataProductionUseAllowed('UPSTOX', quoteUrl, env), false);
-  assert.equal(isMarketDataPrivateDemoUseAllowed('TEJHQ', 'https://api.tejhq.dev/v1/ohlcv/nse/INFY?from=2026-10-01&to=2026-10-10', env, capability), true);
+  assert.equal(isMarketDataPrivateDemoUseAllowed('TEJHQ', 'https://api.tejhq.dev/v1/ohlcv/nse/INFY?from=2026-10-01&to=2026-10-10', env, capability), false,
+    'loopback and operator flags do not replace an exact TejHQ rights record');
   assert.equal(isMarketDataPrivateDemoUseAllowed('TEJHQ', 'https://api.tejhq.dev/v1/unknown', env, capability), false);
   assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ userId: null }), env), null);
   assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ remoteAddress: '203.0.113.9' }), env), null);
@@ -341,6 +343,83 @@ test('TejHQ operator flags cannot access cache, budget, or provider for unverifi
   assert.equal(cacheCalls, 0);
   assert.equal(budgetCalls, 0);
   assert.equal(httpCalls, 0);
+});
+
+test('TejHQ private-demo flags cannot bypass missing source rights or reach provider dependencies', async () => {
+  let cacheCalls = 0;
+  let budgetCalls = 0;
+  let httpCalls = 0;
+  const env = {
+    NODE_ENV: 'development',
+    [MARKET_DATA_PRIVATE_DEMO_ENV]: 'true',
+    TEJHQ_PRIVATE_DEMO_ENABLED: 'true',
+    TEJHQ_ENABLED: 'true',
+    TEJHQ_LICENSE_CONFIRMED: 'true',
+    TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true',
+  };
+  const capability = createPrivateMarketDataDemoCapability({
+    get: () => '127.0.0.1:5000',
+    socket: { remoteAddress: '127.0.0.1' },
+    user: { userId: 'demo-user' },
+  }, env);
+  assert.ok(capability);
+  const provider = new TejHqHistoricalDataProvider({
+    apiKey: 'fixture-only-token',
+    env,
+    requestCache: async () => { cacheCalls += 1; return { status: 'AVAILABLE' }; },
+    budget: async () => { budgetCalls += 1; return { allowed: true }; },
+    httpClient: { get: async () => { httpCalls += 1; return { data: {} }; } },
+  });
+  const snapshot = await provider.getRawHistory({
+    exchange: 'NSE', symbol: 'INFY', fromDate: '2026-10-08', toDate: '2026-10-09',
+    privateDemoCapability: capability,
+  });
+  assert.equal(snapshot.status, 'UNAVAILABLE');
+  assert.equal(snapshot.error.code, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+  assert.equal(snapshot.cache.status, 'NOT_READ_SOURCE_RIGHTS_BLOCKED');
+  assert.equal(cacheCalls, 0);
+  assert.equal(budgetCalls, 0);
+  assert.equal(httpCalls, 0);
+});
+
+test('private market demo reports TejHQ rights as unavailable without making a TejHQ request', async () => {
+  const env = {
+    NODE_ENV: 'development',
+    [MARKET_DATA_PRIVATE_DEMO_ENV]: 'true',
+    TEJHQ_PRIVATE_DEMO_ENABLED: 'true',
+    TEJHQ_ENABLED: 'true',
+    TEJHQ_LICENSE_CONFIRMED: 'true',
+    TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true',
+    TEJHQ_API_KEY: 'fixture-only-token',
+  };
+  const capability = createPrivateMarketDataDemoCapability({
+    get: () => '127.0.0.1:5000',
+    socket: { remoteAddress: '127.0.0.1' },
+    user: { userId: 'demo-user' },
+  }, env);
+  assert.ok(capability);
+  const originalGet = axios.get;
+  let providerRequests = 0;
+  axios.get = async () => { providerRequests += 1; return { data: {} }; };
+  try {
+    const result = await fetchPrivateMarketDemoData({
+      privateDemoCapability: capability,
+      env,
+      now: new Date('2026-10-19T12:00:00.000Z'),
+    });
+    assert.equal(result.tejHq.status, 'UNAVAILABLE');
+    assert.equal(result.tejHq.dataClass, 'HISTORICAL_EOD');
+    assert.deepEqual(result.tejHq.reasonCodes, ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED']);
+    assert.equal(result.tejHq.sourceRights.status, 'LICENSE_UNVERIFIED');
+    assert.equal(result.tejHq.sourceRights.productionUseAllowed, false);
+    assert.equal(result.tejHq.cache.status, 'PRIVATE_DEMO_NO_STORE');
+    assert.equal(result.tejHq.fetchedAt, undefined);
+    assert.equal(result.tejHq.checkedAt, '2026-10-19T12:00:00.000Z');
+    assert.equal(result.fetchedAt, '2026-10-19T12:00:00.000Z');
+  } finally {
+    axios.get = originalGet;
+  }
+  assert.equal(providerRequests, 0);
 });
 
 test('production provider facade returns unavailable without fetching or persisting blocked source snapshots', async () => {
