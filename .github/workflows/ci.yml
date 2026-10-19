@@ -160,6 +160,11 @@ jobs:
         run: python scripts/verify_serving_artifacts.py
         working-directory: ml-service
 
+      - name: Validate research-paper evidence integrity
+        run: |
+          python -m unittest discover -s scripts/research -p 'test_*.py' -v
+          python scripts/research/validate_paper_evidence.py --output ml-service/reports/paper_readiness_audit.json
+
       - name: Run Pytest Suite
         run: |
           cd ml-service
@@ -187,6 +192,28 @@ jobs:
           HF_HUB_OFFLINE: '1'
           TRANSFORMERS_OFFLINE: '1'
         run: python -m pytest -q -o addopts="-p no:phoenix" -m model_integration
+      - name: Reproduce current verified RAG corpus for research evidence
+        working-directory: ml-service
+        env:
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: python -m rag.evaluation.paper_replay --output reports/paper_rag_current.json
+
+      - name: Validate reproducible RAG experiment lineage
+        run: >-
+          python scripts/research/validate_paper_evidence.py
+          --candidate ml-service/reports/paper_rag_current.json
+          --output ml-service/reports/paper_readiness_audit.json
+
+      - name: Archive measured paper RAG evidence and outstanding limitations
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: paper-rag-evidence
+          path: |
+            ml-service/reports/paper_rag_current.json
+            ml-service/reports/paper_readiness_audit.json
+          if-no-files-found: warn
       - name: Verify pinned A2A applicability policy tests
         run: python scripts/test_validate_a2a_tck_policy.py
   integration-security:
