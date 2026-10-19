@@ -27,6 +27,7 @@ test('Compose forwards provider settings without granting default market permiss
   assert.ok(server.includes(composeVariable('MARKET_DATA_MODE', 'LEGACY')));
   assert.ok(server.includes(composeVariable('MARKET_DATA_PRIMARY_PROVIDER', 'NSE')));
   for (const key of DISABLED) assert.ok(server.includes(composeVariable(key, 'false')));
+  assert.ok(server.includes(composeVariable('TEJHQ_INTERNAL_DAILY_REQUEST_BUDGET', '200')));
 });
 
 test('Kubernetes injects optional provider secrets only into backend and worker', () => {
