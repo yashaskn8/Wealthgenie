@@ -24,7 +24,7 @@ const muted = { fontSize: '0.8rem', opacity: 0.8 };
  * authority and can NEVER modify allocations or deterministic recommendations.
  */
 export default function PrivateMarketDemoPanel() {
-  const local = import.meta.env.DEV
+  const local = import.meta.env.DEV && import.meta.env.MODE !== 'test'
     && typeof window !== 'undefined'
     && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
   const [snapshot, setSnapshot] = useState(null);
