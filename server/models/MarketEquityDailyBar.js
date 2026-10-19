@@ -23,6 +23,7 @@ const marketEquityDailyBarSchema = new mongoose.Schema({
   source: {
     url: { type: String, required: true },
     instrumentId: { type: String, required: true },
+    requestUrls: [{ type: String }],
     datasetRevision: { type: String, default: null },
   },
   qualifiedCoverage: { type: String, required: true },
