@@ -6,7 +6,7 @@ import genieVideo from '../assets/genie.mp4';
 import { useAuth } from '../context/AuthContext';
 
 function AuthPage() {
-  const [showUI, setShowUI] = useState(false);
+  const [showUI, setShowUI] = useState(true);
   const [activeView, setActiveView] = useState('login');
   const [showPopup, setShowPopup] = useState(false);
   const videoRef = useRef(null);
@@ -162,7 +162,7 @@ function AuthPage() {
     <>
       <div className="video-container">
         <div className="overlay"></div>
-        <video autoPlay muted playsInline ref={videoRef} id="bg-video">
+        <video autoPlay muted playsInline aria-hidden="true" ref={videoRef} id="bg-video">
           <source src={genieVideo} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
