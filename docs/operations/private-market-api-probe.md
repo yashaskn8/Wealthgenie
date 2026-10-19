@@ -64,7 +64,10 @@ MARKET_DATA_PRIVATE_DEMO_ENABLED=true
 Ensure `UPSTOX_ANALYTICS_TOKEN` is configured on the server. Do not copy it to
 the frontend. The `/api/market-data/private-demo` route requires a valid
 WealthGenie session, a loopback socket peer and Host, development mode, and the
-explicit backend opt-in. It is rate limited. The React panel appears only in
+explicit backend opt-in. A supplied browser Origin must also be a loopback
+HTTP(S) origin (the development frontend can use a different local port).
+CI and GitHub Actions explicitly disable this capability even if
+`NODE_ENV=development`. It is rate limited. The React panel appears only in
 a Vite development build and fetches only when the user selects “Load provider
 data.”
 

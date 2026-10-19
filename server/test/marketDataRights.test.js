@@ -118,8 +118,9 @@ test('private demo capability is authenticated, loopback-only, development-only,
     [MARKET_DATA_PRIVATE_DEMO_ENV]: 'true',
     TEJHQ_PRIVATE_DEMO_ENABLED: 'true',
   };
-  const makeRequest = ({ host = '127.0.0.1:5000', remoteAddress = '::ffff:127.0.0.1', userId = 'user-1' } = {}) => ({
+  const makeRequest = ({ host = '127.0.0.1:5000', remoteAddress = '::ffff:127.0.0.1', userId = 'user-1', origin } = {}) => ({
     get: () => host,
+    headers: origin === undefined ? {} : { origin },
     socket: { remoteAddress },
     user: userId ? { userId } : null,
   });
@@ -134,6 +135,13 @@ test('private demo capability is authenticated, loopback-only, development-only,
   assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ userId: null }), env), null);
   assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ remoteAddress: '203.0.113.9' }), env), null);
   assert.equal(createPrivateMarketDataDemoCapability(makeRequest(), { ...env, NODE_ENV: 'production' }), null);
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest(), { ...env, CI: 'true' }), null);
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest(), { ...env, GITHUB_ACTIONS: 'true' }), null);
+  assert.ok(createPrivateMarketDataDemoCapability(makeRequest({ origin: 'http://localhost:5173' }), env));
+  assert.ok(createPrivateMarketDataDemoCapability(makeRequest({ origin: 'http://[::1]:5173' }), env));
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ origin: 'https://evil.example' }), env), null);
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ origin: 'null' }), env), null);
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ origin: 'http://localhost:5173/path' }), env), null);
   assert.equal(createPrivateMarketDataDemoCapability(makeRequest(), { ...env, [MARKET_DATA_PRIVATE_DEMO_ENV]: 'false' }), null);
 });
 

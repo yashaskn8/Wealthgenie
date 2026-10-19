@@ -29,6 +29,21 @@ function isLoopbackAddress(value) {
   return address === '127.0.0.1' || address === '::1' || address === 'localhost';
 }
 
+// Browsers may connect from the local Vite origin on a different port.
+// A non-local Origin must never receive private, non-redistributable evidence.
+function isTrustedPrivateDemoOrigin(origin) {
+  if (origin === undefined) return true; // Ordinary same-origin GETs omit Origin.
+  if (typeof origin !== 'string') return false;
+  try {
+    const url = new URL(origin);
+    return ['http:', 'https:'].includes(url.protocol)
+      && url.origin === origin
+      && isLoopbackAddress(url.hostname.replace(/^\[|\]$/g, ''));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Mint a per-request capability only after the authenticated local demo route
  * has confirmed development mode, explicit operator opt-in, and loopback I/O.
@@ -39,10 +54,13 @@ export function createPrivateMarketDataDemoCapability(req, env = process.env) {
   const hostName = host.startsWith('[') ? host.slice(1, host.indexOf(']')) : host.split(':')[0];
   const remoteAddress = req?.socket?.remoteAddress || req?.connection?.remoteAddress;
   if (env?.NODE_ENV !== 'development'
+      || env?.CI === 'true'
+      || env?.GITHUB_ACTIONS === 'true'
       || env?.[MARKET_DATA_PRIVATE_DEMO_ENV] !== 'true'
       || !req?.user?.userId
       || !isLoopbackAddress(remoteAddress)
-      || !isLoopbackAddress(hostName)) return null;
+      || !isLoopbackAddress(hostName)
+      || !isTrustedPrivateDemoOrigin(req?.headers?.origin)) return null;
   const capability = Object.freeze({});
   privateDemoCapabilities.add(capability);
   return capability;

@@ -153,6 +153,39 @@ test('private demo route returns only for authenticated loopback development and
   assert.equal(receivedCapability, true);
 });
 
+test('private demo rejects non-local browser origins and CI without invoking a provider', async () => {
+  let providerCalls = 0;
+  const env = { NODE_ENV: 'development', MARKET_DATA_PRIVATE_DEMO_ENABLED: 'true' };
+  const createRouter = configuredEnv => createMarketQuotesRouter({
+    env: configuredEnv,
+    privateDemoLimiter: passLimiter,
+    verifySession: (req, _res, next) => { req.user = { userId: 'user-1' }; next(); },
+    fetchPrivateDemo: async () => {
+      providerCalls += 1;
+      return { status: 'UNAVAILABLE', persistence: 'NOT_PERSISTED' };
+    },
+  });
+  await withServer(buildApp(createRouter(env)), async baseUrl => {
+    const url = `${baseUrl}/api/market-data/private-demo`;
+    for (const origin of ['https://evil.example', 'null', 'http://localhost:5173/path']) {
+      const { response, body } = await jsonRequest(url, { headers: { origin } });
+      assert.equal(response.status, 404);
+      assert.equal(body.code, 'PRIVATE_MARKET_DEMO_UNAVAILABLE');
+    }
+    const { response } = await jsonRequest(url, { headers: { origin: 'http://localhost:5173' } });
+    assert.equal(response.status, 200);
+  });
+  assert.equal(providerCalls, 1);
+  for (const flag of ['CI', 'GITHUB_ACTIONS']) {
+    await withServer(buildApp(createRouter({ ...env, [flag]: 'true' })), async baseUrl => {
+      const { response, body } = await jsonRequest(`${baseUrl}/api/market-data/private-demo`);
+      assert.equal(response.status, 404);
+      assert.equal(body.code, 'PRIVATE_MARKET_DEMO_UNAVAILABLE');
+    });
+  }
+  assert.equal(providerCalls, 1);
+});
+
 test('production Upstox-derived public output remains disabled without explicit distribution clearance', async () => {
   const gate = createUpstoxPublicDataGate({
     requiresUpstox: true,
