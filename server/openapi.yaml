@@ -778,6 +778,19 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /api/market-data/admin/diagnostics:
+    get:
+      operationId: getAdminMarketIntegrationReadiness
+      tags: [Market]
+      summary: Read fail-closed, zero-network provider readiness indicators
+      description: Admin-only diagnostic of configured access and exact source-rights prerequisites. It does not contact market providers, return credentials, assert live connectivity or grant publication rights.
+      security: [{ BearerAuth: [] }]
+      x-required-roles: [admin]
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/market-data/admin/equity-history:
     get:
       operationId: getAdminQualifiedEquityHistory
