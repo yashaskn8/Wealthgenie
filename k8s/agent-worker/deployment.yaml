@@ -60,6 +60,24 @@ spec:
                 secretKeyRef:
                   name: wealthgenie-secrets
                   key: JWT_SECRET
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: GEMINI_API_KEY
+                  optional: true
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: GROQ_API_KEY
+                  optional: true
+            - name: NVIDIA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: NVIDIA_API_KEY
+                  optional: true
             - name: ML_SERVICE_API_KEY
               valueFrom:
                 secretKeyRef:
