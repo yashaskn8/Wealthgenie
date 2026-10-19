@@ -139,8 +139,6 @@ const SOURCE_RECORDS = Object.freeze([
 const POTENTIAL_SOURCE_RECORDS = Object.freeze([
   ...SOURCE_RECORDS,
   ...[
-    ['UPSTOX_QUOTES_V3', PROVIDERS.UPSTOX, UPSTOX_QUOTE_RIGHTS_URL,
-      'https://upstox.com/developer/api-documentation/get-full-market-quote-v3/'],
     ['UPSTOX_HISTORICAL_CANDLES_V3', PROVIDERS.UPSTOX, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
       'https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/'],
     ['TEJHQ_RAW_EOD', PROVIDERS.TEJHQ, TEJHQ_RAW_EOD_RIGHTS_URL, 'https://tejhq.dev/docs'],
