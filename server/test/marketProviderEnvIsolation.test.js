@@ -33,3 +33,24 @@ test('TejHQ injected env determines credential and explicit blank disables it', 
   assert.equal(new TejHqHistoricalDataProvider({ env: {} }).apiKey, '');
   assert.equal(new TejHqHistoricalDataProvider({ env: config, apiKey: '' }).apiKey, '');
 });
+
+test('providers with injected environments never borrow process.env credentials', () => {
+  const keys = ['UPSTOX_ANALYTICS_TOKEN', 'UPSTOX_ACCESS_TOKEN', 'TEJHQ_API_KEY'];
+  const original = new Map(keys.map(key => [key, process.env[key]]));
+  try {
+    process.env.UPSTOX_ANALYTICS_TOKEN = 'sentinel-global-analytics-token';
+    process.env.UPSTOX_ACCESS_TOKEN = 'sentinel-global-access-token';
+    process.env.TEJHQ_API_KEY = 'sentinel-global-tejhq-key';
+
+    for (const [, Provider] of upstoxProviders) {
+      assert.equal(new Provider({ env: {} }).accessToken, '');
+      assert.equal(new Provider({ env: { UPSTOX_ANALYTICS_TOKEN: '' } }).accessToken, '');
+    }
+    assert.equal(new TejHqHistoricalDataProvider({ env: {} }).apiKey, '');
+  } finally {
+    for (const [key, value] of original) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
