@@ -21,6 +21,50 @@ const APPROVED_RIGHTS = new Set([
 ]);
 
 export const MARKET_DATA_QUALIFICATION_LIVE_ENV = 'MARKET_DATA_QUALIFICATION_LIVE_ENABLED';
+export const MARKET_DATA_PRIVATE_DEMO_ENV = 'MARKET_DATA_PRIVATE_DEMO_ENABLED';
+const privateDemoCapabilities = new WeakSet();
+
+function isLoopbackAddress(value) {
+  const address = String(value || '').trim().toLowerCase().replace(/^::ffff:/, '');
+  return address === '127.0.0.1' || address === '::1' || address === 'localhost';
+}
+
+/**
+ * Mint a per-request capability only after the authenticated local demo route
+ * has confirmed development mode, explicit operator opt-in, and loopback I/O.
+ * It is deliberately distinct from the test-fixture capability.
+ */
+export function createPrivateMarketDataDemoCapability(req, env = process.env) {
+  const host = String(req?.get?.('host') || req?.headers?.host || '').trim().toLowerCase();
+  const hostName = host.startsWith('[') ? host.slice(1, host.indexOf(']')) : host.split(':')[0];
+  const remoteAddress = req?.socket?.remoteAddress || req?.connection?.remoteAddress;
+  if (env?.NODE_ENV !== 'development'
+      || env?.[MARKET_DATA_PRIVATE_DEMO_ENV] !== 'true'
+      || !req?.user?.userId
+      || !isLoopbackAddress(remoteAddress)
+      || !isLoopbackAddress(hostName)) return null;
+  const capability = Object.freeze({});
+  privateDemoCapabilities.add(capability);
+  return capability;
+}
+
+export function isMarketDataPrivateDemoUseAllowed(provider, url, env = process.env, capability = null) {
+  if (!capability || !privateDemoCapabilities.has(capability)
+      || env?.NODE_ENV !== 'development'
+      || env?.[MARKET_DATA_PRIVATE_DEMO_ENV] !== 'true') return false;
+  const decision = resolveSourceRights({ provider, url });
+  if (!decision.sourceId) return false;
+  if (provider === 'UPSTOX') {
+    return decision.status === POST_TAX_SOURCE_RIGHTS_STATES.DEVELOPMENT_RESEARCH_ONLY
+      && decision.approvedScopes?.includes('PRIVATE_LOCAL_EDUCATIONAL_DEMO') === true
+      && decision.sourceId === 'UPSTOX_QUOTES_V3';
+  }
+  // TejHQ local demo use requires explicit operator opt-in separate from its
+  // paid/publication flags. This authorizes only the loopback demo route.
+  return provider === 'TEJHQ' && env.TEJHQ_PRIVATE_DEMO_ENABLED === 'true'
+    && ['TEJHQ_RAW_EOD', 'TEJHQ_ADJUSTED_HISTORY', 'TEJHQ_SYMBOL_HISTORY',
+      'TEJHQ_CORPORATE_ACTIONS', 'TEJHQ_PUBLICATION_STATUS'].includes(decision.sourceId);
+}
 
 /**
  * Evaluate the source register for production market-data display. The

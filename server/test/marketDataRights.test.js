@@ -19,8 +19,11 @@ import {
 import { getLatestQualifiedMarketContextForRecommendation } from '../services/marketContextService.js';
 import {
   assertMarketDataQualificationRights,
+  createPrivateMarketDataDemoCapability,
   evaluateMarketDataProductionRights,
+  isMarketDataPrivateDemoUseAllowed,
   isMarketDataProductionUseAllowed,
+  MARKET_DATA_PRIVATE_DEMO_ENV,
 } from '../services/marketData/marketDataRights.js';
 import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
 import UpstoxMarketDataProvider from '../services/marketData/UpstoxMarketDataProvider.js';
@@ -106,6 +109,30 @@ test('market-data rights require source approval in every environment except exp
   assert.equal(createMarketDataTestFixtureRightsCapability({
     env: { NODE_ENV: 'test' },
   }), null, 'test mode alone cannot obtain a fixture capability');
+});
+
+test('private demo capability is authenticated, loopback-only, development-only, and separate from production rights', () => {
+  const env = {
+    NODE_ENV: 'development',
+    [MARKET_DATA_PRIVATE_DEMO_ENV]: 'true',
+    TEJHQ_PRIVATE_DEMO_ENABLED: 'true',
+  };
+  const makeRequest = ({ host = '127.0.0.1:5000', remoteAddress = '::ffff:127.0.0.1', userId = 'user-1' } = {}) => ({
+    get: () => host,
+    socket: { remoteAddress },
+    user: userId ? { userId } : null,
+  });
+  const capability = createPrivateMarketDataDemoCapability(makeRequest(), env);
+  assert.ok(capability);
+  const quoteUrl = buildUpstoxQuoteRequestUrl(['NSE_INDEX|Nifty 50', 'NSE_INDEX|India VIX']);
+  assert.equal(isMarketDataPrivateDemoUseAllowed('UPSTOX', quoteUrl, env, capability), true);
+  assert.equal(isMarketDataProductionUseAllowed('UPSTOX', quoteUrl, env), false);
+  assert.equal(isMarketDataPrivateDemoUseAllowed('TEJHQ', 'https://api.tejhq.dev/v1/ohlcv/nse/INFY?from=2026-10-01&to=2026-10-10', env, capability), true);
+  assert.equal(isMarketDataPrivateDemoUseAllowed('TEJHQ', 'https://api.tejhq.dev/v1/unknown', env, capability), false);
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ userId: null }), env), null);
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest({ remoteAddress: '203.0.113.9' }), env), null);
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest(), { ...env, NODE_ENV: 'production' }), null);
+  assert.equal(createPrivateMarketDataDemoCapability(makeRequest(), { ...env, [MARKET_DATA_PRIVATE_DEMO_ENV]: 'false' }), null);
 });
 
 test('market-data fixture capability requires the exact injected provider transport', async () => {

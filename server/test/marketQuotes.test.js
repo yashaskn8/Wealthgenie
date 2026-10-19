@@ -113,6 +113,46 @@ test('canonical quote route rejects raw provider keys, unknown IDs, and oversize
   assert.equal(calls, 0);
 });
 
+test('private demo route requires a signed-in session and does not call providers unauthenticated', async () => {
+  let calls = 0;
+  const router = createMarketQuotesRouter({
+    env: { NODE_ENV: 'development', MARKET_DATA_PRIVATE_DEMO_ENABLED: 'true' },
+    privateDemoLimiter: passLimiter,
+    fetchPrivateDemo: async () => { calls += 1; return {}; },
+  });
+  await withServer(buildApp(router), async baseUrl => {
+    const { response, body } = await jsonRequest(`${baseUrl}/api/market-data/private-demo`);
+    assert.equal(response.status, 401);
+    assert.equal(body.code, 'AUTH_REQUIRED');
+  });
+  assert.equal(calls, 0);
+});
+
+test('private demo route returns only for authenticated loopback development and marks response no-store', async () => {
+  const env = {
+    NODE_ENV: 'development',
+    MARKET_DATA_PRIVATE_DEMO_ENABLED: 'true',
+    TEJHQ_PRIVATE_DEMO_ENABLED: 'true',
+  };
+  let receivedCapability = false;
+  const router = createMarketQuotesRouter({
+    env,
+    privateDemoLimiter: passLimiter,
+    verifySession: (req, _res, next) => { req.user = { userId: 'user-1' }; next(); },
+    fetchPrivateDemo: async ({ privateDemoCapability }) => {
+      receivedCapability = Boolean(privateDemoCapability);
+      return { status: 'AVAILABLE', mode: 'AUTHENTICATED_LOOPBACK_PRIVATE_DEMO', persistence: 'NOT_PERSISTED' };
+    },
+  });
+  await withServer(buildApp(router), async baseUrl => {
+    const { response, body } = await jsonRequest(`${baseUrl}/api/market-data/private-demo`);
+    assert.equal(response.status, 200);
+    assert.equal(body.mode, 'AUTHENTICATED_LOOPBACK_PRIVATE_DEMO');
+    assert.equal(response.headers.get('cache-control'), 'no-store, private, max-age=0');
+  });
+  assert.equal(receivedCapability, true);
+});
+
 test('production Upstox-derived public output remains disabled without explicit distribution clearance', async () => {
   const gate = createUpstoxPublicDataGate({
     requiresUpstox: true,
@@ -247,7 +287,7 @@ test('coverage matrix accounts for all catalog entries without treating parent c
   assert.equal(amfiPath.productionUseAllowed, false);
   assert.ok(amfiPath.implementedConsumers.api.some(consumer => consumer.method === 'POST' && consumer.path === '/api/market/refresh'));
   assert.equal(amfiPath.rightsChecks.length, 2);
-  assert.equal(upstoxPath.authorizedUseStatus, 'LICENSE_UNVERIFIED');
+  assert.equal(upstoxPath.authorizedUseStatus, 'DEVELOPMENT_RESEARCH_ONLY');
   assert.equal(upstoxPath.productionUseAllowed, false);
   assert.equal(upstoxPath.availability, 'UNAVAILABLE_SOURCE_RIGHTS');
   assert.deepEqual(upstoxPath.validConsumers.api, []);

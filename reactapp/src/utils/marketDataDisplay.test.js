@@ -40,6 +40,8 @@ describe('nullable market-data presentation', () => {
   });
 
   it('humanizes provenance without accepting unsafe evidence links', () => {
+    expect(readableSource('UPSTOX')).toBe('Upstox');
+    expect(readableSource('TEJHQ')).toBe('TejHQ historical EOD');
     expect(readableSource('GOVERNMENT_OF_INDIA')).toBe('Government of India');
     expect(readableSource('OFFICIAL_BANK_PUBLISHED_RATE')).toBe('Official bank published rate');
     expect(safeSourceUrl('https://www.rbi.org.in/')).toBe('https://www.rbi.org.in/');
@@ -65,14 +67,14 @@ describe('nullable market-data presentation', () => {
     expect(getMarketEvidenceSource({ marketSnapshot: { observedFacts: [
       { availabilityStatus: 'AVAILABLE', source: { provider: 'UPSTOX' } },
       { availabilityStatus: 'UNAVAILABLE', source: { provider: 'NSE' } },
-    ] } })).toBe('UPSTOX');
+    ] } })).toBe('Upstox');
     expect(getMarketAttemptedProvider({ marketSnapshot: {
       providerSelection: { attemptedProviders: ['NSE', 'UPSTOX'], selectedProvider: 'UPSTOX' },
-    } })).toBe('NSE, UPSTOX');
+    } })).toBe('NSE, Upstox');
     expect(getMarketAttemptedProvider({
       liveProviderSelection: { attemptedProviders: ['NSE', 'UPSTOX'], selectedProvider: null },
       marketSnapshot: { observedFacts: [{ availabilityStatus: 'AVAILABLE', source: { provider: 'NSE' } }] },
-    })).toBe('NSE, UPSTOX');
+    })).toBe('NSE, Upstox');
   });
 
   it('formats only valid observed timestamps', () => {

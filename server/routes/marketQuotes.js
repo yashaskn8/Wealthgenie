@@ -1,13 +1,19 @@
 import { Router } from 'express';
+import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { createUpstoxPublicDataGate } from '../middleware/upstoxPublicDataGate.js';
-import { fetchUpstoxCanonicalQuotes } from '../services/marketDataService.js';
+import { fetchPrivateMarketDemoData, fetchUpstoxCanonicalQuotes } from '../services/marketDataService.js';
+import { createPrivateMarketDataDemoCapability } from '../services/marketData/marketDataRights.js';
 import { resolveUpstoxQuoteIdentities } from '../services/marketData/upstoxInstrumentRegistry.js';
 import { validateQuery, marketQuoteQuerySchema } from '../validation/schemas.js';
 
 export function createMarketQuotesRouter({
   fetchQuotes = fetchUpstoxCanonicalQuotes,
+  fetchPrivateDemo = fetchPrivateMarketDemoData,
+  verifySession = verifyJWT,
+  createDemoCapability = createPrivateMarketDataDemoCapability,
+  privateDemoLimiter: injectedPrivateDemoLimiter = null,
   env = process.env,
   marketDataTestFixtureRightsCapability = null,
   limiter = createEndpointRateLimiter({
@@ -19,6 +25,25 @@ export function createMarketQuotesRouter({
   }),
 } = {}) {
   const router = Router();
+  const privateDemoLimiter = injectedPrivateDemoLimiter || createEndpointRateLimiter({
+    windowMs: 60 * 1000,
+    max: 3,
+    message: 'Private demo refreshes are limited to protect provider request budgets.',
+    prefix: 'rl:market-data-private-demo:',
+    keyGenerator: req => `user:${req.user?.userId || ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown')}`,
+  });
+
+  router.get('/private-demo', verifySession, privateDemoLimiter, asyncHandler(async (req, res) => {
+    const privateDemoCapability = createDemoCapability(req, env);
+    if (!privateDemoCapability) {
+      return sendError(req, res, 404, 'The authenticated private market demo is not enabled on this local development server.', 'PRIVATE_MARKET_DEMO_UNAVAILABLE');
+    }
+    res.set('Cache-Control', 'no-store, private, max-age=0');
+    res.set('Pragma', 'no-cache');
+    const data = await fetchPrivateDemo({ env, privateDemoCapability });
+    return res.json(data);
+  }));
+
   router.get(
     '/quotes',
     createUpstoxPublicDataGate({

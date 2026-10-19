@@ -933,6 +933,10 @@ export async function getCurrentMarketContext(options = {}) {
   return request('GET', '/regime/current', null, options);
 }
 
+export async function getPrivateMarketDemoData(options = {}) {
+  return request('GET', '/market-data/private-demo', null, { retries: 0, ...options });
+}
+
 export async function previewMarketContextAdjustment(profileId, options = {}) {
   return request('POST', '/regime/adjust', { profileId }, options);
 }
@@ -1006,7 +1010,7 @@ const api = {
   getMarketRates, getBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,
   updateRecommendationWeights, optimisePortfolio,
-  computeTax, compareTax, getTaxPolicyMetadata, computeUserDeclaredPostTaxScenario, getCurrentMarketContext, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,
+  computeTax, compareTax, getTaxPolicyMetadata, computeUserDeclaredPostTaxScenario, getCurrentMarketContext, getPrivateMarketDemoData, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,
 };
 
 export default api;

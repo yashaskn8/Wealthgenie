@@ -68,6 +68,7 @@ import { persistVerifiedMarketSnapshot } from './marketData/MarketDataRepository
 import { isUpstoxPublicDistributionAllowed } from './marketData/upstoxDistributionPolicy.js';
 import {
   buildMarketDataRightsUnavailableSnapshot,
+  isMarketDataPrivateDemoUseAllowed,
   isMarketDataProductionUseAllowed,
 } from './marketData/marketDataRights.js';
 
@@ -1036,6 +1037,85 @@ export async function fetchUpstoxCanonicalQuotes(canonicalProductIds, {
     facts,
     cache: snapshot.cache ?? { hit: false, backend: 'NONE' },
     ...(snapshot.error ? { error: snapshot.error } : {}),
+  };
+}
+
+/**
+ * Ephemeral, authenticated loopback demonstration only. The per-request
+ * capability is minted by the guarded demo route; provider request caches and
+ * durable snapshot persistence are bypassed, and no recommendation consumes
+ * this response.
+ */
+export async function fetchPrivateMarketDemoData({
+  privateDemoCapability,
+  env = process.env,
+  now = new Date(),
+} = {}) {
+  const quoteUrl = buildUpstoxQuoteRequestUrl(DEFAULT_BENCHMARK_INSTRUMENT_KEYS);
+  if (!isMarketDataPrivateDemoUseAllowed(PROVIDERS.UPSTOX, quoteUrl, env, privateDemoCapability)) {
+    const error = new Error('Private market-data demo is not enabled for this authenticated loopback request.');
+    error.code = 'PRIVATE_MARKET_DEMO_DISABLED';
+    throw error;
+  }
+
+  const noStoreRequest = async ({ loader }) => loader();
+  const quoteProvider = new UpstoxMarketDataProvider({ env, requestCache: noStoreRequest });
+  const upstox = await quoteProvider.getQuotes(DEFAULT_BENCHMARK_INSTRUMENT_KEYS, {
+    forceRefresh: true,
+    privateDemoCapability,
+  });
+
+  const indiaToday = isoDateInIndia(now);
+  const to = new Date(`${indiaToday}T00:00:00.000Z`);
+  to.setUTCDate(to.getUTCDate() - 1);
+  const from = new Date(to.getTime());
+  from.setUTCDate(from.getUTCDate() - 9);
+  const historyRequest = {
+    exchange: 'NSE',
+    symbol: 'INFY',
+    fromDate: from.toISOString().slice(0, 10),
+    toDate: to.toISOString().slice(0, 10),
+    privateDemoCapability,
+  };
+  const tejHq = isMarketDataPrivateDemoUseAllowed(
+    PROVIDERS.TEJHQ,
+    tejHqSourceUrl('/v1/ohlcv/nse/INFY', { from: historyRequest.fromDate, to: historyRequest.toDate }),
+    env,
+    privateDemoCapability,
+  )
+    ? await new TejHqHistoricalDataProvider({
+      env,
+      apiKey: env.TEJHQ_API_KEY || '',
+      requestCache: noStoreRequest,
+    }).getRawHistory(historyRequest)
+    : {
+      provider: PROVIDERS.TEJHQ,
+      status: AVAILABILITY.PROVIDER_NOT_CONFIGURED,
+      dataClass: 'HISTORICAL_EOD',
+      candles: [],
+      observedAt: null,
+      fetchedAt: now.toISOString(),
+      reasonCodes: ['TEJHQ_PRIVATE_DEMO_NOT_ENABLED'],
+    };
+
+  const availableProviders = [upstox, tejHq].filter(snapshot => snapshot.status === AVAILABILITY.AVAILABLE).length;
+  return {
+    schemaVersion: MARKET_DATA_SCHEMA_VERSION,
+    status: availableProviders === 2
+      ? AVAILABILITY.AVAILABLE
+      : availableProviders === 1 ? AVAILABILITY.PARTIAL : AVAILABILITY.UNAVAILABLE,
+    mode: 'AUTHENTICATED_LOOPBACK_PRIVATE_DEMO',
+    fetchedAt: new Date().toISOString(),
+    persistence: 'NOT_PERSISTED',
+    upstox: {
+      ...upstox,
+      cache: { hit: false, backend: 'NONE', status: 'PRIVATE_DEMO_NO_STORE' },
+    },
+    tejHq: {
+      ...tejHq,
+      dataClass: 'HISTORICAL_EOD',
+      cache: { hit: false, backend: 'NONE', status: 'PRIVATE_DEMO_NO_STORE' },
+    },
   };
 }
 

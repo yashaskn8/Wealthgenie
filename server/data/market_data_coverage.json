@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wealthgenie-market-data-coverage-1.3.0",
   "catalogVersion": "1.1.0",
-  "generatedAt": "2026-10-17T08:48:47.215Z",
+  "generatedAt": "2026-10-19T07:58:33.434Z",
   "totalCatalogEntries": 155,
   "classificationCounts": {
     "AUCTION_OR_BOND_TERMS": 1,
@@ -85,9 +85,9 @@
         {
           "provider": "UPSTOX",
           "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
-          "status": "LICENSE_UNVERIFIED",
+          "status": "DEVELOPMENT_RESEARCH_ONLY",
           "sourceId": "UPSTOX_QUOTES_V3",
-          "termsUrl": "https://upstox.com/developer/api-documentation/get-full-market-quote-v3/",
+          "termsUrl": "https://community.upstox.com/t/request-api-licensing-for-public-website-paper-trading-display-of-upstox-data/17752",
           "productionUseAllowed": false
         },
         {
@@ -123,7 +123,7 @@
           "productionUseAllowed": false
         }
       ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
+      "authorizedUseStatus": "DEVELOPMENT_RESEARCH_ONLY",
       "productionUseAllowed": false,
       "availability": "UNAVAILABLE_SOURCE_RIGHTS",
       "validConsumers": {
@@ -701,9 +701,9 @@
         {
           "provider": "UPSTOX",
           "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
-          "status": "LICENSE_UNVERIFIED",
+          "status": "DEVELOPMENT_RESEARCH_ONLY",
           "sourceId": "UPSTOX_QUOTES_V3",
-          "termsUrl": "https://upstox.com/developer/api-documentation/get-full-market-quote-v3/",
+          "termsUrl": "https://community.upstox.com/t/request-api-licensing-for-public-website-paper-trading-display-of-upstox-data/17752",
           "productionUseAllowed": false
         },
         {
@@ -715,7 +715,7 @@
           "productionUseAllowed": false
         }
       ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
+      "authorizedUseStatus": "DEVELOPMENT_RESEARCH_ONLY",
       "productionUseAllowed": false,
       "availability": "UNAVAILABLE_SOURCE_RIGHTS",
       "validConsumers": {
@@ -790,13 +790,13 @@
         {
           "provider": "UPSTOX",
           "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
-          "status": "LICENSE_UNVERIFIED",
+          "status": "DEVELOPMENT_RESEARCH_ONLY",
           "sourceId": "UPSTOX_QUOTES_V3",
-          "termsUrl": "https://upstox.com/developer/api-documentation/get-full-market-quote-v3/",
+          "termsUrl": "https://community.upstox.com/t/request-api-licensing-for-public-website-paper-trading-display-of-upstox-data/17752",
           "productionUseAllowed": false
         }
       ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
+      "authorizedUseStatus": "DEVELOPMENT_RESEARCH_ONLY",
       "productionUseAllowed": false,
       "availability": "UNAVAILABLE_SOURCE_RIGHTS",
       "validConsumers": {

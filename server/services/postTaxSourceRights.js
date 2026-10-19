@@ -115,6 +115,19 @@ const SOURCE_RECORDS = Object.freeze([
     basis: 'The SBI rate-card page states that its content must not be displayed or printed, in part or whole, without prior written SBI approval. Other extraction, storage, and derived-calculation rights remain unverified.',
   }),
   sourceRecord({
+    sourceId: 'UPSTOX_QUOTES_V3', provider: PROVIDERS.UPSTOX, url: UPSTOX_QUOTE_RIGHTS_URL,
+    matchPath: '/v3/market-quote/quotes', status: DEVELOPMENT_RESEARCH_ONLY,
+    termsUrl: 'https://community.upstox.com/t/request-api-licensing-for-public-website-paper-trading-display-of-upstox-data/17752',
+    scopes: ['PRIVATE_LOCAL_EDUCATIONAL_DEMO'],
+    rights: {
+      access: DEVELOPMENT_RESEARCH_ONLY, extraction: DEVELOPMENT_RESEARCH_ONLY,
+      derivedCalculation: DEVELOPMENT_RESEARCH_ONLY, storage: BLOCKED_REUSE_RIGHTS,
+      publicDisplay: DEVELOPMENT_RESEARCH_ONLY, commercialUse: BLOCKED_REUSE_RIGHTS,
+      redistribution: BLOCKED_REUSE_RIGHTS, userProvidedDataProcessing: LICENSE_UNVERIFIED,
+    },
+    basis: 'Upstox developer support stated on 8 October 2026 that informational/educational sites may display market data and build tools within rate limits. This record is deliberately limited to an ephemeral authenticated loopback demo; it does not authorize commercial use, storage, or redistribution.',
+  }),
+  sourceRecord({
     sourceId: 'RBI_FRSB_NOTIFICATION', provider: PROVIDERS.RBI,
     url: RBI_FRSB_NOTIFICATION_URL, matchPath: '/scripts/NotificationUser.aspx',
     status: LICENSE_UNVERIFIED, termsUrl: null,

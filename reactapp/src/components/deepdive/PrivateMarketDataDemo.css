@@ -1,0 +1,118 @@
+.private-market-demo {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(110, 190, 220, 0.22);
+  border-radius: 12px;
+  background: rgba(7, 17, 29, 0.72);
+}
+
+.private-market-demo__heading,
+.private-market-demo__provider-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.private-market-demo__heading h4 {
+  margin: 0;
+  color: #e6f5ff;
+}
+
+.private-market-demo__heading p,
+.private-market-demo__provider p,
+.private-market-demo__provenance {
+  margin: 0.35rem 0 0;
+  color: #a8bbcb;
+  font-size: 0.82rem;
+}
+
+.private-market-demo__heading button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(61, 190, 226, 0.45);
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  color: #e6faff;
+  background: rgba(17, 111, 145, 0.3);
+  cursor: pointer;
+}
+
+.private-market-demo__heading button:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+}
+
+.private-market-demo__heading button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.private-market-demo__results {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.9rem;
+}
+
+.private-market-demo__provider {
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(148, 177, 199, 0.16);
+}
+
+.private-market-demo__provider-title strong {
+  color: #d9efff;
+}
+
+.private-market-demo__provider-title span,
+.private-market-demo__provider small {
+  color: #94a9ba;
+  font-size: 0.76rem;
+}
+
+.private-market-demo__quotes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.private-market-demo__quotes > div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem;
+  border-radius: 8px;
+  background: rgba(24, 45, 61, 0.62);
+}
+
+.private-market-demo__quotes span {
+  color: #a8bbcb;
+  font-size: 0.78rem;
+}
+
+.private-market-demo__quotes strong {
+  color: #f2faff;
+  font-variant-numeric: tabular-nums;
+}
+
+.private-market-demo__error {
+  margin: 0.8rem 0 0;
+  color: #fca5a5;
+}
+
+.private-market-demo__provenance {
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(148, 177, 199, 0.12);
+}
+
+@media (max-width: 600px) {
+  .private-market-demo__heading,
+  .private-market-demo__provider-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .private-market-demo * {
+    scroll-behavior: auto !important;
+  }
+}

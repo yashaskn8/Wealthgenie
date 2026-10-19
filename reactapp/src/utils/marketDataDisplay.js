@@ -87,6 +87,8 @@ export function getMarketDisplayState(marketContext, { loading = false, refreshF
 export function readableSource(value) {
   if (typeof value !== 'string' || !value.trim()) return 'Unavailable';
   const known = {
+    UPSTOX: 'Upstox',
+    TEJHQ: 'TejHQ historical EOD',
     GOVERNMENT_OF_INDIA: 'Government of India',
     INDIA_POST: 'India Post',
     OFFICIAL_BANK_PUBLISHED_RATE: 'Official bank published rate',
@@ -120,19 +122,19 @@ export function getMarketEvidenceSource(marketContext) {
   const providers = [...new Set((snapshot?.observedFacts || [])
     .filter(fact => fact?.availabilityStatus === 'AVAILABLE' && fact?.source?.provider)
     .map(fact => fact.source.provider))];
-  return providers.length ? providers.join(', ') : null;
+  return providers.length ? providers.map(readableSource).join(', ') : null;
 }
 
 export function getMarketAttemptedProvider(marketContext) {
   const snapshot = marketContext?.marketSnapshot;
   const selection = marketContext?.liveProviderSelection || snapshot?.providerSelection;
   if (Array.isArray(selection?.attemptedProviders) && selection.attemptedProviders.length > 0) {
-    return [...new Set(selection.attemptedProviders)].join(', ');
+    return [...new Set(selection.attemptedProviders)].map(readableSource).join(', ');
   }
   const providers = [...new Set([
     snapshot?.providerStatus?.quotes?.provider,
     snapshot?.providerStatus?.history?.provider,
     ...(snapshot?.providerStatus?.attemptedProviders || []),
   ].filter(value => typeof value === 'string' && value.trim()))];
-  return providers.length ? providers.join(', ') : null;
+  return providers.length ? providers.map(readableSource).join(', ') : null;
 }

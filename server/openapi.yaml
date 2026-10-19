@@ -716,6 +716,19 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /api/market-data/private-demo:
+    get:
+      operationId: getAuthenticatedPrivateMarketDataDemo
+      tags: [Market]
+      summary: Fetch ephemeral provider evidence for an authenticated local educational demo
+      description: Development-only, explicit-opt-in, authenticated loopback route. It returns bounded Upstox index quotes and TejHQ daily EOD history on demand, bypasses provider caches and durable persistence, and never changes recommendations. It is not available for public or commercial deployment.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/market-data/admin/equity-history:
     get:
       operationId: getAdminQualifiedEquityHistory

@@ -16,6 +16,7 @@ import { resolveUpstoxAccessToken, upstoxCredentialCacheFingerprint } from './up
 import { getUpstoxWithRetry } from './upstoxRequestPolicy.js';
 import {
   evaluateMarketDataProductionRights,
+  isMarketDataPrivateDemoUseAllowed,
   isMarketDataProductionUseAllowed,
 } from './marketDataRights.js';
 import {
@@ -136,16 +137,17 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
     return this.accessToken.length > 0;
   }
 
-  async getQuotes(instrumentKeys, { forceRefresh = false } = {}) {
+  async getQuotes(instrumentKeys, { forceRefresh = false, privateDemoCapability = null } = {}) {
     const normalizedKeys = normalizeInstrumentKeys(instrumentKeys);
     const requestUrl = buildUpstoxQuoteRequestUrl(normalizedKeys);
     const fetchedAt = this.nowIso();
-    if (!isMarketDataProductionUseAllowed(
-      PROVIDERS.UPSTOX,
-      requestUrl,
-      this.env,
-      this.marketDataTestFixtureRightsCapability,
-    )) {
+    const productionAllowed = isMarketDataProductionUseAllowed(
+      PROVIDERS.UPSTOX, requestUrl, this.env, this.marketDataTestFixtureRightsCapability,
+    );
+    const privateDemoAllowed = isMarketDataPrivateDemoUseAllowed(
+      PROVIDERS.UPSTOX, requestUrl, this.env, privateDemoCapability,
+    );
+    if (!productionAllowed && !privateDemoAllowed) {
       const rights = evaluateMarketDataProductionRights(PROVIDERS.UPSTOX, requestUrl);
       return {
         schemaVersion: MARKET_DATA_SCHEMA_VERSION,
@@ -179,10 +181,10 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
     }
 
     const accessToken = this.accessToken;
-    return this.requestCache({
+    const requestOptions = {
       cacheKey: cacheKeyFor(normalizedKeys, upstoxCredentialCacheFingerprint(accessToken)),
       ttlSeconds: UPSTOX_QUOTE_CACHE_TTL_SECONDS,
-      forceRefresh,
+      forceRefresh: forceRefresh || privateDemoAllowed,
       loader: async () => {
         try {
           const response = await getUpstoxWithRetry(this.httpClient, requestUrl, {
@@ -270,6 +272,9 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
           };
         }
       },
-    });
+    };
+    return privateDemoAllowed
+      ? requestOptions.loader()
+      : this.requestCache(requestOptions);
   }
 }

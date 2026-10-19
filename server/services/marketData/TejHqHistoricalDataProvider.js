@@ -13,6 +13,7 @@ import { readThroughMarketCache } from './requestCache.js';
 import { consumeTejHqKeyedRequest } from './tejHqRequestBudget.js';
 import {
   evaluateMarketDataProductionRights,
+  isMarketDataPrivateDemoUseAllowed,
   isMarketDataProductionUseAllowed,
 } from './marketDataRights.js';
 
@@ -604,6 +605,7 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
     const path = `/v1/ohlcv/${request.exchange.toLowerCase()}/${encodeURIComponent(request.symbol)}`;
     return this.#fetch({
       operation: 'ohlcv', path, params: { from: request.fromDate, to: request.toDate }, request,
+      privateDemoCapability: options.privateDemoCapability,
       cacheTtlSeconds: cacheTtlFor(request, this.clock()),
       parse: (data, meta) => parseTejHqOhlcvEnvelope(data, { ...request, ...meta }),
       enabledFlag: 'TEJHQ_HISTORICAL_FALLBACK_ENABLED',
@@ -709,18 +711,23 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
     cacheTtlSeconds,
     parse,
     enabledFlag,
+    privateDemoCapability = null,
   }) {
     const url = sourceUrl(path, params);
     const normalizedIdentity = identity || (request ? {
       instrumentKey: `${request.exchange}:${request.symbol}`,
       ...(request.isin ? { canonicalProductId: `market:equity:${request.exchange.toLowerCase()}:${request.isin}` } : {}),
     } : null);
-    if (!isMarketDataProductionUseAllowed(
+    const productionAllowed = isMarketDataProductionUseAllowed(
       PROVIDERS.TEJHQ,
       url,
       this.env,
       this.marketDataTestFixtureRightsCapability,
-    )) {
+    );
+    const privateDemoAllowed = isMarketDataPrivateDemoUseAllowed(
+      PROVIDERS.TEJHQ, url, this.env, privateDemoCapability,
+    );
+    if (!productionAllowed && !privateDemoAllowed) {
       const rights = evaluateMarketDataProductionRights(PROVIDERS.TEJHQ, url);
       return {
         ...this.#disabledSnapshot({
@@ -741,7 +748,8 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
     );
     const featureEnabled = (Array.isArray(enabledFlag) ? enabledFlag : [enabledFlag])
       .some(flag => this.env[flag] === 'true');
-    if (!this.enabled || !featureEnabled) {
+    const privateDemoConfigured = privateDemoAllowed && Boolean(this.apiKey || operation === 'ohlcv');
+    if ((!this.enabled || !featureEnabled) && !privateDemoConfigured) {
       const code = !this.configuredEnabled
         ? 'TEJHQ_DISABLED'
         : !this.licenseConfirmed ? 'TEJHQ_LICENSE_NOT_CONFIRMED' : 'TEJHQ_FEATURE_DISABLED';
@@ -755,7 +763,7 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
       if (pausedCode) return this.#disabledSnapshot({ operation, path, params, identity: normalizedIdentity, code: pausedCode });
     }
 
-    return this.requestCache({
+    const requestOptions = {
       cacheKey,
       ttlSeconds: cacheTtlSeconds,
       forceRefresh,
@@ -805,6 +813,9 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
           });
         }
       },
-    });
+    };
+    return privateDemoConfigured
+      ? requestOptions.loader()
+      : this.requestCache(requestOptions);
   }
 }
