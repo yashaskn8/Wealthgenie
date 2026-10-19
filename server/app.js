@@ -24,6 +24,7 @@ import goalRoutes from './routes/goals.js';
 import marketRoutes from './routes/market.js';
 import marketQuotesRoutes from './routes/marketQuotes.js';
 import marketDataAdminRoutes from './routes/marketDataAdmin.js';
+import { createPrivateMarketDemoRouter } from './routes/privateMarketDemo.js';
 import taxRoutes from './routes/tax.js';
 import chatRoutes from './routes/chatRoutes.js';
 import portfolioRoutes from './routes/portfolio.js';
@@ -212,6 +213,8 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/market', marketRoutes);
   app.use('/api/market-data', marketQuotesRoutes);
   app.use('/api/market-data', marketDataAdminRoutes);
+  // Independently scoped private development view. Production rights remain unchanged.
+  app.use('/api/market-data', createPrivateMarketDemoRouter({ env }));
   app.use('/api/tax', taxRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/portfolio', portfolioRoutes);
