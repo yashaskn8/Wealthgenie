@@ -151,21 +151,23 @@
       "sourceId": "UPSTOX_QUOTES_V3",
       "provider": "UPSTOX",
       "url": "https://api.upstox.com/v3/market-quote/quotes?instrument_key={instrumentKeys}",
-      "status": "LICENSE_UNVERIFIED",
-      "termsUrl": "https://upstox.com/developer/api-documentation/get-full-market-quote-v3/",
+      "status": "DEVELOPMENT_RESEARCH_ONLY",
+      "termsUrl": "https://community.upstox.com/t/request-api-licensing-for-public-website-paper-trading-display-of-upstox-data/17752",
       "rights": {
-        "access": "LICENSE_UNVERIFIED",
-        "extraction": "LICENSE_UNVERIFIED",
-        "derivedCalculation": "LICENSE_UNVERIFIED",
-        "storage": "LICENSE_UNVERIFIED",
-        "publicDisplay": "LICENSE_UNVERIFIED",
-        "commercialUse": "LICENSE_UNVERIFIED",
-        "redistribution": "LICENSE_UNVERIFIED",
+        "access": "DEVELOPMENT_RESEARCH_ONLY",
+        "extraction": "DEVELOPMENT_RESEARCH_ONLY",
+        "derivedCalculation": "DEVELOPMENT_RESEARCH_ONLY",
+        "storage": "BLOCKED_REUSE_RIGHTS",
+        "publicDisplay": "DEVELOPMENT_RESEARCH_ONLY",
+        "commercialUse": "BLOCKED_REUSE_RIGHTS",
+        "redistribution": "BLOCKED_REUSE_RIGHTS",
         "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
       },
-      "approvedScopes": [],
+      "approvedScopes": [
+        "PRIVATE_LOCAL_EDUCATIONAL_DEMO"
+      ],
       "productionPostTaxUseAllowed": false,
-      "basis": "Endpoint access and product capability do not establish production extraction, storage, derived-calculation, public-display, commercial-use or redistribution permission. Operator evidence is required."
+      "basis": "Upstox developer support stated on 8 October 2026 that informational/educational sites may display market data and build tools within rate limits. This record is deliberately limited to an ephemeral authenticated loopback demo; it does not authorize commercial use, storage, or redistribution."
     },
     {
       "sourceId": "UPSTOX_HISTORICAL_CANDLES_V3",
