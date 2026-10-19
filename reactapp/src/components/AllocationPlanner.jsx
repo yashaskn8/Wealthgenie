@@ -679,7 +679,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
 
   // Only convert backend-authoritative weights into chart presentation fields.
   // Keep the incoming recommendation order and values unchanged.
-  const { allocation, invalidAllocation } = useMemo(() => {
+  const { allocation, invalidAllocation } = (() => {
     const normalized = [];
     for (const [idx, item] of (Array.isArray(recommendations) ? recommendations : []).entries()) {
       const grad = SLICE_GRADIENTS[idx % SLICE_GRADIENTS.length];
@@ -706,7 +706,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
       });
     }
     return { allocation: normalized, invalidAllocation: false };
-  }, [recommendations]);
+  })();
 
   const blendedReturn = toOptionalNumber(recommendationMeta?.portfolio_return_assumption);
   const activeAllocation = useMemo(() => allocation.filter(item => item.allocationWeight > 0), [allocation]);
