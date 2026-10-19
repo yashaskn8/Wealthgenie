@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
   [switch]$RequireRedis,
+  [switch]$EnablePlanReview,
   [string]$RedisServerPath,
   [ValidateRange(1024, 65535)]
   [int]$BackendPort = 5001,
@@ -423,8 +424,11 @@ $commonEnv = @{
   DEMO_COMPLETION_IDEMPOTENCY_KEY = 'wealthgenie-local-demo-profile-v1'
   MARKET_DATA_PRIMARY_PROVIDER = 'NSE'
   MARKET_DATA_REFRESH_ENABLED = 'false'
-  AGENTIC_PLAN_REVIEW_ENABLED = 'false'
-  AGENT_WORKER_ENABLED = 'false'
+  # Keep the isolated demo deterministic unless the operator explicitly opts
+  # into durable Plan Review with previously provisioned MongoDB indexes.
+  AGENTIC_PLAN_REVIEW_ENABLED = $(if ($EnablePlanReview) { 'true' } else { 'false' })
+  AGENT_WORKER_ENABLED = $(if ($EnablePlanReview) { 'true' } else { 'false' })
+  AGENT_WORKER_MODE = 'embedded'
   MCP_ENABLED = 'false'
   MCP_REMOTE_ENABLED = 'false'
   MCP_LEGACY_SSE_ENABLED = 'false'
