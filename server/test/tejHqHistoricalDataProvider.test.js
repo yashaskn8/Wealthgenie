@@ -7,6 +7,7 @@ import TejHqHistoricalDataProvider, {
   parseTejHqStatus,
   parseTejHqSymbolHistoryEnvelope,
 } from '../services/marketData/TejHqHistoricalDataProvider.js';
+import { createMarketDataTestFixtureRightsCapability } from '../services/marketData/marketDataTestFixtures.js';
 
 const NOW = new Date('2026-10-13T06:00:00.000Z');
 const REQUEST = Object.freeze({
@@ -380,7 +381,15 @@ test('keyed operations fail closed without credentials and do not contact TejHQ'
 
 test('disabled-by-default provider makes no requests', async () => {
   let calls = 0;
-  const provider = new TejHqHistoricalDataProvider({ httpClient: { async get() { calls += 1; } }, clock: () => NOW });
+  const env = { NODE_ENV: 'test' };
+  const httpClient = { async get() { calls += 1; } };
+  const fixtureCapability = createMarketDataTestFixtureRightsCapability({ env, transport: httpClient });
+  const provider = new TejHqHistoricalDataProvider({
+    env,
+    httpClient,
+    marketDataTestFixtureRightsCapability: fixtureCapability,
+    clock: () => NOW,
+  });
   const result = await provider.getRawHistory(REQUEST);
   assert.equal(result.error.code, 'TEJHQ_DISABLED');
   assert.equal(calls, 0);
