@@ -148,7 +148,7 @@ test('selected mode carries synthetic Upstox HTTP responses through adapters, co
   };
   const app = express();
   app.use(express.json());
-  app.use('/api/market', createMarketQuotesRouter({
+  app.use('/api/market-data', createMarketQuotesRouter({
     env,
     marketDataTestFixtureRightsCapability: fixtureCapability,
     limiter: (_request, _response, next) => next(),
@@ -177,7 +177,7 @@ test('selected mode carries synthetic Upstox HTTP responses through adapters, co
     { algorithm: 'HS256' });
   try {
     await withMockAuthAccountState(() => withServer(app, async baseUrl => {
-      const quoteResponse = await jsonRequest(`${baseUrl}/api/market/quotes?ids=market:index:nifty-50`);
+      const quoteResponse = await jsonRequest(`${baseUrl}/api/market-data/quotes?ids=market:index:nifty-50`);
       assert.equal(quoteResponse.response.status, 200);
       assert.equal(quoteResponse.body.facts[0].quoteLastTradeAt, '2026-10-16T09:54:00.000Z');
       assert.equal(quoteResponse.body.facts[0].quoteResponseGeneratedAt, '2026-10-16T09:54:30.000Z');

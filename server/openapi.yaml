@@ -703,6 +703,7 @@ paths:
     get:
       operationId: getQualifiedUpstoxMarketQuotes
       tags: [Market]
+      description: Each qualified quote fact separates the exchange last trade time (quoteLastTradeAt), the Upstox response generation time (quoteResponseGeneratedAt), and WealthGenie's receipt time (providerResponseReceivedAt). These timestamps have different meanings and must not be substituted for each other.
       security: []
       parameters:
         - name: ids
