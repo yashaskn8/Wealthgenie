@@ -3,10 +3,14 @@ import { getPrivateMarketDemoData } from '../../services/api';
 import { formatMarketTimestamp, nullableMarketNumber } from '../../utils/marketDataDisplay';
 import './PrivateMarketDataDemo.css';
 
-function quoteText(fact) {
+function quoteText(fact, providerStatus) {
   const value = nullableMarketNumber(fact?.value);
-  if (fact?.availabilityStatus !== 'AVAILABLE' || value === null) return 'Unavailable';
-  return value.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  if (!['AVAILABLE', 'PARTIAL'].includes(providerStatus)
+      || fact?.availabilityStatus !== 'AVAILABLE'
+      || value === null || value <= 0) return null;
+  const text = value.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  const unit = fact.unit === 'INDEX_POINTS' ? 'pts' : fact.currency || '';
+  return unit ? `${text} ${unit}` : text;
 }
 
 function quoteName(fact) {
@@ -47,7 +51,18 @@ export default function PrivateMarketDataDemo() {
 
   const quotes = snapshot?.upstox?.facts || [];
   const candles = snapshot?.tejHq?.candles || [];
-  const latestClose = [...candles].reverse().find(candle => nullableMarketNumber(candle?.close) !== null);
+  // A malformed or partially failed provider response must never render a
+  // financial value merely because unqualified candle rows were supplied.
+  const latestClose = snapshot?.tejHq?.status === 'AVAILABLE'
+    && snapshot?.tejHq?.dataClass === 'HISTORICAL_EOD'
+    ? [...candles].reverse().find(candle => {
+      const close = nullableMarketNumber(candle?.close);
+      const tradingDate = candle?.date || candle?.tradingDate;
+      return close !== null && close > 0
+        && /^\d{4}-\d{2}-\d{2}$/.test(tradingDate || '')
+        && Number.isFinite(Date.parse(tradingDate));
+    })
+    : null;
 
   return (
     <section className="private-market-demo" aria-labelledby="private-market-demo-title" data-testid="private-market-demo">
@@ -73,9 +88,7 @@ export default function PrivateMarketDataDemo() {
               {quotes.map(fact => (
                 <div key={fact.canonicalProductId} data-testid={`private-quote-${fact.canonicalProductId}`}>
                   <span>{quoteName(fact)}</span>
-                  <strong>{fact.availabilityStatus === 'AVAILABLE'
-                    ? `${quoteText(fact)} ${fact.unit === 'INDEX_POINTS' ? 'pts' : fact.currency || ''}`
-                    : 'Unavailable'}</strong>
+                  <strong>{quoteText(fact, snapshot?.upstox?.status) ?? 'Unavailable'}</strong>
                   <small>Last trade: {formatMarketTimestamp(fact.quoteLastTradeAt || fact.observedAt) || 'Unavailable'}</small>
                   <small>Provider response: {formatMarketTimestamp(fact.quoteResponseGeneratedAt) || 'Unavailable'}</small>
                   <small>Fetched: {formatMarketTimestamp(fact.providerResponseReceivedAt || fact.fetchedAt) || 'Unavailable'}</small>

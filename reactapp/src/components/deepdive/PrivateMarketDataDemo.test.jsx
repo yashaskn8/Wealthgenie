@@ -65,6 +65,33 @@ describe('PrivateMarketDataDemo', () => {
     await waitFor(() => expect(getPrivateMarketDemoData).toHaveBeenCalledTimes(1));
   });
 
+  it('never displays a close or quote from an unavailable provider even when malformed rows contain prices', async () => {
+    getPrivateMarketDemoData.mockResolvedValue({
+      upstox: {
+        status: 'UNAVAILABLE',
+        facts: [{ canonicalProductId: 'market:index:nifty-50', availabilityStatus: 'AVAILABLE',
+          value: 25123.45, unit: 'INDEX_POINTS' }],
+      },
+      tejHq: {
+        status: 'UNAVAILABLE',
+        dataClass: 'HISTORICAL_EOD',
+        error: { code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' },
+        candles: [{ date: '2026-10-16', close: 1534.2 }],
+      },
+    });
+
+    render(<PrivateMarketDataDemo />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load provider data' }));
+
+    expect(await screen.findByText('Upstox · live quote response')).toBeInTheDocument();
+    expect(within(screen.getByTestId('private-quote-market:index:nifty-50'))
+      .getByText('Unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+    expect(screen.queryByText(/25,123\.45/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1,534\.2/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/INFY latest returned close:/)).not.toBeInTheDocument();
+  });
+
   it('labels returned TejHQ candles by their trading date and keeps the history historical', async () => {
     getPrivateMarketDemoData.mockResolvedValue({
       persistence: 'NOT_PERSISTED',
