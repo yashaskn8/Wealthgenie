@@ -41,3 +41,13 @@ test('rendered browser verification is explicit, loopback-only, and separate fro
   assert.match(script, /Rendered browser UI NOT VERIFIED/);
   assert.doesNotMatch(script, /AllowAuditBranch/);
 });
+
+test('launcher persists ownership before browser smoke so a failed smoke can be retried safely', () => {
+  const ownershipWrite = script.indexOf('$processState | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8');
+  const browserSmoke = script.indexOf('& $nodeExe $browserSmokeScript $browserOrigin 2>&1');
+  const successWrite = script.indexOf('$processState.browserVerified = $true');
+  assert.ok(ownershipWrite >= 0);
+  assert.ok(browserSmoke > ownershipWrite);
+  assert.ok(successWrite > browserSmoke);
+  assert.match(script, /browserVerified = \$false/);
+});

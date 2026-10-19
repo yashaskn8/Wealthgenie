@@ -536,21 +536,6 @@ if (-not (Test-ListeningPort $frontendPort)) {
 }
 $frontendVerified = Wait-Frontend "http://127.0.0.1:$frontendPort/login"
 if (-not $frontendVerified) { throw 'The local frontend did not become reachable.' }
-$browserVerified = $false
-if ($RequireBrowser) {
-  $browserSmokeScript = Join-Path $repoRoot 'scripts/demoBrowserSmoke.mjs'
-  if (-not (Test-Path -LiteralPath $browserSmokeScript -PathType Leaf)) {
-    throw 'The read-only browser smoke script is missing; rendered UI verification was not attempted.'
-  }
-  $browserOrigin = "http://127.0.0.1:$frontendPort"
-  $browserOutput = @(& $nodeExe $browserSmokeScript $browserOrigin 2>&1)
-  if ($LASTEXITCODE -ne 0) {
-    throw 'Rendered browser verification failed. The frontend remains available for inspection; no account or financial data was changed.'
-  }
-  $browserVerified = $true
-  Write-Host (($browserOutput | Out-String).Trim())
-}
-
 $processState = [pscustomobject]@{
   repository = $repoRoot
   branch = $branch
@@ -566,12 +551,28 @@ $processState = [pscustomobject]@{
   backendPort = $backendPort
   frontendPort = $frontendPort
   browserSmokeRequired = [bool]$RequireBrowser
-  browserVerified = $browserVerified
+  browserVerified = $false
   sourceShaPublished = [bool]$sourceSha
   backendPid = $backendPid
   frontendPid = $frontendPid
 }
+# Record ownership before the optional browser smoke so a failed smoke can be
+# retried safely against the same launcher-owned services.
 $processState | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+if ($RequireBrowser) {
+  $browserSmokeScript = Join-Path $repoRoot 'scripts/demoBrowserSmoke.mjs'
+  if (-not (Test-Path -LiteralPath $browserSmokeScript -PathType Leaf)) {
+    throw 'The read-only browser smoke script is missing; rendered UI verification was not attempted.'
+  }
+  $browserOrigin = "http://127.0.0.1:$frontendPort"
+  $browserOutput = @(& $nodeExe $browserSmokeScript $browserOrigin 2>&1)
+  if ($LASTEXITCODE -ne 0) {
+    throw 'Rendered browser verification failed. The frontend remains available for inspection; no account or financial data was changed.'
+  }
+  $processState.browserVerified = $true
+  $processState | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+  Write-Host (($browserOutput | Out-String).Trim())
+}
 Write-Host "Backend VERIFIED: loopback port $backendPort, READY, connected to the existing demo sentinel and transaction-capable replica set."
 Write-Host "Frontend HTTP VERIFIED: loopback port $frontendPort, login document returned HTTP 200 with the React root element."
 if (-not $RequireBrowser) {
