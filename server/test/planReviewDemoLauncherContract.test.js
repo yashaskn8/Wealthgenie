@@ -16,8 +16,8 @@ test('local demo launcher pins the active repository and never accepts archived 
 
 test('local Plan Review is explicit opt-in with both worker and feature, and disabled by default', () => {
   assert.match(script, /\[switch\]\$EnablePlanReview/);
-  assert.match(script, /AGENTIC_PLAN_REVIEW_ENABLED = \$\(if \(\$EnablePlanReview\) \{ 'true' \} else \{ 'false' \} \)/);
-  assert.match(script, /AGENT_WORKER_ENABLED = \$\(if \(\$EnablePlanReview\) \{ 'true' \} else \{ 'false' \} \)/);
+  assert.match(script, /AGENTIC_PLAN_REVIEW_ENABLED = \$\(if \(\$EnablePlanReview\) \{ 'true' \} else \{ 'false' \}\s*\)/);
+  assert.match(script, /AGENT_WORKER_ENABLED = \$\(if \(\$EnablePlanReview\) \{ 'true' \} else \{ 'false' \}\s*\)/);
   assert.match(script, /AGENT_WORKER_MODE = 'embedded'/);
   assert.doesNotMatch(script, /AGENTIC_PLAN_REVIEW_ENABLED = 'true'/);
   assert.doesNotMatch(script, /AGENT_WORKER_ENABLED = 'true'/);
