@@ -222,15 +222,19 @@ export function clearUserSession() {
   broadcastAuthSignal('AUTH_INVALIDATED');
 }
 
-function generateUUID() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+export function generateUUID(randomSource = globalThis.crypto) {
+  if (typeof randomSource?.randomUUID === 'function') {
+    return randomSource.randomUUID();
   }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  if (typeof randomSource?.getRandomValues !== 'function') {
+    throw new Error('Secure request identification is unavailable. Use a secure browser context and try again.');
+  }
+  const bytes = new Uint8Array(16);
+  randomSource.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const value = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return [value.slice(0, 8), value.slice(8, 12), value.slice(12, 16), value.slice(16, 20), value.slice(20)].join('-');
 }
 
 export class ApiError extends Error {

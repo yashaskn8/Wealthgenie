@@ -59,11 +59,30 @@ const MARKET_DISPLAY_COPY = Object.freeze({
 });
 
 export function getMarketDisplayState(marketContext, { loading = false, refreshFailed = false } = {}) {
+  const snapshot = marketContext?.marketSnapshot;
+  const selection = marketContext?.liveProviderSelection || snapshot?.providerSelection;
+  // Source-rights errors may be nested under an unqualified provider attempt.
+  // Do not make the whole snapshot unavailable if another qualified provider
+  // was actually selected; never treat a failed attempt as selected evidence.
+  const failedProviderReasonCodes = selection && !selection.selectedProvider
+    && Array.isArray(selection.providerFailures)
+    ? selection.providerFailures.flatMap(failure => (
+      Array.isArray(failure?.reasonCodes) ? failure.reasonCodes : []
+    ))
+    : [];
   const reasonCodes = [
     ...(Array.isArray(marketContext?.reasonCodes) ? marketContext.reasonCodes : []),
-    ...(Array.isArray(marketContext?.marketSnapshot?.policyOutput?.reasonCodes)
-      ? marketContext.marketSnapshot.policyOutput.reasonCodes : []),
-    marketContext?.marketSnapshot?.error?.code,
+    ...(Array.isArray(snapshot?.reasonCodes) ? snapshot.reasonCodes : []),
+    ...(Array.isArray(snapshot?.policyOutput?.reasonCodes)
+      ? snapshot.policyOutput.reasonCodes : []),
+    ...(Array.isArray(snapshot?.providerStatus?.quotes?.reasonCodes)
+      ? snapshot.providerStatus.quotes.reasonCodes : []),
+    ...(Array.isArray(snapshot?.providerStatus?.history?.reasonCodes)
+      ? snapshot.providerStatus.history.reasonCodes : []),
+    snapshot?.providerStatus?.quotes?.error?.code,
+    snapshot?.providerStatus?.history?.error?.code,
+    snapshot?.error?.code,
+    ...failedProviderReasonCodes,
   ];
   const rightsUnavailable = reasonCodes.some(code => [
     'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
@@ -74,7 +93,11 @@ export function getMarketDisplayState(marketContext, { loading = false, refreshF
     ? MARKET_DISPLAY_STATES.LOADING
     : rightsUnavailable
       ? MARKET_DISPLAY_STATES.RIGHTS_UNAVAILABLE
-    : refreshFailed && marketContext
+    : refreshFailed && [
+      MARKET_DISPLAY_STATES.CURRENT,
+      MARKET_DISPLAY_STATES.MARKET_CLOSED,
+      MARKET_DISPLAY_STATES.LAST_AVAILABLE,
+    ].includes(snapshot?.status)
       ? MARKET_DISPLAY_STATES.LAST_AVAILABLE
     : marketContext?.marketSnapshot?.status
       || (marketContext?.status === 'MARKET_CONTEXT_AVAILABLE'

@@ -22,6 +22,20 @@ const TaxesHub = ({
   onLearnMore,
 }) => {
   const currentTab = activeTab === 'real-returns' ? 'real-returns' : 'regime-savings';
+  const allowedTabs = ['regime-savings', 'real-returns'];
+  const handleTabListKeyDown = event => {
+    const currentIndex = allowedTabs.indexOf(currentTab);
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % allowedTabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + allowedTabs.length) % allowedTabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = allowedTabs.length - 1;
+    else return;
+    event.preventDefault();
+    const nextTab = allowedTabs[nextIndex];
+    onTabChange?.(nextTab);
+    event.currentTarget.querySelector(`[data-tab-value="${nextTab}"]`)?.focus();
+  };
 
   return (
     <div className="hub-container">
@@ -34,15 +48,17 @@ const TaxesHub = ({
         </p>
 
         {/* Tab Navigation */}
-        <div role="tablist" aria-label="Tax views" className="hub-tabs-list">
+        <div role="tablist" aria-label="Tax views" className="hub-tabs-list" onKeyDown={handleTabListKeyDown}>
           <button
             role="tab"
             id="tab-regime-savings"
             aria-selected={currentTab === 'regime-savings'}
             aria-controls="panel-regime-savings"
             data-testid="tab-regime-savings"
+            data-tab-value="regime-savings"
+            tabIndex={currentTab === 'regime-savings' ? 0 : -1}
             className={`hub-tab-btn ${currentTab === 'regime-savings' ? 'hub-tab-btn--active' : ''}`}
-            onClick={() => onTabChange('regime-savings')}
+            onClick={() => onTabChange?.('regime-savings')}
           >
             <ShieldCheck size={16} />
             <span>Regime & Savings</span>
@@ -53,8 +69,10 @@ const TaxesHub = ({
             aria-selected={currentTab === 'real-returns'}
             aria-controls="panel-real-returns"
             data-testid="tab-real-returns"
+            data-tab-value="real-returns"
+            tabIndex={currentTab === 'real-returns' ? 0 : -1}
             className={`hub-tab-btn ${currentTab === 'real-returns' ? 'hub-tab-btn--active' : ''}`}
-            onClick={() => onTabChange('real-returns')}
+            onClick={() => onTabChange?.('real-returns')}
           >
             <Percent size={16} />
             <span>Real Returns on Investments</span>
