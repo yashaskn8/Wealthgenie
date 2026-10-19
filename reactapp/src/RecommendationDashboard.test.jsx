@@ -75,6 +75,19 @@ describe('RecommendationDashboard authority boundary', () => {
     expect(screen.queryByText(/AI-synthesized financial allocation/i)).toBeNull();
     expect(screen.queryByText(/Returns shown are after tax/i)).toBeNull();
   });
+  it('labels rule-based fallback plans without implying an ML allocation', () => {
+    render(<RecommendationDashboard
+      userProfile={profile}
+      recommendations={[{ id: 'fd', name: 'Server Deposit', cat: 'Debt', allocation_pct: 100, monthly_allocation: 20000 }]}
+      recommendationMeta={{ ml_fallback: true }}
+    />);
+    expect(screen.getByTestId('recommendation-rule-fallback-note')).toHaveTextContent(
+      'A trained ML prediction was not used for this recommendation.',
+    );
+    expect(screen.getByText('PERSONALIZED NEXT STEP')).toBeVisible();
+    expect(screen.queryByText('AI RECOMMENDED ACTION')).toBeNull();
+  });
+
   it('does not infer product terms from names or IDs for emergency-fund recommendations', () => {
     render(<RecommendationDashboard
       userProfile={{ ...profile, investment_goals: ['Emergency Fund'] }}
