@@ -104,9 +104,13 @@ for that endpoint. Leave PRIVATE_MARKET_DEMO_TEJHQ_ENABLED=false if the
 actual TejHQ access terms do not permit the intended demonstration.
 
 Do not duplicate existing environment keys. Start the backend using the
-normal documented commands and sign into WealthGenie locally. Navigate to
-Where-to-Invest: a panel labeled "Read-only market API verification"
-appears only in a development Vite build opened on localhost/127.0.0.1.
+normal documented commands and sign into WealthGenie locally. In addition, set `VITE_PRIVATE_MARKET_DEMO_ENABLED=true` in the private,
+uncommitted `reactapp/.env.local` (not `server/.env`) and restart Vite.
+Navigate to Where-to-Invest: a panel labeled "Read-only market API
+verification" appears only in a locally running development Vite build
+with this explicit frontend opt-in, accessed via localhost/127.0.0.1.
+Ordinary development builds, browser-test builds and production builds
+omit this panel; the backend's own opt-in/auth/loopback checks remain mandatory.
 
 The preview is separate from the main Market Today policy context.
 A successful quote-only preview does not establish a sufficiently complete
