@@ -154,6 +154,34 @@ describe('GoalPlanner financial freshness boundary', () => {
     vi.restoreAllMocks();
   });
 
+  it('seeds goal edit inputs from the selected goal without losing the first user edit', async () => {
+    const props = {
+      selectedGoal: freshGoal,
+      simulatedSips: {},
+      onChangeSimulatedSip: vi.fn(),
+      onPriorityChange: vi.fn(),
+      onSaveGoalUpdates: vi.fn(),
+      getLiveProbability: () => 0.82,
+      getSimulatedChartData: () => [],
+      monthlySavingsCapacity: 30000,
+      simulationLoading: false,
+      simulationError: null,
+      simulationResult: null,
+      calculationFreshness: freshGoal.calculation_freshness,
+    };
+    render(<GoalDetailPane {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Modify Parameters' }));
+
+    const [target, savings] = screen.getAllByRole('spinbutton');
+    expect(target).toHaveValue(900000);
+    expect(savings).toHaveValue(100000);
+    fireEvent.change(target, { target: { value: '950000' } });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByRole('button', { name: 'Save Target Changes' })).toBeInTheDocument();
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(950000);
+  });
+
   it('keeps an in-progress goal edit when equivalent goal data is refreshed', () => {
     const paneProps = {
       selectedGoal: freshGoal,
