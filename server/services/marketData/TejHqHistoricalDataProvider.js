@@ -280,8 +280,12 @@ export function parseTejHqSymbolHistoryEnvelope(payload, { exchange, isin, fetch
   }
   const exactRows = new Map();
   const intervals = [];
+  const metaExchange = payload?.meta?.exchange ? String(payload.meta.exchange).trim().toUpperCase() : null;
+  if (metaExchange && metaExchange !== normalizedExchange) {
+    throw new TejHqDataContractError('TEJHQ_SOURCE_IDENTITY_MISMATCH');
+  }
   for (const row of payload.data) {
-    const rowExchange = String(row?.exchange || '').toUpperCase();
+    const rowExchange = String(row?.exchange || metaExchange || normalizedExchange).toUpperCase();
     const rowIsin = String(row?.isin || '').toUpperCase();
     const symbol = String(row?.symbol || '').toUpperCase();
     if (rowExchange !== normalizedExchange || rowIsin !== normalizedIsin || !ISIN_PATTERN.test(rowIsin)

@@ -158,6 +158,25 @@ test('symbol history requires exact ISIN and exchange, valid intervals, and no o
   ]), { exchange: 'NSE', isin: REQUEST.isin, fetchedAt: NOW }), /INTERVAL_OVERLAP/);
 });
 
+test('symbol history accepts real provider payload where exchange is in meta instead of data rows', () => {
+  const providerPayload = {
+    meta: { count: 1, exchange: 'NSE', isin: REQUEST.isin, symbol: '' },
+    data: [{
+      isin: REQUEST.isin,
+      symbol: REQUEST.symbol,
+      valid_from: '2010-01-04',
+      valid_to: '2026-10-09',
+      trading_days: 4040,
+    }],
+  };
+  const snapshot = parseTejHqSymbolHistoryEnvelope(providerPayload, {
+    exchange: REQUEST.exchange, isin: REQUEST.isin, fetchedAt: NOW,
+  });
+  assert.equal(snapshot.status, 'AVAILABLE');
+  assert.equal(snapshot.intervals[0].exchange, 'NSE');
+  assert.equal(snapshot.intervals[0].symbol, REQUEST.symbol);
+});
+
 test('corporate actions preserve same-day events and reject impossible or conflicting events', () => {
   const split = actionPayload().data[0];
   const bonus = { ...split, type: 'bonus', ratio_num: 1, ratio_den: 1, raw_subject: 'Bonus issue' };
