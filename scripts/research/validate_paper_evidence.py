@@ -132,6 +132,15 @@ def verify_candidate(root: Path, candidate_file: Path, expected: dict[str, Any])
             "candidate uses a different corpus")
     require(info.get("questions_evaluated") == len(questions), "candidate question count mismatch")
     require(info.get("index_binding", {}).get("status") == "VERIFIED", "candidate index binding unverified")
+    labeled_count = sum(bool(q.get("relevant_chunk_ids")) for q in questions)
+    require(info.get("questions_with_chunk_relevance_gold") == labeled_count,
+            "chunk-level gold count differs from independently labeled questions")
+    if labeled_count == 0:
+        for key in ("recall_at_4", "precision_at_4", "mrr", "hit_rate", "ndcg_at_4"):
+            summary = report.get("aggregate_metrics", {}).get(key)
+            require(isinstance(summary, dict) and summary.get("mean") is None
+                    and summary.get("valid_count") == 0,
+                    "unlabeled chunk ranking reported as measured score: " + key)
     rows = report.get("per_question_results")
     require(isinstance(rows, list) and len(rows) == len(questions), "missing per-question evidence")
     for index, (row, q) in enumerate(zip(rows, questions, strict=True), 1):
