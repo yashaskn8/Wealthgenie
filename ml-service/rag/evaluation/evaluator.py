@@ -70,7 +70,15 @@ def _exact_citation_identity(citation, retrieved_chunk) -> bool:
         citation.chunk_id == chunk.chunk_id
         and citation.document_title == metadata.title
         and citation.source == metadata.source
-        and _contains_phrase(chunk.content, citation.excerpt)
+        # The structured citation engine emits a 200-character preview, often
+        # ending mid-token. Validate the exact preview independently of lexical
+        # whole-word matching; keep the older full-subphrase contract for tests.
+        and (
+            citation.excerpt == (
+                chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content
+            )
+            or _contains_phrase(chunk.content, citation.excerpt)
+        )
     )
 
 
@@ -420,7 +428,7 @@ class RAGEvaluator:
         for fact in required_facts:
             answer_support = _has_uncontradicted_phrase(response.answer, fact)
             source_support = any(
-                _has_uncontradicted_phrase(cited_by_id[chunk_id].excerpt, fact)
+                _exact_citation_identity(cited_by_id[chunk_id], retrieved_by_id[chunk_id])
                 and _has_uncontradicted_phrase(retrieved_by_id[chunk_id].chunk.content, fact)
                 for chunk_id in cited_by_id
                 if chunk_id in retrieved_by_id

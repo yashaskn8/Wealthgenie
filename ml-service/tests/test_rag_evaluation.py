@@ -659,3 +659,37 @@ def test_optional_metric_formatter_preserves_unavailable_values():
     assert format_metric_value(float("nan")) == "N/A"
     assert format_metric_value([1, 2]) == "N/A"
     assert format_metric_value(0.5) == "0.5000"
+
+def test_citation_preview_is_identity_valid_even_when_truncated_mid_word():
+    """Cited complete evidence, not an arbitrary 200-char preview, bears the fact."""
+    fact = "The Rules take effect on 1 April 2026."
+    content = ("Official publication context for applicable rules. " * 6) + fact
+    preview = content[:200] + "..."
+    metadata = ChunkMetadata(
+        chunk_id="regulatory#0", document_id="regulatory", chunk_index=0,
+        title="Official Rules", source="https://official.example/rules",
+    )
+    retrieved = RetrievedChunk(
+        chunk=TextChunk(
+            chunk_id="regulatory#0", document_id="regulatory",
+            content=content, metadata=metadata,
+        ), score=0.9, rank=1,
+    )
+    response = RAGQueryResponse(
+        answer=f"{fact} [1]",
+        citations=[Citation(
+            citation_id=1, document_title="Official Rules",
+            source="https://official.example/rules",
+            chunk_id="regulatory#0", excerpt=preview, relevance_score=0.9,
+        )],
+        retrieved_chunks=[retrieved],
+        grounded=True,
+    )
+    results = RAGEvaluator().evaluate_query_response(
+        query="When do the Rules take effect?",
+        response=response,
+        required_facts=[fact],
+    )
+    assert results["metrics"]["citation_identity_correctness"] == 1.0
+    assert results["metrics"]["factual_support"] == 1.0
+
