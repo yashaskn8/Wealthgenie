@@ -933,6 +933,11 @@ export async function getCurrentMarketContext(options = {}) {
   return request('GET', '/regime/current', null, options);
 }
 
+/** Private loopback-only market observations; never inputs to recommendations. */
+export async function getPrivateMarketDemo(options = {}) {
+  return request('GET', '/market-data/private-demo', null, { retries: 0, ...options });
+}
+
 export async function getPrivateMarketDemoData(options = {}) {
   return request('GET', '/market-data/private-demo', null, { retries: 0, ...options });
 }
