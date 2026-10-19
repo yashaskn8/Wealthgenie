@@ -679,17 +679,21 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
 
   // Only convert backend-authoritative weights into chart presentation fields.
   // Keep the incoming recommendation order and values unchanged.
-  const allocation = useMemo(() => (Array.isArray(recommendations) ? recommendations : [])
-    .map((item, idx) => {
+  const { allocation, invalidAllocation } = useMemo(() => {
+    const normalized = [];
+    for (const [idx, item] of (Array.isArray(recommendations) ? recommendations : []).entries()) {
       const grad = SLICE_GRADIENTS[idx % SLICE_GRADIENTS.length];
       const allocationWeight = toOptionalNumber(item?.allocationWeight);
       const monthlyAmount = toOptionalNumber(item?.monthly_allocation);
       const nominalRate = toOptionalNumber(item?.nominalReturn);
       if (allocationWeight === undefined || monthlyAmount === undefined
           || allocationWeight < 0 || allocationWeight > 1 || monthlyAmount < 0) {
-        throw new TypeError(`Authoritative allocation fields are missing for ${item?.id || item?.name || 'an investment'}`);
+        // Do not render a partial allocation or fabricate missing financial
+        // amounts. Keep the read-only Plan Review available instead of
+        // crashing the entire page before its error state can render.
+        return { allocation: [], invalidAllocation: true };
       }
-      return {
+      normalized.push({
         ...item,
         allocationPct: allocationWeight * 100,
         monthlyAmount,
@@ -699,8 +703,10 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
         gradId: grad.id,
         themeColor: grad.primary,
         glowColor: grad.glow,
-      };
-    }), [recommendations]);
+      });
+    }
+    return { allocation: normalized, invalidAllocation: false };
+  }, [recommendations]);
 
   const blendedReturn = toOptionalNumber(recommendationMeta?.portfolio_return_assumption);
   const activeAllocation = useMemo(() => allocation.filter(item => item.allocationWeight > 0), [allocation]);
@@ -745,7 +751,7 @@ const AllocationPlanner = ({ profile, recommendations = [], recommendationMeta, 
   const horizonYears = Number(profile?.investment_horizon_years);
   const goals = Array.isArray(profile?.investment_goals) ? profile.investment_goals.filter(Boolean) : [];
   const isLoading = recommendationMeta?.loading === true || recommendationMeta?.status === 'LOADING';
-  const hasError = Boolean(recommendationMeta?.error || recommendationMeta?.status === 'ERROR');
+  const hasError = Boolean(invalidAllocation || recommendationMeta?.error || recommendationMeta?.status === 'ERROR');
   const financialStateKey = [
     profile?.profileId || recommendationMeta?.profileId || '',
     profile?.version ?? profile?.profile_version ?? recommendationMeta?.profile_version ?? '',
