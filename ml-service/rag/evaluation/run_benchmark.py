@@ -77,6 +77,15 @@ def load_questions(path: Path) -> List[Dict[str, Any]]:
             raise ValueError(f"Abstention control {index} must not claim relevant evidence")
         if item["answerability"] and not item["relevant_document_keys"]:
             raise ValueError(f"Answerable item {index} must identify relevant documents")
+        # Document-level provenance is not chunk-level relevance gold.
+        # A genuine chunk label must be explicit, never every chunk of a document.
+        if "relevant_chunk_ids" in item:
+            labeled = item["relevant_chunk_ids"]
+            if (not isinstance(labeled, list) or not all(isinstance(cid, str) and cid for cid in labeled)
+                    or len(set(labeled)) != len(labeled)):
+                raise ValueError(f"RAG evaluation item {index} has invalid chunk-level relevance labels")
+            if item["expected_abstention"] and labeled:
+                raise ValueError(f"Abstention control {index} must not claim answer-bearing chunks")
     logger.info(f"Loaded {len(questions)} evaluation questions from {path.name}")
     return questions
 
@@ -156,6 +165,7 @@ def run_benchmark(*, config=None, vector_store=None, embedder=None, research_rep
     category_metrics: Dict[str, List[Dict[str, float]]] = {}
     total_source_hits = 0
     total_queries = len(questions)
+    questions_with_chunk_gold = 0
     all_latencies: List[float] = []
     provenance_by_key = {
         entry["document_key"]: {**entry, "_manifest_sha256": manifest["manifest_sha256"]}
@@ -178,12 +188,20 @@ def run_benchmark(*, config=None, vector_store=None, embedder=None, research_rep
         # Invalidate cache so each question gets fresh retrieval
         pipeline.cache_manager.invalidate_all()
 
-        # Build ground truth chunk IDs from expected source document
-        gt_chunk_ids = build_ground_truth_chunk_ids(
-            vector_store, relevant_document_keys, manifest["manifest_sha256"]
-        )
+        # Document identity is not an answer-bearing chunk annotation.
+        # If independently labeled chunk IDs are missing, chunk metrics stay null.
+        gt_chunk_ids = None
+        if q_item.get("relevant_chunk_ids"):
+            allowed = build_ground_truth_chunk_ids(
+                vector_store, relevant_document_keys, manifest["manifest_sha256"]
+            )
+            labels = set(q_item["relevant_chunk_ids"])
+            if not labels.issubset(allowed):
+                raise ValueError(f"RAG item {idx} labels unavailable or wrong-manifest chunk IDs")
+            gt_chunk_ids = labels
+            questions_with_chunk_gold += 1
 
-        # Evaluate retrieval quality against real ground truth
+        # Evaluate ranking only against explicit chunk-level ground truth, never a document-wide proxy.
         eval_result = evaluator.evaluate_query_response(
             query=question,
             response=response,
@@ -283,6 +301,8 @@ def run_benchmark(*, config=None, vector_store=None, embedder=None, research_rep
         "corpus_info": {
             "total_chunks_in_store": len(vector_store.get_chunks()),
             "questions_evaluated": total_queries,
+            "questions_with_chunk_relevance_gold": questions_with_chunk_gold,
+            "chunk_relevance_gold_method": "EXPLICIT_LABELS_ONLY_NO_DOCUMENT_WIDE_PROXY",
             "questions_file": str(QUESTIONS_FILE.name),
             "questions_sha256": hashlib.sha256(QUESTIONS_FILE.read_bytes()).hexdigest(),
             "manifest_sha256": manifest["manifest_sha256"],
