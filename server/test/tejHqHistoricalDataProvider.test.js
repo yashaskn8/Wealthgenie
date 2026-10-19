@@ -431,3 +431,12 @@ test('paid-tier, quota, timeout, TLS, and malformed failures are typed and not r
     assert.equal(JSON.stringify(result).includes('provider response'), false);
   }
 });
+
+
+test('TejHQ adapter credential does not leak across injected environments', () => {
+  const enabled = { NODE_ENV: 'test', TEJHQ_ENABLED: 'true', TEJHQ_LICENSE_CONFIRMED: 'true', TEJHQ_API_KEY: '  injected-tejhq-key  ' };
+  assert.equal(new TejHqHistoricalDataProvider({ env: enabled }).apiKey, 'injected-tejhq-key');
+  assert.equal(new TejHqHistoricalDataProvider({ env: {}, apiKey: '' }).apiKey, '');
+  assert.equal(new TejHqHistoricalDataProvider({ env: enabled, apiKey: '' }).apiKey, '', 'explicit empty key must disable TejHQ');
+  assert.equal(new TejHqHistoricalDataProvider({ env: {} }).apiKey, '', 'no borrowing from process env');
+});
