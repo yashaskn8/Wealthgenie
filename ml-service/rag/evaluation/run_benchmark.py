@@ -10,6 +10,8 @@ Usage:
 
 import json
 import math
+import os
+import hashlib
 import logging
 import sys
 import time
@@ -107,8 +109,8 @@ def source_match(retrieved_chunks, relevant_document_keys: List[str], manifest_s
     )
 
 
-def run_benchmark() -> Dict[str, Any]:
-    """Runs the full evaluation benchmark and returns the report."""
+def run_benchmark(*, config=None, vector_store=None, embedder=None, research_replay=None) -> Dict[str, Any]:
+    """Run benchmark using a verified corpus; optional dependencies enable isolated research replay."""
     questions = load_questions(QUESTIONS_FILE)
     corpus_dir = _ml_service_root / "rag" / "data" / "corpus"
     manifest = load_corpus_manifest(corpus_dir / MANIFEST_FILENAME, corpus_dir)
@@ -123,9 +125,9 @@ def run_benchmark() -> Dict[str, Any]:
         raise ValueError(f"Evaluation set references documents not current in the verified corpus: {sorted(unknown_keys)}")
 
     # Initialize pipeline with real corpus vector store
-    config = RAGConfig()
-    embedder = get_embedding_provider(config)
-    vector_store = PersistentVectorStore(index_path=config.vector_store_path)
+    config = config if config is not None else RAGConfig()
+    embedder = embedder if embedder is not None else get_embedding_provider(config)
+    vector_store = vector_store if vector_store is not None else PersistentVectorStore(index_path=config.vector_store_path)
     loader = DocumentLoader()
     chunker = FixedSizeChunker()
     expected_chunk_ids_by_document = {}
@@ -276,10 +278,13 @@ def run_benchmark() -> Dict[str, Any]:
     report = {
         "report_id": f"rag_eval_v4_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "research_replay": research_replay,
+        "code_git_sha": os.getenv("GITHUB_SHA") or None,
         "corpus_info": {
             "total_chunks_in_store": len(vector_store.get_chunks()),
             "questions_evaluated": total_queries,
             "questions_file": str(QUESTIONS_FILE.name),
+            "questions_sha256": hashlib.sha256(QUESTIONS_FILE.read_bytes()).hexdigest(),
             "manifest_sha256": manifest["manifest_sha256"],
             "current_document_keys": sorted(current_keys),
             "index_binding": index_binding,
