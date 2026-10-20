@@ -156,3 +156,41 @@ test('model response citing only the mandatory legal notice fails answer relevan
   };
   assert.equal(validateGroundedExplanationCompleteness(substantive, packet).valid, true);
 });
+
+test('disclosure-only generated answer triggers grounded educational fallback instead of being presented as an answer', async () => {
+  const question = 'Explain portfolio balancing in simple terms';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const notice = packet.entries.find(item => item.id === 'E_REGULATORY_NOTICE');
+  const disclosure = `${notice.value} [${notice.id}]`;
+  let validation = null;
+  const provider = {
+    name: 'groq',
+    configuredModel: () => 'test-explanation-model',
+    isConfigured: () => true,
+    recordOutputValidation: diagnostics => { validation = { ...validation, ...diagnostics }; },
+    generate: async () => ({
+      provider: 'groq',
+      model: 'test-explanation-model',
+      tokensUsed: 15,
+      text: JSON.stringify({
+        text: disclosure,
+        evidenceIdsUsed: [notice.id],
+        claims: [{ text: disclosure, evidenceIds: [notice.id] }],
+        financialClaims: [],
+        unavailableFacts: [],
+      }),
+    }),
+  };
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [provider],
+    getCache: async () => null,
+    setCache: async () => {},
+  });
+  assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(result.fallback, true);
+  assert.equal(result.providerAttemptFailureCount, 1);
+  assert.equal(validation?.semanticCompletenessValid, false);
+  assert.deepEqual(validation?.semanticReasonCodes, ['CLAIM_EVIDENCE_RELEVANCE_INSUFFICIENT']);
+  assert.match(result.text, /Portfolio rebalancing means/);
+  assert.ok(result.citations.some(source => source.citation_id === 'E_EDU_REBALANCING'));
+});
