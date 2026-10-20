@@ -179,7 +179,7 @@ function citationFor(entry) {
 }
 
 function deterministicCandidate(packet) {
-  const preferredKinds = ['EDUCATION', 'SUITABILITY', 'RECOMMENDATION', 'PRODUCT_FACT', 'MARKET_CONTEXT', 'PROJECTION'];
+  const preferredKinds = ['EDUCATION', 'TAX', 'ANSWER_BOUNDARY', 'SUITABILITY', 'RECOMMENDATION', 'PRODUCT_FACT', 'MARKET_CONTEXT', 'PROJECTION'];
   const selected = [];
   for (const kind of preferredKinds) {
     const evidence = packet.entries.find(item => item.kind === kind && item.displayValue);
@@ -190,7 +190,7 @@ function deterministicCandidate(packet) {
   const claims = selected.filter(Boolean).map(item => ({
     // Curated educational claims can be reproduced verbatim: this remains
     // useful without an LLM and still goes through the grounding validator.
-    text: item.kind === 'EDUCATION'
+    text: ['EDUCATION', 'TAX', 'ANSWER_BOUNDARY'].includes(item.kind)
       ? `${item.displayValue} [${item.id}]`
       : `The authoritative backend reports ${item.kind.toLowerCase().replace(/_/g, ' ')} evidence [${item.id}]`,
     evidenceIds: [item.id],
@@ -722,11 +722,30 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     unavailableFacts.push('SPECIFIC_MUTUAL_FUND_PRODUCT_EVIDENCE_REQUIRES_WHERE_TO_INVEST_SELECTION');
   }
 
-  return buildGroundedEvidencePacket({
+  const financialEvidence = {
     question,
     profile,
     recommendation: recommendationRelevant ? recommendation : null,
     additionalEntries: entries,
     unavailableFacts,
+  };
+  const packet = buildGroundedEvidencePacket(financialEvidence);
+  if (packet.entries.some(item => item.id !== 'E_REGULATORY_NOTICE')) return packet;
+
+  // The legal disclaimer alone is not a relevant answer. When no qualified
+  // material exists, cite the backend's own availability determination and
+  // explicitly abstain rather than disguising the disclaimer as knowledge.
+  return buildGroundedEvidencePacket({
+    ...financialEvidence,
+    additionalEntries: [
+      ...entries,
+      makeEvidenceEntry('E_CHAT_ANSWER_UNAVAILABLE', 'ANSWER_BOUNDARY',
+        'I do not have enough qualified evidence to answer this question reliably. Ask about a supported investing concept or consult the relevant official source.', {
+          dataClass: 'SYSTEM_AVAILABILITY_STATUS',
+          displayValue: 'I do not have enough qualified evidence to answer this question reliably. Ask about a supported investing concept or consult the relevant official source.',
+          authority: 'WEALTHGENIE_BACKEND',
+        }),
+    ],
+    unavailableFacts: [...unavailableFacts, 'CHAT_ANSWER_EVIDENCE_UNAVAILABLE'],
   });
 }
