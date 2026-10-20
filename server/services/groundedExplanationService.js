@@ -22,6 +22,7 @@ import {
   getInstrumentModelAssumptions,
 } from './marketDataService.js';
 import { compareVerifiedFixedIncomeProducts } from './fixedIncomeProductRanking.js';
+import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
 import { PrometheusMetrics } from './metricsCollector.js';
 import { getProviderOutputContract, validateProviderOutputContract } from './providerOutputContracts.js';
 
@@ -176,7 +177,7 @@ function citationFor(entry) {
 }
 
 function deterministicCandidate(packet) {
-  const preferredKinds = ['SUITABILITY', 'RECOMMENDATION', 'PRODUCT_FACT', 'MARKET_CONTEXT', 'PROJECTION'];
+  const preferredKinds = ['EDUCATION', 'SUITABILITY', 'RECOMMENDATION', 'PRODUCT_FACT', 'MARKET_CONTEXT', 'PROJECTION'];
   const selected = [];
   for (const kind of preferredKinds) {
     const evidence = packet.entries.find(item => item.kind === kind && item.displayValue);
@@ -185,7 +186,11 @@ function deterministicCandidate(packet) {
   }
   if (selected.length === 0) selected.push(packet.entries.find(item => item.id === 'E_REGULATORY_NOTICE'));
   const claims = selected.filter(Boolean).map(item => ({
-    text: `The authoritative backend reports ${item.kind.toLowerCase().replace(/_/g, ' ')} evidence [${item.id}]`,
+    // Curated educational claims can be reproduced verbatim: this remains
+    // useful without an LLM and still goes through the grounding validator.
+    text: item.kind === 'EDUCATION'
+      ? `${item.displayValue} [${item.id}]`
+      : `The authoritative backend reports ${item.kind.toLowerCase().replace(/_/g, ' ')} evidence [${item.id}]`,
     evidenceIds: [item.id],
   }));
   return {
@@ -639,7 +644,9 @@ const GOVERNMENT_QUERY_TO_PARENT = Object.freeze([
 ]);
 
 export async function buildChatEvidencePacket({ question, profile, recommendation }, dependencies = {}) {
-  const entries = [];
+  // General education comes from an allowlisted, reviewed reference corpus.
+  // It never supplies user-specific allocations, tax rules or product rates.
+  const entries = retrieveChatEducationalEvidence(question);
   const unavailableFacts = [];
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
   if (/market context|cautious|risk.off|high.volatility|nifty|india vix/i.test(question)) {
