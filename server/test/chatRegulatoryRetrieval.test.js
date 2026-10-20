@@ -131,7 +131,7 @@ test('qualified statutory commencement remains useful without any model provider
   });
   assert.equal(result.fallback, true);
   assert.equal(result.validation.status, 'PASS');
-  assert.match(result.text, /Income-tax Rules, 2026 took effect on 1 April 2026/);
+  assert.match(result.text, /Income-tax Rules, 2026 took effect on 2026-04-01/);
   assert.ok(result.citations.some(c => c.evidence_class === 'OFFICIAL_CORPUS_EXCERPT'));
 });
 
