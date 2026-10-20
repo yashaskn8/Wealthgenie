@@ -24,7 +24,7 @@ import { fromSearchParams, toSearchParams, resolveNavigation, NAV_PAGES } from '
 const WhereToInvestScreen = lazy(() => import('./components/WhereToInvestScreen'));
 const TaxesHub = lazy(() => import('./components/TaxesHub'));
 const ProgressHub = lazy(() => import('./components/ProgressHub'));
-const GenieProofPanel = lazy(() => import('./components/GenieProofPanel'));
+const GenieProofEntry = lazy(() => import('./components/GenieProofEntry'));
 const AllocationPlanner = lazy(() => import('./components/AllocationPlanner'));
 const ProfileEditor = lazy(() => import('./ProfileEditor'));
 const HelpTourScreen = lazy(() => import('./HelpTourScreen'));
@@ -33,9 +33,7 @@ const ComparisonTableModal = lazy(() => import('./ComparisonTableModal'));
 const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const AuthPage = lazy(() => import('./components/AuthPage'));
 const LandingPage = lazy(() => import('./LandingPage'));
-// Keep the navigation discoverable, without enabling a gated backend capability.
-const GENIEPROOF_INTERACTIVE_PREVIEW_ENABLED = !import.meta.env.PROD
-  && import.meta.env.VITE_GENIEPROOF_ENABLED === 'true';
+// Navigation is discoverable; authenticated backend readiness gates operations.
 const NAVIGATION_OPTIONS = { allowGenieProof: true };
 
 // ── Bounded retry helper for deferred advisory generation ──
@@ -858,24 +856,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
       case NAV_PAGES.GENIEPROOF:
         return (
           <ErrorBoundary>
-            {GENIEPROOF_INTERACTIVE_PREVIEW_ENABLED ? (
-              <GenieProofPanel />
-            ) : (
-              <section aria-labelledby="genieproof-preview-title" style={{
-                maxWidth: 900, margin: '32px auto', padding: 24,
-                border: '1px solid rgba(148, 163, 184, 0.3)', borderRadius: 12,
-              }}>
-                <h1 id="genieproof-preview-title">GenieProof</h1>
-                <p role="status">
-                  GenieProof is a research preview. Claim inspection, monitoring and signed
-                  passports are not enabled in this environment.
-                </p>
-                <p>
-                  These operations require an explicitly configured local development backend
-                  and signing keys. No claim has been checked.
-                </p>
-              </section>
-            )}
+            <GenieProofEntry />
           </ErrorBoundary>
         );
       case NAV_PAGES.ACCOUNT:
