@@ -90,6 +90,8 @@ body {
   overflow: hidden;
 
   opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
   transform: translateY(30px);
   transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo), box-shadow 0.4s ease;
 }
@@ -128,7 +130,14 @@ body {
 
 .glass-card.visible {
   opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
   transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card { transition: none; }
+  #bg-video { display: none; }
 }
 
 /* Form Toggling */

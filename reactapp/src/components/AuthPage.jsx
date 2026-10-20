@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logoImg from '../assets/logo.png';
@@ -8,8 +8,20 @@ import { useAuth } from '../context/AuthContext';
 function AuthPage() {
   const [activeView, setActiveView] = useState('login');
   const [showPopup, setShowPopup] = useState(false);
+  const [skipIntro] = useState(() => Boolean(
+    window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+    || window.navigator?.connection?.saveData,
+  ));
+  const [introComplete, setIntroComplete] = useState(skipIntro);
   const navigate = useNavigate();
   const { login, register } = useAuth();
+
+  useEffect(() => {
+    if (introComplete) return undefined;
+    // Playback can be blocked or stall. The form must remain reachable.
+    const fallback = window.setTimeout(() => setIntroComplete(true), 12000);
+    return () => window.clearTimeout(fallback);
+  }, [introComplete]);
 
   // ===== Registration State =====
   const [regName, setRegName] = useState('');
@@ -143,14 +155,29 @@ function AuthPage() {
     <>
       <div className="video-container">
         <div className="overlay"></div>
-        <video autoPlay muted playsInline aria-hidden="true" id="bg-video">
+        <video
+          autoPlay={!skipIntro}
+          muted
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+          id="bg-video"
+          onEnded={() => setIntroComplete(true)}
+          onError={() => setIntroComplete(true)}
+          onAbort={() => setIntroComplete(true)}
+        >
           <source src={genieVideo} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </div>
 
       <main className="ui-layer">
-        <div className="glass-card login-card visible" id="login-container">
+        <div
+          className={`glass-card login-card${introComplete ? ' visible' : ''}`}
+          id="login-container"
+          aria-hidden={!introComplete}
+          inert={!introComplete}
+        >
           <div className="card-header">
             <div className="logo-icon">
               <img src={logoImg} alt="Wealth Genie Logo" />
