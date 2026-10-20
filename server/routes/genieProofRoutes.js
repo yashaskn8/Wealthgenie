@@ -115,7 +115,7 @@ router.post('/extract-preview', verifyJWT, genieProofLimiter, validateStrict(gen
   const result = buildGenieProofClaimPreview(req.body.offerText);
   if (!result.ok) throw createError(400, result.code, 'The offer text could not be processed.', { code: result.code });
   return res.json(result);
-});
+}));
 
 router.post('/extract', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
   requireEnabled(req);
