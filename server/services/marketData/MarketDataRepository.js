@@ -2,6 +2,12 @@ import mongoose from 'mongoose';
 import InvestmentProduct from '../../models/InvestmentProduct.js';
 import MarketObservation from '../../models/MarketObservation.js';
 import { AVAILABILITY } from './contracts.js';
+import {
+  benchmarkQuoteIdentityAllowed,
+  benchmarkQuoteIndexesReady,
+  benchmarkQuoteSourceAllowed,
+  benchmarkQuoteStorageConfig,
+} from './StoredBenchmarkQuoteStore.js';
 
 export const MARKET_HISTORY_CANDLE_KIND = 'MARKET_HISTORY_CANDLE';
 export const MARKET_CONTEXT_SNAPSHOT_KIND = 'MARKET_CONTEXT_SNAPSHOT';
@@ -26,45 +32,68 @@ export function buildProductOperations(snapshot) {
   }));
 }
 
-export function buildObservationOperations(snapshot) {
+export function buildObservationOperations(snapshot, {
+  env = process.env, now = new Date(), rightsCheck,
+} = {}) {
+  const quoteConfig = benchmarkQuoteStorageConfig(env);
   return (snapshot?.facts || [])
     .filter(fact => fact.availabilityStatus === AVAILABILITY.AVAILABLE
       && Number.isFinite(fact.value) && fact.observedAt && fact.fetchedAt)
-    .map(fact => ({
-      updateOne: {
-        filter: {
-          kind: fact.kind,
-          'source.provider': fact.source.provider,
-          'source.instrumentId': fact.source.instrumentId,
-          observedAt: new Date(fact.observedAt),
-        },
-        update: {
-          $set: {
+    .filter(fact => {
+      if (fact.kind !== 'MARKET_QUOTE') return true;
+      const fetchedAt = new Date(fact.fetchedAt);
+      const observedAt = new Date(fact.observedAt);
+      return quoteConfig.enabled && benchmarkQuoteIdentityAllowed(fact)
+        && benchmarkQuoteSourceAllowed(fact, { env, rightsCheck })
+        && fact.value > 0 && fact.dataClass === 'LIVE'
+        && Number.isFinite(fetchedAt.getTime()) && fetchedAt <= now
+        && Number.isFinite(observedAt.getTime()) && observedAt <= fetchedAt
+        && observedAt.getTime() + quoteConfig.retentionSeconds * 1000 > now.getTime();
+    })
+    .map(fact => {
+      const isQuote = fact.kind === 'MARKET_QUOTE';
+      const observedAt = new Date(fact.observedAt);
+      const fields = {
             schemaVersion: fact.schemaVersion,
             kind: fact.kind,
             canonicalProductId: fact.canonicalProductId,
             value: fact.value,
             currency: fact.currency,
             unit: fact.unit,
-            observedAt: new Date(fact.observedAt),
+            observedAt,
             providerTimestamp: fact.providerTimestamp ? new Date(fact.providerTimestamp) : null,
             effectiveTradingDate: fact.effectiveTradingDate ?? null,
             effectiveFrom: fact.effectiveFrom ?? null,
             effectiveTo: fact.effectiveTo ?? null,
             publicationDate: fact.publicationDate ?? null,
             lastFetchedAt: new Date(fact.fetchedAt),
+            ...(isQuote ? {
+              retainedUntil: new Date(observedAt.getTime()
+                + quoteConfig.retentionSeconds * 1000),
+            } : {}),
             dataClass: fact.dataClass ?? null,
             semanticClass: fact.semanticClass ?? 'OBSERVED',
             availabilityStatus: AVAILABILITY.AVAILABLE,
             freshness: fact.freshness,
             source: fact.source,
             metrics: fact.metrics,
-          },
-          $setOnInsert: { firstFetchedAt: new Date(fact.fetchedAt) },
+      };
+      return { updateOne: {
+        filter: {
+          kind: fact.kind,
+          'source.provider': fact.source.provider,
+          'source.instrumentId': fact.source.instrumentId,
+          observedAt,
+          // The unique observation index turns a changed value into an
+          // explicit duplicate-key conflict instead of replacing old evidence.
+          ...(isQuote ? { value: fact.value } : {}),
         },
+        update: isQuote
+          ? { $setOnInsert: { ...fields, firstFetchedAt: new Date(fact.fetchedAt) } }
+          : { $set: fields, $setOnInsert: { firstFetchedAt: new Date(fact.fetchedAt) } },
         upsert: true,
-      },
-    }));
+      } };
+    });
 }
 
 export function buildHistoryObservationOperations(snapshot) {
@@ -199,10 +228,30 @@ async function persistVerifiedMarketSnapshotOnce(
   }
 
   const productOperations = buildProductOperations(snapshot);
-  const observationOperations = [
+  let observationOperations = [
     ...buildObservationOperations(snapshot),
     ...buildHistoryObservationOperations(snapshot),
   ];
+  const hasQuoteOperations = observationOperations.some(operation => (
+    (operation.updateOne.update.$set || operation.updateOne.update.$setOnInsert).kind === 'MARKET_QUOTE'
+  ));
+  if (hasQuoteOperations && ObservationModel === MarketObservation
+      && !(await benchmarkQuoteIndexesReady(ObservationModel))) {
+    observationOperations = observationOperations.filter(operation => (
+      (operation.updateOne.update.$set || operation.updateOne.update.$setOnInsert).kind !== 'MARKET_QUOTE'
+    ));
+  }
+  if (!productOperations.length && !observationOperations.length) {
+    const quoteOnly = Array.isArray(snapshot?.facts) && snapshot.facts.length > 0
+      && snapshot.facts.every(fact => fact.kind === 'MARKET_QUOTE');
+    const quoteConfig = benchmarkQuoteStorageConfig();
+    return { status: 'NOT_PERSISTED',
+      ...(quoteOnly ? { code: hasQuoteOperations
+        ? 'MARKET_BENCHMARK_QUOTE_INDEXES_UNVERIFIED'
+        : quoteConfig.enabled ? 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'
+          : 'MARKET_BENCHMARK_QUOTE_STORAGE_NOT_CONFIGURED' } : {}),
+      productWrites: 0, observationWrites: 0 };
+  }
   const batchSize = 1000;
   for (let offset = 0; offset < productOperations.length; offset += batchSize) {
     await ProductModel.bulkWrite(productOperations.slice(offset, offset + batchSize), { ordered: false });

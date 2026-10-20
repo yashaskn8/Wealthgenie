@@ -22,6 +22,7 @@
   "test/planReviewMandateMongo.integration.test.js",
   "test/profileCompletion.integration.test.js",
   "test/proofBreakWorkerMongo.integration.test.js",
+  "test/qualifiedEquityHistoryMongo.integration.test.js",
   "test/rbacRole.test.js",
   "test/recommendationAllocationRevisionBehavior.test.js",
   "test/recommendationAuditProvenanceRoutes.test.js",

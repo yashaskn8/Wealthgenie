@@ -16,7 +16,8 @@ async function main() {
     await MarketEquityDailyBar.createCollection();
     await MarketEquityDailyBar.createIndexes();
     const indexes = await MarketEquityDailyBar.collection.indexes();
-    for (const name of ['unique_qualified_equity_daily_bar', 'expire_qualified_equity_daily_bar']) {
+    for (const name of ['unique_qualified_equity_daily_bar', 'expire_qualified_equity_daily_bar',
+      'qualified_equity_history_batch_read']) {
       if (!indexes.some(index => index.name === name)) throw new Error('INDEX_MISSING:' + name);
     }
     process.stdout.write('Qualified EOD indexes verified; existing collections untouched.\n');

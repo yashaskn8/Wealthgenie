@@ -5,12 +5,14 @@ import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLim
 import { createUpstoxPublicDataGate } from '../middleware/upstoxPublicDataGate.js';
 import { fetchPrivateMarketDemoData, fetchUpstoxCanonicalQuotes } from '../services/marketDataService.js';
 import { createPrivateMarketDataDemoCapability } from '../services/marketData/marketDataRights.js';
+import { readStoredBenchmarkQuotes } from '../services/marketData/StoredBenchmarkQuoteStore.js';
 import { resolveUpstoxQuoteIdentities } from '../services/marketData/upstoxInstrumentRegistry.js';
 import { validateQuery, marketQuoteQuerySchema } from '../validation/schemas.js';
 
 export function createMarketQuotesRouter({
   fetchQuotes = fetchUpstoxCanonicalQuotes,
   fetchPrivateDemo = fetchPrivateMarketDemoData,
+  readStoredQuotes = readStoredBenchmarkQuotes,
   verifySession = verifyJWT,
   createDemoCapability = createPrivateMarketDataDemoCapability,
   privateDemoLimiter: injectedPrivateDemoLimiter = null,
@@ -42,6 +44,20 @@ export function createMarketQuotesRouter({
     res.set('Pragma', 'no-cache');
     const data = await fetchPrivateDemo({ env, privateDemoCapability });
     return res.json(data);
+  }));
+
+  router.get('/quotes/persisted', verifySession, limiter, asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    if (Object.keys(req.query).length) {
+      return sendError(req, res, 400, 'Stored benchmark quotes do not accept query parameters.',
+        'INVALID_STORED_MARKET_QUOTE_REQUEST');
+    }
+    try {
+      return res.json(await readStoredQuotes({ env }));
+    } catch {
+      return sendError(req, res, 503, 'Stored benchmark quotes are temporarily unavailable.',
+        'STORED_MARKET_QUOTES_UNAVAILABLE');
+    }
   }));
 
   router.get(

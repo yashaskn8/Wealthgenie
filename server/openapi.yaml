@@ -716,6 +716,19 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /api/market-data/quotes/persisted:
+    get:
+      operationId: getAuthorizedPersistedBenchmarkQuotes
+      tags: [Market]
+      summary: Read retained NIFTY 50 and India VIX observations
+      description: Authenticated, read-only MongoDB retrieval. Requires explicit bounded retention configuration, an unexpired record, exact benchmark identity and current provider source rights. Freshness is recalculated at read time; a stale authorized value is labelled last observed. The request never calls a market provider.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/market-data/private-demo:
     get:
       operationId: getAuthenticatedPrivateMarketDataDemo

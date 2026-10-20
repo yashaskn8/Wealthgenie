@@ -9,6 +9,8 @@ import {
   MARKET_CONTEXT_OPEN_REFRESH_MS,
   collectAmfiPersistenceFailures,
   refreshAmfiSnapshots,
+  qualifiedEquityRefreshTargets,
+  refreshQualifiedEquityHistoryTargets,
   withMarketRefreshLease,
 } from '../jobs/marketDataRefresh.js';
 import {
@@ -35,6 +37,65 @@ test('scheduled market refresh remains on by default and can be disabled for iso
   assert.equal(marketDataRefreshJobsEnabled(undefined), true);
   assert.equal(marketDataRefreshJobsEnabled('true'), true);
   assert.equal(marketDataRefreshJobsEnabled('false'), false);
+});
+
+test('scheduled equity history requires explicit storage and a bounded validated target allowlist', () => {
+  const enabled = { MARKET_EQUITY_HISTORY_STORE_ENABLED: 'true',
+    MARKET_EQUITY_HISTORY_RETENTION_DAYS: '30' };
+  const targets = JSON.stringify([{ exchange: 'nse', symbol: 'RELIANCE', isin: 'INE002A01018' }]);
+  assert.deepEqual(qualifiedEquityRefreshTargets({ ...enabled,
+    MARKET_EQUITY_HISTORY_STORE_ENABLED: 'false', MARKET_EQUITY_HISTORY_TARGETS: targets }), []);
+  assert.deepEqual(qualifiedEquityRefreshTargets({ ...enabled, MARKET_EQUITY_HISTORY_TARGETS: targets }), [
+    { exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018', basis: 'RAW' },
+  ]);
+  assert.throws(() => qualifiedEquityRefreshTargets({ ...enabled,
+    MARKET_EQUITY_HISTORY_TARGETS: '{bad-json' }), /valid JSON/);
+  assert.throws(() => qualifiedEquityRefreshTargets({ ...enabled,
+    MARKET_EQUITY_HISTORY_TARGETS: JSON.stringify([{ exchange: 'NSE', symbol: 'RELIANCE',
+      isin: 'INE002A01018', apiKey: 'must-not-be-accepted' }]) }), /invalid instrument/);
+  assert.throws(() => qualifiedEquityRefreshTargets({ ...enabled,
+    MARKET_EQUITY_HISTORY_TARGETS: JSON.stringify(Array.from({ length: 11 }, () => ({
+      exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
+    }))) }), /at most 10/);
+});
+
+test('scheduled equity history persists only qualified snapshots and reports rights failures truthfully', async () => {
+  const env = { MARKET_EQUITY_HISTORY_STORE_ENABLED: 'true',
+    MARKET_EQUITY_HISTORY_RETENTION_DAYS: '30',
+    MARKET_EQUITY_HISTORY_TARGETS: JSON.stringify([
+      { exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018' },
+      { exchange: 'NSE', symbol: 'INFY', isin: 'INE009A01021', basis: 'ADJUSTED' },
+    ]) };
+  const requests = [];
+  const writes = [];
+  const warnings = [];
+  const summary = await refreshQualifiedEquityHistoryTargets({
+    env, now: new Date('2026-10-19T17:30:00.000Z'),
+    fetchHistory: async request => {
+      requests.push(request);
+      return request.symbol === 'INFY'
+        ? { status: 'UNAVAILABLE', error: { code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' } }
+        : { status: 'AVAILABLE', provider: 'UPSTOX', candles: [{ close: 100 }] };
+    },
+    persistHistory: async (_snapshot, request) => {
+      writes.push(request);
+      return { status: 'PERSISTED' };
+    },
+    log: { info: () => assert.fail('partial run cannot log success'),
+      warn: (_message, fields) => warnings.push(fields) },
+  });
+  assert.equal(summary.status, 'PARTIAL');
+  assert.equal(summary.attempted, 2);
+  assert.equal(summary.persisted, 1);
+  assert.deepEqual(summary.failures, [{ provider: null, code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' }]);
+  assert.equal(writes.length, 1);
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests.map(({ fromDate, toDate, forceRefresh }) => ({ fromDate, toDate, forceRefresh })), [
+    { fromDate: '2026-10-13', toDate: '2026-10-19', forceRefresh: true },
+    { fromDate: '2026-10-13', toDate: '2026-10-19', forceRefresh: true },
+  ]);
+  assert.equal(warnings.length, 1);
+  assert.equal(JSON.stringify(warnings).includes('candles'), false);
 });
 
 test('disabled market refresh startup schedules no timers or provider work', () => {

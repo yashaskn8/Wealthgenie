@@ -5,7 +5,7 @@ import './PrivateMarketDataDemo.css';
 
 function quoteText(fact) {
   const value = nullableMarketNumber(fact?.value);
-  if (fact?.availabilityStatus !== 'AVAILABLE' || value === null) return 'Unavailable';
+  if (fact?.availabilityStatus !== 'AVAILABLE' || value === null) return null;
   return value.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
 
@@ -70,19 +70,22 @@ export default function PrivateMarketDataDemo() {
               <span>{snapshot.upstox?.status || 'UNAVAILABLE'}</span>
             </div>
             <div className="private-market-demo__quotes">
-              {quotes.map(fact => (
-                <div key={fact.canonicalProductId} data-testid={`private-quote-${fact.canonicalProductId}`}>
-                  <span>{quoteName(fact)}</span>
-                  <strong>{fact.availabilityStatus === 'AVAILABLE'
-                    ? `${quoteText(fact)} ${fact.unit === 'INDEX_POINTS' ? 'pts' : fact.currency || ''}`
-                    : 'Unavailable'}</strong>
-                  <small>Last trade: {formatMarketTimestamp(fact.quoteLastTradeAt || fact.observedAt) || 'Unavailable'}</small>
-                  <small>Provider response: {formatMarketTimestamp(fact.quoteResponseGeneratedAt) || 'Unavailable'}</small>
-                  <small>Fetched: {formatMarketTimestamp(fact.providerResponseReceivedAt || fact.fetchedAt) || 'Unavailable'}</small>
-                  <small>{fact.freshness?.status || 'UNKNOWN'}
-                    {Number.isFinite(fact.freshness?.ageSeconds) ? ` · ${fact.freshness.ageSeconds}s since trade` : ''}</small>
-                </div>
-              ))}
+              {quotes.map(fact => {
+                const value = quoteText(fact);
+                return (
+                  <div key={fact.canonicalProductId} data-testid={`private-quote-${fact.canonicalProductId}`}>
+                    <span>{quoteName(fact)}</span>
+                    <strong>{value === null
+                      ? 'Unavailable'
+                      : `${value} ${fact.unit === 'INDEX_POINTS' ? 'pts' : fact.currency || ''}`}</strong>
+                    <small>Last trade: {formatMarketTimestamp(fact.quoteLastTradeAt || fact.observedAt) || 'Unavailable'}</small>
+                    <small>Provider response: {formatMarketTimestamp(fact.quoteResponseGeneratedAt) || 'Unavailable'}</small>
+                    <small>Fetched: {formatMarketTimestamp(fact.providerResponseReceivedAt || fact.fetchedAt) || 'Unavailable'}</small>
+                    <small>{fact.freshness?.status || 'UNKNOWN'}
+                      {Number.isFinite(fact.freshness?.ageSeconds) ? ` · ${fact.freshness.ageSeconds}s since trade` : ''}</small>
+                  </div>
+                );
+              })}
               {quotes.length === 0 && <span>No quote observations returned.</span>}
             </div>
           </div>

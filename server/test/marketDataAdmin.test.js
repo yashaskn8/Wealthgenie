@@ -102,6 +102,7 @@ test('Upstox NSE primary history requires exact qualified-calendar session cover
   let tejCalls = 0;
   const validPrimary = {
     status: 'AVAILABLE', provider: 'UPSTOX', instrumentKey: 'NSE_EQ|INE002A01018',
+    source: { provider: 'UPSTOX', url: 'https://api.upstox.com/v3/historical-candle/NSE_EQ%7CINE002A01018/days/1/2026-10-09/2026-10-08' },
     candles: [
       { timestamp: '2026-10-08T10:00:00.000Z', open: 100, high: 110, low: 99, close: 105, volume: 100 },
       { timestamp: '2026-10-09T10:00:00.000Z', open: 105, high: 112, low: 104, close: 111, volume: 120 },
@@ -125,6 +126,10 @@ test('Upstox NSE primary history requires exact qualified-calendar session cover
   assert.equal(direct.coverage.status, 'COMPLETE_FOR_NSE_WEEKDAY_HOLIDAY_CALENDAR');
   assert.equal(direct.coverage.expectedSessionCount, 2);
   assert.equal(direct.coverage.observedSessionCount, 2);
+  assert.deepEqual(direct.qualificationSourceUrls, [
+    { provider: 'UPSTOX', url: validPrimary.source.url },
+    { provider: 'NSE', url: NSE_TRADING_HOLIDAY_URL },
+  ]);
   assert.equal(tejCalls, 0);
   assert.deepEqual(direct.instrumentIdentity, {
     exchange: 'NSE', symbol: null, isin: request.isin,
@@ -313,6 +318,7 @@ test('TejHQ fallback rejects publication lag, wrong identity, and missing sessio
     status: 'AVAILABLE',
     exchange,
     isin,
+    source: { provider: 'TEJHQ', url: 'https://api.tejhq.dev/v1/symbols/nse?isin=INE002A01018' },
     intervals: intervals || [{
       exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE',
       validFrom: '2010-01-01', validTo: '2026-10-09',
@@ -329,12 +335,14 @@ test('TejHQ fallback rejects publication lag, wrong identity, and missing sessio
         getSymbolHistory: async () => symbols,
         getStatus: async () => ({
           provider: 'TEJHQ', status: 'AVAILABLE',
+          source: { provider: 'TEJHQ', url: 'https://api.tejhq.dev/v1/status' },
           publication: { datasetTradingDate: publicationDate },
         }),
         getRawHistory: async options => {
           rawHistoryCalls += 1;
           return {
             status: 'AVAILABLE', provider: 'TEJHQ',
+            source: { provider: 'TEJHQ', url: `https://api.tejhq.dev/v1/ohlcv/nse/${options.symbol}?from=${options.fromDate}&to=${options.toDate}` },
             instrumentIdentity: { exchange: options.exchange, tradingSymbol: options.symbol, isin: options.isin },
             candles: dates.filter(date => date >= options.fromDate && date <= options.toDate).map((date, index) => ({
               date, open: 100 + index, high: 110 + index, low: 99 + index, close: 105 + index, volume: 100 + index,
@@ -374,6 +382,8 @@ test('TejHQ fallback rejects publication lag, wrong identity, and missing sessio
   assert.equal(renamed.result.status, 'AVAILABLE');
   assert.equal(renamed.rawHistoryCalls, 2);
   assert.equal(renamed.result.candles.length, 2);
+  assert.deepEqual(renamed.result.qualificationSourceUrls.map(entry => entry.provider),
+    ['NSE', 'TEJHQ', 'TEJHQ', 'TEJHQ', 'TEJHQ']);
 
   const missingSession = await runFallback({ dates: ['2026-10-08'] });
   assert.equal(missingSession.result.status, 'UNAVAILABLE');

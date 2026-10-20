@@ -211,7 +211,7 @@ export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
 
     const sourceUrl = sourceUrlFor(instrumentKey, normalizedToDate, normalizedFromDate);
     const accessToken = this.accessToken;
-    return this.requestCache({
+    const result = await this.requestCache({
       cacheKey: cacheKeyFor(instrumentKey, normalizedToDate, normalizedFromDate,
         upstoxCredentialCacheFingerprint(accessToken)),
       ttlSeconds: UPSTOX_HISTORY_CACHE_TTL_SECONDS,
@@ -249,5 +249,15 @@ export default class UpstoxHistoricalCandleProvider extends MarketDataProvider {
         }
       },
     });
+    if (result?.status !== AVAILABILITY.AVAILABLE) return result;
+    return {
+      ...result,
+      freshness: evaluateFreshness({
+        observedAt: result.observedAt,
+        fetchedAt: result.fetchedAt,
+        maxAgeSeconds: UPSTOX_DAILY_HISTORY_FRESHNESS_SECONDS,
+        now: this.clock(),
+      }),
+    };
   }
 }

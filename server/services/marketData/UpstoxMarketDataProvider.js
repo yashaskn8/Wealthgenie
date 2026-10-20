@@ -6,6 +6,7 @@ import {
   MARKET_DATA_SCHEMA_VERSION,
   PROVIDERS,
   createMarketFact,
+  evaluateFreshness,
   normalizeTimestamp,
 } from './contracts.js';
 import { buildUpstoxInstrumentIdentity } from './productIdentity.js';
@@ -273,8 +274,24 @@ export default class UpstoxMarketDataProvider extends MarketDataProvider {
         }
       },
     };
-    return privateDemoAllowed
+    const result = await (privateDemoAllowed
       ? requestOptions.loader()
-      : this.requestCache(requestOptions);
+      : this.requestCache(requestOptions));
+    // A cache hit retains the provider's source timestamps, but the age of
+    // each observation belongs to this read, not the original cache fill.
+    if (!Array.isArray(result?.facts)) return result;
+    const now = this.clock();
+    return {
+      ...result,
+      facts: result.facts.map(fact => ({
+        ...fact,
+        freshness: evaluateFreshness({
+          observedAt: fact.observedAt,
+          fetchedAt: fact.fetchedAt,
+          maxAgeSeconds: UPSTOX_QUOTE_FRESHNESS_SECONDS,
+          now,
+        }),
+      })),
+    };
   }
 }

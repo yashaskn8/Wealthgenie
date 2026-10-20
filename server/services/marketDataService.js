@@ -113,6 +113,17 @@ function productionRightsAllow(provider, urls, env = process.env, fixtureCapabil
   return urls.every(url => isMarketDataProductionUseAllowed(provider, url, env, fixtureCapability));
 }
 
+// Preserve every source used to qualify a durable history snapshot. A missing
+// URL remains explicit so storage can fail closed instead of forgetting a
+// calendar, identity, or publication dependency.
+function qualificationSourceEntries(source, provider) {
+  const urls = [source?.url, ...(Array.isArray(source?.requestUrls) ? source.requestUrls : [])];
+  return [...new Set(urls.length ? urls : [null])].map(url => ({
+    provider: source?.provider || provider,
+    url: url || null,
+  }));
+}
+
 function firstUnqualifiedRightsEndpoint(provider, urls, env = process.env) {
   return urls.find(url => !isMarketDataProductionUseAllowed(provider, url, env)) || null;
 }
@@ -452,6 +463,11 @@ export async function fetchQualifiedEquityHistory({
             provider: PROVIDERS.UPSTOX,
             dataClass: 'HISTORICAL_DAILY',
             priceBasis: 'UPSTOX_PROVIDER_NATIVE',
+            qualificationSourceUrls: [
+              ...qualificationSourceEntries(primarySnapshot.source, PROVIDERS.UPSTOX),
+              ...qualificationSourceEntries(calendarSnapshot.source,
+                twoProviderMode ? PROVIDERS.UPSTOX : PROVIDERS.NSE),
+            ],
             fallbackUsed: false,
             coverage: {
               status: twoProviderMode ? 'COMPLETE_FOR_UPSTOX_NSE_CALENDAR' : 'COMPLETE_FOR_NSE_WEEKDAY_HOLIDAY_CALENDAR',
@@ -648,6 +664,13 @@ export async function fetchQualifiedEquityHistory({
       // Preserve the actual qualified per-symbol requests across renames.
       requestUrls: qualifiedHistoryRequestUrls,
     },
+    qualificationSourceUrls: [
+      ...qualificationSourceEntries(calendarSnapshot.source,
+        twoProviderMode ? PROVIDERS.UPSTOX : PROVIDERS.NSE),
+      ...qualificationSourceEntries(symbolSnapshot.source, PROVIDERS.TEJHQ),
+      ...qualificationSourceEntries(providerStatus.source, PROVIDERS.TEJHQ),
+      ...qualifiedHistoryRequestUrls.map(url => ({ provider: PROVIDERS.TEJHQ, url })),
+    ],
     sourceAttribution: {
       provider: PROVIDERS.TEJHQ,
       sourceUrl: 'https://tejhq.dev/docs',

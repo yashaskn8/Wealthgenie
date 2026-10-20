@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { getBenchmarkMarketFacts, getStoredEquityHistory } from '../../services/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { getStoredBenchmarkMarketFacts, getStoredEquityHistory } from '../../services/api';
 
 const panelStyle = { border: '1px solid var(--ddm-border, #64748b55)',
   borderRadius: 12, padding: 16, marginBlock: 12 };
@@ -21,6 +21,7 @@ export default function QualifiedMarketEvidencePanel() {
   const [expanded, setExpanded] = useState(false);
   const [quotes, setQuotes] = useState(null);
   const [quoteError, setQuoteError] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const [query, setQuery] = useState({
     exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
     fromDate: todayMinus(30), toDate: todayMinus(2), basis: 'RAW',
@@ -28,25 +29,38 @@ export default function QualifiedMarketEvidencePanel() {
   const [history, setHistory] = useState(null);
   const [historyError, setHistoryError] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const historyController = useRef(null);
   useEffect(() => {
     if (!expanded) return undefined;
     const controller = new AbortController();
-    getBenchmarkMarketFacts({ signal: controller.signal, retries: 0 })
+    setQuotes(null);
+    setQuoteError(null);
+    setQuoteLoading(true);
+    getStoredBenchmarkMarketFacts({ signal: controller.signal, retries: 0 })
       .then(value => { if (!controller.signal.aborted) setQuotes(value); })
-      .catch(() => { if (!controller.signal.aborted) setQuoteError('Market quotes unavailable.'); });
+      .catch(() => { if (!controller.signal.aborted) setQuoteError('Stored market observations could not be read.'); })
+      .finally(() => { if (!controller.signal.aborted) setQuoteLoading(false); });
     return () => controller.abort();
   }, [expanded]);
+  useEffect(() => () => historyController.current?.abort(), []);
   async function loadHistory(event) {
     event.preventDefault();
+    historyController.current?.abort();
+    const controller = new AbortController();
+    historyController.current = controller;
     setHistoryLoading(true);
     setHistoryError(null);
     setHistory(null);
     try {
-      setHistory(await getStoredEquityHistory(query));
+      const result = await getStoredEquityHistory(query, { signal: controller.signal, retries: 0 });
+      if (!controller.signal.aborted) setHistory(result);
     } catch {
-      setHistoryError('Qualified stored history is unavailable.');
+      if (!controller.signal.aborted) setHistoryError('Qualified stored history is unavailable.');
     } finally {
-      setHistoryLoading(false);
+      if (historyController.current === controller) {
+        historyController.current = null;
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      }
     }
   }
   const facts = Array.isArray(quotes?.facts) ? quotes.facts.filter(fact => (
@@ -59,30 +73,33 @@ export default function QualifiedMarketEvidencePanel() {
       data-testid="qualified-market-evidence">
       <button type="button" onClick={() => setExpanded(value => !value)}
         aria-expanded={expanded} aria-controls="market-evidence-content">
-        {expanded ? 'Hide' : 'View'} verified prices and saved history
+        {expanded ? 'Hide' : 'View'} stored prices and history
       </button>
       <p style={{ fontSize: '0.82rem', opacity: 0.8 }}>
-        Provider-backed observations only. No invented prices or portfolio changes.
+        Authorized stored provider observations only. No invented prices or portfolio changes.
       </p>
       {expanded && (
         <div id="market-evidence-content">
-          <h4>NIFTY 50 and India VIX — observed quotes</h4>
+          <h4>NIFTY 50 and India VIX — stored observations</h4>
+          {quoteLoading && <p role="status">Loading stored market observations…</p>}
           {quoteError && <p role="status">{quoteError}</p>}
-          {quotes?.status !== 'AVAILABLE' && quotes?.status !== 'PARTIAL' && (
-            <p>Market quotes not authorized or currently unavailable.</p>
+          {!quoteLoading && quotes && quotes.status !== 'AVAILABLE' && quotes.status !== 'PARTIAL' && (
+            <p>No authorized stored benchmark observations are available.</p>
           )}
+          {quotes?.status === 'PARTIAL' && <p role="status">Only some stored benchmark observations are available.</p>}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             {facts.map(fact => (
               <div key={fact.canonicalProductId} style={{ ...panelStyle, flex: '1 1 150px', margin: 0 }}>
                 <strong>{fact.canonicalProductId.endsWith('india-vix') ? 'India VIX' : 'NIFTY 50'}</strong>
                 <div>{fact.availabilityStatus === 'AVAILABLE' ? price(fact.value) : 'Unavailable'}</div>
                 <small>Source: {fact.source?.provider || quotes.provider || 'Unknown'}</small>
-                <div><small>Observed: {when(fact.observedAt)}</small></div>
+                <div><small>Provider observed: {when(fact.observedAt)}</small></div>
+                <div><small>Fetched: {when(fact.fetchedAt)}</small></div>
                 <div><small>Freshness: {fact.freshness?.status || 'UNKNOWN'}</small></div>
               </div>
             ))}
           </div>
-          <h4>Stored qualified equity history</h4>
+          <h4>Stored qualified daily equity history</h4>
           <p style={{ fontSize: '0.82rem' }}>Records appear only when retained with applicable
             provider permissions. Adjusted close and raw OHLC are distinct.</p>
           <form onSubmit={loadHistory} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
@@ -125,13 +142,16 @@ export default function QualifiedMarketEvidencePanel() {
               : 'No qualified retained history: ' + (history.code || 'UNAVAILABLE')}</p>
             {bars.length > 0 && <div style={{ overflowX: 'auto', maxHeight: 230, overflowY: 'auto' }}>
               <table style={{ minWidth: 590, width: '100%', textAlign: 'left' }}>
-                <thead><tr><th>Date</th><th>Provider</th><th>Basis</th><th>Open</th>
-                  <th>High</th><th>Low</th><th>Raw close</th><th>Adjusted close</th></tr></thead>
+                <thead><tr><th>Trading date</th><th>Provider</th><th>Basis</th><th>Open</th>
+                  <th>High</th><th>Low</th><th>Raw close</th><th>Adjusted close</th>
+                  <th>Volume</th><th>Provider observed</th><th>Fetched</th></tr></thead>
                 <tbody>{bars.slice(-50).reverse().map(bar => (
                   <tr key={[bar.tradingDate, bar.provider, bar.priceBasis].join(':')}>
                     <td>{bar.tradingDate}</td><td>{bar.provider}</td><td>{bar.priceBasis}</td>
                     <td>{price(bar.open)}</td><td>{price(bar.high)}</td><td>{price(bar.low)}</td>
                     <td>{price(bar.close)}</td><td>{price(bar.adjustedClose)}</td>
+                    <td>{price(bar.volume)}</td><td>{when(bar.providerObservedAt)}</td>
+                    <td>{when(bar.fetchedAt)}</td>
                   </tr>
                 ))}</tbody>
               </table>

@@ -606,6 +606,7 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
     return this.#fetch({
       operation: 'ohlcv', path, params: { from: request.fromDate, to: request.toDate }, request,
       privateDemoCapability: options.privateDemoCapability,
+      forceRefresh: options.forceRefresh === true,
       cacheTtlSeconds: cacheTtlFor(request, this.clock()),
       parse: (data, meta) => parseTejHqOhlcvEnvelope(data, { ...request, ...meta }),
       enabledFlag: 'TEJHQ_HISTORICAL_FALLBACK_ENABLED',
@@ -619,6 +620,7 @@ export default class TejHqHistoricalDataProvider extends MarketDataProvider {
     return this.#fetch({
       operation: 'adjusted', path, params: { from: request.fromDate, to: request.toDate }, request,
       keyed: true,
+      forceRefresh: options.forceRefresh === true,
       cacheTtlSeconds: TEJHQ_ADJUSTED_HISTORY_CACHE_TTL_SECONDS,
       parse: (data, meta) => parseTejHqAdjustedEnvelope(data, { ...request, ...meta }),
       enabledFlag: 'TEJHQ_ADJUSTED_HISTORY_ENABLED',

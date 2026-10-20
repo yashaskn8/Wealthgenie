@@ -37,7 +37,8 @@
     "migrate:phase5-agent-runtime": "node scripts/migratePhase5AgentRuntimeIndexes.js",
     "migrate:phase7-research-tasks": "node scripts/migrateResearchTaskIndexes.js",
     "migrate:genieproof-evidence": "node scripts/migrateGenieProofEvidenceRegistry.js",
-    "market:doctor": "node scripts/marketIntegrationDoctor.js"
+    "market:doctor": "node scripts/marketIntegrationDoctor.js",
+    "market:ensure-benchmark-quote-indexes": "node scripts/ensureBenchmarkQuoteIndexes.js"
   },
   "dependencies": {
     "@a2a-js/sdk": "1.2.0",

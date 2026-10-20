@@ -729,6 +729,11 @@ export async function getBenchmarkMarketFacts(options = {}) {
   return request('GET', '/market/benchmarks', null, options);
 }
 
+/** Read only authorized, retained benchmark observations from MongoDB. */
+export async function getStoredBenchmarkMarketFacts(options = {}) {
+  return request('GET', '/market-data/quotes/persisted', null, { retries: 0, ...options });
+}
+
 /** Qualified retained equity history; server independently rechecks provider rights. */
 export async function getStoredEquityHistory({
   exchange = 'NSE', symbol, isin, fromDate, toDate, basis = 'RAW',
@@ -1026,7 +1031,7 @@ const api = {
   setUserInfo, getUserInfo,
   buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, getFinancialHealthScore, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, extractGenieProofClaims, createGenieProofCase, listGenieProofCases, getGenieProofCase, verifyGenieProofCase, listGenieProofRevisions, reassessGenieProofCase, withdrawGenieProofConsent, getProofWatchAvailability, createProofWatch, listProofWatches, updateProofWatch, deleteProofWatch, listProofBreakEvents, acknowledgeProofBreakEvent, deleteGenieProofCase, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
   runMonteCarlo, runPortfolioMonteCarlo, createGoal, getGoals, updateGoal, simulateGoal, deleteGoal, healthCheck,
-  getMarketRates, getBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
+  getMarketRates, getBenchmarkMarketFacts, getStoredBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,
   updateRecommendationWeights, optimisePortfolio,
   computeTax, compareTax, getTaxPolicyMetadata, computeUserDeclaredPostTaxScenario, getCurrentMarketContext, getPrivateMarketDemoData, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,

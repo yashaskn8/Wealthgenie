@@ -225,14 +225,19 @@ describe('frontend API contracts', () => {
   it('bounds and encodes official benchmark and AMFI fact requests', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ provider: 'UPSTOX', facts: [] }))
+      .mockResolvedValueOnce(jsonResponse({ status: 'UNAVAILABLE', facts: [] }))
       .mockResolvedValueOnce(jsonResponse({ provider: 'AMFI', facts: [] }));
     vi.stubGlobal('fetch', fetchMock);
+    api.setAuthToken('stored-market-token');
 
     await api.getBenchmarkMarketFacts();
+    await api.getStoredBenchmarkMarketFacts();
     await api.getMutualFundNavFacts(['123', '123', '456']);
 
     expect(fetchMock.mock.calls[0][0]).toMatch(/\/api\/market\/benchmarks$/);
-    expect(fetchMock.mock.calls[1][0]).toMatch(/\/api\/market\/mutual-funds\/nav\?schemeCodes=123%2C456$/);
+    expect(fetchMock.mock.calls[1][0]).toMatch(/\/api\/market-data\/quotes\/persisted$/);
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer stored-market-token');
+    expect(fetchMock.mock.calls[2][0]).toMatch(/\/api\/market\/mutual-funds\/nav\?schemeCodes=123%2C456$/);
     expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
     await expect(api.getMutualFundNavFacts([])).rejects.toThrow(/1-50/);
     await expect(api.getMutualFundNavFacts(['not-a-code'])).rejects.toThrow(/numeric/);

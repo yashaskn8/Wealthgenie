@@ -86,4 +86,22 @@ describe('PrivateMarketDataDemo', () => {
     expect(screen.getByText(/INFY latest returned close:/).textContent).toContain('1,534.2 on 2026-10-16');
     expect(screen.getByText(/Trading date: 2026-10-16/)).toBeInTheDocument();
   });
+
+  it('does not attach a price unit to a malformed available quote', async () => {
+    getPrivateMarketDemoData.mockResolvedValue({
+      persistence: 'NOT_PERSISTED',
+      upstox: { status: 'PARTIAL', facts: [{
+        canonicalProductId: 'market:index:india-vix',
+        availabilityStatus: 'AVAILABLE', value: null, unit: 'INDEX_POINTS',
+      }] },
+      tejHq: { status: 'UNAVAILABLE', candles: [] },
+    });
+
+    render(<PrivateMarketDataDemo />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load provider data' }));
+
+    const quote = await screen.findByTestId('private-quote-market:index:india-vix');
+    expect(within(quote).getByText('Unavailable')).toBeInTheDocument();
+    expect(within(quote).queryByText(/Unavailable pts/)).not.toBeInTheDocument();
+  });
 });

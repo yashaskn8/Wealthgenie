@@ -44,6 +44,9 @@ const marketObservationSchema = new mongoose.Schema({
   publicationDate: { type: String, default: null },
   firstFetchedAt: { type: Date, required: true },
   lastFetchedAt: { type: Date, required: true },
+  // Optional for legacy facts; only explicitly retained benchmark quotes carry
+  // a deadline. MongoDB TTL ignores absent and null values.
+  retainedUntil: { type: Date, default: null },
   dataClass: { type: String, enum: ['LIVE', 'DELAYED', 'DAILY', 'QUARTERLY_OFFICIAL_RATE', 'OFFICIAL_BANK_PUBLISHED_RATE', 'OFFICIAL_RBI_FLOATING_COUPON_RATE'], default: null },
   semanticClass: { type: String, enum: ['OBSERVED', 'DERIVED', 'POLICY_OUTPUT'], default: 'OBSERVED' },
   availabilityStatus: { type: String, enum: ['AVAILABLE'], required: true },
@@ -66,5 +69,9 @@ marketObservationSchema.index(
   { unique: true, name: 'unique_verified_market_observation' },
 );
 marketObservationSchema.index({ kind: 1, observedAt: -1 });
+marketObservationSchema.index({ kind: 1, canonicalProductId: 1, 'source.provider': 1, observedAt: -1 },
+  { name: 'latest_retained_benchmark_quote' });
+marketObservationSchema.index({ retainedUntil: 1 },
+  { expireAfterSeconds: 0, name: 'expire_retained_market_observation' });
 
 export default mongoose.model('MarketObservation', marketObservationSchema);

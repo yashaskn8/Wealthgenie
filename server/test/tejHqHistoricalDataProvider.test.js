@@ -268,6 +268,48 @@ test('keyless OHLCV never sends the configured API key and uses the fixed TejHQ 
   assert.equal(request.options.maxContentLength, 2_000_000);
 });
 
+for (const [basis, method, payload] of [
+  ['raw', 'getRawHistory', rawPayload],
+  ['adjusted', 'getAdjustedHistory', adjustedPayload],
+]) {
+  test(`${basis} history forceRefresh bypasses a cached response`, async () => {
+    const cache = new Map();
+    const cacheFlags = [];
+    let providerRequests = 0;
+    const httpClient = { async get() {
+      providerRequests += 1;
+      return successResponse(payload());
+    } };
+    const requestCache = async ({ cacheKey, forceRefresh, loader, shouldCache }) => {
+      cacheFlags.push(forceRefresh);
+      if (!forceRefresh && cache.has(cacheKey)) return { ...cache.get(cacheKey), cache: { hit: true } };
+      const result = await loader();
+      if (shouldCache(result)) cache.set(cacheKey, result);
+      return { ...result, cache: { hit: false } };
+    };
+    const provider = new TejHqHistoricalDataProvider({
+      apiKey: 'fixture-only-key',
+      env: {
+        NODE_ENV: 'test', TEJHQ_ENABLED: 'true', TEJHQ_LICENSE_CONFIRMED: 'true',
+        TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true', TEJHQ_ADJUSTED_HISTORY_ENABLED: 'true',
+      },
+      httpClient,
+      requestCache,
+      budget: async () => ({ allowed: true, used: providerRequests + 1, limit: 200 }),
+      clock: () => NOW,
+    });
+
+    const first = await provider[method](REQUEST);
+    const cached = await provider[method](REQUEST);
+    const refreshed = await provider[method]({ ...REQUEST, forceRefresh: true });
+    assert.equal(first.status, 'AVAILABLE');
+    assert.equal(cached.cache.hit, true);
+    assert.equal(refreshed.cache.hit, false);
+    assert.equal(providerRequests, 2);
+    assert.deepEqual(cacheFlags, [false, false, true]);
+  });
+}
+
 test('adjusted history uses bearer auth, bounded internal budget, and never puts the key in a URL', async () => {
   let request;
   let budgetCalls = 0;

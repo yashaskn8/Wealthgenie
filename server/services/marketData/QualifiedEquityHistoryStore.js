@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import crypto from 'node:crypto';
 import MarketEquityDailyBar from '../../models/MarketEquityDailyBar.js';
 import { evaluateMarketDataProductionRights } from './marketDataRights.js';
 
@@ -52,6 +53,28 @@ export function qualifiedHistoryRightsAllowed(provider, sourceUrl) {
 function unavailable(code) {
   return { status: 'UNAVAILABLE', code, bars: [], barCount: 0 };
 }
+function qualifiedSourceChain(snapshot, dataUrls) {
+  const chain = snapshot?.qualificationSourceUrls;
+  if (!Array.isArray(chain) || chain.length < 2 || chain.length > 16) return null;
+  const seen = new Set();
+  for (const entry of chain) {
+    if (!['NSE', 'UPSTOX', 'TEJHQ'].includes(entry?.provider)
+        || typeof entry.url !== 'string' || seen.has(`${entry.provider}:${entry.url}`)) return null;
+    let parsed;
+    try { parsed = new URL(entry.url); } catch { return null; }
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return null;
+    seen.add(`${entry.provider}:${entry.url}`);
+  }
+  if (!dataUrls.every(url => seen.has(`${snapshot.provider}:${url}`))) return null;
+  const calendarProvider = snapshot.coverage?.calendarProvider;
+  if (!['NSE', 'UPSTOX'].includes(calendarProvider)
+      || !chain.some(entry => entry.provider === calendarProvider
+        && !dataUrls.includes(entry.url))) return null;
+  if (snapshot.provider === 'TEJHQ'
+      && (!chain.some(entry => entry.provider === 'TEJHQ' && new URL(entry.url).pathname.startsWith('/v1/symbols/'))
+        || !chain.some(entry => entry.provider === 'TEJHQ' && new URL(entry.url).pathname === '/v1/status'))) return null;
+  return chain;
+}
 function normalizeQualifiedHistory(snapshot, request, now) {
   const { exchange, isin, fromDate, toDate, basis } = request;
   if (snapshot?.status !== 'AVAILABLE' || !['UPSTOX', 'TEJHQ'].includes(snapshot?.provider)
@@ -79,6 +102,8 @@ function normalizeQualifiedHistory(snapshot, request, now) {
   if (!Array.isArray(sourceUrls) || sourceUrls.length < 1 || sourceUrls.length > 12
       || sourceUrls.some(url => typeof url !== 'string' || !url.startsWith('https://')))
     return null;
+  const qualificationSourceUrls = qualifiedSourceChain(snapshot, sourceUrls);
+  if (!qualificationSourceUrls) return null;
   const fetchedAt = new Date(snapshot.fetchedAt);
   if (!Number.isFinite(fetchedAt.getTime()) || fetchedAt.getTime() > now.getTime()) return null;
 
@@ -110,7 +135,7 @@ function normalizeQualifiedHistory(snapshot, request, now) {
     });
     lastDate = date;
   }
-  return { bars, fetchedAt, sourceUrls };
+  return { bars, fetchedAt, sourceUrls, qualificationSourceUrls };
 }
 
 export function buildQualifiedHistoryWriteOperations(snapshot, request, {
@@ -120,15 +145,33 @@ export function buildQualifiedHistoryWriteOperations(snapshot, request, {
   if (!settings.enabled) return { status: 'DISABLED', code: 'MARKET_HISTORY_STORAGE_NOT_CONFIGURED', operations: [] };
   const normalized = normalizeQualifiedHistory(snapshot, request, now);
   if (!normalized) return { status: 'UNAVAILABLE', code: 'UNQUALIFIED_MARKET_HISTORY', operations: [] };
-  if (!normalized.sourceUrls.every(url => rightsCheck(snapshot.provider, url))) {
+  if (!normalized.qualificationSourceUrls.every(({ provider, url }) => rightsCheck(provider, url))) {
     return { status: 'UNAVAILABLE', code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED', operations: [] };
   }
   const basis = snapshot.priceBasis;
-  const retainedUntil = new Date(now.getTime() + settings.retentionDays * 86_400_000);
+  // Replaying the same provider fetch cannot renew its licensed retention.
+  const retainedUntil = new Date(normalized.fetchedAt.getTime() + settings.retentionDays * 86_400_000);
+  if (retainedUntil <= now) {
+    return { status: 'UNAVAILABLE', code: 'MARKET_HISTORY_RETENTION_EXPIRED', operations: [] };
+  }
+  const qualificationBatchId = crypto.createHash('sha256').update(JSON.stringify({
+    provider: snapshot.provider, exchange: request.exchange, isin: request.isin,
+    basis, fromDate: request.fromDate, toDate: request.toDate,
+    fetchedAt: normalized.fetchedAt.toISOString(),
+    sourceUrls: normalized.qualificationSourceUrls,
+    bars: normalized.bars,
+  })).digest('hex');
   const operations = normalized.bars.map(bar => ({
     updateOne: {
       filter: { provider: snapshot.provider, exchange: request.exchange, isin: request.isin,
-        priceBasis: basis, tradingDate: bar.tradingDate },
+        priceBasis: basis, tradingDate: bar.tradingDate,
+        open: bar.open, high: bar.high, low: bar.low, close: bar.close,
+        volume: bar.volume, adjustedClose: bar.adjustedClose,
+        adjustmentFactor: bar.adjustmentFactor,
+        $or: [
+          { fetchedAt: { $lt: normalized.fetchedAt } },
+          { fetchedAt: normalized.fetchedAt, qualificationBatchId },
+        ] },
       update: {
         $set: {
           schemaVersion: snapshot.schemaVersion, provider: snapshot.provider,
@@ -139,9 +182,14 @@ export function buildQualifiedHistoryWriteOperations(snapshot, request, {
           open: bar.open, high: bar.high, low: bar.low, close: bar.close,
           volume: bar.volume, adjustedClose: bar.adjustedClose, adjustmentFactor: bar.adjustmentFactor,
           source: { url: normalized.sourceUrls[0], requestUrls: normalized.sourceUrls,
+            qualificationSourceUrls: normalized.qualificationSourceUrls,
             instrumentId: snapshot.source.instrumentId,
             datasetRevision: snapshot.sourceDatasetRevision || null },
           qualifiedCoverage: snapshot.coverage.status, fetchedAt: normalized.fetchedAt,
+          qualificationBatchId,
+          coverageFromDate: request.fromDate,
+          coverageToDate: request.toDate,
+          coverageSessionCount: normalized.bars.length,
           providerObservedAt: bar.providerObservedAt,
           retainedUntil,
         },
@@ -149,13 +197,15 @@ export function buildQualifiedHistoryWriteOperations(snapshot, request, {
       upsert: true,
     },
   }));
-  return { status: 'READY', provider: snapshot.provider, priceBasis: basis, operations };
+  return { status: 'READY', provider: snapshot.provider, priceBasis: basis,
+    qualificationBatchId, operations };
 }
 
 /** Explicit, rights-gated administrative ingest. Never triggered by public GETs. */
 export async function persistQualifiedHistory(snapshot, request, {
   env = process.env, now = new Date(), Model = MarketEquityDailyBar,
   rightsCheck = qualifiedHistoryRightsAllowed,
+  startSession = () => Model.db.startSession(),
 } = {}) {
   const plan = buildQualifiedHistoryWriteOperations(snapshot, request, { env, now, rightsCheck });
   if (plan.status !== 'READY') return { status: plan.status, code: plan.code, written: 0 };
@@ -176,11 +226,28 @@ export async function persistQualifiedHistory(snapshot, request, {
       }));
     const ttl = indexes.find(index => index.name === 'expire_qualified_equity_daily_bar'
       && index.expireAfterSeconds === 0 && index.key?.retainedUntil === 1);
-    if (!identity || !ttl) {
+    const batchRead = indexes.find(index => index.name === 'qualified_equity_history_batch_read'
+      && JSON.stringify(index.key) === JSON.stringify({
+        qualificationBatchId: 1, provider: 1, exchange: 1, isin: 1,
+        priceBasis: 1, tradingDate: 1,
+      }));
+    if (!identity || !ttl || !batchRead) {
       return { status: 'UNAVAILABLE', code: 'MARKET_HISTORY_INDEXES_UNVERIFIED', written: 0 };
     }
   }
-  await Model.bulkWrite(plan.operations, { ordered: true });
+  let session;
+  try {
+    session = await startSession();
+    await session.withTransaction(async () => {
+      await Model.bulkWrite(plan.operations, { ordered: true, session });
+    });
+  } catch (error) {
+    return { status: 'UNAVAILABLE',
+      code: error?.code === 11000 ? 'MARKET_HISTORY_REVISION_CONFLICT' : 'MARKET_HISTORY_PERSISTENCE_FAILED',
+      written: 0 };
+  } finally {
+    await session?.endSession();
+  }
   return { status: 'PERSISTED', provider: plan.provider, priceBasis: plan.priceBasis,
     written: plan.operations.length };
 }
@@ -194,6 +261,11 @@ export async function readQualifiedHistory(request, {
   if (Model === MarketEquityDailyBar && mongoose.connection.readyState !== 1) {
     return unavailable('MARKET_HISTORY_DATABASE_UNAVAILABLE');
   }
+  const spanDays = (Date.parse(`${request.toDate}T00:00:00.000Z`)
+    - Date.parse(`${request.fromDate}T00:00:00.000Z`)) / 86_400_000 + 1;
+  if (!Number.isInteger(spanDays) || spanDays < 1 || spanDays > MAX_BARS) {
+    return unavailable('INVALID_MARKET_HISTORY_RANGE');
+  }
   const basis = request.basis === 'ADJUSTED' ? BASES.TEJHQ_ADJUSTED : null;
   const query = {
     exchange: request.exchange, isin: request.isin,
@@ -203,12 +275,52 @@ export async function readQualifiedHistory(request, {
       priceBasis: { $in: [BASES.UPSTOX, BASES.TEJHQ_RAW] },
     }),
   };
-  const records = await Model.find(query).sort({ tradingDate: 1 }).limit(MAX_BARS).lean();
+  // Two disjoint raw feeds may each supply one bar per day. Read both before
+  // applying exact source rights; otherwise blocked rows can crowd out one feed.
+  const records = await Model.find(query).sort({ tradingDate: 1 }).limit(MAX_BARS * 2).lean();
   // A raw read may contain observations from two sources. Never mix them
   // into one row or silently choose a preferred feed.
-  const visible = records.filter(row => Array.isArray(row.source?.requestUrls)
-    && row.source.requestUrls.length > 0
-    && row.source.requestUrls.every(url => rightsCheck(row.provider, url)));
+  const authorizedRow = row => Array.isArray(row.source?.requestUrls)
+    && qualifiedSourceChain({
+      provider: row.provider,
+      coverage: { calendarProvider: row.qualifiedCoverage === 'COMPLETE_FOR_UPSTOX_NSE_CALENDAR'
+        ? 'UPSTOX' : 'NSE' },
+      qualificationSourceUrls: row.source?.qualificationSourceUrls,
+    }, row.source.requestUrls)
+    && row.source.qualificationSourceUrls.every(({ provider, url }) => rightsCheck(provider, url));
+  // A complete covering batch is required. The unique daily key means the
+  // first candidate for each provider/basis is enough: any newer full batch
+  // would have replaced its first row as well.
+  const candidates = new Map();
+  for (const row of records) {
+    if (!authorizedRow(row) || !row.qualificationBatchId
+        || row.coverageFromDate > request.fromDate || row.coverageToDate < request.toDate
+        || !Number.isInteger(row.coverageSessionCount)
+        || row.coverageSessionCount < 1 || row.coverageSessionCount > MAX_BARS) continue;
+    const key = `${row.provider}:${row.priceBasis}`;
+    if (!candidates.has(key)) candidates.set(key, row);
+  }
+  const visible = [];
+  for (const candidate of candidates.values()) {
+    const complete = await Model.find({
+      qualificationBatchId: candidate.qualificationBatchId,
+      provider: candidate.provider, exchange: request.exchange, isin: request.isin,
+      priceBasis: candidate.priceBasis, retainedUntil: { $gt: now },
+    }).sort({ tradingDate: 1 }).limit(MAX_BARS).lean();
+    if (complete.length !== candidate.coverageSessionCount
+        || !complete.every((row, index) => row.qualificationBatchId === candidate.qualificationBatchId
+          && row.coverageFromDate === candidate.coverageFromDate
+          && row.coverageToDate === candidate.coverageToDate
+          && row.coverageSessionCount === candidate.coverageSessionCount
+          && row.tradingDate >= candidate.coverageFromDate
+          && row.tradingDate <= candidate.coverageToDate
+          && (index === 0 || row.tradingDate > complete[index - 1].tradingDate)
+          && authorizedRow(row))) continue;
+    visible.push(...complete.filter(row => row.tradingDate >= request.fromDate
+      && row.tradingDate <= request.toDate));
+  }
+  visible.sort((a, b) => a.tradingDate.localeCompare(b.tradingDate)
+    || a.provider.localeCompare(b.provider));
   return {
     status: visible.length ? 'AVAILABLE' : 'UNAVAILABLE',
     code: visible.length ? null : 'NO_AUTHORIZED_PERSISTED_HISTORY',

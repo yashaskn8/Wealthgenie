@@ -24,9 +24,17 @@ const marketEquityDailyBarSchema = new mongoose.Schema({
     url: { type: String, required: true },
     instrumentId: { type: String, required: true },
     requestUrls: [{ type: String }],
+    qualificationSourceUrls: [{
+      provider: { type: String, enum: ['NSE', 'UPSTOX', 'TEJHQ'], required: true },
+      url: { type: String, required: true },
+    }],
     datasetRevision: { type: String, default: null },
   },
   qualifiedCoverage: { type: String, required: true },
+  qualificationBatchId: { type: String, required: true },
+  coverageFromDate: { type: String, required: true },
+  coverageToDate: { type: String, required: true },
+  coverageSessionCount: { type: Number, required: true, min: 1 },
   fetchedAt: { type: Date, required: true },
   providerObservedAt: { type: Date, default: null },
   retainedUntil: { type: Date, required: true },
@@ -41,5 +49,9 @@ marketEquityDailyBarSchema.index({ retainedUntil: 1 }, {
   expireAfterSeconds: 0, name: 'expire_qualified_equity_daily_bar',
 });
 marketEquityDailyBarSchema.index({ exchange: 1, isin: 1, tradingDate: -1 });
+marketEquityDailyBarSchema.index({
+  qualificationBatchId: 1, provider: 1, exchange: 1, isin: 1,
+  priceBasis: 1, tradingDate: 1,
+}, { name: 'qualified_equity_history_batch_read' });
 
 export default mongoose.model('MarketEquityDailyBar', marketEquityDailyBarSchema);

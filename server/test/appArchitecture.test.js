@@ -84,6 +84,9 @@ test('legacy Upstox mode blocks public market publication but keeps core financi
     const quotes = await jsonRequest(`${baseUrl}/api/market-data/quotes?ids=market:index:nifty-50`);
     assert.equal(quotes.response.status, 503);
     assert.equal(quotes.body.code, 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED');
+    const storedQuotes = await jsonRequest(`${baseUrl}/api/market-data/quotes/persisted`);
+    assert.equal(storedQuotes.response.status, 401);
+    assert.equal(storedQuotes.body.code, 'AUTH_REQUIRED');
 
     // The admin history route enforces identity before provider-rights checks.
     const adminHistory = await jsonRequest(

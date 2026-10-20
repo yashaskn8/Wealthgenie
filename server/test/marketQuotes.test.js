@@ -128,6 +128,44 @@ test('private demo route requires a signed-in session and does not call provider
   assert.equal(calls, 0);
 });
 
+test('persisted quote route requires authentication before reading stored observations', async () => {
+  let reads = 0;
+  const router = createMarketQuotesRouter({
+    env: testMarketDataEnv,
+    limiter: passLimiter,
+    readStoredQuotes: async () => { reads += 1; return {}; },
+  });
+  await withServer(buildApp(router), async baseUrl => {
+    const { response, body } = await jsonRequest(`${baseUrl}/api/market-data/quotes/persisted`);
+    assert.equal(response.status, 401);
+    assert.equal(body.code, 'AUTH_REQUIRED');
+  });
+  assert.equal(reads, 0);
+});
+
+test('persisted quote route is read-only, private, and rejects query parameters', async () => {
+  let reads = 0;
+  const router = createMarketQuotesRouter({
+    env: testMarketDataEnv,
+    limiter: passLimiter,
+    verifySession: (req, _res, next) => { req.user = { userId: 'user-1' }; next(); },
+    readStoredQuotes: async () => {
+      reads += 1;
+      return { status: 'UNAVAILABLE', facts: [], persistence: 'STORED_READ_ONLY' };
+    },
+  });
+  await withServer(buildApp(router), async baseUrl => {
+    const { response, body } = await jsonRequest(`${baseUrl}/api/market-data/quotes/persisted`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    assert.equal(body.persistence, 'STORED_READ_ONLY');
+    const invalid = await jsonRequest(`${baseUrl}/api/market-data/quotes/persisted?ids=market:index:nifty-50`);
+    assert.equal(invalid.response.status, 400);
+    assert.equal(invalid.body.code, 'INVALID_STORED_MARKET_QUOTE_REQUEST');
+  });
+  assert.equal(reads, 1);
+});
+
 test('private demo route returns only for authenticated loopback development and marks response no-store', async () => {
   const env = {
     NODE_ENV: 'development',

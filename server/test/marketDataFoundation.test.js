@@ -303,6 +303,32 @@ test('Upstox quote cache cannot promote another credential after rotation', asyn
   }
 });
 
+test('Upstox quote cache recalculates age at the freshness boundary without changing source times', async () => {
+  let now = new Date('2026-09-08T12:00:00.000Z');
+  const observedAt = '2026-09-08T11:45:00.000Z';
+  const fetchedAt = '2026-09-08T11:45:30.000Z';
+  const cached = {
+    status: AVAILABILITY.AVAILABLE,
+    facts: [{ availabilityStatus: AVAILABILITY.AVAILABLE, value: 25000,
+      observedAt, fetchedAt, source: { provider: 'UPSTOX', instrumentId: 'NSE_INDEX|Nifty 50' },
+      freshness: { status: FRESHNESS.FRESH, ageSeconds: 900, maxAgeSeconds: 900 } }],
+  };
+  const provider = new UpstoxMarketDataProvider({
+    accessToken: 'fixture-token', env: { NODE_ENV: 'test' }, clock: () => now,
+    httpClient: { get: async () => assert.fail('cache fixture must not contact provider') },
+    requestCache: async () => cached,
+  });
+  const first = await provider.getQuotes(['NSE_INDEX|Nifty 50']);
+  assert.equal(first.facts[0].freshness.status, FRESHNESS.FRESH);
+  now = new Date('2026-09-08T12:00:01.000Z');
+  const second = await provider.getQuotes(['NSE_INDEX|Nifty 50']);
+  assert.equal(second.facts[0].freshness.status, FRESHNESS.STALE);
+  assert.equal(second.facts[0].freshness.ageSeconds, 901);
+  assert.equal(second.facts[0].observedAt, observedAt);
+  assert.equal(second.facts[0].fetchedAt, fetchedAt);
+  assert.equal(cached.facts[0].freshness.status, FRESHNESS.FRESH);
+});
+
 test('Upstox quote response identity uses the documented exchange:symbol key and trade time, not response time', async () => {
   const provider = new UpstoxMarketDataProvider({
     accessToken: 'fixture-token',
@@ -667,6 +693,30 @@ test('Upstox history uses the shared Redis read-through cache instead of refetch
     setRedisAvailable(false);
     setRedisClient(null);
   }
+});
+
+test('Upstox history cache recalculates daily observation age without rewriting provenance', async () => {
+  let now = new Date('2026-09-08T12:00:00.000Z');
+  const observedAt = '2026-09-04T12:00:00.000Z';
+  const fetchedAt = '2026-09-04T12:00:30.000Z';
+  const cached = { status: AVAILABILITY.AVAILABLE, observedAt, fetchedAt,
+    freshness: { status: FRESHNESS.FRESH, ageSeconds: 345600, maxAgeSeconds: 345600 },
+    source: { provider: 'UPSTOX', instrumentId: 'NSE_INDEX|Nifty 50' }, candles: [] };
+  const provider = new UpstoxHistoricalCandleProvider({
+    accessToken: 'fixture-token', env: { NODE_ENV: 'test' }, clock: () => now,
+    httpClient: { get: async () => assert.fail('cache fixture must not contact provider') },
+    requestCache: async () => cached,
+  });
+  const request = { fromDate: '2026-09-04', toDate: '2026-09-08' };
+  assert.equal((await provider.getDailyCandles('NSE_INDEX|Nifty 50', request)).freshness.status,
+    FRESHNESS.FRESH);
+  now = new Date('2026-09-08T12:00:01.000Z');
+  const result = await provider.getDailyCandles('NSE_INDEX|Nifty 50', request);
+  assert.equal(result.freshness.status, FRESHNESS.STALE);
+  assert.equal(result.freshness.ageSeconds, 345601);
+  assert.equal(result.observedAt, observedAt);
+  assert.equal(result.fetchedAt, fetchedAt);
+  assert.equal(cached.freshness.status, FRESHNESS.FRESH);
 });
 
 test('Upstox candle cache cannot reuse another credential\'s available history', async () => {
