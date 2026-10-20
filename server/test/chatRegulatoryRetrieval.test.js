@@ -4,7 +4,7 @@ import {
   isCoveredRegulatoryChatQuestion,
   retrieveQualifiedRegulatoryChatEvidence,
 } from '../services/chatRegulatoryRetrieval.js';
-import { buildChatEvidencePacket } from '../services/groundedExplanationService.js';
+import { buildChatEvidencePacket, generateGroundedExplanation } from '../services/groundedExplanationService.js';
 
 const OFFICIAL_URL = 'https://www.incometax.gov.in/iec/foportal/sites/default/files/2026-03/En-Notified-IT-Rules-2026-20-03-2026.pdf';
 const AUTHORITY = 'Central Board of Direct Taxes, Income Tax Department, Ministry of Finance, Government of India';
@@ -119,4 +119,25 @@ test('chat evidence packet carries source-validated RAG facts but never private 
   assert.ok(packet.entries.some(item => item.id === 'E_REGULATORY_NOTICE'));
   assert.equal(packet.entries.some(item => item.kind === 'RECOMMENDATION' || item.kind === 'PROFILE'), false);
   assert.doesNotMatch(JSON.stringify(packet), /PRIVATE_HOLDING/);
+});
+
+test('qualified statutory commencement remains useful without any model provider', async () => {
+  const packet = await buildChatEvidencePacket({ question, userId: 'user-123', profile: {}, recommendation: null },
+    { queryRegulatoryRag: async () => approvedResponse() });
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(result.fallback, true);
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /Income-tax Rules, 2026 took effect on 1 April 2026/);
+  assert.ok(result.citations.some(c => c.evidence_class === 'OFFICIAL_CORPUS_EXCERPT'));
+});
+
+test('an official-looking chunk lacking the answer cannot be cited for commencement', async () => {
+  const bad = approvedResponse();
+  bad.retrieved_chunks[0].chunk.content = 'Income-tax Rules 2026 information concerning regulatory updates.';
+  const result = await retrieveQualifiedRegulatoryChatEvidence({ question, userId: 'user-123',
+    queryRag: async () => bad });
+  assert.deepEqual(result.entries, []);
+  assert.deepEqual(result.unavailableFacts, ['REGULATORY_RAG_EVIDENCE_NOT_QUALIFIED']);
 });
