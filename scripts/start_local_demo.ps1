@@ -4,6 +4,7 @@ param(
   [switch]$RequireMlService,
   [switch]$RequireBrowser,
   [switch]$EnablePlanReview,
+  [switch]$UseDurableMongoStorage,
   [string]$RedisServerPath,
   [ValidateRange(1024, 65535)]
   [int]$BackendPort = 5001,
@@ -16,7 +17,15 @@ $ProgressPreference = 'SilentlyContinue'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $cacheRoot = Join-Path $repoRoot 'server/node_modules/.cache/wealthgenie-phase15-demo-host-20261009'
-$mongoDbPath = Join-Path $cacheRoot 'db'
+# Legacy demo database files live in node_modules/.cache and may disappear
+# during npm ci. A stable, operator-selected location is available below.
+# Never auto-move a live MongoDB database or create replacement data.
+$legacyMongoDbPath = Join-Path $cacheRoot 'db'
+$durableMongoRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'WealthGenie/demo-mongo' } else { $null }
+if ($UseDurableMongoStorage -and -not $durableMongoRoot) {
+  throw 'LOCALAPPDATA is required to use durable local MongoDB storage.'
+}
+$mongoDbPath = if ($UseDurableMongoStorage) { Join-Path $durableMongoRoot 'db' } else { $legacyMongoDbPath }
 $mongoLogPath = Join-Path $cacheRoot 'mongod.log'
 $emptyEnvPath = Join-Path $repoRoot 'server/node_modules/.cache/wealthgenie-demo-empty.env'
 $statePath = Join-Path $repoRoot 'server/node_modules/.cache/wealthgenie-demo-processes.json'
@@ -248,8 +257,22 @@ if (($backendPort -eq $frontendPort) -or ($backendPort -in @($expectedPort, $red
   throw 'Backend and frontend ports must be distinct from each other and from MongoDB/Redis demo ports.'
 }
 
+if ($UseDurableMongoStorage -and -not (Test-Path -LiteralPath $cacheRoot -PathType Container)) {
+  # Only runtime logs and fixtures go here, never MongoDB data.
+  New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+}
 if ((-not (Test-Path -LiteralPath $cacheRoot -PathType Container)) -or (-not (Test-Path -LiteralPath $mongoDbPath -PathType Container))) {
   throw 'The previously verified demo MongoDB data directory is missing; refusing to recreate it.'
+}
+if ($UseDurableMongoStorage) {
+  $resolvedMongoPath = (Resolve-Path -LiteralPath $mongoDbPath).Path
+  $resolvedRepoRoot = (Resolve-Path -LiteralPath $repoRoot).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
+  if ($resolvedMongoPath.StartsWith($resolvedRepoRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Durable demo MongoDB storage must be located outside the repository.'
+  }
+  Write-Host 'Durable demo MongoDB selected; independent path and sentinel verification is required.'
+} else {
+  Write-Warning 'Account data risk: the legacy demo MongoDB is inside node_modules cache. npm ci can delete it. After stopping mongod, back up and cold-copy the database to the durable location before running with -UseDurableMongoStorage. No account or data was moved.'
 }
 
 $remote = (& git -C $repoRoot remote get-url origin 2>$null).Trim()
