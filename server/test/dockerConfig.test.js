@@ -206,6 +206,8 @@ test('Kubernetes supplies every production ML credential using the expected vari
   assert.match(configMap, /^\s*CORS_ORIGINS:\s*"https:\/\//m);
   assert.doesNotMatch(kustomization, /secrets\.example\.yaml/);
   assert.match(cdWorkflow, /--from-literal=ML_OPERATOR_KEY="\$EPHEMERAL_ML_OPERATOR_KEY"/);
+  assert.match(cdWorkflow, /EPHEMERAL_ML_KEY=\$\(openssl rand -hex 32\)/);
+  assert.match(cdWorkflow, /EPHEMERAL_ML_OPERATOR_KEY=\$\(openssl rand -hex 32\)/);
   assert.match(cdWorkflow, /--from-literal=METRICS_TOKEN="\$EPHEMERAL_METRICS_TOKEN"/);
   assert.match(cdWorkflow, /MONGODB_URI="mongodb:\/\/wealthgenie-mongodb[^"\s]+\?replicaSet=rs0"/);
 });

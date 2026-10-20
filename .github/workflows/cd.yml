@@ -175,8 +175,8 @@ jobs:
       - name: Inject ephemeral secrets for Kind validation cluster
         run: |
           EPHEMERAL_JWT=$(openssl rand -hex 32)
-          EPHEMERAL_ML_KEY=$(openssl rand -hex 16)
-          EPHEMERAL_ML_OPERATOR_KEY=$(openssl rand -hex 16)
+          EPHEMERAL_ML_KEY=$(openssl rand -hex 32)
+          EPHEMERAL_ML_OPERATOR_KEY=$(openssl rand -hex 32)
           EPHEMERAL_METRICS_TOKEN=$(openssl rand -hex 32)
           EPHEMERAL_REDIS_PASSWORD=$(openssl rand -hex 32)
           kubectl create secret generic wealthgenie-secrets -n wealthgenie \
