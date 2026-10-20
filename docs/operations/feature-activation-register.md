@@ -14,7 +14,7 @@ have been exercised. See GitHub Actions for current test status.
 | Agent worker | Dedicated Kubernetes worker overrides `AGENT_WORKER_ENABLED=true` | API replicas correctly remain false in external mode; this is not a disabled user feature. |
 | Primary model gateway | Production API override uses `LLM_DEFAULT_PROVIDER=api`, `LLM_PRIMARY_PROVIDER=GROQ` | Requires provisioned server-side credentials; mock stays scoped to Kind/ML. |
 | Gemini failover | Production overlay opts into `LLM_GEMINI_FALLBACK_ENABLED=true` | Only classified transient Groq outages, durable budget reservation, max two attempts; no fallback for authentication, rate-limits, grounding/policy rejections, or absent primary credentials. |
-| GenieProof claim preview | Server-authorized unsaved candidate extraction | Does not require signing keys, external-source rights or verified financial claims. |
+| GenieProof claim preview | Server-authorized unsaved candidate extraction | Does not require signing keys, external-source rights, `VITE_GENIEPROOF_ENABLED`, or verified financial claims. |
 
 ## Blocked or intentionally opt-in (DO NOT flip to true without evidence)
 
