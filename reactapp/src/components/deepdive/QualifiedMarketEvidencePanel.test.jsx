@@ -181,4 +181,20 @@ describe('QualifiedMarketEvidencePanel', () => {
     expect(await screen.findByText('No qualified retained history: SOURCE_RIGHTS_DENIED')).toBeInTheDocument();
     expect(screen.queryByText('9,999')).not.toBeInTheDocument();
   });
+
+  it('labels Upstox history by its provider-native basis instead of raw', async () => {
+    getStoredEquityHistory.mockResolvedValue({ status: 'AVAILABLE', barCount: 2, bars: [
+      { tradingDate: '2026-10-15', provider: 'UPSTOX', exchange: 'NSE',
+        isin: 'INE002A01018', priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 100 },
+      { tradingDate: '2026-10-16', provider: 'UPSTOX', exchange: 'NSE',
+        isin: 'INE002A01018', priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 101 },
+    ] });
+    render(<QualifiedMarketEvidencePanel />);
+    fireEvent.click(screen.getByRole('button', { name: /View stored prices/ }));
+    fireEvent.submit(screen.getByRole('button', { name: 'Read stored history' }).closest('form'));
+    expect(await screen.findByRole('img', {
+      name: 'Provider-native EOD close from stored qualified observations',
+    })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Raw EOD close from stored qualified observations' })).not.toBeInTheDocument();
+  });
 });

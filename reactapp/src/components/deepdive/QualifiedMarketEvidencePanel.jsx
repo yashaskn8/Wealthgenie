@@ -42,7 +42,8 @@ function StoredCloseChart({ bars, basis }) {
     const y = range === 0 ? 75 : 134 - (point.value - low) / range * 118;
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   }).join(' ');
-  const label = basis === 'ADJUSTED' ? 'Adjusted EOD close' : 'Raw EOD close';
+  const label = basis === 'ADJUSTED' ? 'Adjusted EOD close'
+    : first.priceBasis === 'UPSTOX_PROVIDER_NATIVE' ? 'Provider-native EOD close' : 'Raw EOD close';
   return <figure style={{ margin: '16px 0', maxWidth: 720 }}>
     <svg viewBox="0 0 600 150" width="100%" role="img"
       aria-label={`${label} from stored qualified observations`}>
