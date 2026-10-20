@@ -1,0 +1,85 @@
+/**
+ * Curated, bounded retrieval for jurisdiction-neutral investor education.
+ *
+ * This is deliberately NOT a substitute for the independently qualified RAG
+ * regulatory corpus or the authoritative investment recommendation engine.
+ * Sources are public educational pages; do not use them to infer India-specific
+ * product terms, suitability, taxes, returns, or government endorsements.
+ *
+ * To extend: independently review the source and claim, add a narrow intent
+ * matcher, then add retrieval, provenance, and false-positive regression tests.
+ */
+const EDUCATIONAL_DOCUMENTS = Object.freeze([
+  Object.freeze({
+    id: 'E_EDU_REBALANCING',
+    title: 'Rebalancing',
+    url: 'https://www.investor.gov/introduction-investing/investing-basics/glossary/rebalancing',
+    intent: /\b(?:rebalanc(?:e|ing)|re-?balanc(?:e|ing)|portfolio\s+balanc(?:e|ing)|balanc(?:e|ing)\s+(?:my\s+|a\s+|the\s+)?portfolio|asset\s+allocation\s+drift)\b/i,
+    explanation: 'Portfolio rebalancing means bringing the mix of investments back toward a chosen target when market movements change their relative weights. It is a way to manage allocation drift, not a guarantee of profits.',
+  }),
+  Object.freeze({
+    id: 'E_EDU_DIVERSIFICATION',
+    title: 'Asset Allocation and Diversification',
+    url: 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation',
+    intent: /\b(?:diversif(?:y|ication|ied)|diversify|spread\s+(?:my\s+)?investments|different\s+asset\s+classes)\b/i,
+    explanation: 'Diversification means spreading investments across different assets or holdings so that a loss in one does not determine the outcome of the entire portfolio. It reduces concentration risk but cannot eliminate investment losses.',
+  }),
+  Object.freeze({
+    id: 'E_EDU_ASSET_ALLOCATION',
+    title: 'Asset Allocation and Diversification',
+    url: 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation',
+    intent: /\b(?:asset\s+allocation|investment\s+mix|portfolio\s+mix|stocks?\s+(?:and|versus|vs)\s+bonds?)\b/i,
+    explanation: 'Asset allocation means dividing investments among categories such as shares, bonds and cash. A target mix depends on the goal, time horizon and capacity to accept risk; no allocation is automatically suitable for every investor.',
+  }),
+  Object.freeze({
+    id: 'E_EDU_COMPOUND_GROWTH',
+    title: 'Introduction to Investing',
+    url: 'https://www.investor.gov/introduction-investing',
+    intent: /\b(?:compound(?:ing|ed)?\s+(?:growth|interest|returns?)|power\s+of\s+compounding|how\s+does\s+compounding\s+work)\b/i,
+    explanation: 'Compound growth happens when invested money earns returns and those returns also begin earning returns when they remain invested. Actual market returns vary, and compounding does not guarantee a positive outcome.',
+  }),
+  Object.freeze({
+    id: 'E_EDU_INVESTING_BASICS',
+    title: 'Introduction to Investing',
+    url: 'https://www.investor.gov/introduction-investing',
+    intent: /\b(?:start\s+(?:my\s+)?first\s+investment|how\s+(?:do|can)\s+i\s+start\s+investing|investing\s+for\s+beginners|what\s+is\s+investing)\b/i,
+    explanation: 'Investing means committing money to assets with the possibility of future returns, while accepting the risk of loss. Before choosing investments, distinguish the financial goal, time horizon, risk tolerance and costs. General education cannot identify a suitable product for a particular person.',
+  }),
+  Object.freeze({
+    id: 'E_EDU_FEES',
+    title: 'How Fees and Expenses Affect Your Investment Portfolio',
+    url: 'https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/updated',
+    intent: /\b(?:expense\s+ratio|investment\s+fees?|portfolio\s+fees?|fund\s+fees?|transaction\s+costs?|investment\s+costs?)\b/i,
+    explanation: 'Investment fees and transaction costs reduce the amount of money that remains invested and can reduce long-term returns. Compare the applicable fee disclosures and distinguish one-time transaction charges from ongoing costs.',
+  }),
+]);
+
+/**
+ * Conservative exact-intent retrieval: no user/profile data, no external
+ * network access, no mutable or user-supplied documents, no similarity-based
+ * trust elevation. Non-matches return no documents, not a fabricated answer.
+ */
+export function retrieveChatEducationalEvidence(question, { maxEntries = 2 } = {}) {
+  const text = String(question || '').slice(0, 1000);
+  if (!text.trim()) return [];
+  const limit = Number.isSafeInteger(maxEntries) ? Math.max(0, Math.min(maxEntries, 2)) : 2;
+  return EDUCATIONAL_DOCUMENTS
+    .filter(doc => doc.intent.test(text))
+    .slice(0, limit)
+    .map(doc => ({
+      id: doc.id,
+      kind: 'EDUCATION',
+      value: { topic: doc.id, educationalOnly: true, jurisdictionNeutral: true },
+      displayValue: doc.explanation,
+      dataClass: 'CURATED_PUBLIC_EDUCATION',
+      source: {
+        provider: 'US_SEC_INVESTOR_GOV',
+        url: doc.url,
+        publicationDate: null,
+        instrumentId: null,
+      },
+      observedAt: null,
+      freshness: null,
+      authority: 'PUBLIC_EDUCATIONAL_SOURCE',
+    }));
+}
