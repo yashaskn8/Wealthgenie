@@ -31,7 +31,7 @@ describe('GenieProof server-backed availability', () => {
       reasonCode: 'FEATURE_UNAVAILABLE', productionVerified: false,
     });
     render(<GenieProofEntry />);
-    expect(await screen.findByText(/interactive operations are disabled on this server/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Signed GenieProof passports and evidence-based verdicts are unavailable on this server/i)).toBeInTheDocument();
     expect(screen.queryByTestId('interactive-genieproof')).not.toBeInTheDocument();
   });
 
@@ -50,7 +50,7 @@ describe('GenieProof server-backed availability', () => {
       interactiveEnabled: true, mode: 'PRODUCTION', productionVerified: true,
     });
     render(<GenieProofEntry />);
-    expect(await screen.findByText(/interactive operations are disabled/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Signed GenieProof passports and evidence-based verdicts are unavailable/i)).toBeInTheDocument();
     expect(screen.queryByTestId('interactive-genieproof')).not.toBeInTheDocument();
   });
 });
