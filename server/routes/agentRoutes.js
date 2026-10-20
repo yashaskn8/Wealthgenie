@@ -13,6 +13,7 @@ import AgentRunModel from '../models/AgentRun.js';
 import { buildApprovalAction } from '../agents/planReview/planReviewRuntime.js';
 import { acknowledgePlanHealthEvent, inspectPlanHealth, listPlanHealthEvents } from '../services/planHealthMonitor.js';
 import AgentRunEvent from '../models/AgentRunEvent.js';
+import { streamPlanReviewEvents } from '../agents/planReview/planReviewEventStream.js';
 import { buildPlanReviewA2UI } from '../agents/a2ui/a2uiSchemas.js';
 import { A2A_PROTOCOL_VERSION, getAgentCard, listAgentCards } from '../agents/a2a/agentCards.js';
 import { validateStrict } from '../validation/financialSchemas.js';
@@ -129,42 +130,22 @@ router.get('/plan-review/:runId/events', verifyJWT, asyncHandler(async (req, res
   }
   const ownedRun = await AgentRunModel.findOne({ userId: req.user.userId, runId: req.params.runId }).lean();
   if (!ownedRun) throw createError(404, 'Plan review run not found or access denied.', 'Plan review run not found.');
-  let sequence = Number(req.get('Last-Event-ID') || 0);
-  if (!Number.isInteger(sequence) || sequence < 0) sequence = 0;
+  const cursorHeader = req.get('Last-Event-ID');
+  const sequence = cursorHeader === undefined ? 0 : Number(cursorHeader);
+  if (!Number.isSafeInteger(sequence) || sequence < 0 || (cursorHeader !== undefined && !/^(0|[1-9][0-9]*)$/.test(cursorHeader))) {
+    throw createError(400, 'Invalid plan review event cursor.', 'Invalid event cursor.');
+  }
   res.status(200);
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
   res.flushHeaders?.();
-  let closed = false;
-  let timer;
-  let deadline;
-  const cleanup = () => {
-    closed = true;
-    if (timer) clearInterval(timer);
-    if (deadline) clearTimeout(deadline);
-  };
-  req.on('close', cleanup);
-  const send = async () => {
-    if (closed) return;
-    const events = await AgentRunEvent.find({ userId: req.user.userId, runId: req.params.runId, sequence: { $gt: sequence } })
-      .sort({ sequence: 1 }).limit(100).lean();
-    for (const event of events) {
-      sequence = event.sequence;
-      res.write(`id: ${event.sequence}\nevent: ${event.eventType}\ndata: ${JSON.stringify(event.data || {})}\n\n`);
-    }
-    const currentRun = await AgentRunModel.findOne({ userId: req.user.userId, runId: req.params.runId }).lean();
-    if (['COMPLETED', 'WAITING_FOR_APPROVAL', 'FAILED', 'CANCELLED', 'SUPERSEDED', 'BUDGET_EXCEEDED', 'FEATURE_UNAVAILABLE'].includes(currentRun?.status)) {
-      cleanup();
-      res.end();
-    }
-  };
-  await send();
-  if (!closed) {
-    res.write(': connected\n\n');
-    timer = setInterval(() => { void send().catch(() => cleanup()); }, 1000);
-    timer.unref?.();
-    deadline = setTimeout(() => { cleanup(); res.end(); }, 30000);
-    deadline.unref?.();
-  }
+  await streamPlanReviewEvents({
+    response: res,
+    initialSequence: sequence,
+    loadEvents: since => AgentRunEvent.find({
+      userId: req.user.userId, runId: req.params.runId, sequence: { $gt: since },
+    }).sort({ sequence: 1 }).limit(100).lean(),
+    loadRun: () => AgentRunModel.findOne({ userId: req.user.userId, runId: req.params.runId }).lean(),
+  });
 }));
 
 router.get('/plan-review/:runId', verifyJWT, asyncHandler(async (req, res) => {
