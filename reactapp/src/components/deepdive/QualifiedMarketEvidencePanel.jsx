@@ -43,6 +43,21 @@ export default function QualifiedMarketEvidencePanel() {
     return () => controller.abort();
   }, [expanded]);
   useEffect(() => () => historyController.current?.abort(), []);
+  function clearHistory() {
+    historyController.current?.abort();
+    historyController.current = null;
+    setHistory(null);
+    setHistoryError(null);
+    setHistoryLoading(false);
+  }
+  function toggleExpanded() {
+    if (expanded) {
+      clearHistory();
+      setQuotes(null);
+      setQuoteError(null);
+    }
+    setExpanded(!expanded);
+  }
   async function loadHistory(event) {
     event.preventDefault();
     historyController.current?.abort();
@@ -67,11 +82,14 @@ export default function QualifiedMarketEvidencePanel() {
     ['market:index:nifty-50', 'market:index:india-vix'].includes(fact.canonicalProductId)
   )) : [];
   const bars = Array.isArray(history?.bars) ? history.bars : [];
-  const change = (field, value) => setQuery(current => ({ ...current, [field]: value }));
+  const change = (field, value) => {
+    clearHistory();
+    setQuery(current => ({ ...current, [field]: value }));
+  };
   return (
     <section style={panelStyle} aria-label="Verified market data evidence"
       data-testid="qualified-market-evidence">
-      <button type="button" onClick={() => setExpanded(value => !value)}
+      <button type="button" onClick={toggleExpanded}
         aria-expanded={expanded} aria-controls="market-evidence-content">
         {expanded ? 'Hide' : 'View'} stored prices and history
       </button>

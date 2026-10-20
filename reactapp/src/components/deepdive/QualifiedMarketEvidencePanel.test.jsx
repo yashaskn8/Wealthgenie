@@ -82,4 +82,26 @@ describe('QualifiedMarketEvidencePanel', () => {
     await waitFor(() => expect(within(table).getByText('1,534.2')).toBeInTheDocument());
     expect(within(table).queryByText('9,999')).not.toBeInTheDocument();
   });
+
+  it('clears stored history when the query changes or the panel closes', async () => {
+    getStoredEquityHistory.mockResolvedValue({ status: 'AVAILABLE', barCount: 1, bars: [{
+      tradingDate: '2026-10-16', provider: 'TEJHQ', priceBasis: 'RAW_UNADJUSTED',
+      close: 1534.2, fetchedAt: '2026-10-19T08:50:00.000Z',
+    }] });
+    render(<QualifiedMarketEvidencePanel />);
+    fireEvent.click(screen.getByRole('button', { name: /View stored prices/ }));
+    fireEvent.submit(screen.getByRole('button', { name: 'Read stored history' }).closest('form'));
+    expect(await screen.findByText('1,534.2')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Trading symbol' }), {
+      target: { value: 'INFY' },
+    });
+    expect(screen.queryByText('1,534.2')).not.toBeInTheDocument();
+
+    fireEvent.submit(screen.getByRole('button', { name: 'Read stored history' }).closest('form'));
+    expect(await screen.findByText('1,534.2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Hide stored prices/ }));
+    fireEvent.click(screen.getByRole('button', { name: /View stored prices/ }));
+    expect(screen.queryByText('1,534.2')).not.toBeInTheDocument();
+  });
 });
