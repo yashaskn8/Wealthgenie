@@ -23,6 +23,8 @@ import {
 } from './marketDataService.js';
 import { compareVerifiedFixedIncomeProducts } from './fixedIncomeProductRanking.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveQualifiedRegulatoryChatEvidence } from './chatRegulatoryRetrieval.js';
+import { queryRAG } from './ragClient.js';
 import { PrometheusMetrics } from './metricsCollector.js';
 import { getProviderOutputContract, validateProviderOutputContract } from './providerOutputContracts.js';
 
@@ -643,12 +645,21 @@ const GOVERNMENT_QUERY_TO_PARENT = Object.freeze([
   [/post office time deposit|\bpo td\b/i, 'po_td_1yr'],
 ]);
 
-export async function buildChatEvidencePacket({ question, profile, recommendation }, dependencies = {}) {
+export async function buildChatEvidencePacket({ question, profile, recommendation, userId = null }, dependencies = {}) {
   // General education comes from an allowlisted, reviewed reference corpus.
   // It never supplies user-specific allocations, tax rules or product rates.
   const entries = retrieveChatEducationalEvidence(question);
   const unavailableFacts = [];
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
+  const regulatoryLookup = dependencies.queryRegulatoryRag
+    || (process.env.ML_SERVICE_API_KEY ? queryRAG : null);
+  const regulatory = await retrieveQualifiedRegulatoryChatEvidence({
+    question,
+    userId,
+    queryRag: regulatoryLookup,
+  });
+  entries.push(...regulatory.entries);
+  unavailableFacts.push(...regulatory.unavailableFacts);
   if (/market context|cautious|risk.off|high.volatility|nifty|india vix/i.test(question)) {
     try {
       const marketContext = await (dependencies.getLiveMarketContext || getLiveMarketContext)();
