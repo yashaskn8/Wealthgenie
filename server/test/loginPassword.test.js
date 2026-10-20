@@ -21,3 +21,21 @@ test('malformed stored password hashes use the same valid bcrypt fallback and ca
   assert.equal(getLoginComparisonHash({ passwordHash: 'malformed' }), DUMMY_LOGIN_HASH);
   assert.equal(await compareLoginPassword('submitted-password', { passwordHash: 'malformed' }), false);
 });
+
+test('previously issued valid bcrypt hashes remain login-compatible across cost upgrades', async () => {
+  const password = 'StrongPass1!';
+  for (const rounds of [10, 11, 12]) {
+    const storedHash = await bcrypt.hash(password, rounds);
+    assert.equal(getLoginComparisonHash({ passwordHash: storedHash }), storedHash);
+    assert.equal(await compareLoginPassword(password, { passwordHash: storedHash }), true);
+    assert.equal(await compareLoginPassword('WrongPassword1!', { passwordHash: storedHash }), false);
+  }
+});
+
+test('invalid bcrypt cost and malformed hashes never authenticate', () => {
+  for (const malformed of [
+    '$2b$00$' + 'A'.repeat(53), '$2b$03$' + 'A'.repeat(53),
+    '$2b$32$' + 'A'.repeat(53), '$2b$99$' + 'A'.repeat(53),
+    '$2b$10$' + 'A'.repeat(52), '$2b$10$' + 'A'.repeat(54),
+  ]) assert.equal(getLoginComparisonHash({ passwordHash: malformed }), DUMMY_LOGIN_HASH);
+});

@@ -8,6 +8,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { verifyJWT, verifyJWTWithRevocationAvailability } from '../middleware/authMiddleware.js';
 import { blacklistToken, tokenRevocationMustFailClosed } from '../config/redis.js';
 import { compareLoginPassword } from '../services/loginPassword.js';
+import logger from '../utils/logger.js';
 import {
   clearAuthCookies,
   createSessionToken,
@@ -40,7 +41,7 @@ router.post('/register', validate(registerSchema), asyncHandler(async (req, res)
 
   const existing = await User.findOne({ email }).lean();
   if (existing) {
-    throw createError(409, `Registration attempt with existing email: ${email}`, 'Email already registered.');
+    throw createError(409, 'Registration attempt with an already registered email.', 'Email already registered.');
   }
 
   // Wrap create in try/catch to handle the race condition where two concurrent
@@ -61,7 +62,7 @@ router.post('/register', validate(registerSchema), asyncHandler(async (req, res)
   } catch (err) {
     if (err.code === 11000) {
       // MongoDB duplicate key error — concurrent registration with same email
-      throw createError(409, `Concurrent registration race for: ${email}`, 'Email already registered.');
+      throw createError(409, 'Concurrent registration race for an existing account.', 'Email already registered.');
     }
     throw err; // Re-throw non-duplicate errors
   } finally {
@@ -105,7 +106,15 @@ router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
   const valid = await compareLoginPassword(password, user);
 
   if (!user || !valid) {
-    throw createError(401, `Failed login for email: ${email}`, INVALID_CREDS);
+    // Clients always receive the same response to prevent account enumeration.
+    // Internal diagnostics distinguish missing-account/database drift from
+    // a mismatched password, without logging emails or secrets.
+    logger.warn('Login rejected', {
+      reason: !user ? 'ACCOUNT_NOT_FOUND' : 'PASSWORD_MISMATCH',
+      databaseName: mongoose.connection.db?.databaseName || null,
+      mongoReadyState: mongoose.connection.readyState,
+    });
+    throw createError(401, 'Login rejected.', INVALID_CREDS);
   }
 
   const token = createSessionToken(user);

@@ -6,7 +6,7 @@ export const DUMMY_LOGIN_HASH = '$2a$12$PUGFo.PizinU427pLEOy5eZh9TFKCJ7r4J5H7iuq
 
 export function getLoginComparisonHash(user) {
   const storedHash = user?.passwordHash;
-  return typeof storedHash === 'string' && /^\$2[aby]\$12\$[./A-Za-z0-9]{53}$/.test(storedHash)
+  return typeof storedHash === 'string' && /^\$2[aby]\$(?:0[4-9]|[12]\d|3[01])\$[./A-Za-z0-9]{53}$/.test(storedHash)
     ? storedHash
     : DUMMY_LOGIN_HASH;
 }

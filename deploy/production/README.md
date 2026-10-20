@@ -90,3 +90,26 @@ rollout. Do not apply Kind-specific jobs unchanged to DocumentDB. The production
 database must support the transactions required by model activation and RAG
 lifecycle writes. Application startup verifies migration state read-only and
 never creates indexes or guesses model state.
+
+## Account persistence and database identity
+
+The API reads registrations and logins from the active MongoDB database, **not**
+Redis. Different MongoDB URI database names (for example `wealthgenie` and
+`wealthgenie-demo`) contain different accounts, so a correct password can
+otherwise appear invalid after switching server configurations.
+
+Pin `MONGODB_EXPECTED_DATABASE` in the server runtime environment to the actual,
+existing persistent database name from the approved MongoDB URI, after verifying
+that database with your cluster operator. The backend checks the connected
+database name at startup and refuses mismatches instead of silently exposing
+an empty user collection. This is an opt-in protection; deploying the code
+alone does not change or migrate any existing account.
+
+For incident diagnosis, inspect **server-side** login log entries `Login rejected`.
+`ACCOUNT_NOT_FOUND` suggests the account is absent from the connected database
+or the entered email differs; `PASSWORD_MISMATCH` indicates an account was found
+but the provided password did not verify. The external response remains a
+generic 401 in both cases. Do not log or share user passwords, account emails,
+JWT tokens, database URIs, or MongoDB credentials. Check persistent storage,
+replica-set configuration and recent configuration changes before creating
+replacement accounts. Backup/restore must follow the operator's change controls.
