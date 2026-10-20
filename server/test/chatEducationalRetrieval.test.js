@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { retrieveChatEducationalEvidence } from '../services/chatEducationalRetrieval.js';
 import { buildChatEvidencePacket, generateGroundedExplanation } from '../services/groundedExplanationService.js';
 import { validateGroundedExplanation } from '../services/groundingValidator.js';
+import { validateGroundedExplanationCompleteness } from '../services/groundedExplanationCompleteness.js';
 
 const profile = Object.freeze({
   age: 40,
@@ -124,4 +125,34 @@ test('unsupported question abstains with explicit system provenance instead of i
   assert.match(answer.text, /do not have enough qualified evidence to answer/i);
   assert.ok(answer.evidenceIdsUsed.includes('E_CHAT_ANSWER_UNAVAILABLE'));
   assert.ok(!answer.evidenceIdsUsed.some(id => id.startsWith('E_EDU_')));
+});
+
+test('model response citing only the mandatory legal notice fails answer relevance, despite a valid citation', async () => {
+  const question = 'Explain portfolio balancing in simple terms';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const notice = packet.entries.find(item => item.id === 'E_REGULATORY_NOTICE');
+  const claim = `${notice.value} [${notice.id}]`;
+  const disclaimerOnly = {
+    text: claim,
+    evidenceIdsUsed: [notice.id],
+    claims: [{ text: claim, evidenceIds: [notice.id] }],
+    financialClaims: [],
+    unavailableFacts: [],
+  };
+  assert.equal(validateGroundedExplanation(disclaimerOnly, packet).valid, true,
+    'a legally cited disclosure can be grounded while still failing to answer the question');
+  assert.deepEqual(validateGroundedExplanationCompleteness(disclaimerOnly, packet), {
+    valid: false,
+    errors: ['CLAIM_EVIDENCE_RELEVANCE_INSUFFICIENT'],
+  });
+
+  const educationalEntry = packet.entries.find(item => item.id === 'E_EDU_REBALANCING');
+  const educationalClaim = `${educationalEntry.displayValue} [${educationalEntry.id}]`;
+  const substantive = {
+    ...disclaimerOnly,
+    text: educationalClaim,
+    evidenceIdsUsed: [educationalEntry.id],
+    claims: [{ text: educationalClaim, evidenceIds: [educationalEntry.id] }],
+  };
+  assert.equal(validateGroundedExplanationCompleteness(substantive, packet).valid, true);
 });
