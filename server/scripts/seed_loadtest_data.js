@@ -8,6 +8,8 @@ import Goal from '../models/Goal.js';
 import { runPipeline } from '../services/RecommendationPipeline.js';
 import Instrument from '../models/Instrument.js';
 import { investmentDatabase } from '../data/investmentDatabase.js';
+import { buildInstrumentSeedOperations } from '../config/instrumentSeedPlan.js';
+import { assertIsolatedLoadtestSeedTarget } from './loadtestSeedGuard.js';
 import {
   buildRecommendationProfileHash,
   FINANCIAL_PROFILE_SCHEMA_VERSION,
@@ -16,46 +18,28 @@ import { getCurrentRegulatoryRuleVersion } from '../services/taxEngine.js';
 
 const LOADTEST_USER_ID = '60d5ecb8b3b3a72d9c8e4a11';
 
-function mapToDocument(inv) {
-  return {
-    id: inv.id,
-    name: inv.name,
-    type: inv.recommendationType || 'CATALOG_ONLY',
-    interestRate: inv.expectedReturn,
-    minTenureMonths: inv.lockInYears ? inv.lockInYears * 12 : 0,
-    maxTenureMonths: inv.lockInYears ? inv.lockInYears * 12 : 360,
-    riskLevel: String(inv.riskLabel || inv.riskLevel || 'moderate').toLowerCase(),
-    taxExempt: inv.taxType === 'exempt' || inv.taxType === 'elss',
-    description: inv.description,
-    category: inv.category,
-    expectedReturn: inv.expectedReturn,
-    volatility: inv.volatility,
-    riskScore: inv.riskScore,
-    minInvestment: inv.minInvestment,
-    maxInvestment: inv.maxInvestment,
-    liquidity: inv.liquidity,
-    lockInYears: inv.lockInYears,
-    taxType: inv.taxType,
-    returns1yr: inv.historicalReturns?.yr1,
-    returns3yr: inv.historicalReturns?.yr3,
-    returns5yr: inv.historicalReturns?.yr5,
-    aumCr: inv.aumCr,
-    expenseRatio: inv.expenseRatio,
-    fundManager: inv.fundManager,
-    benchmarkIndex: inv.benchmarkIndex,
-    lastUpdated: new Date(),
-  };
-}
-
 async function seedLoadTestData() {
+  const guard = {
+    uri: process.env.MONGODB_URI,
+    nodeEnv: process.env.NODE_ENV,
+    confirmation: process.env.LOADTEST_SEED_CONFIRMED,
+  };
+  // Refuse production or ambiguous databases before any network or write.
+  assertIsolatedLoadtestSeedTarget(guard);
+  const { operations } = buildInstrumentSeedOperations(investmentDatabase);
   await connectDB();
-  console.log('Seeding loadtest data in MongoDB...');
+  // Connection options can override the URI's database. Recheck what actually
+  // connected, before mutating any collections.
+  assertIsolatedLoadtestSeedTarget({
+    ...guard,
+    connectedDatabaseName: mongoose.connection.db?.databaseName,
+  });
+  console.log('Seeding explicitly isolated loadtest data in MongoDB...');
 
-  // 1. Seed Instruments
-  await Instrument.deleteMany({});
-  const docs = investmentDatabase.map(mapToDocument);
-  await Instrument.insertMany(docs);
-  console.log(`✓ Seeded ${docs.length} instruments`);
+  // Idempotent catalog writes preserve qualified market observations and
+  // never delete the instruments collection on partial insert failure.
+  const instrumentsResult = await Instrument.bulkWrite(operations, { ordered: true });
+  console.log(`✓ Synchronized ${operations.length} catalog instruments (${instrumentsResult.upsertedCount || 0} inserted)`);
 
   // 2. Seed User
   await User.deleteOne({ _id: LOADTEST_USER_ID });
