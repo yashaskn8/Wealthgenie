@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
-import { compareLoginPassword, DUMMY_LOGIN_HASH, getLoginComparisonHash } from '../services/loginPassword.js';
+import { compareLoginPassword, DUMMY_LOGIN_HASH, getLoginComparisonHash, isSupportedBcryptHash } from '../services/loginPassword.js';
 
 test('unknown-account login selects a valid cost-12 bcrypt hash and executes comparison', async () => {
   assert.equal(DUMMY_LOGIN_HASH.length, 60);
@@ -38,4 +38,13 @@ test('invalid bcrypt cost and malformed hashes never authenticate', () => {
     '$2b$32$' + 'A'.repeat(53), '$2b$99$' + 'A'.repeat(53),
     '$2b$10$' + 'A'.repeat(52), '$2b$10$' + 'A'.repeat(54),
   ]) assert.equal(getLoginComparisonHash({ passwordHash: malformed }), DUMMY_LOGIN_HASH);
+});
+
+test('login and diagnostic use one consistent stored-hash format rule', () => {
+  for (const cost of ['04', '10', '12', '13', '31']) {
+    const hash = '$2a$' + cost + '$' + '.'.repeat(53);
+    assert.equal(isSupportedBcryptHash(hash), true);
+    assert.equal(getLoginComparisonHash({ passwordHash: hash }), hash);
+  }
+  assert.equal(isSupportedBcryptHash('not-bcrypt'), false);
 });

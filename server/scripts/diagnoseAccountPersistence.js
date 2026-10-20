@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { pathToFileURL } from 'node:url';
 import { getMongoConnectionOptions } from '../config/mongoCompatibility.js';
+import { isSupportedBcryptHash } from '../services/loginPassword.js';
 
 // Local operator-only, read-only account diagnosis. NEVER send a password.
 // Output excludes email, Mongo URI, account ID and password hash.
@@ -19,7 +20,7 @@ export function summarizeAccountPersistence({ databaseName, expectedDatabase, us
     expectedDatabaseMatches: expectedDatabase ? databaseName === expectedDatabase : null,
     usersCollectionExists: usersCollectionExists === true,
     accountPresent: Boolean(user),
-    passwordHashFormatValid: user ? /^\$2[aby]\$12\$[./A-Za-z0-9]{53}$/.test(user.passwordHash || '') : null,
+    passwordHashFormatValid: user ? isSupportedBcryptHash(user.passwordHash) : null,
     // Account creation time is intentionally omitted from operator output.
   };
 }

@@ -45,3 +45,19 @@ test('production or absent credentials cannot trigger a database scan', async ()
   await assert.rejects(() => diagnoseAccountPersistence({ env: { NODE_ENV: 'development', WG_ACCOUNT_DIAGNOSTIC_EMAIL: 'a@b.com' }, connect }), /MONGODB_URI/);
   assert.equal(calls, 0);
 });
+
+test('diagnostic recognizes authentic bcrypt cost variants consistently with login', () => {
+  for (const cost of ['10', '11', '12', '13']) {
+    const output = summarizeAccountPersistence({
+      databaseName: 'wealthgenie-demo', expectedDatabase: 'wealthgenie-demo',
+      usersCollectionExists: true,
+      user: { passwordHash: '$2b$' + cost + '$' + '.'.repeat(53) },
+    });
+    assert.equal(output.passwordHashFormatValid, true);
+  }
+  assert.equal(summarizeAccountPersistence({
+    databaseName: 'wealthgenie-demo',
+    usersCollectionExists: true,
+    user: { passwordHash: 'not-bcrypt' },
+  }).passwordHashFormatValid, false);
+});
