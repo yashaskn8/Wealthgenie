@@ -40,10 +40,17 @@ export function createModelGateway({
   maxOutputTokens = 1200,
   allowGeminiFallback = String(process.env.LLM_GEMINI_FALLBACK_ENABLED || '').trim().toLowerCase() === 'true',
 } = {}) {
+  if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens < 1) {
+    throw new RangeError('Model gateway output token limit must be a positive safe integer.');
+  }
   const providerChain = providers || configuredOrder(allowGeminiFallback);
   return {
     async generate({ role, systemPrompt, recentHistory = [], maxTokens = maxOutputTokens, jsonMode = false, outputContract = null, providerOutputMode = null, requestBudget = null, signal } = {}) {
       if (!MODEL_ROLES.includes(role)) throw new Error('Unknown model gateway role.');
+      if (!Number.isSafeInteger(maxTokens) || maxTokens < 1) {
+        throw new RangeError('Model gateway maxTokens must be a positive safe integer.');
+      }
+      const boundedMaxTokens = Math.min(maxTokens, maxOutputTokens);
       const startedAt = Date.now();
       const failures = [];
       const attempts = [];
@@ -73,7 +80,6 @@ export function createModelGateway({
         let response = null;
         let reservation = null;
         try {
-          const boundedMaxTokens = Math.min(Number(maxTokens) || maxOutputTokens, maxOutputTokens);
           reservation = requestBudget ? await requestBudget.reserve({
             systemPrompt,
             recentHistory,

@@ -323,3 +323,38 @@ test('grounded explanation does not swallow a hard PlanReview budget rejection',
     error => error === budgetError,
   );
 });
+
+test('model gateway rejects zero, negative, fractional and non-finite token caps before provider or budget', async () => {
+  let calls = 0;
+  let reservations = 0;
+  const gateway = createModelGateway({
+    providers: [{ name: 'groq', async generate() { calls += 1; return { text: 'must not run' }; } }],
+    maxOutputTokens: 32,
+  });
+  const budget = {
+    async reserve() { reservations += 1; throw new Error('unexpected reservation'); },
+    settle() {},
+  };
+  for (const maxTokens of [0, -1, 1.5, Number.NaN, Infinity, -Infinity, '8', null]) {
+    await assert.rejects(
+      gateway.generate({ role: 'PLANNER', systemPrompt: 'safe', maxTokens, requestBudget: budget }),
+      error => error instanceof RangeError && /maxTokens/.test(error.message),
+    );
+  }
+  assert.equal(calls, 0);
+  assert.equal(reservations, 0);
+  for (const maxOutputTokens of [0, -5, 1.1, Number.NaN, Infinity, '32']) {
+    assert.throws(() => createModelGateway({ providers: [], maxOutputTokens }), RangeError);
+  }
+});
+
+test('valid model output token requests are capped conservatively before provider invocation', async () => {
+  let seen;
+  const gateway = createModelGateway({
+    providers: [{ name: 'groq', async generate(args) { seen = args.maxTokens; return { text: 'ok', tokensUsed: 1 }; } }],
+    maxOutputTokens: 24,
+  });
+  const result = await gateway.generate({ role: 'PLANNER', systemPrompt: 'safe', maxTokens: 100 });
+  assert.equal(seen, 24);
+  assert.equal(result.text, 'ok');
+});
