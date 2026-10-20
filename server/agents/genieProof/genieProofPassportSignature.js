@@ -197,8 +197,17 @@ export function createGenieProofRuntime({ env = process.env } = {}) {
   const explicitlyEnabled = env.GENIEPROOF_ENABLED === 'true';
   const keyConfigurationPresent = Boolean(env.GENIEPROOF_SIGNING_PRIVATE_KEY
     && env.GENIEPROOF_SIGNING_PUBLIC_KEY && env.GENIEPROOF_SIGNING_KEY_ID);
-  if (!environmentAllowsPrototype || !explicitlyEnabled || !keyConfigurationPresent) {
-    return Object.freeze({ enabled: false, signer: null, productionActivationAllowed: false });
+  // Preserve the research-only gate. Expose only a fixed diagnostic code
+  // internally so the authenticated capability endpoint can explain why this
+  // instance is unavailable without disclosing environment values or keys.
+  if (!environmentAllowsPrototype) {
+    return Object.freeze({ enabled: false, signer: null, productionActivationAllowed: false, reasonCode: 'GENIEPROOF_LOCAL_RESEARCH_ONLY' });
+  }
+  if (!explicitlyEnabled) {
+    return Object.freeze({ enabled: false, signer: null, productionActivationAllowed: false, reasonCode: 'GENIEPROOF_FLAG_DISABLED' });
+  }
+  if (!keyConfigurationPresent) {
+    return Object.freeze({ enabled: false, signer: null, productionActivationAllowed: false, reasonCode: 'GENIEPROOF_SIGNING_KEYS_MISSING' });
   }
   try {
     const trustedPublicKeys = env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON
@@ -220,6 +229,7 @@ export function createGenieProofRuntime({ env = process.env } = {}) {
     });
     return Object.freeze({ enabled: true, signer, productionActivationAllowed: false });
   } catch {
-    return Object.freeze({ enabled: false, signer: null, productionActivationAllowed: false });
+    // Do not send parser or private-key validation exceptions to callers.
+    return Object.freeze({ enabled: false, signer: null, productionActivationAllowed: false, reasonCode: 'GENIEPROOF_SIGNING_CONFIGURATION_INVALID' });
   }
 }
