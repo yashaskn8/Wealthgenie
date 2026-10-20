@@ -387,6 +387,13 @@ function toOpenAiMessages(systemPrompt, recentHistory = []) {
   return messages;
 }
 
+// Template API-key strings are not usable credentials. Never dispatch a
+// network request or advertise provider readiness based on these placeholders.
+export function isUsableProviderCredential(value) {
+  return typeof value === 'string' && value.trim().length > 0
+    && !/^(?:change[ _-]*me|your[ _-]|replace[ _-]*me|placeholder(?:[ _-]|$)|example(?:[ _-]|$))/i.test(value.trim());
+}
+
 export class NvidiaNimProviderAdapter extends BaseProviderAdapter {
   constructor(breakerOptions = {}) {
     super('nvidia_nim', 0, breakerOptions);
@@ -397,7 +404,7 @@ export class NvidiaNimProviderAdapter extends BaseProviderAdapter {
     return String(process.env.NVIDIA_NIM_MODEL || NVIDIA_NIM_DEFAULT_MODEL).trim();
   }
 
-  isConfigured() { return Boolean(process.env.NVIDIA_API_KEY); }
+  isConfigured() { return isUsableProviderCredential(process.env.NVIDIA_API_KEY); }
 
   configuredBaseUrl() {
     return String(process.env.NVIDIA_NIM_BASE_URL || NVIDIA_NIM_DEFAULT_BASE_URL).trim().replace(/\/+$/, '');
@@ -409,7 +416,7 @@ export class NvidiaNimProviderAdapter extends BaseProviderAdapter {
     this.lastFailureReason = null;
     if (signal?.aborted) throw signal.reason || Object.assign(new Error('Provider request aborted.'), { name: 'AbortError' });
     const apiKey = process.env.NVIDIA_API_KEY;
-    if (!apiKey) {
+    if (!isUsableProviderCredential(apiKey)) {
       this.lastFailureReason = 'PROVIDER_NOT_CONFIGURED';
       return null;
     }
@@ -502,13 +509,13 @@ export class GeminiProviderAdapter extends BaseProviderAdapter {
 
   configuredModel() { return 'gemini-3.6-flash'; }
 
-  isConfigured() { return Boolean(process.env.GEMINI_API_KEY); }
+  isConfigured() { return isUsableProviderCredential(process.env.GEMINI_API_KEY); }
 
   async generate({ systemPrompt, recentHistory, maxTokens = 4096, tools = null, jsonMode = false, outputContract = null, signal }) {
     this.lastFailureReason = null;
     if (signal?.aborted) throw signal.reason || Object.assign(new Error('Provider request aborted.'), { name: 'AbortError' });
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    if (!isUsableProviderCredential(apiKey)) {
       this.lastFailureReason = 'PROVIDER_NOT_CONFIGURED';
       return null;
     }
@@ -633,13 +640,13 @@ export class GroqProviderAdapter extends BaseProviderAdapter {
 
   configuredModel() { return String(process.env.GROQ_MODEL || GROQ_DEFAULT_MODEL).trim(); }
 
-  isConfigured() { return Boolean(process.env.GROQ_API_KEY); }
+  isConfigured() { return isUsableProviderCredential(process.env.GROQ_API_KEY); }
 
   async generate({ systemPrompt, recentHistory, maxTokens = 4096, tools = null, jsonMode = false, outputContract = null, providerOutputMode = null, planReviewRole = null, signal }) {
     this.lastFailureReason = null;
     if (signal?.aborted) throw signal.reason || Object.assign(new Error('Provider request aborted.'), { name: 'AbortError' });
     const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
+    if (!isUsableProviderCredential(apiKey)) {
       this.lastFailureReason = 'PROVIDER_NOT_CONFIGURED';
       return null;
     }

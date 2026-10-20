@@ -3,6 +3,7 @@ import test from 'node:test';
 import axios from 'axios';
 import {
   classifyProviderError,
+  isUsableProviderCredential,
   GeminiProviderAdapter,
   GroqProviderAdapter,
   NvidiaNimProviderAdapter,
@@ -423,4 +424,29 @@ test('a bounded durable request may route Groq transport failure to Gemini', asy
   assert.equal(result.fallback, true);
   assert.ok(result.validation.reasonCodes.includes('PROVIDER_SERVER_ERROR'));
   assert.equal(budget.modelCalls, 2);
+});
+
+test('placeholder API keys never activate external models or Gemini failover', async testContext => {
+  setup(testContext);
+  for (const candidate of [
+    '', '  ', 'CHANGE_ME_GEMINI_API_KEY', 'your_gemini_api_key_here',
+    'your-groq-api-key', 'placeholder-token', 'replace_me_token', 'example-token',
+  ]) assert.equal(isUsableProviderCredential(candidate), false);
+  assert.equal(isUsableProviderCredential('unit-test-only-not-a-secret'), true);
+  for (const [key, provider] of [
+    ['GROQ_API_KEY', ProviderManager.groq],
+    ['GEMINI_API_KEY', ProviderManager.gemini],
+    ['NVIDIA_API_KEY', ProviderManager.nvidia],
+  ]) {
+    process.env[key] = 'CHANGE_ME_NOT_A_CREDENTIAL';
+    assert.equal(provider.isConfigured(), false, `${key} must not advertise readiness with placeholder`);
+    const result = await provider.generate({ systemPrompt: 'Check configuration only.', recentHistory: [], maxTokens: 16 });
+    assert.equal(result, null, 'No network call for placeholder credentials');
+    assert.equal(provider.lastFailureReason, 'PROVIDER_NOT_CONFIGURED');
+  }
+  const gateway = createModelGateway({ providers: [ProviderManager.groq, ProviderManager.gemini], allowGeminiFallback: true });
+  const unavailable = await gateway.generate({ role: 'EXPLAINER', systemPrompt: 'Check configuration.' });
+  assert.equal(unavailable.text, null);
+  assert.equal(unavailable.routing.provider, null);
+  assert.equal(unavailable.routing.attemptedProviders.length, 1, 'Missing primary key must not trigger failover');
 });
