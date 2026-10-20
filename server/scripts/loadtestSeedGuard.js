@@ -29,3 +29,14 @@ export function assertIsolatedLoadtestSeedTarget({
   }
   return { databaseName: database };
 }
+
+/**
+ * A load-test recommendation must bind to the exact validated saved profile
+ * version. Omitting profileVersion fails the required Recommendation schema.
+ */
+export function loadtestRecommendationBinding(profile) {
+  if (!profile?._id || !Number.isSafeInteger(profile.version) || profile.version < 1) {
+    throw new TypeError('Loadtest recommendation requires a saved versioned profile.');
+  }
+  return { profileId: profile._id, profileVersion: profile.version };
+}

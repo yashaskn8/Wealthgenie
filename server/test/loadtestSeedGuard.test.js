@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertIsolatedLoadtestSeedTarget } from '../scripts/loadtestSeedGuard.js';
+import {
+  assertIsolatedLoadtestSeedTarget,
+  loadtestRecommendationBinding,
+} from '../scripts/loadtestSeedGuard.js';
 import { buildInstrumentSeedOperations } from '../config/instrumentSeedPlan.js';
 
 const safe = {
@@ -39,4 +42,14 @@ test('loadtest fixture instrument synchronization uses non-destructive upserts',
   assert.deepEqual(operations[0].updateOne.filter, { id: 'loadtest-fixture' });
   assert.equal(operations[0].updateOne.update.$setOnInsert.rate, 0);
   assert.equal(Object.hasOwn(operations[0].updateOne.update.$set, 'rate'), false);
+});
+
+test('loadtest recommendation is bound to a saved profile and its required version', () => {
+  assert.deepEqual(loadtestRecommendationBinding({ _id: 'saved-id', version: 7 }), {
+    profileId: 'saved-id', profileVersion: 7,
+  });
+  for (const profile of [null, {}, { _id: 'x' }, { _id: 'x', version: 0 },
+    { _id: 'x', version: NaN }, { _id: 'x', version: 1.5 }]) {
+    assert.throws(() => loadtestRecommendationBinding(profile));
+  }
 });
