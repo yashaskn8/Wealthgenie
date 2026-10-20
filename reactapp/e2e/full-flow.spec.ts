@@ -391,7 +391,7 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     expect(chat.evidence_ids_used.length).toBeGreaterThan(0);
     expect(chat.citations.length).toBeGreaterThan(0);
     await expect(page.getByText('Answer evidence and provenance').last()).toBeVisible();
-    await page.getByText('Grounded by WealthGenie data').last().click();
+    await page.getByText('Answer evidence and provenance').last().click();
     await expect(page.getByText(/Provider: (DETERMINISTIC_TEMPLATE|NVIDIA_NIM|GEMINI|GROQ)/).last()).toBeVisible();
 
     const cookies = await context.cookies();
