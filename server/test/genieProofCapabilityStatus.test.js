@@ -52,3 +52,29 @@ test('preview rejects oversized text and never promotes unsupported statements t
   assert.equal(review.sourceEvidenceChecked, false);
   assert.equal(review.signedPassportCreated, false);
 });
+
+test('GenieProof reason codes distinguish setup failures without leaking signing keys', () => {
+  const accepted = [
+    'GENIEPROOF_LOCAL_RESEARCH_ONLY',
+    'GENIEPROOF_FLAG_DISABLED',
+    'GENIEPROOF_SIGNING_KEYS_MISSING',
+    'GENIEPROOF_SIGNING_CONFIGURATION_INVALID',
+  ];
+  for (const code of accepted) {
+    const result = getGenieProofCapabilityStatus({
+      enabled: false, productionActivationAllowed: false, reasonCode: code,
+      signer: { privateKey: 'SECRET_PRIVATE_KEY_EXAMPLE' },
+    });
+    assert.deepEqual(result, {
+      interactiveEnabled: false,
+      extractionPreviewEnabled: true,
+      mode: 'UNAVAILABLE',
+      reasonCode: code,
+      productionVerified: false,
+    });
+    assert.ok(!JSON.stringify(result).includes('SECRET_PRIVATE_KEY_EXAMPLE'));
+  }
+  assert.equal(getGenieProofCapabilityStatus({
+    enabled: false, reasonCode: 'PRIVATE_PEM_CONTENT_SHOULD_NOT_LEAK',
+  }).reasonCode, 'FEATURE_UNAVAILABLE');
+});
