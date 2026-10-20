@@ -48,6 +48,8 @@ test('only manifested regulatory scope may activate RAG retrieval', () => {
     'What is the best tax regime for my investments in 2026?',
     'What is my tax deduction under Section 80C?',
     'What is the latest capital gains tax rate?',
+    'Which act governs tax year 2026-27?',
+    'How do the Income-tax Rules 2026 affect tax deductions?',
     'Which stock should I buy?',
     'Explain portfolio balancing in simple terms',
   ]) assert.equal(isCoveredRegulatoryChatQuestion(q), false, q);
