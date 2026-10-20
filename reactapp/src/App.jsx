@@ -33,8 +33,10 @@ const ComparisonTableModal = lazy(() => import('./ComparisonTableModal'));
 const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const AuthPage = lazy(() => import('./components/AuthPage'));
 const LandingPage = lazy(() => import('./LandingPage'));
-const GENIEPROOF_LOCAL_UI_ENABLED = !import.meta.env.PROD && import.meta.env.VITE_GENIEPROOF_ENABLED === 'true';
-const NAVIGATION_OPTIONS = { allowGenieProof: GENIEPROOF_LOCAL_UI_ENABLED };
+// Keep the navigation discoverable, without enabling a gated backend capability.
+const GENIEPROOF_INTERACTIVE_PREVIEW_ENABLED = !import.meta.env.PROD
+  && import.meta.env.VITE_GENIEPROOF_ENABLED === 'true';
+const NAVIGATION_OPTIONS = { allowGenieProof: true };
 
 // ── Bounded retry helper for deferred advisory generation ──
 // A crashed server claim becomes reclaimable after two minutes. Continue the
@@ -854,11 +856,28 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
           </ErrorBoundary>
         );
       case NAV_PAGES.GENIEPROOF:
-        return GENIEPROOF_LOCAL_UI_ENABLED ? (
+        return (
           <ErrorBoundary>
-            <GenieProofPanel />
+            {GENIEPROOF_INTERACTIVE_PREVIEW_ENABLED ? (
+              <GenieProofPanel />
+            ) : (
+              <section aria-labelledby="genieproof-preview-title" style={{
+                maxWidth: 900, margin: '32px auto', padding: 24,
+                border: '1px solid rgba(148, 163, 184, 0.3)', borderRadius: 12,
+              }}>
+                <h1 id="genieproof-preview-title">GenieProof</h1>
+                <p role="status">
+                  GenieProof is a research preview. Claim inspection, monitoring and signed
+                  passports are not enabled in this environment.
+                </p>
+                <p>
+                  These operations require an explicitly configured local development backend
+                  and signing keys. No claim has been checked.
+                </p>
+              </section>
+            )}
           </ErrorBoundary>
-        ) : null;
+        );
       case NAV_PAGES.ACCOUNT:
         return (
           <ErrorBoundary>
@@ -914,7 +933,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
         activePage={activePage}
         onNavigate={navigateTo}
         onLogout={handleLogout}
-        genieProofEnabled={GENIEPROOF_LOCAL_UI_ENABLED}
+        genieProofEnabled
       />
       <main className="app-main">
         <Suspense fallback={lazyFallback}>
