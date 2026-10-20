@@ -657,3 +657,21 @@ test('deployment validator rejects Kind application rollout before Phase 5 runti
     assert.match(result.stderr, /Kind CD must wait for all ordered one-shot database migrations/);
   });
 });
+
+test('managed production Redis target is secret-sourced by both API and worker', () => {
+  for (const file of ['deploy/production/server-patch.yaml', 'deploy/production/worker-patch.yaml']) {
+    const patch = readYaml(repositoryRoot, file);
+    const redis = patch.spec.template.spec.containers[0].env.find(x => x.name === 'REDIS_URL');
+    assert.deepEqual(redis.valueFrom.secretKeyRef, { name: 'wealthgenie-secrets', key: 'REDIS_URL' });
+    assert.equal(Object.hasOwn(redis, 'value'), false);
+  }
+  withDeploymentFixture(root => {
+    const path = 'deploy/production/worker-patch.yaml';
+    const patch = readYaml(root, path);
+    patch.spec.template.spec.containers[0].env.find(x => x.name === 'REDIS_URL').valueFrom.secretKeyRef.key = 'INVALID_REDIS_KEY';
+    writeYaml(root, path, patch);
+    const result = validate(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /same required Redis URL Secret/);
+  });
+});

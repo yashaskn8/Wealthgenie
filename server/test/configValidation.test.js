@@ -365,3 +365,25 @@ test('production feature activation still requires Redis and budget-restricted p
   assert.equal(runtime.agenticPlanReviewEnabled, true);
   assert.equal(runtime.agentStreamEnabled, true);
 });
+
+test('production Redis accepts secure managed endpoints and protected internal service', () => {
+  const base = {
+    NODE_ENV: 'production',
+    JWT_SECRET: '0123456789abcdef0123456789abcdef0123456789abcdef',
+    MONGODB_URI: 'mongodb://localhost:27017/wealthgenie',
+    ML_SERVICE_API_KEY: 'production-secret-api-key-value-secure',
+    METRICS_TOKEN: 'production-metrics-token-at-least-32-characters',
+    CORS_ORIGINS: 'https://wealthgenie.example',
+    REDIS_PASSWORD: 'secure-redis-password-at-least-32-characters',
+    REQUIRE_REDIS: 'true',
+  };
+  for (const REDIS_URL of ['rediss://redis.example.com:6380/0', 'redis://wealthgenie-redis.wealthgenie.svc.cluster.local:6379', 'redis://127.0.0.1:6379']) {
+    const result = validateEnvironmentConfig({ ...base, REDIS_URL });
+    assert.equal(result.valid, true, result.errors.join('; '));
+  }
+  for (const REDIS_URL of ['redis://redis.example.com:6379', 'https://redis.example.com', 'rediss://redis.example.com:6380/#invalid', 'redis://redis.svc.cluster.local.attacker.example:6379', 'not-a-url']) {
+    const result = validateEnvironmentConfig({ ...base, REDIS_URL });
+    assert.equal(result.valid, false, 'Insecure/invalid Redis URL must be blocked');
+    assert.ok(result.errors.some(error => error.includes('Redis') || error.includes('REDIS_URL')));
+  }
+});

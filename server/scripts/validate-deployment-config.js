@@ -174,6 +174,15 @@ const baseConfig = parse(read('k8s/configmap.yaml'));
 const productionApiPatch = parse(read('deploy/production/server-patch.yaml'));
 const productionApi = productionApiPatch.spec?.template?.spec?.containers?.find(item => item.name === 'server');
 const productionApiVars = new Map((productionApi?.env || []).map(entry => [entry.name, entry]));
+const productionWorkerPatch = parse(read('deploy/production/worker-patch.yaml'));
+const productionWorker = productionWorkerPatch.spec?.template?.spec?.containers?.find(item => item.name === 'agent-worker');
+const productionWorkerVars = new Map((productionWorker?.env || []).map(item => [item.name, item]));
+const requiredRedisUrlSecret = item => item?.valueFrom?.secretKeyRef?.name === 'wealthgenie-secrets'
+  && item.valueFrom.secretKeyRef.key === 'REDIS_URL' && item.valueFrom.secretKeyRef.optional !== true;
+if (!requiredRedisUrlSecret(productionApiVars.get('REDIS_URL'))
+    || !requiredRedisUrlSecret(productionWorkerVars.get('REDIS_URL'))) {
+  throw new Error('Production API and worker must use the same required Redis URL Secret');
+}
 const mlDeployment = docs.find(item => item.value?.kind === 'Deployment'
   && item.value?.metadata?.name === 'wealthgenie-ml-service')?.value;
 const workerDeployment = docs.find(item => item.value?.kind === 'Deployment'
