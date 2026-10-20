@@ -92,7 +92,7 @@ export async function retrieveQualifiedRegulatoryChatEvidence({
       id: evidenceId,
       kind: 'REGULATORY_REFERENCE',
       value: { documentKey: CORPUS.documentKey, excerpt, verifiedCommencementDate: CORPUS.effectiveFrom },
-      displayValue: 'The Income-tax Rules, 2026 took effect on 1 April 2026.',
+      displayValue: 'The Income-tax Rules, 2026 took effect on 2026-04-01.',
       dataClass: 'OFFICIAL_CORPUS_EXCERPT',
       authority: 'MANIFEST_VERIFIED_REGULATORY_SOURCE',
       source: {
