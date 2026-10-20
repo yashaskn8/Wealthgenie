@@ -88,6 +88,24 @@ describe('GenieProof unsaved production claim preview', () => {
     expect(screen.queryByTestId('interactive-genieproof')).not.toBeInTheDocument();
   });
 
+  it('counts UTF-8 bytes and blocks oversize multi-byte submissions before API calls', async () => {
+    getGenieProofCapabilities.mockResolvedValue(readonlyCapability);
+    render(<GenieProofEntry />);
+    const offer = await screen.findByLabelText('Financial offer or statement');
+    const button = screen.getByRole('button', { name: 'Review claims' });
+    fireEvent.change(offer, { target: { value: '₹'.repeat(6000) } });
+    expect(screen.getByText('18,000 / 16,000 UTF-8 bytes')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('exceeds the 16,000-byte extraction limit');
+    expect(button).toBeDisabled();
+    expect(previewGenieProofClaims).not.toHaveBeenCalled();
+    fireEvent.change(offer, { target: { value: 'a'.repeat(16001) } });
+    expect(screen.getByText('16,001 / 16,000 UTF-8 bytes')).toBeInTheDocument();
+    expect(button).toBeDisabled();
+    fireEvent.change(offer, { target: { value: 'a'.repeat(16000) } });
+    expect(screen.getByText('16,000 / 16,000 UTF-8 bytes')).toBeInTheDocument();
+    expect(button).toBeEnabled();
+  });
+
   it('clears the previous preview when input changes and fails closed on a malformed response', async () => {
     getGenieProofCapabilities.mockResolvedValue(readonlyCapability);
     previewGenieProofClaims.mockResolvedValueOnce({

@@ -388,12 +388,19 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(page.getByRole('heading', { name: 'Compare Investments' })).toBeVisible();
   });
 
-  test('authenticated mobile navigation opens gated GenieProof and announces the UTF-8 limit', async ({ page }) => {
-    await page.route('**/api/genieproof/cases', async route => {
+  test('authenticated mobile navigation shows restricted GenieProof preview and enforces UTF-8 limit', async ({ page }) => {
+    // A test-only capability fixture never activates signing or verified claims.
+    await page.route('**/api/genieproof/capabilities', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ cases: [] }),
+        body: JSON.stringify({
+          interactiveEnabled: false,
+          extractionPreviewEnabled: true,
+          mode: 'UNAVAILABLE',
+          reasonCode: 'FEATURE_UNAVAILABLE',
+          productionVerified: false,
+        }),
       });
     });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -405,24 +412,29 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(drawer.getByRole('button', { name: /GenieProof/i })).toBeVisible();
     await drawer.getByRole('button', { name: /GenieProof/i }).click();
     await expect(page).toHaveURL(/page=genieproof/);
-    await expect(page.getByRole('heading', { name: 'GenieProof claim inspection' })).toBeVisible();
-    await expect(page.getByText(/when qualified evidence is unavailable, GenieProof records an abstention/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'GenieProof', exact: true })).toBeVisible();
+    await expect(page.getByText(/Signed GenieProof passports and evidence-based verdicts are unavailable/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Review claim candidates' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Enable ProofBreak checks/i })).toHaveCount(0);
 
-    const offer = page.getByLabel('Paste the offer text');
-    await offer.fill('₹'.repeat(6000));
-    const byteStatus = page.locator('#genieproof-byte-status');
-    await expect(byteStatus).toContainText('exceeds the 16,000-byte extraction limit');
-    await expect(byteStatus).toHaveAttribute('aria-live', 'polite');
-    await expect(page.locator('#genieproof-byte-count')).toContainText('18,000 / 16,000 UTF-8 bytes');
-    const extractButton = page.getByRole('button', { name: /extract claims/i });
+    const offer = page.getByLabel('Financial offer or statement');
+    const extractButton = page.getByRole('button', { name: 'Review claims' });
     await expect(extractButton).toBeDisabled();
-    await expect(extractButton).toHaveAttribute('aria-describedby', /genieproof-byte-count genieproof-byte-status/);
+    await offer.fill('₹'.repeat(6000));
+    const byteStatus = page.locator('#genieproof-preview-byte-status');
+    await expect(byteStatus).toContainText('exceeds the 16,000-byte extraction limit');
+    await expect(byteStatus).toHaveAttribute('role', 'alert');
+    await expect(page.locator('#genieproof-preview-byte-count')).toContainText('18,000 / 16,000 UTF-8 bytes');
+    await expect(extractButton).toBeDisabled();
+    await expect(offer).toHaveAttribute('aria-invalid', 'true');
     await offer.fill('a'.repeat(16001));
     await expect(offer).toHaveValue('a'.repeat(16001));
     await expect(offer).toHaveJSProperty('maxLength', -1);
-    await expect(page.locator('#genieproof-byte-count')).toContainText('16,001 / 16,000 UTF-8 bytes');
+    await expect(page.locator('#genieproof-preview-byte-count')).toContainText('16,001 / 16,000 UTF-8 bytes');
     await expect(extractButton).toBeDisabled();
+    await offer.fill('A short PPF claim to review.');
+    await expect(extractButton).toBeEnabled();
+    await expect(offer).not.toHaveAttribute('aria-invalid', 'true');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 

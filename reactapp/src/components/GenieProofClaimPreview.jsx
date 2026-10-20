@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
 
-const MAX_SUBMISSION_CHARS = 16000;
+const MAX_SUBMISSION_BYTES = 16000;
 
 export default function GenieProofClaimPreview() {
   const [offerText, setOfferText] = useState('');
@@ -9,6 +9,8 @@ export default function GenieProofClaimPreview() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const pending = useRef(null);
+  const utf8Bytes = new TextEncoder().encode(offerText).length;
+  const exceedsLimit = utf8Bytes > MAX_SUBMISSION_BYTES;
 
   useEffect(() => () => pending.current?.abort(), []);
 
@@ -23,7 +25,7 @@ export default function GenieProofClaimPreview() {
 
   const submit = async event => {
     event.preventDefault();
-    if (!offerText.trim() || busy) return;
+    if (!offerText.trim() || exceedsLimit || busy) return;
     pending.current?.abort();
     const controller = new AbortController();
     pending.current = controller;
@@ -65,12 +67,21 @@ export default function GenieProofClaimPreview() {
         <textarea
           id="genieproof-preview-offer"
           value={offerText}
-          maxLength={MAX_SUBMISSION_CHARS}
+          aria-describedby="genieproof-preview-byte-count genieproof-preview-byte-status"
+          aria-invalid={exceedsLimit || undefined}
           onChange={event => changeText(event.target.value)}
           rows={5}
           style={{ width: '100%', display: 'block', margin: '8px 0 12px', padding: 12 }}
         />
-        <button type="submit" disabled={busy || !offerText.trim()}>
+        <p id="genieproof-preview-byte-count" aria-live="polite">
+          {utf8Bytes.toLocaleString('en-US')} / {MAX_SUBMISSION_BYTES.toLocaleString('en-US')} UTF-8 bytes
+        </p>
+        <p id="genieproof-preview-byte-status" role={exceedsLimit ? 'alert' : undefined}>
+          {exceedsLimit
+            ? 'Offer text exceeds the 16,000-byte extraction limit. Shorten it before reviewing.'
+            : 'The review uses your text only after you submit it.'}
+        </p>
+        <button type="submit" disabled={busy || !offerText.trim() || exceedsLimit}>
           {busy ? 'Reviewing…' : 'Review claims'}
         </button>
       </form>
