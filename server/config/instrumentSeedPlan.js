@@ -18,10 +18,11 @@ export function mapCatalogInstrument(inv) {
     subCategory: inv.subCategory,
     assetClass: inv.assetClass,
     provider: inv.provider,
-    expectedReturn: inv.expectedReturn ?? inv.rate,
-    rate: inv.rate ?? inv.expectedReturn,
+    // Expected returns are projection assumptions, not observed product rates.
+    expectedReturn: inv.expectedReturn ?? null,
+    rate: inv.rate ?? null,
     returnRange: inv.returnRange,
-    interestRate: inv.interestRate ?? inv.expectedReturn ?? inv.rate,
+    interestRate: inv.interestRate ?? inv.rate ?? null,
     risk: inv.dynamicData?.risk?.value ?? inv.riskLevel ?? 3,
     riskLabel: inv.riskLabel,
     volatility: inv.volatility,
@@ -30,7 +31,10 @@ export function mapCatalogInstrument(inv) {
     lockInYears: inv.lockIn ?? 0,
     taxType: inv.taxType,
     taxEfficiencyScore: inv.taxEfficiencyScore,
-    taxation: inv.taxation,
+    // The master catalog contains structured unavailable tax metadata but
+    // the persisted Instrument schema expects a string, never an object.
+    taxation: typeof inv.taxation === 'string' ? inv.taxation
+      : (typeof inv.taxation?.desc === 'string' ? inv.taxation.desc : undefined),
     expenseRatio: inv.expenseRatio ?? 0,
     minMonthlyInvestment: inv.minMonthlyInvestment,
     maxAnnualInvestment: inv.maxAnnualInvestment,

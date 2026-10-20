@@ -59,3 +59,26 @@ test('a catalog refresh may rename an instrument but cannot rewrite a stored rat
     assert.equal(Object.hasOwn(updateOne.update.$setOnInsert, field), true);
   }
 });
+
+test('missing market rates do not become projection assumptions', () => {
+  const mapped = mapCatalogInstrument({
+    id: 'missing', name: 'Missing rate', expectedReturn: 10, rate: null,
+  });
+  assert.equal(mapped.expectedReturn, 10);
+  assert.equal(mapped.rate, null);
+  assert.equal(mapped.interestRate, null);
+  const op = buildInstrumentSeedOperations([{ id: 'missing', name: 'Missing rate', expectedReturn: 10, rate: null }]).operations[0];
+  assert.equal(op.updateOne.update.$setOnInsert.rate, null);
+  assert.equal(op.updateOne.update.$setOnInsert.interestRate, null);
+});
+
+test('master catalog structured tax disclosure matches the legacy string schema', () => {
+  const item = { id: 'x', name: 'Example', taxation: {
+    status: 'TAX_CLASSIFICATION_UNAVAILABLE',
+    desc: 'Tax treatment requires current server calculation',
+    label: 'Unavailable',
+  } };
+  const op = buildInstrumentSeedOperations([item]).operations[0];
+  assert.equal(op.updateOne.update.$setOnInsert.taxation, 'Tax treatment requires current server calculation');
+  assert.equal(typeof op.updateOne.update.$setOnInsert.taxation, 'string');
+});
