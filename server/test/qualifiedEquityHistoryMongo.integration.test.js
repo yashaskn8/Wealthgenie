@@ -4,10 +4,11 @@ import express from 'express';
 import mongoose from 'mongoose';
 import MarketEquityDailyBar from '../models/MarketEquityDailyBar.js';
 import MarketObservation from '../models/MarketObservation.js';
+import InvestmentProduct from '../models/InvestmentProduct.js';
 import { createMarketDataAdminRouter } from '../routes/marketDataAdmin.js';
 import { createMarketQuotesRouter } from '../routes/marketQuotes.js';
 import { errorHandler } from '../middleware/errorHandler.js';
-import { buildObservationOperations } from '../services/marketData/MarketDataRepository.js';
+import { buildObservationOperations, persistVerifiedMarketSnapshot } from '../services/marketData/MarketDataRepository.js';
 import { persistQualifiedHistory, readQualifiedHistory } from '../services/marketData/QualifiedEquityHistoryStore.js';
 import { readStoredBenchmarkQuotes } from '../services/marketData/StoredBenchmarkQuoteStore.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
@@ -171,6 +172,64 @@ test('rights-qualified benchmark fixture is retained in Mongo and exposed only t
     });
   } finally {
     if (mongoose.connection.readyState === 1) await MarketObservation.deleteMany(quoteIdentity);
+    await teardownTestDatabase();
+  }
+});
+
+test('catalog and immutable observations publish atomically, preserving first evidence on a conflicting correction', async () => {
+  await setupTestDatabase({ requireReplicaSet: true });
+  const canonicalProductId = 'mf:fixture:immutable-observation';
+  const source = { provider: 'AMFI', instrumentId: 'fixture-scheme-123',
+    url: 'https://portal.amfiindia.com/spages/NAVAll.txt' };
+  const observedAt = '2026-10-19T00:00:00.000Z';
+  const snapshot = (value, fetchedAt, name) => ({
+    schemaVersion: 'market-fact-1.0.0', status: 'AVAILABLE', fetchedAt,
+    products: [{ schemaVersion: 'market-fact-1.0.0', canonicalProductId,
+      productType: 'MUTUAL_FUND', name, source: { provider: 'AMFI', url: source.url } }],
+    facts: [{ schemaVersion: 'market-fact-1.0.0', kind: 'MUTUAL_FUND_NAV',
+      canonicalProductId, value, unit: 'NAV_PER_UNIT', currency: 'INR',
+      observedAt, fetchedAt, availabilityStatus: 'AVAILABLE', dataClass: 'DAILY',
+      freshness: { status: 'FRESH', ageSeconds: 60, maxAgeSeconds: 86_400 }, source }],
+  });
+  const productFilter = { canonicalProductId };
+  const observationFilter = { kind: 'MUTUAL_FUND_NAV', canonicalProductId };
+  try {
+    await InvestmentProduct.deleteMany(productFilter);
+    await MarketObservation.deleteMany(observationFilter);
+    assert.equal((await persistVerifiedMarketSnapshot(snapshot(12.34, '2026-10-20T10:00:00.000Z', 'Original name'))).status, 'PERSISTED');
+    const original = await MarketObservation.findOne(observationFilter).lean();
+    assert.equal(original.value, 12.34);
+    assert.equal((await persistVerifiedMarketSnapshot(snapshot(12.34, '2026-10-20T11:00:00.000Z', 'Updated name'))).status, 'PERSISTED');
+    const repeated = await MarketObservation.findOne(observationFilter).lean();
+    assert.equal(repeated.firstFetchedAt.toISOString(), original.firstFetchedAt.toISOString());
+    assert.equal(repeated.lastFetchedAt.toISOString(), original.lastFetchedAt.toISOString());
+    assert.equal((await InvestmentProduct.findOne(productFilter).lean()).name, 'Updated name');
+    await assert.rejects(
+      persistVerifiedMarketSnapshot(snapshot(12.35, '2026-10-20T12:00:00.000Z', 'Unpublished correction')),
+      error => error.code === 11000,
+    );
+    assert.equal((await InvestmentProduct.findOne(productFilter).lean()).name, 'Updated name');
+    assert.equal((await MarketObservation.findOne(observationFilter).lean()).value, 12.34);
+    assert.equal(await MarketObservation.countDocuments(observationFilter), 1);
+    const provenanceCorrection = snapshot(12.34, '2026-10-20T12:30:00.000Z', 'Unpublished provenance');
+    provenanceCorrection.facts[0].source = { ...source,
+      url: 'https://example.invalid/changed-source' };
+    await assert.rejects(
+      persistVerifiedMarketSnapshot(provenanceCorrection),
+      error => error.code === 11000,
+    );
+    assert.equal((await InvestmentProduct.findOne(productFilter).lean()).name, 'Updated name');
+    assert.equal((await MarketObservation.findOne(observationFilter).lean()).source.url, source.url);
+    await assert.rejects(
+      persistVerifiedMarketSnapshot(snapshot(12.34, '2026-10-20T09:00:00.000Z', 'Stale name')),
+      error => error.code === 11000,
+    );
+    assert.equal((await InvestmentProduct.findOne(productFilter).lean()).name, 'Updated name');
+  } finally {
+    if (mongoose.connection.readyState === 1) {
+      await InvestmentProduct.deleteMany(productFilter);
+      await MarketObservation.deleteMany(observationFilter);
+    }
     await teardownTestDatabase();
   }
 });

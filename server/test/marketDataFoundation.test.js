@@ -1147,8 +1147,9 @@ test('durable history observations preserve candle semantics without treating ca
   };
   const [operation] = buildHistoryObservationOperations(snapshot);
   assert.equal(operation.updateOne.filter.kind, 'MARKET_HISTORY_CANDLE');
-  assert.equal(operation.updateOne.update.$set.value, 105);
-  assert.equal(operation.updateOne.update.$set.observedAt.toISOString(), '2026-09-07T10:00:00.000Z');
-  assert.equal(operation.updateOne.update.$set.lastFetchedAt.toISOString(), FIXED_NOW.toISOString());
-  assert.equal(operation.updateOne.update.$set.metrics.high, 110);
+  assert.equal(operation.updateOne.filter.value, 105);
+  assert.equal(operation.updateOne.update.$setOnInsert.value, 105);
+  assert.equal(operation.updateOne.update.$setOnInsert.observedAt.toISOString(), '2026-09-07T10:00:00.000Z');
+  assert.equal(operation.updateOne.update.$setOnInsert.lastFetchedAt.toISOString(), FIXED_NOW.toISOString());
+  assert.equal(operation.updateOne.update.$setOnInsert.metrics.high, 110);
 });

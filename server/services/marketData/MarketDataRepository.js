@@ -17,14 +17,44 @@ export const MARKET_CONTEXT_CANONICAL_ID = 'market:context:primary';
 // provider's in-flight request coalescer. Share its durable write as well.
 const inFlightSnapshotPersistence = new WeakMap();
 
+// Match the immutable normalized evidence, not only its headline value. A
+// provider correction at the same observation identity must hit the unique
+// index and fail instead of making a materially different re-fetch look
+// idempotent. Fetch time and freshness are intentionally excluded.
+function immutableEvidenceFilter(fields) {
+  const filter = {
+    schemaVersion: fields.schemaVersion,
+    canonicalProductId: fields.canonicalProductId,
+    value: fields.value,
+    currency: fields.currency ?? null,
+    unit: fields.unit,
+    providerTimestamp: fields.providerTimestamp ?? null,
+    effectiveTradingDate: fields.effectiveTradingDate ?? null,
+    effectiveFrom: fields.effectiveFrom ?? null,
+    effectiveTo: fields.effectiveTo ?? null,
+    publicationDate: fields.publicationDate ?? null,
+    dataClass: fields.dataClass ?? null,
+    semanticClass: fields.semanticClass,
+    'source.url': fields.source.url,
+  };
+  for (const key of ['open', 'high', 'low', 'close', 'previousClose', 'volume', 'openInterest']) {
+    filter[`metrics.${key}`] = fields.metrics?.[key] ?? null;
+  }
+  return filter;
+}
+
 export function buildProductOperations(snapshot) {
+  const verifiedAt = new Date(snapshot.fetchedAt);
   return (snapshot?.products || []).map(product => ({
     updateOne: {
-      filter: { canonicalProductId: product.canonicalProductId },
+      // A delayed older refresh must conflict with the unique product ID,
+      // never roll the current catalog row back to stale provider metadata.
+      filter: { canonicalProductId: product.canonicalProductId,
+        lastVerifiedAt: { $lte: verifiedAt } },
       update: {
         $set: {
           ...product,
-          lastVerifiedAt: new Date(snapshot.fetchedAt),
+          lastVerifiedAt: verifiedAt,
         },
       },
       upsert: true,
@@ -84,13 +114,11 @@ export function buildObservationOperations(snapshot, {
           'source.provider': fact.source.provider,
           'source.instrumentId': fact.source.instrumentId,
           observedAt,
-          // The unique observation index turns a changed value into an
-          // explicit duplicate-key conflict instead of replacing old evidence.
-          ...(isQuote ? { value: fact.value } : {}),
+          // A correction at the same provider timestamp conflicts with the
+          // unique observation identity instead of rewriting prior evidence.
+          ...immutableEvidenceFilter(fields),
         },
-        update: isQuote
-          ? { $setOnInsert: { ...fields, firstFetchedAt: new Date(fact.fetchedAt) } }
-          : { $set: fields, $setOnInsert: { firstFetchedAt: new Date(fact.fetchedAt) } },
+        update: { $setOnInsert: { ...fields, firstFetchedAt: new Date(fact.fetchedAt) } },
         upsert: true,
       } };
     });
@@ -104,48 +132,49 @@ export function buildHistoryObservationOperations(snapshot) {
   return snapshot.candles
     .filter(candle => Number.isFinite(candle?.close) && candle.timestamp && snapshot.source?.provider
       && snapshot.source?.instrumentId && snapshot.source?.url)
-    .map(candle => ({
-      updateOne: {
-        filter: {
-          kind: MARKET_HISTORY_CANDLE_KIND,
-          'source.provider': snapshot.source.provider,
-          'source.instrumentId': snapshot.source.instrumentId,
-          observedAt: new Date(candle.timestamp),
+    .map(candle => {
+      const fields = {
+        schemaVersion: snapshot.schemaVersion,
+        kind: MARKET_HISTORY_CANDLE_KIND,
+        canonicalProductId: snapshot.instrumentKey,
+        value: candle.close,
+        currency: null,
+        unit: 'INDEX_POINTS',
+        observedAt: new Date(candle.timestamp),
+        providerTimestamp: new Date(candle.timestamp),
+        effectiveTradingDate: candle.effectiveTradingDate ?? null,
+        effectiveFrom: null,
+        effectiveTo: null,
+        publicationDate: null,
+        firstFetchedAt: new Date(snapshot.fetchedAt),
+        lastFetchedAt: new Date(snapshot.fetchedAt),
+        dataClass: snapshot.dataClass ?? 'DAILY',
+        semanticClass: 'OBSERVED',
+        availabilityStatus: AVAILABILITY.AVAILABLE,
+        freshness: snapshot.freshness,
+        source: snapshot.source,
+        metrics: {
+          open: candle.open ?? null,
+          high: candle.high ?? null,
+          low: candle.low ?? null,
+          close: candle.close,
+          volume: candle.volume ?? null,
+          openInterest: candle.openInterest ?? null,
         },
-        update: {
-          $set: {
-            schemaVersion: snapshot.schemaVersion,
+      };
+      return { updateOne: {
+          filter: {
             kind: MARKET_HISTORY_CANDLE_KIND,
-            canonicalProductId: snapshot.instrumentKey,
-            value: candle.close,
-            currency: null,
-            unit: 'INDEX_POINTS',
+            'source.provider': snapshot.source.provider,
+            'source.instrumentId': snapshot.source.instrumentId,
             observedAt: new Date(candle.timestamp),
-            providerTimestamp: candle.timestamp ? new Date(candle.timestamp) : null,
-            effectiveTradingDate: candle.effectiveTradingDate ?? null,
-            effectiveFrom: null,
-            effectiveTo: null,
-            publicationDate: null,
-            lastFetchedAt: new Date(snapshot.fetchedAt),
-            dataClass: snapshot.dataClass ?? 'DAILY',
-            semanticClass: 'OBSERVED',
-            availabilityStatus: AVAILABILITY.AVAILABLE,
-            freshness: snapshot.freshness,
-            source: snapshot.source,
-            metrics: {
-              open: candle.open ?? null,
-              high: candle.high ?? null,
-              low: candle.low ?? null,
-              close: candle.close,
-              volume: candle.volume ?? null,
-              openInterest: candle.openInterest ?? null,
-            },
+            ...immutableEvidenceFilter(fields),
           },
-          $setOnInsert: { firstFetchedAt: new Date(snapshot.fetchedAt) },
+          update: { $setOnInsert: fields },
+          upsert: true,
         },
-        upsert: true,
-      },
-    }));
+      };
+    });
 }
 
 export function buildMarketContextObservationOperation(published) {
@@ -163,6 +192,9 @@ export function buildMarketContextObservationOperation(published) {
         'source.instrumentId': nifty.source.instrumentId,
         observedAt: new Date(nifty.observedAt),
       },
+      // Policy output can be republished when other source facts change while
+      // the NIFTY observation time stays fixed. It needs its own revision
+      // identity before it can become insert-only.
       update: {
         $set: {
           schemaVersion: snapshot.schemaVersion,
@@ -252,15 +284,26 @@ async function persistVerifiedMarketSnapshotOnce(
           : 'MARKET_BENCHMARK_QUOTE_STORAGE_NOT_CONFIGURED' } : {}),
       productWrites: 0, observationWrites: 0 };
   }
+  const transactional = ProductModel === InvestmentProduct && ObservationModel === MarketObservation;
   const batchSize = 1000;
-  for (let offset = 0; offset < productOperations.length; offset += batchSize) {
-    await ProductModel.bulkWrite(productOperations.slice(offset, offset + batchSize), { ordered: false });
-  }
-  for (let offset = 0; offset < observationOperations.length; offset += batchSize) {
-    await ObservationModel.bulkWrite(
-      observationOperations.slice(offset, offset + batchSize),
-      { ordered: false },
-    );
+  const writeBatches = async session => {
+    const options = session ? { ordered: true, session } : { ordered: false };
+    for (let offset = 0; offset < productOperations.length; offset += batchSize) {
+      await ProductModel.bulkWrite(productOperations.slice(offset, offset + batchSize), options);
+    }
+    for (let offset = 0; offset < observationOperations.length; offset += batchSize) {
+      await ObservationModel.bulkWrite(observationOperations.slice(offset, offset + batchSize), options);
+    }
+  };
+  if (transactional) {
+    const session = await mongoose.connection.startSession();
+    try {
+      await session.withTransaction(() => writeBatches(session));
+    } finally {
+      await session.endSession();
+    }
+  } else {
+    await writeBatches(null);
   }
   return {
     status: 'PERSISTED',

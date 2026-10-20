@@ -167,13 +167,21 @@ test('all market-data repository upsert filters match declared unique identity i
     marketContext: { marketSnapshot: { observedFacts: [{ ...fact, observedAt: observedAt.toISOString(), key: 'nifty50Current' }] } },
   }).updateOne;
 
-  assert.deepEqual(productOperation.filter, { canonicalProductId: 'index:nifty50' });
+  assert.deepEqual(productOperation.filter, { canonicalProductId: 'index:nifty50',
+    lastVerifiedAt: { $lte: observedAt } });
   assert.deepEqual(Object.keys(PRODUCT_IDENTITY), Object.keys(uniqueSchemaIndexes(InvestmentProduct)[0]));
-  for (const operation of [observationOperation, historyOperation, contextOperation]) {
-    assert.deepEqual(Object.keys(operation.filter), Object.keys(OBSERVATION_IDENTITY));
+  for (const operation of [observationOperation, historyOperation]) {
+    assert.deepEqual(Object.keys(operation.filter).slice(0, 4), Object.keys(OBSERVATION_IDENTITY));
     assert.deepEqual(Object.keys(OBSERVATION_IDENTITY), Object.keys(uniqueSchemaIndexes(MarketObservation)[0]));
+    assert.equal(operation.filter.value, 25000, 'a changed provider value must conflict with the unique identity');
+    assert.equal(operation.filter['source.url'], source.url, 'source provenance must not be rewritten');
+    assert.ok(operation.update.$setOnInsert, 'verified evidence is inserted once');
+    assert.equal(operation.update.$set, undefined, 'a refetch must not rewrite earlier evidence');
     assert.equal(operation.upsert, true);
   }
+  assert.deepEqual(Object.keys(contextOperation.filter), Object.keys(OBSERVATION_IDENTITY));
+  assert.ok(contextOperation.update.$set, 'derived context can be republished when another fact changes');
+  assert.equal(contextOperation.upsert, true);
 
   const quote = buildObservationOperations({ facts: [{
     ...fact,
@@ -187,10 +195,22 @@ test('all market-data repository upsert filters match declared unique identity i
     now: new Date(observedAt.getTime() + 1000),
     rightsCheck: () => true,
   })[0].updateOne;
-  assert.deepEqual(Object.keys(quote.filter).slice(0, -1), Object.keys(OBSERVATION_IDENTITY));
+  assert.deepEqual(Object.keys(quote.filter).slice(0, 4), Object.keys(OBSERVATION_IDENTITY));
   assert.equal(quote.filter.value, fact.value, 'quote correction conflicts with the unique identity');
   assert.ok(quote.update.$setOnInsert);
   assert.equal(quote.upsert, true);
+
+  const revisedMetrics = buildObservationOperations({ facts: [{
+    ...fact,
+    metrics: { open: 24900, close: 25000 },
+  }] })[0].updateOne;
+  const conflictingMetrics = buildObservationOperations({ facts: [{
+    ...fact,
+    metrics: { open: 24800, close: 25000 },
+  }] })[0].updateOne;
+  assert.equal(revisedMetrics.filter.value, conflictingMetrics.filter.value);
+  assert.notEqual(revisedMetrics.filter['metrics.open'], conflictingMetrics.filter['metrics.open']);
+  assert.equal(revisedMetrics.filter.freshness, undefined, 'read-time freshness is not immutable evidence');
 });
 
 test('the explicit migration script provisions market-data indexes and startup verifies before listen', () => {
