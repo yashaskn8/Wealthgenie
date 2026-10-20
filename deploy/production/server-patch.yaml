@@ -15,6 +15,12 @@ spec:
               value: "api"
             - name: LLM_PRIMARY_PROVIDER
               value: "GROQ"
+            # Production Redis endpoint is a required private Secret.
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: wealthgenie-secrets
+                  key: REDIS_URL
             - name: MONGODB_TLS_CA_FILE
               value: /etc/wealthgenie/documentdb/ca.pem
           volumeMounts:

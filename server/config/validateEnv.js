@@ -40,6 +40,25 @@ export function validateEnvironmentConfig(env = process.env) {
     }
   }
   if (isProduction) {
+    // Production external Redis must use TLS. Internal cluster or loopback
+    // Redis can use TCP only inside its separate private network boundary.
+    // Do not return potentially credential-bearing URLs in errors.
+    if (env.REDIS_URL !== undefined) {
+      let redisEndpoint;
+      try { redisEndpoint = new URL(env.REDIS_URL); } catch { redisEndpoint = null; }
+      if (!redisEndpoint || !['redis:', 'rediss:'].includes(redisEndpoint.protocol)
+          || !redisEndpoint.hostname || redisEndpoint.hash) {
+        errors.push('Production REDIS_URL must be a valid Redis address without a fragment');
+      } else {
+        const host = redisEndpoint.hostname.toLowerCase();
+        const privateHost = host === 'localhost' || host === '127.0.0.1'
+          || host === '[::1]' || host === 'redis' || host === 'wealthgenie-redis'
+          || host.endsWith('.svc.cluster.local');
+        if (redisEndpoint.protocol === 'redis:' && !privateHost) {
+          errors.push('Production external Redis requires rediss:// TLS');
+        }
+      }
+    }
     // buildRedisClientOptions strips URL credentials and gives the dedicated
     // REDIS_PASSWORD variable precedence, so validate that same effective value.
     const redisUrlPassword = decodeRedisUrlPassword(env.REDIS_URL);
