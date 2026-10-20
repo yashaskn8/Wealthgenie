@@ -147,7 +147,7 @@ test('all market-data repository upsert filters match declared unique identity i
     products: [{ canonicalProductId: 'index:nifty50' }],
   })[0].updateOne;
   const fact = {
-    kind: 'MARKET_QUOTE',
+    kind: 'MARKET_HISTORY_CANDLE',
     availabilityStatus: AVAILABILITY.AVAILABLE,
     value: 25000,
     observedAt,
@@ -174,6 +174,23 @@ test('all market-data repository upsert filters match declared unique identity i
     assert.deepEqual(Object.keys(OBSERVATION_IDENTITY), Object.keys(uniqueSchemaIndexes(MarketObservation)[0]));
     assert.equal(operation.upsert, true);
   }
+
+  const quote = buildObservationOperations({ facts: [{
+    ...fact,
+    kind: 'MARKET_QUOTE',
+    canonicalProductId: 'market:index:nifty-50',
+    unit: 'INDEX_POINTS',
+    dataClass: 'LIVE',
+  }] }, {
+    env: { MARKET_BENCHMARK_QUOTE_STORE_ENABLED: 'true',
+      MARKET_BENCHMARK_QUOTE_RETENTION_SECONDS: '3600' },
+    now: new Date(observedAt.getTime() + 1000),
+    rightsCheck: () => true,
+  })[0].updateOne;
+  assert.deepEqual(Object.keys(quote.filter).slice(0, -1), Object.keys(OBSERVATION_IDENTITY));
+  assert.equal(quote.filter.value, fact.value, 'quote correction conflicts with the unique identity');
+  assert.ok(quote.update.$setOnInsert);
+  assert.equal(quote.upsert, true);
 });
 
 test('the explicit migration script provisions market-data indexes and startup verifies before listen', () => {

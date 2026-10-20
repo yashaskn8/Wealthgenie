@@ -37,8 +37,9 @@ test('Mongo-required suites are partitioned exhaustively between standalone and 
   const replicaSetSet = new Set(replicaSetRequiredTests);
   const standalone = mongoRequiredTests.filter(file => !replicaSetSet.has(file)).sort();
 
-  assert.equal(mongoRequiredTests.length, 30);
-  assert.equal(replicaSetRequiredTests.length, 26);
+  assert.equal(mongoRequiredTests.length, 31);
+  assert.equal(replicaSetRequiredTests.length, 27);
+  assert.ok(replicaSetSet.has('test/qualifiedEquityHistoryMongo.integration.test.js'));
   assert.equal(mongoSet.size, mongoRequiredTests.length, 'Mongo manifest must not contain duplicates');
   assert.equal(replicaSetSet.size, replicaSetRequiredTests.length, 'Replica-set manifest must not contain duplicates');
   assert.ok(replicaSetRequiredTests.every(file => mongoSet.has(file)), 'Replica-set manifest entries must be Mongo-required');
