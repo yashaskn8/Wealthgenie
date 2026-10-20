@@ -6,7 +6,7 @@ import AgentCheckpoint from '../../models/AgentCheckpoint.js';
 import AgentGraphCheckpoint from '../../models/AgentGraphCheckpoint.js';
 import AgentQueueAdmission from '../../models/AgentQueueAdmission.js';
 import FinancialProfile from '../../models/FinancialProfile.js';
-import { ProviderManager } from '../../services/providerAbstraction.js';
+import { isUsableProviderCredential } from '../../services/providerAbstraction.js';
 import { getRuntimeConfig } from '../../config/runtime.js';
 import { invokePlanReviewGraph } from './planReviewGraph.js';
 import { PLAN_REVIEW_POLICY_VERSION, PLAN_REVIEW_PLANNER_VERSION } from './planReviewSchemas.js';
@@ -37,15 +37,20 @@ function waitForAdmissionRetry(attempt) {
   return new Promise(resolve => setTimeout(resolve, backoffMs + jitterMs));
 }
 
-function primaryProvider() {
-  if (String(process.env.LLM_DEFAULT_PROVIDER || '').trim().toLowerCase() === 'mock') return null;
-  const configured = String(process.env.LLM_PRIMARY_PROVIDER || 'GROQ').trim().toUpperCase();
-  const providers = {
-    NVIDIA_NIM: ProviderManager.nvidia,
-    GEMINI: ProviderManager.gemini,
-    GROQ: ProviderManager.groq,
+// External planning is opt-in, and only a genuinely configured primary may
+// make paid model calls. The existing deterministic planner remains available
+// without any model credentials. Never promote a mock or template key.
+export function isLivePlanReviewPlannerReady(env = process.env) {
+  if (env.AGENT_USE_MODEL_PLANNER !== 'true'
+      || String(env.LLM_DEFAULT_PROVIDER || '').trim().toLowerCase() === 'mock') return false;
+  const selected = String(env.LLM_PRIMARY_PROVIDER || 'GROQ').trim().toUpperCase();
+  const providerKeys = {
+    NVIDIA_NIM: 'NVIDIA_API_KEY',
+    GEMINI: 'GEMINI_API_KEY',
+    GROQ: 'GROQ_API_KEY',
   };
-  return Object.hasOwn(providers, configured) ? providers[configured] : null;
+  return Object.hasOwn(providerKeys, selected)
+    && isUsableProviderCredential(env[providerKeys[selected]]);
 }
 
 function publicReview(review) {
@@ -134,7 +139,7 @@ export async function runPlanReview({ userId, profileId, runId = null, execution
       // Route planner and synthesis calls through the same durable, run-wide
       // model budget so approved provider failover cannot bypass accounting.
       plannerProvider: null,
-      modelPlannerEnabled: process.env.AGENT_USE_MODEL_PLANNER === 'true' && primaryProvider() !== null,
+      modelPlannerEnabled: isLivePlanReviewPlannerReady(),
       modelGateway: createModelGateway({ maxOutputTokens: runtimeConfig.agentPlanReview.maxOutputTokens }),
       persistAgentRun: payload => persistPlanReviewRun(payload),
       researchAdaptiveEnabled: researchEnabled,
