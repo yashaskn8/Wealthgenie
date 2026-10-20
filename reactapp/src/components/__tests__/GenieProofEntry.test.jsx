@@ -35,6 +35,26 @@ describe('GenieProof server-backed availability', () => {
     expect(screen.queryByTestId('interactive-genieproof')).not.toBeInTheDocument();
   });
 
+
+  it.each([
+    ['GENIEPROOF_LOCAL_RESEARCH_ONLY', /restricted to a development or test backend/i],
+    ['GENIEPROOF_FLAG_DISABLED', /Set GENIEPROOF_ENABLED=true/i],
+    ['GENIEPROOF_SIGNING_KEYS_MISSING', /GENIEPROOF_SIGNING_PRIVATE_KEY/i],
+    ['GENIEPROOF_SIGNING_CONFIGURATION_INVALID', /Ed25519 private\/public keys match/i],
+  ])('explains %s without enabling unauthorized controls', async (reasonCode, expected) => {
+    getGenieProofCapabilities.mockResolvedValue({
+      interactiveEnabled: false,
+      extractionPreviewEnabled: true,
+      mode: 'UNAVAILABLE',
+      reasonCode,
+      productionVerified: false,
+    });
+    render(<GenieProofEntry />);
+    expect(await screen.findByText(expected)).toBeInTheDocument();
+    expect(screen.queryByTestId('interactive-genieproof')).not.toBeInTheDocument();
+    expect(await screen.findByText(/You can still review unsaved candidate statements/i)).toBeInTheDocument();
+  });
+
   it('fails closed on malformed responses and retries a transport error by user action', async () => {
     getGenieProofCapabilities.mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({ interactiveEnabled: true, mode: 'LOCAL_RESEARCH', productionVerified: false });
