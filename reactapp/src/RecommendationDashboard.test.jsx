@@ -53,7 +53,7 @@ describe('RecommendationDashboard authority boundary', () => {
       recommendationMeta={{ advisory_text: null, advisory_explanation: { status: 'DELAYED' } }}
     />);
     expect(screen.getByTestId('recommendation-row-fd')).toBeInTheDocument();
-    expect(screen.getByTestId('advisory-delayed')).toHaveTextContent('Refresh this page later');
+    expect(screen.queryByTestId('advisory-delayed')).toBeNull();
     expect(screen.queryByTestId('advisory-loading-skeleton')).toBeNull();
   });
 
@@ -70,7 +70,8 @@ describe('RecommendationDashboard authority boundary', () => {
     expect(screen.getAllByText('Index Mutual Fund').length).toBeGreaterThan(0);
     expect(screen.getByText(/Sold-property proceeds are not treated as investable capital/i)).toBeVisible();
     expect(screen.getByText(/₹20,000 of ₹20,000 allocated/)).toBeVisible();
-    expect(screen.getByText(/Backend-generated allocation and grounded explanation/i)).toBeVisible();
+    expect(screen.queryByText(/Backend-generated allocation and grounded explanation/i)).toBeNull();
+    expect(screen.queryByText(/Genie's Personal Advisory Summary/i)).toBeNull();
     expect(screen.getByText(/Dashboard returns are pre-tax model assumptions/i)).toBeVisible();
     expect(screen.queryByText(/AI-synthesized financial allocation/i)).toBeNull();
     expect(screen.queryByText(/Returns shown are after tax/i)).toBeNull();
