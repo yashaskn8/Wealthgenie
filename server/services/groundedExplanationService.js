@@ -704,7 +704,7 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     if (!entries.some(item => item.kind === 'PROJECTION')) unavailableFacts.push('PROJECTION_ASSUMPTION_UNAVAILABLE');
   }
 
-  if (/\btax|post-tax|deduction|tax regime|tax slab/i.test(question)) {
+  if (/\b(?:tax\s+regime|post[ -]?tax|deductions?|tax\s+slabs?|tax\s+liabilit(?:y|ies)|tax\s+(?:calculation|comparison))\b/i.test(question)) {
     unavailableFacts.push('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS');
     entries.push(makeEvidenceEntry('E_TAX_INPUT_BOUNDARY', 'TAX', {
       requiredInputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
