@@ -226,7 +226,7 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
         )}
         {isAssistant && msg.grounded && (
           <details className="grounding-details" style={{ marginTop: 6, fontSize: '0.72rem', color: '#94a3b8' }}>
-            <summary style={{ cursor: 'pointer', color: '#38bdf8' }}>Grounded by WealthGenie data</summary>
+            <summary style={{ cursor: 'pointer', color: '#38bdf8' }}>Answer evidence and provenance</summary>
             <div style={{ marginTop: 4 }}>
               Provider: {msg.provider || 'Unavailable'}{msg.model ? ` · Model: ${msg.model}` : ''}
               {msg.grounding_version ? ` · Contract: ${msg.grounding_version}` : ''}

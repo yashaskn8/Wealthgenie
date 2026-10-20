@@ -22,6 +22,9 @@ import {
   getInstrumentModelAssumptions,
 } from './marketDataService.js';
 import { compareVerifiedFixedIncomeProducts } from './fixedIncomeProductRanking.js';
+import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveQualifiedRegulatoryChatEvidence } from './chatRegulatoryRetrieval.js';
+import { queryRAG } from './ragClient.js';
 import { PrometheusMetrics } from './metricsCollector.js';
 import { getProviderOutputContract, validateProviderOutputContract } from './providerOutputContracts.js';
 
@@ -176,7 +179,7 @@ function citationFor(entry) {
 }
 
 function deterministicCandidate(packet) {
-  const preferredKinds = ['SUITABILITY', 'RECOMMENDATION', 'PRODUCT_FACT', 'MARKET_CONTEXT', 'PROJECTION'];
+  const preferredKinds = ['EDUCATION', 'REGULATORY_REFERENCE', 'TAX', 'ANSWER_BOUNDARY', 'SUITABILITY', 'RECOMMENDATION', 'PRODUCT_FACT', 'MARKET_CONTEXT', 'PROJECTION'];
   const selected = [];
   for (const kind of preferredKinds) {
     const evidence = packet.entries.find(item => item.kind === kind && item.displayValue);
@@ -185,7 +188,11 @@ function deterministicCandidate(packet) {
   }
   if (selected.length === 0) selected.push(packet.entries.find(item => item.id === 'E_REGULATORY_NOTICE'));
   const claims = selected.filter(Boolean).map(item => ({
-    text: `The authoritative backend reports ${item.kind.toLowerCase().replace(/_/g, ' ')} evidence [${item.id}]`,
+    // Curated educational claims can be reproduced verbatim: this remains
+    // useful without an LLM and still goes through the grounding validator.
+    text: ['EDUCATION', 'REGULATORY_REFERENCE', 'TAX', 'ANSWER_BOUNDARY'].includes(item.kind)
+      ? `${item.displayValue} [${item.id}]`
+      : `The authoritative backend reports ${item.kind.toLowerCase().replace(/_/g, ' ')} evidence [${item.id}]`,
     evidenceIds: [item.id],
   }));
   return {
@@ -638,10 +645,21 @@ const GOVERNMENT_QUERY_TO_PARENT = Object.freeze([
   [/post office time deposit|\bpo td\b/i, 'po_td_1yr'],
 ]);
 
-export async function buildChatEvidencePacket({ question, profile, recommendation }, dependencies = {}) {
-  const entries = [];
+export async function buildChatEvidencePacket({ question, profile, recommendation, userId = null }, dependencies = {}) {
+  // General education comes from an allowlisted, reviewed reference corpus.
+  // It never supplies user-specific allocations, tax rules or product rates.
+  const entries = retrieveChatEducationalEvidence(question);
   const unavailableFacts = [];
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
+  const regulatoryLookup = dependencies.queryRegulatoryRag
+    || (process.env.ML_SERVICE_API_KEY ? queryRAG : null);
+  const regulatory = await retrieveQualifiedRegulatoryChatEvidence({
+    question,
+    userId,
+    queryRag: regulatoryLookup,
+  });
+  entries.push(...regulatory.entries);
+  unavailableFacts.push(...regulatory.unavailableFacts);
   if (/market context|cautious|risk.off|high.volatility|nifty|india vix/i.test(question)) {
     try {
       const marketContext = await (dependencies.getLiveMarketContext || getLiveMarketContext)();
@@ -686,7 +704,7 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     if (!entries.some(item => item.kind === 'PROJECTION')) unavailableFacts.push('PROJECTION_ASSUMPTION_UNAVAILABLE');
   }
 
-  if (/\btax|post-tax|deduction|tax regime|tax slab/i.test(question)) {
+  if (/\b(?:tax\s+regime|post[ -]?tax|deductions?|tax\s+slabs?|tax\s+liabilit(?:y|ies)|tax\s+(?:calculation|comparison))\b/i.test(question)) {
     unavailableFacts.push('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS');
     entries.push(makeEvidenceEntry('E_TAX_INPUT_BOUNDARY', 'TAX', {
       requiredInputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
@@ -704,11 +722,30 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     unavailableFacts.push('SPECIFIC_MUTUAL_FUND_PRODUCT_EVIDENCE_REQUIRES_WHERE_TO_INVEST_SELECTION');
   }
 
-  return buildGroundedEvidencePacket({
+  const financialEvidence = {
     question,
     profile,
     recommendation: recommendationRelevant ? recommendation : null,
     additionalEntries: entries,
     unavailableFacts,
+  };
+  const packet = buildGroundedEvidencePacket(financialEvidence);
+  if (packet.entries.some(item => item.id !== 'E_REGULATORY_NOTICE')) return packet;
+
+  // The legal disclaimer alone is not a relevant answer. When no qualified
+  // material exists, cite the backend's own availability determination and
+  // explicitly abstain rather than disguising the disclaimer as knowledge.
+  return buildGroundedEvidencePacket({
+    ...financialEvidence,
+    additionalEntries: [
+      ...entries,
+      makeEvidenceEntry('E_CHAT_ANSWER_UNAVAILABLE', 'ANSWER_BOUNDARY',
+        'I do not have enough qualified evidence to answer this question reliably. Ask about a supported investing concept or consult the relevant official source.', {
+          dataClass: 'SYSTEM_AVAILABILITY_STATUS',
+          displayValue: 'I do not have enough qualified evidence to answer this question reliably. Ask about a supported investing concept or consult the relevant official source.',
+          authority: 'WEALTHGENIE_BACKEND',
+        }),
+    ],
+    unavailableFacts: [...unavailableFacts, 'CHAT_ANSWER_EVIDENCE_UNAVAILABLE'],
   });
 }

@@ -33,7 +33,7 @@ describe('GenieChat grounded explanation metadata', () => {
     />);
 
     expect(screen.getByText(/Existing answer body/)).toBeTruthy();
-    const summary = screen.getByText('Grounded by WealthGenie data');
+    const summary = screen.getByText('Answer evidence and provenance');
     expect(summary).toBeTruthy();
     fireEvent.click(summary);
     expect(screen.getByText(/Provider: NVIDIA_NIM/)).toBeTruthy();

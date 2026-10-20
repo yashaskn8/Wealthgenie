@@ -80,7 +80,17 @@ export function validateGroundedExplanationCompleteness(candidate, packet) {
   }
   const evidenceById = new Map((packet?.entries || []).map(entry => [entry.id, entry]));
   const claimsAnchored = candidate.claims.every(claim => claimAnchoredToEvidence(claim, candidate, evidenceById));
-  return claimsAnchored
+
+  // The app appends the statutory disclosure to every answer. That source
+  // cannot, by itself, establish that the user's actual question was
+  // answered. Demand at least one cited, anchored, non-disclosure fact;
+  // otherwise a legal notice can masquerade as a successful RAG answer.
+  const substantiveIds = new Set([...evidenceById.values()]
+    .filter(entry => entry.kind !== 'DISCLOSURE' && entry.id !== 'E_REGULATORY_NOTICE')
+    .map(entry => entry.id));
+  const citesSubstantiveFact = candidate.claims.some(claim =>
+    Array.isArray(claim.evidenceIds) && claim.evidenceIds.some(id => substantiveIds.has(id)));
+  return claimsAnchored && citesSubstantiveFact
     ? { valid: true, errors: [] }
     : { valid: false, errors: ['CLAIM_EVIDENCE_RELEVANCE_INSUFFICIENT'] };
 }
