@@ -39,6 +39,11 @@ have been exercised. See GitHub Actions for current test status.
 - The root/local environment examples are templates and do not overwrite deployed secrets.
 - Keep failing functionality blocked with the actual code and dependency reason; do not
   substitute fake data, weaken tests, or mark the whole application production-ready.
+- Production Redis readiness: both API and worker now require a shared
+  `wealthgenie-secrets/REDIS_URL` plus matching `REDIS_PASSWORD`. Provide a
+  managed `rediss://` endpoint; the actual connection and failover have not
+  yet been exercised with the operator's Redis credentials. Kind uses its
+  separate in-cluster Redis service.
 - Pending work: qualify licensed market data and per-product sources; verify a real
   model provider and bounded fallback calls; exercise Plan Review through a live external
   worker; complete documented identity/signing prerequisites; green integration and security CI.

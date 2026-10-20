@@ -45,6 +45,24 @@ The referenced TLS and DocumentDB CA secrets must already exist. Applying this
 overlay with placeholders is intentionally unsupported and must be rejected by
 the deployment pipeline.
 
+The production API and dedicated agent worker read the same required
+`wealthgenie-secrets/REDIS_URL`. This overrides the Kind ConfigMap URL; the
+Secret must be provisioned before deploying either service. Put the exact
+approved managed `rediss://host:port` endpoint (optionally with a Redis ACL
+username) and its matching random 32+ character `REDIS_PASSWORD` into
+`wealthgenie-secrets` through a cluster secret manager. The explicit password
+takes precedence over any password embedded in the URL. Never store credentials
+in this repository, a public issue or the browser.
+
+The production environment validator rejects external `redis://` plaintext
+connections, malformed URLs and missing authentication. The API/worker startup
+already requires Redis, while readiness and sensitive Redis-backed operations
+fail closed on outages. Merely setting the environment variables does not
+prove provider reachability. Verify authenticated PING, token revocation, the
+read-only Plan Review API-to-worker lifecycle and reconnect behavior when the
+external Redis service has been provisioned. The Kind test environment still
+uses its isolated authenticated in-cluster Redis.
+
 The production secret provider must supply a strong, randomly generated
 `REDIS_PASSWORD`. Redis requires authentication, and the checked-in
 NetworkPolicy limits Redis ingress to the WealthGenie server and agent-worker
