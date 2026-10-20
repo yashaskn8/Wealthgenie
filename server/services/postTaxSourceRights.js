@@ -10,11 +10,6 @@ import {
   UPSTOX_MARKET_TIMINGS_RIGHTS_URL,
   UPSTOX_QUOTE_RIGHTS_URL,
   UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
-  TEJHQ_RAW_EOD_RIGHTS_URL,
-  TEJHQ_ADJUSTED_RIGHTS_URL,
-  TEJHQ_SYMBOL_HISTORY_RIGHTS_URL,
-  TEJHQ_CORPORATE_ACTIONS_RIGHTS_URL,
-  TEJHQ_PUBLICATION_STATUS_RIGHTS_URL,
 } from './marketData/marketDataSourceUrls.js';
 
 export const POST_TAX_SOURCE_RIGHTS_STATES = Object.freeze({
@@ -141,11 +136,6 @@ const POTENTIAL_SOURCE_RECORDS = Object.freeze([
   ...[
     ['UPSTOX_HISTORICAL_CANDLES_V3', PROVIDERS.UPSTOX, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
       'https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/'],
-    ['TEJHQ_RAW_EOD', PROVIDERS.TEJHQ, TEJHQ_RAW_EOD_RIGHTS_URL, 'https://tejhq.dev/docs'],
-    ['TEJHQ_ADJUSTED_HISTORY', PROVIDERS.TEJHQ, TEJHQ_ADJUSTED_RIGHTS_URL, 'https://tejhq.dev/docs'],
-    ['TEJHQ_SYMBOL_HISTORY', PROVIDERS.TEJHQ, TEJHQ_SYMBOL_HISTORY_RIGHTS_URL, 'https://tejhq.dev/docs'],
-    ['TEJHQ_CORPORATE_ACTIONS', PROVIDERS.TEJHQ, TEJHQ_CORPORATE_ACTIONS_RIGHTS_URL, 'https://tejhq.dev/docs'],
-    ['TEJHQ_PUBLICATION_STATUS', PROVIDERS.TEJHQ, TEJHQ_PUBLICATION_STATUS_RIGHTS_URL, 'https://tejhq.dev/docs'],
   ].map(([sourceId, provider, url, termsUrl]) => sourceRecord({
     sourceId, provider, url, status: LICENSE_UNVERIFIED, termsUrl,
     rights: { ...UNKNOWN_RIGHTS },

@@ -9,21 +9,19 @@ const source = fs.readFileSync(path.resolve(
   path.dirname(fileURLToPath(import.meta.url)), '../openapi.yaml',
 ), 'utf8');
 
-test('OpenAPI is a single parseable document and market histories are not duplicated', () => {
+test('OpenAPI is a single parseable document with one declared history route per operation', () => {
   const yaml = parseDocument(source, { uniqueKeys: true, strict: true });
   assert.deepEqual(yaml.errors.map(error => error.message), []);
   const doc = yaml.toJS();
   assert.equal(doc.openapi, '3.1.0');
-  assert.ok(source.length < 260_000, 'API specification unexpectedly duplicated during generation');
+  assert.ok(source.length < 260_000, 'API specification unexpectedly duplicated');
   for (const route of [
     '/api/market-data/admin/equity-history',
     '/api/market-data/admin/equity-history/ingest',
     '/api/market-data/equity-history/persisted',
-    '/api/market-data/admin/tejhq/corporate-actions',
   ]) {
-    const canonical = '  ' + route + ':';
-    assert.equal(source.split(canonical).length - 1, 1, route + ' appears more than once');
-    assert.ok(doc.paths[route], 'Missing declared OpenAPI route ' + route);
+    assert.equal(source.split('  ' + route + ':').length - 1, 1, route);
+    assert.ok(doc.paths[route], route);
   }
   assert.equal(doc.paths['/api/market-data/equity-history/persisted'].get.security.length > 0, true);
   const ingest = doc.paths['/api/market-data/admin/equity-history/ingest'].post;
@@ -31,4 +29,5 @@ test('OpenAPI is a single parseable document and market histories are not duplic
   assert.equal(ingest['x-csrf-protection'], 'cookie-session');
   assert.ok(ingest.requestBody.required);
   assert.ok(ingest.responses['201']);
+  assert.equal(doc.paths['/api/market-data/admin/tejhq/status'], undefined);
 });

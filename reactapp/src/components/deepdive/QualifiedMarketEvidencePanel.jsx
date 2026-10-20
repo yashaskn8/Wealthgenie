@@ -17,18 +17,16 @@ function todayMinus(days) {
   date.setUTCDate(date.getUTCDate() - days);
   return date.toISOString().slice(0, 10);
 }
-function StoredCloseChart({ bars, basis }) {
+function StoredCloseChart({ bars }) {
   const first = bars[0];
-  const permittedBases = basis === 'ADJUSTED' ? ['BACK_ADJUSTED']
-    : ['RAW_UNADJUSTED', 'UPSTOX_PROVIDER_NATIVE'];
+  const permittedBases = ['RAW_UNADJUSTED', 'UPSTOX_PROVIDER_NATIVE'];
   if (!first?.provider || !first?.exchange || !first?.isin
       || !permittedBases.includes(first.priceBasis)
       || bars.some(bar => bar.provider !== first.provider || bar.exchange !== first.exchange
         || bar.isin !== first.isin || bar.priceBasis !== first.priceBasis)) return null;
-  const valueKey = basis === 'ADJUSTED' ? 'adjustedClose' : 'close';
   const series = bars.map(bar => ({
     date: Date.parse(`${bar.tradingDate}T00:00:00.000Z`),
-    value: bar[valueKey],
+    value: bar.close,
   })).sort((left, right) => left.date - right.date);
   if (series.length < 2 || series.some(point => !Number.isFinite(point.date)
       || typeof point.value !== 'number' || !Number.isFinite(point.value) || point.value <= 0)
@@ -42,8 +40,7 @@ function StoredCloseChart({ bars, basis }) {
     const y = range === 0 ? 75 : 134 - (point.value - low) / range * 118;
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   }).join(' ');
-  const label = basis === 'ADJUSTED' ? 'Adjusted EOD close'
-    : first.priceBasis === 'UPSTOX_PROVIDER_NATIVE' ? 'Provider-native EOD close' : 'Raw EOD close';
+  const label = first.priceBasis === 'UPSTOX_PROVIDER_NATIVE' ? 'Provider-native EOD close' : 'Raw EOD close';
   return <figure style={{ margin: '16px 0', maxWidth: 720 }}>
     <svg viewBox="0 0 600 150" width="100%" role="img"
       aria-label={`${label} from stored qualified observations`}>
@@ -158,7 +155,7 @@ export default function QualifiedMarketEvidencePanel() {
           </div>
           <h4>Stored qualified daily equity history</h4>
           <p style={{ fontSize: '0.82rem' }}>Records appear only when retained with applicable
-            provider permissions. Adjusted close and raw OHLC are distinct.</p>
+            provider permissions. Upstox values retain their provider-native price basis.</p>
           <form onSubmit={loadHistory} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
             <label>Exchange
               <select value={query.exchange} onChange={e => change('exchange', e.target.value)}>
@@ -181,13 +178,6 @@ export default function QualifiedMarketEvidencePanel() {
               <input aria-label="History to date" type="date" value={query.toDate}
                 onChange={e => change('toDate', e.target.value)} required />
             </label>
-            <label>Price basis
-              <select aria-label="Price basis" value={query.basis}
-                onChange={e => change('basis', e.target.value)}>
-                <option value="RAW">Raw / provider-native</option>
-                <option value="ADJUSTED">Adjusted close</option>
-              </select>
-            </label>
             <button type="submit" disabled={historyLoading}>
               {historyLoading ? 'Loading…' : 'Read stored history'}
             </button>
@@ -197,17 +187,17 @@ export default function QualifiedMarketEvidencePanel() {
             <p>{history.status === 'AVAILABLE'
               ? String(history.barCount) + ' qualified observations'
               : 'No qualified retained history: ' + (history.code || 'UNAVAILABLE')}</p>
-            {bars.length > 0 && <StoredCloseChart bars={bars} basis={query.basis} />}
+            {bars.length > 0 && <StoredCloseChart bars={bars} />}
             {bars.length > 0 && <div style={{ overflowX: 'auto', maxHeight: 230, overflowY: 'auto' }}>
               <table style={{ minWidth: 590, width: '100%', textAlign: 'left' }}>
                 <thead><tr><th>Trading date</th><th>Provider</th><th>Basis</th><th>Open</th>
-                  <th>High</th><th>Low</th><th>Raw close</th><th>Adjusted close</th>
+                  <th>High</th><th>Low</th><th>Provider-native close</th>
                   <th>Volume</th><th>Provider observed</th><th>Fetched</th></tr></thead>
                 <tbody>{bars.slice(-50).reverse().map(bar => (
                   <tr key={[bar.tradingDate, bar.provider, bar.priceBasis].join(':')}>
                     <td>{bar.tradingDate}</td><td>{bar.provider}</td><td>{bar.priceBasis}</td>
                     <td>{price(bar.open)}</td><td>{price(bar.high)}</td><td>{price(bar.low)}</td>
-                    <td>{price(bar.close)}</td><td>{price(bar.adjustedClose)}</td>
+                    <td>{price(bar.close)}</td>
                     <td>{price(bar.volume)}</td><td>{when(bar.providerObservedAt)}</td>
                     <td>{when(bar.fetchedAt)}</td>
                   </tr>

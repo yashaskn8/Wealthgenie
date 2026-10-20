@@ -190,7 +190,7 @@ export const marketEquityHistoryQuerySchema = Joi.object({
   isin: Joi.string().trim().uppercase().pattern(/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/).required(),
   fromDate: marketHistoryIsoDate.required(),
   toDate: marketHistoryIsoDate.required(),
-  basis: Joi.string().trim().uppercase().valid('RAW', 'ADJUSTED').default('RAW'),
+  basis: Joi.string().trim().uppercase().valid('RAW').default('RAW'),
 }).custom((value, helpers) => value.fromDate <= value.toDate
   ? value
   : helpers.error('date.order'), 'ordered market-history range').unknown(false);

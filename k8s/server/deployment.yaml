@@ -76,12 +76,6 @@ spec:
                   name: wealthgenie-secrets
                   key: UPSTOX_ACCESS_TOKEN
                   optional: true
-            - name: TEJHQ_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: wealthgenie-secrets
-                  key: TEJHQ_API_KEY
-                  optional: true
             - name: ML_SERVICE_API_KEY
               valueFrom:
                 secretKeyRef:

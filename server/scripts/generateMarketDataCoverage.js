@@ -15,13 +15,8 @@ import {
   UPSTOX_TRADING_HOLIDAYS_URL,
   UPSTOX_NSE_MARKET_STATUS_URL,
   UPSTOX_MARKET_TIMINGS_RIGHTS_URL,
-  TEJHQ_RAW_EOD_RIGHTS_URL,
-  TEJHQ_ADJUSTED_RIGHTS_URL,
-  TEJHQ_SYMBOL_HISTORY_RIGHTS_URL,
-  TEJHQ_PUBLICATION_STATUS_RIGHTS_URL,
 } from '../services/marketData/marketDataSourceUrls.js';
 import { UPSTOX_INSTRUMENT_REGISTRY } from '../services/marketData/upstoxInstrumentRegistry.js';
-import { TEJHQ_API_BASE_URL } from '../services/marketData/TejHqHistoricalDataProvider.js';
 import {
   INDIA_POST_SAVINGS_URL,
   INDIA_POST_SCRIPT_CHUNK_RIGHTS_URL,
@@ -42,7 +37,7 @@ const INDIA_POST_RIGHTS_ENDPOINTS = Object.freeze([
 
 const PROVIDER_PATHS = Object.freeze([
   {
-    pathId: 'two-provider.upstox-market-context', marketMode: 'UPSTOX_TEJHQ', provider: 'UPSTOX',
+    pathId: 'upstox-only.market-context', marketMode: 'UPSTOX_ONLY', provider: 'UPSTOX',
     rightsEndpoints: [UPSTOX_QUOTE_RIGHTS_URL, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL,
       UPSTOX_TRADING_HOLIDAYS_URL, UPSTOX_NSE_MARKET_STATUS_URL,
       UPSTOX_MARKET_TIMINGS_RIGHTS_URL].map(url => ({ provider: 'UPSTOX', url })),
@@ -59,7 +54,7 @@ const PROVIDER_PATHS = Object.freeze([
     missingPrerequisites: ['Endpoint rights, account tier, approved use and live response are not verified.'],
   },
   {
-    pathId: 'two-provider.upstox-equity-history', marketMode: 'UPSTOX_TEJHQ', provider: 'UPSTOX',
+    pathId: 'upstox-only.equity-history', marketMode: 'UPSTOX_ONLY', provider: 'UPSTOX',
     rightsEndpoints: [UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL, UPSTOX_TRADING_HOLIDAYS_URL]
       .map(url => ({ provider: 'UPSTOX', url })),
     exactIdentity: null, dataTypes: ['RAW_DAILY_OHLC_HISTORY'],
@@ -73,29 +68,6 @@ const PROVIDER_PATHS = Object.freeze([
     },
     missingPrerequisites: ['Endpoint rights, exact ISIN identity and live coverage are not verified.'],
   },
-  ...[
-    { pathId: 'two-provider.tejhq-raw-eod', basis: 'RAW', url: TEJHQ_RAW_EOD_RIGHTS_URL },
-    { pathId: 'two-provider.tejhq-adjusted-eod', basis: 'ADJUSTED', url: TEJHQ_ADJUSTED_RIGHTS_URL },
-  ].map(({ pathId, basis, url }) => ({
-    pathId, marketMode: 'UPSTOX_TEJHQ', provider: 'TEJHQ',
-    rightsEndpoints: [
-      { provider: 'TEJHQ', url },
-      { provider: 'TEJHQ', url: TEJHQ_SYMBOL_HISTORY_RIGHTS_URL },
-      { provider: 'TEJHQ', url: TEJHQ_PUBLICATION_STATUS_RIGHTS_URL },
-      { provider: 'UPSTOX', url: UPSTOX_TRADING_HOLIDAYS_URL },
-    ],
-    exactIdentity: null, dataTypes: [`${basis}_DAILY_OHLC_HISTORY`],
-    authorizationGate: 'Exact TejHQ history, symbol and publication rights plus Upstox calendar rights are required.',
-    implementationAvailability: 'IMPLEMENTED', runtimeAvailability: NOT_PROBED,
-    freshnessSemantics: 'ISIN intervals, publication and each current-year NSE session must agree; adjusted values never replace raw OHLC.',
-    implementedConsumers: {
-      api: [{ method: 'GET', path: '/api/market-data/admin/equity-history', use: `Admin ${basis.toLowerCase()} history.` }],
-      internal: ['marketDataService.fetchQualifiedEquityHistory', 'TejHqHistoricalDataProvider.getStatus',
-        'UpstoxTradingCalendarProvider.getCalendar'],
-      frontend: [],
-    },
-    missingPrerequisites: ['Endpoint rights, account tier, exact symbol history and live publication are not verified.'],
-  })),
   {
     pathId: 'nse.market-context-pair',
     provider: 'NSE',
@@ -249,90 +221,6 @@ const PROVIDER_PATHS = Object.freeze([
       frontend: [],
     },
     missingPrerequisites: ['A per-request qualified NSE symbol/ISIN identity is required.', 'Exact NSE holiday-calendar endpoint rights are also required to qualify expected trading sessions.', 'Provider credentials, account access, and live response have not been probed.', 'BSE history is unavailable until a qualified BSE calendar is implemented.'],
-  },
-  {
-    pathId: 'tejhq.nse-equity-history-fallback',
-    provider: 'TEJHQ',
-    rightsEndpoints: [
-      { provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/ohlcv/nse/{symbol}?from={fromDate}&to={toDate}` },
-      { provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/symbols/nse?isin={isin}` },
-      { provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/status` },
-      { provider: 'NSE', url: NSE_TRADING_HOLIDAY_URL },
-    ],
-    exactIdentity: null,
-    identityRequirements: 'Per request: qualified NSE exchange and ISIN, verified symbol-history continuity, exact expected trading-date coverage, and acceptable provider publication status.',
-    dataTypes: ['RAW_DAILY_OHLC_HISTORY'],
-    authorizationGate: 'Exact TejHQ endpoint rights and the approved production market-data scope are required before the adapter can read cache or call the provider. Environment flags are additional gates only.',
-    implementationAvailability: 'IMPLEMENTED',
-    runtimeAvailability: NOT_PROBED,
-    freshnessSemantics: 'Publication status, symbol history, and exact expected NSE session dates qualify fallback data; date-only observations do not establish intraday freshness.',
-    implementedConsumers: {
-      api: [{ method: 'GET', path: '/api/market-data/admin/equity-history', use: 'NSE EOD fallback after Upstox history is unqualified; admin-only.' }],
-      internal: ['marketDataService.fetchQualifiedEquityHistory', 'TejHqHistoricalDataProvider.getRawHistory', 'TejHqHistoricalDataProvider.getSymbolHistory', 'TejHqHistoricalDataProvider.getStatus', 'nseTradingCalendar.fetchNseTradingHolidays'],
-      frontend: [],
-    },
-    missingPrerequisites: ['Permitted use/license remains unconfirmed and feature is disabled by default.', 'Exact TejHQ OHLCV, NSE symbol-history, publication-status, and NSE holiday-calendar endpoint rights are required.', 'API key, capability access, and runtime response have not been probed.', 'A qualified NSE identity and publication evidence are required per request.'],
-  },
-  {
-    pathId: 'tejhq.adjusted-equity-history',
-    provider: 'TEJHQ',
-    rightsEndpoints: [
-      { provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/adjusted/nse/{symbol}?from={fromDate}&to={toDate}` },
-      { provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/symbols/nse?isin={isin}` },
-      { provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/status` },
-      { provider: 'NSE', url: NSE_TRADING_HOLIDAY_URL },
-    ],
-    exactIdentity: null,
-    identityRequirements: 'Per request: qualified exchange, ISIN, and symbol continuity; adjusted-history parser additionally requires corporate-action adjustment-chain evidence.',
-    dataTypes: ['BACK_ADJUSTED_CLOSE_WITH_RAW_OHLC'],
-    authorizationGate: 'Exact TejHQ endpoint rights and the approved production market-data scope are required before the adapter can read cache or call the provider. Environment flags and credentials do not prove the license scope.',
-    implementationAvailability: 'IMPLEMENTED',
-    runtimeAvailability: NOT_PROBED,
-    freshnessSemantics: 'Provider dataset dates plus bounded cache. Output preserves raw OHLC and exposes adjusted close separately; this is historical adjusted evidence, not a live price.',
-    implementedConsumers: {
-      api: [{ method: 'GET', path: '/api/market-data/admin/equity-history', use: 'Admin-only adjusted history when the adjusted query mode is requested.' }],
-      internal: ['marketDataService.fetchQualifiedEquityHistory', 'TejHqHistoricalDataProvider.getAdjustedHistory', 'TejHqHistoricalDataProvider.getSymbolHistory', 'TejHqHistoricalDataProvider.getStatus', 'nseTradingCalendar.fetchNseTradingHolidays'],
-      frontend: [],
-    },
-    missingPrerequisites: ['Permitted use/license scope remains unconfirmed.', 'Exact TejHQ adjusted-history, NSE symbol-history, publication-status, and NSE holiday-calendar endpoint rights are required.', 'Keyed capability, adjustment-chain evidence, and runtime response have not been probed.', 'Exact per-request security identity is required.'],
-  },
-  {
-    pathId: 'tejhq.corporate-actions',
-    provider: 'TEJHQ',
-    rightsEndpoints: [
-      { provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/actions/{symbol}` },
-      { provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/symbols/{exchange}?isin={isin}` },
-    ],
-    exactIdentity: null,
-    identityRequirements: 'Per request: exact provider trading symbol; action response must match that symbol.',
-    dataTypes: ['CORPORATE_ACTION_EVENTS'],
-    authorizationGate: 'Exact TejHQ endpoint rights and the approved production market-data scope are required before the adapter can read cache or call the provider. Environment flags are additional gates only.',
-    implementationAvailability: 'IMPLEMENTED',
-    runtimeAvailability: NOT_PROBED,
-    freshnessSemantics: 'Provider event dates and bounded cache; no live freshness claim is made by this coverage report.',
-    implementedConsumers: {
-      api: [{ method: 'GET', path: '/api/market-data/admin/tejhq/corporate-actions', use: 'Admin-only corporate-action evidence.' }],
-      internal: ['marketDataService.fetchTejHqCorporateActionEvidence', 'TejHqHistoricalDataProvider.getCorporateActions', 'TejHqHistoricalDataProvider.getSymbolHistory'],
-      frontend: [],
-    },
-    missingPrerequisites: ['Permitted use/license remains unconfirmed and feature is disabled by default.', 'Keyed provider capability and live response have not been probed.', 'Exact provider symbol is required per request.'],
-  },
-  {
-    pathId: 'tejhq.publication-status',
-    provider: 'TEJHQ',
-    rightsEndpoints: [{ provider: 'TEJHQ', url: `${TEJHQ_API_BASE_URL}/v1/status` }],
-    exactIdentity: 'provider:tejhq:publication-status',
-    dataTypes: ['DATASET_PUBLICATION_STATUS'],
-    authorizationGate: 'Exact TejHQ endpoint rights and the approved production market-data scope are required before the adapter can read cache or call the provider. Environment flags are additional gates only.',
-    implementationAvailability: 'IMPLEMENTED',
-    runtimeAvailability: NOT_PROBED,
-    freshnessSemantics: 'Status snapshot reports dataset trading date and reported publication timestamps; expected exchange-session status remains unknown without a qualified session calendar.',
-    implementedConsumers: {
-      api: [{ method: 'GET', path: '/api/market-data/admin/tejhq/status', use: 'Admin-only provider publication status.' }],
-      internal: ['marketDataService.fetchTejHqProviderPublicationStatus', 'marketDataService.fetchQualifiedEquityHistory'],
-      frontend: [],
-    },
-    missingPrerequisites: ['Permitted use/license remains unconfirmed and provider is disabled by default.', 'Status endpoint reachability and current publication state have not been probed.'],
   },
   {
     pathId: 'amfi.mutual-fund-nav-and-history',
@@ -681,7 +569,6 @@ function buildEntry(instrument) {
     sourceFreshness: source ? 'PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME' : 'NOT_AVAILABLE',
     marketDataAvailability: source ? 'SOURCE_SERVICE_EXISTS' : 'NO_PRODUCT_LEVEL_OBSERVATION',
     upstoxRegistryCoverage: false,
-    tejHqIdentityCoverage: false,
     personalizedRecommendationEligibility: 'NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE',
   };
 }

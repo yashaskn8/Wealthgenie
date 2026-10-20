@@ -65,7 +65,7 @@ test('four Linux CI jobs retain full Mongo-backed backend and integration covera
   assert.match(backendRun.run, /npm run test:coverage --prefix server/);
 
   const integration = workflow.jobs['integration-security'];
-  assert.equal(integration.env.MARKET_DATA_MODE, 'UPSTOX_TEJHQ');
+  assert.equal(integration.env.MARKET_DATA_MODE, 'UPSTOX_ONLY');
   assert.equal(integration.env.UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED, 'false');
   assert.equal(integration.steps.find(step => step.name === 'Start transaction-capable MongoDB')?.with?.['mongodb-version'], '7.0');
   assert.match(findStep('integration-security', 'Start Redis for browser and MCP integration').run, /docker compose up -d redis/);

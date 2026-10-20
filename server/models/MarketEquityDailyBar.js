@@ -7,12 +7,12 @@ import mongoose from 'mongoose';
  */
 const marketEquityDailyBarSchema = new mongoose.Schema({
   schemaVersion: { type: String, required: true },
-  provider: { type: String, enum: ['UPSTOX', 'TEJHQ'], required: true },
+  provider: { type: String, enum: ['UPSTOX'], required: true },
   exchange: { type: String, enum: ['NSE', 'BSE'], required: true },
   isin: { type: String, required: true, match: /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/ },
   symbol: { type: String, default: null },
   tradingDate: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
-  priceBasis: { type: String, enum: ['UPSTOX_PROVIDER_NATIVE', 'RAW_UNADJUSTED', 'BACK_ADJUSTED'], required: true },
+  priceBasis: { type: String, enum: ['UPSTOX_PROVIDER_NATIVE'], required: true },
   open: { type: Number, required: true, min: 0 },
   high: { type: Number, required: true, min: 0 },
   low: { type: Number, required: true, min: 0 },
@@ -25,7 +25,7 @@ const marketEquityDailyBarSchema = new mongoose.Schema({
     instrumentId: { type: String, required: true },
     requestUrls: [{ type: String }],
     qualificationSourceUrls: [{
-      provider: { type: String, enum: ['NSE', 'UPSTOX', 'TEJHQ'], required: true },
+      provider: { type: String, enum: ['NSE', 'UPSTOX'], required: true },
       url: { type: String, required: true },
     }],
     datasetRevision: { type: String, default: null },

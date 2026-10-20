@@ -119,17 +119,17 @@ test('stored EOD chart uses returned closes and stays contained at tablet and mo
   await page.route('**/api/market-data/equity-history/persisted?*', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({
       status: 'AVAILABLE', barCount: 2, bars: [
-        { tradingDate: '2026-10-15', provider: 'TEJHQ', exchange: 'NSE', isin: 'INE002A01018',
-          priceBasis: 'RAW_UNADJUSTED', close: 200 },
-        { tradingDate: '2026-10-16', provider: 'TEJHQ', exchange: 'NSE', isin: 'INE002A01018',
-          priceBasis: 'RAW_UNADJUSTED', close: 100 },
+        { tradingDate: '2026-10-15', provider: 'UPSTOX', exchange: 'NSE', isin: 'INE002A01018',
+          priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 200 },
+        { tradingDate: '2026-10-16', provider: 'UPSTOX', exchange: 'NSE', isin: 'INE002A01018',
+          priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 100 },
       ],
     }),
   }));
   await page.goto('/e2e/market-storage-harness.html');
   await page.getByRole('button', { name: 'View stored prices and history' }).click();
   await page.getByRole('button', { name: 'Read stored history' }).click();
-  const chart = page.getByRole('img', { name: 'Raw EOD close from stored qualified observations' });
+  const chart = page.getByRole('img', { name: 'Provider-native EOD close from stored qualified observations' });
   await expect(chart).toBeVisible();
   await expect(chart.locator('polyline')).toHaveAttribute('points', '16.00,16.00 584.00,134.00');
   for (const width of [721, 390]) {

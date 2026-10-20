@@ -19,12 +19,6 @@ data:
   MARKET_DATA_MODE: "LEGACY"
   MARKET_DATA_PRIMARY_PROVIDER: "NSE"
   UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: "false"
-  TEJHQ_ENABLED: "false"
-  TEJHQ_LICENSE_CONFIRMED: "false"
-  TEJHQ_HISTORICAL_FALLBACK_ENABLED: "false"
-  TEJHQ_ADJUSTED_HISTORY_ENABLED: "false"
-  TEJHQ_CORPORATE_ACTIONS_ENABLED: "false"
-  TEJHQ_INTERNAL_DAILY_REQUEST_BUDGET: "200"
   ML_SERVICE_URL: "http://wealthgenie-ml-service.wealthgenie.svc.cluster.local:8000"
   REDIS_URL: "redis://wealthgenie-redis.wealthgenie.svc.cluster.local:6379"
   # Kind/demo ingress origin. Production overlays must replace this with the

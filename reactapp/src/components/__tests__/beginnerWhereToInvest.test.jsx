@@ -27,6 +27,7 @@ if (!backendRevisionVersion) throw new Error('Backend market snapshot content re
 
 vi.mock('../../services/api', () => ({
   getCurrentMarketContext: vi.fn(),
+  getPrivateMarketDemoData: vi.fn(() => new Promise(() => {})),
   rankInvestmentCandidates: vi.fn(),
   previewMarketContextAdjustment: vi.fn(),
   getTaxPolicyMetadata: vi.fn(async () => ({
@@ -374,6 +375,14 @@ describe('Beginner-First Where-To-Invest UX', () => {
   });
 
   it('renders exact ETF identity and NAV separately from unavailable market price and product facts', async () => {
+    api.getPrivateMarketDemoData.mockResolvedValueOnce({
+      persistence: 'NOT_PERSISTED',
+      upstox: { status: 'AVAILABLE', facts: [{
+        canonicalProductId: 'etf:isin:INF204KB14I2',
+        availabilityStatus: 'AVAILABLE', value: 294.4, unit: 'PRICE', currency: 'INR',
+        observedAt: '2026-10-20T10:00:00.000Z', freshness: { status: 'STALE' },
+      }] },
+    });
     api.rankInvestmentCandidates.mockResolvedValueOnce({
       financialStateBinding: CURRENT_STATE_BINDING,
       ranking: { status: 'VERIFIED_COMPARABLE_OPTIONS' },
@@ -423,6 +432,9 @@ describe('Beginner-First Where-To-Invest UX', () => {
     />);
     const card = within(await screen.findByTestId('wti-product-etf:isin:INF204KB14I2'));
     expect(card.getByText('Issuer scheme label')).toBeVisible();
+    const privateQuote = within(await card.findByTestId('wti-private-etf-quote'));
+    expect(privateQuote.getByText('₹294.4')).toBeVisible();
+    expect(privateQuote.getByText(/STALE/)).toBeVisible();
     fireEvent.click(card.getByText('View technical details & provenance'));
     expect(card.getByText(/NIFTY 50 \(NIFTY 50 TRI\)/)).toBeVisible();
     expect(card.getByText('Exchange / ticker: NSE / NIFTYBEES')).toBeVisible();

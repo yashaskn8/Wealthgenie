@@ -25,8 +25,8 @@ export function validateEnvironmentConfig(env = process.env) {
   const errors = [];
   errors.push(...validateMongoCompatibilityConfig(env).errors);
   const marketDataMode = String(env.MARKET_DATA_MODE || 'LEGACY').trim().toUpperCase();
-  if (!['LEGACY', 'UPSTOX_TEJHQ'].includes(marketDataMode)) {
-    errors.push('MARKET_DATA_MODE must be LEGACY or UPSTOX_TEJHQ');
+  if (!['LEGACY', 'UPSTOX_ONLY'].includes(marketDataMode)) {
+    errors.push('MARKET_DATA_MODE must be LEGACY or UPSTOX_ONLY');
   }
   const primaryMarketProvider = String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase();
   if (!['NSE', 'UPSTOX'].includes(primaryMarketProvider)) {
@@ -34,11 +34,6 @@ export function validateEnvironmentConfig(env = process.env) {
   }
   for (const name of [
     'UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED',
-    'TEJHQ_ENABLED',
-    'TEJHQ_LICENSE_CONFIRMED',
-    'TEJHQ_HISTORICAL_FALLBACK_ENABLED',
-    'TEJHQ_ADJUSTED_HISTORY_ENABLED',
-    'TEJHQ_CORPORATE_ACTIONS_ENABLED',
   ]) {
     if (env[name] !== undefined && !['true', 'false'].includes(env[name])) {
       errors.push(`${name} must be true or false`);

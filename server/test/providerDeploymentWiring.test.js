@@ -4,43 +4,33 @@ import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 
 const read = relative => parse(readFileSync(new URL('../../' + relative, import.meta.url), 'utf8'));
-const MARKET_KEYS = ['UPSTOX_ANALYTICS_TOKEN', 'UPSTOX_ACCESS_TOKEN', 'TEJHQ_API_KEY'];
+const MARKET_KEYS = ['UPSTOX_ANALYTICS_TOKEN', 'UPSTOX_ACCESS_TOKEN'];
 const LLM_KEYS = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'NVIDIA_API_KEY'];
 const PRIVATE_KEYS = [...MARKET_KEYS, ...LLM_KEYS];
 const OPTIONAL_SERVER_KEYS = [...MARKET_KEYS, 'GROQ_API_KEY', 'NVIDIA_API_KEY'];
 const DISABLED = [
   'UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED',
-  'TEJHQ_ENABLED', 'TEJHQ_LICENSE_CONFIRMED',
-  'TEJHQ_HISTORICAL_FALLBACK_ENABLED',
-  'TEJHQ_ADJUSTED_HISTORY_ENABLED', 'TEJHQ_CORPORATE_ACTIONS_ENABLED',
 ];
 const composeVariable = (key, fallback = '') => key + '=$' + '{' + key + ':-' + fallback + '}';
 
-test('Compose forwards authorized provider settings only to the API server with rights disabled by default', () => {
+test('Compose forwards only server-side Upstox credentials with publication disabled by default', () => {
   const compose = read('docker-compose.yml');
   const server = compose.services.server.environment;
   for (const key of PRIVATE_KEYS) {
     assert.ok(server.includes(composeVariable(key)), 'API server missing ' + key);
-    assert.equal(
-      compose.services['agent-worker'].environment.some(value => value.startsWith(key + '=')),
-      false,
-      'credential leaked to worker: ' + key,
-    );
+    assert.equal(compose.services['agent-worker'].environment.some(value => value.startsWith(key + '=')),
+      false, 'credential leaked to worker: ' + key);
   }
   for (const key of MARKET_KEYS) {
     for (const service of ['reactapp', 'ml-service']) {
       const environment = compose.services[service].environment || [];
-      assert.equal(
-        environment.some(value => value.startsWith(key + '=')),
-        false,
-        'market credential leaked to ' + service + ': ' + key,
-      );
+      assert.equal(environment.some(value => value.startsWith(key + '=')), false,
+        'market credential leaked to ' + service + ': ' + key);
     }
   }
   assert.ok(server.includes(composeVariable('MARKET_DATA_MODE', 'LEGACY')));
   assert.ok(server.includes(composeVariable('MARKET_DATA_PRIMARY_PROVIDER', 'NSE')));
   for (const key of DISABLED) assert.ok(server.includes(composeVariable(key, 'false')));
-  assert.ok(server.includes(composeVariable('TEJHQ_INTERNAL_DAILY_REQUEST_BUDGET', '200')));
 });
 
 test('Kubernetes scopes provider and LLM secrets to the API server and preserves fail-closed defaults', () => {

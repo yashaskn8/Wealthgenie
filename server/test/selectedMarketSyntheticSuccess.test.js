@@ -33,7 +33,7 @@ import {
 } from '../services/marketContextService.js';
 
 const now = new Date('2026-10-16T09:55:00.000Z');
-const env = Object.freeze({ NODE_ENV: 'test', MARKET_DATA_MODE: 'UPSTOX_TEJHQ' });
+const env = Object.freeze({ NODE_ENV: 'test', MARKET_DATA_MODE: 'UPSTOX_ONLY' });
 const calendarPayload = {
   status: 'success',
   data: [

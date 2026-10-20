@@ -1,7 +1,7 @@
 {
   "schemaVersion": "wealthgenie-market-data-coverage-1.3.0",
   "catalogVersion": "1.1.0",
-  "generatedAt": "2026-10-19T07:58:33.434Z",
+  "generatedAt": "2026-10-20T12:51:17.801Z",
   "totalCatalogEntries": 155,
   "classificationCounts": {
     "AUCTION_OR_BOND_TERMS": 1,
@@ -19,8 +19,8 @@
   },
   "providerPaths": [
     {
-      "pathId": "two-provider.upstox-market-context",
-      "marketMode": "UPSTOX_TEJHQ",
+      "pathId": "upstox-only.market-context",
+      "marketMode": "UPSTOX_ONLY",
       "provider": "UPSTOX",
       "rightsEndpoints": [
         {
@@ -133,8 +133,8 @@
       }
     },
     {
-      "pathId": "two-provider.upstox-equity-history",
-      "marketMode": "UPSTOX_TEJHQ",
+      "pathId": "upstox-only.equity-history",
+      "marketMode": "UPSTOX_ONLY",
       "provider": "UPSTOX",
       "rightsEndpoints": [
         {
@@ -179,190 +179,6 @@
           "status": "LICENSE_UNVERIFIED",
           "sourceId": "UPSTOX_HISTORICAL_CANDLES_V3",
           "termsUrl": "https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "UPSTOX",
-          "url": "https://api.upstox.com/v2/market/holidays",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "UPSTOX_TRADING_HOLIDAYS",
-          "termsUrl": "https://upstox.com/developer/api-documentation/get-market-holidays/",
-          "productionUseAllowed": false
-        }
-      ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
-      "productionUseAllowed": false,
-      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
-      "validConsumers": {
-        "api": [],
-        "internal": [],
-        "frontend": []
-      }
-    },
-    {
-      "pathId": "two-provider.tejhq-raw-eod",
-      "marketMode": "UPSTOX_TEJHQ",
-      "provider": "TEJHQ",
-      "rightsEndpoints": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/ohlcv/{exchange}/{symbol}?from={from}&to={to}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status"
-        },
-        {
-          "provider": "UPSTOX",
-          "url": "https://api.upstox.com/v2/market/holidays"
-        }
-      ],
-      "exactIdentity": null,
-      "dataTypes": [
-        "RAW_DAILY_OHLC_HISTORY"
-      ],
-      "authorizationGate": "Exact TejHQ history, symbol and publication rights plus Upstox calendar rights are required.",
-      "implementationAvailability": "IMPLEMENTED",
-      "runtimeAvailability": "NOT_PROBED",
-      "freshnessSemantics": "ISIN intervals, publication and each current-year NSE session must agree; adjusted values never replace raw OHLC.",
-      "implementedConsumers": {
-        "api": [
-          {
-            "method": "GET",
-            "path": "/api/market-data/admin/equity-history",
-            "use": "Admin raw history."
-          }
-        ],
-        "internal": [
-          "marketDataService.fetchQualifiedEquityHistory",
-          "TejHqHistoricalDataProvider.getStatus",
-          "UpstoxTradingCalendarProvider.getCalendar"
-        ],
-        "frontend": []
-      },
-      "missingPrerequisites": [
-        "Endpoint rights, account tier, exact symbol history and live publication are not verified.",
-        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
-      ],
-      "rightsChecks": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/ohlcv/{exchange}/{symbol}?from={from}&to={to}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_RAW_EOD",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_SYMBOL_HISTORY",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_PUBLICATION_STATUS",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "UPSTOX",
-          "url": "https://api.upstox.com/v2/market/holidays",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "UPSTOX_TRADING_HOLIDAYS",
-          "termsUrl": "https://upstox.com/developer/api-documentation/get-market-holidays/",
-          "productionUseAllowed": false
-        }
-      ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
-      "productionUseAllowed": false,
-      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
-      "validConsumers": {
-        "api": [],
-        "internal": [],
-        "frontend": []
-      }
-    },
-    {
-      "pathId": "two-provider.tejhq-adjusted-eod",
-      "marketMode": "UPSTOX_TEJHQ",
-      "provider": "TEJHQ",
-      "rightsEndpoints": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/adjusted/{exchange}/{symbol}?from={from}&to={to}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status"
-        },
-        {
-          "provider": "UPSTOX",
-          "url": "https://api.upstox.com/v2/market/holidays"
-        }
-      ],
-      "exactIdentity": null,
-      "dataTypes": [
-        "ADJUSTED_DAILY_OHLC_HISTORY"
-      ],
-      "authorizationGate": "Exact TejHQ history, symbol and publication rights plus Upstox calendar rights are required.",
-      "implementationAvailability": "IMPLEMENTED",
-      "runtimeAvailability": "NOT_PROBED",
-      "freshnessSemantics": "ISIN intervals, publication and each current-year NSE session must agree; adjusted values never replace raw OHLC.",
-      "implementedConsumers": {
-        "api": [
-          {
-            "method": "GET",
-            "path": "/api/market-data/admin/equity-history",
-            "use": "Admin adjusted history."
-          }
-        ],
-        "internal": [
-          "marketDataService.fetchQualifiedEquityHistory",
-          "TejHqHistoricalDataProvider.getStatus",
-          "UpstoxTradingCalendarProvider.getCalendar"
-        ],
-        "frontend": []
-      },
-      "missingPrerequisites": [
-        "Endpoint rights, account tier, exact symbol history and live publication are not verified.",
-        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
-      ],
-      "rightsChecks": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/adjusted/{exchange}/{symbol}?from={from}&to={to}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_ADJUSTED_HISTORY",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_SYMBOL_HISTORY",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_PUBLICATION_STATUS",
-          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         },
         {
@@ -654,7 +470,8 @@
         ],
         "providerKeys": [
           "NSE_INDEX|Nifty 50",
-          "NSE_INDEX|India VIX"
+          "NSE_INDEX|India VIX",
+          "NSE_EQ|INF204KB14I2"
         ],
         "history": "market:index:nifty-50"
       },
@@ -740,7 +557,8 @@
         ],
         "providerKeys": [
           "NSE_INDEX|Nifty 50",
-          "NSE_INDEX|India VIX"
+          "NSE_INDEX|India VIX",
+          "NSE_EQ|INF204KB14I2"
         ]
       },
       "providerAccessStatus": "NOT_LIVE_VERIFIED",
@@ -864,325 +682,6 @@
           "status": "LICENSE_UNVERIFIED",
           "sourceId": null,
           "termsUrl": null,
-          "productionUseAllowed": false
-        }
-      ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
-      "productionUseAllowed": false,
-      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
-      "validConsumers": {
-        "api": [],
-        "internal": [],
-        "frontend": []
-      }
-    },
-    {
-      "pathId": "tejhq.nse-equity-history-fallback",
-      "provider": "TEJHQ",
-      "rightsEndpoints": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/ohlcv/nse/{symbol}?from={fromDate}&to={toDate}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/nse?isin={isin}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status"
-        },
-        {
-          "provider": "NSE",
-          "url": "https://www.nseindia.com/api/holiday-master?type=trading"
-        }
-      ],
-      "exactIdentity": null,
-      "identityRequirements": "Per request: qualified NSE exchange and ISIN, verified symbol-history continuity, exact expected trading-date coverage, and acceptable provider publication status.",
-      "dataTypes": [
-        "RAW_DAILY_OHLC_HISTORY"
-      ],
-      "authorizationGate": "Exact TejHQ endpoint rights and the approved production market-data scope are required before the adapter can read cache or call the provider. Environment flags are additional gates only.",
-      "implementationAvailability": "IMPLEMENTED",
-      "runtimeAvailability": "NOT_PROBED",
-      "freshnessSemantics": "Publication status, symbol history, and exact expected NSE session dates qualify fallback data; date-only observations do not establish intraday freshness.",
-      "implementedConsumers": {
-        "api": [
-          {
-            "method": "GET",
-            "path": "/api/market-data/admin/equity-history",
-            "use": "NSE EOD fallback after Upstox history is unqualified; admin-only."
-          }
-        ],
-        "internal": [
-          "marketDataService.fetchQualifiedEquityHistory",
-          "TejHqHistoricalDataProvider.getRawHistory",
-          "TejHqHistoricalDataProvider.getSymbolHistory",
-          "TejHqHistoricalDataProvider.getStatus",
-          "nseTradingCalendar.fetchNseTradingHolidays"
-        ],
-        "frontend": []
-      },
-      "missingPrerequisites": [
-        "Permitted use/license remains unconfirmed and feature is disabled by default.",
-        "Exact TejHQ OHLCV, NSE symbol-history, publication-status, and NSE holiday-calendar endpoint rights are required.",
-        "API key, capability access, and runtime response have not been probed.",
-        "A qualified NSE identity and publication evidence are required per request.",
-        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
-      ],
-      "rightsChecks": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/ohlcv/nse/{symbol}?from={fromDate}&to={toDate}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_RAW_EOD",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/nse?isin={isin}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_SYMBOL_HISTORY",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_PUBLICATION_STATUS",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "NSE",
-          "url": "https://www.nseindia.com/api/holiday-master?type=trading",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
-          "productionUseAllowed": false
-        }
-      ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
-      "productionUseAllowed": false,
-      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
-      "validConsumers": {
-        "api": [],
-        "internal": [],
-        "frontend": []
-      }
-    },
-    {
-      "pathId": "tejhq.adjusted-equity-history",
-      "provider": "TEJHQ",
-      "rightsEndpoints": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/adjusted/nse/{symbol}?from={fromDate}&to={toDate}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/nse?isin={isin}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status"
-        },
-        {
-          "provider": "NSE",
-          "url": "https://www.nseindia.com/api/holiday-master?type=trading"
-        }
-      ],
-      "exactIdentity": null,
-      "identityRequirements": "Per request: qualified exchange, ISIN, and symbol continuity; adjusted-history parser additionally requires corporate-action adjustment-chain evidence.",
-      "dataTypes": [
-        "BACK_ADJUSTED_CLOSE_WITH_RAW_OHLC"
-      ],
-      "authorizationGate": "Exact TejHQ endpoint rights and the approved production market-data scope are required before the adapter can read cache or call the provider. Environment flags and credentials do not prove the license scope.",
-      "implementationAvailability": "IMPLEMENTED",
-      "runtimeAvailability": "NOT_PROBED",
-      "freshnessSemantics": "Provider dataset dates plus bounded cache. Output preserves raw OHLC and exposes adjusted close separately; this is historical adjusted evidence, not a live price.",
-      "implementedConsumers": {
-        "api": [
-          {
-            "method": "GET",
-            "path": "/api/market-data/admin/equity-history",
-            "use": "Admin-only adjusted history when the adjusted query mode is requested."
-          }
-        ],
-        "internal": [
-          "marketDataService.fetchQualifiedEquityHistory",
-          "TejHqHistoricalDataProvider.getAdjustedHistory",
-          "TejHqHistoricalDataProvider.getSymbolHistory",
-          "TejHqHistoricalDataProvider.getStatus",
-          "nseTradingCalendar.fetchNseTradingHolidays"
-        ],
-        "frontend": []
-      },
-      "missingPrerequisites": [
-        "Permitted use/license scope remains unconfirmed.",
-        "Exact TejHQ adjusted-history, NSE symbol-history, publication-status, and NSE holiday-calendar endpoint rights are required.",
-        "Keyed capability, adjustment-chain evidence, and runtime response have not been probed.",
-        "Exact per-request security identity is required.",
-        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
-      ],
-      "rightsChecks": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/adjusted/nse/{symbol}?from={fromDate}&to={toDate}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_ADJUSTED_HISTORY",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/nse?isin={isin}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_SYMBOL_HISTORY",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_PUBLICATION_STATUS",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "NSE",
-          "url": "https://www.nseindia.com/api/holiday-master?type=trading",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": null,
-          "termsUrl": null,
-          "productionUseAllowed": false
-        }
-      ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
-      "productionUseAllowed": false,
-      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
-      "validConsumers": {
-        "api": [],
-        "internal": [],
-        "frontend": []
-      }
-    },
-    {
-      "pathId": "tejhq.corporate-actions",
-      "provider": "TEJHQ",
-      "rightsEndpoints": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/actions/{symbol}"
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}"
-        }
-      ],
-      "exactIdentity": null,
-      "identityRequirements": "Per request: exact provider trading symbol; action response must match that symbol.",
-      "dataTypes": [
-        "CORPORATE_ACTION_EVENTS"
-      ],
-      "authorizationGate": "Exact TejHQ endpoint rights and the approved production market-data scope are required before the adapter can read cache or call the provider. Environment flags are additional gates only.",
-      "implementationAvailability": "IMPLEMENTED",
-      "runtimeAvailability": "NOT_PROBED",
-      "freshnessSemantics": "Provider event dates and bounded cache; no live freshness claim is made by this coverage report.",
-      "implementedConsumers": {
-        "api": [
-          {
-            "method": "GET",
-            "path": "/api/market-data/admin/tejhq/corporate-actions",
-            "use": "Admin-only corporate-action evidence."
-          }
-        ],
-        "internal": [
-          "marketDataService.fetchTejHqCorporateActionEvidence",
-          "TejHqHistoricalDataProvider.getCorporateActions",
-          "TejHqHistoricalDataProvider.getSymbolHistory"
-        ],
-        "frontend": []
-      },
-      "missingPrerequisites": [
-        "Permitted use/license remains unconfirmed and feature is disabled by default.",
-        "Keyed provider capability and live response have not been probed.",
-        "Exact provider symbol is required per request.",
-        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
-      ],
-      "rightsChecks": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/actions/{symbol}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_CORPORATE_ACTIONS",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        },
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/symbols/{exchange}?isin={isin}",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_SYMBOL_HISTORY",
-          "termsUrl": "https://tejhq.dev/docs",
-          "productionUseAllowed": false
-        }
-      ],
-      "authorizedUseStatus": "LICENSE_UNVERIFIED",
-      "productionUseAllowed": false,
-      "availability": "UNAVAILABLE_SOURCE_RIGHTS",
-      "validConsumers": {
-        "api": [],
-        "internal": [],
-        "frontend": []
-      }
-    },
-    {
-      "pathId": "tejhq.publication-status",
-      "provider": "TEJHQ",
-      "rightsEndpoints": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status"
-        }
-      ],
-      "exactIdentity": "provider:tejhq:publication-status",
-      "dataTypes": [
-        "DATASET_PUBLICATION_STATUS"
-      ],
-      "authorizationGate": "Exact TejHQ endpoint rights and the approved production market-data scope are required before the adapter can read cache or call the provider. Environment flags are additional gates only.",
-      "implementationAvailability": "IMPLEMENTED",
-      "runtimeAvailability": "NOT_PROBED",
-      "freshnessSemantics": "Status snapshot reports dataset trading date and reported publication timestamps; expected exchange-session status remains unknown without a qualified session calendar.",
-      "implementedConsumers": {
-        "api": [
-          {
-            "method": "GET",
-            "path": "/api/market-data/admin/tejhq/status",
-            "use": "Admin-only provider publication status."
-          }
-        ],
-        "internal": [
-          "marketDataService.fetchTejHqProviderPublicationStatus",
-          "marketDataService.fetchQualifiedEquityHistory"
-        ],
-        "frontend": []
-      },
-      "missingPrerequisites": [
-        "Permitted use/license remains unconfirmed and provider is disabled by default.",
-        "Status endpoint reachability and current publication state have not been probed.",
-        "Exact provider and endpoint permission for production data use is blocked or unverified; no production consumer is authorized by this matrix."
-      ],
-      "rightsChecks": [
-        {
-          "provider": "TEJHQ",
-          "url": "https://api.tejhq.dev/v1/status",
-          "status": "LICENSE_UNVERIFIED",
-          "sourceId": "TEJHQ_PUBLICATION_STATUS",
-          "termsUrl": "https://tejhq.dev/docs",
           "productionUseAllowed": false
         }
       ],
@@ -1716,7 +1215,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -1774,7 +1272,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -1832,7 +1329,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -1897,7 +1393,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -1935,7 +1430,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -1993,7 +1487,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2051,7 +1544,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2109,7 +1601,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2147,7 +1638,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2185,7 +1675,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2223,7 +1712,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2275,7 +1763,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2313,7 +1800,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2351,7 +1837,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2389,7 +1874,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2427,7 +1911,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2465,7 +1948,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2503,7 +1985,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2541,7 +2022,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2579,7 +2059,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2617,7 +2096,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2655,7 +2133,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2693,7 +2170,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2731,7 +2207,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2789,7 +2264,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2827,7 +2301,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2865,7 +2338,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2903,7 +2375,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2941,7 +2412,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -2979,7 +2449,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3017,7 +2486,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3055,7 +2523,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3093,7 +2560,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3131,7 +2597,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3169,7 +2634,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3207,7 +2671,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3245,7 +2708,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3283,7 +2745,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3321,7 +2782,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3359,7 +2819,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3397,7 +2856,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3435,7 +2893,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3473,7 +2930,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3511,7 +2967,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3549,7 +3004,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3587,7 +3041,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3625,7 +3078,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3663,7 +3115,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3701,7 +3152,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3739,7 +3189,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3777,7 +3226,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3815,7 +3263,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3853,7 +3300,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3891,7 +3337,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3929,7 +3374,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -3967,7 +3411,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4005,7 +3448,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4043,7 +3485,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4081,7 +3522,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4119,7 +3559,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4157,7 +3596,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4195,7 +3633,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4233,7 +3670,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4271,7 +3707,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4309,7 +3744,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4347,7 +3781,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4385,7 +3818,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4423,7 +3855,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4461,7 +3892,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4499,7 +3929,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4537,7 +3966,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4575,7 +4003,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4613,7 +4040,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4651,7 +4077,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4689,7 +4114,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4727,7 +4151,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4765,7 +4188,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4803,7 +4225,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4841,7 +4262,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4879,7 +4299,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4917,7 +4336,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4955,7 +4373,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -4993,7 +4410,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5031,7 +4447,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5069,7 +4484,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5107,7 +4521,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5145,7 +4558,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5183,7 +4595,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5221,7 +4632,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5259,7 +4669,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5297,7 +4706,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5335,7 +4743,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5373,7 +4780,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5411,7 +4817,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5449,7 +4854,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5487,7 +4891,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5525,7 +4928,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5563,7 +4965,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5601,7 +5002,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5639,7 +5039,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5677,7 +5076,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5715,7 +5113,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5753,7 +5150,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5791,7 +5187,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5849,7 +5244,6 @@
       "sourceFreshness": "PROVIDER_EFFECTIVE_OR_PUBLICATION_TIME",
       "marketDataAvailability": "SOURCE_SERVICE_EXISTS",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5887,7 +5281,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5925,7 +5318,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -5963,7 +5355,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6001,7 +5392,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6039,7 +5429,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6077,7 +5466,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6115,7 +5503,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6153,7 +5540,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6191,7 +5577,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6229,7 +5614,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6267,7 +5651,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6305,7 +5688,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6343,7 +5725,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6381,7 +5762,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6419,7 +5799,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6457,7 +5836,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6495,7 +5873,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6533,7 +5910,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6571,7 +5947,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6609,7 +5984,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6647,7 +6021,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6685,7 +6058,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6723,7 +6095,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6761,7 +6132,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6799,7 +6169,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6837,7 +6206,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6875,7 +6243,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6913,7 +6280,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6951,7 +6317,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -6989,7 +6354,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7027,7 +6391,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7065,7 +6428,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7103,7 +6465,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7141,7 +6502,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7179,7 +6539,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7217,7 +6576,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7255,7 +6613,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7293,7 +6650,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7331,7 +6687,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7369,7 +6724,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7407,7 +6761,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7445,7 +6798,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7483,7 +6835,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7521,7 +6872,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7559,7 +6909,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7597,7 +6946,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7635,7 +6983,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7673,7 +7020,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7711,7 +7057,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     },
     {
@@ -7749,7 +7094,6 @@
       "sourceFreshness": "NOT_AVAILABLE",
       "marketDataAvailability": "NO_PRODUCT_LEVEL_OBSERVATION",
       "upstoxRegistryCoverage": false,
-      "tejHqIdentityCoverage": false,
       "personalizedRecommendationEligibility": "NOT_ESTABLISHED_BY_MARKET_DATA_COVERAGE"
     }
   ]

@@ -1,5 +1,5 @@
 import { isUpstoxPublicDistributionAllowed } from './marketData/upstoxDistributionPolicy.js';
-import { isTwoProviderMarketDataMode } from './marketDataService.js';
+import { isUpstoxOnlyMarketDataMode } from './marketDataService.js';
 import { marketContextProviderAllowed } from './marketContextService.js';
 
 const VERIFIED_MARKET_PROVIDERS = new Set(['NSE', 'UPSTOX']);
@@ -80,7 +80,7 @@ export function assertRecommendationMarketDistributionAllowed(
   // A stored market tilt predates the current mode/rights decision. The
   // selected mode cannot publish a legacy NSE tilt or an Upstox tilt whose
   // exact source-use rights are still unqualified.
-  if (isTwoProviderMarketDataMode(environment)
+  if (isUpstoxOnlyMarketDataMode(environment)
       && !marketContextProviderAllowed(sourceProvider, environment)) {
     const error = new Error('The stored market adjustment is not qualified for the selected market-data mode.');
     error.status = 503;

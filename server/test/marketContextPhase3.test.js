@@ -366,7 +366,7 @@ test('market snapshot preserves qualified failover diagnostics and selected-prov
 test('selected two-provider mode rejects injected NSE evidence and an old NSE last-known-good snapshot', async () => {
   resetMarketContextProcessStateForTest();
   const legacyEnv = { NODE_ENV: 'test', MARKET_DATA_MODE: 'LEGACY' };
-  const selectedEnv = { NODE_ENV: 'test', MARKET_DATA_MODE: 'UPSTOX_TEJHQ' };
+  const selectedEnv = { NODE_ENV: 'test', MARKET_DATA_MODE: 'UPSTOX_ONLY' };
   let stored = null;
   const legacy = await getLiveMarketContext({ now: NOW }, {
     env: legacyEnv,
@@ -478,7 +478,7 @@ test('production context reads suppress live Upstox evidence when distribution i
   };
   const suppressed = await getLiveMarketContext({ now: NOW }, {
     env: {
-      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_ONLY',
       UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
     },
     fetchQualifiedMarketContextSnapshots: async () => ({
@@ -509,7 +509,7 @@ test('selected mode with unconfirmed public distribution makes no market-provide
   const neverCall = async () => assert.fail('market provider must not be called');
   const pair = await fetchQualifiedMarketContextSnapshots({
     env: {
-      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_ONLY',
       UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
     },
     persist: false,

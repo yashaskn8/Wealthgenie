@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   fetchQualifiedMarketContextSnapshots,
   fetchQualifiedEquityHistory,
-  isTwoProviderMarketDataMode,
+  isUpstoxOnlyMarketDataMode,
   qualifyUpstoxBenchmarkHistory,
 } from '../services/marketDataService.js';
 import UpstoxTradingCalendarProvider, {
@@ -19,7 +19,7 @@ import {
   UPSTOX_MARKET_TIMINGS_RIGHTS_URL,
 } from '../services/marketData/marketDataSourceUrls.js';
 
-const fixtureEnv = { NODE_ENV: 'test', MARKET_DATA_MODE: 'UPSTOX_TEJHQ' };
+const fixtureEnv = { NODE_ENV: 'test', MARKET_DATA_MODE: 'UPSTOX_ONLY' };
 const fixtureRights = createMarketDataTestFixtureRightsCapability({
   env: fixtureEnv,
   transport: { get: async () => ({ data: null }) },
@@ -37,10 +37,10 @@ const calendarPayload = {
   ],
 };
 
-test('two-provider mode is explicit and rejects unknown configuration', () => {
-  assert.equal(isTwoProviderMarketDataMode({}), false);
-  assert.equal(isTwoProviderMarketDataMode(fixtureEnv), true);
-  assert.throws(() => isTwoProviderMarketDataMode({ MARKET_DATA_MODE: 'UNKNOWN' }), /MARKET_DATA_MODE/);
+test('Upstox-only mode is explicit and rejects unknown configuration', () => {
+  assert.equal(isUpstoxOnlyMarketDataMode({}), false);
+  assert.equal(isUpstoxOnlyMarketDataMode(fixtureEnv), true);
+  assert.throws(() => isUpstoxOnlyMarketDataMode({ MARKET_DATA_MODE: 'UNKNOWN' }), /MARKET_DATA_MODE/);
 });
 
 test('Upstox read-only retries are bounded and respect authentication and Retry-After', async () => {
@@ -552,94 +552,17 @@ test('selected mode never attempts NSE market providers when Upstox fails', asyn
   assert.equal(pair.providerSelection.fallbackUsed, false);
 });
 
-test('selected equity-history mode qualifies a special session without NSE calendar reads', async () => {
-  const now = clock();
-  const calendar = parseUpstoxTradingCalendar(calendarPayload, {
-    year: '2026', fetchedAt: now.toISOString(),
-  });
-  let nseCalls = 0;
-  let tejCalls = 0;
-  const result = await fetchQualifiedEquityHistory({
-    exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
-    fromDate: '2026-10-08', toDate: '2026-10-10',
-  }, {
-    env: fixtureEnv, clock,
-    marketDataTestFixtureRightsCapability: fixtureRights,
-    upstoxProvider: { getDailyCandles: async () => ({
-      provider: 'UPSTOX', status: 'AVAILABLE', instrumentKey: 'NSE_EQ|INE002A01018',
-      candles: ['2026-10-08', '2026-10-09', '2026-10-10'].map(date => ({
-        timestamp: `${date}T05:00:00.000Z`, open: 100, high: 110, low: 90,
-        close: 105, volume: 10,
-      })),
-    }) },
-    upstoxCalendarProviderOverride: { getCalendar: async () => calendar },
-    nseCalendarProvider: { holidayLoader: async () => { nseCalls += 1; return {}; } },
-    tejHqHistoricalProvider: { getRawHistory: async () => { tejCalls += 1; return {}; } },
-  });
-  assert.equal(result.status, 'AVAILABLE');
-  assert.equal(result.provider, 'UPSTOX');
-  assert.equal(result.coverage.calendarProvider, 'UPSTOX');
-  assert.equal(result.coverage.expectedSessionCount, 3);
-  assert.equal(nseCalls, 0);
-  assert.equal(tejCalls, 0);
-});
-
 test('selected equity-history mode denies unqualified calendar before all provider calls', async () => {
   let calls = 0;
   const result = await fetchQualifiedEquityHistory({
     exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
     fromDate: '2026-10-08', toDate: '2026-10-09',
   }, {
-    env: { NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_TEJHQ' },
+    env: { NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_ONLY' },
     upstoxProvider: { getDailyCandles: async () => { calls += 1; return {}; } },
     nseCalendarProvider: { holidayLoader: async () => { calls += 1; return {}; } },
     upstoxCalendarProviderOverride: { getCalendar: async () => { calls += 1; return {}; } },
   });
   assert.equal(result.selection.reasonCode, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
   assert.equal(calls, 0);
-});
-
-test('selected mode uses TejHQ EOD fallback with Upstox calendar provenance only', async () => {
-  const calendar = parseUpstoxTradingCalendar(calendarPayload, {
-    year: '2026', fetchedAt: clock().toISOString(),
-  });
-  const dates = ['2026-10-08', '2026-10-09', '2026-10-10'];
-  let nseCalls = 0;
-  const result = await fetchQualifiedEquityHistory({
-    exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
-    fromDate: dates[0], toDate: dates.at(-1),
-  }, {
-    env: { ...fixtureEnv, TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true' },
-    clock,
-    marketDataTestFixtureRightsCapability: fixtureRights,
-    upstoxProvider: { getDailyCandles: async () => ({
-      provider: 'UPSTOX', status: 'SOURCE_ERROR', candles: [],
-      error: { code: 'UPSTOX_TIMEOUT' },
-    }) },
-    upstoxCalendarProviderOverride: { getCalendar: async () => calendar },
-    nseCalendarProvider: { holidayLoader: async () => { nseCalls += 1; return {}; } },
-    tejHqHistoricalProvider: {
-      getSymbolHistory: async () => ({
-        status: 'AVAILABLE', exchange: 'NSE', isin: 'INE002A01018',
-        sourceDatasetRevision: 'fixture-revision',
-        intervals: [{ exchange: 'NSE', isin: 'INE002A01018', symbol: 'RELIANCE',
-          validFrom: '2010-01-01', validTo: dates.at(-1) }],
-      }),
-      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE',
-        publication: { datasetTradingDate: dates.at(-1) } }),
-      getRawHistory: async options => ({
-        status: 'AVAILABLE', provider: 'TEJHQ',
-        instrumentIdentity: { exchange: options.exchange,
-          tradingSymbol: options.symbol, isin: options.isin },
-        candles: dates.map(date => ({ date, open: 100, high: 110,
-          low: 90, close: 105, volume: 10 })),
-      }),
-    },
-  });
-  assert.equal(result.status, 'AVAILABLE');
-  assert.equal(result.provider, 'TEJHQ');
-  assert.equal(result.fallbackUsed, true);
-  assert.equal(result.coverage.calendarSource.provider, 'UPSTOX');
-  assert.equal(result.coverage.expectedSessionCount, 3);
-  assert.equal(nseCalls, 0);
 });

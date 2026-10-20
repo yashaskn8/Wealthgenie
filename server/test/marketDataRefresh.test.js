@@ -57,6 +57,9 @@ test('scheduled equity history requires explicit storage and a bounded validated
     MARKET_EQUITY_HISTORY_TARGETS: JSON.stringify(Array.from({ length: 11 }, () => ({
       exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
     }))) }), /at most 10/);
+  assert.throws(() => qualifiedEquityRefreshTargets({ ...enabled,
+    MARKET_EQUITY_HISTORY_TARGETS: JSON.stringify([{ exchange: 'NSE', symbol: 'RELIANCE',
+      isin: 'INE002A01018', basis: 'ADJUSTED' }]) }), /invalid instrument/);
 });
 
 test('scheduled equity history persists only qualified snapshots and reports rights failures truthfully', async () => {
@@ -64,7 +67,7 @@ test('scheduled equity history persists only qualified snapshots and reports rig
     MARKET_EQUITY_HISTORY_RETENTION_DAYS: '30',
     MARKET_EQUITY_HISTORY_TARGETS: JSON.stringify([
       { exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018' },
-      { exchange: 'NSE', symbol: 'INFY', isin: 'INE009A01021', basis: 'ADJUSTED' },
+      { exchange: 'NSE', symbol: 'INFY', isin: 'INE009A01021', basis: 'RAW' },
     ]) };
   const requests = [];
   const writes = [];

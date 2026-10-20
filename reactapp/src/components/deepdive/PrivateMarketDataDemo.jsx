@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getPrivateMarketDemoData } from '../../services/api';
 import { formatMarketTimestamp, nullableMarketNumber } from '../../utils/marketDataDisplay';
 import './PrivateMarketDataDemo.css';
@@ -17,62 +17,66 @@ function quoteName(fact) {
   const names = {
     'market:index:nifty-50': 'NIFTY 50',
     'market:index:india-vix': 'India VIX',
+    'etf:isin:INF204KB14I2': 'Nippon India ETF Nifty 50 BeES',
   };
   return names[fact?.canonicalProductId]
     || fact?.source?.instrumentId?.split('|').at(-1)
     || 'Market instrument';
 }
 
-function reasonCode(snapshot) {
-  return snapshot?.error?.code
-    || snapshot?.reasonCodes?.find(code => typeof code === 'string')
-    || null;
-}
-
-export default function PrivateMarketDataDemo() {
+export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const requestRevision = useRef(0);
 
-  async function loadDemoData() {
+  const loadDemoData = useCallback(async (signal) => {
+    const revision = ++requestRevision.current;
     setLoading(true);
     setError(null);
     setSnapshot(null);
+    onSnapshot?.(null);
     try {
-      setSnapshot(await getPrivateMarketDemoData());
+      const data = await getPrivateMarketDemoData({ signal });
+      if (requestRevision.current === revision && !signal?.aborted) {
+        setSnapshot(data);
+        onSnapshot?.(data);
+      }
     } catch (requestError) {
-      setError(requestError?.code === 'PRIVATE_MARKET_DEMO_UNAVAILABLE'
-        ? 'The local authenticated provider demo is disabled on this server.'
-        : 'Provider data could not be loaded. Check local server and provider status.');
+      if (requestRevision.current === revision && !signal?.aborted) {
+        setError(requestError?.code === 'PRIVATE_MARKET_DEMO_UNAVAILABLE'
+          ? 'The local authenticated provider demo is disabled on this server.'
+          : 'Provider data could not be loaded. Check local server and provider status.');
+      }
     } finally {
-      setLoading(false);
+      if (requestRevision.current === revision && !signal?.aborted) setLoading(false);
     }
-  }
+  }, [onSnapshot]);
+
+  useEffect(() => {
+    if (!autoLoad) return undefined;
+    const controller = new AbortController();
+    // StrictMode's development remount cancels the first timer before a
+    // provider request is sent, preserving the small private-demo budget.
+    const timer = window.setTimeout(() => loadDemoData(controller.signal), 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+      requestRevision.current += 1;
+    };
+  }, [autoLoad, loadDemoData]);
 
   const quotes = snapshot?.upstox?.facts || [];
-  const candles = snapshot?.tejHq?.candles || [];
-  // A malformed or partially failed provider response must never render a
-  // financial value merely because unqualified candle rows were supplied.
-  const latestClose = snapshot?.tejHq?.status === 'AVAILABLE'
-    && snapshot?.tejHq?.dataClass === 'HISTORICAL_EOD'
-    ? [...candles].reverse().find(candle => {
-      const close = nullableMarketNumber(candle?.close);
-      const tradingDate = candle?.date || candle?.tradingDate;
-      return close !== null && close > 0
-        && /^\d{4}-\d{2}-\d{2}$/.test(tradingDate || '')
-        && Number.isFinite(Date.parse(tradingDate));
-    })
-    : null;
 
   return (
     <section className="private-market-demo" aria-labelledby="private-market-demo-title" data-testid="private-market-demo">
       <div className="private-market-demo__heading">
         <div>
-          <h4 id="private-market-demo-title">Local provider data check</h4>
-          <p>Authenticated local educational demo. Data is fetched on demand and not saved.</p>
+          <h4 id="private-market-demo-title">Upstox market observations</h4>
+          <p>Authenticated local educational demo. Quotes are fetched from Upstox and not saved.</p>
         </div>
-        <button type="button" onClick={loadDemoData} disabled={loading}>
-          {loading ? 'Fetching…' : snapshot ? 'Refresh providers' : 'Load provider data'}
+        <button type="button" onClick={() => loadDemoData()} disabled={loading}>
+          {loading ? 'Fetching…' : snapshot ? 'Refresh quotes' : 'Load Upstox quotes'}
         </button>
       </div>
 
@@ -81,7 +85,7 @@ export default function PrivateMarketDataDemo() {
         <div className="private-market-demo__results" aria-live="polite">
           <div className="private-market-demo__provider">
             <div className="private-market-demo__provider-title">
-              <strong>Upstox · live quote response</strong>
+              <strong>Upstox · market quote response</strong>
               <span>{snapshot.upstox?.status || 'UNAVAILABLE'}</span>
             </div>
             <div className="private-market-demo__quotes">
@@ -100,35 +104,8 @@ export default function PrivateMarketDataDemo() {
             </div>
           </div>
 
-          <div className="private-market-demo__provider">
-            <div className="private-market-demo__provider-title">
-              <strong>TejHQ · historical EOD only</strong>
-              <span>{snapshot.tejHq?.status || 'UNAVAILABLE'}</span>
-            </div>
-            {latestClose ? (
-              <p>
-                INFY latest returned close: <strong>{nullableMarketNumber(latestClose.close)?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong>
-                {' '}on {latestClose.date || latestClose.tradingDate || 'date unavailable'}.
-              </p>
-            ) : <p role="status">Historical EOD unavailable{reasonCode(snapshot.tejHq)
-              ? `: ${reasonCode(snapshot.tejHq)}` : '.'}</p>}
-            <small>
-              Trading date: {snapshot.tejHq?.effectiveTradingDate
-                || snapshot.tejHq?.observedDate
-                || latestClose?.date
-                || latestClose?.tradingDate
-                || 'Unavailable'}
-              {' '}· Fetched: {formatMarketTimestamp(snapshot.tejHq?.fetchedAt) || 'Unavailable'}
-              {' '}· {snapshot.tejHq?.freshness?.status || 'UNKNOWN'}
-            </small>
-            {snapshot.tejHq?.checkedAt && !snapshot.tejHq?.fetchedAt && (
-              <small>Rights checked: {formatMarketTimestamp(snapshot.tejHq.checkedAt) || 'Unavailable'}</small>
-            )}
-            <small>Storage: {snapshot.persistence || 'Unverified'} · Cache: {snapshot.tejHq?.cache?.status || 'Unverified'}</small>
-          </div>
-
           <p className="private-market-demo__provenance">
-            Provider timestamps and freshness are preserved. This local demo does not update recommendations or imply commercial publication rights.
+            Last trade, provider response, fetched time, and freshness are shown separately. Storage: {snapshot.persistence || 'Unverified'}. This local demo does not update recommendations or imply commercial publication rights.
           </p>
         </div>
       )}

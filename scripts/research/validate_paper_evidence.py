@@ -208,7 +208,7 @@ def audit(root: Path = ROOT, candidate_file: Path | None = None) -> dict[str, An
 
     rights = (root / "docs/operations/market-data-permission-review.md").read_text(encoding="utf-8")
     require("remain unverified" in rights, "market-data rights status changed; obtain new legal review")
-    block.append("Upstox and TejHQ downstream data-use rights have not been independently qualified.")
+    block.append("Upstox downstream commercial data-use rights have not been independently qualified.")
 
     scaling = load_json(root, "server/reports/loadtest/replica_scaling_report.json")
     require(float(scaling["findings"]["computeScalingFactor"].removesuffix("x")) < 1,

@@ -49,8 +49,8 @@ const MARKET_DISPLAY_COPY = Object.freeze({
     detail: 'Some verified market facts are available; the rest are unavailable.',
   },
   RIGHTS_UNAVAILABLE: {
-    label: 'Market data permission unavailable',
-    detail: 'The market source is not approved for this use. Market data cannot adjust a financial plan until permission is verified.',
+    label: 'Plan context permission unavailable',
+    detail: 'This market source is not approved to adjust financial plans. Any permitted private quote preview is separate from your recommendation.',
   },
   UNAVAILABLE: {
     label: 'Market data unavailable',
@@ -111,7 +111,6 @@ export function readableSource(value) {
   if (typeof value !== 'string' || !value.trim()) return 'Unavailable';
   const known = {
     UPSTOX: 'Upstox',
-    TEJHQ: 'TejHQ historical EOD',
     GOVERNMENT_OF_INDIA: 'Government of India',
     INDIA_POST: 'India Post',
     OFFICIAL_BANK_PUBLISHED_RATE: 'Official bank published rate',

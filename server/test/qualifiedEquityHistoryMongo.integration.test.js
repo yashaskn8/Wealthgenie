@@ -19,27 +19,24 @@ const request = { exchange: 'NSE', symbol: 'FIXTURE', isin,
 const env = { MARKET_EQUITY_HISTORY_STORE_ENABLED: 'true',
   MARKET_EQUITY_HISTORY_RETENTION_DAYS: '30' };
 const now = new Date('2026-10-19T12:00:00.000Z');
-const ohlcvUrl = 'https://api.tejhq.dev/v1/ohlcv/nse/FIXTURE?from=2026-10-15&to=2026-10-16';
+const candleUrl = `https://api.upstox.com/v3/historical-candle/NSE_EQ%7C${isin}/days/1/2026-10-16/2026-10-15`;
 const chain = [
-  { provider: 'NSE', url: 'https://www.nseindia.com/api/holiday-master?type=trading' },
-  { provider: 'TEJHQ', url: `https://api.tejhq.dev/v1/symbols/nse?isin=${isin}` },
-  { provider: 'TEJHQ', url: 'https://api.tejhq.dev/v1/status' },
-  { provider: 'TEJHQ', url: ohlcvUrl },
+  { provider: 'UPSTOX', url: candleUrl },
+  { provider: 'UPSTOX', url: 'https://api.upstox.com/v2/market/holidays' },
 ];
 const snapshot = {
-  schemaVersion: 'market-fact-1.0.0', status: 'AVAILABLE', provider: 'TEJHQ',
+  schemaVersion: 'market-fact-1.0.0', status: 'AVAILABLE', provider: 'UPSTOX',
   canonicalProductId: `market:equity:nse:${isin}`,
-  instrumentIdentity: { exchange: 'NSE', symbol: 'FIXTURE', isin },
-  priceBasis: 'RAW_UNADJUSTED', sourceDatasetRevision: 'fixture-revision',
+  instrumentIdentity: { exchange: 'NSE', symbol: null, isin },
+  priceBasis: 'UPSTOX_PROVIDER_NATIVE',
   candleCount: 2, fetchedAt: '2026-10-19T11:00:00.000Z',
-  coverage: { status: 'COMPLETE_FOR_NSE_WEEKDAY_HOLIDAY_CALENDAR',
-    calendarProvider: 'NSE', expectedSessionCount: 2, observedSessionCount: 2 },
+  coverage: { status: 'COMPLETE_FOR_UPSTOX_NSE_CALENDAR',
+    calendarProvider: 'UPSTOX', expectedSessionCount: 2, observedSessionCount: 2 },
   qualificationSourceUrls: chain,
-  source: { provider: 'TEJHQ', instrumentId: `NSE:${isin}`,
-    url: 'https://api.tejhq.dev/v1/ohlcv', requestUrls: [ohlcvUrl] },
+  source: { provider: 'UPSTOX', instrumentId: `NSE_EQ|${isin}`, url: candleUrl },
   candles: [
-    { date: '2026-10-15', timestamp: null, open: 101, high: 104, low: 99, close: 102, volume: 100 },
-    { date: '2026-10-16', timestamp: null, open: 102, high: 107, low: 101, close: 106, volume: 110 },
+    { timestamp: '2026-10-15T04:00:00.000Z', open: 101, high: 104, low: 99, close: 102, volume: 100 },
+    { timestamp: '2026-10-16T04:00:00.000Z', open: 102, high: 107, low: 101, close: 106, volume: 110 },
   ],
 };
 
@@ -65,7 +62,7 @@ test('qualified fixture survives Mongo transaction, duplicate ingest, restart an
     assert.equal(firstRead.bars[0].close, 106);
     assert.equal(new Date(firstRead.bars[0].fetchedAt).toISOString(), snapshot.fetchedAt);
     const revoked = await readQualifiedHistory(subset, { ...options,
-      rightsCheck: (_provider, url) => !url.endsWith('/v1/status') });
+      rightsCheck: (_provider, url) => !url.endsWith('/market/holidays') });
     assert.equal(revoked.status, 'UNAVAILABLE');
 
     const corrected = { ...snapshot, fetchedAt: '2026-10-19T11:30:00.000Z',
@@ -106,7 +103,7 @@ test('qualified fixture survives Mongo transaction, duplicate ingest, restart an
       assert.equal(authorized.body.status, 'AVAILABLE');
       assert.equal(authorized.body.barCount, 1);
       assert.equal(authorized.body.bars[0].close, 106);
-      assert.equal(authorized.body.bars[0].provider, 'TEJHQ');
+      assert.equal(authorized.body.bars[0].provider, 'UPSTOX');
     });
   } finally {
     if (mongoose.connection.readyState === 1) await MarketEquityDailyBar.deleteMany({ isin });

@@ -50,7 +50,7 @@ describe('nullable market-data presentation', () => {
     expect(getMarketDisplayState(blocked, { refreshFailed: true }).key).toBe('RIGHTS_UNAVAILABLE');
     expect(getMarketDisplayState({
       marketSnapshot: { policyOutput: { reasonCodes: ['UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'] } },
-    }).label).toBe('Market data permission unavailable');
+    }).label).toBe('Plan context permission unavailable');
     expect(getMarketDisplayState({
       marketSnapshot: { providerStatus: { quotes: {
         error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' },
@@ -98,7 +98,6 @@ describe('nullable market-data presentation', () => {
 
   it('humanizes provenance without accepting unsafe evidence links', () => {
     expect(readableSource('UPSTOX')).toBe('Upstox');
-    expect(readableSource('TEJHQ')).toBe('TejHQ historical EOD');
     expect(readableSource('GOVERNMENT_OF_INDIA')).toBe('Government of India');
     expect(readableSource('OFFICIAL_BANK_PUBLISHED_RATE')).toBe('Official bank published rate');
     expect(safeSourceUrl('https://www.rbi.org.in/')).toBe('https://www.rbi.org.in/');

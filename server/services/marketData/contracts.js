@@ -4,7 +4,6 @@ export const PROVIDERS = Object.freeze({
   AMFI: 'AMFI',
   NSE: 'NSE',
   UPSTOX: 'UPSTOX',
-  TEJHQ: 'TEJHQ',
   GOVERNMENT_OF_INDIA: 'GOVERNMENT_OF_INDIA',
   SBI: 'SBI',
   RBI: 'RBI',

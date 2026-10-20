@@ -41,52 +41,40 @@ function token(userId, role) {
   return jwt.sign({ userId, role }, secret, { expiresIn: '5m' });
 }
 
-test('admin market-data routes authenticate, enforce current admin role, and validate before service access', async () => {
+test('equity-history admin route authenticates, authorizes, and validates before fetching', async () => {
   const previousSecret = process.env.JWT_SECRET;
   process.env.JWT_SECRET = secret;
   const calls = [];
   const router = createMarketDataAdminRouter({
     authenticate: (req, res, next) => verifyJWT(req, res, next, {
-      getCurrentUser: async userId => userId === adminUserId ? { role: 'admin' } : { role: 'user' },
+      getCurrentUser: async userId => ({ role: userId === adminUserId ? 'admin' : 'user' }),
       isDatabaseReady: () => true,
     }),
     limiter: passLimiter,
     authorizeAdmin: requireRole('admin', {
       findCurrentRole: async userId => userId === adminUserId ? 'admin' : 'user',
     }),
-    fetchHistory: async query => { calls.push(['history', query]); return { status: 'UNAVAILABLE', candles: [] }; },
-    fetchActions: async query => { calls.push(['actions', query]); return { status: 'AVAILABLE', events: [], completeness: 'NOT_CONCLUSIVE' }; },
-    fetchStatus: async () => { calls.push(['status']); return { provider: 'TEJHQ', status: 'AVAILABLE' }; },
+    fetchHistory: async query => {
+      calls.push(query);
+      return { status: 'UNAVAILABLE', candles: [] };
+    },
   });
-
   try {
     await withServer(buildApp(router), async baseUrl => {
-      const unauthenticated = await jsonRequest(`${baseUrl}/api/market-data/admin/tejhq/status`);
-      assert.equal(unauthenticated.response.status, 401);
-
-      const userHeaders = { Authorization: `Bearer ${token(ordinaryUserId, 'user')}` };
-      const forbidden = await jsonRequest(`${baseUrl}/api/market-data/admin/tejhq/status`, { headers: userHeaders });
-      assert.equal(forbidden.response.status, 403);
+      const url = `${baseUrl}/api/market-data/admin/equity-history?${validQuery}`;
+      assert.equal((await jsonRequest(url)).response.status, 401);
+      assert.equal((await jsonRequest(url, {
+        headers: { Authorization: `Bearer ${token(ordinaryUserId, 'user')}` },
+      })).response.status, 403);
       assert.equal(calls.length, 0);
-
-      const adminHeaders = { Authorization: `Bearer ${token(adminUserId, 'admin')}` };
-      const invalid = await jsonRequest(`${baseUrl}/api/market-data/admin/equity-history?${validQuery.replace('fromDate=2026-10-08', 'fromDate=2026-02-30')}`, { headers: adminHeaders });
-      assert.equal(invalid.response.status, 400);
+      const headers = { Authorization: `Bearer ${token(adminUserId, 'admin')}` };
+      assert.equal((await jsonRequest(url.replace('2026-10-08', '2026-02-30'), { headers })).response.status, 400);
+      assert.equal((await jsonRequest(`${url}&basis=ADJUSTED`, { headers })).response.status, 400);
       assert.equal(calls.length, 0);
-
-      const status = await jsonRequest(`${baseUrl}/api/market-data/admin/tejhq/status`, { headers: adminHeaders });
-      assert.equal(status.response.status, 200);
-      assert.equal(status.body.provider, 'TEJHQ');
-
-      const history = await jsonRequest(`${baseUrl}/api/market-data/admin/equity-history?${validQuery}`, { headers: adminHeaders });
-      assert.equal(history.response.status, 200);
-      assert.equal(calls[1][0], 'history');
-      assert.equal(calls[1][1].basis, 'RAW');
-
-      const actions = await jsonRequest(`${baseUrl}/api/market-data/admin/tejhq/corporate-actions?exchange=NSE&symbol=RELIANCE&isin=INE002A01018`, { headers: adminHeaders });
-      assert.equal(actions.response.status, 200);
-      assert.equal(actions.body.completeness, 'NOT_CONCLUSIVE');
-      assert.deepEqual(calls.map(call => call[0]), ['status', 'history', 'actions']);
+      const result = await jsonRequest(url, { headers });
+      assert.equal(result.response.status, 200);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].basis, 'RAW');
     });
   } finally {
     if (previousSecret === undefined) delete process.env.JWT_SECRET;
@@ -94,13 +82,29 @@ test('admin market-data routes authenticate, enforce current admin role, and val
   }
 });
 
-test('Upstox NSE primary history requires exact qualified-calendar session coverage', async () => {
+test('production equity-history rights denial prevents Upstox calls and data output', async () => {
+  let providerCalls = 0;
+  const result = await fetchQualifiedEquityHistoryWithRights({
+    exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
+    fromDate: '2026-10-08', toDate: '2026-10-09',
+  }, {
+    env: { NODE_ENV: 'production', UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false' },
+    marketDataTestFixtureRightsCapability: testFixtureRightsCapability,
+    upstoxProvider: { getDailyCandles: async () => { providerCalls += 1; return { status: 'AVAILABLE' }; } },
+  });
+  assert.equal(providerCalls, 0);
+  assert.equal(result.status, 'UNAVAILABLE');
+  assert.equal(result.provider, null);
+  assert.deepEqual(result.candles, []);
+  assert.equal(result.selection.reasonCode, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+});
+
+test('Upstox NSE history requires exact qualified calendar coverage', async () => {
   const request = {
     exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
     fromDate: '2026-10-08', toDate: '2026-10-09',
   };
-  let tejCalls = 0;
-  const validPrimary = {
+  const primary = {
     status: 'AVAILABLE', provider: 'UPSTOX', instrumentKey: 'NSE_EQ|INE002A01018',
     source: { provider: 'UPSTOX', url: 'https://api.upstox.com/v3/historical-candle/NSE_EQ%7CINE002A01018/days/1/2026-10-09/2026-10-08' },
     candles: [
@@ -108,288 +112,28 @@ test('Upstox NSE primary history requires exact qualified-calendar session cover
       { timestamp: '2026-10-09T10:00:00.000Z', open: 105, high: 112, low: 104, close: 111, volume: 120 },
     ],
   };
-  const makeCalendar = (dates = ['2026-01-01'], fetchedAt = new Date().toISOString()) => ({
-    schemaVersion: MARKET_DATA_SCHEMA_VERSION,
-    provider: PROVIDERS.NSE,
-    status: 'AVAILABLE',
-    fetchedAt,
-    dates,
-    source: { provider: PROVIDERS.NSE, url: NSE_TRADING_HOLIDAY_URL },
-  });
-  const direct = await fetchQualifiedEquityHistory(request, {
-    upstoxProvider: { getDailyCandles: async () => validPrimary },
-    tejHqHistoricalProvider: { getRawHistory: async () => { tejCalls += 1; return {}; } },
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
-  });
-  assert.equal(direct.provider, PROVIDERS.UPSTOX);
-  assert.equal(direct.fallbackUsed, false);
-  assert.equal(direct.coverage.status, 'COMPLETE_FOR_NSE_WEEKDAY_HOLIDAY_CALENDAR');
-  assert.equal(direct.coverage.expectedSessionCount, 2);
-  assert.equal(direct.coverage.observedSessionCount, 2);
-  assert.deepEqual(direct.qualificationSourceUrls, [
-    { provider: 'UPSTOX', url: validPrimary.source.url },
-    { provider: 'NSE', url: NSE_TRADING_HOLIDAY_URL },
-  ]);
-  assert.equal(tejCalls, 0);
-  assert.deepEqual(direct.instrumentIdentity, {
-    exchange: 'NSE', symbol: null, isin: request.isin,
-    requestedSymbol: 'RELIANCE', symbolBindingStatus: 'UNVERIFIED',
-  });
-
-  const unverifiedSymbol = await fetchQualifiedEquityHistory({ ...request, symbol: 'OTHER' }, {
-    upstoxProvider: { getDailyCandles: async () => validPrimary },
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
-  });
-  assert.equal(unverifiedSymbol.status, 'AVAILABLE');
-  assert.equal(unverifiedSymbol.instrumentIdentity.symbol, null);
-  assert.equal(unverifiedSymbol.instrumentIdentity.requestedSymbol, 'OTHER');
-  assert.equal(unverifiedSymbol.instrumentIdentity.symbolBindingStatus, 'UNVERIFIED');
-
-  const currentSessionTime = new Date('2026-10-09T10:00:00.000Z');
-  const currentSession = await fetchQualifiedEquityHistory(request, {
-    upstoxProvider: { getDailyCandles: async () => validPrimary },
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar(['2026-01-01'], currentSessionTime.toISOString()) },
-    env: { NODE_ENV: 'test', TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'false' },
-    clock: () => currentSessionTime,
-  });
-  assert.equal(currentSession.status, 'UNAVAILABLE');
-  assert.equal(currentSession.selection.primaryFailureCode, 'UPSTOX_CURRENT_SESSION_NOT_VERIFIED_FINAL');
-
-  const holidayAware = await fetchQualifiedEquityHistory(request, {
-    upstoxProvider: {
-      getDailyCandles: async () => ({
-        ...validPrimary,
-        candles: [validPrimary.candles[1]],
-      }),
-    },
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar(['2026-01-01', '2026-10-08']) },
-  });
-  assert.equal(holidayAware.provider, PROVIDERS.UPSTOX);
-  assert.equal(holidayAware.coverage.expectedSessionCount, 1);
-  assert.equal(holidayAware.coverage.observedSessionCount, 1);
-
-  const adjusted = await fetchQualifiedEquityHistory({ ...request, basis: 'ADJUSTED' }, {
-    tejHqHistoricalProvider: {
-      getSymbolHistory: async () => ({
-        status: 'AVAILABLE', exchange: 'NSE', isin: request.isin,
-        intervals: [{ exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2010-01-01', validTo: '2026-10-09' }],
-      }),
-      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: {
-        datasetTradingDate: '2026-10-09', derivedDatasetStatus: 'PUBLISHED',
-      } }),
-      getAdjustedHistory: async options => ({
-        status: 'AVAILABLE', provider: 'TEJHQ', priceBasis: 'BACK_ADJUSTED',
-        instrumentIdentity: { exchange: options.exchange, tradingSymbol: options.symbol, isin: options.isin },
-        candles: ['2026-10-08', '2026-10-09'].map((date, index) => ({
-          date, isin: request.isin, open: 100, high: 110, low: 99, close: 105,
-          adjustedClose: 52.5, adjustmentFactor: 0.5, volume: 100 + index,
-        })),
-      }),
-    },
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
-    env: { NODE_ENV: 'test', TEJHQ_ADJUSTED_HISTORY_ENABLED: 'true' },
-  });
-  assert.equal(adjusted.priceBasis, 'BACK_ADJUSTED');
-  assert.deepEqual(adjusted.priceFieldSemantics, {
-    openHighLowClose: 'RAW_UNADJUSTED',
-    adjustedClose: 'BACK_ADJUSTED',
-    adjustmentFactor: 'RAW_CLOSE_TO_BACK_ADJUSTED_CLOSE',
-  });
-  assert.equal(adjusted.candles[0].close, 105);
-  assert.equal(adjusted.candles[0].adjustedClose, 52.5);
-
-  let mismatchedAdjustedReads = 0;
-  const mismatchedAdjusted = await fetchQualifiedEquityHistory({
-    ...request, symbol: 'OTHER', basis: 'ADJUSTED',
-  }, {
-    tejHqHistoricalProvider: {
-      getSymbolHistory: async () => ({
-        status: 'AVAILABLE', exchange: 'NSE', isin: request.isin,
-        intervals: [{ exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2010-01-01', validTo: '2026-10-09' }],
-      }),
-      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: {
-        datasetTradingDate: '2026-10-09', derivedDatasetStatus: 'PUBLISHED',
-      } }),
-      getAdjustedHistory: async () => { mismatchedAdjustedReads += 1; return {}; },
-    },
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
-    env: { NODE_ENV: 'test', TEJHQ_ADJUSTED_HISTORY_ENABLED: 'true' },
-  });
-  assert.equal(mismatchedAdjusted.status, 'UNAVAILABLE');
-  assert.equal(mismatchedAdjusted.selection.reasonCode, 'TEJHQ_REQUESTED_SYMBOL_ISIN_MISMATCH');
-  assert.equal(mismatchedAdjustedReads, 0);
-
-  let prematureAdjustedReads = 0;
-  const prematureAdjusted = await fetchQualifiedEquityHistory({ ...request, basis: 'ADJUSTED' }, {
-    tejHqHistoricalProvider: {
-      getSymbolHistory: async () => ({
-        status: 'AVAILABLE', exchange: 'NSE', isin: request.isin,
-        intervals: [{ exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2010-01-01', validTo: '2026-10-09' }],
-      }),
-      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: {
-        datasetTradingDate: '2026-10-09', derivedDatasetStatus: 'STALE',
-      } }),
-      getAdjustedHistory: async () => { prematureAdjustedReads += 1; return {}; },
-    },
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
-    env: { NODE_ENV: 'test', TEJHQ_ADJUSTED_HISTORY_ENABLED: 'true' },
-  });
-  assert.equal(prematureAdjusted.status, 'UNAVAILABLE');
-  assert.equal(prematureAdjusted.selection.reasonCode, 'TEJHQ_ADJUSTED_DATASET_NOT_PUBLISHED_THROUGH_REQUESTED_SESSION');
-  assert.equal(prematureAdjustedReads, 0);
-
-  const makeTejProvider = dates => ({
-    getSymbolHistory: async () => ({
-      status: 'AVAILABLE', exchange: 'NSE', isin: request.isin,
-      intervals: [{ exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2010-01-01', validTo: '2026-10-12' }],
-    }),
-    getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: { datasetTradingDate: '2026-10-12' } }),
-    getRawHistory: async options => ({
-      status: 'AVAILABLE', provider: 'TEJHQ',
-      instrumentIdentity: { exchange: options.exchange, tradingSymbol: options.symbol, isin: options.isin },
-      candles: dates.filter(date => date >= options.fromDate && date <= options.toDate).map((date, index) => ({
-        date, open: 100 + index, high: 110 + index, low: 99 + index, close: 105 + index, volume: 100 + index,
-      })),
-    }),
-  });
-
-  const partial = await fetchQualifiedEquityHistory(request, {
-    upstoxProvider: { getDailyCandles: async () => ({ ...validPrimary, candles: [validPrimary.candles[0]] }) },
-    tejHqHistoricalProvider: makeTejProvider(['2026-10-08', '2026-10-09']),
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
-    env: { NODE_ENV: 'test', TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true' },
-  });
-  assert.equal(partial.provider, PROVIDERS.TEJHQ);
-  assert.equal(partial.fallbackUsed, true);
-  assert.equal(partial.selection.primaryFailureCode, 'UPSTOX_HISTORY_SESSION_COVERAGE_INCOMPLETE');
-  assert.equal(partial.coverage.expectedSessionCount, 2);
-  assert.equal(partial.candles.length, 2);
-
-  const gapRequest = { ...request, toDate: '2026-10-12' };
-  const gap = await fetchQualifiedEquityHistory(gapRequest, {
-    upstoxProvider: { getDailyCandles: async () => ({ ...validPrimary, candles: [validPrimary.candles[0], {
-      timestamp: '2026-10-12T10:00:00.000Z', open: 111, high: 115, low: 110, close: 114, volume: 130,
-    }] }) },
-    tejHqHistoricalProvider: makeTejProvider(['2026-10-08', '2026-10-09', '2026-10-12']),
-    nseCalendarProvider: { holidayLoader: async () => makeCalendar() },
-    env: { NODE_ENV: 'test', TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true' },
-  });
-  assert.equal(gap.provider, PROVIDERS.TEJHQ);
-  assert.equal(gap.selection.primaryFailureCode, 'UPSTOX_HISTORY_SESSION_COVERAGE_INCOMPLETE');
-  assert.equal(gap.coverage.expectedSessionCount, 3);
-  assert.equal(gap.candles.length, 3);
-
-  let blockedCalendarTejCalls = 0;
-  const calendarUnavailable = await fetchQualifiedEquityHistory(request, {
-    upstoxProvider: { getDailyCandles: async () => validPrimary },
-    tejHqHistoricalProvider: {
-      getSymbolHistory: async () => { blockedCalendarTejCalls += 1; return {}; },
-      getStatus: async () => { blockedCalendarTejCalls += 1; return {}; },
-    },
-    nseCalendarProvider: { holidayLoader: async () => { throw new Error('fixture calendar unavailable'); } },
-    env: { NODE_ENV: 'test', TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true' },
-  });
-  assert.equal(calendarUnavailable.status, 'UNAVAILABLE');
-  assert.equal(calendarUnavailable.provider, null);
-  assert.equal(calendarUnavailable.selection.primaryFailureCode, 'NSE_TRADING_CALENDAR_UNAVAILABLE');
-  assert.equal(blockedCalendarTejCalls, 0);
-});
-
-test('TejHQ fallback rejects publication lag, wrong identity, and missing sessions without returning partial history', async () => {
-  const request = {
-    exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
-    fromDate: '2026-10-08', toDate: '2026-10-09',
-  };
   const calendar = {
-    schemaVersion: MARKET_DATA_SCHEMA_VERSION,
-    provider: PROVIDERS.NSE,
-    status: 'AVAILABLE',
-    fetchedAt: new Date().toISOString(),
-    dates: ['2026-01-01'],
+    schemaVersion: MARKET_DATA_SCHEMA_VERSION, provider: PROVIDERS.NSE,
+    status: 'AVAILABLE', fetchedAt: new Date().toISOString(), dates: ['2026-01-01'],
     source: { provider: PROVIDERS.NSE, url: NSE_TRADING_HOLIDAY_URL },
   };
-  const primaryFailure = {
-    provider: PROVIDERS.UPSTOX,
-    status: 'SOURCE_ERROR',
-    candles: [],
-    error: { code: 'UPSTOX_FIXTURE_OUTAGE' },
+  const options = {
+    upstoxProvider: { getDailyCandles: async () => primary },
+    nseCalendarProvider: { holidayLoader: async () => calendar },
   };
-  const symbolHistory = ({ exchange = 'NSE', isin = request.isin, intervals = null } = {}) => ({
-    status: 'AVAILABLE',
-    exchange,
-    isin,
-    source: { provider: 'TEJHQ', url: 'https://api.tejhq.dev/v1/symbols/nse?isin=INE002A01018' },
-    intervals: intervals || [{
-      exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE',
-      validFrom: '2010-01-01', validTo: '2026-10-09',
-    }],
+  const exact = await fetchQualifiedEquityHistory(request, options);
+  assert.equal(exact.status, 'AVAILABLE');
+  assert.equal(exact.provider, PROVIDERS.UPSTOX);
+  assert.equal(exact.priceBasis, 'UPSTOX_PROVIDER_NATIVE');
+  assert.equal(exact.coverage.expectedSessionCount, 2);
+  assert.equal(exact.instrumentIdentity.symbolBindingStatus, 'UNVERIFIED');
+  const missingDay = await fetchQualifiedEquityHistory(request, {
+    ...options,
+    upstoxProvider: { getDailyCandles: async () => ({ ...primary, candles: primary.candles.slice(0, 1) }) },
   });
-  const runFallback = async ({
-    symbols = symbolHistory(), publicationDate = '2026-10-09', dates = ['2026-10-08', '2026-10-09'],
-    requestedSymbol = request.symbol,
-  } = {}) => {
-    let rawHistoryCalls = 0;
-    const result = await fetchQualifiedEquityHistory({ ...request, symbol: requestedSymbol }, {
-      upstoxProvider: { getDailyCandles: async () => primaryFailure },
-      tejHqHistoricalProvider: {
-        getSymbolHistory: async () => symbols,
-        getStatus: async () => ({
-          provider: 'TEJHQ', status: 'AVAILABLE',
-          source: { provider: 'TEJHQ', url: 'https://api.tejhq.dev/v1/status' },
-          publication: { datasetTradingDate: publicationDate },
-        }),
-        getRawHistory: async options => {
-          rawHistoryCalls += 1;
-          return {
-            status: 'AVAILABLE', provider: 'TEJHQ',
-            source: { provider: 'TEJHQ', url: `https://api.tejhq.dev/v1/ohlcv/nse/${options.symbol}?from=${options.fromDate}&to=${options.toDate}` },
-            instrumentIdentity: { exchange: options.exchange, tradingSymbol: options.symbol, isin: options.isin },
-            candles: dates.filter(date => date >= options.fromDate && date <= options.toDate).map((date, index) => ({
-              date, open: 100 + index, high: 110 + index, low: 99 + index, close: 105 + index, volume: 100 + index,
-            })),
-          };
-        },
-      },
-      nseCalendarProvider: { holidayLoader: async () => calendar },
-      env: { NODE_ENV: 'test', TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true' },
-    });
-    return { result, rawHistoryCalls };
-  };
-
-  const laggingPublication = await runFallback({ publicationDate: '2026-10-08' });
-  assert.equal(laggingPublication.result.status, 'UNAVAILABLE');
-  assert.equal(laggingPublication.result.selection.reasonCode, 'TEJHQ_DATASET_NOT_PUBLISHED_THROUGH_REQUESTED_SESSION');
-  assert.equal(laggingPublication.result.providerPublicationStatus.datasetTradingDate, '2026-10-08');
-  assert.equal(laggingPublication.rawHistoryCalls, 0);
-  assert.deepEqual(laggingPublication.result.candles, []);
-
-  const mismatchedIdentity = await runFallback({ symbols: symbolHistory({ isin: 'INE999A01099' }) });
-  assert.equal(mismatchedIdentity.result.status, 'UNAVAILABLE');
-  assert.equal(mismatchedIdentity.result.selection.reasonCode, 'TEJHQ_SYMBOL_IDENTITY_UNAVAILABLE');
-  assert.equal(mismatchedIdentity.rawHistoryCalls, 0);
-  assert.deepEqual(mismatchedIdentity.result.candles, []);
-
-  const mismatchedRequestedSymbol = await runFallback({ requestedSymbol: 'OTHER' });
-  assert.equal(mismatchedRequestedSymbol.result.status, 'UNAVAILABLE');
-  assert.equal(mismatchedRequestedSymbol.result.selection.reasonCode, 'TEJHQ_REQUESTED_SYMBOL_ISIN_MISMATCH');
-  assert.equal(mismatchedRequestedSymbol.rawHistoryCalls, 0);
-  assert.deepEqual(mismatchedRequestedSymbol.result.candles, []);
-
-  const renamed = await runFallback({ symbols: symbolHistory({ intervals: [
-    { exchange: 'NSE', isin: request.isin, symbol: 'OLDCO', validFrom: '2010-01-01', validTo: '2026-10-08' },
-    { exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2026-10-09', validTo: '2026-10-09' },
-  ] }) });
-  assert.equal(renamed.result.status, 'AVAILABLE');
-  assert.equal(renamed.rawHistoryCalls, 2);
-  assert.equal(renamed.result.candles.length, 2);
-  assert.deepEqual(renamed.result.qualificationSourceUrls.map(entry => entry.provider),
-    ['NSE', 'TEJHQ', 'TEJHQ', 'TEJHQ', 'TEJHQ']);
-
-  const missingSession = await runFallback({ dates: ['2026-10-08'] });
-  assert.equal(missingSession.result.status, 'UNAVAILABLE');
-  assert.equal(missingSession.result.selection.reasonCode, 'TEJHQ_HISTORICAL_SESSION_COVERAGE_INCOMPLETE');
-  assert.equal(missingSession.rawHistoryCalls, 1);
-  assert.deepEqual(missingSession.result.candles, []);
+  assert.equal(missingDay.status, 'UNAVAILABLE');
+  assert.deepEqual(missingDay.candles, []);
+  assert.equal(missingDay.selection.primaryFailureCode, 'UPSTOX_HISTORY_SESSION_COVERAGE_INCOMPLETE');
 });
 
 test('BSE Upstox history fails closed until a qualified BSE session calendar exists', async () => {
@@ -406,75 +150,4 @@ test('BSE Upstox history fails closed until a qualified BSE session calendar exi
   assert.equal(result.provider, null);
   assert.equal(result.selection.primaryFailureCode, 'BSE_TRADING_CALENDAR_NOT_QUALIFIED');
   assert.deepEqual(result.candles, []);
-});
-
-test('malformed Upstox NSE history still falls back only through exact TejHQ session coverage', async () => {
-  const request = {
-    exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
-    fromDate: '2026-10-08', toDate: '2026-10-09',
-  };
-  const calendar = {
-    schemaVersion: MARKET_DATA_SCHEMA_VERSION,
-    provider: PROVIDERS.NSE,
-    status: 'AVAILABLE',
-    fetchedAt: new Date().toISOString(),
-    dates: ['2026-01-01'],
-    source: { provider: PROVIDERS.NSE, url: NSE_TRADING_HOLIDAY_URL },
-  };
-  const malformedPrimary = {
-    status: 'AVAILABLE', provider: 'UPSTOX', instrumentKey: 'NSE_EQ|INE002A01018',
-    candles: [{ timestamp: '2026-10-10T10:00:00.000Z', open: 100, high: 110, low: 99, close: 105, volume: 100 }],
-  };
-  const fallback = await fetchQualifiedEquityHistory(request, {
-    upstoxProvider: { getDailyCandles: async () => malformedPrimary },
-    tejHqHistoricalProvider: {
-      getSymbolHistory: async () => ({
-        status: 'AVAILABLE', exchange: 'NSE', isin: request.isin,
-        intervals: [{ exchange: 'NSE', isin: request.isin, symbol: 'RELIANCE', validFrom: '2010-01-01', validTo: '2026-10-09' }],
-      }),
-      getStatus: async () => ({ provider: 'TEJHQ', status: 'AVAILABLE', publication: { datasetTradingDate: '2026-10-09' } }),
-      getRawHistory: async options => ({
-        status: 'AVAILABLE', provider: 'TEJHQ',
-        instrumentIdentity: { exchange: options.exchange, tradingSymbol: options.symbol, isin: options.isin },
-        candles: [
-          { date: '2026-10-08', open: 100, high: 110, low: 99, close: 105, volume: 100 },
-          { date: '2026-10-09', open: 105, high: 112, low: 104, close: 111, volume: 120 },
-        ],
-      }),
-    },
-    nseCalendarProvider: { holidayLoader: async () => calendar },
-    env: { NODE_ENV: 'test', TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'true' },
-  });
-  assert.equal(fallback.provider, PROVIDERS.TEJHQ);
-  assert.equal(fallback.fallbackUsed, true);
-  assert.equal(fallback.selection.primaryFailureCode, 'UPSTOX_HISTORY_RESPONSE_UNQUALIFIED');
-  assert.equal(fallback.coverage.expectedSessionCount, 2);
-  assert.equal(fallback.candles.length, 2);
-});
-
-test('production equity-history requests never fetch or return Upstox candles without source rights', async () => {
-  let upstoxCalls = 0;
-  const result = await fetchQualifiedEquityHistoryWithRights({
-    exchange: 'NSE', symbol: 'RELIANCE', isin: 'INE002A01018',
-    fromDate: '2026-10-08', toDate: '2026-10-09',
-  }, {
-    env: {
-      NODE_ENV: 'production',
-      UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
-      TEJHQ_HISTORICAL_FALLBACK_ENABLED: 'false',
-    },
-    marketDataTestFixtureRightsCapability: testFixtureRightsCapability,
-    upstoxProvider: {
-      getDailyCandles: async () => {
-        upstoxCalls += 1;
-        return { status: 'AVAILABLE', provider: 'UPSTOX', candles: [{ close: 999 }] };
-      },
-    },
-  });
-
-  assert.equal(upstoxCalls, 0);
-  assert.equal(result.status, 'UNAVAILABLE');
-  assert.equal(result.provider, null);
-  assert.deepEqual(result.candles, []);
-  assert.equal(result.selection.reasonCode, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
 });

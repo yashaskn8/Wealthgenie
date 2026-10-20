@@ -126,12 +126,12 @@ test('legacy Upstox mode blocks public market publication but keeps core financi
 
 test('selected two-provider mode keeps core routes reachable and reports unqualified market facts as unavailable', async () => {
   const previousMode = process.env.MARKET_DATA_MODE;
-  process.env.MARKET_DATA_MODE = 'UPSTOX_TEJHQ';
+  process.env.MARKET_DATA_MODE = 'UPSTOX_ONLY';
   try {
     const env = {
       ...process.env,
       NODE_ENV: 'production',
-      MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      MARKET_DATA_MODE: 'UPSTOX_ONLY',
       UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
       CORS_ORIGINS: 'https://wealth.example',
     };
@@ -178,15 +178,6 @@ test('selected two-provider mode keeps core routes reachable and reports unquali
     if (previousMode === undefined) delete process.env.MARKET_DATA_MODE;
     else process.env.MARKET_DATA_MODE = previousMode;
   }
-});
-
-test('admin-only TejHQ market-history endpoints reject unauthenticated requests', async () => {
-  const app = createApp({ env: { ...process.env, NODE_ENV: 'test' } });
-  await withServer(app, async baseUrl => {
-    const response = await jsonRequest(`${baseUrl}/api/market-data/admin/tejhq/status`);
-    assert.equal(response.response.status, 401);
-    assert.equal(response.body.code, 'AUTH_REQUIRED');
-  });
 });
 
 test('development CORS defaults allow the Vite IPv4 loopback origin', async () => {

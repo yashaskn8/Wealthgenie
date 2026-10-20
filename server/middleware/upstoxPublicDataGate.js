@@ -2,7 +2,7 @@ import { sendError } from './errorHandler.js';
 import { isUpstoxPublicDistributionAllowed } from '../services/marketData/upstoxDistributionPolicy.js';
 import { isMarketDataProductionUseAllowed } from '../services/marketData/marketDataRights.js';
 import { UPSTOX_QUOTE_URL } from '../services/marketData/UpstoxMarketDataProvider.js';
-import { isTwoProviderMarketDataMode } from '../services/marketDataService.js';
+import { isUpstoxOnlyMarketDataMode } from '../services/marketDataService.js';
 
 /**
  * Public Upstox-derived output requires both the operator's enablement flag
@@ -18,9 +18,9 @@ export function createUpstoxPublicDataGate({
     // These routes have their own source-rights checks and can return an
     // unavailable market DTO while profile/recommendation work continues.
     // Direct Upstox quote publication must still use the strict gate.
-    if (!requiresUpstox && allowUnavailableTwoProviderMode && isTwoProviderMarketDataMode(env)) return next();
+    if (!requiresUpstox && allowUnavailableTwoProviderMode && isUpstoxOnlyMarketDataMode(env)) return next();
     const primaryProvider = String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase();
-    const usesUpstox = requiresUpstox || primaryProvider === 'UPSTOX' || isTwoProviderMarketDataMode(env);
+    const usesUpstox = requiresUpstox || primaryProvider === 'UPSTOX' || isUpstoxOnlyMarketDataMode(env);
     if (usesUpstox && !isUpstoxPublicDistributionAllowed(env)) {
       return sendError(
         req,

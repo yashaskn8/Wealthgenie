@@ -30,6 +30,7 @@ const { CURRENT_STATE_BINDING, CURRENT_RECOMMENDATION_META } = vi.hoisted(() => 
 });
 
 vi.mock('../../services/api', () => ({
+  getPrivateMarketDemoData: vi.fn(() => new Promise(() => {})),
   rankInvestmentCandidates: vi.fn(async (_profileId, _parentId, _taxContext, _options, financialStateBinding) => ({
     financialStateBinding,
     products: Array.from({ length: 2 }, (_, index) => ({

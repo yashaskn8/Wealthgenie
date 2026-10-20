@@ -734,7 +734,7 @@ paths:
       operationId: getAuthenticatedPrivateMarketDataDemo
       tags: [Market]
       summary: Fetch ephemeral provider evidence for an authenticated local educational demo
-      description: Development-only, explicit-opt-in, authenticated loopback route. It returns bounded Upstox index quotes and TejHQ daily EOD history on demand, bypasses provider caches and durable persistence, and never changes recommendations. It is not available for public or commercial deployment.
+      description: Development-only, explicit-opt-in, authenticated loopback route. It returns bounded Upstox index quotes on demand, bypasses provider caches and durable persistence, and never changes recommendations. It is not available for public or commercial deployment.
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
       responses:
         '200': { $ref: '#/components/responses/Object' }
@@ -754,7 +754,7 @@ paths:
         - { name: isin, in: query, required: true, schema: { type: string, pattern: '^[A-Z]{2}[A-Z0-9]{9}[0-9]$' } }
         - { name: fromDate, in: query, required: true, schema: { type: string, format: date } }
         - { name: toDate, in: query, required: true, schema: { type: string, format: date } }
-        - { name: basis, in: query, required: false, schema: { type: string, enum: [RAW, ADJUSTED], default: RAW } }
+        - { name: basis, in: query, required: false, schema: { type: string, enum: [RAW], default: RAW } }
       responses:
         '200': { $ref: '#/components/responses/Object' }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -783,7 +783,7 @@ paths:
                 isin: { type: string, pattern: '^[A-Z]{2}[A-Z0-9]{9}[0-9]$' }
                 fromDate: { type: string, format: date }
                 toDate: { type: string, format: date }
-                basis: { type: string, enum: [RAW, ADJUSTED], default: RAW }
+                basis: { type: string, enum: [RAW], default: RAW }
       responses:
         '201': { $ref: '#/components/responses/Object' }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -809,7 +809,7 @@ paths:
       operationId: getAdminQualifiedEquityHistory
       tags: [Market]
       summary: Read qualified daily equity history for source verification
-      description: Admin-only daily historical read. Upstox remains the raw-history primary, and current-session candles are not treated as final without publication evidence. For an Upstox ISIN-keyed success, instrumentIdentity.symbol is null, requestedSymbol echoes the caller's label, and symbolBindingStatus is UNVERIFIED; the ISIN key does not verify that symbol. In UPSTOX_TEJHQ mode, NSE equity coverage uses Upstox's current-year holiday and special-session calendar; requests crossing into another year remain unavailable. In legacy mode, NSE coverage uses its qualified weekday-minus-holiday calendar, which cannot represent exceptional weekend sessions. TejHQ fallback additionally requires exact ISIN intervals and publication checks. The requested symbol must match the source interval covering the final requested session; earlier rename segments may differ. A mismatch returns status UNAVAILABLE with TEJHQ_REQUESTED_SYMBOL_ISIN_MISMATCH in reasonCodes and selection.reasonCode. BSE history is unavailable until a qualified BSE session calendar exists. Adjusted results retain raw OHLC and expose the back-adjusted value separately as adjustedClose. This route is not exposed to ordinary users.
+      description: Admin-only raw daily equity history. Upstox ISIN-keyed candles do not verify a caller-supplied trading symbol. NSE coverage requires the qualified session calendar; BSE and unsupported date ranges remain unavailable. Production source rights are enforced before provider access or persistence.
       security: [{ BearerAuth: [] }]
       x-required-roles: [admin]
       parameters:
@@ -818,39 +818,10 @@ paths:
         - { name: isin, in: query, required: true, schema: { type: string, pattern: '^[A-Z]{2}[A-Z0-9]{9}[0-9]$' } }
         - { name: fromDate, in: query, required: true, schema: { type: string, format: date } }
         - { name: toDate, in: query, required: true, schema: { type: string, format: date } }
-        - { name: basis, in: query, required: false, schema: { type: string, enum: [RAW, ADJUSTED], default: RAW } }
+        - { name: basis, in: query, required: false, schema: { type: string, enum: [RAW], default: RAW } }
       responses:
         '200': { $ref: '#/components/responses/Object' }
         '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-  /api/market-data/admin/tejhq/corporate-actions:
-    get:
-      operationId: getAdminTejHqCorporateActionEvidence
-      tags: [Market]
-      description: Admin-only additional corporate-action evidence. Events remain non-conclusive and are bound to exchange, ISIN, and symbol-history intervals before being marked verified.
-      security: [{ BearerAuth: [] }]
-      x-required-roles: [admin]
-      parameters:
-        - { name: exchange, in: query, required: true, schema: { type: string, enum: [NSE, BSE] } }
-        - { name: symbol, in: query, required: true, schema: { type: string, pattern: '^[A-Z0-9][A-Z0-9&-]{0,29}$' } }
-        - { name: isin, in: query, required: true, schema: { type: string, pattern: '^[A-Z]{2}[A-Z0-9]{9}[0-9]$' } }
-      responses:
-        '200': { $ref: '#/components/responses/Object' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-  /api/market-data/admin/tejhq/status:
-    get:
-      operationId: getAdminTejHqPublicationStatus
-      tags: [Market]
-      description: Admin-only provider reachability and published dataset dates. Dataset publication is not a guarantee that the latest expected exchange session is complete.
-      security: [{ BearerAuth: [] }]
-      x-required-roles: [admin]
-      responses:
-        '200': { $ref: '#/components/responses/Object' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }

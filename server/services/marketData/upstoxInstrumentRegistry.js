@@ -1,6 +1,7 @@
 import { MARKET_BENCHMARKS } from './marketBenchmarks.js';
+import { QUALIFIED_NIFTY_ETF_IDENTITY, isQualifiedNiftyEtfIdentity } from '../niftyEtfProductRanking.js';
 
-export const UPSTOX_INSTRUMENT_REGISTRY_REVISION = 'qualified-index-benchmarks-1.0.0';
+export const UPSTOX_INSTRUMENT_REGISTRY_REVISION = 'qualified-index-etf-1.1.0';
 export const UPSTOX_REGISTRY_EVIDENCE_REVIEWED_AT = '2026-10-13T00:00:00.000Z';
 export const UPSTOX_MARKET_QUOTE_DOCUMENTATION_URL = 'https://upstox.com/developer/api-documentation/get-full-market-quote-v3/';
 export const MAX_CANONICAL_UPSTOX_QUOTE_IDS = 10;
@@ -32,6 +33,19 @@ const registryRows = [
     instrumentType: 'INDEX',
     dataClass: 'LIVE_INDEX_OBSERVATION',
   },
+  ...(isQualifiedNiftyEtfIdentity(QUALIFIED_NIFTY_ETF_IDENTITY) ? [{
+    canonicalProductId: QUALIFIED_NIFTY_ETF_IDENTITY.canonicalProductId,
+    displayName: 'Nippon India ETF Nifty 50 BeES',
+    assetClass: 'ETF', exchange: QUALIFIED_NIFTY_ETF_IDENTITY.exchange,
+    upstoxInstrumentKey: `NSE_EQ|${QUALIFIED_NIFTY_ETF_IDENTITY.isin}`,
+    isin: QUALIFIED_NIFTY_ETF_IDENTITY.isin,
+    issuer: 'Nippon India Mutual Fund',
+    tradingSymbol: QUALIFIED_NIFTY_ETF_IDENTITY.ticker,
+    listingStatus: 'SOURCE_QUALIFIED_ETF_IDENTITY',
+    currency: 'INR', unit: 'PRICE', instrumentType: 'ETF',
+    dataClass: 'LIVE_EXCHANGE_QUOTE_OBSERVATION',
+    evidenceSource: QUALIFIED_NIFTY_ETF_IDENTITY.identityEvidence.url,
+  }] : []),
 ];
 
 export const UPSTOX_INSTRUMENT_REGISTRY = Object.freeze(
@@ -49,7 +63,7 @@ export const UPSTOX_INSTRUMENT_REGISTRY = Object.freeze(
     unit: row.unit,
     instrumentType: row.instrumentType,
     registryRevision: UPSTOX_INSTRUMENT_REGISTRY_REVISION,
-    evidenceSource: UPSTOX_MARKET_QUOTE_DOCUMENTATION_URL,
+    evidenceSource: row.evidenceSource || UPSTOX_MARKET_QUOTE_DOCUMENTATION_URL,
     evidenceReviewedAt: UPSTOX_REGISTRY_EVIDENCE_REVIEWED_AT,
     providerAccessStatus: 'NOT_LIVE_VERIFIED',
   })])),

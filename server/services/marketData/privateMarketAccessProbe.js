@@ -20,12 +20,6 @@ export function assertPrivateMarketProbeAllowed(env, acknowledged) {
   }
 }
 
-function offsetDate(days, reference) {
-  const value = new Date(reference);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
-}
-
 function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -35,24 +29,17 @@ function hasQualifiedPrivateProbeRights(probe, env, acknowledged) {
     return false;
   }
   const rights = resolveSourceRights({ provider: probe.provider, url: probe.url });
-  const allowedSourceIds = probe.provider === 'UPSTOX'
-    ? ['UPSTOX_QUOTES_V3']
-    : ['TEJHQ_RAW_EOD', 'TEJHQ_ADJUSTED_HISTORY', 'TEJHQ_SYMBOL_HISTORY',
-      'TEJHQ_CORPORATE_ACTIONS', 'TEJHQ_PUBLICATION_STATUS'];
-  return allowedSourceIds.includes(rights.sourceId)
+  return probe.provider === 'UPSTOX' && rights.sourceId === 'UPSTOX_QUOTES_V3'
     && rights.status === POST_TAX_SOURCE_RIGHTS_STATES.DEVELOPMENT_RESEARCH_ONLY
     && rights.approvedScopes.includes('PRIVATE_LOCAL_EDUCATIONAL_DEMO');
 }
 
-export function privateMarketProbeRequests(env, now = new Date()) {
-  const from = offsetDate(-9, now);
-  const to = offsetDate(-2, now);
+export function privateMarketProbeRequests(env) {
   const keys = [
     MARKET_BENCHMARKS.NIFTY_50.upstoxInstrumentKey,
     MARKET_BENCHMARKS.INDIA_VIX.upstoxInstrumentKey,
   ];
   const token = resolveUpstoxAccessToken(env);
-  const tejKey = String(env?.TEJHQ_API_KEY || '').trim();
   return [
     {
       provider: 'UPSTOX', operation: 'BENCHMARK_QUOTES',
@@ -64,22 +51,6 @@ export function privateMarketProbeRequests(env, now = new Date()) {
       provider: 'UPSTOX', operation: 'NSE_MARKET_STATUS',
       url: UPSTOX_NSE_MARKET_STATUS_URL, credential: token,
       validate: data => object(data) && data.status === 'success' && object(data.data),
-    },
-    {
-      provider: 'TEJHQ', operation: 'PUBLICATION_STATUS',
-      url: 'https://api.tejhq.dev/v1/status', credential: null,
-      validate: data => object(data),
-    },
-    {
-      provider: 'TEJHQ', operation: 'RAW_EOD',
-      url: 'https://api.tejhq.dev/v1/ohlcv/nse/RELIANCE?from=' + from + '&to=' + to,
-      credential: null,
-      validate: data => object(data) && Array.isArray(data.data) && object(data.meta),
-    },
-    {
-      provider: 'TEJHQ', operation: 'KEY_ENTITLEMENT',
-      url: 'https://api.tejhq.dev/v1/me', credential: tejKey,
-      validate: data => object(data),
     },
   ];
 }
@@ -106,8 +77,7 @@ export async function runPrivateMarketAccessProbe({
       });
       continue;
     }
-    const credentialRequired = probe.provider === 'UPSTOX' || probe.operation === 'KEY_ENTITLEMENT';
-    if (credentialRequired && !probe.credential) {
+    if (!probe.credential) {
       results.push({ provider: probe.provider, operation: probe.operation, verdict: 'CREDENTIAL_NOT_CONFIGURED' });
       continue;
     }

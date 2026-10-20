@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   Shield,
@@ -117,7 +117,7 @@ const MARKET_CONTEXT_COPY = {
     explanation: 'Your plan applies the strongest allowed risk reduction while staying within your suitability limits.',
   },
   UNAVAILABLE: {
-    headline: 'Verified market information is temporarily unavailable.',
+    headline: 'Verified market context for your plan is unavailable.',
     explanation: 'Your personal suitability rules remain fully active.',
   },
 };
@@ -342,6 +342,10 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   const [contextPreviewVisible, setContextPreviewVisible] = useState(false);
   const [contextPreviewError, setContextPreviewError] = useState(null);
   const [contextPreviewLoading, setContextPreviewLoading] = useState(false);
+  const [privateQuoteSnapshot, setPrivateQuoteSnapshot] = useState(null);
+  const acceptPrivateQuoteSnapshot = useCallback(snapshot => {
+    setPrivateQuoteSnapshot(snapshot ? { profileId, snapshot } : null);
+  }, [profileId]);
   const previewController = useRef(null);
   const previewRequestGeneration = useRef(0);
   const {
@@ -730,7 +734,9 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   const generationAdjustment = recommendationMeta?.generation_market_adjustment
     || recommendationMeta?.market_adjustment
     || null;
-  const adjustmentExplanation = currentAllocationSource === 'USER_REBALANCED'
+  const adjustmentExplanation = !contextAvailable
+    ? 'Your saved recommendation remains profile-led. Any private market observations below are informational and do not change your plan.'
+    : currentAllocationSource === 'USER_REBALANCED'
     ? 'Your current allocation was manually rebalanced. The market context below is current evidence; it is not proof that your saved weights were changed by the market policy.'
     : currentAllocationSource === 'MARKET_CONTEXT_ADJUSTED' && generationAdjustment?.applied === true
       ? 'The saved recommendation includes a bounded market-context adjustment inside your suitability limits.'
@@ -828,6 +834,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           <p className="wti-beginner-meaning">
             <span className="wti-meaning-lead">What this means for you:</span> {adjustmentExplanation}
           </p>
+          {import.meta.env.DEV && <PrivateMarketDataDemo key={profileId || 'no-profile'} autoLoad onSnapshot={acceptPrivateQuoteSnapshot} />}
           <div className="wti-market-evidence-summary" data-testid="market-data-status">
             <div className="wti-market-status-copy">
               <span className="wti-market-data-status">{marketDisplay.label}</span>
@@ -1144,9 +1151,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           </div>
         </div>
       </section>
-
-      {/* Keep developer diagnostics separate from the compact market summary. */}
-      {import.meta.env.DEV && <PrivateMarketDataDemo />}
 
       {/* ─── Illustrative Investment & Tax Controls Bar ─── */}
       {rankingStatus === 'ready' && products.length > 0 && (
@@ -1745,6 +1749,13 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
         {products.map((product) => {
           const riskStyle = getRiskTierColor(product.beginnerSuitability?.riskTier);
           const postTax = product.postTaxAnalysis;
+          const privateQuote = product.id === 'etf:isin:INF204KB14I2'
+            && privateQuoteSnapshot?.profileId === profileId
+            && ['AVAILABLE', 'PARTIAL'].includes(privateQuoteSnapshot.snapshot?.upstox?.status)
+            ? privateQuoteSnapshot.snapshot.upstox.facts?.find(fact => fact.canonicalProductId === product.id)
+            : null;
+          const privatePrice = privateQuote?.availabilityStatus === 'AVAILABLE'
+            ? nullableMarketNumber(privateQuote.value) : null;
           const productObservedAt = formatMarketTimestamp(
             product.officialRate?.observedAt
               || product.nav?.observedAt
@@ -1818,6 +1829,14 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                       {product.displayMetricLabel}
                     </span>
                     <div className="wti-rate-chip">{product.displayMetric}</div>
+                    {privatePrice > 0 && (
+                      <div className="wti-private-quote" data-testid="wti-private-etf-quote">
+                        <span>Private Upstox last-traded ETF price</span>
+                        <strong>₹{privatePrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong>
+                        <small>Last trade: {formatMarketTimestamp(privateQuote.quoteLastTradeAt || privateQuote.observedAt) || 'Unavailable'} · {privateQuote.freshness?.status || 'UNKNOWN'}</small>
+                        <small>Educational preview only; not saved or used to rank this option.</small>
+                      </div>
+                    )}
                   </div>
                 </div>
 

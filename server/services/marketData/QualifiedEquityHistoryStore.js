@@ -11,22 +11,11 @@ const COVERAGE = new Set([
 ]);
 const BASES = Object.freeze({
   UPSTOX: 'UPSTOX_PROVIDER_NATIVE',
-  TEJHQ_RAW: 'RAW_UNADJUSTED',
-  TEJHQ_ADJUSTED: 'BACK_ADJUSTED',
-});
-const SOURCE_URLS = Object.freeze({
-  TEJHQ_RAW: 'https://api.tejhq.dev/v1/ohlcv',
-  TEJHQ_ADJUSTED: 'https://api.tejhq.dev/v1/adjusted',
 });
 const validPrice = value => typeof value === 'number' && Number.isFinite(value)
   && value > 0 && value <= Number.MAX_SAFE_INTEGER;
 const validVolume = value => value === null || value === undefined
   || (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0);
-const isoDate = value => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value ?? ''))) return null;
-  const date = new Date(value + 'T00:00:00.000Z');
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null;
-};
 const istDate = timestamp => {
   const date = new Date(timestamp);
   if (!Number.isFinite(date.getTime())) return null;
@@ -47,7 +36,7 @@ export function qualifiedHistoryStorageConfig(env = process.env) {
   };
 }
 export function qualifiedHistoryRightsAllowed(provider, sourceUrl) {
-  if (!['UPSTOX', 'TEJHQ'].includes(provider) || typeof sourceUrl !== 'string') return false;
+  if (provider !== 'UPSTOX' || typeof sourceUrl !== 'string') return false;
   return evaluateMarketDataProductionRights(provider, sourceUrl).productionUseAllowed === true;
 }
 function unavailable(code) {
@@ -58,7 +47,7 @@ function qualifiedSourceChain(snapshot, dataUrls) {
   if (!Array.isArray(chain) || chain.length < 2 || chain.length > 16) return null;
   const seen = new Set();
   for (const entry of chain) {
-    if (!['NSE', 'UPSTOX', 'TEJHQ'].includes(entry?.provider)
+    if (!['NSE', 'UPSTOX'].includes(entry?.provider)
         || typeof entry.url !== 'string' || seen.has(`${entry.provider}:${entry.url}`)) return null;
     let parsed;
     try { parsed = new URL(entry.url); } catch { return null; }
@@ -70,14 +59,11 @@ function qualifiedSourceChain(snapshot, dataUrls) {
   if (!['NSE', 'UPSTOX'].includes(calendarProvider)
       || !chain.some(entry => entry.provider === calendarProvider
         && !dataUrls.includes(entry.url))) return null;
-  if (snapshot.provider === 'TEJHQ'
-      && (!chain.some(entry => entry.provider === 'TEJHQ' && new URL(entry.url).pathname.startsWith('/v1/symbols/'))
-        || !chain.some(entry => entry.provider === 'TEJHQ' && new URL(entry.url).pathname === '/v1/status'))) return null;
   return chain;
 }
 function normalizeQualifiedHistory(snapshot, request, now) {
   const { exchange, isin, fromDate, toDate, basis } = request;
-  if (snapshot?.status !== 'AVAILABLE' || !['UPSTOX', 'TEJHQ'].includes(snapshot?.provider)
+  if (snapshot?.status !== 'AVAILABLE' || snapshot?.provider !== 'UPSTOX'
       || snapshot?.canonicalProductId !== 'market:equity:' + exchange.toLowerCase() + ':' + isin
       || snapshot?.instrumentIdentity?.exchange !== exchange
       || snapshot?.instrumentIdentity?.isin !== isin
@@ -88,17 +74,10 @@ function normalizeQualifiedHistory(snapshot, request, now) {
       || snapshot.coverage?.observedSessionCount !== snapshot.candles.length
       || snapshot.coverage?.expectedSessionCount !== snapshot.candles.length
       || !snapshot.source?.url || !snapshot.source?.instrumentId) return null;
-  if (snapshot.provider === 'UPSTOX' && (basis !== 'RAW'
+  if (basis !== 'RAW'
       || snapshot.priceBasis !== BASES.UPSTOX
-      || snapshot.source.instrumentId !== exchange + '_EQ|' + isin)) return null;
-  if (snapshot.provider === 'TEJHQ' && (snapshot.priceBasis !== (
-    basis === 'ADJUSTED' ? BASES.TEJHQ_ADJUSTED : BASES.TEJHQ_RAW)
-      || snapshot.source.instrumentId !== exchange + ':' + isin
-      || snapshot.instrumentIdentity?.symbol !== request.symbol
-      || !snapshot.source.url.startsWith(basis === 'ADJUSTED'
-        ? SOURCE_URLS.TEJHQ_ADJUSTED : SOURCE_URLS.TEJHQ_RAW))) return null;
-  const sourceUrls = snapshot.provider === 'TEJHQ'
-    ? snapshot.source.requestUrls : [snapshot.source.url];
+      || snapshot.source.instrumentId !== exchange + '_EQ|' + isin) return null;
+  const sourceUrls = [snapshot.source.url];
   if (!Array.isArray(sourceUrls) || sourceUrls.length < 1 || sourceUrls.length > 12
       || sourceUrls.some(url => typeof url !== 'string' || !url.startsWith('https://')))
     return null;
@@ -110,28 +89,17 @@ function normalizeQualifiedHistory(snapshot, request, now) {
   let lastDate = null;
   const bars = [];
   for (const row of snapshot.candles) {
-    const date = snapshot.provider === 'UPSTOX' ? istDate(row?.timestamp) : isoDate(row?.date);
+    const date = istDate(row?.timestamp);
     if (!date || date < fromDate || date > toDate || (lastDate !== null && date <= lastDate)
         || !['open', 'high', 'low', 'close'].every(k => validPrice(row?.[k]))
         || row.high < Math.max(row.open, row.close, row.low)
         || row.low > Math.min(row.open, row.close)
         || !validVolume(row.volume)) return null;
-    if (snapshot.provider === 'TEJHQ' && row.timestamp !== null) return null;
-    let adjustedClose = null;
-    let adjustmentFactor = null;
-    if (basis === 'ADJUSTED') {
-      if (!validPrice(row.adjustedClose) || !validPrice(row.adjustmentFactor)
-          || row.isin !== isin
-          || Math.abs(row.close * row.adjustmentFactor - row.adjustedClose)
-            > Math.max(0.01, row.adjustedClose * 1e-6)) return null;
-      adjustedClose = row.adjustedClose;
-      adjustmentFactor = row.adjustmentFactor;
-    }
     bars.push({
       tradingDate: date, open: row.open, high: row.high, low: row.low,
       close: row.close, volume: row.volume ?? null,
-      adjustedClose, adjustmentFactor,
-      providerObservedAt: snapshot.provider === 'UPSTOX' ? new Date(row.timestamp) : null,
+      adjustedClose: null, adjustmentFactor: null,
+      providerObservedAt: new Date(row.timestamp),
     });
     lastDate = date;
   }
@@ -177,7 +145,7 @@ export function buildQualifiedHistoryWriteOperations(snapshot, request, {
           schemaVersion: snapshot.schemaVersion, provider: snapshot.provider,
           exchange: request.exchange, isin: request.isin,
           // Upstox source only proves ISIN, not the caller's trading symbol.
-          symbol: snapshot.provider === 'TEJHQ' ? request.symbol : null,
+          symbol: null,
           tradingDate: bar.tradingDate, priceBasis: basis,
           open: bar.open, high: bar.high, low: bar.low, close: bar.close,
           volume: bar.volume, adjustedClose: bar.adjustedClose, adjustmentFactor: bar.adjustmentFactor,
@@ -266,20 +234,14 @@ export async function readQualifiedHistory(request, {
   if (!Number.isInteger(spanDays) || spanDays < 1 || spanDays > MAX_BARS) {
     return unavailable('INVALID_MARKET_HISTORY_RANGE');
   }
-  const basis = request.basis === 'ADJUSTED' ? BASES.TEJHQ_ADJUSTED : null;
+  if (request.basis !== 'RAW') return unavailable('UNSUPPORTED_MARKET_HISTORY_BASIS');
   const query = {
-    exchange: request.exchange, isin: request.isin,
+    provider: 'UPSTOX', exchange: request.exchange, isin: request.isin,
     tradingDate: { $gte: request.fromDate, $lte: request.toDate },
     retainedUntil: { $gt: now },
-    ...(basis ? { priceBasis: basis } : {
-      priceBasis: { $in: [BASES.UPSTOX, BASES.TEJHQ_RAW] },
-    }),
+    priceBasis: BASES.UPSTOX,
   };
-  // Two disjoint raw feeds may each supply one bar per day. Read both before
-  // applying exact source rights; otherwise blocked rows can crowd out one feed.
-  const records = await Model.find(query).sort({ tradingDate: 1 }).limit(MAX_BARS * 2).lean();
-  // A raw read may contain observations from two sources. Never mix them
-  // into one row or silently choose a preferred feed.
+  const records = await Model.find(query).sort({ tradingDate: 1 }).limit(MAX_BARS).lean();
   const authorizedRow = row => Array.isArray(row.source?.requestUrls)
     && qualifiedSourceChain({
       provider: row.provider,

@@ -41,6 +41,8 @@ const QUALIFIED_ETF_IDENTITIES = Object.freeze({
   })]),
 });
 
+export const QUALIFIED_NIFTY_ETF_IDENTITY = QUALIFIED_ETF_IDENTITIES[NIFTY_ETF_PARENT_ID][0];
+
 const ETF_CATEGORY_KEY = 'open ended schemes(other scheme - other etfs)';
 const AMFI_CANONICAL_ID = code => `mf:amfi:${code}`;
 

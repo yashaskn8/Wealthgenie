@@ -77,13 +77,7 @@ export function isMarketDataPrivateDemoUseAllowed(provider, url, env = process.e
       && decision.approvedScopes?.includes('PRIVATE_LOCAL_EDUCATIONAL_DEMO') === true
       && decision.sourceId === 'UPSTOX_QUOTES_V3';
   }
-  // Operator flags cannot establish provider rights. TejHQ remains blocked
-  // until its exact source record explicitly grants this private-demo scope.
-  return provider === 'TEJHQ'
-    && decision.status === POST_TAX_SOURCE_RIGHTS_STATES.DEVELOPMENT_RESEARCH_ONLY
-    && decision.approvedScopes?.includes('PRIVATE_LOCAL_EDUCATIONAL_DEMO') === true
-    && ['TEJHQ_RAW_EOD', 'TEJHQ_ADJUSTED_HISTORY', 'TEJHQ_SYMBOL_HISTORY',
-      'TEJHQ_CORPORATE_ACTIONS', 'TEJHQ_PUBLICATION_STATUS'].includes(decision.sourceId);
+  return false;
 }
 
 /**

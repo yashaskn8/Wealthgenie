@@ -7,16 +7,10 @@ request; a successful HTTP response never changes that registry.
 
 ## Current endpoint rights
 
-- Upstox NIFTY 50 and India VIX quote endpoint has an explicit, narrow
+- Upstox NIFTY 50, India VIX, and exact-identity Nifty 50 BeES ETF quotes have an explicit, narrow
   `PRIVATE_LOCAL_EDUCATIONAL_DEMO` scope. It can be requested only from the
   authenticated loopback development demo. The response is ephemeral and is
   not cached or persisted.
-- TejHQ raw EOD, adjusted history, symbol history, corporate actions,
-  publication status, and account endpoints remain `LICENSE_UNVERIFIED` in
-  the source registry. The probe reports those operations as
-  `SOURCE_RIGHTS_UNVERIFIED` without making a network request. The local UI
-  labels TejHQ as historical EOD and shows its unavailable reason. Having an
-  API key or endpoint documentation does not change this gate.
 - Production/public market-data rights remain disabled unless the exact source
   record qualifies the requested production scopes.
 
@@ -40,7 +34,7 @@ NODE_ENV=development PRIVATE_MARKET_READ_ONLY_PROBE_ENABLED=true \
   node server/scripts/probePrivateMarketAccess.js --i-accept-provider-terms
 ```
 
-The probe reports five fixed candidate operations. It sends a request only when
+The probe reports two fixed Upstox candidate operations. It sends a request only when
 that exact endpoint has an approved private-demo scope; with the current
 registry, only the Upstox quote operation qualifies. Results omit provider
 payloads, prices, account data, credentials, and raw network error messages.
@@ -68,13 +62,11 @@ explicit backend opt-in. A supplied browser Origin must also be a loopback
 HTTP(S) origin (the development frontend can use a different local port).
 CI and GitHub Actions explicitly disable this capability even if
 `NODE_ENV=development`. It is rate limited. The React panel appears only in
-a Vite development build and fetches only when the user selects “Load provider
-data.”
+a Vite development build and fetches on entry, with a manual refresh button.
 
-The active Upstox request is uncached and not persisted. TejHQ EOD is shown as
-unavailable until its exact endpoint is qualified for this private scope; the
-`PRIVATE_MARKET_DEMO_TEJHQ_ENABLED` flag cannot override that decision. The
-panel is separate from market-context policy and recommendations.
+The active Upstox request is uncached and not persisted. Its exact ETF quote
+can appear as a last-traded educational preview beside the matching product;
+the preview never changes ranking, tax, suitability, or recommendations.
 
 Run focused regression tests:
 
@@ -91,8 +83,7 @@ the provider observation time.
 
 ## Production restrictions
 
-Do not enable `UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED`,
-`TEJHQ_LICENSE_CONFIRMED`, or
+Do not enable `UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED` or
 `MARKET_DATA_QUALIFICATION_LIVE_ENABLED` based on these private checks. Keep
 unknown rights unapproved in `server/services/postTaxSourceRights.js` and
 `server/services/marketData/marketDataRights.js` until the source-specific

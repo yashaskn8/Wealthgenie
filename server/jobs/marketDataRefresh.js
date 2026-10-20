@@ -55,7 +55,7 @@ export function qualifiedEquityRefreshTargets(env = process.env) {
       exchange: target.exchange, symbol: target.symbol, isin: target.isin,
     });
     const basis = String(target.basis || 'RAW').trim().toUpperCase();
-    if (error || !['RAW', 'ADJUSTED'].includes(basis)) {
+    if (error || basis !== 'RAW') {
       throw new TypeError('MARKET_EQUITY_HISTORY_TARGETS contains an invalid instrument.');
     }
     const identity = { ...value, basis };

@@ -8,9 +8,22 @@ vi.mock('../../services/api', () => ({ getPrivateMarketDemoData: vi.fn() }));
 describe('PrivateMarketDataDemo', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('renders the actual backend quote contract and keeps unqualified TejHQ EOD unavailable', async () => {
+  it('loads the authenticated local preview on mount when the market card requests it', async () => {
     getPrivateMarketDemoData.mockResolvedValue({
-      status: 'PARTIAL',
+      status: 'AVAILABLE',
+      upstox: { status: 'AVAILABLE', facts: [] },
+    });
+
+    render(<PrivateMarketDataDemo autoLoad />);
+
+    expect(await screen.findByText('Upstox · market quote response')).toBeInTheDocument();
+    expect(getPrivateMarketDemoData).toHaveBeenCalledTimes(1);
+    expect(getPrivateMarketDemoData.mock.calls[0][0].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('renders the actual backend quote contract with timestamps and provenance', async () => {
+    getPrivateMarketDemoData.mockResolvedValue({
+      status: 'AVAILABLE',
       mode: 'AUTHENTICATED_LOOPBACK_PRIVATE_DEMO',
       persistence: 'NOT_PERSISTED',
       fetchedAt: '2026-10-19T08:50:00.000Z',
@@ -32,86 +45,59 @@ describe('PrivateMarketDataDemo', () => {
         }],
         cache: { hit: false, backend: 'NONE', status: 'PRIVATE_DEMO_NO_STORE' },
       },
-      tejHq: {
-        provider: 'TEJHQ',
-        status: 'UNAVAILABLE',
-        dataClass: 'HISTORICAL_EOD',
-        observedAt: null,
-        checkedAt: '2026-10-19T08:50:00.000Z',
-        freshness: { status: 'UNKNOWN' },
-        candles: [],
-        sourceRights: { status: 'LICENSE_UNVERIFIED', sourceId: 'TEJHQ_RAW_EOD' },
-        error: { code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' },
-        reasonCodes: ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED'],
-        cache: { hit: false, backend: 'NONE', status: 'PRIVATE_DEMO_NO_STORE' },
-      },
     });
 
     render(<PrivateMarketDataDemo />);
-    fireEvent.click(screen.getByRole('button', { name: 'Load provider data' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
 
-    expect(await screen.findByText('Upstox · live quote response')).toBeInTheDocument();
+    expect(await screen.findByText('Upstox · market quote response')).toBeInTheDocument();
     expect(screen.getByText('25,123.45 pts')).toBeInTheDocument();
     expect(screen.getByText('NIFTY 50')).toBeInTheDocument();
     expect(screen.getByText(/Last trade: 19 Oct 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Provider response: 19 Oct 2026/)).toBeInTheDocument();
     expect(within(screen.getByTestId('private-quote-market:index:nifty-50'))
       .getByText(/Fetched: 19 Oct 2026/)).toBeInTheDocument();
-    expect(screen.getByText('TejHQ · historical EOD only')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Historical EOD unavailable: MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
-    expect(screen.getByText(/Rights checked: 19 Oct 2026/)).toBeInTheDocument();
-    expect(screen.getByText(/Storage: NOT_PERSISTED/)).toHaveTextContent('PRIVATE_DEMO_NO_STORE');
-    expect(screen.queryByText(/1,534.2/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Storage: NOT_PERSISTED/)).toBeInTheDocument();
     await waitFor(() => expect(getPrivateMarketDemoData).toHaveBeenCalledTimes(1));
   });
 
-  it('never displays a close or quote from an unavailable provider even when malformed rows contain prices', async () => {
+  it('shows the exact ETF exchange quote separately from index observations', async () => {
+    const onSnapshot = vi.fn();
+    const response = {
+      persistence: 'NOT_PERSISTED',
+      upstox: { status: 'AVAILABLE', facts: [{
+        canonicalProductId: 'etf:isin:INF204KB14I2',
+        displayName: 'Nippon India ETF Nifty 50 BeES',
+        availabilityStatus: 'AVAILABLE', value: 294.4, unit: 'PRICE', currency: 'INR',
+        freshness: { status: 'STALE' },
+      }] },
+    };
+    getPrivateMarketDemoData.mockResolvedValue(response);
+    render(<PrivateMarketDataDemo onSnapshot={onSnapshot} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
+    const quote = await screen.findByTestId('private-quote-etf:isin:INF204KB14I2');
+    expect(within(quote).getByText('Nippon India ETF Nifty 50 BeES')).toBeInTheDocument();
+    expect(within(quote).getByText('294.4 INR')).toBeInTheDocument();
+    expect(within(quote).getByText('STALE')).toBeInTheDocument();
+    expect(onSnapshot).toHaveBeenLastCalledWith(response);
+  });
+
+  it('never displays a quote from an unavailable provider even when malformed facts contain prices', async () => {
     getPrivateMarketDemoData.mockResolvedValue({
       upstox: {
         status: 'UNAVAILABLE',
         facts: [{ canonicalProductId: 'market:index:nifty-50', availabilityStatus: 'AVAILABLE',
           value: 25123.45, unit: 'INDEX_POINTS' }],
       },
-      tejHq: {
-        status: 'UNAVAILABLE',
-        dataClass: 'HISTORICAL_EOD',
-        error: { code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' },
-        candles: [{ date: '2026-10-16', close: 1534.2 }],
-      },
     });
 
     render(<PrivateMarketDataDemo />);
-    fireEvent.click(screen.getByRole('button', { name: 'Load provider data' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
 
-    expect(await screen.findByText('Upstox · live quote response')).toBeInTheDocument();
+    expect(await screen.findByText('Upstox · market quote response')).toBeInTheDocument();
     expect(within(screen.getByTestId('private-quote-market:index:nifty-50'))
       .getByText('Unavailable')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
     expect(screen.queryByText(/25,123\.45/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/1,534\.2/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/INFY latest returned close:/)).not.toBeInTheDocument();
-  });
-
-  it('labels returned TejHQ candles by their trading date and keeps the history historical', async () => {
-    getPrivateMarketDemoData.mockResolvedValue({
-      persistence: 'NOT_PERSISTED',
-      upstox: { status: 'UNAVAILABLE', facts: [] },
-      tejHq: {
-        status: 'AVAILABLE',
-        dataClass: 'HISTORICAL_EOD',
-        observedAt: null,
-        fetchedAt: '2026-10-19T08:50:00.000Z',
-        freshness: { status: 'UNKNOWN' },
-        candles: [{ date: '2026-10-16', close: 1534.2 }],
-      },
-    });
-
-    render(<PrivateMarketDataDemo />);
-    fireEvent.click(screen.getByRole('button', { name: 'Load provider data' }));
-
-    expect(await screen.findByText('TejHQ · historical EOD only')).toBeInTheDocument();
-    expect(screen.getByText(/INFY latest returned close:/).textContent).toContain('1,534.2 on 2026-10-16');
-    expect(screen.getByText(/Trading date: 2026-10-16/)).toBeInTheDocument();
   });
 
   it('does not attach a price unit to a malformed available quote', async () => {
@@ -121,11 +107,10 @@ describe('PrivateMarketDataDemo', () => {
         canonicalProductId: 'market:index:india-vix',
         availabilityStatus: 'AVAILABLE', value: null, unit: 'INDEX_POINTS',
       }] },
-      tejHq: { status: 'UNAVAILABLE', candles: [] },
     });
 
     render(<PrivateMarketDataDemo />);
-    fireEvent.click(screen.getByRole('button', { name: 'Load provider data' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
 
     const quote = await screen.findByTestId('private-quote-market:index:india-vix');
     expect(within(quote).getByText('Unavailable')).toBeInTheDocument();

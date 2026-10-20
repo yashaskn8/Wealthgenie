@@ -103,6 +103,23 @@
   border-top: 1px solid rgba(148, 177, 199, 0.12);
 }
 
+.wti-private-quote {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.65rem;
+  padding: 0.6rem;
+  border: 1px solid rgba(61, 190, 226, 0.35);
+  border-radius: 8px;
+  color: #d9efff;
+  background: rgba(17, 111, 145, 0.16);
+}
+
+.wti-private-quote span,
+.wti-private-quote small {
+  color: #a8bbcb;
+  font-size: 0.72rem;
+}
+
 @media (max-width: 600px) {
   .private-market-demo__heading,
   .private-market-demo__provider-title {

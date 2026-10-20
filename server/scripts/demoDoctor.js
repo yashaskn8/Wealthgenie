@@ -94,12 +94,12 @@ export async function runDemoDoctor({ environment = process.env, write = line =>
   add(checks, write, 'Tax input fixture', taxFixtureValid, taxFixtureValid ? 'file exists and matches strict tax-context schema; contents hidden' : 'provide a valid tax-context JSON object; path and contents are not emitted');
 
   const marketMode = String(environment.MARKET_DATA_MODE || 'LEGACY').trim().toUpperCase();
-  const modeValid = marketMode === 'LEGACY' || marketMode === 'UPSTOX_TEJHQ';
-  const provider = marketMode === 'UPSTOX_TEJHQ'
+  const modeValid = marketMode === 'LEGACY' || marketMode === 'UPSTOX_ONLY';
+  const provider = marketMode === 'UPSTOX_ONLY'
     ? 'UPSTOX' : String(environment.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase();
   const providerValid = modeValid && (provider === 'NSE' || provider === 'UPSTOX');
   add(checks, write, 'Market provider selection', providerValid,
-    providerValid ? `configured ${marketMode} provider ${provider}` : 'configure LEGACY or UPSTOX_TEJHQ mode and a supported provider');
+    providerValid ? `configured ${marketMode} provider ${provider}` : 'configure LEGACY or UPSTOX_ONLY mode and a supported provider');
   const tokenPresent = provider === 'NSE' || hasUpstoxAccessToken(environment);
   add(checks, write, 'Provider token presence', providerValid && tokenPresent,
     !providerValid ? 'provider selection is invalid' : provider === 'NSE' ? 'NSE does not require a provider token' : tokenPresent ? 'Upstox token PRESENT (value hidden)' : 'selected Upstox provider requires a server-side token');

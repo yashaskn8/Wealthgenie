@@ -4,7 +4,7 @@ import {
   fetchQualifiedMarketContextSnapshots,
   fetchBenchmarkQuotes,
   fetchNiftyHistoricalCandles,
-  isTwoProviderMarketDataMode,
+  isUpstoxOnlyMarketDataMode,
 } from './marketDataService.js';
 import {
   AVAILABILITY,
@@ -388,14 +388,14 @@ async function readLastKnownGood(getLkg, getDurable) {
 }
 
 export function marketContextProviderAllowed(provider, env, fixtureCapability = null) {
-  if (isTwoProviderMarketDataMode(env) && provider !== 'UPSTOX') return false;
+  if (isUpstoxOnlyMarketDataMode(env) && provider !== 'UPSTOX') return false;
   if (provider === 'NSE') {
     return [NSE_ALL_INDICES_URL, NSE_HISTORICAL_INDEX_RIGHTS_URL, NSE_TRADING_HOLIDAY_URL]
       .every(url => isMarketDataProductionUseAllowed('NSE', url, env, fixtureCapability));
   }
   if (provider === 'UPSTOX') {
     const endpoints = [UPSTOX_QUOTE_RIGHTS_URL, UPSTOX_HISTORICAL_CANDLE_V3_RIGHTS_URL];
-    if (isTwoProviderMarketDataMode(env)) endpoints.push(
+    if (isUpstoxOnlyMarketDataMode(env)) endpoints.push(
       UPSTOX_TRADING_HOLIDAYS_URL, UPSTOX_NSE_MARKET_STATUS_URL, UPSTOX_MARKET_TIMINGS_RIGHTS_URL,
     );
     return isUpstoxPublicDistributionAllowed(env)
@@ -405,7 +405,7 @@ export function marketContextProviderAllowed(provider, env, fixtureCapability = 
 }
 
 function hasAuthorizedMarketContextProvider(env, fixtureCapability = null) {
-  const providers = isTwoProviderMarketDataMode(env) ? ['UPSTOX'] : ['NSE', 'UPSTOX'];
+  const providers = isUpstoxOnlyMarketDataMode(env) ? ['UPSTOX'] : ['NSE', 'UPSTOX'];
   return providers.some(provider => marketContextProviderAllowed(provider, env, fixtureCapability));
 }
 
@@ -570,7 +570,7 @@ function marketContextSnapshotEvidenceAllowed(snapshot, endpointRole, env, fixtu
   if (provider === 'NSE' && calendar?.status === 'AVAILABLE'
       && (!calendar.source || !sourceReferenceAllowed(calendar.source, 'calendar', env, fixtureCapability))) return false;
   if (calendar?.source && !sourceReferenceAllowed(calendar.source, 'calendar', env, fixtureCapability)) return false;
-  if (provider === 'UPSTOX' && isTwoProviderMarketDataMode(env) && endpointRole === 'quote') {
+  if (provider === 'UPSTOX' && isUpstoxOnlyMarketDataMode(env) && endpointRole === 'quote') {
     const session = snapshot?.marketSession;
     if (!session || (session.status !== 'UNKNOWN' && !session.source)
         || (session.source && !referencesForSource(session.source).every(reference => (
@@ -641,7 +641,7 @@ function lastKnownGoodSourceRightsBlocked(snapshot, env, fixtureCapability = nul
       || !calendar.source
       || !sourceReferenceAllowed(calendar.source, 'calendar', env, fixtureCapability)
   ))) return true;
-  if (quoteProvider === 'UPSTOX' && isTwoProviderMarketDataMode(env)) {
+  if (quoteProvider === 'UPSTOX' && isUpstoxOnlyMarketDataMode(env)) {
     const session = snapshot.marketSession;
     if (!session?.source || !referencesForSource(session.source).every(reference => (
       sourceReferenceAllowed(reference, 'session', env, fixtureCapability)

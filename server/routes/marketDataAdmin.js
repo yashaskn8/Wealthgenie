@@ -3,14 +3,12 @@ import { verifyJWT, requireRole } from '../middleware/authMiddleware.js';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import { getMarketIntegrationReadiness } from '../services/marketIntegrationReadiness.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
-import { validate, validateQuery, marketEquityHistoryQuerySchema, marketEquityIdentityQuerySchema } from '../validation/schemas.js';
+import { validate, validateQuery, marketEquityHistoryQuerySchema } from '../validation/schemas.js';
 import {
   persistQualifiedHistory, readQualifiedHistory,
 } from '../services/marketData/QualifiedEquityHistoryStore.js';
 import {
   fetchQualifiedEquityHistory,
-  fetchTejHqCorporateActionEvidence,
-  fetchTejHqProviderPublicationStatus,
 } from '../services/marketDataService.js';
 
 function createAdminRateLimiter() {
@@ -18,7 +16,7 @@ function createAdminRateLimiter() {
     windowMs: 60 * 1000,
     max: 8,
     message: 'Administrative market-data reads are limited to protect provider quotas.',
-    prefix: 'rl:admin-tejhq-market-data:',
+    prefix: 'rl:admin-market-data:',
     keyGenerator: req => `user:${req.user?.userId || ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown')}`,
   });
 }
@@ -32,8 +30,6 @@ function handleInvalidRequest(req, res, error) {
 
 export function createMarketDataAdminRouter({
   fetchHistory = fetchQualifiedEquityHistory,
-  fetchActions = fetchTejHqCorporateActionEvidence,
-  fetchStatus = fetchTejHqProviderPublicationStatus,
   getReadiness = getMarketIntegrationReadiness,
   env = process.env,
   persistHistory = persistQualifiedHistory,
@@ -86,18 +82,6 @@ export function createMarketDataAdminRouter({
       const result = await readStoredHistory(req.query);
       return res.json(result);
     }));
-
-  router.get('/admin/tejhq/corporate-actions', authenticate, authorizeAdmin, limiter, validateQuery(marketEquityIdentityQuerySchema), asyncHandler(async (req, res) => {
-    try {
-      return res.json(await fetchActions(req.query));
-    } catch (error) {
-      return handleInvalidRequest(req, res, error);
-    }
-  }));
-
-  router.get('/admin/tejhq/status', authenticate, authorizeAdmin, limiter, asyncHandler(async (_req, res) => (
-    res.json(await fetchStatus())
-  )));
 
   return router;
 }

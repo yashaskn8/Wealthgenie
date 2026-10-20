@@ -272,6 +272,7 @@ async function createSyntheticProfile() {
 
 async function registerSyntheticUser() {
   await screen.findByText('New to Wealth Genie?');
+  fireEvent.ended(document.getElementById('bg-video'));
   fireEvent.click(screen.getByText('Register'));
   fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: SYNTHETIC_USER.name } });
   fireEvent.change(screen.getByLabelText('Email Address'), { target: { value: SYNTHETIC_USER.email } });
@@ -496,6 +497,7 @@ describe('synthetic financial journey integration', () => {
 
     act(() => api.clearUserSession());
     await screen.findByText('New to Wealth Genie?');
+    fireEvent.ended(document.getElementById('bg-video'));
     expect(pendingUserARecommendations[0].signal.aborted).toBe(true);
     fireEvent.change(document.getElementById('login-email'), { target: { value: SECOND_SYNTHETIC_USER.email } });
     fireEvent.change(document.getElementById('login-password'), { target: { value: 'Synthetic1!' } });

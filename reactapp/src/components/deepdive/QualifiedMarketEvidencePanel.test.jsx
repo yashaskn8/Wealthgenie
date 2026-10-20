@@ -65,14 +65,14 @@ describe('QualifiedMarketEvidencePanel', () => {
     expect(getStoredEquityHistory.mock.calls[0][1].signal.aborted).toBe(true);
 
     await act(async () => newer.resolve({ status: 'AVAILABLE', barCount: 1, bars: [{
-      tradingDate: '2026-10-16', provider: 'TEJHQ', priceBasis: 'RAW_UNADJUSTED',
+      tradingDate: '2026-10-16', provider: 'UPSTOX', priceBasis: 'UPSTOX_PROVIDER_NATIVE',
       open: 1500, high: 1540, low: 1490, close: 1534.2, adjustedClose: null,
       volume: 100000, providerObservedAt: '2026-10-16T10:00:00.000Z',
       fetchedAt: '2026-10-19T08:50:00.000Z',
     }] }));
     const table = screen.getByRole('table');
     expect(within(table).getByText('1,534.2')).toBeInTheDocument();
-    expect(within(table).getByText('RAW_UNADJUSTED')).toBeInTheDocument();
+    expect(within(table).getByText('UPSTOX_PROVIDER_NATIVE')).toBeInTheDocument();
     expect(within(table).getByText('1,00,000')).toBeInTheDocument();
 
     await act(async () => older.resolve({ status: 'AVAILABLE', barCount: 1, bars: [{
@@ -85,7 +85,7 @@ describe('QualifiedMarketEvidencePanel', () => {
 
   it('clears stored history when the query changes or the panel closes', async () => {
     getStoredEquityHistory.mockResolvedValue({ status: 'AVAILABLE', barCount: 1, bars: [{
-      tradingDate: '2026-10-16', provider: 'TEJHQ', priceBasis: 'RAW_UNADJUSTED',
+      tradingDate: '2026-10-16', provider: 'UPSTOX', priceBasis: 'UPSTOX_PROVIDER_NATIVE',
       close: 1534.2, fetchedAt: '2026-10-19T08:50:00.000Z',
     }] });
     render(<QualifiedMarketEvidencePanel />);
@@ -105,50 +105,38 @@ describe('QualifiedMarketEvidencePanel', () => {
     expect(screen.queryByText('1,534.2')).not.toBeInTheDocument();
   });
 
-  it('plots only retained EOD closes for the selected price basis', async () => {
-    getStoredEquityHistory.mockImplementation(({ basis }) => Promise.resolve({
+  it('plots retained provider-native EOD closes without implying adjusted prices', async () => {
+    getStoredEquityHistory.mockResolvedValue({
       status: 'AVAILABLE', barCount: 2, bars: [
-        { tradingDate: '2026-10-15', provider: 'TEJHQ', exchange: 'NSE',
-          isin: 'INE002A01018', priceBasis: basis === 'ADJUSTED' ? 'BACK_ADJUSTED' : 'RAW_UNADJUSTED',
-          close: 200, adjustedClose: 100 },
-        { tradingDate: '2026-10-16', provider: 'TEJHQ', exchange: 'NSE',
-          isin: 'INE002A01018', priceBasis: basis === 'ADJUSTED' ? 'BACK_ADJUSTED' : 'RAW_UNADJUSTED',
-          close: 100, adjustedClose: 200 },
+        { tradingDate: '2026-10-15', provider: 'UPSTOX', exchange: 'NSE',
+          isin: 'INE002A01018', priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 200 },
+        { tradingDate: '2026-10-16', provider: 'UPSTOX', exchange: 'NSE',
+          isin: 'INE002A01018', priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 100 },
       ],
-    }));
+    });
     render(<QualifiedMarketEvidencePanel />);
     fireEvent.click(screen.getByRole('button', { name: /View stored prices/ }));
     const submit = () => fireEvent.submit(screen.getByRole('button', { name: 'Read stored history' }).closest('form'));
     submit();
-    const raw = await screen.findByRole('img', { name: 'Raw EOD close from stored qualified observations' });
+    const raw = await screen.findByRole('img', { name: 'Provider-native EOD close from stored qualified observations' });
     expect(within(raw).getByTestId('stored-close-series')).toHaveAttribute('points',
       '16.00,16.00 584.00,134.00');
-
-    fireEvent.change(screen.getByRole('combobox', { name: 'Price basis' }), {
-      target: { value: 'ADJUSTED' },
-    });
-    expect(screen.queryByRole('img', { name: 'Raw EOD close from stored qualified observations' })).not.toBeInTheDocument();
-    submit();
-    const adjusted = await screen.findByRole('img', { name: 'Adjusted EOD close from stored qualified observations' });
-    expect(within(adjusted).getByTestId('stored-close-series')).toHaveAttribute('points',
-      '16.00,134.00 584.00,16.00');
+    expect(screen.queryByRole('combobox', { name: 'Price basis' })).not.toBeInTheDocument();
+    expect(getStoredEquityHistory.mock.calls[0][0].basis).toBe('RAW');
   });
 
-  it('does not connect an adjusted series across a missing price', async () => {
+  it('does not connect a provider-native series across a missing close', async () => {
     getStoredEquityHistory.mockResolvedValue({ status: 'AVAILABLE', barCount: 2, bars: [
-      { tradingDate: '2026-10-15', provider: 'TEJHQ', exchange: 'NSE',
-        isin: 'INE002A01018', priceBasis: 'BACK_ADJUSTED', adjustedClose: 100, close: 200 },
-      { tradingDate: '2026-10-16', provider: 'TEJHQ', exchange: 'NSE',
-        isin: 'INE002A01018', priceBasis: 'BACK_ADJUSTED', adjustedClose: null, close: 210 },
+      { tradingDate: '2026-10-15', provider: 'UPSTOX', exchange: 'NSE',
+        isin: 'INE002A01018', priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 200 },
+      { tradingDate: '2026-10-16', provider: 'UPSTOX', exchange: 'NSE',
+        isin: 'INE002A01018', priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: null },
     ] });
     render(<QualifiedMarketEvidencePanel />);
     fireEvent.click(screen.getByRole('button', { name: /View stored prices/ }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Price basis' }), {
-      target: { value: 'ADJUSTED' },
-    });
     fireEvent.submit(screen.getByRole('button', { name: 'Read stored history' }).closest('form'));
     expect(await screen.findByText('2 qualified observations')).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: /Adjusted EOD close/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /Provider-native EOD close/ })).not.toBeInTheDocument();
     expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0);
   });
 
@@ -160,8 +148,8 @@ describe('QualifiedMarketEvidencePanel', () => {
     getStoredEquityHistory.mockResolvedValue({ status: 'AVAILABLE', barCount: 2, bars: [
       { tradingDate: '2026-10-15', provider: 'UPSTOX', exchange: 'NSE',
         isin: 'INE002A01018', priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 123.4567 },
-      { tradingDate: '2026-10-16', provider: 'TEJHQ', exchange: 'NSE',
-        isin: 'INE002A01018', priceBasis: 'RAW_UNADJUSTED', close: 130 },
+      { tradingDate: '2026-10-16', provider: 'UPSTOX', exchange: 'NSE',
+        isin: 'INE002A01018', priceBasis: 'UPSTOX_PROVIDER_NATIVE', close: 130 },
     ] });
     render(<QualifiedMarketEvidencePanel />);
     fireEvent.click(screen.getByRole('button', { name: /View stored prices/ }));
@@ -174,7 +162,7 @@ describe('QualifiedMarketEvidencePanel', () => {
 
   it('ignores bar payloads when the history status is unavailable', async () => {
     getStoredEquityHistory.mockResolvedValue({ status: 'UNAVAILABLE', code: 'SOURCE_RIGHTS_DENIED',
-      barCount: 1, bars: [{ tradingDate: '2026-10-16', provider: 'TEJHQ', close: 9999 }] });
+      barCount: 1, bars: [{ tradingDate: '2026-10-16', provider: 'UPSTOX', close: 9999 }] });
     render(<QualifiedMarketEvidencePanel />);
     fireEvent.click(screen.getByRole('button', { name: /View stored prices/ }));
     fireEvent.submit(screen.getByRole('button', { name: 'Read stored history' }).closest('form'));

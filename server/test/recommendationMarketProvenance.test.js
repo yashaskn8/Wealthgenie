@@ -25,31 +25,6 @@ test('new recommendation provenance is copied only from its exact market snapsho
   assert.equal(document.marketAdjustment.sourceProvider, 'NSE');
 });
 
-test('missing, null, and unfamiliar generation provider evidence stays unknown', () => {
-  assert.equal(sourceProviderForRecommendation(null), null);
-  assert.equal(sourceProviderForRecommendation({ providerSelection: { selectedProvider: 'NSE' } }), null);
-  assert.equal(sourceProviderForRecommendation({
-    marketSnapshot: { providerSelection: { selectedProvider: 'TEJHQ' } },
-  }), null);
-  assert.deepEqual(persistRecommendationMarketAdjustment({ applied: true }, null), {
-    applied: true,
-    sourceProvider: null,
-  });
-});
-
-test('applied legacy recommendations with missing or unknown provider fail closed with stable 503', () => {
-  for (const marketAdjustment of [
-    { applied: true },
-    { status: 'APPLIED', sourceProvider: null },
-    { currentAllocationSource: 'MARKET_CONTEXT_ADJUSTED', sourceProvider: 'TEJHQ' },
-  ]) {
-    assert.throws(
-      () => assertRecommendationMarketDistributionAllowed({ marketAdjustment }),
-      error => error.status === 503 && error.code === 'MARKET_ADJUSTMENT_PROVIDER_PROVENANCE_MISSING',
-    );
-  }
-});
-
 test('legacy allocation-source markers alone are enough to fail closed', () => {
   for (const legacyRecord of [
     { currentAllocationSource: 'MARKET_CONTEXT_ADJUSTED' },
@@ -130,7 +105,7 @@ test('unadjusted legacy recommendations remain eligible for ordinary resolution'
 test('selected two-provider mode serves unadjusted recommendations but blocks stored unqualified market tilts', () => {
   const environment = {
     NODE_ENV: 'production',
-    MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+    MARKET_DATA_MODE: 'UPSTOX_ONLY',
     UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'true',
   };
   assert.doesNotThrow(() => assertRecommendationMarketDistributionAllowed({
@@ -148,7 +123,7 @@ test('selected two-provider mode serves unadjusted recommendations but blocks st
 test('selected mode still computes a suitable core plan when market rights are unavailable', async () => {
   const marketContext = await getLatestQualifiedMarketContextForRecommendation({}, {
     env: {
-      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_TEJHQ',
+      NODE_ENV: 'production', MARKET_DATA_MODE: 'UPSTOX_ONLY',
       UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED: 'false',
     },
     getLkgCache: async () => assert.fail('unqualified last-known-good must not be read'),

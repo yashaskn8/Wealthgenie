@@ -12,7 +12,7 @@ import { createCsrfProtection } from './middleware/csrf.js';
 import { createOperationalMiddleware } from './middleware/operations.js';
 import { createUpstoxPublicDataGate } from './middleware/upstoxPublicDataGate.js';
 import { hasUpstoxAccessToken } from './services/marketData/upstoxCredentials.js';
-import { isTwoProviderMarketDataMode } from './services/marketDataService.js';
+import { isUpstoxOnlyMarketDataMode } from './services/marketDataService.js';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter.js';
 import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
@@ -191,8 +191,8 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
     expectedDemoDatabaseHost: env.DEMO_EXPECTED_MONGODB_HOST,
     expectedDemoDatabasePort: env.DEMO_EXPECTED_MONGODB_PORT,
     expectedDemoEnvironmentId: env.DEMO_EXPECTED_MONGODB_ENVIRONMENT_ID,
-    marketProvider: isTwoProviderMarketDataMode(env) ? 'UPSTOX' : String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase(),
-    marketProviderTokenPresent: (!isTwoProviderMarketDataMode(env)
+    marketProvider: isUpstoxOnlyMarketDataMode(env) ? 'UPSTOX' : String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase(),
+    marketProviderTokenPresent: (!isUpstoxOnlyMarketDataMode(env)
       && String(env.MARKET_DATA_PRIMARY_PROVIDER || 'NSE').trim().toUpperCase() === 'NSE')
       || hasUpstoxAccessToken(env),
   });
