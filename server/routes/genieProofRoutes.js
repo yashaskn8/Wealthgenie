@@ -54,6 +54,18 @@ const genieProofLimiter = createEndpointRateLimiter({
 });
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// An authenticated capability report is the only source of truth for the UI.
+// Never expose key material or infer that local signing qualifies financial evidence.
+export function getGenieProofCapabilityStatus(runtime) {
+  const enabled = runtime?.enabled === true && runtime?.productionActivationAllowed === false;
+  return {
+    interactiveEnabled: enabled,
+    mode: enabled ? 'LOCAL_RESEARCH' : 'UNAVAILABLE',
+    reasonCode: enabled ? 'RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED' : 'FEATURE_UNAVAILABLE',
+    productionVerified: false,
+  };
+}
+
 function requireEnabled(req) {
   if (req.app.locals.genieProofRuntime?.enabled !== true) {
     throw createError(404, 'GenieProof is unavailable.', 'GenieProof is not available.', { code: 'FEATURE_UNAVAILABLE' });
@@ -78,6 +90,10 @@ function rejectQueryParameters(req, _res, next) {
   }
   return next();
 }
+
+router.get('/capabilities', verifyJWT, rejectQueryParameters, (req, res) => {
+  return res.json(getGenieProofCapabilityStatus(req.app.locals.genieProofRuntime));
+});
 
 router.post('/extract', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
   requireEnabled(req);

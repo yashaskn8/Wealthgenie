@@ -49,7 +49,7 @@ const MARKET_DISPLAY_COPY = Object.freeze({
     detail: 'Some verified market facts are available; the rest are unavailable.',
   },
   RIGHTS_UNAVAILABLE: {
-    label: 'Plan context permission unavailable',
+    label: 'Market data permission unavailable',
     detail: 'This market source is not approved to adjust financial plans. Any permitted private quote preview is separate from your recommendation.',
   },
   UNAVAILABLE: {

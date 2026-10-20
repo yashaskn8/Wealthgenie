@@ -579,6 +579,10 @@ export async function actOnPlanReview(runId, action, options = {}) {
   return request('POST', `/agent/plan-review/${encodeURIComponent(runId)}/action`, { action }, { retries: 0, ...options });
 }
 
+export async function getGenieProofCapabilities(options = {}) {
+  return request('GET', '/genieproof/capabilities', null, { retries: 0, ...options });
+}
+
 export async function extractGenieProofClaims(offerText, options = {}) {
   return request('POST', '/genieproof/extract', { offerText }, { retries: 0, ...options });
 }

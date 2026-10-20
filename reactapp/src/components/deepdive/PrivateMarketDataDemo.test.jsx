@@ -21,6 +21,12 @@ describe('PrivateMarketDataDemo', () => {
     expect(getPrivateMarketDemoData.mock.calls[0][0].signal).toBeInstanceOf(AbortSignal);
   });
 
+  it('does not make private Upstox requests before explicit user action', () => {
+    render(<PrivateMarketDataDemo />);
+    expect(screen.getByRole('button', { name: 'Load Upstox quotes' })).toBeInTheDocument();
+    expect(getPrivateMarketDemoData).not.toHaveBeenCalled();
+  });
+
   it('renders the actual backend quote contract with timestamps and provenance', async () => {
     getPrivateMarketDemoData.mockResolvedValue({
       status: 'AVAILABLE',

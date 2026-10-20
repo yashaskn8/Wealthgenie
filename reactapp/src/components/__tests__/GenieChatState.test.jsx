@@ -267,8 +267,12 @@ describe('GenieChat persisted conversation state', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Check saved history' }));
     expect(await screen.findByText('Saved conversation cleared.')).toBeInTheDocument();
     expect(screen.queryByText('Saved before ambiguous clear')).not.toBeInTheDocument();
-    expect(sessionStorage.getItem('genie_session_id')).not.toBe('fixture-session');
-    expect(history).toHaveBeenCalledTimes(3);
+    const newSessionId = sessionStorage.getItem('genie_session_id');
+    expect(newSessionId).not.toBe('fixture-session');
+    // React's new-session effect restores history asynchronously after the
+    // clear-status message renders. Assert that final session reconciliation.
+    await waitFor(() => expect(history).toHaveBeenCalledTimes(3));
+    expect(history).toHaveBeenLastCalledWith(newSessionId);
   });
 
   it('restores the persisted assistant reply when clear fails after an in-flight send', async () => {

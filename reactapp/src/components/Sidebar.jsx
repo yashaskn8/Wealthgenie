@@ -66,7 +66,7 @@ const getLegacyHandler = (legacyId, onNavigate, handleItemClick) => {
   }
 };
 
-const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = false }) => {
+const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -258,7 +258,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = false }
             </div>
           </div>
 
-          {/* The gated research prototype remains reachable only when its local UI gate is enabled. */}
+          {/* Keep the preview visible; backend permissions independently gate GenieProof operations. */}
           {genieProofEnabled && (
             <div className="sidebar-group">
               {!collapsed && (

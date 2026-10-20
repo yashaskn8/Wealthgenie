@@ -168,6 +168,25 @@ if (kustomization.resources?.some(resource => resource.includes('phase2-index-mi
   throw new Error('One-shot database migration Jobs must only be created by ordered deployment steps');
 }
 
+// Model selection is service-specific: Kind uses a deterministic mock, and
+// production API credentials are never forwarded to the frontend or ML model.
+const baseConfig = parse(read('k8s/configmap.yaml'));
+const productionApiPatch = parse(read('deploy/production/server-patch.yaml'));
+const productionApi = productionApiPatch.spec?.template?.spec?.containers?.find(item => item.name === 'server');
+const productionApiVars = new Map((productionApi?.env || []).map(entry => [entry.name, entry]));
+const mlDeployment = docs.find(item => item.value?.kind === 'Deployment'
+  && item.value?.metadata?.name === 'wealthgenie-ml-service')?.value;
+const workerDeployment = docs.find(item => item.value?.kind === 'Deployment'
+  && item.value?.metadata?.name === 'wealthgenie-agent-worker')?.value;
+const restrictedKeys = new Set(['GROQ_API_KEY', 'GEMINI_API_KEY', 'NVIDIA_API_KEY', 'UPSTOX_ANALYTICS_TOKEN', 'UPSTOX_ACCESS_TOKEN']);
+if (baseConfig.data?.LLM_DEFAULT_PROVIDER !== 'mock'
+    || productionApiVars.get('LLM_DEFAULT_PROVIDER')?.value !== 'api'
+    || productionApiVars.get('LLM_PRIMARY_PROVIDER')?.value !== 'GROQ'
+    || mlDeployment?.spec?.template?.spec?.containers?.[0]?.env?.some(entry => restrictedKeys.has(entry.name))
+    || workerDeployment?.spec?.template?.spec?.containers?.[0]?.env?.some(entry => restrictedKeys.has(entry.name))) {
+  throw new Error('Kind model must remain mocked; production API must explicitly select server-side LLM; keys must not flow to ML or worker');
+}
+
 const productionKustomization = parse(read('deploy/production/kustomization.yaml'));
 const requiredProductionImages = new Map([
   ['wealthgenie-server', 'sha256:WEALTHGENIE_SERVER_IMAGE_DIGEST_REQUIRED'],

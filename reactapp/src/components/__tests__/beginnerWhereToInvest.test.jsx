@@ -432,6 +432,9 @@ describe('Beginner-First Where-To-Invest UX', () => {
     />);
     const card = within(await screen.findByTestId('wti-product-etf:isin:INF204KB14I2'));
     expect(card.getByText('Issuer scheme label')).toBeVisible();
+    // Private market quotes must not be fetched by simply opening a product.
+    expect(api.getPrivateMarketDemoData).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
     const privateQuote = within(await card.findByTestId('wti-private-etf-quote'));
     expect(privateQuote.getByText('₹294.4')).toBeVisible();
     expect(privateQuote.getByText(/STALE/)).toBeVisible();

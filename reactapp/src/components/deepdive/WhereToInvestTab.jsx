@@ -834,7 +834,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           <p className="wti-beginner-meaning">
             <span className="wti-meaning-lead">What this means for you:</span> {adjustmentExplanation}
           </p>
-          {import.meta.env.DEV && <PrivateMarketDataDemo key={profileId || 'no-profile'} autoLoad onSnapshot={acceptPrivateQuoteSnapshot} />}
           <div className="wti-market-evidence-summary" data-testid="market-data-status">
             <div className="wti-market-status-copy">
               <span className="wti-market-data-status">{marketDisplay.label}</span>
@@ -1151,6 +1150,16 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           </div>
         </div>
       </section>
+
+      {/* Private Upstox observations are an explicit, user-initiated local research
+          preview. Keeping them outside the compact Market Today card preserves
+          its responsive layout, and no private-demo API call occurs on navigation. */}
+      {import.meta.env.DEV && (
+        <PrivateMarketDataDemo
+          key={profileId || 'no-profile'}
+          onSnapshot={acceptPrivateQuoteSnapshot}
+        />
+      )}
 
       {/* ─── Illustrative Investment & Tax Controls Bar ─── */}
       {rankingStatus === 'ready' && products.length > 0 && (

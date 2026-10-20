@@ -353,7 +353,7 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
     });
   });
 
-  describe('6. Sidebar exposes primary navigation and keeps GenieProof behind its gate', () => {
+  describe('6. Sidebar exposes primary navigation and the GenieProof preview', () => {
     it('exposes primary and utility destinations without retired Advanced navigation', () => {
       render(
         <Sidebar
@@ -372,7 +372,7 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
       expect(screen.getByTestId('nav-help')).toBeInTheDocument();
       expect(screen.queryByTestId('nav-advanced')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('nav-genieproof')).not.toBeInTheDocument();
+      expect(screen.getByTestId('nav-genieproof')).toBeInTheDocument();
       expect(screen.getByTestId('nav-sign-out')).toBeInTheDocument();
 
       // Legacy test-ids
@@ -388,9 +388,13 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-dashboard')).toBeInTheDocument();
     });
 
-    it('shows the existing GenieProof entry only when its feature gate is enabled', () => {
-      render(<Sidebar activePage={NAV_PAGES.HOME} onNavigate={vi.fn()} genieProofEnabled />);
-      expect(screen.getByTestId('nav-genieproof')).toBeInTheDocument();
+    it('navigates to visible GenieProof by default and preserves explicit opt-out', () => {
+      const onNavigate = vi.fn();
+      const { rerender } = render(<Sidebar activePage={NAV_PAGES.HOME} onNavigate={onNavigate} />);
+      fireEvent.click(screen.getByTestId('nav-genieproof'));
+      expect(onNavigate).toHaveBeenCalledWith(NAV_PAGES.GENIEPROOF);
+      rerender(<Sidebar activePage={NAV_PAGES.HOME} onNavigate={onNavigate} genieProofEnabled={false} />);
+      expect(screen.queryByTestId('nav-genieproof')).not.toBeInTheDocument();
     });
 
     it('keeps the user in the app and exposes retry when sign-out is not confirmed', async () => {

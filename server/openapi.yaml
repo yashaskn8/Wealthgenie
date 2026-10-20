@@ -181,6 +181,29 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PlanReviewRequest' } } } }
       responses: { '202': { $ref: '#/components/responses/PlanReviewRun' }, '200': { $ref: '#/components/responses/PlanReviewRun' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '429': { $ref: '#/components/responses/Error' }, '503': { $ref: '#/components/responses/Unavailable' } }
 
+  /api/genieproof/capabilities:
+    get:
+      operationId: getGenieProofCapabilities
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      description: Authenticated, non-cacheable readiness status. Only explicitly configured local research may be interactive. This does not qualify production financial evidence, authorize a signed finding, or reveal signing keys.
+      responses:
+        '200':
+          description: Sanitized capability status
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [interactiveEnabled, mode, reasonCode, productionVerified]
+                additionalProperties: false
+                properties:
+                  interactiveEnabled: { type: boolean }
+                  mode: { type: string, enum: [LOCAL_RESEARCH, UNAVAILABLE] }
+                  reasonCode: { type: string, enum: [RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED, FEATURE_UNAVAILABLE] }
+                  productionVerified: { type: boolean, const: false }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/genieproof/extract:
     post:
       operationId: extractGenieProofClaims

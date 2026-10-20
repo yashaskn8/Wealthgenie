@@ -24,7 +24,7 @@ import { fromSearchParams, toSearchParams, resolveNavigation, NAV_PAGES } from '
 const WhereToInvestScreen = lazy(() => import('./components/WhereToInvestScreen'));
 const TaxesHub = lazy(() => import('./components/TaxesHub'));
 const ProgressHub = lazy(() => import('./components/ProgressHub'));
-const GenieProofPanel = lazy(() => import('./components/GenieProofPanel'));
+const GenieProofEntry = lazy(() => import('./components/GenieProofEntry'));
 const AllocationPlanner = lazy(() => import('./components/AllocationPlanner'));
 const ProfileEditor = lazy(() => import('./ProfileEditor'));
 const HelpTourScreen = lazy(() => import('./HelpTourScreen'));
@@ -33,8 +33,8 @@ const ComparisonTableModal = lazy(() => import('./ComparisonTableModal'));
 const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const AuthPage = lazy(() => import('./components/AuthPage'));
 const LandingPage = lazy(() => import('./LandingPage'));
-const GENIEPROOF_LOCAL_UI_ENABLED = !import.meta.env.PROD && import.meta.env.VITE_GENIEPROOF_ENABLED === 'true';
-const NAVIGATION_OPTIONS = { allowGenieProof: GENIEPROOF_LOCAL_UI_ENABLED };
+// Navigation is discoverable; authenticated backend readiness gates operations.
+const NAVIGATION_OPTIONS = { allowGenieProof: true };
 
 // ── Bounded retry helper for deferred advisory generation ──
 // A crashed server claim becomes reclaimable after two minutes. Continue the
@@ -854,11 +854,11 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
           </ErrorBoundary>
         );
       case NAV_PAGES.GENIEPROOF:
-        return GENIEPROOF_LOCAL_UI_ENABLED ? (
+        return (
           <ErrorBoundary>
-            <GenieProofPanel />
+            <GenieProofEntry />
           </ErrorBoundary>
-        ) : null;
+        );
       case NAV_PAGES.ACCOUNT:
         return (
           <ErrorBoundary>
@@ -914,7 +914,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
         activePage={activePage}
         onNavigate={navigateTo}
         onLogout={handleLogout}
-        genieProofEnabled={GENIEPROOF_LOCAL_UI_ENABLED}
+        genieProofEnabled
       />
       <main className="app-main">
         <Suspense fallback={lazyFallback}>
