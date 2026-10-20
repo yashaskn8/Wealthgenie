@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildInstrumentSeedOperations, mapCatalogInstrument } from '../config/instrumentSeedPlan.js';
+import { investmentDatabase } from '../data/investmentDatabase.js';
 
 test('catalog seed is idempotent non-destructive upserts, never collection-wide delete', () => {
   const { operations, typeCounts } = buildInstrumentSeedOperations([
@@ -81,4 +82,21 @@ test('master catalog structured tax disclosure matches the legacy string schema'
   const op = buildInstrumentSeedOperations([item]).operations[0];
   assert.equal(op.updateOne.update.$setOnInsert.taxation, 'Tax treatment requires current server calculation');
   assert.equal(typeof op.updateOne.update.$setOnInsert.taxation, 'string');
+});
+
+test('all authoritative catalog product types survive persistence without reclassification', () => {
+  assert.ok(investmentDatabase.length >= 100);
+  const { operations } = buildInstrumentSeedOperations(investmentDatabase);
+  assert.equal(operations.length, investmentDatabase.length);
+  for (let i = 0; i < investmentDatabase.length; i += 1) {
+    const source = investmentDatabase[i];
+    const saved = operations[i].updateOne.update.$set;
+    assert.equal(saved.type, source.type, `incorrect instrument classification for ${source.id}`);
+  }
+  const byId = new Map(operations.map(op => [op.updateOne.filter.id, op.updateOne.update.$set.type]));
+  assert.equal(byId.get('ppf'), 'PPF');
+  assert.equal(byId.get('scss'), 'SCSS');
+  assert.equal(byId.get('sbi_fd'), 'FD');
+  assert.equal(byId.get('nifty_etf'), 'ETF');
+  assert.equal(byId.get('rbi_bonds'), 'RBI_Bond');
 });

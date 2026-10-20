@@ -4,9 +4,14 @@ import { LEGACY_TYPE_MAP } from './instrumentMapping.js';
 // Live NAV, trailing returns, pricing observations, and creation timestamps
 // belong to separate workflows and must survive catalog synchronization.
 export function mapCatalogInstrument(inv) {
-  const legacyType = inv.taxType === 'elss'
-    ? 'ELSS'
-    : (LEGACY_TYPE_MAP[inv.category] || LEGACY_TYPE_MAP[inv.cat] || 'Mutual_Fund');
+  // investmentDatabase already derives the authoritative compatibility type,
+  // including exact PPF/SCSS/G-Sec IDs and bank/ETF/bond category mappings.
+  // Recomputing it from the obsolete secondary map silently mislabels products.
+  const legacyType = typeof inv.type === 'string' && inv.type.trim()
+    ? inv.type
+    : (inv.taxType === 'elss'
+      ? 'ELSS'
+      : (LEGACY_TYPE_MAP[inv.category] || LEGACY_TYPE_MAP[inv.cat] || 'Mutual_Fund'));
 
   return {
     id: inv.id,
