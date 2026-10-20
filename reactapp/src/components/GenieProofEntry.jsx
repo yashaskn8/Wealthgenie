@@ -8,7 +8,6 @@ export default function GenieProofEntry() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setAvailability({ state: 'loading' });
     api.getGenieProofCapabilities({ signal: controller.signal }).then(result => {
       if (controller.signal.aborted) return;
       const enabled = result?.interactiveEnabled === true
@@ -34,7 +33,10 @@ export default function GenieProofEntry() {
       ) : availability.state === 'error' ? (
         <>
           <p role="alert">GenieProof availability could not be checked. No claim has been verified.</p>
-          <button type="button" onClick={() => setRevision(value => value + 1)}>
+          <button type="button" onClick={() => {
+            setAvailability({ state: 'loading' });
+            setRevision(value => value + 1);
+          }}>
             Retry availability check
           </button>
         </>
