@@ -60,6 +60,7 @@ export function getGenieProofCapabilityStatus(runtime) {
   const enabled = runtime?.enabled === true && runtime?.productionActivationAllowed === false;
   return {
     interactiveEnabled: enabled,
+    extractionPreviewEnabled: true,
     mode: enabled ? 'LOCAL_RESEARCH' : 'UNAVAILABLE',
     reasonCode: enabled ? 'RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED' : 'FEATURE_UNAVAILABLE',
     productionVerified: false,
@@ -93,6 +94,27 @@ function rejectQueryParameters(req, _res, next) {
 
 router.get('/capabilities', verifyJWT, rejectQueryParameters, (req, res) => {
   return res.json(getGenieProofCapabilityStatus(req.app.locals.genieProofRuntime));
+});
+
+// This route only parses user-submitted text. It NEVER uses external financial
+// evidence, persists offers, checks a claim, or signs a passport. It can run
+// in production even while the evidence-bound workflow remains restricted.
+export function buildGenieProofClaimPreview(offerText) {
+  const extraction = extractGenieProofClaims(offerText);
+  if (!extraction.ok) return extraction;
+  return {
+    ...extraction,
+    previewOnly: true,
+    status: 'CANDIDATES_ONLY',
+    sourceEvidenceChecked: false,
+    signedPassportCreated: false,
+  };
+}
+
+router.post('/extract-preview', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
+  const result = buildGenieProofClaimPreview(req.body.offerText);
+  if (!result.ok) throw createError(400, result.code, 'The offer text could not be processed.', { code: result.code });
+  return res.json(result);
 });
 
 router.post('/extract', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {

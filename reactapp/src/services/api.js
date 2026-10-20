@@ -583,6 +583,13 @@ export async function getGenieProofCapabilities(options = {}) {
   return request('GET', '/genieproof/capabilities', null, { retries: 0, ...options });
 }
 
+export async function previewGenieProofClaims(offerText, options = {}) {
+  if (typeof offerText !== 'string' || !offerText.trim()) {
+    throw new TypeError('Offer text is required for an unsaved claim preview.');
+  }
+  return request('POST', '/genieproof/extract-preview', { offerText }, { retries: 0, ...options });
+}
+
 export async function extractGenieProofClaims(offerText, options = {}) {
   return request('POST', '/genieproof/extract', { offerText }, { retries: 0, ...options });
 }

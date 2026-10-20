@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as api from '../services/api';
 import GenieProofPanel from './GenieProofPanel';
+import GenieProofClaimPreview from './GenieProofClaimPreview';
 
 export default function GenieProofEntry() {
   const [revision, setRevision] = useState(0);
@@ -13,7 +14,10 @@ export default function GenieProofEntry() {
       const enabled = result?.interactiveEnabled === true
         && result?.mode === 'LOCAL_RESEARCH'
         && result?.productionVerified === false;
-      setAvailability({ state: enabled ? 'enabled' : 'unavailable' });
+      setAvailability({
+        state: enabled ? 'enabled' : 'unavailable',
+        previewEnabled: result?.extractionPreviewEnabled === true,
+      });
     }).catch(() => {
       if (!controller.signal.aborted) setAvailability({ state: 'error' });
     });
@@ -42,12 +46,12 @@ export default function GenieProofEntry() {
         </>
       ) : (
         <>
-          <p role="status">GenieProof is available as a research preview, but interactive operations are disabled on this server.</p>
+          <p role="status">Signed GenieProof passports and evidence-based verdicts are unavailable on this server.</p>
           <p>
-            The signed-passport workflow requires a deliberately enabled local research backend
-            and trusted signing keys. Production financial claims remain unverified until their
-            evidence sources and reuse permissions are independently qualified.
+            The full workflow requires a deliberately configured research backend, trusted signing keys,
+            and approved evidence sources. No claim is verified or signed in this preview.
           </p>
+          {availability.previewEnabled && <GenieProofClaimPreview />}
         </>
       )}
     </section>

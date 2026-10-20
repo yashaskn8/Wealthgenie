@@ -254,3 +254,27 @@ test('API readiness fails closed when PlanReview is enabled but Phase 5 queue pe
     assert.ok(response.body.reasons.includes('Required agent queue-admission persistence is not ready'));
   });
 });
+
+test('GenieProof unsaved extraction preview requires authentication; gated signing remains inaccessible', async () => {
+  const app = createApp({ env: {
+    ...process.env,
+    NODE_ENV: 'production',
+    GENIEPROOF_ENABLED: 'false',
+    CORS_ORIGINS: 'https://wealth.example',
+  } });
+  await withServer(app, async baseUrl => {
+    const cap = await jsonRequest(`${baseUrl}/api/genieproof/capabilities`);
+    assert.equal(cap.response.status, 401);
+    assert.equal(cap.body.code, 'AUTH_REQUIRED');
+    const extraction = await jsonRequest(`${baseUrl}/api/genieproof/extract-preview`, {
+      method: 'POST', body: JSON.stringify({ offerText: 'PPF guarantees 7.1% p.a.' }),
+    });
+    assert.equal(extraction.response.status, 401);
+    assert.equal(extraction.body.code, 'AUTH_REQUIRED');
+    const protectedSigning = await jsonRequest(`${baseUrl}/api/genieproof/cases`, {
+      method: 'POST', body: JSON.stringify({}),
+    });
+    assert.equal(protectedSigning.response.status, 401);
+    assert.equal(protectedSigning.body.code, 'AUTH_REQUIRED');
+  });
+});
