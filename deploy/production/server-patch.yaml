@@ -8,6 +8,13 @@ spec:
       containers:
         - name: server
           env:
+            # The shared Kind/ML default is mock. The production API uses its
+            # configured server-side provider and still fails closed without
+            # valid provider credentials; this never changes ML inference.
+            - name: LLM_DEFAULT_PROVIDER
+              value: "api"
+            - name: LLM_PRIMARY_PROVIDER
+              value: "GROQ"
             - name: MONGODB_TLS_CA_FILE
               value: /etc/wealthgenie/documentdb/ca.pem
           volumeMounts:
