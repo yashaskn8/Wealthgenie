@@ -96,3 +96,32 @@ test('educational evidence cannot license a fabricated numeric return or stock p
   };
   assert.equal(validateGroundedExplanation(fabricated, packet).valid, false);
 });
+
+test('suggested tax-regime question explains missing inputs, not disclosure metadata', async () => {
+  const question = 'Which tax regime is best for a beginner?';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(response.validation.status, 'PASS');
+  assert.match(response.text, /explicit fiscal year, annual income, regime, and income source/i);
+  assert.ok(response.text.includes('[E_TAX_INPUT_BOUNDARY]'));
+  assert.doesNotMatch(response.text, /authoritative backend reports disclosure evidence/i);
+  assert.ok(!response.evidenceIdsUsed.some(id => id.startsWith('E_EDU_')));
+});
+
+test('unsupported question abstains with explicit system provenance instead of inventing a source', async () => {
+  const question = 'Which technology will outperform tomorrow?';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const limitation = packet.entries.find(item => item.id === 'E_CHAT_ANSWER_UNAVAILABLE');
+  assert.equal(limitation?.dataClass, 'SYSTEM_AVAILABILITY_STATUS');
+  assert.equal(limitation?.source, null);
+  assert.ok(packet.unavailableFacts.includes('CHAT_ANSWER_EVIDENCE_UNAVAILABLE'));
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /do not have enough qualified evidence to answer/i);
+  assert.ok(answer.evidenceIdsUsed.includes('E_CHAT_ANSWER_UNAVAILABLE'));
+  assert.ok(!answer.evidenceIdsUsed.some(id => id.startsWith('E_EDU_')));
+});
