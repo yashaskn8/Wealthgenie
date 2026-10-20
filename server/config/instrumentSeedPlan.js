@@ -24,10 +24,13 @@ export function mapCatalogInstrument(inv) {
     assetClass: inv.assetClass,
     provider: inv.provider,
     // Expected returns are projection assumptions, not observed product rates.
-    expectedReturn: inv.expectedReturn ?? null,
-    rate: inv.rate ?? null,
+    // Absent fields remain absent; explicit null means unavailable.
+    // Never fabricate a qualified rate from projected expected returns.
+    expectedReturn: inv.expectedReturn,
+    rate: inv.rate,
     returnRange: inv.returnRange,
-    interestRate: inv.interestRate ?? inv.rate ?? null,
+    interestRate: inv.interestRate ?? inv.rate
+      ?? (inv.interestRate === null || inv.rate === null ? null : undefined),
     risk: inv.dynamicData?.risk?.value ?? inv.riskLevel ?? 3,
     riskLabel: inv.riskLabel,
     volatility: inv.volatility,
