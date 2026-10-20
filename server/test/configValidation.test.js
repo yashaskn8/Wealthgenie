@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { parse } from 'yaml';
 import assert from 'node:assert/strict';
 import { validateEnvironmentConfig } from '../config/validateEnv.js';
 import { assertValidRuntimeConfig, getRuntimeConfig } from '../config/runtime.js';
@@ -342,4 +344,24 @@ test('production Plan Review is explicit, uses a separate worker, and enables au
   const base = getRuntimeConfig({ NODE_ENV: 'production' });
   assert.equal(base.agenticPlanReviewEnabled, false);
   assert.equal(base.agentStreamEnabled, false);
+});
+
+test('production feature activation still requires Redis and budget-restricted provider failover', () => {
+  const root = new URL('../../', import.meta.url);
+  const overlay = parse(readFileSync(new URL('deploy/production/config-patch.yaml', root), 'utf8'));
+  assert.equal(overlay.data.REQUIRE_REDIS, 'true');
+  assert.equal(overlay.data.LLM_GEMINI_FALLBACK_ENABLED, 'true');
+  assert.equal(overlay.data.AGENTIC_PLAN_REVIEW_ENABLED, 'true');
+  assert.equal(overlay.data.AGENT_STREAM_ENABLED, 'true');
+
+  const runtime = getRuntimeConfig({
+    NODE_ENV: 'production',
+    AGENTIC_PLAN_REVIEW_ENABLED: overlay.data.AGENTIC_PLAN_REVIEW_ENABLED,
+    AGENT_STREAM_ENABLED: overlay.data.AGENT_STREAM_ENABLED,
+    REQUIRE_REDIS: overlay.data.REQUIRE_REDIS,
+    AGENT_WORKER_MODE: 'external',
+  });
+  assert.equal(runtime.requireRedis, true);
+  assert.equal(runtime.agenticPlanReviewEnabled, true);
+  assert.equal(runtime.agentStreamEnabled, true);
 });

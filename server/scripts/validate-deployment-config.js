@@ -199,6 +199,8 @@ if (baseConfig.data?.AGENTIC_PLAN_REVIEW_ENABLED !== 'false'
     || baseConfig.data?.AGENT_WORKER_ENABLED !== 'false'
     || productionData.AGENTIC_PLAN_REVIEW_ENABLED !== 'true'
     || productionData.AGENT_STREAM_ENABLED !== 'true'
+    || productionData.REQUIRE_REDIS !== 'true'
+    || productionData.LLM_GEMINI_FALLBACK_ENABLED !== 'true'
     || workerEnv.get('AGENT_WORKER_MODE') !== 'external'
     || workerEnv.get('AGENT_WORKER_ENABLED') !== 'true'
     || !workerContainer?.readinessProbe?.httpGet?.path

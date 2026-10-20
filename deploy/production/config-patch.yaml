@@ -8,6 +8,14 @@ data:
   MONGODB_FLAVOR: "documentdb"
   AUTH_COOKIE_SECURE: "true"
   AUTH_COOKIE_SAME_SITE: "strict"
+  # A live production Plan Review needs Redis for durable capacity, replay
+  # protection, session revocation and the dedicated worker's admission path.
+  REQUIRE_REDIS: "true"
+  # Gemini may rescue an approved, budgeted Groq transport/server outage only;
+  # model gateway never falls back without a durable per-run reservation and
+  # never routes around auth, rate-limit, policy or safety failures. Missing
+  # Gemini credentials remain unavailable, not a synthetic successful response.
+  LLM_GEMINI_FALLBACK_ENABLED: "true"
   # Read-only Plan Review runs through the dedicated external worker.
   # API and worker startup verify required indexes; the release must perform
   # Phase 4/5 migrations and pass worker readiness before receiving traffic.
