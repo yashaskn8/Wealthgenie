@@ -19,8 +19,10 @@ const CORPUS = Object.freeze({
 /** Exact source-coverage routing, not general tax-product question matching. */
 export function isCoveredRegulatoryChatQuestion(question) {
   const query = String(question || '').slice(0, 1000);
-  const topic = /\b(?:income[ -]?tax\s+(?:rules|act)|tax\s+year|2026\s+(?:income[ -]?tax\s+rules|tax\s+rules)|tax\s+(?:law|rules)\s+(?:commencement|transition))\b/i.test(query);
-  const period = /\b(?:2025|2026|2027|commence(?:ment)?|came\s+into\s+(?:force|effect)|effective|transition|old\s+act|new\s+act)\b/i.test(query);
+  // The single approved document supports multiple topics, but this bridge
+  // synthesizes only the commencement answer verified in the same excerpt.
+  const topic = /\b(?:income[ -]?tax\s+rules[,]?\s*2026|2026\s+income[ -]?tax\s+rules)\b/i.test(query);
+  const period = /\b(?:when|what\s+date|commence(?:ment|d)?|came\s+into\s+(?:force|effect)|take\s+effect|took\s+effect|effective|start(?:ed|ing)?)\b/i.test(query);
   const excluded = /\b(?:tax\s+slabs?|tax\s+rates?|deductions?|rebates?|capital\s+gains?|ltcg|stcg|80c|80d|product\s+tax|tax\s+regime|post[ -]?tax\s+returns?|exemptions?|how\s+much\s+tax)\b/i.test(query);
   return topic && period && !excluded;
 }
