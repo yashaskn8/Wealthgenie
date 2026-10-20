@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import mongoose from 'mongoose';
 import { pathToFileURL } from 'node:url';
 import { getMongoConnectionOptions } from '../config/mongoCompatibility.js';
