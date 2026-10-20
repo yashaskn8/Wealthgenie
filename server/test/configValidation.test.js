@@ -314,3 +314,32 @@ test('MCP production remote enablement requires one exact audience and scope plu
   assert.equal(malformedDirectTls.valid, false);
   assert.ok(malformedDirectTls.errors.some(error => error.includes('MCP_DIRECT_TLS must be true or false')));
 });
+
+test('production Plan Review is explicit, uses a separate worker, and enables authenticated event streaming', () => {
+  const api = getRuntimeConfig({
+    NODE_ENV: 'production',
+    AGENTIC_PLAN_REVIEW_ENABLED: 'true',
+    AGENT_STREAM_ENABLED: 'true',
+    AGENT_WORKER_MODE: 'external',
+    AGENT_WORKER_ENABLED: 'false',
+  });
+  assert.equal(api.agenticPlanReviewEnabled, true);
+  assert.equal(api.agentStreamEnabled, true);
+  assert.equal(api.agentWorkerEnabled, false);
+  assert.equal(api.agentWorkerMode, 'external');
+  assert.doesNotThrow(() => assertValidRuntimeConfig(api));
+  const worker = getRuntimeConfig({
+    NODE_ENV: 'production',
+    AGENTIC_PLAN_REVIEW_ENABLED: 'true',
+    AGENT_STREAM_ENABLED: 'true',
+    AGENT_WORKER_MODE: 'external',
+    AGENT_WORKER_ENABLED: 'true',
+  });
+  assert.equal(worker.agenticPlanReviewEnabled, true);
+  assert.equal(worker.agentWorkerEnabled, true);
+  assert.doesNotThrow(() => assertValidRuntimeConfig(worker));
+
+  const base = getRuntimeConfig({ NODE_ENV: 'production' });
+  assert.equal(base.agenticPlanReviewEnabled, false);
+  assert.equal(base.agentStreamEnabled, false);
+});

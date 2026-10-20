@@ -187,6 +187,34 @@ if (baseConfig.data?.LLM_DEFAULT_PROVIDER !== 'mock'
   throw new Error('Kind model must remain mocked; production API must explicitly select server-side LLM; keys must not flow to ML or worker');
 }
 
+// A production-enabled read-only Plan Review must never imply an embedded
+// production worker or skip the ordered persistence migrations. Keep Kind's
+// fixture environment disabled, and require the production overlay to
+// explicitly opt in for both the API and the external worker.
+const productionConfig = parse(read('deploy/production/config-patch.yaml'));
+const productionData = productionConfig.data || {};
+const workerContainer = workerDeployment?.spec?.template?.spec?.containers?.find(item => item.name === 'agent-worker');
+const workerEnv = new Map((workerContainer?.env || []).map(item => [item.name, item.value]));
+if (baseConfig.data?.AGENTIC_PLAN_REVIEW_ENABLED !== 'false'
+    || baseConfig.data?.AGENT_WORKER_ENABLED !== 'false'
+    || productionData.AGENTIC_PLAN_REVIEW_ENABLED !== 'true'
+    || productionData.AGENT_STREAM_ENABLED !== 'true'
+    || workerEnv.get('AGENT_WORKER_MODE') !== 'external'
+    || workerEnv.get('AGENT_WORKER_ENABLED') !== 'true'
+    || !workerContainer?.readinessProbe?.httpGet?.path
+    || !workerContainer?.startupProbe?.httpGet?.path
+    || !productionKustomizationContainsMigrations()) {
+  throw new Error('Plan Review production activation requires an external ready worker, explicit stream feature and ordered Phase 4/5 migrations');
+}
+
+function productionKustomizationContainsMigrations() {
+  // Migrations are intentionally excluded from the persistent workload and
+  // verified as explicit ordered CD jobs below, not deployed as crash-looping Jobs.
+  const workflow = parse(read('.github/workflows/cd.yml'));
+  const source = JSON.stringify(workflow);
+  return source.includes('phase4-plan-review') && source.includes('phase5-agent-runtime');
+}
+
 const productionKustomization = parse(read('deploy/production/kustomization.yaml'));
 const requiredProductionImages = new Map([
   ['wealthgenie-server', 'sha256:WEALTHGENIE_SERVER_IMAGE_DIGEST_REQUIRED'],

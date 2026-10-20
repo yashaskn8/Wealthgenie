@@ -8,7 +8,11 @@ data:
   MONGODB_FLAVOR: "documentdb"
   AUTH_COOKIE_SECURE: "true"
   AUTH_COOKIE_SAME_SITE: "strict"
-  AGENTIC_PLAN_REVIEW_ENABLED: "false"
+  # Read-only Plan Review runs through the dedicated external worker.
+  # API and worker startup verify required indexes; the release must perform
+  # Phase 4/5 migrations and pass worker readiness before receiving traffic.
+  AGENTIC_PLAN_REVIEW_ENABLED: "true"
+  AGENT_STREAM_ENABLED: "true"
   # Keep the existing market path explicit. Change only after endpoint rights
   # and the selected-mode production configuration have been approved.
   MARKET_DATA_MODE: "LEGACY"
