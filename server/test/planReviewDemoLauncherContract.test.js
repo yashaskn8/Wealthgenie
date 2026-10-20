@@ -68,3 +68,11 @@ test('launcher persists ownership before browser smoke so a failed smoke can be 
   assert.ok(successWrite > browserSmoke);
   assert.match(script, /browserVerified = \$false/);
 });
+
+test('local demo explicitly pins MongoDB account database and keeps legacy storage recoverable', () => {
+  assert.match(script, /MONGODB_EXPECTED_DATABASE = \$expectedDatabase/);
+  assert.match(script, /\[switch\]\$UseDurableMongoStorage/);
+  assert.match(script, /Join-Path \$env:LOCALAPPDATA 'WealthGenie\/demo-mongo'/);
+  assert.match(script, /No account or data was moved/);
+  assert.match(script, /Invoke-MongoIdentityCheck/);
+});

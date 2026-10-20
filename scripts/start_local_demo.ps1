@@ -463,6 +463,7 @@ $commonEnv = @{
   DOTENV_CONFIG_PATH = $emptyEnvPath
   NODE_ENV = 'development'
   MONGODB_URI = 'mongodb://127.0.0.1:27030/wealthgenie-demo?replicaSet=rs0'
+  MONGODB_EXPECTED_DATABASE = $expectedDatabase
   MONGODB_FLAVOR = 'mongodb'
   MONGODB_AUTO_INDEX = 'false'
   MONGODB_SERVER_SELECTION_TIMEOUT_MS = '5000'
