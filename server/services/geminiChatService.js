@@ -270,6 +270,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       question: securityContext.sanitizedMessage,
       profile: llmProfile,
       recommendation,
+      userId,
     });
     if (leaseFailure) throw leaseFailure;
     const priorTurns = buildTrustedPriorTurns(claim.conversation, binding);
