@@ -4,7 +4,7 @@ import { getStoredBenchmarkMarketFacts, getStoredEquityHistory } from '../../ser
 const panelStyle = { border: '1px solid var(--ddm-border, #64748b55)',
   borderRadius: 12, padding: 16, marginBlock: 12 };
 const price = value => typeof value === 'number' && Number.isFinite(value)
-  ? value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : 'Unavailable';
+  ? value.toLocaleString('en-IN', { maximumFractionDigits: 20 }) : 'Unavailable';
 function when(value) {
   if (typeof value !== 'string' && !(value instanceof Date)) return 'Unavailable';
   const date = new Date(value);
@@ -16,6 +16,43 @@ function todayMinus(days) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() - days);
   return date.toISOString().slice(0, 10);
+}
+function StoredCloseChart({ bars, basis }) {
+  const first = bars[0];
+  const permittedBases = basis === 'ADJUSTED' ? ['BACK_ADJUSTED']
+    : ['RAW_UNADJUSTED', 'UPSTOX_PROVIDER_NATIVE'];
+  if (!first?.provider || !first?.exchange || !first?.isin
+      || !permittedBases.includes(first.priceBasis)
+      || bars.some(bar => bar.provider !== first.provider || bar.exchange !== first.exchange
+        || bar.isin !== first.isin || bar.priceBasis !== first.priceBasis)) return null;
+  const valueKey = basis === 'ADJUSTED' ? 'adjustedClose' : 'close';
+  const series = bars.map(bar => ({
+    date: Date.parse(`${bar.tradingDate}T00:00:00.000Z`),
+    value: bar[valueKey],
+  })).sort((left, right) => left.date - right.date);
+  if (series.length < 2 || series.some(point => !Number.isFinite(point.date)
+      || typeof point.value !== 'number' || !Number.isFinite(point.value) || point.value <= 0)
+      || series[0].date === series[series.length - 1].date) return null;
+  const low = Math.min(...series.map(point => point.value));
+  const high = Math.max(...series.map(point => point.value));
+  const range = high - low;
+  const dateRange = series[series.length - 1].date - series[0].date;
+  const points = series.map(point => {
+    const x = 16 + (point.date - series[0].date) / dateRange * 568;
+    const y = range === 0 ? 75 : 134 - (point.value - low) / range * 118;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(' ');
+  const label = basis === 'ADJUSTED' ? 'Adjusted EOD close' : 'Raw EOD close';
+  return <figure style={{ margin: '16px 0', maxWidth: 720 }}>
+    <svg viewBox="0 0 600 150" width="100%" role="img"
+      aria-label={`${label} from stored qualified observations`}>
+      <title>{label} from stored qualified observations</title>
+      <desc>{`${series.length} retained daily observations, from ${new Date(series[0].date).toISOString().slice(0, 10)} to ${new Date(series[series.length - 1].date).toISOString().slice(0, 10)}. Exact values appear in the table below.`}</desc>
+      <polyline data-testid="stored-close-series" points={points} fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+    <figcaption style={{ fontSize: '0.82rem' }}>{label} · {series.length} stored daily observations. Historical prices are not a forecast.</figcaption>
+  </figure>;
 }
 export default function QualifiedMarketEvidencePanel() {
   const [expanded, setExpanded] = useState(false);
@@ -78,10 +115,11 @@ export default function QualifiedMarketEvidencePanel() {
       }
     }
   }
-  const facts = Array.isArray(quotes?.facts) ? quotes.facts.filter(fact => (
+  const quoteReady = ['AVAILABLE', 'PARTIAL'].includes(quotes?.status);
+  const facts = quoteReady && Array.isArray(quotes?.facts) ? quotes.facts.filter(fact => (
     ['market:index:nifty-50', 'market:index:india-vix'].includes(fact.canonicalProductId)
   )) : [];
-  const bars = Array.isArray(history?.bars) ? history.bars : [];
+  const bars = history?.status === 'AVAILABLE' && Array.isArray(history?.bars) ? history.bars : [];
   const change = (field, value) => {
     clearHistory();
     setQuery(current => ({ ...current, [field]: value }));
@@ -158,6 +196,7 @@ export default function QualifiedMarketEvidencePanel() {
             <p>{history.status === 'AVAILABLE'
               ? String(history.barCount) + ' qualified observations'
               : 'No qualified retained history: ' + (history.code || 'UNAVAILABLE')}</p>
+            {bars.length > 0 && <StoredCloseChart bars={bars} basis={query.basis} />}
             {bars.length > 0 && <div style={{ overflowX: 'auto', maxHeight: 230, overflowY: 'auto' }}>
               <table style={{ minWidth: 590, width: '100%', textAlign: 'left' }}>
                 <thead><tr><th>Trading date</th><th>Provider</th><th>Basis</th><th>Open</th>

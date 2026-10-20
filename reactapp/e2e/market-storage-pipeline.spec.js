@@ -111,3 +111,31 @@ test('fixture provider → Mongo → authenticated API → React preserves one e
     await teardownTestDatabase();
   }
 });
+
+test('stored EOD chart uses returned closes and stays contained at tablet and mobile widths @market-storage', async ({ page }) => {
+  await page.route('**/api/market-data/quotes/persisted', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'UNAVAILABLE', facts: [] }),
+  }));
+  await page.route('**/api/market-data/equity-history/persisted?*', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({
+      status: 'AVAILABLE', barCount: 2, bars: [
+        { tradingDate: '2026-10-15', provider: 'TEJHQ', exchange: 'NSE', isin: 'INE002A01018',
+          priceBasis: 'RAW_UNADJUSTED', close: 200 },
+        { tradingDate: '2026-10-16', provider: 'TEJHQ', exchange: 'NSE', isin: 'INE002A01018',
+          priceBasis: 'RAW_UNADJUSTED', close: 100 },
+      ],
+    }),
+  }));
+  await page.goto('/e2e/market-storage-harness.html');
+  await page.getByRole('button', { name: 'View stored prices and history' }).click();
+  await page.getByRole('button', { name: 'Read stored history' }).click();
+  const chart = page.getByRole('img', { name: 'Raw EOD close from stored qualified observations' });
+  await expect(chart).toBeVisible();
+  await expect(chart.locator('polyline')).toHaveAttribute('points', '16.00,16.00 584.00,134.00');
+  for (const width of [721, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(chart).toBeVisible();
+    const contained = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+    expect(contained).toBe(true);
+  }
+});
