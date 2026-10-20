@@ -17,7 +17,9 @@ export async function streamPlanReviewEvents({
   pollEveryMs = 1000, maxDurationMs = 30000,
 }) {
   if (!Number.isSafeInteger(initialSequence) || initialSequence < 0
-      || typeof loadEvents !== 'function' || typeof loadRun !== 'function') {
+      || typeof loadEvents !== 'function' || typeof loadRun !== 'function'
+      || !Number.isSafeInteger(pollEveryMs) || pollEveryMs < 100
+      || !Number.isSafeInteger(maxDurationMs) || maxDurationMs < 1) {
     throw new TypeError('Invalid Plan Review stream setup.');
   }
   let sequence = initialSequence;
@@ -74,11 +76,12 @@ export async function streamPlanReviewEvents({
     }
   };
 
+  // Begin stream lifetime before the first (possibly stalled) DB query.
+  deadline = setTimeout(end, maxDurationMs);
+  deadline.unref?.();
   await send();
   if (closed) return;
   try { response.write(': connected\n\n'); } catch { end(); return; }
   interval = setInterval(() => { void send(); }, pollEveryMs);
   interval.unref?.();
-  deadline = setTimeout(end, maxDurationMs);
-  deadline.unref?.();
 }

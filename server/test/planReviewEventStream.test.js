@@ -78,3 +78,32 @@ test('nonterminal runs remain connected until the stream deadline', async () => 
   assert.equal(response.ended, true);
   assert.equal(reads, 1);
 });
+
+test('a stalled first query cannot leave an SSE response open past the deadline', async () => {
+  const response = new FakeResponse();
+  let release;
+  const waiting = new Promise(resolve => { release = resolve; });
+  const pending = streamPlanReviewEvents({
+    response, loadEvents: () => waiting, loadRun: async () => ({ status: 'RUNNING' }),
+    pollEveryMs: 1000, maxDurationMs: 10,
+  });
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(response.ended, true);
+  assert.deepEqual(response.chunks, []);
+  release([{ sequence: 1, eventType: 'STEP_COMPLETED', data: {} }]);
+  await pending;
+  assert.deepEqual(response.chunks, [], 'Late database responses never write after closing.');
+});
+
+test('invalid event polling intervals reject before opening streams', async () => {
+  for (const opts of [
+    { pollEveryMs: 0 }, { pollEveryMs: -1 }, { pollEveryMs: 1.1 },
+    { maxDurationMs: 0 }, { maxDurationMs: Number.NaN },
+  ]) {
+    const response = new FakeResponse();
+    await assert.rejects(() => streamPlanReviewEvents({
+      response, loadEvents: async () => [], loadRun: async () => ({ status: 'RUNNING' }), ...opts,
+    }), TypeError);
+    assert.equal(response.listenerCount('close'), 0);
+  }
+});
