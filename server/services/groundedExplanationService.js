@@ -179,7 +179,7 @@ function citationFor(entry) {
 }
 
 function deterministicCandidate(packet) {
-  const preferredKinds = ['EDUCATION', 'TAX', 'ANSWER_BOUNDARY', 'SUITABILITY', 'RECOMMENDATION', 'PRODUCT_FACT', 'MARKET_CONTEXT', 'PROJECTION'];
+  const preferredKinds = ['EDUCATION', 'REGULATORY_REFERENCE', 'TAX', 'ANSWER_BOUNDARY', 'SUITABILITY', 'RECOMMENDATION', 'PRODUCT_FACT', 'MARKET_CONTEXT', 'PROJECTION'];
   const selected = [];
   for (const kind of preferredKinds) {
     const evidence = packet.entries.find(item => item.kind === kind && item.displayValue);
@@ -190,7 +190,7 @@ function deterministicCandidate(packet) {
   const claims = selected.filter(Boolean).map(item => ({
     // Curated educational claims can be reproduced verbatim: this remains
     // useful without an LLM and still goes through the grounding validator.
-    text: ['EDUCATION', 'TAX', 'ANSWER_BOUNDARY'].includes(item.kind)
+    text: ['EDUCATION', 'REGULATORY_REFERENCE', 'TAX', 'ANSWER_BOUNDARY'].includes(item.kind)
       ? `${item.displayValue} [${item.id}]`
       : `The authoritative backend reports ${item.kind.toLowerCase().replace(/_/g, ' ')} evidence [${item.id}]`,
     evidenceIds: [item.id],
