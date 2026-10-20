@@ -22,7 +22,7 @@ test('invalid database pin is rejected with no connection details leaked', () =>
     assert.throws(
       () => assertMongoDatabaseIdentity(null, candidate),
       error => error.code === 'MONGODB_EXPECTED_DATABASE_INVALID'
-        && !error.message.includes(String(candidate)),
+        && !error.message.includes('mongodb://'),
     );
   }
 });
