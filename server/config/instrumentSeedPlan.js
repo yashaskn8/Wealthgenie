@@ -68,9 +68,23 @@ export function buildInstrumentSeedOperations(catalog) {
         throw new TypeError('Catalog contains invalid numeric assumptions.');
       }
     }
-    // Avoid setting undefined values and accidentally removing richer metadata.
-    const document = Object.fromEntries(Object.entries(mapped).filter(([, value]) => value !== undefined));
-    operations.push({ updateOne: { filter: { id: item.id }, update: { $set: document }, upsert: true } });
+    // Descriptive catalog identity may be updated. Financial measurements and
+    // policy-sensitive classifications are defaults for NEW instruments only:
+    // provider-qualified rate, NAV, risk and tax facts must not be overwritten
+    // by a static catalog refresh, even when that catalog changes later.
+    const financialOrPolicyFacts = new Set([
+      'expectedReturn', 'rate', 'returnRange', 'interestRate', 'risk',
+      'riskLabel', 'volatility', 'liquidityScore', 'lockIn', 'lockInYears',
+      'taxType', 'taxEfficiencyScore', 'taxation', 'expenseRatio',
+      'minMonthlyInvestment', 'maxAnnualInvestment', 'minInvestment',
+      'idealHorizon', 'eligibility', 'sovereignGuarantee',
+    ]);
+    const entries = Object.entries(mapped).filter(([, value]) => value !== undefined);
+    const descriptive = Object.fromEntries(entries.filter(([name]) => !financialOrPolicyFacts.has(name)));
+    const defaults = Object.fromEntries(entries.filter(([name]) => financialOrPolicyFacts.has(name)));
+    const update = { $set: descriptive };
+    if (Object.keys(defaults).length) update.$setOnInsert = defaults;
+    operations.push({ updateOne: { filter: { id: item.id }, update, upsert: true } });
     typeCounts[mapped.type] = (typeCounts[mapped.type] ?? 0) + 1;
   }
   return { operations, typeCounts };
