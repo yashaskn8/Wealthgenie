@@ -23,6 +23,20 @@ function decodeRedisUrlPassword(redisUrl) {
 export function validateEnvironmentConfig(env = process.env) {
   const isProduction = env.NODE_ENV === 'production';
   const errors = [];
+  if (env.FINANCIAL_POSTGRES_ENABLED !== undefined
+      && !['true','false'].includes(env.FINANCIAL_POSTGRES_ENABLED)) {
+    errors.push('FINANCIAL_POSTGRES_ENABLED must be true or false');
+  }
+  if (env.FINANCIAL_POSTGRES_ENABLED === 'true') {
+    let endpoint = null;
+    try { endpoint = new URL(env.FINANCIAL_POSTGRES_URL); } catch { /* invalid or missing */ }
+    if (!endpoint || !['postgres:','postgresql:'].includes(endpoint.protocol)
+        || !endpoint.hostname || !endpoint.pathname || endpoint.pathname === '/') {
+      errors.push('Enabled financial PostgreSQL requires a valid PostgreSQL database URL');
+    } else if (isProduction && endpoint.searchParams.get('sslmode') !== 'verify-full') {
+      errors.push('Production financial PostgreSQL requires sslmode=verify-full');
+    }
+  }
   errors.push(...validateMongoCompatibilityConfig(env).errors);
   const marketDataMode = String(env.MARKET_DATA_MODE || 'LEGACY').trim().toUpperCase();
   if (!['LEGACY', 'UPSTOX_ONLY'].includes(marketDataMode)) {
