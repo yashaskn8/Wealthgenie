@@ -1,0 +1,55 @@
+# WealthGenie financial architecture v2 — migration and safety contract
+
+## Authoritative data boundaries
+
+* **MongoDB remains authoritative for account/profile, immutable recommendations and allocation revisions, user-declared tax contexts, purchase lots, shortlist history, and private financial-calculation snapshots.** Existing MongoDB transactions are not split across databases.
+* **PostgreSQL is the opt-in authority for the proposed independent financial universe**, including canonical archetypes versus actual product identities, parent categories, source rights, effective-dated rates and retained observations. Existing Mongo market-provider paths remain legacy while they are deliberately migrated one at a time; do not operate two writers for the same product/source.
+* **One existing tax engine** (`services/taxEngine.js`) owns supported FY rules; the cash-flow and Monte Carlo extensions call it. No frontend tax law duplication.
+* **No data-source license is granted by this repository.** The checked-in matrix at baseline reports zero rights-qualified production provider paths. No production provider rights have been enabled automatically.
+
+## Repository implementation
+
+New surfaces (only exposed with correct authorization/data):
+* `GET /api/financial-universe` — independently paginated source-independent catalog, only when PG is configured; note that catalog identity does not indicate a price.
+* `GET /api/financial-universe/:productId/observation?kind=PRICE` — blocks unlicensed, stale, revoked or expired observations.
+* `GET|POST /api/investor-tax-context` — append-only, user-owned explicit investor tax context with profile version.
+* `GET /api/recommendation-shortlist` / `POST /api/recommendation-shortlist/save` — up to five **already approved parent categories** per risk bucket, fewer if not eligible, no fabricated actual product eligibility.
+* `POST /api/tax-aware-simulation/equity-lump-sum` — bounded user-declared *hypothetical* one-product lump-sum equity model. It is NOT live calibrated, has no multi-asset tax netting, and does not project future tax law. Net distributions are calculated from gross simulated terminal paths and the existing statutory tax engine.
+* `GET|POST /api/investor-holdings` / `POST /api/investor-holdings/valuation` — explicit self-declared purchase lots and immutable mark-to-market snapshots using rights-qualified INR product observations; no realized gain or tax is inferred.
+* `calculateQualifiedProductCashflow({taxEventContext})` — optional tax-event extension only for source-qualified annual payout contracts when explicit cash-flow settlement dates and every affected fiscal-year tax context exist.
+
+No new actual scheme/fund/stock identity is generated from marketing text.
+
+## PostgreSQL activation checklist (not completed automatically)
+
+1. Obtain a managed PostgreSQL instance and set `FINANCIAL_POSTGRES_URL` via deployment secret management; use TLS verification, least-privilege roles, backups, restore drills and monitoring.
+2. **Runtime dependency still required:** install the maintained `pg` package in the deployment, and regenerate + commit both `server/package.json` and `server/package-lock.json` together before enabling the flag. This branch deliberately does not change lockfile dependencies without a trustworthy package-manager resolution, so `npm ci` remains consistent. Missing `pg` fails startup rather than silently returning a fake market value.
+3. With the driver installed, run `npm run finance:pg:migrate` and `npm run finance:pg:seed` from `server/` on the intended database. The seed safely stages the **existing 155** catalog records as `ARCHETYPE` with `UNVERIFIED` status and `recommendation_eligible=false`. It does not claim 240 products or imply those are executable investment identities.
+4. Review every actual product identity against an authoritative identifier and create `ACTUAL_PRODUCT` rows with explicit source identifiers and product terms. Ingest only authenticated provider responses from a verified rights register, never from a user-submitted price or URL.
+5. Record source-specific permissions, including extraction, storage, derivation, public display, commercial use and any redistribution requirement, **with documentary evidence and approved retention time**. Rights default false. Upstox/AMFI/RBI/India Post data do not become unrestricted merely by being copied into SQL.
+6. Only then set `FINANCIAL_POSTGRES_ENABLED=true`. Enabled readiness fails if SQL schema or runtime driver is missing. Verify quote freshness, provider identity, correction revisions, time zones, source-rights revocation, secure connection and read-time permissions.
+7. Schedule `npm run finance:pg:prune` under deployment orchestration at a frequency consistent with each license. Application read gates reject already-expired records, but physical deletion timing still needs an operational guarantee.
+8. Reconcile all existing licensed market observations with the new PostgreSQL representation, use a provider-by-provider cutover behind feature flags, and keep exactly one authoritative writer per provider/product. Do not dual-write MongoDB and PostgreSQL inside separate uncoordinated transactions.
+
+## Financial-safety rules
+
+* Explicit zero and unknown/null are different; annual gross income must never be inferred from net take-home pay.
+* No post-tax number exists without matching dated tax rules, product tax classification, the user's financial context, and the applicable source facts.
+* Gross contractual cash flow, realized gain, current market price, unrealized holding valuation, historical return, and simulation are distinct metrics.
+* A live-price observation is not a post-tax return. A bank published rate is not a live traded quote.
+* The equity model is a **single user-declared hypothetical**. It cannot claim all 240 categories, 15 eligible actual products, future legislation, brokerage fees, loss set-offs or security-level suitability.
+* Source expiry must invalidate both reading and retaining derivative snapshots; MongoDB valuation snapshots have a TTL bound to market observation and provider-rights expiration.
+* Never persist post-tax results inside immutable Recommendation documents. All new results are independent append-only snapshots.
+* No cross-user records may be loaded or calculated; all investor routes enforce JWT and user-scoped profile ownership.
+
+## Release blockers still requiring independent evidence
+
+* Real PostgreSQL instance and `pg` dependency lockfile are not provisioned in GitHub.
+* Provider rights for production live data are currently unqualified; no URL, key or waiver may be fabricated.
+* Existing provider-specific MongoDB market-data ingestion has not been cut over to PG.
+* No independently validated expansion from 155 to approximately 240 distinct archetypes has been completed.
+* Full multi-asset, multi-year path-specific tax simulation including capital losses, contributions, withdrawals, fees, and future-tax uncertainty is not implemented. Only the explicitly bounded scenario described above is available.
+* Product-level suitability beyond authoritative parent-category screening is unverified.
+* CI, real database integration, concurrency, migration rollback, active runtime rights and load results must be checked before release.
+
+**Do not mark this branch production-ready solely because a source commit or CI unit-test job passes.**
