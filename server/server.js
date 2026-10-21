@@ -4,7 +4,7 @@ import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
-import { closeFinancialPostgresPool } from './postgres/connection.js';
+import { closeFinancialPostgresPool, getFinancialPostgresPool } from './postgres/connection.js';
 import { createApp } from './app.js';
 import connectDB from './config/db.js';
 import { connectRedis, redisAvailable, redisClient } from './config/redis.js';
@@ -107,6 +107,8 @@ export async function startServer({ env = process.env } = {}) {
       // 503 only after a user submits the profile.
       requireTransactions: true,
     });
+    // Fail startup rather than serving false-ready financial-universe routes.
+    if (env.FINANCIAL_POSTGRES_ENABLED === 'true') await getFinancialPostgresPool(env);
     await warmAdvisoryPersistence();
     await verifyMarketDataPersistenceIndexes({ force: true });
     if (genieProofRuntime.enabled) await verifyGenieProofPersistenceIndexes({ force: true });
