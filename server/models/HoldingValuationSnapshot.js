@@ -9,10 +9,12 @@ const schema=new mongoose.Schema({
  sourceId:{type:String,required:true,immutable:true},
  dataClass:{type:String,required:true,immutable:true},
  observedAt:{type:Date,required:true,immutable:true},
+ retainedUntil:{type:Date,required:true,immutable:true},
  result:{type:mongoose.Schema.Types.Mixed,required:true,immutable:true},
  createdAt:{type:Date,default:Date.now,immutable:true},
 },{strict:'throw',versionKey:false});
 schema.index({userId:1,holdingLotId:1,observationId:1},{unique:true});
+schema.index({retainedUntil:1},{expireAfterSeconds:0});
 schema.pre('save',function(next){if(!this.isNew)return next(new Error('Valuation snapshots are immutable'));next();});
 for(const op of ['updateOne','updateMany','findOneAndUpdate','replaceOne','deleteOne','deleteMany','findOneAndDelete','bulkWrite']){
  schema.pre(op,function(next){next(new Error('Valuation snapshots are append-only'));});
