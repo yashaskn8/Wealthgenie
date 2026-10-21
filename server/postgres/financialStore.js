@@ -54,7 +54,8 @@ export function createFinancialStore(pool) {
     if (!['PRICE','NAV','PUBLISHED_RATE','YIELD','VOLUME'].includes(kind)) throw new TypeError('Invalid market observation type');
     const { rows } = await pool.query(
       `SELECT o.id,o.product_id,o.observation_type,o.value::text AS value,o.currency,
-              o.unit,o.data_class,o.effective_from,o.effective_to,o.observed_at,o.fetched_at,o.source_id
+              o.unit,o.data_class,o.effective_from,o.effective_to,o.observed_at,o.fetched_at,o.source_id,
+              o.retain_until,r.expires_at AS rights_expire_at
          FROM finance.market_observations o
          JOIN finance.provider_rights r ON r.source_id=o.source_id
         WHERE o.product_id=$1 AND o.observation_type=$2
