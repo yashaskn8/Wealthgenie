@@ -172,8 +172,23 @@ async function products(dialog: Locator, result: JsonObject, parentId: string) {
   if (ranking.status === 'UNAVAILABLE') {
     expect(entries).toEqual([]);
     expect(array(ranking.reasonCodes, 'ranking.reasonCodes').length).toBeGreaterThan(0);
-    await expect(dialog.getByRole('status'))
-      .toContainText('No current source-qualified products are available for this category. No static fallback values were inserted.');
+    const rightsBlocked = ranking.reasonCodes.includes('SOURCE_RIGHTS_UNQUALIFIED');
+    if (rightsBlocked) {
+      // A production data-rights block is not the same as an empty eligible
+      // catalogue. The UI must disclose source restrictions without fetching
+      // or inventing a fallback price or post-tax result.
+      expect(result.comparisonUniverse?.productionSourceUseAllowed).toBe(false);
+      await expect(dialog.getByRole('status')).toContainText(
+        'This source is not cleared for WealthGenie production display.',
+      );
+      await expect(dialog.getByRole('status')).toContainText(
+        'Product data and post-tax amounts remain unavailable',
+      );
+    } else {
+      await expect(dialog.getByRole('status')).toContainText(
+        'No current source-qualified products are available for this category. No static fallback values were inserted.',
+      );
+    }
     await expect(cards).toHaveCount(0);
     return;
   }
