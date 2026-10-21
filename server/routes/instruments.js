@@ -92,9 +92,9 @@ const ALLOWED_SORT_FIELDS = new Set(['name', 'interestRate', 'returns1yr', 'retu
  * List instruments with filtering, sorting, and pagination.
  */
 router.get('/', validateQuery(instrumentListQuerySchema), asyncHandler(async (req, res) => {
-  const { type, sort, order, limit, page } = req.query;
+  const { type, category, subCategory, sort, order, limit, page } = req.query;
 
-  const cacheKey = `instruments:public-v2:${type || 'all'}:${sort || 'name'}:${order || 'asc'}:${page || 1}:${limit || 20}`;
+  const cacheKey = `instruments:public-v3:${JSON.stringify([type ?? null, category ?? null, subCategory ?? null, sort ?? 'name', order ?? 'asc', page ?? 1, limit ?? 20])}`;
 
   // Check Redis cache
   const cached = await getCache(cacheKey);
@@ -104,6 +104,8 @@ router.get('/', validateQuery(instrumentListQuerySchema), asyncHandler(async (re
   // Build query
   const query = {};
   if (type) query.type = type;
+  if (category) query.category = category;
+  if (subCategory) query.subCategory = subCategory;
 
   // Validate sort field to prevent NoSQL injection
   const sortField = (sort === 'rate' ? 'interestRate' : sort) || 'name';
@@ -116,14 +118,14 @@ router.get('/', validateQuery(instrumentListQuerySchema), asyncHandler(async (re
   const skip = (pageNum - 1) * pageSize;
 
   const [instruments, total] = await Promise.all([
-    Instrument.find(query).sort({ [safeSortField]: sortOrder }).skip(skip).limit(pageSize).lean(),
+    Instrument.find(query).sort({ [safeSortField]: sortOrder, id: 1 }).skip(skip).limit(pageSize).lean(),
     Instrument.countDocuments(query),
   ]);
 
   const result = serializeInstrumentPage({ instruments, total, page: pageNum, pageSize });
 
-  // Cache for 24 hours
-  await setCache(cacheKey, result, 86400);
+  // Bound category-refresh staleness until explicit catalog version invalidation is available.
+  await setCache(cacheKey, result, 300);
 
   res.json(result);
 }));
