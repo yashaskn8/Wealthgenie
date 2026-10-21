@@ -154,6 +154,15 @@ export function calculateQualifiedProductCashflow({
     return unavailable('INVALID_OFFICIAL_RATE', product);
   const rate = rateFact.value / 100;
   const tenureMonths = isKvp ? product.tenureMonths : terms.tenureMonths;
+  if (isKvp) {
+    // Doubling tenure and the source's published annual rate must describe
+    // the SAME KVP issue. The official rate may be rounded to 0.1%; allow a
+    // conservative 0.15 percentage-point comparison tolerance, not an
+    // unconstrained rate/tenure pairing.
+    const impliedRate = Math.expm1(Math.LN2 * 12 / tenureMonths);
+    if (!Number.isFinite(impliedRate) || Math.abs(impliedRate - rate) > 0.0015)
+      return unavailable('OFFICIAL_RATE_MATURITY_CONFLICT', product);
+  }
   const periods = tenureMonths * terms.periodsPerYear / 12;
   if (!isKvp && !Number.isInteger(periods)) return unavailable('CONTRACT_SCHEDULE_UNSUPPORTED', product);
   const isAnnualPayout = terms.kind === 'ANNUAL_PAYOUT';

@@ -84,6 +84,21 @@ test('source-annotated KVP doubles principal and fails closed without its exact 
   assert.equal(calculate(qualified('kvp', { tenureMonths: null })).status, 'UNAVAILABLE');
 });
 
+test('KVP doubling tenure and published interest rate must reconcile', () => {
+  const product = qualified('kvp');
+  const value = calculate(product);
+  assert.equal(value.status, 'CALCULATED');
+  assert.equal(value.grossMaturityProceeds, 20000);
+  for (const bad of [1, 2, 10, 25]) {
+    const result = calculate(qualified('kvp', { officialRate: { ...RATE, value: bad } }));
+    assert.equal(result.status, 'UNAVAILABLE');
+    assert.equal(result.reasonCode, 'OFFICIAL_RATE_MATURITY_CONFLICT');
+    assert.equal(result.grossTotalProceeds, null);
+    assert.equal(result.cashflowLedger, null);
+  }
+  assert.equal(calculate(qualified('kvp', { tenureMonths: 120 })).status, 'UNAVAILABLE');
+});
+
 test('missing contractual dates, mismatched identity or invalid source fail closed', () => {
   for (const product of [
     qualified('nsc', { id: 'wrong-id' }),
