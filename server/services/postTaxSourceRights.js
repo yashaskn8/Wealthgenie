@@ -219,6 +219,35 @@ const POTENTIAL_SOURCE_RECORDS = Object.freeze([
     rights: { ...UNKNOWN_RIGHTS },
     basis: 'LIC copyright policy permits accurate attributed reproduction of LIC-owned material, but excludes third-party material. Ownership of each ULIP NAV series and automated retrieval scope were not established.',
   }),
+  // Candidate sources require separate licensing, identity, freshness and consent
+  // qualification before ANY use in production data or simulation engines.
+  sourceRecord({
+    sourceId: 'UPSTOX_MF_HOLDINGS_USER_AUTHORIZED',
+    provider: PROVIDERS.UPSTOX,
+    url: 'https://api.upstox.com/v2/mf/holdings',
+    status: LICENSE_UNVERIFIED,
+    termsUrl: 'https://upstox.com/developer/api-documentation/get-mutual-fund-holdings/',
+    rights: { ...UNKNOWN_RIGHTS },
+    basis: 'Authenticated consented holdings expose units, average cost, last NAV and date, not independently reconciled purchase-level tax lots. Operator must verify processing, retention and disclosure rights.',
+  }),
+  sourceRecord({
+    sourceId: 'UPSTOX_MF_ORDERS_USER_AUTHORIZED',
+    provider: PROVIDERS.UPSTOX,
+    url: 'https://api.upstox.com/v2/mf/orders',
+    status: LICENSE_UNVERIFIED,
+    termsUrl: 'https://upstox.com/developer/api-documentation/get-mutual-fund-orders/',
+    rights: { ...UNKNOWN_RIGHTS },
+    basis: 'Authenticated order history requires investor consent; completed orders are not independently verified tax-lot history without matching NAV, fee and settlement facts.',
+  }),
+  sourceRecord({
+    sourceId: 'NSI_QUARTERLY_SMALL_SAVINGS_RATE_TABLE',
+    provider: 'NSI',
+    url: 'https://www.nsiindia.gov.in/InternalPage.aspx?Id_Pk=132',
+    status: LICENSE_UNVERIFIED,
+    termsUrl: null,
+    rights: { ...UNKNOWN_RIGHTS },
+    basis: 'Official quarterly small-savings rates support independent reference checking, not unlicensed automated production ingestion or guaranteed future-rate projections.',
+  }),
   sourceRecord({
     sourceId: 'OGD_DATASET', provider: 'DATA_GOV_IN', url: 'https://data.gov.in/', matchPath: '/',
     status: LICENSE_UNVERIFIED, termsUrl: 'https://www.data.gov.in/terms-of-use',

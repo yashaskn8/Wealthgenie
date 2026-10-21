@@ -4423,3 +4423,15 @@ input[type=range]::-moz-range-thumb:hover {
   .wti-market-status-copy { flex-basis: 100%; }
   .wti-market-data-asof { flex-basis: 60%; }
 }
+
+
+/* Red-team compactness correction: preserve required content and controls while
+   reducing actual occupied height; browser assertions remain unchanged. */
+.wti-beginner-market-card { padding-block: 6px; }
+.wti-beginner-market-header { margin-bottom: 1px; gap: 3px; }
+.wti-beginner-market-body { margin-bottom: 0; }
+.wti-beginner-market-headline { margin-bottom: 2px; line-height: 1.12; }
+.wti-beginner-meaning { padding-block: 2px; margin-bottom: 2px; line-height: 1.2; }
+.wti-market-evidence-summary { padding-block: 2px; gap: 3px; margin-top: 2px; }
+.wti-beginner-market-footer { padding-top: 3px; margin-top: 2px; gap: 3px; }
+.wti-preview-plan-btn, .wti-tech-toggle-btn { padding-block: 4px; }

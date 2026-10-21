@@ -31,6 +31,18 @@ test('bad coupons, dates and totals are rejected', () => {
   assert.throws(()=>buildContractualCashflowLedger({...base,annualPayouts:[]}),/incomplete/);
   assert.throws(()=>buildContractualCashflowLedger({...base,grossTotalProceeds:NaN}),/finite/);
 });
+test('sub-paisa values fail closed, and exact paisa cash flows reconcile',()=>{
+  const values={principal:1000.29,tenureMonths:12,cashflowType:'MATURITY_COMPOUND',
+    annualPayouts:[],grossMaturityProceeds:1000.39,grossTotalProceeds:1000.39};
+  const l=buildContractualCashflowLedger(values);
+  assert.equal(l.grossGainPaise,10);
+  assert.equal(l.totalReceiptsPaise,100039);
+  for(const invalid of [0.001, 10000.005, 10000.999, 1.2345])
+    assert.throws(()=>buildContractualCashflowLedger({...values,principal:invalid}),/two decimal places/);
+  assert.throws(()=>buildContractualCashflowLedger({...values,
+    grossMaturityProceeds:1000.395,grossTotalProceeds:1000.395}),/two decimal places/);
+});
+
 test('unqualified product never produces a payment ledger',()=>{
   const result=calculateQualifiedProductCashflow({product:{canonicalProductId:'government:india-post:nsc'},
     principal:10000,enforceSourceRights:true,productionUseAllowed:false});

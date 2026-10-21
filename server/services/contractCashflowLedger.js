@@ -7,7 +7,12 @@ export const CONTRACT_LEDGER_VERSION = 'contract-ledger-1.0.0';
 function toPaise(n, field) {
   if (!Number.isFinite(n) || n < 0 || n > Number.MAX_SAFE_INTEGER / 100)
     throw new RangeError(`${field} must be a supported finite INR amount`);
-  const p = Math.round(n * 100);
+  // Do not silently round sub-paisa numbers from upstream financial models.
+  // Parsing Number's shortest decimal representation avoids binary-float
+  // multiplication artifacts such as 0.29 * 100.
+  const match = /^(0|[1-9][0-9]*)(?:[.]([0-9]{1,2}))?$/.exec(String(n));
+  if (!match) throw new RangeError(`${field} must have at most two decimal places`);
+  const p = Number(match[1]) * 100 + Number((match[2] || '').padEnd(2, '0'));
   if (!Number.isSafeInteger(p)) throw new RangeError(`${field} exceeds paise precision`);
   return p;
 }

@@ -26,8 +26,8 @@ export function halton(index, base) {
  * Mulberry32 deterministic 32-bit PRNG for reproducible Monte Carlo simulation.
  */
 export function createMulberry32(seed) {
+    // Zero is a valid explicit seed; never alias it to the default seed.
     let s = (typeof seed === 'number' ? Math.floor(Math.abs(seed)) : 1337) >>> 0;
-    if (s === 0) s = 1337;
     return function nextFloat() {
         s = (s + 0x6D2B79F5) >>> 0;
         let t = Math.imul(s ^ (s >>> 15), 1 | s);
