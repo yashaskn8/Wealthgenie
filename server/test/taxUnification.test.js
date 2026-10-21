@@ -540,3 +540,26 @@ test('projection remains explicitly unavailable when a generic model class is no
   assert.equal(projection.postTaxFutureValue, null);
   assert.equal(projection.realFutureValue, null);
 });
+
+
+test('post-tax projections fail closed on absent investor facts and a changed fiscal year', () => {
+  const input = { monthlySIP: 10_000, nominalRate: 0.07, holdingYears: 1 };
+  const rate = calculatePostTaxReturn('FD', 0.07, 1_000_000, 1, 'new', 10_000, 35, 'salary', undefined, FY);
+  assert.equal(rate.status, 'CALCULATED');
+  const context = {
+    annualGrossIncome: 1_000_000, incomeSource: 'salary', regime: 'new',
+    userAge: 35, fiscalYear: FY, deductions: {},
+  };
+  assert.equal(calculatePostTaxProjection(rate, input, 0.05, context).status, 'CALCULATED');
+  for (const key of ['annualGrossIncome', 'incomeSource', 'regime', 'userAge', 'fiscalYear']) {
+    const unavailable = calculatePostTaxProjection(rate, input, 0.05, { ...context, [key]: null });
+    assert.equal(unavailable.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE', key);
+    assert.equal(unavailable.postTaxFutureValue, null, key);
+    assert.ok(unavailable.unavailableReasons.includes(key), key);
+  }
+  const changedPolicyYear = calculatePostTaxProjection(rate, input, 0.05, {
+    ...context, fiscalYear: 'FY2025-26',
+  });
+  assert.equal(changedPolicyYear.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.ok(changedPolicyYear.unavailableReasons.includes('TAX_POLICY_FISCAL_YEAR_CHANGED'));
+});
