@@ -8,6 +8,7 @@
  * Missing terms produce UNAVAILABLE, never a plausible invented maturity amount.
  */
 import { buildContractualCashflowLedger } from './contractCashflowLedger.js';
+import { calculateTaxedContractLedger } from './taxAwareContractLedger.js';
 
 export const CONTRACT_CASHFLOW_VERSION = 'qualified-product-cashflow-1.0.0';
 const INDIA_POST_URL = 'https://www.indiapost.gov.in/banking-services/savings';
@@ -101,6 +102,7 @@ export function calculateQualifiedProductCashflow({
   now = new Date(),
   enforceSourceRights = true,
   productionUseAllowed = false,
+  taxEventContext = null,
 } = {}) {
   if (!product || typeof product !== 'object' || Array.isArray(product))
     return unavailable('PRODUCT_FACTS_UNAVAILABLE', product);
@@ -192,6 +194,16 @@ export function calculateQualifiedProductCashflow({
     annualPayouts: payouts, grossMaturityProceeds: redemption,
     grossTotalProceeds: payableTotal,
   });
+  const taxReport = taxEventContext ? calculateTaxedContractLedger({
+    ledger: cashflowLedger,
+    eventDates: taxEventContext.eventDates,
+    taxContexts: taxEventContext.taxContexts,
+    // Only exact verified annual-payout contractual instruments can currently
+    // support the ordinary-interest event schedule. Never infer NSC/KVP accrual.
+    qualifiedProductTaxClass: terms.kind === 'ANNUAL_PAYOUT'
+      && product.source?.provider === 'GOVERNMENT_OF_INDIA' ? 'ORDINARY_INTEREST' : null,
+    sourceRightsQualified: enforceSourceRights && productionUseAllowed === true,
+  }) : null;
   return {
     version: CONTRACT_CASHFLOW_VERSION,
     status: 'CALCULATED',
@@ -206,8 +218,13 @@ export function calculateQualifiedProductCashflow({
     cashflowType: terms.kind,
     annualPayouts: payouts,
     cashflowLedger,
-    postTaxProceeds: null,
-    postTaxStatus: 'REQUIRES_EFFECTIVE_DATED_TAX_AND_ACCOUNT_FACTS',
+    postTaxProceeds: taxReport?.status === 'CALCULATED'
+      ? taxReport.netTotalReceiptsPaise / 100 : null,
+    postTaxStatus: taxReport?.status || 'REQUIRES_EFFECTIVE_DATED_TAX_AND_ACCOUNT_FACTS',
+    postTaxCashflowLedger: taxReport?.status === 'CALCULATED' ? taxReport.afterTaxCashflows : null,
+    postTaxXirr: taxReport?.status === 'CALCULATED' ? taxReport.netXirr : null,
+    postTaxReasonCodes: taxReport?.reasonCodes || [],
+    postTaxMetricLabel: taxReport?.status === 'CALCULATED' ? 'TOTAL_NET_RECEIPTS_INCLUDING_COUPONS' : null,
     model: terms.kind,
     compoundingPeriodsPerYear: terms.periodsPerYear,
     scenarioClass: 'CONDITIONAL_GROSS_CONTRACT_ILLUSTRATION_NOT_FUTURE_RATE_FORECAST',
