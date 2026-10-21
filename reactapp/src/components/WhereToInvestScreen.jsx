@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import WhereToInvestTab from './deepdive/WhereToInvestTab';
+import InvestmentUniverseExplorer from './InvestmentUniverseExplorer';
 import { getRiskShortlist, saveRiskShortlist } from '../services/api';
 import {
   AlertCircle,
@@ -214,6 +215,8 @@ const WhereToInvestScreen = ({
           <p className="wti-risk-footer">New discovery-only investments are excluded until product identity, risk, eligibility, tax treatment and market-data evidence are qualified.</p>
         </section>
       )}
+
+      <InvestmentUniverseExplorer />
 
       {/* ─── Recommended Category Segmented Rail (Strictly in exact backend recommendation order) ─── */}
       <nav className="wti-category-nav" aria-label="Investment category selector">
