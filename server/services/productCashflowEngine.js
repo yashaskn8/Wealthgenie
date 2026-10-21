@@ -90,6 +90,11 @@ export function calculateQualifiedProductCashflow({
 
   const terms = ALLOWED_PRODUCTS[product.canonicalProductId];
   if (!terms) return unavailable('PRODUCT_SPECIFIC_CASHFLOWS_NOT_VERIFIED', product);
+  // NSC subscriptions start at INR 1,000 in INR 100 multiples; Post Office
+  // Time Deposits start at INR 1,000 in INR 1,000 multiples.
+  const increment = product.canonicalProductId === 'government:india-post:nsc' ? 100 : 1000;
+  if (principal < 1000 || principal % increment !== 0)
+    return unavailable('INVALID_PRODUCT_DENOMINATION', product);
   const rateFact = product.officialRate;
   if (!rateFact || typeof rateFact !== 'object' ||
       product.source?.provider !== 'GOVERNMENT_OF_INDIA' ||
@@ -128,7 +133,9 @@ export function calculateQualifiedProductCashflow({
   const grossTotal = isAnnualPayout
     ? principal + annualCoupon * payouts.length
     : principal * Math.pow(1 + rate / terms.periodsPerYear, periods);
-  const redemption = isAnnualPayout ? principal + annualCoupon : grossTotal;
+  // NSC regulations round the final maturity amount to the nearest rupee.
+  const payableTotal = isAnnualPayout ? grossTotal : Math.round(grossTotal);
+  const redemption = isAnnualPayout ? principal + annualCoupon : payableTotal;
   if (!Number.isFinite(grossTotal) || grossTotal > Number.MAX_SAFE_INTEGER)
     return unavailable('NUMERIC_OVERFLOW', product);
   const rounded = value => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -140,9 +147,9 @@ export function calculateQualifiedProductCashflow({
     principal: rounded(principal),
     tenureMonths: terms.tenureMonths,
     grossMaturityProceeds: rounded(redemption),
-    grossTotalProceeds: rounded(grossTotal),
-    grossInterest: rounded(grossTotal - principal),
-    grossCumulativeReturnPct: rounded((grossTotal / principal - 1) * 100),
+    grossTotalProceeds: rounded(payableTotal),
+    grossInterest: rounded(payableTotal - principal),
+    grossCumulativeReturnPct: rounded((payableTotal / principal - 1) * 100),
     cashflowType: terms.kind,
     annualPayouts: payouts,
     postTaxProceeds: null,

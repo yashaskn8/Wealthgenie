@@ -36,8 +36,8 @@ test('NSC 5-year annual accumulation equals independent compound interest', () =
   const result = calculate(qualified());
   const reference = 10000 * Math.pow(1.077, 5);
   assert.equal(result.status, 'CALCULATED');
-  assert.ok(Math.abs(result.grossMaturityProceeds - reference) <= 0.005);
-  assert.ok(Math.abs(result.grossInterest - (reference - 10000)) <= 0.005);
+  assert.equal(result.grossMaturityProceeds, Math.round(reference));
+  assert.equal(result.grossInterest, Math.round(reference) - 10000);
   assert.equal(result.postTaxProceeds, null);
   assert.equal(result.source.effectiveFrom, '2026-10-01');
 });
@@ -61,6 +61,17 @@ test('multi-year Post Office TD pays separate annual interest without silent rei
     assert.notEqual(result.grossTotalProceeds, 10000 * (1 + .069 / 4) ** (years * 4));
   }
 });
+test('NSC and TD reject invalid denominations instead of producing false payouts', () => {
+  for (const amount of [999, 1050, 10001, 1500.5]) {
+    assert.equal(calculate(qualified(), { principal: amount }).reasonCode, 'INVALID_PRODUCT_DENOMINATION');
+  }
+  for (const amount of [100, 1500, 10400]) {
+    assert.equal(calculate(qualified('td'), { principal: amount }).reasonCode, 'INVALID_PRODUCT_DENOMINATION');
+  }
+  assert.equal(calculate(qualified(), { principal: 1100 }).status, 'CALCULATED');
+  assert.equal(calculate(qualified('td'), { principal: 2000 }).status, 'CALCULATED');
+});
+
 test('missing contractual dates, mismatched identity or invalid source fail closed', () => {
   for (const product of [
     qualified('nsc', { id: 'wrong-id' }),
