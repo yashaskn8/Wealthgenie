@@ -5,7 +5,7 @@ test('SQL financial store constrains catalog pagination and never interpolates u
  const calls=[];
  const pool={query:async(sql,args)=>{calls.push({sql,args});return{rows:[
   {id:'alpha',name:'Alpha'},{id:'beta',name:'Beta'},{id:'gamma',name:'Gamma'},
- ];}},connect:async()=>({query:async()=>({rows:[]}),release(){}})};
+ ]};},connect:async()=>({query:async()=>({rows:[]}),release(){}})};
  const store=createFinancialStore(pool);
  const result=await store.browse({category:'safe-cat',subcategory:'sub-cat',cursor:'start',limit:2});
  assert.deepEqual(result.items.map(p=>p.id),['alpha','beta']);
