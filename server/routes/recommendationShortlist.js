@@ -32,12 +32,21 @@ router.post('/save',verifyJWT,validate(schema),asyncHandler(async(req,res)=>{
  const shortlist=selections(state);
  const source=binding(state);
  const groupedPicks=Object.values(shortlist.groups).flat();
- let saved=await RecommendationShortlist.findOne(source).lean();
+ const uniqueKey={userId:source.userId,profileId:source.profileId,
+  recommendationId:source.recommendationId,allocationRevisionId:source.allocationRevisionId};
+ let saved=await RecommendationShortlist.findOne(uniqueKey).lean();
+ if(saved && (saved.portfolioFingerprint!==source.portfolioFingerprint
+    ||saved.profileVersion!==source.profileVersion)){
+  return sendError(req,res,409,'Saved shortlist belongs to a different financial state.','SHORTLIST_STATE_CONFLICT');
+ }
  if(!saved){
    try {saved=await RecommendationShortlist.create({...source,groupedPicks});}
    catch(error){
      if(error?.code!==11000)throw error;
-     saved=await RecommendationShortlist.findOne(source).lean();
+     saved=await RecommendationShortlist.findOne(uniqueKey).lean();
+     if(!saved||saved.portfolioFingerprint!==source.portfolioFingerprint){
+       return sendError(req,res,409,'Conflicting saved shortlist financial state.','SHORTLIST_STATE_CONFLICT');
+     }
    }
  }
  const current=await requireFreshRecommendationState(options);
