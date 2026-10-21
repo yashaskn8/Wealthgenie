@@ -7,6 +7,7 @@ const schema=new mongoose.Schema({
  observationId:{type:String,required:true,immutable:true},
  observationKind:{type:String,enum:['PRICE','NAV'],required:true,immutable:true},
  sourceId:{type:String,required:true,immutable:true},
+ sourceInstrumentId:{type:String,required:true,immutable:true},
  dataClass:{type:String,required:true,immutable:true},
  observedAt:{type:Date,required:true,immutable:true},
  retainedUntil:{type:Date,required:true,immutable:true},
