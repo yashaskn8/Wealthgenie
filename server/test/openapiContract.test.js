@@ -1120,7 +1120,7 @@ test('enabled GenieProof routes reject invalid consent and unknown fields over a
   const oldSecret = process.env.JWT_SECRET;
   process.env.JWT_SECRET = 'genieproof-enabled-route-test-secret-at-least-32';
   const app = buildContractTestApp();
-  app.locals.genieProofRuntime = { enabled: true };
+  app.locals.genieProofRuntime = { enabled: true, productionActivationAllowed: false };
   const userId = '65b000000000000000000001';
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '5m' });
   const url = '/api/genieproof/cases/00000000-0000-4000-8000-000000000001/watch';

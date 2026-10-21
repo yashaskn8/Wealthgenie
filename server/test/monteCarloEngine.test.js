@@ -74,6 +74,10 @@ test('goal probability and Wilson interval fail closed on invalid inputs', () =>
 test('reverse SIP requires explicit target, rate, horizon, and current savings', () => {
   const sip = reverseSIP(1_000_000, 0.10, 10, 100_000);
   assert.ok(Number.isFinite(sip) && sip > 0);
+  const monthlyRate = (1 + 0.10) ** (1 / 12) - 1;
+  const independentlyCalculatedTarget = 100_000 * (1 + 0.10) ** 10
+    + sip * (((1 + monthlyRate) ** 120 - 1) / monthlyRate) * (1 + monthlyRate);
+  assert.ok(Math.abs(independentlyCalculatedTarget - 1_000_000) <= 1);
   assert.equal(Math.round(reverseSIP(120_000, 0, 1, 0)), 10_000);
   assert.equal(reverseSIP(100_000, 0.10, 5, 200_000), 0);
   assert.throws(() => reverseSIP(-500, 0.10, 5, 0), /targetAmount/);
