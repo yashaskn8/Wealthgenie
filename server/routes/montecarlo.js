@@ -71,6 +71,27 @@ function buildMonteCarloResponse(result, context) {
     sequence_of_returns_risk: result.sequence_of_returns_risk || null,
     sharpe_ratio_sensitivity: result.sharpe_ratio_sensitivity || null,
     inflation_rate: result.inflation_rate,
+    ...simulationProvenance(result),
+  };
+}
+
+function simulationProvenance(result) {
+  return {
+    simulation_model: 'GBM_LOGNORMAL',
+    scenario_classification: 'MODEL_POLICY_ILLUSTRATIVE_SCENARIO',
+    calibration_mode: 'MODEL_POLICY',
+    empirical_calibration: null,
+    covariance_provenance: 'WEALTHGENIE_MODEL_POLICY_STATIC_CORRELATION',
+    inflation_assumption_source: 'WEALTHGENIE_MODEL_POLICY',
+    real_value_method: 'DEFLATED_SAME_NOMINAL_PATH',
+    control_variate_method: result.control_variate_method ?? 'none',
+    dispersion_cv: result.dispersion_cv ?? null,
+    tax_basis: 'PRE_TAX',
+    model_limitations: [
+      'Returns and volatility are versioned model-policy assumptions, not observed or forecast market facts.',
+      'Probabilities are conditional on model assumptions and are not guaranteed outcomes.',
+      'Fees, taxes, corporate actions and regime changes are not modeled.',
+    ],
   };
 }
 
@@ -115,7 +136,7 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
   const allocationKey = [...keys].sort().map(key => `${key}:${normalizedAllocations[key].toFixed(6)}`).join(',');
   const targetKey = target_amount === undefined ? 'none' : String(Math.round(target_amount));
   const cacheKey = [
-    'portfolio-mc-v2', req.user.userId, profileId, profileHash, years,
+    'portfolio-mc-v3', req.user.userId, profileId, profileHash, years,
     simulation.monthlyContribution, simulation.initialCapital, targetKey,
     allocationKey, metrics.expectedReturn, metrics.volatility,
   ].join(':');
@@ -177,7 +198,7 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
   const profileHash = buildRecommendationProfileHash(profile, { modelVersion: 'monte-carlo-2.0.0' });
   const targetKey = target_amount === undefined ? 'none' : String(Math.round(target_amount));
   const cacheKey = [
-    'mc-v3', req.user.userId, profileId, profileHash, instrumentKey, years,
+    'mc-v4', req.user.userId, profileId, profileHash, instrumentKey, years,
     simulation.monthlyContribution, simulation.initialCapital, targetKey,
     annualReturn.toFixed(6), annualVolatility.toFixed(6),
     MONTE_CARLO_INFLATION_ASSUMPTION, MONTE_CARLO_SIMULATIONS,
@@ -251,6 +272,7 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
     },
     final_suitability_risk: suitability.finalRisk,
     suitability_reason_codes: suitability.reasonCodes,
+    ...simulationProvenance(result),
     cached: false,
   };
   await setCache(cacheKey, response, 1800);

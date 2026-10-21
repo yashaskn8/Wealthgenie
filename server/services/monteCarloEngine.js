@@ -23,14 +23,28 @@ export function halton(index, base) {
     return result;
 }
 /**
+ * Mulberry32 deterministic 32-bit PRNG for reproducible Monte Carlo simulation.
+ */
+export function createMulberry32(seed) {
+    let s = (typeof seed === 'number' ? Math.floor(Math.abs(seed)) : 1337) >>> 0;
+    if (s === 0) s = 1337;
+    return function nextFloat() {
+        s = (s + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+/**
  * Box-Muller transform — generates a normally distributed random number.
  */
-export function boxMuller(u1, u2) {
+export function boxMuller(u1, u2, rng = null) {
+    const random = rng || Math.random;
     if (u1 === undefined || u1 <= 0 || u1 >= 1) {
-        u1 = Math.random() || 0.5;
+        u1 = random() || 0.5;
     }
     if (u2 === undefined || u2 <= 0 || u2 >= 1) {
-        u2 = Math.random() || 0.5;
+        u2 = random() || 0.5;
     }
     u1 = Math.max(1e-15, Math.min(u1, 1 - 1e-15));
     u2 = Math.max(1e-15, Math.min(u2, 1 - 1e-15));
@@ -96,7 +110,7 @@ export function sampleLogNormalMonthly(annualMean, annualVol, zVal) {
     return Math.exp(drift + vol * zVal);
 }
 /**
- * Compute Sequence of Returns Risk.
+ * Compute Sequence of Returns Risk and dispersion CV.
  */
 export function computeSequenceRisk(finalValues, simulations, years, monthlyWithdrawal = 0) {
     if (!finalValues || finalValues.length === 0)
@@ -137,8 +151,20 @@ export function computeRiskMetrics(p50Values, p10Values, years, riskFreeRate, an
 }
 /**
  * Run Monte Carlo simulation for SIP investment using GBM.
+ * Synchronously computes real purchasing-power paths along the exact same stochastic paths.
  */
-export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualVolatility, years, simulations, inflationRate, isRealTrack = false, currentSavings, }) {
+export function runMonteCarlo({
+    monthlyInvestment,
+    annualExpectedReturn,
+    annualVolatility,
+    years,
+    simulations,
+    inflationRate,
+    isRealTrack = false,
+    currentSavings,
+    seed = null,
+    controlVariateMethod = 'none',
+}) {
     const horizon = buildProjectionHorizon(years);
     years = horizon.years;
     if (!Number.isFinite(monthlyInvestment) || monthlyInvestment < 0) {
@@ -165,6 +191,7 @@ export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualV
     const safeInvestment = monthlyInvestment;
     const safeSavings = currentSavings;
     const safeVolatility = annualVolatility;
+    const rng = (seed !== null && seed !== undefined) ? createMulberry32(seed) : null;
     // Warn on negative return assumptions (possible during extreme market conditions)
     if (annualExpectedReturn < 0 && !isRealTrack) {
         console.warn(`[MC] Negative annual return assumption: ${(annualExpectedReturn * 100).toFixed(2)}%. `
@@ -174,7 +201,9 @@ export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualV
     const checkpointMonthToIndex = new Map(checkpointMonths.map((month, index) => [month, index]));
     // finalValues[year_index] = array of terminal values across all simulations
     const allSimResults = yearsArray.map(() => []);
+    const allSimResults_real = yearsArray.map(() => []);
     let finalValues = []; // terminal balances for goal probability
+    let finalValues_real = [];
     const halfSims = Math.ceil(simulations / 2);
     const actualSims = halfSims * 2;
     // Deterministic SIP + lump sum FV for control variate (aligned with continuous GBM expected yield)
@@ -195,7 +224,7 @@ export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualV
                 zValues[i] = boxMuller(u1, u2);
             }
             else {
-                zValues[i] = boxMuller();
+                zValues[i] = boxMuller(undefined, undefined, rng);
             }
         }
         // ── Path 1: use +Z ──────────────────────────────────────────────
@@ -207,9 +236,12 @@ export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualV
             const checkpointIdx = checkpointMonthToIndex.get(monthIdx + 1);
             if (checkpointIdx !== undefined) {
                 allSimResults[checkpointIdx].push(balance1);
+                const inflationDeflator = Math.pow(1 + inflationRate, (monthIdx + 1) / 12);
+                allSimResults_real[checkpointIdx].push(balance1 / inflationDeflator);
             }
         }
         finalValues.push(balance1);
+        finalValues_real.push(balance1 / Math.pow(1 + inflationRate, totalMonths / 12));
         // ── Path 2: use -Z (antithetic mirror) ──────────────────────────
         let balance2 = safeSavings;
         for (let monthIdx = 0; monthIdx < totalMonths; monthIdx++) {
@@ -219,11 +251,14 @@ export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualV
             const checkpointIdx = checkpointMonthToIndex.get(monthIdx + 1);
             if (checkpointIdx !== undefined) {
                 allSimResults[checkpointIdx].push(balance2);
+                const inflationDeflator = Math.pow(1 + inflationRate, (monthIdx + 1) / 12);
+                allSimResults_real[checkpointIdx].push(balance2 / inflationDeflator);
             }
         }
         finalValues.push(balance2);
+        finalValues_real.push(balance2 / Math.pow(1 + inflationRate, totalMonths / 12));
     }
-    // ── MULTIPLICATIVE CONTROL VARIATE CORRECTION ────────────────────────
+    // ── CONTROL VARIATE CORRECTION ───────────────────────────────────────
     for (let y = 0; y < checkpointMonths.length; y++) {
         const totalMonths_y = checkpointMonths[y];
         const fvSIP_y = annuityDueFV(safeInvestment, r, totalMonths_y);
@@ -231,9 +266,16 @@ export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualV
         const deterministicFV_y = fvSIP_y + fvSavings_y;
         const rawMean_y = allSimResults[y].reduce((s, v) => s + v, 0) / allSimResults[y].length;
         if (rawMean_y > 0) {
-            const ratio = deterministicFV_y / rawMean_y;
-            for (let s = 0; s < allSimResults[y].length; s++) {
-                allSimResults[y][s] *= ratio;
+            if (controlVariateMethod === 'additive') {
+                const diff = deterministicFV_y - rawMean_y;
+                for (let s = 0; s < allSimResults[y].length; s++) {
+                    allSimResults[y][s] = Math.max(0, allSimResults[y][s] + diff);
+                }
+            } else if (controlVariateMethod === 'multiplicative') {
+                const ratio = deterministicFV_y / rawMean_y;
+                for (let s = 0; s < allSimResults[y].length; s++) {
+                    allSimResults[y][s] *= ratio;
+                }
             }
         }
     }
@@ -263,26 +305,29 @@ export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualV
         const variance = sorted.reduce((s, v) => s + (v - avg) ** 2, 0) / (sorted.length - 1);
         stdErr.push(Math.round(Math.sqrt(variance / sorted.length)));
     }
-    let realTrackResult = null;
-    if (!isRealTrack) {
-        const realReturn = (1 + annualExpectedReturn) / (1 + inflationRate) - 1;
-        realTrackResult = runMonteCarlo({
-            monthlyInvestment: safeInvestment,
-            annualExpectedReturn: realReturn,
-            annualVolatility: safeVolatility,
-            years,
-            simulations,
-            inflationRate,
-            isRealTrack: true,
-            currentSavings: safeSavings,
-        });
+    // Compute real percentiles directly from the synchronous deflation of the SAME simulated paths
+    const p10_real = [], p25_real = [], p50_real = [], p75_real = [], p90_real = [], mean_real = [];
+    for (let y = 0; y < allSimResults_real.length; y++) {
+        const sortedReal = [...allSimResults_real[y]].sort((a, b) => a - b);
+        p10_real.push(Math.round(percentile(sortedReal, 10)));
+        p25_real.push(Math.round(percentile(sortedReal, 25)));
+        p50_real.push(Math.round(percentile(sortedReal, 50)));
+        p75_real.push(Math.round(percentile(sortedReal, 75)));
+        p90_real.push(Math.round(percentile(sortedReal, 90)));
+        const avgReal = sortedReal.reduce((s, v) => s + v, 0) / sortedReal.length;
+        mean_real.push(Math.round(avgReal));
     }
-    const p10_real = !isRealTrack && realTrackResult ? realTrackResult.p10 : [];
-    const p25_real = !isRealTrack && realTrackResult ? realTrackResult.p25 : [];
-    const p50_real = !isRealTrack && realTrackResult ? realTrackResult.p50 : [];
-    const p75_real = !isRealTrack && realTrackResult ? realTrackResult.p75 : [];
-    const p90_real = !isRealTrack && realTrackResult ? realTrackResult.p90 : [];
-    const mean_real = !isRealTrack && realTrackResult ? realTrackResult.mean : [];
+    const realTrackResult = {
+        years_array: yearsArray,
+        p10: p10_real,
+        p25: p25_real,
+        p50: p50_real,
+        p75: p75_real,
+        p90: p90_real,
+        mean: mean_real,
+        simulations_run: actualSims,
+        nominal_path_aligned: true,
+    };
     const sequenceOfReturnsRisk = computeSequenceRisk(finalValues, actualSims, years, 0);
     const baseSharpe = safeVolatility > 0.001 ? (annualExpectedReturn - RISK_FREE_RATE) / safeVolatility : 0;
     const sharpeSensitivity = {
@@ -301,19 +346,28 @@ export function runMonteCarlo({ monthlyInvestment, annualExpectedReturn, annualV
         control_correction: Math.round(controlCorrection),
         finalValues, // expose for goal probability reuse
         simulations_run: actualSims,
+        nominal_real_path_aligned: true,
+        seed_used: seed !== null && seed !== undefined ? seed : null,
+        is_reproducible: seed !== null && seed !== undefined,
+        dispersion_cv: sequenceOfReturnsRisk,
+        sequence_risk_metric: 'terminal_dispersion_cv',
     };
     if (!isRealTrack) {
         response.real = realTrackResult;
         response.inflationRateUsed = inflationRate;
         response.sequenceRisk = sequenceOfReturnsRisk;
         response.riskMetrics = computeRiskMetrics(p50, p10, years, RISK_FREE_RATE, annualExpectedReturn);
-        response.variance_reduction = 'halton_qmc+antithetic+control_variates';
+        response.variance_reduction = controlVariateMethod === 'none'
+            ? 'halton_qmc+antithetic'
+            : `halton_qmc+antithetic+${controlVariateMethod}_control_variate`;
+        response.control_variate_method = controlVariateMethod;
         response.sequence_of_returns_risk = sequenceOfReturnsRisk;
         response.sharpe_ratio_sensitivity = sharpeSensitivity;
         response.inflation_rate = inflationRate;
     }
     return response;
 }
+
 /**
  * Generate an empty result set (for invalid inputs).
  */

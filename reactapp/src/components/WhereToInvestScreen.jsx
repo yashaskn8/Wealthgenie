@@ -172,8 +172,12 @@ const WhereToInvestScreen = ({
                   />
                   <span className="wti-category-tab-name">{rec.name}</span>
                   {Number.isFinite(rec.allocation_pct) && (
-                    <span className="wti-category-tab-alloc">
-                      {rec.allocation_pct}%
+                    <span
+                      className="wti-category-tab-alloc"
+                      title="Target portfolio allocation percentage (not an investment return)"
+                      aria-label={`${rec.allocation_pct}% portfolio allocation`}
+                    >
+                      {rec.allocation_pct}% alloc
                     </span>
                   )}
                 </button>

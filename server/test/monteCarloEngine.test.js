@@ -13,6 +13,7 @@ import {
   percentile,
   buildProjectionHorizon,
   annuityDueFV,
+  createMulberry32,
 } from '../services/monteCarloEngine.js';
 
 const VALID_MC = Object.freeze({
@@ -55,7 +56,8 @@ test('deterministic low-volatility simulation remains numerically consistent', (
   const result = runMonteCarlo({ ...VALID_MC, years: 1, annualVolatility: 0, simulations: 200 });
   const terminal = result.p50.at(-1);
   assert.ok(Math.abs(terminal - result.deterministic_fv) / result.deterministic_fv < 0.01);
-  assert.equal(result.variance_reduction, 'halton_qmc+antithetic+control_variates');
+  assert.equal(result.variance_reduction, 'halton_qmc+antithetic');
+  assert.equal(result.control_variate_method, 'none');
   assert.equal(result.inflationRateUsed, 0.05);
 });
 
@@ -111,3 +113,34 @@ test('annuity due and stochastic primitives retain exact formulas', () => {
   assert.equal(halton(1, 2), 0.5);
   assert.equal(boxMuller(0.5, 0.5), Math.sqrt(-2 * Math.log(0.5)) * Math.cos(Math.PI));
 });
+
+test('Mulberry32 PRNG produces deterministic sequence for a fixed seed', () => {
+  const rng1 = createMulberry32(42);
+  const rng2 = createMulberry32(42);
+  const seq1 = Array.from({ length: 10 }, () => rng1());
+  const seq2 = Array.from({ length: 10 }, () => rng2());
+  assert.deepEqual(seq1, seq2);
+  assert.ok(seq1.every(v => v >= 0 && v < 1));
+});
+
+test('Monte Carlo simulation is 100% deterministic when seeded', () => {
+  const run1 = runMonteCarlo({ ...VALID_MC, seed: 98765 });
+  const run2 = runMonteCarlo({ ...VALID_MC, seed: 98765 });
+  assert.deepEqual(run1.p10, run2.p10);
+  assert.deepEqual(run1.p50, run2.p50);
+  assert.deepEqual(run1.p90, run2.p90);
+  assert.deepEqual(run1.p50_real, run2.p50_real);
+  assert.equal(run1.is_reproducible, true);
+  assert.equal(run1.seed_used, 98765);
+});
+
+test('Monte Carlo real purchasing power is deflated along the exact same simulated paths', () => {
+  const result = runMonteCarlo({ ...VALID_MC, inflationRate: 0.06, seed: 12345 });
+  assert.equal(result.nominal_real_path_aligned, true);
+  assert.equal(result.real.nominal_path_aligned, true);
+  // Real wealth must be strictly less than nominal wealth at all horizons when inflation > 0
+  for (let i = 0; i < result.p50.length; i++) {
+    assert.ok(result.p50_real[i] < result.p50[i], `Year ${i+1}: p50_real (${result.p50_real[i]}) should be < p50 (${result.p50[i]})`);
+  }
+});
+

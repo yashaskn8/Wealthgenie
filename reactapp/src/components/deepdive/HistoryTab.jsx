@@ -8,13 +8,13 @@ import { CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, A
 const HistoryTab = ({ inv, historicalData, benchmarkRate, inflationRate, projectionError, projectionLoading }) => {
   return (
     <div className="tab-fade-in">
-      <div className="ddm-section-header">Normalized Growth Comparison</div>
+      <div className="ddm-section-header">Modeled Growth Illustration (Model Policy Scenario)</div>
 
       {/* Chart Legend */}
       <div style={{ display: 'flex', gap: 24, marginBottom: 12, paddingLeft: 4 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 14, height: 3, background: '#8b5cf6', borderRadius: 2 }} />
-          <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>{inv.name} (Projected)</span>
+          <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>{inv.name} (Modeled Scenario)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 14, height: 2, background: 'rgba(255,255,255,0.2)', borderRadius: 2, borderTop: '1px dashed rgba(255,255,255,0.3)' }} />
@@ -84,7 +84,7 @@ const HistoryTab = ({ inv, historicalData, benchmarkRate, inflationRate, project
         </ResponsiveContainer>
       </div>}
       <p style={{ color: 'var(--ddm-text-muted)', fontSize: '0.7rem', marginTop: 10, textAlign: 'center', fontStyle: 'italic' }}>
-        * Server projection of ₹100 at the selected rates; this is not historical backtesting. Inflation comparison uses {inflationRate}%. Actual results may vary.
+        * Server-modeled growth illustration of ₹100 at policy return assumptions; this is not realized historical backtesting. Inflation comparison uses {inflationRate}%. Actual investment outcomes will vary.
       </p>
     </div>
   );
