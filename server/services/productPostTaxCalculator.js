@@ -29,6 +29,7 @@ import {
   getTaxPolicyMetadata,
 } from './taxEngine.js';
 import { isPresentFiniteFinancialNumber, toOptionalFinancialNumber } from '../utils/strictFinancialNumber.js';
+import { calculateQualifiedProductCashflow } from './productCashflowEngine.js';
 import {
   classifySourceQualifiedProductTaxType,
   getProductTaxMetadata,
@@ -1297,8 +1298,17 @@ export function enrichProductsWithPostTaxAndSuitability(products, {
         sourceRights: postTaxSourceRights,
       };
 
+    const cashflowIllustration = calculateQualifiedProductCashflow({
+      product,
+      principal: taxCalculationContext?.illustrativePrincipal,
+      now,
+      enforceSourceRights,
+      productionUseAllowed: postTaxSourceRights.productionPostTaxUseAllowed,
+    });
+
     return {
       ...product,
+      cashflowIllustration,
       beginnerSuitability,
       taxMetadata,
       postTaxAnalysis,

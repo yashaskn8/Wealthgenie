@@ -1838,6 +1838,21 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                       {product.displayMetricLabel}
                     </span>
                     <div className="wti-rate-chip">{product.displayMetric}</div>
+                    {product.cashflowIllustration?.status === 'CALCULATED' && (
+                      <div data-testid="wti-gross-contract-illustration" className="wti-private-quote">
+                        <strong>{product.cashflowIllustration.cashflowType === 'ANNUAL_PAYOUT' ? 'Total gross receipts (including annual interest): ' : 'Illustrative gross maturity: '}₹{product.cashflowIllustration.grossTotalProceeds.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong>
+                        <small>Principal ₹{product.cashflowIllustration.principal.toLocaleString('en-IN')} · {product.cashflowIllustration.tenureMonths} months · Before tax</small>
+                        {product.cashflowIllustration.cashflowType === 'ANNUAL_PAYOUT' && (
+                          <small>Interest is paid annually; total receipts include earlier payouts and assume no reinvestment.</small>
+                        )}
+                        <small>Conditional on opening at the stated official rate. Not a live price or future-rate forecast.</small>
+                      </div>
+                    )}
+                    {product.cashflowIllustration?.status === 'UNAVAILABLE' && (
+                      <small data-testid="wti-contractual-cashflow-unavailable">
+                        Gross contract calculation unavailable: additional verified product terms, current rates, or approved source rights are required.
+                      </small>
+                    )}
                     {privatePrice > 0 && (
                       <div className="wti-private-quote" data-testid="wti-private-etf-quote">
                         <span>Private Upstox last-traded ETF price</span>

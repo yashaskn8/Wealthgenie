@@ -121,6 +121,9 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     });
     await mockUnavailableSimulation(page, 'projection/custom-portfolio');
     await mockUnavailableSimulation(page, 'montecarlo/portfolio');
+    // Grow My SIP issues this request when its tab mounts. Retain the
+    // unexpected-API guard for every other endpoint.
+    await mockUnavailableSimulation(page, 'projection/step-up');
     // 0. Disable onboarding modal so it does not intercept clicks
     await page.addInitScript(() => {
       try {
