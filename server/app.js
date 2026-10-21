@@ -20,6 +20,7 @@ import recommendRoutes from './routes/recommend.js';
 import instrumentRoutes from './routes/instruments.js';
 import financialUniverseRoutes from './routes/financialUniverse.js';
 import investorTaxContextRoutes from './routes/investorTaxContext.js';
+import investorHoldingRoutes from './routes/investorHoldings.js';
 import recommendationShortlistRoutes from './routes/recommendationShortlist.js';
 import taxAwareScenarioRoutes from './routes/taxAwareScenario.js';
 import projectionRoutes from './routes/projection.js';
@@ -214,6 +215,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/instruments', instrumentRoutes);
   app.use('/api/financial-universe', financialUniverseRoutes);
   app.use('/api/investor-tax-context', investorTaxContextRoutes);
+  app.use('/api/investor-holdings', investorHoldingRoutes);
   app.use('/api/recommendation-shortlist', recommendationShortlistRoutes);
   app.use('/api/tax-aware-simulation', taxAwareScenarioRoutes);
   app.use('/api/projection', projectionRoutes);
