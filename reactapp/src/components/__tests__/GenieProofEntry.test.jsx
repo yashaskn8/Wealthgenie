@@ -41,6 +41,7 @@ describe('GenieProof server-backed availability', () => {
     ['GENIEPROOF_FLAG_DISABLED', /Set GENIEPROOF_ENABLED=true/i],
     ['GENIEPROOF_SIGNING_KEYS_MISSING', /GENIEPROOF_SIGNING_PRIVATE_KEY/i],
     ['GENIEPROOF_SIGNING_CONFIGURATION_INVALID', /Ed25519 private\/public keys match/i],
+    ['GENIEPROOF_LOCAL_REQUEST_REQUIRED', /local loopback development server/i],
   ])('explains %s without enabling unauthorized controls', async (reasonCode, expected) => {
     getGenieProofCapabilities.mockResolvedValue({
       interactiveEnabled: false,

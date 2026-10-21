@@ -113,6 +113,59 @@ test('synthetic golden evidence supports and contradicts only an exact current P
   assert.equal(contradicted.contradictingEvidenceIds.length, 1);
 });
 
+test('signed findings preserve millisecond effective dates across Mongo Date and exported JSON replay', () => {
+  const { signer } = createSigner();
+  const claim = ppfClaim();
+  const evidence = syntheticEvidence(signer, {
+    effectiveFrom: '2026-10-01T00:00:00.123Z',
+    effectiveTo: '2026-12-31T18:29:59.987Z',
+  });
+  const fromMongo = verify(claim, evidence, signer);
+  const fromExport = verify(claim, JSON.parse(JSON.stringify(evidence)), signer);
+  assert.equal(fromMongo.finding, 'SUPPORTED');
+  assert.deepEqual(fromExport, JSON.parse(JSON.stringify(fromMongo)));
+  assert.equal(fromMongo.effectivePeriodBinding.effectiveFrom, '2026-10-01T00:00:00.123Z');
+  assert.equal(fromMongo.effectivePeriodBinding.effectiveTo, '2026-12-31T18:29:59.987Z');
+});
+
+test('offline verifier identifies a historical signed whole-second Date replay without accepting other finding changes', () => {
+  const { signer, publicKeyPem } = createSigner();
+  const claim = ppfClaim();
+  const evidence = syntheticEvidence(signer, {
+    effectiveFrom: '2026-10-01T00:00:00.123Z',
+    effectiveTo: '2026-12-31T18:29:59.987Z',
+  });
+  const legacyFinding = structuredClone(verify(claim, evidence, signer));
+  const wholeSecond = value => value.replace(/\.\d{3}Z$/, '.000Z');
+  for (const field of ['effectiveFrom', 'effectiveTo']) {
+    legacyFinding.effectivePeriodBinding[field] = wholeSecond(legacyFinding.effectivePeriodBinding[field]);
+    legacyFinding.evidence.revisions[0][field] = wholeSecond(legacyFinding.evidence.revisions[0][field]);
+  }
+  const { manifest } = buildGenieProofManifest({
+    caseId: '00000000-0000-4000-8000-000000000001',
+    ownerId: '65b000000000000000000001',
+    submissionHash: 'd'.repeat(64),
+    confirmedClaims: [claim],
+    findings: [legacyFinding],
+    revision: 1,
+    assessedAt: assessedAt.toISOString(),
+    verifierVersion: GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
+    evidenceRegistrySnapshotHash: 'f'.repeat(64),
+  });
+  const trustedPublicKeys = { 'synthetic-evidence-test-key': publicKeyPem };
+  const verified = verifyExportedGenieProofPassport(signer.signManifest(manifest), { trustedPublicKeys });
+  assert.equal(verified.status, 'VERIFICATION_INCOMPLETE');
+  assert.equal(verified.signature, 'SIGNATURE_INTEGRITY_VALID');
+  assert.equal(verified.findings, 'FINDING_REPRODUCIBLE');
+  assert.equal(verified.findingSemantics, 'LEGACY_TIMESTAMP_REPLAY_ONLY');
+  assert.equal(verified.financialCorrectness, 'NOT_ESTABLISHED_BY_SIGNATURE');
+  const altered = structuredClone(manifest);
+  altered.findings[0].reasonCodes = ['EXACT_CURRENT_RATE_MISMATCH'];
+  const failed = verifyExportedGenieProofPassport(signer.signManifest(altered), { trustedPublicKeys });
+  assert.equal(failed.status, 'VERIFICATION_FAILED');
+  assert.equal(failed.code, 'PASSPORT_FINDING_REPLAY_MISMATCH');
+});
+
 test('current verifier rejects temporal scope and extra unverified rate semantics while preserving historical replay semantics', () => {
   const { signer } = createSigner();
   for (const statement of [

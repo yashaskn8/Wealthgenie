@@ -3,6 +3,50 @@ import { canonicalJson, canonicalSha256 } from '../../utils/canonicalJson.js';
 
 export const GENIEPROOF_SIGNATURE_ALGORITHM = 'Ed25519';
 
+// A trust store is intentionally a flat JSON object of key IDs to PEM strings.
+// JSON.parse alone silently keeps the last occurrence of a duplicate key ID.
+export function parseGenieProofTrustedPublicKeysJson(raw) {
+  const parsed = JSON.parse(raw);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object'
+      || Object.values(parsed).some(value => typeof value !== 'string')) {
+    throw new TypeError('GenieProof trusted keys must be a flat object of public-key strings.');
+  }
+  let index = 0;
+  const skipWhitespace = () => { while (/\s/.test(raw[index] || '') && index < raw.length) index += 1; };
+  const readString = () => {
+    if (raw[index] !== '"') throw new TypeError('GenieProof trusted-key JSON is not a flat object.');
+    const start = index++;
+    while (index < raw.length) {
+      if (raw[index] === '\\') { index += 2; continue; }
+      if (raw[index] === '"') return JSON.parse(raw.slice(start, ++index));
+      index += 1;
+    }
+    throw new TypeError('GenieProof trusted-key JSON string is incomplete.');
+  };
+  skipWhitespace();
+  if (raw[index++] !== '{') throw new TypeError('GenieProof trusted-key JSON must be an object.');
+  skipWhitespace();
+  const seen = new Set();
+  while (raw[index] !== '}') {
+    const keyId = readString();
+    if (seen.has(keyId)) throw new TypeError('GenieProof trusted-key JSON contains a duplicate key ID.');
+    seen.add(keyId);
+    skipWhitespace();
+    if (raw[index++] !== ':') throw new TypeError('GenieProof trusted-key JSON is not a flat object.');
+    skipWhitespace();
+    readString();
+    skipWhitespace();
+    if (raw[index] === ',') { index += 1; skipWhitespace(); continue; }
+    if (raw[index] !== '}') throw new TypeError('GenieProof trusted-key JSON is not a flat object.');
+  }
+  index += 1;
+  skipWhitespace();
+  if (index !== raw.length || seen.size !== Object.keys(parsed).length) {
+    throw new TypeError('GenieProof trusted-key JSON is not a flat object.');
+  }
+  return parsed;
+}
+
 function readPublicKey(value) {
   try {
     if (typeof value === 'string' && /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value)) return null;
@@ -211,7 +255,7 @@ export function createGenieProofRuntime({ env = process.env } = {}) {
   }
   try {
     const trustedPublicKeys = env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON
-      ? JSON.parse(env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON)
+      ? parseGenieProofTrustedPublicKeysJson(env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON)
       : {};
     const revokedKeyIds = env.GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON
       ? JSON.parse(env.GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON)

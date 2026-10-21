@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isIP } from 'node:net';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { verifyJWT } from '../middleware/authMiddleware.js';
 import { validateStrict } from '../validation/financialSchemas.js';
@@ -56,27 +57,53 @@ const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 
 // An authenticated capability report is the only source of truth for the UI.
 // Never expose key material or infer that local signing qualifies financial evidence.
-export function getGenieProofCapabilityStatus(runtime) {
-  const enabled = runtime?.enabled === true && runtime?.productionActivationAllowed === false;
+function isLoopbackAddress(address) {
+  if (typeof address !== 'string') return false;
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, '').replace(/^::ffff:/, '');
+  return normalized === '::1' || (isIP(normalized) === 4 && normalized.split('.')[0] === '127');
+}
+
+// Research signing must not be reachable through a LAN address or a proxy.
+// Check the socket peer rather than trusting Express's proxy-aware req.ip.
+export function isGenieProofLocalResearchRequest(req) {
+  if (!isLoopbackAddress(req?.socket?.remoteAddress)) return false;
+  if (['forwarded', 'x-forwarded-for', 'x-forwarded-host', 'x-real-ip']
+    .some(name => req?.headers?.[name] !== undefined)) return false;
+  if (typeof req?.headers?.host !== 'string') return false;
+  try {
+    const hostname = new URL(`http://${req.headers.host}`).hostname.toLowerCase();
+    return hostname === 'localhost' || isLoopbackAddress(hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function getGenieProofCapabilityStatus(runtime, { localResearchRequest = true } = {}) {
+  const enabled = localResearchRequest && runtime?.enabled === true && runtime?.productionActivationAllowed === false;
   const safeUnavailableCodes = new Set([
     'GENIEPROOF_LOCAL_RESEARCH_ONLY',
     'GENIEPROOF_FLAG_DISABLED',
     'GENIEPROOF_SIGNING_KEYS_MISSING',
     'GENIEPROOF_SIGNING_CONFIGURATION_INVALID',
+    'GENIEPROOF_LOCAL_REQUEST_REQUIRED',
   ]);
   return {
     interactiveEnabled: enabled,
     extractionPreviewEnabled: true,
     mode: enabled ? 'LOCAL_RESEARCH' : 'UNAVAILABLE',
-    reasonCode: enabled
-      ? 'RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED'
-      : (safeUnavailableCodes.has(runtime?.reasonCode) ? runtime.reasonCode : 'FEATURE_UNAVAILABLE'),
+    reasonCode: !localResearchRequest
+      ? 'GENIEPROOF_LOCAL_REQUEST_REQUIRED'
+      : enabled
+        ? 'RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED'
+        : (safeUnavailableCodes.has(runtime?.reasonCode) ? runtime.reasonCode : 'FEATURE_UNAVAILABLE'),
     productionVerified: false,
   };
 }
 
 function requireEnabled(req) {
-  if (req.app.locals.genieProofRuntime?.enabled !== true) {
+  if (!getGenieProofCapabilityStatus(req.app.locals.genieProofRuntime, {
+    localResearchRequest: isGenieProofLocalResearchRequest(req),
+  }).interactiveEnabled) {
     throw createError(404, 'GenieProof is unavailable.', 'GenieProof is not available.', { code: 'FEATURE_UNAVAILABLE' });
   }
 }
@@ -101,7 +128,9 @@ function rejectQueryParameters(req, _res, next) {
 }
 
 router.get('/capabilities', verifyJWT, rejectQueryParameters, (req, res) => {
-  return res.json(getGenieProofCapabilityStatus(req.app.locals.genieProofRuntime));
+  return res.json(getGenieProofCapabilityStatus(req.app.locals.genieProofRuntime, {
+    localResearchRequest: isGenieProofLocalResearchRequest(req),
+  }));
 });
 
 // This route only parses user-submitted text. It NEVER uses external financial

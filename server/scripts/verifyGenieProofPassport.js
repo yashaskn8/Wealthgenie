@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { verifyExportedGenieProofPassport } from '../agents/genieProof/genieProofPassportVerifier.js';
+import { parseGenieProofTrustedPublicKeysJson } from '../agents/genieProof/genieProofPassportSignature.js';
 
 const passportPath = process.argv[2];
 if (!passportPath || process.argv.length !== 3) {
@@ -9,7 +10,7 @@ if (!passportPath || process.argv.length !== 3) {
   try {
     const signedPassport = JSON.parse(await readFile(passportPath, 'utf8'));
     const trustedPublicKeys = process.env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON
-      ? JSON.parse(process.env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON)
+      ? parseGenieProofTrustedPublicKeysJson(process.env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON)
       : {};
     const revokedKeyIds = process.env.GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON
       ? JSON.parse(process.env.GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON)

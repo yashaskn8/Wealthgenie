@@ -405,6 +405,10 @@ test('case quota is a hard 25-case limit and expired records stop appearing in a
   }), error => error.code === 'GENIEPROOF_CASE_QUOTA_REACHED' && error.status === 429);
   assert.equal((await listGenieProofCases({ userId: userOne, ...f, now })).length, GENIEPROOF_MAX_CASES_PER_USER);
 
+  const expiredCaseId = f.cases[0].caseId;
+  for (const rows of [f.watches, f.jobs, f.events, f.outbox]) {
+    rows.push({ userId: userOne, caseId: expiredCaseId });
+  }
   const expiredAt = new Date(now().getTime() + GENIEPROOF_RETENTION_DAYS * 86400000 + 1);
   assert.deepEqual(await listGenieProofCases({ userId: userOne, ...f, now: () => expiredAt }), []);
   await createGenieProofCase({
@@ -412,6 +416,9 @@ test('case quota is a hard 25-case limit and expired records stop appearing in a
   });
   assert.equal(f.cases.length, 1, 'expired cases and their revisions are pruned transactionally before a new save');
   assert.equal(f.revisions.length, 1);
+  for (const rows of [f.watches, f.jobs, f.events, f.outbox]) {
+    assert.equal(rows.length, 0, 'expired case-scoped ProofBreak records are pruned in the same transaction');
+  }
 });
 
 test('an exact idempotent retry replays the last quota slot and rejects a changed payload at quota', async () => {

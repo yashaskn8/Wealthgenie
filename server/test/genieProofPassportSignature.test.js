@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import {
   createGenieProofRuntime,
   GenieProofPassportSigner,
+  parseGenieProofTrustedPublicKeysJson,
 } from '../agents/genieProof/genieProofPassportSignature.js';
 
 function keyPair() {
@@ -188,4 +189,27 @@ test('runtime produces safe distinct activation reasons, never key data', () => 
   assert.equal(good.enabled, true);
   assert.equal(good.reasonCode, undefined);
   assert.equal(good.productionActivationAllowed, false);
+});
+
+test('trusted-key JSON rejects duplicate IDs, including escaped aliases, before runtime activation', () => {
+  const keys = keyPair();
+  const other = keyPair();
+  const duplicate = `{"history":${JSON.stringify(keys.publicKeyPem)},"history":${JSON.stringify(other.publicKeyPem)}}`;
+  const escapedAlias = `{"hist\\u006fry":${JSON.stringify(keys.publicKeyPem)},"history":${JSON.stringify(other.publicKeyPem)}}`;
+  for (const trustJson of [duplicate, escapedAlias]) {
+    assert.throws(() => parseGenieProofTrustedPublicKeysJson(trustJson), /duplicate key ID/);
+    const runtime = createGenieProofRuntime({ env: {
+      NODE_ENV: 'development',
+      GENIEPROOF_ENABLED: 'true',
+      GENIEPROOF_SIGNING_PRIVATE_KEY: keys.privateKeyPem,
+      GENIEPROOF_SIGNING_PUBLIC_KEY: keys.publicKeyPem,
+      GENIEPROOF_SIGNING_KEY_ID: 'local-v1',
+      GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON: trustJson,
+    } });
+    assert.equal(runtime.enabled, false);
+    assert.equal(runtime.reasonCode, 'GENIEPROOF_SIGNING_CONFIGURATION_INVALID');
+  }
+  assert.deepEqual(parseGenieProofTrustedPublicKeysJson(JSON.stringify({ history: keys.publicKeyPem })), {
+    history: keys.publicKeyPem,
+  });
 });
