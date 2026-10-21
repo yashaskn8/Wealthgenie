@@ -13,7 +13,7 @@ import {calculateHoldingValuation} from '../services/holdingValuation.js';
 const router=Router();
 const objectId=Joi.string().pattern(/^[a-fA-F0-9]{24}$/);
 const productId=Joi.string().min(3).max(160).pattern(/^[a-zA-Z0-9:_-]+$/);
-const decimal=Joi.string().pattern(/^(0|[1-9][0-9]*)(?:\.[0-9]{1,8})?$/);
+const decimal=Joi.string().max(30).pattern(/^(0|[1-9][0-9]*)(?:\.[0-9]{1,8})?$/);
 const paise=Joi.string().pattern(/^(0|[1-9][0-9]*)$/).max(19);
 const date=Joi.string().pattern(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
 const createSchema=Joi.object({
@@ -53,7 +53,9 @@ router.post('/',verifyJWT,validate(createSchema),asyncHandler(async(req,res)=>{
  const {profileId,canonicalProductId,clientMutationId,quantityDecimal,costBasisPaise,acquisitionDate}=req.body;
  await ownedProfile(req.user.userId,profileId);
  // The user is declaring a purchased lot; it is not source-verified execution evidence.
- if(quantityDecimal==='0')return sendError(req,res,400,'Quantity must exceed zero','HOLDING_QUANTITY_INVALID');
+ if(!Number.isFinite(Number(quantityDecimal))||Number(quantityDecimal)<=0){
+  return sendError(req,res,400,'Quantity must exceed zero','HOLDING_QUANTITY_INVALID');
+ }
  const parsed=new Date(acquisitionDate+'T00:00:00.000Z');
  if(!Number.isFinite(+parsed)||parsed.toISOString().slice(0,10)!==acquisitionDate
      ||parsed>new Date())return sendError(req,res,400,'Acquisition date is invalid','HOLDING_DATE_INVALID');
