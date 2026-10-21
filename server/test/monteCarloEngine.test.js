@@ -182,3 +182,13 @@ test('rescaling and invalid seeds fail closed; real results match nominal paths'
     }
   });
 });
+
+test('dependent quasi-random trajectories do not claim an iid standard error or sequence risk', () => {
+  const response = runMonteCarlo({ ...VALID_MC, seed: 911 });
+  assert.equal(response.standard_error, null);
+  assert.equal(response.standard_error_status, 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS');
+  assert.equal(response.sequenceRisk, null);
+  assert.equal(response.sequence_of_returns_risk, null);
+  assert.ok(Number.isFinite(response.terminal_wealth_cv));
+  assert.equal(response.model_version, 'monte-carlo-gbm-2.2.0');
+});
