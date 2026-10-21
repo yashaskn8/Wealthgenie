@@ -21,7 +21,7 @@ function normalizedName(name) {
 const entries = [
   ...investmentDatabase.map(entry => ({
     id:entry.id,name:entry.name,category:entry.category,subCategory:entry.subCategory || null,
-    referenceUrl:null,verificationScope:'UNVERIFIED',assessedAsOf:null,
+    referenceUrl:null,verificationScope:'UNVERIFIED',assessedAsOf:null,discoveryMetadata:null,
   })),
   ...extensionManifest.entries.map(entry => ({
     id:entry.id,name:entry.name,category:entry.category,subCategory:entry.subCategory,
@@ -30,6 +30,10 @@ const entries = [
     recordKind:entry.recordKind,recommendationEligible:entry.recommendationEligible,
     availability:entry.availability,marketDataStatus:entry.marketDataStatus,
     postTaxStatus:entry.postTaxStatus,
+    discoveryMetadata:{instrumentForm:entry.instrumentForm,researchEvidence:entry.researchEvidence,
+      productIdentity:entry.productIdentity,productFacts:entry.productFacts,
+      riskAndSuitability:entry.riskAndSuitability,taxAndCalculations:entry.taxAndCalculations,
+      dataRights:entry.dataRights,investorWarnings:entry.investorWarnings}, 
   })),
 ];
 if (!Array.isArray(extensionManifest.entries) || extensionManifest.entries.length < 1) {
@@ -79,25 +83,29 @@ try {
       [subId,catId,sub]);
     const {rows} = await client.query(
       `SELECT name,category_id,subcategory_id,record_kind,recommendation_eligible,
-         availability,discovery_reference_url,verification_scope
-         FROM finance.products WHERE id=$1 FOR UPDATE`,[entry.id]);
+         availability,discovery_reference_url,verification_scope,
+         (discovery_metadata IS NOT DISTINCT FROM $2::jsonb) AS metadata_matches
+         FROM finance.products WHERE id=$1 FOR UPDATE`,[entry.id,entry.discoveryMetadata ? JSON.stringify(entry.discoveryMetadata):null]);
     if (rows.length) {
       const p=rows[0];
       if (p.name!==entry.name || p.category_id!==catId
           || p.subcategory_id!==subId || p.record_kind!=='ARCHETYPE'
           || p.recommendation_eligible!==false || p.availability!=='UNVERIFIED'
           || p.discovery_reference_url!==(entry.referenceUrl||null)
-          || p.verification_scope!==entry.verificationScope) {
+          || p.verification_scope!==entry.verificationScope
+          || p.metadata_matches!==true) {
         throw new Error('CATALOG_IDENTITY_OR_EVIDENCE_CONFLICT:'+entry.id);
       }
       continue;
     }
     await client.query(
       `INSERT INTO finance.products(id,name,record_kind,category_id,subcategory_id,
-        availability,recommendation_eligible,discovery_reference_url,verification_scope,assessed_as_of)
-       VALUES($1,$2,'ARCHETYPE',$3,$4,'UNVERIFIED',false,$5,$6,$7)`,
+        availability,recommendation_eligible,discovery_reference_url,verification_scope,
+        assessed_as_of,discovery_metadata)
+       VALUES($1,$2,'ARCHETYPE',$3,$4,'UNVERIFIED',false,$5,$6,$7,$8::jsonb)`,
       [entry.id,entry.name,catId,subId,
-        entry.referenceUrl,entry.verificationScope,entry.assessedAsOf]);
+        entry.referenceUrl,entry.verificationScope,entry.assessedAsOf,
+        entry.discoveryMetadata ? JSON.stringify(entry.discoveryMetadata) : null]);
     inserted+=1;
   }
   const result=await client.query(
