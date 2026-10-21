@@ -63,6 +63,17 @@ vi.mock('../components/TaxesHub', async () => {
   };
 });
 
+vi.mock('../components/JourneyPage', async () => {
+  const ReactModule = await import('react');
+  return {
+    default: ({ profile, financialState }) => ReactModule.createElement('section', { 'data-testid': 'journey-progress' },
+      ReactModule.createElement('output', { 'data-testid': 'journey-profile-id' }, profile?.profileId || ''),
+      ReactModule.createElement('output', { 'data-testid': 'journey-profile-version' }, String(profile?.version ?? 'missing')),
+      ReactModule.createElement('output', { 'data-testid': 'journey-recommendation-id' }, financialState?.recommendationId || ''),
+    ),
+  };
+});
+
 vi.mock('../components/ProgressHub', async () => {
   const ReactModule = await import('react');
   return {

@@ -22,7 +22,7 @@ describe('goalSubmission Utility (WG-033)', () => {
       profileId: 'profile_123',
     });
 
-    // Test Date instance targetDate (from GoalTracker computed Date)
+    // Test Date instance targetDate (from a saved goal target Date)
     const dateObj = new Date('2040-01-15T00:00:00.000Z');
     const payloadFromDate = buildGoalPayload({
       goalName: 'Emergency Fund',

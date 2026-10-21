@@ -88,13 +88,6 @@ paths:
       tags: [Profiles]
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
       responses: { '200': { $ref: '#/components/responses/Profile' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' } }
-  /api/profile/{profileId}/health-score:
-    get:
-      operationId: getFinancialHealthScore
-      tags: [Profiles]
-      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/ProfileId' }]
-      responses: { '200': { $ref: '#/components/responses/Object' }, '401': { $ref: '#/components/responses/Unauthorized' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
   /api/profile/{profileId}:
     put:
       operationId: updateProfile

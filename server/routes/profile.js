@@ -16,7 +16,6 @@ import { assessSuitabilityRisk } from '../services/riskProfiler.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import { captureProfileStateForCompletion, requireCurrentFinancialProfile, resolveCurrentFinancialProfile } from '../services/currentFinancialProfile.js';
 import { requireFreshRecommendationState } from '../services/recommendationState.js';
-import { calculateFinancialHealthScore } from '../services/financialHealthEngine.js';
 import { redisClient, redisAvailable } from '../config/redis.js';
 import {
   completeMutationIdempotency,
@@ -327,24 +326,6 @@ router.get('/current', verifyJWT, asyncHandler(async (req, res) => {
     throw createError(404, 'Financial profile not found', 'Financial profile not found.');
   }
   res.json(formatProfileResponse(profile));
-}));
-
-router.get('/:profileId/health-score', verifyJWT, asyncHandler(async (req, res) => {
-  const { profile } = await requireCurrentFinancialProfile({ userId: req.user.userId, profileId: req.params.profileId });
-  if (!profile) throw createError(404, 'Profile not found or access denied', 'Financial profile not found.');
-  let instruments = [];
-  try {
-    const state = await requireFreshRecommendationState({ userId: req.user.userId, profileId: profile._id, profile });
-    instruments = state.currentAllocation?.instruments || [];
-  } catch (error) {
-    if (error.code !== 'RECOMMENDATION_REQUIRED') {
-      throw createError(error.status || 409, error.message, 'Regenerate recommendations before calculating financial health.', {
-        code: error.code || 'RECOMMENDATION_STALE',
-        details: { reasonCodes: error.reasonCodes, freshness: error.freshness },
-      });
-    }
-  }
-  res.json(calculateFinancialHealthScore(profile, instruments));
 }));
 
 router.post(

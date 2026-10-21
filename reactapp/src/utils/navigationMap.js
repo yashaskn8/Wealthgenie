@@ -9,9 +9,7 @@ export const NAV_PAGES = {
   INVESTMENTS: 'investments',
   TAXES: 'taxes',
   PROGRESS: 'progress', // Existing mobile Progress hub remains unchanged.
-  FINANCIAL_INDICATORS: 'financial-indicators',
-  MY_GOALS: 'my-goals',
-  PLAN_A_GOAL: 'plan-a-goal',
+  GOALS: 'goals',
   GROW_MY_SIP: 'grow-my-sip',
   KEEP_ON_TRACK: 'keep-on-track',
   GENIEPROOF: 'genieproof',
@@ -25,9 +23,7 @@ export const PAGE_ALLOWLIST = [
   NAV_PAGES.INVESTMENTS,
   NAV_PAGES.TAXES,
   NAV_PAGES.PROGRESS,
-  NAV_PAGES.FINANCIAL_INDICATORS,
-  NAV_PAGES.MY_GOALS,
-  NAV_PAGES.PLAN_A_GOAL,
+  NAV_PAGES.GOALS,
   NAV_PAGES.GROW_MY_SIP,
   NAV_PAGES.KEEP_ON_TRACK,
   NAV_PAGES.GENIEPROOF,
@@ -36,9 +32,7 @@ export const PAGE_ALLOWLIST = [
 ];
 
 export const DESKTOP_PROGRESS_DESTINATIONS = Object.freeze({
-  indicators: NAV_PAGES.FINANCIAL_INDICATORS,
-  goals: NAV_PAGES.MY_GOALS,
-  'plan-goal': NAV_PAGES.PLAN_A_GOAL,
+  goals: NAV_PAGES.GOALS,
   'grow-sip': NAV_PAGES.GROW_MY_SIP,
   rebalancer: NAV_PAGES.KEEP_ON_TRACK,
 });
@@ -49,7 +43,7 @@ export const HUB_TABS = {
   },
   [NAV_PAGES.PROGRESS]: {
     default: 'goals',
-    allowed: ['goals', 'plan-goal', 'grow-sip', 'indicators', 'rebalancer'],
+    allowed: ['goals', 'grow-sip', 'rebalancer'],
   },
 };
 
@@ -63,10 +57,13 @@ export const LEGACY_NAV_MAP = {
   'tax-optimizer':   { page: NAV_PAGES.TAXES,       tab: 'regime-savings' },
   'taxes':           { page: NAV_PAGES.TAXES,       tab: 'regime-savings' },
   'post-tax':        { page: NAV_PAGES.TAXES,       tab: 'real-returns' },
-  'goals':           { page: NAV_PAGES.PROGRESS,    tab: 'goals' },
-  'goal-planner':    { page: NAV_PAGES.PROGRESS,    tab: 'plan-goal' },
-  'sip-planner':     { page: NAV_PAGES.PROGRESS,    tab: 'grow-sip' },
-  'health':          { page: NAV_PAGES.PROGRESS,    tab: 'indicators' },
+  'goals':           { page: NAV_PAGES.GOALS,       tab: null },
+  'my-goals':        { page: NAV_PAGES.GOALS,       tab: null },
+  'plan-a-goal':     { page: NAV_PAGES.GOALS,       tab: null },
+  'goal-planner':    { page: NAV_PAGES.GOALS,       tab: null },
+  'financial-indicators': { page: NAV_PAGES.HOME,  tab: null },
+  'health':          { page: NAV_PAGES.HOME,       tab: null },
+  'sip-planner':     { page: NAV_PAGES.GROW_MY_SIP, tab: null },
   'rebalancer':      { page: NAV_PAGES.PROGRESS,    tab: 'rebalancer' },
   'compare':         { page: NAV_PAGES.HOME,        tab: null },
   'insights':        { page: NAV_PAGES.HOME,        tab: null },
@@ -111,6 +108,9 @@ export function normalizeNavigation(rawPage, rawTab, { allowGenieProof = false }
     page = NAV_PAGES.HOME;
     tab = null;
   }
+
+  // Removed Progress views are mapped to the single retained Goals workflow.
+  if (page === NAV_PAGES.PROGRESS && (tab === 'indicators' || tab === 'plan-goal')) tab = 'goals';
 
   // Handle tab constraints based on whether page is a hub
   const hubConfig = HUB_TABS[page];

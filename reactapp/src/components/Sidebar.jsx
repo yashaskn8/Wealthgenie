@@ -5,8 +5,6 @@ import {
   Target,
   ShieldCheck,
   TrendingUp,
-  Activity,
-  Crosshair,
   ArrowLeftRight,
   FileSearch,
   User,
@@ -27,15 +25,13 @@ const PRIMARY_NAV_ITEMS = [
   { id: NAV_PAGES.PLAN, label: 'My Plan', icon: PieChart, testId: 'nav-plan', legacyTestIds: ['nav-allocation'] },
   { id: NAV_PAGES.INVESTMENTS, label: 'Where to Invest', icon: Target, testId: 'nav-investments', legacyTestIds: ['nav-where-to-invest'] },
   { id: NAV_PAGES.TAXES, label: 'Taxes', icon: ShieldCheck, testId: 'nav-taxes', legacyTestIds: ['nav-tax-optimizer', 'nav-post-tax'] },
-  { id: NAV_PAGES.PROGRESS, label: 'Progress', icon: TrendingUp, testId: 'nav-progress', legacyTestIds: ['nav-goal-planner', 'nav-goals', 'nav-rebalancer', 'nav-sip-planner', 'nav-health'] },
+  { id: NAV_PAGES.PROGRESS, label: 'Progress', icon: TrendingUp, testId: 'nav-progress', legacyTestIds: [] },
 ];
 
 const DESKTOP_PRIMARY_NAV_ITEMS = PRIMARY_NAV_ITEMS.filter(item => item.id !== NAV_PAGES.PROGRESS);
 // Mobile continues using the original PRIMARY_NAV_ITEMS.
 const JOURNEY_NAV_ITEMS = [
-  { id: NAV_PAGES.FINANCIAL_INDICATORS, label: 'Financial Indicators', icon: Activity, testId: 'nav-financial-indicators', legacyTestIds: ['nav-health'] },
-  { id: NAV_PAGES.MY_GOALS, label: 'My Goals', icon: Target, testId: 'nav-my-goals', legacyTestIds: ['nav-goals'] },
-  { id: NAV_PAGES.PLAN_A_GOAL, label: 'Plan a Goal', icon: Crosshair, testId: 'nav-plan-a-goal', legacyTestIds: ['nav-goal-planner'] },
+  { id: NAV_PAGES.GOALS, label: 'Goals', icon: Target, testId: 'nav-my-goals', legacyTestIds: ['nav-goals', 'nav-goal-planner'] },
   { id: NAV_PAGES.GROW_MY_SIP, label: 'Grow My SIP', icon: TrendingUp, testId: 'nav-grow-my-sip', legacyTestIds: ['nav-sip-planner'] },
   { id: NAV_PAGES.KEEP_ON_TRACK, label: 'Keep on Track', icon: ArrowLeftRight, testId: 'nav-keep-on-track', legacyTestIds: ['nav-rebalancer'] },
 ];
@@ -61,15 +57,12 @@ const getLegacyHandler = (legacyId, onNavigate, handleItemClick) => {
     case 'nav-post-tax':
       return () => onNavigate({ page: NAV_PAGES.TAXES, tab: 'real-returns' });
     case 'nav-goal-planner':
-      return () => onNavigate({ page: NAV_PAGES.PROGRESS, tab: 'plan-goal' });
     case 'nav-goals':
-      return () => onNavigate({ page: NAV_PAGES.PROGRESS, tab: 'goals' });
+      return () => handleItemClick(NAV_PAGES.GOALS);
     case 'nav-rebalancer':
       return () => onNavigate({ page: NAV_PAGES.PROGRESS, tab: 'rebalancer' });
     case 'nav-sip-planner':
       return () => onNavigate({ page: NAV_PAGES.PROGRESS, tab: 'grow-sip' });
-    case 'nav-health':
-      return () => onNavigate({ page: NAV_PAGES.PROGRESS, tab: 'indicators' });
     case 'nav-account':
     case 'nav-profile':
       return () => handleItemClick(NAV_PAGES.ACCOUNT);

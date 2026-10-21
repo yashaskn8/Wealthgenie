@@ -217,6 +217,7 @@ describe('GoalPlanner financial freshness boundary', () => {
     expect(screen.getByText('Loading saved goals…')).toBeTruthy();
     expect(screen.queryByText('No Active Goals Configured')).toBeNull();
     expect(screen.queryByRole('button', { name: /Initialize Target Goal/i })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Create Target Goal/i })).toHaveLength(1);
 
     await act(async () => resolveGoals({ goals: [] }));
     expect(await screen.findByText('No Active Goals Configured')).toBeTruthy();

@@ -795,19 +795,7 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
               <p style={{ color: '#64748b', fontSize: '0.92rem', maxWidth: 420, margin: '0 auto 26px', lineHeight: 1.6 }}>
                 Create your first financial milestone to unlock Monte Carlo projections, AI-powered advice, and SIP planning.
               </p>
-              <motion.button 
-                whileHover={{ scale: 1.05, boxShadow: '0 0 25px rgba(56, 189, 248, 0.4)' }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowForm(true)}
-                style={{
-                  background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(139, 92, 246, 0.15))',
-                  border: '1px solid rgba(56, 189, 248, 0.35)',
-                  borderRadius: 14, padding: '14px 28px', color: '#38bdf8', fontWeight: 800, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 10, margin: '0 auto', fontSize: '0.92rem'
-                }}
-              >
-                <Plus size={18} /> Initialize Target Goal
-              </motion.button>
+              
             </motion.div>
           )}
 

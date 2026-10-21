@@ -529,10 +529,6 @@ export async function getCurrentProfile(options = {}) {
   return request('GET', '/profile/current', null, { retries: 0, ...options });
 }
 
-export async function getFinancialHealthScore(profileId, options = {}) {
-  return request('GET', `/profile/${profileId}/health-score`, null, options);
-}
-
 export async function updateProfile(profileId, profile, requestOptions = {}) {
   try {
     return await request(
