@@ -624,3 +624,59 @@
     padding-top: 18px;
   }
 }
+
+
+/* Financially qualified category shortlist, separate from the current portfolio allocation. */
+.wti-risk-groups {
+  position: relative;
+  padding: 22px;
+  margin: 16px 0 24px;
+  border: 1px solid rgba(56,189,248,.22);
+  border-radius: 18px;
+  background: rgba(13,22,39,.93);
+  color: #f1f5f9;
+}
+.wti-risk-groups-heading {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: start;
+}
+.wti-risk-groups h2 { font-size: 1.12rem; font-weight: 750; margin: 0 0 8px; }
+.wti-risk-groups h3 { font-size: .93rem; margin: 0 0 10px; color: #e2e8f0; }
+.wti-risk-groups p { color: #cbd5e1; font-size: .85rem; margin: 0; line-height: 1.5; }
+.wti-risk-save {
+  background: #164e63;
+  color: #f8fafc;
+  border: 1px solid #22d3ee;
+  border-radius: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  min-height: 40px;
+}
+.wti-risk-save:disabled { cursor: default; opacity: .65; }
+.wti-risk-save:focus-visible { outline: 3px solid #a5f3fc; outline-offset: 2px; }
+.wti-risk-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.wti-risk-column {
+  min-width: 0;
+  background: rgba(30,41,59,.45);
+  border: 1px solid rgba(148,163,184,.18);
+  border-radius: 12px;
+  padding: 14px;
+}
+.wti-risk-column ol { margin: 0; padding-left: 20px; }
+.wti-risk-column li { margin: 0 0 12px; line-height: 1.4; }
+.wti-risk-column li span { display: block; font-size: .86rem; overflow-wrap: anywhere; }
+.wti-risk-column li small { display: block; margin-top: 3px; font-size: .72rem; color: #bae6fd; }
+.wti-risk-groups .wti-risk-empty { color: #94a3b8; }
+.wti-risk-groups .wti-risk-footer { margin-top: 14px; font-size: .76rem; }
+@media (max-width: 900px) {
+  .wti-risk-grid { grid-template-columns: 1fr; }
+  .wti-risk-groups { padding: 16px; }
+}
