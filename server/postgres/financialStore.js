@@ -58,7 +58,9 @@ export function createFinancialStore(pool) {
               o.retain_until,r.expires_at AS rights_expire_at
          FROM finance.market_observations o
          JOIN finance.provider_rights r ON r.source_id=o.source_id
+         JOIN finance.products p ON p.id=o.product_id
         WHERE o.product_id=$1 AND o.observation_type=$2
+          AND p.record_kind='ACTUAL_PRODUCT' AND p.availability IN ('AVAILABLE','RESTRICTED')
           AND r.access_allowed AND r.extraction_allowed AND r.storage_allowed
           AND r.derivation_allowed AND r.public_display_allowed
           AND r.commercial_use_allowed AND r.redistribution_allowed
@@ -90,6 +92,16 @@ export function createFinancialStore(pool) {
       throw new TypeError('Observation value must be an exact non-negative decimal string');
     }
     if (typeof input.sourceId !== 'string' || !input.sourceId.trim()) throw new TypeError('Source identity required');
+    if (typeof input.unit !== 'string' || input.unit.length < 1 || input.unit.length > 40
+        || /[\x00-\x1f\x7f]/.test(input.unit)) throw new TypeError('Invalid unit');
+    if (['PRICE','NAV'].includes(input.kind)
+      && (input.currency !== 'INR' || input.unit !== 'INR_PER_UNIT')) {
+      throw new TypeError('Market prices/NAV require exact INR per unit identity');
+    }
+    if (input.kind === 'PUBLISHED_RATE'
+      && (input.dataClass !== 'PUBLISHED_RATE' || input.unit !== 'PERCENT_PER_ANNUM')) {
+      throw new TypeError('Published interest rates require correct rate units and data class');
+    }
     if (input.dataClass === 'PUBLISHED_RATE'
       && (typeof input.effectiveFrom !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.effectiveFrom))) {
       throw new TypeError('Published rates require a verified effective-from date');
@@ -104,6 +116,16 @@ export function createFinancialStore(pool) {
       throw new TypeError('Invalid observation timestamps');
     }
     return transaction(async client => {
+      const product = await client.query(
+        'SELECT id,record_kind,availability FROM finance.products WHERE id=$1 FOR SHARE',
+        [input.productId],
+      );
+      if (product.rows[0]?.record_kind !== 'ACTUAL_PRODUCT'
+          || !['AVAILABLE','RESTRICTED'].includes(product.rows[0].availability)) {
+        const error = new Error('ACTUAL_INVESTMENT_PRODUCT_NOT_QUALIFIED');
+        error.code = 'ACTUAL_INVESTMENT_PRODUCT_NOT_QUALIFIED';
+        throw error;
+      }
       const rights = await client.query(
         `SELECT source_id,retention_seconds FROM finance.provider_rights
           WHERE source_id=$1 AND access_allowed AND extraction_allowed AND storage_allowed
