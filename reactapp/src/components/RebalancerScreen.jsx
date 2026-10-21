@@ -592,6 +592,11 @@ const RebalancerScreen = ({ profile, financialStateIdentity = null, recommendati
     if (onSave) onSave(updated, financialStateIdentity);
   };
 
+  const totalAllocatedPct = useMemo(() => {
+    return Object.values(allocations).reduce((sum, val) => sum + (Number(val) || 0), 0);
+  }, [allocations]);
+  const isAllocationBalanced = Math.abs(totalAllocatedPct - 100) < 0.5;
+
   return (
     <div className="rebalancer-page" style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 20px' }}>
       <div className="ambient-background">
@@ -700,16 +705,20 @@ const RebalancerScreen = ({ profile, financialStateIdentity = null, recommendati
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.28 }}
           >
-            <div className="sliders-summary-header" style={{ marginBottom: 20 }}>
-              <div className="sliders-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="sliders-header-label" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-                  <JargonTooltip term="Asset Allocation">Your Investment Split</JargonTooltip>
-                </span>
-                <span className="sliders-total-badge" style={{ background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.82rem', color: '#38bdf8', fontWeight: 700 }}>
-                  Total: 100%
+            <div className="sliders-summary-header">
+              <div className="sliders-header-row">
+                <div>
+                  <span className="rebal-eyebrow"><PieChart size={12} aria-hidden="true" /> PORTFOLIO REBALANCER</span>
+                  <h2 className="sliders-header-label">
+                    <JargonTooltip term="Asset Allocation">Your Investment Split</JargonTooltip>
+                  </h2>
+                </div>
+                <span className={`sliders-total-badge ${isAllocationBalanced ? 'is-balanced' : 'is-unbalanced'}`}>
+                  <span className="sliders-total-dot" />
+                  <span>Total: {Math.round(totalAllocatedPct)}%</span>
                 </span>
               </div>
-              <p className="sliders-hint" style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: 6, marginBottom: 0 }}>
+              <p className="sliders-hint">
                 Drag any slider to change how much of your savings goes into each investment. The rest will adjust automatically to keep the total at 100%.
               </p>
             </div>
@@ -724,7 +733,7 @@ const RebalancerScreen = ({ profile, financialStateIdentity = null, recommendati
                     className={`preset-btn ${isActive ? 'active' : ''}`}
                     onClick={() => handlePresetClick(name)}
                   >
-                    {name}
+                    <span>{name}</span>
                   </button>
                 );
               })}
@@ -763,41 +772,53 @@ const RebalancerScreen = ({ profile, financialStateIdentity = null, recommendati
 
             {/* ─── Monthly Money Breakdown ─── */}
             <div className="rupee-summary-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>Monthly Money Breakdown</span>
-                <span style={{ color: '#f8fafc', fontSize: '0.9rem', fontWeight: 700 }}>Total: {formatINR(totalSavings)}/month</span>
+              <div className="rupee-summary-head">
+                <div className="rupee-summary-title">
+                  <Wallet size={15} aria-hidden="true" />
+                  <span>Monthly Money Breakdown</span>
+                </div>
+                <span className="rupee-summary-total">Total: {formatINR(totalSavings)}/month</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div className="rupee-breakdown-list">
                 {recs.map(inv => {
                   const pct = Number(allocations[inv.id]) || 0;
-                  const amountCandidate = Number(monthlyInstrumentAllocations[localToBackendInstrument(inv.id)]);
-                  const amt = Number.isFinite(amountCandidate) ? amountCandidate : null;
+                  const backendKey = backendKeyForRecommendation(inv) || localToBackendInstrument(inv.id);
+                  const amountCandidate = Number(monthlyInstrumentAllocations[backendKey] ?? monthlyInstrumentAllocations[inv.id]);
+                  const calculatedAmt = (totalSavings && pct > 0) ? Math.round((pct / 100) * totalSavings) : null;
+                  const amt = Number.isFinite(amountCandidate) ? amountCandidate : calculatedAmt;
                   if (pct <= 0) return null;
                   const riskLabel = getRiskLabelString(inv);
-                  const color = RISK_COLORS[riskLabel] || '#64748b';
+                  const color = RISK_COLORS[riskLabel] || '#38bdf8';
                   return (
-                     <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.9rem' }}>
-                       <div style={{ width: '80px', height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.05)', overflow: 'hidden', flexShrink: 0 }}>
-                        <div style={{ width: `${pct}%`, height: '100%', borderRadius: '3px', background: color, transition: 'width 0.3s ease' }} />
+                    <div key={inv.id} className="rupee-breakdown-item">
+                      <div className="rupee-item-top">
+                        <div className="rupee-item-info">
+                          <span className="rupee-item-dot" style={{ background: color, boxShadow: `0 0 8px ${color}66` }} />
+                          <span className="rupee-item-name">{inv.name}</span>
+                        </div>
+                        <div className="rupee-item-values">
+                          <span className="rupee-item-amount">{formatINR(amt)}</span>
+                          <span className="rupee-item-pct">{pct.toFixed(0)}%</span>
+                        </div>
                       </div>
-                      <span style={{ color: '#e2e8f0', fontWeight: 600, flex: 1 }}>
-                        {inv.name}
-                      </span>
-                      <span style={{ color: '#f8fafc', fontWeight: 700, minWidth: '70px', textAlign: 'right' }}>{formatINR(amt)}</span>
-                      <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 600, minWidth: '36px', textAlign: 'right' }}>({pct.toFixed(0)}%)</span>
+                      <div className="rupee-item-track">
+                        <div className="rupee-item-fill" style={{ width: `${Math.min(100, Math.max(2, pct))}%`, background: color }} />
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="rebal-sliders" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="rebal-sliders">
               {recs.map(inv => {
                 const pct = Number(allocations[inv.id]) || 0;
-                const amountCandidate = Number(monthlyInstrumentAllocations[localToBackendInstrument(inv.id)]);
-                const amt = Number.isFinite(amountCandidate) ? amountCandidate : null;
+                const backendKey = backendKeyForRecommendation(inv) || localToBackendInstrument(inv.id);
+                const amountCandidate = Number(monthlyInstrumentAllocations[backendKey] ?? monthlyInstrumentAllocations[inv.id]);
+                const calculatedAmt = (totalSavings && pct > 0) ? Math.round((pct / 100) * totalSavings) : null;
+                const amt = Number.isFinite(amountCandidate) ? amountCandidate : calculatedAmt;
                 const riskLabel = getRiskLabelString(inv);
-                const color = RISK_COLORS[riskLabel] || '#64748b';
+                const color = RISK_COLORS[riskLabel] || '#38bdf8';
                 const isAllocated = pct > 0;
 
                 return (
@@ -805,9 +826,10 @@ const RebalancerScreen = ({ profile, financialStateIdentity = null, recommendati
                     key={inv.id}
                     className={`rebal-slider-row ${isAllocated ? 'allocated' : 'unallocated'}`}
                   >
-                    <div className="slider-info-col" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <span className="slider-instrument-name" style={{ fontWeight: 600, color: isAllocated ? '#f1f5f9' : '#94a3b8', fontSize: '0.9rem' }}>{inv.name}</span>
-                      <span className="slider-instrument-risk" style={{ color: isAllocated ? color : '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
+                    <div className="slider-info-col">
+                      <span className="slider-instrument-name">{inv.name}</span>
+                      <span className="slider-instrument-risk" style={{ color: isAllocated ? color : '#64748b', borderColor: isAllocated ? `${color}40` : 'rgba(255,255,255,0.08)' }}>
+                        <span className="slider-risk-dot" style={{ background: isAllocated ? color : '#64748b' }} />
                         {riskLabel} Risk
                       </span>
                     </div>
@@ -825,10 +847,10 @@ const RebalancerScreen = ({ profile, financialStateIdentity = null, recommendati
                         }}
                       />
                     </div>
-                    <span className="slider-pct-value" style={{ color: isAllocated ? color : '#64748b', fontWeight: 700, fontSize: '0.9rem', textAlign: 'right' }}>
+                    <span className="slider-pct-value" style={{ color: isAllocated ? '#f8fafc' : '#64748b' }}>
                       {pct.toFixed(0)}%
                     </span>
-                    <span className={`slider-amount-value ${isAllocated ? 'allocated-label' : 'unallocated-label'}`} style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.9rem', color: isAllocated ? '#f8fafc' : '#475569' }}>
+                    <span className={`slider-amount-value ${isAllocated ? 'allocated-label' : 'unallocated-label'}`}>
                       {isAllocated ? formatINR(amt) : '₹0'}
                     </span>
                   </div>

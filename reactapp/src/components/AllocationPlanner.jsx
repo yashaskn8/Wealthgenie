@@ -620,7 +620,13 @@ const PlanReviewPanel = ({ profile, profileId, financialStateKey, onRecomputePla
           <div className="ap-review-result">
             <div className="ap-review-result-head">
               <div className="ap-review-ready"><CheckCircle2 size={17} aria-hidden="true" /><span>Review complete</span></div>
-              <span className={`ap-review-action ap-review-action-${visibleReview.recommendedAction.toLowerCase()}`}>{visibleReview.recommendedAction.replaceAll('_', ' ')}</span>
+              <span
+                className={`ap-review-action ap-review-action-${visibleReview.recommendedAction.toLowerCase()}`}
+                data-action={visibleReview.recommendedAction}
+                title={`Recommended action: ${visibleReview.recommendedAction}`}
+              >
+                {visibleReview.recommendedAction === 'NONE' ? 'No action needed' : visibleReview.recommendedAction.replaceAll('_', ' ')}
+              </span>
             </div>
             <p className="ap-review-summary">{visibleReview.summary}</p>
             <div className="ap-review-findings">
