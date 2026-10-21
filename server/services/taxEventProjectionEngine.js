@@ -109,11 +109,15 @@ function parseDate(value, name) {
 }
 
 function taxContext(context = {}) {
-  const userAge = Number(context.userAge);
+  const userAge = Number.isInteger(context.userAge) && context.userAge >= 18 && context.userAge <= 120
+    ? context.userAge : null;
   const deductions = { ...(context.deductions || {}) };
-  if (Number.isInteger(userAge) && userAge >= 18 && userAge <= 120) deductions.age = userAge;
+  if (userAge !== null) deductions.age = userAge;
   return {
-    annualIncome: Number(context.annualGrossIncome),
+    // Never coerce null/empty investor financial data to a valid zero-income fact.
+    annualIncome: typeof context.annualGrossIncome === 'number'
+      && Number.isFinite(context.annualGrossIncome) && context.annualGrossIncome >= 0
+      ? context.annualGrossIncome : null,
     regime: context.regime,
     incomeSource: context.incomeSource,
     fiscalYear: context.fiscalYear,
@@ -138,8 +142,10 @@ function missingContext(context, modelTaxClass, options = {}) {
     required.push('annuityFraction', 'retirementTiming');
   }
   const missing = required.filter(key => {
-    if (key === 'annualGrossIncome') return !Number.isFinite(Number(context?.annualGrossIncome));
-    if (key === 'userAge') return !Number.isInteger(Number(context?.userAge));
+    if (key === 'annualGrossIncome') return typeof context?.annualGrossIncome !== 'number'
+      || !Number.isFinite(context.annualGrossIncome) || context.annualGrossIncome < 0;
+    if (key === 'userAge') return !Number.isInteger(context?.userAge)
+      || context.userAge < 18 || context.userAge > 120;
     if (key === 'section112AExemptionUsed') {
       return !Number.isFinite(context?.section112AExemptionUsed) || context.section112AExemptionUsed < 0;
     }
@@ -716,9 +722,26 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       unavailableReasons: ['PPF_SSY_EXCLUSION_ELIGIBILITY_NOT_ESTABLISHED', 'VERIFIED_ACCOUNT_AND_PAYMENT_FACTS_REQUIRED'],
     };
   }
+  // A calculated headline rate does not authorize a new projection using
+  // missing or different investor context. In particular Number(null) === 0.
+  const missingInvestorFacts = [
+    ...(typeof context.annualGrossIncome === 'number'
+      && Number.isFinite(context.annualGrossIncome) && context.annualGrossIncome >= 0
+      ? [] : ['annualGrossIncome']),
+    ...(['salary', 'pension', 'family_pension', 'business', 'other'].includes(context.incomeSource)
+      ? [] : ['incomeSource']),
+    ...(['new', 'old'].includes(context.regime) ? [] : ['regime']),
+    ...(typeof context.fiscalYear === 'string' && /^FY\\d{4}-\\d{2}$/.test(context.fiscalYear)
+      ? [] : ['fiscalYear']),
+    ...(Number.isInteger(context.userAge) && context.userAge >= 18 && context.userAge <= 120
+      ? [] : ['userAge']),
+  ];
+  const policyBindingChanged = postTaxResult.fiscalYear
+    && context.fiscalYear !== postTaxResult.fiscalYear;
   const section112AUsageMissing = modelTaxClass === MODEL_TAX_CLASSES.EQUITY_112A
     && (!Number.isFinite(context.section112AExemptionUsed) || context.section112AExemptionUsed < 0);
-  if (postTaxResult.status !== MODEL_POST_TAX_STATUSES.CALCULATED || exactDateError || section112AUsageMissing) {
+  if (postTaxResult.status !== MODEL_POST_TAX_STATUSES.CALCULATED || exactDateError
+      || section112AUsageMissing || missingInvestorFacts.length || policyBindingChanged) {
     return {
       status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE,
       totalInvested: Math.round(gross.totalInvested),
@@ -740,6 +763,8 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       unavailableReasons: [
         ...(postTaxResult.unavailableReasons || []),
         ...(exactDateError ? [exactDateError] : []),
+        ...missingInvestorFacts,
+        ...(policyBindingChanged ? ['TAX_POLICY_FISCAL_YEAR_CHANGED'] : []),
         ...(section112AUsageMissing ? ['section112AExemptionUsed'] : []),
       ],
     };
