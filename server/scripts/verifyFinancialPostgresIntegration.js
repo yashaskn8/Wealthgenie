@@ -34,8 +34,12 @@ try {
     (source_id,endpoint_url,evidence_url,retention_seconds)
     VALUES($1,$2,$3,3600)`,
     [sourceId,'https://example.invalid/fixture','https://example.invalid/rights']);
+  await pool.query(`INSERT INTO finance.product_external_ids
+    (product_id,source_id,source_instrument_id) VALUES($1,$2,$3)`,
+    [productId,sourceId,'CI:INSTRUMENT:'+suffix]);
   const input = {
-    productId, sourceId, kind:'PRICE', value:'100.25000000',
+    productId, sourceId, sourceInstrumentId:'CI:INSTRUMENT:'+suffix,
+    kind:'PRICE', value:'100.25000000',
     currency:'INR',unit:'INR_PER_UNIT',dataClass:'LIVE',
     observedAt:new Date(Date.now()-20000).toISOString(),
     fetchedAt:new Date(Date.now()-15000).toISOString(),
@@ -59,6 +63,7 @@ try {
 } finally {
   // This script is restricted to *_test databases. Never modify a live source registry.
   await pool.query('DELETE FROM finance.market_observations WHERE source_id=$1',[sourceId]);
+  await pool.query('DELETE FROM finance.product_external_ids WHERE source_id=$1',[sourceId]);
   await pool.query('DELETE FROM finance.products WHERE id=$1',[productId]);
   await pool.query('DELETE FROM finance.provider_rights WHERE source_id=$1',[sourceId]);
   await pool.end();
