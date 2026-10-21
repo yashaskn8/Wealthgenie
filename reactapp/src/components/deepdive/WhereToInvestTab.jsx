@@ -35,6 +35,7 @@ import {
   safeSourceUrl,
 } from '../../utils/marketDataDisplay';
 import { formatINR } from '../../utils/recommendationPresentation';
+import { mayDisplayContractualProceeds } from '../../utils/cashflowResultGuard';
 import { isPresentFiniteNumber, toOptionalNumber } from '../../utils/financialValues';
 import { getCurrentRecommendedInstrument } from '../../utils/financialStateBinding';
 import { useMarketContext } from '../../state/useMarketContext';
@@ -1838,7 +1839,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                       {product.displayMetricLabel}
                     </span>
                     <div className="wti-rate-chip">{product.displayMetric}</div>
-                    {product.cashflowIllustration?.status === 'CALCULATED' && (
+                    {mayDisplayContractualProceeds(product) && (
                       <div data-testid="wti-gross-contract-illustration" className="wti-private-quote">
                         <strong>{product.cashflowIllustration.cashflowType === 'ANNUAL_PAYOUT' ? 'Total gross receipts (including annual interest): ' : 'Illustrative gross maturity: '}₹{product.cashflowIllustration.grossTotalProceeds.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong>
                         <small>Principal ₹{product.cashflowIllustration.principal.toLocaleString('en-IN')} · {product.cashflowIllustration.tenureMonths} months · Before tax</small>
@@ -1847,6 +1848,12 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                         )}
                         <small>Conditional on opening at the stated official rate. Not a live price or future-rate forecast.</small>
                       </div>
+                    )}
+                    {product.cashflowIllustration?.status === 'CALCULATED'
+                      && !mayDisplayContractualProceeds(product) && (
+                      <small data-testid="wti-contractual-cashflow-integrity-block">
+                        Contract calculation withheld: the amount and payment ledger do not reconcile.
+                      </small>
                     )}
                     {product.cashflowIllustration?.status === 'NOT_APPLICABLE' && (
                       <small data-testid="wti-contractual-cashflow-not-applicable">
