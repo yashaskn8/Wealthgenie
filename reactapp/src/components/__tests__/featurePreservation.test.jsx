@@ -368,7 +368,12 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-plan')).toBeInTheDocument();
       expect(screen.getByTestId('nav-investments')).toBeInTheDocument();
       expect(screen.getByTestId('nav-taxes')).toBeInTheDocument();
-      expect(screen.getByTestId('nav-progress')).toBeInTheDocument();
+      expect(screen.queryByTestId('nav-progress')).not.toBeInTheDocument();
+      expect(screen.getByTestId('mobile-nav-progress')).toBeInTheDocument();
+      for (const id of ['nav-financial-indicators', 'nav-my-goals', 'nav-plan-a-goal', 'nav-grow-my-sip', 'nav-keep-on-track']) {
+        expect(screen.getByTestId(id)).toBeInTheDocument();
+      }
+      expect(screen.getByText('WEALTH JOURNEY')).toBeInTheDocument();
       expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
       expect(screen.getByTestId('nav-help')).toBeInTheDocument();
       expect(screen.queryByTestId('nav-advanced')).not.toBeInTheDocument();
@@ -388,6 +393,22 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-dashboard')).toBeInTheDocument();
     });
 
+    it('navigates to each standalone desktop Wealth Journey page', () => {
+      const onNavigate = vi.fn();
+      const { rerender } = render(<Sidebar activePage={NAV_PAGES.MY_GOALS} onNavigate={onNavigate} />);
+      for (const [id, page] of [
+        ['nav-financial-indicators', NAV_PAGES.FINANCIAL_INDICATORS],
+        ['nav-my-goals', NAV_PAGES.MY_GOALS],
+        ['nav-plan-a-goal', NAV_PAGES.PLAN_A_GOAL],
+        ['nav-grow-my-sip', NAV_PAGES.GROW_MY_SIP],
+        ['nav-keep-on-track', NAV_PAGES.KEEP_ON_TRACK],
+      ]) {
+        fireEvent.click(screen.getByTestId(id));
+        expect(onNavigate).toHaveBeenLastCalledWith(page);
+        rerender(<Sidebar activePage={page} onNavigate={onNavigate} />);
+        expect(screen.getByTestId(id)).toHaveAttribute('aria-current', 'page');
+      }
+    });
     it('navigates to visible GenieProof by default and preserves explicit opt-out', () => {
       const onNavigate = vi.fn();
       const { rerender } = render(<Sidebar activePage={NAV_PAGES.HOME} onNavigate={onNavigate} />);

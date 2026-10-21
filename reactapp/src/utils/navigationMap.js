@@ -8,7 +8,12 @@ export const NAV_PAGES = {
   PLAN: 'plan',
   INVESTMENTS: 'investments',
   TAXES: 'taxes',
-  PROGRESS: 'progress',
+  PROGRESS: 'progress', // Existing mobile Progress hub remains unchanged.
+  FINANCIAL_INDICATORS: 'financial-indicators',
+  MY_GOALS: 'my-goals',
+  PLAN_A_GOAL: 'plan-a-goal',
+  GROW_MY_SIP: 'grow-my-sip',
+  KEEP_ON_TRACK: 'keep-on-track',
   GENIEPROOF: 'genieproof',
   ACCOUNT: 'account',
   HELP: 'help',
@@ -20,11 +25,23 @@ export const PAGE_ALLOWLIST = [
   NAV_PAGES.INVESTMENTS,
   NAV_PAGES.TAXES,
   NAV_PAGES.PROGRESS,
+  NAV_PAGES.FINANCIAL_INDICATORS,
+  NAV_PAGES.MY_GOALS,
+  NAV_PAGES.PLAN_A_GOAL,
+  NAV_PAGES.GROW_MY_SIP,
+  NAV_PAGES.KEEP_ON_TRACK,
   NAV_PAGES.GENIEPROOF,
   NAV_PAGES.ACCOUNT,
   NAV_PAGES.HELP,
 ];
 
+export const DESKTOP_PROGRESS_DESTINATIONS = Object.freeze({
+  indicators: NAV_PAGES.FINANCIAL_INDICATORS,
+  goals: NAV_PAGES.MY_GOALS,
+  'plan-goal': NAV_PAGES.PLAN_A_GOAL,
+  'grow-sip': NAV_PAGES.GROW_MY_SIP,
+  rebalancer: NAV_PAGES.KEEP_ON_TRACK,
+});
 export const HUB_TABS = {
   [NAV_PAGES.TAXES]: {
     default: 'regime-savings',
