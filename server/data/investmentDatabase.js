@@ -196,6 +196,7 @@ export const investmentDatabase = masterCatalog.instruments.map(inst => {
     name: inst.name,
     abbr: inst.abbr,
     category: inst.category,
+    subCategory: inst.subCategory ?? null,
     cat: inst.category, // cat mapped to category for compat
     assetClass: inst.assetClass,
     color: inst.color,
