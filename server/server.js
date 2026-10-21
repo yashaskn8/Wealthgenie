@@ -4,6 +4,7 @@ import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
+import { closeFinancialPostgresPool } from './postgres/connection.js';
 import { createApp } from './app.js';
 import connectDB from './config/db.js';
 import { connectRedis, redisAvailable, redisClient } from './config/redis.js';
@@ -65,6 +66,7 @@ async function closeInfrastructure({ stopAgentWorker = false } = {}) {
   const closers = [];
   if (mongoose.connection.readyState !== 0) closers.push(mongoose.connection.close());
   if (redisClient?.isOpen) closers.push(redisClient.quit());
+  closers.push(closeFinancialPostgresPool());
   closers.push(tracingSdk.shutdown());
   await Promise.allSettled(closers);
 }
