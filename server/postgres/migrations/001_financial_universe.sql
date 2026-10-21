@@ -48,6 +48,14 @@ CREATE TABLE IF NOT EXISTS finance.provider_rights (
  revoked_at timestamptz NULL,
  CHECK (NOT storage_allowed OR (access_allowed AND extraction_allowed))
 );
+CREATE TABLE IF NOT EXISTS finance.product_external_ids (
+ product_id text NOT NULL REFERENCES finance.products(id) ON DELETE RESTRICT,
+ source_id text NOT NULL REFERENCES finance.provider_rights(source_id) ON DELETE RESTRICT,
+ source_instrument_id text NOT NULL CHECK (length(source_instrument_id) BETWEEN 1 AND 255),
+ recorded_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY (product_id,source_id,source_instrument_id),
+ UNIQUE(source_id,source_instrument_id)
+);
 CREATE TABLE IF NOT EXISTS finance.product_terms (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  product_id text NOT NULL REFERENCES finance.products(id) ON DELETE RESTRICT,
@@ -64,6 +72,9 @@ CREATE TABLE IF NOT EXISTS finance.market_observations (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  product_id text NOT NULL REFERENCES finance.products(id) ON DELETE RESTRICT,
  source_id text NOT NULL REFERENCES finance.provider_rights(source_id),
+ source_instrument_id text NOT NULL,
+ FOREIGN KEY (product_id,source_id,source_instrument_id)
+   REFERENCES finance.product_external_ids(product_id,source_id,source_instrument_id),
  observation_type text NOT NULL CHECK (observation_type IN ('PRICE','NAV','PUBLISHED_RATE','YIELD','VOLUME')),
  value numeric(24,8) NOT NULL,
  currency text NULL,
@@ -76,7 +87,7 @@ CREATE TABLE IF NOT EXISTS finance.market_observations (
  source_revision text NOT NULL DEFAULT '0',
  retain_until timestamptz NULL,
  created_at timestamptz NOT NULL DEFAULT now(),
- UNIQUE(product_id,source_id,observation_type,observed_at,source_revision),
+ UNIQUE(product_id,source_id,source_instrument_id,observation_type,observed_at,source_revision),
  CHECK (observation_type NOT IN ('PRICE','NAV','PUBLISHED_RATE') OR value >= 0),
  CHECK (data_class <> 'PUBLISHED_RATE' OR effective_from IS NOT NULL),
  CHECK (retain_until IS NULL OR retain_until >= fetched_at)
