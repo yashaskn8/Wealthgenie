@@ -54,6 +54,7 @@ for (const item of entries) {
     const parsed = new URL(item.referenceUrl);
     if (parsed.protocol!=='https:' || !['sebi.gov.in','www.sebi.gov.in','rbi.org.in',
       'www.rbi.org.in','m.rbi.org.in','indianbank.bank.in',
+      'indiapost.gov.in','www.indiapost.gov.in','investor.sebi.gov.in',
       'niftyindices.com','www.niftyindices.com','pfrda.org.in',
       'www.pfrda.org.in','bis.gov.in','www.bis.gov.in'].includes(parsed.hostname)) {
       throw new Error('CATALOG_REFERENCE_SOURCE_UNTRUSTED:'+item.id);
