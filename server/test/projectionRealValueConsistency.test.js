@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateProjections, generateProjectionComparison } from '../services/projectionEngine.js';
+import {
+  generateProjections, generateProjectionComparison,
+  sipFV, stepUpSipFV, lumpSumFV,
+} from '../services/projectionEngine.js';
 
 const argumentsFor = (inflation, annualStepUpRate = 0) => [
   10000, [{ name: 'ETF', type: 'ETF' }], { ETF: 12 },
@@ -15,8 +18,10 @@ test('real nominal-SIP paths are deflated at terminal horizon, not re-compounded
   const [series] = result.series;
   for (const [i, year] of result.labels.entries()) {
     const deflator = Math.pow(1 + inflation, year);
-    assert.equal(series.realData[i], Math.round(series.data[i] / deflator));
-    assert.equal(series.stepUpRealData[i], Math.round(series.stepUpData[i] / deflator));
+    const exactNominal = sipFV(10000, 0.12, year) + lumpSumFV(250000, 0.12, year);
+    const exactStepUp = stepUpSipFV(10000, 0.12, year, 0.08) + lumpSumFV(250000, 0.12, year);
+    assert.equal(series.realData[i], Math.round(exactNominal / deflator));
+    assert.equal(series.stepUpRealData[i], Math.round(exactStepUp / deflator));
     assert.equal(result.chartData[i].ETF_real, series.realData[i]);
     assert.equal(result.chartData[i].ETF_stepUp_real, series.stepUpRealData[i]);
   }
