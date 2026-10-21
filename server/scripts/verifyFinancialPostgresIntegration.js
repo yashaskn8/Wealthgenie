@@ -24,6 +24,12 @@ try {
       AND discovery_reference_url LIKE 'https://%' AND recommendation_eligible=false
       AND availability='UNVERIFIED'`);
   assert.equal(added.rows[0].n,95,'Exactly 95 non-recommendable sourced discovery archetypes must be staged');
+  const detail=await pool.query(`SELECT count(*)::integer AS n FROM finance.products
+    WHERE record_kind='ARCHETYPE' AND discovery_metadata IS NOT NULL
+      AND discovery_metadata->'researchEvidence'->>'actualIssuerOrSchemeVerified'='false'
+      AND discovery_metadata->'dataRights'->>'commercialDerivation'='false'
+      AND discovery_metadata->'taxAndCalculations'->>'taxModelStatus'='NOT_IMPLEMENTED_FOR_THIS_ARCHETYPE'`);
+  assert.equal(detail.rows[0].n,95,'All new entries must preserve blocked rights, unverified products and tax gaps');
   const promoted = await pool.query(`SELECT count(*)::integer AS n FROM finance.products
     WHERE record_kind='ARCHETYPE' AND recommendation_eligible=true`);
   assert.equal(promoted.rows[0].n, 0, 'Seeded archetypes must never become newly recommended without review');
@@ -64,7 +70,7 @@ try {
   assert.equal(await store.latestPublishableObservation(productId,'PRICE'),null,
     'Revoked rights must prevent source publication immediately');
   process.stdout.write(JSON.stringify({status:'PASS',archetypes:catalog.rows[0].n,
-    sourcedExtensions:added.rows[0].n,
+    sourcedExtensions:added.rows[0].n,reviewMetadataRecords:detail.rows[0].n,
     licenseAbsentDenied:true,revocationDenied:true,sandboxFixture:true})+'\n');
 } finally {
   // This script is restricted to *_test databases. Never modify a live source registry.
