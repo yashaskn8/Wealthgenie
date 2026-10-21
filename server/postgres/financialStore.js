@@ -38,6 +38,7 @@ export function createFinancialStore(pool) {
     const { rows } = await pool.query(
       `SELECT p.id,p.name,p.record_kind,p.availability,p.recommendation_eligible,
               p.discovery_reference_url,p.verification_scope,p.assessed_as_of,
+              p.discovery_metadata,
               c.id AS category_id,c.label AS category,
               s.id AS subcategory_id,s.label AS subcategory
          FROM finance.products p JOIN finance.categories c ON p.category_id=c.id
