@@ -541,6 +541,9 @@ export async function saveRiskShortlist(profileId, options = {}) {
   if (!profileId) throw new TypeError('A profile ID is required to save a shortlist.');
   return request('POST', '/recommendation-shortlist/save', { profileId }, { retries:0, ...options });
 }
+export async function getFinancialUniverseCategories(options={}) {
+  return request('GET','/financial-universe/categories',null,{retries:0,...options});
+}
 export async function getFinancialUniverse({category, subcategory, cursor, limit=20}={},options={}) {
   const q = new URLSearchParams({limit:String(limit)});
   if (category) q.set('category',category);
