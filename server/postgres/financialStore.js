@@ -55,6 +55,7 @@ export function createFinancialStore(pool) {
     const { rows } = await pool.query(
       `SELECT o.id,o.product_id,o.observation_type,o.value::text AS value,o.currency,
               o.unit,o.data_class,o.effective_from,o.effective_to,o.observed_at,o.fetched_at,o.source_id,
+              o.source_instrument_id,
               o.retain_until,r.expires_at AS rights_expire_at
          FROM finance.market_observations o
          JOIN finance.provider_rights r ON r.source_id=o.source_id
@@ -92,6 +93,10 @@ export function createFinancialStore(pool) {
       throw new TypeError('Observation value must be an exact non-negative decimal string');
     }
     if (typeof input.sourceId !== 'string' || !input.sourceId.trim()) throw new TypeError('Source identity required');
+    if (typeof input.sourceInstrumentId !== 'string' || input.sourceInstrumentId.length < 1
+      || input.sourceInstrumentId.length > 255 || /[\x00-\x1f\x7f]/.test(input.sourceInstrumentId)) {
+      throw new TypeError('Exact source instrument identity required');
+    }
     if (typeof input.unit !== 'string' || input.unit.length < 1 || input.unit.length > 40
         || /[\x00-\x1f\x7f]/.test(input.unit)) throw new TypeError('Invalid unit');
     if (['PRICE','NAV'].includes(input.kind)
@@ -126,6 +131,16 @@ export function createFinancialStore(pool) {
         error.code = 'ACTUAL_INVESTMENT_PRODUCT_NOT_QUALIFIED';
         throw error;
       }
+      const identity = await client.query(
+        `SELECT product_id FROM finance.product_external_ids
+         WHERE product_id=$1 AND source_id=$2 AND source_instrument_id=$3 FOR SHARE`,
+        [input.productId,input.sourceId,input.sourceInstrumentId],
+      );
+      if (identity.rows.length !== 1) {
+        const error = new Error('PRODUCT_PROVIDER_IDENTITY_MISMATCH');
+        error.code = 'PRODUCT_PROVIDER_IDENTITY_MISMATCH';
+        throw error;
+      }
       const rights = await client.query(
         `SELECT source_id,retention_seconds FROM finance.provider_rights
           WHERE source_id=$1 AND access_allowed AND extraction_allowed AND storage_allowed
@@ -148,12 +163,12 @@ export function createFinancialStore(pool) {
       }
       const result = await client.query(
         `INSERT INTO finance.market_observations
-          (product_id,source_id,observation_type,value,currency,unit,data_class,
+          (product_id,source_id,source_instrument_id,observation_type,value,currency,unit,data_class,
            observed_at,fetched_at,source_revision,retain_until,effective_from,effective_to)
-         VALUES ($1,$2,$3,$4::numeric,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-         ON CONFLICT (product_id,source_id,observation_type,observed_at,source_revision)
+         VALUES ($1,$2,$3,$4,$5::numeric,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         ON CONFLICT (product_id,source_id,source_instrument_id,observation_type,observed_at,source_revision)
          DO NOTHING RETURNING id`,
-        [input.productId,input.sourceId,input.kind,input.value,input.currency || null,
+        [input.productId,input.sourceId,input.sourceInstrumentId,input.kind,input.value,input.currency || null,
           input.unit,input.dataClass,observed,fetched,input.sourceRevision || '0',retainedUntil,
           input.effectiveFrom || null,input.effectiveTo || null],
       );
