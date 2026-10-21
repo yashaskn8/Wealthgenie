@@ -92,12 +92,20 @@ router.post('/valuation',verifyJWT,validate(valuationSchema),asyncHandler(async(
  const fact=available[0];
  if(!fact)return res.json({status:'UNAVAILABLE',reasonCode:'QUALIFIED_MARKET_VALUE_UNAVAILABLE',value:null});
  if(fact.currency!=='INR')return res.json({status:'UNAVAILABLE',reasonCode:'MARKET_VALUE_CURRENCY_NOT_QUALIFIED',value:null});
+ const deadlines=[fact.retain_until,fact.rights_expire_at].filter(Boolean).map(t=>new Date(t));
+ if(!fact.retain_until || deadlines.some(t=>!Number.isFinite(+t))){
+  return res.json({status:'UNAVAILABLE',reasonCode:'VALUATION_RETENTION_UNVERIFIED',value:null});
+ }
+ const retainedUntil=new Date(Math.min(...deadlines.map(t=>+t)));
+ if(retainedUntil<=new Date()){
+  return res.json({status:'UNAVAILABLE',reasonCode:'VALUATION_RETENTION_EXPIRED',value:null});
+ }
  const value=calculateHoldingValuation({units:lot.quantityDecimal,unitPrice:fact.value,
   currency:fact.currency,costBasisPaise:lot.costBasisPaise});
  const binding={userId:req.user.userId,profileId:lot.profileId,holdingLotId:lot._id,
    canonicalProductId:lot.canonicalProductId,observationId:String(fact.id),
    observationKind:fact.observation_type,sourceId:fact.source_id,dataClass:fact.data_class,
-   observedAt:fact.observed_at,result:value};
+   observedAt:fact.observed_at,retainedUntil,result:value};
  let snapshot;
  try{snapshot=await HoldingValuationSnapshot.create(binding);}
  catch(error){
