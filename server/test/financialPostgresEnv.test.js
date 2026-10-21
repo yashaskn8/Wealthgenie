@@ -19,3 +19,14 @@ test('disabled PostgreSQL leaves legacy MongoDB-only workflows alone', () => {
   assert.ok(!errors({NODE_ENV:'test', FINANCIAL_POSTGRES_ENABLED:'false'})
     .some(e=>e.includes('financial PostgreSQL')));
 });
+
+
+test('private financial architecture cannot be turned on before PostgreSQL activation', () => {
+  const invalid=errors({NODE_ENV:'test',FINANCIAL_ARCHITECTURE_ENABLED:'true',
+    FINANCIAL_POSTGRES_ENABLED:'false'});
+  assert.ok(invalid.some(e=>e.includes('requires FINANCIAL_POSTGRES_ENABLED=true')));
+  const valid=errors({NODE_ENV:'test',FINANCIAL_ARCHITECTURE_ENABLED:'true',
+    FINANCIAL_POSTGRES_ENABLED:'true',
+    FINANCIAL_POSTGRES_URL:'postgresql://test:test@localhost/financial_test'});
+  assert.ok(!valid.some(e=>e.includes('FINANCIAL_ARCHITECTURE_ENABLED')));
+});
