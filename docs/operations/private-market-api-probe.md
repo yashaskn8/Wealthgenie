@@ -39,6 +39,13 @@ that exact endpoint has an approved private-demo scope; with the current
 registry, only the Upstox quote operation qualifies. Results omit provider
 payloads, prices, account data, credentials, and raw network error messages.
 The acknowledgement flag is an operator confirmation, not a grant of rights.
+The command exits successfully only if the qualified `BENCHMARK_QUOTES` request
+returns HTTP 200 with the validated NIFTY/VIX response. The still-unqualified
+`NSE_MARKET_STATUS` operation is reported as `SOURCE_RIGHTS_UNVERIFIED` and
+is **never requested**; this expected skip is not a quote-connectivity failure.
+The output reports `quoteConnectivity.status` separately. A successful
+connectivity probe is not authorization for public use and does not prove that
+the authenticated browser route, MongoDB or the overall demo is healthy.
 
 Run the deterministic regression test:
 

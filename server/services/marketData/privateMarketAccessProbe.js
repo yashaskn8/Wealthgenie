@@ -119,3 +119,22 @@ export async function runPrivateMarketAccessProbe({
     results,
   };
 }
+
+/**
+ * Interpret a connectivity probe without treating an unqualified endpoint as
+ * a failed live HTTP operation. Rights blocks are reported but never contacted.
+ * The NIFTY/VIX quote operation is the only currently qualified probe.
+ */
+export function assessPrivateMarketProbeReadiness(report) {
+  const results = Array.isArray(report?.results) ? report.results : [];
+  const quote = results.find(item => item?.provider === 'UPSTOX' && item.operation === 'BENCHMARK_QUOTES');
+  const otherAttemptedFailure = results.some(item => item
+    && item.operation !== 'BENCHMARK_QUOTES'
+    && !['SOURCE_RIGHTS_UNVERIFIED', 'HTTP_200_SCHEMA_OK'].includes(item.verdict));
+  const passed = quote?.verdict === 'HTTP_200_SCHEMA_OK' && !otherAttemptedFailure;
+  return {
+    status: passed ? 'PRIVATE_QUOTE_CONNECTIVITY_VERIFIED' : 'PRIVATE_QUOTE_CONNECTIVITY_UNAVAILABLE',
+    unqualifiedOperations: results.filter(item => item?.verdict === 'SOURCE_RIGHTS_UNVERIFIED').length,
+    passed,
+  };
+}

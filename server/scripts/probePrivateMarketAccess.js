@@ -8,7 +8,7 @@
  */
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
-import { runPrivateMarketAccessProbe } from '../services/marketData/privateMarketAccessProbe.js';
+import { assessPrivateMarketProbeReadiness, runPrivateMarketAccessProbe } from '../services/marketData/privateMarketAccessProbe.js';
 
 // Load local backend credentials without overriding explicitly supplied env vars.
 dotenv.config({ path: fileURLToPath(new URL('../.env', import.meta.url)), override: false });
@@ -22,8 +22,9 @@ try {
   }
   const report = await runPrivateMarketAccessProbe({ acknowledgeProviderTerms: true });
   // Print only provider/operation/verdict/status. No token, payload, or account data.
-  process.stdout.write(JSON.stringify(report, null, 2) + '\n');
-  if (report.results.some(item => item.verdict !== 'HTTP_200_SCHEMA_OK')) process.exitCode = 1;
+  const connectivity = assessPrivateMarketProbeReadiness(report);
+  process.stdout.write(JSON.stringify({ ...report, quoteConnectivity: connectivity }, null, 2) + '\n');
+  if (!connectivity.passed) process.exitCode = 1;
 } catch (error) {
   process.stderr.write((error?.code || 'PRIVATE_MARKET_PROBE_UNAVAILABLE') + '\n');
   process.exitCode = 1;
