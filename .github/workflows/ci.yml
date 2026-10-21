@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:a902560563d3a5661228585f53474c5065e7f273b21ffd77e555a8b5682c5690 # exact approved CI image digest
         env:
           POSTGRES_DB: wealthgenie_financial_test
           POSTGRES_USER: wealthgenie_test
