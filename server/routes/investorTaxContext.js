@@ -4,7 +4,7 @@ import Joi from 'joi';
 import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, createError, sendError } from '../middleware/errorHandler.js';
 import { validate, validateQuery } from '../validation/schemas.js';
-import { taxDeductionSchema } from '../validation/taxSchemas.js';
+import { taxDeductionSchema, requirePostTaxDependencyFacts } from '../validation/taxSchemas.js';
 import { getTaxPolicyMetadata } from '../services/taxEngine.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import InvestorTaxContext from '../models/InvestorTaxContext.js';
@@ -21,7 +21,7 @@ const requestSchema = Joi.object({
   // Empty {} means explicitly declaring no eligible deductions, not unknown.
   deductions:taxDeductionSchema.required(),
   section112AExemptionUsed:Joi.number().min(0).max(125000).allow(null).required(),
-}).unknown(false);
+}).custom(requirePostTaxDependencyFacts).unknown(false);
 const querySchema = Joi.object({profileId:id.required()}).unknown(false);
 async function ownedProfile(userId,profileId) {
   const profile = await FinancialProfile.findOne({_id:profileId,userId}).lean();
