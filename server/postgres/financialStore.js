@@ -77,7 +77,7 @@ export function createFinancialStore(pool) {
     assertIdentity(input.productId);
     if (!['PRICE','NAV','PUBLISHED_RATE','YIELD','VOLUME'].includes(input.kind)) throw new TypeError('Unknown observation type');
     if (!['LIVE','DELAYED','END_OF_DAY','PUBLISHED_RATE'].includes(input.dataClass)) throw new TypeError('Unknown observation data class');
-    if (typeof input.value !== 'string' || !/^(0|[1-9][0-9]*)(\\.[0-9]{1,8})?$/.test(input.value)) {
+    if (typeof input.value !== 'string' || !/^(0|[1-9][0-9]*)(\.[0-9]{1,8})?$/.test(input.value)) {
       throw new TypeError('Observation value must be an exact non-negative decimal string');
     }
     if (typeof input.sourceId !== 'string' || !input.sourceId.trim()) throw new TypeError('Source identity required');
@@ -91,8 +91,8 @@ export function createFinancialStore(pool) {
           WHERE source_id=$1 AND access_allowed AND extraction_allowed AND storage_allowed
             AND derivation_allowed AND commercial_use_allowed
             AND reviewed_at IS NOT NULL AND revoked_at IS NULL
-            AND (expires_at IS NULL OR expires_at>$2) FOR SHARE`,
-        [input.sourceId, fetched],
+            AND (expires_at IS NULL OR expires_at>now()) FOR SHARE`,
+        [input.sourceId],
       );
       if (rights.rows.length !== 1) {
         const error = new Error('MARKET_DATA_SOURCE_RIGHTS_UNQUALIFIED');
