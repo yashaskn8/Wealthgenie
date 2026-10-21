@@ -391,6 +391,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
         canonicalProductId: 'etf:isin:INF204KB14I2',
         name: 'Issuer scheme label',
         productType: 'ETF',
+        cashflowIllustration: { status: 'NOT_APPLICABLE', reasonCode: 'MARKET_VALUATION_REQUIRES_NAV_OR_EXCHANGE_PRICE' },
         presentationStatus: 'VERIFIED_COMPARABLE_OPTION',
         provider: 'Nippon India Mutual Fund',
         exchange: 'NSE',
@@ -432,6 +433,9 @@ describe('Beginner-First Where-To-Invest UX', () => {
     />);
     const card = within(await screen.findByTestId('wti-product-etf:isin:INF204KB14I2'));
     expect(card.getByText('Issuer scheme label')).toBeVisible();
+    expect(card.queryByTestId('wti-contractual-cashflow-unavailable')).toBeNull();
+    expect(card.getByTestId('wti-contractual-cashflow-not-applicable')).toHaveTextContent('no contractual maturity amount');
+    expect(card.queryByTestId('wti-gross-contract-illustration')).toBeNull();
     // Private market quotes must not be fetched by simply opening a product.
     expect(api.getPrivateMarketDemoData).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));

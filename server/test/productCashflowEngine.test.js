@@ -104,6 +104,39 @@ test('expired effective quarter and calendar invalidity return unavailable', () 
   assert.equal(calculate(qualified(), { now: new Date('2027-01-02T09:00:00Z') }).status, 'UNAVAILABLE');
   assert.equal(calculate(qualified('nsc', { officialRate: { ...RATE, effectiveFrom: '2026-02-31' } })).status, 'UNAVAILABLE');
 });
+test('qualified mutual fund and ETF identities are not contractual maturity products', () => {
+  for (const [type, id] of [
+    ['ETF', 'etf:isin:INF204KB14I2'],
+    ['MUTUAL_FUND', 'mf:amfi:140084'],
+  ]) {
+    const out = calculateQualifiedProductCashflow({
+      product: { id, canonicalProductId: id, productType: type },
+      principal: 10000, now: TODAY, enforceSourceRights: true,
+      productionUseAllowed: false,
+    });
+    assert.equal(out.status, 'NOT_APPLICABLE');
+    assert.equal(out.reasonCode, 'MARKET_VALUATION_REQUIRES_NAV_OR_EXCHANGE_PRICE');
+    assert.equal(out.valuationModel, 'QUALIFIED_NAV_OR_MARKET_PRICE_REQUIRED');
+    assert.equal(out.grossMaturityProceeds, null);
+    assert.equal(out.grossTotalProceeds, null);
+    assert.equal(out.postTaxProceeds, null);
+    assert.equal(out.cashflowLedger, null);
+  }
+});
+test('identity spoofing cannot bypass contract/source-rights decisions', () => {
+  for (const product of [
+    { id: 'not-same', canonicalProductId: 'etf:isin:INF204KB14I2', productType: 'ETF' },
+    { id: 'mf:amfi:140084', canonicalProductId: 'mf:amfi:140084', productType: 'ETF' },
+    { id: 'government:india-post:nsc', canonicalProductId: 'government:india-post:nsc', productType: 'ETF' },
+  ]) {
+    const out = calculateQualifiedProductCashflow({
+      product, principal: 10000, now: TODAY, enforceSourceRights: true,
+      productionUseAllowed: false,
+    });
+    assert.equal(out.status, 'UNAVAILABLE');
+    assert.equal(out.reasonCode, 'SOURCE_RIGHTS_UNQUALIFIED');
+  }
+});
 test('unverified terms for PPF SSY SCSS RD KVP RBI bonds MF and bank FD never fabricate numbers', () => {
   for (const id of ['ppf','sukanya','scss','post-office-rd-5y','frsb-2020-taxable','generic-mf','sbi-fd']) {
     const item = qualified('nsc', {
@@ -121,6 +154,26 @@ test('source licensing is enforced and null/negative/user-unentered principal is
     assert.equal(calculate(qualified(), { principal }).reasonCode, 'EXPLICIT_PRINCIPAL_REQUIRED');
   }
 });
+test('Where to Invest enrichment keeps market NAV products outside contractual maturity modeling', () => {
+  const canonicalProductId = 'etf:isin:INF204KB14I2';
+  const product = {
+    id: canonicalProductId, canonicalProductId, productType: 'ETF',
+    parentInstrumentId: 'nifty_etf',
+    presentationStatus: 'VERIFIED_COMPARABLE_OPTION',
+  };
+  const rows = enrichProductsWithPostTaxAndSuitability([product], {
+    now: TODAY, taxCalculationContext: { illustrativePrincipal: 10000 },
+    enforceSourceRights: true,
+    sourceRightsResolver: () => ({ productionPostTaxUseAllowed: false }),
+  });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].cashflowIllustration.status, 'NOT_APPLICABLE');
+  assert.equal(rows[0].cashflowIllustration.grossTotalProceeds, null);
+  assert.equal(rows[0].cashflowIllustration.postTaxProceeds, null);
+  assert.equal(rows[0].postTaxReturn, null);
+  assert.notEqual(rows[0].postTaxAnalysis.status, 'CALCULATED');
+});
+
 test('enrichment binds cashflow illustration to same product and rights, never to generic postTaxReturn', () => {
   const product = qualified();
   const out = enrichProductsWithPostTaxAndSuitability([product], {

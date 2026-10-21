@@ -53,6 +53,25 @@ function indiaCalendarDate(value) {
     .map(part => [part.type, part.value]));
   return map.year + '-' + map.month + '-' + map.day;
 }
+const MARKET_VALUATION_PRODUCT_TYPES = Object.freeze({
+  ETF: 'etf:isin:',
+  MUTUAL_FUND: 'mf:amfi:',
+});
+function isMarketValuationProduct(product) {
+  if (!Object.prototype.hasOwnProperty.call(MARKET_VALUATION_PRODUCT_TYPES, product?.productType)) return false;
+  const prefix = MARKET_VALUATION_PRODUCT_TYPES[product.productType];
+  return Boolean(typeof prefix === 'string' && typeof product?.canonicalProductId === 'string'
+    && product.canonicalProductId.startsWith(prefix)
+    && product.id === product.canonicalProductId);
+}
+function notApplicable(product) {
+  return {
+    ...unavailable('MARKET_VALUATION_REQUIRES_NAV_OR_EXCHANGE_PRICE', product),
+    status: 'NOT_APPLICABLE',
+    scenarioClass: 'NOT_A_CONTRACTUAL_MATURITY_PRODUCT',
+    valuationModel: 'QUALIFIED_NAV_OR_MARKET_PRICE_REQUIRED',
+  };
+}
 function unavailable(reasonCode, product) {
   return {
     version: CONTRACT_CASHFLOW_VERSION,
@@ -85,6 +104,10 @@ export function calculateQualifiedProductCashflow({
 } = {}) {
   if (!product || typeof product !== 'object' || Array.isArray(product))
     return unavailable('PRODUCT_FACTS_UNAVAILABLE', product);
+  // Market-priced funds/ETFs have no deterministic contractual maturity.
+  // Do not misreport the absence of that calculation as a failed contract.
+  // This branch emits NO price, NAV or return and grants NO data rights.
+  if (isMarketValuationProduct(product)) return notApplicable(product);
   if (enforceSourceRights && productionUseAllowed !== true)
     return unavailable('SOURCE_RIGHTS_UNQUALIFIED', product);
   if (product.presentationStatus !== 'VERIFIED_COMPARABLE_OPTION' ||

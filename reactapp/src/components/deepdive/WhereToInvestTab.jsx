@@ -1848,6 +1848,11 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                         <small>Conditional on opening at the stated official rate. Not a live price or future-rate forecast.</small>
                       </div>
                     )}
+                    {product.cashflowIllustration?.status === 'NOT_APPLICABLE' && (
+                      <small data-testid="wti-contractual-cashflow-not-applicable">
+                        Market-priced product: no contractual maturity amount. Use a qualified NAV or exchange quote for present valuation.
+                      </small>
+                    )}
                     {product.cashflowIllustration?.status === 'UNAVAILABLE' && (
                       <small data-testid="wti-contractual-cashflow-unavailable">
                         Gross contract calculation unavailable: additional verified product terms, current rates, or approved source rights are required.
