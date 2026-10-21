@@ -172,7 +172,7 @@ async function products(dialog: Locator, result: JsonObject, parentId: string) {
   if (ranking.status === 'UNAVAILABLE') {
     expect(entries).toEqual([]);
     expect(array(ranking.reasonCodes, 'ranking.reasonCodes').length).toBeGreaterThan(0);
-    const rightsBlocked = ranking.reasonCodes.includes('SOURCE_RIGHTS_UNQUALIFIED');
+    const rightsBlocked = array(ranking.reasonCodes, 'ranking.reasonCodes').includes('SOURCE_RIGHTS_UNQUALIFIED');
     if (rightsBlocked) {
       // A production data-rights block is not the same as an empty eligible
       // catalogue. The UI must disclose source restrictions without fetching
