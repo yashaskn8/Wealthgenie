@@ -23,6 +23,14 @@ function decodeRedisUrlPassword(redisUrl) {
 export function validateEnvironmentConfig(env = process.env) {
   const isProduction = env.NODE_ENV === 'production';
   const errors = [];
+  if (env.FINANCIAL_ARCHITECTURE_ENABLED !== undefined
+      && !['true','false'].includes(env.FINANCIAL_ARCHITECTURE_ENABLED)) {
+    errors.push('FINANCIAL_ARCHITECTURE_ENABLED must be true or false');
+  }
+  if (env.FINANCIAL_ARCHITECTURE_ENABLED === 'true'
+      && env.FINANCIAL_POSTGRES_ENABLED !== 'true') {
+    errors.push('FINANCIAL_ARCHITECTURE_ENABLED requires FINANCIAL_POSTGRES_ENABLED=true');
+  }
   if (env.FINANCIAL_POSTGRES_ENABLED !== undefined
       && !['true','false'].includes(env.FINANCIAL_POSTGRES_ENABLED)) {
     errors.push('FINANCIAL_POSTGRES_ENABLED must be true or false');
