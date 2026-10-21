@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
+import { errorHandler } from '../middleware/errorHandler.js';
 import jwt from 'jsonwebtoken';
 import projectionRoutes from '../routes/projection.js';
 import monteCarloRoutes from '../routes/montecarlo.js';
@@ -82,6 +83,7 @@ test('custom portfolio response uses normalized weights for returns, displayed p
   const app = express();
   app.use(express.json());
   app.use('/api/projection', projectionRoutes);
+  app.use(errorHandler);
   const server = app.listen(0);
   await new Promise(resolve => server.once('listening', resolve));
   t.after(async () => { await closeServer(server); });
@@ -132,6 +134,7 @@ test('portfolio Monte Carlo uses the same normalized weights for return and vola
   const app = express();
   app.use(express.json());
   app.use('/api/montecarlo', monteCarloRoutes);
+  app.use(errorHandler);
   const server = app.listen(0);
   await new Promise(resolve => server.once('listening', resolve));
   t.after(async () => { await closeServer(server); });
@@ -219,6 +222,7 @@ test('Conservative FD projections remain profile-grounded, while GBM refuses FD 
   app.use(express.json());
   app.use('/api/projection', projectionRoutes);
   app.use('/api/montecarlo', monteCarloRoutes);
+  app.use(errorHandler);
   const server = app.listen(0);
   await new Promise(resolve => server.once('listening', resolve));
   t.after(async () => { await closeServer(server); });
@@ -246,5 +250,37 @@ test('Conservative FD projections remain profile-grounded, while GBM refuses FD 
         assert.equal(body.percentile_summary, undefined);
       }
     }
+  });
+});
+
+test('Monte Carlo never caches or publishes a profile superseded during worker execution', async t => {
+  const userId = '64b000000000000000000004';
+  const profileId = '65b000000000000000000004';
+  const base = {
+    _id: profileId, userId, version: 1,
+    ...canonicalProfile({ monthlySavings: 20_000, investmentHorizonYears: 10 }),
+  };
+  const changed = { ...base, monthlySavings: 22_000, version: 2 };
+  const originalFindOne = FinancialProfile.findOne;
+  let reads = 0;
+  FinancialProfile.findOne = () => query(++reads === 1 ? base : changed);
+  t.after(() => { FinancialProfile.findOne = originalFindOne; });
+  const app = express();
+  app.use(express.json());
+  app.use('/api/montecarlo', monteCarloRoutes);
+  app.use(errorHandler);
+  const server = app.listen(0);
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(async () => { await closeServer(server); });
+
+  await withMockAuthAccountState(async () => {
+    const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const response = await rawRequest(`http://127.0.0.1:${server.address().port}/api/montecarlo/portfolio`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ profileId, allocations: { Debt_MF: 1 }, years: 2 }),
+    });
+    assert.equal(response.status, 409);
+    assert.ok(reads >= 2, 'must independently re-read current financial profile');
   });
 });

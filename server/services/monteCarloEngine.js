@@ -3,7 +3,7 @@
  * Runs N simulations with log-normally distributed returns (GBM)
  * to produce probabilistic wealth projections (percentile bands).
  */
-import { INSTRUMENT_PARAMS as CENTRAL_PARAMS, RISK_FREE_RATE, toMonthlyRate } from './instrumentConstants.js';
+import { INSTRUMENT_PARAMS as CENTRAL_PARAMS, RISK_FREE_RATE } from './instrumentConstants.js';
 const INSTRUMENT_PARAMS = {};
 for (const [key, p] of Object.entries(CENTRAL_PARAMS)) {
     INSTRUMENT_PARAMS[key] = { mean: p.nominalRate / 100, stdDev: p.volatility };
@@ -194,6 +194,9 @@ export function runMonteCarlo({
     if (controlVariateMethod !== 'none') {
         throw new RangeError('Unsupported control variate: checkpoint rescaling distorts simulated outcomes');
     }
+    if (monthlyInvestment > Number.MAX_SAFE_INTEGER || currentSavings > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError('SIMULATION_WEALTH_PRECISION_EXCEEDED: initial amounts exceed safe rupee precision');
+    }
     const safeInvestment = monthlyInvestment;
     const safeSavings = currentSavings;
     const safeVolatility = annualVolatility;
@@ -212,11 +215,14 @@ export function runMonteCarlo({
     let finalValues_real = [];
     const halfSims = Math.ceil(simulations / 2);
     const actualSims = halfSims * 2;
-    // Deterministic SIP + lump sum FV for control variate (aligned with continuous GBM expected yield)
-    const r = toMonthlyRate(annualExpectedReturn, true);
+    // Analytic reference using effective-annual return, exactly matching zero-volatility GBM
+    const r = Math.expm1(Math.log1p(annualExpectedReturn) / 12);
     const fvSIP = annuityDueFV(safeInvestment, r, totalMonths);
     const fvSavings = safeSavings * Math.pow(1 + r, totalMonths);
     const deterministicFV = fvSIP + fvSavings;
+    if (!Number.isFinite(deterministicFV) || deterministicFV > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError('SIMULATION_WEALTH_PRECISION_EXCEEDED: deterministic reference exceeds safe rupee precision');
+    }
     for (let sim = 0; sim < halfSims; sim++) {
         const useQMC = sim < halfSims * 0.4;
         const zValues = new Array(totalMonths);
@@ -239,6 +245,9 @@ export function runMonteCarlo({
             balance1 += safeInvestment;
             const z = zValues[monthIdx];
             balance1 *= sampleLogNormalMonthly(annualExpectedReturn, safeVolatility, z);
+            if (!Number.isFinite(balance1) || balance1 < 0 || balance1 > Number.MAX_SAFE_INTEGER) {
+                throw new RangeError('SIMULATION_WEALTH_PRECISION_EXCEEDED: simulated path outside safe rupee precision');
+            }
             const checkpointIdx = checkpointMonthToIndex.get(monthIdx + 1);
             if (checkpointIdx !== undefined) {
                 allSimResults[checkpointIdx].push(balance1);
@@ -254,6 +263,9 @@ export function runMonteCarlo({
             balance2 += safeInvestment;
             const z = zValues[monthIdx];
             balance2 *= sampleLogNormalMonthly(annualExpectedReturn, safeVolatility, -z);
+            if (!Number.isFinite(balance2) || balance2 < 0 || balance2 > Number.MAX_SAFE_INTEGER) {
+                throw new RangeError('SIMULATION_WEALTH_PRECISION_EXCEEDED: simulated path outside safe rupee precision');
+            }
             const checkpointIdx = checkpointMonthToIndex.get(monthIdx + 1);
             if (checkpointIdx !== undefined) {
                 allSimResults[checkpointIdx].push(balance2);
@@ -444,7 +456,7 @@ export function reverseSIP(targetAmount, annualRate, years, currentSavings) {
         throw new RangeError('annualRate must be a decimal greater than -1 and at most 1');
     if (!Number.isFinite(currentSavings) || currentSavings < 0)
         throw new RangeError('currentSavings must be an explicit non-negative finite number');
-    const r = toMonthlyRate(annualRate, true);
+    const r = Math.expm1(Math.log1p(annualRate) / 12);
     const n = years * 12;
     const fvCurrent = currentSavings > 0
         ? currentSavings * Math.pow(1 + r, n)

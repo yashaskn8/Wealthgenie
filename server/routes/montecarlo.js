@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { personalizedMonteCarloSchema, portfolioMonteCarloSchema, validateStrict } from '../validation/financialSchemas.js';
-import { runMonteCarloWithGoal, getInstrumentVolatility } from '../services/monteCarloEngine.js';
+import { getInstrumentVolatility } from '../services/monteCarloEngine.js';
+import { executeMonteCarlo } from '../services/monteCarloExecutor.js';
 import { getInstrumentModelAssumptions } from '../services/marketDataService.js';
 import {
   buildRecommendationProfile,
@@ -30,6 +31,28 @@ const router = Router();
 const MONTE_CARLO_INFLATION_ASSUMPTION = 0.05;
 const MONTE_CARLO_SIMULATIONS = 10000;
 const MONTE_CARLO_SCENARIO_SEED = 20261021; // public repeatable scenario seed
+
+async function assertSimulationProfileCurrent({ userId, profileId, expectedHash, modelVersion }) {
+  const latest = await FinancialProfile.findOne({ _id: profileId, userId }).lean();
+  if (!latest) throw createError(409, 'SIMULATION_PROFILE_CHANGED',
+    'The profile is no longer available; refresh financial state.');
+  const currentHash = buildRecommendationProfileHash(
+    buildRecommendationProfile(latest), { modelVersion });
+  if (currentHash !== expectedHash) throw createError(409, 'SIMULATION_PROFILE_CHANGED',
+    'Financial profile changed during simulation. Refresh and retry.');
+}
+async function executeForHttpClient(res, simulationInput) {
+  const controller = new AbortController();
+  const cancelOnDisconnect = () => {
+    if (!res.writableEnded) controller.abort();
+  };
+  res.once('close', cancelOnDisconnect);
+  try {
+    return await executeMonteCarlo(simulationInput, { signal: controller.signal });
+  } finally {
+    res.off('close', cancelOnDisconnect);
+  }
+}
 
 function buildMonteCarloResponse(result, context) {
   const chartData = result.years_array.map((year, index) => ({
@@ -162,9 +185,13 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
     allocationKey, metrics.expectedReturn, metrics.volatility,
   ].join(':');
   const cached = await getCache(cacheKey);
-  if (cached) return res.json({ ...cached, cached: true });
+  if (cached) {
+    await assertSimulationProfileCurrent({ userId: req.user.userId,
+      profileId, expectedHash: profileHash, modelVersion: 'portfolio-monte-carlo-gbm-2.2.0' });
+    return res.json({ ...cached, cached: true });
+  }
 
-  const result = runMonteCarloWithGoal({
+  const result = await executeForHttpClient(res, {
     monthlyInvestment: simulation.monthlyContribution,
     annualExpectedReturn: metrics.expectedReturn,
     annualVolatility: metrics.volatility,
@@ -175,6 +202,8 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
     currentSavings: simulation.initialCapital,
     seed: MONTE_CARLO_SCENARIO_SEED,
   });
+  await assertSimulationProfileCurrent({ userId: req.user.userId,
+    profileId, expectedHash: profileHash, modelVersion: 'portfolio-monte-carlo-gbm-2.2.0' });
   const response = buildMonteCarloResponse(result, {
     simulation_classification: simulation.classification,
     years: simulation.years,
@@ -230,9 +259,13 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
     MONTE_CARLO_INFLATION_ASSUMPTION, MONTE_CARLO_SIMULATIONS,
   ].join(':');
   const cached = await getCache(cacheKey);
-  if (cached) return res.json({ ...cached, cached: true });
+  if (cached) {
+    await assertSimulationProfileCurrent({ userId: req.user.userId,
+      profileId, expectedHash: profileHash, modelVersion: 'monte-carlo-gbm-2.2.0' });
+    return res.json({ ...cached, cached: true });
+  }
 
-  const result = runMonteCarloWithGoal({
+  const result = await executeForHttpClient(res, {
     monthlyInvestment: simulation.monthlyContribution,
     annualExpectedReturn: annualReturn,
     annualVolatility,
@@ -243,6 +276,8 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
     currentSavings: simulation.initialCapital,
     seed: MONTE_CARLO_SCENARIO_SEED,
   });
+  await assertSimulationProfileCurrent({ userId: req.user.userId,
+    profileId, expectedHash: profileHash, modelVersion: 'monte-carlo-gbm-2.2.0' });
   const chartData = result.years_array.map((year, index) => ({
     year,
     p10: result.p10[index], p25: result.p25[index], p50: result.p50[index],

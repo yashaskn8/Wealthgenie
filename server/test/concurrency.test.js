@@ -151,10 +151,13 @@ test('OCC: PUT /api/profile/:id with stale version returns 409 Conflict', async 
     }
 
     // The retired indicator endpoint must not expose profile information.
-    const retiredHealth = await jsonFetch(`${baseUrl}/api/profile/${profileId}/health-score`, {
+    const retiredHealth = await fetch(`${baseUrl}/api/profile/${profileId}/health-score`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    assert.equal(retiredHealth.response.status, 404);
+    assert.equal(retiredHealth.status, 404);
+    const retiredBody = await retiredHealth.text();
+    assert.doesNotMatch(retiredBody, /monthlyTakeHome|monthlySavings|financialStateFence/,
+      'retired endpoint must not leak profile details');
 
     // 2. First update — should succeed (version 1 → 2)
     const { response: update1Res, body: update1Body } = await jsonFetch(

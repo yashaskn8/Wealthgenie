@@ -370,6 +370,66 @@
       "basis": "LIC copyright policy permits accurate attributed reproduction of LIC-owned material, but excludes third-party material. Ownership of each ULIP NAV series and automated retrieval scope were not established."
     },
     {
+      "sourceId": "UPSTOX_MF_HOLDINGS_USER_AUTHORIZED",
+      "provider": "UPSTOX",
+      "url": "https://api.upstox.com/v2/mf/holdings",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://upstox.com/developer/api-documentation/get-mutual-fund-holdings/",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Authenticated consented holdings expose units, average cost, last NAV and date, not independently reconciled purchase-level tax lots. Operator must verify processing, retention and disclosure rights."
+    },
+    {
+      "sourceId": "UPSTOX_MF_ORDERS_USER_AUTHORIZED",
+      "provider": "UPSTOX",
+      "url": "https://api.upstox.com/v2/mf/orders",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": "https://upstox.com/developer/api-documentation/get-mutual-fund-orders/",
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Authenticated order history requires investor consent; completed orders are not independently verified tax-lot history without matching NAV, fee and settlement facts."
+    },
+    {
+      "sourceId": "NSI_QUARTERLY_SMALL_SAVINGS_RATE_TABLE",
+      "provider": "NSI",
+      "url": "https://www.nsiindia.gov.in/InternalPage.aspx?Id_Pk=132",
+      "status": "LICENSE_UNVERIFIED",
+      "termsUrl": null,
+      "rights": {
+        "access": "LICENSE_UNVERIFIED",
+        "extraction": "LICENSE_UNVERIFIED",
+        "derivedCalculation": "LICENSE_UNVERIFIED",
+        "storage": "LICENSE_UNVERIFIED",
+        "publicDisplay": "LICENSE_UNVERIFIED",
+        "commercialUse": "LICENSE_UNVERIFIED",
+        "redistribution": "LICENSE_UNVERIFIED",
+        "userProvidedDataProcessing": "LICENSE_UNVERIFIED"
+      },
+      "approvedScopes": [],
+      "productionPostTaxUseAllowed": false,
+      "basis": "Official quarterly small-savings rates support independent reference checking, not unlicensed automated production ingestion or guaranteed future-rate projections."
+    },
+    {
       "sourceId": "OGD_DATASET",
       "provider": "DATA_GOV_IN",
       "url": "https://data.gov.in/",

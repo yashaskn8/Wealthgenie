@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createMulberry32, runMonteCarlo, runMonteCarloWithGoal,
-  sampleLogNormalMonthly,
+  sampleLogNormalMonthly, reverseSIP,
 } from '../services/monteCarloEngine.js';
 
 const run=(overrides={})=>runMonteCarlo({
@@ -50,4 +50,23 @@ test('goal success is exactly zero or one with zero uncertainty when no stochast
    simulations:200,inflationRate:0.05,targetAmount:1,seed:0});
  assert.equal(high.goal_probability,1);
  assert.equal(high.goal_probability_ci_status,'NOT_ESTIMATED_DEPENDENT_SIMULATIONS');
+});
+
+test('large finite balances never produce unsafe rounded rupee forecasts',()=>{
+  assert.throws(()=>run({currentSavings:1e16}),/SIMULATION_WEALTH_PRECISION_EXCEEDED/);
+  assert.throws(()=>run({currentSavings:1e14,years:30,
+    annualExpectedReturn:1,annualVolatility:0,simulations:100}),
+    /SIMULATION_WEALTH_PRECISION_EXCEEDED/);
+  assert.throws(()=>run({monthlyInvestment:1e15,years:30,
+    annualExpectedReturn:1,annualVolatility:0,simulations:100}),
+    /SIMULATION_WEALTH_PRECISION_EXCEEDED/);
+});
+
+test('reverse SIP and forward annuity use the same annual effective return',()=>{
+ const target=1250000,rate=.12,years=6,savings=45000;
+ const monthlyRate=Math.expm1(Math.log1p(rate)/12);
+ const contribution=reverseSIP(target,rate,years,savings);
+ const fv=savings*Math.pow(1+monthlyRate,years*12)
+  +contribution*((Math.pow(1+monthlyRate,years*12)-1)/monthlyRate)*(1+monthlyRate);
+ assert.ok(Math.abs(fv-target)<0.01);
 });

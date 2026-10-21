@@ -736,7 +736,7 @@ paths:
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/MonteCarlo' }
-      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '422': { $ref: '#/components/responses/Unprocessable' } }
+      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '422': { $ref: '#/components/responses/Unprocessable' }, '503': { $ref: '#/components/responses/Unavailable' } }
   /api/montecarlo/portfolio:
     post:
       operationId: runPortfolioMonteCarlo
@@ -745,7 +745,7 @@ paths:
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/PortfolioMonteCarlo' }
-      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '422': { $ref: '#/components/responses/Unprocessable' } }
+      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '422': { $ref: '#/components/responses/Unprocessable' }, '503': { $ref: '#/components/responses/Unavailable' } }
 
   /api/market/rates:
     get: { operationId: getMarketRates, tags: [Market], security: [], responses: { '200': { $ref: '#/components/responses/Object' } } }
