@@ -24,6 +24,19 @@ test('instrument page DTO and query reject coercive or unknown filter input', ()
   assert.equal(instrumentListQuerySchema.validate({ limit: '20', page: '2', sort: 'name', order: 'asc' }).error, undefined);
 });
 
+test('category/subcategory catalog query accepts real labels and rejects unsafe or unknown fields', () => {
+  const accepted = instrumentListQuerySchema.validate({
+    category: 'REITs & InvITs', subCategory: 'Listed REITs', limit: '20', page: '1',
+  });
+  assert.equal(accepted.error, undefined);
+  assert.equal(accepted.value.category, 'REITs & InvITs');
+  assert.equal(instrumentListQuerySchema.validate({ category: '' }).error !== undefined, true);
+  assert.equal(instrumentListQuerySchema.validate({ subCategory: 'x'.repeat(101) }).error !== undefined, true);
+  assert.equal(instrumentListQuerySchema.validate({ category: { $ne: 'Debt' } }).error !== undefined, true);
+  assert.equal(instrumentListQuerySchema.validate({ category: 'Equity\\nFake' }).error !== undefined, true);
+  assert.equal(instrumentListQuerySchema.validate({ unknown: 'Equity' }).error !== undefined, true);
+});
+
 test('instrument cache entries are reserialized through the public DTO allowlist', () => {
   const cached = serializeCachedInstrumentPage({
     instruments: [{
