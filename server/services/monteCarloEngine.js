@@ -4,6 +4,8 @@
  * to produce probabilistic wealth projections (percentile bands).
  */
 import { INSTRUMENT_PARAMS as CENTRAL_PARAMS, RISK_FREE_RATE } from './instrumentConstants.js';
+
+export const MONTE_CARLO_MODEL_VERSION = 'monte-carlo-gbm-2.3.0';
 const INSTRUMENT_PARAMS = {};
 for (const [key, p] of Object.entries(CENTRAL_PARAMS)) {
     INSTRUMENT_PARAMS[key] = { mean: p.nominalRate / 100, stdDev: p.volatility };
@@ -224,20 +226,11 @@ export function runMonteCarlo({
         throw new RangeError('SIMULATION_WEALTH_PRECISION_EXCEEDED: deterministic reference exceeds safe rupee precision');
     }
     for (let sim = 0; sim < halfSims; sim++) {
-        const useQMC = sim < halfSims * 0.4;
+        // Seeded antithetic Gaussian paths replace the previously biased,
+        // unvalidated low-dimensional Halton mixture.
         const zValues = new Array(totalMonths);
         for (let i = 0; i < totalMonths; i++) {
-            if (useQMC) {
-                const seqIdx = sim * totalMonths + i + 1;
-                const base1 = (i % 2 === 0) ? 2 : 5;
-                const base2 = (i % 2 === 0) ? 3 : 7;
-                const u1 = halton(seqIdx, base1) || 0.5;
-                const u2 = halton(seqIdx, base2) || 0.5;
-                zValues[i] = boxMuller(u1, u2);
-            }
-            else {
-                zValues[i] = boxMuller(undefined, undefined, rng);
-            }
+            zValues[i] = boxMuller(undefined, undefined, rng);
         }
         // ── Path 1: use +Z ──────────────────────────────────────────────
         let balance1 = safeSavings;
@@ -283,7 +276,7 @@ export function runMonteCarlo({
     const samplingMeanError = rawMean - deterministicFV;
     // Sort each year's results ONCE, then extract all percentiles
     const p10 = [], p25 = [], p50 = [], p75 = [], p90 = [], mean = [];
-    // Antithetic/quasi-random paths are dependent; ordinary iid standard errors are invalid.
+    // Antithetic pairs are dependent; ordinary iid standard errors are invalid.
     for (let y = 0; y < allSimResults.length; y++) {
         const sorted = [...allSimResults[y]].sort((a, b) => a - b);
         const yrNom = Math.round(percentile(sorted, 10));
@@ -341,7 +334,7 @@ export function runMonteCarlo({
         deterministic_fv: Math.round(deterministicFV),
         control_correction: null,
         sampling_mean_error: Math.round(samplingMeanError) || 0,
-        model_version: 'monte-carlo-gbm-2.2.0',
+        model_version: MONTE_CARLO_MODEL_VERSION,
         finalValues, // expose for goal probability reuse
         simulations_run: actualSims,
         nominal_real_path_aligned: true,
@@ -355,7 +348,7 @@ export function runMonteCarlo({
         response.inflationRateUsed = inflationRate;
         response.sequenceRisk = null;
         response.riskMetrics = computeRiskMetrics(p50, p10, years, RISK_FREE_RATE, annualExpectedReturn);
-        response.variance_reduction = 'halton_qmc+antithetic';
+        response.variance_reduction = 'antithetic';
         response.control_variate_method = controlVariateMethod;
         response.sequence_of_returns_risk = null;
         response.terminal_wealth_cv = sequenceOfReturnsRisk;
@@ -414,7 +407,7 @@ export function runMonteCarloWithGoal(params) {
     const goalProbability = targetAmount !== null && targetAmount !== undefined && result.finalValues
         ? computeGoalProbability(result.finalValues, targetAmount)
         : null;
-    // Quasi-random and antithetic paths are dependent samples. A Wilson
+    // Antithetic paired paths are dependent samples. A Wilson
     // interval would misleadingly assume independent Bernoulli trials.
     const goalProbabilityCI = null;
     // Remove raw finalValues from response

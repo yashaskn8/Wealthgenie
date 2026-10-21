@@ -56,7 +56,7 @@ test('deterministic low-volatility simulation remains numerically consistent', (
   const result = runMonteCarlo({ ...VALID_MC, years: 1, annualVolatility: 0, simulations: 200 });
   const terminal = result.p50.at(-1);
   assert.ok(Math.abs(terminal - result.deterministic_fv) / result.deterministic_fv < 0.01);
-  assert.equal(result.variance_reduction, 'halton_qmc+antithetic');
+  assert.equal(result.variance_reduction, 'antithetic');
   assert.equal(result.control_variate_method, 'none');
   assert.equal(result.inflationRateUsed, 0.05);
 });
@@ -190,5 +190,5 @@ test('dependent quasi-random trajectories do not claim an iid standard error or 
   assert.equal(response.sequenceRisk, null);
   assert.equal(response.sequence_of_returns_risk, null);
   assert.ok(Number.isFinite(response.terminal_wealth_cv));
-  assert.equal(response.model_version, 'monte-carlo-gbm-2.2.0');
+  assert.equal(response.model_version, 'monte-carlo-gbm-2.3.0');
 });

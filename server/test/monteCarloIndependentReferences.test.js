@@ -70,3 +70,15 @@ test('reverse SIP and forward annuity use the same annual effective return',()=>
   +contribution*((Math.pow(1+monthlyRate,years*12)-1)/monthlyRate)*(1+monthlyRate);
  assert.ok(Math.abs(fv-target)<0.01);
 });
+
+test('seeded 30-year simulated mean stays within five percent of independent analytical reference', () => {
+  const scenario = run({
+    monthlyInvestment: 10000, currentSavings: 0,
+    annualExpectedReturn: 0.15, annualVolatility: 0.18,
+    years: 30, simulations: 10000, seed: 20261021,
+  });
+  const error = Math.abs(scenario.mean.at(-1) - scenario.deterministic_fv) / scenario.deterministic_fv;
+  assert.ok(error < 0.05, `30-year sampling deviation: ${(error * 100).toFixed(2)}%`);
+  assert.equal(scenario.variance_reduction, 'antithetic');
+  assert.equal(scenario.model_version, 'monte-carlo-gbm-2.3.0');
+});
