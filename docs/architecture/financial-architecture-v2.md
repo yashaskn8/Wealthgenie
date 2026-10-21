@@ -18,7 +18,7 @@ New surfaces (only exposed with correct authorization/data):
 * `GET|POST /api/investor-holdings` / `POST /api/investor-holdings/valuation` — explicit self-declared purchase lots and immutable mark-to-market snapshots using rights-qualified INR product observations; no realized gain or tax is inferred.
 * `calculateQualifiedProductCashflow({taxEventContext})` — optional tax-event extension only for source-qualified annual payout contracts when explicit cash-flow settlement dates and every affected fiscal-year tax context exist.
 
-No new actual scheme/fund/stock identity is generated from marketing text.
+No new actual scheme/fund/stock identity is generated from marketing text. The four new private investor APIs require `FINANCIAL_ARCHITECTURE_ENABLED=true`; the public SQL investment directory independently requires `FINANCIAL_POSTGRES_ENABLED=true`. Both default off. Existing core recommendation flows remain independently available.
 
 ## PostgreSQL activation checklist (not completed automatically)
 
@@ -27,9 +27,10 @@ No new actual scheme/fund/stock identity is generated from marketing text.
 3. With the driver installed, run `npm run finance:pg:migrate` and `npm run finance:pg:seed` from `server/` on the intended database. The seed safely stages the **existing 155** catalog records as `ARCHETYPE` with `UNVERIFIED` status and `recommendation_eligible=false`. It does not claim 240 products or imply those are executable investment identities.
 4. Review every actual product identity against an authoritative identifier and create `ACTUAL_PRODUCT` rows with explicit source identifiers and product terms. Ingest only authenticated provider responses from a verified rights register, never from a user-submitted price or URL.
 5. Record source-specific permissions, including extraction, storage, derivation, public display, commercial use and any redistribution requirement, **with documentary evidence and approved retention time**. Rights default false. Upstox/AMFI/RBI/India Post data do not become unrestricted merely by being copied into SQL.
-6. Only then set `FINANCIAL_POSTGRES_ENABLED=true`. Enabled readiness fails if SQL schema or runtime driver is missing. Verify quote freshness, provider identity, correction revisions, time zones, source-rights revocation, secure connection and read-time permissions.
-7. Schedule `npm run finance:pg:prune` under deployment orchestration at a frequency consistent with each license. Application read gates reject already-expired records, but physical deletion timing still needs an operational guarantee.
-8. Reconcile all existing licensed market observations with the new PostgreSQL representation, use a provider-by-provider cutover behind feature flags, and keep exactly one authoritative writer per provider/product. Do not dual-write MongoDB and PostgreSQL inside separate uncoordinated transactions.
+6. Run `MONGODB_MIGRATION_URI=... npm run finance:mongo:migrate-indexes` against the correct Mongo replica set. This explicitly provisions the unique/private identity indexes and `retainedUntil` TTL required for derived valuation snapshots. The new private routes fail closed until startup verifies those indexes.
+7. Only after the database migrations and permission qualifications, set `FINANCIAL_POSTGRES_ENABLED=true` and `FINANCIAL_ARCHITECTURE_ENABLED=true`. Enabled startup fails if the PostgreSQL authority or Mongo private indexes are absent. Verify quote freshness, product/provider exact identities, correction revisions, time zones, source-rights revocation, secure connection and read-time permissions.
+8. Schedule `npm run finance:pg:prune` under deployment orchestration at a frequency consistent with each license. Application read gates reject already-expired records, but physical deletion timing still needs an operational guarantee.
+9. Reconcile all existing licensed market observations with the new PostgreSQL representation, use a provider-by-provider cutover behind feature flags, and keep exactly one authoritative writer per provider/product. Do not dual-write MongoDB and PostgreSQL inside separate uncoordinated transactions.
 
 ## Financial-safety rules
 
@@ -47,6 +48,7 @@ No new actual scheme/fund/stock identity is generated from marketing text.
 * The `pg` lockfile is committed, but a real PostgreSQL instance, provisioned roles/secrets, migrations, backups, and real integration tests are not verified.
 * Provider rights for production live data are currently unqualified; no URL, key or waiver may be fabricated.
 * Existing provider-specific MongoDB market-data ingestion has not been cut over to PG.
+* The new private financial MongoDB indexes require an explicit migration and a successful read-only startup gate before the private feature flag can be enabled.
 * No independently validated expansion from 155 to approximately 240 distinct archetypes has been completed.
 * Full multi-asset, multi-year path-specific tax simulation including capital losses, contributions, withdrawals, fees, and future-tax uncertainty is not implemented. Only the explicitly bounded scenario described above is available.
 * Product-level suitability beyond authoritative parent-category screening is unverified.
