@@ -299,6 +299,10 @@ export async function createGenieProofCase({
   signer,
   caseModel = GenieProofCase,
   revisionModel = GenieProofRevision,
+  watchModel = ProofWatch,
+  jobModel = ProofBreakJob,
+  eventModel = ProofBreakEvent,
+  outboxModel = ProofNotificationOutbox,
   startSession = () => mongoose.startSession(),
   now = () => new Date(),
   evidenceResolver = defaultEvidenceResolver,
@@ -337,6 +341,10 @@ export async function createGenieProofCase({
     const expiredCases = await expiredCasesQuery.select('caseId').lean();
     for (const expiredCase of expiredCases) {
       await revisionModel.deleteMany({ userId, caseId: expiredCase.caseId }, { session });
+      await watchModel.deleteMany({ userId, caseId: expiredCase.caseId }, { session });
+      await jobModel.deleteMany({ userId, caseId: expiredCase.caseId }, { session });
+      await eventModel.deleteMany({ userId, caseId: expiredCase.caseId }, { session });
+      await outboxModel.deleteMany({ userId, caseId: expiredCase.caseId }, { session });
       await caseModel.deleteOne({ userId, caseId: expiredCase.caseId, expiresAt: { $lte: assessedAt } }, { session });
     }
     const replay = await findIdempotentReplay({
@@ -455,6 +463,10 @@ export async function createGenieProofCase({
       signer,
       caseModel,
       revisionModel,
+      watchModel,
+      jobModel,
+      eventModel,
+      outboxModel,
       startSession,
       now,
       evidenceResolver,

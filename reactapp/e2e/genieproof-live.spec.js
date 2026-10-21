@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { Buffer } from 'node:buffer';
 import { createRequire } from 'node:module';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import { once } from 'node:events';
@@ -335,6 +335,7 @@ test.describe('synthetic-only authenticated GenieProof browser-to-worker integra
   test.describe.configure({ timeout: 300_000 });
 
   test.beforeAll(async () => {
+    test.setTimeout(300_000);
     try {
       setIsolatedTestEnvironment();
       const serverRequire = createRequire(path.join(SERVER_DIR, 'package.json'));
@@ -556,6 +557,22 @@ test.describe('synthetic-only authenticated GenieProof browser-to-worker integra
       await registerThroughBrowser(firstPage, firstContext, 'owner');
       await firstPage.getByTestId('nav-genieproof').click();
       await expect(firstPage.getByTestId('genieproof-panel')).toBeVisible();
+      const forwardedCapability = await firstPage.evaluate(async () => {
+        const response = await fetch('/api/genieproof/capabilities', {
+          headers: { 'x-forwarded-for': '192.0.2.10' },
+        });
+        return { status: response.status, body: await response.json() };
+      });
+      expect(forwardedCapability.status).toBe(200);
+      expect(forwardedCapability.body).toMatchObject({
+        interactiveEnabled: false,
+        mode: 'UNAVAILABLE',
+        reasonCode: 'GENIEPROOF_LOCAL_REQUEST_REQUIRED',
+      });
+      const forwardedCases = await firstPage.evaluate(async () => (
+        await fetch('/api/genieproof/cases', { headers: { 'x-forwarded-for': '192.0.2.10' } })
+      ).status);
+      expect(forwardedCases).toBe(404);
       await firstPage.locator('#genieproof-offer').fill(OFFER_TEXT);
       const extractResponse = firstPage.waitForResponse(response => (
         response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/genieproof/extract'
@@ -583,6 +600,53 @@ test.describe('synthetic-only authenticated GenieProof browser-to-worker integra
       expect(saved.passport.manifest.revision).toBe(1);
       expect(saved.passport.manifest.findings[0].finding).toBe('SUPPORTED');
       await expect(firstPage.getByText('Revision 1 · 1 claim')).toBeVisible();
+
+      await firstPage.getByRole('button', { name: 'Open', exact: true }).click();
+      const downloadPromise = firstPage.waitForEvent('download');
+      await firstPage.getByRole('button', { name: 'Download signed claim record' }).click();
+      const downloaded = await downloadPromise;
+      const exportedPath = testInfo.outputPath('genieproof-exported-passport.json');
+      await downloaded.saveAs(exportedPath);
+      const exportedPreview = JSON.parse(fs.readFileSync(exportedPath, 'utf8'));
+      const coreModule = await import(pathToFileURL(path.join(SERVER_DIR, 'agents', 'genieProof', 'genieProofCore.js')).href);
+      const signatureModule = await import(pathToFileURL(path.join(SERVER_DIR, 'agents', 'genieProof', 'genieProofPassportSignature.js')).href);
+      const replayedPreview = coreModule.verifyConfirmedGenieProofClaim(exportedPreview.manifest.confirmedClaims[0], {
+        verifierVersion: exportedPreview.manifest.verifierVersion,
+        evidenceRevisions: exportedPreview.manifest.findings[0].evidence.revisions,
+        signatureVerifier: new signatureModule.GenieProofPassportVerifier({ trustedPublicKeys: {
+          [testSigner.keyId]: testSigner.publicKey.export({ type: 'spki', format: 'pem' }),
+        } }),
+        now: exportedPreview.manifest.assessedAt,
+      });
+      expect(exportedPreview.manifest.findings[0]).toEqual(replayedPreview);
+      const verifierScript = path.join(SERVER_DIR, 'scripts', 'verifyGenieProofPassport.js');
+      const verifierEnv = {
+        ...process.env,
+        GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON: JSON.stringify({
+          [testSigner.keyId]: testSigner.publicKey.export({ type: 'spki', format: 'pem' }),
+        }),
+      };
+      const independent = spawnSync(process.execPath, [verifierScript, exportedPath], {
+        cwd: SERVER_DIR, env: verifierEnv, encoding: 'utf8', windowsHide: true,
+      });
+      expect(independent.status, `${independent.stderr}\n${independent.stdout}`).toBe(2);
+      const independentResult = JSON.parse(independent.stdout);
+      expect(independentResult).toMatchObject({
+        status: 'VERIFICATION_INCOMPLETE',
+        signature: 'SIGNATURE_INTEGRITY_VALID',
+        trustedIssuer: true,
+        findings: 'FINDING_REPRODUCIBLE',
+        financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
+      });
+      const tamperedPassport = JSON.parse(fs.readFileSync(exportedPath, 'utf8'));
+      tamperedPassport.manifest.confirmedClaims[0].value = 9;
+      const tamperedPath = testInfo.outputPath('genieproof-tampered-passport.json');
+      fs.writeFileSync(tamperedPath, JSON.stringify(tamperedPassport));
+      const tamperedVerification = spawnSync(process.execPath, [verifierScript, tamperedPath], {
+        cwd: SERVER_DIR, env: verifierEnv, encoding: 'utf8', windowsHide: true,
+      });
+      expect(tamperedVerification.status, tamperedVerification.stderr).toBe(1);
+      expect(JSON.parse(tamperedVerification.stdout).status).toBe('VERIFICATION_FAILED');
 
       await firstPage.getByRole('button', { name: 'ProofBreak status & timeline' }).click();
       const proofBreakRegion = firstPage.getByRole('region', { name: 'ProofBreak status and timeline for revision 1' });

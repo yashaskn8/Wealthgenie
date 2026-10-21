@@ -23,6 +23,32 @@ function incompleteResult({ signatureCheck, findingStatus = 'VERIFICATION_INCOMP
   };
 }
 
+// Passports signed before the Date-object replay fix rounded only the derived
+// effective-period labels to whole seconds. The attested fact kept its full
+// timestamp. Accept that exact historical representation, without relaxing
+// the signature, fact, evidence or any other finding field.
+function matchesLegacyDateCoercion(expected, actual) {
+  if (!expected?.effectivePeriodBinding || !Array.isArray(expected?.evidence?.revisions)) return false;
+  const legacy = structuredClone(expected);
+  const wholeSecond = value => {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return value;
+    date.setUTCMilliseconds(0);
+    return date.toISOString();
+  };
+  for (const field of ['effectiveFrom', 'effectiveTo']) {
+    if (legacy.effectivePeriodBinding[field] != null) {
+      legacy.effectivePeriodBinding[field] = wholeSecond(legacy.effectivePeriodBinding[field]);
+    }
+  }
+  for (const revision of legacy.evidence.revisions) {
+    for (const field of ['effectiveFrom', 'effectiveTo']) {
+      if (revision[field] != null) revision[field] = wholeSecond(revision[field]);
+    }
+  }
+  return canonicalSha256(legacy) === canonicalSha256(actual);
+}
+
 function hasReproducibleFindings(manifest, { trustedPublicKeys = {} } = {}) {
   const claims = manifest?.confirmedClaims;
   const findings = manifest?.findings;
@@ -43,6 +69,7 @@ function hasReproducibleFindings(manifest, { trustedPublicKeys = {} } = {}) {
   if (isGenieProofEvidenceVerifierVersion(manifest.verifierVersion)) {
     try { evidenceVerifier = new GenieProofPassportVerifier({ trustedPublicKeys }); } catch { return false; }
   }
+  let legacyTimestampReplay = false;
   for (const [claimId, claim] of claimsById) {
     const actual = findingsById.get(claimId);
     if (!actual) return false;
@@ -59,12 +86,15 @@ function hasReproducibleFindings(manifest, { trustedPublicKeys = {} } = {}) {
       return false;
     }
     try {
-      if (canonicalSha256(expected) !== canonicalSha256(actual)) return false;
+      if (canonicalSha256(expected) !== canonicalSha256(actual)) {
+        if (!matchesLegacyDateCoercion(expected, actual)) return false;
+        legacyTimestampReplay = true;
+      }
     } catch {
       return false;
     }
   }
-  return true;
+  return { legacyTimestampReplay };
 }
 
 function hasValidManifestBindings(manifest) {
@@ -167,8 +197,8 @@ export function verifyExportedGenieProofPassport(signedPassport, options = {}) {
 
   const manifest = signedPassport.manifest;
   const trustedPublicKeys = options?.trustedPublicKeys ?? {};
-  const findingsReproduced = hasReproducibleFindings(manifest, { trustedPublicKeys })
-    && hasValidManifestBindings(manifest);
+  const replay = hasReproducibleFindings(manifest, { trustedPublicKeys });
+  const findingsReproduced = replay && hasValidManifestBindings(manifest);
   if (!findingsReproduced) {
     return {
       status: 'VERIFICATION_FAILED',
@@ -185,8 +215,9 @@ export function verifyExportedGenieProofPassport(signedPassport, options = {}) {
   const hasEvidenceBindings = Array.isArray(manifest.evidenceRevisionHashes)
     && manifest.evidenceRevisionHashes.length > 0;
   const evidenceCheckable = isGenieProofEvidenceVerifierVersion(manifest.verifierVersion) && hasEvidenceBindings;
-  const findingSemantics = manifest.verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
-    ? 'CURRENT_POLICY_REPLAY_ONLY' : 'LEGACY_REPLAY_ONLY';
+  const findingSemantics = replay.legacyTimestampReplay ? 'LEGACY_TIMESTAMP_REPLAY_ONLY'
+    : manifest.verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+      ? 'CURRENT_POLICY_REPLAY_ONLY' : 'LEGACY_REPLAY_ONLY';
   const levels = {
     signatureIntegrity: 'SIGNATURE_INTEGRITY_VALID',
     evidenceIntegrity: evidenceCheckable ? 'EVIDENCE_INTEGRITY_CHECKABLE' : 'EVIDENCE_INTEGRITY_NOT_CHECKABLE',

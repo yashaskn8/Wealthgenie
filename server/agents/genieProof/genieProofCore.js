@@ -223,10 +223,14 @@ function validateEvidenceRevision(evidence, { signatureVerifier, now, requireBou
       || fact?.unit !== 'PERCENT_PER_ANNUM') {
     return { valid: false, reason: 'EVIDENCE_BINDING_INVALID' };
   }
-  const retrievedAt = Date.parse(evidence.retrievedAt);
-  const effectiveFrom = Date.parse(fact?.effectiveFrom);
-  const effectiveTo = fact?.effectiveTo == null ? null : Date.parse(fact.effectiveTo);
-  const assessedAt = now instanceof Date ? now.getTime() : Date.parse(now);
+  // Date.parse(Date) first stringifies the Date and silently discards milliseconds.
+  // Mongo returns Date objects while exported passports contain ISO strings; both
+  // paths must replay to the same signed finding and effective-period binding.
+  const instant = value => value instanceof Date ? value.getTime() : Date.parse(value);
+  const retrievedAt = instant(evidence.retrievedAt);
+  const effectiveFrom = instant(fact?.effectiveFrom);
+  const effectiveTo = fact?.effectiveTo == null ? null : instant(fact.effectiveTo);
+  const assessedAt = instant(now);
   if (!Number.isFinite(retrievedAt) || !Number.isFinite(effectiveFrom) || !Number.isFinite(assessedAt)
       || (requireBoundedEffectivePeriod && effectiveTo === null)
       || (effectiveTo !== null && (!Number.isFinite(effectiveTo) || effectiveTo < effectiveFrom))) {

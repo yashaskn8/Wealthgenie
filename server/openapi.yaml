@@ -179,7 +179,7 @@ paths:
       operationId: getGenieProofCapabilities
       tags: [GenieProof]
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
-      description: Authenticated, non-cacheable readiness status. Only explicitly configured local research may be interactive. This does not qualify production financial evidence, authorize a signed finding, or reveal signing keys.
+      description: Authenticated, non-cacheable readiness status. Only explicitly configured direct-loopback local research may be interactive; forwarded or proxied requests cannot use signed routes. This does not qualify production financial evidence, authorize a signed finding, or reveal signing keys.
       responses:
         '200':
           description: Sanitized capability status
@@ -194,7 +194,7 @@ paths:
                   interactiveEnabled: { type: boolean }
                   extractionPreviewEnabled: { type: boolean, const: true }
                   mode: { type: string, enum: [LOCAL_RESEARCH, UNAVAILABLE] }
-                  reasonCode: { type: string, enum: [RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED, FEATURE_UNAVAILABLE, GENIEPROOF_LOCAL_RESEARCH_ONLY, GENIEPROOF_FLAG_DISABLED, GENIEPROOF_SIGNING_KEYS_MISSING, GENIEPROOF_SIGNING_CONFIGURATION_INVALID] }
+                  reasonCode: { type: string, enum: [RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED, FEATURE_UNAVAILABLE, GENIEPROOF_LOCAL_RESEARCH_ONLY, GENIEPROOF_FLAG_DISABLED, GENIEPROOF_SIGNING_KEYS_MISSING, GENIEPROOF_SIGNING_CONFIGURATION_INVALID, GENIEPROOF_LOCAL_REQUEST_REQUIRED] }
                   productionVerified: { type: boolean, const: false }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }

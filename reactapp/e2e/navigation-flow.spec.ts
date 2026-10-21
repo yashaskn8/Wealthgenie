@@ -428,7 +428,7 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
 
   test('tablet viewport (721px): surviving Progress and Taxes tabs are reachable without clipping', async ({ page }) => {
     await page.setViewportSize({ width: 721, height: 900 });
-    await page.goto('http://127.0.0.1:5173/profile?page=progress&tab=goals');
+    await page.goto('/profile?page=progress&tab=goals');
     await page.waitForLoadState('networkidle');
     await expect(page.getByTestId('mobile-nav-progress')).toBeVisible();
 
@@ -438,6 +438,9 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
       await button.click();
       await expect(page).toHaveURL(new RegExp(`page=progress&tab=${tab}`));
       await expect(page.getByTestId(`panel-${tab}`)).toBeVisible();
+      if (tab === 'grow-sip') {
+        await expect(page.getByRole('heading', { name: 'Projection unavailable' })).toBeVisible();
+      }
     }
 
     await page.getByTestId('mobile-nav-taxes').click();

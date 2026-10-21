@@ -8,6 +8,7 @@ const SETUP_GUIDANCE = Object.freeze({
   GENIEPROOF_FLAG_DISABLED: 'The local research workflow is disabled. Set GENIEPROOF_ENABLED=true in the backend environment and restart the backend.',
   GENIEPROOF_SIGNING_KEYS_MISSING: 'The local backend is missing GenieProof signing configuration. Supply GENIEPROOF_SIGNING_PRIVATE_KEY, GENIEPROOF_SIGNING_PUBLIC_KEY, and GENIEPROOF_SIGNING_KEY_ID to the backend process, then restart it.',
   GENIEPROOF_SIGNING_CONFIGURATION_INVALID: 'The local GenieProof signing configuration was rejected. Verify that the Ed25519 private/public keys match, the key ID is valid and not revoked, and any optional trusted-key JSON is valid. Never paste private keys into the browser.',
+  GENIEPROOF_LOCAL_REQUEST_REQUIRED: 'Signed research passports are available only through the local loopback development server. Open WealthGenie on this computer using localhost or 127.0.0.1.',
 });
 
 export default function GenieProofEntry() {

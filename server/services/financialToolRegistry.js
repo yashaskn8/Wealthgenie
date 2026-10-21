@@ -1,6 +1,5 @@
 import Joi from 'joi';
-import { sipFV, lumpSumFV } from './projectionEngine.js';
-import { reverseSIP } from './monteCarloEngine.js';
+import { sipFV, lumpSumFV, reverseSIPFromFV } from './projectionEngine.js';
 import { computeTax } from './taxEngine.js';
 import { computeXIRR } from './xirrCalculator.js';
 import {
@@ -299,7 +298,7 @@ export class ToolRegistry {
     this.registerTool('reverse_sip', {
       mcpPolicy: MCP_TOOL_POLICY.reverse_sip,
       description: 'Calculates required monthly SIP to achieve a target financial goal.',
-      version: '2.1.0',
+      version: '2.2.0',
       schema: Joi.object({
         targetAmount: Joi.number().min(1000).max(10000000000).required(),
         annualRate: Joi.number().min(0.001).max(0.50).required(),
@@ -307,7 +306,13 @@ export class ToolRegistry {
         currentSavings: Joi.number().min(0).max(10000000000).required(),
       }),
       executor: async ({ targetAmount, annualRate, years, currentSavings }) => {
-        const requiredMonthlySip = reverseSIP(targetAmount, annualRate, years, currentSavings);
+        // Invert the same nominal-rate SIP and annual lump-sum projections
+        // exposed by the paired registry tools. Monte Carlo goal planning uses
+        // a distinct effective-annual assumption and must not be mixed here.
+        const remainingTarget = Math.max(0, targetAmount - lumpSumFV(currentSavings, annualRate, years));
+        const requiredMonthlySip = remainingTarget === 0
+          ? 0
+          : reverseSIPFromFV(remainingTarget, annualRate, years);
         return {
           targetAmount,
           annualRatePct: annualRate * 100,
