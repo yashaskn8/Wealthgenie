@@ -177,7 +177,7 @@ async function products(dialog: Locator, result: JsonObject, parentId: string) {
       // A production data-rights block is not the same as an empty eligible
       // catalogue. The UI must disclose source restrictions without fetching
       // or inventing a fallback price or post-tax result.
-      expect(result.comparisonUniverse?.productionSourceUseAllowed).toBe(false);
+      expect(object(result.comparisonUniverse, 'comparisonUniverse').productionSourceUseAllowed).toBe(false);
       await expect(dialog.getByRole('status')).toContainText(
         'This source is not cleared for WealthGenie production display.',
       );
