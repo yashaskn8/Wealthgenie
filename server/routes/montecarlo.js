@@ -126,12 +126,14 @@ function simulationProvenance(result) {
     control_variate_method: result.control_variate_method ?? 'none',
     dispersion_cv: result.dispersion_cv ?? null,
     tax_basis: 'PRE_TAX',
+    monthly_rate_convention: 'EFFECTIVE_ANNUAL_EQUIVALENT',
     model_limitations: [
       'Returns and volatility are versioned model-policy assumptions, not observed or forecast market facts.',
       'Probabilities are conditional on model assumptions and are not guaranteed outcomes.',
       'Fees, taxes, corporate actions and regime changes are not modeled.',
       'FD, RD, government-scheme and bond product-specific cashflows are NOT modeled by this GBM policy scenario.',
       'Aggregated portfolio GBM is not a multi-asset correlated return-path engine.',
+      'Monte Carlo uses an effective annual rate converted to monthly. The separate nominal-APR SIP calculator divides APR by twelve; their outputs are not interchangeable.',
     ],
   };
 }

@@ -375,14 +375,17 @@ export function generateProjections(
     // Nominal projections (flat SIP + initial lump sum)
     const data = labels.map(y => Math.round(sipFV(monthlyInvestment, decimalRate, y) + lumpSumFV(safeLumpSum, decimalRate, y)));
 
-    // Inflation-adjusted (real) projections (flat SIP + initial lump sum)
+    // A fixed nominal SIP is not a fixed real SIP. Deflate terminal
+    // nominal wealth at its horizon, not every contribution's growth rate.
+    // Applying the real rate to the SIP incorrectly assumes contributions
+    // preserve their purchasing power despite fixed nominal installments.
     const realRate = ((1 + decimalRate) / (1 + inflationRate)) - 1;
-    const realData = labels.map(y => Math.round(sipFV(monthlyInvestment, realRate, y) + lumpSumFV(safeLumpSum, realRate, y)));
+    const inflationDeflator = y => Math.pow(1 + inflationRate, y);
+    const realData = labels.map((y, idx) => Math.round(data[idx] / inflationDeflator(y)));
 
-    // Step-up projections (nominal & real + initial lump sum)
+    // Step-up nominal SIPs are also deflated only at the terminal horizon.
     const stepUpData = labels.map(y => Math.round(stepUpSipFV(monthlyInvestment, decimalRate, y, annualStepUpRate) + lumpSumFV(safeLumpSum, decimalRate, y)));
-    const stepUpRealRate = ((1 + decimalRate) / (1 + inflationRate)) - 1;
-    const stepUpRealData = labels.map(y => Math.round(stepUpSipFV(monthlyInvestment, stepUpRealRate, y, annualStepUpRate) + lumpSumFV(safeLumpSum, stepUpRealRate, y)));
+    const stepUpRealData = labels.map((y, idx) => Math.round(stepUpData[idx] / inflationDeflator(y)));
 
     // Wealth multiplier: how many times your invested amount grows
     const finalNominal = data[data.length - 1] || 0;
@@ -399,6 +402,9 @@ export function generateProjections(
       nominalRate: parseFloat((decimalRate * 100).toFixed(2)),
       returnBasis: 'PRE_TAX_NOMINAL',
       realRate: parseFloat((realRate * 100).toFixed(2)),
+      realRateBasis: 'LUMP_SUM_REAL_ANNUAL_EQUIVALENT_NOT_SIP_COMPOUNDING',
+      monthlyRateConvention: 'NOMINAL_APR_DIVIDED_BY_12',
+      realValueMethod: 'DEFLATED_NOMINAL_TERMINAL_WEALTH',
       data,
       realData,
       stepUpData,
@@ -432,6 +438,8 @@ export function generateProjections(
     chartData,
     inflationRate,
     annualStepUpRate,
+    monthly_rate_convention: 'NOMINAL_APR_DIVIDED_BY_12',
+    real_value_method: 'DEFLATED_NOMINAL_TERMINAL_WEALTH',
   };
 }
 

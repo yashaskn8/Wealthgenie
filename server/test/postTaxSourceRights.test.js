@@ -230,3 +230,25 @@ test('generated matrix covers the complete canonical catalog and matches its che
     }
   }
 });
+
+test('post-tax enrichment defaults to source-rights enforcement outside isolated tests', () => {
+  const originalEnv = process.env.NODE_ENV;
+  const product = {
+    id: 'mf:amfi:123', canonicalProductId: 'mf:amfi:123',
+    productType: 'MUTUAL_FUND', parentInstrumentId: 'large_cap_mf',
+    source: { provider: 'AMFI', url: 'https://portal.amfiindia.com/spages/NAVAll.txt' },
+    availabilityStatus: 'AVAILABLE', freshness: { status: 'FRESH' },
+  };
+  try {
+    for (const env of ['development', 'production']) {
+      process.env.NODE_ENV = env;
+      const [entry] = enrichProductsWithPostTaxAndSuitability([product]);
+      assert.equal(entry.postTaxAnalysis.status, 'SOURCE_RIGHTS_UNQUALIFIED');
+      assert.equal(entry.postTaxAnalysis.postTaxRatePct, null);
+      assert.equal(entry.cashflowIllustration.status, 'NOT_APPLICABLE');
+    }
+  } finally {
+    if (originalEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnv;
+  }
+});

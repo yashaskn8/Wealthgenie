@@ -581,7 +581,7 @@ export async function rankWhereToInvestBackend(profileInput, options = {}, depen
         profile: canonical,
         parentCatalog: parent,
         taxCalculationContext,
-        enforceSourceRights: dependencies.isProductionEnvironment ?? (process.env.NODE_ENV === 'production'),
+        enforceSourceRights: dependencies.isProductionEnvironment ?? (process.env.NODE_ENV !== 'test'),
       });
       reportPipelineTiming(dependencies.onStageTiming, 'tax_enrichment', startedAt);
       return attachWtiMetadata(enriched, metadata);
@@ -593,7 +593,7 @@ export async function rankWhereToInvestBackend(profileInput, options = {}, depen
 
   if (supportsFixedIncomeParentCategory(catalog.id)) {
     const provider = fixedIncomeProviderForParent(catalog.id);
-    const productionEnvironment = dependencies.isProductionEnvironment ?? (process.env.NODE_ENV === 'production');
+    const productionEnvironment = dependencies.isProductionEnvironment ?? (process.env.NODE_ENV !== 'test');
     const sourceRights = resolvePostTaxProviderRights(provider);
     if (productionEnvironment && !sourceRights.productionPostTaxUseAllowed) {
       const disclosure = 'This official data source is not cleared for WealthGenie production display or post-tax calculations. Product data remains unavailable until its exact reuse permissions are verified.';
@@ -677,7 +677,7 @@ export async function rankWhereToInvestBackend(profileInput, options = {}, depen
     });
   }
 
-  const productionEnvironment = dependencies.isProductionEnvironment ?? (process.env.NODE_ENV === 'production');
+  const productionEnvironment = dependencies.isProductionEnvironment ?? (process.env.NODE_ENV !== 'test');
   const sourceRights = resolvePostTaxProviderRights(PROVIDERS.AMFI);
   if (productionEnvironment && !sourceRights.productionPostTaxUseAllowed) {
     const disclosure = 'AMFI data-use rights have not been qualified for WealthGenie production display or post-tax calculations. No fund or ETF data is shown until the required permission is recorded.';

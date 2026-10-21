@@ -33,6 +33,8 @@ const MODEL_ASSUMPTION_METADATA = Object.freeze({
   return_assumption_source: PROJECTION_ASSUMPTION_SOURCE,
   observed_market_fact: false,
   provider_forecast: false,
+  monthly_rate_convention: 'NOMINAL_APR_DIVIDED_BY_12',
+  projection_interpretation: 'ILLUSTRATIVE_MODEL_POLICY_NOT_PRODUCT_CONTRACT',
 });
 
 const RISK_LEVEL_SCORE = Object.freeze({

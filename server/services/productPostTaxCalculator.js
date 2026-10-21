@@ -1270,7 +1270,9 @@ export function enrichProductsWithPostTaxAndSuitability(products, {
   parentCatalog = null,
   taxCalculationContext = null,
   now = new Date(),
-  enforceSourceRights = process.env.NODE_ENV === 'production',
+  // Fail closed in ordinary deployments and development; only isolated tests
+  // use modelled provider fixtures without contractual redistribution rights.
+  enforceSourceRights = process.env.NODE_ENV !== 'test',
   sourceRightsResolver = resolvePostTaxProductRights,
 } = {}) {
   if (!Array.isArray(products)) return [];
