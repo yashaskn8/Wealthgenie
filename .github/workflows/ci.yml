@@ -71,6 +71,44 @@ jobs:
           name: backend-coverage-linux-node22-mongo7
           path: server/reports/
 
+  finance-postgres-integration:
+    name: Financial PostgreSQL Migration & Rights Gate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: wealthgenie_financial_test
+          POSTGRES_USER: wealthgenie_test
+          POSTGRES_PASSWORD: ci-only-postgres-secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wealthgenie_test -d wealthgenie_financial_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      FINANCIAL_POSTGRES_URL: postgresql://wealthgenie_test:ci-only-postgres-secret@127.0.0.1:5432/wealthgenie_financial_test
+      FINANCIAL_POSTGRES_TEST_MODE: 'true'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install reproducible server dependencies
+        run: npm ci --prefix server
+      - name: Apply financial-universe schema with migration checksum
+        run: npm run finance:pg:migrate --prefix server
+      - name: Stage and reconcile canonical 155-entry archetype catalog
+        run: npm run finance:pg:seed --prefix server
+      - name: Verify actual SQL identity, rights default, revocation, and valuation data
+        run: node server/scripts/verifyFinancialPostgresIntegration.js
+
   frontend-quality:
     name: Frontend Quality
     runs-on: ubuntu-latest
