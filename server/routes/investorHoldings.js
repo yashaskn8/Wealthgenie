@@ -106,7 +106,8 @@ router.post('/valuation',verifyJWT,validate(valuationSchema),asyncHandler(async(
   currency:fact.currency,costBasisPaise:lot.costBasisPaise});
  const binding={userId:req.user.userId,profileId:lot.profileId,holdingLotId:lot._id,
    canonicalProductId:lot.canonicalProductId,observationId:String(fact.id),
-   observationKind:fact.observation_type,sourceId:fact.source_id,dataClass:fact.data_class,
+   observationKind:fact.observation_type,sourceId:fact.source_id,
+   sourceInstrumentId:fact.source_instrument_id,dataClass:fact.data_class,
    observedAt:fact.observed_at,retainedUntil,result:value};
  let snapshot;
  try{snapshot=await HoldingValuationSnapshot.create(binding);}
