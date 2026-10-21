@@ -10,6 +10,15 @@ import {
 } from '../../utils/navigationMap';
 
 describe('navigationMap architecture', () => {
+  it('converges removed pages and Progress tabs to one Goals page', () => {
+    expect(normalizeNavigation('my-goals', null)).toEqual({ page: 'goals', tab: null, isNormalized: true });
+    expect(normalizeNavigation('plan-a-goal', null)).toEqual({ page: 'goals', tab: null, isNormalized: true });
+    expect(normalizeNavigation('financial-indicators', null)).toEqual({ page: 'home', tab: null, isNormalized: true });
+    expect(normalizeNavigation('progress', 'plan-goal')).toEqual({ page: 'progress', tab: 'goals', isNormalized: true });
+    expect(NAV_PAGES.FINANCIAL_INDICATORS).toBeUndefined();
+    expect(NAV_PAGES.PLAN_A_GOAL).toBeUndefined();
+  });
+
   it('correctly normalizes valid pages without tabs', () => {
     const result = normalizeNavigation('home', null);
     expect(result).toEqual({ page: 'home', tab: null, isNormalized: false });
@@ -23,10 +32,10 @@ describe('navigationMap architecture', () => {
   it('normalizes legacy IDs to both hub and sub-tab', () => {
     expect(resolveNavigation('tax-optimizer')).toEqual({ page: 'taxes', tab: 'regime-savings' });
     expect(resolveNavigation('post-tax')).toEqual({ page: 'taxes', tab: 'real-returns' });
-    expect(resolveNavigation('goals')).toEqual({ page: 'progress', tab: 'goals' });
-    expect(resolveNavigation('goal-planner')).toEqual({ page: 'progress', tab: 'plan-goal' });
-    expect(resolveNavigation('sip-planner')).toEqual({ page: 'progress', tab: 'grow-sip' });
-    expect(resolveNavigation('health')).toEqual({ page: 'progress', tab: 'indicators' });
+    expect(resolveNavigation('goals')).toEqual({ page: 'goals', tab: null });
+    expect(resolveNavigation('goal-planner')).toEqual({ page: 'goals', tab: null });
+    expect(resolveNavigation('sip-planner')).toEqual({ page: 'grow-my-sip', tab: null });
+    expect(resolveNavigation('health')).toEqual({ page: 'home', tab: null });
     expect(resolveNavigation('rebalancer')).toEqual({ page: 'progress', tab: 'rebalancer' });
     expect(resolveNavigation('compare')).toEqual({ page: 'home', tab: null });
     expect(resolveNavigation('insights')).toEqual({ page: 'home', tab: null });
@@ -64,7 +73,7 @@ describe('navigationMap architecture', () => {
     expect(normalizeNavigation('genieproof', null)).toEqual({ page: 'home', tab: null, isNormalized: true });
     expect(normalizeNavigation('genieproof', null, { allowGenieProof: true })).toEqual({ page: 'genieproof', tab: null, isNormalized: false });
     expect(normalizeNavigation('progress', 'health')).toEqual({ page: 'progress', tab: 'goals', isNormalized: true });
-    expect(normalizeNavigation('progress', 'indicators')).toEqual({ page: 'progress', tab: 'indicators', isNormalized: false });
+    expect(normalizeNavigation('progress', 'indicators')).toEqual({ page: 'progress', tab: 'goals', isNormalized: true });
   });
 
   it('converts to and from URLSearchParams accurately', () => {

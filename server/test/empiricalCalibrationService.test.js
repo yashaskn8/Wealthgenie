@@ -109,25 +109,104 @@ test('calibrateMultivariateHistory aligns dates and calculates PSD covariance', 
   assert.equal(multi.correlationMatrix[1][1], 1);
 });
 
-test('simulateAssetClassSpecific applies contractual compounding for FDs without stochastic noise', () => {
-  const result = simulateAssetClassSpecific({
-    assetClass: 'FD',
-    monthlyInvestment: 10_000,
-    currentSavings: 100_000,
-    annualExpectedReturn: 0.075,
-    years: 2,
-    inflationRate: 0.05,
+test('FD lump sum matches an independent quarterly compound-interest reference', () => {
+  const principal = 100_000, nominalAnnual = 0.075, years = 2;
+  const outcome = simulateAssetClassSpecific({
+    assetClass: 'FD', currentSavings: principal, annualExpectedReturn: nominalAnnual,
+    years, inflationRate: 0.05,
     contractualParams: { compoundingFrequency: 'QUARTERLY' },
   });
+  const independentlyExpected = principal * (1 + nominalAnnual / 4) ** (years * 4);
+  assert.equal(outcome.p50.at(-1), Math.round(independentlyExpected));
+  assert.equal(outcome.p50_real.at(-1), Math.round(independentlyExpected / 1.05 ** years));
+  assert.deepEqual(outcome.p10, outcome.p90);
+  assert.equal(outcome.guaranteed_proceeds, false);
+  assert.equal(outcome.post_tax_status, 'REQUIRES_VERIFIED_PRODUCT_AND_TAX_PROFILE');
+  assert.equal(outcome.simulations_run, 1);
+  assert.equal(outcome.is_bond_ytm, false);
+});
 
-  assert.equal(result.simulation_model, SIMULATION_MODELS.CONTRACTUAL_COMPOUNDING);
-  assert.equal(result.is_contractual, true);
-  assert.equal(result.simulations_run, 1);
-  // All percentile bands must be identical because contractual compounding is deterministic
-  assert.deepEqual(result.p10, result.p50);
-  assert.deepEqual(result.p50, result.p90);
-  assert.deepEqual(result.p10_real, result.p50_real);
-  assert.ok(result.p50[1] > 100_000 + 24 * 10_000);
+test('RD monthly installment timing agrees with cashflow-by-cashflow independent reference', () => {
+  const years = 2, annual = 0.072, monthly = 3000;
+  const monthlyEquivalent = (1 + annual / 4) ** (1 / 3) - 1;
+  const forTiming = contributionTiming => simulateAssetClassSpecific({
+    assetClass: 'RD', monthlyInvestment: monthly, annualExpectedReturn: annual, years,
+    contractualParams: { compoundingFrequency: 'QUARTERLY', contributionTiming },
+  });
+  const beginning = forTiming('BEGINNING_OF_MONTH');
+  const ending = forTiming('END_OF_MONTH');
+  const expectedBeginning = Array.from({ length: 24 }, (_, i) =>
+    monthly * (1 + monthlyEquivalent) ** (24 - i)).reduce((a, b) => a + b, 0);
+  const expectedEnding = Array.from({ length: 24 }, (_, i) =>
+    monthly * (1 + monthlyEquivalent) ** (23 - i)).reduce((a, b) => a + b, 0);
+  assert.ok(Math.abs(beginning.p50.at(-1) - expectedBeginning) <= 1);
+  assert.ok(Math.abs(ending.p50.at(-1) - expectedEnding) <= 1);
+  assert.ok(beginning.p50.at(-1) > ending.p50.at(-1));
+});
+
+test('at-par fixed coupon bond separates coupons from principal and interest-on-coupons', () => {
+  const principal = 100_000, couponRate = 0.08;
+  const bond = simulateAssetClassSpecific({
+    assetClass: 'G-Sec', currentSavings: principal, years: 2,
+    contractualParams: {
+      faceValue: principal, purchasePrice: principal,
+      couponRate, reinvestmentRate: 0, couponFrequency: 2, maturityMonths: 24,
+    },
+  });
+  // Four independent semiannual coupons of 4,000, plus principal at maturity.
+  assert.equal(bond.p50.at(-1), 116_000);
+  assert.equal(bond.is_bond_ytm, false);
+  assert.equal(bond.market_valuation_available, false);
+  const reinvested = simulateAssetClassSpecific({
+    assetClass: 'G-Sec', currentSavings: principal, years: 2,
+    contractualParams: { faceValue: principal, purchasePrice: principal,
+      couponRate, reinvestmentRate: 0.05, couponFrequency: 2, maturityMonths: 24 },
+  });
+  assert.ok(reinvested.p50.at(-1) > bond.p50.at(-1));
+});
+
+test('unsupported schemes and missing contractual facts fail closed, rather than inventing payouts', () => {
+  const run = (assetClass, extra = {}) => simulateAssetClassSpecific({
+    assetClass, currentSavings: 100_000, annualExpectedReturn: 0.08,
+    years: 2, ...extra,
+  });
+  for (const assetClass of ['PPF', 'SSY', 'SCSS', 'POTD', 'NSC', 'KVP', 'RBI_Bond', 'Unknown']) {
+    assert.throws(() => run(assetClass), /UNSUPPORTED_ASSET_MODEL/);
+  }
+  assert.throws(() => run('FD'), /compoundingFrequency/);
+  assert.throws(() => run('FD', { monthlyInvestment: 1000, contractualParams: { compoundingFrequency: 'QUARTERLY' } }), /lump sum/);
+  assert.throws(() => run('RD', { monthlyInvestment: 1000,
+    contractualParams: { compoundingFrequency: 'QUARTERLY' } }), /opening lump sum/);
+  assert.throws(() => run('G-Sec'), /faceValue/);
+  assert.throws(() => run('FD', { contractualParams: { compoundingFrequency: 'QUARTERLY' }, modelType: SIMULATION_MODELS.GBM_LOGNORMAL }), /modelType/);
+  assert.throws(() => run('Equity_MF', { annualVolatility: 0.2, modelType: SIMULATION_MODELS.HISTORICAL_BLOCK_BOOTSTRAP }), /modelType/);
+  assert.throws(() => run('FD', { years: 0.4, contractualParams: { compoundingFrequency: 'QUARTERLY' } }), /tenure/);
+  assert.throws(() => run('G-Sec', { contractualParams: {
+    faceValue: 100_000, purchasePrice: 95_000, couponRate: 0.08,
+    reinvestmentRate: 0.05, couponFrequency: 2, maturityMonths: 24,
+  } }), /at-par/);
+});
+
+test('covariance refuses malformed non-symmetric or nonfinite matrices', () => {
+  assert.equal(isMatrixPSD([[1, 0.8], [0.2, 1]]), false);
+  assert.equal(isMatrixPSD([[1, Infinity], [Infinity, 1]]), false);
+  assert.equal(isMatrixPSD([[1, 0.5]]), false);
+  assert.equal(isMatrixPSD([[0, 1], [1, 1]]), false);
+  assert.throws(() => applyCovarianceShrinkage([[1, 2], [0, 1]]), /symmetric/);
+  assert.throws(() => applyCovarianceShrinkage([[1, NaN], [NaN, 1]]), /finite square/);
+  assert.throws(() => applyCovarianceShrinkage([[-1, 0], [0, 1]]), /negative/);
+});
+
+test('calibration dataset fingerprints cover every observation and reject poisoned historical bars', () => {
+  const dates = Array.from({ length: 30 }, (_, i) => new Date(Date.UTC(2026, 0, i + 1)).toISOString().slice(0, 10));
+  const series = dates.map((date, i) => ({ date, close: 100 + 0.5 * i + Math.sin(i) }));
+  const first = calibrateAssetHistory({ series, assetKey: 'test-instrument' });
+  const modified = series.map((bar, i) => i === 15 ? { ...bar, close: bar.close + 0.1 } : bar);
+  const second = calibrateAssetHistory({ series: modified, assetKey: 'test-instrument' });
+  assert.notEqual(first.datasetFingerprint, second.datasetFingerprint);
+  assert.equal(first.dataAdmissionStatus, 'NOT_VERIFIED_PROVIDER_PROVENANCE_AND_RIGHTS');
+  assert.throws(() => calibrateAssetHistory({ series: [...series, { ...series[15] }], assetKey: 'test' }), /duplicate dates/);
+  assert.throws(() => calibrateAssetHistory({ series: series.map((bar, i) => i === 5 ? { ...bar, close: NaN } : bar), assetKey: 'test' }), /invalid date/);
 });
 
 test('simulateAssetClassSpecific falls back to GBM for equities with reproducible seed', () => {

@@ -150,14 +150,11 @@ test('OCC: PUT /api/profile/:id with stale version returns 409 Conflict', async 
       await RecommendationState.create(recommendationState);
     }
 
-    const healthScore = await jsonFetch(`${baseUrl}/api/profile/${profileId}/health-score`, {
+    // The retired indicator endpoint must not expose profile information.
+    const retiredHealth = await jsonFetch(`${baseUrl}/api/profile/${profileId}/health-score`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    assert.equal(healthScore.response.status, 200);
-    assertRuntimeResponseMatchesContract({
-      method: 'GET', path: '/api/profile/{profileId}/health-score', status: healthScore.response.status,
-      contentType: healthScore.response.headers.get('content-type'), body: healthScore.body,
-    });
+    assert.equal(retiredHealth.response.status, 404);
 
     // 2. First update — should succeed (version 1 → 2)
     const { response: update1Res, body: update1Body } = await jsonFetch(

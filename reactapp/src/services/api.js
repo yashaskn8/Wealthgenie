@@ -529,10 +529,6 @@ export async function getCurrentProfile(options = {}) {
   return request('GET', '/profile/current', null, { retries: 0, ...options });
 }
 
-export async function getFinancialHealthScore(profileId, options = {}) {
-  return request('GET', `/profile/${profileId}/health-score`, null, options);
-}
-
 export async function updateProfile(profileId, profile, requestOptions = {}) {
   try {
     return await request(
@@ -1040,7 +1036,7 @@ const api = {
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,
-  buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, getFinancialHealthScore, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, extractGenieProofClaims, createGenieProofCase, listGenieProofCases, getGenieProofCase, verifyGenieProofCase, listGenieProofRevisions, reassessGenieProofCase, withdrawGenieProofConsent, getProofWatchAvailability, createProofWatch, listProofWatches, updateProofWatch, deleteProofWatch, listProofBreakEvents, acknowledgeProofBreakEvent, deleteGenieProofCase, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
+  buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, extractGenieProofClaims, createGenieProofCase, listGenieProofCases, getGenieProofCase, verifyGenieProofCase, listGenieProofRevisions, reassessGenieProofCase, withdrawGenieProofConsent, getProofWatchAvailability, createProofWatch, listProofWatches, updateProofWatch, deleteProofWatch, listProofBreakEvents, acknowledgeProofBreakEvent, deleteGenieProofCase, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
   runMonteCarlo, runPortfolioMonteCarlo, createGoal, getGoals, updateGoal, simulateGoal, deleteGoal, healthCheck,
   getMarketRates, getBenchmarkMarketFacts, getStoredBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,

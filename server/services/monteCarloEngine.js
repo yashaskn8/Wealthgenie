@@ -272,7 +272,7 @@ export function runMonteCarlo({
     const samplingMeanError = rawMean - deterministicFV;
     // Sort each year's results ONCE, then extract all percentiles
     const p10 = [], p25 = [], p50 = [], p75 = [], p90 = [], mean = [];
-    const stdErr = [];
+    // Antithetic/quasi-random paths are dependent; ordinary iid standard errors are invalid.
     for (let y = 0; y < allSimResults.length; y++) {
         const sorted = [...allSimResults[y]].sort((a, b) => a - b);
         const yrNom = Math.round(percentile(sorted, 10));
@@ -288,8 +288,6 @@ export function runMonteCarlo({
         p75.push(yrP75);
         p90.push(yrP90);
         mean.push(yrMean);
-        const variance = sorted.reduce((s, v) => s + (v - avg) ** 2, 0) / (sorted.length - 1);
-        stdErr.push(Math.round(Math.sqrt(variance / sorted.length)));
     }
     // Compute real percentiles directly from the synchronous deflation of the SAME simulated paths
     const p10_real = [], p25_real = [], p50_real = [], p75_real = [], p90_real = [], mean_real = [];
@@ -327,11 +325,12 @@ export function runMonteCarlo({
         years_array: yearsArray,
         p10, p25, p50, p75, p90, mean,
         p10_real, p25_real, p50_real, p75_real, p90_real, mean_real,
-        standard_error: stdErr,
+        standard_error: null,
+        standard_error_status: 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS',
         deterministic_fv: Math.round(deterministicFV),
         control_correction: null,
         sampling_mean_error: Math.round(samplingMeanError) || 0,
-        model_version: 'monte-carlo-gbm-2.1.0',
+        model_version: 'monte-carlo-gbm-2.2.0',
         finalValues, // expose for goal probability reuse
         simulations_run: actualSims,
         nominal_real_path_aligned: true,
@@ -343,7 +342,7 @@ export function runMonteCarlo({
     if (!isRealTrack) {
         response.real = realTrackResult;
         response.inflationRateUsed = inflationRate;
-        response.sequenceRisk = sequenceOfReturnsRisk;
+        response.sequenceRisk = null;
         response.riskMetrics = computeRiskMetrics(p50, p10, years, RISK_FREE_RATE, annualExpectedReturn);
         response.variance_reduction = 'halton_qmc+antithetic';
         response.control_variate_method = controlVariateMethod;

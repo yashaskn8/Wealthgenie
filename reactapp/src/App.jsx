@@ -167,7 +167,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
       && window.matchMedia('(min-width: 769px)').matches;
     if (needsReplace || legacyDesktop) {
       const destination = legacyDesktop
-        ? { page: DESKTOP_PROGRESS_DESTINATIONS[activeTab] || NAV_PAGES.MY_GOALS, tab: null }
+        ? { page: DESKTOP_PROGRESS_DESTINATIONS[activeTab] || NAV_PAGES.GOALS, tab: null }
         : { page: activePage, tab: activeTab };
       setSearchParams(toSearchParams(destination), { replace: true });
     }
@@ -187,7 +187,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
       && typeof window.matchMedia === 'function'
       && window.matchMedia('(min-width: 769px)').matches;
     const destination = legacyDesktop
-      ? { page: DESKTOP_PROGRESS_DESTINATIONS[resolved.tab] || NAV_PAGES.MY_GOALS, tab: null }
+      ? { page: DESKTOP_PROGRESS_DESTINATIONS[resolved.tab] || NAV_PAGES.GOALS, tab: null }
       : resolved;
     setSearchParams(toSearchParams(destination), options);
   };
@@ -851,9 +851,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
             />
           </ErrorBoundary>
         );
-      case NAV_PAGES.FINANCIAL_INDICATORS:
-      case NAV_PAGES.MY_GOALS:
-      case NAV_PAGES.PLAN_A_GOAL:
+      case NAV_PAGES.GOALS:
       case NAV_PAGES.GROW_MY_SIP:
       case NAV_PAGES.KEEP_ON_TRACK:
         return (

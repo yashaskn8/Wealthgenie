@@ -67,10 +67,10 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       { legacy: 'tax-optimizer', page: NAV_PAGES.TAXES, tab: 'regime-savings' },
       { legacy: 'taxes', page: NAV_PAGES.TAXES, tab: 'regime-savings' },
       { legacy: 'post-tax', page: NAV_PAGES.TAXES, tab: 'real-returns' },
-      { legacy: 'goals', page: NAV_PAGES.PROGRESS, tab: 'goals' },
-      { legacy: 'goal-planner', page: NAV_PAGES.PROGRESS, tab: 'plan-goal' },
-      { legacy: 'sip-planner', page: NAV_PAGES.PROGRESS, tab: 'grow-sip' },
-      { legacy: 'health', page: NAV_PAGES.PROGRESS, tab: 'indicators' },
+      { legacy: 'goals', page: NAV_PAGES.GOALS, tab: null },
+      { legacy: 'goal-planner', page: NAV_PAGES.GOALS, tab: null },
+      { legacy: 'sip-planner', page: NAV_PAGES.GROW_MY_SIP, tab: null },
+      { legacy: 'health', page: NAV_PAGES.HOME, tab: null },
       { legacy: 'rebalancer', page: NAV_PAGES.PROGRESS, tab: 'rebalancer' },
       { legacy: 'compare', page: NAV_PAGES.HOME, tab: null },
       { legacy: 'insights', page: NAV_PAGES.HOME, tab: null },
@@ -120,152 +120,29 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
     });
   });
 
-  describe('3. ProgressHub preserves child milestone components', () => {
-    it('supports arrow-key tab navigation and keeps every view discoverable', () => {
-      function ProgressHarness() {
-        const [activeTab, setActiveTab] = React.useState('indicators');
-        return (
-          <ProgressHub
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            profile={mockProfile}
-            recommendations={mockRecommendations}
-          />
-        );
-      }
-
-      render(<ProgressHarness />);
-      const tabs = screen.getAllByRole('tab');
-      expect(tabs).toHaveLength(5);
-      expect(tabs[0]).toHaveAttribute('tabindex', '0');
-
-      fireEvent.keyDown(screen.getByRole('tablist', { name: 'Progress views' }), { key: 'ArrowRight' });
-
-      expect(screen.getByRole('tab', { name: 'My Goals' })).toHaveFocus();
-      expect(screen.getByRole('tab', { name: 'My Goals' })).toHaveAttribute('aria-selected', 'true');
+  describe('3. One Goals workflow and three retained Progress tabs', () => {
+    it('has one Goals tab plus Grow My SIP and Keep on Track', () => {
+      render(<ProgressHub activeTab="goals" profile={mockProfile}
+        financialState={null} recommendations={mockRecommendations} />);
+      expect(screen.getAllByRole('tab')).toHaveLength(3);
+      expect(screen.getByRole('tab', { name: 'Goals' })).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByTestId('panel-goals')).toBeInTheDocument();
+      expect(screen.queryByTestId('panel-plan-goal')).toBeNull();
+      expect(screen.queryByTestId('panel-indicators')).toBeNull();
     });
-
-    it('keeps every aria-controls target present while mounting only the active view', () => {
-      render(
-        <ProgressHub
-          activeTab="goals"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-        />,
-      );
-
-      const tabs = screen.getAllByRole('tab');
-      expect(tabs).toHaveLength(5);
-      for (const tab of tabs) {
-        const panel = document.getElementById(tab.getAttribute('aria-controls'));
-        expect(panel).not.toBeNull();
-        expect(panel).toHaveAttribute('role', 'tabpanel');
-      }
-
-      const activePanel = screen.getByTestId('panel-goals');
-      expect(activePanel).not.toHaveAttribute('hidden');
-      for (const panelId of ['panel-indicators', 'panel-plan-goal', 'panel-grow-sip', 'panel-rebalancer']) {
-        const panel = screen.getByTestId(panelId);
-        expect(panel).toHaveAttribute('hidden');
-        expect(panel).toBeEmptyDOMElement();
-      }
+    it('preserves active-only rendering with existing rebalancer and SIP features', () => {
+      const { rerender } = render(<ProgressHub activeTab="grow-sip" profile={mockProfile}
+        recommendations={mockRecommendations} />);
+      expect(screen.getByTestId('panel-grow-sip')).not.toHaveAttribute('hidden');
+      expect(screen.getByTestId('panel-goals')).toHaveAttribute('hidden');
+      rerender(<ProgressHub activeTab="rebalancer" profile={mockProfile} recommendations={mockRecommendations} />);
+      expect(screen.getByTestId('panel-rebalancer')).not.toHaveAttribute('hidden');
+      expect(screen.getByTestId('panel-goals')).toHaveAttribute('hidden');
     });
-
-    it('wraps the tab list instead of hiding overflow behind a hidden scrollbar', () => {
+    it('retains wrapped keyboard-friendly Progress tabs', () => {
       const source = readFileSync(resolve(cwd(), 'src/components/HubStyles.css'), 'utf8');
-      const tabListRule = source.match(/\.hub-tabs-list\s*\{([^}]+)\}/)?.[1] || '';
-
-      expect(tabListRule).toMatch(/flex-wrap:\s*wrap/);
-      expect(tabListRule).not.toMatch(/scrollbar-width:\s*none/);
-      expect(tabListRule).not.toMatch(/overflow-x:\s*auto/);
-    });
-
-    it('recovers invalid active-tab values to the My Goals panel', () => {
-      render(
-        <ProgressHub
-          activeTab="unknown-view"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-        />,
-      );
-
-      expect(screen.getByRole('tab', { name: 'My Goals' })).toHaveAttribute('aria-selected', 'true');
-      expect(screen.getByTestId('panel-goals')).toBeInTheDocument();
-    });
-
-    it('mounts GoalTracker on goals tab', () => {
-      render(
-        <ProgressHub
-          activeTab="goals"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-          onNavigate={vi.fn()}
-        />
-      );
-
-      expect(screen.getByTestId('panel-goals')).toBeInTheDocument();
-      expect(screen.getByTestId('panel-plan-goal')).toHaveAttribute('hidden');
-      expect(screen.getByTestId('panel-plan-goal')).toBeEmptyDOMElement();
-    });
-
-    it('mounts GoalPlanner on plan-goal tab', () => {
-      render(
-        <ProgressHub
-          activeTab="plan-goal"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-        />
-      );
-
-      expect(screen.getByTestId('panel-plan-goal')).toBeInTheDocument();
-    });
-
-    it('mounts StepUpPlanner on grow-sip tab', () => {
-      render(
-        <ProgressHub
-          activeTab="grow-sip"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-        />
-      );
-
-      expect(screen.getByTestId('panel-grow-sip')).toBeInTheDocument();
-    });
-
-    it('keeps individual Financial Indicators available without the composite score experience', () => {
-      render(
-        <ProgressHub
-          activeTab="indicators"
-          onTabChange={vi.fn()}
-          profile={null}
-          recommendations={mockRecommendations}
-        />
-      );
-
-      expect(screen.getByTestId('panel-indicators')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Financial Indicators' })).toBeInTheDocument();
-      expect(screen.queryByText(/out of 100|excellent|poor fitness/i)).not.toBeInTheDocument();
-    });
-
-    it('mounts RebalancerScreen on rebalancer tab with onSaveRebalance', () => {
-      const onSave = vi.fn();
-      render(
-        <ProgressHub
-          activeTab="rebalancer"
-          onTabChange={vi.fn()}
-          profile={mockProfile}
-          recommendations={mockRecommendations}
-          onSaveRebalance={onSave}
-        />
-      );
-
-      expect(screen.getByTestId('panel-rebalancer')).toBeInTheDocument();
+      const rule = source.match(/\.hub-tabs-list\s*\{([^}]+)\}/)?.[1] || '';
+      expect(rule).toMatch(/flex-wrap:\s*wrap/);
     });
   });
 
@@ -370,7 +247,7 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-taxes')).toBeInTheDocument();
       expect(screen.queryByTestId('nav-progress')).not.toBeInTheDocument();
       expect(screen.getByTestId('mobile-nav-progress')).toBeInTheDocument();
-      for (const id of ['nav-financial-indicators', 'nav-my-goals', 'nav-plan-a-goal', 'nav-grow-my-sip', 'nav-keep-on-track']) {
+      for (const id of ['nav-my-goals', 'nav-grow-my-sip', 'nav-keep-on-track']) {
         expect(screen.getByTestId(id)).toBeInTheDocument();
       }
       expect(screen.getByText('WEALTH JOURNEY')).toBeInTheDocument();
@@ -389,17 +266,15 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-goals')).toBeInTheDocument();
       expect(screen.getByTestId('nav-rebalancer')).toBeInTheDocument();
       expect(screen.getByTestId('nav-sip-planner')).toBeInTheDocument();
-      expect(screen.getByTestId('nav-health')).toBeInTheDocument();
+      expect(screen.queryByTestId('nav-health')).not.toBeInTheDocument();
       expect(screen.getByTestId('nav-dashboard')).toBeInTheDocument();
     });
 
     it('navigates to each standalone desktop Wealth Journey page', () => {
       const onNavigate = vi.fn();
-      const { rerender } = render(<Sidebar activePage={NAV_PAGES.MY_GOALS} onNavigate={onNavigate} />);
+      const { rerender } = render(<Sidebar activePage={NAV_PAGES.GOALS} onNavigate={onNavigate} />);
       for (const [id, page] of [
-        ['nav-financial-indicators', NAV_PAGES.FINANCIAL_INDICATORS],
-        ['nav-my-goals', NAV_PAGES.MY_GOALS],
-        ['nav-plan-a-goal', NAV_PAGES.PLAN_A_GOAL],
+        ['nav-my-goals', NAV_PAGES.GOALS],
         ['nav-grow-my-sip', NAV_PAGES.GROW_MY_SIP],
         ['nav-keep-on-track', NAV_PAGES.KEEP_ON_TRACK],
       ]) {

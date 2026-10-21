@@ -158,6 +158,14 @@ test('portfolio Monte Carlo uses the same normalized weights for return and vola
     assert.deepEqual(body.allocations, normalizedAllocations);
     assert.equal(body.portfolio_return_assumption, expectedMetrics.expectedReturn);
     assert.equal(body.portfolio_volatility, expectedMetrics.volatility);
+    assert.equal(body.confidence_interval_width, null);
+    assert.ok(Number.isFinite(body.interquartile_spread_ratio));
+    assert.equal(body.goal_probability_ci, null);
+    assert.equal(body.goal_probability_ci_status, 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS');
+    assert.equal(body.standard_error_status, 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS');
+    assert.equal(body.asset_specific_cashflows_calculated, false);
+    assert.equal(body.post_tax_simulation_available, false);
+    assert.equal(body.accuracy_certification, 'NOT_VERIFIED');
   });
 });
 

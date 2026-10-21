@@ -112,31 +112,6 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
   test.beforeEach(async ({ page }) => {
     unexpectedApiRequests = await installUnexpectedApiGuard(page);
     await mockTaxPolicyCatalog(page);
-    // Financial Indicators is opened by the tablet-tab journey. Mock its
-    // exact owned-profile endpoint with a contract-shaped synthetic response,
-    // rather than weakening the unexpected-API guard for arbitrary requests.
-    await page.route('**/api/profile/64b000000000000000000002/health-score', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          calculation_classification: 'PROFILE_GROUNDED_FINANCIAL_HEALTH',
-          methodology_version: 'financial-health-1.0.0',
-          // 79 is the weighted sum of this fully synthetic fixture's scores.
-          score: 79,
-          grade: 'Good',
-          sub_scores: [
-            { label: 'Savings Capacity', value: 70, weight: 30, extra: 'Synthetic savings fixture' },
-            { label: 'Emergency Safety Net', value: 100, weight: 25, extra: 'Synthetic emergency-fund fixture' },
-            { label: 'Investment Variety', value: 67, weight: 20, extra: 'Synthetic diversity fixture' },
-            { label: 'Tax Efficiency', value: null, weight: 0, extra: 'No income tax score in Financial Profile' },
-            { label: 'Goal Coverage', value: 100, weight: 15, extra: 'Synthetic goal-coverage fixture' },
-            { label: 'Risk-Timeline Match', value: 50, weight: 10, extra: 'Synthetic suitability fixture' },
-          ],
-          peer_comparison: null,
-        }),
-      });
-    });
     await page.route('**/api/goals', async route => {
       await route.fulfill({
         status: 200,
@@ -283,7 +258,7 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     expect(unexpectedApiRequests).toEqual([]);
   });
 
-  test('full beginner journey: Home → Where to Invest → Taxes → Progress → Home comparison with browser history', async ({ page }) => {
+  test('full beginner journey: Home → Where to Invest → Taxes → Goals → Home comparison with browser history', async ({ page }) => {
     // 1. Visit /profile
     await page.goto('http://127.0.0.1:5173/profile');
     await page.waitForLoadState('networkidle');
@@ -325,8 +300,8 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
 
     // 4. Standalone desktop Wealth Journey pages
     await page.getByTestId('nav-my-goals').click();
-    await expect(page).toHaveURL(/page=my-goals/);
-    await expect(page.getByTestId('journey-page-my-goals')).toBeVisible();
+    await expect(page).toHaveURL(/page=goals/);
+    await expect(page.getByTestId('journey-page-goals')).toBeVisible();
     await page.getByTestId('nav-keep-on-track').click();
     await expect(page).toHaveURL(/page=keep-on-track/);
     await expect(page.getByTestId('journey-page-keep-on-track')).toBeVisible();
@@ -349,11 +324,11 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(page.getByTestId('beginner-home-hero')).toBeVisible();
   });
 
-  test('desktop Progress bookmarks redirect to independent pages', async ({ page }) => {
+  test('desktop retired Progress bookmarks redirect to surviving pages', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     for (const [tab, slug] of [
-      ['indicators', 'financial-indicators'], ['goals', 'my-goals'],
-      ['plan-goal', 'plan-a-goal'], ['grow-sip', 'grow-my-sip'],
+      ['indicators', 'goals'], ['goals', 'goals'],
+      ['plan-goal', 'goals'], ['grow-sip', 'grow-my-sip'],
       ['rebalancer', 'keep-on-track'],
     ]) {
       await page.goto(`http://127.0.0.1:5173/profile?page=progress&tab=${tab}`);
@@ -448,21 +423,18 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  test('tablet viewport (721px): all Progress and Taxes tabs are reachable without clipping', async ({ page }) => {
+  test('tablet viewport (721px): surviving Progress and Taxes tabs are reachable without clipping', async ({ page }) => {
     await page.setViewportSize({ width: 721, height: 900 });
     await page.goto('http://127.0.0.1:5173/profile?page=progress&tab=goals');
     await page.waitForLoadState('networkidle');
     await expect(page.getByTestId('mobile-nav-progress')).toBeVisible();
 
-    for (const tab of ['indicators', 'goals', 'plan-goal', 'grow-sip', 'rebalancer']) {
+    for (const tab of ['goals', 'grow-sip', 'rebalancer']) {
       const button = page.getByTestId(`tab-${tab}`);
       await expect(button).toBeVisible();
       await button.click();
       await expect(page).toHaveURL(new RegExp(`page=progress&tab=${tab}`));
       await expect(page.getByTestId(`panel-${tab}`)).toBeVisible();
-      if (tab === 'indicators') {
-        await expect(page.locator('.financial-indicators-panel').getByText('Synthetic savings fixture')).toBeVisible();
-      }
     }
 
     await page.getByTestId('mobile-nav-taxes').click();

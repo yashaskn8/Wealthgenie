@@ -39,7 +39,7 @@ function buildMonteCarloResponse(result, context) {
     p90_real: result.p90_real?.[index], standard_error: result.standard_error?.[index],
   }));
   const terminalIndex = result.p50.length - 1;
-  const confidenceIntervalWidth = terminalIndex >= 0 && result.p50[terminalIndex] > 0
+  const interquartileSpreadRatio = terminalIndex >= 0 && result.p50[terminalIndex] > 0
     ? Number(((result.p75[terminalIndex] - result.p25[terminalIndex]) / result.p50[terminalIndex]).toFixed(3))
     : null;
   return {
@@ -54,6 +54,9 @@ function buildMonteCarloResponse(result, context) {
     goal_probability: result.goal_probability,
     target_amount: result.target_amount,
     simulations_run: result.simulations_run,
+    standard_error_status: result.standard_error_status ?? 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS',
+    goal_probability_ci: result.goal_probability_ci ?? null,
+    goal_probability_ci_status: result.goal_probability_ci_status ?? 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS',
     variance_reduction: result.variance_reduction,
     model_version: result.model_version,
     seed_used: result.seed_used,
@@ -72,7 +75,8 @@ function buildMonteCarloResponse(result, context) {
       p50: result.p50_real[terminalIndex], p75: result.p75_real[terminalIndex],
       p90: result.p90_real[terminalIndex],
     } : null,
-    confidence_interval_width: confidenceIntervalWidth,
+    confidence_interval_width: null, // Retired: IQR ratio is not a confidence interval.
+    interquartile_spread_ratio: interquartileSpreadRatio,
     sequence_of_returns_risk: null,
     sharpe_ratio_sensitivity: result.sharpe_ratio_sensitivity || null,
     inflation_rate: result.inflation_rate,
@@ -86,6 +90,9 @@ function simulationProvenance(result) {
     scenario_classification: 'MODEL_POLICY_ILLUSTRATIVE_SCENARIO',
     calibration_mode: 'MODEL_POLICY',
     empirical_calibration: null,
+    asset_specific_cashflows_calculated: false,
+    post_tax_simulation_available: false,
+    accuracy_certification: 'NOT_VERIFIED',
     covariance_provenance: 'WEALTHGENIE_MODEL_POLICY_STATIC_CORRELATION',
     inflation_assumption_source: 'WEALTHGENIE_MODEL_POLICY',
     real_value_method: 'DEFLATED_SAME_NOMINAL_PATH',
@@ -96,6 +103,7 @@ function simulationProvenance(result) {
       'Returns and volatility are versioned model-policy assumptions, not observed or forecast market facts.',
       'Probabilities are conditional on model assumptions and are not guaranteed outcomes.',
       'Fees, taxes, corporate actions and regime changes are not modeled.',
+      'FD, RD, government-scheme and bond product-specific cashflows are NOT modeled by this GBM policy scenario.',
     ],
   };
 }
@@ -137,11 +145,11 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
   const nominalReturns = keys.map(key => INSTRUMENT_PARAMS[key].nominalRate / 100);
   const weights = Object.fromEntries(keys.map(key => [key, normalizedAllocations[key]]));
   const metrics = evaluatePortfolio(keys, nominalReturns, weights);
-  const profileHash = buildRecommendationProfileHash(profile, { modelVersion: 'portfolio-monte-carlo-1.0.0' });
+  const profileHash = buildRecommendationProfileHash(profile, { modelVersion: 'portfolio-monte-carlo-gbm-2.2.0' });
   const allocationKey = [...keys].sort().map(key => `${key}:${normalizedAllocations[key].toFixed(6)}`).join(',');
   const targetKey = target_amount === undefined ? 'none' : String(Math.round(target_amount));
   const cacheKey = [
-    'portfolio-mc-v4', MONTE_CARLO_SCENARIO_SEED, MONTE_CARLO_INFLATION_ASSUMPTION, MONTE_CARLO_SIMULATIONS, req.user.userId, profileId, profileHash, years,
+    'portfolio-mc-v5', MONTE_CARLO_SCENARIO_SEED, MONTE_CARLO_INFLATION_ASSUMPTION, MONTE_CARLO_SIMULATIONS, req.user.userId, profileId, profileHash, years,
     simulation.monthlyContribution, simulation.initialCapital, targetKey,
     allocationKey, metrics.expectedReturn, metrics.volatility,
   ].join(':');
@@ -201,10 +209,10 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
   }
   const annualReturn = modelParams.mean;
   const annualVolatility = modelParams.stdDev;
-  const profileHash = buildRecommendationProfileHash(profile, { modelVersion: 'monte-carlo-2.0.0' });
+  const profileHash = buildRecommendationProfileHash(profile, { modelVersion: 'monte-carlo-gbm-2.2.0' });
   const targetKey = target_amount === undefined ? 'none' : String(Math.round(target_amount));
   const cacheKey = [
-    'mc-v5', MONTE_CARLO_SCENARIO_SEED, req.user.userId, profileId, profileHash, instrumentKey, years,
+    'mc-v6', MONTE_CARLO_SCENARIO_SEED, req.user.userId, profileId, profileHash, instrumentKey, years,
     simulation.monthlyContribution, simulation.initialCapital, targetKey,
     annualReturn.toFixed(6), annualVolatility.toFixed(6),
     MONTE_CARLO_INFLATION_ASSUMPTION, MONTE_CARLO_SIMULATIONS,
@@ -231,7 +239,7 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
     p90_real: result.p90_real?.[index], standard_error: result.standard_error?.[index],
   }));
   const terminalIndex = result.p50.length - 1;
-  const confidenceIntervalWidth = terminalIndex >= 0 && result.p50[terminalIndex] > 0
+  const interquartileSpreadRatio = terminalIndex >= 0 && result.p50[terminalIndex] > 0
     ? Number(((result.p75[terminalIndex] - result.p25[terminalIndex]) / result.p50[terminalIndex]).toFixed(3))
     : null;
   const response = {
@@ -251,6 +259,9 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
     goal_probability: result.goal_probability,
     target_amount: result.target_amount,
     simulations_run: result.simulations_run,
+    standard_error_status: result.standard_error_status ?? 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS',
+    goal_probability_ci: result.goal_probability_ci ?? null,
+    goal_probability_ci_status: result.goal_probability_ci_status ?? 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS',
     variance_reduction: result.variance_reduction,
     model_version: result.model_version,
     seed_used: result.seed_used,
@@ -269,7 +280,8 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
       p50: result.p50_real[terminalIndex], p75: result.p75_real[terminalIndex],
       p90: result.p90_real[terminalIndex],
     } : null,
-    confidence_interval_width: confidenceIntervalWidth,
+    confidence_interval_width: null, // Retired: IQR ratio is not a confidence interval.
+    interquartile_spread_ratio: interquartileSpreadRatio,
     data_source: PROJECTION_ASSUMPTION_SOURCE,
     nominal_return_assumption_used: annualReturn,
     volatility_used: annualVolatility,
