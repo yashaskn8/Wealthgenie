@@ -1,6 +1,5 @@
 -- WealthGenie finance-universe schema v1. Run as a controlled migration.
 -- Shared product/market authority ONLY. Personal financial records stay in MongoDB.
-BEGIN;
 CREATE SCHEMA IF NOT EXISTS finance;
 CREATE TABLE IF NOT EXISTS finance.categories (
  id text PRIMARY KEY CHECK (id ~ '^[a-z0-9][a-z0-9_-]{1,79}$'),
@@ -95,4 +94,3 @@ CREATE TABLE IF NOT EXISTS finance.observation_corrections (
  UNIQUE(observation_id,corrected_by_id),
  CHECK (observation_id <> corrected_by_id)
 );
-COMMIT;
