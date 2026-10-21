@@ -64,7 +64,8 @@ export function createFinancialStore(pool) {
           AND r.commercial_use_allowed AND r.redistribution_allowed
           AND r.reviewed_at IS NOT NULL AND r.revoked_at IS NULL
           AND (r.expires_at IS NULL OR r.expires_at>$3)
-          AND (o.retain_until IS NULL OR o.retain_until>$3)
+          AND o.retain_until IS NOT NULL AND o.retain_until>$3
+          AND o.observed_at<=$3 AND o.fetched_at<=$3
           AND (CASE o.data_class
                 WHEN 'LIVE' THEN o.observed_at >= $3::timestamptz - interval '5 minutes'
                 WHEN 'DELAYED' THEN o.observed_at >= $3::timestamptz - interval '1 day'
