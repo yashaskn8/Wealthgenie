@@ -54,7 +54,7 @@ export function createFinancialStore(pool) {
     if (!['PRICE','NAV','PUBLISHED_RATE','YIELD','VOLUME'].includes(kind)) throw new TypeError('Invalid market observation type');
     const { rows } = await pool.query(
       `SELECT o.id,o.product_id,o.observation_type,o.value::text AS value,o.currency,
-              o.unit,o.data_class,o.observed_at,o.fetched_at,o.source_id
+              o.unit,o.data_class,o.effective_from,o.effective_to,o.observed_at,o.fetched_at,o.source_id
          FROM finance.market_observations o
          JOIN finance.provider_rights r ON r.source_id=o.source_id
         WHERE o.product_id=$1 AND o.observation_type=$2
@@ -64,6 +64,13 @@ export function createFinancialStore(pool) {
           AND r.reviewed_at IS NOT NULL AND r.revoked_at IS NULL
           AND (r.expires_at IS NULL OR r.expires_at>$3)
           AND (o.retain_until IS NULL OR o.retain_until>$3)
+          AND (CASE o.data_class
+                WHEN 'LIVE' THEN o.observed_at >= $3::timestamptz - interval '5 minutes'
+                WHEN 'DELAYED' THEN o.observed_at >= $3::timestamptz - interval '1 day'
+                WHEN 'END_OF_DAY' THEN o.observed_at >= $3::timestamptz - interval '7 days'
+                WHEN 'PUBLISHED_RATE' THEN o.effective_from <= ($3::timestamptz AT TIME ZONE 'Asia/Kolkata')::date
+                  AND (o.effective_to IS NULL OR o.effective_to >= ($3::timestamptz AT TIME ZONE 'Asia/Kolkata')::date)
+                ELSE false END)
           AND NOT EXISTS (
             SELECT 1 FROM finance.observation_corrections oc WHERE oc.observation_id=o.id
           )
@@ -81,6 +88,15 @@ export function createFinancialStore(pool) {
       throw new TypeError('Observation value must be an exact non-negative decimal string');
     }
     if (typeof input.sourceId !== 'string' || !input.sourceId.trim()) throw new TypeError('Source identity required');
+    if (input.dataClass === 'PUBLISHED_RATE'
+      && (typeof input.effectiveFrom !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.effectiveFrom))) {
+      throw new TypeError('Published rates require a verified effective-from date');
+    }
+    if (input.effectiveTo != null && (typeof input.effectiveTo !== 'string'
+      || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.effectiveTo)
+      || (input.effectiveFrom && input.effectiveTo < input.effectiveFrom))) {
+      throw new TypeError('Invalid rate effective-to date');
+    }
     const observed = new Date(input.observedAt), fetched = new Date(input.fetchedAt);
     if (!Number.isFinite(+observed) || !Number.isFinite(+fetched) || fetched < observed || fetched > new Date()) {
       throw new TypeError('Invalid observation timestamps');
@@ -109,12 +125,13 @@ export function createFinancialStore(pool) {
       const result = await client.query(
         `INSERT INTO finance.market_observations
           (product_id,source_id,observation_type,value,currency,unit,data_class,
-           observed_at,fetched_at,source_revision,retain_until)
-         VALUES ($1,$2,$3,$4::numeric,$5,$6,$7,$8,$9,$10,$11)
+           observed_at,fetched_at,source_revision,retain_until,effective_from,effective_to)
+         VALUES ($1,$2,$3,$4::numeric,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          ON CONFLICT (product_id,source_id,observation_type,observed_at,source_revision)
          DO NOTHING RETURNING id`,
         [input.productId,input.sourceId,input.kind,input.value,input.currency || null,
-          input.unit,input.dataClass,observed,fetched,input.sourceRevision || '0',retainedUntil],
+          input.unit,input.dataClass,observed,fetched,input.sourceRevision || '0',retainedUntil,
+          input.effectiveFrom || null,input.effectiveTo || null],
       );
       return { stored: result.rowCount === 1, observationId: result.rows[0]?.id || null };
     });
