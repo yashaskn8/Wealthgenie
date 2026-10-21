@@ -22,6 +22,18 @@ router.get('/', validateQuery(browseSchema), asyncHandler(async (req, res) => {
     cursor: req.query.cursor || null, limit: req.query.limit ? Number(req.query.limit) : 20,
   }));
 }));
+router.get('/categories', asyncHandler(async(req,res)=>{
+  const pool=await getFinancialPostgresPool();
+  if(!pool) return sendError(req,res,503,
+    'Financial-universe PostgreSQL is not enabled.','FINANCIAL_UNIVERSE_NOT_ENABLED');
+  res.set('Cache-Control','no-store');
+  const {rows}=await pool.query(`
+    SELECT c.id,c.label,count(p.id)::integer AS archetype_count
+      FROM finance.categories c
+      LEFT JOIN finance.products p ON p.category_id=c.id AND p.record_kind='ARCHETYPE'
+     GROUP BY c.id,c.label ORDER BY c.label,c.id`);
+  return res.json({status:'DISCOVERY_ONLY',categories:rows});
+}));
 router.get('/:productId/observation', validateQuery(Joi.object({
   kind: Joi.string().valid('PRICE','NAV','PUBLISHED_RATE','YIELD','VOLUME').required(),
 }).unknown(false)), asyncHandler(async (req,res) => {
