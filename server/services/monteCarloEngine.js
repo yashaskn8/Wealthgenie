@@ -105,7 +105,7 @@ export function annuityDueFV(monthlyInvestment, monthlyRate, totalMonths) {
  */
 export function sampleLogNormalMonthly(annualMean, annualVol, zVal) {
     const dt = 1 / 12;
-    const drift = (annualMean - 0.5 * annualVol * annualVol) * dt;
+    const drift = (Math.log1p(annualMean) - 0.5 * annualVol * annualVol) * dt;
     const vol = annualVol * Math.sqrt(dt);
     return Math.exp(drift + vol * zVal);
 }
@@ -188,6 +188,12 @@ export function runMonteCarlo({
     if (!Number.isFinite(inflationRate) || inflationRate < 0 || inflationRate > 1) {
         throw new RangeError('inflationRate must be an explicit decimal from 0 to 1');
     }
+    if (seed != null && (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff)) {
+        throw new RangeError('seed must be an unsigned 32-bit integer');
+    }
+    if (controlVariateMethod !== 'none') {
+        throw new RangeError('Unsupported control variate: checkpoint rescaling distorts simulated outcomes');
+    }
     const safeInvestment = monthlyInvestment;
     const safeSavings = currentSavings;
     const safeVolatility = annualVolatility;
@@ -258,32 +264,11 @@ export function runMonteCarlo({
         finalValues.push(balance2);
         finalValues_real.push(balance2 / Math.pow(1 + inflationRate, totalMonths / 12));
     }
-    // ── CONTROL VARIATE CORRECTION ───────────────────────────────────────
-    for (let y = 0; y < checkpointMonths.length; y++) {
-        const totalMonths_y = checkpointMonths[y];
-        const fvSIP_y = annuityDueFV(safeInvestment, r, totalMonths_y);
-        const fvSavings_y = safeSavings * Math.pow(1 + r, totalMonths_y);
-        const deterministicFV_y = fvSIP_y + fvSavings_y;
-        const rawMean_y = allSimResults[y].reduce((s, v) => s + v, 0) / allSimResults[y].length;
-        if (rawMean_y > 0) {
-            if (controlVariateMethod === 'additive') {
-                const diff = deterministicFV_y - rawMean_y;
-                for (let s = 0; s < allSimResults[y].length; s++) {
-                    allSimResults[y][s] = Math.max(0, allSimResults[y][s] + diff);
-                }
-            } else if (controlVariateMethod === 'multiplicative') {
-                const ratio = deterministicFV_y / rawMean_y;
-                for (let s = 0; s < allSimResults[y].length; s++) {
-                    allSimResults[y][s] *= ratio;
-                }
-            }
-        }
-    }
-    // Update finalValues to contain the corrected terminal values for goal probability
-    const terminalIdx = allSimResults.length - 1;
-    finalValues = [...allSimResults[terminalIdx]];
-    const rawMean = finalValues.reduce((s, v) => s + v, 0) / finalValues.length;
-    const controlCorrection = rawMean - deterministicFV;
+    // Never force an empirical sample mean to its analytic reference
+    // by changing the simulated path distribution and its quantiles.
+    finalValues = [...allSimResults[allSimResults.length - 1]];
+    const rawMean = finalValues.reduce((sum, value) => sum + value, 0) / finalValues.length;
+    const samplingMeanError = rawMean - deterministicFV;
     // Sort each year's results ONCE, then extract all percentiles
     const p10 = [], p25 = [], p50 = [], p75 = [], p90 = [], mean = [];
     const stdErr = [];
@@ -343,7 +328,9 @@ export function runMonteCarlo({
         p10_real, p25_real, p50_real, p75_real, p90_real, mean_real,
         standard_error: stdErr,
         deterministic_fv: Math.round(deterministicFV),
-        control_correction: Math.round(controlCorrection),
+        control_correction: null,
+        sampling_mean_error: Math.round(samplingMeanError) || 0,
+        model_version: 'monte-carlo-gbm-2.1.0',
         finalValues, // expose for goal probability reuse
         simulations_run: actualSims,
         nominal_real_path_aligned: true,
@@ -357,11 +344,10 @@ export function runMonteCarlo({
         response.inflationRateUsed = inflationRate;
         response.sequenceRisk = sequenceOfReturnsRisk;
         response.riskMetrics = computeRiskMetrics(p50, p10, years, RISK_FREE_RATE, annualExpectedReturn);
-        response.variance_reduction = controlVariateMethod === 'none'
-            ? 'halton_qmc+antithetic'
-            : `halton_qmc+antithetic+${controlVariateMethod}_control_variate`;
+        response.variance_reduction = 'halton_qmc+antithetic';
         response.control_variate_method = controlVariateMethod;
-        response.sequence_of_returns_risk = sequenceOfReturnsRisk;
+        response.sequence_of_returns_risk = null;
+        response.terminal_wealth_cv = sequenceOfReturnsRisk;
         response.sharpe_ratio_sensitivity = sharpeSensitivity;
         response.inflation_rate = inflationRate;
     }
@@ -417,9 +403,9 @@ export function runMonteCarloWithGoal(params) {
     const goalProbability = targetAmount !== null && targetAmount !== undefined && result.finalValues
         ? computeGoalProbability(result.finalValues, targetAmount)
         : null;
-    const goalProbabilityCI = goalProbability !== null
-        ? computeWilsonCI(goalProbability, result.simulations_run)
-        : null;
+    // Quasi-random and antithetic paths are dependent samples. A Wilson
+    // interval would misleadingly assume independent Bernoulli trials.
+    const goalProbabilityCI = null;
     // Remove raw finalValues from response
     const { finalValues, ...cleanResult } = result;
     if (cleanResult.real) {
@@ -429,6 +415,7 @@ export function runMonteCarloWithGoal(params) {
         ...cleanResult,
         goal_probability: goalProbability,
         goal_probability_ci: goalProbabilityCI,
+        goal_probability_ci_status: 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS',
         target_amount: targetAmount ?? null,
     };
 }

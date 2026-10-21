@@ -28,6 +28,7 @@ import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
 const router = Router();
 const MONTE_CARLO_INFLATION_ASSUMPTION = 0.05;
 const MONTE_CARLO_SIMULATIONS = 10000;
+const MONTE_CARLO_SCENARIO_SEED = 20261021; // public repeatable scenario seed
 
 function buildMonteCarloResponse(result, context) {
   const chartData = result.years_array.map((year, index) => ({
@@ -54,6 +55,10 @@ function buildMonteCarloResponse(result, context) {
     target_amount: result.target_amount,
     simulations_run: result.simulations_run,
     variance_reduction: result.variance_reduction,
+    model_version: result.model_version,
+    seed_used: result.seed_used,
+    is_reproducible: result.is_reproducible,
+    terminal_wealth_cv: result.terminal_wealth_cv,
     percentile_summary: {
       p10: result.p10[terminalIndex], p25: result.p25[terminalIndex], p50: result.p50[terminalIndex],
       p75: result.p75[terminalIndex], p90: result.p90[terminalIndex],
@@ -68,7 +73,7 @@ function buildMonteCarloResponse(result, context) {
       p90: result.p90_real[terminalIndex],
     } : null,
     confidence_interval_width: confidenceIntervalWidth,
-    sequence_of_returns_risk: result.sequence_of_returns_risk || null,
+    sequence_of_returns_risk: null,
     sharpe_ratio_sensitivity: result.sharpe_ratio_sensitivity || null,
     inflation_rate: result.inflation_rate,
     ...simulationProvenance(result),
@@ -136,7 +141,7 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
   const allocationKey = [...keys].sort().map(key => `${key}:${normalizedAllocations[key].toFixed(6)}`).join(',');
   const targetKey = target_amount === undefined ? 'none' : String(Math.round(target_amount));
   const cacheKey = [
-    'portfolio-mc-v3', req.user.userId, profileId, profileHash, years,
+    'portfolio-mc-v4', MONTE_CARLO_SCENARIO_SEED, MONTE_CARLO_INFLATION_ASSUMPTION, MONTE_CARLO_SIMULATIONS, req.user.userId, profileId, profileHash, years,
     simulation.monthlyContribution, simulation.initialCapital, targetKey,
     allocationKey, metrics.expectedReturn, metrics.volatility,
   ].join(':');
@@ -152,6 +157,7 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
     inflationRate: MONTE_CARLO_INFLATION_ASSUMPTION,
     targetAmount: target_amount ?? null,
     currentSavings: simulation.initialCapital,
+    seed: MONTE_CARLO_SCENARIO_SEED,
   });
   const response = buildMonteCarloResponse(result, {
     simulation_classification: simulation.classification,
@@ -198,7 +204,7 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
   const profileHash = buildRecommendationProfileHash(profile, { modelVersion: 'monte-carlo-2.0.0' });
   const targetKey = target_amount === undefined ? 'none' : String(Math.round(target_amount));
   const cacheKey = [
-    'mc-v4', req.user.userId, profileId, profileHash, instrumentKey, years,
+    'mc-v5', MONTE_CARLO_SCENARIO_SEED, req.user.userId, profileId, profileHash, instrumentKey, years,
     simulation.monthlyContribution, simulation.initialCapital, targetKey,
     annualReturn.toFixed(6), annualVolatility.toFixed(6),
     MONTE_CARLO_INFLATION_ASSUMPTION, MONTE_CARLO_SIMULATIONS,
@@ -215,6 +221,7 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
     inflationRate: MONTE_CARLO_INFLATION_ASSUMPTION,
     targetAmount: target_amount ?? null,
     currentSavings: simulation.initialCapital,
+    seed: MONTE_CARLO_SCENARIO_SEED,
   });
   const chartData = result.years_array.map((year, index) => ({
     year,
@@ -245,6 +252,10 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
     target_amount: result.target_amount,
     simulations_run: result.simulations_run,
     variance_reduction: result.variance_reduction,
+    model_version: result.model_version,
+    seed_used: result.seed_used,
+    is_reproducible: result.is_reproducible,
+    terminal_wealth_cv: result.terminal_wealth_cv,
     percentile_summary: {
       p10: result.p10[terminalIndex], p25: result.p25[terminalIndex], p50: result.p50[terminalIndex],
       p75: result.p75[terminalIndex], p90: result.p90[terminalIndex],
@@ -262,7 +273,7 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
     data_source: PROJECTION_ASSUMPTION_SOURCE,
     nominal_return_assumption_used: annualReturn,
     volatility_used: annualVolatility,
-    sequence_of_returns_risk: result.sequence_of_returns_risk || null,
+    sequence_of_returns_risk: null,
     sharpe_ratio_sensitivity: result.sharpe_ratio_sensitivity || null,
     inflation_rate: result.inflation_rate,
     assumptions: {

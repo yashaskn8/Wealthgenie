@@ -31,8 +31,8 @@ test('Monte Carlo produces ordered bands and a bounded goal probability from exp
   assert.deepEqual(result.years_array, [1, 2, 3, 4, 5]);
   assert.equal(result.simulations_run, 500);
   assert.ok(result.goal_probability >= 0 && result.goal_probability <= 1);
-  assert.ok(result.goal_probability_ci.lower >= 0);
-  assert.ok(result.goal_probability_ci.upper <= 1);
+  assert.equal(result.goal_probability_ci, null);
+  assert.equal(result.goal_probability_ci_status, 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS');
   for (let i = 0; i < result.p50.length; i += 1) {
     assert.ok(result.p10[i] <= result.p25[i]);
     assert.ok(result.p25[i] <= result.p50[i]);
@@ -109,7 +109,7 @@ test('annuity due and stochastic primitives retain exact formulas', () => {
   assert.throws(() => annuityDueFV(-100, 0.01, 12), /monthlyInvestment/);
   assert.throws(() => annuityDueFV(1000, 0.01, 0), /totalMonths/);
   const dt = 1 / 12;
-  assert.equal(sampleLogNormalMonthly(0.12, 0.15, 0), Math.exp((0.12 - 0.5 * 0.15 ** 2) * dt));
+  assert.equal(sampleLogNormalMonthly(0.12, 0.15, 0), Math.exp((Math.log1p(0.12) - 0.5 * 0.15 ** 2) * dt));
   assert.equal(halton(1, 2), 0.5);
   assert.equal(boxMuller(0.5, 0.5), Math.sqrt(-2 * Math.log(0.5)) * Math.cos(Math.PI));
 });
@@ -144,3 +144,41 @@ test('Monte Carlo real purchasing power is deflated along the exact same simulat
   }
 });
 
+
+test('deterministic compounding matches independently calculated annuity-due FV', () => {
+  const annual = 0.12, monthly = (1 + annual) ** (1 / 12) - 1;
+  const expected = 75000 * (1 + annual) ** 2
+    + 8000 * (((1 + monthly) ** 24 - 1) / monthly) * (1 + monthly);
+  const result = runMonteCarlo({
+    monthlyInvestment: 8000, currentSavings: 75000,
+    annualExpectedReturn: annual, annualVolatility: 0,
+    years: 2, simulations: 100, inflationRate: 0.05, seed: 42,
+  });
+  assert.ok(Math.abs(result.p50.at(-1) - expected) <= 1);
+  assert.ok(Math.abs(result.p50_real.at(-1) - expected / (1.05 ** 2)) <= 1);
+  assert.equal(result.control_correction, null);
+  assert.equal(result.sampling_mean_error, 0);
+  assert.equal(result.sequence_of_returns_risk, null);
+  assert.equal(result.terminal_wealth_cv, 0);
+});
+
+test('rescaling and invalid seeds fail closed; real results match nominal paths', () => {
+  for (const method of ['multiplicative', 'additive', 'arbitrary']) {
+    assert.throws(() => runMonteCarlo({ ...VALID_MC, controlVariateMethod: method }), /rescaling/);
+  }
+  for (const seed of [-1, 2 ** 32, 2.5, NaN]) {
+    assert.throws(() => runMonteCarlo({ ...VALID_MC, seed }), /seed/);
+  }
+  const input = { ...VALID_MC, simulations: 200, seed: 20261021 };
+  const result = runMonteCarlo(input);
+  assert.deepEqual(result, runMonteCarlo(input));
+  result.years_array.forEach((year, i) => {
+    const deflator = (1 + input.inflationRate) ** year;
+    for (const [nominal, real] of [
+      ['p10', 'p10_real'], ['p25', 'p25_real'], ['p50', 'p50_real'],
+      ['p75', 'p75_real'], ['p90', 'p90_real'], ['mean', 'mean_real'],
+    ]) {
+      assert.ok(Math.abs(result[nominal][i] / deflator - result[real][i]) <= 1.5);
+    }
+  });
+});
