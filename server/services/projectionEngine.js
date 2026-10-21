@@ -372,8 +372,13 @@ export function generateProjections(
       throw new RangeError(`Annual rate for ${inst.name} must be greater than -100% and at most 100%`);
     }
 
-    // Nominal projections (flat SIP + initial lump sum)
-    const data = labels.map(y => Math.round(sipFV(monthlyInvestment, decimalRate, y) + lumpSumFV(safeLumpSum, decimalRate, y)));
+    // Retain unrounded nominal terminal values for deflation; round only
+    // displayed nominal/real amounts so no extra rupee of rounding drift
+    // can enter the purchasing-power calculation.
+    const rawNominalData = labels.map(y => (
+      sipFV(monthlyInvestment, decimalRate, y) + lumpSumFV(safeLumpSum, decimalRate, y)
+    ));
+    const data = rawNominalData.map(Math.round);
 
     // A fixed nominal SIP is not a fixed real SIP. Deflate terminal
     // nominal wealth at its horizon, not every contribution's growth rate.
@@ -381,11 +386,15 @@ export function generateProjections(
     // preserve their purchasing power despite fixed nominal installments.
     const realRate = ((1 + decimalRate) / (1 + inflationRate)) - 1;
     const inflationDeflator = y => Math.pow(1 + inflationRate, y);
-    const realData = labels.map((y, idx) => Math.round(data[idx] / inflationDeflator(y)));
+    const realData = labels.map((y, idx) => Math.round(rawNominalData[idx] / inflationDeflator(y)));
 
     // Step-up nominal SIPs are also deflated only at the terminal horizon.
-    const stepUpData = labels.map(y => Math.round(stepUpSipFV(monthlyInvestment, decimalRate, y, annualStepUpRate) + lumpSumFV(safeLumpSum, decimalRate, y)));
-    const stepUpRealData = labels.map((y, idx) => Math.round(stepUpData[idx] / inflationDeflator(y)));
+    const rawStepUpData = labels.map(y => (
+      stepUpSipFV(monthlyInvestment, decimalRate, y, annualStepUpRate)
+      + lumpSumFV(safeLumpSum, decimalRate, y)
+    ));
+    const stepUpData = rawStepUpData.map(Math.round);
+    const stepUpRealData = labels.map((y, idx) => Math.round(rawStepUpData[idx] / inflationDeflator(y)));
 
     // Wealth multiplier: how many times your invested amount grows
     const finalNominal = data[data.length - 1] || 0;
