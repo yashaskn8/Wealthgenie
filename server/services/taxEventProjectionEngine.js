@@ -731,7 +731,7 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
     ...(['salary', 'pension', 'family_pension', 'business', 'other'].includes(context.incomeSource)
       ? [] : ['incomeSource']),
     ...(['new', 'old'].includes(context.regime) ? [] : ['regime']),
-    ...(typeof context.fiscalYear === 'string' && /^FY\\d{4}-\\d{2}$/.test(context.fiscalYear)
+    ...(typeof context.fiscalYear === 'string' && /^FY[0-9]{4}-[0-9]{2}$/.test(context.fiscalYear)
       ? [] : ['fiscalYear']),
     ...(Number.isInteger(context.userAge) && context.userAge >= 18 && context.userAge <= 120
       ? [] : ['userAge']),
