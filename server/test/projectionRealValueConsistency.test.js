@@ -44,3 +44,11 @@ test('comparison and standard SIP projection share terminal purchasing-power def
   assert.equal(comparison.investmentMaturity, series[0].data[0]);
   assert.equal(comparison.investmentReal, series[0].realData[0]);
 });
+
+test('deterministic projected currency rejects amounts outside integer-paise precision', () => {
+  assert.throws(() => lumpSumFV(1e14, 0.1, 1), /PROJECTION_WEALTH_PRECISION_EXCEEDED/);
+  assert.throws(() => sipFV(1e14, 0, 1), /PROJECTION_WEALTH_PRECISION_EXCEEDED/);
+  assert.throws(() => stepUpSipFV(1e8, 0.15, 20, 2), /PROJECTION_WEALTH_PRECISION_EXCEEDED/);
+  assert.equal(sipFV(1000, 0, 1), 12000);
+  assert.equal(lumpSumFV(1000, 0, 1), 1000);
+});

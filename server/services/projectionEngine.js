@@ -1,6 +1,16 @@
 import { toMonthlyRate } from './instrumentConstants.js';
 import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
 
+// Keep projected INR amounts within safe integer-paise representability,
+// matching the precision requirement of contractual cash-flow ledgers.
+const MAX_PROJECTED_INR = Number.MAX_SAFE_INTEGER / 100;
+function requireSafeProjectedAmount(value) {
+  if (!Number.isFinite(value) || value < 0 || value > MAX_PROJECTED_INR) {
+    throw new RangeError('PROJECTION_WEALTH_PRECISION_EXCEEDED: projection exceeds safe INR/paise range');
+  }
+  return value;
+}
+
 const ILLUSTRATIVE_PURCHASE_POWER_MILESTONES = Object.freeze([
   { min: 20_000, icon: '🎧', label: 'Premium wireless earbuds', amount: '~₹20K' },
   { min: 50_000, icon: '📱', label: 'Mid-range smartphone', amount: '~₹50K' },
@@ -55,7 +65,7 @@ export function lumpSumFV(principal, annualRate, years) {
   if (!Number.isFinite(annualRate) || annualRate <= -1 || annualRate > 1) {
     throw new RangeError('annualRate must be an explicit decimal greater than -1 and at most 1');
   }
-  return principal * Math.pow(1 + annualRate, years);
+  return requireSafeProjectedAmount(principal * Math.pow(1 + annualRate, years));
 }
 
 /**
@@ -80,9 +90,11 @@ export function sipFV(monthlyInvestment, annualRate, years) {
   const n = years * 12;
 
   // Edge case: zero rate → simple sum
-  if (Math.abs(r) < 1e-10) return monthlyInvestment * n;
+  if (Math.abs(r) < 1e-10) return requireSafeProjectedAmount(monthlyInvestment * n);
 
-  return monthlyInvestment * ((Math.pow(1 + r, n) - 1) / r) * (1 + r);
+  return requireSafeProjectedAmount(
+    monthlyInvestment * ((Math.pow(1 + r, n) - 1) / r) * (1 + r)
+  );
 }
 
 /**
@@ -123,7 +135,7 @@ export function stepUpSipFV(monthlyInvestment, annualRate, years, annualStepUpRa
       yearSipFV = currentSIP * ((Math.pow(1 + r, 12) - 1) / r) * (1 + r);
     }
 
-    balance = compoundedBalance + yearSipFV;
+    balance = requireSafeProjectedAmount(compoundedBalance + yearSipFV);
 
     // Step up SIP for next year
     currentSIP *= (1 + g);
