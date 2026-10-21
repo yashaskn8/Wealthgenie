@@ -18,7 +18,12 @@ const sourceId = 'ci-source-' + suffix;
 try {
   const catalog = await pool.query(`SELECT count(*)::integer AS n FROM finance.products
     WHERE record_kind='ARCHETYPE'`);
-  assert.ok(catalog.rows[0].n >= investmentDatabase.length, 'All existing archetypes must be staged');
+  assert.ok(catalog.rows[0].n >= 250, 'Original 155 and 95 sourced extensions must be staged');
+  const added=await pool.query(`SELECT count(*)::integer AS n FROM finance.products
+    WHERE record_kind='ARCHETYPE' AND verification_scope='REGULATORY_CATEGORY_OR_INDEX_ONLY'
+      AND discovery_reference_url LIKE 'https://%' AND recommendation_eligible=false
+      AND availability='UNVERIFIED'`);
+  assert.equal(added.rows[0].n,95,'Exactly 95 non-recommendable sourced discovery archetypes must be staged');
   const promoted = await pool.query(`SELECT count(*)::integer AS n FROM finance.products
     WHERE record_kind='ARCHETYPE' AND recommendation_eligible=true`);
   assert.equal(promoted.rows[0].n, 0, 'Seeded archetypes must never become newly recommended without review');
@@ -59,6 +64,7 @@ try {
   assert.equal(await store.latestPublishableObservation(productId,'PRICE'),null,
     'Revoked rights must prevent source publication immediately');
   process.stdout.write(JSON.stringify({status:'PASS',archetypes:catalog.rows[0].n,
+    sourcedExtensions:added.rows[0].n,
     licenseAbsentDenied:true,revocationDenied:true,sandboxFixture:true})+'\n');
 } finally {
   // This script is restricted to *_test databases. Never modify a live source registry.
