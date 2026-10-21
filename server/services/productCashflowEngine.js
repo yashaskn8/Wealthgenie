@@ -7,6 +7,8 @@
  * all-account eligibility, reinvestment, investor tax, or redemption eligibility.
  * Missing terms produce UNAVAILABLE, never a plausible invented maturity amount.
  */
+import { buildContractualCashflowLedger } from './contractCashflowLedger.js';
+
 export const CONTRACT_CASHFLOW_VERSION = 'qualified-product-cashflow-1.0.0';
 const INDIA_POST_URL = 'https://www.indiapost.gov.in/banking-services/savings';
 const ALLOWED_PRODUCTS = Object.freeze({
@@ -62,6 +64,7 @@ function unavailable(reasonCode, product) {
     grossInterest: null,
     grossCumulativeReturnPct: null,
     postTaxProceeds: null,
+    cashflowLedger: null,
     postTaxStatus: 'NOT_CALCULATED',
     source: null,
     scenarioClass: 'NO_SOURCE_QUALIFIED_CONTRACT_VALUE',
@@ -150,6 +153,13 @@ export function calculateQualifiedProductCashflow({
   if (!Number.isFinite(grossTotal) || grossTotal > Number.MAX_SAFE_INTEGER)
     return unavailable('NUMERIC_OVERFLOW', product);
   const rounded = value => Math.round((value + Number.EPSILON) * 100) / 100;
+  // Reconcile every payment before publishing a financial amount.
+  // No tax dates or future reinvestment proceeds are inferred here.
+  const cashflowLedger = buildContractualCashflowLedger({
+    principal, tenureMonths, cashflowType: terms.kind,
+    annualPayouts: payouts, grossMaturityProceeds: redemption,
+    grossTotalProceeds: payableTotal,
+  });
   return {
     version: CONTRACT_CASHFLOW_VERSION,
     status: 'CALCULATED',
@@ -163,6 +173,7 @@ export function calculateQualifiedProductCashflow({
     grossCumulativeReturnPct: rounded((payableTotal / principal - 1) * 100),
     cashflowType: terms.kind,
     annualPayouts: payouts,
+    cashflowLedger,
     postTaxProceeds: null,
     postTaxStatus: 'REQUIRES_EFFECTIVE_DATED_TAX_AND_ACCOUNT_FACTS',
     model: terms.kind,

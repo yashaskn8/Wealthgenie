@@ -837,12 +837,12 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           <div className="wti-market-evidence-summary" data-testid="market-data-status">
             <div className="wti-market-status-copy">
               <span className="wti-market-data-status">{marketDisplay.label}</span>
-              <span>{marketDisplay.detail}</span>
+              <span title={marketDisplay.detail}>{marketDisplay.detail}</span>
             </div>
             {marketContextTransport?.revalidationStatus === 'FAILED' && (
               <span className="wti-market-refresh-notice" role="status">Refresh failed; showing the last verified snapshot.</span>
             )}
-            <span className="wti-market-data-asof">
+            <span className="wti-market-data-asof" title={`As of: ${marketObservedAt || 'Unavailable'} · Verified source: ${marketEvidenceSource || 'Unavailable'}`}>
               As of: {marketObservedAt || 'Unavailable'} · Verified source: {marketEvidenceSource || 'Unavailable'}
             </span>
             <button

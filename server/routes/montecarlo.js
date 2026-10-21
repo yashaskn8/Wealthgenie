@@ -24,6 +24,7 @@ import {
 } from '../services/instrumentConstants.js';
 import { ASSET_KEYS, evaluatePortfolio } from '../services/portfolioEngine.js';
 import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
+import { evaluateGbmScenarioAdmission } from '../services/marketScenarioPolicy.js';
 
 const router = Router();
 const MONTE_CARLO_INFLATION_ASSUMPTION = 0.05;
@@ -91,6 +92,7 @@ function simulationProvenance(result) {
     calibration_mode: 'MODEL_POLICY',
     empirical_calibration: null,
     asset_specific_cashflows_calculated: false,
+    portfolio_aggregation: 'MOMENT_MATCHED_GBM_APPROXIMATION_NOT_ASSET_PATHS',
     post_tax_simulation_available: false,
     accuracy_certification: 'NOT_VERIFIED',
     covariance_provenance: 'WEALTHGENIE_MODEL_POLICY_STATIC_CORRELATION',
@@ -104,6 +106,7 @@ function simulationProvenance(result) {
       'Probabilities are conditional on model assumptions and are not guaranteed outcomes.',
       'Fees, taxes, corporate actions and regime changes are not modeled.',
       'FD, RD, government-scheme and bond product-specific cashflows are NOT modeled by this GBM policy scenario.',
+      'Aggregated portfolio GBM is not a multi-asset correlated return-path engine.',
     ],
   };
 }
@@ -135,6 +138,11 @@ router.post('/portfolio', verifyJWT, validateStrict(portfolioMonteCarloSchema), 
   }
   if (keys.some(key => !ASSET_KEYS.includes(key))) {
     throw createError(422, 'Portfolio covariance is unavailable for one or more instruments.', 'Portfolio simulation is unavailable for this mix.');
+  }
+  const gbmAdmission = evaluateGbmScenarioAdmission(keys);
+  if (!gbmAdmission.admitted) {
+    throw createError(422, gbmAdmission.reasonCode,
+      'Contractual products require verified cashflow simulations; market-price GBM is not applicable.');
   }
   const suitability = assertPortfolioSuitable(profile, keys);
   validatePortfolioConcentration(normalizedAllocations);
@@ -201,7 +209,11 @@ router.post('/montecarlo', verifyJWT, validateStrict(personalizedMonteCarloSchem
   });
   const suitability = assertPortfolioSuitable(profile, [instrument]);
   const instrumentKey = resolveInstrumentModelKey(instrument);
-
+  const gbmAdmission = evaluateGbmScenarioAdmission([instrumentKey]);
+  if (!gbmAdmission.admitted) {
+    throw createError(422, gbmAdmission.reasonCode,
+      'Contractual products require verified cashflow simulations; market-price GBM is not applicable.');
+  }
   const assumptionResult = await getInstrumentModelAssumptions();
   const modelParams = assumptionResult.params[instrumentKey] || getInstrumentVolatility(instrumentKey);
   if (!modelParams || !Number.isFinite(modelParams.mean) || !Number.isFinite(modelParams.stdDev)) {

@@ -731,19 +731,21 @@ paths:
   /api/montecarlo/montecarlo:
     post:
       operationId: runMonteCarlo
+      description: Pre-tax conditional GBM scenario only for market-priced fund/ETF categories. Contractual deposit, government-scheme and bond products require cashflow models and return 422, not GBM figures.
       tags: [Projections]
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/MonteCarlo' }
-      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' } }
+      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '422': { $ref: '#/components/responses/Unprocessable' } }
   /api/montecarlo/portfolio:
     post:
       operationId: runPortfolioMonteCarlo
+      description: Pre-tax moment-matched aggregate GBM illustration for supported market-priced categories only. Not correlated per-asset price paths or asset-specific tax calculations. Contractual assets return 422.
       tags: [Projections]
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/PortfolioMonteCarlo' }
-      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' } }
+      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '422': { $ref: '#/components/responses/Unprocessable' } }
 
   /api/market/rates:
     get: { operationId: getMarketRates, tags: [Market], security: [], responses: { '200': { $ref: '#/components/responses/Object' } } }

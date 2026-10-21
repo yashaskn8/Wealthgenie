@@ -138,7 +138,7 @@ test('portfolio Monte Carlo uses the same normalized weights for return and vola
 
   await withMockAuthAccountState(async () => {
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    const allocations = { FD: 0.50005, Debt_MF: 0.5 };
+    const allocations = { Debt_MF: 0.50005, Liquid_MF: 0.5 };
     const response = await rawRequest(`http://127.0.0.1:${server.address().port}/api/montecarlo/portfolio`, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
@@ -166,10 +166,19 @@ test('portfolio Monte Carlo uses the same normalized weights for return and vola
     assert.equal(body.asset_specific_cashflows_calculated, false);
     assert.equal(body.post_tax_simulation_available, false);
     assert.equal(body.accuracy_certification, 'NOT_VERIFIED');
+    assert.equal(body.portfolio_aggregation, 'MOMENT_MATCHED_GBM_APPROXIMATION_NOT_ASSET_PATHS');
+    const unsupported = await rawRequest(`http://127.0.0.1:${server.address().port}/api/montecarlo/portfolio`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ profileId, allocations: { FD: 0.5, Debt_MF: 0.5 }, years: 2 }),
+    });
+    assert.equal(unsupported.status, 422);
+    const denied = await unsupported.json();
+    assert.equal(denied.percentile_summary, undefined);
   });
 });
 
-test('Conservative FD portfolio projections preserve the profile suitability and model provenance', async t => {
+test('Conservative FD projections remain profile-grounded, while GBM refuses FD cashflows', async t => {
   const userId = '64b000000000000000000003';
   const profileId = '65b000000000000000000003';
   const profile = {
@@ -223,13 +232,19 @@ test('Conservative FD portfolio projections preserve the profile suitability and
       `http://127.0.0.1:${server.address().port}/api/montecarlo/portfolio`,
     ];
 
-    for (const url of urls) {
+    for (const [index, url] of urls.entries()) {
       const response = await rawRequest(url, { method: 'POST', headers, body: payload });
       const body = await response.json();
-      assert.equal(response.status, 200, JSON.stringify(body));
-      assert.equal(body.simulation_classification, 'PROFILE_GROUNDED');
-      assert.equal(body.return_data_class, 'MODEL_ASSUMPTION');
-      assert.equal(body.final_suitability_risk, 'Conservative');
+      if (index === 0) {
+        // Separate legacy projection is not the GBM engine.
+        assert.equal(response.status, 200, JSON.stringify(body));
+        assert.equal(body.simulation_classification, 'PROFILE_GROUNDED');
+        assert.equal(body.return_data_class, 'MODEL_ASSUMPTION');
+        assert.equal(body.final_suitability_risk, 'Conservative');
+      } else {
+        assert.equal(response.status, 422, JSON.stringify(body));
+        assert.equal(body.percentile_summary, undefined);
+      }
     }
   });
 });
