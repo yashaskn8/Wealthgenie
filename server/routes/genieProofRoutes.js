@@ -58,11 +58,19 @@ const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 // Never expose key material or infer that local signing qualifies financial evidence.
 export function getGenieProofCapabilityStatus(runtime) {
   const enabled = runtime?.enabled === true && runtime?.productionActivationAllowed === false;
+  const safeUnavailableCodes = new Set([
+    'GENIEPROOF_LOCAL_RESEARCH_ONLY',
+    'GENIEPROOF_FLAG_DISABLED',
+    'GENIEPROOF_SIGNING_KEYS_MISSING',
+    'GENIEPROOF_SIGNING_CONFIGURATION_INVALID',
+  ]);
   return {
     interactiveEnabled: enabled,
     extractionPreviewEnabled: true,
     mode: enabled ? 'LOCAL_RESEARCH' : 'UNAVAILABLE',
-    reasonCode: enabled ? 'RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED' : 'FEATURE_UNAVAILABLE',
+    reasonCode: enabled
+      ? 'RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED'
+      : (safeUnavailableCodes.has(runtime?.reasonCode) ? runtime.reasonCode : 'FEATURE_UNAVAILABLE'),
     productionVerified: false,
   };
 }

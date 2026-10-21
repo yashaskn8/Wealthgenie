@@ -3,6 +3,13 @@ import * as api from '../services/api';
 import GenieProofPanel from './GenieProofPanel';
 import GenieProofClaimPreview from './GenieProofClaimPreview';
 
+const SETUP_GUIDANCE = Object.freeze({
+  GENIEPROOF_LOCAL_RESEARCH_ONLY: 'Signed passports are restricted to a development or test backend. Production activation is blocked pending financial source-rights and verification approval; signing keys alone do not unlock it.',
+  GENIEPROOF_FLAG_DISABLED: 'The local research workflow is disabled. Set GENIEPROOF_ENABLED=true in the backend environment and restart the backend.',
+  GENIEPROOF_SIGNING_KEYS_MISSING: 'The local backend is missing GenieProof signing configuration. Supply GENIEPROOF_SIGNING_PRIVATE_KEY, GENIEPROOF_SIGNING_PUBLIC_KEY, and GENIEPROOF_SIGNING_KEY_ID to the backend process, then restart it.',
+  GENIEPROOF_SIGNING_CONFIGURATION_INVALID: 'The local GenieProof signing configuration was rejected. Verify that the Ed25519 private/public keys match, the key ID is valid and not revoked, and any optional trusted-key JSON is valid. Never paste private keys into the browser.',
+});
+
 export default function GenieProofEntry() {
   const [revision, setRevision] = useState(0);
   const [availability, setAvailability] = useState({ state: 'loading' });
@@ -17,6 +24,7 @@ export default function GenieProofEntry() {
       setAvailability({
         state: enabled ? 'enabled' : 'unavailable',
         previewEnabled: result?.extractionPreviewEnabled === true,
+        reasonCode: typeof result?.reasonCode === 'string' ? result.reasonCode : null,
       });
     }).catch(() => {
       if (!controller.signal.aborted) setAvailability({ state: 'error' });
@@ -48,8 +56,12 @@ export default function GenieProofEntry() {
         <>
           <p role="status">Signed GenieProof passports and evidence-based verdicts are unavailable on this server.</p>
           <p>
-            The full workflow requires a deliberately configured research backend, trusted signing keys,
-            and approved evidence sources. No claim is verified or signed in this preview.
+            {SETUP_GUIDANCE[availability.reasonCode] ||
+              'The signed workflow has not been authorized by this backend. No claim is verified or signed in this preview.'}
+          </p>
+          <p>
+            You can still review unsaved candidate statements below. This does not check current rates,
+            establish financial correctness, or create a signed passport.
           </p>
           {availability.previewEnabled && <GenieProofClaimPreview />}
         </>

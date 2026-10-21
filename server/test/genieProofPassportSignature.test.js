@@ -155,3 +155,37 @@ test('runtime enables GenieProof only with explicit local keys in development or
     },
   }).enabled, false, 'a revoked active signing key cannot enable the prototype runtime');
 });
+
+test('runtime produces safe distinct activation reasons, never key data', () => {
+  const keys = keyPair();
+  const base = {
+    NODE_ENV: 'development',
+    GENIEPROOF_ENABLED: 'true',
+    GENIEPROOF_SIGNING_PRIVATE_KEY: keys.privateKeyPem,
+    GENIEPROOF_SIGNING_PUBLIC_KEY: keys.publicKeyPem,
+    GENIEPROOF_SIGNING_KEY_ID: 'local-test-v1',
+  };
+  const cases = [
+    [{ ...base, NODE_ENV: 'production' }, 'GENIEPROOF_LOCAL_RESEARCH_ONLY'],
+    [{ ...base, NODE_ENV: 'staging' }, 'GENIEPROOF_LOCAL_RESEARCH_ONLY'],
+    [{ ...base, GENIEPROOF_ENABLED: 'false' }, 'GENIEPROOF_FLAG_DISABLED'],
+    [{ ...base, GENIEPROOF_SIGNING_PRIVATE_KEY: '' }, 'GENIEPROOF_SIGNING_KEYS_MISSING'],
+    [{ ...base, GENIEPROOF_SIGNING_PUBLIC_KEY: '' }, 'GENIEPROOF_SIGNING_KEYS_MISSING'],
+    [{ ...base, GENIEPROOF_SIGNING_KEY_ID: '' }, 'GENIEPROOF_SIGNING_KEYS_MISSING'],
+    [{ ...base, GENIEPROOF_SIGNING_PUBLIC_KEY: keyPair().publicKeyPem }, 'GENIEPROOF_SIGNING_CONFIGURATION_INVALID'],
+    [{ ...base, GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON: '{bad' }, 'GENIEPROOF_SIGNING_CONFIGURATION_INVALID'],
+    [{ ...base, GENIEPROOF_REVOKED_SIGNING_KEY_IDS_JSON: '["local-test-v1"]' }, 'GENIEPROOF_SIGNING_CONFIGURATION_INVALID'],
+  ];
+  for (const [env, reason] of cases) {
+    const runtime = createGenieProofRuntime({ env });
+    assert.equal(runtime.enabled, false, reason);
+    assert.equal(runtime.signer, null, reason);
+    assert.equal(runtime.productionActivationAllowed, false, reason);
+    assert.equal(runtime.reasonCode, reason);
+    assert.ok(!JSON.stringify(runtime).includes(keys.privateKeyPem));
+  }
+  const good = createGenieProofRuntime({ env: base });
+  assert.equal(good.enabled, true);
+  assert.equal(good.reasonCode, undefined);
+  assert.equal(good.productionActivationAllowed, false);
+});
