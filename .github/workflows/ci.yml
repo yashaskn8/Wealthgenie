@@ -46,6 +46,11 @@ jobs:
           cd server
           npm ci
 
+      - name: Migrate and verify private financial source-retention indexes
+        env:
+          MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
+        run: npm run finance:mongo:migrate-indexes --prefix server
+
       - name: Run Backend ESLint Check
         run: |
           cd server
