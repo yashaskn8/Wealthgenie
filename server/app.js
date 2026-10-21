@@ -214,10 +214,16 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/recommend', recommendRoutes);
   app.use('/api/instruments', instrumentRoutes);
   app.use('/api/financial-universe', financialUniverseRoutes);
-  app.use('/api/investor-tax-context', investorTaxContextRoutes);
-  app.use('/api/investor-holdings', investorHoldingRoutes);
-  app.use('/api/recommendation-shortlist', recommendationShortlistRoutes);
-  app.use('/api/tax-aware-simulation', taxAwareScenarioRoutes);
+  // Private finance extensions require independently migrated Mongo indexes and
+  // an initialized financial reference-data authority. Old product flows stay active.
+  const financePrivateGate = (req,res,next) => env.FINANCIAL_ARCHITECTURE_ENABLED === 'true'
+    ? next()
+    : sendError(req,res,503,'The versioned financial extension is not enabled.',
+      'FINANCIAL_ARCHITECTURE_NOT_ENABLED');
+  app.use('/api/investor-tax-context', financePrivateGate, investorTaxContextRoutes);
+  app.use('/api/investor-holdings', financePrivateGate, investorHoldingRoutes);
+  app.use('/api/recommendation-shortlist', financePrivateGate, recommendationShortlistRoutes);
+  app.use('/api/tax-aware-simulation', financePrivateGate, taxAwareScenarioRoutes);
   app.use('/api/projection', projectionRoutes);
   app.use('/api/montecarlo', montecarloRoutes);
   app.use('/api/goals', goalRoutes);
