@@ -22,7 +22,7 @@ export function createFinancialStore(pool) {
     }
   }
   function assertIdentity(id) {
-    if (typeof id !== 'string' || id.length < 3 || id.length > 160
+    if (typeof id !== 'string' || id.length < 1 || id.length > 160
         || !/^[a-zA-Z0-9:_-]+$/.test(id)) {
       throw new TypeError('Canonical financial product ID is invalid');
     }
