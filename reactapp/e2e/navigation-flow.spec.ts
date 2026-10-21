@@ -120,6 +120,7 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
       });
     });
     await mockUnavailableSimulation(page, 'projection/custom-portfolio');
+    await mockUnavailableSimulation(page, 'projection/step-up');
     await mockUnavailableSimulation(page, 'montecarlo/portfolio');
     // 0. Disable onboarding modal so it does not intercept clicks
     await page.addInitScript(() => {
@@ -425,7 +426,7 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
 
   test('tablet viewport (721px): surviving Progress and Taxes tabs are reachable without clipping', async ({ page }) => {
     await page.setViewportSize({ width: 721, height: 900 });
-    await page.goto('http://127.0.0.1:5173/profile?page=progress&tab=goals');
+    await page.goto('/profile?page=progress&tab=goals');
     await page.waitForLoadState('networkidle');
     await expect(page.getByTestId('mobile-nav-progress')).toBeVisible();
 
@@ -435,6 +436,9 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
       await button.click();
       await expect(page).toHaveURL(new RegExp(`page=progress&tab=${tab}`));
       await expect(page.getByTestId(`panel-${tab}`)).toBeVisible();
+      if (tab === 'grow-sip') {
+        await expect(page.getByRole('heading', { name: 'Projection unavailable' })).toBeVisible();
+      }
     }
 
     await page.getByTestId('mobile-nav-taxes').click();

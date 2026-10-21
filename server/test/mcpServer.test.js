@@ -43,7 +43,24 @@ describe('Phase 1: WealthGenie MCP Server Core & Schema Parity Tests', () => {
   it('registry: reverse_sip calculator produces the deterministic contract value', async () => {
     const payload = { targetAmount: 10000000, annualRate: 0.12, years: 15, currentSavings: 0 };
     const directResult = await FinancialToolRegistry.executeTool('reverse_sip', payload);
-    assert.equal(directResult.result.requiredMonthlySip, 19705);
+    assert.equal(directResult.result.requiredMonthlySip, 19819);
+    const forward = await FinancialToolRegistry.executeTool('sip_projection', {
+      monthlyInvestment: directResult.result.requiredMonthlySip,
+      annualRate: payload.annualRate,
+      years: payload.years,
+    });
+    assert.ok(Math.abs(forward.result.futureValue - payload.targetAmount) < 300,
+      'rounded reverse SIP must reconstruct the target under the paired SIP projection');
+    const withSavings = await FinancialToolRegistry.executeTool('reverse_sip', {
+      ...payload, currentSavings: 1_000_000,
+    });
+    const savingsFutureValue = 1_000_000 * (1 + payload.annualRate) ** payload.years;
+    const forwardWithSavings = await FinancialToolRegistry.executeTool('sip_projection', {
+      monthlyInvestment: withSavings.result.requiredMonthlySip,
+      annualRate: payload.annualRate,
+      years: payload.years,
+    });
+    assert.ok(Math.abs(forwardWithSavings.result.futureValue + savingsFutureValue - payload.targetAmount) < 300);
   });
 
   it('registry: tax calculator preserves the explicit fiscal-year contract', async () => {
