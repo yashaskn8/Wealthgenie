@@ -14,7 +14,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep push runs on main until all critical suites complete.
+  # Supersede only stale pull-request runs.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend-financial-integrity:
