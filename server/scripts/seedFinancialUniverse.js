@@ -15,7 +15,7 @@ try{
  const seen=new Set();
  for(const entry of investmentDatabase){
   const id=String(entry.id||'');
-  if(!/^[a-zA-Z0-9:_-]{3,160}$/.test(id)||seen.has(id))throw new Error('CATALOG_DUPLICATE_OR_INVALID_ID');
+  if(!/^[a-zA-Z0-9:_-]{1,160}$/.test(id)||seen.has(id))throw new Error('CATALOG_DUPLICATE_OR_INVALID_ID:'+JSON.stringify(id));
   seen.add(id);
   const category=String(entry.category||'').trim();
   if(!category)throw new Error('CATALOG_CATEGORY_MISSING');
