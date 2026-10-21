@@ -78,7 +78,7 @@ export function isGenieProofLocalResearchRequest(req) {
   }
 }
 
-export function getGenieProofCapabilityStatus(runtime, { localResearchRequest = true } = {}) {
+export function getGenieProofCapabilityStatus(runtime, { localResearchRequest = false } = {}) {
   const enabled = localResearchRequest && runtime?.enabled === true && runtime?.productionActivationAllowed === false;
   const safeUnavailableCodes = new Set([
     'GENIEPROOF_LOCAL_RESEARCH_ONLY',
@@ -91,7 +91,7 @@ export function getGenieProofCapabilityStatus(runtime, { localResearchRequest = 
     interactiveEnabled: enabled,
     extractionPreviewEnabled: true,
     mode: enabled ? 'LOCAL_RESEARCH' : 'UNAVAILABLE',
-    reasonCode: !localResearchRequest
+    reasonCode: runtime?.enabled === true && !localResearchRequest
       ? 'GENIEPROOF_LOCAL_REQUEST_REQUIRED'
       : enabled
         ? 'RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED'

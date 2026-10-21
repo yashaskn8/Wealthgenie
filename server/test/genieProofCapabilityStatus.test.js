@@ -18,7 +18,7 @@ test('GenieProof report permits only an explicit local research runtime and no p
     enabled: true,
     productionActivationAllowed: false,
     signer: { privateKey: 'SECRET_MUST_NOT_LEAK' },
-  });
+  }, { localResearchRequest: true });
   assert.deepEqual(result, {
     interactiveEnabled: true,
     extractionPreviewEnabled: true,
@@ -33,6 +33,9 @@ test('GenieProof report permits only an explicit local research runtime and no p
   assert.equal(getGenieProofCapabilityStatus({
     enabled: true, productionActivationAllowed: false,
   }, { localResearchRequest: false }).reasonCode, 'GENIEPROOF_LOCAL_REQUEST_REQUIRED');
+  assert.equal(getGenieProofCapabilityStatus({
+    enabled: true, productionActivationAllowed: false,
+  }).interactiveEnabled, false, 'omitting request provenance must fail closed');
 });
 
 test('signed research requests require a direct loopback peer and loopback Host', () => {
