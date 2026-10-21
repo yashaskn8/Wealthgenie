@@ -53,6 +53,33 @@ Run the deterministic regression test:
 node --test server/test/privateMarketAccessProbe.test.js
 ```
 
+## Windows isolated demo launcher (optional)
+
+The repository's `scripts/start_local_demo.ps1` **does not read server/.env**.
+It reads the uncommitted project-root `.env` and launches an isolated
+`wealthgenie-demo` replica-set database on port 27030. Do not point it at an
+existing personal account database or assume it will create/migrate missing
+data. It requires the already verified demo database and safe local fixtures.
+
+To opt into the private quote panel with this launcher, store a valid read-only
+`UPSTOX_ANALYTICS_TOKEN` (or `UPSTOX_ACCESS_TOKEN` fallback) only in the
+project-root `.env`, then run from the repo root:
+
+```powershell
+.\\scripts\\start_local_demo.ps1 -EnablePrivateUpstoxQuotes -RequireBrowser
+```
+
+This opt-in forwards the token **only to the local backend**, never the Vite
+browser environment. It does not enable public provider distribution, quote
+persistence, or historical market-data refresh. The launcher checks token
+presence, not validity or exchange entitlements. Login and explicitly click
+**Load Upstox quotes** to verify actual provider connectivity.
+
+The default legacy demo database resides under `server/node_modules/.cache`
+and may be deleted by `npm ci`. Make a cold backup before dependency
+reinstallation and use the existing opt-in `-UseDurableMongoStorage` only
+after safely cold-copying and verifying the original database sentinel.
+
 ## Use the authenticated local React demo
 
 Set the explicit backend opt-in in the private, uncommitted `server/.env`:

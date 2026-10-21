@@ -76,3 +76,19 @@ test('local demo explicitly pins MongoDB account database and keeps legacy stora
   assert.match(script, /No account or data was moved/);
   assert.match(script, /Invoke-MongoIdentityCheck/);
 });
+
+test('local expo launcher enables private Upstox only via an explicit guarded switch and server-only token', () => {
+  assert.match(script, /\[switch\]\$EnablePrivateUpstoxQuotes/);
+  assert.match(script, /Get-DotEnvValue \$rootEnvPath 'UPSTOX_ANALYTICS_TOKEN'/);
+  assert.match(script, /Get-DotEnvValue \$rootEnvPath 'UPSTOX_ACCESS_TOKEN'/);
+  assert.match(script, /Private Upstox quotes require UPSTOX_ANALYTICS_TOKEN or UPSTOX_ACCESS_TOKEN/);
+  assert.match(script, /MARKET_DATA_PRIVATE_DEMO_ENABLED = \$\(if \(\$EnablePrivateUpstoxQuotes\) \{ 'true' \} else \{ 'false' \}\)/);
+  assert.match(script, /UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED = 'false'/);
+  assert.match(script, /\$priorProcessState\.privateUpstoxEnabled -eq \[bool\]\$EnablePrivateUpstoxQuotes/);
+  assert.match(script, /privateUpstoxEnabled = \[bool\]\$EnablePrivateUpstoxQuotes/);
+  assert.match(script, /LIVE PROVIDER CONNECTIVITY NOT VERIFIED/);
+  const serverEnv = script.slice(script.indexOf('$commonEnv = @{'), script.indexOf('$frontendEnv = @{'));
+  const frontendEnv = script.slice(script.indexOf('$frontendEnv = @{'), script.indexOf('if ($sourceSha) { $frontendEnv'));
+  assert.match(serverEnv, /\$commonEnv\.UPSTOX_ANALYTICS_TOKEN = \$upstoxAnalyticsToken/);
+  assert.doesNotMatch(frontendEnv, /UPSTOX_.*TOKEN|MARKET_DATA_PRIVATE_DEMO_ENABLED/);
+});

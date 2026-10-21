@@ -4,6 +4,7 @@ param(
   [switch]$RequireMlService,
   [switch]$RequireBrowser,
   [switch]$EnablePlanReview,
+  [switch]$EnablePrivateUpstoxQuotes,
   [switch]$UseDurableMongoStorage,
   [string]$RedisServerPath,
   [ValidateRange(1024, 65535)]
@@ -296,6 +297,8 @@ $jwtSecret = Get-DotEnvValue $rootEnvPath 'JWT_SECRET'
 $nvidiaKey = Get-DotEnvValue $rootEnvPath 'NVIDIA_API_KEY'
 $nvidiaModel = Get-DotEnvValue $rootEnvPath 'NVIDIA_NIM_MODEL'
 $mlServiceApiKey = Get-DotEnvValue $rootEnvPath 'ML_SERVICE_API_KEY'
+$upstoxAnalyticsToken = if ($EnablePrivateUpstoxQuotes) { Get-DotEnvValue $rootEnvPath 'UPSTOX_ANALYTICS_TOKEN' } else { $null }
+$upstoxFallbackToken = if ($EnablePrivateUpstoxQuotes) { Get-DotEnvValue $rootEnvPath 'UPSTOX_ACCESS_TOKEN' } else { $null }
 $mlServiceUrl = Get-DotEnvValue $rootEnvPath 'ML_SERVICE_URL'
 if (-not $mlServiceUrl) { $mlServiceUrl = 'http://127.0.0.1:8000' }
 $mlUri = $null
@@ -308,6 +311,9 @@ if ((-not [Uri]::TryCreate($mlServiceUrl, [UriKind]::Absolute, [ref]$mlUri)) -or
 }
 $mlServiceUrl = $mlUri.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
 
+if ($EnablePrivateUpstoxQuotes -and (-not $upstoxAnalyticsToken) -and (-not $upstoxFallbackToken)) {
+  throw 'Private Upstox quotes require UPSTOX_ANALYTICS_TOKEN or UPSTOX_ACCESS_TOKEN in the project-root .env. No service was started; never put the token in reactapp/.env.'
+}
 if (-not $demoEmail -or -not $demoPassword -or $demoPassword.Length -lt 8 -or $demoPassword.Length -gt 128) {
   throw 'The selected root .env demo credentials are missing or fail the registration password length contract.'
 }
@@ -481,6 +487,10 @@ $commonEnv = @{
   DEMO_COMPLETION_IDEMPOTENCY_KEY = 'wealthgenie-local-demo-profile-v1'
   MARKET_DATA_PRIMARY_PROVIDER = 'NSE'
   MARKET_DATA_REFRESH_ENABLED = 'false'
+  # Only the authenticated loopback read-only preview opts into Upstox.
+  # Never enable public market-data redistribution or durable quote storage.
+  MARKET_DATA_PRIVATE_DEMO_ENABLED = $(if ($EnablePrivateUpstoxQuotes) { 'true' } else { 'false' })
+  UPSTOX_PUBLIC_MARKET_DATA_LICENSE_CONFIRMED = 'false'
   # Keep the isolated demo deterministic unless the operator explicitly opts
   # into durable Plan Review with previously provisioned MongoDB indexes.
   AGENTIC_PLAN_REVIEW_ENABLED = $(if ($EnablePlanReview) { 'true' } else { 'false' })
@@ -500,6 +510,10 @@ $commonEnv = @{
   CORS_ORIGINS = "http://127.0.0.1:$frontendPort"
   NVIDIA_API_KEY = $nvidiaKey
   LLM_PRIMARY_PROVIDER = 'NVIDIA_NIM'
+}
+if ($EnablePrivateUpstoxQuotes) {
+  if ($upstoxAnalyticsToken) { $commonEnv.UPSTOX_ANALYTICS_TOKEN = $upstoxAnalyticsToken }
+  elseif ($upstoxFallbackToken) { $commonEnv.UPSTOX_ACCESS_TOKEN = $upstoxFallbackToken }
 }
 if ($nvidiaModel) { $commonEnv.NVIDIA_NIM_MODEL = $nvidiaModel }
 if ($sourceSha) { $commonEnv.APP_BUILD_SHA = $sourceSha }
@@ -524,7 +538,7 @@ if (Test-ListeningPort $backendPort) {
   $backendOwners = @(Get-NetTCPConnection -State Listen -LocalPort $backendPort -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
   $backendMatches = ($priorProcessState.repository -eq $repoRoot) -and ($priorProcessState.branch -eq 'main') `
     -and ($priorProcessState.head -eq $head) -and ($priorProcessState.checkoutFingerprint -eq $checkoutFingerprint) `
-    -and ($priorProcessState.rootEnvIdentity -eq $rootEnvIdentity) -and $priorProcessState.backendPid `
+    -and ($priorProcessState.rootEnvIdentity -eq $rootEnvIdentity) -and ($priorProcessState.privateUpstoxEnabled -eq [bool]$EnablePrivateUpstoxQuotes) -and $priorProcessState.backendPid `
     -and ($backendOwners -contains [int]$priorProcessState.backendPid) `
     -and (Test-ProcessExecutable ([int]$priorProcessState.backendPid) $nodeExe)
   if (-not $backendMatches) {
@@ -579,7 +593,7 @@ if (-not (Test-ListeningPort $frontendPort)) {
   $frontendOwners = @(Get-NetTCPConnection -State Listen -LocalPort $frontendPort -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
   $frontendMatches = ($priorProcessState.repository -eq $repoRoot) -and ($priorProcessState.branch -eq 'main') `
     -and ($priorProcessState.head -eq $head) -and ($priorProcessState.checkoutFingerprint -eq $checkoutFingerprint) `
-    -and ($priorProcessState.rootEnvIdentity -eq $rootEnvIdentity) -and $priorProcessState.frontendPid `
+    -and ($priorProcessState.rootEnvIdentity -eq $rootEnvIdentity) -and ($priorProcessState.privateUpstoxEnabled -eq [bool]$EnablePrivateUpstoxQuotes) -and $priorProcessState.frontendPid `
     -and ($frontendOwners -contains [int]$priorProcessState.frontendPid) `
     -and (Test-ProcessExecutable ([int]$priorProcessState.frontendPid) $nodeExe)
   if (-not $frontendMatches) {
@@ -603,6 +617,7 @@ $processState = [pscustomobject]@{
   redisRequired = [bool]$redisAvailable
   backendPort = $backendPort
   frontendPort = $frontendPort
+  privateUpstoxEnabled = [bool]$EnablePrivateUpstoxQuotes
   browserSmokeRequired = [bool]$RequireBrowser
   browserVerified = $false
   sourceShaPublished = [bool]$sourceSha
@@ -630,6 +645,11 @@ Write-Host "Backend VERIFIED: loopback port $backendPort, READY, connected to th
 Write-Host "Frontend HTTP VERIFIED: loopback port $frontendPort, login document returned HTTP 200 with the React root element."
 if (-not $RequireBrowser) {
   Write-Host 'Rendered browser UI NOT VERIFIED: pass -RequireBrowser to run the read-only loopback browser smoke.'
+}
+if ($EnablePrivateUpstoxQuotes) {
+  Write-Host 'Private Upstox demo: server-only credential configured (hidden); authenticated localhost quotes allowed; LIVE PROVIDER CONNECTIVITY NOT VERIFIED.'
+} else {
+  Write-Host 'Private Upstox demo: disabled. Pass -EnablePrivateUpstoxQuotes with a project-root token to enable it.'
 }
 Write-Host 'Credentials source: project-root .env only; server/.env was not loaded. Credential values were not printed.'
 if ($serverPassword -and $serverPassword -cne $demoPassword) {
