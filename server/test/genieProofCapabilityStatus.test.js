@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildGenieProofClaimPreview, getGenieProofCapabilityStatus } from '../routes/genieProofRoutes.js';
+import { buildGenieProofClaimPreview, getGenieProofCapabilityStatus, isGenieProofLocalResearchRequest } from '../routes/genieProofRoutes.js';
 
 test('GenieProof capability report is unavailable without an enabled backend', () => {
   assert.deepEqual(getGenieProofCapabilityStatus(null), {
@@ -18,7 +18,7 @@ test('GenieProof report permits only an explicit local research runtime and no p
     enabled: true,
     productionActivationAllowed: false,
     signer: { privateKey: 'SECRET_MUST_NOT_LEAK' },
-  });
+  }, { localResearchRequest: true });
   assert.deepEqual(result, {
     interactiveEnabled: true,
     extractionPreviewEnabled: true,
@@ -30,6 +30,26 @@ test('GenieProof report permits only an explicit local research runtime and no p
   assert.equal(getGenieProofCapabilityStatus({
     enabled: true, productionActivationAllowed: true,
   }).interactiveEnabled, false);
+  assert.equal(getGenieProofCapabilityStatus({
+    enabled: true, productionActivationAllowed: false,
+  }, { localResearchRequest: false }).reasonCode, 'GENIEPROOF_LOCAL_REQUEST_REQUIRED');
+  assert.equal(getGenieProofCapabilityStatus({
+    enabled: true, productionActivationAllowed: false,
+  }).interactiveEnabled, false, 'omitting request provenance must fail closed');
+});
+
+test('signed research requests require a direct loopback peer and loopback Host', () => {
+  const request = (remoteAddress, host = '127.0.0.1:5000', extraHeaders = {}) => ({
+    socket: { remoteAddress }, headers: { host, ...extraHeaders },
+  });
+  assert.equal(isGenieProofLocalResearchRequest(request('127.0.0.1')), true);
+  assert.equal(isGenieProofLocalResearchRequest(request('::1', '[::1]:5000')), true);
+  assert.equal(isGenieProofLocalResearchRequest(request('::ffff:127.0.0.1', 'localhost:5000')), true);
+  assert.equal(isGenieProofLocalResearchRequest(request('192.168.1.10')), false);
+  assert.equal(isGenieProofLocalResearchRequest(request('127.0.0.1', 'wealthgenie.example')), false);
+  assert.equal(isGenieProofLocalResearchRequest(request('127.0.0.1', 'localhost:5000', { 'x-forwarded-for': '192.168.1.10' })), false);
+  assert.equal(isGenieProofLocalResearchRequest(request('127.0.0.1', 'localhost:5000', { forwarded: 'for=192.168.1.10' })), false);
+  assert.equal(isGenieProofLocalResearchRequest(request('127.0.0.1', 'localhost:5000', { 'x-real-ip': '192.168.1.10' })), false);
 });
 
 test('production-safe claim extraction contains only unsaved candidate classification, not evidence verdicts', () => {

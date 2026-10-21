@@ -23,9 +23,9 @@ $env:GENIEPROOF_PROOFBREAK_WORKER_ENABLED = "false"
 npm run dev
 ```
 
-Do not print the private key, commit a PEM file, place these credentials in `VITE_*` variables, or set `NODE_ENV=development` on a production server. An authenticated, transaction-capable MongoDB database is required for interactive case persistence. The optional ProofBreak worker is a separate local research component and is not necessary to review/create cases.
+Do not print the private key, commit a PEM file, place these credentials in `VITE_*` variables, or set `NODE_ENV=development` on a production server. The signed research routes require a direct loopback connection and a loopback Host; forwarded or proxied requests are rejected. An authenticated, transaction-capable MongoDB database is required for interactive case persistence. The optional ProofBreak worker is a separate local research component and is not necessary to review/create cases.
 
-Sign in to the locally running app and check GenieProof again. Its status comes from the authenticated backend, not from build-time frontend flags. If the browser and backend are on different machines, the signing keys must be configured on the actual backend process; a PowerShell variable in your own laptop cannot enable a remote production backend.
+Sign in to the locally running app and check GenieProof again. Its status comes from the authenticated backend, not from build-time frontend flags. A browser on a different machine cannot use the signed local research workflow; do not expose it through a reverse proxy.
 
 ## Capability reason codes
 
@@ -35,7 +35,10 @@ Sign in to the locally running app and check GenieProof again. Its status comes 
 | `GENIEPROOF_FLAG_DISABLED` | Explicit backend flag is not `true` | Set `GENIEPROOF_ENABLED=true` in the *local* backend's startup environment. |
 | `GENIEPROOF_SIGNING_KEYS_MISSING` | At least one required signing field is absent | Supply the matching private/public Ed25519 PEM and key ID. |
 | `GENIEPROOF_SIGNING_CONFIGURATION_INVALID` | Malformed/mismatched keys, malformed trust JSON, invalid key ID or revoked signing key | Inspect the local private-key provisioning process; never submit credentials to the browser. |
+| `GENIEPROOF_LOCAL_REQUEST_REQUIRED` | Request did not arrive directly from loopback with a loopback Host | Open the local app on the same computer using `localhost` or `127.0.0.1`; do not proxy the signed workflow. |
 | `FEATURE_UNAVAILABLE` | Backend was not initialized or no recognized cause was reported | Check authenticated backend availability and deployment environment. |
 | `RESEARCH_ONLY_SOURCE_RIGHTS_NOT_QUALIFIED` | Local research runtime is enabled | Signing can operate in research mode, **not** independently verify current financial claims. |
 
 Even when interactive research mode is enabled, real claim evidence may be absent because its source-specific permission and technical qualification have not been verified. In that situation the correct outcome is an unsupported/abstaining finding, not a fabricated approval. The production-safe unsaved claim extraction preview remains available without signing keys.
+
+Downloaded passports can be checked with `node server/scripts/verifyGenieProofPassport.js <passport.json>` after supplying trusted public keys out of band through `GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON`. An independently valid signature and reproducible finding do not establish financial correctness. Older signed passports affected by whole-second Date coercion are reported as `LEGACY_TIMESTAMP_REPLAY_ONLY`; their signed contents are preserved, and the verifier accepts only that exact historical timestamp representation.

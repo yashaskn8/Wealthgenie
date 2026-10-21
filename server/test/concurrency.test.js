@@ -16,7 +16,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import profileRoutes from '../routes/profile.js';
 import goalsRoutes from '../routes/goals.js';
-import { errorHandler } from '../middleware/errorHandler.js';
+import { errorHandler, sendError } from '../middleware/errorHandler.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import RecommendationState from '../models/RecommendationState.js';
 import User from '../models/User.js';
@@ -43,6 +43,7 @@ function buildApp() {
   app.use(express.json());
   app.use('/api/profile', profileRoutes);
   app.use('/api/goals', goalsRoutes);
+  app.use((req, res) => sendError(req, res, 404, 'Route not found.', 'ROUTE_NOT_FOUND'));
   app.use(errorHandler);
   return app;
 }

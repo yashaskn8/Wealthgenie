@@ -795,7 +795,7 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
               <p style={{ color: '#64748b', fontSize: '0.92rem', maxWidth: 420, margin: '0 auto 26px', lineHeight: 1.6 }}>
                 Create your first financial milestone to unlock Monte Carlo projections, AI-powered advice, and SIP planning.
               </p>
-              
+
             </motion.div>
           )}
 
