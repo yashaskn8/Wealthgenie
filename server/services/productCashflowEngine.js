@@ -14,6 +14,10 @@ const ALLOWED_PRODUCTS = Object.freeze({
     kind: 'MATURITY_COMPOUND', tenureMonths: 60,
     compoundingBasis: 'Annually', periodsPerYear: 1,
   }),
+  'government:india-post:kvp': Object.freeze({
+    kind: 'SOURCE_TENOR_DOUBLE', tenureMonths: null,
+    compoundingBasis: 'Annually', periodsPerYear: 1,
+  }),
   'government:india-post:post-office-td-1y': Object.freeze({
     kind: 'ANNUAL_PAYOUT', tenureMonths: 12,
     compoundingBasis: 'Quarterly', periodsPerYear: 4,
@@ -92,7 +96,8 @@ export function calculateQualifiedProductCashflow({
   if (!terms) return unavailable('PRODUCT_SPECIFIC_CASHFLOWS_NOT_VERIFIED', product);
   // NSC subscriptions start at INR 1,000 in INR 100 multiples; Post Office
   // Time Deposits start at INR 1,000 in INR 1,000 multiples.
-  const increment = product.canonicalProductId === 'government:india-post:nsc' ? 100 : 1000;
+  const increment = ['government:india-post:nsc', 'government:india-post:kvp'].includes(product.canonicalProductId)
+    ? 100 : 1000;
   if (principal < 1000 || principal % increment !== 0)
     return unavailable('INVALID_PRODUCT_DENOMINATION', product);
   const rateFact = product.officialRate;
@@ -105,8 +110,13 @@ export function calculateQualifiedProductCashflow({
       product.availabilityStatus !== 'AVAILABLE' ||
       product.freshness?.status !== 'FRESH' ||
       product.compoundingBasis !== terms.compoundingBasis ||
-      product.tenureMonths !== terms.tenureMonths)
+      (terms.tenureMonths !== null && product.tenureMonths !== terms.tenureMonths))
     return unavailable('QUALIFIED_PRODUCT_TERMS_MISSING', product);
+  const isKvp = terms.kind === 'SOURCE_TENOR_DOUBLE';
+  if (isKvp && (product.maturityEvidence !== 'INDIA_POST_RATE_ANNOTATION' ||
+      !Number.isInteger(product.tenureMonths) ||
+      product.tenureMonths < 60 || product.tenureMonths > 240))
+    return unavailable('SOURCE_DERIVED_MATURITY_UNAVAILABLE', product);
   const effectiveFrom = isoCalendar(rateFact.effectiveFrom);
   const effectiveTo = isoCalendar(rateFact.effectiveTo);
   const today = indiaCalendarDate(now);
@@ -117,8 +127,9 @@ export function calculateQualifiedProductCashflow({
       rateFact.value < 0 || rateFact.value > 30)
     return unavailable('INVALID_OFFICIAL_RATE', product);
   const rate = rateFact.value / 100;
-  const periods = terms.tenureMonths * terms.periodsPerYear / 12;
-  if (!Number.isInteger(periods)) return unavailable('CONTRACT_SCHEDULE_UNSUPPORTED', product);
+  const tenureMonths = isKvp ? product.tenureMonths : terms.tenureMonths;
+  const periods = tenureMonths * terms.periodsPerYear / 12;
+  if (!isKvp && !Number.isInteger(periods)) return unavailable('CONTRACT_SCHEDULE_UNSUPPORTED', product);
   const isAnnualPayout = terms.kind === 'ANNUAL_PAYOUT';
   // TD interest is credited annually to the depositor; it earns no extra
   // interest in the term-deposit account unless separately reinvested.
@@ -132,7 +143,7 @@ export function calculateQualifiedProductCashflow({
     : [];
   const grossTotal = isAnnualPayout
     ? principal + annualCoupon * payouts.length
-    : principal * Math.pow(1 + rate / terms.periodsPerYear, periods);
+    : isKvp ? principal * 2 : principal * Math.pow(1 + rate / terms.periodsPerYear, periods);
   // NSC regulations round the final maturity amount to the nearest rupee.
   const payableTotal = isAnnualPayout ? grossTotal : Math.round(grossTotal);
   const redemption = isAnnualPayout ? principal + annualCoupon : payableTotal;
@@ -145,7 +156,7 @@ export function calculateQualifiedProductCashflow({
     reasonCode: null,
     canonicalProductId: product.canonicalProductId,
     principal: rounded(principal),
-    tenureMonths: terms.tenureMonths,
+    tenureMonths,
     grossMaturityProceeds: rounded(redemption),
     grossTotalProceeds: rounded(payableTotal),
     grossInterest: rounded(payableTotal - principal),

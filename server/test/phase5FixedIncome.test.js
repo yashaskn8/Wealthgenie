@@ -860,3 +860,19 @@ test('TEST 15: parent suitability rejection occurs before RBI provider fetch', a
   assert.equal(rejected.metadata.excluded[0].id, 'rbi_bonds');
   assert.equal(rejected.metadata.excluded[0].reasonCode, 'HORIZON_BELOW_MINIMUM');
 });
+
+test('KVP maturity is parsed from source annotation, never inferred from rate alone', () => {
+  const rows = ROWS.map(row => row.instrument === 'Kisan Vikas Patra'
+    ? { ...row, interestRate: '7.5% (will mature in 115 months)' } : row);
+  const now = new Date('2026-10-21T10:00:00.000Z');
+  const annotated = parseIndiaPostSavingsBundle(governmentBundle('01.10.2026','31.12.2026',rows),
+    { now, fetchedAt: now.toISOString() });
+  const product = annotated.products.find(p => p.canonicalProductId === 'government:india-post:kvp');
+  assert.equal(product.tenureMonths, 115);
+  assert.equal(product.maturityEvidence, 'INDIA_POST_RATE_ANNOTATION');
+  const plain = parseIndiaPostSavingsBundle(governmentBundle('01.10.2026','31.12.2026'),
+    { now, fetchedAt: now.toISOString() });
+  const unqualified = plain.products.find(p => p.canonicalProductId === 'government:india-post:kvp');
+  assert.equal(unqualified.tenureMonths, null);
+  assert.equal(unqualified.maturityEvidence, null);
+});

@@ -422,6 +422,7 @@ export function compareVerifiedFixedIncomeProducts({ parentInstrumentId, snapsho
   if (provider === PROVIDERS.GOVERNMENT_OF_INDIA) {
     dto.compoundingBasis = selected.fact.compoundingBasis ?? null;
     dto.tenureMonths = selected.product.tenureMonths ?? null;
+    dto.maturityEvidence = selected.product.maturityEvidence ?? null;
   } else if (provider === PROVIDERS.SBI) {
     dto.tenure = {
       label: selected.product.tenureLabel,

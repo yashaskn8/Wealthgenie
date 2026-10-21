@@ -12,7 +12,8 @@ const RATE = {
 const TODAY = new Date('2026-10-21T09:00:00.000Z');
 function qualified(id = 'nsc', overrides = {}) {
   const isNsc = id === 'nsc';
-  const name = isNsc ? 'nsc' : ('post-office-td-' + (id === 'td' ? '1' : id) + 'y');
+  const isKvp = id === 'kvp';
+  const name = isNsc ? 'nsc' : isKvp ? 'kvp' : ('post-office-td-' + (id === 'td' ? '1' : id) + 'y');
   const tdYears = id === 'td' ? 1 : Number(id);
   const canonicalProductId = 'government:india-post:' + name;
   return {
@@ -21,8 +22,10 @@ function qualified(id = 'nsc', overrides = {}) {
     productType: 'GOVERNMENT_SCHEME',
     source: { provider: 'GOVERNMENT_OF_INDIA', url: SOURCE },
     availabilityStatus: 'AVAILABLE', freshness: { status: 'FRESH' },
-    tenureMonths: isNsc ? 60 : tdYears * 12, compoundingBasis: isNsc ? 'Annually' : 'Quarterly',
-    officialRate: { ...RATE, value: isNsc ? 7.7 : 6.9 },
+    tenureMonths: isNsc ? 60 : isKvp ? 115 : tdYears * 12,
+    maturityEvidence: isKvp ? 'INDIA_POST_RATE_ANNOTATION' : null,
+    compoundingBasis: isNsc || isKvp ? 'Annually' : 'Quarterly',
+    officialRate: { ...RATE, value: isNsc ? 7.7 : isKvp ? 7.5 : 6.9 },
     ...overrides,
   };
 }
@@ -72,6 +75,15 @@ test('NSC and TD reject invalid denominations instead of producing false payouts
   assert.equal(calculate(qualified('td'), { principal: 2000 }).status, 'CALCULATED');
 });
 
+test('source-annotated KVP doubles principal and fails closed without its exact term', () => {
+  const outcome = calculate(qualified('kvp'));
+  assert.equal(outcome.status, 'CALCULATED');
+  assert.equal(outcome.tenureMonths, 115);
+  assert.equal(outcome.grossMaturityProceeds, 20000);
+  assert.equal(calculate(qualified('kvp', { maturityEvidence: null })).status, 'UNAVAILABLE');
+  assert.equal(calculate(qualified('kvp', { tenureMonths: null })).status, 'UNAVAILABLE');
+});
+
 test('missing contractual dates, mismatched identity or invalid source fail closed', () => {
   for (const product of [
     qualified('nsc', { id: 'wrong-id' }),
@@ -93,7 +105,7 @@ test('expired effective quarter and calendar invalidity return unavailable', () 
   assert.equal(calculate(qualified('nsc', { officialRate: { ...RATE, effectiveFrom: '2026-02-31' } })).status, 'UNAVAILABLE');
 });
 test('unverified terms for PPF SSY SCSS RD KVP RBI bonds MF and bank FD never fabricate numbers', () => {
-  for (const id of ['ppf','sukanya','scss','post-office-rd-5y','kvp','frsb-2020-taxable','generic-mf','sbi-fd']) {
+  for (const id of ['ppf','sukanya','scss','post-office-rd-5y','frsb-2020-taxable','generic-mf','sbi-fd']) {
     const item = qualified('nsc', {
       id: id, canonicalProductId: id, officialRate: { ...RATE, value: 7.1 },
     });

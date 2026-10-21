@@ -137,6 +137,13 @@ export function parseIndiaPostSavingsBundle(bundleText, {
     );
     const parsedRate = rateMatch ? Number(rateMatch[1]) : null;
     const value = Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : null;
+    // KVP doubling period must come from this effective-dated source row.
+    const kvpTerm = identity.id === 'kvp'
+      ? String(row.interestRate || '').match(/\bwill mature in\s+(\d{2,3})\s+months\b/i)
+      : null;
+    const parsedKvpMonths = kvpTerm ? Number(kvpTerm[1]) : null;
+    const kvpMonths = Number.isInteger(parsedKvpMonths) && parsedKvpMonths >= 60 && parsedKvpMonths <= 240
+      ? parsedKvpMonths : null;
     const canonicalProductId = `government:india-post:${identity.id}`;
     const fact = createMarketFact({
       kind: FACT_KINDS.SCHEME_INTEREST_RATE,
@@ -171,7 +178,8 @@ export function parseIndiaPostSavingsBundle(bundleText, {
       externalIds: [{ source: 'INDIA_POST_SCHEME_ID', value: identity.id }],
       source: { provider: PROVIDERS.GOVERNMENT_OF_INDIA, url: sourceUrl },
       sourceUpdatedAt: `${effectiveFrom}T00:00:00.000Z`,
-      tenureMonths: identity.tenureMonths ?? null,
+      tenureMonths: identity.tenureMonths ?? kvpMonths ?? null,
+      maturityEvidence: identity.id === 'kvp' && kvpMonths !== null ? 'INDIA_POST_RATE_ANNOTATION' : null,
     });
     facts.push(fact);
   }
