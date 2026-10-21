@@ -13,7 +13,7 @@
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 32px 28px 72px;
+  padding: 32px 28px 128px;
   color: var(--ap-text);
   overflow: hidden;
   position: relative;
@@ -1129,65 +1129,146 @@
   margin-top: 1px;
 }
 
+/* ─── Section Headings & Eyebrows ──────────────────────────────── */
+.ap-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ap-section-heading h2 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #f8fafc;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.ap-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 0 12px -2px rgba(56, 189, 248, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ─── Why This Plan Fits (Rationale Card) ─────────────────────── */
 .ap-rationale-box {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 18px;
-  padding: 24px;
-  border: 1px solid rgba(52, 211, 153, 0.22);
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(13, 23, 42, 0.65) 100%);
-  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  gap: 22px;
+  padding: 26px 30px;
+  border: 1px solid rgba(52, 211, 153, 0.24);
+  border-top: 1px solid rgba(52, 211, 153, 0.45);
+  border-radius: 20px;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(52, 211, 153, 0.1) 0%, transparent 60%),
+              linear-gradient(160deg, rgba(16, 32, 48, 0.88) 0%, rgba(8, 18, 30, 0.96) 100%);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6),
+              0 0 30px -15px rgba(52, 211, 153, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.ap-rationale-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(52, 211, 153, 0.6) 35%, rgba(16, 185, 129, 0.6) 65%, transparent 100%);
+  opacity: 0.9;
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.5);
+  pointer-events: none;
 }
 
 .ap-rationale-mark {
   display: flex;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   color: #34d399;
-  border: 1px solid rgba(52, 211, 153, 0.32);
+  border: 1px solid rgba(52, 211, 153, 0.4);
   border-radius: 12px;
-  background: rgba(52, 211, 153, 0.12);
-  box-shadow: 0 0 16px rgba(52, 211, 153, 0.15);
+  background: rgba(52, 211, 153, 0.15);
+  box-shadow: 0 0 20px rgba(52, 211, 153, 0.25);
+  flex-shrink: 0;
 }
 
 .ap-rationale-heading {
-  margin-bottom: 10px;
-  color: #e2fbf0;
-  font-size: 0.96rem;
+  margin-bottom: 12px;
+  color: #f0fdf4;
+  font-size: 1.15rem;
   font-weight: 800;
+  letter-spacing: -0.015em;
 }
 
 .ap-rationale-list {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 0;
-  padding-left: 18px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.ap-rationale-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   color: #cbd5e1;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   line-height: 1.6;
 }
 
-.ap-rationale-list li::marker {
-  color: #34d399;
+.ap-rationale-list li::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+  flex-shrink: 0;
+  transform: translateY(-2px);
 }
 
+/* ─── Methodology Action Button ────────────────────────────────── */
 .ap-text-button,
 .ap-dialog-close {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 7px;
+  padding: 7px 16px;
   color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid rgba(56, 189, 248, 0.35);
   border-radius: 999px;
-  background: rgba(14, 165, 233, 0.08);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(14, 165, 233, 0.06) 100%);
   cursor: pointer;
-  font-size: 0.76rem;
-  font-weight: 700;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  font-size: 0.78rem;
+  font-weight: 750;
+  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .ap-text-button:hover,
@@ -1195,11 +1276,13 @@
 .ap-dialog-close:hover,
 .ap-dialog-close:focus-visible {
   color: #ffffff;
-  border-color: rgba(56, 189, 248, 0.45);
-  background: rgba(14, 165, 233, 0.18);
+  border-color: rgba(56, 189, 248, 0.7);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(14, 165, 233, 0.14) 100%);
   transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.35);
 }
 
+/* ─── Plan Assumptions Section ─────────────────────────────────── */
 .ap-assumptions-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
@@ -1213,58 +1296,89 @@
 }
 
 .ap-assumption-main {
-  padding: 24px;
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(13, 22, 38, 0.72) 100%);
-  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  padding: 26px 30px;
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  border-top: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 20px;
+  background: radial-gradient(120% 90% at 100% 0%, rgba(56, 189, 248, 0.1) 0%, transparent 60%),
+              linear-gradient(160deg, rgba(16, 26, 48, 0.88) 0%, rgba(8, 14, 28, 0.96) 100%);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6),
+              0 0 30px -15px rgba(56, 189, 248, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  position: relative;
+  overflow: hidden;
+}
+
+.ap-assumption-main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.6) 35%, rgba(14, 165, 233, 0.6) 65%, transparent 100%);
+  opacity: 0.9;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
+  pointer-events: none;
 }
 
 .ap-assumption-label {
-  color: #9bb4c7;
-  font-size: 0.75rem;
+  color: #7dd3fc;
+  font-size: 0.78rem;
   font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .ap-assumption-main > strong {
-  display: block;
+  display: flex;
+  align-items: baseline;
   margin: 12px 0 8px;
   color: #38bdf8;
-  background: linear-gradient(135deg, #f0f9ff 0%, #38bdf8 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #38bdf8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  font-size: clamp(2.4rem, 4.5vw, 3.2rem);
   font-weight: 850;
-  letter-spacing: -0.06em;
+  letter-spacing: -0.05em;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+  font-family: var(--font-mono, monospace);
 }
 
 .ap-assumption-main > strong small {
-  color: #93aabc;
-  font-size: 0.82rem;
+  color: #94a3b8;
+  font-size: 0.92rem;
   font-weight: 650;
   letter-spacing: 0;
-  -webkit-text-fill-color: #93aabc;
+  -webkit-text-fill-color: #94a3b8;
+  margin-left: 10px;
+  font-family: var(--font-sans);
 }
 
 .ap-assumption-main p {
   max-width: 570px;
   margin: 0;
   color: #94a3b8;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   line-height: 1.6;
 }
 
 .ap-assumption-facts {
-  display: grid;
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 18px;
-  background: rgba(148, 163, 184, 0.1);
-  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(16, 26, 48, 0.85) 0%, rgba(8, 14, 28, 0.95) 100%);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .ap-assumption-facts > div {
@@ -1273,25 +1387,28 @@
   justify-content: space-between;
   gap: 14px;
   padding: 16px 20px;
-  background: rgba(12, 20, 36, 0.88);
-  transition: background 160ms ease;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 180ms ease;
 }
 
 .ap-assumption-facts > div:hover {
-  background: rgba(17, 28, 50, 0.95);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(56, 189, 248, 0.3);
+  transform: translateX(2px);
 }
 
 .ap-assumption-facts span {
-  letter-spacing: 0.04em;
-  text-transform: none;
-  font-size: 0.78rem;
-  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-size: 0.82rem;
+  font-weight: 650;
   color: #94a3b8;
 }
 
 .ap-assumption-facts strong {
   color: #f8fafc;
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   font-weight: 750;
   text-align: right;
   font-variant-numeric: tabular-nums;
