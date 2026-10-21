@@ -190,7 +190,12 @@ function deterministicCandidate(packet) {
   const claims = selected.filter(Boolean).map(item => ({
     // Curated educational claims can be reproduced verbatim: this remains
     // useful without an LLM and still goes through the grounding validator.
-    text: ['EDUCATION', 'REGULATORY_REFERENCE', 'TAX', 'ANSWER_BOUNDARY'].includes(item.kind)
+    // Only the known input-requirement boundary may be quoted from TAX
+    // evidence. Numeric tax values remain subject to typed claim validation.
+    text: ['EDUCATION', 'REGULATORY_REFERENCE', 'ANSWER_BOUNDARY'].includes(item.kind)
+      || (item.id === 'E_TAX_INPUT_BOUNDARY'
+        && item.kind === 'TAX'
+        && item.dataClass === 'UNAVAILABLE')
       ? `${item.displayValue} [${item.id}]`
       : `The authoritative backend reports ${item.kind.toLowerCase().replace(/_/g, ' ')} evidence [${item.id}]`,
     evidenceIds: [item.id],
