@@ -42,6 +42,7 @@ import { useMarketContext } from '../../state/useMarketContext';
 import UserDeclaredScenarioPanel from './UserDeclaredScenarioPanel';
 import QualifiedMarketEvidencePanel from './QualifiedMarketEvidencePanel';
 import PrivateMarketDataDemo from './PrivateMarketDataDemo';
+import { findPrivateQuoteForProduct } from '../../utils/privateMarketQuote';
 
 const RISK_LEVELS = [
   { label: 'Low', color: '#22c55e', desc: 'Lower relative risk. Any guarantee or insurance depends on the specific product terms.' },
@@ -1761,11 +1762,9 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           const postTax = product.postTaxAnalysis;
           const privateQuote = product.id === 'etf:isin:INF204KB14I2'
             && privateQuoteSnapshot?.profileId === profileId
-            && ['AVAILABLE', 'PARTIAL'].includes(privateQuoteSnapshot.snapshot?.upstox?.status)
-            ? privateQuoteSnapshot.snapshot.upstox.facts?.find(fact => fact.canonicalProductId === product.id)
+            ? findPrivateQuoteForProduct(privateQuoteSnapshot.snapshot, product.id)
             : null;
-          const privatePrice = privateQuote?.availabilityStatus === 'AVAILABLE'
-            ? nullableMarketNumber(privateQuote.value) : null;
+          const privatePrice = privateQuote ? privateQuote.value : null;
           const productObservedAt = formatMarketTimestamp(
             product.officialRate?.observedAt
               || product.nav?.observedAt
@@ -1869,7 +1868,8 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                       <div className="wti-private-quote" data-testid="wti-private-etf-quote">
                         <span>Private Upstox last-traded ETF price</span>
                         <strong>₹{privatePrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong>
-                        <small>Last trade: {formatMarketTimestamp(privateQuote.quoteLastTradeAt || privateQuote.observedAt) || 'Unavailable'} · {privateQuote.freshness?.status || 'UNKNOWN'}</small>
+                        <small>Last trade: {formatMarketTimestamp(privateQuote.quoteLastTradeAt || privateQuote.observedAt) || 'Unavailable'} · {['FRESH', 'STALE'].includes(privateQuote.freshness?.status) ? privateQuote.freshness.status : 'UNKNOWN'}</small>
+                        {privateQuote.freshness?.status !== 'FRESH' && <small>Historical last trade; not a current live price.</small>}
                         <small>Educational preview only; not saved or used to rank this option.</small>
                       </div>
                     )}
