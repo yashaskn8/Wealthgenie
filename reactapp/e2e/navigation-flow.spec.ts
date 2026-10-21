@@ -323,16 +323,14 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(page.getByTestId('panel-real-returns')).toBeVisible();
     await expect(page.getByTestId('panel-regime-savings')).not.toBeVisible();
 
-    // 4. Navigate to Progress via Sidebar
-    await page.getByTestId('nav-progress').click();
-    await expect(page).toHaveURL(/page=progress&tab=goals/);
-    await expect(page.getByTestId('panel-goals')).toBeVisible();
-
-    // Switch to Keep on Track (Rebalancer) sub-tab
-    await page.getByTestId('tab-rebalancer').click();
-    await expect(page).toHaveURL(/page=progress&tab=rebalancer/);
-    await expect(page.getByTestId('panel-rebalancer')).toBeVisible();
-    await expect(page.getByTestId('panel-goals')).not.toBeVisible();
+    // 4. Standalone desktop Wealth Journey pages
+    await page.getByTestId('nav-my-goals').click();
+    await expect(page).toHaveURL(/page=my-goals/);
+    await expect(page.getByTestId('journey-page-my-goals')).toBeVisible();
+    await page.getByTestId('nav-keep-on-track').click();
+    await expect(page).toHaveURL(/page=keep-on-track/);
+    await expect(page.getByTestId('journey-page-keep-on-track')).toBeVisible();
+    await expect(page.getByRole('tablist', { name: 'Progress views' })).toHaveCount(0);
 
     // 5. Compare investments from Home after retiring the standalone Advanced Hub.
     await page.getByTestId('nav-home').click();
@@ -343,14 +341,26 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
 
     // 6. Test browser Back and Forward
     await page.goBack();
-    await expect(page).toHaveURL(/page=progress&tab=rebalancer/);
-    await expect(page.getByTestId('panel-rebalancer')).toBeVisible();
+    await expect(page).toHaveURL(/page=keep-on-track/);
+    await expect(page.getByTestId('journey-page-keep-on-track')).toBeVisible();
 
     await page.goForward();
     await expect(page).toHaveURL(/page=home/);
     await expect(page.getByTestId('beginner-home-hero')).toBeVisible();
   });
 
+  test('desktop Progress bookmarks redirect to independent pages', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    for (const [tab, slug] of [
+      ['indicators', 'financial-indicators'], ['goals', 'my-goals'],
+      ['plan-goal', 'plan-a-goal'], ['grow-sip', 'grow-my-sip'],
+      ['rebalancer', 'keep-on-track'],
+    ]) {
+      await page.goto(`http://127.0.0.1:5173/profile?page=progress&tab=${tab}`);
+      await expect(page).toHaveURL(new RegExp(`page=${slug}(?:$|&)`));
+      await expect(page.getByTestId(`journey-page-${slug}`)).toBeVisible();
+    }
+  });
   test('retired Advanced URLs normalize to Home and no Advanced customer navigation remains', async ({ page }) => {
     await page.goto('http://127.0.0.1:5173/profile?page=advanced&tab=diagnostics');
     await page.waitForLoadState('networkidle');

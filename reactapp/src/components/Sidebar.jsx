@@ -5,6 +5,9 @@ import {
   Target,
   ShieldCheck,
   TrendingUp,
+  Activity,
+  Crosshair,
+  ArrowLeftRight,
   FileSearch,
   User,
   BookOpen,
@@ -27,6 +30,15 @@ const PRIMARY_NAV_ITEMS = [
   { id: NAV_PAGES.PROGRESS, label: 'Progress', icon: TrendingUp, testId: 'nav-progress', legacyTestIds: ['nav-goal-planner', 'nav-goals', 'nav-rebalancer', 'nav-sip-planner', 'nav-health'] },
 ];
 
+const DESKTOP_PRIMARY_NAV_ITEMS = PRIMARY_NAV_ITEMS.filter(item => item.id !== NAV_PAGES.PROGRESS);
+// Mobile continues using the original PRIMARY_NAV_ITEMS.
+const JOURNEY_NAV_ITEMS = [
+  { id: NAV_PAGES.FINANCIAL_INDICATORS, label: 'Financial Indicators', icon: Activity, testId: 'nav-financial-indicators', legacyTestIds: ['nav-health'] },
+  { id: NAV_PAGES.MY_GOALS, label: 'My Goals', icon: Target, testId: 'nav-my-goals', legacyTestIds: ['nav-goals'] },
+  { id: NAV_PAGES.PLAN_A_GOAL, label: 'Plan a Goal', icon: Crosshair, testId: 'nav-plan-a-goal', legacyTestIds: ['nav-goal-planner'] },
+  { id: NAV_PAGES.GROW_MY_SIP, label: 'Grow My SIP', icon: TrendingUp, testId: 'nav-grow-my-sip', legacyTestIds: ['nav-sip-planner'] },
+  { id: NAV_PAGES.KEEP_ON_TRACK, label: 'Keep on Track', icon: ArrowLeftRight, testId: 'nav-keep-on-track', legacyTestIds: ['nav-rebalancer'] },
+];
 const SECONDARY_NAV_ITEMS = [
   { id: NAV_PAGES.GENIEPROOF, label: 'GenieProof', icon: FileSearch, testId: 'nav-genieproof', legacyTestIds: [] },
 ];
@@ -204,7 +216,70 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
               </div>
             )}
             <div className="sidebar-group-items">
-              {PRIMARY_NAV_ITEMS.map((item) => {
+              {DESKTOP_PRIMARY_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isActive = activePage === item.id;
+                const isHovered = hoveredItem === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    data-testid={item.testId || `nav-${item.id}`}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`sidebar-item ${isActive ? 'sidebar-item--active' : ''}`}
+                    onClick={() => handleItemClick(item.id)}
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    title={collapsed ? item.label : ''}
+                    style={{ position: 'relative' }}
+                  >
+                    {item.legacyTestIds?.map((legacyId, idx) => {
+                      const handler = getLegacyHandler(legacyId, onNavigate, handleItemClick);
+                      return (
+                        <span
+                          key={legacyId}
+                          data-testid={legacyId}
+                          aria-hidden="true"
+                          style={{
+                            position: 'absolute',
+                            right: `${idx * 14}px`,
+                            top: 0,
+                            width: '12px',
+                            height: '12px',
+                            opacity: 0.01,
+                            pointerEvents: 'auto',
+                            zIndex: 1,
+                          }}
+                          onClick={handler ? (e) => { e.stopPropagation(); handler(); } : undefined}
+                        />
+                      );
+                    })}
+                    {isActive && <div className="active-indicator" />}
+                    <div className={`sidebar-icon-wrap ${isActive ? 'sidebar-icon-wrap--active' : ''}`}>
+                      <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
+                      {isActive && <div className="icon-glow" />}
+                    </div>
+                    {!collapsed && <span className="sidebar-item-label">{item.label}</span>}
+                    {isActive && !collapsed && <div className="active-dot" />}
+                    {collapsed && isHovered && (
+                      <div className="sidebar-tooltip">{item.label}</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Group 2: Wealth Journey Features */}
+          <div className="sidebar-group">
+            {!collapsed && (
+              <div className="sidebar-group-header">
+                <span className="sidebar-group-title">WEALTH JOURNEY</span>
+                <span className="sidebar-group-line" />
+              </div>
+            )}
+            <div className="sidebar-group-items">
+              {JOURNEY_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
                 const isHovered = hoveredItem === item.id;

@@ -18,12 +18,13 @@ import {
   matchesProfileState,
   sameFinancialState,
 } from './utils/financialStateBinding';
-import { fromSearchParams, toSearchParams, resolveNavigation, NAV_PAGES } from './utils/navigationMap';
+import { fromSearchParams, toSearchParams, resolveNavigation, NAV_PAGES, DESKTOP_PROGRESS_DESTINATIONS } from './utils/navigationMap';
 
 // ── Lazy-loaded page components (code-split for faster initial load) ──
 const WhereToInvestScreen = lazy(() => import('./components/WhereToInvestScreen'));
 const TaxesHub = lazy(() => import('./components/TaxesHub'));
 const ProgressHub = lazy(() => import('./components/ProgressHub'));
+const JourneyPage = lazy(() => import('./components/JourneyPage'));
 const GenieProofEntry = lazy(() => import('./components/GenieProofEntry'));
 const AllocationPlanner = lazy(() => import('./components/AllocationPlanner'));
 const ProfileEditor = lazy(() => import('./ProfileEditor'));
@@ -161,8 +162,14 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
 
   // Normalize initial or malformed URLs with replace: true to prevent history pollution
   useEffect(() => {
-    if (needsReplace) {
-      setSearchParams(toSearchParams({ page: activePage, tab: activeTab }), { replace: true });
+    const legacyDesktop = activePage === NAV_PAGES.PROGRESS
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(min-width: 769px)').matches;
+    if (needsReplace || legacyDesktop) {
+      const destination = legacyDesktop
+        ? { page: DESKTOP_PROGRESS_DESTINATIONS[activeTab] || NAV_PAGES.MY_GOALS, tab: null }
+        : { page: activePage, tab: activeTab };
+      setSearchParams(toSearchParams(destination), { replace: true });
     }
   }, [needsReplace, activePage, activeTab, setSearchParams]);
 
@@ -176,7 +183,13 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
       ? { page: NAV_PAGES.HOME, tab: null }
       : resolveNavigation(target, undefined, NAVIGATION_OPTIONS);
     if (requestsComparison) setShowComparisonTable(true);
-    setSearchParams(toSearchParams(resolved), options);
+    const legacyDesktop = resolved.page === NAV_PAGES.PROGRESS
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(min-width: 769px)').matches;
+    const destination = legacyDesktop
+      ? { page: DESKTOP_PROGRESS_DESTINATIONS[resolved.tab] || NAV_PAGES.MY_GOALS, tab: null }
+      : resolved;
+    setSearchParams(toSearchParams(destination), options);
   };
 
   const [deepDiveSelection, setDeepDiveSelection] = useState(null);
@@ -835,6 +848,24 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
               recommendations={recommendations}
               recommendationMeta={currentRecommendationState}
               onLearnMore={handleLearnMore}
+            />
+          </ErrorBoundary>
+        );
+      case NAV_PAGES.FINANCIAL_INDICATORS:
+      case NAV_PAGES.MY_GOALS:
+      case NAV_PAGES.PLAN_A_GOAL:
+      case NAV_PAGES.GROW_MY_SIP:
+      case NAV_PAGES.KEEP_ON_TRACK:
+        return (
+          <ErrorBoundary>
+            <JourneyPage
+              page={activePage}
+              profile={userProfile}
+              financialState={currentRecommendationState}
+              financialStateIdentity={currentFinancialStateIdentity}
+              recommendations={recommendations}
+              onNavigate={navigateTo}
+              onSaveRebalance={handleRebalanceSave}
             />
           </ErrorBoundary>
         );
