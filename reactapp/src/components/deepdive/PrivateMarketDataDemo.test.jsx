@@ -123,3 +123,60 @@ describe('PrivateMarketDataDemo', () => {
     expect(within(quote).queryByText(/Unavailable pts/)).not.toBeInTheDocument();
   });
 });
+
+describe('PrivateMarketDataDemo expo failure diagnostics', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it.each([
+    ['PROVIDER_NOT_CONFIGURED', /token is missing/i],
+    ['UPSTOX_AUTHENTICATION_FAILED', /rejected the server token/i],
+    ['UPSTOX_PERMISSION_DENIED', /denied this read-only/i],
+    ['UPSTOX_RATE_LIMITED', /rate-limited/i],
+    ['UPSTOX_NETWORK_ERROR', /could not reach Upstox/i],
+    ['MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED', /Source permissions do not allow/i],
+  ])('displays safe actionable backend reason %s without echoing arbitrary messages', async (code, expected) => {
+    getPrivateMarketDemoData.mockResolvedValue({
+      status: 'UNAVAILABLE',
+      upstox: { status: 'SOURCE_ERROR', facts: [], error: { code, message: 'SENSITIVE-UPSTREAM-TOKEN' } },
+    });
+    render(<PrivateMarketDataDemo />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
+    expect(await screen.findByText(expected)).toBeInTheDocument();
+    expect(screen.queryByText(/SENSITIVE-UPSTREAM-TOKEN/)).not.toBeInTheDocument();
+  });
+
+  it('does not crash or show malformed data as a price', async () => {
+    getPrivateMarketDemoData.mockResolvedValue({
+      status: 'PARTIAL',
+      upstox: { status: 'PARTIAL', facts: [null,
+        { canonicalProductId: 'market:index:nifty-50', value: '25123.4',
+          availabilityStatus: 'AVAILABLE', source: { instrumentId: 17 } }] },
+    });
+    render(<PrivateMarketDataDemo />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
+    const card = await screen.findByTestId('private-quote-market:index:nifty-50');
+    expect(within(card).getByText('Unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('25,123.4 pts')).not.toBeInTheDocument();
+    expect(await screen.findByText(/Only some Upstox instruments/i)).toBeInTheDocument();
+  });
+
+  it('labels historical trades as not-current instead of presenting stale prices as live', async () => {
+    getPrivateMarketDemoData.mockResolvedValue({
+      status: 'AVAILABLE',
+      upstox: { status: 'AVAILABLE', facts: [{ canonicalProductId: 'market:index:nifty-50',
+        availabilityStatus: 'AVAILABLE', value: 25000, unit: 'INDEX_POINTS',
+        freshness: { status: 'STALE', ageSeconds: 9000 } }] },
+    });
+    render(<PrivateMarketDataDemo />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
+    expect(await screen.findByText(/not a current live quote/i)).toBeInTheDocument();
+    expect(screen.getByText('25,000 pts')).toBeInTheDocument();
+  });
+
+  it('fails gracefully when the private demo response has no valid Upstox envelope', async () => {
+    getPrivateMarketDemoData.mockResolvedValue({ status: 'AVAILABLE', upstox: null });
+    render(<PrivateMarketDataDemo />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load Upstox quotes' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Provider data could not be loaded/i);
+  });
+});

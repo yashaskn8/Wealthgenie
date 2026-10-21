@@ -3,8 +3,35 @@ import { getPrivateMarketDemoData } from '../../services/api';
 import { formatMarketTimestamp, nullableMarketNumber } from '../../utils/marketDataDisplay';
 import './PrivateMarketDataDemo.css';
 
+const PRIVATE_PROVIDER_FAILURES = Object.freeze({
+  PROVIDER_NOT_CONFIGURED: 'Upstox token is missing on the local backend. Configure the server-only read-only token, then retry.',
+  UPSTOX_AUTHENTICATION_FAILED: 'Upstox rejected the server token. Check its expiry and refresh the backend credential.',
+  UPSTOX_PERMISSION_DENIED: 'Upstox denied this read-only quote endpoint for the configured account.',
+  UPSTOX_RATE_LIMITED: 'Upstox rate-limited this request. Wait before retrying.',
+  UPSTOX_TIMEOUT: 'The Upstox quote request timed out. Check the connection before retrying.',
+  UPSTOX_NETWORK_ERROR: 'The backend could not reach Upstox. Check internet connectivity.',
+  UPSTOX_RESPONSE_INVALID: 'Upstox returned a response the server could not safely verify.',
+  UPSTOX_INSTRUMENT_UNAVAILABLE: 'Upstox did not return the requested market instrument.',
+  UPSTOX_PROVIDER_UNAVAILABLE: 'The Upstox quote service is temporarily unavailable.',
+  UPSTOX_FETCH_FAILED: 'The Upstox quote request failed. Check the backend provider diagnostics.',
+  MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED: 'Source permissions do not allow this quote request. Nothing was fetched.',
+});
+
+function providerStatusExplanation(snapshot) {
+  const provider = snapshot?.upstox;
+  if (!provider || typeof provider !== 'object') return 'The server returned an invalid market response.';
+  const code = provider.error?.code;
+  if (typeof code === 'string'
+      && Object.prototype.hasOwnProperty.call(PRIVATE_PROVIDER_FAILURES, code)) {
+    return PRIVATE_PROVIDER_FAILURES[code];
+  }
+  if (provider.status === 'PARTIAL') return 'Only some Upstox instruments returned verified observations; unavailable prices remain blank.';
+  if (provider.status !== 'AVAILABLE') return 'No qualified Upstox observations were returned. Review the backend provider status.';
+  return null;
+}
+
 function quoteText(fact, providerStatus) {
-  const value = nullableMarketNumber(fact?.value);
+  const value = typeof fact?.value === 'number' ? nullableMarketNumber(fact.value) : null;
   if (!['AVAILABLE', 'PARTIAL'].includes(providerStatus)
       || fact?.availabilityStatus !== 'AVAILABLE'
       || value === null || value <= 0) return null;
@@ -19,9 +46,9 @@ function quoteName(fact) {
     'market:index:india-vix': 'India VIX',
     'etf:isin:INF204KB14I2': 'Nippon India ETF Nifty 50 BeES',
   };
-  return names[fact?.canonicalProductId]
-    || fact?.source?.instrumentId?.split('|').at(-1)
-    || 'Market instrument';
+  const key = typeof fact?.source?.instrumentId === 'string'
+    ? fact.source.instrumentId.split('|').at(-1) : null;
+  return names[fact?.canonicalProductId] || key || 'Market instrument';
 }
 
 export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) {
@@ -38,6 +65,10 @@ export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) 
     onSnapshot?.(null);
     try {
       const data = await getPrivateMarketDemoData({ signal });
+      if (!data || typeof data !== 'object' || Array.isArray(data)
+          || !data.upstox || typeof data.upstox !== 'object' || Array.isArray(data.upstox)) {
+        throw new TypeError('Invalid private market-data response');
+      }
       if (requestRevision.current === revision && !signal?.aborted) {
         setSnapshot(data);
         onSnapshot?.(data);
@@ -66,7 +97,13 @@ export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) 
     };
   }, [autoLoad, loadDemoData]);
 
-  const quotes = snapshot?.upstox?.facts || [];
+  const quotes = Array.isArray(snapshot?.upstox?.facts)
+    ? snapshot.upstox.facts.filter(fact => (
+      fact && typeof fact === 'object' && !Array.isArray(fact)
+      && typeof fact.canonicalProductId === 'string'
+    ))
+    : [];
+  const providerExplanation = snapshot ? providerStatusExplanation(snapshot) : null;
 
   return (
     <section className="private-market-demo" aria-labelledby="private-market-demo-title" data-testid="private-market-demo">
@@ -88,6 +125,7 @@ export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) 
               <strong>Upstox · market quote response</strong>
               <span>{snapshot.upstox?.status || 'UNAVAILABLE'}</span>
             </div>
+            {providerExplanation && <p className="private-market-demo__provider-note" role="status">{providerExplanation}</p>}
             <div className="private-market-demo__quotes">
               {quotes.map(fact => (
                 <div key={fact.canonicalProductId} data-testid={`private-quote-${fact.canonicalProductId}`}>
@@ -96,8 +134,12 @@ export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) 
                   <small>Last trade: {formatMarketTimestamp(fact.quoteLastTradeAt || fact.observedAt) || 'Unavailable'}</small>
                   <small>Provider response: {formatMarketTimestamp(fact.quoteResponseGeneratedAt) || 'Unavailable'}</small>
                   <small>Fetched: {formatMarketTimestamp(fact.providerResponseReceivedAt || fact.fetchedAt) || 'Unavailable'}</small>
-                  <small>{fact.freshness?.status || 'UNKNOWN'}
+                  <small>{['FRESH', 'STALE', 'UNKNOWN'].includes(fact.freshness?.status)
+                    ? fact.freshness.status : 'UNKNOWN'}
                     {Number.isFinite(fact.freshness?.ageSeconds) ? ` · ${fact.freshness.ageSeconds}s since trade` : ''}</small>
+                  {fact.freshness?.status !== 'FRESH' && (
+                    <small>Last-traded observation only — not a current live quote.</small>
+                  )}
                 </div>
               ))}
               {quotes.length === 0 && <span>No quote observations returned.</span>}
