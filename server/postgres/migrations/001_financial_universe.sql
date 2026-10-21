@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS finance.market_observations (
  currency text NULL,
  unit text NOT NULL,
  data_class text NOT NULL CHECK (data_class IN ('LIVE','DELAYED','END_OF_DAY','PUBLISHED_RATE')),
+ effective_from date NULL,
+ effective_to date NULL CHECK (effective_to >= effective_from),
  observed_at timestamptz NOT NULL,
  fetched_at timestamptz NOT NULL CHECK (fetched_at >= observed_at),
  source_revision text NOT NULL DEFAULT '0',
@@ -77,6 +79,7 @@ CREATE TABLE IF NOT EXISTS finance.market_observations (
  created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(product_id,source_id,observation_type,observed_at,source_revision),
  CHECK (observation_type NOT IN ('PRICE','NAV','PUBLISHED_RATE') OR value >= 0),
+ CHECK (data_class <> 'PUBLISHED_RATE' OR effective_from IS NOT NULL),
  CHECK (retain_until IS NULL OR retain_until >= fetched_at)
 );
 CREATE INDEX IF NOT EXISTS observations_latest_idx
