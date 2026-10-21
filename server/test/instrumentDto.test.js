@@ -33,7 +33,7 @@ test('category/subcategory catalog query accepts real labels and rejects unsafe 
   assert.equal(instrumentListQuerySchema.validate({ category: '' }).error !== undefined, true);
   assert.equal(instrumentListQuerySchema.validate({ subCategory: 'x'.repeat(101) }).error !== undefined, true);
   assert.equal(instrumentListQuerySchema.validate({ category: { $ne: 'Debt' } }).error !== undefined, true);
-  assert.equal(instrumentListQuerySchema.validate({ category: 'Equity\\nFake' }).error !== undefined, true);
+  assert.equal(instrumentListQuerySchema.validate({ category: 'Equity\nFake' }).error !== undefined, true);
   assert.equal(instrumentListQuerySchema.validate({ unknown: 'Equity' }).error !== undefined, true);
 });
 
