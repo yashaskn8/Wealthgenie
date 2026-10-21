@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS finance.subcategories (
  UNIQUE (id,category_id)
 );
 CREATE TABLE IF NOT EXISTS finance.products (
- id text PRIMARY KEY CHECK (length(id) BETWEEN 3 AND 160),
+ id text PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 160),
  name text NOT NULL CHECK (length(trim(name)) > 0),
  record_kind text NOT NULL CHECK (record_kind IN ('ARCHETYPE','ACTUAL_PRODUCT')),
  category_id text NOT NULL REFERENCES finance.categories(id) ON DELETE RESTRICT,
