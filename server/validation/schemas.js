@@ -210,6 +210,8 @@ const boundedIntegerQuery = (min, max) => Joi.string()
 
 export const instrumentListQuerySchema = Joi.object({
   type: Joi.string().valid('FD', 'Mutual_Fund', 'ETF', 'Government', 'ELSS').optional(),
+  category: Joi.string().trim().min(1).max(100).pattern(/^[^\\x00-\\x1f\\x7f]+$/).optional(),
+  subCategory: Joi.string().trim().min(1).max(100).pattern(/^[^\\x00-\\x1f\\x7f]+$/).optional(),
   sort: Joi.string().valid('name', 'interestRate', 'rate', 'returns1yr', 'returns3yr', 'returns5yr', 'riskLevel', 'aumCr', 'expenseRatio').optional(),
   order: Joi.string().valid('asc', 'desc').optional(),
   limit: boundedIntegerQuery(1, 100),
