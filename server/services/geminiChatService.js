@@ -204,7 +204,7 @@ function lastChatAnswerWasFinancial(conversation) {
 function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const newestPairs = [];
-  for (let index = messages.length - 2; index >= 0 && newestPairs.length < 2; index -= 2) {
+  for (let index = messages.length - 2; index >= 0 && newestPairs.length < (mode === 'GENERAL' ? 2 : 4); index -= 2) {
     const userMessage = messages[index];
     const modelMessage = messages[index + 1];
     if (userMessage?.role !== 'user' || modelMessage?.role !== 'model'
