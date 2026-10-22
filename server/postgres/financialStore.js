@@ -89,6 +89,42 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
     );
     return rows[0] || null;
   }
+  /**
+   * Strictly one verified source and instrument. Historical source prices are
+   * NOT automatically investable, adjusted total returns, or forecasts.
+   * Only retained end-of-day price/NAV observations with full licensed
+   * analytical rights may leave this adapter.
+   */
+  async function qualifiedHistoricalPrices(productId, kind, sourceId, now = new Date()) {
+    assertIdentity(productId);
+    if (!['PRICE', 'NAV'].includes(kind)) throw new TypeError('Historical metric must be PRICE or NAV');
+    if (typeof sourceId !== 'string' || !/^[a-zA-Z0-9:_-]{1,160}$/.test(sourceId))
+      throw new TypeError('Exact market source ID is required');
+    if (!(now instanceof Date) || !Number.isFinite(+now)) throw new TypeError('Valid valuation time required');
+    const { rows } = await pool.query(`
+      SELECT o.id,o.value::text AS value,o.observed_at,o.source_id,
+             o.source_instrument_id,o.source_revision,o.data_class
+        FROM finance.market_observations o
+        JOIN finance.provider_rights r ON r.source_id=o.source_id
+        JOIN finance.products p ON p.id=o.product_id
+       WHERE o.product_id=$1 AND o.observation_type=$2 AND o.source_id=$3
+         AND p.record_kind='ACTUAL_PRODUCT'
+         AND p.availability IN ('AVAILABLE','RESTRICTED')
+         AND r.access_allowed AND r.extraction_allowed AND r.storage_allowed
+         AND r.derivation_allowed AND r.public_display_allowed
+         AND r.commercial_use_allowed AND r.redistribution_allowed
+         AND r.reviewed_at IS NOT NULL AND r.revoked_at IS NULL
+         AND (r.expires_at IS NULL OR r.expires_at>$4)
+         AND o.retain_until IS NOT NULL AND o.retain_until>$4
+         AND o.observed_at<=$4 AND o.fetched_at<=$4
+         AND o.observed_at>=$4::timestamptz-interval '4 years'
+         AND o.value>0 AND o.data_class='END_OF_DAY'
+         AND NOT EXISTS (SELECT 1 FROM finance.observation_corrections c WHERE c.observation_id=o.id)
+       ORDER BY o.observed_at DESC,o.id DESC LIMIT 1000`,
+      [productId, kind, sourceId, now],
+    );
+    return rows;
+  }
   async function appendObservation(input) {
     if (!input || typeof input !== 'object') throw new TypeError('Financial observation is required');
     assertIdentity(input.productId);
@@ -209,5 +245,5 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
       return { stored: result.rowCount === 1, observationId: result.rows[0]?.id || null };
     });
   }
-  return { browse, latestPublishableObservation, appendObservation, transaction };
+  return { browse, latestPublishableObservation, qualifiedHistoricalPrices, appendObservation, transaction };
 }
