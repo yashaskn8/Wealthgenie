@@ -33,6 +33,7 @@ import {
   retrieveChatGoalPlanningEvidence,
 } from './chatGoalPlanning.js';
 import { buildGroundedEvidencePacket } from './groundedEvidence.js';
+import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -277,15 +278,21 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     // investments or be misrepresented as persisted financial advice.
     const noProfileGeneral = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
       && isGeneralChatQuestion(message) && !isGroundingBoundaryAttack(message);
-    if (!noProfileGeneral && isFinancialGoalPlanningQuestion(message)
-        && !isGroundingBoundaryAttack(message)) {
-      // Anonymous profile context is absent; use only this user's question.
-      // Do not invent suitability, fetch market data, or create a financial
-      // session from an unbound profile.
+    // A public educational question does not require a financial profile.
+    // Only approved static educational excerpts are eligible: no account facts,
+    // personalized explanation, live rate or unqualified RAG content.
+    const sanitizedQuestion = sanitizeExternalQuestion(message);
+    const unboundGoal = isFinancialGoalPlanningQuestion(sanitizedQuestion);
+    const reviewedPublicEducation = !unboundGoal && !/\\b(?:my|our|mine)\\b/i.test(sanitizedQuestion)
+      ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
+    if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
+        && (unboundGoal || reviewedPublicEducation.length > 0)) {
+      // No account-bound state is created or reused by this stateless answer.
       const packet = buildGroundedEvidencePacket({
-        question: sanitizeExternalQuestion(message),
+        question: sanitizedQuestion,
         profile: null,
-        additionalEntries: retrieveChatGoalPlanningEvidence(sanitizeExternalQuestion(message)),
+        additionalEntries: unboundGoal
+          ? retrieveChatGoalPlanningEvidence(sanitizedQuestion) : reviewedPublicEducation,
       });
       const answer = await generateGroundedExplanation({
         question: sanitizeExternalQuestion(message), evidencePacket: packet,
