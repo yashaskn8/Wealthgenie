@@ -14,6 +14,8 @@ import {
   buildLlmFinancialContext,
 } from './recommendationProfile.js';
 import { assessSuitabilityRisk } from './riskProfiler.js';
+import { classifyGenieChatQuestion } from './chatQuestionRouting.js';
+import { generateGeneralChat, getGeneralChatTokenUpperBound } from './generalChatService.js';
 import {
   buildChatEvidencePacket,
   generateGroundedExplanation,
@@ -268,7 +270,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
       });
     }
-    const evidencePacket = await buildChatEvidencePacket({
+    const isGeneralQuestion = !promptInjectionDetected
+      && classifyGenieChatQuestion(securityContext.sanitizedMessage) === 'GENERAL_UNCITED';
+    // Never give the general-purpose LLM the user's private profile or recommendation.
+    const evidencePacket = isGeneralQuestion ? null : await buildChatEvidencePacket({
       question: securityContext.sanitizedMessage,
       profile: llmProfile,
       recommendation,
@@ -276,11 +281,13 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     });
     if (leaseFailure) throw leaseFailure;
     const priorTurns = buildTrustedPriorTurns(claim.conversation, binding);
-    const providerBudgetUpperBound = getGroundedExplanationTokenUpperBound({
-      question: securityContext.sanitizedMessage,
-      evidencePacket,
-      priorTurns,
-    });
+    const providerBudgetUpperBound = isGeneralQuestion
+      ? getGeneralChatTokenUpperBound({ question: securityContext.sanitizedMessage, priorTurns })
+      : getGroundedExplanationTokenUpperBound({
+        question: securityContext.sanitizedMessage,
+        evidencePacket,
+        priorTurns,
+      });
     const alreadyUsed = Number(claim.conversation.cumulative_tokens || 0)
       + Number(claim.conversation.reserved_tokens || 0);
     const remainingBudget = Math.max(0, SESSION_CUMULATIVE_TOKEN_CAP - alreadyUsed);
@@ -288,7 +295,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       && await sessionStore.reserveBudget(claim, providerBudgetUpperBound);
     const startedAt = Date.now();
     let initialProviderReservationAvailable = canReserveProvider;
-    const explanation = await generateGroundedExplanation(
+    const explanation = await (isGeneralQuestion ? generateGeneralChat : generateGroundedExplanation)(
       { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
       {
         ...groundedExplanationDependencies,
@@ -340,7 +347,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const auditMetadata = {
       provider: explanation.provider,
       model: explanation.model,
-      grounded_on_profile: true,
+      grounded_on_profile: !isGeneralQuestion,
       grounding_version: explanation.groundingVersion,
       prompt_version: explanation.promptVersion,
       evidence_hash: explanation.evidenceHash,
@@ -358,7 +365,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const userMessage = {
       role: 'user',
       content: securityContext.sanitizedMessage,
-      metadata: { grounded_on_profile: true, prompt_injection_detected: promptInjectionDetected },
+      metadata: { grounded_on_profile: !isGeneralQuestion, prompt_injection_detected: promptInjectionDetected },
     };
     const modelMessage = { role: 'model', content: explanation.text, metadata: auditMetadata };
     const actualProviderTokens = explanation.cached
@@ -373,7 +380,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       response: explanation.text,
       session_id: sessionId,
       latency_ms: latencyMs,
-      grounded: true,
+      grounded: !isGeneralQuestion,
       provider: explanation.provider,
       model: explanation.model,
       prompt_version: explanation.promptVersion,
