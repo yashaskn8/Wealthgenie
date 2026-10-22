@@ -59,7 +59,7 @@ function moneyInPaise(raw, unit) {
   const amountPaise = BigInt(whole) * (10n ** BigInt(scale))
     + BigInt((trimmedFraction + '0'.repeat(scale)).slice(0, scale) || '0');
   const maxPaise = 100_000_000_000n * 100n;
-  if (amountPaise <= 0n || amountPaise > maxPaise
+  if (amountPaise < 0n || amountPaise > maxPaise
       || amountPaise > BigInt(Number.MAX_SAFE_INTEGER)) return null;
   return Number(amountPaise);
 }
@@ -78,7 +78,10 @@ function moneyIn(question) {
       || /^\s*(?:already\s+saved|saved\s+already|in savings)\b/i.test(after);
     const monthly = !savings && (/(?:can\s+(?:save|invest|contribute)|monthly\s+(?:saving|contribution)|per month)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before.trim())
       || /^\s*(?:per month|monthly|\/month)\b/i.test(after));
-    found.push({ amount, role: savings ? 'SAVINGS' : monthly ? 'CAPACITY' : 'TARGET' });
+    const role = savings ? 'SAVINGS' : monthly ? 'CAPACITY' : 'TARGET';
+    // Zero is a valid declared saving/capacity, but not a positive target.
+    if (role === 'TARGET' && amount === 0) continue;
+    found.push({ amount, role });
   }
   return found;
 }
