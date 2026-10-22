@@ -34,13 +34,29 @@ function responseIsBound(result, request) {
   if (Object.keys(result.inputsUsed).length !== keys.length
       || keys.some(key => result.inputsUsed[key] !== request[key])) return false;
   if (result.status === 'CALCULATED') {
-    return result.calculationClass === 'SIMPLE_ORDINARY_INCOME_ONLY'
-      && /^\d+$/.test(result.finalTax)
-      && /^\d+$/.test(result.taxableIncome)
-      && Array.isArray(result.slabBreakdown)
-      && ['standardDeduction', 'taxBeforeRebate', 'rebate', 'surcharge',
-        'surchargeMarginalRelief', 'cess', 'taxBeforeStatutoryRounding']
-        .every(key => /^\d+\.\d{4}$/.test(result[key]));
+    const amounts = [
+      'grossPrimaryIncome', 'otherOrdinaryIncome', 'standardDeduction',
+      'taxableIncomeBeforeRounding', 'taxBeforeRebate', 'rebate',
+      'taxAfterRebate', 'surcharge', 'surchargeMarginalRelief',
+      'cess', 'taxBeforeStatutoryRounding',
+    ];
+    if (result.calculationClass !== 'SIMPLE_ORDINARY_INCOME_ONLY'
+        || !/^\d+$/.test(result.finalTax) || !/^\d+$/.test(result.taxableIncome)
+        || !Array.isArray(result.slabBreakdown)
+        || !amounts.every(key => /^\d+\.\d{4}$/.test(result[key]))) return false;
+    const units = key => BigInt(result[key].replace('.', ''));
+    const beforeRounding = units('taxBeforeRebate') - units('rebate')
+      + units('surcharge') - units('surchargeMarginalRelief') + units('cess');
+    const roundedPayable = ((beforeRounding / 10000n + 5n) / 10n) * 10n;
+    const unroundedRupees = units('taxableIncomeBeforeRounding') / 10000n;
+    const roundedIncome = ((unroundedRupees + 5n) / 10n) * 10n;
+    return units('grossPrimaryIncome') + units('otherOrdinaryIncome')
+          - units('standardDeduction') === units('taxableIncomeBeforeRounding')
+      && units('taxAfterRebate') === units('taxBeforeRebate') - units('rebate')
+      && beforeRounding >= 0n
+      && beforeRounding === units('taxBeforeStatutoryRounding')
+      && BigInt(result.finalTax) === roundedPayable
+      && BigInt(result.taxableIncome) === roundedIncome;
   }
   return result.finalTax === null
     && Array.isArray(result.unavailableReasons)
