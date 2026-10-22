@@ -402,3 +402,58 @@ test('red-team: general output filter retains ordinary explanations and code wit
     assert.deepEqual(answer.citations, []);
   }
 });
+
+test('PR42 reconciliation: unresponsive provider is bounded even when it ignores abort', async () => {
+  let secondaryCalls = 0;
+  let providerSignal;
+  const started = Date.now();
+  const result = await generateGeneralChatAnswer({ question: 'Explain a JavaScript closure.' }, {
+    providerDeadlineMs: 25,
+    providers: [
+      { name: 'groq', isConfigured: () => true, async generate(request) {
+        providerSignal = request.signal;
+        return new Promise(() => {}); // Deliberately ignores cancellation.
+      } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+        secondaryCalls += 1;
+        return { provider: 'nvidia_nim', text: 'Never call after deadline.', tokensUsed: 1 };
+      } },
+    ],
+  });
+  assert.equal(result.provider, 'SYSTEM');
+  assert.equal(result.validation.status, 'UNVERIFIED_GENERAL_CHAT');
+  assert.deepEqual(result.validation.reasonCodes, ['PROVIDER_CHAIN_DEADLINE_EXCEEDED']);
+  assert.equal(result.providerAttemptCount, 1);
+  assert.equal(result.providerAttemptFailureCount, 1);
+  assert.equal(result.providerUsageComplete, false);
+  assert.equal(secondaryCalls, 0);
+  assert.equal(providerSignal.aborted, true);
+  assert.deepEqual(result.citations, []);
+  assert.equal(result.grounded, false);
+  assert.ok(Date.now() - started < 3000, 'one unreachable provider must not stall indefinitely');
+});
+
+test('PR42 reconciliation: client cancellation cannot be mistaken for a retryable provider outage', async () => {
+  const controller = new AbortController();
+  let secondaryCalls = 0;
+  let begin;
+  const entered = new Promise(resolve => { begin = resolve; });
+  const pending = generateGeneralChatAnswer({ question: 'Write a Python loop.' }, {
+    signal: controller.signal,
+    providerDeadlineMs: 2000,
+    providers: [
+      { name: 'groq', isConfigured: () => true, async generate() {
+        begin();
+        return new Promise(() => {});
+      } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+        secondaryCalls += 1;
+        return { text: 'Should not be called.', tokensUsed: 1 };
+      } },
+    ],
+  });
+  await entered;
+  controller.abort(Object.assign(new Error('Client disconnected'), { name: 'AbortError' }));
+  await assert.rejects(pending, /Client disconnected/);
+  assert.equal(secondaryCalls, 0);
+});
