@@ -133,7 +133,7 @@ function moneyIn(question) {
       || /(?:monthly\s+(?:saving|contribution|capacity|budget)|per\s+month|each\s+month)\s*(?:of\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:per\s+month|each\s+month|monthly|\/month|a\s+month|pm\b)\b/i.test(after));
     const ambiguousHolding = !savings && !capacity && !unrelated
-      && /\b(?:i|we)\s+have\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+      && /\b(?:i|we)\s+(?:(?:already|currently)\s+)?have(?:\s+(?:already|currently))?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       && !/^\s*(?:as\s+(?:my|our|the)\s+(?:target|goal)|(?:for|towards)\s+(?:my|our|the)\s+goal)\b/i.test(after);
     found.push({ amount, role: (statedSavedFlow || recurringGoalBudget) ? 'INVALID'
       : unlabelledMonthlyAmount && !unrelated ? 'AMBIGUOUS'
