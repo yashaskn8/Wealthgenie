@@ -58,7 +58,7 @@ test('top three returns at most three distinct suitable, publishable products',a
  assert.equal(r.qualifyingCount,4);
  assert.deepEqual(r.products.map(p=>p.id),['p4','p2','p3']);
  assert.ok(r.products.every(p=>p.verifiedTaxClass==='ORDINARY_INTEREST'));
- assert.equal(h.calls.filter(c=>c.observationFor).length,4);
+ assert.equal(h.calls.filter(c=>c.observationFor).length,7);
 });
 test('missing fact, revoked rights, invalid tax, restricted eligibility and stale review fail closed',async()=>{
  const h=harness([
@@ -114,4 +114,20 @@ test('a large qualification set is never truncated into a misleading top three',
  const r=await compare(h);
  assert.equal(r.reasonCode,'FAMILY_QUALIFICATION_SET_TOO_LARGE');
  assert.deepEqual(r.products,[]);
+});
+
+test('revocation between preliminary screening and final publication drops the winner',async()=>{
+ const rows=[product('p1'),product('p2')];
+ const h=harness(rows);
+ let attempts=0;
+ h.store.latestPublishableObservation=async (id,type)=>{
+  attempts+=1;
+  if(attempts===3)return null;
+  return {id,source_id:'verified-bank',value:'6.5',unit:'PCT_PER_ANNUM',
+   data_class:'PUBLISHED_RATE',observed_at:now};
+ };
+ const r=await compare(h);
+ assert.equal(r.products.length,1);
+ assert.equal(r.products[0].id,'p2');
+ assert.equal(r.exclusionCounts.MARKET_SOURCE_CHANGED_DURING_COMPARISON,1);
 });

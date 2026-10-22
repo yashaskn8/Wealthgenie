@@ -111,12 +111,28 @@ export async function compareQualifiedFamilyProducts({
   }
   eligible.sort((a, b) => b.matchScore - a.matchScore || a.annualFeeBps - b.annualFeeBps
     || a.lockInMonths - b.lockInMonths || a.id.localeCompare(b.id));
+  // The permission or current observation can change while other products are
+  // evaluated. Re-read the winning evidence before publishing each of at most 3.
+  const selected = [];
+  for (const product of eligible) {
+    if (selected.length === 3) break;
+    const current = await observations.latestPublishableObservation(
+      product.id, product.marketFact.type, now,
+    );
+    if (!current || current.source_id !== product.marketFact.sourceId
+      || String(current.id) !== product.marketFact.observationId
+      || numeric(current.value) !== product.marketFact.value) {
+      exclude('MARKET_SOURCE_CHANGED_DURING_COMPARISON');
+      continue;
+    }
+    selected.push(product);
+  }
   return {
-    status: eligible.length ? 'AVAILABLE' : 'NO_QUALIFIED_PRODUCTS',
-    reasonCode: eligible.length ? null : 'NO_SUITABLE_CURRENTLY_QUALIFIED_PRODUCTS',
+    status: selected.length ? 'AVAILABLE' : 'NO_QUALIFIED_PRODUCTS',
+    reasonCode: selected.length ? null : 'NO_SUITABLE_CURRENTLY_QUALIFIED_PRODUCTS',
     version: FAMILY_TOP_THREE_VERSION, familyId, familyName, maxResults: 3,
     qualifyingCount: eligible.length, examinedCount: response.rows.length,
-    exclusionCounts: exclusions, products: eligible.slice(0, 3),
+    exclusionCounts: exclusions, products: selected,
     disclosure: 'Up to three currently qualified products for comparison; no assured return, tax forecast, trade execution or automatic portfolio change.',
     profileBasis: { riskLevelCeiling: riskLimit, investmentHorizonYears: profile.investmentHorizonYears },
   };
