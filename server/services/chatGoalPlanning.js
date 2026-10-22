@@ -36,8 +36,9 @@ export function isFinancialGoalFollowUpQuestion(question, priorTurns = []) {
 export function isGoalPlanningFollowUp(question) {
   const text = goalText(question);
   if (!text || text.length > 240) return false;
-  return /^(?:in|within|after|over)\s+\d/i.test(text)
-    || /\b(?:saved|savings|set aside|already have|starting from zero|nothing saved|no savings|per month|monthly|years?|months?|horizon|deadline|timeline|afford|can contribute|can save|can invest)\b/i.test(text);
+  return /^(?:(?:in|within|after|over)\s+)?\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\b/i.test(text)
+    || /^(?:in|within|after|over)\s+\d/i.test(text)
+    || /\b(?:saved|savings|set aside|already have|starting from zero|nothing saved|no savings|per month|monthly|years?|yrs?|months?|mos?|horizon|deadline|timeline|afford|can contribute|can save|can invest)\b/i.test(text);
 }
 
 function parseExactRupees(raw, factor) {
@@ -63,13 +64,13 @@ function moneyIn(question) {
     if (amount === null) { found.push({ amount: null, role: 'INVALID' }); continue; }
     const before = goalText(question).slice(Math.max(0, match.index - 70), match.index).toLowerCase().trim();
     const after = goalText(question).slice(match.index + match[0].length, match.index + match[0].length + 55).toLowerCase();
-    const savings = /(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+    const savings = /(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:already\s+saved|saved(?:\s+already)?|earmarked|in\s+savings|as\s+savings|in\s+(?:my|our)\s+savings|set\s+aside)\b/i.test(after);
     const capacity = !savings && (/(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /(?:monthly\s+(?:saving|contribution|capacity|budget)|per\s+month|each\s+month)\s*(?:of\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:per\s+month|each\s+month|monthly|\/month|a\s+month|pm\b)\b/i.test(after));
     const unrelated = !savings && !capacity && (/\b(?:salary|income|earn(?:ings)?|emi|rent|debt|loan|expenses?|spend(?:ing)?|paid|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
-      || /^\s*(?:salary|income|emi|rent|loan|in\s+debt|as\s+expenses?)\b/i.test(after));
+      || /^\s*(?:salary|income|emi|rent|loan|in\s+debt|as\s+(?:emi|debt|loan|mortgage|expenses?))\b/i.test(after));
     const ambiguousHolding = !savings && !capacity && !unrelated
       && /\b(?:i|we)\s+have\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       && !/^\s*(?:as\s+(?:my|our|the)\s+(?:target|goal)|(?:for|towards)\s+(?:my|our|the)\s+goal)\b/i.test(after);
@@ -81,8 +82,8 @@ function moneyIn(question) {
 
 function goalHorizonMonths(question) {
   const text = goalText(question);
-  const years = text.match(/\b(?:in|within|after|over|next|timeframe(?: of)?|horizon(?: of)?)\s+(\d{1,2}(?:\.5)?)\s+years?\b/i);
-  const months = text.match(/\b(?:in|within|after|over|next|timeframe(?: of)?|horizon(?: of)?)\s+(\d{1,3})\s+months?\b/i);
+  const years = text.match(/\b(?:in|within|after|over|next|timeframe(?: of)?|horizon(?: of)?)\s+(\d{1,2}(?:\.\d{1,2})?)\s+(?:years?|yrs?)\b/i);
+  const months = text.match(/\b(?:in|within|after|over|next|timeframe(?: of)?|horizon(?: of)?)\s+(\d{1,3})\s+(?:months?|mos?)\b/i);
   const value = years ? Number(years[1]) * 12 : months ? Number(months[1]) : null;
   return Number.isSafeInteger(value) && value >= 1 && value <= 600 ? value : null;
 }
@@ -117,6 +118,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   let monthlyCapacity = null;
   let ambiguousTarget = false;
   let invalidAmount = false;
+  let contradictorySavings = false;
   for (const turn of used) {
     const amounts = moneyIn(turn);
     if (amounts.some(item => item.role === 'INVALID' || item.role === 'AMBIGUOUS')) invalidAmount = true;
@@ -127,14 +129,16 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
     else if (targets.length === 1) { target = targets[0].amount; ambiguousTarget = false; }
     if (savings.length === 1) saved = savings[0].amount;
     else if (savings.length > 1) saved = null;
-    if (/\b(?:no savings|nothing saved|zero saved|saved zero|starting from zero)\b/i.test(turn)) saved = 0;
+    const zeroSavings = /\b(?:no savings|nothing saved|zero saved|saved zero|starting from zero|0 savings|zero savings)\b/i.test(turn);
+    if (zeroSavings && savings.length > 0) contradictorySavings = true;
+    else if (zeroSavings) saved = 0;
     if (capacities.length === 1) monthlyCapacity = capacities[0].amount;
     const months = goalHorizonMonths(turn);
     if (months !== null) horizon = months;
   }
 
   // Fail closed on ambiguous savings or amounts with fractional paise.
-  if (invalidAmount) { target = null; saved = null; monthlyCapacity = null; }
+  if (invalidAmount || contradictorySavings) { target = null; saved = null; monthlyCapacity = null; invalidAmount = true; }
   const context = goalName(source);
   const missing = [];
   if (target === null) missing.push(invalidAmount ? 'the exact goal and savings amounts (one amount was ambiguous or invalid)' : ambiguousTarget ? 'which amount is the actual goal target' : 'the target amount');
