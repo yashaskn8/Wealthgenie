@@ -12,7 +12,7 @@ const NOW = new Date('2026-10-23T01:00:00.000Z');
 const PPF = 'The current official PPF interest rate is 7.1% p.a.';
 const differentRate = 'The current official PPF interest rate is 9.1% p.a.';
 
-function trustedFixture({ value = 7.1, retrievedAt = NOW, lineage = ['UNIT_TEST_ONLY_NOT_REAL_SOURCE'],
+function trustedFixture({ value = 7.1, retrievedAt = NOW, lineage = ['https://www.indiapost.gov.in', 'd'.repeat(64)],
   freshnessStatus = 'FRESH', qualification = 'QUALIFIED_FOR_USER_PRESENTATION',
   reuse = 'APPROVED', revoked = 'ACTIVE' } = {}) {
   const pair = crypto.generateKeyPairSync('ed25519');
@@ -78,6 +78,8 @@ test('read-only checking requires no signer or saved case and abstains without a
   assert.equal(result.ok, true);
   assert.equal(result.mode, 'READ_ONLY_FINANCIAL_CLAIM_CHECK');
   assert.equal(result.saved, false);
+  assert.equal(result.allExtractedCandidatesProcessed, true);
+  assert.equal(result.verificationScope, 'DETECTED_CLAIMS_ONLY');
   assert.equal(result.claims[0].verdict, 'NOT_VERIFIED');
   assert.equal(result.claims[0].reasonCode, 'NO_TRUSTED_EVIDENCE_VERIFIER');
   assert.equal(Object.hasOwn(result, 'passport'), false);
