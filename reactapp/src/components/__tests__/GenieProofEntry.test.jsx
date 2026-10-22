@@ -122,4 +122,51 @@ describe('GenieProof beginner-facing claim checking', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/No financial conclusion was reached/i);
   });
+
+  it('rejects a verdict that belongs to another user statement', async () => {
+    checkGenieProofClaims.mockResolvedValue(status([unverified]));
+    render(<GenieProofEntry />);
+    fireEvent.change(screen.getByLabelText('Financial statement to check'), {
+      target: { value: 'An FD promises 18%.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be checked/i);
+    expect(screen.queryByText('Not verified', { exact: true })).not.toBeInTheDocument();
+  });
+
+  it('rejects duplicated claim identifiers and inconsistent empty-result metadata', async () => {
+    checkGenieProofClaims.mockResolvedValueOnce(status([unverified, { ...unverified }]))
+      .mockResolvedValueOnce({ ...status([]), noClaimsFound: false });
+    render(<GenieProofEntry />);
+    const field = screen.getByLabelText('Financial statement to check');
+    fireEvent.change(field, { target: { value: unverified.statement + '\n' + unverified.statement } });
+    fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be checked/i);
+    fireEvent.change(field, { target: { value: 'Hello' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be checked/i);
+  });
+
+  it('rejects fake, stale or non-applicable source metadata even with a positive status', async () => {
+    const official = 'The current official PPF interest rate is 7.1% p.a.';
+    const source = {
+      name: 'India Post — Savings',
+      url: 'https://www.indiapost.gov.in/banking-services/savings',
+      observedRatePercentPerAnnum: 7.1,
+      retrievedAt: '2026-10-01T01:00:00.000Z',
+      effectiveFrom: '2026-10-01T00:00:00.000Z',
+      effectiveTo: '2026-12-31T00:00:00.000Z',
+    };
+    checkGenieProofClaims.mockResolvedValue(status([{
+      claimId: 'e'.repeat(32), statement: official, verdict: 'SUPPORTED',
+      reasonCode: 'EXACT_RATE_MATCH', explanation: 'A source was reported.',
+      warningSignals: [], source,
+    }]));
+    render(<GenieProofEntry />);
+    fireEvent.change(screen.getByLabelText('Financial statement to check'), { target: { value: official } });
+    fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be checked/i);
+    expect(screen.queryByText('Supported by evidence')).not.toBeInTheDocument();
+  });
+
 });
