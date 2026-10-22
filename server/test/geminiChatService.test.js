@@ -893,7 +893,8 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
 
 describe('Unbound goal follow-up routing', () => {
   it('never treats elliptical numeric goal turns as independent general LLM questions', () => {
-    for (const q of ['in 10 years', 'within 2.5 years', 'starting from zero']) {
+    for (const q of ['in 10 years', 'within 2.5 years', 'starting from zero',
+      'What about in 10 years?', "My daughter's marriage is in 12 years."]) {
       assert.equal(isUnboundGoalFollowUp(q), true, q);
     }
     for (const q of ['Explain Python from 10 years ago', 'Write a wedding story', 'Hello Genie']) {
