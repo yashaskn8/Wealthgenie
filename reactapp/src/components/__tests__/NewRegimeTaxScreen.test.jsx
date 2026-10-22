@@ -126,28 +126,29 @@ describe('new-regime calculator visible entry point', () => {
     expect(screen.queryByText(/Estimated tax liability under the new regime/i)).not.toBeInTheDocument();
   });
 
-  it('fails closed when a special-rate taxpayer is falsely classified as CALCULATED', async () => {
-    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => ({
-      taxYear: request.taxYear,
-      policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
-      status: 'CALCULATED', calculationClass: 'SIMPLE_ORDINARY_INCOME_ONLY',
-      unavailableReasons: [], inputsUsed: { ...request }, finalTax: '0', taxableIncome: '1200000',
-      grossPrimaryIncome: '1275000.0000', otherOrdinaryIncome: '0.0000',
-      standardDeduction: '75000.0000', taxableIncomeBeforeRounding: '1200000.0000',
-      taxBeforeRebate: '60000.0000', rebate: '60000.0000', taxAfterRebate: '0.0000',
-      surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '0.0000',
-      taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [
-        { from: '0', to: '400000', percent: 0, taxableInSlab: '400000', tax: '0.0000' },
-        { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000.0000' },
-        { from: '800000', to: '1200000', percent: 10, taxableInSlab: '400000', tax: '40000.0000' },
-      ],
-    }));
+  it('never sends financial figures for known special-rate income', () => {
+    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockResolvedValue({});
     render(<NewRegimeTaxScreen />);
     populate({ specialRateIncome: 'yes' });
     fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
-    await waitFor(() => expect(call).toHaveBeenCalledOnce());
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/unverified or mismatched calculation/i));
+    expect(call).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Cannot calculate this simplified return/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/No income figures were submitted/i);
     expect(screen.queryByText(/Estimated tax liability under the new regime/i)).not.toBeInTheDocument();
+  });
+
+  it('never sends financial figures for unqualified residency or missing attestation', () => {
+    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockResolvedValue({});
+    render(<NewRegimeTaxScreen />);
+    populate({ residency: 'unknown' });
+    fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
+    expect(call).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Cannot calculate this simplified return/i);
+    fireEvent.change(screen.getByLabelText(/Residential status/i), { target: { value: 'resident' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
+    expect(call).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/No income figures were submitted/i);
   });
 
   it('refuses to show a numeric result from an invalid or unbound backend response', async () => {
