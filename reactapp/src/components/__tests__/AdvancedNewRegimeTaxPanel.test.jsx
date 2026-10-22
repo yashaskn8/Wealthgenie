@@ -81,4 +81,38 @@ describe('advanced new-regime tax privacy and reconciliation', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/failed input binding or financial reconciliation/i));
     expect(screen.queryByText('Tax for the specifically declared and qualified scenario')).not.toBeInTheDocument();
   });
+  it('red team: rejects a forged balanced rebate/cess ledger that overcharges a resident', async () => {
+    const call = vi.spyOn(api, 'computeAdvancedNewRegimeTax').mockImplementation(async request => ({
+      inputsUsed: { ...request }, taxYear: '2026-27',
+      policyVersion: 'advanced-new-regime-TY2026-27-v1',
+      status: 'CALCULATED', unavailableReasons: [],
+      grossOrdinaryIncome: '1200000.0000',
+      standardDeduction: '75000.0000',
+      employerNpsDeduction: '0.0000', excessNpsNotDeducted: '0.0000',
+      housePropertyLossNotSetOff: '0.0000', ordinaryTaxableIncome: '1125000',
+      specialIncomeTaxable: '0', totalTaxableIncome: '1125000',
+      ordinaryTaxBeforeRebate: '52500.0000', specialIncomeTax: '0.0000',
+      rebate: '0.0000', surcharge: '0.0000', surchargeMarginalRelief: '0.0000',
+      cess: '2100.0000', taxBeforeStatutoryRounding: '54600.0000',
+      finalTax: '54600', notes: [],
+    }));
+    render(<AdvancedNewRegimeTaxPanel />);
+    qualified();
+    fireEvent.click(screen.getByRole('button', { name: /Calculate advanced tax case/i }));
+    await waitFor(() => expect(call).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/failed input binding or financial reconciliation/i));
+    expect(screen.queryByText('Tax for the specifically declared and qualified scenario')).not.toBeInTheDocument();
+  });
+
+  it('red team: refuses to send unqualified employer NPS facts', () => {
+    const call = vi.spyOn(api, 'computeAdvancedNewRegimeTax').mockResolvedValue({});
+    render(<AdvancedNewRegimeTaxPanel />);
+    qualified();
+    fireEvent.change(screen.getByLabelText(/Employer contribution to notified NPS/), { target: { value: '200000' } });
+    fireEvent.change(screen.getByLabelText(/NPS eligible basic salary/), { target: { value: '1000000' } });
+    fireEvent.click(screen.getByRole('button', { name: /Calculate advanced tax case/i }));
+    expect(call).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Nothing was submitted/i);
+  });
+
 });
