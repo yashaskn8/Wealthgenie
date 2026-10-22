@@ -13,9 +13,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # Keep push runs on main until all critical suites complete.
-  # Supersede only stale pull-request runs.
+  # Isolate each main push by its SHA so prior long-running CI cannot block
+  # verification of newer main. Still deduplicate stale pull-request runs.
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
