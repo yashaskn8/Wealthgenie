@@ -951,3 +951,34 @@ test('red-team E2E: a goal-payment target never converts EMI or debt payments in
   assert.equal(mixed.find(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 166666.67);
   assert.equal(mixed.some(entry => entry.id === 'E_GOAL_CAPACITY_CHECK'), false);
 });
+
+
+test('red-team exact arithmetic: 6000 high-value paise vectors never fail IEEE-754 conversion', () => {
+  let state = 41n;
+  const next = () => {
+    state = (state * 6364136223846793005n + 1442695040888963407n) & ((1n << 64n) - 1n);
+    return state;
+  };
+  for (let i = 0; i < 6000; i++) {
+    const targetPaise = next() % 10_000_000_000_000n + 1n;
+    const savedPaise = next() % targetPaise;
+    const months = Number(next() % 600n) + 1;
+    const expected = Number((targetPaise - savedPaise + BigInt(months) - 1n) / BigInt(months)) / 100;
+    assert.equal(calculateGoalMonthlyBaseline(Number(targetPaise) / 100,
+      Number(savedPaise) / 100, months), expected, 'High-value vector ' + i);
+  }
+  assert.equal(calculateGoalMonthlyBaseline(1.001, 0, 3), null,
+    'Sub-paise fractions must still be rejected');
+});
+
+test('red-team: large but in-range goal inputs retain exact BigInt funding results', () => {
+  const question = "Need ₹42641277842.62 for daughter's wedding in 248 months. " +
+    'I have saved ₹10255287540.00';
+  const entries = retrieveChatGoalPlanningEvidence(question);
+  const target = entries.find(entry => entry.id === 'E_GOAL_STATED_TARGET');
+  const monthly = entries.find(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE');
+  assert.equal(target?.value.targetAmount, 42641277842.62);
+  assert.equal(monthly?.value.earmarkedSavingsAmount, 10255287540);
+  assert.equal(monthly?.value.horizonMonths, 248);
+  assert.equal(monthly?.value.monthlyRequiredAmount, 130588670.58);
+});
