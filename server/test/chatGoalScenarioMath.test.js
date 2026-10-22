@@ -156,4 +156,39 @@ test('input red-team: annual returns are not silently extracted from unrelated p
   );
   assert.equal(second.find(e => e.id === 'E_GOAL_RETURN_SCENARIO')?.value.inflationAdjustedTargetAmount,
     35_816_953.94);
+  assert.equal(second.find(e => e.id === 'E_GOAL_INFLATED_TARGET')?.value.inflatedTargetAmount,
+    35_816_953.94);
+});
+
+test('inflation goal typed-claim validator rejects a fabricated future corpus', () => {
+  const entries = retrieveChatGoalPlanningEvidence(
+    "Need 2 crore for daughter's wedding at today's prices in 10 years with 12% annual return and 6% annual inflation",
+  );
+  const entry = entries.find(e => e.id === 'E_GOAL_INFLATED_TARGET');
+  assert.ok(entry);
+  const makeClaim = value => ({
+    type: 'GOAL_INFLATION_ADJUSTED_TARGET', value, unit: 'INR',
+    timePeriod: 'GOAL_HORIZON_USER_INFLATION_SCENARIO',
+    source: 'WEALTHGENIE_BACKEND', evidenceId: entry.id,
+    jurisdiction: null, effectivePeriod: null,
+    statement: 'Inflation-adjusted goal target: INR ' + value.toLocaleString('en-IN')
+      + ' [' + entry.id + '].',
+  });
+  const good = makeClaim(entry.value.inflatedTargetAmount);
+  assert.equal(validateTypedFinancialClaims({
+    claims: [good], narrative: good.statement, evidenceEntries: entries,
+  }).passed, true);
+  const bad = makeClaim(entry.value.inflatedTargetAmount - 1_000);
+  assert.equal(validateTypedFinancialClaims({
+    claims: [bad], narrative: bad.statement, evidenceEntries: entries,
+  }).passed, false);
+});
+
+test('net-of-tax or fee-adjusted future goals cannot borrow an unsupported gross-return scenario', () => {
+  const entries = retrieveChatGoalPlanningEvidence(
+    'I need 2 crore in 10 years assuming 12% annual return after tax',
+  );
+  assert.equal(entries.some(e => e.id === 'E_GOAL_RETURN_SCENARIO'), false);
+  assert.match(entries.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE').displayValue,
+    /net-of-tax or fee-adjusted SIP cannot be calculated/i);
 });
