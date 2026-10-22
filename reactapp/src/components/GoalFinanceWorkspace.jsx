@@ -102,7 +102,7 @@ function VehicleForm({ month, onResult }) {
     setValues(old => ({ ...old, [name]: value }));
   };
   const fields = [
-    ['price', 'Vehicle purchase price (₹)'],
+    ['price', 'Vehicle base price excluding separately entered taxes and fees (₹)'],
     ['downPayment', 'Cash down payment (₹)'],
     ['upfrontFees', 'Registration, taxes, insurance and fees upfront (₹)'],
     ['monthlyOwnershipCost', 'Fuel, servicing, parking and insurance renewals / month (₹)'],
@@ -167,7 +167,9 @@ function VehicleForm({ month, onResult }) {
     {result && <div aria-live="polite" className="wg-goal-result">
       <h4>Assessment: {result.primary.status.replaceAll('_', ' ')}</h4>
       <div className="wg-goal-metrics">
-        <p><b>Monthly EMI</b><span>{moneyLabel(result.primary.loan.monthlyEmi)}</span></p>
+        <p><b>Regular monthly EMI</b><span>{moneyLabel(result.primary.loan.monthlyEmi)}</span></p>
+        <p><b>Adjusted final loan instalment</b><span>{moneyLabel(result.primary.loan.finalPayment)}</span></p>
+        <p><b>Total payments to lender (excluding separate fees)</b><span>{moneyLabel(result.primary.loan.totalRepayment)}</span></p>
         <p><b>Loan interest</b><span>{moneyLabel(result.primary.loan.totalInterest)}</span></p>
         <p><b>Monthly cost including upkeep</b><span>{moneyLabel(result.primary.additionalMonthlyCommitment)}</span></p>
         <p><b>Recurring-month surplus after purchase</b><span>{moneyLabel(result.primary.monthlySurplusAfterPurchase)}</span></p>
@@ -176,6 +178,7 @@ function VehicleForm({ month, onResult }) {
         <p><b>Purchase-month surplus after other goals</b><span>{moneyLabel(result.primary.purchaseMonthSurplusAfterGoals)}</span></p>
         <p><b>Cash reserve after upfront cost</b><span>{moneyLabel(result.primary.emergencyCashAfterPurchase)}</span></p>
         <p><b>Estimated nominal total during loan</b><span>{moneyLabel(result.primary.totalNominalCostDuringLoan)}</span></p>
+        <small>EMI uses monthly reducing-balance interest rounded to each paisa; real lender schedules can use different conventions.</small>
       </div>
       {result.primary.reasons.length > 0 && <Notice kind="warning">Reasons: {result.primary.reasons.join(', ').replaceAll('_', ' ')}</Notice>}
       {result.alternatives.length > 0 && <div>
