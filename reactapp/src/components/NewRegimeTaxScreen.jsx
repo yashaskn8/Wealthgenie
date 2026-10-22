@@ -94,6 +94,41 @@ function responseIsBound(result, request) {
     const roundedPayable = ((beforeRounding / 10000n + 5n) / 10n) * 10n;
     const unroundedRupees = units('taxableIncomeBeforeRounding') / 10000n;
     const roundedIncome = ((unroundedRupees + 5n) / 10n) * 10n;
+    // A financially balanced payload can still contain a false rebate or
+    // surcharge. Independently CHECK policy without calculating the displayed
+    // amount client-side; the deterministic server remains the only authority.
+    const taxOnSlabs = units('taxBeforeRebate');
+    const maximumRebate = 60000n * 10000n;
+    const expectedRebate = request.residency !== 'resident' ? 0n
+      : roundedIncome <= 1200000n
+        ? (taxOnSlabs < maximumRebate ? taxOnSlabs : maximumRebate)
+        : (() => {
+          const reduced = taxOnSlabs - (roundedIncome - 1200000n) * 10000n;
+          return reduced > 0n ? reduced : 0n;
+        })();
+    if (units('rebate') !== expectedRebate) return false;
+    const actualAfterRebate = units('taxAfterRebate');
+    const surchargeRate = roundedIncome > 20000000n ? 25n
+      : roundedIncome > 10000000n ? 15n
+        : roundedIncome > 5000000n ? 10n : 0n;
+    const expectedSurcharge = actualAfterRebate * surchargeRate / 100n;
+    if (units('surcharge') !== expectedSurcharge) return false;
+    let expectedSurchargeRelief = 0n;
+    if (roundedIncome > 5000000n) {
+      const threshold = roundedIncome > 20000000n ? 20000000n
+        : roundedIncome > 10000000n ? 10000000n : 5000000n;
+      // Ordinary-income slab tax at each surcharge threshold, in rupees.
+      const baseAtThreshold = threshold === 20000000n ? 5580000n
+        : threshold === 10000000n ? 2580000n : 1080000n;
+      const rateAtThreshold = threshold === 20000000n ? 15n
+        : threshold === 10000000n ? 10n : 0n;
+      const permitted = baseAtThreshold * 10000n * (100n + rateAtThreshold) / 100n
+        + (roundedIncome - threshold) * 10000n;
+      const excess = actualAfterRebate + expectedSurcharge - permitted;
+      expectedSurchargeRelief = excess > 0n ? excess : 0n;
+    }
+    if (units('surchargeMarginalRelief') !== expectedSurchargeRelief
+        || units('cess') !== (actualAfterRebate + expectedSurcharge - expectedSurchargeRelief) * 4n / 100n) return false;
     return units('grossPrimaryIncome') + units('otherOrdinaryIncome')
           - units('standardDeduction') === units('taxableIncomeBeforeRounding')
       && units('taxAfterRebate') === units('taxBeforeRebate') - units('rebate')
