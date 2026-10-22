@@ -11,7 +11,7 @@ function populate({ primaryIncome = '1275000.00', residency = 'resident', specia
     target: { value: primaryIncome },
   });
   fireEvent.change(screen.getByLabelText(/Residential status/i), { target: { value: residency } });
-  fireEvent.change(screen.getByLabelText(/Any income taxed at special rates/i), { target: { value: specialRateIncome } });
+  fireEvent.change(screen.getByLabelText(/Any special-rate income or dividends/i), { target: { value: specialRateIncome } });
   fireEvent.click(screen.getByRole('checkbox'));
 }
 
