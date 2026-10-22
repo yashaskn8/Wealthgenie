@@ -38,7 +38,7 @@ export async function compareQualifiedFamilyProducts({
     'q.lock_in_months,q.annual_fee_bps,q.min_age,q.max_age,q.retail_access,',
     'q.requires_demat,q.requires_accreditation,q.requires_nps_account,q.requires_child_eligibility,',
     'q.evidence_url,q.terms_evidence_url,q.risk_evidence_url,q.review_version,',
-    'p.name AS product_name,p.availability,p.record_kind,p.recommendation_eligible,',
+    'p.name AS product_name,p.source_identity,p.availability,p.record_kind,p.recommendation_eligible,',
     'p.qualified_tax_class,p.tax_class_reviewed_at,r.source_id AS right_source_id',
     'FROM finance.family_product_qualifications q',
     'JOIN finance.products p ON p.id=q.product_id',
@@ -55,6 +55,7 @@ export async function compareQualifiedFamilyProducts({
   const exclusions = {};
   const exclude = reason => { exclusions[reason] = (exclusions[reason] || 0) + 1; };
   const eligible = [];
+  const qualifiedIdentities = new Set();
   const observations = store || createFinancialStore(pool);
   const riskLimit = suitability.finalLevel;
   for (const q of response.rows) {
@@ -66,7 +67,9 @@ export async function compareQualifiedFamilyProducts({
       || !q.qualified_tax_class || ['UNVERIFIED', 'OTHER_UNSUPPORTED'].includes(q.qualified_tax_class)
       || !q.tax_class_reviewed_at || new Date(q.tax_class_reviewed_at) > now) {
       reason = 'PRODUCT_NOT_FINANCIALLY_QUALIFIED';
-    } else if (q.right_source_id !== q.source_id) reason = 'DATA_RIGHTS_REVOKED_OR_EXPIRED';
+    } else if (typeof q.source_identity !== 'string' || !q.source_identity.trim()
+      || qualifiedIdentities.has(q.source_identity)) reason = 'PRODUCT_IDENTITY_MISSING_OR_DUPLICATE';
+    else if (q.right_source_id !== q.source_id) reason = 'DATA_RIGHTS_REVOKED_OR_EXPIRED';
     else if (!q.retail_access || q.requires_accreditation || q.requires_nps_account
       || q.requires_child_eligibility || q.requires_demat) reason = 'INVESTOR_ELIGIBILITY_UNVERIFIED';
     else if (!Number.isInteger(q.risk_level) || q.risk_level > riskLimit) reason = 'RISK_EXCEEDS_CAPACITY_OR_PREFERENCE';
@@ -94,6 +97,7 @@ export async function compareQualifiedFamilyProducts({
     const fit = Math.max(0, 100 - 12 * Math.abs(riskLimit - q.risk_level)
       - Math.min(30, fee / 15)
       - 12 * q.lock_in_months / Math.max(12, profile.investmentHorizonYears * 12));
+    qualifiedIdentities.add(q.source_identity);
     eligible.push({
       id: q.product_id, name: q.product_name, familyId,
       matchScore: Number(fit.toFixed(2)), reviewVersion: q.review_version,

@@ -15,7 +15,7 @@ const product=(id='fd:bank:one',overrides={})=>({
  terms_evidence_url:'https://issuer.example/terms',
  risk_evidence_url:'https://issuer.example/risk',
  review_version:1,product_name:id,availability:'AVAILABLE',record_kind:'ACTUAL_PRODUCT',
- recommendation_eligible:true,qualified_tax_class:'ORDINARY_INTEREST',
+ source_identity:'issuer:'+id,recommendation_eligible:true,qualified_tax_class:'ORDINARY_INTEREST',
  tax_class_reviewed_at:'2026-10-01T00:00:00Z',right_source_id:'verified-bank',
  ...overrides,
 });
@@ -159,4 +159,17 @@ test('zero, one and two qualified products never produce a top-three recommendat
   assert.equal(result.verifiedProductCount,count);
   assert.deepEqual(result.products,[]);
  }
+});
+
+test('three product IDs that alias the same real issuer offer never fill three slots',async()=>{
+ const h=harness([
+  product('p1',{source_identity:'ISIN:ONE'}),
+  product('p2',{source_identity:'ISIN:ONE'}),
+  product('p3',{source_identity:'ISIN:TWO'}),
+ ]);
+ const result=await compare(h);
+ assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.equal(result.verifiedProductCount,2);
+ assert.deepEqual(result.products,[]);
+ assert.equal(result.exclusionCounts.PRODUCT_IDENTITY_MISSING_OR_DUPLICATE,1);
 });
