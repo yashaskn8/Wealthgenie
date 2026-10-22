@@ -35,3 +35,22 @@ test('ordinary contract tax fails closed for missing fiscal-year inputs or sourc
   assert.equal(r.netTotalReceiptsPaise,null);
  }
 });
+
+test('taxed contractual ledger rejects duplicate, sign-forged and principal-inconsistent events',()=>{
+ const broken=[
+  [...ledger.events, {...ledger.events[1]}],
+  [{...ledger.events[0],amountPaise:100000},...ledger.events.slice(1)],
+  [ledger.events[0],{...ledger.events[1],amountPaise:-100000},ledger.events[2]],
+  [ledger.events[0],ledger.events[1],{...ledger.events[2],amountPaise:999999}],
+  [ledger.events[0],ledger.events[1],{...ledger.events[2],kind:'INTEREST_PAYOUT'}],
+ ];
+ for(const events of broken){
+  const result=calculateTaxedContractLedger({...options,ledger:{status:'RECONCILED',events}});
+  assert.equal(result.status,'UNAVAILABLE',JSON.stringify(events));
+  assert.equal(result.netTotalReceiptsPaise,null);
+ }
+ const result=calculateTaxedContractLedger({...options,taxContexts:{
+  'FY2026-27':{...options.taxContexts['FY2026-27'],baselineExcludesTheseInterestEvents:'true'},
+ }});
+ assert.equal(result.status,'UNAVAILABLE','Only an explicit boolean may authorize baseline exclusion');
+});
