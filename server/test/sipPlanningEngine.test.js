@@ -124,7 +124,7 @@ test('invalid, malicious and money-precision edge cases are rejected', () => {
     { years: 51 }, { annualReturnRate: -1 }, { annualReturnRate: 1.1 },
     { annualStepUpRate: -0.01 }, { annualStepUpRate: 1.1 },
     { monthlyEmi: -1 }, { monthlyIncome: 100.001 }, { monthlyExpenses: -1 },
-    { inflationRate: 1.1 }, { downsideAnnualReturnRate: -1 },
+    { inflationRate: 1.1 }, { downsideAnnualReturnRate: -1 }, { downsideAnnualReturnRate: 0.13 },
     { annualIncomeGrowthRate: 1.1 }, { emergencyMonths: 25 },
     { annualExpenseGrowthRate: Infinity },
   ]) {
@@ -157,11 +157,36 @@ test('independent monthly cash-flow oracle matches chart contributions and termi
       corpus = (corpus + annualContribution) * (1 + annualReturn / 12);
       if (m % 12 === 11) {
         const yearly = result.chartData[Math.floor(m / 12)];
-        assert.equal(yearly.stepUpInvested, Math.round(invested));
+        assert.equal(yearly.stepUpInvested, Math.round(invested * 100) / 100);
         assert.equal(yearly.stepUpSIP, Math.round(corpus));
       }
     }
     assert.equal(result.stepUpFinal, Math.round(corpus));
-    assert.equal(result.stepUpInvested, Math.round(invested));
+    assert.equal(result.stepUpInvested, Math.round(invested * 100) / 100);
   }
+});
+
+test('money contributions retain exact paise instead of silently rounding to whole INR', () => {
+  const result = buildSipPlan({
+    monthlyInvestment: 1000.37, annualReturnRate: 0,
+    annualStepUpRate: 0, years: 2, monthlyIncome: 12345.67,
+    monthlyExpenses: 1000.13, monthlyEmi: 0,
+    emergencySavings: 6000.78, emergencyMonths: 6,
+  });
+  assert.equal(result.chartData[0].flatInvested, 12004.44);
+  assert.equal(result.stepUpInvested, 24008.88);
+  assert.equal(result.additionalContributions, 0);
+  assert.equal(result.stepUpFinal, Math.round(result.stepUpInvested));
+  assert.equal(result.emergency_buffer.requiredAmount, 6000.78);
+  assert.equal(result.emergency_buffer.status, 'DECLARED_BUFFER_MET');
+  assert.equal(result.affordability.status, 'WITHIN_DECLARED_BUDGET');
+});
+
+test('downside scenario cannot use a higher annual return than the main projection', () => {
+  assert.throws(() => buildSipPlan({
+    ...base, annualReturnRate: 0.02, downsideAnnualReturnRate: 0.08,
+  }), /SIP_PLAN_INVALID_INPUT/);
+  const negative = buildSipPlan({ ...base, annualReturnRate: -0.995 });
+  assert.ok(negative.assumptions.downsideAnnualReturnRate <= negative.assumptions.annualReturnRate);
+  assert.ok(negative.downsideFinal <= negative.stepUpFinal);
 });
