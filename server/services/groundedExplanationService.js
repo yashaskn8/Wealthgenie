@@ -241,11 +241,6 @@ function deterministicCandidate(packet, question = '') {
     }
     if (capacity) claims.push({ text: capacity.displayValue + ' [' + capacity.id + '].',
       evidenceIds: [capacity.id] });
-    const capacityCheck = packet.entries.find(item => item.id === 'E_GOAL_CAPACITY_CHECK');
-    if (capacityCheck) claims.push({
-      text: capacityCheck.displayValue + ' [' + capacityCheck.id + '].',
-      evidenceIds: [capacityCheck.id],
-    });
     claims.push({ text: guidance.displayValue + ' [' + guidance.id + '].',
       evidenceIds: [guidance.id] });
     return {
@@ -909,7 +904,11 @@ const GOVERNMENT_QUERY_TO_PARENT = Object.freeze([
 export async function buildChatEvidencePacket({ question, profile, recommendation, userId = null, priorTurns = [] }, dependencies = {}) {
   // General education comes from an allowlisted, reviewed reference corpus.
   // It never supplies user-specific allocations, tax rules or product rates.
-  const goalEvidence = retrieveChatGoalPlanningEvidence(question, priorTurns);
+  const goalEvidence = retrieveChatGoalPlanningEvidence(question, {
+    priorUserTurns: (Array.isArray(priorTurns) ? priorTurns : [])
+      .filter(turn => turn?.role === 'user' && typeof turn.content === 'string')
+      .map(turn => turn.content),
+  });
   const entries = [...goalEvidence, ...retrieveChatEducationalEvidence(question)];
   const unavailableFacts = [];
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
