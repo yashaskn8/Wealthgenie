@@ -25,7 +25,7 @@
   cursor: pointer;
   font: inherit;
 }
-.wg-goal-tabs button[aria-selected="true"] { background: rgba(56,189,248,.2); border-color: #38bdf8; color: #fff; }
+.wg-goal-tabs button[aria-pressed="true"] { background: rgba(56,189,248,.2); border-color: #38bdf8; color: #fff; }
 .wg-goal-panel { margin-top: 14px; padding: clamp(12px, 2vw, 20px); border: 1px solid #334155; border-radius: 14px; background: rgba(3, 12, 29, .52); }
 .wg-goal-input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
 .wg-goal-field, .wg-goal-expense-row label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; color: #cbd5e1; }
