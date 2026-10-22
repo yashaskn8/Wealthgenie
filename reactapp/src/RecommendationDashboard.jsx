@@ -9,6 +9,7 @@ import { INSTRUMENT_EXPLAINERS, CARD_SUBTITLES, RISK_PLAIN_LABELS, getLockInWarn
 import SebiDisclaimer from './components/SebiDisclaimer';
 import { formatCompactINR } from './utils/indianNumberFormat';
 import JargonTooltip from './components/JargonTooltip';
+import InvestmentUniverseBrowser from './components/InvestmentUniverseBrowser';
 import { computeSuitabilityMatch } from './utils/suitabilityMatch';
 
 import './Dashboard.css';
@@ -181,7 +182,6 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
     ? recommendationMeta.excluded_due_to_eligibility
     : [];
   const excludedCount = excludedInstruments.length;
-  const totalConsidered = displayedCount + excludedCount;
 
   const toggleRow = (id) => {
     setExpandedRows(prev => ({ ...prev, [id]: prev[id] === false }));
@@ -489,16 +489,16 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
 
           <p className="wg-plan-property-note">Sold-property proceeds are not treated as investable capital; they remain context only.</p>
 
-          {excludedCount > 0 && (
-            <div className="wg-plan-eligibility">
-              <Info size={16} aria-hidden="true" />
-              <p>{isEmergencyFundGoal ? (
-                <>Showing <strong>{displayedCount} liquid instruments</strong> for Emergency Fund.{' '}<strong>{excludedCount}</strong> excluded (lock-in / liquidity mismatch).</>
-              ) : (
-                <><strong>{displayedCount}/{totalConsidered}</strong> instruments shown.{' '}{excludedCount > 0 && <>{excludedCount} excluded by the backend suitability and eligibility checks.</>}</>
-              )}</p>
-            </div>
-          )}
+          <div className="wg-plan-eligibility">
+            <Info size={16} aria-hidden="true" />
+            <p>
+              <strong>{displayedCount} personalized recommendations selected</strong>
+              {excludedCount > 0 && <> · <strong>{excludedCount}</strong> legacy catalog instruments excluded by suitability, eligibility, horizon, or unavailable classifications.</>}
+              {' '}This shortlist is not the complete investment universe.
+              {isEmergencyFundGoal && ' Emergency Fund is among your goals; check each recommended option\'s actual liquidity and withdrawal terms.'}
+            </p>
+          </div>
+          <InvestmentUniverseBrowser />
 
           {riskAgeMismatch.flag && !mismatchDismissed && (
             <div className="wg-plan-suitability">
