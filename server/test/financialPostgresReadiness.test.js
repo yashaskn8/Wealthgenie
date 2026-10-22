@@ -10,6 +10,7 @@ const names = [
   '003_catalog_discovery_metadata.sql',
   '004_market_observation_semantics.sql',
   '005_provider_rights_audit.sql',
+  '006_permission_assertions.sql',
 ];
 const applied=names.map(name=>({
   name,
