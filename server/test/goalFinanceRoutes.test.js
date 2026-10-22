@@ -114,6 +114,28 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
       assert.equal(vehicle.alternatives.length, 1);
       assert.ok(vehicle.alternatives[0].assessment.loan.monthlyEmi < vehicle.primary.loan.monthlyEmi);
 
+      const { response: independentQuoteRes, body: independentQuote } = await jsonRequest(
+        `${base}/api/goals/finance/vehicle/${currentIndianMonth()}`, {
+          method: 'POST', headers: authA, body: JSON.stringify({
+            price: 900000, downPayment: 200000, upfrontFees: 15000,
+            monthlyOwnershipCost: 4500, annualInterestRate: 10, tenureMonths: 60,
+            emergencyCash: 400000, emergencyFloor: 150000,
+            alternatives: [{
+              label: 'Different lender', price: 500000, downPayment: 200000,
+              upfrontFees: 15000, monthlyOwnershipCost: 2500,
+              annualInterestRate: 2, tenureMonths: 12,
+            }],
+          }),
+        });
+      assert.equal(independentQuoteRes.status, 200);
+      assert.equal(independentQuote.primary.loan.annualInterestRate, 10);
+      assert.equal(independentQuote.alternatives[0].assessment.loan.annualInterestRate, 2);
+      assert.equal(independentQuote.alternatives[0].assessment.loan.tenureMonths, 12);
+      assert.equal(independentQuote.alternatives[0].annualInterestRateSource, 'USER_ALTERNATIVE_QUOTE');
+      assert.equal(independentQuote.alternatives[0].tenureSource, 'USER_ALTERNATIVE_QUOTE');
+      assert.equal(vehicle.alternatives[0].annualInterestRateSource, 'SHARED_PRIMARY_ASSUMPTION');
+
+
       const { response: projected, body: projection } = await jsonRequest(`${base}/api/goals/finance/projection`, {
         method: 'POST', headers: authA,
         body: JSON.stringify({
