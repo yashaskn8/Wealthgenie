@@ -40,6 +40,7 @@ import { createMcpRuntime } from './mcp/mcpRuntime.js';
 import agentRoutes from './routes/agentRoutes.js';
 import genieProofRoutes from './routes/genieProofRoutes.js';
 import { createGenieProofRuntime } from './agents/genieProof/genieProofPassportSignature.js';
+import { createGenieProofReadOnlyVerifier } from './agents/genieProof/genieProofCheckService.js';
 import { createHealthRouter } from './routes/health.js';
 import { createRuntimeState } from './services/runtimeState.js';
 import { getCurrentFiscalYear, getCurrentRegulatoryRuleVersion } from './services/taxEngine.js';
@@ -110,6 +111,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.locals.mcpRuntime = mcpLifecycle;
   app.locals.mcpCapacity = mcpCapacity;
   app.locals.genieProofRuntime = genieProofRuntime || createGenieProofRuntime({ env });
+  app.locals.genieProofClaimVerifier = createGenieProofReadOnlyVerifier(env);
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     crossOriginOpenerPolicy: { policy: 'same-origin' },
