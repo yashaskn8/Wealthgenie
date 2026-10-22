@@ -17,6 +17,9 @@ import {
   buildTaxSlabBreakdown,
   analyzeTaxOptimization,
 } from '../services/taxEngine.js';
+import { calculateVerifiedNewRegime } from '../services/verifiedNewRegimeCalculator.js';
+import { calculateAdvancedNewRegime } from '../services/advancedNewRegimeCalculator.js';
+import { calculateVerifiedComplexCapitalGainsTax } from '../services/verifiedComplexCapitalGainsTax.js';
 import { calculatePostTaxReturnSafe, calculatePostTaxProjection } from '../services/postTaxCalculator.js';
 import { calculateUserDeclaredPostTaxScenario } from '../services/userDeclaredPostTaxScenario.js';
 
@@ -30,6 +33,64 @@ const SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE = 'SECTION_112A_PORTFOLIO_ALL
  */
 router.get('/policies', asyncHandler(async (req, res) => {
   res.json(getTaxPolicyCatalog());
+}));
+
+/**
+ * Scoped calculator: only verified TY2026-27 ordinary-rate income for individuals.
+ * Deliberately separate from the legacy compare, cash-flow, and capital-gain APIs.
+ */
+router.post('/new-regime-verified', asyncHandler(async (req, res) => {
+  // No tax submission or rejected amount may be cached by an intermediary.
+  res.set('Cache-Control', 'no-store');
+  try {
+    const result = calculateVerifiedNewRegime(req.body);
+    return res.json(result);
+  } catch (error) {
+    if (error.code === 'UNSUPPORTED_TAX_YEAR') {
+      return sendError(req, res, 422, error.message, error.code);
+    }
+    if (error.code === 'INVALID_TAX_REQUEST' || error.code === 'INVALID_MONEY') {
+      return sendError(req, res, 400, error.message, error.code);
+    }
+    throw error;
+  }
+}));
+
+/**
+ * Expert income-tax calculation: only strictly qualified resident equity gains,
+ * with ordinary taxable income above the rebate range and no surcharge.
+ * Deliberately separate from the simple new-regime endpoint.
+ */
+router.post('/new-regime-verified-complex', asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.json(calculateVerifiedComplexCapitalGainsTax(req.body));
+  } catch (error) {
+    if (error.code === 'UNSUPPORTED_TAX_YEAR') return sendError(req, res, 422, error.message, error.code);
+    if (error.code === 'INVALID_TAX_REQUEST' || error.code === 'INVALID_MONEY') {
+      return sendError(req, res, 400, error.message, error.code);
+    }
+    throw error;
+  }
+}));
+
+/**
+ * Strictly qualified supplementary new-regime scenarios (TY 2026-27).
+ * Does not alter the ordinary income endpoint or legacy tax APIs.
+ */
+router.post('/new-regime-advanced', asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.json(calculateAdvancedNewRegime(req.body));
+  } catch (error) {
+    if (error.code === 'UNSUPPORTED_TAX_YEAR') {
+      return sendError(req, res, 422, error.message, error.code);
+    }
+    if (error.code === 'INVALID_TAX_REQUEST' || error.code === 'INVALID_MONEY') {
+      return sendError(req, res, 400, error.message, error.code);
+    }
+    throw error;
+  }
 }));
 
 function _parseTaxDeductions(input) {

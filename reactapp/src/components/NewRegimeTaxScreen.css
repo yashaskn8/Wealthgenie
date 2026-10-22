@@ -1,0 +1,27 @@
+.wg-new-tax{max-width:980px;margin:0 auto;padding:1rem 1.25rem 2rem;color:var(--text-primary,#e5e7eb)}
+.wg-new-tax__header{margin-bottom:1.25rem}
+.wg-new-tax__eyebrow{font-size:.8rem;letter-spacing:.08em;font-weight:700;color:#38bdf8}
+.wg-new-tax__header h2{font-size:clamp(1.6rem,3vw,2.3rem);margin:.4rem 0}
+.wg-new-tax__header p,.wg-new-tax__footnote,.wg-new-tax__hint,.wg-new-tax__sources{line-height:1.6;color:var(--text-secondary,#94a3b8)}
+.wg-new-tax__form{display:grid;gap:.65rem;background:rgba(15,23,42,.56);border:1px solid rgba(148,163,184,.22);border-radius:16px;padding:clamp(1rem,3vw,1.75rem)}
+.wg-new-tax__form>label{font-weight:650;margin-top:.5rem}
+.wg-new-tax__form>input,.wg-new-tax__form>select{width:100%;box-sizing:border-box;background:rgba(15,23,42,.85);border:1px solid #64748b;border-radius:9px;color:#f8fafc;padding:.85rem;font:inherit;min-height:44px}
+.wg-new-tax__form>input:focus-visible,.wg-new-tax__form>select:focus-visible,.wg-new-tax__form>button:focus-visible{outline:3px solid #38bdf8;outline-offset:2px}
+.wg-new-tax__form .wg-new-tax__confirm{display:flex;align-items:flex-start;gap:.8rem;font-weight:400;line-height:1.5;margin:1rem 0}
+.wg-new-tax__confirm input{width:20px;height:20px;flex-shrink:0}
+.wg-new-tax__hint{margin:.15rem 0 .4rem;font-size:.88rem}
+.wg-new-tax__form>button{border:0;border-radius:9px;min-height:47px;font:inherit;font-weight:700;cursor:pointer;color:#082f49;background:#7dd3fc}
+.wg-new-tax__form>button:disabled{opacity:.6;cursor:wait}
+.wg-new-tax__alert{border:1px solid #fb7185;background:rgba(136,19,55,.15);border-radius:10px;color:#fecdd3;padding:1rem;line-height:1.5}
+.wg-new-tax__result{border:1px solid rgba(125,211,252,.4);border-radius:16px;margin-top:1rem;padding:clamp(1rem,3vw,1.75rem);background:rgba(8,47,73,.2)}
+.wg-new-tax__amount{display:block;font-size:clamp(2.1rem,5vw,3.3rem);color:#7dd3fc;font-variant-numeric:tabular-nums;margin:.4rem 0 1rem}
+.wg-new-tax__result details{margin-top:1rem}
+.wg-new-tax__result summary{cursor:pointer;padding:.5rem 0;font-weight:650}
+.wg-new-tax__result table{width:100%;border-collapse:collapse;max-width:100%;font-size:.93rem}
+.wg-new-tax__result th,.wg-new-tax__result td{border-bottom:1px solid rgba(148,163,184,.24);padding:.65rem .35rem;text-align:left}
+.wg-new-tax__result th{font-weight:500}
+.wg-new-tax__result td{text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.wg-new-tax__footnote{font-size:.85rem;margin-top:1.5rem}
+.wg-new-tax__sources{font-size:.85rem}
+.wg-new-tax__sources a{color:#7dd3fc;text-underline-offset:3px}
+@media(max-width:500px){.wg-new-tax{padding:.75rem}.wg-new-tax__result th,.wg-new-tax__result td{padding:.55rem .2rem;font-size:.82rem}}

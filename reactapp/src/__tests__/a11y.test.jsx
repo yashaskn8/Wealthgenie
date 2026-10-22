@@ -7,6 +7,7 @@ import { render, cleanup } from '@testing-library/react';
 import axe from 'axe-core';
 
 import TaxScreen from '../components/TaxScreen';
+import NewRegimeTaxScreen from '../components/NewRegimeTaxScreen';
 import AllocationPlanner from '../components/AllocationPlanner';
 import RebalancerScreen from '../components/RebalancerScreen';
 import GenieChat from '../components/GenieChat';
@@ -59,6 +60,16 @@ describe('Automated Accessibility (a11y) Verification Suite with axe-core', () =
       console.warn(JSON.stringify(results.violations.map(v => ({ id: v.id, impact: v.impact, description: v.description, help: v.help })), null, 2));
     }
     expect(results.violations).toEqual([]);
+  });
+
+  it('checks the mounted new-regime calculator for accessibility violations', async () => {
+    const { container } = render(<NewRegimeTaxScreen />);
+    const results = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(results.violations.map(violation => ({
+      id: violation.id, description: violation.description,
+    }))).toEqual([]);
   });
 
   it('checks AllocationPlanner for accessibility violations', async () => {

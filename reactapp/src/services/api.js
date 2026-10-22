@@ -1032,6 +1032,21 @@ export async function compareTax(income, deductions = {}, options = {}) {
   return request('POST', '/tax/compare', { ...omitEmptyTaxInputs(deductions), income }, options);
 }
 
+/** Qualified resident equity-gains path (196/198), separate from ordinary tax. */
+export async function computeVerifiedComplexCapitalGainsTax(input, options = {}) {
+  return request('POST', '/tax/new-regime-verified-complex', input, { retries: 0, ...options });
+}
+
+/** Supplementary TY2026-27 NPS, house-loss, and lottery qualified cases. */
+export async function computeAdvancedNewRegimeTax(input, options = {}) {
+  return request('POST', '/tax/new-regime-advanced', input, { retries: 0, ...options });
+}
+
+/** TY2026-27 only: fail-closed ordinary-income new-regime calculation. */
+export async function computeVerifiedNewRegimeTax(input, options = {}) {
+  return request('POST', '/tax/new-regime-verified', input, { retries: 0, ...options });
+}
+
 export async function getTaxPolicyMetadata(options = {}) {
   return request('GET', '/tax/policies', null, options);
 }
@@ -1128,7 +1143,7 @@ const api = {
   getMarketRates, getBenchmarkMarketFacts, getStoredBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,
   updateRecommendationWeights, optimisePortfolio,
-  computeTax, compareTax, getTaxPolicyMetadata, computeUserDeclaredPostTaxScenario, getCurrentMarketContext, getPrivateMarketDemoData, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,
+  computeTax, compareTax, computeAdvancedNewRegimeTax, computeVerifiedNewRegimeTax, computeVerifiedComplexCapitalGainsTax, getTaxPolicyMetadata, computeUserDeclaredPostTaxScenario, getCurrentMarketContext, getPrivateMarketDemoData, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,
 };
 
 export default api;

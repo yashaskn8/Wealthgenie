@@ -974,6 +974,55 @@ paths:
       x-csrf-protection: cookie-session
       responses: { '202': { $ref: '#/components/responses/Object' }, '401': { $ref: '#/components/responses/Unauthorized' }, '503': { $ref: '#/components/responses/Unavailable' } }
 
+  /api/tax/new-regime-verified-complex:
+    post:
+      operationId: calculateVerifiedComplexCapitalGainsTax
+      tags: [Tax]
+      security: []
+      x-csrf-protection: cookie-session
+      description: Restricted TY2026-27 Section 196/198 resident equity gains, ordinary income >= Rs13 lakh, total <= Rs50 lakh.
+      requestBody: { $ref: '#/components/requestBodies/VerifiedComplexCapitalGainsTax' }
+      responses:
+        '200':
+          description: Verified exact tax or explicit unavailable
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/tax/new-regime-advanced:
+    post:
+      operationId: calculateAdvancedNewRegimeTax
+      tags: [Tax]
+      security: []
+      x-csrf-protection: cookie-session
+      description: Strictly qualified TY2026-27 NPS, disallowed house-property loss, and non-online lottery cases. Special-rate surcharge above INR 50 lakh and unqualified cases explicitly unavailable.
+      requestBody: { $ref: '#/components/requestBodies/AdvancedNewRegimeTax' }
+      responses:
+        '200':
+          description: Reconciled advanced qualified calculation or explicit unavailable result
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdvancedNewRegimeTaxResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/tax/new-regime-verified:
+    post:
+      operationId: calculateVerifiedNewRegimeTax
+      tags: [Tax]
+      security: []
+      x-csrf-protection: cookie-session
+      description: Restricted TY2026-27 ordinary-income new-regime calculation only. A tax result is unavailable when residency or special-rate facts are not qualified. No provider key required.
+      requestBody: { $ref: '#/components/requestBodies/VerifiedNewRegimeTax' }
+      responses:
+        '200':
+          description: Exact decimal tax calculation or explicit unavailable result
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifiedNewRegimeTaxResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
   /api/tax/compute:
     post:
       operationId: computeTax
@@ -1154,6 +1203,9 @@ components:
     PortfolioMonteCarlo: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PortfolioMonteCarloRequest' } } } }
     PostTaxReturn: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PostTaxReturnRequestV2' } } } }
     PostTaxReturnBatch: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PostTaxReturnBatchRequestV2' } } } }
+    VerifiedComplexCapitalGainsTax: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsRequest' } } } }
+    AdvancedNewRegimeTax: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdvancedNewRegimeTaxRequest' } } } }
+    VerifiedNewRegimeTax: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/VerifiedNewRegimeTaxRequest' } } } }
     TaxCompute: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TaxComputeRequest' } } } }
     TaxCompare: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TaxCompareRequest' } } } }
     UserDeclaredPostTaxScenario: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UserDeclaredPostTaxScenarioRequest' } } } }
@@ -1252,6 +1304,201 @@ components:
     Unavailable: { description: Service or dependency unavailable. Current recommendation consumers may return MARKET_ADJUSTMENT_PROVIDER_PROVENANCE_MISSING or UPSTOX_PUBLIC_DISTRIBUTION_NOT_CONFIRMED when a generation-time market tilt cannot be safely distributed., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     BadGateway: { description: An upstream service could not provide valid output, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   schemas:
+    VerifiedComplexCapitalGainsRequest:
+      type: object
+      additionalProperties: false
+      required: [taxYear, residency, incomeType, primaryIncome, otherOrdinaryIncome, stcg196, ltcg198, completeYearGainsConfirmed, sttAndClassificationConfirmed, noOtherTaxSituationsConfirmed]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        residency: { type: string, enum: [resident, non_resident, unknown] }
+        incomeType: { type: string, enum: [salary, pension, already_taxable] }
+        primaryIncome: { type: string, pattern: '^(0|[1-9][0-9]{0,8}0)([.]0{1,2})?$' }
+        otherOrdinaryIncome: { type: string, pattern: '^(0|[1-9][0-9]{0,8}0)([.]0{1,2})?$' }
+        stcg196: { type: string, pattern: '^(0|[1-9][0-9]{0,8}0)([.]0{1,2})?$' }
+        ltcg198: { type: string, pattern: '^(0|[1-9][0-9]{0,8}0)([.]0{1,2})?$' }
+        completeYearGainsConfirmed: { type: boolean }
+        sttAndClassificationConfirmed: { type: boolean }
+        noOtherTaxSituationsConfirmed: { type: boolean }
+    VerifiedComplexCapitalGainsResponse:
+      oneOf:
+        - $ref: '#/components/schemas/VerifiedComplexCapitalGainsCalculated'
+        - $ref: '#/components/schemas/VerifiedComplexCapitalGainsUnavailable'
+    VerifiedComplexCapitalGainsMoney:
+      type: string
+      pattern: '^(0|[1-9][0-9]*)[.][0-9]{3}$'
+    VerifiedComplexCapitalGainsCalculated:
+      type: object
+      additionalProperties: false
+      required: [taxYear, policyVersion, sourceReferences, inputsUsed, status, unavailableReasons, calculationClass, ordinaryTaxableIncome, shortTermGains, longTermGains, grossTotalIncome, standardDeduction, section198ExemptLongTermGain, ordinarySlabTax, section196Tax, section198Tax, rebate, surcharge, cess, taxBeforeStatutoryRounding, finalTax]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        policyVersion: { type: string, const: verified-capital-gains-TY2026-27-v1 }
+        sourceReferences: { type: array, minItems: 1, items: { type: string, format: uri } }
+        inputsUsed: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsRequest' }
+        status: { type: string, const: CALCULATED }
+        unavailableReasons: { type: array, maxItems: 0, items: { type: string } }
+        calculationClass: { type: string, const: VERIFIED_RESIDENT_EQUITY_GAINS_ABOVE_REBATE_BELOW_SURCHARGE }
+        ordinaryTaxableIncome: { type: string }
+        shortTermGains: { type: string }
+        longTermGains: { type: string }
+        grossTotalIncome: { type: string }
+        standardDeduction: { type: string }
+        section198ExemptLongTermGain: { type: string }
+        ordinarySlabTax: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsMoney' }
+        section196Tax: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsMoney' }
+        section198Tax: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsMoney' }
+        rebate: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsMoney' }
+        surcharge: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsMoney' }
+        cess: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsMoney' }
+        taxBeforeStatutoryRounding: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsMoney' }
+        finalTax: { type: string }
+    VerifiedComplexCapitalGainsUnavailable:
+      type: object
+      additionalProperties: false
+      required: [taxYear, policyVersion, sourceReferences, inputsUsed, status, unavailableReasons, finalTax]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        policyVersion: { type: string, const: verified-capital-gains-TY2026-27-v1 }
+        sourceReferences: { type: array, minItems: 1, items: { type: string, format: uri } }
+        inputsUsed: { $ref: '#/components/schemas/VerifiedComplexCapitalGainsRequest' }
+        status: { type: string, const: UNAVAILABLE }
+        unavailableReasons: { type: array, minItems: 1, items: { type: string } }
+        finalTax: { type: 'null' }
+    AdvancedNewRegimeTaxRequest:
+      type: object
+      additionalProperties: false
+      required: [taxYear, incomeType, primaryIncome, otherOrdinaryIncome, residency, employerNpsContribution, npsEligibleSalary, lotteryWinnings, housePropertyLoss, confirmedNpsIncludedInSalary, confirmedNoOtherTaxAdjustments]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        incomeType: { type: string, enum: [salary, pension, already_taxable] }
+        primaryIncome: { $ref: '#/components/schemas/AdvancedNewRegimeTaxAmount' }
+        otherOrdinaryIncome: { $ref: '#/components/schemas/AdvancedNewRegimeTaxAmount' }
+        residency: { type: string, enum: [resident, non_resident, unknown] }
+        employerNpsContribution: { $ref: '#/components/schemas/AdvancedNewRegimeTaxAmount' }
+        npsEligibleSalary: { $ref: '#/components/schemas/AdvancedNewRegimeTaxAmount' }
+        lotteryWinnings: { $ref: '#/components/schemas/AdvancedNewRegimeTaxAmount' }
+        housePropertyLoss: { $ref: '#/components/schemas/AdvancedNewRegimeTaxAmount' }
+        confirmedNpsIncludedInSalary: { type: boolean }
+        confirmedNoOtherTaxAdjustments: { type: boolean }
+    AdvancedNewRegimeTaxAmount:
+      type: string
+      pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$'
+    AdvancedNewRegimeTaxResponse:
+      oneOf:
+        - $ref: '#/components/schemas/AdvancedNewRegimeTaxCalculated'
+        - $ref: '#/components/schemas/AdvancedNewRegimeTaxUnavailable'
+    AdvancedNewRegimeTaxCalculated:
+      type: object
+      additionalProperties: false
+      required: [taxYear, policyVersion, inputsUsed, sourceReferences, calculationClass, status, unavailableReasons, grossOrdinaryIncome, standardDeduction, employerNpsDeduction, excessNpsNotDeducted, housePropertyLossNotSetOff, ordinaryTaxableIncome, specialIncomeTaxable, totalTaxableIncome, ordinaryTaxBeforeRebate, specialIncomeTax, rebate, surcharge, surchargeMarginalRelief, cess, taxBeforeStatutoryRounding, finalTax, notes]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        policyVersion: { type: string, const: advanced-new-regime-TY2026-27-v1 }
+        inputsUsed: { $ref: '#/components/schemas/AdvancedNewRegimeTaxRequest' }
+        sourceReferences: { type: array, minItems: 1, items: { type: string, format: uri } }
+        calculationClass: { type: string, const: ADVANCED_QUALIFIED_INCOME_ONLY }
+        status: { type: string, const: CALCULATED }
+        unavailableReasons: { type: array, maxItems: 0, items: { type: string } }
+        grossOrdinaryIncome: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        standardDeduction: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        employerNpsDeduction: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        excessNpsNotDeducted: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        housePropertyLossNotSetOff: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        ordinaryTaxableIncome: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+        specialIncomeTaxable: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+        totalTaxableIncome: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+        ordinaryTaxBeforeRebate: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        specialIncomeTax: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        rebate: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        surcharge: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        surchargeMarginalRelief: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        cess: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxBeforeStatutoryRounding: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        finalTax: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+        notes: { type: array, items: { type: string, minLength: 1 } }
+    AdvancedNewRegimeTaxUnavailable:
+      type: object
+      additionalProperties: false
+      required: [taxYear, policyVersion, inputsUsed, sourceReferences, calculationClass, status, unavailableReasons, finalTax, notes]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        policyVersion: { type: string, const: advanced-new-regime-TY2026-27-v1 }
+        inputsUsed: { $ref: '#/components/schemas/AdvancedNewRegimeTaxRequest' }
+        sourceReferences: { type: array, minItems: 1, items: { type: string, format: uri } }
+        calculationClass: { type: string, const: ADVANCED_QUALIFIED_INCOME_ONLY }
+        status: { type: string, const: UNAVAILABLE }
+        unavailableReasons: { type: array, minItems: 1, items: { type: string } }
+        finalTax: { type: 'null' }
+        notes: { type: array, items: { type: string } }
+    VerifiedNewRegimeTaxRequest:
+      type: object
+      additionalProperties: false
+      required: [taxYear, incomeType, primaryIncome, otherOrdinaryIncome, residency, specialRateIncome, confirmedOrdinaryOnly]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        incomeType: { type: string, enum: [salary, pension, already_taxable] }
+        primaryIncome: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
+        otherOrdinaryIncome: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
+        residency: { type: string, enum: [resident, non_resident, unknown] }
+        specialRateIncome: { type: string, enum: ['no', 'yes', unknown] }
+        confirmedOrdinaryOnly: { type: boolean }
+    VerifiedNewRegimeTaxResponse:
+      oneOf:
+        - $ref: '#/components/schemas/VerifiedNewRegimeTaxCalculated'
+        - $ref: '#/components/schemas/VerifiedNewRegimeTaxUnavailable'
+    VerifiedNewRegimeTaxMoneyFour:
+      type: string
+      pattern: '^(0|[1-9][0-9]*)[.][0-9]{4}$'
+    VerifiedNewRegimeTaxCalculated:
+      type: object
+      additionalProperties: false
+      required: [taxYear, policyVersion, sourceReferences, status, inputsUsed, unavailableReasons, calculationClass, grossPrimaryIncome, otherOrdinaryIncome, standardDeduction, taxableIncomeBeforeRounding, taxableIncome, taxBeforeRebate, rebate, taxAfterRebate, surcharge, surchargeMarginalRelief, cess, taxBeforeStatutoryRounding, finalTax, slabBreakdown]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        policyVersion: { type: string, const: verified-simple-new-regime-TY2026-27-v1 }
+        sourceReferences: { type: array, minItems: 1, items: { type: string, format: uri } }
+        status: { type: string, const: CALCULATED }
+        inputsUsed: { $ref: '#/components/schemas/VerifiedNewRegimeTaxRequest' }
+        unavailableReasons: { type: array, maxItems: 0, items: { type: string } }
+        calculationClass: { type: string, const: SIMPLE_ORDINARY_INCOME_ONLY }
+        grossPrimaryIncome: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        otherOrdinaryIncome: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        standardDeduction: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxableIncomeBeforeRounding: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxableIncome: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+        taxBeforeRebate: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        rebate: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxAfterRebate: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        surcharge: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        surchargeMarginalRelief: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        cess: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxBeforeStatutoryRounding: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        finalTax: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+        slabBreakdown:
+          type: array
+          maxItems: 7
+          items:
+            type: object
+            additionalProperties: false
+            required: [from, to, percent, taxableInSlab, tax]
+            properties:
+              from: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+              to: { type: [string, 'null'], pattern: '^(0|[1-9][0-9]*)$' }
+              percent: { type: integer, enum: [0, 5, 10, 15, 20, 25, 30] }
+              taxableInSlab: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+              tax: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+    VerifiedNewRegimeTaxUnavailable:
+      type: object
+      additionalProperties: false
+      required: [taxYear, policyVersion, sourceReferences, status, inputsUsed, unavailableReasons, finalTax]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        policyVersion: { type: string, const: verified-simple-new-regime-TY2026-27-v1 }
+        sourceReferences: { type: array, minItems: 1, items: { type: string, format: uri } }
+        status: { type: string, const: UNAVAILABLE }
+        inputsUsed: { $ref: '#/components/schemas/VerifiedNewRegimeTaxRequest' }
+        unavailableReasons: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+        finalTax: { type: 'null' }
     Error:
       type: object
       required: [error, message, code, request_id]
