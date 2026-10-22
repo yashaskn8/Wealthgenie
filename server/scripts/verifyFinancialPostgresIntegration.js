@@ -87,6 +87,11 @@ try {
   );
   assert.ok(audited.rows[0].n>=3,
     'Rights creation, explicit approval and revocation must all be auditable');
+  await assert.rejects(
+    pool.query('DELETE FROM finance.provider_rights_audit WHERE source_id=$1',[sourceId]),
+    /PROVIDER_RIGHTS_AUDIT_IMMUTABLE/,
+    'Provider-rights audit history must be append-only at the database layer',
+  );
   process.stdout.write(JSON.stringify({status:'PASS',archetypes:catalog.rows[0].n,
     sourcedExtensions:added.rows[0].n,reviewMetadataRecords:detail.rows[0].n,
     licenseAbsentDenied:true,revocationDenied:true,
