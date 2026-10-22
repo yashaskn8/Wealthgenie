@@ -12,7 +12,12 @@ const goalText = value => String(value || '').slice(0, 1000).trim();
 
 export function isFinancialGoalPlanningQuestion(question) {
   const text = goalText(question);
-  return SUBJECT.test(text) && GOAL_INTENT.test(text);
+  // Never divert ordinary travel, healthcare, education or wedding questions
+  // into the financial engine based solely on a shared subject word.
+  const explicitAmount = new RegExp(AMOUNT.source, 'i').test(text);
+  const fundingIntent = /\b(?:sav(?:e|ing|ings)|fund(?:s|ing)?|financ(?:e|es|ial)|afford|target|budget|corpus|rupees?|money|invest(?:ing|ment)?|monthly|lump[ -]?sum|costs?|expenses?|payments?|set aside)\b/i.test(text);
+  return SUBJECT.test(text) && GOAL_INTENT.test(text)
+    && (explicitAmount || fundingIntent);
 }
 
 function authenticatedUserTurns(priorTurns) {
