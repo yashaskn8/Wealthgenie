@@ -91,6 +91,18 @@ router.get('/budget/:month', checkMonth, asyncHandler(async (req, res) => {
 }));
 
 router.put('/budget/:month', checkMonth, validateStrict(budgetSchema), asyncHandler(async (req, res) => {
+  // Fail closed until the explicit migration creates the unique index.
+  // Without it, simultaneous first-month writes could create duplicate budgets.
+  const indexes = await GoalBudget.collection.indexes().catch(error => {
+    if (error?.codeName === 'NamespaceNotFound' || error?.code === 26) return [];
+    throw error;
+  });
+  const uniqueOwnerMonth = indexes.some(index => index.name === 'goal_budget_owner_month_unique'
+    && index.unique === true && index.key?.userId === 1 && index.key?.month === 1);
+  if (!uniqueOwnerMonth) {
+    return sendError(req, res, 503, 'Goals budget storage needs its index migration before saving.',
+      'GOAL_BUDGET_INDEX_MIGRATION_REQUIRED');
+  }
   const { expectedVersion, ...updates } = req.body;
   const userId = req.user.userId;
   const month = req.params.month;
