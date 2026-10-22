@@ -121,3 +121,36 @@ test('typed goal cash baseline is price-inflation-aware without claiming investm
   assert.throws(() => planGoalSpecification({ ...goal, annualPriceInflationPct: 31 }, referenceDate), /inflation/);
   assert.throws(() => planGoalSpecification({ ...goal, targetDate: '2100-10-23' }, referenceDate), /50-year/);
 });
+
+test('one-off spending reduces this month, not nominal recurring earnings', () => {
+  const budget = { ...sampleBudget(), monthlyIncome: 47000 };
+  const result = summarizeGoalBudget(budget);
+  assert.equal(result.recurringSurplus, 5000);
+  assert.equal(result.actualMonthSurplus, 0);
+  assert.equal(result.budgetStatus, 'SELF_REPORTED');
+  const expensiveMonth = summarizeGoalBudget({ ...budget, monthlyIncome: 46000 });
+  assert.equal(expensiveMonth.recurringSurplus, 4000);
+  assert.equal(expensiveMonth.actualMonthSurplus, -1000);
+  assert.equal(expensiveMonth.budgetStatus, 'BUDGET_SHORTFALL');
+  const purchaseResult = assessVehiclePurchase(sampleBudget(), purchase());
+  assert.equal(purchaseResult.purchaseMonthSurplusAfterPurchase,
+    purchaseResult.monthlySurplusAfterPurchase - 5000);
+});
+test('zero or omitted real-world vehicle costs never yield an affordable claim', () => {
+  const base = { ...sampleBudget(), monthlyIncome: 95000 };
+  assert.equal(assessVehiclePurchase(base, { ...purchase(), upfrontFees: 0 }).status, 'DATA_INSUFFICIENT');
+  assert.equal(assessVehiclePurchase(base, { ...purchase(), monthlyOwnershipCost: 0 }).status, 'DATA_INSUFFICIENT');
+  assert.throws(() => assessVehiclePurchase(base, { ...purchase(), price: 0, downPayment: 0 }), /price/);
+  assert.equal(assessVehiclePurchase({ ...base, expensesComplete: false }, purchase()).status, 'DATA_INSUFFICIENT');
+});
+test('derived rupee limits reject unrepresentable goal targets, rather than giving extreme forecasts', () => {
+  const now = new Date('2026-10-23T00:00:00.000Z');
+  assert.throws(() => planGoalSpecification({
+    targetAmount: 1_000_000_000, currentSavings: 0, annualPriceInflationPct: 30,
+    targetDate: '2050-10-23',
+  }, now), /Inflated target/);
+  assert.throws(() => projectGoalSavings({
+    currentSavings: 1_000_000_000, monthlyContribution: 1_000_000_000, years: 50,
+    annualReturnAssumption: 100, annualInflationAssumption: 0,
+  }), /precision/);
+});
