@@ -26,6 +26,40 @@ function money(value) {
   const cleanFraction = fraction.replace(/0+$/, '');
   return '₹' + BigInt(integer).toLocaleString('en-IN') + (cleanFraction ? '.' + cleanFraction : '');
 }
+// Defense in depth: do not show a detailed slab table that contradicts the returned
+// taxable income or base tax. The server remains the authority for tax policy.
+function slabsReconcile(rows, taxableString, baseTaxString) {
+  if (!Array.isArray(rows) || !/^\d+$/.test(taxableString)
+      || !/^\d+\.\d{4}$/.test(baseTaxString)) return false;
+  const taxable = BigInt(taxableString);
+  const bounds = [
+    [0n, 400000n, 0], [400000n, 800000n, 5],
+    [800000n, 1200000n, 10], [1200000n, 1600000n, 15],
+    [1600000n, 2000000n, 20], [2000000n, 2400000n, 25],
+    [2400000n, null, 30],
+  ];
+  let rowIndex = 0;
+  let sumTaxUnits = 0n;
+  let sumIncome = 0n;
+  for (const [lower, upper, percent] of bounds) {
+    if (taxable <= lower) break;
+    const span = (upper === null || taxable < upper ? taxable : upper) - lower;
+    const row = rows[rowIndex++];
+    if (!row || typeof row !== 'object'
+        || row.from !== lower.toString()
+        || row.to !== (upper === null ? null : upper.toString())
+        || row.percent !== percent
+        || row.taxableInSlab !== span.toString()
+        || !/^\d+\.\d{4}$/.test(row.tax || '')) return false;
+    const rowTaxUnits = BigInt(row.tax.replace('.', ''));
+    if (rowTaxUnits !== span * BigInt(percent) * 100n) return false;
+    sumTaxUnits += rowTaxUnits;
+    sumIncome += span;
+  }
+  return rows.length === rowIndex && sumIncome === taxable
+    && sumTaxUnits === BigInt(baseTaxString.replace('.', ''));
+}
+
 function responseIsBound(result, request) {
   if (!result || result.taxYear !== TAX_YEAR || result.policyVersion !== POLICY_VERSION
       || !['CALCULATED', 'UNAVAILABLE'].includes(result.status)
@@ -42,7 +76,7 @@ function responseIsBound(result, request) {
     ];
     if (result.calculationClass !== 'SIMPLE_ORDINARY_INCOME_ONLY'
         || !/^\d+$/.test(result.finalTax) || !/^\d+$/.test(result.taxableIncome)
-        || !Array.isArray(result.slabBreakdown)
+        || !slabsReconcile(result.slabBreakdown, result.taxableIncome, result.taxBeforeRebate)
         || !amounts.every(key => /^\d+\.\d{4}$/.test(result[key]))) return false;
     const units = key => BigInt(result[key].replace('.', ''));
     const beforeRounding = units('taxBeforeRebate') - units('rebate')
