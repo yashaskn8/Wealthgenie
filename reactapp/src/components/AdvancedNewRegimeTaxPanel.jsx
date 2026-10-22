@@ -250,12 +250,13 @@ export default function AdvancedNewRegimeTaxPanel() {
           <span>Employer NPS is included in the declared taxable gross salary; the salary basis includes basic pay, qualifying DA, and eligible commission as a fixed percentage of turnover only.
             Leave unchecked with both NPS fields at zero if not applicable.</span>
         </label>
-        <label htmlFor="wga-special">Non-online lottery / game winnings taxable at 30% (₹)</label>
+        <label htmlFor="wga-special">Gross non-online lottery / game winnings BEFORE any TDS, taxable at 30% (₹)</label>
         <input id="wga-special" type="text" inputMode="decimal" maxLength={13} value={form.lotteryWinnings}
           onChange={e => set('lotteryWinnings', e.target.value)} required />
-        <label htmlFor="wga-property">Net loss from house property (NOT offset under new regime) (₹)</label>
+        <label htmlFor="wga-property">Already-computed net house-property LOSS only, not offset under new regime (₹)</label>
         <input id="wga-property" type="text" inputMode="decimal" maxLength={13} value={form.housePropertyLoss}
           onChange={e => set('housePropertyLoss', e.target.value)} required />
+        <p className="wg-new-tax__hint">Lottery winnings must be the gross taxable amount before TDS, not take-home cash.\n          Positive taxable house-property income, if any, belongs in additional ordinary income;\n          the separate loss field is for an independently computed net loss that cannot be offset against salary or other heads.\n          No loss carry-forward or TDS refund is calculated here.</p>
         <label htmlFor="wga-residency">Residency in India during Tax Year 2026–27</label>
         <select id="wga-residency" value={form.residency} onChange={e => set('residency', e.target.value)}>
           <option value="unknown">Not sure (cannot calculate)</option>
