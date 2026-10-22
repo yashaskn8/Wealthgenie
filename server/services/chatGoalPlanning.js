@@ -21,9 +21,11 @@ function extractMoney(question) {
     const amount = Math.round(value * factor);
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 100_000_000_000) continue;
     const prefix = String(question).slice(Math.max(0, match.index - 52), match.index).toLowerCase();
+    const suffix = String(question).slice(match.index + match[0].length, match.index + match[0].length + 24);
     rows.push({
       amount,
-      savings: /(?:already\s+)?(?:have|saved|earmarked|set aside|saved up|have put aside)\s*(?:up to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(prefix.trim()),
+      savings: /(?:already\s+)?(?:have|saved|earmarked|set aside|saved up|have put aside)\s*(?:up to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(prefix.trim())
+        || /^\s*(?:already\s+)?(?:saved|earmarked|set aside|put aside)\b/i.test(suffix),
     });
   }
   return rows;
@@ -41,17 +43,26 @@ function contextLabel(question) {
   return 'this financial goal';
 }
 
-export function retrieveChatGoalPlanningEvidence(question) {
-  if (!isFinancialGoalPlanningQuestion(question)) return [];
-  const text = String(question || '').slice(0, 1000);
+export function retrieveChatGoalPlanningEvidence(question, priorTurns = []) {
+  // Financial-session-bound USER statements may add missing inputs in follow-ups.
+  // Never read a model's answer back as if it were verified user input.
+  const previous = Array.isArray(priorTurns) ? priorTurns
+    .filter(turn => turn?.role === 'user' && typeof turn.content === 'string')
+    .slice(-2).map(turn => turn.content.slice(0, 1000)) : [];
+  const current = String(question || '').slice(0, 1000);
+  const followedGoal = previous.some(text => isFinancialGoalPlanningQuestion(text));
+  const shortFollowUp = /^(?:(?:in|within|after|over)\s+\d|(?:i(?:'ve| have)|we(?:'ve| have))\s+(?:already\s+)?sav|(?:i|we)\s+can\s+(?:save|contribute)|(?:i|we)\s+have\s+(?:saved|set aside)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))/i.test(current.trim());
+  const text = followedGoal && shortFollowUp ? [...previous, current].join(' ').slice(-2800) : current;
+  if (!isFinancialGoalPlanningQuestion(text)) return [];
   const amounts = extractMoney(text);
   const targets = amounts.filter(item => !item.savings);
   const savings = amounts.filter(item => item.savings);
   const target = targets.length === 1 ? targets[0].amount : null;
   const existing = savings.length === 1 ? savings[0].amount
     : /\b(?:no savings|nothing saved|zero saved|saved zero|starting from zero)\b/i.test(text) ? 0 : null;
-  const horizonMatch = text.match(/\b(?:in|within|after|over)\s+(\d{1,2}(?:\.\d+)?)\s+years?\b/i);
-  const months = horizonMatch ? Number(horizonMatch[1]) * 12 : null;
+  const horizonMatch = text.match(/\b(?:in|within|after|over)\s+(\d{1,2}(?:\.\d+)?)\s*(years?|yrs?|months?|mos?)\b/i);
+  const months = horizonMatch ? Math.round(Number(horizonMatch[1])
+    * (/^mo/i.test(horizonMatch[2]) ? 1 : 12)) : null;
   const validMonths = Number.isSafeInteger(months) && months > 0 && months <= 600;
   const capacityMatch = text.match(/\b(?:can\s+(?:save|contribute|afford)|monthly\s+(?:savings|saving|capacity|contribution))\s+(?:(?:₹|rs\.?|inr)\s*)?([\d,]+(?:\.\d+)?)\s*(k|thousand|lakhs?|lacs?)?\s*(?:per\s+month|monthly|a\s+month)?\b/i);
   const capacityMultiplier = /^k$|^thousand$/i.test(capacityMatch?.[2] || '') ? 1000
@@ -80,20 +91,27 @@ export function retrieveChatGoalPlanningEvidence(question) {
     displayValue: 'Goal target: ' + INR(target),
     dataClass: 'USER_INPUT', source: null, observedAt: null, freshness: null, authority: 'USER_INPUT',
   });
-  if (target !== null && existing !== null && validMonths && existing <= target) {
-    // All rupee inputs are integers, so do ceiling to paisa in integer space.
-    const baseline = Math.ceil(((target - existing) * 100) / months) / 100;
+  if (target !== null && validMonths && (existing === null || existing <= target)) {
+    // Without known savings, offer an explicit ZERO-START scenario, never claim
+    // to know the user's current balance or manufacture an expected return.
+    const scenarioSavings = existing === null ? 0 : existing;
+    const baseline = Math.ceil(((target - scenarioSavings) * 100) / months) / 100;
     if (Number.isFinite(baseline) && baseline > 0) entries.push({
       id: 'E_GOAL_MONTHLY_BASELINE', kind: 'GOAL_CALCULATION',
       value: { monthlyRequiredAmount: baseline, targetAmount: target,
-        earmarkedSavingsAmount: existing, horizonMonths: months, assumedGrowthRate: null,
+        earmarkedSavingsAmount: scenarioSavings,
+        scenario: existing === null ? 'ZERO_START_CONDITIONAL' : 'DECLARED_SAVINGS',
+        horizonMonths: months, assumedGrowthRate: null,
         inflationRate: null, returnForecast: false, sourceScope: 'CURRENT_USER_MESSAGE' },
       displayValue: 'Funding-only baseline: ' + INR(baseline)
-        + ' per month using the stated target and earmarked funds over the stated horizon, with no investment growth or inflation assumed',
+        + ' per month ' + (existing === null
+          ? 'IF starting with no earmarked savings'
+          : 'after subtracting the stated earmarked savings')
+        + ', with no investment growth, inflation or taxes assumed',
       dataClass: 'DETERMINISTIC_NO_RETURN_ILLUSTRATION',
       source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
     });
-    if (validCapacity) {
+    if (validCapacity && existing !== null) {
       const affordable = capacity >= baseline;
       entries.push({
         id: 'E_GOAL_CAPACITY_CHECK', kind: 'GOAL_CAPACITY',
