@@ -97,6 +97,7 @@ export const stressScenarioSchema = Joi.object({
 export const stepUpProjectionSchema = Joi.object({
   monthlyInvestment: Joi.number().greater(0).max(10000000).required(),
   annualReturnRate: Joi.number().greater(-1).max(1).required(),
+  returnRateConvention: Joi.string().valid('NOMINAL_APR_DIVIDED_BY_12', 'EFFECTIVE_ANNUAL_CAGR').optional(),
   years: Joi.number().integer().min(1).max(50).required(),
   annualStepUpRate: Joi.number().min(0).max(1).required(),
   inflationRate: Joi.number().min(0).max(1).optional(),
