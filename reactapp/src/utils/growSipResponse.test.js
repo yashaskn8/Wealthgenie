@@ -109,3 +109,31 @@ describe('Grow My SIP fail-closed response contract', () => {
     );
   });
 });
+
+describe('signed decimal-paise affordability reconciliation', () => {
+  it('accepts correctly rounded negative half-paisa deficits and rejects a one-paisa understatement', () => {
+    const signedInput = {
+      ...input, monthlyIncome: 0, monthlyExpenses: 100001,
+      monthlyEmi: 0, annualExpenseGrowthRate: 0.125,
+    };
+    const fixture = validFixture();
+    fixture.assumptions = { ...fixture.assumptions, ...signedInput };
+    fixture.chartData[0].monthlyBudgetSurplus = -101001;
+    fixture.chartData[1].monthlyBudgetSurplus = -113601.13;
+    fixture.affordability = {
+      status: 'OVER_DECLARED_BUDGET',
+      firstUnaffordableMonth: 1,
+      maxMonthlyShortfall: 113601.13,
+    };
+    fixture.emergency_buffer = {
+      status: 'DECLARED_BUFFER_SHORT',
+      requiredAmount: 600006,
+      declaredAmount: 200000,
+    };
+    expect(assertGrowSipResponse(fixture, signedInput)).toBe(fixture);
+    fixture.chartData[1].monthlyBudgetSurplus = -113601.12;
+    expect(() => assertGrowSipResponse(fixture, signedInput)).toThrow(
+      /invalid or incompatible financial projection/,
+    );
+  });
+});
