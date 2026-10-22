@@ -22,6 +22,15 @@ function decimalFraction(value) {
     ? [digits * (10n ** BigInt(exp)), 1n]
     : [digits, 10n ** BigInt(-exp)];
 }
+// Independent signed decimal-paisa reconciliation for annual budgets.
+// Rounding negative half-paisa deficits toward zero falsely understates debt.
+function roundSignedPaise(n) {
+  if (!Number.isFinite(n)) return NaN;
+  const [numerator, denominator] = decimalFraction(Math.abs(n));
+  const cents = (2n * numerator * 100n + denominator) / (2n * denominator);
+  return (n < 0 ? -Number(cents) : Number(cents)) / 100;
+}
+
 function expectedAnnualSipPaise(startingAmount, annualStepRate, yearIndex) {
   const [stepNumerator, stepDenominator] = decimalFraction(annualStepRate);
   const initialPaise = BigInt(Math.round(startingAmount * 100));
@@ -134,8 +143,7 @@ export function assertGrowSipResponse(value, input) {
       - input.monthlyEmi;
     const surplus = available - row.monthlySip;
     if (!Number.isFinite(surplus) || !validSigned(surplus)
-      || !matchingNumber(row.monthlyBudgetSurplus, Math.round((surplus
-        + Math.sign(surplus) * Number.EPSILON) * 100) / 100)) invalid();
+      || !matchingNumber(row.monthlyBudgetSurplus, roundSignedPaise(surplus))) invalid();
     if (surplus < -0.005) {
       if (firstUnfundedMonth === null) firstUnfundedMonth = i * 12 + 1;
       largestShortfall = Math.max(largestShortfall, -surplus);
@@ -147,7 +155,7 @@ export function assertGrowSipResponse(value, input) {
     if (budget.status !== expectedStatus
       || budget.firstUnaffordableMonth !== firstUnfundedMonth
       || !matchingNumber(budget.maxMonthlyShortfall,
-        Math.round(largestShortfall * 100) / 100)) invalid();
+        roundSignedPaise(largestShortfall))) invalid();
   }
   if ((hasBudget && budget.status === 'NOT_ASSESSED')
     || (!hasBudget && budget.status !== 'NOT_ASSESSED')) invalid();
@@ -155,8 +163,8 @@ export function assertGrowSipResponse(value, input) {
   if ((hasEmergency && buffer.status === 'NOT_ASSESSED')
     || (!hasEmergency && buffer.status !== 'NOT_ASSESSED')) invalid();
   if (hasEmergency) {
-    const required = Math.round(((input.monthlyExpenses + input.monthlyEmi)
-      * (input.emergencyMonths ?? 6) + Number.EPSILON) * 100) / 100;
+    const required = roundSignedPaise((input.monthlyExpenses + input.monthlyEmi)
+      * (input.emergencyMonths ?? 6));
     const expectedStatus = input.emergencySavings >= required
       ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT';
     if (buffer.status !== expectedStatus
