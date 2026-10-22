@@ -91,7 +91,9 @@ export function allocateGoalFunding(goals, capacity) {
   if (new Set(entries.map(e => e.goalId)).size !== entries.length) throw new TypeError('Duplicate goal identities');
   const ordered = entries.sort((a, b) => (PRIORITIES[a.priority] ?? 99) - (PRIORITIES[b.priority] ?? 99)
     || (a.dueDate || '').localeCompare(b.dueDate || '') || a.goalId.localeCompare(b.goalId));
-  const fundingVerified = available !== null && ordered.every(e => e.fresh && e.required !== null);
+  const overlappingSavingsRisk = ordered.filter(e => e.currentSavings > 0).length > 1;
+  const fundingVerified = available !== null && !overlappingSavingsRisk
+    && ordered.every(e => e.fresh && e.required !== null);
   let remaining = available;
   const allocations = ordered.map(e => {
     const eligible = fundingVerified && e.fresh && e.required !== null;
@@ -115,8 +117,9 @@ export function allocateGoalFunding(goals, capacity) {
     warnings: [
       ...(!fundingVerified ? ['GOAL_CALCULATION_OR_BUDGET_MISSING'] : []),
       ...(ordered.some(e => e.invalidInputs) ? ['INVALID_PERSISTED_GOAL_INPUT'] : []),
+      ...(overlappingSavingsRisk ? ['MULTIPLE_GOALS_CLAIM_POTENTIALLY_OVERLAPPING_SAVINGS'] : []),
       ...(fundingVerified && totalRequested > available ? ['GOALS_COMPETE_FOR_ONE_SAVINGS_POOL'] : []),
-      'CURRENT_GOAL_SAVINGS_NOT_PROVEN_DISTINCT',
+      'CURRENT_GOAL_SAVINGS_ARE_USER_DECLARED_NOT_BANK_VERIFIED',
       'PER_GOAL_PROBABILITIES_NOT_JOINT_PROBABILITY',
     ],
     allocations,
