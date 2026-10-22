@@ -1569,12 +1569,12 @@ test('red-team: a raw Groq ECONNRESET still attempts independently reserved NVID
     setCache: async () => false,
   });
   assert.deepEqual(calls, ['groq', 'nvidia_nim']);
-  assert.deepEqual(settlements, [[1, 0], [2, 23]]);
+  assert.deepEqual(settlements, [[1, null], [2, 23]]);
   assert.equal(answer.provider, 'NVIDIA_NIM');
   assert.equal(answer.validation.status, 'PASS');
   assert.equal(answer.fallback, true);
   assert.equal(answer.providerAttemptFailureCount, 1);
-  assert.match(answer.text, /7\\.1% p\\.a\\./);
+  assert.match(answer.text, /7\.1% p\.a\./);
   assert.ok(answer.citations.some(c => c.citation_id === 'E_TEST_RATE'));
 });
 
