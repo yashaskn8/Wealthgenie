@@ -174,7 +174,7 @@ export function assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments
   const status = missing.length ? 'DATA_INSUFFICIENT'
     : afterPurchase < 0 || actualMonthAfterPurchase < 0
         || actualMonthAfterPurchaseAndGoals < 0 || afterCash < 0 ? 'BUDGET_SHORTFALL'
-      : bufferInsufficient ? 'RISK_WARNING' : 'AFFORDABLE_WITH_DECLARED_BUFFER';
+      : bufferInsufficient ? 'RISK_WARNING' : 'PASSES_SELF_REPORTED_CHECKS';
   const reasons = [
     ...missing,
     ...(afterPurchase !== null && afterPurchase < 0 ? ['NEGATIVE_MONTHLY_CASHFLOW'] : []),
