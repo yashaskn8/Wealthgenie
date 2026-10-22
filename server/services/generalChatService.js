@@ -46,7 +46,11 @@ function result({ text, provider = 'SYSTEM', model = null, tokensUsed = 0, fallb
 }
 
 export async function generateGeneralChatAnswer({ question, priorTurns = [] }, dependencies = {}) {
-  const providers = dependencies.providers || [ProviderManager.groq, ProviderManager.nvidia];
+  // Integration and unit tests must not accidentally contact public LLM APIs
+  // when placeholder credentials are present; explicit injected mocks remain valid.
+  const mockOnly = process.env.NODE_ENV === 'test'
+    || String(process.env.LLM_DEFAULT_PROVIDER || '').trim().toLowerCase() === 'mock';
+  const providers = dependencies.providers || (mockOnly ? [] : [ProviderManager.groq, ProviderManager.nvidia]);
   const maxAttempts = 2;
   let attempted = 0;
   let failures = 0;
