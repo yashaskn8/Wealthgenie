@@ -247,7 +247,9 @@ export function assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments
     totalNominalCostDuringLoan: rupees(price + loan.totalInterest + upfrontFees + recurringOwnership * scenario.tenureMonths),
     priceBasis: 'USER_SUPPLIED_NOT_LIVE', priceUpdatedAt: null, lenderApproval: 'NOT_ASSESSED',
     warnings: ['USER_QUOTES_NOT_LIVE_VERIFIED', 'ASSUMES_BUY_NOW_AND_FIRST_EMI_THIS_MONTH',
-      'COSTS_MUST_INCLUDE_ALL_REQUIRED_FEES_AND_MAINTENANCE', 'USER_INPUTS_NOT_INDEPENDENTLY_VERIFIED'],
+      'COSTS_MUST_INCLUDE_ALL_REQUIRED_FEES_AND_MAINTENANCE',
+      'OWNERSHIP_COSTS_MUST_NOT_DUPLICATE_BUDGET_ITEMS', 'PURCHASE_CASH_MUST_EXCLUDE_EARMARKED_GOAL_SAVINGS',
+      'USER_INPUTS_NOT_INDEPENDENTLY_VERIFIED'],
   };
 }
 
