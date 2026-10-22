@@ -186,3 +186,44 @@ export function projectGoalSavings({ currentSavings, monthlyContribution, years,
     returnBasis: 'USER_HYPOTHETICAL_PRE_TAX', taxStatus: 'NOT_CALCULATED',
     forecast: false, guarantee: false, policyVersion: GOAL_FINANCE_POLICY_VERSION };
 }
+
+/**
+ * No-growth cash-savings baseline for a typed goal. Not an investment projection.
+ * Current savings are treated as unique to the goal only when declared by user;
+ * their overlap with other goals cannot be established automatically.
+ */
+export function planGoalSpecification(spec, now = new Date()) {
+  if (!spec || typeof spec !== 'object') throw new TypeError('Goal specification required');
+  const currentSavings = money(spec.currentSavings, 'currentSavings');
+  const targetAmount = money(spec.targetAmount, 'targetAmount');
+  const inflation = spec.annualPriceInflationPct;
+  if (typeof inflation !== 'number' || !Number.isFinite(inflation) || inflation < 0 || inflation > 30) {
+    throw new RangeError('Annual target-price inflation assumption must be 0–30%');
+  }
+  const targetDate = new Date(spec.targetDate);
+  const asOf = new Date(now);
+  if (!Number.isFinite(targetDate.getTime()) || !Number.isFinite(asOf.getTime())) {
+    throw new TypeError('Valid goal and calculation dates are required');
+  }
+  const millisecondsRemaining = targetDate.getTime() - asOf.getTime();
+  if (millisecondsRemaining <= 0) return {
+    status: 'TARGET_DATE_REACHED', monthsRemaining: 0,
+    futureTargetAmount: targetAmount, monthlyNeededWithoutReturns: null,
+    remainingGap: rupees(Math.max(0, targetAmount - currentSavings)),
+    assumptionSource: 'USER_DECLARED', forecast: false,
+    policyVersion: GOAL_FINANCE_POLICY_VERSION,
+  };
+  const yearsRemaining = millisecondsRemaining / (365.25 * 86400 * 1000);
+  if (yearsRemaining > 50) throw new RangeError('Goal date beyond 50-year planning horizon');
+  const monthsRemaining = Math.max(1, Math.ceil(yearsRemaining * 12));
+  const futureTargetAmount = rupees(targetAmount * Math.pow(1 + inflation / 100, yearsRemaining));
+  const remainingGap = rupees(Math.max(0, futureTargetAmount - currentSavings));
+  const monthlyNeededWithoutReturns = rupees(Math.ceil(remainingGap * 100 / monthsRemaining) / 100);
+  return {
+    status: remainingGap === 0 ? 'CASH_TARGET_FUNDED' : 'MONTHLY_FUNDING_REQUIRED',
+    monthsRemaining, futureTargetAmount, remainingGap, monthlyNeededWithoutReturns,
+    returnAssumption: 0, taxStatus: 'NOT_CALCULATED',
+    assumptionSource: 'USER_DECLARED', forecast: false, guarantee: false,
+    policyVersion: GOAL_FINANCE_POLICY_VERSION,
+  };
+}
