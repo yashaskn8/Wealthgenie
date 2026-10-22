@@ -184,7 +184,7 @@ router.get('/funding/:month', checkMonth, asyncHandler(async (req, res) => {
     return sendError(req, res, 409, 'Shared funding supports up to 250 total Goals targets.', 'GOAL_FUNDING_LIMIT');
   }
   const typedGoals = specifications.map(spec => {
-    const cashPlan = planGoalSpecification(spec);
+    const cashPlan = safeStoredSpecificationPlan(spec);
     return {
       goalId: `spec:${String(spec._id)}`,
       goal_name: spec.name, priority: spec.priority,
@@ -224,6 +224,19 @@ router.post('/vehicle/:month', checkMonth, validateStrict(vehicleSchema), asyncH
 }));
 
 
+function safeStoredSpecificationPlan(spec) {
+  try { return planGoalSpecification(spec); }
+  catch {
+    // Records written under another policy must never crash all user goals or
+    // silently become valid, positive contributions.
+    return {
+      status: 'DATA_INSUFFICIENT', monthlyNeededWithoutReturns: null,
+      futureTargetAmount: null, remainingGap: null, monthsRemaining: null,
+      reasonCodes: ['STORED_GOAL_REQUIRES_REVIEW'], policyVersion: 'goal-finance-1.0.1',
+    };
+  }
+}
+
 const specPayload = Joi.object({
   kind: Joi.string().valid(...GOAL_SPEC_KINDS).required(),
   name: Joi.string().trim().min(2).max(100).required(),
@@ -250,7 +263,7 @@ function specPublic(value) {
     targetDate: new Date(value.targetDate).toISOString().slice(0, 10),
     priority: value.priority, annualPriceInflationPct: value.annualPriceInflationPct,
     notes: value.notes,
-    plan: planGoalSpecification(value),
+    plan: safeStoredSpecificationPlan(value),
   };
 }
 router.get('/specifications', asyncHandler(async (req, res) => {
