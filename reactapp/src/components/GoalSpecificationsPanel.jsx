@@ -56,7 +56,7 @@ function Field({ field, value, onChange }) {
       step={['name','targetDate'].includes(field) ? undefined : '0.01'} />
   </label>;
 }
-export default function GoalSpecificationsPanel() {
+export default function GoalSpecificationsPanel({ onChanged }) {
   const [specs, setSpecs] = useState([]);
   const [draft, setDraft] = useState(blank);
   const [editing, setEditing] = useState(null);
@@ -90,6 +90,7 @@ export default function GoalSpecificationsPanel() {
       if (editing) await api.updateGoalSpecification(editing.id, { ...payload, expectedVersion: editing.version });
       else await api.createGoalSpecification(payload);
       await reload(); setDraft(blank()); setEditing(null);
+      onChanged?.();
       setNotice('Goal specification saved. Its cash-funding baseline is separate from investment forecasts.');
     } catch (e) { setError(e.message || 'Could not save goal specification.'); }
     finally { setBusy(false); }
@@ -97,7 +98,7 @@ export default function GoalSpecificationsPanel() {
   const remove = async item => {
     if (!window.confirm(`Delete the plan "${item.name}"?`)) return;
     setBusy(true); setError(null); setNotice(null);
-    try { await api.deleteGoalSpecification(item.id, item.version); await reload(); setNotice('Plan removed.'); }
+    try { await api.deleteGoalSpecification(item.id, item.version); await reload(); onChanged?.(); setNotice('Plan removed.'); }
     catch (e) { setError(e.message || 'Unable to remove plan; reload and retry.'); }
     finally { setBusy(false); }
   };
