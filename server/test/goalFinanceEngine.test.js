@@ -260,3 +260,23 @@ test('clamped payment dates prevent false monthly installments near month end', 
   assert.equal(calc('2026-10-23', '2026-12-24').monthsRemaining, 2);
   assert.equal(calc('2026-10-23', '2026-12-22').monthsRemaining, 1);
 });
+
+test('missing deadline, blank title and suspected duplicated goals block affordability claims', () => {
+  const missingDate = { ...goal('legacy', 3000), target_date: undefined };
+  const missingTitle = { ...goal('untitled', 2000), goal_name: '   ' };
+  for (const bad of [missingDate, missingTitle]) {
+    const result = allocateGoalFunding([goal('valid', 1000), bad], 10000);
+    assert.equal(result.status, 'DATA_INSUFFICIENT');
+    assert.equal(result.totalAllocated, null);
+    assert.ok(result.warnings.includes('INVALID_PERSISTED_GOAL_INPUT'));
+  }
+  const first = { ...goal('one', 2000), goal_name: '  School  Fees  ', target_date: '2028-12-20' };
+  const duplicate = { ...goal('two', 2500), goal_name: 'school fees', target_date: '2028-12-20T00:00:00.000Z' };
+  const duplicatePlan = allocateGoalFunding([first, duplicate], 10000);
+  assert.equal(duplicatePlan.status, 'DATA_INSUFFICIENT');
+  assert.equal(duplicatePlan.totalAllocated, null);
+  assert.ok(duplicatePlan.warnings.includes('POSSIBLY_DUPLICATE_REAL_WORLD_GOAL'));
+  const independent = allocateGoalFunding([first, { ...duplicate, target_date: '2029-12-20' }], 10000);
+  assert.equal(independent.status, 'WITHIN_CAPACITY');
+  assert.equal(independent.totalRequested, 4500);
+});
