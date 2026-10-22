@@ -49,7 +49,7 @@ function parseExactRupees(raw, factor) {
   const fractionalPaiseNumerator = BigInt(fraction || '0') * factor * 100n;
   if (fractionalPaiseNumerator % divisor !== 0n) return null;
   const paise = BigInt(whole) * factor * 100n + fractionalPaiseNumerator / divisor;
-  if (paise <= 0n || paise > 100_000_000_000n * 100n || paise > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  if (paise < 0n || paise > 100_000_000_000n * 100n || paise > BigInt(Number.MAX_SAFE_INTEGER)) return null;
   return Number(paise) / 100;
 }
 
@@ -81,11 +81,23 @@ function moneyIn(question) {
 }
 
 function goalHorizonMonths(question) {
-  const text = goalText(question);
-  const years = text.match(/\b(?:in|within|after|over|next|timeframe(?: of)?|horizon(?: of)?)\s+(\d{1,2}(?:\.\d{1,2})?)\s+(?:years?|yrs?)\b/i);
-  const months = text.match(/\b(?:in|within|after|over|next|timeframe(?: of)?|horizon(?: of)?)\s+(\d{1,3})\s+(?:months?|mos?)\b/i);
-  const value = years ? Number(years[1]) * 12 : months ? Number(months[1]) : null;
-  return Number.isSafeInteger(value) && value >= 1 && value <= 600 ? value : null;
+  const candidates = [];
+  const pattern = /\b(?:in|within|after|over|next|for|timeframe(?: of)?|horizon(?: of)?|deadline(?: of| in)?)\s+(\d{1,3}(?:\.\d+)?)\s*(years?|yrs?|months?|mos?)\b(?:\s*(?:and\s*)?(\d{1,2})\s*months?\b)?/gi;
+  for (const match of goalText(question).matchAll(pattern)) {
+    const [whole, fraction = ''] = match[1].split('.');
+    if (fraction.length > 6) return -1;
+    const scale = 10n ** BigInt(fraction.length);
+    const count = BigInt(whole) * scale + BigInt(fraction || '0');
+    const isYears = /^(?:year|yr)/i.test(match[2]);
+    const numerator = count * (isYears ? 12n : 1n);
+    if (numerator % scale !== 0n) return -1;
+    const remainderMonths = match[3] ? BigInt(match[3]) : 0n;
+    if (!isYears && remainderMonths) return -1;
+    const months = numerator / scale + remainderMonths;
+    if (months < 1n || months > 600n) return -1;
+    candidates.push(Number(months));
+  }
+  return candidates.length ? (candidates.every(months => months === candidates[0]) ? candidates[0] : -1) : null;
 }
 
 function goalName(text) {
@@ -122,19 +134,22 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   for (const turn of used) {
     const amounts = moneyIn(turn);
     if (amounts.some(item => item.role === 'INVALID' || item.role === 'AMBIGUOUS')) invalidAmount = true;
+    if (/\b(?:₹|rs\.?|inr)\s*[-−]\s*\d/i.test(turn)) invalidAmount = true;
     const targets = amounts.filter(item => item.role === 'TARGET');
     const savings = amounts.filter(item => item.role === 'SAVINGS');
     const capacities = amounts.filter(item => item.role === 'CAPACITY');
-    if (targets.length > 1) { target = null; ambiguousTarget = true; }
+    if (targets.length > 1 || targets.some(item => item.amount <= 0)) { target = null; ambiguousTarget = true; invalidAmount = true; }
     else if (targets.length === 1) { target = targets[0].amount; ambiguousTarget = false; }
     if (savings.length === 1) saved = savings[0].amount;
-    else if (savings.length > 1) saved = null;
+    else if (savings.length > 1) { saved = null; invalidAmount = true; }
     const zeroSavings = /\b(?:no savings|nothing saved|zero saved|saved zero|starting from zero|0 savings|zero savings)\b/i.test(turn);
     if (zeroSavings && savings.length > 0) contradictorySavings = true;
     else if (zeroSavings) saved = 0;
     if (capacities.length === 1) monthlyCapacity = capacities[0].amount;
+    else if (capacities.length > 1) { monthlyCapacity = null; invalidAmount = true; }
     const months = goalHorizonMonths(turn);
-    if (months !== null) horizon = months;
+    if (months === -1) { horizon = null; ambiguousHorizon = true; }
+    else if (months !== null) { horizon = months; ambiguousHorizon = false; }
   }
 
   // Fail closed on ambiguous savings or amounts with fractional paise.
@@ -142,7 +157,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   const context = goalName(source);
   const missing = [];
   if (target === null) missing.push(invalidAmount ? 'the exact goal and savings amounts (one amount was ambiguous or invalid)' : ambiguousTarget ? 'which amount is the actual goal target' : 'the target amount');
-  if (horizon === null) missing.push('the deadline in years');
+  if (horizon === null) missing.push(ambiguousHorizon ? 'a valid unambiguous deadline expressed in whole months' : 'the deadline in years');
   if (saved === null) missing.push('how much is already earmarked for this goal');
   const scope = used.length > 1 ? 'TRUSTED_FINANCIAL_CHAT' : 'CURRENT_USER_MESSAGE';
 
