@@ -411,3 +411,52 @@ test('goal red-team: retrieved fake citation URLs are never exposed as clickable
   assert.equal(answer.validation.status, 'PASS');
   assert.equal(answer.citations.find(c => c.citation_id === 'E_GOAL_STATED_TARGET')?.source_url, null);
 });
+
+
+test('red-team: 546 independent exact-paise goal math scenarios never underfund by a paisa', () => {
+  const targetsInPaise = [
+    1, 101, 199, 10001, 12500, 198765, 1000001, 2500000,
+    123456789, 900000001, 2000000000, 2000000001, 2525252525, 1000000000000,
+  ];
+  const horizons = [1, 2, 3, 7, 11, 12, 24, 25, 60, 119, 120, 360, 600];
+  for (const target of targetsInPaise) {
+    for (const months of horizons) {
+      for (const savingsFraction of [0, 0.25, 0.75]) {
+        const savings = savingsFraction === 0 ? 0 : Math.floor(target * savingsFraction);
+        const statedSavings = savings > 0
+          ? 'saved ₹' + (savings / 100).toFixed(2) : 'starting from zero';
+        const question = 'Need ₹' + (target / 100).toFixed(2)
+          + ' for wedding in ' + months + ' months, ' + statedSavings + '.';
+        const entry = retrieveChatGoalPlanningEvidence(question)
+          .find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
+        const expected = Math.ceil((target - savings) / months) / 100;
+        assert.equal(entry?.value.monthlyRequiredAmount, expected, question);
+        assert.equal(entry?.value.returnForecast, false);
+        assert.equal(entry?.value.assumedGrowthRate, null);
+      }
+    }
+  }
+});
+
+test('red-team: negative and foreign monetary units fail closed', () => {
+  for (const question of [
+    'Need ₹-2 crore for wedding in 10 years, starting from zero.',
+    'Need -2 crore for wedding in 10 years, starting from zero.',
+    'Need USD 2 crore for wedding in 10 years, starting from zero.',
+    'Need $2 crore for wedding in 10 years, starting from zero.',
+    'Need ₹1,00,000.001 for wedding in 10 years, starting from zero.',
+  ]) {
+    const entries = retrieveChatGoalPlanningEvidence(question);
+    assert.equal(entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, question);
+    assert.equal(entries.some(e => e.id === 'E_GOAL_STATED_TARGET'), false, question);
+  }
+});
+
+test('red-team: complete ₹50,000 monthly must not be truncated by regex lookahead', () => {
+  const entries = retrieveChatGoalPlanningEvidence(
+    'Need ₹2 crore for wedding in 10 years, saved ₹20 lakh, can save ₹50,000 monthly.',
+  );
+  assert.equal(entries.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20_000_000);
+  assert.equal(entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150_000);
+  assert.equal(entries.find(e => e.id === 'E_GOAL_CAPACITY_CHECK')?.value.monthlyCapacityAmount, 50_000);
+});
