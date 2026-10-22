@@ -84,16 +84,16 @@ export async function checkGenieProofClaims({
     }
     if (!verifier?.verifySignedManifest) {
       return unverified(candidate, 'NO_TRUSTED_EVIDENCE_VERIFIER',
-        'No approved public-key evidence verifier is configured. The claim has not been verified.');
+        'We cannot confirm this claim with an approved official source right now.');
     }
     if (evidenceError) {
       return unverified(candidate, 'EVIDENCE_LOOKUP_UNAVAILABLE',
-        'Trusted source evidence could not be checked. No conclusion was reached.');
+        'Official source records could not be checked right now.');
     }
     const evidence = evidenceByClaim[candidate.claimId];
     if (!Array.isArray(evidence) || evidence.length === 0) {
       return unverified(candidate, 'NO_QUALIFIED_SOURCE',
-        'No current, licensed and qualified source evidence is available for this exact claim.');
+        'No approved, up-to-date official source is available for this exact statement.');
     }
     // Reject old or future-dated source retrieval even if a persisted FRESH flag remains set.
     if (evidence.some(record => {
@@ -102,7 +102,7 @@ export async function checkGenieProofClaims({
         || checkedAt.getTime() - date > MAX_EVIDENCE_AGE_MS;
     })) {
       return unverified(candidate, 'EVIDENCE_TOO_OLD',
-        'The source has not been freshly checked; an older record cannot establish a current claim.');
+        'The available source record is too old to confirm today's rate.');
     }
     const claim = {
       claimId: candidate.claimId,
@@ -122,24 +122,24 @@ export async function checkGenieProofClaims({
       });
     } catch {
       return unverified(candidate, 'EVIDENCE_CHECK_FAILED',
-        'The evidence could not be safely evaluated.');
+        'The source data did not pass our verification checks.');
     }
     if (!['SUPPORTED', 'CONTRADICTED'].includes(finding?.finding)) {
       return unverified(candidate, 'EVIDENCE_INCONCLUSIVE',
-        'Evidence was incomplete, conflicting, stale or not applicable to this exact claim.');
+        'The available official evidence is incomplete, inconsistent or out of date.');
     }
     const revisions = finding?.evidence?.revisions;
     if (!Array.isArray(revisions) || revisions.length === 0
         || revisions.some(rev => rev.sourceId !== 'india-post-small-savings'
           || !Number.isFinite(rev.fact?.value))) {
       return unverified(candidate, 'SOURCE_IDENTITY_NOT_QUALIFIED',
-        'The source identity or fact could not be confirmed.');
+        'We could not establish that the source refers to this exact scheme.');
     }
     // Test-only evidence must never become a public financial truth claim.
     if (revisions.some(rev => Array.isArray(rev.sourceLineage)
       && rev.sourceLineage.some(item => /synthetic|test[-_ ]fixture/i.test(String(item))))) {
       return unverified(candidate, 'SYNTHETIC_EVIDENCE_REJECTED',
-        'Test or synthetic evidence is not permitted to establish financial correctness.');
+        'This is test data, not evidence of a real-world rate.');
     }
     // Signed source evidence must bind to the exact official page origin and
     // the original page content digest; random or missing lineage is not enough.
@@ -149,7 +149,7 @@ export async function checkGenieProofClaims({
       || rev.sourceLineage[0] !== officialOrigin
       || !/^[a-f0-9]{64}$/.test(rev.sourceLineage[1]))) {
       return unverified(candidate, 'SOURCE_LINEAGE_NOT_VERIFIED',
-        'The source evidence cannot be traced to the expected official publication.');
+        'We could not confirm that the data came from the expected official publication.');
     }
     const first = revisions[0];
     return {
