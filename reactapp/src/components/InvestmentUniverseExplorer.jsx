@@ -11,6 +11,7 @@ const FINANCIAL_CATALOG_UI_ENABLED = import.meta.env.VITE_FINANCIAL_POSTGRES_ENA
 const CATALOG_SIZE = 250;
 const PAGE_SIZE = 100;
 const MAX_PAGES = 4;
+const EMPTY_LIST = Object.freeze([]);
 
 function isFamilyId(id) {
   return typeof id === 'string' && /^[a-zA-Z0-9:_-]{1,160}$/.test(id);
@@ -26,7 +27,7 @@ function permittedEvidenceUrl(value) {
 }
 
 /** Discovery and personalized comparison are separate authorities. */
-export async function loadFinancialDirectory(signal) {
+async function loadFinancialDirectory(signal) {
   const [summary, ready] = await Promise.all([
     getFinancialUniverseSummary({ signal }),
     getThreeProductReadyFamilies({ signal }),
@@ -127,8 +128,8 @@ export default function InvestmentUniverseExplorer() {
     return () => controller.abort();
   }, [open]);
 
-  const items = data?.items || [];
-  const readyIds = data?.readyFamilyIds || [];
+  const items = data?.items || EMPTY_LIST;
+  const readyIds = data?.readyFamilyIds || EMPTY_LIST;
   const readySet = useMemo(() => new Set(readyIds), [readyIds]);
   const categories = useMemo(() => [...new Set(items.map(item => item.category).filter(Boolean))].sort(), [items]);
   const filtered = useMemo(() => {
