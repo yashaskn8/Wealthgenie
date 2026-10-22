@@ -74,3 +74,46 @@ it.each([
   await new Promise(resolve => setTimeout(resolve, 320));
   expect(calculate).not.toHaveBeenCalled();
 });
+
+
+it('sends explicit affordability inputs and zero EMI without provider keys or market calls', async () => {
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue({
+    flatFinal: 100000, stepUpFinal: 110000,
+    flatInvested: 80000, stepUpInvested: 90000,
+    additionalCorpus: 10000, additionalPercent: 10,
+    additionalContributions: 10000, additionalProjectedGrowth: 0,
+    finalMonthlySip: 1800, downsideFinal: 90000, inflationAdjustedStepUpFinal: 95000,
+    affordability: { status: 'WITHIN_DECLARED_BUDGET' },
+    emergency_buffer: { status: 'DECLARED_BUFFER_MET', requiredAmount: 126000 },
+    chartData: [],
+  });
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+
+  fireEvent.change(screen.getByLabelText('Monthly take-home (₹)'), { target: { value: '30000' } });
+  fireEvent.change(screen.getByLabelText('Monthly living expenses excluding EMI (₹)'), { target: { value: '18000' } });
+  fireEvent.change(screen.getByLabelText('Monthly EMI / debt payments (₹; enter 0 if none)'), { target: { value: '3000' } });
+  fireEvent.change(screen.getByLabelText('Liquid emergency savings (₹)'), { target: { value: '200000' } });
+  await waitFor(() => {
+    const last = calculate.mock.lastCall;
+    expect(last).toBeDefined();
+    expect(last[0]).toBe(1000);
+    expect(last[4].body).toMatchObject({
+      monthlyIncome: 30000, monthlyExpenses: 18000, monthlyEmi: 3000,
+      emergencySavings: 200000, inflationRate: 0.06,
+      downsideAnnualReturnRate: 0, annualIncomeGrowthRate: 0,
+      annualExpenseGrowthRate: 0.06,
+    });
+    expect(last[4].body).not.toHaveProperty('apiKey');
+    expect(last[4].body).not.toHaveProperty('provider');
+  });
+  expect(await screen.findByText(/Every planned instalment fits the declared monthly cash surplus/)).toBeInTheDocument();
+  expect(screen.getByText(/Extra money contributed:/)).toBeInTheDocument();
+  expect(screen.getByText(/Extra projected investment growth:/)).toBeInTheDocument();
+});
+
+it('shows a safe backend failure rather than inventing numerical results', async () => {
+  vi.spyOn(api, 'calculateStepUpProjection').mockRejectedValue(new Error('Backend is temporarily unavailable'));
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  expect(await screen.findByText('Backend is temporarily unavailable')).toBeInTheDocument();
+  expect(screen.queryByText('₹12.3 Cr')).not.toBeInTheDocument();
+});
