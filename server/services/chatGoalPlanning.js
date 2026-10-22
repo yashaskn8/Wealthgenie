@@ -36,6 +36,11 @@ export function isFinancialGoalFollowUpQuestion(question, priorTurns = []) {
 export function isGoalPlanningFollowUp(question) {
   const text = goalText(question);
   if (!text || text.length > 240) return false;
+  // A correction to an already established goal must supersede the old
+  // target instead of falling through to an unrelated generic finance reply.
+  const targetRevision = /\b(?:actually|instead|make\s+(?:it|that)|change\s+(?:the\s+)?(?:goal|target)|(?:my|the)\s+(?:goal|target)\s+(?:is|should\s+be))\b/i.test(text)
+    && moneyIn(text).some(item => item.role === 'TARGET');
+  if (targetRevision) return true;
   return /^(?:(?:in|within|after|over)\s+)?\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\b/i.test(text)
     || /^(?:in|within|after|over)\s+\d/i.test(text)
     || /\b(?:saved|savings|set aside|already have|starting from zero|nothing saved|no savings|per month|monthly|years?|yrs?|months?|mos?|horizon|deadline|timeline|afford|can contribute|can save|can invest)\b/i.test(text);
