@@ -17,6 +17,7 @@ import {
   buildTaxSlabBreakdown,
   analyzeTaxOptimization,
 } from '../services/taxEngine.js';
+import { calculateVerifiedNewRegime } from '../services/verifiedNewRegimeCalculator.js';
 import { calculatePostTaxReturnSafe, calculatePostTaxProjection } from '../services/postTaxCalculator.js';
 import { calculateUserDeclaredPostTaxScenario } from '../services/userDeclaredPostTaxScenario.js';
 
@@ -30,6 +31,26 @@ const SECTION_112A_PORTFOLIO_ALLOCATION_INCOMPLETE = 'SECTION_112A_PORTFOLIO_ALL
  */
 router.get('/policies', asyncHandler(async (req, res) => {
   res.json(getTaxPolicyCatalog());
+}));
+
+/**
+ * Scoped calculator: only verified TY2026-27 ordinary-rate income for individuals.
+ * Deliberately separate from the legacy compare, cash-flow, and capital-gain APIs.
+ */
+router.post('/new-regime-verified', asyncHandler(async (req, res) => {
+  try {
+    const result = calculateVerifiedNewRegime(req.body);
+    res.set('Cache-Control', 'no-store');
+    return res.json(result);
+  } catch (error) {
+    if (error.code === 'UNSUPPORTED_TAX_YEAR') {
+      return sendError(req, res, 422, error.message, error.code);
+    }
+    if (error.code === 'INVALID_TAX_REQUEST' || error.code === 'INVALID_MONEY') {
+      return sendError(req, res, 400, error.message, error.code);
+    }
+    throw error;
+  }
 }));
 
 function _parseTaxDeductions(input) {
