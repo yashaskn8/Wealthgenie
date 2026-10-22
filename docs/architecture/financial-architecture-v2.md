@@ -43,6 +43,18 @@ No new actual scheme/fund/stock identity is generated from marketing text. The f
 * Never persist post-tax results inside immutable Recommendation documents. All new results are independent append-only snapshots.
 * No cross-user records may be loaded or calculated; all investor routes enforce JWT and user-scoped profile ownership.
 
+## Additional deep red-team and deployment controls
+
+**SEBI advisory-compliance gate:** India's investment-adviser regime can apply to personalized investment/portfolio advice depending on the service's facts, compensation and regulatory exceptions. Before consumer production launch, obtain documented legal/compliance sign-off, including any required SEBI registration, client agreement/terms, suitability records, conflicts disclosures, grievance process and cybersecurity/privacy obligations. Regulatory registration is **not** established by this repository or by passing financial unit tests. Official sources: https://www.sebi.gov.in/legal/regulations/nov-2025/securities-and-exchange-board-of-india-investment-advisers-regulations-2013-and-securities-last-amended-on-november-25-2025-_98246.html and https://www.sebi.gov.in/legal/master-circulars/feb-2026/master-circular-for-investment-advisers_99569.html.
+
+**Provider commercial-use gate:** AMFI's published website terms restrict third-party commercial reproduction, derivative work and significant electronic storage without written authorization (https://www.amfiindia.com/terms-of-use). NSE's published usage policy requires licensed subscriber arrangements for commercial market data (https://www.nseindia.com/static/market-data/nse-data-policy). This project's CI fake rights grants concern **isolated synthetic fixtures only**; no production provider license is approved.
+
+**Tax-engine coverage gate:** The validated cash-flow engine extension supports *source-qualified scheduled ordinary-interest events* only. The Monte Carlo extension supports *a single hypothetical equity lump sum* only. No broad claim can be made that all 250 archetypes support after-tax projected outcomes, SIP tax lots, multi-product offsets, losses, actual withholding timing, future statutory rules, or verified individual security recommendations.
+
+**True current-holding gate:** Purchase lots do not establish live positions without sales, transfers and corporate-action reconciliation. The API deliberately labels such valuations illustrative and unreconciled. A holdings transaction ledger plus qualified position reconciliation is required before advertising live current portfolio values.
+
+**Backend-gated rollout:** CI must be green on the exact merge commit, including the isolated PostgreSQL rights/identity/purge integration, financial MongoDB TTL/unique migration, frontend E2E navigation, and adverse input tests. Verify real disaster recovery, rollback, exact identity, and removal of revoked derived data. New frontend extension flags must be set only after backend migrations and rights approval.
+
 ## Release blockers still requiring independent evidence
 
 * The `pg` lockfile is committed, and isolated PostgreSQL migrations/rights integration tests pass in CI; a production PostgreSQL instance, production roles/secrets, backups and restores, and live provider integration remain unverified.
