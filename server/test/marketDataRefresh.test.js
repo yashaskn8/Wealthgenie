@@ -290,6 +290,32 @@ test('scheduled refresh reports durable-write failures without reporting success
   assert.equal(JSON.stringify(errorEvents).includes('private storage diagnostic'), false);
 });
 
+test('scheduled AMFI refresh explains unavailable provider rights without pretending persistence succeeded', async () => {
+  const events = { info: [], warn: [], error: [] };
+  const log = Object.fromEntries(Object.keys(events).map(level => [
+    level, (message, fields) => events[level].push({ message, fields }),
+  ]));
+  await refreshAmfiSnapshots({
+    fetchCurrent: async () => ({
+      status: 'UNAVAILABLE', productCount: 0,
+      error: { code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED', message: 'Do not leak source diagnostics' },
+      persistence: { status: 'NOT_PERSISTED', code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' },
+    }),
+    fetchHistorical: async () => ({
+      status: 'UNAVAILABLE', productCount: 0,
+      persistence: { status: 'NOT_PERSISTED', code: 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED' },
+    }),
+    log,
+  });
+  assert.equal(events.info.length, 0);
+  assert.equal(events.error.length, 0);
+  assert.equal(events.warn.length, 1);
+  assert.equal(events.warn[0].message, 'AMFI refresh unavailable or incomplete');
+  assert.equal(events.warn[0].fields.currentReasonCode, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+  assert.equal(events.warn[0].fields.historicalReasonCode, 'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED');
+  assert.ok(!JSON.stringify(events).includes('Do not leak source diagnostics'));
+});
+
 test('manual refresh can distinguish durable AMFI failures from unavailable source snapshots', () => {
   const failures = collectAmfiPersistenceFailures(
     {

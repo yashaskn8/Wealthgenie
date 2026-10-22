@@ -178,12 +178,20 @@ export function startMarketDataRefreshJobs() {
   cancellations.push(scheduleAdaptiveJob('Primary Market Context', async () => {
     return withMarketRefreshLease('Primary Market Context', async () => {
       const result = await getLiveMarketContext({ forceQuoteRefresh: true });
-      logger.info('Primary market context refresh completed', {
+      const contextLog = {
         context: result.context || null,
         status: result.status,
         marketSession: result.marketSnapshot?.marketSession?.status || 'UNKNOWN',
         recommendationUsability: result.recommendationUsability?.status || 'NOT_USABLE',
-      });
+        reasonCodes: (Array.isArray(result.reasonCodes) ? result.reasonCodes : [])
+          .map(reason => safeIngestCode(reason, 'MARKET_CONTEXT_UNAVAILABLE'))
+          .slice(0, 12),
+      };
+      if (result.status === 'MARKET_CONTEXT_AVAILABLE') {
+        logger.info('Primary market context refresh completed', contextLog);
+      } else {
+        logger.warn('Primary market context refresh unavailable', contextLog);
+      }
       return result;
     }, { ttlSeconds: MARKET_CONTEXT_REFRESH_LOCK_TTL_SECONDS });
   }));
@@ -231,6 +239,16 @@ export async function refreshAmfiSnapshots({
     log.error('AMFI refresh completed without durable persistence', {
       ...details,
       persistenceFailures,
+    });
+  } else if (current?.status !== 'AVAILABLE' || historical?.status !== 'AVAILABLE') {
+    // Source-rights and provider failures are not successful refreshes, even
+    // when no durable write was attempted. Never log provider response bodies.
+    log.warn('AMFI refresh unavailable or incomplete', {
+      ...details,
+      currentReasonCode: safeIngestCode(
+        current?.error?.code || current?.persistence?.code, 'AMFI_CURRENT_UNAVAILABLE'),
+      historicalReasonCode: safeIngestCode(
+        historical?.error?.code || historical?.persistence?.code, 'AMFI_HISTORY_UNAVAILABLE'),
     });
   } else {
     log.info('AMFI refresh completed', details);
