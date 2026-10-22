@@ -358,8 +358,6 @@ jobs:
         run: node --check server/worker.js
       - name: Validate deployment and security configuration
         run: node server/scripts/validate-deployment-config.js
-      - name: Inspect package integrity for security patch
-        run: npm view ip-address@10.7.4 dist.integrity --json
       - name: Audit backend npm dependencies
         run: npm audit --prefix server --omit=dev --audit-level=low
       - name: Audit frontend npm dependencies
