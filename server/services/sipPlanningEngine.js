@@ -144,7 +144,11 @@ export function buildSipPlan(input) {
     inflationAdjustedStepUpFinal: last.inflationAdjustedStepUp,
     flatInvested: last.flatInvested, stepUpInvested: last.stepUpInvested,
     additionalCorpus: extra,
-    additionalPercent: last.flatSIP > 0 ? extra / last.flatSIP * 100 : 0,
+    // Compute the percent from unrounded terminal values, never from two
+    // separately rounded card totals. If the comparison is too tiny to
+    // interpret at INR precision, withhold it instead of displaying 0%.
+    additionalPercent: flat >= 0.5 && Number.isFinite(stepped / flat)
+      ? ((stepped / flat) - 1) * 100 : null,
     additionalContributions: contributedMore,
     additionalProjectedGrowth: extra - contributedMore,
     flatProjectedGrowth: last.flatSIP - last.flatInvested,
