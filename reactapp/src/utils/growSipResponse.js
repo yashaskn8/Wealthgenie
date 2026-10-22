@@ -91,6 +91,13 @@ export function assertGrowSipResponse(value, input) {
 
   const years = input.years;
   let scheduledStepUpPrincipal = 0;
+  // Independent monthly compounding reconciliation: agreeing headline and
+  // chart values are not sufficient if both have been inflated or shifted.
+  const monthlyRate = Math.expm1(Math.log1p(input.annualReturnRate) / 12);
+  const downsideMonthlyRate = Math.expm1(Math.log1p(input.downsideAnnualReturnRate) / 12);
+  let flatCorpus = 0, stepCorpus = 0, downsideCorpus = 0;
+  if (![monthlyRate, downsideMonthlyRate].every(Number.isFinite)
+    || input.downsideAnnualReturnRate > input.annualReturnRate) invalid();
   for (let i = 0; i < years; i++) {
     const row = value.chartData[i];
     if (!row || row.year !== i + 1
@@ -104,6 +111,20 @@ export function assertGrowSipResponse(value, input) {
     const expectedSip = expectedAnnualSipPaise(
       input.monthlyInvestment, input.annualStepUpRate, i,
     );
+    for (let month = 0; month < 12; month++) {
+      flatCorpus = (flatCorpus + input.monthlyInvestment) * (1 + monthlyRate);
+      stepCorpus = (stepCorpus + expectedSip) * (1 + monthlyRate);
+      downsideCorpus = (downsideCorpus + expectedSip) * (1 + downsideMonthlyRate);
+    }
+    const purchasingPower = Math.pow(1 + input.inflationRate, i + 1);
+    if (![flatCorpus, stepCorpus, downsideCorpus, purchasingPower].every(Number.isFinite)
+      || !validAmount(flatCorpus) || !validAmount(stepCorpus) || !validAmount(downsideCorpus)
+      || !validAmount(row.inflationAdjustedFlat)
+      || row.flatSIP !== Math.round(flatCorpus)
+      || row.stepUpSIP !== Math.round(stepCorpus)
+      || row.downsideStepUp !== Math.round(downsideCorpus)
+      || row.inflationAdjustedFlat !== Math.round(flatCorpus / purchasingPower)
+      || row.inflationAdjustedStepUp !== Math.round(stepCorpus / purchasingPower)) invalid();
     const expectedFlatPaid = Math.round(input.monthlyInvestment * 12 * (i + 1) * 100) / 100;
     scheduledStepUpPrincipal += expectedSip * 12;
     const expectedStepUpPaid = Math.round(scheduledStepUpPrincipal * 100) / 100;
@@ -116,6 +137,17 @@ export function assertGrowSipResponse(value, input) {
       || row.inflationAdjustedStepUp > row.stepUpSIP) invalid();
   }
   const last = value.chartData[years - 1];
+  const expectedUplift = flatCorpus >= 0.5 && Number.isFinite(stepCorpus / flatCorpus)
+    ? ((stepCorpus / flatCorpus) - 1) * 100 : null;
+  if (!(expectedUplift === null
+    ? value.additionalPercent === null
+    : typeof value.additionalPercent === 'number'
+      && Number.isFinite(value.additionalPercent)
+      && Math.abs(value.additionalPercent - expectedUplift) < 1e-7)
+    || !validSigned(value.flatProjectedGrowth)
+    || !validSigned(value.stepUpProjectedGrowth)
+    || Math.abs(value.flatProjectedGrowth - (value.flatFinal - value.flatInvested)) > 0.011
+    || Math.abs(value.stepUpProjectedGrowth - (value.stepUpFinal - value.stepUpInvested)) > 0.011) invalid();
   if (last.flatSIP !== value.flatFinal || last.stepUpSIP !== value.stepUpFinal
     || last.stepUpInvested !== value.stepUpInvested || last.flatInvested !== value.flatInvested
     || last.downsideStepUp !== value.downsideFinal
