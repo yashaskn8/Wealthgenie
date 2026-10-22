@@ -119,9 +119,9 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
     const inputs = [
       ['Vehicle base price excluding separately entered taxes and fees (₹)', '600000'], ['Cash down payment (₹)', '200000'],
       ['Registration, taxes, insurance and fees upfront (₹)', '20000'],
-      ['Fuel, servicing, parking and insurance renewals / month (₹)', '5000'],
+      ['Extra monthly vehicle costs not already in expenses (₹)', '5000'],
       ['Loan annual nominal interest rate (%)', '10'],
-      ['Available cash reserve before buying (₹)', '400000'],
+      ['Liquid cash excluding funds reserved for other goals (₹)', '400000'],
       ['Cash reserve to protect after buying (₹)', '150000'],
     ];
     for (const [label, value] of inputs) fireEvent.change(screen.getByLabelText(label), { target: { value } });
