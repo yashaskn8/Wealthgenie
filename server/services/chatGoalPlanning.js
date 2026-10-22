@@ -161,13 +161,20 @@ export function calculateGoalMonthlyBaseline(target, savings, months) {
   if (!Number.isSafeInteger(months) || months < 1 || months > 600
       || !Number.isFinite(target) || !Number.isFinite(savings)
       || target <= 0 || savings < 0 || savings > target) return null;
-  const targetPaise = target * 100;
-  const savingsPaise = savings * 100;
-  if (!Number.isSafeInteger(Math.round(targetPaise))
-      || !Number.isSafeInteger(Math.round(savingsPaise))
-      || Math.abs(targetPaise - Math.round(targetPaise)) > 0.0001
-      || Math.abs(savingsPaise - Math.round(savingsPaise)) > 0.0001) return null;
-  const remainingPaise = BigInt(Math.round(targetPaise)) - BigInt(Math.round(savingsPaise));
+  // Do not multiply money by 100 in binary floating point. For example,
+  // valid high-value inputs with two decimal places can produce paise values
+  // off by >0.0001 due solely to IEEE-754 representation and be rejected.
+  // The shortest-roundtrip decimal string preserves the user's exact paise.
+  const exactPaise = value => {
+    const match = String(value).match(/^(\d+)(?:\.(\d{1,2}))?$/);
+    if (!match) return null;
+    const result = BigInt(match[1]) * 100n + BigInt((match[2] || '').padEnd(2, '0') || '0');
+    return result <= BigInt(Number.MAX_SAFE_INTEGER) ? result : null;
+  };
+  const targetPaise = exactPaise(target);
+  const savingsPaise = exactPaise(savings);
+  if (targetPaise === null || savingsPaise === null) return null;
+  const remainingPaise = targetPaise - savingsPaise;
   return Number((remainingPaise + BigInt(months) - 1n) / BigInt(months)) / 100;
 }
 
