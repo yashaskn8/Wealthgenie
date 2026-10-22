@@ -75,7 +75,8 @@ export function buildSipPlan(input) {
   const assessBudget = monthlyIncome !== null && monthlyExpenses !== null && monthlyEmi !== null;
   const r = toMonthlyRate(annualReturnRate, returnRateConvention);
   const downsideR = toMonthlyRate(downsideAnnualReturnRate, returnRateConvention);
-  let flat = 0, stepped = 0, downside = 0, flatPaid = 0, steppedPaid = 0;
+  let flat = 0, stepped = 0, downside = 0;
+  let flatPaidPaise = 0n, steppedPaidPaise = 0n;
   let firstUnaffordableMonth = null, maxMonthlyShortfall = 0, worstMonthlySurplus = null;
   let lastSip = monthlyInvestment;
   const chartData = [];
@@ -121,14 +122,15 @@ export function buildSipPlan(input) {
       flat = checked((flat + monthlyInvestment) * (1 + r));
       stepped = checked((stepped + annualSip) * (1 + r));
       downside = checked((downside + annualSip) * (1 + downsideR));
-      flatPaid = checked(flatPaid + monthlyInvestment);
-      steppedPaid = checked(steppedPaid + annualSip);
+      flatPaidPaise += startingPaise;
+      steppedPaidPaise += instalmentPaise;
     }
     const factor = Math.pow(1 + inflationRate, year);
     chartData.push({
       year, flatSIP: rounded(flat), stepUpSIP: rounded(stepped),
       downsideStepUp: rounded(downside),
-      flatInvested: money(flatPaid), stepUpInvested: money(steppedPaid),
+      flatInvested: Number(flatPaidPaise) / 100,
+      stepUpInvested: Number(steppedPaidPaise) / 100,
       inflationAdjustedFlat: rounded(flat / factor),
       inflationAdjustedStepUp: rounded(stepped / factor),
       monthlySip: money(annualSip),
@@ -144,7 +146,7 @@ export function buildSipPlan(input) {
   const budgetStatus = !assessBudget ? 'NOT_ASSESSED'
     : firstUnaffordableMonth === null ? 'WITHIN_DECLARED_BUDGET' : 'OVER_DECLARED_BUDGET';
   const extra = last.stepUpSIP - last.flatSIP;
-  const contributedMore = last.stepUpInvested - last.flatInvested;
+  const contributedMore = Number(steppedPaidPaise - flatPaidPaise) / 100;
   const warnings = [];
   if (!assessBudget) warnings.push('AFFORDABILITY_NOT_ASSESSED');
   if (monthlyEmi === null) warnings.push('MONTHLY_EMI_NOT_DECLARED');
@@ -178,9 +180,9 @@ export function buildSipPlan(input) {
     additionalPercent: flat >= 0.5 && Number.isFinite(stepped / flat)
       ? ((stepped / flat) - 1) * 100 : null,
     additionalContributions: contributedMore,
-    additionalProjectedGrowth: extra - contributedMore,
-    flatProjectedGrowth: last.flatSIP - last.flatInvested,
-    stepUpProjectedGrowth: last.stepUpSIP - last.stepUpInvested,
+    additionalProjectedGrowth: money(extra - contributedMore),
+    flatProjectedGrowth: money(last.flatSIP - last.flatInvested),
+    stepUpProjectedGrowth: money(last.stepUpSIP - last.stepUpInvested),
     finalMonthlySip: money(lastSip),
     affordability: {
       status: budgetStatus, firstUnaffordableMonth,
