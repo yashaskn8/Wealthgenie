@@ -195,11 +195,16 @@ export function getGroundedExplanationTokenUpperBound({ question, evidencePacket
 }
 
 function citationFor(entry) {
+  const rawUrl = entry.source?.url;
+  // Citations are data, not executable links. Never let retrieved documents
+  // or a cache result introduce a javascript:, data: or insecure URL.
+  const sourceUrl = typeof rawUrl === 'string'
+    && /^https:\/\/[^\s"'<>]+$/i.test(rawUrl) ? rawUrl : null;
   return {
     citation_id: entry.id,
     document_title: entry.source?.title || (entry.kind === 'PRODUCT_FACT' && entry.value?.name ? `${entry.value.name} — official product fact` : entry.kind.replace(/_/g, ' ')),
     source: entry.source?.provider || entry.authority || 'WealthGenie backend',
-    source_url: entry.source?.url || null,
+    source_url: sourceUrl,
     excerpt: entry.displayValue || String(entry.value ?? 'Unavailable'),
     evidence_class: entry.dataClass,
     observed_at: entry.observedAt,
