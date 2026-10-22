@@ -276,6 +276,31 @@ test('red-team: general provider-issued tool/function calls are discarded, never
   assert.equal(secondProviderCalls, 0);
 });
 
+
+test('red-team: emails, bearer credentials and raw URLs in general questions and history are redacted at the LLM boundary', async () => {
+  const captured = [];
+  const result = await generateGeneralChatAnswer({
+    question: 'Write a Python regex for help@example.com; visit https://private.example/secret',
+    priorTurns: [
+      { role: 'user', content: 'Write Python examples with foo@example.com' },
+      { role: 'model', content: 'Use this sample pattern with foo@example.com.' },
+    ],
+  }, {
+    providers: [{ name: 'groq', isConfigured: () => true, async generate(payload) {
+      captured.push(JSON.stringify(payload));
+      return { provider: 'groq', text: 'Use a regular expression for email patterns.',
+        tokensUsed: 25, wasCompleted: true };
+    } }],
+  });
+  assert.equal(result.provider, 'GROQ');
+  assert.equal(result.grounded, false);
+  assert.deepEqual(result.citations, []);
+  assert.equal(captured.length, 1);
+  assert.doesNotMatch(captured[0], /help@example\.com|foo@example\.com|private\.example/);
+  assert.match(captured[0], /\[email omitted\]/);
+  assert.match(captured[0], /\[external URL omitted\]/);
+});
+
 test('red-team: general model never receives injected financial prior-history rows', async () => {
   let history = null;
   const answer = await generateGeneralChatAnswer({
