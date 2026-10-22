@@ -64,6 +64,9 @@ export function createFinancialStore(pool) {
          JOIN finance.products p ON p.id=o.product_id
         WHERE o.product_id=$1 AND o.observation_type=$2
           AND p.record_kind='ACTUAL_PRODUCT' AND p.availability IN ('AVAILABLE','RESTRICTED')
+          AND (o.observation_type NOT IN ('PRICE','NAV') OR o.value>0)
+          AND (o.observation_type<>'NAV' OR o.data_class='END_OF_DAY')
+          AND ((o.observation_type='PUBLISHED_RATE') = (o.data_class='PUBLISHED_RATE'))
           AND r.access_allowed AND r.extraction_allowed AND r.storage_allowed
           AND r.derivation_allowed AND r.public_display_allowed
           AND r.commercial_use_allowed AND r.redistribution_allowed
@@ -93,6 +96,16 @@ export function createFinancialStore(pool) {
     if (!['LIVE','DELAYED','END_OF_DAY','PUBLISHED_RATE'].includes(input.dataClass)) throw new TypeError('Unknown observation data class');
     if (typeof input.value !== 'string' || !/^(0|[1-9][0-9]*)(\.[0-9]{1,8})?$/.test(input.value)) {
       throw new TypeError('Observation value must be an exact non-negative decimal string');
+    }
+    if (['PRICE','NAV'].includes(input.kind)
+      && (!Number.isFinite(Number(input.value)) || Number(input.value)<=0)) {
+      throw new TypeError('Market prices and NAVs must be strictly positive');
+    }
+    if (input.kind==='NAV' && input.dataClass!=='END_OF_DAY') {
+      throw new TypeError('Mutual fund NAV requires an end-of-day observation');
+    }
+    if ((input.kind==='PUBLISHED_RATE') !== (input.dataClass==='PUBLISHED_RATE')) {
+      throw new TypeError('Published rate metric and observation class must match');
     }
     if (typeof input.sourceId !== 'string' || !input.sourceId.trim()) throw new TypeError('Source identity required');
     if (typeof input.sourceInstrumentId !== 'string' || input.sourceInstrumentId.length < 1
