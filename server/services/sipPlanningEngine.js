@@ -17,12 +17,12 @@ export function buildSipPlan(input) {
     monthlyInvestment, annualReturnRate, annualStepUpRate, years,
     inflationRate = 0.06,
     downsideAnnualReturnRate = Math.max(-0.99, annualReturnRate - 0.08),
-    monthlyIncome = null, monthlyExpenses = null, monthlyEmi = 0,
+    monthlyIncome = null, monthlyExpenses = null, monthlyEmi = null,
     emergencySavings = null, emergencyMonths = 6,
     annualIncomeGrowthRate = 0, annualExpenseGrowthRate = 0.06,
   } = input;
   const required = [monthlyInvestment, annualReturnRate, annualStepUpRate, years,
-    inflationRate, downsideAnnualReturnRate, monthlyEmi, emergencyMonths,
+    inflationRate, downsideAnnualReturnRate, emergencyMonths,
     annualIncomeGrowthRate, annualExpenseGrowthRate];
   if (!required.every(Number.isFinite) || !Number.isInteger(years) || years < 1 || years > 50
       || monthlyInvestment <= 0 || monthlyInvestment > 10000000
@@ -30,7 +30,6 @@ export function buildSipPlan(input) {
       || annualReturnRate <= -1 || annualReturnRate > 1
       || downsideAnnualReturnRate <= -1 || downsideAnnualReturnRate > 1
       || inflationRate < 0 || inflationRate > 1
-      || monthlyEmi < 0 || monthlyEmi > 10000000
       || emergencyMonths < 0 || emergencyMonths > 24
       || annualIncomeGrowthRate < 0 || annualIncomeGrowthRate > 1
       || annualExpenseGrowthRate < 0 || annualExpenseGrowthRate > 1) {
@@ -41,7 +40,7 @@ export function buildSipPlan(input) {
       throw new RangeError('SIP_PLAN_INVALID_INPUT: invalid ' + key);
     }
   }
-  const assessBudget = monthlyIncome !== null && monthlyExpenses !== null;
+  const assessBudget = monthlyIncome !== null && monthlyExpenses !== null && monthlyEmi !== null;
   const r = annualReturnRate / 12;
   const downsideR = downsideAnnualReturnRate / 12;
   let flat = 0, stepped = 0, downside = 0, flatPaid = 0, steppedPaid = 0;
@@ -50,7 +49,7 @@ export function buildSipPlan(input) {
   const chartData = [];
 
   for (let year = 1; year <= years; year += 1) {
-    const annualSip = monthlyInvestment * Math.pow(1 + annualStepUpRate, year - 1);
+    const annualSip = money(monthlyInvestment * Math.pow(1 + annualStepUpRate, year - 1));
     if (!Number.isFinite(annualSip) || annualSip > 10000000) {
       throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: future monthly SIP exceeds ₹1,00,00,000');
     }
@@ -86,7 +85,8 @@ export function buildSipPlan(input) {
     });
   }
   const last = chartData.at(-1);
-  const emergencyRequired = monthlyExpenses === null ? null : (monthlyExpenses + monthlyEmi) * emergencyMonths;
+  const emergencyRequired = monthlyExpenses === null || monthlyEmi === null
+    ? null : (monthlyExpenses + monthlyEmi) * emergencyMonths;
   const emergencyStatus = emergencyRequired === null || emergencySavings === null
     ? 'NOT_ASSESSED'
     : emergencySavings >= emergencyRequired ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT';
@@ -96,6 +96,7 @@ export function buildSipPlan(input) {
   const contributedMore = last.stepUpInvested - last.flatInvested;
   const warnings = [];
   if (!assessBudget) warnings.push('AFFORDABILITY_NOT_ASSESSED');
+  if (monthlyEmi === null) warnings.push('MONTHLY_EMI_NOT_DECLARED');
   if (firstUnaffordableMonth !== null) warnings.push('STEP_UP_EXCEEDS_DECLARED_BUDGET');
   if (emergencyStatus === 'DECLARED_BUFFER_SHORT') warnings.push('DECLARED_EMERGENCY_BUFFER_SHORT');
   if (emergencyStatus === 'NOT_ASSESSED') warnings.push('EMERGENCY_BUFFER_NOT_ASSESSED');
@@ -131,7 +132,7 @@ export function buildSipPlan(input) {
         year: row.year, monthlySip: row.monthlySip,
         monthlyBudgetSurplus: row.monthlyBudgetSurplus,
       })),
-      assumesEmiConstant: true, incomeExpensesUserDeclared: true,
+      assumesEmiConstant: true, incomeExpensesUserDeclared: assessBudget,
     },
     emergency_buffer: {
       status: emergencyStatus,
