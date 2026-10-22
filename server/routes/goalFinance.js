@@ -33,7 +33,7 @@ const budgetSchema = Joi.object({
   expenses: Joi.array().items(expenseSchema).max(100).required(),
 }).unknown(false);
 const vehicleInput = Joi.object({
-  price: rupee.required(),
+  price: rupee.greater(0).required(),
   downPayment: rupee.required(),
   upfrontFees: rupee.required(),
   monthlyOwnershipCost: rupee.required(),
@@ -45,7 +45,7 @@ const vehicleInput = Joi.object({
 const vehicleSchema = vehicleInput.keys({
   alternatives: Joi.array().max(8).items(Joi.object({
     label: Joi.string().trim().min(1).max(100).required(),
-    price: rupee.required(),
+    price: rupee.greater(0).required(),
     downPayment: rupee.required(),
     upfrontFees: rupee.required(),
     monthlyOwnershipCost: rupee.required(),
@@ -193,11 +193,12 @@ router.get('/funding/:month', checkMonth, asyncHandler(async (req, res) => {
       calculation_freshness: { fresh: cashPlan.status !== 'TARGET_DATE_REACHED' },
     };
   });
-  const capacity = summary.budgetStatus === 'SELF_REPORTED' ? Math.max(0, summary.recurringSurplus) : null;
+  // One-off costs count toward this month's available funding.
+  const capacity = summary.budgetStatus === 'SELF_REPORTED' ? Math.max(0, summary.actualMonthSurplus) : null;
   const plan = allocateGoalFunding([...goals, ...typedGoals], capacity);
   res.json({
     month: req.params.month, budgetVersion: budget.version, budgetSummary: summary, plan,
-    warning: 'Legacy and typed goals share one capacity; duplicate real-world targets and saved balances cannot be proven distinct. User-declared budgeting is not bank-verified.',
+    warning: "This month's funding excludes one-off expenses. Legacy and typed goals share one capacity; duplicate targets and savings balances cannot be proven distinct. All values are user-declared.",
   });
 }));
 
