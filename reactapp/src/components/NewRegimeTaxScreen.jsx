@@ -5,6 +5,11 @@ import './NewRegimeTaxScreen.css';
 const TAX_YEAR = '2026-27';
 const POLICY_VERSION = 'verified-simple-new-regime-TY2026-27-v1';
 const MONEY = /^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/;
+function asPaise(value) {
+  if (!MONEY.test(value)) return null;
+  const [rupees, decimal = ''] = value.split('.');
+  return BigInt(rupees) * 100n + BigInt(decimal.padEnd(2, '0') || '0');
+}
 const INITIAL = Object.freeze({
   taxYear: TAX_YEAR,
   incomeType: 'salary',
@@ -75,9 +80,10 @@ export default function NewRegimeTaxScreen() {
   async function calculate(event) {
     event.preventDefault();
     const request = { ...form };
-    const valid = MONEY.test(request.primaryIncome)
-      && MONEY.test(request.otherOrdinaryIncome)
-      && Number(request.primaryIncome) + Number(request.otherOrdinaryIncome) <= 1_000_000_000;
+    const primaryPaise = asPaise(request.primaryIncome);
+    const additionalPaise = asPaise(request.otherOrdinaryIncome);
+    const valid = primaryPaise !== null && additionalPaise !== null
+      && primaryPaise + additionalPaise <= 100_000_000_000n;
     if (!valid) {
       setResult(null);
       setError('Enter valid non-negative rupee amounts (maximum two decimal places; combined maximum ₹100 crore).');
