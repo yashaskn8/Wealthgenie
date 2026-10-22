@@ -118,7 +118,7 @@ function sipResponse(overrides = {}, request = {}) {
 }
 
 const formattedINR = value => new Intl.NumberFormat('en-IN', {
-  style: 'currency', currency: 'INR', maximumFractionDigits: 2,
+  style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2,
 }).format(value);
 
 it('labels the step-up difference as extra projected corpus, not investment gain', async () => {
