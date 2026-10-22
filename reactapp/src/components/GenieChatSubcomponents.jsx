@@ -11,7 +11,7 @@ import { parseActionCards, useStreamedText, streamedMessages } from '../utils/ge
 // ── Citations List Component ──────────────────────────────────────
 export function CitationsList({ citations }) {
   const [isOpen, setIsOpen] = useState(false);
-  if (!citations || citations.length === 0) return null;
+  if (!Array.isArray(citations) || citations.length === 0) return null;
 
   return (
     <div className="genie-citations">
@@ -27,7 +27,9 @@ export function CitationsList({ citations }) {
       {isOpen && (
         <div className="citations-list">
           {citations.map((c, i) => {
-            const scorePct = c.relevance_score ? Math.round(c.relevance_score * 100) : null;
+            const scorePct = typeof c.relevance_score === 'number' && Number.isFinite(c.relevance_score)
+              && c.relevance_score >= 0 && c.relevance_score <= 1
+              ? Math.round(c.relevance_score * 100) : null;
             // A URL in retrieved or cached RAG data is untrusted. Only HTTPS
             // links are navigable; local computations are not external sources.
             const sourceUrl = typeof c.source_url === 'string'
@@ -45,7 +47,7 @@ export function CitationsList({ citations }) {
                     {sourceUrl ? (
                       <a href={sourceUrl} target="_blank" rel="noopener noreferrer">{c.document_title || 'Source document'}</a>
                     ) : (c.source === 'USER_INPUT' ? 'Your stated information' : c.document_title || 'Verified evidence')}
-                    <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '6px', fontSize: '0.75rem' }}>({c.source === 'USER_INPUT' ? 'Your input' : c.source === 'WEALTHGENIE_BACKEND' ? 'Calculated by WealthGenie' : c.source || 'Knowledge Base'}{c.chunk_id ? ` #${c.chunk_id.split('#')[1] || c.chunk_id}` : ''})</span>
+                    <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '6px', fontSize: '0.75rem' }}>({originLabel}{typeof c.chunk_id === 'string' && c.chunk_id ? ` #${c.chunk_id.split('#')[1] || c.chunk_id}` : ''})</span>
                   </span>
                   {scorePct !== null && (
                     <span style={{ fontSize: '0.7rem', padding: '1px 6px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', borderRadius: '4px' }}>
