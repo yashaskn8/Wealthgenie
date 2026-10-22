@@ -302,13 +302,6 @@ router.get('/specifications', asyncHandler(async (req, res) => {
   res.json({ specifications: specs.map(specPublic) });
 }));
 router.post('/specifications', validateStrict(createSpecSchema), asyncHandler(async (req, res) => {
-  const futureDate = new Date(`${req.body.targetDate}T00:00:00.000Z`);
-  if (futureDate <= new Date()) {
-    return sendError(req, res, 400, 'Choose a future goal target date.', 'GOAL_SPEC_DATE_INVALID');
-  }
-  // Validate all derived calculations before the document is committed.
-  try { planGoalSpecification({ ...req.body, targetDate: futureDate }); }
-  catch { return sendError(req, res, 400, 'Goal target or horizon is outside supported limits.', 'GOAL_SPEC_CALCULATION_INVALID'); }
   const userId = req.user.userId;
   const creationKey = String(req.headers['idempotency-key'] || '');
   if (!/^[A-Za-z0-9._:-]{16,128}$/.test(creationKey)) {
@@ -338,6 +331,14 @@ router.post('/specifications', validateStrict(createSpecSchema), asyncHandler(as
   };
   const existing = await GoalSpecification.findOne({ userId, creationKey }).lean();
   if (existing) return replay(existing);
+  // A delayed retry must replay a previously committed goal even after its
+  // target date has passed. Only new creations require a future deadline.
+  const futureDate = new Date(`${req.body.targetDate}T00:00:00.000Z`);
+  if (futureDate <= new Date()) {
+    return sendError(req, res, 400, 'Choose a future goal target date.', 'GOAL_SPEC_DATE_INVALID');
+  }
+  try { planGoalSpecification({ ...req.body, targetDate: futureDate }); }
+  catch { return sendError(req, res, 400, 'Goal target or horizon is outside supported limits.', 'GOAL_SPEC_CALCULATION_INVALID'); }
   const count = await GoalSpecification.countDocuments({ userId });
   if (count >= 250) return sendError(req, res, 409, 'Goal specification limit reached.', 'GOAL_SPEC_LIMIT');
   let doc;
