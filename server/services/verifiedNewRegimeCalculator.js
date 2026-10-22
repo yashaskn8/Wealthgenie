@@ -101,6 +101,9 @@ export function calculateVerifiedNewRegime(input) {
   }
   const primary = paise(input.primaryIncome, 'primaryIncome');
   const additional = paise(input.otherOrdinaryIncome, 'otherOrdinaryIncome');
+  if (primary + additional > LIMIT * PAISA) {
+    throw Object.assign(new RangeError('Combined income exceeds the supported maximum'), { code: 'INVALID_MONEY' });
+  }
   const echoedInputs = { ...input };
   if (input.residency === 'unknown' || input.specialRateIncome !== 'no' || !input.confirmedOrdinaryOnly) {
     const reasons = [
