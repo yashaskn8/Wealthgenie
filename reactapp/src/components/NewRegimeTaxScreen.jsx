@@ -243,7 +243,7 @@ export default function NewRegimeTaxScreen() {
         <input id="wg-tax-other" inputMode="decimal" type="text" autoComplete="off"
           value={form.otherOrdinaryIncome} onChange={e => change('otherOrdinaryIncome', e.target.value)}
           maxLength={13} required />
-        <p className="wg-new-tax__hint">Enter 0 if you have no additional ordinary income. Include taxable bank interest and similar ordinary-rate income. Do not put CTC, investment principal, exempt income or capital gains into these fields.</p>
+        <p className="wg-new-tax__hint">Enter 0 if you have no additional ordinary income. Include taxable bank interest and similar ordinary-rate income. Do not enter CTC, investment principal, exempt income or capital gains. IMPORTANT: For salary/pension, enter the amount BEFORE the ₹75,000 standard deduction. If your figure ALREADY has that deduction taken out (for example, an income-after-deductions figure), select “Ordinary income already calculated as taxable” instead; otherwise the deduction would be counted twice. If that figure includes all ordinary taxable income, enter 0 for additional income so it is not counted twice.</p>
         <label htmlFor="wg-tax-residency">Residential status for Tax Year 2026–27</label>
         <select id="wg-tax-residency" value={form.residency} onChange={e => change('residency', e.target.value)}>
           <option value="unknown">Not sure (cannot calculate)</option>
