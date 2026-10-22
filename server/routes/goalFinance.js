@@ -50,6 +50,8 @@ const vehicleSchema = vehicleInput.keys({
     downPayment: rupee.required(),
     upfrontFees: rupee.required(),
     monthlyOwnershipCost: rupee.required(),
+    annualInterestRate: Joi.number().min(0).max(45).optional(),
+    tenureMonths: Joi.number().integer().min(1).max(360).optional(),
   }).unknown(false)).optional(),
 });
 const projectionSchema = Joi.object({
@@ -256,9 +258,13 @@ router.post('/vehicle/:month', checkMonth, requireCurrentGoalAssessmentMonth, va
     primary = assessVehiclePurchase(budget, scenario, assessmentContext);
     compared = alternatives.map(alt => ({
       label: alt.label,
+      annualInterestRateSource: alt.annualInterestRate == null ? 'SHARED_PRIMARY_ASSUMPTION' : 'USER_ALTERNATIVE_QUOTE',
+      tenureSource: alt.tenureMonths == null ? 'SHARED_PRIMARY_ASSUMPTION' : 'USER_ALTERNATIVE_QUOTE',
       assessment: assessVehiclePurchase(budget, {
         ...scenario, price: alt.price, downPayment: alt.downPayment,
         upfrontFees: alt.upfrontFees, monthlyOwnershipCost: alt.monthlyOwnershipCost,
+        annualInterestRate: alt.annualInterestRate ?? scenario.annualInterestRate,
+        tenureMonths: alt.tenureMonths ?? scenario.tenureMonths,
       }, assessmentContext),
     }));
   } catch (error) {
