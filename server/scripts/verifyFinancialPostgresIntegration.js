@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
@@ -61,6 +63,8 @@ try {
     derivation_allowed=true,public_display_allowed=true,commercial_use_allowed=true,
     redistribution_allowed=true,reviewed_at=now()
     WHERE source_id=$1`,[sourceId]);
+  await assert.rejects(store.appendObservation({...input,
+    sourceInstrumentId:'CI:WRONG:'+suffix}),/PRODUCT_PROVIDER_IDENTITY_MISMATCH/);
   const stored = await store.appendObservation(input);
   assert.equal(stored.stored,true);
   const found = await store.latestPublishableObservation(productId,'PRICE');
@@ -69,9 +73,18 @@ try {
   await pool.query('UPDATE finance.provider_rights SET revoked_at=now() WHERE source_id=$1',[sourceId]);
   assert.equal(await store.latestPublishableObservation(productId,'PRICE'),null,
     'Revoked rights must prevent source publication immediately');
+  execFileSync(process.execPath,
+    [fileURLToPath(new URL('./pruneFinancialPostgres.js',import.meta.url))],
+    {env:process.env,stdio:'pipe',timeout:30000});
+  const purged=await pool.query(
+    'SELECT count(*)::integer AS n FROM finance.market_observations WHERE source_id=$1',
+    [sourceId],
+  );
+  assert.equal(purged.rows[0].n,0,'Revoked market facts must be physically removed');
   process.stdout.write(JSON.stringify({status:'PASS',archetypes:catalog.rows[0].n,
     sourcedExtensions:added.rows[0].n,reviewMetadataRecords:detail.rows[0].n,
-    licenseAbsentDenied:true,revocationDenied:true,sandboxFixture:true})+'\n');
+    licenseAbsentDenied:true,revocationDenied:true,
+    wrongProviderInstrumentDenied:true,revocationDataPurged:true,sandboxFixture:true})+'\n');
 } finally {
   // This script is restricted to *_test databases. Never modify a live source registry.
   await pool.query('DELETE FROM finance.market_observations WHERE source_id=$1',[sourceId]);
