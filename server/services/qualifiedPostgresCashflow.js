@@ -31,7 +31,8 @@ export async function calculateSourceBoundContractCashflow({
  if(!fact || fact.unit!=='PERCENT_PER_ANNUM'||fact.data_class!=='PUBLISHED_RATE')
   return unavailable('QUALIFIED_PUBLISHED_RATE_UNAVAILABLE',productId);
  const {rows:identity}=await pool.query(`
-   SELECT p.id,p.record_kind,p.availability,r.endpoint_url
+   SELECT p.id,p.record_kind,p.availability,p.qualified_tax_class,
+           p.tax_class_evidence_url,p.tax_class_reviewed_at,r.endpoint_url
      FROM finance.products p JOIN finance.provider_rights r ON r.source_id=$2
     WHERE p.id=$1 AND p.record_kind='ACTUAL_PRODUCT'
       AND p.availability='AVAILABLE' AND r.endpoint_url=$3
@@ -43,6 +44,10 @@ export async function calculateSourceBoundContractCashflow({
     LIMIT 1`,
   [productId,fact.source_id,officialUrl,now]);
  if(identity.length!==1)return unavailable('ISSUER_OR_SOURCE_RIGHTS_NOT_QUALIFIED',productId);
+ if(taxEventContext && (identity[0].qualified_tax_class!=='ORDINARY_INTEREST'
+   ||!identity[0].tax_class_evidence_url
+   ||!identity[0].tax_class_reviewed_at))
+   return unavailable('PRODUCT_TAX_CLASS_NOT_VERIFIED',productId);
  const {rows:termRows}=await pool.query(`
   SELECT t.term_type,t.term_value::text AS value,t.unit
     FROM finance.product_terms t
