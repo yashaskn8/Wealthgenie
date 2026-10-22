@@ -12,7 +12,7 @@ test('general chat routes everyday questions without relabeling finance as unsou
     assert.equal(isGeneralChatQuestion(q), true, q);
   }
   for (const q of ['What is a mutual fund?', 'What is compound interest?', 'What tax do I owe?',
-    'Recommend an investment for my portfolio', 'What is liquidity risk?',
+    'Recommend an investment for my portfolio', 'Explain why this recommendation fits my saved profile.', 'Why is my recommendation suitable?', 'What is liquidity risk?',
     'What is diversification?', 'How does rebalancing work?',
     'Which banking product offers the best return?', 'Calculate my budget',
     'How should I invest in NIFTY?', 'Explain capital gains and deductions',
