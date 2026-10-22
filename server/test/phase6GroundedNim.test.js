@@ -924,7 +924,7 @@ test('application regulatory disclosure insertion produces aligned text, claim, 
 
   assert.equal(result.fallback, false);
   assert.equal(result.validation.status, 'PASS');
-  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.3');
+  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.4');
   assert.equal(result.text.includes(text), true);
   assert.deepEqual(result.claims[0], { text, evidenceIds: ['E_PROFILE_RISK'] });
   assert.equal(result.evidenceIdsUsed.includes('E_PROFILE_RISK'), true);
@@ -1222,7 +1222,7 @@ test('PlanReview Groq JSON mode keeps every evidence entry intact while omitting
   ));
   assert.equal(result.fallback, false);
   assert.equal(request.maxTokens, 512, 'the scoped Groq call must preserve the live per-call ceiling');
-  assert.ok(request.systemPrompt.length < 1800, `the scoped schema instructions should be materially shorter (${request.systemPrompt.length} characters)`);
+  assert.ok(request.systemPrompt.length < 2000, `the scoped instructions must stay compact while adding source-claim integrity checks (${request.systemPrompt.length} characters)`);
   assert.deepEqual(expandedEntries, JSON.parse(JSON.stringify(packet.entries)), 'all facts and per-entry provenance survive positional compression');
   assert.deepEqual(modelPacket.entryFields, Object.keys(packet.entries[0]));
   assert.deepEqual(modelPacket.unavailableFacts, packet.unavailableFacts);
