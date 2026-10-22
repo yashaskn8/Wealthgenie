@@ -4,7 +4,7 @@
  * No model-return assumption, tax rate, product recommendation or live quote
  * is created by this module.
  */
-const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|startup|business|ceremony|emergency fund|school|tuition)\b/i;
+const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|trip|startup|business|ceremony|emergency fund|school|tuition)\b/i;
 const GOAL_INTENT = /\b(?:need|want|save|fund|afford|plan|target|goal|corpus|budget|reach|arrange|require|how much|collect|build|set aside|prepare|raise)\b/i;
 const AMOUNT = /(?:₹\s*|(?:rs\.?|inr)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(crores?|crors?|crs?|cr|lakhs?|lacs?|lac|thousands?|k)\b|(?:₹|inr|rs\.?)\s*(\d[\d,]*(?:\.\d+)?)(?!\s*(?:%|years?|months?))/gi;
 const INR = amount => 'INR ' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -72,7 +72,7 @@ function goalName(text) {
   if (/\b(?:medical|hospital|healthcare)\b/i.test(text)) return 'the medical expense';
   if (/\b(?:home|house|property|down payment)\b/i.test(text)) return 'the home goal';
   if (/\b(?:car|vehicle)\b/i.test(text)) return 'the vehicle goal';
-  if (/\b(?:travel|vacation)\b/i.test(text)) return 'the travel goal';
+  if (/\b(?:travel|vacation|trip)\b/i.test(text)) return 'the travel goal';
   if (/\b(?:startup|business)\b/i.test(text)) return 'the business goal';
   if (/\bretirement\b/i.test(text)) return 'retirement';
   return 'this goal';
