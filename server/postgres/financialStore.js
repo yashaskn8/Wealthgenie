@@ -109,6 +109,9 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
         JOIN finance.products p ON p.id=o.product_id
        WHERE o.product_id=$1 AND o.observation_type=$2 AND o.source_id=$3
          AND p.record_kind='ACTUAL_PRODUCT'
+         AND p.qualified_tax_class='LISTED_EQUITY_STT_QUALIFIED'
+         AND p.tax_class_evidence_url LIKE 'https://%'
+         AND p.tax_class_reviewed_at IS NOT NULL
          AND p.availability IN ('AVAILABLE','RESTRICTED')
          AND r.access_allowed AND r.extraction_allowed AND r.storage_allowed
          AND r.derivation_allowed AND r.public_display_allowed
