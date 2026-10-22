@@ -2,11 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { motion } from 'framer-motion';
 import { TrendingUp, Rocket, PiggyBank, ArrowUpRight, Wallet, Calendar, Target, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatINR, formatCompactINR } from '../utils/indianNumberFormat';
 import { isPresentFiniteNumber } from '../utils/financialValues';
+import { assertGrowSipResponse } from '../utils/growSipResponse';
 import api from '../services/api';
 import JargonTooltip from './JargonTooltip';
 import './StepUpPlanner.css';
+
+const formatSipINR = value => isPresentFiniteNumber(value)
+  ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value))
+  : '—';
+
+const withinPaise = value => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return false;
+  // Match the backend's canonical decimal-paise policy. A hidden third
+  // fractional digit cannot silently be rounded or accepted in the UI.
+  const [mantissa, exponentText = '0'] = n.toString().toLowerCase().split('e');
+  const [whole, fraction = ''] = mantissa.split('.');
+  const digits = BigInt(whole + fraction);
+  const exp = Number(exponentText) - fraction.length;
+  return exp >= 0
+    ? true
+    : digits * 100n % (10n ** BigInt(-exp)) === 0n;
+};
+const validOptionalMoney = (value, cap) => value === '' || (
+  Number.isFinite(Number(value)) && Number(value) >= 0
+  && Number(value) <= cap && withinPaise(Number(value))
+);
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -15,7 +37,7 @@ const CustomTooltip = ({ active, payload, label }) => {
         <p className="sup-tooltip-label">{label}</p>
         {payload.map((p, i) => (
           <p key={i} style={{ color: p.color, fontWeight: 700, margin: '6px 0', fontSize: '0.85rem' }}>
-            {p.name}: {formatINR(p.value)}
+            {p.name}: {formatSipINR(p.value)}
           </p>
         ))}
       </div>
@@ -28,54 +50,100 @@ const StepUpPlanner = ({ profile }) => {
   const [baseSIP, setBaseSIP] = useState(profile?.monthly_savings ?? 1000);
   const [stepUpPercent, setStepUpPercent] = useState(10);
   const [years, setYears] = useState(profile?.investment_horizon_years ?? 1);
-  const [returnRate, setReturnRate] = useState(12);
+  const [returnRate, setReturnRate] = useState(8);
+  const [inflationRate, setInflationRate] = useState(6);
+  const [downsideRate, setDownsideRate] = useState(0);
+  const [monthlyIncome, setMonthlyIncome] = useState(profile?.monthly_take_home ?? '');
+  const [monthlyExpenses, setMonthlyExpenses] = useState('');
+  const [monthlyEmi, setMonthlyEmi] = useState('');
+  const [emergencySavings, setEmergencySavings] = useState(profile?.liquid_savings ?? '');
+  const [incomeGrowth, setIncomeGrowth] = useState(0);
+  const [expenseGrowth, setExpenseGrowth] = useState(6);
   const [showDetails, setShowDetails] = useState(false);
-  const projectionBinding = JSON.stringify([baseSIP, stepUpPercent, years, returnRate]);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const projectionBinding = JSON.stringify([
+    baseSIP, stepUpPercent, years, returnRate, inflationRate, downsideRate,
+    monthlyIncome, monthlyExpenses, monthlyEmi, emergencySavings, incomeGrowth, expenseGrowth,
+    retryAttempt,
+  ]);
   const [projectionState, setProjectionState] = useState({ binding: null, status: 'idle', data: null, error: null });
   const projectionIsCurrent = projectionState.binding === projectionBinding;
 
-  // Safe numerical fallback during manual typing states
-  const safeBaseSIP = Number(baseSIP) || 0;
-  const safeReturnRate = Number(returnRate) || 0;
-  const safeYears = Number(years) || 0;
-  const safeStepUpPercent = Number(stepUpPercent) || 0;
+  // Distinguish an explicit zero from an empty or malformed value. Invalid
+  // inputs must not silently become a flat SIP or a zero-return assumption.
+  const strictNumber = value => value === '' || value === null || value === undefined
+    ? NaN : Number(value);
+  const safeBaseSIP = strictNumber(baseSIP);
+  const safeReturnRate = strictNumber(returnRate);
+  const safeYears = strictNumber(years);
+  const safeStepUpPercent = strictNumber(stepUpPercent);
   const projectionInputsValid = baseSIP !== '' && stepUpPercent !== '' && years !== '' && returnRate !== ''
-    && Number.isFinite(safeBaseSIP) && safeBaseSIP > 0
-    && Number.isFinite(safeReturnRate) && safeReturnRate > -100
-    && Number.isFinite(safeYears) && safeYears > 0
-    && Number.isFinite(safeStepUpPercent) && safeStepUpPercent >= 0;
+    && Number.isFinite(safeBaseSIP) && safeBaseSIP > 0 && safeBaseSIP <= 10000000 && withinPaise(safeBaseSIP)
+    && Number.isFinite(safeReturnRate) && safeReturnRate > -100 && safeReturnRate <= 100
+    && Number.isInteger(safeYears) && safeYears > 0 && safeYears <= 50
+    && Number.isFinite(safeStepUpPercent) && safeStepUpPercent >= 0 && safeStepUpPercent <= 100
+    && [inflationRate, downsideRate, incomeGrowth, expenseGrowth].every(value => value !== '' && Number.isFinite(Number(value)))
+    && Number(inflationRate) >= 0 && Number(inflationRate) <= 100
+    && Number(downsideRate) > -100 && Number(downsideRate) <= safeReturnRate
+    && Number(incomeGrowth) >= 0 && Number(incomeGrowth) <= 100
+    && Number(expenseGrowth) >= 0 && Number(expenseGrowth) <= 100
+    && validOptionalMoney(monthlyIncome, 100000000)
+    && validOptionalMoney(monthlyExpenses, 100000000)
+    && validOptionalMoney(monthlyEmi, 10000000)
+    && validOptionalMoney(emergencySavings, 100000000);
   const projection = projectionIsCurrent && projectionState.status === 'ready' ? projectionState.data : null;
   const projectionError = projectionIsCurrent && projectionState.status === 'error' ? projectionState.error : null;
   const isCalculating = projectionInputsValid && !projectionIsCurrent;
 
   // Compute dynamic percentage fills for track bars
-  const baseSipPct = Math.min(100, Math.max(0, ((Math.min(100000, Math.max(1000, safeBaseSIP)) - 1000) / 99000) * 100));
-  const stepUpPct = Math.min(100, Math.max(0, (Math.min(50, Math.max(0, safeStepUpPercent)) / 50) * 100));
-  const yearsPct = Math.min(100, Math.max(0, ((Math.min(40, Math.max(1, safeYears)) - 1) / 39) * 100));
-  const cagrPct = Math.min(100, Math.max(0, ((Math.min(30, Math.max(1, safeReturnRate)) - 1) / 29) * 100));
+  const baseSipPct = Number.isFinite(safeBaseSIP) ? Math.min(100, Math.max(0, ((Math.min(100000, Math.max(1000, safeBaseSIP)) - 1000) / 99000) * 100)) : 0;
+  const stepUpPct = Number.isFinite(safeStepUpPercent) ? Math.min(100, Math.max(0, (Math.min(50, Math.max(0, safeStepUpPercent)) / 50) * 100)) : 0;
+  const yearsPct = Number.isFinite(safeYears) ? Math.min(100, Math.max(0, ((Math.min(40, Math.max(1, safeYears)) - 1) / 39) * 100)) : 0;
+  const cagrPct = Number.isFinite(safeReturnRate) ? Math.min(100, Math.max(0, ((Math.min(30, Math.max(1, safeReturnRate)) - 1) / 29) * 100)) : 0;
 
   useEffect(() => {
     if (!projectionInputsValid) return undefined;
     const controller = new AbortController();
     let cancelled = false;
     const timer = setTimeout(() => {
+      // One immutable request snapshot validates both the backend calculation
+      // and its response, including all financial-context assumptions.
+      const financialInputs = {
+        returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+        inflationRate: Number(inflationRate) / 100,
+        downsideAnnualReturnRate: Number(downsideRate) / 100,
+        annualIncomeGrowthRate: Number(incomeGrowth) / 100,
+        annualExpenseGrowthRate: Number(expenseGrowth) / 100,
+        ...(monthlyIncome === '' ? {} : { monthlyIncome: Number(monthlyIncome) }),
+        ...(monthlyExpenses === '' ? {} : { monthlyExpenses: Number(monthlyExpenses) }),
+        ...(monthlyEmi === '' ? {} : { monthlyEmi: Number(monthlyEmi) }),
+        ...(emergencySavings === '' ? {} : { emergencySavings: Number(emergencySavings) }),
+      };
       api.calculateStepUpProjection(
         safeBaseSIP,
         safeReturnRate / 100,
         safeYears,
         safeStepUpPercent / 100,
-        { signal: controller.signal },
+        { signal: controller.signal, body: financialInputs },
       ).then(result => {
-        if (!cancelled) setProjectionState({ binding: projectionBinding, status: 'ready', data: result, error: null });
+        if (cancelled) return;
+        const verified = assertGrowSipResponse(result, {
+          monthlyInvestment: safeBaseSIP,
+          annualReturnRate: safeReturnRate / 100,
+          annualStepUpRate: safeStepUpPercent / 100,
+          years: safeYears,
+          ...financialInputs,
+        });
+        setProjectionState({ binding: projectionBinding, status: 'ready', data: verified, error: null });
       }).catch(error => {
-        if (!cancelled && error?.code === 'REQUEST_ABORTED') {
-          setProjectionState({ binding: projectionBinding, status: 'cancelled', data: null, error: null });
-        } else if (!cancelled) {
+        if (!cancelled) {
           setProjectionState({
             binding: projectionBinding,
             status: 'error',
             data: null,
-            error: error.message || 'Projection service is unavailable.',
+            error: error?.code === 'REQUEST_ABORTED'
+              ? 'The projection request was interrupted. Retry to calculate with these inputs.'
+              : error?.message || 'Projection service is unavailable.',
           });
         }
       });
@@ -96,6 +164,8 @@ const StepUpPlanner = ({ profile }) => {
     years,
     projectionBinding,
     projectionInputsValid,
+    inflationRate, downsideRate, monthlyIncome, monthlyExpenses, monthlyEmi,
+    emergencySavings, incomeGrowth, expenseGrowth, retryAttempt,
   ]);
 
   const flatFinal = projection?.flatFinal ?? null;
@@ -104,9 +174,12 @@ const StepUpPlanner = ({ profile }) => {
   const stepUpInvested = projection?.stepUpInvested ?? null;
   const additionalCorpus = projection?.additionalCorpus ?? null;
   const additionalPercent = isPresentFiniteNumber(projection?.additionalPercent)
-    ? Math.round(Number(projection.additionalPercent))
+    ? Number(projection.additionalPercent).toFixed(2)
     : null;
   const chartData = projection?.chartData ?? [];
+  const affordability = projection?.affordability;
+  const emergency = projection?.emergency_buffer;
+  const isOverBudget = affordability?.status === 'OVER_DECLARED_BUDGET';
 
   return (
     <div className="stepup-page">
@@ -144,9 +217,9 @@ const StepUpPlanner = ({ profile }) => {
           <Sparkles size={20} />
         </div>
         <div className="onboard-text">
-          <h4>How Step-Up SIP Multiplies Your Wealth</h4>
+          <h4>Compare savings increases without relying on live-market APIs</h4>
           <p>
-            A <strong>Step-Up SIP</strong> models a monthly contribution that you choose to increase each year. The calculation does not assume that your salary or savings capacity will rise.
+            An illustrative <strong>step-up SIP</strong> increases your monthly contribution annually. Enter income, expenses and EMI below to assess whether that future contribution fits your declared budget. Returns are assumptions, never guaranteed.
           </p>
         </div>
       </motion.div>
@@ -157,6 +230,11 @@ const StepUpPlanner = ({ profile }) => {
           <div className="onboard-text">
             <h4>{projectionError ? 'Projection unavailable' : 'Updating projection'}</h4>
             <p>{projectionError || 'The authoritative backend is recalculating the chart and result cards.'}</p>
+            {projectionError && (
+              <button type="button" onClick={() => setRetryAttempt(current => current + 1)}>
+                Retry projection
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -185,13 +263,8 @@ const StepUpPlanner = ({ profile }) => {
             <input 
               type="number"
               value={baseSIP}
-              onChange={e => {
-                const val = e.target.value === '' ? '' : Math.min(1000000, Number(e.target.value));
-                setBaseSIP(val);
-              }}
-              onBlur={() => {
-                if (baseSIP === '' || Number(baseSIP) < 500) setBaseSIP(500);
-              }}
+              aria-label="Starting monthly SIP amount (INR)"
+              onChange={e => setBaseSIP(e.target.value)}
               className="sup-num-input text-sky"
             />
           </div>
@@ -199,6 +272,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="sup-slider-wrap">
             <input
               type="range" 
+              aria-label="Adjust starting monthly SIP using slider"
               value={Number(baseSIP) || 0} 
               onChange={e => setBaseSIP(Number(e.target.value))}
               min="1000" 
@@ -232,13 +306,8 @@ const StepUpPlanner = ({ profile }) => {
             <input 
               type="number"
               value={stepUpPercent}
-              onChange={e => {
-                const val = e.target.value === '' ? '' : Math.min(50, Number(e.target.value));
-                setStepUpPercent(val);
-              }}
-              onBlur={() => {
-                if (stepUpPercent === '' || Number(stepUpPercent) < 0) setStepUpPercent(0);
-              }}
+              aria-label="Annual SIP increase percentage"
+              onChange={e => setStepUpPercent(e.target.value)}
               className="sup-num-input text-purple"
             />
             <span className="unit-symbol text-purple">%</span>
@@ -247,6 +316,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="sup-slider-wrap">
             <input
               type="range" 
+              aria-label="Adjust annual SIP increase using slider"
               value={Number(stepUpPercent) || 0} 
               onChange={e => setStepUpPercent(Number(e.target.value))}
               min="0" 
@@ -268,13 +338,13 @@ const StepUpPlanner = ({ profile }) => {
             {[
               { label: 'Flat (0%)', val: 0 },
               { label: '5% Increase', val: 5 },
-              { label: 'Recommended 10%', val: 10 }
+              { label: 'Try 10%', val: 10 }
             ].map(preset => (
               <button
                 key={preset.val}
                 type="button"
                 onClick={() => setStepUpPercent(preset.val)}
-                className={`preset-btn ${stepUpPercent === preset.val ? 'active' : ''}`}
+                className={`preset-btn ${stepUpPercent !== '' && Number(stepUpPercent) === preset.val ? 'active' : ''}`}
               >
                 {preset.label}
               </button>
@@ -298,13 +368,8 @@ const StepUpPlanner = ({ profile }) => {
             <input 
               type="number"
               value={years}
-              onChange={e => {
-                const val = e.target.value === '' ? '' : Math.min(50, Number(e.target.value));
-                setYears(val);
-              }}
-              onBlur={() => {
-                if (years === '' || Number(years) < 1) setYears(1);
-              }}
+              aria-label="Investment horizon in years"
+              onChange={e => setYears(e.target.value)}
               className="sup-num-input text-sky"
             />
             <span className="unit-symbol text-sky">Years</span>
@@ -313,6 +378,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="sup-slider-wrap">
             <input
               type="range" 
+              aria-label="Adjust investment horizon using slider"
               value={Number(years) || 0} 
               onChange={e => setYears(Number(e.target.value))}
               min="1" 
@@ -337,8 +403,8 @@ const StepUpPlanner = ({ profile }) => {
               <Target size={18} />
             </div>
             <div>
-              <h3 className="sup-card-title">Assumed Growth Rate (CAGR)</h3>
-              <p className="sup-card-desc">Your pre-tax yearly return input</p>
+              <h3 className="sup-card-title">Assumed Annualised Return (CAGR)</h3>
+              <p className="sup-card-desc">Illustrative pre-tax effective annual rate; monthly rate = (1 + CAGR)^(1/12) − 1</p>
             </div>
           </div>
           
@@ -347,13 +413,8 @@ const StepUpPlanner = ({ profile }) => {
               type="number"
               step="0.5"
               value={returnRate}
-              onChange={e => {
-                const val = e.target.value === '' ? '' : Math.min(50, Number(e.target.value));
-                setReturnRate(val);
-              }}
-              onBlur={() => {
-                if (returnRate === '' || Number(returnRate) < 1) setReturnRate(1);
-              }}
+              aria-label="Assumed annualised return CAGR percentage"
+              onChange={e => setReturnRate(e.target.value)}
               className="sup-num-input text-purple"
             />
             <span className="unit-symbol text-purple">% p.a.</span>
@@ -362,6 +423,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="sup-slider-wrap">
             <input
               type="range" 
+              aria-label="Adjust assumed annual CAGR using slider"
               value={Number(returnRate) || 0} 
               onChange={e => setReturnRate(Number(e.target.value))}
               min="1" 
@@ -380,6 +442,68 @@ const StepUpPlanner = ({ profile }) => {
         </div>
       </motion.div>
 
+      <section className="sup-planning-panel" aria-label="SIP affordability and scenario inputs">
+        <h3>Can you sustain this SIP?</h3>
+        <p>All figures are editable. Income is take-home pay. Include other committed investments, subscriptions, insurance premiums and regular obligations in the declared living-expense amount; do not include this planned SIP twice. Expenses exclude EMI, which is entered separately. Unknown amounts mean “not assessed”, not zero. Enter ₹0 when you have no EMI.</p>
+        <div className="sup-planning-fields">
+          {[
+            ['Monthly take-home (₹)', monthlyIncome, setMonthlyIncome],
+            ['Monthly living expenses excluding EMI (₹)', monthlyExpenses, setMonthlyExpenses],
+            ['Monthly EMI / debt payments (₹; enter 0 if none)', monthlyEmi, setMonthlyEmi],
+            ['Liquid emergency savings (₹)', emergencySavings, setEmergencySavings],
+          ].map(([label, value, setValue]) => (
+            <label className="sup-planning-field" key={label}>
+              <span>{label}</span>
+              <input type="number" min="0" step="0.01" value={value}
+                placeholder="Not provided" onChange={event => setValue(event.target.value)} />
+            </label>
+          ))}
+        </div>
+        <h3>Stress-test assumptions</h3>
+        <div className="sup-planning-fields">
+          {[
+            ['Annual inflation (%)', inflationRate, setInflationRate],
+            ['Downside annual return (%)', downsideRate, setDownsideRate],
+            ['Annual income growth (%)', incomeGrowth, setIncomeGrowth],
+            ['Annual expense growth (%)', expenseGrowth, setExpenseGrowth],
+          ].map(([label, value, setValue]) => (
+            <label className="sup-planning-field" key={label}>
+              <span>{label}</span>
+              <input type="number" step="0.5" value={value}
+                onChange={event => setValue(event.target.value)} />
+            </label>
+          ))}
+        </div>
+        <p className="sup-planning-note">The assumed annual return is an effective CAGR, not nominal APR. All percentage defaults are illustrative inputs, not observed market facts. Leave a required rate blank to stop calculation. The downside return cannot exceed the base return. This is a constant-return what-if, not a probability forecast. EMI is held fixed. Income and expenses change once each year. The model assumes start-of-month SIPs; contributions retain paise, projected corpuses are rounded to the nearest rupee, and returns are before taxes and fees.</p>
+      </section>
+
+      <section className="sup-safety-panel" aria-live="polite">
+        <h3>Financial reality checks</h3>
+        {!projection && <p>{!projectionInputsValid
+          ? 'Enter valid numbers; the downside return must not exceed the base return.'
+          : projectionError
+            ? 'Projection unavailable. No amounts are shown until a verified calculation succeeds.'
+            : 'Calculating with your inputs…'}</p>}
+        {projection && (
+          <>
+            <p className={isOverBudget ? 'sup-warning' : ''}>
+              <strong>Budget:</strong> {affordability?.status === 'WITHIN_DECLARED_BUDGET'
+                ? 'Every planned instalment fits the declared monthly cash surplus across the selected horizon (not a guarantee).'
+                : isOverBudget
+                  ? `Not sustainable under entered assumptions: first shortfall in month ${affordability.firstUnaffordableMonth}; largest monthly shortfall ${formatSipINR(affordability.maxMonthlyShortfall)}.`
+                  : 'Not assessed — provide take-home income, living expenses, and EMI (0 if none). Missing or unrecognized checks are never treated as affordable.'}
+            </p>
+            <p><strong>Emergency reserve:</strong> {emergency?.status === 'DECLARED_BUFFER_SHORT'
+              ? `Below the illustrative six-month buffer of ${formatSipINR(emergency.requiredAmount)}.`
+              : emergency?.status === 'DECLARED_BUFFER_MET'
+                ? `Your declared savings meet the illustrative six-month expense-plus-EMI buffer of ${formatSipINR(emergency.requiredAmount)}.`
+                : 'Not assessed — enter living expenses, EMI and emergency savings.'}</p>
+            <p><strong>Final-year monthly SIP:</strong> {formatSipINR(projection.finalMonthlySip)}. <strong>Extra money contributed:</strong> {formatSipINR(projection.additionalContributions)}. <strong>Extra projected investment growth:</strong> {formatSipINR(projection.additionalProjectedGrowth)}.</p>
+            <p><strong>Downside scenario corpus:</strong> {formatSipINR(projection.downsideFinal)}. <strong>Step-up corpus in today’s purchasing power:</strong> {formatSipINR(projection.inflationAdjustedStepUpFinal)}.</p>
+          </>
+        )}
+      </section>
+
       {/* KEY COMPOUNDING RESULT CARDS */}
       <div className="sup-results-grid">
         <motion.div 
@@ -391,9 +515,9 @@ const StepUpPlanner = ({ profile }) => {
           <div className="result-icon icon-grey">
             <PiggyBank size={20} />
           </div>
-          <span className="result-label">Regular Savings (Flat SIP)</span>
-          <span className="result-value text-white">{formatCompactINR(flatFinal)}</span>
-          <span className="result-sub">Invested: {formatCompactINR(flatInvested)}</span>
+          <span className="result-label">Projected flat SIP corpus (nearest ₹1)</span>
+          <span className="result-value text-white">{formatSipINR(flatFinal)}</span>
+          <span className="result-sub">Invested: {formatSipINR(flatInvested)}</span>
         </motion.div>
 
         <motion.div 
@@ -405,9 +529,9 @@ const StepUpPlanner = ({ profile }) => {
           <div className="result-icon icon-purple">
             <Rocket size={20} />
           </div>
-          <span className="result-label">Booster Savings (Step-Up SIP)</span>
-          <span className="result-value text-purple">{formatCompactINR(stepUpFinal)}</span>
-          <span className="result-sub">Invested: {formatCompactINR(stepUpInvested)}</span>
+          <span className="result-label">Projected step-up corpus (nearest ₹1)</span>
+          <span className="result-value text-purple">{formatSipINR(stepUpFinal)}</span>
+          <span className="result-sub">Invested: {formatSipINR(stepUpInvested)}</span>
         </motion.div>
 
         <motion.div 
@@ -419,9 +543,9 @@ const StepUpPlanner = ({ profile }) => {
           <div className="result-icon icon-green">
             <ArrowUpRight size={20} />
           </div>
-          <span className="result-label">Extra projected corpus</span>
-          <span className="result-value text-green">+ {formatCompactINR(additionalCorpus)}</span>
-          <span className="result-sub text-green-bold">{additionalPercent === null ? 'Projection unavailable' : `${additionalPercent}% more projected corpus`}</span>
+          <span className="result-label">Extra projected corpus (nearest ₹1)</span>
+          <span className="result-value text-green">+ {formatSipINR(additionalCorpus)}</span>
+          <span className="result-sub text-green-bold">{additionalPercent === null ? 'Percentage comparison unavailable at ₹1 precision' : `≈ ${additionalPercent}% more projected corpus (includes extra contributions)`}</span>
         </motion.div>
       </div>
 
@@ -459,11 +583,13 @@ const StepUpPlanner = ({ profile }) => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                 <XAxis dataKey="year" stroke="#94a3b8" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} axisLine={false} tickLine={false} minTickGap={20} />
-                <YAxis tickFormatter={formatCompactINR} stroke="#94a3b8" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={formatSipINR} width={125} stroke="#94a3b8" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ paddingTop: 20, fontWeight: 700, fontSize: '0.85rem' }} />
                 <Area type="monotone" dataKey="flatSIP" name="Regular Savings (Flat SIP)" stroke="#0ea5e9" fill="url(#flatGrad)" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }} />
-                <Area type="monotone" dataKey="stepUpSIP" name="Booster Savings (Step-Up SIP)" stroke="#a78bfa" fill="url(#stepGrad)" strokeWidth={3.5} dot={false} activeDot={{ r: 7, fill: '#a78bfa', stroke: '#fff', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="stepUpSIP" name="Step-up (base assumption)" stroke="#a78bfa" fill="url(#stepGrad)" strokeWidth={3.5} dot={false} activeDot={{ r: 7, fill: '#a78bfa', stroke: '#fff', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="downsideStepUp" name="Step-up (downside what-if)" stroke="#f97316" fillOpacity={0} dot={false} strokeWidth={2} />
+                <Area type="monotone" dataKey="inflationAdjustedStepUp" name="Step-up (today's rupees)" stroke="#22c55e" fillOpacity={0} dot={false} strokeDasharray="4 4" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

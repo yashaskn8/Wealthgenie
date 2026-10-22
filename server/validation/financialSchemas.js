@@ -97,8 +97,18 @@ export const stressScenarioSchema = Joi.object({
 export const stepUpProjectionSchema = Joi.object({
   monthlyInvestment: Joi.number().greater(0).max(10000000).required(),
   annualReturnRate: Joi.number().greater(-1).max(1).required(),
+  returnRateConvention: Joi.string().valid('NOMINAL_APR_DIVIDED_BY_12', 'EFFECTIVE_ANNUAL_CAGR').optional(),
   years: Joi.number().integer().min(1).max(50).required(),
   annualStepUpRate: Joi.number().min(0).max(1).required(),
+  inflationRate: Joi.number().min(0).max(1).optional(),
+  downsideAnnualReturnRate: Joi.number().greater(-1).max(1).optional(),
+  monthlyIncome: Joi.number().min(0).max(100000000).optional(),
+  monthlyExpenses: Joi.number().min(0).max(100000000).optional(),
+  monthlyEmi: Joi.number().min(0).max(10000000).optional(),
+  emergencySavings: Joi.number().min(0).max(100000000).optional(),
+  emergencyMonths: Joi.number().integer().min(0).max(24).optional(),
+  annualIncomeGrowthRate: Joi.number().min(0).max(1).optional(),
+  annualExpenseGrowthRate: Joi.number().min(0).max(1).optional(),
 }).unknown(false);
 
 export const allocationSplitSchema = Joi.object({
