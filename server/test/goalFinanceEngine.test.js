@@ -212,3 +212,14 @@ test('EMI ledger reconciles every rupee and paisa for fixed, zero and high rates
     Math.round((interesting.loanPrincipal + interesting.totalInterest) * 100),
   );
 });
+
+test('two goals claiming positive saved balances cannot be called within capacity without separation evidence', () => {
+  const first = { ...goal('car', 5000), current_savings: 50000 };
+  const second = { ...goal('education', 4500), current_savings: 50000 };
+  const output = allocateGoalFunding([first, second], 25000);
+  assert.equal(output.status, 'DATA_INSUFFICIENT');
+  assert.equal(output.totalRequested, null);
+  assert.equal(output.totalAllocated, null);
+  assert.ok(output.warnings.includes('MULTIPLE_GOALS_CLAIM_POTENTIALLY_OVERLAPPING_SAVINGS'));
+  assert.ok(output.allocations.every(e => e.allocatedMonthly === null));
+});
