@@ -924,7 +924,7 @@ test('application regulatory disclosure insertion produces aligned text, claim, 
 
   assert.equal(result.fallback, false);
   assert.equal(result.validation.status, 'PASS');
-  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.3');
+  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.4');
   assert.equal(result.text.includes(text), true);
   assert.deepEqual(result.claims[0], { text, evidenceIds: ['E_PROFILE_RISK'] });
   assert.equal(result.evidenceIdsUsed.includes('E_PROFILE_RISK'), true);
