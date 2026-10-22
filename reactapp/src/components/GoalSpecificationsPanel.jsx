@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import api from '../services/api';
+import { useEffect, useRef, useState } from 'react';
+import api, { generateUUID } from '../services/api';
 
 const kinds = [
   ['vehicle','Vehicle purchase'], ['home','Home purchase'], ['education','Education'],
@@ -64,6 +64,7 @@ export default function GoalSpecificationsPanel({ onChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  const createRetryRef = useRef(null);
   useEffect(() => {
     let canceled = false;
     api.getGoalSpecifications().then(data => {
@@ -88,7 +89,14 @@ export default function GoalSpecificationsPanel({ onChanged }) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.targetDate)) throw new Error('Choose a valid target date.');
       if (!draft.name.trim()) throw new Error('Name this goal.');
       if (editing) await api.updateGoalSpecification(editing.id, { ...payload, expectedVersion: editing.version });
-      else await api.createGoalSpecification(payload);
+      else {
+        const fingerprint = JSON.stringify(payload);
+        if (createRetryRef.current?.fingerprint !== fingerprint) {
+          createRetryRef.current = { fingerprint, key: generateUUID() };
+        }
+        await api.createGoalSpecification(payload, createRetryRef.current.key);
+      }
+      createRetryRef.current = null;
       await reload(); setDraft(blank()); setEditing(null);
       onChanged?.();
       setNotice('Goal specification saved. Its cash-funding baseline is separate from investment forecasts.');
@@ -118,7 +126,7 @@ export default function GoalSpecificationsPanel({ onChanged }) {
       <Field field="notes" value={draft.notes} onChange={next => setDraft(old => ({ ...old, notes: next }))}/>
       <button className="wg-goal-action" type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Save goal specification'}</button>
       {editing && <button className="wg-goal-subtle" type="button" disabled={busy}
-        onClick={() => { setEditing(null); setDraft(blank()); }}>Cancel edit</button>}
+        onClick={() => { createRetryRef.current = null; setEditing(null); setDraft(blank()); }}>Cancel edit</button>}
     </form>
     <h4>Saved goal specifications</h4>
     {specs.length === 0 ? <p>No additional typed goals have been saved.</p> : <ul className="wg-goal-spec-list">
@@ -133,7 +141,7 @@ export default function GoalSpecificationsPanel({ onChanged }) {
         <p>Calculation: {item.plan.status.replaceAll('_',' ')}. No tax calculation, income verification or assumed interest income.</p>
         <div className="wg-goal-spec-actions">
           <button type="button" className="wg-goal-subtle" disabled={busy}
-            onClick={() => { setEditing(item); setDraft({
+            onClick={() => { createRetryRef.current = null; setEditing(item); setDraft({
               kind: item.kind, name: item.name, targetAmount: String(item.targetAmount),
               currentSavings: String(item.currentSavings), targetDate: item.targetDate,
               priority: item.priority, annualPriceInflationPct: String(item.annualPriceInflationPct), notes: item.notes || '',
