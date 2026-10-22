@@ -135,6 +135,7 @@ describe('grounded chat DTO and persistence isolation', () => {
       assert.equal(body.model, 'gemini-runtime-test');
       assert.equal(body.grounding_version, 'grounded-financial-evidence-1.0.0');
       assert.equal(body.validation_status, 'PASS');
+      assert.deepEqual(body.fallback_reason_codes, []);
       assert.deepEqual(body.evidence_ids_used, ['E_PROFILE_RISK', 'E_REGULATORY_NOTICE']);
       for (const forbidden of ['original_llm_response', 'execution_graph', 'tool_outputs', 'tool_calls', 'tool_results', 'replans', 'governance', 'verification', 'audit', 'state']) {
         assert.equal(body[forbidden], undefined, `${forbidden} must not be exposed`);
@@ -168,6 +169,9 @@ describe('grounded chat DTO and persistence isolation', () => {
     const saved = conversation.messages.find(message => message.role === 'model');
     assert.doesNotMatch(saved.content, /25%/);
     assert.ok(saved.metadata.validation_reason_codes.includes('LLM_GROUNDING_VALIDATION_FAILED'));
+    assert.ok(result.fallback_reason_codes.includes('LLM_GROUNDING_VALIDATION_FAILED'));
+    assert.ok(result.fallback_reason_codes.includes('UNSUPPORTED_FINANCIAL_NUMBER'));
+    assert.ok(result.fallback_reason_codes.every(code => /^[A-Z][A-Z0-9_]+$/.test(code)));
   });
 
   it('uses the deterministic evidence template without contacting a provider after the session cap', async () => {

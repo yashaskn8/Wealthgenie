@@ -672,6 +672,27 @@ paths:
       requestBody: { $ref: '#/components/requestBodies/RankInstruments' }
       responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '409': { $ref: '#/components/responses/Conflict' } }
 
+  /api/investment-explorer/taxonomy:
+    get:
+      operationId: getInvestmentExplorerTaxonomy
+      tags: [Instruments]
+      security: []
+      description: Returns the full investment-family discovery taxonomy. Category and family presence does not establish product availability, eligibility, source permissions, suitability, or current financial facts.
+      responses: { '200': { description: Investment discovery taxonomy, content: { application/json: { schema: { $ref: '#/components/schemas/InvestmentExplorerTaxonomy' } } } } }
+  /api/investment-explorer/catalog:
+    get:
+      operationId: searchInvestmentExplorerCatalog
+      tags: [Instruments]
+      security: []
+      description: Searches the bounded legacy family catalog separately from personalized recommendations. Numeric market facts are excluded until exact product identity and source rights are qualified.
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: categoryId, in: query, schema: { type: string, pattern: '^[a-z0-9-]{1,80}$' } }
+        - { name: subcategoryId, in: query, schema: { type: string, pattern: '^[a-z0-9-]{1,100}$' } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, x-raw-query-pattern: '^(0|[1-9][0-9]*)$' } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, x-raw-query-pattern: '^(0|[1-9][0-9]*)$' } }
+      responses: { '200': { description: Paginated investment-family search results, content: { application/json: { schema: { $ref: '#/components/schemas/InvestmentExplorerCatalogPage' } } } }, '400': { $ref: '#/components/responses/BadRequest' } }
+
   /api/projection:
     post:
       operationId: createProjection
@@ -785,11 +806,14 @@ paths:
     get:
       operationId: getAuthenticatedPrivateMarketDataDemo
       tags: [Market]
-      summary: Fetch ephemeral provider evidence for an authenticated local educational demo
-      description: Development-only, explicit-opt-in, authenticated loopback route. It returns bounded Upstox index quotes on demand, bypasses provider caches and durable persistence, and never changes recommendations. It is not available for public or commercial deployment.
+      summary: Fetch exact product quotes for an authenticated local educational demo
+      description: Development-only, explicit-opt-in, authenticated loopback route. The request must contain canonical product IDs whose exact Upstox instrument identities are registered. Product suggestions are never populated with broad market-index quotes or quotes for another product. Provider caches and durable persistence are bypassed, and recommendations are never changed. It is not available for public or commercial deployment.
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: ids, in: query, required: true, description: Comma-separated exact canonical product IDs from the qualified Upstox product registry., schema: { type: string, pattern: '^[a-z0-9:-]+(?:,[a-z0-9:-]+){0,9}$', maxLength: 500 } }
       responses:
         '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
@@ -2053,6 +2077,13 @@ components:
         color: { type: string }
         desc: { type: string }
     InstrumentPage: { type: object, additionalProperties: false, required: [instruments, total, page, pageSize, totalPages], properties: { instruments: { type: array, items: { $ref: '#/components/schemas/Instrument' } }, total: { type: integer, minimum: 0 }, page: { type: integer, minimum: 1 }, pageSize: { type: integer, minimum: 1 }, totalPages: { type: integer, minimum: 0 } } }
+    InvestmentExplorerSubcategory: { type: object, additionalProperties: false, required: [id, name], properties: { id: { type: string, pattern: '^[a-z0-9-]{1,100}$' }, name: { type: string, minLength: 1 } } }
+    InvestmentExplorerSourceLink: { type: object, additionalProperties: false, required: [name, url, rightsStatus], properties: { name: { type: string, minLength: 1 }, url: { type: string, format: uri }, rightsStatus: { type: string, minLength: 1 } } }
+    InvestmentExplorerCategory: { type: object, additionalProperties: false, required: [id, name, legacyCatalogCategories, subcategories, sourceLinks, coverageNote, currentProductFamilyCount], properties: { id: { type: string, pattern: '^[a-z0-9-]{1,80}$' }, name: { type: string, minLength: 1 }, legacyCatalogCategories: { type: array, items: { type: string } }, subcategories: { type: array, items: { $ref: '#/components/schemas/InvestmentExplorerSubcategory' } }, sourceLinks: { type: array, items: { $ref: '#/components/schemas/InvestmentExplorerSourceLink' } }, coverageNote: { type: string }, currentProductFamilyCount: { type: integer, minimum: 0 } } }
+    InvestmentExplorerTaxonomy: { type: object, additionalProperties: false, required: [schemaVersion, catalogLevel, currentProductAvailability, sourceRightsPolicy, categories, unclassifiedLegacyFamilyCount], properties: { schemaVersion: { type: string }, catalogLevel: { type: string, const: DISCOVERY_TAXONOMY }, currentProductAvailability: { type: string, const: NOT_VERIFIED_BY_DEFAULT }, sourceRightsPolicy: { type: string }, categories: { type: array, minItems: 12, items: { $ref: '#/components/schemas/InvestmentExplorerCategory' } }, unclassifiedLegacyFamilyCount: { type: integer, minimum: 0 } } }
+    InvestmentExplorerFamilyFact: { type: object, additionalProperties: false, required: [status, value], properties: { status: { type: string, enum: [NOT_LOADED, NOT_VERIFIED] }, value: { type: 'null' } } }
+    InvestmentExplorerProductFamily: { type: object, additionalProperties: false, required: [id, legacyCatalogId, name, legacyCategory, assetClassLabel, catalogLevel, categoryId, subcategoryId, subcategoryName, classificationStatus, lifecycleStatus, source, currentFacts], properties: { id: { type: string }, legacyCatalogId: { type: string }, name: { type: string }, legacyCategory: { type: string }, assetClassLabel: { type: [string, 'null'] }, catalogLevel: { type: string, const: PRODUCT_FAMILY }, categoryId: { type: [string, 'null'] }, subcategoryId: { type: [string, 'null'] }, subcategoryName: { type: [string, 'null'] }, classificationStatus: { type: string }, lifecycleStatus: { type: string, const: NOT_VERIFIED }, source: { type: object, additionalProperties: false, required: [provider, catalogVersion, lastCatalogGenerationAt], properties: { provider: { type: string, const: WEALTHGENIE_LEGACY_FAMILY_CATALOG }, catalogVersion: { type: string }, lastCatalogGenerationAt: { type: string, format: date-time } } }, currentFacts: { type: object, additionalProperties: false, required: [price, nav, rate, historicalPerformance, fees, taxTreatment, eligibility, liquidity], properties: { price: { $ref: '#/components/schemas/InvestmentExplorerFamilyFact' }, nav: { $ref: '#/components/schemas/InvestmentExplorerFamilyFact' }, rate: { $ref: '#/components/schemas/InvestmentExplorerFamilyFact' }, historicalPerformance: { $ref: '#/components/schemas/InvestmentExplorerFamilyFact' }, fees: { $ref: '#/components/schemas/InvestmentExplorerFamilyFact' }, taxTreatment: { $ref: '#/components/schemas/InvestmentExplorerFamilyFact' }, eligibility: { $ref: '#/components/schemas/InvestmentExplorerFamilyFact' }, liquidity: { $ref: '#/components/schemas/InvestmentExplorerFamilyFact' } } } } }
+    InvestmentExplorerCatalogPage: { type: object, additionalProperties: false, required: [schemaVersion, catalog, filters, pagination, products], properties: { schemaVersion: { type: string }, catalog: { type: object, additionalProperties: false, required: [source, sourceVersion, catalogLevel, totalFamilyRecords, currentProductFactsIncluded], properties: { source: { type: string, const: WEALTHGENIE_LEGACY_FAMILY_CATALOG }, sourceVersion: { type: string }, catalogLevel: { type: string, const: PRODUCT_FAMILY }, totalFamilyRecords: { type: integer, minimum: 0 }, currentProductFactsIncluded: { type: boolean, const: false } } }, filters: { type: object, additionalProperties: false, required: [q, categoryId, subcategoryId], properties: { q: { type: string }, categoryId: { type: [string, 'null'] }, subcategoryId: { type: [string, 'null'] } } }, pagination: { type: object, additionalProperties: false, required: [page, pageSize, total, pages], properties: { page: { type: integer, minimum: 1 }, pageSize: { type: integer, minimum: 1, maximum: 100 }, total: { type: integer, minimum: 0 }, pages: { type: integer, minimum: 1 } } }, products: { type: array, items: { $ref: '#/components/schemas/InvestmentExplorerProductFamily' } } } }
     AuditListResponse: { type: object, required: [status, total, count, skip, limit, records], properties: { status: { type: string, const: success }, total: { type: integer, minimum: 0 }, count: { type: integer, minimum: 0 }, skip: { type: integer, minimum: 0 }, limit: { type: integer, minimum: 1, maximum: 100 }, records: { type: array, items: { $ref: '#/components/schemas/AuditMetadata' } } }, additionalProperties: false }
     ChatHistoryResponse: { type: object, additionalProperties: false, required: [conversations], properties: { conversations: { type: array, items: { type: object, required: [session_id, messages], properties: { session_id: { type: string }, messages: { type: array, items: { type: object, additionalProperties: true } }, message_count: { type: integer }, created_at: { type: string }, updated_at: { type: string } }, additionalProperties: true } } } }
     MarketContextResponse:
@@ -2711,7 +2742,7 @@ components:
     ChatRequest: { type: object, additionalProperties: false, required: [message], properties: { message: { type: string, minLength: 1, maxLength: 1000 }, session_id: { type: string, maxLength: 100 } } }
     ChatResponse:
       type: object
-      required: [version, response, session_id, latency_ms, grounded, provider, evidence_ids_used, unavailable_facts, validation_status, fallback, messages_this_hour, rate_limit_remaining, rate_limit_reset_at, citations, action_cards, idempotent_replay]
+      required: [version, response, session_id, latency_ms, grounded, provider, evidence_ids_used, unavailable_facts, validation_status, fallback, fallback_reason_codes, messages_this_hour, rate_limit_remaining, rate_limit_reset_at, citations, action_cards, idempotent_replay]
       properties:
         version: { type: string }
         response: { type: string }
@@ -2726,6 +2757,7 @@ components:
         unavailable_facts: { type: array, items: { type: string } }
         validation_status: { type: [string, 'null'] }
         fallback: { type: boolean }
+        fallback_reason_codes: { type: array, items: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,79}$' }, description: Sanitized machine-readable diagnostics only; empty when no fallback occurred. }
         messages_this_hour: { type: integer, minimum: 0 }
         rate_limit_remaining: { type: integer, minimum: 0 }
         rate_limit_reset_at: { type: [string, 'null'], format: date-time }
