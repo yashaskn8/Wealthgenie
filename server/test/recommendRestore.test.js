@@ -19,6 +19,7 @@ import User from '../models/User.js';
 import { claimAdvisoryIdempotency } from '../middleware/idempotency.js';
 import { persistAdvisoryAtomically } from '../services/advisoryPersistence.js';
 import { createManualAllocationRevision, requireFreshRecommendationState } from '../services/recommendationState.js';
+import { resolveConcentrationCap } from '../services/RecommendationPipeline.js';
 import { verifyAuditChain } from '../services/auditChain.js';
 import { installFinancialStateTestHook } from '../services/financialStateTestHooks.js';
 import {
@@ -733,13 +734,15 @@ test('zero-weight rebalance restores zero projection and goal metrics select an 
   const zeroedId = initial.instruments[0].id;
   const originalZeroedWeight = initial.instruments[0].allocationWeight;
   const activeInstruments = initial.instruments.slice(1);
-  const weights = { [zeroedId]: 0 };
-  for (const instrument of activeInstruments) {
-    weights[instrument.id] = Number((instrument.allocationWeight / (1 - originalZeroedWeight)).toFixed(4));
-  }
+  // Keep already suitable allocations untouched: proportional renormalization
+  // can breach the aggregate small-cap/gold/NPS caps after top-ten expansion.
+  const weights = Object.fromEntries(initial.instruments.map(item => [item.id, item.allocationWeight]));
+  weights[zeroedId] = 0;
+  const receiver = activeInstruments.find(item => resolveConcentrationCap(item) === null);
+  assert.ok(receiver, 'fixture must include a suitable uncapped asset to receive the dropped weight');
+  weights[receiver.id] = Number((weights[receiver.id] + originalZeroedWeight).toFixed(4));
   const roundedTotal = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
-  const lastActiveId = activeInstruments.at(-1).id;
-  weights[lastActiveId] = Number((weights[lastActiveId] + 1 - roundedTotal).toFixed(4));
+  weights[receiver.id] = Number((weights[receiver.id] + 1 - roundedTotal).toFixed(4));
 
   const rebalanceResponse = await submitWeights({
     profileId: String(profile._id),

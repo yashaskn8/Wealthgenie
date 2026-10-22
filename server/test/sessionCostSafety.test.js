@@ -110,7 +110,7 @@ describe('grounded chat session-cost safety', () => {
     assert.equal(response.provider, 'DETERMINISTIC_TEMPLATE');
     assert.equal(response.fallback, true);
     assert.equal(session.cumulative_tokens, 52000);
-    assert.ok(session.messages.at(-1).metadata.validation_reason_codes.includes('NO_LLM_PROVIDER_CONFIGURED'));
+    assert.ok(session.messages.at(-1).metadata.validation_reason_codes.includes('PROVIDER_BUDGET_EXHAUSTED'));
   });
 
   it('persists no hidden reasoning or raw provider payload at any token count', async () => {
