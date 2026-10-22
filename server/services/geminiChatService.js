@@ -14,8 +14,6 @@ import {
   buildLlmFinancialContext,
 } from './recommendationProfile.js';
 import { assessSuitabilityRisk } from './riskProfiler.js';
-import { classifyGenieChatQuestion } from './chatQuestionRouting.js';
-import { generateGeneralChat, getGeneralChatTokenUpperBound } from './generalChatService.js';
 import {
   buildChatEvidencePacket,
   generateGroundedExplanation,
@@ -24,6 +22,17 @@ import {
   sanitizeExternalQuestion,
 } from './groundedExplanationService.js';
 import { resolveCurrentRecommendationState } from './recommendationState.js';
+import {
+  generateGeneralChatAnswer,
+  generalChatTokenUpperBound,
+  isGeneralChatQuestion,
+} from './generalChatService.js';
+import {
+  isFinancialGoalPlanningQuestion,
+  isFinancialGoalFollowUpQuestion,
+  retrieveChatGoalPlanningEvidence,
+} from './chatGoalPlanning.js';
+import { buildGroundedEvidencePacket } from './groundedEvidence.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -175,32 +184,36 @@ function chatMessageMatchesBinding(message, binding) {
     && (metadata.portfolioFingerprint || null) === (binding.sourcePortfolioFingerprint || null);
 }
 
+// A context-dependent follow-up inherits the preceding financial-answer mode.
+// Without this guard, "Why?" after a portfolio answer becomes an unsourced LLM
+// reply that could invent financial explanations and citations.
 function isContextDependentFollowUp(question) {
-  return /^(?:why\??|how\s+(?:so|come)\b|tell\s+me\s+more\b|can\s+you\s+explain\b|explain\s+(?:that|it|more|the\s+previous)\b|what\s+about\s+(?:it|that|this)\b|continue\b)/i.test(String(question || '').trim());
+  const text = String(question || '').trim();
+  if (/^(?:(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\b|(?:i(?:'ve| have)|we(?:'ve| have))\s+(?:already\s+)?saved?\b|(?:i|we)\s+have\s+(?:saved|set aside)\b|(?:i|we)\s+can\s+(?:save|contribute)\b|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing)\b)/i.test(text)) return true;
+  return /^(?:why(?:[?.!]\s*|\s+is\s+that\b)|how\s+(?:so|come)\b|tell\s+me\s+more\b|explain\s+(?:it|that|the\s+previous\s+answer)\b|what\s+about\s+(?:that|this|it|them)\b|can\s+you\s+(?:explain|elaborate|expand)\b|give\s+(?:me\s+)?an\s+example\b|continue\b)/i
+    .test(text);
 }
 
-function lastChatTurnWasFinancial(conversation) {
+function lastChatAnswerWasFinancial(conversation) {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const latest = [...messages].reverse().find(item => item.role === 'model');
   return Boolean(latest && (latest.metadata?.grounded_on_profile !== false
-    || latest.metadata?.validation_status !== 'GENERAL_UNCITED'));
+    || latest.metadata?.validation_status !== 'UNVERIFIED_GENERAL_CHAT'));
 }
 
 function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const newestPairs = [];
-  for (let index = messages.length - 2; index >= 0 && newestPairs.length < 2; index -= 2) {
+  for (let index = messages.length - 2; index >= 0 && newestPairs.length < (mode === 'GENERAL' ? 2 : 4); index -= 2) {
     const userMessage = messages[index];
     const modelMessage = messages[index + 1];
     if (userMessage?.role !== 'user' || modelMessage?.role !== 'model'
         || !chatMessageMatchesBinding(userMessage, binding)
         || !chatMessageMatchesBinding(modelMessage, binding)) break;
-    // A general chat must not inherit prior account-specific financial answers.
-    // A financial chat must not treat unconstrained general answers as evidence.
-    const isGeneralPair = userMessage.metadata?.grounded_on_profile === false
-      && modelMessage.metadata?.grounded_on_profile === false
-      && modelMessage.metadata?.validation_status === 'GENERAL_UNCITED';
-    if ((mode === 'GENERAL') !== isGeneralPair) break;
+    const isGeneralTurn = modelMessage?.metadata?.validation_status === 'UNVERIFIED_GENERAL_CHAT'
+      && userMessage?.metadata?.grounded_on_profile === false
+      && modelMessage?.metadata?.grounded_on_profile === false;
+    if ((mode === 'GENERAL') !== isGeneralTurn) break;
     const pair = [
       { role: 'user', content: truncateUtf8(sanitizeExternalQuestion(userMessage.content), 1000) },
       { role: 'model', content: truncateUtf8(sanitizeExternalQuestion(modelMessage.content), 1000) },
@@ -241,7 +254,78 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
       });
     }
-    return noProfileResponse(sessionId, rateCheck);
+    // A completed financial profile must never be a prerequisite for ordinary
+    // educational questions. Stateless general responses cannot access account
+    // investments or be misrepresented as persisted financial advice.
+    const noProfileGeneral = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
+      && isGeneralChatQuestion(message) && !isGroundingBoundaryAttack(message);
+    if (!noProfileGeneral && isFinancialGoalPlanningQuestion(message)
+        && !isGroundingBoundaryAttack(message)) {
+      // Anonymous profile context is absent; use only this user's question.
+      // Do not invent suitability, fetch market data, or create a financial
+      // session from an unbound profile.
+      const packet = buildGroundedEvidencePacket({
+        question: sanitizeExternalQuestion(message),
+        profile: null,
+        additionalEntries: retrieveChatGoalPlanningEvidence(sanitizeExternalQuestion(message)),
+      });
+      const answer = await generateGroundedExplanation({
+        question: sanitizeExternalQuestion(message), evidencePacket: packet,
+      }, {
+        providers: [], getCache: async () => null, setCache: async () => false,
+      });
+      return buildClientResponseDTO({
+        response: answer.text,
+        session_id: sessionId,
+        grounded: true,
+        provider: answer.provider,
+        model: null,
+        prompt_version: answer.promptVersion,
+        grounding_version: answer.groundingVersion,
+        evidence_ids_used: answer.evidenceIdsUsed,
+        unavailable_facts: answer.unavailableFacts,
+        validation_status: answer.validation.status,
+        fallback: answer.fallback,
+        fallback_reason_codes: [],
+        citations: answer.citations,
+        messages_this_hour: rateCheck.count,
+        rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+        rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
+      });
+    }
+    if (!noProfileGeneral) return noProfileResponse(sessionId, rateCheck);
+    const upperBound = generalChatTokenUpperBound(message);
+    const startedAt = Date.now();
+    const answer = await generateGeneralChatAnswer({ question: message }, {
+      ...groundedExplanationDependencies,
+      ...(reserveProviderAttempt ? {
+        reserveProviderAttempt: ({ provider, providerAttemptCount }) => reserveProviderAttempt({
+          userId, sessionId, provider, providerAttemptCount, tokenUpperBound: upperBound,
+        }),
+      } : {}),
+      ...(settleProviderAttempt ? {
+        settleProviderAttempt: ({ reservation, actualTokens, provider, providerAttemptCount }) => settleProviderAttempt({
+          reservation, actualTokens, userId, sessionId, provider, providerAttemptCount,
+        }),
+      } : {}),
+    });
+    return buildClientResponseDTO({
+      response: answer.text,
+      session_id: sessionId,
+      latency_ms: Date.now() - startedAt,
+      grounded: false,
+      provider: answer.provider,
+      model: answer.model,
+      prompt_version: answer.promptVersion,
+      evidence_ids_used: [],
+      citations: [],
+      validation_status: answer.validation.status,
+      fallback: answer.fallback,
+      fallback_reason_codes: answer.fallback ? answer.validation.reasonCodes : [],
+      messages_this_hour: rateCheck.count,
+      rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+      rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
+    });
   }
   const profile = buildRecommendationProfile(storedProfile);
   const suitability = assessSuitabilityRisk(profile);
@@ -287,24 +371,33 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
       });
     }
-    const isGeneralQuestion = !promptInjectionDetected
-      && classifyGenieChatQuestion(securityContext.sanitizedMessage) === 'GENERAL_UNCITED'
-      // "Can you explain that simply?" must inherit a cited finance answer;
-      // otherwise a general model can make up facts about the saved profile.
+    // General questions use a segregated unsourced LLM path. Personal finance
+    // always uses the evidence-grounded path, including unknown finance topics.
+    const recentFinancialTurns = buildTrustedPriorTurns(claim.conversation, binding, 'FINANCIAL');
+    const financialGoalFollowUp = isFinancialGoalFollowUpQuestion(
+      securityContext.sanitizedMessage, recentFinancialTurns);
+    const generalMode = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
+      && !promptInjectionDetected
+      && !financialGoalFollowUp
+      && isGeneralChatQuestion(securityContext.sanitizedMessage)
       && !(isContextDependentFollowUp(securityContext.sanitizedMessage)
-        && lastChatTurnWasFinancial(claim.conversation));
-    // Never give the general-purpose LLM the user's private profile or recommendation.
-    const evidencePacket = isGeneralQuestion ? null : await buildChatEvidencePacket({
+        && lastChatAnswerWasFinancial(claim.conversation));
+    const trustedFinancialTurns = generalMode ? [] : recentFinancialTurns;
+    const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
       question: securityContext.sanitizedMessage,
       profile: llmProfile,
       recommendation,
       userId,
+      priorTurns: trustedFinancialTurns,
     });
     if (leaseFailure) throw leaseFailure;
-    const priorTurns = buildTrustedPriorTurns(claim.conversation, binding,
-      isGeneralQuestion ? 'GENERAL' : 'FINANCIAL');
-    const providerBudgetUpperBound = isGeneralQuestion
-      ? getGeneralChatTokenUpperBound({ question: securityContext.sanitizedMessage, priorTurns })
+    // General history contains only previously marked general turns. Do not
+    // leak historical financial evidence or user-profile details across modes.
+    const priorTurns = generalMode
+      ? buildTrustedPriorTurns(claim.conversation, binding, 'GENERAL')
+      : trustedFinancialTurns;
+    const providerBudgetUpperBound = generalMode
+      ? generalChatTokenUpperBound(securityContext.sanitizedMessage, priorTurns)
       : getGroundedExplanationTokenUpperBound({
         question: securityContext.sanitizedMessage,
         evidencePacket,
@@ -317,8 +410,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       && await sessionStore.reserveBudget(claim, providerBudgetUpperBound);
     const startedAt = Date.now();
     let initialProviderReservationAvailable = canReserveProvider;
-    const explanation = await (isGeneralQuestion ? generateGeneralChat : generateGroundedExplanation)(
-      { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
+    const explanation = await (generalMode ? generateGeneralChatAnswer : generateGroundedExplanation)(
+      generalMode
+        ? { question: securityContext.sanitizedMessage, priorTurns }
+        : { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
       {
         ...groundedExplanationDependencies,
         ...(canReserveProvider ? {
@@ -369,7 +464,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const auditMetadata = {
       provider: explanation.provider,
       model: explanation.model,
-      grounded_on_profile: !isGeneralQuestion,
+      grounded_on_profile: !generalMode,
       grounding_version: explanation.groundingVersion,
       prompt_version: explanation.promptVersion,
       evidence_hash: explanation.evidenceHash,
@@ -387,7 +482,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const userMessage = {
       role: 'user',
       content: securityContext.sanitizedMessage,
-      metadata: { grounded_on_profile: !isGeneralQuestion, prompt_injection_detected: promptInjectionDetected },
+      metadata: { grounded_on_profile: !generalMode, prompt_injection_detected: promptInjectionDetected },
     };
     const modelMessage = { role: 'model', content: explanation.text, metadata: auditMetadata };
     const actualProviderTokens = explanation.cached
@@ -402,7 +497,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       response: explanation.text,
       session_id: sessionId,
       latency_ms: latencyMs,
-      grounded: !isGeneralQuestion,
+      grounded: !generalMode,
       provider: explanation.provider,
       model: explanation.model,
       prompt_version: explanation.promptVersion,

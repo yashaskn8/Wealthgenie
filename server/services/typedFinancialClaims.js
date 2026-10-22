@@ -8,7 +8,7 @@ const CLAIM_FIELDS = Object.freeze([
 export const FINANCIAL_CLAIM_TYPES = Object.freeze([
   'CURRENT_RATE', 'HISTORICAL_RETURN', 'EXPECTED_RETURN', 'PROJECTED_RETURN',
   'POST_TAX_RETURN', 'ALLOCATION_WEIGHT', 'TAX_RATE', 'CURRENT_COUPON',
-  'MATURITY_AMOUNT', 'CONTRIBUTION', 'RISK_SCORE',
+  'MATURITY_AMOUNT', 'CONTRIBUTION', 'RISK_SCORE', 'GOAL_TARGET', 'GOAL_MONTHLY_BASELINE',
 ]);
 
 export const FINANCIAL_CLAIM_UNITS = Object.freeze([
@@ -75,6 +75,41 @@ function expectedClaimForEvidence(entry, type) {
       && entry.dataClass === 'AUTHORITATIVE_BACKEND_RESULT'
       && finite(value?.allocationPct)) {
     return { ...base, value: value.allocationPct, unit: 'PERCENT', timePeriod: 'CURRENT_PLAN', source: backendSource, jurisdiction: null, effectivePeriod: null };
+  }
+  if (type === 'GOAL_TARGET'
+      && entry.id === 'E_GOAL_STATED_TARGET'
+      && entry.kind === 'GOAL_TARGET'
+      && entry.dataClass === 'USER_INPUT'
+      && finite(value?.targetAmount)
+      && value.targetAmount > 0
+      && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value.sourceScope)
+      && entry.authority === 'USER_INPUT') {
+    return { ...base, value: value.targetAmount, unit: 'INR', timePeriod: 'STATED_GOAL',
+      source: 'USER_INPUT', jurisdiction: null, effectivePeriod: null };
+  }
+  if (type === 'GOAL_MONTHLY_BASELINE'
+      && entry.id === 'E_GOAL_MONTHLY_BASELINE'
+      && entry.kind === 'GOAL_CALCULATION'
+      && entry.dataClass === 'DETERMINISTIC_NO_RETURN_ILLUSTRATION'
+      && finite(value?.monthlyRequiredAmount) && value.monthlyRequiredAmount > 0
+      && finite(value.targetAmount) && finite(value.earmarkedSavingsAmount)
+      && Number.isSafeInteger(value.horizonMonths) && value.horizonMonths > 0
+      && value.earmarkedSavingsAmount >= 0 && value.earmarkedSavingsAmount <= value.targetAmount
+      && Number.isSafeInteger(Math.round(value.targetAmount * 100))
+      && Number.isSafeInteger(Math.round(value.earmarkedSavingsAmount * 100))
+      && Math.abs(value.targetAmount * 100 - Math.round(value.targetAmount * 100)) < 0.001
+      && Math.abs(value.earmarkedSavingsAmount * 100 - Math.round(value.earmarkedSavingsAmount * 100)) < 0.001
+      && value.monthlyRequiredAmount === Math.ceil(
+        (Math.round(value.targetAmount * 100) - Math.round(value.earmarkedSavingsAmount * 100))
+        / value.horizonMonths) / 100
+      && value.assumedGrowthRate === null && value.inflationRate === null
+      && value.returnForecast === false && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value.sourceScope)
+      && (value.scenario === 'DECLARED_SAVINGS'
+        || (value.scenario === 'ZERO_START_CONDITIONAL' && value.earmarkedSavingsAmount === 0))
+      && entry.authority === 'WEALTHGENIE_BACKEND') {
+    return { ...base, value: value.monthlyRequiredAmount, unit: 'INR_PER_MONTH',
+      timePeriod: 'MONTHLY_ZERO_RETURN_BASELINE', source: 'WEALTHGENIE_BACKEND',
+      jurisdiction: null, effectivePeriod: null };
   }
   if (type === 'CONTRIBUTION'
       && entry.id === 'E_PROFILE_SAVINGS'
@@ -189,6 +224,8 @@ function inferredType(statement) {
     ['CURRENT_COUPON', /\bcurrent coupon\b/],
     ['MATURITY_AMOUNT', /\bmaturity\s+(?:amount|value|proceeds)\b/],
     ['CONTRIBUTION', /\b(?:contribution|monthly savings)\b/],
+    ['GOAL_TARGET', /\bgoal target\b/],
+    ['GOAL_MONTHLY_BASELINE', /\bfunding-only baseline\b/],
     ['RISK_SCORE', /\brisk score\b/],
   ];
   for (const [type, pattern] of rules) if (pattern.test(text)) matches.push(type);

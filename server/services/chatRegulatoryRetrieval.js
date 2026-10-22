@@ -8,7 +8,6 @@ import crypto from 'node:crypto';
 
 const CORPUS = Object.freeze({
   documentKey: 'income-tax-rules-2026-commencement',
-  documentTitle: 'Income-tax Rules, 2026 commencement',
   manifestSha256: '248ad8a8418f3e763b625625cc6746c93dc74783299f710bfcf58f08917bb1bf',
   contentSha256: '026b9c068c11f89bebd8451cbe7c6568cc2937b0ec19b4b18d327f70c7b78ab2',
   sourceUrl: 'https://www.incometax.gov.in/iec/foportal/sites/default/files/2026-03/En-Notified-IT-Rules-2026-20-03-2026.pdf',
@@ -35,7 +34,6 @@ function matchesCorpus(chunk, citation) {
     && ['global', 'public', 'default'].includes(String(chunk?.scope || metadata?.scope || '').toLowerCase())
     && ['global', 'default', ''].includes(String(chunk?.tenant_id || metadata?.tenant_id || '').toLowerCase())
     && metadata?.source_trust_tier === 'government_official'
-    && metadata?.title === CORPUS.documentTitle
     && metadata?.source === CORPUS.sourceUrl
     && metadata?.author === CORPUS.authority
     && metadata?.publication_date === CORPUS.publicationDate
@@ -93,13 +91,13 @@ export async function retrieveQualifiedRegulatoryChatEvidence({
     entries.push({
       id: evidenceId,
       kind: 'REGULATORY_REFERENCE',
-      sourceTitle: CORPUS.documentTitle,
       value: { documentKey: CORPUS.documentKey, excerpt, verifiedCommencementDate: CORPUS.effectiveFrom },
       displayValue: 'The Income-tax Rules, 2026 took effect on 2026-04-01.',
       dataClass: 'OFFICIAL_CORPUS_EXCERPT',
       authority: 'MANIFEST_VERIFIED_REGULATORY_SOURCE',
       source: {
         provider: 'INCOME_TAX_DEPARTMENT',
+        title: 'Income-tax Rules, 2026 commencement',
         url: CORPUS.sourceUrl,
         publicationDate: CORPUS.publicationDate,
         instrumentId: null,

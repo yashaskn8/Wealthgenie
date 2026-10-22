@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { retrieveChatEducationalEvidence } from '../services/chatEducationalRetrieval.js';
-import { buildChatEvidencePacket, generateGroundedExplanation, GROUNDED_EXPLANATION_PROMPT_VERSION } from '../services/groundedExplanationService.js';
+import { buildChatEvidencePacket, generateGroundedExplanation } from '../services/groundedExplanationService.js';
 import { validateGroundedExplanation } from '../services/groundingValidator.js';
 import { validateGroundedExplanationCompleteness } from '../services/groundedExplanationCompleteness.js';
 
@@ -302,97 +302,88 @@ test('disclosure-only generated answer triggers grounded educational fallback in
 });
 
 
-test('published citation titles identify the actual education source rather than the evidence category', async () => {
-  const question = 'Explain portfolio balancing in simple terms';
-  const packet = await buildChatEvidencePacket({ question, profile });
-  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
-    providers: [], getCache: async () => null, setCache: async () => {},
-  });
-  const source = answer.citations.find(item => item.citation_id === 'E_EDU_REBALANCING');
-  assert.equal(source.document_title, 'Asset Allocation and Diversification');
-  assert.equal(source.source, 'US_SEC_INVESTOR_GOV');
-  assert.equal(source.source_url, 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation');
-});
-
-test('a true passage with a different source marker is not considered an evidence-backed answer', async () => {
-  const question = 'Explain portfolio rebalancing and diversification';
-  const packet = await buildChatEvidencePacket({ question, profile });
-  const rebalancing = packet.entries.find(entry => entry.id === 'E_EDU_REBALANCING');
-  const diversification = packet.entries.find(entry => entry.id === 'E_EDU_DIVERSIFICATION');
-  assert.ok(rebalancing && diversification);
-
-  const incorrect = rebalancing.displayValue.split('\n')[0] + ' [' + diversification.id + ']';
-  const wrongSource = {
-    text: incorrect,
-    evidenceIdsUsed: [diversification.id],
-    claims: [{ text: incorrect, evidenceIds: [diversification.id] }],
+test('citation cannot justify an opposite public educational claim just by reusing source words', async () => {
+  const question = 'What is diversification?';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const evidence = packet.entries.find(item => item.id === 'E_EDU_DIVERSIFICATION');
+  assert.ok(evidence);
+  const falseClaim = 'Diversification increases concentration risk but cannot eliminate investment losses. [E_EDU_DIVERSIFICATION]';
+  const misleading = {
+    text: falseClaim,
+    evidenceIdsUsed: [evidence.id],
+    claims: [{ text: falseClaim, evidenceIds: [evidence.id] }],
     financialClaims: [],
     unavailableFacts: [],
   };
-  assert.equal(validateGroundedExplanation(wrongSource, packet).valid, true);
-  assert.deepEqual(validateGroundedExplanationCompleteness(wrongSource, packet), {
-    valid: false, errors: ['CLAIM_EVIDENCE_RELEVANCE_INSUFFICIENT'],
+  assert.equal(validateGroundedExplanation(misleading, packet).valid, true,
+    'the numeric and citation-ID validator alone cannot detect a nonnumeric semantic reversal');
+  assert.deepEqual(validateGroundedExplanationCompleteness(misleading, packet), {
+    valid: false,
+    errors: ['CLAIM_EVIDENCE_RELEVANCE_INSUFFICIENT'],
   });
-
-  const provider = {
-    name: 'groq', configuredModel: () => 'source-swap-fixture',
-    generate: async () => ({
-      provider: 'groq', model: 'source-swap-fixture',
-      text: JSON.stringify(wrongSource),
-    }),
-  };
-  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
-    providers: [provider], getCache: async () => null, setCache: async () => false,
-  });
-  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
-  assert.equal(answer.validation.status, 'PASS');
-  assert.equal(answer.providerAttemptFailureCount, 1);
-  assert.ok(answer.citations.some(citation => citation.citation_id === rebalancing.id));
-  assert.ok(answer.citations.some(citation => citation.citation_id === diversification.id));
+  const supportedClaim = evidence.displayValue + ' [E_EDU_DIVERSIFICATION]';
+  assert.equal(validateGroundedExplanationCompleteness({
+    ...misleading,
+    text: supportedClaim,
+    claims: [{ text: supportedClaim, evidenceIds: [evidence.id] }],
+  }, packet).valid, true);
 });
 
-test('cached wrong-source assertions are revalidated and cannot bypass semantic provenance checks', async () => {
-  const question = 'Explain portfolio rebalancing and diversification';
-  const packet = await buildChatEvidencePacket({ question, profile });
-  const rebalancing = packet.entries.find(entry => entry.id === 'E_EDU_REBALANCING');
-  const diversification = packet.entries.find(entry => entry.id === 'E_EDU_DIVERSIFICATION');
-  const wrong = rebalancing.displayValue.split('\n')[0] + ' [' + diversification.id + ']';
-  const corrected = diversification.displayValue + ' [' + diversification.id + ']';
-  let calls = 0;
+test('invalid cached semantics trigger fresh verification instead of being replayed', async () => {
+  const question = 'What is diversification?';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const evidence = packet.entries.find(item => item.id === 'E_EDU_DIVERSIFICATION');
+  const supported = evidence.displayValue + ' [' + evidence.id + ']';
+  let cached = null;
+  let providerCalls = 0;
   const provider = {
-    name: 'groq', configuredModel: () => 'source-swap-cache-fixture',
-    generate: async () => {
-      calls += 1;
+    name: 'groq',
+    configuredModel: () => 'source-citation-regression-test',
+    isConfigured: () => true,
+    async generate() {
+      providerCalls += 1;
       return {
-        provider: 'groq', model: 'source-swap-cache-fixture',
+        provider: 'groq',
+        model: 'source-citation-regression-test',
+        tokensUsed: 30,
         text: JSON.stringify({
-          text: diversification.displayValue,
-          evidenceIdsUsed: [diversification.id],
-          claims: [{ text: diversification.displayValue, evidenceIds: [diversification.id] }],
-          financialClaims: [], unavailableFacts: [],
+          text: supported,
+          evidenceIdsUsed: [evidence.id],
+          claims: [{ text: supported, evidenceIds: [evidence.id] }],
+          financialClaims: [],
+          unavailableFacts: [],
         }),
       };
     },
   };
-  const staleCache = {
-    validation: { status: 'PASS' },
-    evidenceHash: packet.evidenceHash,
-    promptVersion: GROUNDED_EXPLANATION_PROMPT_VERSION,
-    groundingVersion: packet.groundingVersion,
-    provider: 'GROQ',
-    model: 'source-swap-cache-fixture',
-    text: wrong,
-    evidenceIdsUsed: [diversification.id],
-    claims: [{ text: wrong, evidenceIds: [diversification.id] }],
-    financialClaims: [], unavailableFacts: [],
+  const deps = {
+    providers: [provider],
+    getCache: async () => cached,
+    setCache: async (_key, value) => { cached = value; return true; },
   };
-  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
-    providers: [provider], getCache: async () => staleCache, setCache: async () => false,
-  });
-  assert.equal(calls, 1, 'cached assertion with wrong evidence must be discarded');
-  assert.equal(answer.provider, 'GROQ');
-  assert.equal(answer.cached, false);
-  assert.equal(answer.validation.status, 'PASS');
-  assert.match(answer.text, /Diversification means spreading investments/);
-  assert.ok(answer.text.includes(corrected));
+  const first = await generateGroundedExplanation({ question, evidencePacket: packet }, deps);
+  assert.equal(first.fallback, false);
+  assert.equal(first.validation.status, 'PASS');
+  assert.equal(providerCalls, 1);
+  assert.ok(first.citations.some(c => c.citation_id === evidence.id
+    && c.document_title === 'Asset Allocation and Diversification'));
+  assert.ok(first.citations.some(c => c.citation_id === evidence.id
+    && c.source_url === 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation'));
+
+  const reversed = 'Diversification increases concentration risk but cannot eliminate investment losses.';
+  cached = {
+    ...cached,
+    text: cached.text.replace(evidence.displayValue, reversed),
+    claims: cached.claims.map(c => c.evidenceIds.includes(evidence.id)
+      ? { ...c, text: c.text.replace(evidence.displayValue, reversed) } : c),
+  };
+  assert.equal(validateGroundedExplanation(cached, packet).valid, true);
+  assert.equal(validateGroundedExplanationCompleteness(cached, packet).valid, false);
+
+  const second = await generateGroundedExplanation({ question, evidencePacket: packet }, deps);
+  assert.equal(second.cached, false);
+  assert.equal(second.validation.status, 'PASS');
+  assert.equal(providerCalls, 2);
+  assert.doesNotMatch(second.text, /Diversification increases concentration risk/i);
+  assert.ok(second.text.includes('Diversification means spreading investments'));
 });

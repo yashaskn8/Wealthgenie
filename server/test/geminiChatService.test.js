@@ -758,6 +758,81 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.match(result.response, /\[E_PROFILE_RISK\]/);
   });
 
+  it('answers general programming questions through Groq without sending profile data or inventing sources', async () => {
+    const originalGroqGenerate = ProviderManager.groq.generate;
+    const originalGeneralFlag = process.env.CHAT_GENERAL_MODE_ENABLED;
+    let providerCalls = 0;
+    try {
+      process.env.CHAT_GENERAL_MODE_ENABLED = 'true';
+      ProviderManager.groq.generate = async request => {
+        providerCalls += 1;
+        assert.equal(request.jsonMode, false);
+        assert.equal(request.tools, null);
+        assert.doesNotMatch(JSON.stringify(request), /monthlySavings|riskTolerance|E_PROFILE_|_id|allocation_pct/);
+        return { text: 'Python generators produce items lazily.', provider: 'groq',
+          model: 'test-groq-general', tokensUsed: 24, wasCompleted: true };
+      };
+      const result = await processChat({
+        userId: mockUserId,
+        user: mockUser,
+        message: 'Explain Python generators.',
+        sessionId: mockSessionId,
+        idempotencyKey: 'general-python-turn-001',
+      }, { groundedExplanationDependencies: { providers: [ProviderManager.groq] } });
+      assert.equal(providerCalls, 1);
+      assert.equal(result.provider, 'GROQ');
+      assert.equal(result.grounded, false);
+      assert.equal(result.validation_status, 'UNVERIFIED_GENERAL_CHAT');
+      assert.deepEqual(result.citations, []);
+      assert.deepEqual(result.evidence_ids_used, []);
+      assert.equal(result.response, 'Python generators produce items lazily.');
+      const saved = savedMessages.filter(message => message.role === 'model').at(-1);
+      assert.equal(saved.metadata.grounded_on_profile, false);
+      assert.deepEqual(saved.metadata.citations, []);
+    } finally {
+      ProviderManager.groq.generate = originalGroqGenerate;
+      if (originalGeneralFlag === undefined) delete process.env.CHAT_GENERAL_MODE_ENABLED;
+      else process.env.CHAT_GENERAL_MODE_ENABLED = originalGeneralFlag;
+    }
+  });
+
+  it('keeps ambiguous follow-ups evidence-grounded after a financial chat turn', async () => {
+    const originalGeneralFlag = process.env.CHAT_GENERAL_MODE_ENABLED;
+    const originalGroqGenerate = ProviderManager.groq.generate;
+    let generalCalls = 0;
+    try {
+      process.env.CHAT_GENERAL_MODE_ENABLED = 'true';
+      ProviderManager.groq.generate = async () => {
+        generalCalls += 1;
+        return { provider: 'groq', text: 'I would invent a financial reason.' };
+      };
+      savedMessages.push(
+        { role: 'user', content: 'Explain my suitability.',
+          metadata: { grounded_on_profile: true } },
+        { role: 'model', content: 'Your suitability is Moderate [E_PROFILE_RISK].',
+          metadata: { grounded_on_profile: true, validation_status: 'PASS' } },
+      );
+      const answer = await processChat({
+        userId: mockUserId, user: mockUser,
+        message: 'Why?', sessionId: mockSessionId,
+        idempotencyKey: 'financial-followup-001',
+      }, {
+        groundedExplanationDependencies: {
+          providers: [], getCache: async () => null, setCache: async () => false,
+        },
+      });
+      assert.equal(generalCalls, 0);
+      assert.equal(answer.grounded, true);
+      assert.equal(answer.validation_status, 'PASS');
+      assert.ok(answer.citations.length > 0);
+      assert.doesNotMatch(answer.response, /invent a financial reason/i);
+    } finally {
+      ProviderManager.groq.generate = originalGroqGenerate;
+      if (originalGeneralFlag === undefined) delete process.env.CHAT_GENERAL_MODE_ENABLED;
+      else process.env.CHAT_GENERAL_MODE_ENABLED = originalGeneralFlag;
+    }
+  });
+
   it('Phase 6: provider failure returns a deterministic evidence-backed fallback', async () => {
     axios.post = async () => {
       throw Object.assign(new Error('provider unavailable'), { code: 'ECONNRESET' });

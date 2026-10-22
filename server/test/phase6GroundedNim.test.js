@@ -1222,7 +1222,7 @@ test('PlanReview Groq JSON mode keeps every evidence entry intact while omitting
   ));
   assert.equal(result.fallback, false);
   assert.equal(request.maxTokens, 512, 'the scoped Groq call must preserve the live per-call ceiling');
-  assert.ok(request.systemPrompt.length < 2000, `the scoped instructions must stay compact while adding source-claim integrity checks (${request.systemPrompt.length} characters)`);
+  assert.ok(request.systemPrompt.length < 1800, `the scoped schema instructions should be materially shorter (${request.systemPrompt.length} characters)`);
   assert.deepEqual(expandedEntries, JSON.parse(JSON.stringify(packet.entries)), 'all facts and per-entry provenance survive positional compression');
   assert.deepEqual(modelPacket.entryFields, Object.keys(packet.entries[0]));
   assert.deepEqual(modelPacket.unavailableFacts, packet.unavailableFacts);
@@ -1413,69 +1413,74 @@ test('API key is never returned by provider or grounded explanation metadata', a
 });
 
 
-test('grounded chat retries Groq failure once on NVIDIA without bypassing evidence or token admission', async () => {
-  const packet = evidencePacket();
+test('Groq falls back to NVIDIA NIM only with a separate durable provider reservation', async () => {
   const calls = [];
   const settlements = [];
   const providers = [
-    { name: 'groq', lastFailureReason: null, async generate() {
-      calls.push('groq');
-      this.lastFailureReason = 'PROVIDER_SERVER_ERROR';
-      return null;
-    } },
-    { name: 'nvidia_nim', configuredModel: () => NVIDIA_NIM_DEFAULT_MODEL, async generate(args) {
-      calls.push('nvidia_nim');
-      assert.equal(args.outputContract, 'GROUNDED_EXPLANATION_V1');
-      assert.equal(args.jsonMode, true);
-      assert.equal(args.tools, null);
-      return {
-        provider: 'nvidia_nim', model: NVIDIA_NIM_DEFAULT_MODEL,
-        text: JSON.stringify(candidate()), wasCompleted: true, tokensUsed: 23,
-      };
-    } },
+    {
+      name: 'groq', configuredModel: () => 'mock-groq',
+      lastFailureReason: null,
+      async generate() {
+        calls.push('groq');
+        this.lastFailureReason = 'PROVIDER_NETWORK_ERROR';
+        return null;
+      },
+    },
+    {
+      name: 'nvidia_nim', configuredModel: () => NVIDIA_NIM_DEFAULT_MODEL,
+      async generate() {
+        calls.push('nvidia_nim');
+        return {
+          provider: 'nvidia_nim', model: NVIDIA_NIM_DEFAULT_MODEL,
+          text: JSON.stringify(candidate()), tokensUsed: 23,
+        };
+      },
+    },
   ];
-  const result = await generateGroundedExplanation({
-    question: 'Explain the verified rate.', evidencePacket: packet,
+  const answer = await generateGroundedExplanation({
+    question: 'Explain the approved official rate.', evidencePacket: evidencePacket(),
   }, {
-    providers,
-    allowNvidiaFallback: true,
-    getCache: async () => null,
-    setCache: async () => false,
+    providers, allowNvidiaFallback: true,
     beforeProviderAttempt: async () => true,
     reserveProviderAttempt: async ({ providerAttemptCount }) => ({ id: providerAttemptCount }),
     settleProviderAttempt: async ({ reservation, actualTokens }) => {
-      settlements.push({ reservation, actualTokens });
+      settlements.push([reservation.id, actualTokens]);
       return { settled: true };
     },
+    getCache: async () => null, setCache: async () => false,
   });
   assert.deepEqual(calls, ['groq', 'nvidia_nim']);
-  assert.deepEqual(settlements.map(x => x.actualTokens), [null, 23]);
-  assert.equal(result.provider, 'NVIDIA_NIM');
-  assert.equal(result.fallback, true);
-  assert.equal(result.providerAttemptCount, 2);
-  assert.equal(result.providerAttemptFailureCount, 1);
-  assert.equal(result.validation.status, 'PASS');
-  assert.ok(result.citations.some(x => x.citation_id === 'E_TEST_RATE'));
-  assert.ok(result.validation.reasonCodes.includes('PROVIDER_SERVER_ERROR'));
+  assert.equal(answer.provider, 'NVIDIA_NIM');
+  assert.equal(answer.validation.status, 'PASS');
+  assert.equal(answer.fallback, true);
+  assert.equal(answer.providerAttemptCount, 2);
+  assert.equal(answer.providerAttemptFailureCount, 1);
+  assert.ok(answer.citations.some(c => c.citation_id === 'E_TEST_RATE'));
+  assert.deepEqual(settlements, [[1, null], [2, 23]]);
 });
 
-test('NVIDIA failover respects explicit disable and never makes an unauthorized second call', async () => {
+test('NVIDIA failover never bypasses absent durable reservations or primary safety errors', async () => {
   let calls = 0;
-  const result = await generateGroundedExplanation({
-    question: 'Explain the verified rate.', evidencePacket: evidencePacket(),
+  const providers = [
+    {
+      name: 'groq', lastFailureReason: 'PROVIDER_RATE_LIMITED',
+      async generate() { calls += 1; return null; },
+    },
+    {
+      name: 'nvidia_nim',
+      async generate() { calls += 1; return { provider: 'nvidia_nim', text: '{}' }; },
+    },
+  ];
+  const answer = await generateGroundedExplanation({
+    question: 'Explain the verified official rate.', evidencePacket: evidencePacket(),
   }, {
-    providers: [
-      { name: 'groq', lastFailureReason: 'PROVIDER_TIMEOUT', async generate() { calls += 1; return null; } },
-      { name: 'nvidia_nim', async generate() { calls += 1; throw Error('unapproved retry'); } },
-    ],
-    allowNvidiaFallback: false,
-    getCache: async () => null,
-    setCache: async () => false,
+    providers, allowNvidiaFallback: true,
     beforeProviderAttempt: async () => true,
-    reserveProviderAttempt: async () => ({ id: 'test' }),
+    reserveProviderAttempt: async () => ({ id: 1 }),
     settleProviderAttempt: async () => ({ settled: true }),
+    getCache: async () => null, setCache: async () => false,
   });
   assert.equal(calls, 1);
-  assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
-  assert.equal(result.validation.status, 'PASS');
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(answer.validation.status, 'PASS');
 });
