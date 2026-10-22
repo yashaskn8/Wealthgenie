@@ -21,7 +21,7 @@ test('unqualified public quote is never returned as a market observation',async(
  const pool={query:async(query)=>{sql=query;return{rows:[]};},connect:async()=>({release(){}})};
  const fact=await createFinancialStore(pool).latestPublishableObservation('stock:abc123','PRICE');
  assert.equal(fact,null);
- for(const condition of ['storage_allowed','derivation_allowed','public_display_allowed','commercial_use_allowed','redistribution_allowed','revoked_at IS NULL','retain_until']){
+ for(const condition of ['storage_allowed','derivation_allowed','public_display_allowed','commercial_use_allowed','redistribution_allowed','revoked_at IS NULL','retain_until','r.retention_seconds>0','r.reviewed_at<=$3','ext.source_instrument_id=o.source_instrument_id']){
   assert.ok(sql.includes(condition),condition);
  }
 });

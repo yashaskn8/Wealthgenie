@@ -81,6 +81,8 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
          FROM finance.market_observations o
          JOIN finance.provider_rights r ON r.source_id=o.source_id
          JOIN finance.products p ON p.id=o.product_id
+         JOIN finance.product_external_ids ext ON ext.product_id=o.product_id
+           AND ext.source_id=o.source_id AND ext.source_instrument_id=o.source_instrument_id
         WHERE o.product_id=$1 AND o.observation_type=$2
           AND ($4::text IS NULL OR o.source_id=$4)
           AND p.record_kind='ACTUAL_PRODUCT' AND p.availability IN ('AVAILABLE','RESTRICTED')
@@ -90,7 +92,8 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
           AND r.access_allowed AND r.extraction_allowed AND r.storage_allowed
           AND r.derivation_allowed AND r.public_display_allowed
           AND r.commercial_use_allowed AND r.redistribution_allowed
-          AND r.reviewed_at IS NOT NULL AND r.revoked_at IS NULL
+          AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL
+          AND r.reviewed_at<=$3 AND r.revoked_at IS NULL
           AND (r.expires_at IS NULL OR r.expires_at>$3)
           AND o.retain_until IS NOT NULL AND o.retain_until>$3
           AND o.observed_at<=$3 AND o.fetched_at<=$3
