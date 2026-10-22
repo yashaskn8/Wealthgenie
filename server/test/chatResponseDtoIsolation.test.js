@@ -233,6 +233,25 @@ describe('grounded chat DTO and persistence isolation', () => {
     assert.deepEqual(conversation.messages, [], 'no profile-bound financial history must be created');
   });
 
+  it('answers a concrete Indian family goal without a Financial Profile, with no fabricated market source', async () => {
+    profileStateStatus = 'NO_CURRENT';
+    FinancialProfile.findOne = () => ({ sort: () => ({ lean: async () => null }) });
+    const result = await processChat({
+      userId, user: {}, message: 'I need 2 crore for my daughter marriage, how do I arrange it?',
+      sessionId: 'unbound-wedding-goal-1',
+    });
+    assert.equal(result.grounded, true);
+    assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+    assert.equal(result.validation_status, 'PASS');
+    assert.match(result.response, /2,00,00,000/);
+    assert.match(result.response, /deadline in years/i);
+    assert.match(result.response, /how much is already earmarked/i);
+    assert.ok(result.citations.some(c => c.citation_id === 'E_GOAL_STATED_TARGET'
+      && c.source_url === null));
+    assert.deepEqual(conversation.messages, [],
+      'a profile-less goal answer must not be persisted as current-profile financial advice');
+  });
+
   it('returns a minimal system response for financial questions when no Financial Profile exists', async () => {
     profileStateStatus = 'NO_CURRENT';
     FinancialProfile.findOne = () => ({ sort: () => ({ lean: async () => null }) });
