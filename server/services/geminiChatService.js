@@ -178,7 +178,7 @@ function chatMessageMatchesBinding(message, binding) {
     && (metadata.portfolioFingerprint || null) === (binding.sourcePortfolioFingerprint || null);
 }
 
-function buildTrustedPriorTurns(conversation, binding) {
+function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const newestPairs = [];
   for (let index = messages.length - 2; index >= 0 && newestPairs.length < 2; index -= 2) {
@@ -187,6 +187,10 @@ function buildTrustedPriorTurns(conversation, binding) {
     if (userMessage?.role !== 'user' || modelMessage?.role !== 'model'
         || !chatMessageMatchesBinding(userMessage, binding)
         || !chatMessageMatchesBinding(modelMessage, binding)) break;
+    const isGeneralTurn = modelMessage?.metadata?.validation_status === 'UNVERIFIED_GENERAL_CHAT'
+      && userMessage?.metadata?.grounded_on_profile === false
+      && modelMessage?.metadata?.grounded_on_profile === false;
+    if ((mode === 'GENERAL') !== isGeneralTurn) break;
     const pair = [
       { role: 'user', content: truncateUtf8(sanitizeExternalQuestion(userMessage.content), 1000) },
       { role: 'model', content: truncateUtf8(sanitizeExternalQuestion(modelMessage.content), 1000) },
@@ -285,11 +289,12 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       userId,
     });
     if (leaseFailure) throw leaseFailure;
-    // Never pass previously generated financial explanations or user profile
-    // context into the general model; general chat starts without memory.
-    const priorTurns = generalMode ? [] : buildTrustedPriorTurns(claim.conversation, binding);
+    // General history contains only previously marked general turns. Do not
+    // leak historical financial evidence or user-profile details across modes.
+    const priorTurns = buildTrustedPriorTurns(claim.conversation, binding,
+      generalMode ? 'GENERAL' : 'FINANCIAL');
     const providerBudgetUpperBound = generalMode
-      ? generalChatTokenUpperBound(securityContext.sanitizedMessage)
+      ? generalChatTokenUpperBound(securityContext.sanitizedMessage, priorTurns)
       : getGroundedExplanationTokenUpperBound({
         question: securityContext.sanitizedMessage,
         evidencePacket,
@@ -304,7 +309,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     let initialProviderReservationAvailable = canReserveProvider;
     const explanation = await (generalMode ? generateGeneralChatAnswer : generateGroundedExplanation)(
       generalMode
-        ? { question: securityContext.sanitizedMessage }
+        ? { question: securityContext.sanitizedMessage, priorTurns }
         : { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
       {
         ...groundedExplanationDependencies,
