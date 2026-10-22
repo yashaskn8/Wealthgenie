@@ -243,14 +243,15 @@ export function assertGrowSipResponse(value, input) {
   // expense is unknown, requiredAmount must remain null, never fabricated.
   const hasExpenseInputs = ['monthlyExpenses', 'monthlyEmi']
     .every(key => input[key] !== undefined && input[key] !== null);
-  const required = hasExpenseInputs
+  const expectedEmergencyRequirement = hasExpenseInputs
     ? roundSignedPaise((input.monthlyExpenses + input.monthlyEmi)
       * (input.emergencyMonths ?? 6))
     : null;
   const declared = input.emergencySavings === undefined ? null : input.emergencySavings;
-  if (buffer.requiredAmount !== required || buffer.declaredAmount !== declared) invalid();
+  if (buffer.requiredAmount !== expectedEmergencyRequirement
+    || buffer.declaredAmount !== declared) invalid();
   if (hasEmergency) {
-    const expectedStatus = input.emergencySavings >= required
+    const expectedStatus = input.emergencySavings >= expectedEmergencyRequirement
       ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT';
     if (buffer.status !== expectedStatus) invalid();
   }
