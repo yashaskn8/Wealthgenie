@@ -215,14 +215,15 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [ok, mode, checkedAt, saved, claims, noClaimsFound, completeInputExamined]
+                required: [ok, mode, checkedAt, saved, claims, noClaimsFound, allExtractedCandidatesProcessed, verificationScope]
                 properties:
                   ok: { type: boolean, const: true }
                   mode: { type: string, const: READ_ONLY_FINANCIAL_CLAIM_CHECK }
                   checkedAt: { type: string, format: date-time }
                   saved: { type: boolean, const: false }
                   noClaimsFound: { type: boolean }
-                  completeInputExamined: { type: boolean, const: true }
+                  allExtractedCandidatesProcessed: { type: boolean, const: true }
+                  verificationScope: { type: string, const: DETECTED_CLAIMS_ONLY }
                   claims:
                     type: array
                     maxItems: 10
