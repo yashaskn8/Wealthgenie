@@ -48,10 +48,22 @@ test('Mongo-required suites are partitioned exhaustively between standalone and 
   assert.deepEqual([...new Set([...replicaSetRequiredTests, ...standalone])].sort(), [...mongoRequiredTests].sort());
 });
 
-test('four Linux CI jobs retain full Mongo-backed backend and integration coverage', () => {
+test('five Linux CI jobs retain Mongo-backed integrity and isolated financial PostgreSQL coverage', () => {
   assert.deepEqual(Object.keys(workflow.jobs), [
-    'backend-financial-integrity', 'frontend-quality', 'ai-ml-rag-safety', 'integration-security',
+    'backend-financial-integrity', 'finance-postgres-integration',
+    'frontend-quality', 'ai-ml-rag-safety', 'integration-security',
   ]);
+  const financialSql = workflow.jobs['finance-postgres-integration'];
+  assert.match(financialSql.services?.postgres?.image || '', /^postgres:16@sha256:[a-f0-9]{64}$/);
+  assert.equal(financialSql.services.postgres.env.POSTGRES_DB, 'wealthgenie_financial_test');
+  assert.equal(financialSql.env.FINANCIAL_POSTGRES_TEST_MODE, 'true');
+  assert.match(financialSql.env.FINANCIAL_POSTGRES_URL, /\/wealthgenie_financial_test$/);
+  assert.ok(financialSql.steps.some(step => step.run === 'npm ci --prefix server'));
+  assert.ok(financialSql.steps.some(step => step.run === 'npm run finance:pg:migrate --prefix server'));
+  assert.ok(financialSql.steps.some(step => step.run === 'npm run finance:pg:seed --prefix server'));
+  assert.ok(financialSql.steps.some(step => step.run === 'node server/scripts/verifyFinancialPostgresIntegration.js'));
+  assert.ok(!financialSql.steps.some(step => (step.run || '').includes('secrets.')),
+    'SQL integration lane must not use live production provider secrets');
   assert.ok(Object.values(workflow.jobs).every(job => job['runs-on'] === 'ubuntu-latest' && !job.strategy));
   assert.deepEqual(workflow.on.push.branches, ['main']);
   assert.deepEqual(workflow.on.pull_request.branches, ['main']);

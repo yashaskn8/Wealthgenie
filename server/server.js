@@ -4,6 +4,8 @@ import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
+import { closeFinancialPostgresPool, getFinancialPostgresPool } from './postgres/connection.js';
+import { verifyFinancialPrivateIndexes } from './services/financialPrivateIndexReadiness.js';
 import { createApp } from './app.js';
 import connectDB from './config/db.js';
 import { connectRedis, redisAvailable, redisClient } from './config/redis.js';
@@ -65,6 +67,7 @@ async function closeInfrastructure({ stopAgentWorker = false } = {}) {
   const closers = [];
   if (mongoose.connection.readyState !== 0) closers.push(mongoose.connection.close());
   if (redisClient?.isOpen) closers.push(redisClient.quit());
+  closers.push(closeFinancialPostgresPool());
   closers.push(tracingSdk.shutdown());
   await Promise.allSettled(closers);
 }
@@ -105,6 +108,13 @@ export async function startServer({ env = process.env } = {}) {
       // 503 only after a user submits the profile.
       requireTransactions: true,
     });
+    // Fail startup rather than serving false-ready financial-universe routes.
+    if (env.FINANCIAL_POSTGRES_ENABLED === 'true') await getFinancialPostgresPool(env);
+    if (env.FINANCIAL_ARCHITECTURE_ENABLED === 'true') {
+      // Create indexes only through the separate migration script. Never silently
+      // enable private tax/valuation routes if required unique or expiry indexes are absent.
+      await verifyFinancialPrivateIndexes();
+    }
     await warmAdvisoryPersistence();
     await verifyMarketDataPersistenceIndexes({ force: true });
     if (genieProofRuntime.enabled) await verifyGenieProofPersistenceIndexes({ force: true });

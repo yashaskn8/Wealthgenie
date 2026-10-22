@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import WhereToInvestTab from './deepdive/WhereToInvestTab';
+import InvestmentUniverseExplorer from './InvestmentUniverseExplorer';
+import { getRiskShortlist, saveRiskShortlist } from '../services/api';
 import {
   AlertCircle,
   Sparkles,
@@ -11,6 +13,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import './WhereToInvestScreen.css';
+
+const FINANCIAL_SHORTLIST_UI_ENABLED = import.meta.env.VITE_FINANCIAL_ARCHITECTURE_ENABLED === 'true';
 
 /**
  * WhereToInvestScreen
@@ -35,6 +39,52 @@ const WhereToInvestScreen = ({
 
   // Selected parent instrument id - defaults to first backend recommendation
   const [selectedId, setSelectedId] = useState(null);
+  const [riskShortlist, setRiskShortlist] = useState(null);
+  const [shortlistState, setShortlistState] = useState('LOADING');
+  const [shortlistSaving, setShortlistSaving] = useState(false);
+  const [shortlistSaved, setShortlistSaved] = useState(false);
+  const profileId = userProfile?.profileId || userProfile?._id || null;
+  const profileVersion = userProfile?.version || null;
+  const recommendationIds = recommendedParents.map(entry => entry?.id).join('|');
+
+  useEffect(() => {
+    if (!FINANCIAL_SHORTLIST_UI_ENABLED || !profileId || !recommendedParents.length) {
+      setRiskShortlist(null);
+      setShortlistState('UNAVAILABLE');
+      return undefined;
+    }
+    const controller = new AbortController();
+    setRiskShortlist(null);
+    setShortlistSaved(false);
+    setShortlistState('LOADING');
+    getRiskShortlist(profileId, { signal:controller.signal }).then(result => {
+      if (controller.signal.aborted) return;
+      if (result?.status !== 'PROFILE_ELIGIBLE_PARENT_CATEGORIES' || !result.groups) {
+        setShortlistState('UNAVAILABLE');
+        return;
+      }
+      setRiskShortlist(result);
+      setShortlistState('AVAILABLE');
+    }).catch(() => {
+      if (!controller.signal.aborted) setShortlistState('UNAVAILABLE');
+    });
+    return () => controller.abort();
+  }, [profileId, profileVersion, recommendationIds, recommendedParents.length]);
+
+  const handleSaveRiskShortlist = useCallback(async () => {
+    if (!FINANCIAL_SHORTLIST_UI_ENABLED || !profileId || !riskShortlist || shortlistSaving) return;
+    setShortlistSaving(true);
+    try {
+      const saved = await saveRiskShortlist(profileId);
+      if (saved?.status !== 'SAVED') throw new Error('Shortlist save was not acknowledged.');
+      setShortlistSaved(true);
+    } catch {
+      setShortlistSaved(false);
+      setShortlistState('SAVE_FAILED');
+    } finally {
+      setShortlistSaving(false);
+    }
+  }, [profileId, riskShortlist, shortlistSaving]);
 
   // Scroll ref for category rail
   const railRef = useRef(null);
@@ -123,6 +173,52 @@ const WhereToInvestScreen = ({
           Start with the categories selected by your Financial Profile, then inspect source-verified products inside each one.
         </p>
       </header>
+
+      {FINANCIAL_SHORTLIST_UI_ENABLED && riskShortlist && (
+        <section className="wti-risk-groups" aria-label="Profile-eligible Top 5 investment categories">
+          <div className="wti-risk-groups-heading">
+            <div>
+              <h2>Up to 5 suitable categories per risk group</h2>
+              <p>Ranked by WealthGenie’s backend suitability policy. This is not approval of specific funds or bonds; no market price or post-tax return is implied.</p>
+            </div>
+            <button type="button" onClick={handleSaveRiskShortlist}
+              disabled={shortlistSaving || shortlistSaved}
+              className="wti-risk-save" aria-label="Save current profile-eligible category shortlist">
+              {shortlistSaved ? 'Saved to your profile' : shortlistSaving ? 'Saving…' : 'Save shortlist'}
+            </button>
+          </div>
+          {shortlistState === 'SAVE_FAILED' && (
+            <p role="alert">The shortlist could not be saved. Your recommendations were not changed.</p>
+          )}
+          <div className="wti-risk-grid">
+            {[
+              ['LOW', 'Beginner-friendly / lower risk'],
+              ['MODERATE', 'Moderate risk'],
+              ['AGGRESSIVE', 'Higher risk'],
+            ].map(([code, title]) => (
+              <div className="wti-risk-column" key={code}>
+                <h3>{title}</h3>
+                {(riskShortlist.groups[code] || []).length === 0 ? (
+                  <p className="wti-risk-empty">No suitable categories qualified for this profile.</p>
+                ) : (
+                  <ol>
+                    {(riskShortlist.groups[code] || []).map(pick => (
+                      <li key={pick.canonicalParentId}>
+                        <span>{pick.name}</span>
+                        <small>{pick.shortlistSource === 'CURRENT_SAVED_ALLOCATION'
+                          ? 'In saved allocation' : 'Additional suitable candidate'}</small>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="wti-risk-footer">New discovery-only investments are excluded until product identity, risk, eligibility, tax treatment and market-data evidence are qualified.</p>
+        </section>
+      )}
+
+      <InvestmentUniverseExplorer />
 
       {/* ─── Recommended Category Segmented Rail (Strictly in exact backend recommendation order) ─── */}
       <nav className="wti-category-nav" aria-label="Investment category selector">
