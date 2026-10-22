@@ -130,16 +130,42 @@ export function calculateEmi({ principal, annualInterestRate, tenureMonths }) {
   if (!Number.isInteger(tenureMonths) || tenureMonths < 1 || tenureMonths > 360) {
     throw new RangeError('Loan duration must be 1–360 months');
   }
-  const r = annualInterestRate / 1200;
-  const emi = principal === 0 ? 0 : r === 0 ? principal / tenureMonths
-    : principal * r / (1 - Math.pow(1 + r, -tenureMonths));
-  if (!Number.isFinite(emi)) throw new RangeError('EMI could not be calculated');
-  if (!Number.isSafeInteger(Math.floor(emi * tenureMonths))) throw new RangeError('Loan calculation exceeds safe rupee precision');
-  const monthlyEmi = rupees(emi);
-  const totalRepayment = rupees(emi * tenureMonths);
-  return { monthlyEmi, totalRepayment, totalInterest: rupees(totalRepayment - principal),
-    loanPrincipal: principal, annualInterestRate, tenureMonths, calculation: 'REDUCING_BALANCE_FIXED_RATE',
-    assumptionSource: 'USER_DECLARED', policyVersion: GOAL_FINANCE_POLICY_VERSION };
+  const principalPaise = Math.round(principal * MONEY_PRECISION);
+  const rate = annualInterestRate / 1200;
+  const theoreticalEmi = principalPaise === 0 ? 0 : rate === 0 ? principal / tenureMonths
+    : principal * rate / (-Math.expm1(-tenureMonths * Math.log1p(rate)));
+  if (!Number.isFinite(theoreticalEmi)) throw new RangeError('EMI could not be calculated');
+  const scheduledPaymentPaise = Math.round(theoreticalEmi * MONEY_PRECISION);
+  if (!Number.isSafeInteger(scheduledPaymentPaise)) throw new RangeError('EMI exceeds safe precision');
+  let balance = principalPaise;
+  let paid = 0;
+  let finalPaymentPaise = 0;
+  let totalInterestPaise = 0;
+  for (let month = 1; month <= tenureMonths; month += 1) {
+    // Explicit paise rounding of monthly interest; last payment pays all remaining balance.
+    const interestPaise = Math.round(balance * rate);
+    const due = balance + interestPaise;
+    const paymentPaise = month === tenureMonths ? due : Math.min(scheduledPaymentPaise, due);
+    if (paymentPaise < interestPaise && balance > 0) throw new RangeError('EMI does not amortize loan');
+    balance = due - paymentPaise;
+    paid += paymentPaise;
+    totalInterestPaise += interestPaise;
+    finalPaymentPaise = paymentPaise;
+  }
+  if (balance !== 0 || paid !== principalPaise + totalInterestPaise) {
+    throw new RangeError('EMI reconciliation failed');
+  }
+  return {
+    monthlyEmi: scheduledPaymentPaise / MONEY_PRECISION,
+    finalPayment: finalPaymentPaise / MONEY_PRECISION,
+    totalRepayment: paid / MONEY_PRECISION,
+    totalInterest: totalInterestPaise / MONEY_PRECISION,
+    loanPrincipal: principal, annualInterestRate, tenureMonths,
+    calculation: 'REDUCING_BALANCE_FIXED_RATE_MONTHLY_PAISE_ROUNDING',
+    paymentTiming: 'END_OF_MONTH', rounding: 'NEAREST_PAISE_EACH_MONTH',
+    feeCoverage: 'EXCLUDES_LENDER_FEES_AND_VARIABLE_RATE_CHANGES',
+    assumptionSource: 'USER_DECLARED', policyVersion: GOAL_FINANCE_POLICY_VERSION,
+  };
 }
 
 export function assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments = null } = {}) {
