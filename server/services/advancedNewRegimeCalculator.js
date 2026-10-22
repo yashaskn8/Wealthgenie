@@ -82,7 +82,7 @@ export function calculateAdvancedNewRegime(input) {
     throw invalid('INVALID_MONEY', 'Income components exceed the supported combined maximum');
   }
   if (nps > 0n && (input.incomeType !== 'salary' || eligibleSalary === 0n
-      || eligibleSalary > primary || !input.confirmedNpsIncludedInSalary)) {
+      || eligibleSalary > primary || nps > primary || !input.confirmedNpsIncludedInSalary)) {
     throw invalid('INVALID_TAX_REQUEST', 'Employer NPS requires salary, correct basic/DA salary basis, and confirmation that the contribution is included in taxable gross salary');
   }
   if (nps === 0n && (eligibleSalary !== 0n || input.confirmedNpsIncludedInSalary)) {
