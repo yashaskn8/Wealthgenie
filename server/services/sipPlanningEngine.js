@@ -1,0 +1,144 @@
+/**
+ * Key-free, deterministic, illustrative SIP planner. No live price dependencies.
+ * Cash arrives at the START of each month and compounds at nominal APR / 12.
+ */
+const LIMIT = Number.MAX_SAFE_INTEGER / 100;
+const money = n => Math.round(n * 100) / 100;
+const checked = n => {
+  if (!Number.isFinite(n) || n < 0 || n > LIMIT) {
+    throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: projected amount exceeds safe rupee precision');
+  }
+  return n;
+};
+const rounded = n => Math.round(checked(n));
+
+export function buildSipPlan(input) {
+  const {
+    monthlyInvestment, annualReturnRate, annualStepUpRate, years,
+    inflationRate = 0.06,
+    downsideAnnualReturnRate = Math.max(-0.99, annualReturnRate - 0.08),
+    monthlyIncome = null, monthlyExpenses = null, monthlyEmi = 0,
+    emergencySavings = null, emergencyMonths = 6,
+    annualIncomeGrowthRate = 0, annualExpenseGrowthRate = 0.06,
+  } = input;
+  const required = [monthlyInvestment, annualReturnRate, annualStepUpRate, years,
+    inflationRate, downsideAnnualReturnRate, monthlyEmi, emergencyMonths,
+    annualIncomeGrowthRate, annualExpenseGrowthRate];
+  if (!required.every(Number.isFinite) || !Number.isInteger(years) || years < 1 || years > 50
+      || monthlyInvestment <= 0 || monthlyInvestment > 10000000
+      || annualStepUpRate < 0 || annualStepUpRate > 1
+      || annualReturnRate <= -1 || annualReturnRate > 1
+      || downsideAnnualReturnRate <= -1 || downsideAnnualReturnRate > 1
+      || inflationRate < 0 || inflationRate > 1
+      || monthlyEmi < 0 || monthlyEmi > 10000000
+      || emergencyMonths < 0 || emergencyMonths > 24
+      || annualIncomeGrowthRate < 0 || annualIncomeGrowthRate > 1
+      || annualExpenseGrowthRate < 0 || annualExpenseGrowthRate > 1) {
+    throw new RangeError('SIP_PLAN_INVALID_INPUT: invalid planning assumptions');
+  }
+  for (const [key, val] of Object.entries({ monthlyIncome, monthlyExpenses, emergencySavings })) {
+    if (val !== null && (!Number.isFinite(val) || val < 0 || val > 100000000)) {
+      throw new RangeError('SIP_PLAN_INVALID_INPUT: invalid ' + key);
+    }
+  }
+  const assessBudget = monthlyIncome !== null && monthlyExpenses !== null;
+  const r = annualReturnRate / 12;
+  const downsideR = downsideAnnualReturnRate / 12;
+  let flat = 0, stepped = 0, downside = 0, flatPaid = 0, steppedPaid = 0;
+  let firstUnaffordableMonth = null, maxMonthlyShortfall = 0, worstMonthlySurplus = null;
+  let lastSip = monthlyInvestment;
+  const chartData = [];
+
+  for (let year = 1; year <= years; year += 1) {
+    const annualSip = monthlyInvestment * Math.pow(1 + annualStepUpRate, year - 1);
+    if (!Number.isFinite(annualSip) || annualSip > 10000000) {
+      throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: future monthly SIP exceeds ₹1,00,00,000');
+    }
+    lastSip = annualSip;
+    const available = assessBudget
+      ? monthlyIncome * Math.pow(1 + annualIncomeGrowthRate, year - 1)
+        - monthlyExpenses * Math.pow(1 + annualExpenseGrowthRate, year - 1) - monthlyEmi
+      : null;
+    const surplus = available === null ? null : available - annualSip;
+    if (surplus !== null) {
+      worstMonthlySurplus = worstMonthlySurplus === null ? surplus : Math.min(worstMonthlySurplus, surplus);
+      if (surplus < -0.005) {
+        if (firstUnaffordableMonth === null) firstUnaffordableMonth = (year - 1) * 12 + 1;
+        maxMonthlyShortfall = Math.max(maxMonthlyShortfall, -surplus);
+      }
+    }
+    for (let month = 0; month < 12; month += 1) {
+      flat = checked((flat + monthlyInvestment) * (1 + r));
+      stepped = checked((stepped + annualSip) * (1 + r));
+      downside = checked((downside + annualSip) * (1 + downsideR));
+      flatPaid = checked(flatPaid + monthlyInvestment);
+      steppedPaid = checked(steppedPaid + annualSip);
+    }
+    const factor = Math.pow(1 + inflationRate, year);
+    chartData.push({
+      year, flatSIP: rounded(flat), stepUpSIP: rounded(stepped),
+      downsideStepUp: rounded(downside),
+      flatInvested: rounded(flatPaid), stepUpInvested: rounded(steppedPaid),
+      inflationAdjustedFlat: rounded(flat / factor),
+      inflationAdjustedStepUp: rounded(stepped / factor),
+      monthlySip: money(annualSip),
+      monthlyBudgetSurplus: surplus === null ? null : money(surplus),
+    });
+  }
+  const last = chartData.at(-1);
+  const emergencyRequired = monthlyExpenses === null ? null : (monthlyExpenses + monthlyEmi) * emergencyMonths;
+  const emergencyStatus = emergencyRequired === null || emergencySavings === null
+    ? 'NOT_ASSESSED'
+    : emergencySavings >= emergencyRequired ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT';
+  const budgetStatus = !assessBudget ? 'NOT_ASSESSED'
+    : firstUnaffordableMonth === null ? 'WITHIN_DECLARED_BUDGET' : 'OVER_DECLARED_BUDGET';
+  const extra = last.stepUpSIP - last.flatSIP;
+  const contributedMore = last.stepUpInvested - last.flatInvested;
+  const warnings = [];
+  if (!assessBudget) warnings.push('AFFORDABILITY_NOT_ASSESSED');
+  if (firstUnaffordableMonth !== null) warnings.push('STEP_UP_EXCEEDS_DECLARED_BUDGET');
+  if (emergencyStatus === 'DECLARED_BUFFER_SHORT') warnings.push('DECLARED_EMERGENCY_BUFFER_SHORT');
+  if (emergencyStatus === 'NOT_ASSESSED') warnings.push('EMERGENCY_BUFFER_NOT_ASSESSED');
+  warnings.push('PRE_TAX_NOT_A_TAX_ESTIMATE', 'ASSUMED_RETURNS_NOT_GUARANTEED');
+  return {
+    schema_version: 'sip-plan-v1',
+    calculation_classification: 'NON_RECOMMENDATION_STEP_UP_CALCULATION',
+    return_basis: 'PRE_TAX_NOMINAL',
+    return_data_class: 'USER_INPUT', return_assumption_source: 'USER_SUPPLIED_WHAT_IF',
+    observed_market_fact: false, provider_forecast: false,
+    monthly_rate_convention: 'NOMINAL_APR_DIVIDED_BY_12',
+    contribution_timing: 'START_OF_MONTH',
+    capital_gains_tax: null, estimated_post_tax_corpus: null,
+    assumptions: { monthlyInvestment, annualReturnRate, annualStepUpRate, years,
+      inflationRate, downsideAnnualReturnRate, monthlyIncome, monthlyExpenses, monthlyEmi,
+      emergencySavings, emergencyMonths, annualIncomeGrowthRate, annualExpenseGrowthRate },
+    chartData, flatFinal: last.flatSIP, stepUpFinal: last.stepUpSIP,
+    downsideFinal: last.downsideStepUp,
+    inflationAdjustedStepUpFinal: last.inflationAdjustedStepUp,
+    flatInvested: last.flatInvested, stepUpInvested: last.stepUpInvested,
+    additionalCorpus: extra,
+    additionalPercent: last.flatSIP > 0 ? extra / last.flatSIP * 100 : 0,
+    additionalContributions: contributedMore,
+    additionalProjectedGrowth: extra - contributedMore,
+    flatProjectedGrowth: last.flatSIP - last.flatInvested,
+    stepUpProjectedGrowth: last.stepUpSIP - last.stepUpInvested,
+    finalMonthlySip: money(lastSip),
+    affordability: {
+      status: budgetStatus, firstUnaffordableMonth,
+      maxMonthlyShortfall: money(maxMonthlyShortfall),
+      worstMonthlySurplus: worstMonthlySurplus === null ? null : money(worstMonthlySurplus),
+      annualContributionSchedule: chartData.map(row => ({
+        year: row.year, monthlySip: row.monthlySip,
+        monthlyBudgetSurplus: row.monthlyBudgetSurplus,
+      })),
+      assumesEmiConstant: true, incomeExpensesUserDeclared: true,
+    },
+    emergency_buffer: {
+      status: emergencyStatus,
+      requiredAmount: emergencyRequired === null ? null : rounded(emergencyRequired),
+      declaredAmount: emergencySavings,
+    },
+    warnings,
+    scenario_interpretation: 'ILLUSTRATIVE_CONSTANT_RETURN_PATHS_NOT_PROBABILITIES',
+  };
+}
