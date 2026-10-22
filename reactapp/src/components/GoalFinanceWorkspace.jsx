@@ -287,11 +287,11 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
         <input type="month" value={month} onChange={e => { if (e.target.value) setMonth(e.target.value); }} />
       </label>
     </div>
-    <div role="tablist" aria-label="Goals planning sections" className="wg-goal-tabs">
-      {tabs.map(([id, title]) => <button key={id} type="button" role="tab"
-        aria-selected={activeTab === id} className={activeTab === id ? 'wg-goal-tab-active' : ''}
+    <nav aria-label="Goals planning sections" className="wg-goal-tabs">
+      {tabs.map(([id, title]) => <button key={id} type="button"
+        aria-pressed={activeTab === id} className={activeTab === id ? 'wg-goal-tab-active' : ''}
         onClick={() => setActiveTab(id)}>{title}</button>)}
-    </div>
+    </nav>
     {loading && <Notice>Loading your private monthly budget and goal plan…</Notice>}
     {error && <Notice kind="error">{error}</Notice>}
     {!loading && activeTab === 'budget' && <>
