@@ -207,3 +207,42 @@ test('already-taxable income never silently gets a second salary deduction', () 
   assert.equal(nonresident.rebate, '0.0000');
   assert.equal(nonresident.finalTax, '62400');
 });
+
+
+test('official Finance Ministry examples remain accurate before and after 4% cess', () => {
+  // Budget 2026 FAQ Q.7-9 publishes the pre-cess liabilities of ₹10,000,
+  // ₹25,000 and ₹50,000 for taxable income ₹12.10L, ₹12.25L and ₹12.50L.
+  // Finance Act 2026 adds 4% Health & Education Cess after rebate.
+  const independentlyPublished = [
+    { income: '1210000', beforeCess: '10000.0000', cess: '400.0000', payable: '10400' },
+    { income: '1225000', beforeCess: '25000.0000', cess: '1000.0000', payable: '26000' },
+    { income: '1250000', beforeCess: '50000.0000', cess: '2000.0000', payable: '52000' },
+  ];
+  for (const { income, beforeCess, cess, payable } of independentlyPublished) {
+    const answer = run({ primaryIncome: income });
+    assert.equal(answer.status, 'CALCULATED');
+    assert.equal(answer.taxAfterRebate, beforeCess, income);
+    assert.equal(answer.cess, cess, income);
+    assert.equal(answer.finalTax, payable, income);
+  }
+});
+
+test('salary and ordinary interest cannot change liability solely by splitting the same qualifying taxable income', () => {
+  for (const taxableIncome of ['0', '400000', '800000', '1200000', '1210000', '1250000', '1300000', '5000000', '10000000', '20000000']) {
+    const income = BigInt(taxableIncome);
+    const baseTax = run({ primaryIncome: taxableIncome });
+    const salary = run({ incomeType: 'salary', primaryIncome: (income + 75000n).toString() });
+    const pension = run({ incomeType: 'pension', primaryIncome: (income + 75000n).toString() });
+    assert.equal(salary.taxableIncome, taxableIncome, 'salary ' + taxableIncome);
+    assert.equal(pension.taxableIncome, taxableIncome, 'pension ' + taxableIncome);
+    assert.equal(salary.finalTax, baseTax.finalTax, 'salary ' + taxableIncome);
+    assert.equal(pension.finalTax, baseTax.finalTax, 'pension ' + taxableIncome);
+    if (income >= 100000n) {
+      const salaryInterest = run({
+        incomeType: 'salary', primaryIncome: (income - 25000n).toString(),
+        otherOrdinaryIncome: '100000',
+      });
+      assert.equal(salaryInterest.finalTax, baseTax.finalTax, 'salary + interest ' + taxableIncome);
+    }
+  }
+});
