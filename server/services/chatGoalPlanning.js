@@ -203,8 +203,18 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
         || questionTopics[0] !== priorTopics[0])) return [];
 
   // A new named goal must not inherit amounts from an unrelated older goal.
-  const used = direct ? [text] : [...past.slice(previousGoalIndex), text];
-  const source = direct ? text : past[previousGoalIndex];
+  // A follow-up that explicitly repeats the SAME named goal must not lose
+  // its previously stated target and horizon just because it mentions "wedding".
+  // New targets or distinct goals start a new scope; only verified user turns
+  // can provide the carried inputs.
+  const sameNamedGoal = previousGoalIndex >= 0
+    && questionTopics.length === 1 && priorTopics.length === 1
+    && questionTopics[0] === priorTopics[0];
+  const continuation = sameNamedGoal && isGoalPlanningFollowUp(text)
+    && !moneyIn(text).some(item => item.role === 'TARGET');
+  const reset = direct && !continuation;
+  const used = reset ? [text] : [...past.slice(previousGoalIndex), text];
+  const source = reset ? text : past[previousGoalIndex];
   let target = null;
   let saved = null;
   let horizon = null;
