@@ -6,7 +6,7 @@
  */
 const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|trip|startup|business|ceremony|emergency fund|school|tuition)\b/i;
 const GOAL_INTENT = /\b(?:need|want|save|fund|afford|plan|target|goal|corpus|budget|reach|arrange|require|how much|collect|build|set aside|prepare|raise)\b/i;
-const AMOUNT = /(?:₹\s*|(?:rs\.?|inr)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(crores?|crors?|crs?|cr|lakhs?|lacs?|lac|thousands?|k)\b|(?:₹|inr|rs\.?)\s*(\d[\d,]*(?:\.\d+)?)(?!\d|[,.](?=\d)|\s*(?:%|years?\b|months?\b|yrs?\b|mos?\b))/gi;
+const AMOUNT = /(?:₹\s*|(?:rs\.?|inr)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(crores?|crors?|crs?|cr|lakhs?|lacs?|lac|thousands?|k|l)\b|(?:₹|inr|rs\.?)\s*(\d[\d,]*(?:\.\d+)?)(?!\d|[,.](?=\d)|[A-Za-z]|\s*(?:%|years?\b|months?\b|yrs?\b|mos?\b))/gi;
 const INR = amount => 'INR ' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const goalText = value => String(value || '').slice(0, 1000).trim();
 
@@ -16,7 +16,9 @@ export function isFinancialGoalPlanningQuestion(question) {
   // into the financial engine based solely on a shared subject word.
   const explicitAmount = new RegExp(AMOUNT.source, 'i').test(text);
   const fundingIntent = /\b(?:sav(?:e|ing|ings)|fund(?:s|ing)?|financ(?:e|es|ial)|afford|target|budget|corpus|rupees?|money|invest(?:ing|ment)?|monthly|lump[ -]?sum|costs?|expenses?|payments?|set aside|crores?|crors?|lakhs?|lacs?|paise)\b/i.test(text);
-  return SUBJECT.test(text) && (GOAL_INTENT.test(text) || /\b(?:will|would|may)\s+cost\b/i.test(text))
+  return SUBJECT.test(text) && (GOAL_INTENT.test(text)
+    || /\b(?:will|would|may)\s+cost\b/i.test(text)
+    || /^\s*(?:₹|inr|rs\.?)\s*\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac|l)\b.*\b(?:daughter|son|my|our|wedding|marriage)\b/i.test(text))
     && (explicitAmount || fundingIntent);
 }
 
@@ -60,10 +62,16 @@ function parseExactRupees(raw, factor) {
 
 function moneyIn(question) {
   const found = [];
+  // Explicit currency with an unknown suffix must never be truncated to an
+  // apparently valid smaller rupee amount. E.g. ₹20m is NOT ₹20.
+  const unsupportedCurrencyUnit = [...goalText(question).matchAll(
+    /(?:₹|inr\b|rs\.?)\s*\d[\d,]*(?:\.\d+)?\s*(?:million|billion|bn)\b|(?:₹|inr\b|rs\.?)\s*\d[\d,]*(?:\.\d+)?([A-Za-z][A-Za-z0-9]*)/gi,
+  )].some(match => !match[1] || !/^(?:k|l|cr|crs|cror|crors|crore|crores|lac|lacs|lakh|lakhs|thousand|thousands)$/i.test(match[1]));
+  if (unsupportedCurrencyUnit) found.push({ amount: null, role: 'INVALID' });
   for (const match of goalText(question).matchAll(AMOUNT)) {
     const unit = String(match[2] || '').toLowerCase();
     const factor = /^cr/.test(unit) ? 10_000_000n
-      : /^(?:lakh|lac)/.test(unit) ? 100_000n
+      : /^(?:l$|lakh|lac)/.test(unit) ? 100_000n
         : /^(?:k|thousand)/.test(unit) ? 1000n : 1n;
     const amount = parseExactRupees(match[1] || match[3], factor);
     if (amount === null) { found.push({ amount: null, role: 'INVALID' }); continue; }
