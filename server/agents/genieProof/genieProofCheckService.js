@@ -66,7 +66,7 @@ export async function checkGenieProofClaims({
   let evidenceError = false;
   if (supported.length && verifier?.verifySignedManifest) {
     try {
-      const resolved = await evidenceResolver({ claims: supported, now: () => checkedAt });
+      const resolved = await evidenceResolver({ claims: supported, now: () => checkedAt, requireVerifiedPageLineage: true });
       if (!resolved || !resolved.byClaimId || typeof resolved.byClaimId !== 'object' || Array.isArray(resolved.byClaimId)) {
         evidenceError = true;
       } else {
