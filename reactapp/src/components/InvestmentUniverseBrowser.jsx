@@ -60,7 +60,7 @@ export default function InvestmentUniverseBrowser() {
   const [items, setItems] = useState([]);
   const [summary, setSummary] = useState(null);
   const [readyFamilyIds, setReadyFamilyIds] = useState([]);
-  const [showArchive, setShowArchive] = useState(false);
+  const [showArchive, setShowArchive] = useState(true);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
@@ -196,7 +196,7 @@ export default function InvestmentUniverseBrowser() {
                 </p>
               )}
               <p style={{ color: '#cbd5e1', fontSize: '0.75rem', lineHeight: 1.5 }}>
-                Discovery records are not recommendations. Only families with at least three individually qualified issuer candidates appear in the default supported list; actual suitability is checked again for your profile. The additional 95 families have not been individually verified for investment, live prices, or post-tax outcomes.
+                All discovery families are visible by default, but they are not recommendations. Only families with at least three individually qualified issuer candidates offer a comparison; suitability is checked again for your profile. The additional 95 families have not been individually verified for investment, live prices, or post-tax outcomes.
               </p>
               <p role="status" style={{ color: '#a7f3d0', fontSize: '0.79rem', fontWeight: 700 }}>
                 {readyFamilyIds.length} of {items.length} investment families have at least three source-qualified product candidates.
@@ -207,7 +207,7 @@ export default function InvestmentUniverseBrowser() {
                   aria-label="Show unqualified discovery families" />
                 {' '}Show the complete discovery archive (unsupported families are not recommendations)
               </label>
-              {!showArchive && readyFamilyIds.length === 0 && (
+              {readyFamilyIds.length === 0 && (
                 <p role="status" style={{ color: '#fbbf24' }}>
                   No investment family currently has three fully source-qualified candidate products.
                   Products are withheld until issuer, licensed market data, and current terms are verified.

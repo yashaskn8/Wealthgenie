@@ -135,6 +135,7 @@ const WhereToInvestScreen = ({
   if (!recommendedParents || recommendedParents.length === 0) {
     return (
       <div className="wti-screen-container">
+        <InvestmentUniverseExplorer />
         <div className="wti-loading-card">
           <AlertCircle size={24} className="wti-loading-icon" aria-hidden="true" />
           <div>
