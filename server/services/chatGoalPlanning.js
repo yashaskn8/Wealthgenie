@@ -456,7 +456,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
           sourceScope: scope,
         },
         displayValue: 'Illustrative monthly goal payment: ' + INR(scenario.requiredMonthlyContribution)
-          + ' per month ' + assumptionText,
+          + ' per month, not a forecast. ' + assumptionText,
         dataClass: 'DETERMINISTIC_USER_ASSUMPTION_SCENARIO',
         source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
       });
