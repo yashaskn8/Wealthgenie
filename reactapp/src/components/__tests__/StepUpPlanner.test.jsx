@@ -18,39 +18,80 @@ function deferred() {
 // Test-only protocol fixture: each display number must belong to a complete,
 // explicitly-CAGR response. Partial API responses are rejected in production.
 function sipResponse(fields = {}, request = {}) {
-  const flatFinal = fields.flatFinal ?? 90000;
-  const stepUpFinal = fields.stepUpFinal ?? flatFinal + 30000;
-  const flatInvested = fields.flatInvested ?? 60000;
-  const stepUpInvested = fields.stepUpInvested ?? Math.max(flatInvested, 75000);
+  const monthlyInvestment = request.monthlyInvestment ?? 1000;
+  const annualReturnRate = request.annualReturnRate ?? 0.08;
+  const annualStepUpRate = request.annualStepUpRate ?? 0.1;
   const years = request.years ?? 5;
-  const payload = { ...fields };
-  delete payload.chartData;
+  const inflationRate = request.inflationRate ?? 0.06;
+  const downsideAnnualReturnRate = request.downsideAnnualReturnRate ?? 0;
+  const incomeGrowth = request.annualIncomeGrowthRate ?? 0;
+  const expenseGrowth = request.annualExpenseGrowthRate ?? 0.06;
+  const paise = n => Math.round(n * 100) / 100;
+  const monthly = Math.expm1(Math.log1p(annualReturnRate) / 12);
+  const downsideMonthly = Math.expm1(Math.log1p(downsideAnnualReturnRate) / 12);
+  let flat = 0, step = 0, downside = 0, flatPaid = 0, stepPaid = 0;
+  const chartData = [];
+  for (let year = 1; year <= years; year++) {
+    const monthlySip = paise(monthlyInvestment * Math.pow(1 + annualStepUpRate, year - 1));
+    const surplus = [request.monthlyIncome, request.monthlyExpenses, request.monthlyEmi].every(Number.isFinite)
+      ? request.monthlyIncome * Math.pow(1 + incomeGrowth, year - 1)
+        - request.monthlyExpenses * Math.pow(1 + expenseGrowth, year - 1) - request.monthlyEmi - monthlySip
+      : null;
+    for (let m = 0; m < 12; m++) {
+      flat = (flat + monthlyInvestment) * (1 + monthly);
+      step = (step + monthlySip) * (1 + monthly);
+      downside = (downside + monthlySip) * (1 + downsideMonthly);
+      flatPaid += monthlyInvestment;
+      stepPaid += monthlySip;
+    }
+    chartData.push({
+      year, flatSIP: Math.round(flat), stepUpSIP: Math.round(step),
+      flatInvested: paise(flatPaid), stepUpInvested: paise(stepPaid),
+      downsideStepUp: Math.round(downside),
+      inflationAdjustedStepUp: Math.round(step / Math.pow(1 + inflationRate, year)),
+      monthlySip,
+      monthlyBudgetSurplus: surplus === null ? null : paise(surplus),
+    });
+  }
+  const last = chartData[years - 1];
+  const corpus = fields.flatFinal ?? last.flatSIP;
+  const stepUpCorpus = fields.stepUpFinal ?? (fields.flatFinal === undefined ? last.stepUpSIP : corpus + 30000);
+  const budgetKnown = [request.monthlyIncome, request.monthlyExpenses, request.monthlyEmi].every(Number.isFinite);
+  const firstUnaffordableIndex = chartData.findIndex(row => row.monthlyBudgetSurplus !== null && row.monthlyBudgetSurplus < -0.005);
+  const maxShortfall = Math.max(0, ...chartData.map(row => Math.max(0, -(row.monthlyBudgetSurplus ?? 0))));
+  const hasEmergency = [request.monthlyExpenses, request.monthlyEmi, request.emergencySavings].every(Number.isFinite);
+  const emergencyRequired = hasEmergency ? paise((request.monthlyExpenses + request.monthlyEmi) * 6) : null;
   const result = {
     schema_version: 'sip-plan-v1',
     monthly_rate_convention: 'EFFECTIVE_ANNUAL_CAGR',
     annual_return_interpretation: 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN',
     observed_market_fact: false, provider_forecast: false,
     capital_gains_tax: null, estimated_post_tax_corpus: null,
-    flatFinal, stepUpFinal, flatInvested, stepUpInvested,
-    additionalCorpus: stepUpFinal - flatFinal,
-    additionalContributions: stepUpInvested - flatInvested,
-    additionalProjectedGrowth: stepUpFinal - flatFinal - (stepUpInvested - flatInvested),
-    additionalPercent: 33.33,
-    downsideFinal: 70000, inflationAdjustedStepUpFinal: 85000,
-    finalMonthlySip: 1500, chartData: [],
-    affordability: { status: 'NOT_ASSESSED', firstUnaffordableMonth: null },
-    emergency_buffer: { status: 'NOT_ASSESSED' },
-    ...payload,
+    flatFinal: corpus, stepUpFinal: stepUpCorpus,
+    flatInvested: last.flatInvested, stepUpInvested: last.stepUpInvested,
+    additionalCorpus: stepUpCorpus - corpus,
+    additionalContributions: paise(last.stepUpInvested - last.flatInvested),
+    additionalProjectedGrowth: (stepUpCorpus - corpus) - paise(last.stepUpInvested - last.flatInvested),
+    additionalPercent: 10,
+    downsideFinal: last.downsideStepUp,
+    inflationAdjustedStepUpFinal: last.inflationAdjustedStepUp,
+    finalMonthlySip: last.monthlySip, chartData,
+    affordability: {
+      status: !budgetKnown ? 'NOT_ASSESSED' : firstUnaffordableIndex < 0
+        ? 'WITHIN_DECLARED_BUDGET' : 'OVER_DECLARED_BUDGET',
+      firstUnaffordableMonth: firstUnaffordableIndex < 0 ? null : firstUnaffordableIndex * 12 + 1,
+      maxMonthlyShortfall: paise(maxShortfall),
+    },
+    emergency_buffer: {
+      status: !hasEmergency ? 'NOT_ASSESSED'
+        : request.emergencySavings >= emergencyRequired ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT',
+      requiredAmount: emergencyRequired, declaredAmount: request.emergencySavings ?? null,
+    },
     assumptions: {
-      monthlyInvestment: request.monthlyInvestment ?? 1000,
-      annualReturnRate: request.annualReturnRate ?? 0.08,
-      annualStepUpRate: request.annualStepUpRate ?? 0.1,
-      years,
+      monthlyInvestment, annualReturnRate, annualStepUpRate, years,
       returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
-      inflationRate: request.inflationRate ?? 0.06,
-      downsideAnnualReturnRate: request.downsideAnnualReturnRate ?? 0,
-      annualIncomeGrowthRate: request.annualIncomeGrowthRate ?? 0,
-      annualExpenseGrowthRate: request.annualExpenseGrowthRate ?? 0.06,
+      inflationRate, downsideAnnualReturnRate,
+      annualIncomeGrowthRate: incomeGrowth, annualExpenseGrowthRate: expenseGrowth,
       monthlyIncome: request.monthlyIncome ?? null,
       monthlyExpenses: request.monthlyExpenses ?? null,
       monthlyEmi: request.monthlyEmi ?? null,
@@ -58,31 +99,24 @@ function sipResponse(fields = {}, request = {}) {
       emergencyMonths: 6,
     },
   };
-  result.affordability = {
-    firstUnaffordableMonth: null, maxMonthlyShortfall: 0, ...result.affordability,
+  // Deliberately corrupt only fields selected by individual adversarial tests.
+  for (const [key, value] of Object.entries(fields)) {
+    if (key === 'flatInvested' || key === 'stepUpInvested'
+        || key === 'additionalContributions' || key === 'additionalProjectedGrowth'
+        || key === 'finalMonthlySip') continue;
+    result[key] = value;
+  }
+  result.additionalCorpus = result.stepUpFinal - result.flatFinal;
+  result.additionalProjectedGrowth = result.additionalCorpus - result.additionalContributions;
+  // Keep the last chart endpoint consistent with the synthetic displayed
+  // corpus values used by a few focused stale-response UI tests.
+  result.chartData[years - 1] = {
+    ...result.chartData[years - 1],
+    flatSIP: result.flatFinal,
+    stepUpSIP: result.stepUpFinal,
+    downsideStepUp: result.downsideFinal,
+    inflationAdjustedStepUp: result.inflationAdjustedStepUpFinal,
   };
-  result.emergency_buffer = {
-    declaredAmount: request.emergencySavings ?? null,
-    ...result.emergency_buffer,
-  };
-  result.chartData = Array.from({ length: years }, (_, index) => ({
-    year: index + 1,
-    flatSIP: index === years - 1 ? result.flatFinal : 0,
-    stepUpSIP: index === years - 1 ? result.stepUpFinal : 0,
-    flatInvested: index === years - 1 ? result.flatInvested : 0,
-    stepUpInvested: index === years - 1 ? result.stepUpInvested : 0,
-    downsideStepUp: index === years - 1 ? result.downsideFinal : 0,
-    inflationAdjustedStepUp: index === years - 1 ? result.inflationAdjustedStepUpFinal : 0,
-    monthlySip: index === years - 1 ? result.finalMonthlySip : 0,
-    monthlyBudgetSurplus: request.monthlyIncome === undefined
-      || request.monthlyExpenses === undefined || request.monthlyEmi === undefined
-      ? null : Math.round((
-        request.monthlyIncome * Math.pow(1 + (request.annualIncomeGrowthRate ?? 0), index)
-        - request.monthlyExpenses * Math.pow(1 + (request.annualExpenseGrowthRate ?? 0.06), index)
-        - request.monthlyEmi
-        - (index === years - 1 ? result.finalMonthlySip : 0)
-      ) * 100) / 100,
-  }));
   return result;
 }
 
@@ -200,20 +234,13 @@ it('does not send a misleading downside scenario stronger than the base return',
   expect(screen.getByText(/the downside return must not exceed the base return/)).toBeInTheDocument();
 });
 
-it('renders exact rupee and paise amounts rather than silently abbreviating deposits', async () => {
+it('renders exact rupee and paise deposits without abbreviating the values', async () => {
   vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse({
     flatFinal: 123000000, stepUpFinal: 123000000,
-    flatInvested: 12004.44, stepUpInvested: 12004.44,
-    additionalCorpus: 0, additionalPercent: 0,
-    additionalContributions: 0, additionalProjectedGrowth: 0,
-    finalMonthlySip: 1000.37, downsideFinal: 12004,
-    inflationAdjustedStepUpFinal: 11500,
-    affordability: { status: 'NOT_ASSESSED' },
-    emergency_buffer: { status: 'NOT_ASSESSED' },
-  }));
-  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  }, { monthlyInvestment: 1000.37, years: 1 }));
+  render(<StepUpPlanner profile={{ monthly_savings: 1000.37, investment_horizon_years: 1 }} />);
   expect((await screen.findAllByText('₹12,30,00,000')).length).toBe(2);
-  expect(screen.getAllByText(/₹12,004\.44/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/₹12,004\\.44/).length).toBeGreaterThan(0);
   expect(screen.queryByText('₹12.3 Cr')).not.toBeInTheDocument();
 });
 
