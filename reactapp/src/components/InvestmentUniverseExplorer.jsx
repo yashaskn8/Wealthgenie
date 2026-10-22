@@ -1,6 +1,8 @@
 import React, {useCallback,useEffect,useState} from 'react';
 import {getFinancialUniverse,getFinancialUniverseCategories} from '../services/api';
 
+const FINANCIAL_CATALOG_UI_ENABLED = import.meta.env.VITE_FINANCIAL_POSTGRES_ENABLED === 'true';
+
 /**
  * Read-only discovery. The source catalogue never becomes a personalized,
  * purchasable, priced, or tax-qualified recommendation by being displayed.
@@ -16,7 +18,7 @@ export default function InvestmentUniverseExplorer() {
   const [revision,setRevision]=useState(0);
 
   useEffect(()=>{
-    if(!open)return undefined;
+    if(!FINANCIAL_CATALOG_UI_ENABLED||!open)return undefined;
     const controller=new AbortController();
     getFinancialUniverseCategories({signal:controller.signal}).then(result=>{
       if(!controller.signal.aborted && result?.status==='DISCOVERY_ONLY'){
@@ -27,7 +29,7 @@ export default function InvestmentUniverseExplorer() {
   },[open]);
 
   useEffect(()=>{
-    if(!open)return undefined;
+    if(!FINANCIAL_CATALOG_UI_ENABLED||!open)return undefined;
     const controller=new AbortController();
     setLoading(true);
     setItems([]);
@@ -56,6 +58,7 @@ export default function InvestmentUniverseExplorer() {
     finally{setLoading(false);}
   },[cursor,loading,category]);
 
+  if (!FINANCIAL_CATALOG_UI_ENABLED) return null;
   return (
     <section className="wti-universe" aria-label="Independent Indian investment discovery directory">
       <button type="button" className="wti-universe-toggle" aria-expanded={open}
