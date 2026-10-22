@@ -8,6 +8,7 @@ import { investmentDatabase } from '../data/investmentDatabase.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
 import { qualifyProductForFamily, suspendProductForFamily } from '../postgres/qualifyFamilyProduct.js';
 import { compareQualifiedFamilyProducts } from '../services/familyTopThree.js';
+import { listFamiliesWithThreeSourceQualifiedProducts } from '../services/threeProductFamilyCatalog.js';
 import { canonicalProfile } from '../test/helpers/canonicalProfile.js';
 import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
 
@@ -23,6 +24,7 @@ const pool = new Pool(createFinancialPostgresPoolOptions({
 const store = createFinancialStore(pool);
 const suffix = randomUUID().replaceAll('-', '').slice(0, 16);
 const productId = 'ci:finance:' + suffix;
+const productIds = [productId, productId + '-2', productId + '-3'];
 const sourceId = 'ci-source-' + suffix;
 try {
   const catalog = await pool.query(`SELECT count(*)::integer AS n FROM finance.products
@@ -147,15 +149,56 @@ try {
   const compare=()=>compareQualifiedFamilyProducts({
     pool,familyId,profileInput:canonicalProfile(),adviceAuthorized:true,
   });
+  const onlyOne=await compare();
+  assert.equal(onlyOne.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+  assert.deepEqual(onlyOne.products,[],
+    'A single real product must never be misrepresented as a three-offer recommendation');
+  assert.ok(!(await listFamiliesWithThreeSourceQualifiedProducts(pool)).familyIds.includes(familyId));
+  for(const [offset,nextId] of productIds.slice(1).entries()){
+    const sequence=offset+2;
+    await pool.query(`INSERT INTO finance.products
+      (id,name,record_kind,category_id,source_identity,availability,
+       verification_scope,qualified_tax_class,tax_class_evidence_url,tax_class_reviewed_at)
+      VALUES($1,$2,'ACTUAL_PRODUCT',$3,$4,'AVAILABLE',
+       'VERIFIED_ACTUAL_PRODUCT','ORDINARY_INTEREST',$5,now())`,
+      [nextId,'CI Synthetic Product '+sequence,categories.rows[0].id,
+       'CI:'+suffix+':'+sequence,'https://example.invalid/synthetic-tax']);
+    const providerInstrumentId='CI:INSTRUMENT:'+suffix+':'+sequence;
+    await pool.query(`INSERT INTO finance.product_external_ids
+      (product_id,source_id,source_instrument_id) VALUES($1,$2,$3)`,
+      [nextId,sourceId,providerInstrumentId]);
+    const nextObservation=await store.appendObservation({
+      ...input,productId:nextId,sourceInstrumentId:providerInstrumentId,
+      value:String(100+sequence)+'.25000000',
+    });
+    assert.equal(nextObservation.stored,true);
+    const nextApproval=await qualifyProductForFamily(pool,{
+      familyId,productId:nextId,sourceId,observationType:'PRICE',
+      evidenceUrl:'https://example.invalid/synthetic-issuer',
+      termsEvidenceUrl:'https://example.invalid/synthetic-terms',
+      riskEvidenceUrl:'https://example.invalid/synthetic-risk',
+      reviewedBy:'ci-isolated-synthetic-review',
+      reviewedAt:new Date(Date.now()-120000).toISOString(),
+      validUntil:new Date(Date.now()+3600000).toISOString(),
+      riskLevel:1,minInvestmentInr:1000,minHorizonYears:1,lockInMonths:0,
+      annualFeeBps:0,retailAccess:true,
+      reviewNote:'Synthetic isolated test only; never represents a commercial real offer.',
+    });
+    assert.equal(nextApproval.status,'ACTIVE');
+  }
+  const eligibleFamilies=await listFamiliesWithThreeSourceQualifiedProducts(pool);
+  assert.ok(eligibleFamilies.familyIds.includes(familyId),
+    'A family becomes discoverable only with three distinct source-qualified products');
   const available=await compare();
   assert.equal(available.status,'AVAILABLE');
-  assert.deepEqual(available.products.map(p=>p.id),[productId]);
-  assert.equal(available.products[0].marketFact.sourceId,sourceId);
+  assert.deepEqual(new Set(available.products.map(p=>p.id)),new Set(productIds));
+  assert.ok(available.products.every(p=>p.marketFact.sourceId===sourceId));
   await pool.query('UPDATE finance.provider_rights SET revoked_at=now() WHERE source_id=$1',[sourceId]);
   const revoked=await compare();
-  assert.equal(revoked.status,'NO_QUALIFIED_PRODUCTS');
+  assert.equal(revoked.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
   assert.deepEqual(revoked.products,[]);
-  assert.equal(revoked.exclusionCounts.DATA_RIGHTS_REVOKED_OR_EXPIRED,1);
+  assert.equal(revoked.exclusionCounts.DATA_RIGHTS_REVOKED_OR_EXPIRED,3);
+  assert.ok(!(await listFamiliesWithThreeSourceQualifiedProducts(pool)).familyIds.includes(familyId));
   const suspended=await suspendProductForFamily(pool,{
     familyId,productId,reviewedBy:'ci-isolated-synthetic-review',
     reviewNote:'Synthetic source rights revoked in isolated test database.',
@@ -191,9 +234,9 @@ try {
 } finally {
   // This script is restricted to *_test databases. Never modify a live source registry.
   await pool.query('DELETE FROM finance.market_observations WHERE source_id=$1',[sourceId]);
-  await pool.query('DELETE FROM finance.family_product_qualifications WHERE product_id=$1',[productId]);
+  await pool.query('DELETE FROM finance.family_product_qualifications WHERE product_id=ANY($1::text[])',[productIds]);
   await pool.query('DELETE FROM finance.product_external_ids WHERE source_id=$1',[sourceId]);
-  await pool.query('DELETE FROM finance.products WHERE id=$1',[productId]);
+  await pool.query('DELETE FROM finance.products WHERE id=ANY($1::text[])',[productIds]);
   await pool.query('DELETE FROM finance.provider_rights WHERE source_id=$1',[sourceId]);
   await pool.end();
 }
