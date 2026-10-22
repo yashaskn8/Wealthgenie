@@ -220,6 +220,7 @@ function deterministicCandidate(packet, question = '') {
   const guidance = packet.entries.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE');
   const capacity = packet.entries.find(item => item.id === 'E_GOAL_CAPACITY_CHECK');
   const returnScenario = packet.entries.find(item => item.id === 'E_GOAL_RETURN_SCENARIO');
+  const inflatedGoal = packet.entries.find(item => item.id === 'E_GOAL_INFLATED_TARGET');
   if (guidance) {
     const claims = [];
     const financialClaims = [];
@@ -244,6 +245,19 @@ function deterministicCandidate(packet, question = '') {
         type: 'GOAL_MONTHLY_BASELINE', value: monthly.value.monthlyRequiredAmount,
         unit: 'INR_PER_MONTH', timePeriod: 'MONTHLY_ZERO_RETURN_BASELINE',
         source: 'WEALTHGENIE_BACKEND', evidenceId: monthly.id,
+        jurisdiction: null, effectivePeriod: null, statement: text,
+      });
+    }
+    if (inflatedGoal?.value?.inflatedTargetAmount > 0) {
+      const text = 'Inflation-adjusted goal target: INR '
+        + inflatedGoal.value.inflatedTargetAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+        + ' [' + inflatedGoal.id + '].';
+      claims.push({ text, evidenceIds: [inflatedGoal.id] });
+      financialClaims.push({
+        type: 'GOAL_INFLATION_ADJUSTED_TARGET',
+        value: inflatedGoal.value.inflatedTargetAmount,
+        unit: 'INR', timePeriod: 'GOAL_HORIZON_USER_INFLATION_SCENARIO',
+        source: 'WEALTHGENIE_BACKEND', evidenceId: inflatedGoal.id,
         jurisdiction: null, effectivePeriod: null, statement: text,
       });
     }
