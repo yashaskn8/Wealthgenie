@@ -98,6 +98,31 @@ try {
     tax_class_evidence_url='https://example.invalid/synthetic-tax',
     tax_class_reviewed_at=now() WHERE id=$1`,[productId]);
   const familyId=family.rows[0].id;
+  const probe=await pool.query(`
+    SELECT f.category_id=p.category_id AS matching_category,
+      f.record_kind='ARCHETYPE' AS valid_family,
+      p.record_kind='ACTUAL_PRODUCT' AS actual_product,
+      p.availability='AVAILABLE' AS available_product,
+      p.verification_scope='VERIFIED_ACTUAL_PRODUCT' AS identity_verified,
+      p.qualified_tax_class NOT IN ('UNVERIFIED','OTHER_UNSUPPORTED') AS tax_class_supported,
+      p.tax_class_evidence_url LIKE 'https://%' AS tax_evidence,
+      p.tax_class_reviewed_at<=now() AS tax_reviewed,
+      (SELECT count(*)::integer FROM finance.product_external_ids ext
+        WHERE ext.product_id=p.id AND ext.source_id=r.source_id) AS instrument_identity_count,
+      r.access_allowed AS access_right, r.extraction_allowed AS extraction_right,
+      r.storage_allowed AS storage_right, r.derivation_allowed AS derivation_right,
+      r.public_display_allowed AS display_right,r.commercial_use_allowed AS commercial_right,
+      r.redistribution_allowed AS redistribution_right,
+      r.retention_seconds>0 AS retention_right,
+      r.reviewed_at IS NOT NULL AS source_reviewed,
+      r.revoked_at IS NULL AS source_unrevoked
+    FROM finance.products f CROSS JOIN finance.products p CROSS JOIN finance.provider_rights r
+    WHERE f.id=$1 AND p.id=$2 AND r.source_id=$3`,[familyId,productId,sourceId]);
+  assert.equal(probe.rows.length,1,'Synthetic qualifying fact graph must exist');
+  const disallowed=Object.entries(probe.rows[0]).filter(([k,v])=>
+    k==='instrument_identity_count'?v!==1:v!==true);
+  assert.deepEqual(disallowed,[],
+    'Synthetic current approval facts must all be satisfied before the operator gate');
   const reviewed=await qualifyProductForFamily(pool,{
     familyId,productId,sourceId,observationType:'PRICE',
     evidenceUrl:'https://example.invalid/synthetic-issuer',
