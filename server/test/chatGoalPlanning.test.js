@@ -546,3 +546,41 @@ test('red-team: stated future wedding costs are recognised as a goal, not generi
   const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
   assert.equal(answer.validation.status, 'PASS');
 });
+
+
+test('red-team: supported Indian L suffix is lakhs, not fractional rupees', async () => {
+  for (const [suffix, expected] of [['₹20L', 2000000], ['₹1.5L', 150000], ['Rs.20l', 2000000]]) {
+    const question = `Need ₹2 crore for daughter's wedding in 10 years; I have saved ${suffix}`;
+    const packet = await createPacket(question);
+    const goal = packet.entries.find(e => e.id === 'E_GOAL_STATED_TARGET');
+    const monthly = packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+    assert.equal(goal?.value.targetAmount, 20000000, suffix);
+    assert.equal(monthly?.value.earmarkedSavingsAmount, expected, suffix);
+    assert.equal(monthly?.value.monthlyRequiredAmount,
+      Math.ceil((20000000 - expected) * 100 / 120) / 100, suffix);
+    const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+    assert.equal(answer.validation.status, 'PASS', suffix);
+  }
+});
+
+test('red-team: unknown currency suffixes never quietly become ₹20 or ₹1', () => {
+  for (const suffix of ['₹20m', '₹1e6', '₹1.5 million', '₹1 billion']) {
+    const question = `Need ₹2 crore for daughter's wedding in 10 years; I have saved ${suffix}`;
+    const entries = retrieveChatGoalPlanningEvidence(question);
+    assert.equal(entries.some(e => e.id === 'E_GOAL_STATED_TARGET'), false, suffix);
+    assert.equal(entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, suffix);
+    assert.match(entries.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '', /ambiguous or invalid/, suffix);
+  }
+});
+
+test('red-team: standalone named wedding target cannot bypass the deterministic goal boundary', async () => {
+  const question = "₹2 crore for daughter's wedding";
+  assert.equal(isFinancialGoalPlanningQuestion(question), true);
+  assert.equal(isGeneralChatQuestion(question), false);
+  const packet = await createPacket(question);
+  assert.equal(packet.entries.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(packet.entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /deadline/);
+});
