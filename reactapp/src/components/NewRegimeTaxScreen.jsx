@@ -68,6 +68,14 @@ function responseIsBound(result, request) {
   if (Object.keys(result.inputsUsed).length !== keys.length
       || keys.some(key => result.inputsUsed[key] !== request[key])) return false;
   if (result.status === 'CALCULATED') {
+    // Eligibility is a hard gate, not just a value that the backend echoes.
+    // A backend regression must not turn a declared special-rate case or
+    // unconfirmed return into a plausible-looking numeric answer.
+    if (!request.confirmedOrdinaryOnly || request.specialRateIncome !== 'no'
+        || !['resident', 'non_resident'].includes(request.residency)
+        || !['salary', 'pension', 'already_taxable'].includes(request.incomeType)
+        || !Array.isArray(result.unavailableReasons)
+        || result.unavailableReasons.length !== 0) return false;
     const amounts = [
       'grossPrimaryIncome', 'otherOrdinaryIncome', 'standardDeduction',
       'taxableIncomeBeforeRounding', 'taxBeforeRebate', 'rebate',
