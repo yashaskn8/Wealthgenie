@@ -172,16 +172,16 @@ async function currentlyPresentableGoals(userId) {
   });
 }
 
-router.get('/funding/:month', checkMonth, asyncHandler(async (req, res) => {
-  const saved = await getBudget(req.user.userId, req.params.month);
-  const budget = visibleBudget(saved) || emptyBudget(req.params.month);
-  const summary = summarizeGoalBudget(budget);
+async function loadFundingGoals(userId) {
   const [goals, specifications] = await Promise.all([
-    currentlyPresentableGoals(req.user.userId),
-    GoalSpecification.find({ userId: req.user.userId }).sort({ targetDate: 1 }).limit(251).lean(),
+    currentlyPresentableGoals(userId),
+    GoalSpecification.find({ userId }).sort({ targetDate: 1 }).limit(251).lean(),
   ]);
   if (goals.length + specifications.length > 250) {
-    return sendError(req, res, 409, 'Shared funding supports up to 250 total Goals targets.', 'GOAL_FUNDING_LIMIT');
+    const error = new Error('Too many goals to assess jointly');
+    error.status = 409;
+    error.clientMessage = 'Shared funding supports at most 250 total Goals targets.';
+    throw error;
   }
   const typedGoals = specifications.map(spec => {
     const cashPlan = safeStoredSpecificationPlan(spec);
@@ -190,12 +190,21 @@ router.get('/funding/:month', checkMonth, asyncHandler(async (req, res) => {
       goal_name: spec.name, priority: spec.priority,
       target_date: spec.targetDate, current_savings: spec.currentSavings,
       recommended_sip: cashPlan.monthlyNeededWithoutReturns,
-      calculation_freshness: { fresh: cashPlan.status !== 'TARGET_DATE_REACHED' },
+      calculation_freshness: { fresh: cashPlan.status === 'MONTHLY_FUNDING_REQUIRED'
+        || cashPlan.status === 'CASH_TARGET_FUNDED' },
     };
   });
+  return [...goals, ...typedGoals];
+}
+
+router.get('/funding/:month', checkMonth, asyncHandler(async (req, res) => {
+  const saved = await getBudget(req.user.userId, req.params.month);
+  const budget = visibleBudget(saved) || emptyBudget(req.params.month);
+  const summary = summarizeGoalBudget(budget);
+  const allGoals = await loadFundingGoals(req.user.userId);
   // One-off costs count toward this month's available funding.
   const capacity = summary.budgetStatus === 'SELF_REPORTED' ? Math.max(0, summary.actualMonthSurplus) : null;
-  const plan = allocateGoalFunding([...goals, ...typedGoals], capacity);
+  const plan = allocateGoalFunding(allGoals, capacity);
   res.json({
     month: req.params.month, budgetVersion: budget.version, budgetSummary: summary, plan,
     warning: "This month's funding excludes one-off expenses. Legacy and typed goals share one capacity; duplicate targets and savings balances cannot be proven distinct. All values are user-declared.",
@@ -206,16 +215,25 @@ router.post('/vehicle/:month', checkMonth, validateStrict(vehicleSchema), asyncH
   const saved = await getBudget(req.user.userId, req.params.month);
   const budget = visibleBudget(saved) || emptyBudget(req.params.month);
   const { alternatives = [], ...scenario } = req.body;
-  const primary = assessVehiclePurchase(budget, scenario);
+  const summary = summarizeGoalBudget(budget);
+  const allGoals = await loadFundingGoals(req.user.userId);
+  const capacity = summary.budgetStatus === 'SELF_REPORTED'
+    ? Math.max(0, summary.actualMonthSurplus) : null;
+  const goalPlan = allocateGoalFunding(allGoals, capacity);
+  const monthlyGoalCommitments = goalPlan.status === 'DATA_INSUFFICIENT' ? null
+    : goalPlan.totalRequested;
+  const assessmentContext = { monthlyGoalCommitments };
+  const primary = assessVehiclePurchase(budget, scenario, assessmentContext);
   const compared = alternatives.map(alt => ({
     label: alt.label,
     assessment: assessVehiclePurchase(budget, {
       ...scenario, price: alt.price, downPayment: alt.downPayment,
       upfrontFees: alt.upfrontFees, monthlyOwnershipCost: alt.monthlyOwnershipCost,
-    }),
+    }, assessmentContext),
   }));
   res.json({
     month: req.params.month, budgetVersion: budget.version, primary,
+    goalFundingStatus: goalPlan.status,
     alternatives: compared.sort((a, b) =>
       a.assessment.totalNominalCostDuringLoan - b.assessment.totalNominalCostDuringLoan),
     source: 'USER_ENTERED_QUOTES_ONLY',
