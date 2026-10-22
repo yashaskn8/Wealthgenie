@@ -471,11 +471,11 @@ const StepUpPlanner = ({ profile }) => {
         {projection && (
           <>
             <p className={isOverBudget ? 'sup-warning' : ''}>
-              <strong>Budget:</strong> {affordability?.status === 'NOT_ASSESSED'
-                ? 'Not assessed — enter take-home income, living expenses and EMI (0 if none).'
+              <strong>Budget:</strong> {affordability?.status === 'WITHIN_DECLARED_BUDGET'
+                ? 'Every planned instalment fits the declared monthly cash surplus across the selected horizon (not a guarantee).'
                 : isOverBudget
                   ? `Not sustainable under entered assumptions: first shortfall in month ${affordability.firstUnaffordableMonth}; largest monthly shortfall ${formatSipINR(affordability.maxMonthlyShortfall)}.`
-                  : 'Every planned instalment fits the declared monthly cash surplus across the selected horizon (not a guarantee).'}
+                  : 'Not assessed — provide take-home income, living expenses, and EMI (0 if none). Missing or unrecognized checks are never treated as affordable.'}
             </p>
             <p><strong>Emergency reserve:</strong> {emergency?.status === 'DECLARED_BUFFER_SHORT'
               ? `Below the illustrative six-month buffer of ${formatSipINR(emergency.requiredAmount)}.`
