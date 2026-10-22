@@ -6,7 +6,7 @@
 import { ProviderManager } from './providerAbstraction.js';
 
 export const GENERAL_CHAT_PROMPT_VERSION = 'general-chat-v1';
-const FINANCIAL_QUERY = /\b(?:invest(?:ing|ment|or)?s?|mutual\s*funds?|stocks?|shares?|equity|etfs?|securities|bonds?|deposits?|fixed[ -]?deposits?|fds?|pensions?|ppf|nps|elss|sip|nav|portfolio|asset\s*allocation|rebalanc(?:e|ing)|market|nifty|sensex|rbi|sebi|income[ -]?tax|tax(?:es|ation|able)?|deductions?|ltcg|stcg|capital\s*gains?|interest\s*rates?|inflation|returns?|profit|wealth|savings?|salary|emi|loans?|debt|credit|insurance|financial|bank(?:s|ing)?|trading|commodities|crypto|bitcoin|my\s*(?:plan|profile|goal|risk|allocation|recommendation)|where\s+to\s+invest|what\s+should\s+i\s+buy)\b/i;
+const FINANCIAL_QUERY = /\b(?:invest(?:ing|ment|or)?s?|mutual\s*funds?|stocks?|shares?|equity|etfs?|securities|bonds?|deposits?|fixed[ -]?deposits?|fds?|pensions?|ppf|nps|elss|sip|nav|portfolio|asset\s*allocation|rebalanc(?:e|ing)|market|nifty|sensex|rbi|sebi|income[ -]?tax|tax(?:es|ation|able)?|deductions?|ltcg|stcg|capital\s*gains?|interest\s*rates?|inflation|returns?|profit|wealth|savings?|interest|compound(?:ing)?|yield|liquidity|risk|budget(?:ing)?|salary|emi|loans?|debt|credit|insurance|financial|bank(?:s|ing)?|trading|commodities|crypto|bitcoin|my\s*(?:plan|profile|goal|risk|allocation|recommendation)|where\s+to\s+invest|what\s+should\s+i\s+buy)\b/i;
 const GROUNDED_FINANCIAL_CONTEXT = /\b(?:my|our)\s+(?:money|investments?|holdings?|finances?|budget|expenses?|future|retirement|home\s*purchase)\b/i;
 const PROVIDER_FAILURES = new Set([
   'PROVIDER_TIMEOUT', 'PROVIDER_SERVER_ERROR', 'PROVIDER_NETWORK_ERROR',
@@ -28,8 +28,9 @@ export function isGeneralChatQuestion(question) {
   return text.length > 0 && !FINANCIAL_QUERY.test(text) && !GROUNDED_FINANCIAL_CONTEXT.test(text);
 }
 
-export function generalChatTokenUpperBound(question) {
-  return Buffer.byteLength(SYSTEM_PROMPT + String(question || ''), 'utf8') + 1024 + 2048;
+export function generalChatTokenUpperBound(question, priorTurns = []) {
+  return Buffer.byteLength(SYSTEM_PROMPT + String(question || '')
+    + JSON.stringify(priorTurns.slice(-4)), 'utf8') + 1024 + 2048;
 }
 
 function result({ text, provider = 'SYSTEM', model = null, tokensUsed = 0, fallback = false,
@@ -44,7 +45,7 @@ function result({ text, provider = 'SYSTEM', model = null, tokensUsed = 0, fallb
   };
 }
 
-export async function generateGeneralChatAnswer({ question }, dependencies = {}) {
+export async function generateGeneralChatAnswer({ question, priorTurns = [] }, dependencies = {}) {
   const providers = dependencies.providers || [ProviderManager.groq, ProviderManager.nvidia];
   const maxAttempts = 2;
   let attempted = 0;
@@ -77,7 +78,13 @@ export async function generateGeneralChatAnswer({ question }, dependencies = {})
     try {
       response = await provider.generate({
         systemPrompt: SYSTEM_PROMPT,
-        recentHistory: [{ role: 'user', parts: [{ text: String(question).slice(0, 1000) }] }],
+        recentHistory: [
+          ...priorTurns.slice(-4).map(turn => ({
+            role: turn.role === 'model' ? 'model' : 'user',
+            parts: [{ text: String(turn.content || '').slice(0, 1000) }],
+          })),
+          { role: 'user', parts: [{ text: String(question).slice(0, 1000) }] },
+        ],
         maxTokens: 800,
         jsonMode: false,
         tools: null,
