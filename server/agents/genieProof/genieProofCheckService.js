@@ -102,7 +102,7 @@ export async function checkGenieProofClaims({
         || checkedAt.getTime() - date > MAX_EVIDENCE_AGE_MS;
     })) {
       return unverified(candidate, 'EVIDENCE_TOO_OLD',
-        'The available source record is too old to confirm today's rate.');
+        'The available source record is too old to confirm the current rate.');
     }
     const claim = {
       claimId: candidate.claimId,
