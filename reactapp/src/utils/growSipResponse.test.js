@@ -13,6 +13,13 @@ const input = Object.freeze({
 function validFixture() {
   return {
     schema_version: 'sip-plan-v1',
+    calculation_classification: 'NON_RECOMMENDATION_STEP_UP_CALCULATION',
+    return_basis: 'PRE_TAX_NOMINAL',
+    return_data_class: 'USER_INPUT',
+    return_assumption_source: 'USER_SUPPLIED_WHAT_IF',
+    contribution_timing: 'START_OF_MONTH',
+    scenario_interpretation: 'ILLUSTRATIVE_CONSTANT_RETURN_PATHS_NOT_PROBABILITIES',
+    warnings: ['PRE_TAX_NOT_A_TAX_ESTIMATE', 'ASSUMED_RETURNS_NOT_GUARANTEED'],
     monthly_rate_convention: 'EFFECTIVE_ANNUAL_CAGR',
     annual_return_interpretation: 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN',
     observed_market_fact: false, provider_forecast: false,
@@ -61,6 +68,10 @@ describe('Grow My SIP fail-closed response contract', () => {
   it.each([
     ['missing object', r => Object.assign(r, { schema_version: null })],
     ['wrong APR convention', r => { r.monthly_rate_convention = 'NOMINAL_APR_DIVIDED_BY_12'; }],
+    ['false post-tax basis', r => { r.return_basis = 'POST_TAX'; }],
+    ['false investment recommendation label', r => { r.calculation_classification = 'ADVISORY_RECOMMENDATION'; }],
+    ['invented market data authority', r => { r.return_data_class = 'LIVE'; }],
+    ['missing non-guarantee warning', r => { r.warnings = ['PRE_TAX_NOT_A_TAX_ESTIMATE']; }],
     ['missing CAGR interpretation', r => { delete r.annual_return_interpretation; }],
     ['market data impersonation', r => { r.observed_market_fact = true; }],
     ['doubled all projected balances (coherent forged chart)', r => {
