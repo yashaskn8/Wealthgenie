@@ -86,7 +86,14 @@ test('red team: statutory landmarks, paise cutoff and four-decimal ledger integr
       assert.equal(units(r, 'taxBeforeRebate') - units(r, 'rebate'), units(r, 'taxAfterRebate'), value);
       assert.equal(units(r, 'taxAfterRebate') + units(r, 'surcharge') - units(r, 'surchargeMarginalRelief') + units(r, 'cess'),
         units(r, 'taxBeforeStatutoryRounding'), value);
-      assert.equal(r.rebate, residency === 'non_resident' ? '0.0000' : r.rebate);
+      const taxable = BigInt(r.taxableIncome);
+      const slabLiability = units(r, 'taxBeforeRebate');
+      const thresholdExcess = (taxable - 1200000n) * 10000n;
+      const expectedRebate = residency === 'non_resident' ? 0n
+        : taxable <= 1200000n
+          ? (slabLiability < 600000000n ? slabLiability : 600000000n)
+          : slabLiability > thresholdExcess ? slabLiability - thresholdExcess : 0n;
+      assert.equal(units(r, 'rebate'), expectedRebate, value);
       checked += 1;
     }
   }
