@@ -112,7 +112,7 @@ describe('investment universe browser', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Browse all investment options' }));
     await waitFor(() => expect(screen.getByText('250 catalog entries loaded from PostgreSQL.')).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Compare verified products for Investment family 1' }));
-    await waitFor(() => expect(screen.getByText(/Example verified product/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Example verified product')).toBeTruthy());
     expect(screen.getAllByRole('link',{name:'Issuer evidence'})).toHaveLength(3);
     expect(screen.getAllByRole('link',{name:'Issuer evidence'})[0].getAttribute('href')).toBe('https://issuer.example/terms');
   });
