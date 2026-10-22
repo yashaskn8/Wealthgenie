@@ -1,12 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { getFinancialUniverse, getFinancialUniverseSummary, getCurrentProfile, getQualifiedFamilyTopProducts } from '../services/api';
+import { getFinancialUniverse, getFinancialUniverseSummary, getCurrentProfile, getQualifiedFamilyTopProducts, getThreeProductReadyFamilies } from '../services/api';
 
 const PAGE_SIZE = 25;
 const REQUEST_LIMIT = 100;
 const MAX_REQUEST_PAGES = 30;
 
 async function loadFinancialUniverse(signal) {
-  const summary = await getFinancialUniverseSummary({ signal });
+  const [summary, ready] = await Promise.all([
+    getFinancialUniverseSummary({ signal }),
+    getThreeProductReadyFamilies({ signal }),
+  ]);
+  if (ready?.status !== 'THREE_SOURCE_QUALIFIED_CANDIDATES'
+    || !Array.isArray(ready.familyIds) || !Number.isSafeInteger(ready.count)
+    || ready.count !== ready.familyIds.length || ready.count > 250
+    || ready.familyIds.some(id => typeof id !== 'string')) {
+    throw new Error('THREE_PRODUCT_FAMILY_EVIDENCE_INVALID');
+  }
   if (!Number.isSafeInteger(summary?.totalCount) || summary.totalCount < 0) {
     throw new Error('FINANCIAL_UNIVERSE_SUMMARY_INVALID');
   }
@@ -29,7 +38,8 @@ async function loadFinancialUniverse(signal) {
     const nextCursor = response.nextCursor || null;
     if (!nextCursor) {
       if (rows.length !== summary.totalCount) throw new Error('FINANCIAL_UNIVERSE_COUNT_MISMATCH');
-      return { rows, summary };
+      if (ready.familyIds.some(id => !seenIds.has(id))) throw new Error('THREE_PRODUCT_UNKNOWN_FAMILY');
+      return { rows, summary, readyFamilyIds: ready.familyIds };
     }
     if (typeof nextCursor !== 'string' || seenCursors.has(nextCursor) || nextCursor === cursor) {
       throw new Error('FINANCIAL_UNIVERSE_INVALID_CURSOR');
@@ -49,6 +59,8 @@ export default function InvestmentUniverseBrowser() {
   const [status, setStatus] = useState('idle');
   const [items, setItems] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [readyFamilyIds, setReadyFamilyIds] = useState([]);
+  const [showArchive, setShowArchive] = useState(false);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
@@ -74,7 +86,10 @@ export default function InvestmentUniverseBrowser() {
       }
       const result = await getQualifiedFamilyTopProducts(familyId, profileId, { signal: controller.signal });
       if (controller.signal.aborted) return;
-      if (!result || !Array.isArray(result.products) || result.products.length > 3) {
+      if (!result || !Array.isArray(result.products)
+        || ![0, 3].includes(result.products.length)
+        || (result.products.length === 3 && result.status !== 'AVAILABLE')
+        || (result.status === 'AVAILABLE' && result.products.length !== 3)) {
         throw new Error('Invalid financial product comparison response.');
       }
       setCompareResult(result);
@@ -95,6 +110,7 @@ export default function InvestmentUniverseBrowser() {
       if (!active) return;
       setItems(result.rows);
       setSummary(result.summary);
+      setReadyFamilyIds(result.readyFamilyIds);
       setStatus('loaded');
     }).catch(() => {
       if (!active || controller.signal.aborted) return;
@@ -118,12 +134,13 @@ export default function InvestmentUniverseBrowser() {
   const filtered = useMemo(() => {
     const lower = query.trim().toLowerCase();
     return items.filter(item => (
-      (!category || item.category === category)
+      (showArchive || readyFamilyIds.includes(item.id))
+      && (!category || item.category === category)
       && (!subcategory || item.subcategory === subcategory)
       && (!lower || [item.name, item.category, item.subcategory, item.id]
         .some(field => String(field || '').toLowerCase().includes(lower)))
     ));
-  }, [items, query, category, subcategory]);
+  }, [items, readyFamilyIds, showArchive, query, category, subcategory]);
 
   const maxPage = Math.max(0, Math.ceil(filtered.length / PAGE_SIZE) - 1);
   const currentPage = Math.min(pageIndex, maxPage);
@@ -136,6 +153,7 @@ export default function InvestmentUniverseBrowser() {
   const retry = () => {
     setItems([]);
     setSummary(null);
+    setReadyFamilyIds([]);
     setPageIndex(0);
     setStatus('loading');
   };
@@ -178,8 +196,23 @@ export default function InvestmentUniverseBrowser() {
                 </p>
               )}
               <p style={{ color: '#cbd5e1', fontSize: '0.75rem', lineHeight: 1.5 }}>
-                Discovery catalog only. A listed investment family is not necessarily an available purchasable product or a suitable recommendation. The additional 95 families have not been individually verified for investment, live prices, or post-tax outcomes.
+                Discovery records are not recommendations. Only families with at least three individually qualified issuer candidates appear in the default supported list; actual suitability is checked again for your profile. The additional 95 families have not been individually verified for investment, live prices, or post-tax outcomes.
               </p>
+              <p role="status" style={{ color: '#a7f3d0', fontSize: '0.79rem', fontWeight: 700 }}>
+                {readyFamilyIds.length} of {items.length} investment families have at least three source-qualified product candidates.
+              </p>
+              <label style={{ display: 'block', fontSize: '0.78rem', color: '#cbd5e1', marginBottom: 12 }}>
+                <input type="checkbox" checked={showArchive}
+                  onChange={event => { setShowArchive(event.target.checked); setPageIndex(0); }}
+                  aria-label="Show unqualified discovery families" />
+                {' '}Show the complete discovery archive (unsupported families are not recommendations)
+              </label>
+              {!showArchive && readyFamilyIds.length === 0 && (
+                <p role="status" style={{ color: '#fbbf24' }}>
+                  No investment family currently has three fully source-qualified candidate products.
+                  Products are withheld until issuer, licensed market data, and current terms are verified.
+                </p>
+              )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
                 <label style={{ color: '#cbd5e1', fontSize: '0.78rem' }}>
                   Search
@@ -221,11 +254,11 @@ export default function InvestmentUniverseBrowser() {
                   <tbody>{visible.map(item => (
                     <tr key={item.id} style={{ borderTop: '1px solid rgba(148,163,184,.12)' }}>
                       <td style={{ padding: 9, color: '#e2e8f0' }}>{item.name || item.id}
-                        <button type="button" onClick={() => compareFamily(item.id)}
+                        {readyFamilyIds.includes(item.id) && <button type="button" onClick={() => compareFamily(item.id)}
                           aria-label={'Compare verified products for ' + (item.name || item.id)}
                           style={{ display: 'block', marginTop: 6, cursor: 'pointer' }}>
-                          Compare up to 3 verified products
-                        </button>
+                          Compare 3 source-qualified products
+                        </button>}
                       </td>
                       <td style={{ padding: 9, color: '#cbd5e1' }}>{item.category || 'Not classified'}{item.subcategory ? ' / ' + item.subcategory : ''}</td>
                       <td style={{ padding: 9, color: '#cbd5e1' }}>{item.record_kind === 'ACTUAL_PRODUCT' ? 'Actual product' : 'Discovery family'}</td>
@@ -255,7 +288,7 @@ export default function InvestmentUniverseBrowser() {
                   {compareStatus === 'loaded' && compareResult?.products?.length > 0 && (
                     <>
                       <p role="status">
-                        {compareResult.products.length} of at most 3 suitably qualified products,
+                        3 suitably qualified products,
                         ordered by risk fit, verified charges and lock-in—not promised returns.
                       </p>
                       <ol>{compareResult.products.map(product => <li key={product.id}
@@ -277,7 +310,7 @@ export default function InvestmentUniverseBrowser() {
                   </p>
                 </section>
               )}
-              {filtered.length === 0 && <p>No catalog entries match your filters.</p>}
+              {filtered.length === 0 && <p>No supported three-product families match your filters. You can view the separate discovery archive without treating its entries as recommendations.</p>}
               {maxPage > 0 && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
                 <button type="button" disabled={currentPage === 0} onClick={() => setPageIndex(n => Math.max(0, n - 1))}>Previous</button>
                 <button type="button" disabled={currentPage === maxPage} onClick={() => setPageIndex(n => Math.min(maxPage, n + 1))}>Next</button>
