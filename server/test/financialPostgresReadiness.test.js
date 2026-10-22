@@ -26,7 +26,7 @@ function fakePool({migrations=applied,archetypes=250,unsafePromoted=0}={}) {
 
 test('finance SQL start only after five matching migrations and all 250 discovery entries',async()=>{
  assert.deepEqual(await verifyFinancialPostgresReadiness(fakePool()),
-   {ready:true,archetypes:250,migrations:6});
+   {ready:true,archetypes:250,migrations:7});
 });
 test('missing or modified migration is blocked before financial service becomes available',async()=>{
  await assert.rejects(verifyFinancialPostgresReadiness(fakePool({migrations:applied.slice(0,4)})),
