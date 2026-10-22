@@ -1531,3 +1531,70 @@ test('red-team E2E: model cannot invert stated Aggressive preference and final M
   assert.equal(result.fallback, true);
 });
 
+
+
+test('red-team: a raw Groq ECONNRESET still attempts independently reserved NVIDIA grounding', async () => {
+  const calls = [];
+  const settlements = [];
+  const answer = await generateGroundedExplanation({
+    question: 'Explain the approved official rate.', evidencePacket: evidencePacket(),
+  }, {
+    providers: [
+      {
+        name: 'groq', configuredModel: () => 'mock-groq',
+        async generate() {
+          calls.push('groq');
+          throw Object.assign(new Error('socket disconnected'), { code: 'ECONNRESET' });
+        },
+      },
+      {
+        name: 'nvidia_nim', configuredModel: () => NVIDIA_NIM_DEFAULT_MODEL,
+        async generate() {
+          calls.push('nvidia_nim');
+          return {
+            provider: 'nvidia_nim', model: NVIDIA_NIM_DEFAULT_MODEL,
+            text: JSON.stringify(candidate()), tokensUsed: 23, wasCompleted: true,
+          };
+        },
+      },
+    ],
+    allowNvidiaFallback: true,
+    beforeProviderAttempt: async () => true,
+    reserveProviderAttempt: async ({ providerAttemptCount }) => ({ id: providerAttemptCount }),
+    settleProviderAttempt: async ({ reservation, actualTokens }) => {
+      settlements.push([reservation.id, actualTokens]);
+      return { settled: true };
+    },
+    getCache: async () => null,
+    setCache: async () => false,
+  });
+  assert.deepEqual(calls, ['groq', 'nvidia_nim']);
+  assert.deepEqual(settlements, [[1, 0], [2, 23]]);
+  assert.equal(answer.provider, 'NVIDIA_NIM');
+  assert.equal(answer.validation.status, 'PASS');
+  assert.equal(answer.fallback, true);
+  assert.equal(answer.providerAttemptFailureCount, 1);
+  assert.match(answer.text, /7\\.1% p\\.a\\./);
+  assert.ok(answer.citations.some(c => c.citation_id === 'E_TEST_RATE'));
+});
+
+test('red-team: a thrown internal primary error never opens the secondary route', async () => {
+  let secondCalled = false;
+  const answer = await generateGroundedExplanation({
+    question: 'Explain the approved official rate.', evidencePacket: evidencePacket(),
+  }, {
+    providers: [
+      { name: 'groq', async generate() { throw Object.assign(new Error('internal'), { code: 'NON_RETRYABLE_BUG' }); } },
+      { name: 'nvidia_nim', async generate() { secondCalled = true; return null; } },
+    ],
+    allowNvidiaFallback: true,
+    beforeProviderAttempt: async () => true,
+    reserveProviderAttempt: async () => ({ id: 'admitted' }),
+    settleProviderAttempt: async () => ({ settled: true }),
+    getCache: async () => null,
+    setCache: async () => false,
+  });
+  assert.equal(secondCalled, false);
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(answer.validation.status, 'PASS');
+});
