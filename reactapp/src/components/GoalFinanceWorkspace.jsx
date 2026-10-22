@@ -252,6 +252,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
   const [month, setMonth] = useState(thisMonth);
   const activeMonthRef = useRef(month);
   const monthRevisionRef = useRef(0);
+  const fundingRequestRevisionRef = useRef(0);
   activeMonthRef.current = month;
   const [budget, setBudget] = useState(emptyBudget);
   const [budgetDirty, setBudgetDirty] = useState(false);
@@ -267,6 +268,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
 
   useEffect(() => {
     let cancelled = false;
+    const fundingRevision = ++fundingRequestRevisionRef.current;
     const load = async () => {
       setLoading(true); setError(null); setSummary(null); setFunding(null);
       setBudgetDirty(false); setBudgetLoadFailed(false);
@@ -287,8 +289,10 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
         setBudgetLoadFailed(true);
         setError('Monthly budget is unavailable. Changes cannot be saved until it loads.');
       }
-      if (fundingResponse.status === 'fulfilled') setFunding(fundingResponse.value);
-      else setError(previous => previous || 'Shared goal allocation is currently unavailable.');
+      if (fundingRequestRevisionRef.current === fundingRevision) {
+        if (fundingResponse.status === 'fulfilled') setFunding(fundingResponse.value);
+        else setError(previous => previous || 'Shared goal allocation is currently unavailable.');
+      }
       setLoading(false);
     };
     void load();
@@ -297,6 +301,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
 
   const handleBudgetChange = update => {
     budgetEditRevisionRef.current += 1;
+    fundingRequestRevisionRef.current += 1;
     setBudgetDirty(true);
     setSummary(null);
     setFunding(null);
@@ -334,11 +339,14 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
       setBudget(old => ({ ...old, ...result.budget, monthlyIncome: result.budget.monthlyIncome ?? '',
         expenses: result.budget.expenses.length ? result.budget.expenses : [emptyExpense()] }));
       setSummary(result.summary);
+      const fundingRevision = ++fundingRequestRevisionRef.current;
       try {
         const refreshed = savingMonth === thisMonth() ? await api.getGoalFundingPlan(savingMonth) : null;
-        if (stillSameMonth()) setFunding(refreshed);
+        if (stillSameMonth() && fundingRequestRevisionRef.current === fundingRevision
+          && budgetEditRevisionRef.current === savingEditRevision) setFunding(refreshed);
       } catch {
-        if (stillSameMonth()) {
+        if (stillSameMonth() && fundingRequestRevisionRef.current === fundingRevision
+          && budgetEditRevisionRef.current === savingEditRevision) {
           setFunding(null); setError('Saved budget, but goal allocation could not be refreshed.');
         }
       }
@@ -347,6 +355,26 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
         setError(e.message || 'Unable to save this monthly budget. Reload before retrying.');
       }
     } finally { setSaving(false); }
+  };
+  const handleSpecificationsChanged = () => {
+    // Previously rendered funding is no longer valid after a goal is created,
+    // updated, or deleted. Fence requests against both budget and month edits.
+    const revision = ++fundingRequestRevisionRef.current;
+    const requestedMonth = activeMonthRef.current;
+    const budgetRevision = budgetEditRevisionRef.current;
+    setFunding(null);
+    if (requestedMonth !== thisMonth() || budgetDirty || budgetLoadFailed) return;
+    void api.getGoalFundingPlan(requestedMonth).then(next => {
+      if (fundingRequestRevisionRef.current === revision
+        && activeMonthRef.current === requestedMonth
+        && budgetEditRevisionRef.current === budgetRevision) setFunding(next);
+    }).catch(() => {
+      if (fundingRequestRevisionRef.current === revision
+        && activeMonthRef.current === requestedMonth
+        && budgetEditRevisionRef.current === budgetRevision) {
+        setError('Shared funding could not be updated after your goal changed.');
+      }
+    });
   };
   const tabs = [
     ['budget', 'Budget & expenses'], ['funding', 'Shared goal funding'],
@@ -360,6 +388,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
       <label className="wg-goal-field"><span>Budget month</span>
         <input type="month" value={month} onChange={e => { if (e.target.value && e.target.value !== month) {
           monthRevisionRef.current += 1;
+          fundingRequestRevisionRef.current += 1;
           activeMonthRef.current = e.target.value;
           setMonth(e.target.value);
         } }} />
@@ -400,7 +429,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
         <Notice kind="warning">{funding.plan.warnings.join('; ').replaceAll('_', ' ')}</Notice>
       </> : <Notice kind="error">Funding plan unavailable. No amount is assumed affordable.</Notice>}
     </div>}
-    {!loading && activeTab === 'specs' && <GoalSpecificationsPanel onChanged={() => { if (isCurrentMonth) void api.getGoalFundingPlan(month).then(setFunding).catch(() => setError('Shared funding could not be updated after saving your goal.')); }}/>}
+    {!loading && activeTab === 'specs' && <GoalSpecificationsPanel onChanged={handleSpecificationsChanged}/>}
     {!loading && activeTab === 'vehicle' && (!isCurrentMonth
       ? <Notice kind="warning">Choose the current Indian calendar month for vehicle affordability. A historical or future budget must not be compared with today's goal commitments.</Notice>
       : budgetDirty || budgetLoadFailed
