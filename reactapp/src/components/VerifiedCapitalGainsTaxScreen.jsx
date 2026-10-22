@@ -73,7 +73,7 @@ const BREAKDOWN=[
   ['Standard deduction applied','standardDeduction'],
   ['Short-term equity gains (Section 196)','shortTermGains'],
   ['Long-term equity gains (Section 198)','longTermGains'],
-  ['Section 198 annual exempt gain band','section198ExemptLongTermGain'],
+  ['Section 198 gains not charged at 12.5% (annual ₹1.25L band)','section198ExemptLongTermGain'],
   ['Ordinary income slab tax','ordinarySlabTax'],
   ['Short-term equity gain tax at 20%','section196Tax'],
   ['Long-term equity gain tax at 12.5%','section198Tax'],
@@ -155,8 +155,9 @@ export default function VerifiedCapitalGainsTaxScreen(){
       <p className="wg-new-tax__hint">The capital gains must be NET TAXABLE GAINS already reconciled
         for all holdings for this tax year, after independently establishing cost basis,
         grandfathering, applicable exemptions and permissible loss set-offs. Do not enter
-        proceeds, portfolio value or investment principal. ₹1.25 lakh Section 198 relief
-        is applied ONCE to the entire annual qualifying gain, never once per transaction.</p>
+        proceeds, portfolio value or investment principal. The Section 198 ₹1.25 lakh annual 12.5%-rate threshold
+        is applied ONCE across qualifying annual gains, never per transaction. The full gain still
+        counts toward total-income thresholds.</p>
       <label htmlFor="capital-residency">Tax residence</label>
       <select id="capital-residency" value={form.residency} onChange={e=>change('residency',e.target.value)}>
         <option value="unknown">Unknown — calculation unavailable</option>
