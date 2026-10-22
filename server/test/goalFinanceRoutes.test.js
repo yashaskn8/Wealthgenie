@@ -13,6 +13,13 @@ import GoalBudget from '../models/GoalBudget.js';
 import GoalSpecification from '../models/GoalSpecification.js';
 import User from '../models/User.js';
 
+const currentIndianMonth = () => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit',
+  }).formatToParts(new Date());
+  const part = type => parts.find(p => p.type === type)?.value;
+  return `${part('year')}-${part('month')}`;
+};
 const secret = 'goal-finance-integration-test-jwt-secret';
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET ||= secret;
@@ -50,7 +57,18 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
       ],
     };
     await withServer(app, async base => {
-      const endpoint = `${base}/api/goals/finance/budget/2026-10`;
+      const endpoint = `${base}/api/goals/finance/budget/${currentIndianMonth()}`;
+      const { response: mismatchedFunding } = await jsonRequest(
+        `${base}/api/goals/finance/funding/2020-01`, { headers: authA });
+      assert.equal(mismatchedFunding.status, 409);
+      const { response: mismatchedVehicle } = await jsonRequest(
+        `${base}/api/goals/finance/vehicle/2020-01`, {
+          method: 'POST', headers: authA, body: JSON.stringify({
+            price: 200000, downPayment: 100000, upfrontFees: 9000, monthlyOwnershipCost: 2500,
+            annualInterestRate: 9, tenureMonths: 36, emergencyCash: 150000, emergencyFloor: 20000,
+          }),
+        });
+      assert.equal(mismatchedVehicle.status, 409);
       const unauthenticated = await jsonRequest(endpoint);
       assert.equal(unauthenticated.response.status, 401);
 
@@ -82,7 +100,7 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
       assert.equal(updated.status, 200);
       assert.equal(updatedBody.budget.version, 2);
 
-      const { response: analyzed, body: vehicle } = await jsonRequest(`${base}/api/goals/finance/vehicle/2026-10`, {
+      const { response: analyzed, body: vehicle } = await jsonRequest(`${base}/api/goals/finance/vehicle/${currentIndianMonth()}`, {
         method: 'POST', headers: authA,
         body: JSON.stringify({
           price: 900000, downPayment: 200000, upfrontFees: 15000, monthlyOwnershipCost: 4500,
@@ -141,7 +159,7 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
         tenureMonths: 60, emergencyCash: 400000, emergencyFloor: 150000,
       };
       const { response: goalAwareRes, body: goalAware } = await jsonRequest(
-        `${base}/api/goals/finance/vehicle/2026-10`, {
+        `${base}/api/goals/finance/vehicle/${currentIndianMonth()}`, {
           method: 'POST', headers: authA, body: JSON.stringify(constrainedVehicle),
         });
       assert.equal(goalAwareRes.status, 200);
