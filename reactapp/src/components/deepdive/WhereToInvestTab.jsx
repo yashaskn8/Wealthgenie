@@ -222,7 +222,7 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
         if (!cancelled) setTaxPolicyError(error?.message || 'Verified tax policy metadata is unavailable.');
       });
     return () => { cancelled = true; };
-  }, []]);
+  }, []);
 
   // Fetch products whenever instrument, profile, or activeTaxContext changes
   useEffect(() => {
