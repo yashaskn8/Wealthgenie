@@ -470,6 +470,23 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
         dataClass: 'DETERMINISTIC_USER_ASSUMPTION_SCENARIO',
         source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
       });
+      if (declaredAnnualInflation !== null) {
+        entries.push({
+          id: 'E_GOAL_INFLATED_TARGET', kind: 'GOAL_CALCULATION',
+          value: {
+            inflatedTargetAmount: scenario.inflatedTarget, originalTargetAmount: target,
+            earmarkedSavingsAmount: scenarioSavings, horizonMonths: horizon,
+            annualReturnPercent: scenario.annualReturnPercent,
+            annualInflationPercent: scenario.annualInflationPercent,
+            targetIsPresentCost: true,
+            sourceScope: scope, illustrativeOnly: true, beforeTax: true,
+          },
+          displayValue: 'Inflation-adjusted goal target: ' + INR(scenario.inflatedTarget)
+            + ' from your present-day target using your explicitly stated inflation assumption; not a verified cost forecast.',
+          dataClass: 'DETERMINISTIC_USER_INFLATION_SCENARIO',
+          source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
+        });
+      }
       guidance += ' I can also show an illustrative monthly goal payment based on your stated rate assumptions; that is not a prediction or verified market rate.';
     } else {
       guidance += ' The growth assumptions are outside the supported exact calculation range or are contradictory; no return-based amount was calculated.';
