@@ -7,6 +7,8 @@ import NewRegimeTaxScreen from '../NewRegimeTaxScreen';
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 function populate({ primaryIncome = '1275000.00', residency = 'resident', specialRateIncome = 'no' } = {}) {
+  fireEvent.change(screen.getByLabelText('Income category'), { target: { value: 'salary' } });
+  fireEvent.change(screen.getByLabelText('Additional ordinary-rate taxable income (₹)'), { target: { value: '0' } });
   fireEvent.change(screen.getByLabelText(/Annual taxable gross salary.*before standard deduction/i), {
     target: { value: primaryIncome },
   });
@@ -87,6 +89,16 @@ describe('new-regime calculator visible entry point', () => {
     await waitFor(() => expect(call).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/unverified or mismatched calculation/i));
     expect(screen.queryByText(/Estimated tax liability under the new regime/i)).not.toBeInTheDocument();
+  });
+
+  it('does not infer salary income or assume zero other taxable income', () => {
+    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockResolvedValue({});
+    render(<NewRegimeTaxScreen />);
+    expect(screen.getByLabelText('Income category')).toHaveValue('');
+    expect(screen.getByLabelText('Additional ordinary-rate taxable income (₹)')).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
+    expect(call).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Choose an income category/i);
   });
 
   it('does not submit money with more than two decimal places', () => {
