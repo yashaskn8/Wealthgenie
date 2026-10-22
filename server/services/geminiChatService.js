@@ -522,7 +522,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       response: explanation.text,
       session_id: sessionId,
       latency_ms: latencyMs,
-      grounded: !generalMode,
+      // A validated abstention is not a verified answer to the user's finance
+      // question. Preserve financial-session isolation, but never label the
+      // evidence-unavailable boundary as a grounded factual response.
+      grounded: !generalMode && !explanation.evidenceIdsUsed.includes('E_CHAT_ANSWER_UNAVAILABLE'),
       provider: explanation.provider,
       model: explanation.model,
       prompt_version: explanation.promptVersion,
