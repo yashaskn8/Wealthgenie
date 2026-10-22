@@ -816,3 +816,24 @@ test('red-team: upward paisa rounding is exact and never silently underfunds sma
   assert.equal(calculateGoalMonthlyBaseline(20_000_000, 20_000_001, 120), null);
   assert.equal(calculateGoalMonthlyBaseline(20_000_000, 0, 0), null);
 });
+
+
+test('red-team E2E: switching to an unrelated finance topic fences the older goal', async () => {
+  const priorTurns = [
+    { role: 'user', content: 'I need 2 crore for my daughter wedding' },
+    { role: 'model', content: 'Tell me your deadline and savings.' },
+    { role: 'user', content: 'What is a fixed deposit?' },
+    { role: 'model', content: 'A bank deposit.' },
+  ];
+  assert.equal(isFinancialGoalFollowUpQuestion('in 10 years', priorTurns), false);
+  assert.deepEqual(retrieveChatGoalPlanningEvidence('in 10 years', { priorUserTurns: priorTurns }), []);
+  const resumed = [
+    ...priorTurns,
+    { role: 'user', content: 'I want to accumulate 1 crore for retirement' },
+    { role: 'model', content: 'Tell me your horizon and savings.' },
+  ];
+  const evidence = retrieveChatGoalPlanningEvidence('in 10 years', { priorUserTurns: resumed });
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 10_000_000);
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount === 20_000_000, false);
+  assert.equal(isFinancialGoalFollowUpQuestion('in 10 years', resumed), true);
+});
