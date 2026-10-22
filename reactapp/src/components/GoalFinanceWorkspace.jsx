@@ -59,7 +59,7 @@ function MonthBudget({ budget, setBudget, onSave, saving }) {
         onChange={v => modify('monthlyIncome', v)} />
       <NumberEntry label="Already protected monthly savings (₹)" value={budget.protectedMonthlyContributions}
         onChange={v => modify('protectedMonthlyContributions', v)}
-        hint="Existing savings or emergency-fund contributions that cannot be used twice."/>
+        hint="Only savings commitments OUTSIDE WealthGenie Goals. Goal commitments are deducted separately by the server."/>
     </div>
     <h4>Expenses</h4>
     {budget.expenses.map((row, index) => <div className="wg-goal-expense-row" key={index}>
@@ -159,6 +159,8 @@ function VehicleForm({ month, onResult }) {
         <p><b>Monthly cost including upkeep</b><span>{moneyLabel(result.primary.additionalMonthlyCommitment)}</span></p>
         <p><b>Recurring-month surplus after purchase</b><span>{moneyLabel(result.primary.monthlySurplusAfterPurchase)}</span></p>
         <p><b>Selected purchase-month surplus (includes one-offs)</b><span>{moneyLabel(result.primary.purchaseMonthSurplusAfterPurchase)}</span></p>
+        <p><b>Required monthly funding for other goals</b><span>{moneyLabel(result.primary.requiredMonthlyGoalContributions)}</span></p>
+        <p><b>Purchase-month surplus after other goals</b><span>{moneyLabel(result.primary.purchaseMonthSurplusAfterGoals)}</span></p>
         <p><b>Cash reserve after upfront cost</b><span>{moneyLabel(result.primary.emergencyCashAfterPurchase)}</span></p>
         <p><b>Estimated nominal total during loan</b><span>{moneyLabel(result.primary.totalNominalCostDuringLoan)}</span></p>
       </div>
@@ -169,7 +171,7 @@ function VehicleForm({ month, onResult }) {
           {option.label}: {moneyLabel(option.assessment.totalNominalCostDuringLoan)} · EMI {moneyLabel(option.assessment.loan.monthlyEmi)} · {option.assessment.status.replaceAll('_', ' ')}
         </li>)}</ul>
       </div>}
-      <Notice>Planning assumes a purchase and first loan payment in this budget month. Prices are user-supplied and not live verified. All registration, insurance, mandatory fees, fuel and upkeep must be entered. These are self-reported scenarios, not bank approval or guaranteed advice.</Notice>
+      <Notice>Other active goal commitments must fit alongside this purchase; unknown or stale goals block a confident affordability result. Planning assumes a purchase and first loan payment in this budget month. Prices are user-supplied and not live verified. All registration, insurance, mandatory fees, fuel and upkeep must be entered. These are self-reported scenarios, not bank approval or guaranteed advice.</Notice>
     </div>}
   </div>;
 }
