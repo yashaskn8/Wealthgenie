@@ -16,6 +16,17 @@ const FINANCIAL_MONEY = /(?:₹\s*[-+]?\d|\b(?:inr|rs\.?)\s*[-+]?\d|\b\d[\d,]*(?
 const FINANCIAL_PRODUCTS = /\b(?:xirr|cagr|irr|mirr|ulips?|swp|stp|scss|sukanya|pomis|kvp|nsc|epf|reits?|invits?|aifs?|pms|sgbs?|lic|treasury\s*bills?|t-?bills?|smallcases?|demat|kyc|index\s*funds?|expense\s*ratio|tracking\s*error|p\s*\/\s*e\s*ratio|price\s*to\s*earnings|digital\s*gold|gold\s*(?:price|etf|bond|investment|rate|return|allocation|savings|scheme)|(?:buy|sell|purchase|hold|own)\s+(?:physical\s+|sovereign\s+)?gold)\b/i;
 const FINANCIAL_SAVING_INTENT = /\b(?:(?:i|we)\s+(?:can|could|will|want|need|plan)\s+(?:to\s+)?(?:save|invest|contribute)|(?:can\s+i|should\s+i|need\s+to|want\s+to|plan\s+to|how\s+much\s+can\s+i)\s+(?:\w+\s+){0,3}(?:save|afford|fund|contribute))\b/i;
 const GROUNDED_FINANCIAL_CONTEXT = /\b(?:my|our)\s+(?:money|investments?|holdings?|finances?|budget|expenses?|future|retirement|home\s*purchase|age|name|profile|email|phone|address|income|dependents?|lump[ -]?sum|horizon|emergency\s*fund|account|transaction|suitability|pan|aadhaar|aadhar|upi(?:\s+pin)?|ifsc|kyc|date\s+of\s+birth|dob|financial\s*details)\b|\b(?:how\s+old\s+am\s+i|what\s+do\s+you\s+know\s+about\s+me)\b/i;
+function safeGeneralHistory(priorTurns) {
+  return (Array.isArray(priorTurns) ? priorTurns : []).slice(-4)
+    .filter(turn => ['user', 'model'].includes(turn?.role)
+      && typeof turn.content === 'string'
+      && isGeneralChatQuestion(turn.content))
+    .map(turn => ({
+      role: turn.role,
+      parts: [{ text: turn.content.slice(0, 1000) }],
+    }));
+}
+
 const PROVIDER_FAILURES = new Set([
   'PROVIDER_TIMEOUT', 'PROVIDER_SERVER_ERROR', 'PROVIDER_NETWORK_ERROR',
   'PROVIDER_CIRCUIT_OPEN', 'PROVIDER_NOT_CONFIGURED',
@@ -94,10 +105,7 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
       response = await provider.generate({
         systemPrompt: SYSTEM_PROMPT,
         recentHistory: [
-          ...priorTurns.slice(-4).map(turn => ({
-            role: turn.role === 'model' ? 'model' : 'user',
-            parts: [{ text: String(turn.content || '').slice(0, 1000) }],
-          })),
+          ...safeGeneralHistory(priorTurns),
           { role: 'user', parts: [{ text: String(question).slice(0, 1000) }] },
         ],
         maxTokens: 800,
@@ -124,7 +132,14 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
         });
       }
     }
-    if (response?.wasCompleted === false) failure = 'PROVIDER_INCOMPLETE_OUTPUT';
+    // Even an adapter that violates tools:null cannot turn a model-issued
+    // function/tool call into an accepted chat answer.
+    if (Array.isArray(response?.tool_calls) && response.tool_calls.length > 0
+        || Array.isArray(response?.toolCalls) && response.toolCalls.length > 0
+        || response?.function_call || response?.functionCall) {
+      failure = 'GENERAL_UNEXPECTED_TOOL_CALL';
+    }
+    if (!failure && response?.wasCompleted === false) failure = 'PROVIDER_INCOMPLETE_OUTPUT';
     else if (typeof response?.text !== 'string' || !response.text.trim()) {
       failure = failure || provider.lastFailureReason || 'EMPTY_COMPLETION';
     }
