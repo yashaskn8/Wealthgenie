@@ -18,6 +18,7 @@ import {
   analyzeTaxOptimization,
 } from '../services/taxEngine.js';
 import { calculateVerifiedNewRegime } from '../services/verifiedNewRegimeCalculator.js';
+import { calculateVerifiedComplexCapitalGainsTax } from '../services/verifiedComplexCapitalGainsTax.js';
 import { calculatePostTaxReturnSafe, calculatePostTaxProjection } from '../services/postTaxCalculator.js';
 import { calculateUserDeclaredPostTaxScenario } from '../services/userDeclaredPostTaxScenario.js';
 
@@ -47,6 +48,24 @@ router.post('/new-regime-verified', asyncHandler(async (req, res) => {
     if (error.code === 'UNSUPPORTED_TAX_YEAR') {
       return sendError(req, res, 422, error.message, error.code);
     }
+    if (error.code === 'INVALID_TAX_REQUEST' || error.code === 'INVALID_MONEY') {
+      return sendError(req, res, 400, error.message, error.code);
+    }
+    throw error;
+  }
+}));
+
+/**
+ * Expert income-tax calculation: only strictly qualified resident equity gains,
+ * with ordinary taxable income above the rebate range and no surcharge.
+ * Deliberately separate from the simple new-regime endpoint.
+ */
+router.post('/new-regime-verified-complex', asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.json(calculateVerifiedComplexCapitalGainsTax(req.body));
+  } catch (error) {
+    if (error.code === 'UNSUPPORTED_TAX_YEAR') return sendError(req, res, 422, error.message, error.code);
     if (error.code === 'INVALID_TAX_REQUEST' || error.code === 'INVALID_MONEY') {
       return sendError(req, res, 400, error.message, error.code);
     }
