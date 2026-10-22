@@ -1,6 +1,6 @@
 /**
  * Key-free, deterministic, illustrative SIP planner. No live price dependencies.
- * Cash arrives at the START of each month and compounds at nominal APR / 12.
+ * Cash arrives at the START of each month. Explicit monthly-rate convention, with legacy APR as default for existing API callers.
  */
 const LIMIT = Number.MAX_SAFE_INTEGER / 100;
 const money = n => {
@@ -17,10 +17,19 @@ const checked = n => {
   return n;
 };
 const rounded = n => Math.round(checked(n));
+const MONTHLY_RATE_CONVENTIONS = Object.freeze([
+  'NOMINAL_APR_DIVIDED_BY_12', 'EFFECTIVE_ANNUAL_CAGR',
+]);
+function toMonthlyRate(rate, convention) {
+  return convention === 'EFFECTIVE_ANNUAL_CAGR'
+    ? Math.expm1(Math.log1p(rate) / 12)
+    : rate / 12;
+}
 
 export function buildSipPlan(input) {
   const {
     monthlyInvestment, annualReturnRate, annualStepUpRate, years,
+    returnRateConvention = 'NOMINAL_APR_DIVIDED_BY_12',
     inflationRate = 0.06,
     downsideAnnualReturnRate = Math.min(annualReturnRate, Math.max(-0.99, annualReturnRate - 0.08)),
     monthlyIncome = null, monthlyExpenses = null, monthlyEmi = null,
@@ -30,7 +39,8 @@ export function buildSipPlan(input) {
   const required = [monthlyInvestment, annualReturnRate, annualStepUpRate, years,
     inflationRate, downsideAnnualReturnRate, emergencyMonths,
     annualIncomeGrowthRate, annualExpenseGrowthRate];
-  if (!required.every(Number.isFinite) || !Number.isInteger(years) || years < 1 || years > 50
+  if (!MONTHLY_RATE_CONVENTIONS.includes(returnRateConvention)
+      || !required.every(Number.isFinite) || !Number.isInteger(years) || years < 1 || years > 50
       || monthlyInvestment <= 0 || monthlyInvestment > 10000000 || !validPaise(monthlyInvestment)
       || annualStepUpRate < 0 || annualStepUpRate > 1
       || annualReturnRate <= -1 || annualReturnRate > 1
@@ -47,8 +57,8 @@ export function buildSipPlan(input) {
     }
   }
   const assessBudget = monthlyIncome !== null && monthlyExpenses !== null && monthlyEmi !== null;
-  const r = annualReturnRate / 12;
-  const downsideR = downsideAnnualReturnRate / 12;
+  const r = toMonthlyRate(annualReturnRate, returnRateConvention);
+  const downsideR = toMonthlyRate(downsideAnnualReturnRate, returnRateConvention);
   let flat = 0, stepped = 0, downside = 0, flatPaid = 0, steppedPaid = 0;
   let firstUnaffordableMonth = null, maxMonthlyShortfall = 0, worstMonthlySurplus = null;
   let lastSip = monthlyInvestment;
@@ -64,6 +74,13 @@ export function buildSipPlan(input) {
       ? monthlyIncome * Math.pow(1 + annualIncomeGrowthRate, year - 1)
         - monthlyExpenses * Math.pow(1 + annualExpenseGrowthRate, year - 1) - monthlyEmi
       : null;
+    // All projected budget figures must remain representable; never serialize
+    // Infinity as null or claim a positive budget using unbounded growth.
+    if (available !== null) {
+      if (!Number.isFinite(available) || Math.abs(available) > LIMIT) {
+        throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: future declared budget exceeds safe INR precision');
+      }
+    }
     const surplus = available === null ? null : available - annualSip;
     if (surplus !== null) {
       worstMonthlySurplus = worstMonthlySurplus === null ? surplus : Math.min(worstMonthlySurplus, surplus);
@@ -113,10 +130,13 @@ export function buildSipPlan(input) {
     return_basis: 'PRE_TAX_NOMINAL',
     return_data_class: 'USER_INPUT', return_assumption_source: 'USER_SUPPLIED_WHAT_IF',
     observed_market_fact: false, provider_forecast: false,
-    monthly_rate_convention: 'NOMINAL_APR_DIVIDED_BY_12',
+    monthly_rate_convention: returnRateConvention,
+    annual_return_interpretation: returnRateConvention === 'EFFECTIVE_ANNUAL_CAGR'
+      ? 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN'
+      : 'USER_ASSUMED_NOMINAL_APR',
     contribution_timing: 'START_OF_MONTH',
     capital_gains_tax: null, estimated_post_tax_corpus: null,
-    assumptions: { monthlyInvestment, annualReturnRate, annualStepUpRate, years,
+    assumptions: { monthlyInvestment, annualReturnRate, annualStepUpRate, years, returnRateConvention,
       inflationRate, downsideAnnualReturnRate, monthlyIncome, monthlyExpenses, monthlyEmi,
       emergencySavings, emergencyMonths, annualIncomeGrowthRate, annualExpenseGrowthRate },
     chartData, flatFinal: last.flatSIP, stepUpFinal: last.stepUpSIP,
