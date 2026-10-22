@@ -1046,3 +1046,29 @@ test('red-team: explicit effective annual returns and all rejected-rate warnings
   assert.match(denied.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '',
     /outside the supported exact calculation range/i);
 });
+
+test('reconciliation: elliptical and named wedding deadlines inherit only the authenticated same-goal context', () => {
+  const priorUserTurns = [
+    "I need ₹2 crore for my daughter's marriage in 5 years",
+    'I have saved ₹20 lakh',
+  ];
+  for (const [question, months, monthly] of [
+    ['What about in 10 years?', 120, 150000],
+    ["My daughter's marriage is in 12 years.", 144, 125000],
+  ]) {
+    assert.equal(isFinancialGoalFollowUpQuestion(question, priorUserTurns), true, question);
+    const evidence = retrieveChatGoalPlanningEvidence(question, { priorUserTurns });
+    const target = evidence.find(e => e.id === 'E_GOAL_STATED_TARGET');
+    const baseline = evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+    assert.equal(target?.value.targetAmount, 20000000, question);
+    assert.equal(baseline?.value.earmarkedSavingsAmount, 2000000, question);
+    assert.equal(baseline?.value.horizonMonths, months, question);
+    assert.equal(baseline?.value.monthlyRequiredAmount, monthly, question);
+  }
+  for (const question of ['What about in 10 years?', "My daughter's marriage is in 12 years."]) {
+    assert.equal(isFinancialGoalFollowUpQuestion(question, []), false, question);
+    assert.deepEqual(retrieveChatGoalPlanningEvidence(question), [], question);
+  }
+  // New subjects must never pick up the existing wedding corpus.
+  assert.deepEqual(retrieveChatGoalPlanningEvidence('My car is in 12 years.', { priorUserTurns }), []);
+});
