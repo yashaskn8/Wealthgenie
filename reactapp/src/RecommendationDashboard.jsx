@@ -176,12 +176,21 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
   }, [recommendationMeta]);
 
   // Eligibility stats — goal-aware
-  const isEmergencyFundGoal = (userProfile?.investment_goals || []).includes('Emergency Fund');
+  const goals = userProfile?.investment_goals || [];
+  const isEmergencyFundGoal = goals.length === 1 && goals[0] === 'Emergency Fund';
   const displayedCount = recommendations?.length || 0;
   const excludedInstruments = Array.isArray(recommendationMeta?.excluded_due_to_eligibility)
     ? recommendationMeta.excluded_due_to_eligibility
     : [];
   const excludedCount = excludedInstruments.length;
+  const generationCounts = recommendationMeta?.generation_candidate_counts;
+  const generationAlternatives = Array.isArray(recommendationMeta?.generation_eligible_alternatives)
+    ? recommendationMeta.generation_eligible_alternatives : [];
+  const excludedReasonCounts = excludedInstruments.reduce((totals, item) => {
+    const code = item?.reasonCode || 'UNKNOWN';
+    totals[code] = (totals[code] || 0) + 1;
+    return totals;
+  }, {});
 
   const toggleRow = (id) => {
     setExpandedRows(prev => ({ ...prev, [id]: prev[id] === false }));
@@ -495,9 +504,28 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
               <strong>{displayedCount} personalized recommendations selected</strong>
               {excludedCount > 0 && <> · <strong>{excludedCount}</strong> legacy catalog instruments excluded by suitability, eligibility, horizon, or unavailable classifications.</>}
               {' '}This shortlist is not the complete investment universe.
-              {isEmergencyFundGoal && ' Emergency Fund is among your goals; check each recommended option\'s actual liquidity and withdrawal terms.'}
+              {isEmergencyFundGoal && ' This emergency-only plan requires checking actual access and withdrawal terms.'}
             </p>
           </div>
+          {generationCounts && (
+            <div className="wg-plan-eligibility" aria-label="Generation candidate breakdown">
+              <Info size={16} aria-hidden="true" />
+              <div>
+                <p>At recommendation generation: {generationCounts.legacy_catalog} legacy candidate families; {generationCounts.eligible} eligible; {generationCounts.excluded} excluded; {generationCounts.eligible_not_selected} eligible but not selected; {generationCounts.selected} selected. These counts exclude PostgreSQL discovery-only extensions and do not represent later manual allocation revisions.</p>
+                {generationAlternatives.length > 0 && <details>
+                  <summary style={{ cursor: 'pointer' }}>Inspect {generationAlternatives.length} eligible alternatives and deterministic scores</summary>
+                  <ol style={{ maxHeight: 220, overflowY: 'auto', marginTop: 8 }}>
+                    {generationAlternatives.map(item => <li key={item.id}>{item.name || item.id} — score {item.score} (ranked but not selected)</li>)}
+                  </ol>
+                </details>}
+                {Object.keys(excludedReasonCounts).length > 0 && <details>
+                  <summary style={{ cursor: 'pointer' }}>Inspect exclusions by actual reason code</summary>
+                  <ul>{Object.entries(excludedReasonCounts).sort(([a], [b]) => a.localeCompare(b)).map(([reason, count]) =>
+                    <li key={reason}>{reason.replaceAll('_', ' ')}: {count}</li>)}</ul>
+                </details>}
+              </div>
+            </div>
+          )}
           <InvestmentUniverseBrowser />
 
           {riskAgeMismatch.flag && !mismatchDismissed && (
@@ -690,7 +718,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
              <div className="panel-header">
                <span className="panel-title">
                  <TrendingUp size={14} aria-hidden="true" style={{ color: '#38bdf8' }} />
-                 {(userProfile?.investment_goals || []).includes('Emergency Fund')
+                 {isEmergencyFundGoal
                    ? 'Goal Achievement Timeline'
                    : 'Wealth Trajectory'}
                </span>
@@ -701,7 +729,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             </div>
 
             {(() => {
-              const isEF = (userProfile?.investment_goals || []).includes('Emergency Fund');
+              const isEF = isEmergencyFundGoal;
 
               if (isEF) {
                 const projection = recommendationMeta?.dashboard_projection;
@@ -1139,7 +1167,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
           <div className="panel-card wg-quick-stats-card">
             <div className="wg-stats-hero-row">
               {(() => {
-                const isEF = (userProfile?.investment_goals || []).includes('Emergency Fund');
+                const isEF = isEmergencyFundGoal;
                 const projection = recommendationMeta?.dashboard_projection;
                 const projectedValue = nullableMarketNumber(projection?.total_projected);
                 const projectedMonth = Array.isArray(projection?.monthly_timeline) && projection.monthly_timeline.length > 0
@@ -1692,7 +1720,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             SECTION 9: BROWSE BY INSTRUMENT TYPE / RISK LEVEL
             ═══════════════════════════════════════════════════════════ */}
         {recommendations && recommendations.length > 0 && (() => {
-          const isEmergencyFund = (userProfile?.investment_goals || []).includes('Emergency Fund');
+          const isEmergencyFund = isEmergencyFundGoal;
 
           if (isEmergencyFund) {
             const emergencyColor = '#14b8a6';

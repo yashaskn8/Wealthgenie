@@ -480,7 +480,24 @@ export function runPipeline(profileInput, mlResult = {}, options = {}) {
   if (instruments.some(instrument => instrument.riskScore > riskReconciliation.final_score)) {
     throw new Error('Suitability invariant failed after ranking');
   }
+  const selectedIds = new Set(instruments.map(instrument => instrument.id));
+  const eligibleNotSelected = ranked.filter(row => !selectedIds.has(row.instrument.id));
   riskReconciliation.excluded_due_to_eligibility = excluded;
+  riskReconciliation.candidate_counts = {
+    legacy_catalog: investmentDatabase.length,
+    eligible: eligible.length,
+    excluded: excluded.length,
+    ranked: ranked.length,
+    selected: instruments.length,
+    eligible_not_selected: eligibleNotSelected.length,
+  };
+  riskReconciliation.eligible_not_selected = eligibleNotSelected.map(row => ({
+    id: row.instrument.id,
+    name: row.instrument.name,
+    score: row.score,
+    score_factors: row.factors,
+    reasonCode: 'RANKED_BUT_NOT_SELECTED',
+  }));
   return { instruments, confidenceScores, riskReconciliation, computedWeights };
 }
 

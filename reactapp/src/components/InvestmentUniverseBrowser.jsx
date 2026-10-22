@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getFinancialUniverse } from '../services/api';
+import { getFinancialUniverse, getFinancialUniverseSummary } from '../services/api';
 
 const PAGE_SIZE = 25;
 const REQUEST_LIMIT = 100;
 const MAX_REQUEST_PAGES = 30;
 
 async function loadFinancialUniverse(signal) {
+  const summary = await getFinancialUniverseSummary({ signal });
+  if (!Number.isSafeInteger(summary?.totalCount) || summary.totalCount < 0) {
+    throw new Error('FINANCIAL_UNIVERSE_SUMMARY_INVALID');
+  }
   const rows = [];
   const seenIds = new Set();
   const seenCursors = new Set();
@@ -23,7 +27,10 @@ async function loadFinancialUniverse(signal) {
       rows.push(item);
     }
     const nextCursor = response.nextCursor || null;
-    if (!nextCursor) return rows;
+    if (!nextCursor) {
+      if (rows.length !== summary.totalCount) throw new Error('FINANCIAL_UNIVERSE_COUNT_MISMATCH');
+      return { rows, summary };
+    }
     if (typeof nextCursor !== 'string' || seenCursors.has(nextCursor) || nextCursor === cursor) {
       throw new Error('FINANCIAL_UNIVERSE_INVALID_CURSOR');
     }
@@ -41,17 +48,20 @@ export default function InvestmentUniverseBrowser() {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState('idle');
   const [items, setItems] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
+  const [subcategory, setSubcategory] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
 
   useEffect(() => {
     if (!open || status !== 'loading') return undefined;
     const controller = new AbortController();
     let active = true;
-    loadFinancialUniverse(controller.signal).then(rows => {
+    loadFinancialUniverse(controller.signal).then(result => {
       if (!active) return;
-      setItems(rows);
+      setItems(result.rows);
+      setSummary(result.summary);
       setStatus('loaded');
     }).catch(() => {
       if (!active || controller.signal.aborted) return;
@@ -67,14 +77,20 @@ export default function InvestmentUniverseBrowser() {
     () => [...new Set(items.map(item => item.category).filter(Boolean))].sort(),
     [items],
   );
+  const subcategories = useMemo(
+    () => [...new Set(items.filter(item => !category || item.category === category)
+      .map(item => item.subcategory).filter(Boolean))].sort(),
+    [items, category],
+  );
   const filtered = useMemo(() => {
     const lower = query.trim().toLowerCase();
     return items.filter(item => (
       (!category || item.category === category)
+      && (!subcategory || item.subcategory === subcategory)
       && (!lower || [item.name, item.category, item.subcategory, item.id]
         .some(field => String(field || '').toLowerCase().includes(lower)))
     ));
-  }, [items, query, category]);
+  }, [items, query, category, subcategory]);
 
   const maxPage = Math.max(0, Math.ceil(filtered.length / PAGE_SIZE) - 1);
   const currentPage = Math.min(pageIndex, maxPage);
@@ -86,6 +102,7 @@ export default function InvestmentUniverseBrowser() {
   };
   const retry = () => {
     setItems([]);
+    setSummary(null);
     setPageIndex(0);
     setStatus('loading');
   };
@@ -119,6 +136,9 @@ export default function InvestmentUniverseBrowser() {
               <p role="status" style={{ color: '#a7f3d0', fontWeight: 700, fontSize: '0.79rem' }}>
                 {items.length} catalog entries loaded from PostgreSQL.
               </p>
+              {summary && <p style={{ color: '#cbd5e1', fontSize: '0.75rem' }}>
+                Database total: {summary.totalCount} · Discovery families: {summary.discoveryFamilies} · Actual products: {summary.actualProducts} · Availability verified: {summary.availableRecords} · Qualification-flagged: {summary.qualificationFlagged}. These flags do not establish suitability.
+              </p>}
               {items.length < 250 && (
                 <p role="alert" style={{ color: '#fbbf24' }}>
                   Only {items.length} entries were returned; the expected minimum is 250. Check the database seed and migrations.
@@ -138,10 +158,19 @@ export default function InvestmentUniverseBrowser() {
                 <label style={{ color: '#cbd5e1', fontSize: '0.78rem' }}>
                   Category
                   <select aria-label="Filter investment category" value={category}
-                    onChange={event => { setCategory(event.target.value); setPageIndex(0); }}
+                    onChange={event => { setCategory(event.target.value); setSubcategory(''); setPageIndex(0); }}
                     style={{ display: 'block', width: 210, maxWidth: '100%', color: '#f8fafc', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, padding: 9, marginTop: 4 }}>
                     <option value="">All categories</option>
                     {categories.map(name => <option value={name} key={name}>{name}</option>)}
+                  </select>
+                </label>
+                <label style={{ color: '#cbd5e1', fontSize: '0.78rem' }}>
+                  Subcategory
+                  <select aria-label="Filter investment subcategory" value={subcategory}
+                    onChange={event => { setSubcategory(event.target.value); setPageIndex(0); }}
+                    style={{ display: 'block', width: 210, maxWidth: '100%', color: '#f8fafc', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, padding: 9, marginTop: 4 }}>
+                    <option value="">All subcategories</option>
+                    {subcategories.map(name => <option value={name} key={name}>{name}</option>)}
                   </select>
                 </label>
               </div>
@@ -153,13 +182,19 @@ export default function InvestmentUniverseBrowser() {
                     <th scope="col" style={{ padding: 9 }}>Category</th>
                     <th scope="col" style={{ padding: 9 }}>Record type</th>
                     <th scope="col" style={{ padding: 9 }}>Availability</th>
+                    <th scope="col" style={{ padding: 9 }}>Verification</th>
+                    <th scope="col" style={{ padding: 9 }}>Recommendation status</th>
                   </tr></thead>
                   <tbody>{visible.map(item => (
                     <tr key={item.id} style={{ borderTop: '1px solid rgba(148,163,184,.12)' }}>
                       <td style={{ padding: 9, color: '#e2e8f0' }}>{item.name || item.id}</td>
                       <td style={{ padding: 9, color: '#cbd5e1' }}>{item.category || 'Not classified'}{item.subcategory ? ' / ' + item.subcategory : ''}</td>
                       <td style={{ padding: 9, color: '#cbd5e1' }}>{item.record_kind === 'ACTUAL_PRODUCT' ? 'Actual product' : 'Discovery family'}</td>
-                      <td style={{ padding: 9, color: '#cbd5e1' }}>{item.availability || 'Unverified'}</td>
+                      <td style={{ padding: 9, color: '#cbd5e1' }}>{item.availability || 'Not established'}</td>
+                      <td style={{ padding: 9, color: '#cbd5e1' }}>{item.verification_scope === 'REGULATORY_CATEGORY_OR_INDEX_ONLY'
+                        ? 'Category/index reference only' : (item.verification_scope || 'Not established')}</td>
+                      <td style={{ padding: 9, color: '#cbd5e1' }}>{item.recommendation_eligible === true
+                        ? 'Further profile suitability required' : 'Discovery only / not qualified'}</td>
                     </tr>
                   ))}</tbody>
                 </table>

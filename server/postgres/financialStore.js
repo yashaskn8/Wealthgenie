@@ -51,6 +51,20 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
     );
     return { items: rows.slice(0, limit), nextCursor: rows.length > limit ? rows[limit - 1].id : null };
   }
+  async function summary() {
+    const { rows } = await pool.query(`
+      SELECT count(*)::integer AS "totalCount",
+        count(*) FILTER (WHERE record_kind='ARCHETYPE')::integer AS "discoveryFamilies",
+        count(*) FILTER (WHERE record_kind='ACTUAL_PRODUCT')::integer AS "actualProducts",
+        count(*) FILTER (WHERE availability='AVAILABLE')::integer AS "availableRecords",
+        count(*) FILTER (WHERE availability='UNVERIFIED')::integer AS "unverifiedRecords",
+        count(*) FILTER (WHERE recommendation_eligible IS TRUE)::integer AS "qualificationFlagged"
+      FROM finance.products`);
+    if (!rows[0] || !Number.isSafeInteger(rows[0].totalCount)) {
+      throw new Error('FINANCIAL_CATALOG_SUMMARY_INVALID');
+    }
+    return rows[0];
+  }
   async function latestPublishableObservation(productId, kind, now = new Date()) {
     assertIdentity(productId);
     if (!['PRICE','NAV','PUBLISHED_RATE','YIELD','VOLUME'].includes(kind)) throw new TypeError('Invalid market observation type');
@@ -248,5 +262,5 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
       return { stored: result.rowCount === 1, observationId: result.rows[0]?.id || null };
     });
   }
-  return { browse, latestPublishableObservation, qualifiedHistoricalPrices, appendObservation, transaction };
+  return { browse, summary, latestPublishableObservation, qualifiedHistoricalPrices, appendObservation, transaction };
 }

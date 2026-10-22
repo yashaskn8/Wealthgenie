@@ -544,6 +544,9 @@ export async function saveRiskShortlist(profileId, options = {}) {
 export async function getFinancialUniverseCategories(options={}) {
   return request('GET','/financial-universe/categories',null,{retries:0,...options});
 }
+export async function getFinancialUniverseSummary(options={}) {
+  return request('GET', '/financial-universe/summary', null, { retries:0, ...options });
+}
 export async function getFinancialUniverse({category, subcategory, cursor, limit=20}={},options={}) {
   const q = new URLSearchParams({limit:String(limit)});
   if (category) q.set('category',category);

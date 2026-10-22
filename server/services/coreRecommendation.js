@@ -410,6 +410,9 @@ export async function computeCoreRecommendation({
     optional_profile_fields_unknown: unknownOptionalProfileFields,
     ml_input_fields_unknown: missingMlProfileFields,
     excluded_due_to_eligibility: riskReconciliation.excluded_due_to_eligibility,
+    // Generation-specific diagnostics must never impersonate a manual revision's choices.
+    generation_candidate_counts: riskReconciliation.candidate_counts,
+    generation_eligible_alternatives: riskReconciliation.eligible_not_selected,
     computed_weights: computedWeights,
     market_adjustment: marketAdjustment,
     current_allocation_source: marketAdjustment.currentAllocationSource,

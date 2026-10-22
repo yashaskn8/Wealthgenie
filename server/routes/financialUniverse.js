@@ -25,6 +25,13 @@ router.get('/', validateQuery(browseSchema), asyncHandler(async (req, res) => {
     cursor: req.query.cursor || null, limit: req.query.limit ? Number(req.query.limit) : 20,
   }));
 }));
+router.get('/summary', asyncHandler(async (req, res) => {
+  const pool = await getFinancialPostgresPool();
+  if (!pool) return sendError(req, res, 503,
+    'Financial-universe PostgreSQL is not enabled.', 'FINANCIAL_UNIVERSE_NOT_ENABLED');
+  res.set('Cache-Control', 'no-store');
+  return res.json({ status: 'DISCOVERY_ONLY', ...await createFinancialStore(pool).summary() });
+}));
 router.get('/categories', asyncHandler(async(req,res)=>{
   const pool=await getFinancialPostgresPool();
   if(!pool) return sendError(req,res,503,

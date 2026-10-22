@@ -46,3 +46,15 @@ test('zero NAV and falsely live mutual-fund NAV cannot reach SQL',async()=>{
  await assert.rejects(store.appendObservation({...base,kind:'PUBLISHED_RATE',
    value:'6.50',unit:'PERCENT_PER_ANNUM'}),/rate metric and observation class/);
 });
+
+test('financial catalog summary uses PostgreSQL counts, not a hardcoded universe size', async () => {
+ const queries=[];
+ const dbCount={totalCount:251,discoveryFamilies:250,actualProducts:1,
+  availableRecords:1,unverifiedRecords:250,qualificationFlagged:1};
+ const pool={query:async sql=>{queries.push(sql);return{rows:[dbCount]};},
+  connect:async()=>({release(){}})};
+ const summary=await createFinancialStore(pool).summary();
+ assert.deepEqual(summary,dbCount);
+ assert.match(queries[0],/FROM finance.products/);
+ assert.match(queries[0],/recommendation_eligible IS TRUE/);
+});

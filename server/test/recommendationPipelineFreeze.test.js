@@ -237,3 +237,23 @@ test('ML confidence normalization rejects non-finite and out-of-range values', (
   assert.throws(() => normaliseConfidenceScores({ confidence_scores: { bad: 'not-a-number' } }), /between 0 and 1/);
   assert.throws(() => normaliseConfidenceScores({ confidence_scores: { FD: '0.8' } }), /between 0 and 1/);
 });
+
+test('generation candidate counts partition the authoritative legacy catalog without promoting extensions', () => {
+ const output=runPipeline(canonicalProfile());
+ const counts=output.riskReconciliation.candidate_counts;
+ assert.equal(counts.legacy_catalog,investmentDatabase.length);
+ assert.equal(counts.eligible+counts.excluded,counts.legacy_catalog);
+ assert.equal(counts.ranked,counts.eligible);
+ assert.equal(counts.selected,output.instruments.length);
+ assert.equal(counts.eligible_not_selected,counts.eligible-counts.selected);
+ assert.equal(output.riskReconciliation.eligible_not_selected.length,counts.eligible_not_selected);
+ const selectedIds=new Set(output.instruments.map(item=>item.id));
+ for(const item of output.riskReconciliation.eligible_not_selected){
+  assert.equal(selectedIds.has(item.id),false);
+  assert.equal(item.reasonCode,'RANKED_BUT_NOT_SELECTED');
+  assert.ok(Number.isFinite(item.score));
+ }
+ const conservative=runPipeline(canonicalProfile({riskTolerance:'Conservative'}));
+ assert.equal(conservative.riskReconciliation.candidate_counts.excluded+
+  conservative.riskReconciliation.candidate_counts.eligible,investmentDatabase.length);
+});
