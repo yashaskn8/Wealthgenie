@@ -45,6 +45,15 @@ export function assertGrowSipResponse(value, input) {
     || value.schema_version !== 'sip-plan-v1'
     || value.monthly_rate_convention !== 'EFFECTIVE_ANNUAL_CAGR'
     || value.annual_return_interpretation !== 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN'
+    || value.calculation_classification !== 'NON_RECOMMENDATION_STEP_UP_CALCULATION'
+    || value.return_basis !== 'PRE_TAX_NOMINAL'
+    || value.return_data_class !== 'USER_INPUT'
+    || value.return_assumption_source !== 'USER_SUPPLIED_WHAT_IF'
+    || value.contribution_timing !== 'START_OF_MONTH'
+    || value.scenario_interpretation !== 'ILLUSTRATIVE_CONSTANT_RETURN_PATHS_NOT_PROBABILITIES'
+    || !Array.isArray(value.warnings)
+    || !value.warnings.includes('PRE_TAX_NOT_A_TAX_ESTIMATE')
+    || !value.warnings.includes('ASSUMED_RETURNS_NOT_GUARANTEED')
     || value.observed_market_fact !== false || value.provider_forecast !== false
     || value.capital_gains_tax !== null || value.estimated_post_tax_corpus !== null) invalid();
 
