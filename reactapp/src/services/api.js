@@ -865,12 +865,14 @@ export async function getProjections(profileId, instruments, monthlyInvestment, 
 }
 
 export async function calculateStepUpProjection(monthlyInvestment, annualReturnRate, years, annualStepUpRate, options = {}) {
+  const { body = {}, ...requestOptions } = options;
   return request('POST', '/projection/step-up', {
     monthlyInvestment,
     annualReturnRate,
     years,
     annualStepUpRate,
-  }, options);
+    ...body,
+  }, requestOptions);
 }
 
 export async function calculateAllocationSplit(monthlyInvestment, equityPct, options = {}) {
