@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { buildGenieProofManifest, extractGenieProofClaims, GENIEPROOF_SUPPORTED_PRODUCT_ID } from '../agents/genieProof/genieProofCore.js';
 import { GenieProofPassportSigner } from '../agents/genieProof/genieProofPassportSignature.js';
+import { verifyExportedGenieProofPassport } from '../agents/genieProof/genieProofPassportVerifier.js';
 import { createGenieProofCase, deleteGenieProofCase, getGenieProofCase, listGenieProofCases, listGenieProofRevisions, reassessGenieProofCase, verifyGenieProofCase, withdrawGenieProofConsent } from '../agents/genieProof/genieProofService.js';
 import { GENIEPROOF_MAX_CASES_PER_USER, GENIEPROOF_RETENTION_DAYS } from '../agents/genieProof/genieProofPolicy.js';
 import { genieProofCreateCaseSchema } from '../agents/genieProof/genieProofSchemas.js';
@@ -171,6 +172,37 @@ function requestFor(text = 'The current official PPF interest rate is 7.1% p.a.'
       unit: candidate.unit,
     })),
   };
+}
+
+function appendRevision(f, created, revisionNumber = 2) {
+  const previous = f.revisions.find(revision => revision.caseId === created.case.caseId
+    && Number(revision.revision) === revisionNumber - 1);
+  const { manifest } = buildGenieProofManifest({
+    caseId: created.case.caseId,
+    ownerId: userOne,
+    submissionHash: previous.manifest.submissionHash,
+    confirmedClaims: previous.manifest.confirmedClaims,
+    findings: previous.manifest.findings,
+    revision: revisionNumber,
+    previousManifestHash: previous.manifestHash,
+    assessedAt: now().toISOString(),
+  });
+  const passport = f.signer.signManifest(manifest);
+  const next = {
+    userId: userOne,
+    caseId: created.case.caseId,
+    revision: revisionNumber,
+    manifest: passport.manifest,
+    manifestHash: passport.manifestHash,
+    signature: passport.signature,
+    assessedAt: now(),
+    expiresAt: previous.expiresAt,
+  };
+  f.revisions.push(next);
+  const row = f.cases.find(item => item.caseId === created.case.caseId);
+  row.latestRevision = revisionNumber;
+  row.latestManifestHash = passport.manifestHash;
+  return next;
 }
 
 test('case creation checks the original input hash, requires extracted claim IDs, and never stores offer text', async () => {
@@ -390,6 +422,73 @@ test('bounded passport history does not claim a complete chain without its prede
   assert.equal(history.revisions[0].verification.integrity, 'CONTENT_HASH_MATCHES');
   assert.equal(history.revisions[0].verification.chainContinuity, 'INCOMPLETE');
   assert.equal(history.revisions[0].verification.code, 'PASSPORT_REVISION_CHAIN_PREFIX_UNVERIFIED');
+});
+
+test('passport history rejects later chain continuity when a predecessor manifest was modified', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-predecessor-manifest-tamper', signer: f.signer, ...f, now });
+  appendRevision(f, created);
+  appendRevision(f, created, 3);
+  f.revisions[0].manifest.findings[0].finding = 'TAMPERED_AFTER_SIGNING';
+
+  const history = await listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f, now });
+  const [latest, middle, predecessor] = history.revisions;
+  assert.equal(predecessor.verification.integrity, 'INVALID');
+  assert.equal(middle.verification.chainContinuity, 'INVALID');
+  assert.equal(latest.revision, 3);
+  assert.equal(latest.verification.chainContinuity, 'INVALID');
+  assert.equal(latest.verification.integrity, 'INVALID');
+  assert.equal(latest.verification.code, 'PASSPORT_REVISION_CHAIN_MISMATCH');
+});
+
+test('passport history rejects later chain continuity when a predecessor signature is invalid', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-predecessor-signature-tamper', signer: f.signer, ...f, now });
+  appendRevision(f, created);
+  f.revisions[0].signature.value = 'A'.repeat(86);
+
+  const history = await listGenieProofRevisions({ userId: userOne, caseId: created.case.caseId, signer: f.signer, ...f, now });
+  const [latest, predecessor] = history.revisions;
+  assert.equal(predecessor.verification.integrity, 'CONTENT_HASH_MATCHES');
+  assert.equal(predecessor.verification.signature, 'UNVERIFIED');
+  assert.equal(predecessor.verification.code, 'PASSPORT_SIGNATURE_INVALID');
+  assert.equal(latest.verification.chainContinuity, 'INVALID');
+  assert.equal(latest.verification.integrity, 'INVALID');
+});
+
+test('online passport verification applies the offline deterministic replay policy to signed findings', async () => {
+  const f = fixture();
+  const created = await createGenieProofCase({ userId: userOne, ...requestFor(), idempotencyKey: 'genieproof-online-finding-replay', signer: f.signer, ...f, now });
+  const revision = f.revisions[0];
+  revision.manifest.findings[0].finding = 'SUPPORTED';
+  const resigned = f.signer.signManifest(revision.manifest);
+  revision.manifestHash = resigned.manifestHash;
+  revision.signature = resigned.signature;
+  f.cases[0].latestManifestHash = resigned.manifestHash;
+  let evidenceStatusResolverCalled = false;
+
+  const verification = await verifyGenieProofCase({
+    userId: userOne,
+    caseId: created.case.caseId,
+    signer: f.signer,
+    currentEvidenceStatusResolver: async () => {
+      evidenceStatusResolverCalled = true;
+      return { byClaimId: {} };
+    },
+    ...f,
+    now,
+  });
+
+  const offlineVerification = verifyExportedGenieProofPassport(resigned, {
+    trustedPublicKeys: { [f.signer.keyId]: f.signer.publicKey.export({ type: 'spki', format: 'pem' }) },
+  });
+  assert.equal(offlineVerification.code, 'PASSPORT_FINDING_REPLAY_MISMATCH');
+  assert.equal(verification.integrity, 'INVALID');
+  assert.equal(verification.signature, 'VERIFIED');
+  assert.equal(verification.trustedIssuer, true);
+  assert.equal(verification.code, offlineVerification.code);
+  assert.equal(Object.hasOwn(verification, 'findings'), false);
+  assert.equal(evidenceStatusResolverCalled, false);
 });
 
 test('case quota is a hard 25-case limit and expired records stop appearing in active reads', async () => {

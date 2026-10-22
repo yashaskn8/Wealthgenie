@@ -62,6 +62,7 @@ export const UPSTOX_INSTRUMENT_REGISTRY = Object.freeze(
     currency: row.currency,
     unit: row.unit,
     instrumentType: row.instrumentType,
+    dataClass: row.dataClass,
     registryRevision: UPSTOX_INSTRUMENT_REGISTRY_REVISION,
     evidenceSource: row.evidenceSource || UPSTOX_MARKET_QUOTE_DOCUMENTATION_URL,
     evidenceReviewedAt: UPSTOX_REGISTRY_EVIDENCE_REVIEWED_AT,
@@ -93,5 +94,20 @@ export function resolveUpstoxQuoteIdentities(canonicalProductIds) {
     if (!identity) throw new UnsupportedUpstoxInstrumentError(id);
     return identity;
   });
+  return identities;
+}
+
+/**
+ * Product comparison must request an exact listed product identity. Index
+ * observations belong to the market-context flow and must never be presented
+ * as quotes for every investment category.
+ */
+export function resolveUpstoxProductQuoteIdentities(canonicalProductIds) {
+  const identities = resolveUpstoxQuoteIdentities(canonicalProductIds);
+  const unsupported = identities.find(identity => (
+    identity.instrumentType !== 'ETF'
+    || identity.dataClass !== 'LIVE_EXCHANGE_QUOTE_OBSERVATION'
+  ));
+  if (unsupported) throw new UnsupportedUpstoxInstrumentError(unsupported.canonicalProductId);
   return identities;
 }

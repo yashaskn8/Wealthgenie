@@ -22,6 +22,12 @@ describe('navigationMap architecture', () => {
   it('correctly normalizes valid pages without tabs', () => {
     const result = normalizeNavigation('home', null);
     expect(result).toEqual({ page: 'home', tab: null, isNormalized: false });
+    expect(PAGE_ALLOWLIST).toContain(NAV_PAGES.EXPLORE_INVESTMENTS);
+    expect(normalizeNavigation(NAV_PAGES.EXPLORE_INVESTMENTS, null)).toEqual({
+      page: NAV_PAGES.EXPLORE_INVESTMENTS,
+      tab: null,
+      isNormalized: false,
+    });
   });
 
   it('normalizes unknown pages to home', () => {

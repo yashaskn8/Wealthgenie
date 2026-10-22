@@ -103,10 +103,35 @@ describe('GenieProofPanel', () => {
         value: 7.1,
         unit: 'PERCENT_PER_ANNUM',
       }],
-    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    }, expect.objectContaining({
+      signal: expect.any(AbortSignal),
+      headers: expect.objectContaining({ 'Idempotency-Key': expect.stringMatching(/^[A-Za-z0-9._:-]{8,128}$/) }),
+    }));
     expect(screen.queryByText('NOT_VERIFIABLE', { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText(/verify its trusted signature before viewing findings/i)).toBeInTheDocument();
     expect(screen.getByText(/ProofBreak availability is checked for each saved case/i)).toBeInTheDocument();
+  });
+
+  it('reuses the same create key when the user retries a save after an uncertain response', async () => {
+    mockApi.createGenieProofCase.mockRejectedValueOnce(new Error('The connection ended before the result was received.'));
+    render(<GenieProofPanel />);
+    fireEvent.change(screen.getByLabelText('Paste the offer text'), { target: { value: offerText } });
+    fireEvent.click(screen.getByRole('button', { name: /extract claims/i }));
+    expect(await screen.findByLabelText('Claim wording')).toHaveValue(offerText);
+    fireEvent.click(screen.getByLabelText('I reviewed the exact wording and interpretation above.'));
+    fireEvent.click(screen.getByLabelText(/I consent to save the confirmed claim wording/i));
+
+    const saveButton = screen.getByRole('button', { name: /save private passport/i });
+    fireEvent.click(saveButton);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/connection ended before the result was received/i);
+    const firstKey = mockApi.createGenieProofCase.mock.calls[0][1].headers['Idempotency-Key'];
+
+    fireEvent.click(saveButton);
+    await waitFor(() => expect(mockApi.createGenieProofCase).toHaveBeenCalledTimes(2));
+    const retryKey = mockApi.createGenieProofCase.mock.calls[1][1].headers['Idempotency-Key'];
+    expect(firstKey).toMatch(/^[A-Za-z0-9._:-]{8,128}$/);
+    expect(retryKey).toBe(firstKey);
+    expect(await screen.findByText(/private claim record saved/i)).toBeInTheDocument();
   });
 
   it('blocks saving when extraction omitted claims beyond its review limit', async () => {
@@ -398,6 +423,42 @@ describe('GenieProofPanel', () => {
     expect(screen.getByLabelText(/I consent to a new private assessment/i)).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Create new assessment' })).toBeDisabled();
     expect(mockApi.reassessGenieProofCase).not.toHaveBeenCalled();
+  });
+
+  it('reuses the same reassessment key after an uncertain response', async () => {
+    const caseId = '00000000-0000-4000-8000-000000000001';
+    const firstHash = 'a'.repeat(64);
+    const secondHash = 'b'.repeat(64);
+    const passport = (revision, manifestHash) => ({
+      passport: {
+        manifestHash,
+        manifest: { caseId, revision, confirmedClaims: [], findings: [] },
+      },
+    });
+    mockApi.listGenieProofCases.mockResolvedValue({ cases: [{ caseId, revision: 1, claimCount: 0, manifestHash: firstHash }] });
+    mockApi.getGenieProofCase.mockResolvedValueOnce(passport(1, firstHash)).mockResolvedValue(passport(2, secondHash));
+    mockApi.verifyGenieProofCase
+      .mockResolvedValueOnce({ revision: 1, manifestHash: firstHash, integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true })
+      .mockResolvedValue({ revision: 2, manifestHash: secondHash, integrity: 'VALID', signature: 'VERIFIED', trustedIssuer: true });
+    mockApi.reassessGenieProofCase
+      .mockRejectedValueOnce(new Error('The connection ended before the result was received.'))
+      .mockResolvedValueOnce({ revision: 2 });
+    mockApi.listGenieProofRevisions.mockResolvedValue({ caseId, revisions: [] });
+
+    render(<GenieProofPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+    expect(await screen.findByRole('heading', { name: /Signed claim record · revision 1/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/I consent to a new private assessment/i));
+    const reassessButton = screen.getByRole('button', { name: 'Create new assessment' });
+    fireEvent.click(reassessButton);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/connection ended before the result was received/i);
+    const firstKey = mockApi.reassessGenieProofCase.mock.calls[0][1].headers['Idempotency-Key'];
+
+    fireEvent.click(reassessButton);
+    await waitFor(() => expect(mockApi.reassessGenieProofCase).toHaveBeenCalledTimes(2));
+    const retryKey = mockApi.reassessGenieProofCase.mock.calls[1][1].headers['Idempotency-Key'];
+    expect(retryKey).toBe(firstKey);
+    expect(await screen.findByText(/private assessment revision 2 was saved/i)).toBeInTheDocument();
   });
 
   it('clears previously opened signed findings as soon as a new offer is entered', async () => {

@@ -18,6 +18,7 @@ import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
 import recommendRoutes from './routes/recommend.js';
 import instrumentRoutes from './routes/instruments.js';
+import investmentExplorerRoutes from './routes/investmentExplorer.js';
 import projectionRoutes from './routes/projection.js';
 import montecarloRoutes from './routes/montecarlo.js';
 import goalRoutes from './routes/goals.js';
@@ -208,6 +209,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/profile', profileRoutes);
   app.use('/api/recommend', recommendRoutes);
   app.use('/api/instruments', instrumentRoutes);
+  app.use('/api/investment-explorer', investmentExplorerRoutes);
   app.use('/api/projection', projectionRoutes);
   app.use('/api/montecarlo', montecarloRoutes);
   app.use('/api/goals', goalRoutes);

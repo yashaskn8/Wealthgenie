@@ -25,15 +25,15 @@ const CONDITIONAL_PROFILE_FIELDS = Object.freeze({
 const PROFILE_FIELD_QUESTION_PATTERNS = Object.freeze({
   age: /\b(?:my age|my current age|based on my age)\b/i,
   monthlySavings: /\b(?:my monthly savings|my sip|my monthly contribution|how much can i save|can i afford)\b/i,
-  riskTolerance: /\b(?:my risk tolerance|my risk profile|my suitability|why (?:is )?(?:this|my|the current) recommendation|my (?:recommendation|allocation|portfolio|plan)|your plan|for me|suitable for me|fit my profile|given my profile|what should i invest|which (?:fund|product|instrument) should i)\b/i,
-  suitabilityRisk: /\b(?:my risk tolerance|my risk profile|my suitability|why (?:is )?(?:this|my|the current) recommendation|my (?:recommendation|allocation|portfolio|plan)|your plan|for me|suitable for me|fit my profile|given my profile|what should i invest|which (?:fund|product|instrument) should i)\b/i,
+  riskTolerance: /\b(?:my (?:stated )?risk tolerance|my risk profile|my suitability|why (?:is )?(?:this|my|the current) recommendation|my (?:recommendation|allocation|portfolio|plan)|your plan|for me|suitable for me|fit my profile|given my profile|what should i invest|which (?:fund|product|instrument) should i)\b/i,
+  suitabilityRisk: /\b(?:my (?:stated )?risk tolerance|my risk profile|my suitability|why (?:is )?(?:this|my|the current) recommendation|my (?:recommendation|allocation|portfolio|plan)|your plan|for me|suitable for me|fit my profile|given my profile|what should i invest|which (?:fund|product|instrument) should i)\b/i,
   investmentHorizonYears: /\b(?:my horizon|my time frame|my timeframe|my investment period|years? should i invest|my retirement plan)\b/i,
   investmentGoals: /\b(?:my goal|my goals|my retirement|based on my goals|my financial milestone)\b/i,
-  suitabilityReasonCodes: /\b(?:why (?:is )?(?:this|my|the current) recommendation|why.*my (?:plan|portfolio|allocation)|reason.*(?:my recommendation|this recommendation|my suitability))\b/i,
+  suitabilityReasonCodes: /\b(?:why (?:is )?(?:this|my|the current) recommendation|why.*my (?:plan|portfolio|allocation)|reason.*(?:my recommendation|this recommendation|my suitability)|(?:difference|differ|reason|lower|reduced).*my (?:stated )?risk tolerance)\b/i,
   ...CONDITIONAL_PROFILE_FIELDS,
 });
 
-const RECOMMENDATION_QUESTION_PATTERN = /\b(?:my recommendation|why (?:is )?(?:this|my|the current) recommendation|my allocation|my portfolio|my plan|my expected return|my projection|my future value|expected return for my (?:plan|portfolio|investment)|projection for my (?:plan|portfolio|investment)|your plan|for me|suitable for me|fit my profile|given my profile|what should i invest|which (?:fund|product|instrument) should i)\b/i;
+const RECOMMENDATION_QUESTION_PATTERN = /\b(?:my recommendation|why (?:is )?(?:this|my|the current) recommendation|my allocation|my portfolio|my plan|my (?:stated )?risk tolerance|my expected return|my projection|my future value|expected return for my (?:plan|portfolio|investment)|projection for my (?:plan|portfolio|investment)|your plan|for me|suitable for me|fit my profile|given my profile|what should i invest|which (?:fund|product|instrument) should i)\b/i;
 
 export function isPersonalizedRecommendationQuestion(question) {
   return RECOMMENDATION_QUESTION_PATTERN.test(String(question || ''));

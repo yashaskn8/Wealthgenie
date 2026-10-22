@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Zap,
+  Search,
 } from 'lucide-react';
 import './Sidebar.css';
 import logoImg from '../assets/logo.png';
@@ -28,7 +29,10 @@ const PRIMARY_NAV_ITEMS = [
   { id: NAV_PAGES.PROGRESS, label: 'Progress', icon: TrendingUp, testId: 'nav-progress', legacyTestIds: [] },
 ];
 
-const DESKTOP_PRIMARY_NAV_ITEMS = PRIMARY_NAV_ITEMS.filter(item => item.id !== NAV_PAGES.PROGRESS);
+const DESKTOP_PRIMARY_NAV_ITEMS = [
+  ...PRIMARY_NAV_ITEMS.filter(item => item.id !== NAV_PAGES.PROGRESS),
+  { id: NAV_PAGES.EXPLORE_INVESTMENTS, label: 'Explore Investments', icon: Search, testId: 'nav-explore-investments', legacyTestIds: [] },
+];
 // Mobile continues using the original PRIMARY_NAV_ITEMS.
 const JOURNEY_NAV_ITEMS = [
   { id: NAV_PAGES.GOALS, label: 'Goals', icon: Target, testId: 'nav-my-goals', legacyTestIds: ['nav-goals', 'nav-goal-planner'] },
@@ -514,7 +518,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
           aria-expanded={mobileMenuOpen}
           aria-label="More navigation options"
           className={`tab-item ${
-            [NAV_PAGES.GENIEPROOF, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
+            [NAV_PAGES.EXPLORE_INVESTMENTS, NAV_PAGES.GENIEPROOF, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
               ? 'tab-item--active'
               : ''
           }`}
@@ -522,7 +526,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
         >
           <Menu size={20} strokeWidth={1.8} />
           <span className="tab-label">More</span>
-          {[NAV_PAGES.GENIEPROOF, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
+          {[NAV_PAGES.EXPLORE_INVESTMENTS, NAV_PAGES.GENIEPROOF, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
             <span className="tab-active-dot" />
           )}
         </button>
@@ -560,6 +564,17 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
 
             {/* Sheet Nav Items */}
             <div className="mobile-drawer-items">
+              <div className="mobile-drawer-section-title">INVESTMENT DISCOVERY</div>
+              <button
+                type="button"
+                data-testid="mobile-nav-explore-investments"
+                className={`mobile-drawer-btn ${activePage === NAV_PAGES.EXPLORE_INVESTMENTS ? 'mobile-drawer-btn--active' : ''}`}
+                onClick={() => handleItemClick(NAV_PAGES.EXPLORE_INVESTMENTS)}
+              >
+                <Search size={18} color="#38bdf8" />
+                <span>Explore All Investments</span>
+              </button>
+
               {genieProofEnabled && (
                 <>
                   <div className="mobile-drawer-section-title">RESEARCH PREVIEW</div>

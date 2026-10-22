@@ -133,6 +133,27 @@ function hasValidManifestBindings(manifest) {
 }
 
 /**
+ * Replays the deterministic finding policy and manifest bindings shared by
+ * online and offline verification. The caller must verify the signed
+ * envelope separately before treating this result as issuer-authenticated.
+ */
+export function replayGenieProofManifestFindings(manifest, { trustedPublicKeys = {} } = {}) {
+  let replay;
+  try {
+    replay = hasReproducibleFindings(manifest, { trustedPublicKeys });
+    if (!replay || !hasValidManifestBindings(manifest)) {
+      return { valid: false, code: 'PASSPORT_FINDING_REPLAY_MISMATCH' };
+    }
+  } catch {
+    return { valid: false, code: 'PASSPORT_FINDING_REPLAY_MISMATCH' };
+  }
+  return {
+    valid: true,
+    ...(replay.legacyTimestampReplay ? { findingSemantics: 'LEGACY_TIMESTAMP_REPLAY_ONLY' } : {}),
+  };
+}
+
+/**
  * Verify a downloaded GenieProof passport without a database or private key.
  * Trust anchors must be provided out-of-band by the caller. This verifies the
  * signed content and replays the deterministic finding policy; it cannot
@@ -195,11 +216,10 @@ export function verifyExportedGenieProofPassport(signedPassport, options = {}) {
     });
   }
 
-  const manifest = signedPassport.manifest;
   const trustedPublicKeys = options?.trustedPublicKeys ?? {};
-  const replay = hasReproducibleFindings(manifest, { trustedPublicKeys });
-  const findingsReproduced = replay && hasValidManifestBindings(manifest);
-  if (!findingsReproduced) {
+  const manifest = signedPassport.manifest;
+  const replay = replayGenieProofManifestFindings(manifest, { trustedPublicKeys });
+  if (!replay.valid) {
     return {
       status: 'VERIFICATION_FAILED',
       signature: 'SIGNATURE_INTEGRITY_VALID',
@@ -215,9 +235,9 @@ export function verifyExportedGenieProofPassport(signedPassport, options = {}) {
   const hasEvidenceBindings = Array.isArray(manifest.evidenceRevisionHashes)
     && manifest.evidenceRevisionHashes.length > 0;
   const evidenceCheckable = isGenieProofEvidenceVerifierVersion(manifest.verifierVersion) && hasEvidenceBindings;
-  const findingSemantics = replay.legacyTimestampReplay ? 'LEGACY_TIMESTAMP_REPLAY_ONLY'
-    : manifest.verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
-      ? 'CURRENT_POLICY_REPLAY_ONLY' : 'LEGACY_REPLAY_ONLY';
+  const findingSemantics = replay.findingSemantics
+    ?? (manifest.verifierVersion === GENIEPROOF_EVIDENCE_VERIFIER_VERSION
+      ? 'CURRENT_POLICY_REPLAY_ONLY' : 'LEGACY_REPLAY_ONLY');
   const levels = {
     signatureIntegrity: 'SIGNATURE_INTEGRITY_VALID',
     evidenceIntegrity: evidenceCheckable ? 'EVIDENCE_INTEGRITY_CHECKABLE' : 'EVIDENCE_INTEGRITY_NOT_CHECKABLE',

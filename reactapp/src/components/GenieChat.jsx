@@ -159,7 +159,10 @@ function mapStoredChatMessages(messages) {
     grounding_version: message.metadata?.grounding_version,
     evidence_ids_used: message.metadata?.evidence_ids_used || [],
     unavailable_facts: message.metadata?.unavailable_facts || [],
+    fallback: message.metadata?.fallback_used === true,
+    fallback_reason_codes: message.metadata?.fallback_used ? message.metadata?.validation_reason_codes || [] : [],
     citations: message.metadata?.citations || [],
+    action_cards: message.metadata?.action_cards || [],
     _clientTurnHash: message.metadata?.client_turn_hash || null,
     _streamed: true,
   }));
@@ -672,6 +675,14 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
   const handleAction = useCallback((action) => {
     if (!action) return;
+    if (action.kind === 'APP_NAVIGATION') {
+      const pages = ['plan', 'investments', 'taxes', 'goals', 'grow-my-sip', 'keep-on-track', 'account'];
+      if (pages.includes(action.target)) {
+        onNavigate?.(action.target);
+        setIsOpen(false);
+      }
+      return;
+    }
     const target = action.target || action.url || '';
     if (onNavigate) {
       const TARGET_MAPPING = {
@@ -789,6 +800,9 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         grounding_version: data.grounding_version,
         evidence_ids_used: data.evidence_ids_used || [],
         unavailable_facts: data.unavailable_facts || [],
+        fallback: data.fallback === true,
+        fallback_reason_codes: data.fallback ? data.fallback_reason_codes || [] : [],
+        action_cards: data.action_cards || [],
         _streamed: false,
         _turnKey: retryableTurn.idempotencyKey,
       }]);
@@ -1068,7 +1082,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
               </button>
             </div>
             {voiceError && <div role="status" className="chat-error-banner">{voiceError}</div>}
-            <div className="genie-disclaimer">AI-powered guidance · Not SEBI-registered advice · For learning purposes</div>
+            <div className="genie-disclaimer">For informational purposes only. Not registered investment advice under SEBI (IA) Regulations, 2013. Consult a SEBI-registered adviser before investing. Mutual fund investments are subject to market risks.</div>
           </div>
 
           {activeWorkspace && (

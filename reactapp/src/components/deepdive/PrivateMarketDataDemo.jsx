@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getPrivateMarketDemoData } from '../../services/api';
 import { formatMarketTimestamp, nullableMarketNumber } from '../../utils/marketDataDisplay';
+import { findPrivateQuoteForProduct, getPrivateMarketObservationRows } from '../../utils/privateMarketQuote';
 import './PrivateMarketDataDemo.css';
 
 const PRIVATE_PROVIDER_FAILURES = Object.freeze({
@@ -40,41 +41,47 @@ function quoteText(fact, providerStatus) {
   return unit ? `${text} ${unit}` : text;
 }
 
-function quoteName(fact) {
-  const names = {
-    'market:index:nifty-50': 'NIFTY 50',
-    'market:index:india-vix': 'India VIX',
-    'etf:isin:INF204KB14I2': 'Nippon India ETF Nifty 50 BeES',
-  };
-  const key = typeof fact?.source?.instrumentId === 'string'
-    ? fact.source.instrumentId.split('|').at(-1) : null;
-  return names[fact?.canonicalProductId] || key || 'Market instrument';
-}
-
-export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) {
+export default function PrivateMarketDataDemo({ autoLoad = false, canonicalProductIds = [], onSnapshot }) {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const requestRevision = useRef(0);
+  const canonicalProductIdsKey = Array.isArray(canonicalProductIds) ? canonicalProductIds.join(',') : '';
+  const requestedProductIds = useMemo(
+    () => canonicalProductIdsKey ? canonicalProductIdsKey.split(',') : [],
+    [canonicalProductIdsKey],
+  );
 
   const loadDemoData = useCallback(async (signal) => {
+    if (requestedProductIds.length === 0) {
+      setSnapshot(null);
+      setError(null);
+      setLoading(false);
+      onSnapshot?.(null, requestedProductIds);
+      return;
+    }
     const revision = ++requestRevision.current;
     setLoading(true);
     setError(null);
     setSnapshot(null);
-    onSnapshot?.(null);
+    onSnapshot?.(null, requestedProductIds);
     try {
-      const data = await getPrivateMarketDemoData({ signal });
+      const data = await getPrivateMarketDemoData(requestedProductIds, { signal });
       if (!data || typeof data !== 'object' || Array.isArray(data)
           || !data.upstox || typeof data.upstox !== 'object' || Array.isArray(data.upstox)) {
         throw new TypeError('Invalid private market-data response');
       }
       if (requestRevision.current === revision && !signal?.aborted) {
-        setSnapshot(data);
-        onSnapshot?.(data);
+        const facts = requestedProductIds
+          .map(id => findPrivateQuoteForProduct(data, id))
+          .filter(Boolean);
+        const scopedData = { ...data, upstox: { ...data.upstox, facts } };
+        setSnapshot(scopedData);
+        onSnapshot?.(scopedData, requestedProductIds);
       }
     } catch (requestError) {
       if (requestRevision.current === revision && !signal?.aborted) {
+        onSnapshot?.(null, requestedProductIds);
         setError(requestError?.code === 'PRIVATE_MARKET_DEMO_UNAVAILABLE'
           ? 'The local authenticated provider demo is disabled on this server.'
           : 'Provider data could not be loaded. Check local server and provider status.');
@@ -82,10 +89,14 @@ export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) 
     } finally {
       if (requestRevision.current === revision && !signal?.aborted) setLoading(false);
     }
-  }, [onSnapshot]);
+  }, [onSnapshot, requestedProductIds]);
 
   useEffect(() => {
     if (!autoLoad) return undefined;
+    if (requestedProductIds.length === 0) {
+      loadDemoData();
+      return undefined;
+    }
     const controller = new AbortController();
     // StrictMode's development remount cancels the first timer before a
     // provider request is sent, preserving the small private-demo budget.
@@ -95,54 +106,54 @@ export default function PrivateMarketDataDemo({ autoLoad = false, onSnapshot }) 
       controller.abort();
       requestRevision.current += 1;
     };
-  }, [autoLoad, loadDemoData]);
+  }, [autoLoad, loadDemoData, requestedProductIds.length]);
 
-  const quotes = Array.isArray(snapshot?.upstox?.facts)
-    ? snapshot.upstox.facts.filter(fact => (
-      fact && typeof fact === 'object' && !Array.isArray(fact)
-      && typeof fact.canonicalProductId === 'string'
-    ))
-    : [];
+  const quotes = getPrivateMarketObservationRows(snapshot, requestedProductIds);
   const providerExplanation = snapshot ? providerStatusExplanation(snapshot) : null;
 
   return (
     <section className="private-market-demo" aria-labelledby="private-market-demo-title" data-testid="private-market-demo">
       <div className="private-market-demo__heading">
         <div>
-          <h4 id="private-market-demo-title">Upstox market observations</h4>
-          <p>Authenticated local educational demo. Quotes are fetched from Upstox and not saved.</p>
+          <h4 id="private-market-demo-title">Upstox quotes for this category</h4>
+          <p>Only exact, registered product matches are requested. These private observations do not change your plan.</p>
         </div>
-        <button type="button" onClick={() => loadDemoData()} disabled={loading}>
-          {loading ? 'Fetching…' : snapshot ? 'Refresh quotes' : 'Load Upstox quotes'}
+        <button type="button" onClick={() => loadDemoData()} disabled={loading || requestedProductIds.length === 0}>
+          {loading ? 'Fetching…' : snapshot ? 'Refresh matched quote' : 'Load matched quote'}
         </button>
       </div>
+
+      {requestedProductIds.length === 0 && (
+        <p className="private-market-demo__provider-note" role="status">
+          No exact Upstox instrument is registered for a product in this category. Quotes from other products and market indices are hidden.
+        </p>
+      )}
 
       {error && <p className="private-market-demo__error" role="alert">{error}</p>}
       {snapshot && (
         <div className="private-market-demo__results" aria-live="polite">
           <div className="private-market-demo__provider">
             <div className="private-market-demo__provider-title">
-              <strong>Upstox · market quote response</strong>
+              <strong>Upstox · exact product quote response</strong>
               <span>{snapshot.upstox?.status || 'UNAVAILABLE'}</span>
             </div>
             {providerExplanation && <p className="private-market-demo__provider-note" role="status">{providerExplanation}</p>}
             <div className="private-market-demo__quotes">
-              {quotes.map(fact => (
-                <div key={fact.canonicalProductId} data-testid={`private-quote-${fact.canonicalProductId}`}>
-                  <span>{quoteName(fact)}</span>
-                  <strong>{quoteText(fact, snapshot?.upstox?.status) ?? 'Unavailable'}</strong>
-                  <small>Last trade: {formatMarketTimestamp(fact.quoteLastTradeAt || fact.observedAt) || 'Unavailable'}</small>
-                  <small>Provider response: {formatMarketTimestamp(fact.quoteResponseGeneratedAt) || 'Unavailable'}</small>
-                  <small>Fetched: {formatMarketTimestamp(fact.providerResponseReceivedAt || fact.fetchedAt) || 'Unavailable'}</small>
-                  <small>{['FRESH', 'STALE', 'UNKNOWN'].includes(fact.freshness?.status)
-                    ? fact.freshness.status : 'UNKNOWN'}
-                    {Number.isFinite(fact.freshness?.ageSeconds) ? ` · ${fact.freshness.ageSeconds}s since trade` : ''}</small>
-                  {fact.freshness?.status !== 'FRESH' && (
-                    <small>Last-traded observation only — not a current live quote.</small>
-                  )}
+              {quotes.map(row => (
+                <div key={row.canonicalProductId} data-testid={`private-quote-${row.canonicalProductId}`}>
+                  <span>{row.name}</span>
+                  <strong>{row.formattedValue || quoteText(
+                    snapshot.upstox.facts.find(fact => fact.canonicalProductId === row.canonicalProductId),
+                    snapshot?.upstox?.status,
+                  ) || 'Unavailable'}</strong>
+                  <small>Last trade: {formatMarketTimestamp(row.lastTradeAt) || 'Unavailable'}</small>
+                  <small>Provider response: {formatMarketTimestamp(row.responseGeneratedAt) || 'Unavailable'}</small>
+                  <small>Fetched: {formatMarketTimestamp(row.fetchedAt) || 'Unavailable'}</small>
+                  <small>{row.freshness}{Number.isFinite(row.ageSeconds) ? ` · ${row.ageSeconds}s since trade` : ''}</small>
+                  {row.freshness !== 'FRESH' && <small>Last-traded observation only — not a current live quote.</small>}
                 </div>
               ))}
-              {quotes.length === 0 && <span>No quote observations returned.</span>}
+              {quotes.length === 0 && <span>No usable quote was returned for the exact product in this category.</span>}
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './config/bootstrapEnvironment.js';
 import tracingSdk from './config/tracing.js';
 import mongoose from 'mongoose';
 import connectDB from './config/db.js';

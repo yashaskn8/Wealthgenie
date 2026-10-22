@@ -6,7 +6,10 @@ import { createUpstoxPublicDataGate } from '../middleware/upstoxPublicDataGate.j
 import { fetchPrivateMarketDemoData, fetchUpstoxCanonicalQuotes } from '../services/marketDataService.js';
 import { createPrivateMarketDataDemoCapability } from '../services/marketData/marketDataRights.js';
 import { readStoredBenchmarkQuotes } from '../services/marketData/StoredBenchmarkQuoteStore.js';
-import { resolveUpstoxQuoteIdentities } from '../services/marketData/upstoxInstrumentRegistry.js';
+import {
+  resolveUpstoxProductQuoteIdentities,
+  resolveUpstoxQuoteIdentities,
+} from '../services/marketData/upstoxInstrumentRegistry.js';
 import { validateQuery, marketQuoteQuerySchema } from '../validation/schemas.js';
 
 export function createMarketQuotesRouter({
@@ -35,14 +38,26 @@ export function createMarketQuotesRouter({
     keyGenerator: req => `user:${req.user?.userId || ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown')}`,
   });
 
-  router.get('/private-demo', verifySession, privateDemoLimiter, asyncHandler(async (req, res) => {
+  router.get('/private-demo', verifySession, privateDemoLimiter, validateQuery(marketQuoteQuerySchema), asyncHandler(async (req, res) => {
     const privateDemoCapability = createDemoCapability(req, env);
     if (!privateDemoCapability) {
       return sendError(req, res, 404, 'The authenticated private market demo is not enabled on this local development server.', 'PRIVATE_MARKET_DEMO_UNAVAILABLE');
     }
+    const canonicalProductIds = req.query.ids.split(',');
+    try {
+      resolveUpstoxProductQuoteIdentities(canonicalProductIds);
+    } catch (error) {
+      if (error?.code === 'UNSUPPORTED_MARKET_INSTRUMENT') {
+        return sendError(req, res, 400, error.message, error.code);
+      }
+      if (error instanceof RangeError || error instanceof TypeError) {
+        return sendError(req, res, 400, 'Market quote request is invalid.', 'INVALID_MARKET_QUOTE_REQUEST');
+      }
+      throw error;
+    }
     res.set('Cache-Control', 'no-store, private, max-age=0');
     res.set('Pragma', 'no-cache');
-    const data = await fetchPrivateDemo({ env, privateDemoCapability });
+    const data = await fetchPrivateDemo({ env, privateDemoCapability, canonicalProductIds });
     return res.json(data);
   }));
 

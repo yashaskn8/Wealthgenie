@@ -48,6 +48,7 @@ import {
 import {
   UPSTOX_INSTRUMENT_REGISTRY_REVISION,
   resolveUpstoxQuoteIdentities,
+  resolveUpstoxProductQuoteIdentities,
 } from './marketData/upstoxInstrumentRegistry.js';
 import {
   AVAILABILITY,
@@ -794,15 +795,13 @@ export async function fetchUpstoxCanonicalQuotes(canonicalProductIds, {
  * this response.
  */
 export async function fetchPrivateMarketDemoData({
+  canonicalProductIds,
   privateDemoCapability,
   env = process.env,
   now = new Date(),
   quoteProviderFactory = options => new UpstoxMarketDataProvider(options),
 } = {}) {
-  const identities = resolveUpstoxQuoteIdentities([
-    ...DEFAULT_BENCHMARK_IDS,
-    'etf:isin:INF204KB14I2',
-  ]);
+  const identities = resolveUpstoxProductQuoteIdentities(canonicalProductIds);
   const instrumentKeys = identities.map(identity => identity.upstoxInstrumentKey);
   const quoteUrl = buildUpstoxQuoteRequestUrl(instrumentKeys);
   if (!isMarketDataPrivateDemoUseAllowed(PROVIDERS.UPSTOX, quoteUrl, env, privateDemoCapability)) {

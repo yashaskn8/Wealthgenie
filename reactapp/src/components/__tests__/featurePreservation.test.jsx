@@ -244,6 +244,7 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
       expect(screen.getByTestId('nav-home')).toBeInTheDocument();
       expect(screen.getByTestId('nav-plan')).toBeInTheDocument();
       expect(screen.getByTestId('nav-investments')).toBeInTheDocument();
+      expect(screen.getByTestId('nav-explore-investments')).toBeInTheDocument();
       expect(screen.getByTestId('nav-taxes')).toBeInTheDocument();
       expect(screen.queryByTestId('nav-progress')).not.toBeInTheDocument();
       expect(screen.getByTestId('mobile-nav-progress')).toBeInTheDocument();
@@ -283,6 +284,13 @@ describe('Feature Preservation: Zero-Feature-Loss Audit', () => {
         rerender(<Sidebar activePage={page} onNavigate={onNavigate} />);
         expect(screen.getByTestId(id)).toHaveAttribute('aria-current', 'page');
       }
+    });
+    it('opens the full investment explorer from its own desktop sidebar destination', () => {
+      const onNavigate = vi.fn();
+      render(<Sidebar activePage={NAV_PAGES.HOME} onNavigate={onNavigate} />);
+
+      fireEvent.click(screen.getByTestId('nav-explore-investments'));
+      expect(onNavigate).toHaveBeenCalledWith(NAV_PAGES.EXPLORE_INVESTMENTS);
     });
     it('navigates to visible GenieProof by default and preserves explicit opt-out', () => {
       const onNavigate = vi.fn();

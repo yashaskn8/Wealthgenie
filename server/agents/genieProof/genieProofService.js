@@ -8,6 +8,7 @@ import ProofBreakEvent from '../../models/ProofBreakEvent.js';
 import ProofNotificationOutbox from '../../models/ProofNotificationOutbox.js';
 import { canonicalSha256 } from '../../utils/canonicalJson.js';
 import { GENIEPROOF_MAX_CASES_PER_USER, getGenieProofExpiry } from './genieProofPolicy.js';
+import { replayGenieProofManifestFindings } from './genieProofPassportVerifier.js';
 import {
   GENIEPROOF_EVIDENCE_VERIFIER_VERSION,
   buildGenieProofManifest,
@@ -821,25 +822,53 @@ export async function verifyGenieProofCase({
     && manifest.submissionHash === row.submissionHash
     && manifest.confirmedClaimsHash === canonicalSha256(normalizedCaseClaims)
     && manifestHash === row.latestManifestHash;
-  const currentEvidenceStatus = currentEvidenceStatusResolver
+  let findingsReplay = null;
+  if (signatureResult.valid && signatureResult.trustedIssuer) {
+    try {
+      const trustedPublicKeys = signer.trustedPublicKeys instanceof Map
+        ? Object.fromEntries(signer.trustedPublicKeys)
+        : { [signer.keyId]: signer.publicKey };
+      findingsReplay = replayGenieProofManifestFindings(manifest, { trustedPublicKeys });
+    } catch {
+      findingsReplay = { valid: false, code: 'PASSPORT_FINDING_REPLAY_MISMATCH' };
+    }
+  }
+  const replayMismatch = Boolean(signatureResult.valid && signatureResult.trustedIssuer && !findingsReplay?.valid);
+  const currentEvidenceStatus = signatureResult.integrityValid && bindingValid && !replayMismatch && currentEvidenceStatusResolver
     ? await currentEvidenceStatusResolver({ manifest, now })
     : null;
+  const invalidIntegrity = !signatureResult.integrityValid || !bindingValid || replayMismatch;
   return {
     caseId: String(row.caseId),
     revision: Number(row.latestRevision),
     manifestHash,
-    integrity: !signatureResult.integrityValid || !bindingValid
+    integrity: invalidIntegrity
       ? 'INVALID'
       : signatureResult.valid && signatureResult.trustedIssuer ? 'VALID' : 'CONTENT_HASH_MATCHES',
     signature: signatureResult.valid ? 'VERIFIED' : 'UNVERIFIED',
     trustedIssuer: signatureResult.trustedIssuer,
     financialCorrectness: 'NOT_ESTABLISHED_BY_SIGNATURE',
     ...(currentEvidenceStatus ? { currentEvidenceStatus } : {}),
-    code: bindingValid ? signatureResult.code : 'PASSPORT_CASE_BINDING_MISMATCH',
+    code: !bindingValid ? 'PASSPORT_CASE_BINDING_MISMATCH'
+      : replayMismatch ? findingsReplay.code || 'PASSPORT_FINDING_REPLAY_MISMATCH'
+        : signatureResult.code,
   };
 }
 
-function verifyRevisionBinding({ row, revision, userId, signer, previousRevision, currentEvidenceStatus = null }) {
+function predecessorChainStatus(verification) {
+  if (!verification) return 'INCOMPLETE';
+  if (verification.integrity === 'INVALID'
+      || ['PASSPORT_SIGNATURE_INVALID', 'PASSPORT_KEY_FINGERPRINT_MISMATCH'].includes(verification.code)) {
+    return 'INVALID';
+  }
+  return verification.integrity === 'VALID'
+      && verification.signature === 'VERIFIED'
+      && verification.chainContinuity === 'VERIFIED'
+    ? 'VERIFIED'
+    : 'INCOMPLETE';
+}
+
+function verifyRevisionBinding({ row, revision, userId, signer, previousRevision, previousVerification, currentEvidenceStatus = null }) {
   const passport = toSignedPassport(revision);
   const signatureResult = signer.verifySignedManifest(passport);
   const claims = (row.confirmedClaims || []).map(claim => ({
@@ -857,11 +886,13 @@ function verifyRevisionBinding({ row, revision, userId, signer, previousRevision
     && manifest.submissionHash === row.submissionHash
     && manifest.confirmedClaimsHash === canonicalSha256(claims)
     && revision.manifestHash === canonicalSha256(manifest);
+  const predecessorStatus = previousRevision ? predecessorChainStatus(previousVerification) : null;
   const chainContinuity = previousRevision
-    ? manifest.previousManifestHash === previousRevision.manifestHash
-      && Number(revision.revision) === Number(previousRevision.revision) + 1
-      ? 'VERIFIED'
-      : 'INVALID'
+    ? (manifest.previousManifestHash !== previousRevision.manifestHash
+      || Number(revision.revision) !== Number(previousRevision.revision) + 1
+      || predecessorStatus === 'INVALID')
+      ? 'INVALID'
+      : predecessorStatus === 'VERIFIED' ? 'VERIFIED' : 'INCOMPLETE'
     : Number(revision.revision) === 1
       ? manifest.previousManifestHash == null ? 'VERIFIED' : 'INVALID'
       : 'INCOMPLETE';
@@ -909,27 +940,31 @@ export async function listGenieProofRevisions({
       || declaredHead.manifestHash !== row.latestManifestHash) {
     throw serviceError(503, 'GENIEPROOF_CASE_HEAD_MISMATCH', 'The saved passport history does not match its recorded latest revision and cannot be verified.');
   }
-  const verified = await Promise.all(ascending.map(async (revision, index) => {
+  const verified = [];
+  for (let index = 0; index < ascending.length; index += 1) {
+    const revision = ascending[index];
     const passport = toSignedPassport(revision);
     const currentEvidenceStatus = currentEvidenceStatusResolver
       ? await currentEvidenceStatusResolver({ manifest: passport.manifest, now })
       : null;
-    return {
+    const verification = verifyRevisionBinding({
+      row,
+      revision,
+      userId,
+      signer,
+      previousRevision: index ? ascending[index - 1] : null,
+      previousVerification: index ? verified[index - 1].verification : null,
+      currentEvidenceStatus,
+    });
+    verified.push({
       revision: Number(revision.revision),
       manifestHash: revision.manifestHash,
       assessedAt: revision.assessedAt,
-      verification: verifyRevisionBinding({
-        row,
-        revision,
-        userId,
-        signer,
-        previousRevision: index ? ascending[index - 1] : null,
-        currentEvidenceStatus,
-      }),
+      verification,
       passport,
       ...(currentEvidenceStatus ? { currentEvidenceStatus } : {}),
-    };
-  }));
+    });
+  }
   return { caseId: String(row.caseId), revisions: verified.reverse() };
 }
 

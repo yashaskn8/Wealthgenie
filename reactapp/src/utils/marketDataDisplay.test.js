@@ -50,7 +50,8 @@ describe('nullable market-data presentation', () => {
     expect(getMarketDisplayState(blocked, { refreshFailed: true }).key).toBe('RIGHTS_UNAVAILABLE');
     expect(getMarketDisplayState({
       marketSnapshot: { policyOutput: { reasonCodes: ['UPSTOX_PUBLIC_DISTRIBUTION_DISABLED'] } },
-    }).label).toBe('Market data permission unavailable');
+    }).label).toBe('Market source permissions not verified');
+    expect(getMarketDisplayState(blocked).detail).toMatch(/Authenticated local Upstox observations are shown separately/);
     expect(getMarketDisplayState({
       marketSnapshot: { providerStatus: { quotes: {
         error: { code: 'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED' },

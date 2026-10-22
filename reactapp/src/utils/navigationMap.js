@@ -7,6 +7,7 @@ export const NAV_PAGES = {
   HOME: 'home',
   PLAN: 'plan',
   INVESTMENTS: 'investments',
+  EXPLORE_INVESTMENTS: 'explore-investments',
   TAXES: 'taxes',
   PROGRESS: 'progress', // Existing mobile Progress hub remains unchanged.
   GOALS: 'goals',
@@ -21,6 +22,7 @@ export const PAGE_ALLOWLIST = [
   NAV_PAGES.HOME,
   NAV_PAGES.PLAN,
   NAV_PAGES.INVESTMENTS,
+  NAV_PAGES.EXPLORE_INVESTMENTS,
   NAV_PAGES.TAXES,
   NAV_PAGES.PROGRESS,
   NAV_PAGES.GOALS,

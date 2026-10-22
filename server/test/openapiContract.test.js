@@ -12,6 +12,7 @@ import authRoutes from '../routes/auth.js';
 import profileRoutes from '../routes/profile.js';
 import taxRoutes from '../routes/tax.js';
 import instrumentRoutes from '../routes/instruments.js';
+import investmentExplorerRoutes from '../routes/investmentExplorer.js';
 import chatRoutes from '../routes/chatRoutes.js';
 import recommendRoutes from '../routes/recommend.js';
 import goalsRoutes from '../routes/goals.js';
@@ -160,6 +161,7 @@ const publicMounts = [
   ['agentRoutes.js', '/api/agent'],
   ['genieProofRoutes.js', '/api/genieproof'],
   ['instruments.js', '/api/instruments'],
+  ['investmentExplorer.js', '/api/investment-explorer'],
   ['projection.js', '/api/projection'],
   ['montecarlo.js', '/api/montecarlo'],
   ['goals.js', '/api/goals'],
@@ -276,6 +278,7 @@ function buildContractTestApp() {
   app.use('/api/profile', profileRoutes);
   app.use('/api/tax', taxRoutes);
   app.use('/api/instruments', instrumentRoutes);
+  app.use('/api/investment-explorer', investmentExplorerRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/recommend', recommendRoutes);
   app.use('/api/market', marketRoutes);
@@ -301,6 +304,8 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'GET /api/tax/policies', method: 'GET', path: '/api/tax/policies', url: '/api/tax/policies', expectedStatus: 200 },
   { operation: 'POST /api/tax/post-tax-scenario', method: 'POST', path: '/api/tax/post-tax-scenario', url: '/api/tax/post-tax-scenario', expectedStatus: 200, body: { canonicalInstrumentId: 'sbi_fd', scenarioType: 'INTEREST_INCOME', interestReceived: 2500, annualGrossIncome: 1000000, incomeSource: 'salary', regime: 'new', fiscalYear: 'FY2026-27', userAge: 35 } },
   { operation: 'GET /api/instruments', method: 'GET', path: '/api/instruments', url: '/api/instruments?page=1&limit=10', expectedStatus: 200 },
+  { operation: 'GET /api/investment-explorer/taxonomy', method: 'GET', path: '/api/investment-explorer/taxonomy', url: '/api/investment-explorer/taxonomy', expectedStatus: 200 },
+  { operation: 'GET /api/investment-explorer/catalog', method: 'GET', path: '/api/investment-explorer/catalog', url: '/api/investment-explorer/catalog?page=1&limit=24', expectedStatus: 200 },
   { operation: 'GET /api/market/params', method: 'GET', path: '/api/market/params', url: '/api/market/params', expectedStatus: 200 },
   { operation: 'GET /api/market-data/quotes', method: 'GET', path: '/api/market-data/quotes', url: '/api/market-data/quotes?ids=market:index:nifty-50', expectedStatus: 200 },
   { operation: 'POST /api/projection/compare', method: 'POST', path: '/api/projection/compare', url: '/api/projection/compare', expectedStatus: 200, body: { monthlyInvestment: 5000, annualReturnRate: 0.08, benchmarkRate: 0.06, inflationRate: 0.05, years: 5 } },
@@ -372,6 +377,8 @@ const LIVE_SUCCESS_PROOFS = Object.freeze({
   'GET /api/chat/history': { file: 'chatRoutes.test.js', anchor: '/api/chat/history' },
   'DELETE /api/chat/session/{sessionId}': { file: 'chatRoutes.test.js', anchor: '/api/chat/session/{sessionId}' },
   'GET /api/instruments': { file: 'openapiContract.test.js', anchor: 'GET /api/instruments' },
+  'GET /api/investment-explorer/taxonomy': { file: 'openapiContract.test.js', anchor: 'GET /api/investment-explorer/taxonomy' },
+  'GET /api/investment-explorer/catalog': { file: 'openapiContract.test.js', anchor: 'GET /api/investment-explorer/catalog' },
   'POST /api/instruments/rank-wti': { file: 'security.test.js', anchor: '/api/instruments/rank-wti' },
   'POST /api/tax/compare': { file: 'openapiContract.test.js', anchor: 'POST /api/tax/compare' },
   'POST /api/tax/compute': { file: 'openapiContract.test.js', anchor: 'POST /api/tax/compute' },

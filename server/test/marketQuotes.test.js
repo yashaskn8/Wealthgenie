@@ -20,6 +20,7 @@ import {
 import {
   MAX_CANONICAL_UPSTOX_QUOTE_IDS,
   UPSTOX_INSTRUMENT_REGISTRY,
+  resolveUpstoxProductQuoteIdentities,
   resolveUpstoxQuoteIdentities,
 } from '../services/marketData/upstoxInstrumentRegistry.js';
 import { jsonRequest, withServer } from '../test-utils/httpTestUtils.js';
@@ -45,13 +46,16 @@ test('private demo route returns only to authenticated loopback development with
     env,
     privateDemoLimiter: passLimiter,
     verifySession: (req, _res, next) => { req.user = { userId: 'user-1' }; next(); },
-    fetchPrivateDemo: async ({ privateDemoCapability }) => {
+    fetchPrivateDemo: async ({ privateDemoCapability, canonicalProductIds }) => {
       receivedCapability = Boolean(privateDemoCapability);
+      assert.deepEqual(canonicalProductIds, ['etf:isin:INF204KB14I2']);
       return { status: 'AVAILABLE', mode: 'AUTHENTICATED_LOOPBACK_PRIVATE_DEMO', persistence: 'NOT_PERSISTED' };
     },
   });
   await withServer(buildApp(router), async baseUrl => {
-    const { response, body } = await jsonRequest(`${baseUrl}/api/market-data/private-demo`);
+    const { response, body } = await jsonRequest(
+      `${baseUrl}/api/market-data/private-demo?ids=etf%3Aisin%3AINF204KB14I2`,
+    );
     assert.equal(response.status, 200);
     assert.equal(body.mode, 'AUTHENTICATED_LOOPBACK_PRIVATE_DEMO');
     assert.equal(response.headers.get('cache-control'), 'no-store, private, max-age=0');
@@ -90,6 +94,15 @@ test('Upstox quote registry contains exact source-documented index and ETF ident
   assert.equal(etf.upstoxInstrumentKey, 'NSE_EQ|INF204KB14I2');
   assert.equal(etf.unit, 'PRICE');
   assert.equal(etf.isin, 'INF204KB14I2');
+  assert.equal(etf.dataClass, 'LIVE_EXCHANGE_QUOTE_OBSERVATION');
+  assert.deepEqual(
+    resolveUpstoxProductQuoteIdentities(['etf:isin:INF204KB14I2']).map(item => item.canonicalProductId),
+    ['etf:isin:INF204KB14I2'],
+  );
+  assert.throws(
+    () => resolveUpstoxProductQuoteIdentities(['market:index:nifty-50']),
+    error => error.code === 'UNSUPPORTED_MARKET_INSTRUMENT',
+  );
 });
 
 test('canonical resolver deduplicates request IDs and rejects unknown or oversized requests', () => {
@@ -221,7 +234,7 @@ test('private demo rejects non-local browser origins and CI without invoking a p
     },
   });
   await withServer(buildApp(createRouter(env)), async baseUrl => {
-    const url = `${baseUrl}/api/market-data/private-demo`;
+    const url = `${baseUrl}/api/market-data/private-demo?ids=etf%3Aisin%3AINF204KB14I2`;
     for (const origin of ['https://evil.example', 'null', 'http://localhost:5173/path']) {
       const { response, body } = await jsonRequest(url, { headers: { origin } });
       assert.equal(response.status, 404);
@@ -233,12 +246,35 @@ test('private demo rejects non-local browser origins and CI without invoking a p
   assert.equal(providerCalls, 1);
   for (const flag of ['CI', 'GITHUB_ACTIONS']) {
     await withServer(buildApp(createRouter({ ...env, [flag]: 'true' })), async baseUrl => {
-      const { response, body } = await jsonRequest(`${baseUrl}/api/market-data/private-demo`);
+      const { response, body } = await jsonRequest(
+        `${baseUrl}/api/market-data/private-demo?ids=etf%3Aisin%3AINF204KB14I2`,
+      );
       assert.equal(response.status, 404);
       assert.equal(body.code, 'PRIVATE_MARKET_DEMO_UNAVAILABLE');
     });
   }
   assert.equal(providerCalls, 1);
+});
+
+test('private demo rejects index IDs and empty or unknown product mappings before provider access', async () => {
+  let providerCalls = 0;
+  const router = createMarketQuotesRouter({
+    env: { NODE_ENV: 'development', MARKET_DATA_PRIVATE_DEMO_ENABLED: 'true' },
+    privateDemoLimiter: passLimiter,
+    verifySession: (req, _res, next) => { req.user = { userId: 'user-1' }; next(); },
+    fetchPrivateDemo: async () => { providerCalls += 1; return {}; },
+  });
+  await withServer(buildApp(router), async baseUrl => {
+    for (const ids of ['', 'market:index:nifty-50', 'etf:isin:unknown']) {
+      const query = ids ? `?ids=${encodeURIComponent(ids)}` : '';
+      const { response } = await jsonRequest(
+        `${baseUrl}/api/market-data/private-demo${query}`,
+        { headers: { origin: 'http://localhost:5173' } },
+      );
+      assert.equal(response.status, 400);
+    }
+  });
+  assert.equal(providerCalls, 0);
 });
 
 test('production Upstox-derived public output remains disabled without explicit distribution clearance', async () => {

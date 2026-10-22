@@ -22,6 +22,7 @@ import { fromSearchParams, toSearchParams, resolveNavigation, NAV_PAGES, DESKTOP
 
 // ── Lazy-loaded page components (code-split for faster initial load) ──
 const WhereToInvestScreen = lazy(() => import('./components/WhereToInvestScreen'));
+const InvestmentExplorerScreen = lazy(() => import('./components/InvestmentExplorerScreen'));
 const TaxesHub = lazy(() => import('./components/TaxesHub'));
 const ProgressHub = lazy(() => import('./components/ProgressHub'));
 const JourneyPage = lazy(() => import('./components/JourneyPage'));
@@ -835,6 +836,18 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
               recommendationMeta={currentRecommendationState}
               onLearnMore={handleLearnMore}
               onSelectInvestment={setDeepDiveInvestment}
+            />
+          </ErrorBoundary>
+        );
+      case NAV_PAGES.EXPLORE_INVESTMENTS:
+        return (
+          <ErrorBoundary>
+            <InvestmentExplorerScreen
+              recommendations={recommendations}
+              recommendationsLoading={isRecommendationLoading}
+              recommendationsError={backendFallback?.message || null}
+              recommendationMeta={currentRecommendationState}
+              onLearnMore={handleLearnMore}
             />
           </ErrorBoundary>
         );

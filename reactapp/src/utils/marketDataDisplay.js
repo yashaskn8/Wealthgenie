@@ -49,8 +49,8 @@ const MARKET_DISPLAY_COPY = Object.freeze({
     detail: 'Some verified market facts are available; the rest are unavailable.',
   },
   RIGHTS_UNAVAILABLE: {
-    label: 'Market data permission unavailable',
-    detail: 'This market source is not approved to adjust financial plans. Any permitted private quote preview is separate from your recommendation.',
+    label: 'Market source permissions not verified',
+    detail: 'This source has not passed the permissions required for plan use. Authenticated local Upstox observations are shown separately and do not change your plan.',
   },
   UNAVAILABLE: {
     label: 'Market data unavailable',

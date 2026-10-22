@@ -769,6 +769,20 @@ export async function getInstruments(type, sort = 'rate', order = 'desc', limit 
   return request('GET', `/instruments?${params.toString()}`);
 }
 
+export async function getInvestmentExplorerTaxonomy(options = {}) {
+  return request('GET', '/investment-explorer/taxonomy', null, { retries: 0, ...options });
+}
+
+export async function getInvestmentExplorerCatalog({
+  q = '', categoryId = '', subcategoryId = '', page = 1, limit = 24,
+} = {}, options = {}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (q.trim()) params.set('q', q.trim());
+  if (categoryId) params.set('categoryId', categoryId);
+  if (subcategoryId) params.set('subcategoryId', subcategoryId);
+  return request('GET', `/investment-explorer/catalog?${params.toString()}`, null, { retries: 0, ...options });
+}
+
 export async function rankInvestmentCandidates(profileId, parentInstrumentId, taxCalculationContext = null, requestOptions = {}, financialStateBinding = null) {
   let actualTaxContext = null;
   let actualOptions = requestOptions;
@@ -964,8 +978,12 @@ export async function getPrivateMarketDemo(options = {}) {
   return request('GET', '/market-data/private-demo', null, { retries: 0, ...options });
 }
 
-export async function getPrivateMarketDemoData(options = {}) {
-  return request('GET', '/market-data/private-demo', null, { retries: 0, ...options });
+export async function getPrivateMarketDemoData(canonicalProductIds, options = {}) {
+  if (!Array.isArray(canonicalProductIds) || canonicalProductIds.length === 0) {
+    throw new TypeError('At least one exact product instrument ID is required.');
+  }
+  const ids = canonicalProductIds.join(',');
+  return request('GET', `/market-data/private-demo?ids=${encodeURIComponent(ids)}`, null, { retries: 0, ...options });
 }
 
 export async function previewMarketContextAdjustment(profileId, options = {}) {
@@ -1035,7 +1053,7 @@ const api = {
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
-  setUserInfo, getUserInfo,
+  setUserInfo, getUserInfo, getInvestmentExplorerTaxonomy, getInvestmentExplorerCatalog,
   buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, extractGenieProofClaims, createGenieProofCase, listGenieProofCases, getGenieProofCase, verifyGenieProofCase, listGenieProofRevisions, reassessGenieProofCase, withdrawGenieProofConsent, getProofWatchAvailability, createProofWatch, listProofWatches, updateProofWatch, deleteProofWatch, listProofBreakEvents, acknowledgeProofBreakEvent, deleteGenieProofCase, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
   runMonteCarlo, runPortfolioMonteCarlo, createGoal, getGoals, updateGoal, simulateGoal, deleteGoal, healthCheck,
   getMarketRates, getBenchmarkMarketFacts, getStoredBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,

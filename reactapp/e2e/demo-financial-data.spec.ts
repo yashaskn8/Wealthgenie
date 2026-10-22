@@ -289,143 +289,6 @@ async function products(dialog: Locator, result: JsonObject, parentId: string) {
   }
 }
 
-const SIGNAL_LABELS: Record<string, string> = {
-  nifty50Current: 'NIFTY 50', nifty50PreviousClose: 'Previous close', indiaVixCurrent: 'India VIX',
-  return1DayPct: '1-day return', return5DayPct: '5-day return', return20DayPct: '20-day return',
-  drawdownFromRecentHighPct: 'Drawdown from recent high', movingAverage50Day: '50-day moving average',
-  movingAverage200Day: '200-day moving average', priceVsMovingAverage50Pct: 'vs. 50-day average',
-  priceVsMovingAverage200Pct: 'vs. 200-day average', realizedVolatility20DayAnnualizedPct: '20-day realized volatility',
-};
-const MARKET_LABELS: Record<string, string> = {
-  CURRENT: 'Current verified data', MARKET_CLOSED: 'Market closed', LAST_AVAILABLE: 'Last available data',
-  STALE: 'Stale market data', PARTIAL_DATA: 'Partial market data', UNAVAILABLE: 'Market data unavailable',
-};
-const MARKET_RIGHTS_CODES = new Set([
-  'MARKET_DATA_SOURCE_RIGHTS_UNVERIFIED',
-  'UPSTOX_PUBLIC_DISTRIBUTION_DISABLED',
-  'UPSTOX_PERMISSION_DENIED',
-]);
-
-async function market(dialog: Locator, body: JsonObject) {
-  expect(['MARKET_CONTEXT_AVAILABLE', 'MARKET_CONTEXT_UNAVAILABLE']).toContain(body.status);
-  const available = body.status === 'MARKET_CONTEXT_AVAILABLE';
-  expect(body.confidence, 'deterministic market policy has no ML confidence').toBeNull();
-  const snapshot = object(body.marketSnapshot, 'marketSnapshot');
-  const displayStatus = string(snapshot.status, 'marketSnapshot.status');
-  expect(Object.keys(MARKET_LABELS)).toContain(displayStatus);
-  const sources = array(body.sources, 'market.sources').map((item, i) => object(item, `sources[${i}]`));
-  const signals = object(body.signals, 'market.signals');
-  const reasons = array(body.reasonCodes, 'market.reasonCodes').map((item, i) => string(item, `reasonCodes[${i}]`));
-  const policyOutput = snapshot.policyOutput && typeof snapshot.policyOutput === 'object' && !Array.isArray(snapshot.policyOutput)
-    ? object(snapshot.policyOutput, 'marketSnapshot.policyOutput') : null;
-  const policyReasons = Array.isArray(policyOutput?.reasonCodes)
-    ? policyOutput.reasonCodes.map((item, i) => string(item, `marketSnapshot.policyOutput.reasonCodes[${i}]`)) : [];
-  const snapshotError = snapshot.error && typeof snapshot.error === 'object' && !Array.isArray(snapshot.error)
-    ? object(snapshot.error, 'marketSnapshot.error') : null;
-  const rightsUnavailable = [...reasons, ...policyReasons, snapshotError?.code]
-    .some(code => MARKET_RIGHTS_CODES.has(code as string));
-  const expectedMarketLabel = rightsUnavailable ? 'Market data permission unavailable' : MARKET_LABELS[displayStatus];
-  const observed = timestamp(body.observedAt, 'market.observedAt', !available);
-  timestamp(body.evaluatedAt, 'market.evaluatedAt');
-  const snapshotObserved = timestamp(snapshot.observedAt, 'marketSnapshot.observedAt', !available);
-  if (available) {
-    expect(['NORMAL', 'CAUTIOUS', 'HIGH_VOLATILITY', 'RISK_OFF']).toContain(body.context);
-    expect(body.classification).toBe('DETERMINISTIC_POLICY_HEURISTIC');
-    string(body.policyVersion, 'market.policyVersion');
-    expect(sources.length).toBeGreaterThan(0);
-    for (const key of Object.keys(SIGNAL_LABELS)) object(signals[key], `signals.${key}`);
-  } else {
-    expect(body.context).toBeNull();
-    expect(reasons.length).toBeGreaterThan(0);
-  }
-  if (rightsUnavailable) {
-    expect(available, 'unverified source rights cannot yield authoritative market context').toBe(false);
-    expect(sources, 'unapproved market evidence cannot be distributed').toEqual([]);
-    for (const [key, raw] of Object.entries(signals)) {
-      const signal = object(raw, `signals.${key}`);
-      expect(signal.available, `signals.${key} must be unavailable when source rights are denied`).toBe(false);
-      expect(signal.value, `signals.${key} must remain null when source rights are denied`).toBeNull();
-    }
-  }
-  const region = dialog.getByRole('region', { name: 'Market conditions overview' });
-  await expect(region).toBeVisible();
-  await expect(region.locator('.wti-beginner-market-badge')).toHaveText(available ? string(body.context, 'context').replace(/_/g, ' ') : expectedMarketLabel);
-  await expect(region.getByTestId('market-data-status')).toContainText(expectedMarketLabel);
-  const providerStatus = object(snapshot.providerStatus, 'marketSnapshot.providerStatus');
-  const quotes = object(providerStatus.quotes, 'marketSnapshot.providerStatus.quotes');
-  const observedFacts = Array.isArray(snapshot.observedFacts)
-    ? snapshot.observedFacts.map((item, index) => object(item, `marketSnapshot.observedFacts[${index}]`))
-    : [];
-  const verifiedProviders = [...new Set(observedFacts
-    .filter(fact => fact.availabilityStatus === 'AVAILABLE')
-    .map(fact => fact.source && object(fact.source, 'observed fact source').provider)
-    .filter((provider): provider is string => typeof provider === 'string' && provider.trim().length > 0))];
-  const displaySource = verifiedProviders.length ? verifiedProviders.join(', ') : 'Unavailable';
-  const providerSelectionValue = body.liveProviderSelection ?? snapshot.providerSelection;
-  const providerSelection = providerSelectionValue && typeof providerSelectionValue === 'object' && !Array.isArray(providerSelectionValue)
-    ? object(providerSelectionValue, 'liveProviderSelection')
-    : null;
-  const selectedAttempts = Array.isArray(providerSelection?.attemptedProviders)
-    ? providerSelection.attemptedProviders.filter((provider): provider is string => typeof provider === 'string' && provider.trim().length > 0)
-    : [];
-  const historyStatus = providerStatus.history && typeof providerStatus.history === 'object' && !Array.isArray(providerStatus.history)
-    ? object(providerStatus.history, 'marketSnapshot.providerStatus.history')
-    : null;
-  const fallbackAttempts = [quotes.provider, historyStatus?.provider, ...(
-    Array.isArray(providerStatus.attemptedProviders) ? providerStatus.attemptedProviders : []
-  )].filter((provider): provider is string => typeof provider === 'string' && provider.trim().length > 0);
-  const attemptedProviders = [...new Set(selectedAttempts.length ? selectedAttempts : fallbackAttempts)];
-  const displayAttemptedProvider = attemptedProviders.length ? attemptedProviders.join(', ') : 'UNAVAILABLE';
-  const marketStatus = region.getByTestId('market-data-status');
-  await expect(marketStatus).toContainText(`As of: ${snapshotObserved ? ist(snapshotObserved) : 'Unavailable'}`);
-  await expect(marketStatus).toContainText(displaySource);
-  const toggle = region.getByRole('button', { name: 'Technical details', exact: true });
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  const panel = region.getByTestId('market-context-panel');
-  await expect(panel).toBeVisible();
-  const freshness = body.freshness === null ? null : object(body.freshness, 'market.freshness');
-  const observationCard = panel.locator('.wti-provenance-card').filter({ hasText: 'Observation Timestamps' });
-  const observationValues = observationCard.locator('.wti-provenance-val');
-  await expect(observationValues).toContainText(`Observed: ${observed || 'UNAVAILABLE'}`);
-  await expect(observationValues).toContainText(`Evaluated: ${string(body.evaluatedAt, 'market.evaluatedAt')}`);
-  await expect(observationValues).toContainText(`Freshness: ${freshness ? string(freshness.status, 'freshness.status') : 'UNAVAILABLE'}`);
-  for (const source of sources) {
-    await expect(panel).toContainText(`${sourceLabel(string(source.provider, 'source.provider'))} (${string(source.instrumentId, 'source.instrumentId')} · ${string(source.dataClass, 'source.dataClass')})`);
-  }
-  await expect(panel).toContainText(`Provider attempts: ${displayAttemptedProvider}`);
-  if (sources.length === 0) {
-    const sourceCard = panel.locator('.wti-provenance-card').filter({ hasText: 'Verified Data Sources' });
-    await expect(sourceCard.locator('.wti-provenance-val')).toHaveText('UNAVAILABLE');
-  }
-  const reasonCard = panel.locator('.wti-provenance-card--reasons');
-  if (reasons.length > 0) {
-    for (const reason of reasons) await expect(reasonCard).toContainText(reason);
-  } else {
-    await expect(reasonCard).toContainText('UNAVAILABLE');
-  }
-  const tiles = panel.locator('.wti-tech-metric-tile');
-  await expect(tiles).toHaveCount(Object.keys(signals).length);
-  for (const [key, raw] of Object.entries(signals)) {
-    const signal = object(raw, `signals.${key}`);
-    expect(typeof signal.available, `signals.${key}.available`).toBe('boolean');
-    const label = SIGNAL_LABELS[key] || key.replace(/([A-Z])/g, ' $1').trim();
-    const tile = tiles.filter({ has: panel.page().getByText(label, { exact: true }) });
-    await expect(tile).toHaveCount(1);
-    if (signal.available === true) {
-      const value = number(signal.value, `signals.${key}.value`).toLocaleString('en-IN', { maximumFractionDigits: 2 });
-      const unit = string(signal.unit, `signals.${key}.unit`);
-      await expect(tile.locator('.wti-tech-metric-value')).toHaveText(unit === 'PERCENT' ? `${value}%` : value);
-    } else {
-      expect(signal.value, `unavailable ${key} must not contain zero or an invented number`).toBeNull();
-      await expect(tile.locator('.wti-tech-metric-value')).toHaveText('UNAVAILABLE');
-    }
-  }
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-}
-
 const UNAVAILABLE_TAX_STATUSES = [
   'REQUIRES_TAX_INPUTS', 'TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS',
   'MODEL_TAX_CLASS_UNAVAILABLE', 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE',
@@ -526,11 +389,12 @@ async function taxTable(panel: Locator, body: JsonObject, instruments: JsonObjec
   await expect(panel).toContainText(`Estimated under ${string(body.fiscalYear, 'fiscalYear')} policy (${string(body.policyVersion, 'policyVersion')})`);
 }
 
-test('real backend financial facts match the dashboard, product details, tax what-if, and Market Today', async ({ page, context }, info) => {
+test('real backend financial facts match the dashboard, qualified products, and tax what-if', async ({ page, context }, info) => {
   test.setTimeout(600_000);
   await page.setViewportSize(VIEWPORTS[0]);
   const prohibitedRequests: string[] = [];
   const pageErrors: string[] = [];
+  const hiddenWtiMarketRequests: string[] = [];
   const providerDomains = [
     'nseindia.com', 'amfiindia.com', 'indiapost.gov.in', 'rbi.org.in', 'sbi.bank', 'bank.sbi',
     'dea.gov.in', 'finmin.gov.in', 'upstox.com', 'nvidia.com', 'groq.com',
@@ -543,6 +407,12 @@ test('real backend financial facts match the dashboard, product details, tax wha
     }
   });
   page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    if ([API_BASE_PATH + '/regime/current', API_BASE_PATH + '/market-data/private-demo', API_BASE_PATH + '/regime/adjust'].includes(path)) {
+      hiddenWtiMarketRequests.push(request.method() + ' ' + path);
+    }
+  });
   const unique = crypto.randomUUID();
   const user = { name: `Financial Demo ${unique}`, email: `financial-demo-${unique}@example.com`, mobile: '9876543210', password: 'Valid@Pass2026!' };
 
@@ -637,6 +507,7 @@ test('real backend financial facts match the dashboard, product details, tax wha
 
   for (const [index, instrument] of instruments.entries()) {
     const id = string(instrument.id, 'id');
+    if (index === 0) hiddenWtiMarketRequests.length = 0;
     await test.step(`compare actual qualified products for ${id}`, async () => {
       const card = page.locator(`[id="rec-card-${id}"]`);
       await card.getByRole('button', { name: 'Learn More — Full Deep Dive', exact: true }).click();
@@ -648,18 +519,10 @@ test('real backend financial facts match the dashboard, product details, tax wha
       expect(rankedResponse.request().postDataJSON()).toMatchObject({ profileId, parentInstrumentId: id });
       await products(dialog, await json(rankedResponse), id);
       if (index === 0) {
-        const refreshButton = dialog.getByRole('button', { name: 'Refresh market data', exact: true });
-        await expect(refreshButton).toBeEnabled();
-        // Assert the exact response returned by an explicit refresh. The
-        // shared market context may be loaded or cached before this tab opens.
-        const refreshed = page.waitForResponse(apiResponse('GET', '/regime/current'), { timeout: RESPONSE_TIMEOUT });
-        await refreshButton.click();
-        const refreshedBody = await json(await refreshed);
-        await expect(refreshButton).toBeEnabled();
-        await market(dialog, refreshedBody);
-        await screenshots(page, info, 'products-market', async () => { await market(dialog, refreshedBody); });
-      }
-      await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+        await expect(dialog.locator('.wti-beginner-market-card, [data-testid="market-context-panel"]')).toHaveCount(0);
+        await expect(dialog.getByRole('button', { name: /Refresh market data|Technical details|See how this affects my plan|Load Upstox quotes/i })).toHaveCount(0);
+        expect(hiddenWtiMarketRequests, 'opening Where to Invest must not request market or quote data').toEqual([]);
+      }      await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
       await expect(dialog).toHaveCount(0);
     });
   }

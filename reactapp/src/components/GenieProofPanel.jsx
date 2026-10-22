@@ -268,6 +268,17 @@ function downloadPassport(signedPassport) {
   return true;
 }
 
+function stableMutationKey(requestRef, payload) {
+  const requestFingerprint = JSON.stringify(payload);
+  if (!requestRef.current || requestRef.current.requestFingerprint !== requestFingerprint) {
+    requestRef.current = {
+      requestFingerprint,
+      key: crypto.randomUUID(),
+    };
+  }
+  return requestRef.current.key;
+}
+
 export default function GenieProofPanel() {
   const [offerText, setOfferText] = useState('');
   const [extraction, setExtraction] = useState(null);
@@ -293,6 +304,8 @@ export default function GenieProofPanel() {
   const activeViewRequestRef = useRef(null);
   const caseListRequestRef = useRef(null);
   const proofBreakRequestByCaseRef = useRef(new Map());
+  const createCaseMutationRef = useRef(null);
+  const reassessMutationRef = useRef(null);
   const errorSourceRef = useRef(null);
 
   const setError = useCallback(message => {
@@ -602,16 +615,22 @@ export default function GenieProofPanel() {
   const savePassport = async () => {
     if (!extraction || extraction.claimsTruncated || !confirmed || !savingConsent || claims.length === 0) return;
     const request = beginViewRequest();
+    const payload = {
+      offerText,
+      submissionHash: extraction.inputHash,
+      savingConsent: true,
+      confirmedClaims: claims,
+    };
+    const idempotencyKey = stableMutationKey(createCaseMutationRef, payload);
     setBusy(true);
     setError('');
     setStatus('');
     try {
-      await api.createGenieProofCase({
-        offerText,
-        submissionHash: extraction.inputHash,
-        savingConsent: true,
-        confirmedClaims: claims,
-      }, { signal: request.controller.signal });
+      await api.createGenieProofCase(payload, {
+        signal: request.controller.signal,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
+      createCaseMutationRef.current = null;
       if (!isViewRequestCurrent(request)) return;
       setSelected(null);
       setSelectedCurrentEvidenceStatus(null);
@@ -687,16 +706,21 @@ export default function GenieProofPanel() {
     const caseId = selected?.manifest?.caseId;
     if (!caseId || !reassessmentConsent) return;
     const request = beginViewRequest();
+    const payload = {
+      caseId,
+      expectedRevision: selected.manifest.revision,
+      expectedManifestHash: selected.manifestHash,
+      reassessmentConsent: true,
+    };
+    const idempotencyKey = stableMutationKey(reassessMutationRef, payload);
     setBusy(true);
     setError('');
     setStatus('');
     try {
-      const result = await api.reassessGenieProofCase({
-        caseId,
-        expectedRevision: selected.manifest.revision,
-        expectedManifestHash: selected.manifestHash,
-        reassessmentConsent: true,
-      }, { signal: request.controller.signal });
+      const result = await api.reassessGenieProofCase(payload, {
+        signal: request.controller.signal,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
       if (!isViewRequestCurrent(request)) return;
       const [verified, history, caseResult] = await Promise.all([
         loadConsistentLatestPassport(caseId, { signal: request.controller.signal }),

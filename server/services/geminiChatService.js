@@ -29,6 +29,7 @@ import {
   defaultChatSessionStore,
 } from './chatSessionStore.js';
 import { CHAT_RATE_LIMIT, checkChatRateLimit } from './chatRateLimit.js';
+import { buildChatNavigationActionCard } from './chatNavigation.js';
 
 const SESSION_CUMULATIVE_TOKEN_CAP = CHAT_SESSION_TOKEN_CAP;
 
@@ -53,6 +54,7 @@ export function buildClientResponseDTO({
   unavailable_facts = [],
   validation_status = null,
   fallback = false,
+  fallback_reason_codes = [],
   messages_this_hour = 1,
   rate_limit_remaining = 30,
   rate_limit_reset_at = null,
@@ -74,6 +76,7 @@ export function buildClientResponseDTO({
     unavailable_facts,
     validation_status,
     fallback,
+    fallback_reason_codes,
     messages_this_hour,
     rate_limit_remaining,
     rate_limit_reset_at,
@@ -332,6 +335,12 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const attemptedProviderFailure = Number(explanation.providerAttemptFailureCount || 0) > 0
       || (explanation.fallback
         && (explanation.reasonCodes || []).some(reason => /REQUEST_FAILED|EMPTY_COMPLETION|GROUNDING_VALIDATION_FAILED/.test(reason)));
+    const navigationEvidence = evidencePacket.entries.find(item => item.id === 'E_APP_NAVIGATION'
+      && item.kind === 'APP_NAVIGATION' && item.dataClass === 'APP_ROUTE');
+    const actionCards = buildChatNavigationActionCard({
+      validationStatus: explanation.validation.status,
+      destinationEvidence: navigationEvidence,
+    });
     const auditMetadata = {
       provider: explanation.provider,
       model: explanation.model,
@@ -342,6 +351,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       evidence_ids_used: explanation.evidenceIdsUsed,
       unavailable_facts: explanation.unavailableFacts,
       citations: explanation.citations,
+      action_cards: actionCards,
       validation_status: explanation.validation.status,
       validation_reason_codes: explanation.validation.reasonCodes,
       fallback_used: explanation.fallback,
@@ -375,11 +385,12 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       unavailable_facts: explanation.unavailableFacts,
       validation_status: explanation.validation.status,
       fallback: explanation.fallback,
+      fallback_reason_codes: explanation.fallback ? explanation.validation.reasonCodes : [],
       messages_this_hour: rateCheck.count,
       rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
       rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
       citations: explanation.citations,
-      action_cards: [],
+      action_cards: actionCards,
     });
     await requireCurrentBinding(binding, userId);
     await sessionStore.complete({

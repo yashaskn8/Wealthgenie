@@ -4,6 +4,7 @@ import { retrieveChatEducationalEvidence } from '../services/chatEducationalRetr
 import { buildChatEvidencePacket, generateGroundedExplanation } from '../services/groundedExplanationService.js';
 import { validateGroundedExplanation } from '../services/groundingValidator.js';
 import { validateGroundedExplanationCompleteness } from '../services/groundedExplanationCompleteness.js';
+import { buildChatNavigationActionCard, getChatNavigationDestination } from '../services/chatNavigation.js';
 
 const profile = Object.freeze({
   age: 40,
@@ -21,7 +22,10 @@ test('suggested portfolio balancing question retrieves relevant, attributable ed
   assert.equal(matches[0].kind, 'EDUCATION');
   assert.equal(matches[0].source.provider, 'US_SEC_INVESTOR_GOV');
   assert.match(matches[0].source.url, /^https:\/\/www\.investor\.gov\//);
-  assert.match(matches[0].displayValue, /bringing the mix of investments back/);
+  assert.match(matches[0].displayValue, /brings investments back toward a chosen asset mix/);
+  assert.match(matches[0].displayValue, /Why it matters:/);
+  assert.match(matches[0].displayValue, /For example,/);
+  assert.match(matches[0].displayValue, /How investors review it:/);
 });
 
 test('unmatched or unsupported questions have no false educational match', () => {
@@ -38,13 +42,30 @@ test('unmatched or unsupported questions have no false educational match', () =>
 test('other supported concepts retrieve correct attributable source, not a generic disclaimer', () => {
   const expectations = [
     ['How does compound growth build wealth?', 'E_EDU_COMPOUND_GROWTH'],
-    ['How do I start my first investment?', 'E_EDU_INVESTING_BASICS'],
+    ['How do I start my first investment?', 'E_EDU_INVESTING_READINESS'],
     ['What is diversification?', 'E_EDU_DIVERSIFICATION'],
     ['What are fund fees?', 'E_EDU_FEES'],
   ];
   for (const [question, id] of expectations) {
     assert.equal(retrieveChatEducationalEvidence(question)[0]?.id, id, question);
   }
+});
+
+test('first-investment education gives a sourced starting sequence and emergency-fund boundary', async () => {
+  const question = 'How do I start my first investment?';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const education = packet.entries.filter(entry => entry.kind === 'EDUCATION');
+  assert.deepEqual(education.map(entry => entry.id), ['E_EDU_INVESTING_READINESS', 'E_EDU_INVESTING_BASICS']);
+  assert.ok(education.every(entry => entry.source.provider === 'SEBI_INVESTOR'));
+  const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(response.validation.status, 'PASS');
+  assert.match(response.text, /name one financial goal/);
+  assert.match(response.text, /emergency fund/);
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_EDU_INVESTING_BASICS'));
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_EDU_INVESTING_READINESS'));
+  assert.doesNotMatch(response.text, /guaranteed return|specific fund to buy/i);
 });
 
 test('chat evidence includes education without disclosing unrelated saved profile or portfolio', async () => {
@@ -71,11 +92,12 @@ test('without any model provider, educational fallback answers question and pres
   assert.equal(response.provider, 'DETERMINISTIC_TEMPLATE');
   assert.equal(response.fallback, true);
   assert.equal(response.validation.status, 'PASS');
-  assert.match(response.text, /Portfolio rebalancing means/);
+  assert.match(response.text, /Portfolio rebalancing brings investments back/);
+  assert.match(response.text, /preset threshold/);
   assert.doesNotMatch(response.text, /authoritative backend reports disclosure evidence/i);
   assert.ok(response.text.includes('[E_EDU_REBALANCING]'));
   assert.ok(response.citations.some(citation => citation.citation_id === 'E_EDU_REBALANCING'
-    && citation.source_url === 'https://www.investor.gov/introduction-investing/investing-basics/glossary/rebalancing'));
+    && citation.source_url === 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation'));
   assert.ok(response.text.includes('[E_REGULATORY_NOTICE]'));
   assert.equal(validateGroundedExplanation({
     text: response.text,
@@ -109,6 +131,78 @@ test('suggested tax-regime question explains missing inputs, not disclosure meta
   assert.ok(response.text.includes('[E_TAX_INPUT_BOUNDARY]'));
   assert.doesNotMatch(response.text, /authoritative backend reports disclosure evidence/i);
   assert.ok(!response.evidenceIdsUsed.some(id => id.startsWith('E_EDU_')));
+});
+
+test('suggested tax-assumptions action explains its input boundary instead of abstaining', async () => {
+  const question = 'Explain tax assumptions';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  assert.ok(packet.entries.some(entry => entry.id === 'E_TAX_INPUT_BOUNDARY'));
+  assert.ok(!packet.entries.some(entry => entry.id === 'E_CHAT_ANSWER_UNAVAILABLE'));
+  const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(response.validation.status, 'PASS');
+  assert.match(response.text, /has not calculated a personal tax result/i);
+  assert.match(response.text, /explicit fiscal year, annual income, regime, and income source/i);
+  assert.match(response.text, /cannot be inferred from your investing profile/i);
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_TAX_INPUT_BOUNDARY'));
+});
+
+test('portfolio review without a current recommendation states the missing boundary', async () => {
+  const question = 'Review my portfolio';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(response.validation.status, 'PASS');
+  assert.match(response.text, /current recommendation is unavailable/i);
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_PORTFOLIO_REVIEW_UNAVAILABLE'));
+  assert.doesNotMatch(response.text, /authoritative backend reports/i);
+});
+
+test('navigation requests use allowlisted app destinations and a grounded answer', async () => {
+  const cases = [
+    ['Where can I find my plan?', 'plan'],
+    ['Open Taxes', 'taxes'],
+    ['Take me to goals', 'goals'],
+    ['Where do I find investment options?', 'investments'],
+    ['How do I get to Keep on Track?', 'keep-on-track'],
+  ];
+  for (const [question, page] of cases) {
+    assert.equal(getChatNavigationDestination(question)?.page, page);
+    const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+    assert.equal(packet.entries.find(entry => entry.id === 'E_APP_NAVIGATION')?.value.page, page);
+    const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+      providers: [], getCache: async () => null, setCache: async () => {},
+    });
+    assert.equal(response.validation.status, 'PASS', question);
+    assert.ok(response.evidenceIdsUsed.includes('E_APP_NAVIGATION'));
+    assert.doesNotMatch(response.text, /authoritative backend reports/i);
+  }
+  assert.equal(getChatNavigationDestination('Which tax regime is best for me?')?.page, 'taxes');
+  assert.equal(getChatNavigationDestination('Open a malicious external URL'), null);
+  assert.equal(getChatNavigationDestination('Explain tax assumptions')?.page, 'taxes');
+  assert.deepEqual(buildChatNavigationActionCard({
+    validationStatus: 'PASS',
+    destinationEvidence: {
+      id: 'E_APP_NAVIGATION', kind: 'APP_NAVIGATION', dataClass: 'APP_ROUTE',
+      value: { page: 'taxes' },
+    },
+  }), [{ kind: 'APP_NAVIGATION', label: 'Open Taxes', target: 'taxes' }]);
+  assert.deepEqual(buildChatNavigationActionCard({
+    validationStatus: 'FAIL',
+    destinationEvidence: {
+      id: 'E_APP_NAVIGATION', kind: 'APP_NAVIGATION', dataClass: 'APP_ROUTE',
+      value: { page: 'taxes' },
+    },
+  }), []);
+  assert.deepEqual(buildChatNavigationActionCard({
+    validationStatus: 'PASS',
+    destinationEvidence: {
+      id: 'E_APP_NAVIGATION', kind: 'APP_NAVIGATION', dataClass: 'APP_ROUTE',
+      value: { page: 'https://example.com' },
+    },
+  }), []);
 });
 
 test('unsupported question abstains with explicit system provenance instead of inventing a source', async () => {
@@ -191,6 +285,6 @@ test('disclosure-only generated answer triggers grounded educational fallback in
   assert.equal(result.providerAttemptFailureCount, 1);
   assert.equal(validation?.semanticCompletenessValid, false);
   assert.deepEqual(validation?.semanticReasonCodes, ['CLAIM_EVIDENCE_RELEVANCE_INSUFFICIENT']);
-  assert.match(result.text, /Portfolio rebalancing means/);
+  assert.match(result.text, /Portfolio rebalancing brings investments back/);
   assert.ok(result.citations.some(source => source.citation_id === 'E_EDU_REBALANCING'));
 });

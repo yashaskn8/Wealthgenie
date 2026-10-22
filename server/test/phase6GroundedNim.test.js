@@ -22,6 +22,7 @@ import {
   validateGroundedExplanation,
 } from '../services/groundingValidator.js';
 import {
+  buildChatEvidencePacket,
   generateGroundedExplanation,
   GROUNDED_EXPLANATION_PROMPT_VERSION,
   GROUNDED_LLM_TOOL_ALLOWLIST,
@@ -315,6 +316,124 @@ test('failed model grounding records allowlisted validator codes without narrati
   assert.ok(validationDiagnostics.groundingReasonCodes.includes('UNSUPPORTED_FINANCIAL_NUMBER'));
   assert.equal(JSON.stringify(validationDiagnostics).includes('PPF pays 15%'), false);
   assert.equal(JSON.stringify(validationDiagnostics).includes('7.1'), false);
+});
+
+test('profile fallback states the checked risk ceiling and capacity reason without inventing a return', async () => {
+  const packet = buildGroundedEvidencePacket({
+    question: 'Why is my plan risk level lower than my preference?',
+    purpose: 'RECOMMENDATION_EXPLANATION',
+    profile: {
+      riskTolerance: 'Moderate-Aggressive',
+      suitabilityRisk: 'Moderate',
+      suitabilityReasonCodes: ['RISK_CAPACITY_REDUCED_PREFERENCE'],
+    },
+  });
+  const result = await generateGroundedExplanation({ question: 'Explain my plan risk level.', evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+
+  assert.equal(result.fallback, true);
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /stated risk tolerance is Moderate-Aggressive; your final suitability ceiling is Moderate \[E_PROFILE_RISK\]/);
+  assert.match(result.text, /capacity check reduced your stated risk preference \[E_SUITABILITY_REASONS\]/);
+  assert.doesNotMatch(result.text, /authoritative backend reports|expected return/i);
+});
+
+test('profile fallback translates only checked capacity reason codes', async () => {
+  const packet = buildGroundedEvidencePacket({
+    question: 'Why is my plan risk level lower than my preference?',
+    purpose: 'RECOMMENDATION_EXPLANATION',
+    profile: {
+      riskTolerance: 'Aggressive',
+      suitabilityRisk: 'Moderate',
+      suitabilityReasonCodes: [
+        'RISK_CAPACITY_REDUCED_PREFERENCE',
+        'LOW_EMERGENCY_COVERAGE',
+        'SHORT_INVESTMENT_HORIZON',
+        'UNRECOGNIZED_CODE',
+      ],
+    },
+  });
+  const result = await generateGroundedExplanation({ question: 'Why is my plan risk level lower?', evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /limited emergency coverage, a short investment horizon \[E_SUITABILITY_REASONS\]/);
+  assert.doesNotMatch(result.text, /UNRECOGNIZED_CODE|EMI burden|financial dependents/i);
+});
+
+test('portfolio review fallback uses only bound recommendation allocations', async () => {
+  const question = 'Review my portfolio';
+  const packet = buildGroundedEvidencePacket({
+    question,
+    purpose: 'RECOMMENDATION_EXPLANATION',
+    profile: { riskTolerance: 'Moderate', suitabilityRisk: 'Moderate' },
+    recommendation: {
+      modelVersion: 'test-policy',
+      instruments: [
+        { id: 'safe-a', name: 'Government Savings', type: 'BOND', allocation_pct: 60 },
+        { id: 'safe-b', name: 'Balanced Fund', type: 'MF', allocation_pct: 40 },
+      ],
+    },
+  });
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /Government Savings with 60% allocation \[E_REC_001\]/);
+  assert.match(result.text, /Balanced Fund with 40% allocation \[E_REC_002\]/);
+  assert.deepEqual(result.financialClaims.map(claim => claim.type), ['ALLOCATION_WEIGHT', 'ALLOCATION_WEIGHT']);
+  assert.doesNotMatch(result.text, /authoritative backend reports|expected return|guarantee/i);
+});
+
+test('profile fallback does not repeat an unsupported risk label as a financial fact', async () => {
+  const packet = buildGroundedEvidencePacket({
+    question: 'Explain my suitability.',
+    purpose: 'RECOMMENDATION_EXPLANATION',
+    profile: { suitabilityRisk: '15% guaranteed' },
+  });
+  const result = await generateGroundedExplanation({ question: 'Explain my suitability.', evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+
+  assert.equal(result.fallback, true);
+  assert.equal(result.validation.status, 'PASS');
+  assert.doesNotMatch(result.text, /15% guaranteed/);
+});
+
+test('profile fallback admits when the checked evidence lacks a reason for a different risk ceiling', async () => {
+  const question = 'Why is my plan risk level different from my preference?';
+  const packet = buildGroundedEvidencePacket({
+    question,
+    purpose: 'RECOMMENDATION_EXPLANATION',
+    profile: { riskTolerance: 'Aggressive', suitabilityRisk: 'Conservative-Moderate' },
+  });
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /does not specify which profile factor caused that difference \[E_PROFILE_RISK\]/);
+  assert.doesNotMatch(result.text, /capacity check reduced/i);
+});
+
+test('natural question about stated risk tolerance retrieves only relevant saved risk evidence', async () => {
+  const question = 'What checked evidence explains the difference between my stated risk tolerance and final plan ceiling?';
+  const packet = await buildChatEvidencePacket({
+    question,
+    profile: {
+      riskTolerance: 'Aggressive', suitabilityRisk: 'Conservative-Moderate',
+      monthlySavings: 20000, suitabilityReasonCodes: [],
+    },
+    recommendation: null,
+  });
+  assert.ok(packet.entries.some(item => item.id === 'E_PROFILE_RISK'));
+  assert.ok(!packet.entries.some(item => item.id === 'E_PROFILE_SAVINGS'));
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /does not specify which profile factor caused that difference/);
 });
 
 test('semantic boilerplate is reported separately from financial grounding and fails closed', async () => {
@@ -777,7 +896,7 @@ test('application regulatory disclosure insertion produces aligned text, claim, 
 
   assert.equal(result.fallback, false);
   assert.equal(result.validation.status, 'PASS');
-  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.2');
+  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.3');
   assert.equal(result.text.includes(text), true);
   assert.deepEqual(result.claims[0], { text, evidenceIds: ['E_PROFILE_RISK'] });
   assert.equal(result.evidenceIdsUsed.includes('E_PROFILE_RISK'), true);
@@ -861,6 +980,43 @@ test('an already complete canonical disclosure is retained exactly once', async 
   assert.equal(result.fallback, false);
   assert.equal(result.text.split(disclosure).length - 1, 1);
   assert.equal(result.claims.filter(claim => claim.text === disclosure).length, 1);
+  assert.equal(result.validation.status, 'PASS');
+});
+
+test('a disclosure embedded in a substantive model claim is separated and shown once', async () => {
+  const packet = evidencePacket();
+  const profileText = 'The final suitability ceiling is Moderate [E_PROFILE_RISK].';
+  const regulatory = packet.entries.find(entry => entry.id === 'E_REGULATORY_NOTICE');
+  const disclosure = `${regulatory.value} [${regulatory.id}]`;
+  const combined = `${profileText} ${disclosure}`;
+  const provider = {
+    name: 'groq',
+    configuredModel: () => 'openai/gpt-oss-120b',
+    generate: async () => ({
+      provider: 'groq',
+      model: 'openai/gpt-oss-120b',
+      tokensUsed: 12,
+      text: JSON.stringify({
+        text: combined,
+        evidenceIdsUsed: ['E_PROFILE_RISK', regulatory.id],
+        claims: [{ text: combined, evidenceIds: ['E_PROFILE_RISK', regulatory.id] }],
+        financialClaims: [],
+        unavailableFacts: [],
+      }),
+    }),
+  };
+
+  const result = await generateGroundedExplanation({ question: 'Review this saved profile.', evidencePacket: packet }, {
+    providers: [provider],
+    providerOutputMode: 'GROQ_JSON_OBJECT',
+    getCache: async () => null,
+    setCache: async () => false,
+  });
+
+  assert.equal(result.fallback, false);
+  assert.equal(result.text.split(disclosure).length - 1, 1);
+  assert.deepEqual(result.claims[0], { text: profileText, evidenceIds: ['E_PROFILE_RISK'] });
+  assert.deepEqual(result.claims.at(-1), { text: disclosure, evidenceIds: [regulatory.id] });
   assert.equal(result.validation.status, 'PASS');
 });
 
@@ -1003,6 +1159,9 @@ test('grounded explanation prompt keeps semantic controls concise for the struct
   assert.match(request.systemPrompt, /Compact rows: find id via entryFields/i);
   assert.match(request.systemPrompt, /bind each once to one typed record/i);
   assert.match(request.systemPrompt, /fewest claims needed, normally one; state a concrete packet fact/i);
+  assert.match(request.systemPrompt, /guide for beginner investors in India/i);
+  assert.match(request.systemPrompt, /Answer clearly/i);
+  assert.match(request.systemPrompt, /Avoid internal jargon/i);
   assert.doesNotMatch(request.systemPrompt, /"financialClaims":\[\{/);
 });
 

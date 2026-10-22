@@ -208,6 +208,14 @@ const boundedIntegerQuery = (min, max) => Joi.string()
     : helpers.error('number.range', { limit: max }))
   .optional();
 
+export const investmentExplorerQuerySchema = Joi.object({
+  q: Joi.string().trim().max(100).allow('').optional(),
+  categoryId: Joi.string().trim().pattern(/^[a-z0-9-]{1,80}$/).optional(),
+  subcategoryId: Joi.string().trim().pattern(/^[a-z0-9-]{1,100}$/).optional(),
+  limit: boundedIntegerQuery(1, 100),
+  page: boundedIntegerQuery(1, 100000),
+}).unknown(false);
+
 export const instrumentListQuerySchema = Joi.object({
   type: Joi.string().valid('FD', 'Mutual_Fund', 'ETF', 'Government', 'ELSS').optional(),
   sort: Joi.string().valid('name', 'interestRate', 'rate', 'returns1yr', 'returns3yr', 'returns5yr', 'riskLevel', 'aumCr', 'expenseRatio').optional(),

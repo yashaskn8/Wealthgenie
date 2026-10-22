@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './config/bootstrapEnvironment.js';
 import tracingSdk from './config/tracing.js';
 import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';

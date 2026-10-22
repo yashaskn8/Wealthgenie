@@ -132,6 +132,7 @@ test('private demo maps only the source-qualified ETF key to its product identit
   let requestedKeys;
   const result = await fetchPrivateMarketDemoData({
     env, privateDemoCapability: capability,
+    canonicalProductIds: ['etf:isin:INF204KB14I2'],
     quoteProviderFactory: () => ({
       async getQuotes(keys) {
         requestedKeys = keys;
@@ -143,11 +144,28 @@ test('private demo maps only the source-qualified ETF key to its product identit
       },
     }),
   });
-  assert.deepEqual(requestedKeys, ['NSE_INDEX|Nifty 50', 'NSE_INDEX|India VIX', 'NSE_EQ|INF204KB14I2']);
+  assert.deepEqual(requestedKeys, ['NSE_EQ|INF204KB14I2']);
   assert.equal(result.persistence, 'NOT_PERSISTED');
   assert.equal(result.upstox.facts[0].canonicalProductId, 'etf:isin:INF204KB14I2');
   assert.equal(result.upstox.facts[0].instrumentIdentity.isin, 'INF204KB14I2');
   assert.equal(result.upstox.facts[0].value, 294.4);
+});
+
+test('private product quote demo rejects broad market indices instead of treating them as product suggestions', async () => {
+  const env = { NODE_ENV: 'development', MARKET_DATA_PRIVATE_DEMO_ENABLED: 'true' };
+  const capability = createPrivateMarketDataDemoCapability({
+    user: { userId: 'fixture-user' },
+    socket: { remoteAddress: '127.0.0.1' },
+    headers: { host: '127.0.0.1:5000', origin: 'http://127.0.0.1:5173' },
+  }, env);
+  let providerCalls = 0;
+  await assert.rejects(() => fetchPrivateMarketDemoData({
+    env,
+    privateDemoCapability: capability,
+    canonicalProductIds: ['market:index:nifty-50'],
+    quoteProviderFactory: () => ({ getQuotes: async () => { providerCalls += 1; return {}; } }),
+  }), error => error.code === 'UNSUPPORTED_MARKET_INSTRUMENT');
+  assert.equal(providerCalls, 0);
 });
 
 test('Upstox service facade cannot be enabled by operator attestation without qualified endpoint rights', async () => {
