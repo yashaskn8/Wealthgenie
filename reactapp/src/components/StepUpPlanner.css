@@ -559,3 +559,18 @@ input[type="range"].sup-slider::-webkit-slider-thumb:hover {
 .sup-safety-panel .sup-warning{color:#fbbf24;}
 @media (max-width:1100px){.sup-planning-fields{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width:640px){.sup-planning-panel,.sup-safety-panel{padding:16px;}.sup-planning-fields{grid-template-columns:1fr;}}
+
+/* Full INR formatting must remain readable even for crore-scale forecasts. */
+.stepup-page .result-value {
+  display: block;
+  max-width: 100%;
+  font-size: clamp(1.2rem, 2vw, 2.1rem);
+  line-height: 1.24;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.stepup-page .result-sub,
+.stepup-page .sup-safety-panel,
+.stepup-page .sup-tooltip {
+  overflow-wrap: anywhere;
+}
