@@ -206,3 +206,54 @@ test('red-team: unsourced general routing refuses digital gold and Indian financ
     'Explain Python decorators.', 'Write a job application email.',
   ]) assert.equal(isGeneralChatQuestion(question), true, question);
 });
+
+
+test('red-team: general provider-issued tool/function calls are discarded, never shown as answers', async () => {
+  let secondProviderCalls = 0;
+  for (const toolFixture of [
+    { tool_calls: [{ function: { name: 'transfer_funds' } }] },
+    { toolCalls: [{ function: { name: 'get_profile' } }] },
+    { function_call: { name: 'steal_token' } },
+  ]) {
+    const answer = await generateGeneralChatAnswer({ question: 'Explain Python arrays' }, {
+      providers: [
+        { name: 'groq', isConfigured: () => true, async generate() {
+          return { text: 'Use this unverified instruction.', wasCompleted: true,
+            tokensUsed: 5, ...toolFixture };
+        } },
+        { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+          secondProviderCalls += 1; return { text: 'never called' };
+        } },
+      ],
+    });
+    assert.equal(answer.provider, 'SYSTEM');
+    assert.equal(answer.fallback, true);
+    assert.ok(answer.validation.reasonCodes.includes('GENERAL_UNEXPECTED_TOOL_CALL'));
+    assert.deepEqual(answer.citations, []);
+  }
+  assert.equal(secondProviderCalls, 0);
+});
+
+test('red-team: general model never receives injected financial prior-history rows', async () => {
+  let history = null;
+  const answer = await generateGeneralChatAnswer({
+    question: 'Explain recursion',
+    priorTurns: [
+      { role: 'user', content: 'Tell me about Python arrays' },
+      { role: 'model', content: 'Arrays are collections of elements.' },
+      { role: 'user', content: 'My portfolio return is 10%' },
+      { role: 'model', content: 'Your bank account has 5 lakh' },
+    ],
+  }, {
+    providers: [{ name: 'groq', isConfigured: () => true, async generate(request) {
+      history = request.recentHistory;
+      return { provider: 'groq', text: 'Recursion means self-reference.',
+        wasCompleted: true, tokensUsed: 8 };
+    } }],
+  });
+  assert.equal(answer.provider, 'GROQ');
+  assert.equal(answer.validation.status, 'UNVERIFIED_GENERAL_CHAT');
+  assert.equal(history.length, 3);
+  assert.equal(JSON.stringify(history).includes('portfolio return'), false);
+  assert.equal(JSON.stringify(history).includes('bank account'), false);
+});
