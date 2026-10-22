@@ -8,7 +8,7 @@ ALTER TABLE finance.product_terms
 ALTER TABLE finance.product_terms
  ADD CONSTRAINT finance_product_terms_review_evidence_pair
  CHECK ((contract_evidence_url IS NULL AND contract_reviewed_at IS NULL)
-     OR (contract_evidence_url LIKE 'https://%' AND contract_reviewed_at IS NOT NULL));
+     OR (contract_evidence_url IS NOT NULL AND contract_evidence_url LIKE 'https://%' AND contract_reviewed_at IS NOT NULL));
 CREATE INDEX IF NOT EXISTS finance_product_terms_review_idx
  ON finance.product_terms(product_id,source_id,term_type,effective_from)
  WHERE contract_reviewed_at IS NOT NULL;
