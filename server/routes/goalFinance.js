@@ -259,6 +259,13 @@ router.get('/specifications', asyncHandler(async (req, res) => {
   res.json({ specifications: specs.map(specPublic) });
 }));
 router.post('/specifications', validateStrict(createSpecSchema), asyncHandler(async (req, res) => {
+  const futureDate = new Date(`${req.body.targetDate}T00:00:00.000Z`);
+  if (futureDate <= new Date()) {
+    return sendError(req, res, 400, 'Choose a future goal target date.', 'GOAL_SPEC_DATE_INVALID');
+  }
+  // Validate all derived calculations before the document is committed.
+  try { planGoalSpecification({ ...req.body, targetDate: futureDate }); }
+  catch { return sendError(req, res, 400, 'Goal target or horizon is outside supported limits.', 'GOAL_SPEC_CALCULATION_INVALID'); }
   const count = await GoalSpecification.countDocuments({ userId: req.user.userId });
   if (count >= 250) return sendError(req, res, 409, 'Goal specification limit reached.', 'GOAL_SPEC_LIMIT');
   const doc = await GoalSpecification.create({
@@ -274,6 +281,12 @@ function validSpecId(req, res, next) {
 }
 router.put('/specifications/:id', validSpecId, validateStrict(updateSpecSchema), asyncHandler(async (req, res) => {
   const { expectedVersion, ...values } = req.body;
+  const futureDate = new Date(`${values.targetDate}T00:00:00.000Z`);
+  if (futureDate <= new Date()) {
+    return sendError(req, res, 400, 'Choose a future goal target date.', 'GOAL_SPEC_DATE_INVALID');
+  }
+  try { planGoalSpecification({ ...values, targetDate: futureDate }); }
+  catch { return sendError(req, res, 400, 'Goal target or horizon is outside supported limits.', 'GOAL_SPEC_CALCULATION_INVALID'); }
   const saved = await GoalSpecification.findOneAndUpdate(
     { _id: req.params.id, userId: req.user.userId, version: expectedVersion },
     { $set: { ...values, targetDate: new Date(`${values.targetDate}T00:00:00.000Z`) }, $inc: { version: 1 } },
