@@ -100,7 +100,7 @@ export function buildClientResponseDTO({
 // Without an authenticated financial profile there is no account-bound goal
 // history. Never send an elliptical goal follow-up to the unverified general LLM.
 export function isUnboundGoalFollowUp(question) {
-  return /^(?:(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))\s*[.!?]?$/i.test(String(question || '').trim());
+  return /^(?:(?:what\s+about\s+)?(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)|(?:(?:my|our|the)\s+)?(?:daughter(?:'s)?\s+(?:marriage|wedding)|son(?:'s)?\s+(?:marriage|wedding)|(?:wedding|marriage|education|college|retirement|home|house|vehicle|car))\s+(?:is|will\s+be|happens?|occurs?)\s+in\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))\s*[.!?]?$/i.test(String(question || '').trim());
 }
 
 function noProfileResponse(sessionId, rateCheck) {
