@@ -59,7 +59,7 @@ function sipResponse(fields = {}, request = {}) {
     },
   };
   result.affordability = {
-    firstUnaffordableMonth: null, ...result.affordability,
+    firstUnaffordableMonth: null, maxMonthlyShortfall: 0, ...result.affordability,
   };
   result.emergency_buffer = {
     declaredAmount: request.emergencySavings ?? null,
@@ -74,7 +74,14 @@ function sipResponse(fields = {}, request = {}) {
     downsideStepUp: index === years - 1 ? result.downsideFinal : 0,
     inflationAdjustedStepUp: index === years - 1 ? result.inflationAdjustedStepUpFinal : 0,
     monthlySip: index === years - 1 ? result.finalMonthlySip : 0,
-    monthlyBudgetSurplus: null,
+    monthlyBudgetSurplus: request.monthlyIncome === undefined
+      || request.monthlyExpenses === undefined || request.monthlyEmi === undefined
+      ? null : Math.round((
+        request.monthlyIncome * Math.pow(1 + (request.annualIncomeGrowthRate ?? 0), index)
+        - request.monthlyExpenses * Math.pow(1 + (request.annualExpenseGrowthRate ?? 0.06), index)
+        - request.monthlyEmi
+        - (index === years - 1 ? result.finalMonthlySip : 0)
+      ) * 100) / 100,
   }));
   return result;
 }
