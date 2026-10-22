@@ -133,6 +133,20 @@ router.put('/budget/:month', checkMonth, validateStrict(budgetSchema), asyncHand
  * Do not trust persisted goal calculationFreshness flags alone. Resolve the
  * same authoritative current-state provenance as GET /api/goals first.
  */
+function safeLegacyGoalResponse(g, options) {
+  try {
+    return buildCurrentGoalResponse(g, options);
+  } catch {
+    // Handles both a failed canonical state resolution and a malformed goal:
+    // neither path may reclassify an invalid investment estimate as fresh.
+    return {
+      _id: g._id, goal_name: g.goal_name, priority: g.priority,
+      target_date: g.target_date, current_savings: null, recommended_sip: null,
+      calculation_freshness: { fresh: false, reasonCodes: ['GOAL_SOURCE_INVALID'] },
+    };
+  }
+}
+
 async function currentlyPresentableGoals(userId) {
   const goals = await Goal.find({ userId }).sort({ target_date: 1 }).limit(251).lean();
   if (goals.length > 250) {
@@ -146,7 +160,7 @@ async function currentlyPresentableGoals(userId) {
     canonical = await resolveCurrentFinancialProfile({ userId, requireRecommendation: false });
   } catch {
     // Profiles absent or unavailable must not make stale investment estimates look fresh.
-    return goals.map(g => buildCurrentGoalResponse(g, { resolutionFailure: true }));
+    return goals.map(g => safeLegacyGoalResponse(g, { resolutionFailure: true }));
   }
   const states = new Map();
   for (const profileId of new Set(goals.map(g => String(g.profileId)))) {
@@ -166,20 +180,10 @@ async function currentlyPresentableGoals(userId) {
   }
   return goals.map(g => {
     const state = states.get(String(g.profileId));
-    try {
-      return buildCurrentGoalResponse(g, {
-        state: state?.recommendation ? state : null,
-        resolutionFailure: !state || state.resolutionFailure === true,
-      });
-    } catch {
-      // A corrupt legacy goal must not interrupt every other valid goal or
-      // reappear with falsely qualified SIP/probability fields.
-      return {
-        _id: g._id, goal_name: g.goal_name, priority: g.priority,
-        target_date: g.target_date, current_savings: null, recommended_sip: null,
-        calculation_freshness: { fresh: false, reasonCodes: ['GOAL_SOURCE_INVALID'] },
-      };
-    }
+    return safeLegacyGoalResponse(g, {
+      state: state?.recommendation ? state : null,
+      resolutionFailure: !state || state.resolutionFailure === true,
+    });
   });
 }
 
