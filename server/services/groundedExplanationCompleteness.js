@@ -34,6 +34,18 @@ function evidenceDisplayText(entry) {
   return '';
 }
 
+// Reviewed public pages and exact regulatory excerpts are cited only for their
+// actual words. Token overlap is not enough: a model can otherwise reverse a
+// claim while using the same source ID (citation laundering).
+function isExtractivePublicClaim(claimText, entry) {
+  if (!['EDUCATION', 'REGULATORY_REFERENCE'].includes(entry?.kind)) return true;
+  const removeMarkers = value => String(value || '').replace(CITATION_PATTERN, ' ')
+    .replace(/\s+/g, ' ').trim().replace(/[\s.!?;:]+$/g, '').toLowerCase();
+  const statement = removeMarkers(claimText);
+  const evidence = removeMarkers(evidenceDisplayText(entry));
+  return statement.length >= 20 && evidence.includes(statement);
+}
+
 function hasTypedEvidenceBinding(claim, candidate, evidenceId) {
   const claimText = String(claim?.text || '').replace(/\s+/g, ' ').trim();
   return (candidate?.financialClaims || []).some(item => item?.evidenceId === evidenceId
@@ -46,7 +58,7 @@ function claimAnchoredToEvidence(claim, candidate, evidenceById) {
   const claimTokens = new Set(tokens(claimText));
   for (const evidenceId of claim?.evidenceIds || []) {
     const entry = evidenceById.get(evidenceId);
-    if (!entry) continue;
+    if (!entry || !isExtractivePublicClaim(claimText, entry)) continue;
     const evidenceText = evidenceDisplayText(entry);
     const anchors = new Set(tokens(evidenceText));
     // Word overlap alone can accept a sentence that reverses a cited fact.
