@@ -35,3 +35,19 @@ DROP TRIGGER IF EXISTS provider_rights_record_changes ON finance.provider_rights
 CREATE TRIGGER provider_rights_record_changes
  AFTER INSERT OR UPDATE OR DELETE ON finance.provider_rights
  FOR EACH ROW EXECUTE FUNCTION finance.record_provider_rights_change();
+
+-- Revoke UPDATE/DELETE behavior from ordinary SQL callers as well as the
+-- application. Privileged schema owners still need separate DBA controls.
+CREATE OR REPLACE FUNCTION finance.reject_provider_rights_audit_mutation()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ AS $$
+ BEGIN
+  RAISE EXCEPTION 'PROVIDER_RIGHTS_AUDIT_IMMUTABLE'
+    USING ERRCODE='23514';
+ END
+ $$;
+DROP TRIGGER IF EXISTS provider_rights_audit_immutable ON finance.provider_rights_audit;
+CREATE TRIGGER provider_rights_audit_immutable
+ BEFORE UPDATE OR DELETE ON finance.provider_rights_audit
+ FOR EACH ROW EXECUTE FUNCTION finance.reject_provider_rights_audit_mutation();
