@@ -496,3 +496,53 @@ test('goal red-team: spoken amount words are never silently guessed by an unsour
   assert.match(answer.text, /target amount/);
   assert.doesNotMatch(answer.text, /2,00,00,000|guaranteed returns/i);
 });
+
+
+test('red-team: previously floating-point false rejection accepts the exact ₹823.05 contribution', async () => {
+  const question = "Need ₹1,15,710.77 for daughter's wedding in 134 months; I have saved ₹5,422.07";
+  const packet = await createPacket(question);
+  const baseline = packet.entries.find(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE');
+  assert.equal(baseline?.value.targetAmount, 115710.77);
+  assert.equal(baseline?.value.earmarkedSavingsAmount, 5422.07);
+  assert.equal(baseline?.value.monthlyRequiredAmount, 823.05);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(answer.financialClaims.find(claim => claim.type === 'GOAL_MONTHLY_BASELINE')?.value, 823.05);
+  assert.match(answer.text, /823\\.05 per month/);
+});
+
+test('red-team: salary is never silently relabelled as investable monthly capacity', async () => {
+  for (const question of [
+    "Need 2 crore for daughter's wedding in 10 years; salary is ₹50k per month; starting from zero",
+    "Need 2 crore for daughter's wedding in 10 years; income is ₹50,000 monthly; saved ₹20 lakh",
+    "Need 2 crore for daughter's wedding in 10 years; wages are ₹50k/month; starting from zero",
+  ]) {
+    const packet = await createPacket(question);
+    assert.equal(packet.entries.find(entry => entry.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000, question);
+    assert.equal(packet.entries.some(entry => entry.id === 'E_GOAL_CAPACITY_CHECK'), false, question);
+    assert.equal(packet.entries.some(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE'), true, question);
+    const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+    assert.equal(answer.validation.status, 'PASS', question);
+    assert.doesNotMatch(answer.text, /Your stated monthly capacity is at least/i, question);
+  }
+});
+
+test('red-team: invalid zero-year horizon never raises a ReferenceError or fabricates a baseline', async () => {
+  const question = "Need 2 crore for daughter's wedding in 0 years, starting from zero";
+  const packet = await createPacket(question);
+  assert.equal(packet.entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /valid unambiguous deadline/);
+});
+
+test('red-team: stated future wedding costs are recognised as a goal, not generic chit-chat', async () => {
+  const question = "My daughter's wedding will cost ₹2 crore in 10 years";
+  assert.equal(isFinancialGoalPlanningQuestion(question), true);
+  assert.equal(isGeneralChatQuestion(question), false);
+  const packet = await createPacket(question);
+  assert.equal(packet.entries.find(entry => entry.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+});
