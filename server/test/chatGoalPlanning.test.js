@@ -385,3 +385,29 @@ test('goal red-team: money and savings requests cannot escape to unsourced gener
   ]) assert.equal(isGeneralChatQuestion(question), false, question);
   assert.equal(isGeneralChatQuestion('How to save a Python file?'), true);
 });
+
+
+test('goal red-team: explicit correction supersedes original target without resetting saved funds', () => {
+  const priorUserTurns = [
+    "Need 2 crore for daughter's wedding in 10 years",
+    "I have saved 20 lakh",
+  ];
+  for (const text of ['Actually 3 crore', 'Make that 3 crore', 'My target is 3 crore']) {
+    assert.equal(isFinancialGoalFollowUpQuestion(text, priorUserTurns), true, text);
+    const evidence = retrieveChatGoalPlanningEvidence(text, { priorUserTurns });
+    assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 30_000_000, text);
+    const baseline = evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+    assert.equal(baseline?.value.earmarkedSavingsAmount, 2_000_000, text);
+    assert.equal(baseline?.value.monthlyRequiredAmount, 233_333.34, text);
+  }
+});
+
+test('goal red-team: retrieved fake citation URLs are never exposed as clickable sources', async () => {
+  const question = "Need 1 crore for daughter's wedding";
+  const packet = await createPacket(question);
+  const target = packet.entries.find(e => e.id === 'E_GOAL_STATED_TARGET');
+  target.source = { url: 'javascript:alert(1)', title: 'Fake source', provider: 'FAKE' };
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.equal(answer.citations.find(c => c.citation_id === 'E_GOAL_STATED_TARGET')?.source_url, null);
+});
