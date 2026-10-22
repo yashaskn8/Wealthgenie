@@ -176,12 +176,28 @@ router.get('/funding/:month', checkMonth, asyncHandler(async (req, res) => {
   const saved = await getBudget(req.user.userId, req.params.month);
   const budget = visibleBudget(saved) || emptyBudget(req.params.month);
   const summary = summarizeGoalBudget(budget);
-  const goals = await currentlyPresentableGoals(req.user.userId);
+  const [goals, specifications] = await Promise.all([
+    currentlyPresentableGoals(req.user.userId),
+    GoalSpecification.find({ userId: req.user.userId }).sort({ targetDate: 1 }).limit(251).lean(),
+  ]);
+  if (goals.length + specifications.length > 250) {
+    return sendError(req, res, 409, 'Shared funding supports up to 250 total Goals targets.', 'GOAL_FUNDING_LIMIT');
+  }
+  const typedGoals = specifications.map(spec => {
+    const cashPlan = planGoalSpecification(spec);
+    return {
+      goalId: `spec:${String(spec._id)}`,
+      goal_name: spec.name, priority: spec.priority,
+      target_date: spec.targetDate, current_savings: spec.currentSavings,
+      recommended_sip: cashPlan.monthlyNeededWithoutReturns,
+      calculation_freshness: { fresh: cashPlan.status !== 'TARGET_DATE_REACHED' },
+    };
+  });
   const capacity = summary.budgetStatus === 'SELF_REPORTED' ? Math.max(0, summary.recurringSurplus) : null;
-  const plan = allocateGoalFunding(goals, capacity);
+  const plan = allocateGoalFunding([...goals, ...typedGoals], capacity);
   res.json({
     month: req.params.month, budgetVersion: budget.version, budgetSummary: summary, plan,
-    warning: 'Only user-declared budgeting information; an allocation plan is not a payment instruction.',
+    warning: 'Legacy and typed goals share one capacity; duplicate real-world targets and saved balances cannot be proven distinct. User-declared budgeting is not bank-verified.',
   });
 }));
 
