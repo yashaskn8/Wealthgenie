@@ -36,12 +36,20 @@ export function isFinancialGoalFollowUpQuestion(question, priorTurns = []) {
     && authenticatedUserTurns(priorTurns).some(isFinancialGoalPlanningQuestion);
 }
 
+export function isGoalCalculationFollowUp(question) {
+  const text = goalText(question);
+  if (!text || text.length > 160) return false;
+  if (/^(?:why(?:\s+(?:is|was)\s+(?:that|this|it|the\s+monthly\s+(?:amount|saving)))?(?:\s+so\s+much)?|how\s+(?:was|is)\s+(?:that|this|it|the\s+(?:amount|baseline|monthly\s+amount))\s+calculated|how\s+did\s+you\s+(?:calculate|work\s+out|arrive\s+at)\s+(?:that|this|it|the\s+(?:amount|number|baseline))|show\s+(?:me\s+)?(?:the\s+)?(?:math|calculation|steps)|break\s+(?:it|that)\s+down|explain\s+(?:(?:that|this|it)(?:\s+(?:amount|baseline))?|the\s+(?:amount|baseline))(?:\s+simply)?)\s*[?.!]*$/i.test(text)) return true;
+  return /^why\s+(?:(?:is|was)\s+(?:that|this|it)\s+)?(?:₹\s*|(?:rs\.?|inr)\s*)?\d[\d,]*(?:\.\d+)?(?:\s*(?:lakhs?|lacs?|crs?|crores?|l))?(?:\s+per\s+month)?\s*[?.!]*$/i.test(text);
+}
+
 export function isGoalPlanningFollowUp(question) {
   const text = goalText(question);
   if (!text || text.length > 240) return false;
   const targetRevision = /\b(?:actually|instead|make\s+(?:it|that)|change\s+(?:the\s+)?(?:goal|target)|(?:my|the)\s+(?:goal|target)\s+(?:is|should\s+be))\b/i.test(text)
     && moneyIn(text).some(item => item.role === 'TARGET');
   if (targetRevision) return true;
+  if (isGoalCalculationFollowUp(text)) return true;
   // Stray time references in unrelated questions must not rewrite an active goal.
   const simpleDeadline = /^(?:(?:in|within|after|over|next|for)\s+)?\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?(?:\s+instead)?\s*[.!?]?$/i;
   const namedDeadline = /^(?:(?:the|my|our|this|that)\s+)?(?:goal\s+)?(?:deadline|timeline|horizon|timeframe)\s*(?:is|of|to|:)?\s*(?:in|within|after|over)?\s*\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
@@ -206,7 +214,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   let invalidAmount = false;
   let contradictorySavings = false;
   for (const turn of used) {
-    const amounts = moneyIn(turn);
+    // Numbers echoed in calculation questions never rewrite the user's target.
+    const amounts = isGoalCalculationFollowUp(turn) ? [] : moneyIn(turn);
     if (amounts.some(item => item.role === 'INVALID' || item.role === 'AMBIGUOUS')) invalidAmount = true;
     if (/\b(?:₹|rs\.?|inr)\s*[-−]\s*\d/i.test(turn)) invalidAmount = true;
     const targets = amounts.filter(item => item.role === 'TARGET');
@@ -244,6 +253,9 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
       + '. Once those are confirmed, I can check the monthly saving required without guessing an investment return.';
   } else {
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
+  }
+  if (isGoalCalculationFollowUp(text) && target !== null && horizon !== null) {
+    guidance += ' Calculation method: subtract confirmed earmarked savings from the goal target, divide the remainder by the deadline in whole months, then round each required monthly payment upward to the next paisa. This baseline assumes no investment growth.';
   }
   if (monthlyCapacity !== null && saved !== null && horizon !== null && target !== null && saved < target) {
     const required = calculateGoalMonthlyBaseline(target, saved, horizon);
