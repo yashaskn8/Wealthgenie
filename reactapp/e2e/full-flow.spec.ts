@@ -289,6 +289,43 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     expect(monteCarlo.simulations_run).toBeGreaterThan(0);
     expect(monteCarlo.percentile_labels.p50).toBe('Simulated median');
 
+    // Real-dependency Grow My SIP smoke: no mocked projection, provider key
+    // or generated market data. This browser request uses the session cookie.
+    await page.getByTestId('nav-grow-my-sip').click();
+    await expect(page.getByTestId('journey-page-grow-my-sip')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Assumed Annualised Return (CAGR)' })).toBeVisible();
+    await page.getByLabel('Monthly living expenses excluding EMI (₹)').fill('15000');
+    await page.getByLabel('Liquid emergency savings (₹)').fill('300000');
+    await page.getByRole('button', { name: '5% Increase' }).click();
+    const sipPromise = page.waitForResponse(response => {
+      if (!apiResponse('POST', '/api/projection/step-up')(response)) return false;
+      try {
+        const body = response.request().postDataJSON();
+        return body.returnRateConvention === 'EFFECTIVE_ANNUAL_CAGR'
+          && body.annualStepUpRate === 0.05
+          && body.monthlyExpenses === 15000 && body.monthlyEmi === 0;
+      } catch {
+        return false;
+      }
+    }, { timeout: 30000 });
+    await page.getByLabel('Monthly EMI / debt payments (₹; enter 0 if none)').fill('0');
+    const sipResponse = await sipPromise;
+    expect(sipResponse.status()).toBe(200);
+    const sipResult = await sipResponse.json();
+    expect(sipResult.schema_version).toBe('sip-plan-v1');
+    expect(sipResult.monthly_rate_convention).toBe('EFFECTIVE_ANNUAL_CAGR');
+    expect(sipResult.annual_return_interpretation).toBe('USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN');
+    expect(sipResult.observed_market_fact).toBe(false);
+    expect(sipResult.estimated_post_tax_corpus).toBeNull();
+    expect(sipResult.assumptions.monthlyInvestment).toBe(27000);
+    expect(sipResult.additionalCorpus).toBe(sipResult.stepUpFinal - sipResult.flatFinal);
+    expect(sipResult.additionalContributions).toBeCloseTo(sipResult.stepUpInvested - sipResult.flatInvested, 2);
+    expect(sipResult.chartData.at(-1).stepUpSIP).toBe(sipResult.stepUpFinal);
+    expect(sipResult.affordability.status).toBe('WITHIN_DECLARED_BUDGET');
+    expect(sipResult.emergency_buffer.status).toBe('DECLARED_BUFFER_MET');
+    await expect(page.getByText(/Every planned instalment fits the declared monthly cash surplus/)).toBeVisible();
+    await expect(page.getByText(/Your declared savings meet the illustrative six-month expense-plus-EMI buffer/)).toBeVisible();
+
     await page.getByTestId('nav-allocation').click();
     await expect(page.getByRole('heading', { name: /Where to Invest Your Money/i })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Investment allocation breakdown donut chart' })).toBeVisible();
