@@ -361,7 +361,7 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     await page.getByLabel(/Annual taxable gross salary.*before standard deduction/i).fill('1275000.00');
     await page.getByLabel(/Residential status for Tax Year 2026/i).selectOption('resident');
     await page.getByLabel(/Any special-rate income or dividends/i).selectOption('no');
-    await page.locator('.wg-new-tax__confirm input').check();
+    await page.locator('.wg-new-tax__form').first().locator('.wg-new-tax__confirm input').check();
     const taxPromise = page.waitForResponse(apiResponse('POST', '/api/tax/new-regime-verified'));
     await page.getByRole('button', { name: 'Calculate income tax' }).click();
     const taxResponse = await taxPromise;
@@ -387,21 +387,21 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     await expect(page.getByText(/Estimated tax liability under the new regime/i)).toBeVisible();
     await expect(page.getByText(/Rounded under Section 516/i)).toBeVisible();
 
-    // Bounded complex tax E2E: the visible UI, the actual API and the
-    // legally distinct Section 196/198 tax heads must reconcile.
-    await page.getByRole('button', { name: 'Advanced Equity Capital Gains' }).click();
-    await expect(page.getByRole('heading', { name: 'Income Tax with Capital Gains' })).toBeVisible();
-    await page.getByLabel('Ordinary income type').selectOption('already_taxable');
-    await page.getByLabel(/Annual primary ordinary income/i).fill('1500000');
-    await page.getByLabel(/Additional ordinary-rate taxable income/i).fill('0');
-    await page.getByLabel(/Net annual STCG eligible/i).fill('200000');
-    await page.getByLabel(/Net annual LTCG eligible/i).fill('225000');
-    await page.getByLabel('Tax residence').selectOption('resident');
-    const capitalChecks = page.locator('[aria-label="Qualified resident capital gains tax calculator"] input[type="checkbox"]');
+    // Red-team the exact visible complex calculator, its API and independent tax ledger.
+    await page.locator('.wg-new-tax__advanced').nth(1).locator('summary').click();
+    const gainsPanel = page.locator('section[aria-label="Verified resident equity capital-gains tax"]');
+    await expect(gainsPanel.getByRole('heading', { name: 'Equity capital gains — qualified calculation' })).toBeVisible();
+    await gainsPanel.getByLabel('Ordinary income category').selectOption('already_taxable');
+    await gainsPanel.getByLabel('Primary ordinary annual income (₹)').fill('1500000');
+    await gainsPanel.getByLabel(/Additional ordinary taxable income, excluding gains/).fill('0');
+    await gainsPanel.getByLabel(/Net annual qualified STCG/).fill('200000');
+    await gainsPanel.getByLabel(/Net annual qualified LTCG/).fill('225000');
+    await gainsPanel.getByLabel(/Residency for Tax Year/).selectOption('resident');
+    const capitalChecks = gainsPanel.locator('input[type="checkbox"]');
     await expect(capitalChecks).toHaveCount(3);
     for (let i = 0; i < 3; i += 1) await capitalChecks.nth(i).check();
     const capitalPromise = page.waitForResponse(apiResponse('POST', '/api/tax/new-regime-verified-complex'));
-    await page.getByRole('button', { name: 'Calculate verified equity-gains tax' }).click();
+    await gainsPanel.getByRole('button', { name: 'Calculate qualified equity-gains tax' }).click();
     const capitalResponse = await capitalPromise;
     expect(capitalResponse.status()).toBe(200);
     const capitalResult = await capitalResponse.json();
@@ -410,10 +410,9 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     expect(capitalResult.section198Tax).toBe('12500.000');
     expect(capitalResult.section198ExemptLongTermGain).toBe('125000');
     expect(capitalResult.finalTax).toBe('163800');
-    await expect(page.getByRole('region', { name: 'Verified capital gains tax result' })).toBeVisible();
-    await expect(page.getByText('₹1,63,800').first()).toBeVisible();
-    await page.getByRole('button', { name: 'Simple Ordinary Income' }).click();
-    await expect(page.getByRole('heading', { name: 'Income Tax Calculator' })).toBeVisible();
+    await expect(gainsPanel.getByText(/Verified restricted-scope tax liability/i)).toBeVisible();
+    await expect(gainsPanel.getByText('₹1,63,800').first()).toBeVisible();
+
 
 
     const chatResponsePromise = page.waitForResponse(apiResponse('POST', '/api/chat/message'), { timeout: 90_000 });
