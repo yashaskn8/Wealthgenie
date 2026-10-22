@@ -196,9 +196,11 @@ export function getGroundedExplanationTokenUpperBound({ question, evidencePacket
 
 function citationFor(entry) {
   const rawUrl = entry.source?.url;
+  const internalOnly = entry.authority === 'USER_INPUT' || entry.dataClass === 'USER_INPUT'
+    || String(entry.dataClass || '').startsWith('DETERMINISTIC_');
   // Citations are data, not executable links. Never let retrieved documents
   // or a cache result introduce a javascript:, data: or insecure URL.
-  const sourceUrl = typeof rawUrl === 'string'
+  const sourceUrl = !internalOnly && typeof rawUrl === 'string'
     && /^https:\/\/[^\s"'<>]+$/i.test(rawUrl) ? rawUrl : null;
   return {
     citation_id: entry.id,
