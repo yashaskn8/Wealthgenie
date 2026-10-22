@@ -1,10 +1,10 @@
 import 'dotenv/config';
+import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
 if (!process.env.FINANCIAL_POSTGRES_URL) throw new Error('FINANCIAL_POSTGRES_URL_REQUIRED');
 const { Pool } = await import('pg');
-const pool = new Pool({
-  connectionString:process.env.FINANCIAL_POSTGRES_URL,
-  max:1,connectionTimeoutMillis:5000,statement_timeout:30000,
-});
+const pool = new Pool(createFinancialPostgresPoolOptions(process.env, {
+  max: 1, statement_timeout: 30000,
+}));
 const client = await pool.connect();
 try {
   await client.query('BEGIN');

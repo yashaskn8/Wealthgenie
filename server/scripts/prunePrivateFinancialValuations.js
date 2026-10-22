@@ -8,13 +8,14 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import { Pool } from 'pg';
 import HoldingValuationSnapshot from '../models/HoldingValuationSnapshot.js';
+import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
 
 const mongoUrl=process.env.MONGODB_MIGRATION_URI;
 const pgUrl=process.env.FINANCIAL_POSTGRES_URL;
 if (!mongoUrl || !pgUrl) {
   throw new Error('PRIVATE_FINANCIAL_RETENTION_MONGO_AND_POSTGRES_REQUIRED');
 }
-const pool=new Pool({connectionString:pgUrl,max:1,connectionTimeoutMillis:5000});
+const pool=new Pool(createFinancialPostgresPoolOptions(process.env,{max:1}));
 try {
   const { rows }=await pool.query(`
     SELECT source_id FROM finance.provider_rights

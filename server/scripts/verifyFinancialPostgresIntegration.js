@@ -6,13 +6,17 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
+import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
 
 const dbUrl = new URL(process.env.FINANCIAL_POSTGRES_URL || '');
 if (process.env.FINANCIAL_POSTGRES_TEST_MODE !== 'true'
   || !dbUrl.pathname.endsWith('_test')) {
   throw new Error('Refusing destructive financial SQL integration test outside an explicit *_test database');
 }
-const pool = new Pool({ connectionString: dbUrl.toString(), max: 3 });
+const pool = new Pool(createFinancialPostgresPoolOptions({
+  ...process.env,
+  FINANCIAL_POSTGRES_URL: dbUrl.toString(),
+}, { max: 3 }));
 const store = createFinancialStore(pool);
 const suffix = randomUUID().replaceAll('-', '').slice(0, 16);
 const productId = 'ci:finance:' + suffix;

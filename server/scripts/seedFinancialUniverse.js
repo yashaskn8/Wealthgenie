@@ -2,15 +2,14 @@ import 'dotenv/config';
 import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { investmentDatabase } from '../data/investmentDatabase.js';
+import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
 
 const extensionManifest = JSON.parse(
   readFileSync(new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8'),
 );
 if (!process.env.FINANCIAL_POSTGRES_URL) throw new Error('FINANCIAL_POSTGRES_URL_REQUIRED');
 const { Pool } = await import('pg');
-const pool = new Pool({
-  connectionString:process.env.FINANCIAL_POSTGRES_URL,max:1,connectionTimeoutMillis:5000,
-});
+const pool = new Pool(createFinancialPostgresPoolOptions(process.env, { max: 1 }));
 function slug(label) {
   const normalized = label.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55)||'category';
   return normalized+'-'+crypto.createHash('sha256').update(label).digest('hex').slice(0,8);

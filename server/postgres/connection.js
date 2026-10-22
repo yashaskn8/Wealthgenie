@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { createFinancialPostgresPoolOptions } from './poolConfig.js';
 
 let instance = null;
 let pending = null;
@@ -64,13 +65,7 @@ export async function getFinancialPostgresPool(env = process.env) {
       error.code = 'FINANCIAL_POSTGRES_DRIVER_MISSING';
       throw error;
     }
-    const pool = new Pool({
-      connectionString: env.FINANCIAL_POSTGRES_URL,
-      max: 5,
-      connectionTimeoutMillis: 5000,
-      idleTimeoutMillis: 10000,
-      statement_timeout: 10000,
-    });
+    const pool = new Pool(createFinancialPostgresPoolOptions(env));
     try {
       await verifyFinancialPostgresReadiness(pool);
       instance = pool;
