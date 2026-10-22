@@ -248,14 +248,25 @@ router.post('/vehicle/:month', checkMonth, requireCurrentGoalAssessmentMonth, va
   const monthlyGoalCommitments = goalPlan.status === 'DATA_INSUFFICIENT' ? null
     : goalPlan.totalRequested;
   const assessmentContext = { monthlyGoalCommitments };
-  const primary = assessVehiclePurchase(budget, scenario, assessmentContext);
-  const compared = alternatives.map(alt => ({
-    label: alt.label,
-    assessment: assessVehiclePurchase(budget, {
-      ...scenario, price: alt.price, downPayment: alt.downPayment,
-      upfrontFees: alt.upfrontFees, monthlyOwnershipCost: alt.monthlyOwnershipCost,
-    }, assessmentContext),
-  }));
+  // Cross-field issues (e.g., down payment above price) pass basic Joi
+  // validation but are user errors, not unexpected server faults.
+  let primary;
+  let compared;
+  try {
+    primary = assessVehiclePurchase(budget, scenario, assessmentContext);
+    compared = alternatives.map(alt => ({
+      label: alt.label,
+      assessment: assessVehiclePurchase(budget, {
+        ...scenario, price: alt.price, downPayment: alt.downPayment,
+        upfrontFees: alt.upfrontFees, monthlyOwnershipCost: alt.monthlyOwnershipCost,
+      }, assessmentContext),
+    }));
+  } catch (error) {
+    if (!(error instanceof RangeError || error instanceof TypeError)) throw error;
+    return sendError(req, res, 422,
+      'The scenario cannot be calculated. Check the loan, down payment, and monetary limits.',
+      'GOAL_VEHICLE_SCENARIO_INVALID');
+  }
   res.json({
     month: req.params.month, budgetVersion: budget.version, primary,
     goalFundingStatus: goalPlan.status,
@@ -421,8 +432,17 @@ router.delete('/specifications/:id', validSpecId, asyncHandler(async (req, res) 
 }));
 
 router.post('/projection', validateStrict(projectionSchema), asyncHandler(async (req, res) => {
+  let projection;
+  try {
+    projection = projectGoalSavings(req.body);
+  } catch (error) {
+    if (!(error instanceof RangeError || error instanceof TypeError)) throw error;
+    return sendError(req, res, 422,
+      'This scenario exceeds the supported calculation range. Reduce the horizon, contribution, or assumed rates.',
+      'GOAL_PROJECTION_OUT_OF_RANGE');
+  }
   res.json({
-    projection: projectGoalSavings(req.body),
+    projection,
     note: 'User-specified hypothetical nominal pre-tax rates; not product rates, forecasts, or investment recommendations.',
   });
 }));
