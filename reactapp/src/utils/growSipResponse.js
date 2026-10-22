@@ -223,7 +223,8 @@ export function assertGrowSipResponse(value, input) {
       largestShortfall = Math.max(largestShortfall, -surplus);
     }
   }
-  if (budget.worstMonthlySurplus !== (hasBudget ? roundSignedPaise(worstRawSurplus) : null)) invalid();
+  if (budget.worstMonthlySurplus !== (hasBudget ? roundSignedPaise(worstRawSurplus) : null)
+    || (!hasBudget && budget.maxMonthlyShortfall !== 0)) invalid();
   if (hasBudget) {
     const expectedStatus = firstUnfundedMonth === null
       ? 'WITHIN_DECLARED_BUDGET' : 'OVER_DECLARED_BUDGET';
@@ -237,14 +238,21 @@ export function assertGrowSipResponse(value, input) {
   const buffer = value.emergency_buffer;
   if ((hasEmergency && buffer.status === 'NOT_ASSESSED')
     || (!hasEmergency && buffer.status !== 'NOT_ASSESSED')) invalid();
+  // Even unassessed buffer metadata must stay honest. If expenses/EMI are
+  // known, the threshold is computable without declared savings. If either
+  // expense is unknown, requiredAmount must remain null, never fabricated.
+  const hasExpenseInputs = ['monthlyExpenses', 'monthlyEmi']
+    .every(key => input[key] !== undefined && input[key] !== null);
+  const required = hasExpenseInputs
+    ? roundSignedPaise((input.monthlyExpenses + input.monthlyEmi)
+      * (input.emergencyMonths ?? 6))
+    : null;
+  const declared = input.emergencySavings === undefined ? null : input.emergencySavings;
+  if (buffer.requiredAmount !== required || buffer.declaredAmount !== declared) invalid();
   if (hasEmergency) {
-    const required = roundSignedPaise((input.monthlyExpenses + input.monthlyEmi)
-      * (input.emergencyMonths ?? 6));
     const expectedStatus = input.emergencySavings >= required
       ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT';
-    if (buffer.status !== expectedStatus
-      || !matchingNumber(buffer.requiredAmount, required)
-      || !matchingNumber(buffer.declaredAmount, input.emergencySavings)) invalid();
+    if (buffer.status !== expectedStatus) invalid();
   }
 
   // Every published warning must match the underlying status. Omissions or
