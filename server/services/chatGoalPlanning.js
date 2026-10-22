@@ -33,7 +33,7 @@ export function isFinancialGoalPlanningQuestion(question) {
 }
 
 
-const PERCENT_INPUT = /(-?\d{1,3}(?:\.\d{1,4})?)\s*%/g;
+const PERCENT_INPUT = /(?<![\d.])(-?\d{1,3}(?:\.\d{1,4})?)\s*%/g;
 function goalRateMentions(question) {
   const text = goalText(question);
   const matches = [];
@@ -44,7 +44,13 @@ function goalRateMentions(question) {
       || /\b(?:inflation|price inflation|cost inflation)\s*(?:rate|is|of|at|:)?\s*$/.test(before);
     const investment = /^\s*(?:(?:annual|yearly|p\.?a\.?)\s+)?(?:returns?|cagr|investment growth)\b/.test(after)
       || /\b(?:investment\s+)?(?:returns?|cagr|growth)\s*(?:rate|is|of|at|:)?\s*$/.test(before);
-    if (inflation && investment) matches.push({ kind: 'INVALID' });
+    // Never reinterpret nominal, simple or nonannual rates as an effective CAGR.
+    const immediateContext = text.slice(Math.max(0, match.index - 20),
+      match.index + match[0].length + 20);
+    const incompatibleRateBasis = /\b(?:monthly|quarterly|weekly|daily|nominal|simple interest)\b/i.test(immediateContext)
+      && /\b(?:interest|return|growth|cagr|inflation|rate|compounded)\b/i.test(immediateContext);
+    if (incompatibleRateBasis) matches.push({ kind: 'INVALID' });
+    else if (inflation && investment) matches.push({ kind: 'INVALID' });
     else if (inflation || investment) matches.push({ kind: inflation ? 'INFLATION' : 'RETURN', rate: match[1] });
   }
   return matches;
