@@ -79,6 +79,16 @@ function responseIsBound(result, request) {
         || !slabsReconcile(result.slabBreakdown, result.taxableIncome, result.taxBeforeRebate)
         || !amounts.every(key => /^\d+\.\d{4}$/.test(result[key]))) return false;
     const units = key => BigInt(result[key].replace('.', ''));
+    // Echoed input IDs alone are insufficient: reconcile every entered rupee
+    // and the permitted standard deduction with the actual returned amounts.
+    const primaryPaise = asPaise(request.primaryIncome);
+    const additionalPaise = asPaise(request.otherOrdinaryIncome);
+    if (primaryPaise === null || additionalPaise === null) return false;
+    const permittedDeductionPaise = ['salary', 'pension'].includes(request.incomeType)
+      ? (primaryPaise < 7500000n ? primaryPaise : 7500000n) : 0n;
+    if (units('grossPrimaryIncome') !== primaryPaise * 100n
+        || units('otherOrdinaryIncome') !== additionalPaise * 100n
+        || units('standardDeduction') !== permittedDeductionPaise * 100n) return false;
     const beforeRounding = units('taxBeforeRebate') - units('rebate')
       + units('surcharge') - units('surchargeMarginalRelief') + units('cess');
     const roundedPayable = ((beforeRounding / 10000n + 5n) / 10n) * 10n;
