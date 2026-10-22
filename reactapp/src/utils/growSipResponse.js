@@ -81,25 +81,30 @@ export function assertGrowSipResponse(value, input) {
     || !Array.isArray(value.chartData)
     || value.chartData.length !== input.years) invalid();
 
+  // Echoed input numbers must match the *exact* requested JSON values.
+  // Money-derived projections can tolerate rounding, but silently accepting
+  // different assumptions makes the displayed scenario's provenance false.
+  const sameInput = (a, b) => typeof a === 'number'
+    && typeof b === 'number' && Number.isFinite(a) && a === b;
   const matchingNumber = (a, b) => typeof a === 'number'
     && typeof b === 'number' && Math.abs(a - b) < 1e-9;
   if (!value.assumptions
-    || !matchingNumber(value.assumptions.monthlyInvestment, input.monthlyInvestment)
-    || !matchingNumber(value.assumptions.annualReturnRate, input.annualReturnRate)
-    || !matchingNumber(value.assumptions.annualStepUpRate, input.annualStepUpRate)
+    || !sameInput(value.assumptions.monthlyInvestment, input.monthlyInvestment)
+    || !sameInput(value.assumptions.annualReturnRate, input.annualReturnRate)
+    || !sameInput(value.assumptions.annualStepUpRate, input.annualStepUpRate)
     || value.assumptions.years !== input.years
     || value.assumptions.returnRateConvention !== 'EFFECTIVE_ANNUAL_CAGR') invalid();
 
   // Validation must bind the entire scenario (not just the SIP amount).
   for (const key of ['inflationRate', 'downsideAnnualReturnRate',
     'annualIncomeGrowthRate', 'annualExpenseGrowthRate']) {
-    if (key in input && !matchingNumber(value.assumptions[key], input[key])) invalid();
+    if (key in input && !sameInput(value.assumptions[key], input[key])) invalid();
   }
   for (const key of ['monthlyIncome', 'monthlyExpenses', 'monthlyEmi', 'emergencySavings']) {
     const expected = Object.prototype.hasOwnProperty.call(input, key) ? input[key] : null;
     if (expected === null) {
       if (value.assumptions[key] !== null) invalid();
-    } else if (!matchingNumber(value.assumptions[key], expected)) invalid();
+    } else if (!sameInput(value.assumptions[key], expected)) invalid();
   }
   if (value.assumptions.emergencyMonths !== (input.emergencyMonths ?? 6)) invalid();
 
