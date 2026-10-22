@@ -40,23 +40,41 @@ export function isGoalPlanningFollowUp(question) {
     || /\b(?:saved|savings|set aside|already have|starting from zero|nothing saved|no savings|per month|monthly|years?|months?|horizon|deadline|timeline|afford|can contribute|can save|can invest)\b/i.test(text);
 }
 
+function parseExactRupees(raw, factor) {
+  if (!/^(?:\d+(?:\.\d+)?|\d{1,3}(?:,\d{2})*,\d{3}(?:\.\d+)?|\d{1,3}(?:,\d{3})+(?:\.\d+)?)$/.test(raw)) return null;
+  const [whole, fraction = ''] = raw.replace(/,/g, '').split('.');
+  if (fraction.length > 12) return null;
+  const divisor = 10n ** BigInt(fraction.length);
+  const fractionalPaiseNumerator = BigInt(fraction || '0') * factor * 100n;
+  if (fractionalPaiseNumerator % divisor !== 0n) return null;
+  const paise = BigInt(whole) * factor * 100n + fractionalPaiseNumerator / divisor;
+  if (paise <= 0n || paise > 100_000_000_000n * 100n || paise > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  return Number(paise) / 100;
+}
+
 function moneyIn(question) {
   const found = [];
   for (const match of goalText(question).matchAll(AMOUNT)) {
-    const amountUnit = String(match[3] ? '' : match[2] || '').toLowerCase();
-    const factor = /^cr/.test(amountUnit) ? 10_000_000
-      : /^(?:lakh|lac)/.test(amountUnit) ? 100_000
-        : /^(?:k|thousand)/.test(amountUnit) ? 1000 : 1;
-    const raw = match[1] || match[3];
-    const amount = Number(raw.replace(/,/g, '')) * factor;
-    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 100_000_000_000) continue;
-    const before = String(question).slice(Math.max(0, match.index - 55), match.index).toLowerCase();
-    const after = String(question).slice(match.index + match[0].length, match.index + match[0].length + 34).toLowerCase();
-    const savings = /(?:already\s+)?(?:have|saved|earmarked|set aside|saved up|have put aside|accumulated|existing savings)\s*(?:up to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before.trim())
-      || /^\s*(?:already\s+saved|saved\s+already|in savings)\b/i.test(after);
-    const monthly = !savings && (/(?:can\s+(?:save|invest|contribute)|monthly\s+(?:saving|contribution)|per month)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before.trim())
-      || /^\s*(?:per month|monthly|\/month)\b/i.test(after));
-    found.push({ amount, role: savings ? 'SAVINGS' : monthly ? 'CAPACITY' : 'TARGET' });
+    const unit = String(match[2] || '').toLowerCase();
+    const factor = /^cr/.test(unit) ? 10_000_000n
+      : /^(?:lakh|lac)/.test(unit) ? 100_000n
+        : /^(?:k|thousand)/.test(unit) ? 1000n : 1n;
+    const amount = parseExactRupees(match[1] || match[3], factor);
+    if (amount === null) { found.push({ amount: null, role: 'INVALID' }); continue; }
+    const before = goalText(question).slice(Math.max(0, match.index - 70), match.index).toLowerCase().trim();
+    const after = goalText(question).slice(match.index + match[0].length, match.index + match[0].length + 55).toLowerCase();
+    const savings = /(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+      || /^\s*(?:already\s+saved|saved(?:\s+already)?|earmarked|in\s+savings|as\s+savings|in\s+(?:my|our)\s+savings|set\s+aside)\b/i.test(after);
+    const capacity = !savings && (/(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+      || /(?:monthly\s+(?:saving|contribution|capacity|budget)|per\s+month|each\s+month)\s*(?:of\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+      || /^\s*(?:per\s+month|each\s+month|monthly|\/month|a\s+month|pm\b)\b/i.test(after));
+    const unrelated = !savings && !capacity && (/\b(?:salary|income|earn(?:ings)?|emi|rent|debt|loan|expenses?|spend(?:ing)?|paid|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+      || /^\s*(?:salary|income|emi|rent|loan|in\s+debt|as\s+expenses?)\b/i.test(after));
+    const ambiguousHolding = !savings && !capacity && !unrelated
+      && /\b(?:i|we)\s+have\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+      && !/^\s*(?:as\s+(?:my|our|the)\s+(?:target|goal)|(?:for|towards)\s+(?:my|our|the)\s+goal)\b/i.test(after);
+    found.push({ amount, role: savings ? 'SAVINGS' : capacity ? 'CAPACITY'
+      : unrelated ? 'OTHER' : ambiguousHolding ? 'AMBIGUOUS' : 'TARGET' });
   }
   return found;
 }
@@ -98,8 +116,10 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   let horizon = null;
   let monthlyCapacity = null;
   let ambiguousTarget = false;
+  let invalidAmount = false;
   for (const turn of used) {
     const amounts = moneyIn(turn);
+    if (amounts.some(item => item.role === 'INVALID' || item.role === 'AMBIGUOUS')) invalidAmount = true;
     const targets = amounts.filter(item => item.role === 'TARGET');
     const savings = amounts.filter(item => item.role === 'SAVINGS');
     const capacities = amounts.filter(item => item.role === 'CAPACITY');
@@ -113,9 +133,11 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
     if (months !== null) horizon = months;
   }
 
+  // Fail closed on ambiguous savings or amounts with fractional paise.
+  if (invalidAmount) { target = null; saved = null; monthlyCapacity = null; }
   const context = goalName(source);
   const missing = [];
-  if (target === null) missing.push(ambiguousTarget ? 'which amount is the actual goal target' : 'the target amount');
+  if (target === null) missing.push(invalidAmount ? 'the exact goal and savings amounts (one amount was ambiguous or invalid)' : ambiguousTarget ? 'which amount is the actual goal target' : 'the target amount');
   if (horizon === null) missing.push('the deadline in years');
   if (saved === null) missing.push('how much is already earmarked for this goal');
   const scope = used.length > 1 ? 'TRUSTED_FINANCIAL_CHAT' : 'CURRENT_USER_MESSAGE';
@@ -131,7 +153,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
   if (monthlyCapacity !== null && saved !== null && horizon !== null && target !== null) {
-    const required = Math.ceil(((Math.max(0, target - saved)) / horizon) * 100) / 100;
+    const leftPaise = BigInt(Math.round(target * 100)) - BigInt(Math.round(saved * 100));
+    const required = Number((leftPaise + BigInt(horizon) - 1n) / BigInt(horizon)) / 100;
     guidance += monthlyCapacity >= required
       ? ' Your stated monthly capacity is at least this contribution-only baseline.'
       : ' Your stated monthly capacity is below this contribution-only baseline; the goal, deadline or contributions would need reviewing.';
@@ -151,7 +174,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   if (target !== null && horizon !== null && (saved === null || saved < target)) {
     const scenarioSavings = saved === null ? 0 : saved;
     const scenario = saved === null ? 'ZERO_START_CONDITIONAL' : 'DECLARED_SAVINGS';
-    const baseline = Math.ceil(((target - scenarioSavings) * 100) / horizon) / 100;
+    const remainingPaise = BigInt(Math.round(target * 100)) - BigInt(Math.round(scenarioSavings * 100));
+    const baseline = Number((remainingPaise + BigInt(horizon) - 1n) / BigInt(horizon)) / 100;
     if (Number.isFinite(baseline) && baseline > 0) entries.push({
       id: 'E_GOAL_MONTHLY_BASELINE', kind: 'GOAL_CALCULATION',
       value: { monthlyRequiredAmount: baseline, targetAmount: target,
