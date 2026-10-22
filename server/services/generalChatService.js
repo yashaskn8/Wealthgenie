@@ -30,6 +30,7 @@ function safeGeneralHistory(priorTurns) {
 const PROVIDER_FAILURES = new Set([
   'PROVIDER_TIMEOUT', 'PROVIDER_SERVER_ERROR', 'PROVIDER_NETWORK_ERROR',
   'PROVIDER_CIRCUIT_OPEN', 'PROVIDER_NOT_CONFIGURED',
+  'PROVIDER_RATE_LIMITED', 'PROVIDER_AUTHENTICATION_FAILED',
   'PROVIDER_INCOMPLETE_OUTPUT', 'EMPTY_COMPLETION', 'GENERAL_UNVERIFIED_SOURCE_MARKER',
 ]);
 const SYSTEM_PROMPT = [
@@ -87,7 +88,7 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
   let usageComplete = true;
   let lastFailure = null;
 
-  for (const provider of providers.slice(0, maxAttempts)) {
+  for (const [providerIndex, provider] of providers.slice(0, maxAttempts).entries()) {
     if (typeof provider?.isConfigured === 'function' && !provider.isConfigured()) {
       lastFailure = 'PROVIDER_NOT_CONFIGURED';
       continue;
@@ -162,8 +163,8 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
         text: responseText,
         provider: String(response.provider || provider.name || 'UNKNOWN').toUpperCase(),
         model: response.model || provider.configuredModel?.() || null,
-        tokensUsed: consumed, fallback: failures > 0,
-        reasons: failures ? ['PRIMARY_PROVIDER_UNAVAILABLE'] : [],
+        tokensUsed: consumed, fallback: providerIndex > 0 || failures > 0,
+        reasons: providerIndex > 0 || failures > 0 ? ['PRIMARY_PROVIDER_UNAVAILABLE'] : [],
         attempted, failures, providerUsageComplete: usageComplete,
       });
     }
