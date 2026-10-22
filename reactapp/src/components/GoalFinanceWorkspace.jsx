@@ -11,8 +11,11 @@ const moneyLabel = amount => typeof amount === 'number' && Number.isFinite(amoun
   ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(amount)
   : 'Unavailable';
 const thisMonth = () => {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit',
+  }).formatToParts(new Date());
+  const part = type => parts.find(p => p.type === type)?.value;
+  return `${part('year')}-${part('month')}`;
 };
 const emptyExpense = () => ({ category: 'groceries', frequency: 'recurring', amount: '' });
 const emptyBudget = () => ({
@@ -260,6 +263,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('budget');
+  const isCurrentMonth = month === thisMonth();
 
   useEffect(() => {
     let cancelled = false;
@@ -267,7 +271,8 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
       setLoading(true); setError(null); setSummary(null); setFunding(null);
       setBudgetDirty(false); setBudgetLoadFailed(false);
       const [budgetResponse, fundingResponse] = await Promise.allSettled([
-        api.getGoalBudget(month), api.getGoalFundingPlan(month),
+        api.getGoalBudget(month),
+        month === thisMonth() ? api.getGoalFundingPlan(month) : Promise.resolve(null),
       ]);
       if (cancelled) return;
       if (budgetResponse.status === 'fulfilled') {
@@ -330,7 +335,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
         expenses: result.budget.expenses.length ? result.budget.expenses : [emptyExpense()] }));
       setSummary(result.summary);
       try {
-        const refreshed = await api.getGoalFundingPlan(savingMonth);
+        const refreshed = savingMonth === thisMonth() ? await api.getGoalFundingPlan(savingMonth) : null;
         if (stillSameMonth()) setFunding(refreshed);
       } catch {
         if (stillSameMonth()) {
@@ -381,7 +386,8 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
     {!loading && activeTab === 'funding' && <div className="wg-goal-panel">
       <h3>Allocate one shared savings budget</h3>
       <p>All goals compete for the same monthly surplus. A goal's previously entered savings cannot be proven distinct from savings used by another goal.</p>
-      {budgetDirty || budgetLoadFailed ? <Notice kind="warning">Save the current budget before assessing shared goal funding.</Notice> : funding ? <><h4>Status: {funding.plan.status.replaceAll('_', ' ')}</h4>
+      {!isCurrentMonth ? <Notice kind="warning">Goal funding is available only for the current Indian calendar month. This stored budget is for another period, and current goal contributions cannot be applied to it reliably.</Notice>
+      : budgetDirty || budgetLoadFailed ? <Notice kind="warning">Save the current budget before assessing shared goal funding.</Notice> : funding ? <><h4>Status: {funding.plan.status.replaceAll('_', ' ')}</h4>
         <div className="wg-goal-metrics">
           <p><b>Available for goals</b><span>{moneyLabel(funding.plan.capacity)}</span></p>
           <p><b>Combined required contributions</b><span>{moneyLabel(funding.plan.totalRequested)}</span></p>
@@ -394,8 +400,10 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
         <Notice kind="warning">{funding.plan.warnings.join('; ').replaceAll('_', ' ')}</Notice>
       </> : <Notice kind="error">Funding plan unavailable. No amount is assumed affordable.</Notice>}
     </div>}
-    {!loading && activeTab === 'specs' && <GoalSpecificationsPanel onChanged={() => { void api.getGoalFundingPlan(month).then(setFunding).catch(() => setError('Shared funding could not be updated after saving your goal.')); }}/>}
-    {!loading && activeTab === 'vehicle' && (budgetDirty || budgetLoadFailed
+    {!loading && activeTab === 'specs' && <GoalSpecificationsPanel onChanged={() => { if (isCurrentMonth) void api.getGoalFundingPlan(month).then(setFunding).catch(() => setError('Shared funding could not be updated after saving your goal.')); }}/>}
+    {!loading && activeTab === 'vehicle' && (!isCurrentMonth
+      ? <Notice kind="warning">Choose the current Indian calendar month for vehicle affordability. A historical or future budget must not be compared with today's goal commitments.</Notice>
+      : budgetDirty || budgetLoadFailed
       ? <Notice kind="warning">Save your updated monthly budget before assessing a purchase. Existing estimates are not reused.</Notice>
       : <VehicleForm key={month} month={month}/>)}
     {!loading && activeTab === 'projection' && <SavingsProjection/>}
