@@ -11,6 +11,7 @@ const REQUIRED_FINANCIAL_MIGRATIONS = Object.freeze([
   '005_provider_rights_audit.sql',
   '006_permission_assertions.sql',
   '007_actual_product_tax_class.sql',
+  '008_contract_terms_provenance.sql',
 ]);
 
 /**
