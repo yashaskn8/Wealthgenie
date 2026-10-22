@@ -193,6 +193,14 @@ export default function NewRegimeTaxScreen() {
       setError('Choose an income category and enter both non-negative rupee amounts (enter 0 if none; maximum two decimal places; combined maximum ₹100 crore).');
       return;
     }
+    // Refuse unsupported contexts before disclosing entered financial figures
+    // to the API. The server independently enforces exactly the same gate.
+    if (request.residency === 'unknown' || request.specialRateIncome !== 'no'
+        || !request.confirmedOrdinaryOnly) {
+      setResult(null);
+      setError('Cannot calculate this simplified return. Confirm your residential status, that you have no special-rate income or dividends, and that no unmodelled tax adjustments apply. No income figures were submitted.');
+      return;
+    }
     sequenceRef.current += 1;
     const sequence = sequenceRef.current;
     abortRef.current?.abort();
