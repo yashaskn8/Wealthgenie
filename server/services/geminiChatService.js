@@ -96,6 +96,12 @@ export function buildClientResponseDTO({
   };
 }
 
+// Without an authenticated financial profile there is no account-bound goal
+// history. Never send an elliptical goal follow-up to the unverified general LLM.
+export function isUnboundGoalFollowUp(question) {
+  return /^(?:(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))\s*[.!?]?$/i.test(String(question || '').trim());
+}
+
 function noProfileResponse(sessionId, rateCheck) {
   return buildClientResponseDTO({
     response: "I don't have your Financial Profile yet. Complete the profile flow before requesting a personalized explanation.",
@@ -252,6 +258,18 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       throw createError(429, 'Chat user rate limit exceeded.', 'The hourly chat message limit has been reached.', {
         code: 'CHAT_RATE_LIMIT_EXCEEDED',
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
+      });
+    }
+    if (isUnboundGoalFollowUp(message)) {
+      return buildClientResponseDTO({
+        response: 'I do not have an account-bound goal from an earlier turn. Please restate the goal amount, deadline and savings together so I can calculate from the numbers you provide, without assuming an investment return.',
+        session_id: sessionId,
+        grounded: false,
+        provider: 'SYSTEM',
+        validation_status: 'GOAL_CONTEXT_REQUIRED',
+        messages_this_hour: rateCheck.count,
+        rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+        rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
       });
     }
     // A completed financial profile must never be a prerequisite for ordinary
