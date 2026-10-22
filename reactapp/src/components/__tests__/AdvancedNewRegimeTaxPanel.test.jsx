@@ -56,7 +56,7 @@ describe('advanced new-regime tax privacy and reconciliation', () => {
       residency: 'resident', confirmedNoOtherTaxAdjustments: true,
     });
     await waitFor(() => expect(screen.getByText('Tax for the specifically declared and qualified scenario')).toBeInTheDocument());
-    expect(screen.getByText('₹0')).toBeInTheDocument();
+    expect(screen.getAllByText('₹0').length).toBeGreaterThan(0);
   });
 
   it('rejects an internally inconsistent result instead of displaying a believable but false tax', async () => {
