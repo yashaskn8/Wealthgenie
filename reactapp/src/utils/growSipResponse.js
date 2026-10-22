@@ -86,6 +86,34 @@ export function assertGrowSipResponse(value, input) {
   const hasEmergency = ['monthlyExpenses', 'monthlyEmi', 'emergencySavings']
     .every(key => input[key] !== undefined && input[key] !== null);
   const budget = value.affordability;
+  let firstUnfundedMonth = null;
+  let largestShortfall = 0;
+  for (let i = 0; i < years; i++) {
+    const row = value.chartData[i];
+    if (!hasBudget) {
+      if (row.monthlyBudgetSurplus !== null) invalid();
+      continue;
+    }
+    const available = input.monthlyIncome * Math.pow(1 + input.annualIncomeGrowthRate, i)
+      - input.monthlyExpenses * Math.pow(1 + input.annualExpenseGrowthRate, i)
+      - input.monthlyEmi;
+    const surplus = available - row.monthlySip;
+    if (!Number.isFinite(surplus) || !validSigned(surplus)
+      || !matchingNumber(row.monthlyBudgetSurplus, Math.round((surplus
+        + Math.sign(surplus) * Number.EPSILON) * 100) / 100)) invalid();
+    if (surplus < -0.005) {
+      if (firstUnfundedMonth === null) firstUnfundedMonth = i * 12 + 1;
+      largestShortfall = Math.max(largestShortfall, -surplus);
+    }
+  }
+  if (hasBudget) {
+    const expectedStatus = firstUnfundedMonth === null
+      ? 'WITHIN_DECLARED_BUDGET' : 'OVER_DECLARED_BUDGET';
+    if (budget.status !== expectedStatus
+      || budget.firstUnaffordableMonth !== firstUnfundedMonth
+      || !matchingNumber(budget.maxMonthlyShortfall,
+        Math.round(largestShortfall * 100) / 100)) invalid();
+  }
   if ((hasBudget && budget.status === 'NOT_ASSESSED')
     || (!hasBudget && budget.status !== 'NOT_ASSESSED')) invalid();
   const buffer = value.emergency_buffer;
