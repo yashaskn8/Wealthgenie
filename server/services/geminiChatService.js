@@ -175,6 +175,17 @@ function chatMessageMatchesBinding(message, binding) {
     && (metadata.portfolioFingerprint || null) === (binding.sourcePortfolioFingerprint || null);
 }
 
+function isContextDependentFollowUp(question) {
+  return /^(?:why\??|how\s+(?:so|come)\b|tell\s+me\s+more\b|can\s+you\s+explain\b|explain\s+(?:that|it|more|the\s+previous)\b|what\s+about\s+(?:it|that|this)\b|continue\b)/i.test(String(question || '').trim());
+}
+
+function lastChatTurnWasFinancial(conversation) {
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const latest = [...messages].reverse().find(item => item.role === 'model');
+  return Boolean(latest && (latest.metadata?.grounded_on_profile !== false
+    || latest.metadata?.validation_status !== 'GENERAL_UNCITED'));
+}
+
 function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const newestPairs = [];
