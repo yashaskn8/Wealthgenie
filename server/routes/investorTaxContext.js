@@ -49,6 +49,11 @@ router.post('/',verifyJWT,validate(requestSchema),asyncHandler(async(req,res)=>{
   const profile=await ownedProfile(req.user.userId,req.body.profileId);
   if (profile.version!==req.body.expectedProfileVersion) return sendError(req,res,409,
     'Profile changed; refresh before saving the tax context.','TAX_CONTEXT_PROFILE_CHANGED');
+  if (req.body.userAge !== profile.age) {
+    return sendError(req,res,409,
+      'Tax age differs from the current financial profile. Update and reconfirm the profile first.',
+      'TAX_CONTEXT_PROFILE_AGE_MISMATCH');
+  }
   getTaxPolicyMetadata(req.body.fiscalYear); // Reject unsupported fiscal years, never default.
   const {profileId,expectedProfileVersion,...facts}=req.body;
   const fingerprint=crypto.createHash('sha256').update(JSON.stringify(facts)).digest('hex');
