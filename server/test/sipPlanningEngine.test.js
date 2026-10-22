@@ -312,3 +312,26 @@ test('red-team: money inputs cannot contain hidden sub-paisa fractions', () => {
     }), /SIP_PLAN_INVALID_INPUT/);
   }
 });
+
+test('signed half-paisa budget ties round symmetrically and never understate a deficit', () => {
+  const inputs = {
+    monthlyInvestment: 1000, annualReturnRate: 0, annualStepUpRate: 0,
+    years: 2, returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+    inflationRate: 0.06, downsideAnnualReturnRate: 0,
+  };
+  const negative = buildSipPlan({
+    ...inputs, monthlyIncome: 0, monthlyExpenses: 100001,
+    monthlyEmi: 0, annualExpenseGrowthRate: 0.125,
+  });
+  assert.equal(negative.chartData[1].monthlyBudgetSurplus, -113501.13);
+  assert.equal(negative.affordability.maxMonthlyShortfall, 113501.13);
+  assert.equal(negative.affordability.worstMonthlySurplus, -113501.13);
+  assert.equal(negative.affordability.status, 'OVER_DECLARED_BUDGET');
+
+  const positive = buildSipPlan({
+    ...inputs, monthlyIncome: 100001, monthlyExpenses: 0,
+    monthlyEmi: 0, annualIncomeGrowthRate: 0.125,
+  });
+  assert.equal(positive.chartData[1].monthlyBudgetSurplus, 111501.13);
+  assert.equal(positive.affordability.status, 'WITHIN_DECLARED_BUDGET');
+});
