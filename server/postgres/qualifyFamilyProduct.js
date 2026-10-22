@@ -53,15 +53,15 @@ export async function qualifyProductForFamily(pool, input, { now = new Date() } 
       "AND p.verification_scope='VERIFIED_ACTUAL_PRODUCT'",
       "AND p.qualified_tax_class NOT IN ('UNVERIFIED','OTHER_UNSUPPORTED')",
       "AND p.tax_class_evidence_url LIKE 'https://%'",
-      'AND p.tax_class_reviewed_at IS NOT NULL AND p.tax_class_reviewed_at<=$4',
+      'AND p.tax_class_reviewed_at IS NOT NULL AND p.tax_class_reviewed_at<=now()',
       'AND r.access_allowed AND r.extraction_allowed AND r.storage_allowed',
       'AND r.derivation_allowed AND r.public_display_allowed',
       'AND r.commercial_use_allowed AND r.redistribution_allowed',
       'AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL',
-      'AND r.reviewed_at<=$4 AND r.revoked_at IS NULL',
-      'AND (r.expires_at IS NULL OR r.expires_at>$4)',
+      'AND r.reviewed_at<=now() AND r.revoked_at IS NULL',
+      'AND (r.expires_at IS NULL OR r.expires_at>now())',
       'FOR SHARE OF f,p,r',
-    ].join(' '), [familyId, productId, sourceId, now]);
+    ].join(' '), [familyId, productId, sourceId]);
     if (found.rows.length !== 1) throw error('ACTUAL_PRODUCT_OR_RIGHTS_NOT_QUALIFIED');
     if (found.rows[0].category === 'Regulated Alternatives' && retailAccess) {
       throw error('RESTRICTED_PRODUCT_REQUIRES_SEPARATE_ELIGIBILITY_POLICY');
