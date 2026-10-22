@@ -3,7 +3,8 @@
  * callers retain the independent, backwards-compatible projection API.
  * Do not render projected money or a budget approval from partial/old data.
  */
-const MAX_AMOUNT = Number.MAX_SAFE_INTEGER / 100;
+// Must match the backend's conservative paisa-safe financial ceiling.
+const MAX_AMOUNT = 10000000000000;
 const BUDGET_STATES = new Set(['NOT_ASSESSED', 'WITHIN_DECLARED_BUDGET', 'OVER_DECLARED_BUDGET']);
 const BUFFER_STATES = new Set(['NOT_ASSESSED', 'DECLARED_BUFFER_MET', 'DECLARED_BUFFER_SHORT']);
 const validAmount = value => typeof value === 'number' && Number.isFinite(value)
