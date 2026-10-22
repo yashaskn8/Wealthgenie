@@ -8,7 +8,7 @@ const kinds = [
 ];
 const blank = () => ({
   kind: 'vehicle', name: '', targetAmount: '', currentSavings: '0',
-  targetDate: '', priority: 'Medium', annualPriceInflationPct: '0', notes: '',
+  targetDate: '', priority: 'Medium', annualPriceInflationPct: '', notes: '',
 });
 const rupees = value => value == null ? '—' : new Intl.NumberFormat('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: 2,
