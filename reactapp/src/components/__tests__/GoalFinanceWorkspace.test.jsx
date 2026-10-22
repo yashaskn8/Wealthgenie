@@ -70,6 +70,25 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
     expect(api.assessGoalVehiclePurchase).not.toHaveBeenCalled();
   });
 
+
+  it('does not display a prior-month save after switching budget periods', async () => {
+    let finishOldSave;
+    const oldSave = new Promise(resolve => { finishOldSave = resolve; });
+    api.saveGoalBudget.mockReturnValueOnce(oldSave);
+    api.getGoalBudget.mockImplementation(month => Promise.resolve({
+      budget: { ...budget, month, monthlyIncome: month === '2027-01' ? 41000 : 60000 },
+      summary,
+    }));
+    render(<GoalFinanceWorkspace />);
+    await screen.findByText('Monthly income and expense tracking');
+    fireEvent.click(screen.getByRole('button', { name: 'Save month and recalculate' }));
+    await waitFor(() => expect(api.saveGoalBudget).toHaveBeenCalledOnce());
+    fireEvent.change(screen.getByLabelText('Budget month'), { target: { value: '2027-01' } });
+    await waitFor(() => expect(screen.getByLabelText('Monthly take-home income (₹)').value).toBe('41000'));
+    finishOldSave({ budget: { ...budget, version: 4, monthlyIncome: 99999 }, summary });
+    await waitFor(() => expect(screen.getByLabelText('Monthly take-home income (₹)').value).toBe('41000'));
+  });
+
   it('creates a typed goal independently from portfolio advice', async () => {
     render(<GoalFinanceWorkspace />);
     await screen.findByText('Monthly income and expense tracking');
