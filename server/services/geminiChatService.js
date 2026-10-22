@@ -27,7 +27,12 @@ import {
   generalChatTokenUpperBound,
   isGeneralChatQuestion,
 } from './generalChatService.js';
-import { isFinancialGoalFollowUpQuestion } from './chatGoalPlanning.js';
+import {
+  isFinancialGoalPlanningQuestion,
+  isFinancialGoalFollowUpQuestion,
+  retrieveChatGoalPlanningEvidence,
+} from './chatGoalPlanning.js';
+import { buildGroundedEvidencePacket } from './groundedEvidence.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -254,6 +259,40 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     // investments or be misrepresented as persisted financial advice.
     const noProfileGeneral = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
       && isGeneralChatQuestion(message) && !isGroundingBoundaryAttack(message);
+    if (!noProfileGeneral && isFinancialGoalPlanningQuestion(message)
+        && !isGroundingBoundaryAttack(message)) {
+      // Anonymous profile context is absent; use only this user's question.
+      // Do not invent suitability, fetch market data, or create a financial
+      // session from an unbound profile.
+      const packet = buildGroundedEvidencePacket({
+        question: sanitizeExternalQuestion(message),
+        profile: null,
+        additionalEntries: retrieveChatGoalPlanningEvidence(sanitizeExternalQuestion(message)),
+      });
+      const answer = await generateGroundedExplanation({
+        question: sanitizeExternalQuestion(message), evidencePacket: packet,
+      }, {
+        providers: [], getCache: async () => null, setCache: async () => false,
+      });
+      return buildClientResponseDTO({
+        response: answer.text,
+        session_id: sessionId,
+        grounded: true,
+        provider: answer.provider,
+        model: null,
+        prompt_version: answer.promptVersion,
+        grounding_version: answer.groundingVersion,
+        evidence_ids_used: answer.evidenceIdsUsed,
+        unavailable_facts: answer.unavailableFacts,
+        validation_status: answer.validation.status,
+        fallback: answer.fallback,
+        fallback_reason_codes: [],
+        citations: answer.citations,
+        messages_this_hour: rateCheck.count,
+        rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+        rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
+      });
+    }
     if (!noProfileGeneral) return noProfileResponse(sessionId, rateCheck);
     const upperBound = generalChatTokenUpperBound(message);
     const startedAt = Date.now();
