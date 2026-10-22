@@ -96,7 +96,7 @@ export function allocateGoalFunding(goals, capacity) {
   // Identical normalized names and Indian target dates cannot be counted twice
   // as independently confirmed liabilities in an affordability judgement.
   const normalizedGoals = ordered.map(e => ({
-    name: e.name.trim().toLocaleLowerCase('en-IN').replace(/\\s+/g, ' '),
+    name: e.name.trim().toLocaleLowerCase('en-IN').replace(/\s+/g, ' '),
     day: e.dueDate?.slice(0, 10) ?? '',
   }));
   const keys = normalizedGoals.map(e => e.name && e.day ? `${e.name}:${e.day}` : null).filter(Boolean);
