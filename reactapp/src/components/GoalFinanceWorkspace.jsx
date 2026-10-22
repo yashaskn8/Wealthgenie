@@ -92,7 +92,15 @@ function VehicleForm({ month, onResult }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
-  const set = (name, value) => setValues(old => ({ ...old, [name]: value }));
+  const analysisRevisionRef = useRef(0);
+  const invalidateAnalysis = () => {
+    analysisRevisionRef.current += 1;
+    setResult(null); setError(null); setLoading(false);
+  };
+  const set = (name, value) => {
+    invalidateAnalysis();
+    setValues(old => ({ ...old, [name]: value }));
+  };
   const fields = [
     ['price', 'Vehicle purchase price (₹)'],
     ['downPayment', 'Cash down payment (₹)'],
@@ -104,7 +112,9 @@ function VehicleForm({ month, onResult }) {
     ['emergencyFloor', 'Cash reserve to protect after buying (₹)'],
   ];
   const analyze = async event => {
-    event.preventDefault(); setLoading(true); setError(null); setResult(null);
+    event.preventDefault();
+    const revision = ++analysisRevisionRef.current;
+    setLoading(true); setError(null); setResult(null);
     try {
       const numeric = Object.fromEntries(Object.entries(values).map(([key, value]) => [
         key, ['emergencyCash', 'emergencyFloor'].includes(key)
@@ -121,9 +131,12 @@ function VehicleForm({ month, onResult }) {
       }));
       if (more.some(alt => !alt.label)) throw new Error('Name each alternative vehicle.');
       const response = await api.assessGoalVehiclePurchase(month, { ...numeric, alternatives: more });
-      setResult(response); onResult?.(response);
-    } catch (e) { setError(e.message || 'Unable to assess this purchase.'); }
-    finally { setLoading(false); }
+      if (analysisRevisionRef.current === revision) { setResult(response); onResult?.(response); }
+    } catch (e) {
+      if (analysisRevisionRef.current === revision) setError(e.message || 'Unable to assess this purchase.');
+    } finally {
+      if (analysisRevisionRef.current === revision) setLoading(false);
+    }
   };
   return <div className="wg-goal-panel">
     <h3>Can I afford this vehicle?</h3>
@@ -138,15 +151,15 @@ function VehicleForm({ month, onResult }) {
       {alternatives.map((alt, i) => <div className="wg-goal-alternative" key={i}>
         <label className="wg-goal-field"><span>Vehicle / variant</span>
           <input value={alt.label} maxLength={100}
-            onChange={e => setAlternatives(old => old.map((x, j) => i === j ? { ...x, label: e.target.value } : x))} />
+            onChange={e => { invalidateAnalysis(); setAlternatives(old => old.map((x, j) => i === j ? { ...x, label: e.target.value } : x)); }} />
         </label>
         {['price', 'downPayment', 'upfrontFees', 'monthlyOwnershipCost'].map(key =>
           <NumberEntry key={key} label={key.replace(/([A-Z])/g, ' $1')} value={alt[key]}
-            onChange={v => setAlternatives(old => old.map((x, j) => i === j ? { ...x, [key]: v } : x))}/>)}
-        <button className="wg-goal-subtle" type="button" onClick={() => setAlternatives(old => old.filter((_, j) => i !== j))}>Remove alternative</button>
+            onChange={v => { invalidateAnalysis(); setAlternatives(old => old.map((x, j) => i === j ? { ...x, [key]: v } : x)); }}/>)}
+        <button className="wg-goal-subtle" type="button" onClick={() => { invalidateAnalysis(); setAlternatives(old => old.filter((_, j) => i !== j)); }}>Remove alternative</button>
       </div>)}
       <button type="button" className="wg-goal-subtle" disabled={alternatives.length >= 8}
-        onClick={() => setAlternatives(old => [...old, { label: '', price: '', downPayment: '0', upfrontFees: '0', monthlyOwnershipCost: '0' }])}>+ Compare another vehicle</button>
+        onClick={() => { invalidateAnalysis(); setAlternatives(old => [...old, { label: '', price: '', downPayment: '0', upfrontFees: '', monthlyOwnershipCost: '' }]); }}>+ Compare another vehicle</button>
       <div><button className="wg-goal-action" disabled={loading} type="submit">
         {loading ? 'Calculating…' : 'Analyze purchase and alternatives'}</button></div>
     </form>
