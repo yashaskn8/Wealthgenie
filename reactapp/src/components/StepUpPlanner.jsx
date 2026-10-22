@@ -417,12 +417,12 @@ const StepUpPlanner = ({ profile }) => {
 
       <section className="sup-planning-panel" aria-label="SIP affordability and scenario inputs">
         <h3>Can you sustain this SIP?</h3>
-        <p>All figures are editable. Expenses exclude EMI. Income is take-home pay. Empty amounts mean “not assessed”, not zero.</p>
+        <p>All figures are editable. Expenses exclude EMI. Income is take-home pay. Empty amounts mean “not assessed”, not zero. Enter ₹0 when you have no EMI.</p>
         <div className="sup-planning-fields">
           {[
             ['Monthly take-home (₹)', monthlyIncome, setMonthlyIncome],
             ['Monthly living expenses excluding EMI (₹)', monthlyExpenses, setMonthlyExpenses],
-            ['Monthly EMI / debt payments (₹)', monthlyEmi, setMonthlyEmi],
+            ['Monthly EMI / debt payments (₹; enter 0 if none)', monthlyEmi, setMonthlyEmi],
             ['Liquid emergency savings (₹)', emergencySavings, setEmergencySavings],
           ].map(([label, value, setValue]) => (
             <label className="sup-planning-field" key={label}>
@@ -447,7 +447,7 @@ const StepUpPlanner = ({ profile }) => {
             </label>
           ))}
         </div>
-        <p className="sup-planning-note">The downside line is a constant-return what-if, not a probability forecast. EMI is held fixed. Income and expenses change once each year. The model assumes start-of-month SIPs and returns before taxes and fees.</p>
+        <p className="sup-planning-note">The downside line is a constant-return what-if, not a probability forecast. EMI is held fixed. Income and expenses change once each year. The model assumes start-of-month SIPs; contributions are rounded to paise, projected totals to rupees, and returns are before taxes and fees.</p>
       </section>
 
       <section className="sup-safety-panel" aria-live="polite">
@@ -457,7 +457,7 @@ const StepUpPlanner = ({ profile }) => {
           <>
             <p className={isOverBudget ? 'sup-warning' : ''}>
               <strong>Budget:</strong> {affordability?.status === 'NOT_ASSESSED'
-                ? 'Not assessed — enter both take-home income and living expenses.'
+                ? 'Not assessed — enter take-home income, living expenses and EMI (0 if none).'
                 : isOverBudget
                   ? `Not sustainable under entered assumptions: first shortfall in month ${affordability.firstUnaffordableMonth}; largest monthly shortfall ${formatINR(affordability.maxMonthlyShortfall)}.`
                   : 'Every planned instalment fits the declared monthly cash surplus across the selected horizon (not a guarantee).'}
@@ -466,7 +466,7 @@ const StepUpPlanner = ({ profile }) => {
               ? `Below the illustrative six-month buffer of ${formatINR(emergency.requiredAmount)}.`
               : emergency?.status === 'DECLARED_BUFFER_MET'
                 ? `Your declared savings meet the illustrative six-month expense-plus-EMI buffer of ${formatINR(emergency.requiredAmount)}.`
-                : 'Not assessed — enter expenses and emergency savings.'}</p>
+                : 'Not assessed — enter living expenses, EMI and emergency savings.'}</p>
             <p><strong>Final-year monthly SIP:</strong> {formatINR(projection.finalMonthlySip)}. <strong>Extra money contributed:</strong> {formatINR(projection.additionalContributions)}. <strong>Extra projected investment growth:</strong> {formatINR(projection.additionalProjectedGrowth)}.</p>
             <p><strong>Downside scenario corpus:</strong> {formatINR(projection.downsideFinal)}. <strong>Step-up corpus in today’s purchasing power:</strong> {formatINR(projection.inflationAdjustedStepUpFinal)}.</p>
           </>
