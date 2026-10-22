@@ -66,3 +66,17 @@
 @media (max-width: 420px) {
   .wg-goal-expense-row { grid-template-columns: 1fr; }
 }
+
+.wg-goal-field select, .wg-goal-field textarea {
+  background: #101c34;
+  color: #fff;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+  min-width: 0;
+  width: 100%;
+}
+.wg-goal-spec-list { list-style: none; padding: 0; margin: 12px 0; }
+.wg-goal-spec-list li { padding: 14px; margin: 12px 0; border: 1px solid #334155; border-radius: 12px; background: rgba(3, 12, 29, .65); overflow-wrap: anywhere; }
+.wg-goal-spec-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
