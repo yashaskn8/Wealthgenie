@@ -238,7 +238,12 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
   }, [done, shouldStream, msg]);
 
   const handleCopy = () => {
-    const { cleanText } = parseActionCards(msg.content);
+    // Copy the same inert content that is rendered: an LLM must not smuggle
+    // untrusted action-card JSON into the clipboard as a supposed app command.
+    const cleanText = String(msg.content || '').replace(
+      /<<<ACTION_CARD>>>[\s\S]*?<<<END_ACTION_CARD>>>/g,
+      '[Unverified action omitted]',
+    );
     navigator.clipboard.writeText(formatEvidenceMarkers(cleanText, displayCitations, isAssistant));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
