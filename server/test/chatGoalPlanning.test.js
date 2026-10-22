@@ -733,3 +733,31 @@ test('adversarial named car loan expense does not erase the wedding goal', () =>
   assert.equal(evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150000);
   assert.equal(evidence.some(e => e.id === 'E_GOAL_CAPACITY_CHECK'), false);
 });
+
+test('adversarial three-turn continuity preserves the original goal target after a named capacity update', () => {
+  const priorUserTurns = [
+    "Need 2 crore for daughter's wedding in 10 years",
+    "I can save ₹50k monthly for my daughter's wedding",
+  ];
+  const evidence = retrieveChatGoalPlanningEvidence('I have saved 20 lakh', { priorUserTurns });
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150000);
+  const explanation = retrieveChatGoalPlanningEvidence('Why?', {
+    priorUserTurns: [...priorUserTurns, 'I have saved 20 lakh'],
+  });
+  assert.equal(explanation.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(explanation.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150000);
+});
+
+test('adversarial three-turn continuity cannot cross into a different named goal', () => {
+  const priorUserTurns = [
+    "Need 2 crore for daughter's wedding in 10 years",
+    'I can save ₹50k monthly for college',
+  ];
+  const savings = retrieveChatGoalPlanningEvidence('I have saved ₹5 lakh', { priorUserTurns });
+  assert.equal(savings.some(e => e.id === 'E_GOAL_STATED_TARGET'), false);
+  assert.equal(savings.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false);
+  const correction = retrieveChatGoalPlanningEvidence('Actually 1 crore', { priorUserTurns });
+  assert.equal(correction.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 10000000);
+  assert.equal(correction.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false);
+});
