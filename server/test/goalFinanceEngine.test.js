@@ -223,3 +223,23 @@ test('two goals claiming positive saved balances cannot be called within capacit
   assert.ok(output.warnings.includes('MULTIPLE_GOALS_CLAIM_POTENTIALLY_OVERLAPPING_SAVINGS'));
   assert.ok(output.allocations.every(e => e.allocatedMonthly === null));
 });
+
+test('calendar-month goals never count one normal 31-day month as two payments', () => {
+  const common = { targetAmount: 12000, currentSavings: 0, annualPriceInflationPct: 0 };
+  const date = value => new Date(value + 'T00:00:00.000Z');
+  const october = planGoalSpecification({ ...common, targetDate: '2026-11-23' }, date('2026-10-23'));
+  assert.equal(october.monthsRemaining, 1);
+  assert.equal(october.monthlyNeededWithoutReturns, 12000);
+  assert.equal(planGoalSpecification({ ...common, targetDate: '2027-03-23' }, date('2027-02-23')).monthsRemaining, 1);
+  assert.equal(planGoalSpecification({ ...common, targetDate: '2028-02-29' }, date('2028-01-29')).monthsRemaining, 1);
+  assert.equal(planGoalSpecification({ ...common, targetDate: '2028-03-01' }, date('2028-02-29')).monthsRemaining, 1);
+  assert.equal(planGoalSpecification({ ...common, targetDate: '2027-11-24' }, date('2027-10-23')).monthsRemaining, 2);
+  assert.equal(planGoalSpecification({ ...common, targetDate: '2027-10-23' }, date('2026-10-23')).monthsRemaining, 12);
+  assert.equal(planGoalSpecification({ ...common, targetDate: '2026-10-23' }, date('2026-10-23')).status, 'TARGET_DATE_REACHED');
+});
+test('India-local date rollover is honored before UTC midnight', () => {
+  const base = { targetAmount: 10000, currentSavings: 0, annualPriceInflationPct: 0 };
+  const localOct23 = new Date('2026-10-22T20:00:00.000Z'); // 01:30 IST Oct 23
+  assert.equal(planGoalSpecification({ ...base, targetDate: '2026-10-23' }, localOct23).status, 'TARGET_DATE_REACHED');
+  assert.equal(planGoalSpecification({ ...base, targetDate: '2026-10-24' }, localOct23).monthsRemaining, 1);
+});
