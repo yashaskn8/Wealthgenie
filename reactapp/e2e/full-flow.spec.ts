@@ -356,6 +356,8 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     await page.getByTestId('nav-tax-optimizer').click();
     await expect(page.getByRole('heading', { name: 'Income Tax Calculator' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Old Regime' })).toHaveCount(0);
+    await page.getByLabel('Income category').selectOption('salary');
+    await page.getByLabel('Additional ordinary-rate taxable income (₹)').fill('0');
     await page.getByLabel(/Annual taxable gross salary.*before standard deduction/i).fill('1275000.00');
     await page.getByLabel(/Residential status for Tax Year 2026/i).selectOption('resident');
     await page.getByLabel(/Any special-rate income or dividends/i).selectOption('no');
