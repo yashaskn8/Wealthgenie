@@ -174,8 +174,12 @@ describe('Phase 1 Architecture Truth — RAG Chat Integration Tests', () => {
       });
 
       assert.equal(response.status, 200);
-      assert.equal(body.provider, 'DETERMINISTIC_TEMPLATE');
+      // A greeting is intentionally handled by general chat. With no live
+      // credentials in this suite it can report SYSTEM unavailability rather
+      // than inventing a RAG citation. The retired RAG provider is never used.
       assert.notEqual(body.provider, 'rag');
+      assert.equal(body.grounded, false);
+      assert.deepEqual(body.citations, []);
     }), { preserveUserLookup: true });
   });
 
