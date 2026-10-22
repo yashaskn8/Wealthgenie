@@ -11,6 +11,7 @@ import FinancialCalculationRun from '../models/FinancialCalculationRun.js';
 import { getFinancialPostgresPool } from '../postgres/connection.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
 import { estimateQualifiedHistoricalVolatility } from '../services/qualifiedHistoricalVolatility.js';
+import { fingerprintQualifiedHistory } from '../services/qualifiedHistoryFingerprint.js';
 const router=Router();
 const objectId=Joi.string().pattern(/^[a-fA-F0-9]{24}$/);
 const isoDate=Joi.string().pattern(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
@@ -59,6 +60,7 @@ router.post('/equity-history-risk',verifyJWT,validate(sqlRiskSchema),asyncHandle
    status:'UNAVAILABLE',reasonCode:calibration.reasonCode,afterTaxAvailable:false,
    sourceCalibration:calibration,results:null,
  });
+ const qualifiedHistorySnapshot=fingerprintQualifiedHistory(history);
  const {profileId,taxContextVersion,canonicalProductId,sourceId,observationKind,...scenario}=req.body;
  const result=await executeMonteCarlo({
    scenarioMode:'USER_DECLARED_EQUITY_LUMP_SUM',
@@ -77,8 +79,7 @@ router.post('/equity-history-risk',verifyJWT,validate(sqlRiskSchema),asyncHandle
  if(!profileAfter||profileAfter.version!==profile.version
    ||!taxAfter||String(taxAfter._id)!==String(tax._id))
    return sendError(req,res,409,'Financial context changed during simulation.','FINANCIAL_CONTEXT_CHANGED');
- if(historyAfter.length!==history.length||String(historyAfter[0]?.id)!==String(history[0]?.id)
-   ||String(historyAfter.at(-1)?.id)!==String(history.at(-1)?.id))
+ if(fingerprintQualifiedHistory(historyAfter)!==qualifiedHistorySnapshot)
    return sendError(req,res,409,'Historical source changed or lost data rights.','FINANCIAL_SOURCE_CHANGED');
  return res.json({
    ...result,
