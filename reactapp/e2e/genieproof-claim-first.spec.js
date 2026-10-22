@@ -9,6 +9,7 @@ const checkResponse = claims => ({
   saved: false,
   allExtractedCandidatesProcessed: true,
   verificationScope: 'DETECTED_CLAIMS_ONLY',
+  noClaimsFound: claims.length === 0,
   claims,
 });
 
@@ -56,6 +57,7 @@ test.describe('GenieProof claim-first browser workflow', () => {
         reasonCode: 'EXACT_RATE_MISMATCH',
         warningSignals: [],
         source: {
+          name: 'India Post — Savings',
           url: 'https://www.indiapost.gov.in/banking-services/savings',
           observedRatePercentPerAnnum: 6.8,
           retrievedAt: now,
