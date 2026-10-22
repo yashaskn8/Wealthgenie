@@ -96,8 +96,12 @@ export default function GoalSpecificationsPanel({ onChanged }) {
         }
         await api.createGoalSpecification(payload, createRetryRef.current.key);
       }
+      // Keep the same creation key through the read-after-write refresh.
+      // If the server committed but refresh failed, retrying must replay the
+      // original create instead of persisting an identical second goal.
+      await reload();
       createRetryRef.current = null;
-      await reload(); setDraft(blank()); setEditing(null);
+      setDraft(blank()); setEditing(null);
       onChanged?.();
       setNotice('Goal specification saved. Its cash-funding baseline is separate from investment forecasts.');
     } catch (e) { setError(e.message || 'Could not save goal specification.'); }
