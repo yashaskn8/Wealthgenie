@@ -12,9 +12,9 @@ function asPaise(value) {
 }
 const INITIAL = Object.freeze({
   taxYear: TAX_YEAR,
-  incomeType: 'salary',
+  incomeType: '',
   primaryIncome: '',
-  otherOrdinaryIncome: '0',
+  otherOrdinaryIncome: '',
   residency: 'unknown',
   specialRateIncome: 'unknown',
   confirmedOrdinaryOnly: false,
@@ -132,11 +132,12 @@ export default function NewRegimeTaxScreen() {
     const request = { ...form };
     const primaryPaise = asPaise(request.primaryIncome);
     const additionalPaise = asPaise(request.otherOrdinaryIncome);
-    const valid = primaryPaise !== null && additionalPaise !== null
+    const valid = ['salary', 'pension', 'already_taxable'].includes(request.incomeType)
+      && primaryPaise !== null && additionalPaise !== null
       && primaryPaise + additionalPaise <= 100_000_000_000n;
     if (!valid) {
       setResult(null);
-      setError('Enter valid non-negative rupee amounts (maximum two decimal places; combined maximum ₹100 crore).');
+      setError('Choose an income category and enter both non-negative rupee amounts (enter 0 if none; maximum two decimal places; combined maximum ₹100 crore).');
       return;
     }
     sequenceRef.current += 1;
@@ -173,7 +174,8 @@ export default function NewRegimeTaxScreen() {
       </header>
       <form onSubmit={calculate} className="wg-new-tax__form" noValidate>
         <label htmlFor="wg-tax-income-type">Income category</label>
-        <select id="wg-tax-income-type" value={form.incomeType} onChange={e => change('incomeType', e.target.value)}>
+        <select id="wg-tax-income-type" value={form.incomeType} onChange={e => change('incomeType', e.target.value)} required>
+          <option value="">Choose explicitly — no income category assumed</option>
           <option value="salary">Taxable gross salary (not CTC)</option>
           <option value="pension">Own retirement pension taxed under Salaries</option>
           <option value="already_taxable">Ordinary income already calculated as taxable</option>
@@ -188,7 +190,7 @@ export default function NewRegimeTaxScreen() {
         <input id="wg-tax-other" inputMode="decimal" type="text" autoComplete="off"
           value={form.otherOrdinaryIncome} onChange={e => change('otherOrdinaryIncome', e.target.value)}
           maxLength={13} required />
-        <p className="wg-new-tax__hint">Include taxable bank interest and similar ordinary-rate income. Do not put CTC, investment principal, exempt income or capital gains into these fields.</p>
+        <p className="wg-new-tax__hint">Enter 0 if you have no additional ordinary income. Include taxable bank interest and similar ordinary-rate income. Do not put CTC, investment principal, exempt income or capital gains into these fields.</p>
         <label htmlFor="wg-tax-residency">Residential status for Tax Year 2026–27</label>
         <select id="wg-tax-residency" value={form.residency} onChange={e => change('residency', e.target.value)}>
           <option value="unknown">Not sure (cannot calculate)</option>
