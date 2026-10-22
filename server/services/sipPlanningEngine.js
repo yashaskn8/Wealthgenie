@@ -3,7 +3,13 @@
  * Cash arrives at the START of each month and compounds at nominal APR / 12.
  */
 const LIMIT = Number.MAX_SAFE_INTEGER / 100;
-const money = n => Math.round(n * 100) / 100;
+const money = n => {
+  if (!Number.isFinite(n) || Math.abs(n) > LIMIT) {
+    throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: amount exceeds safe currency precision');
+  }
+  return Math.round((n + Math.sign(n) * Number.EPSILON) * 100) / 100;
+};
+const validPaise = n => Math.abs(n * 100 - Math.round(n * 100)) < 0.000001;
 const checked = n => {
   if (!Number.isFinite(n) || n < 0 || n > LIMIT) {
     throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: projected amount exceeds safe rupee precision');
@@ -25,7 +31,7 @@ export function buildSipPlan(input) {
     inflationRate, downsideAnnualReturnRate, emergencyMonths,
     annualIncomeGrowthRate, annualExpenseGrowthRate];
   if (!required.every(Number.isFinite) || !Number.isInteger(years) || years < 1 || years > 50
-      || monthlyInvestment <= 0 || monthlyInvestment > 10000000
+      || monthlyInvestment <= 0 || monthlyInvestment > 10000000 || !validPaise(monthlyInvestment)
       || annualStepUpRate < 0 || annualStepUpRate > 1
       || annualReturnRate <= -1 || annualReturnRate > 1
       || downsideAnnualReturnRate <= -1 || downsideAnnualReturnRate > 1
@@ -36,7 +42,7 @@ export function buildSipPlan(input) {
     throw new RangeError('SIP_PLAN_INVALID_INPUT: invalid planning assumptions');
   }
   for (const [key, val] of Object.entries({ monthlyIncome, monthlyExpenses, emergencySavings })) {
-    if (val !== null && (!Number.isFinite(val) || val < 0 || val > 100000000)) {
+    if (val !== null && (!Number.isFinite(val) || val < 0 || val > 100000000 || !validPaise(val))) {
       throw new RangeError('SIP_PLAN_INVALID_INPUT: invalid ' + key);
     }
   }
