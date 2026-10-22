@@ -295,6 +295,21 @@ describe('grounded chat DTO and persistence isolation', () => {
     assert.deepEqual(conversation.messages, []);
   });
 
+
+  it('red-team: missing qualified product evidence produces an ungrounded abstention rather than a false verified answer', async () => {
+    const result = await processChat({
+      userId, user: {}, message: 'What are the trading fees for nonexistent product XPQZ?',
+      sessionId: 'evidence-unavailable-abstention',
+    });
+    assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+    assert.equal(result.grounded, false);
+    assert.equal(result.validation_status, 'PASS');
+    assert.ok(result.evidence_ids_used.includes('E_CHAT_ANSWER_UNAVAILABLE'));
+    assert.match(result.response, /not have enough qualified evidence/i);
+    assert.doesNotMatch(result.response, /guaranteed return|nonexistent product.*%/i);
+    assert.ok(result.citations.every(c => c.source_url === null));
+  });
+
   it('returns a minimal system response for financial questions when no Financial Profile exists', async () => {
     profileStateStatus = 'NO_CURRENT';
     FinancialProfile.findOne = () => ({ sort: () => ({ lean: async () => null }) });
