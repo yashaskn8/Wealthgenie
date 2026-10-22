@@ -131,7 +131,7 @@ function sameWtiStateBinding(left, right) {
     && left.recommendationFingerprint === right.recommendationFingerprint;
 }
 
-const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
+const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) => {
   const profileId = userProfile?.profileId;
   const parentInstrumentId = inv?.id;
   const recommendationProfile = userProfile && userProfile.version == null && userProfile.profileVersion == null
@@ -222,27 +222,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
         if (!cancelled) setTaxPolicyError(error?.message || 'Verified tax policy metadata is unavailable.');
       });
     return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    setActiveTaxContext(null);
-    setShowTaxDrawer(false);
-    setTaxAnnualIncome('');
-    setTaxIncomeSource('');
-    setTaxRegime('');
-    setTaxFiscalYear('');
-    setTaxUserAge('');
-    setHoldingPeriodMonths('');
-    setUseExactTransactionDates(false);
-    setAcquisitionDate('');
-    setRedemptionDate('');
-    setSection112AExemptionUsed('');
-    setTaxSection80C('');
-    setTaxNps80CCD1B('');
-    setTaxAdvancedDeductions({});
-    setSttConditionAssumedSatisfied(false);
-    setTaxFormError('');
-  }, [financialKey, userProfile?.age]);
+  }, []]);
 
   // Fetch products whenever instrument, profile, or activeTaxContext changes
   useEffect(() => {
@@ -1346,6 +1326,29 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
       <SebiDisclaimer />
     </div>
   );
+};
+
+const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
+  // A keyed subtree resets tax and ranking state when financial authority changes,
+  // rather than cascading synchronous state updates from an effect.
+  const financialContextKey = JSON.stringify({
+    profileId: userProfile?.profileId,
+    profileVersion: Number(userProfile?.version ?? recommendationMeta?.profile_version),
+    recommendationId: recommendationMeta?.recommendationId || recommendationMeta?.recommendation_id,
+    allocationRevision: Number(recommendationMeta?.allocation_revision),
+    allocationRevisionId: recommendationMeta?.allocation_revision_id,
+    portfolioFingerprint: recommendationMeta?.portfolio_fingerprint,
+    recommendationFingerprint: recommendationMeta?.recommendation_fingerprint,
+    parentInstrumentId: inv?.id,
+    revisionId: recommendationMeta?.allocation_revision_id,
+    age: userProfile?.age,
+  });
+  return <WhereToInvestContent
+    key={financialContextKey}
+    inv={inv}
+    userProfile={userProfile}
+    recommendationMeta={recommendationMeta}
+  />;
 };
 
 export default WhereToInvestTab;
