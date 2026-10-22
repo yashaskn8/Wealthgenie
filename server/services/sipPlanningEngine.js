@@ -9,7 +9,23 @@ const money = n => {
   }
   return Math.round((n + Math.sign(n) * Number.EPSILON) * 100) / 100;
 };
-const validPaise = n => Math.abs(n * 100 - Math.round(n * 100)) < 0.000001;
+// Monetary inputs and yearly SIP instalments are decimal quantities. Use exact
+// rational arithmetic for paise so binary floating-point ties never lose ₹0.01.
+// Returns nonnegative canonical decimal number as numerator/denominator BigInt.
+function decimalFraction(value) {
+  const [mantissa, exponentText = '0'] = value.toString().toLowerCase().split('e');
+  const [whole, part = ''] = mantissa.split('.');
+  const digits = BigInt(whole + part);
+  const exp = Number(exponentText) - part.length;
+  return exp >= 0
+    ? [digits * (10n ** BigInt(exp)), 1n]
+    : [digits, 10n ** BigInt(-exp)];
+}
+const validPaise = n => {
+  if (!Number.isFinite(n) || n < 0) return false;
+  const [numerator, denominator] = decimalFraction(n);
+  return numerator * 100n % denominator === 0n;
+};
 const checked = n => {
   if (!Number.isFinite(n) || n < 0 || n > LIMIT) {
     throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: projected amount exceeds safe rupee precision');
@@ -63,12 +79,24 @@ export function buildSipPlan(input) {
   let firstUnaffordableMonth = null, maxMonthlyShortfall = 0, worstMonthlySurplus = null;
   let lastSip = monthlyInvestment;
   const chartData = [];
+  // Apply each year's step-up to the ORIGINAL initial instalment. Do not
+  // recursively round last year's payment: these are different contracts.
+  const [stepNumerator, stepDenominator] = decimalFraction(annualStepUpRate);
+  const stepFactorNumerator = stepDenominator + stepNumerator;
+  const startingPaise = BigInt(Math.round(monthlyInvestment * 100));
+  let stepPowerNumerator = 1n;
+  let stepPowerDenominator = 1n;
 
   for (let year = 1; year <= years; year += 1) {
-    const annualSip = money(monthlyInvestment * Math.pow(1 + annualStepUpRate, year - 1));
-    if (!Number.isFinite(annualSip) || annualSip > 10000000) {
+    const exactPaiseNumerator = startingPaise * stepPowerNumerator;
+    const instalmentPaise = (2n * exactPaiseNumerator + stepPowerDenominator)
+      / (2n * stepPowerDenominator); // half-up; exact at a paise tie
+    if (instalmentPaise > 1000000000n) {
       throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: future monthly SIP exceeds ₹1,00,00,000');
     }
+    const annualSip = Number(instalmentPaise) / 100;
+    stepPowerNumerator *= stepFactorNumerator;
+    stepPowerDenominator *= stepDenominator;
     lastSip = annualSip;
     const available = assessBudget
       ? monthlyIncome * Math.pow(1 + annualIncomeGrowthRate, year - 1)
