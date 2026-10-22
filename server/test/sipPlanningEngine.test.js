@@ -152,7 +152,23 @@ test('independent monthly cash-flow oracle matches chart contributions and termi
     let invested = 0;
     let corpus = 0;
     for (let m = 0; m < yrs * 12; m += 1) {
-      const annualContribution = Math.round(starting * Math.pow(1 + g, Math.floor(m / 12)) * 100) / 100;
+      // Independent decimal-rational oracle, never binary double rounding.
+      const ratio = value => {
+        const [base, exponent = '0'] = value.toString().split('e');
+        const [whole, fraction = ''] = base.split('.');
+        const shift = Number(exponent) - fraction.length;
+        return shift >= 0
+          ? [BigInt(whole + fraction) * 10n ** BigInt(shift), 1n]
+          : [BigInt(whole + fraction), 10n ** BigInt(-shift)];
+      };
+      const [gNum, gDen] = ratio(g);
+      const annualIndex = BigInt(Math.floor(m / 12));
+      const paiseNumerator = BigInt(Math.round(starting * 100))
+        * ((gDen + gNum) ** annualIndex);
+      const paiseDenominator = gDen ** annualIndex;
+      const annualContribution = Number(
+        (paiseNumerator * 2n + paiseDenominator) / (2n * paiseDenominator),
+      ) / 100;
       invested += annualContribution;
       corpus = (corpus + annualContribution) * (1 + annualReturn / 12);
       if (m % 12 === 11) {
@@ -258,4 +274,39 @@ test('uplift percentage uses unrounded finance values and never invents zero for
   assert.equal(tiny.flatFinal, 0);
   assert.equal(tiny.additionalPercent, null);
   assert.ok(tiny.flatInvested > 0);
+});
+
+test('red-team: exact half-paisa annual increases round UP, never lose one paisa', () => {
+  const cases = [
+    [1.45, 0.50, 2.18],
+    [1.65, 0.50, 2.48],
+    [1.74, 0.25, 2.18],
+    [1.90, 0.15, 2.19],
+    [3.00, 0.005, 3.02],
+    [2.76, 0.125, 3.11],
+  ];
+  for (const [start, stepUp, expected] of cases) {
+    const plan = buildSipPlan({
+      monthlyInvestment: start, annualStepUpRate: stepUp,
+      annualReturnRate: 0, years: 2, returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+    });
+    assert.equal(plan.chartData[1].monthlySip, expected,
+      'Year 2 lost a paisa at '+start+' / '+stepUp);
+    assert.equal(plan.stepUpInvested,
+      Math.round((start + expected) * 12 * 100) / 100);
+    assert.equal(plan.stepUpFinal, Math.round(plan.stepUpInvested));
+  }
+});
+
+test('red-team: money inputs cannot contain hidden sub-paisa fractions', () => {
+  for (const amount of [0.010000001, 1.4500001, 1.005, 3.14159, 1000.00001]) {
+    assert.throws(() => buildSipPlan({
+      monthlyInvestment: amount, annualReturnRate: 0,
+      annualStepUpRate: 0.1, years: 1,
+    }), /SIP_PLAN_INVALID_INPUT/);
+    assert.throws(() => buildSipPlan({
+      monthlyInvestment: 100, annualReturnRate: 0,
+      annualStepUpRate: 0.1, years: 1, monthlyEmi: amount,
+    }), /SIP_PLAN_INVALID_INPUT/);
+  }
 });
