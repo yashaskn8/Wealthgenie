@@ -25,7 +25,7 @@ function authenticatedUserTurns(priorTurns) {
   const turns = Array.isArray(priorTurns) ? priorTurns
     : Array.isArray(priorTurns?.priorUserTurns) ? priorTurns.priorUserTurns : [];
   return turns.filter(turn => typeof turn === 'string' || turn?.role === 'user')
-    .map(turn => goalText(typeof turn === 'string' ? turn : turn.content)).slice(-3);
+    .map(turn => goalText(typeof turn === 'string' ? turn : turn.content)).slice(-4);
 }
 
 export function isFinancialGoalFollowUpQuestion(question, priorTurns = []) {
