@@ -170,6 +170,29 @@ export default function AdvancedNewRegimeTaxPanel() {
       setResult(null);
       return;
     }
+    const [primary, other, nps, eligibleSalary, lottery] = values;
+    if (nps > 0n && (form.incomeType !== 'salary'
+      || eligibleSalary === 0n || eligibleSalary > primary || nps > primary
+      || !form.confirmedNpsIncludedInSalary)) {
+      setError('Employer NPS requires salaried income, verified qualifying basic/DA, and confirmation that employer NPS is already included in gross taxable salary. Nothing was submitted.');
+      setResult(null);
+      return;
+    }
+    if (nps === 0n && (eligibleSalary !== 0n || form.confirmedNpsIncludedInSalary)) {
+      setError('With no employer NPS contribution, leave eligible NPS salary at 0 and the related confirmation unchecked. Nothing was submitted.');
+      setResult(null);
+      return;
+    }
+    // Reject unsupported mixed-income rounding and surcharge BEFORE sending.
+    const standard = form.incomeType === 'already_taxable' ? 0n : min(primary, 7500000n);
+    const eligibleNps = min(nps, eligibleSalary * 14n / 100n);
+    const ordinaryPaise = primary + other - standard - eligibleNps;
+    if (lottery > 0n && (ordinaryPaise < 0n || ordinaryPaise % 1000n !== 0n
+      || lottery % 1000n !== 0n || ordinaryPaise + lottery > 500000000n)) {
+      setError('Mixed special-rate cases with surcharge, ambiguous rounding or an unqualified deduction need a full tax return. No income was submitted.');
+      setResult(null);
+      return;
+    }
     // Never transmit income figures while residence or tax context is unverified.
     if (form.residency === 'unknown' || !form.confirmedNoOtherTaxAdjustments) {
       setError('Confirm residency and the restricted tax context before calculating. No income figures were submitted.');
