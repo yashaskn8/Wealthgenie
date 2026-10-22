@@ -227,6 +227,7 @@ test('injected synthetic fact exercises append-only receipts and persistence ind
   evidenceRows[0].sourceLineage = [new URL(INDIA_POST_SAVINGS_URL).origin, 'f'.repeat(64)];
   const forgedLineage = await resolveGenieProofEvidenceForClaims({
     claims: [claim], sourceModel, receiptModel, evidenceModel,
+    requireVerifiedPageLineage: true,
     now: () => new Date('2026-10-11T12:00:00.000Z'),
   });
   assert.equal(forgedLineage.byClaimId[claim.claimId].length, 0,
