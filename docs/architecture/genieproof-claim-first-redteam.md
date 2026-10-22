@@ -44,3 +44,5 @@ GenieProof's beginner-facing product is now a **read-only claim check**, not a p
 
 ## Source ownership and future work
 For additional types, implement independent claim contracts and source-specific qualified adapters, never a single LLM truth score. An LLM may extract candidate text in the future, but must never authorize a financial verdict. Preserve claim origin spans and source-to-fact provenance, use fail-closed deterministic comparison for the decision.
+
+**Coverage semantics:** A successful check covers only financial statements detected by the deterministic extractor; it never certifies the full original text. `allExtractedCandidatesProcessed` means no detected candidate was truncated. The UI must disclose this limitation on every result.
