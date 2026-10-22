@@ -50,6 +50,7 @@ export function calculateTaxedContractLedger({
  if(!taxContexts||typeof taxContexts!=='object'||Array.isArray(taxContexts))return unavailable('TAX_YEARS_REQUIRED');
  const events=[];
  const uniqueIds=new Set();
+ const orderedContractEvents=[];
  for(const item of ledger.events) {
   if(typeof item?.id!=='string'||uniqueIds.has(item.id))
     return unavailable('CONTRACT_LEDGER_DUPLICATE_OR_INVALID_EVENT_ID');
@@ -61,8 +62,26 @@ export function calculateTaxedContractLedger({
   const date=eventDates[item.id];
   if(!dateValid(date))return unavailable('EXACT_SETTLEMENT_DATE_MISSING:'+item.id);
   if(!Number.isSafeInteger(item.amountPaise))return unavailable('CASHFLOW_PRECISION_INVALID');
+  if(!Number.isInteger(item.monthOffset)||item.monthOffset<0||item.monthOffset>360)
+    return unavailable('CONTRACT_PAYMENT_OFFSET_MISSING_OR_INVALID');
+  orderedContractEvents.push({id:item.id,kind:item.kind,monthOffset:item.monthOffset,date});
   events.push({id:item.id,kind:item.kind,date,grossAmountPaise:item.amountPaise,netAmountPaise:item.amountPaise});
  }
+ // The accepted investor-declared dates need not match a manufactured legal
+ // settlement schedule. They MUST still respect the issuer's offset order.
+ // Otherwise an attacker could move interest into a preferred fiscal year.
+ const ordered=[...orderedContractEvents].sort((a,b)=>
+   a.monthOffset-b.monthOffset||a.date.localeCompare(b.date));
+ if(ordered[0]?.kind!=='SUBSCRIPTION'||ordered[0].monthOffset!==0)
+   return unavailable('CONTRACT_OPENING_OFFSET_INVALID');
+ for(let i=1;i<ordered.length;i++){
+  if(ordered[i].monthOffset>ordered[i-1].monthOffset
+     && ordered[i].date<ordered[i-1].date)
+    return unavailable('CONTRACT_PAYMENT_DATES_OUT_OF_ORDER');
+ }
+ const lastOffset=Math.max(...ordered.map(e=>e.monthOffset));
+ if(ordered.some(e=>e.kind==='PRINCIPAL_REDEMPTION'&&e.monthOffset!==lastOffset))
+   return unavailable('CONTRACT_REDEMPTION_OFFSET_INVALID');
  events.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
  if(events.filter(e=>e.kind==='SUBSCRIPTION').length!==1
   ||events[0]?.kind!=='SUBSCRIPTION')return unavailable('MISSING_OR_DUPLICATED_INITIAL_SUBSCRIPTION');
