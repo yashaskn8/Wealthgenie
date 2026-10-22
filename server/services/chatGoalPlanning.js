@@ -319,10 +319,12 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   let declaredAnnualInflation = null;
   let conflictingRates = false;
   let targetIsPresentCost = false;
+  let unsupportedNetModel = false;
   for (const turn of used) {
     // Numbers echoed in calculation questions never rewrite the user's target.
     const amounts = isGoalCalculationFollowUp(turn) ? [] : moneyIn(turn);
     if (isTargetPresentCost(turn)) targetIsPresentCost = true;
+    if (/\b(?:after[- ]tax|post[- ]tax|net\s+(?:returns?|of\s+(?:tax|fees?))|expense ratio|fees?\s+(?:of|at|included|deducted)|tax\s+adjusted)\b/i.test(turn)) unsupportedNetModel = true;
     const rateMentions = goalRateMentions(turn);
     for (const kind of ['RETURN', 'INFLATION']) {
       const rates = rateMentions.filter(item => item.kind === kind).map(item => item.rate);
@@ -372,6 +374,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   } else {
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
+  if (unsupportedNetModel) guidance += ' A net-of-tax or fee-adjusted SIP cannot be calculated from gross annual-return inputs alone. Confirm the exact net-return convention and applicable tax/fee facts; no net scenario is presented.';
   if (conflictingRates) guidance += ' Conflicting annual-rate assumptions were supplied; give one investment return rate and one inflation rate before using a growth scenario.';
   if (declaredAnnualInflation !== null && !targetIsPresentCost) guidance += ' You supplied an inflation rate, but the goal target is not clearly stated in today’s rupees. Confirm whether the target is a present-day cost or already the amount needed at the deadline; I will not inflate it twice.';
   if (unspecifiedFrequency) guidance += ' You mentioned a possible saving or contribution without a frequency. Please confirm whether that amount is monthly, a one-time contribution, or already earmarked before I compare affordability.';
@@ -432,6 +435,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   // zero-growth obligation remains visible independently as a safety baseline.
   // An inflation rate without a present-day target is not safe to apply.
   if (target !== null && horizon !== null && !invalidAmount && !conflictingRates
+      && !unsupportedNetModel
       && (declaredAnnualReturn !== null || declaredAnnualInflation !== null)
       && (declaredAnnualInflation === null || targetIsPresentCost)) {
     const scenarioSavings = saved === null ? 0 : saved;
