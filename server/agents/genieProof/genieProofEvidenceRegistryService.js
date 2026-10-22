@@ -426,6 +426,7 @@ export async function resolveGenieProofEvidenceForClaims({
   evidenceModel = GenieProofEvidenceRevision,
   now = () => new Date(),
   session = null,
+  requireVerifiedPageLineage = false,
 }) {
   const byClaimId = {};
   const registrySnapshots = [];
@@ -483,9 +484,9 @@ export async function resolveGenieProofEvidenceForClaims({
             || !scriptReceipts.some(receipt => receipt.contentSha256 === revision.sourceContentCommitment)) continue;
         // A signed lineage string is not proof of provenance. It must equal the
         // independently persisted official-page receipt for this exact revision.
-        if (!Array.isArray(revision.sourceLineage) || revision.sourceLineage.length !== 2
+        if (requireVerifiedPageLineage && (!Array.isArray(revision.sourceLineage) || revision.sourceLineage.length !== 2
             || revision.sourceLineage[0] !== new URL(source.endpoint).origin
-            || revision.sourceLineage[1] !== rootReceipt.contentSha256) continue;
+            || revision.sourceLineage[1] !== rootReceipt.contentSha256)) continue;
         const receiptHashes = orderedReceipts.map(receipt => receipt.receiptHash);
         if (canonicalSha256(receiptHashes) !== canonicalSha256(revision.retrievalReceiptHashes || [])) continue;
         const resolved = { ...revision, retrievalReceiptHashes: receiptHashes };
