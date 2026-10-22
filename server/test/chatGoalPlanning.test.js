@@ -460,3 +460,24 @@ test('red-team: complete ₹50,000 monthly must not be truncated by regex lookah
   assert.equal(entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150_000);
   assert.equal(entries.find(e => e.id === 'E_GOAL_CAPACITY_CHECK')?.value.monthlyCapacityAmount, 50_000);
 });
+
+
+test('goal red-team: 500 deterministic paise-level metamorphic funding cases', () => {
+  const formatted = paise => `${paise / 100n}.${String(paise % 100n).padStart(2, '0')}`;
+  for (let i = 1; i <= 500; i += 1) {
+    // Keep all generated values within the verified exact-integer range.
+    const targetPaise = 1_000_000n + BigInt(i) * 198_763n;
+    const savingsPaise = BigInt(i * 123_457) % targetPaise;
+    const months = i % 60 + 1;
+    const question = `Need ₹${formatted(targetPaise)} for daughter's wedding in ${months} months; I have saved ₹${formatted(savingsPaise)}`;
+    const evidence = retrieveChatGoalPlanningEvidence(question);
+    const target = evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount;
+    const baseline = evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value;
+    const exactExpected = Number((targetPaise - savingsPaise + BigInt(months) - 1n) / BigInt(months)) / 100;
+    assert.equal(target, Number(targetPaise) / 100, question);
+    assert.equal(baseline?.earmarkedSavingsAmount, Number(savingsPaise) / 100, question);
+    assert.equal(baseline?.monthlyRequiredAmount, exactExpected, question);
+    assert.equal(baseline?.horizonMonths, months, question);
+    assert.equal(baseline?.assumedGrowthRate, null, question);
+  }
+});
