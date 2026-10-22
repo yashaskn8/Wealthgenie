@@ -131,8 +131,18 @@ function VehicleForm({ month, onResult }) {
         downPayment: amount(alt.downPayment, 'alternative down payment'),
         upfrontFees: amount(alt.upfrontFees, 'alternative upfront fees'),
         monthlyOwnershipCost: amount(alt.monthlyOwnershipCost, 'alternative monthly costs'),
+        annualInterestRate: alt.annualInterestRate === '' ? undefined : Number(alt.annualInterestRate),
+        tenureMonths: alt.tenureMonths === '' ? undefined : Number(alt.tenureMonths),
       }));
       if (more.some(alt => !alt.label)) throw new Error('Name each alternative vehicle.');
+      if (more.some(alt => alt.annualInterestRate !== undefined
+        && (!Number.isFinite(alt.annualInterestRate) || alt.annualInterestRate < 0 || alt.annualInterestRate > 45))) {
+        throw new Error('Alternative loan rates must be between 0% and 45%.');
+      }
+      if (more.some(alt => alt.tenureMonths !== undefined
+        && (!Number.isInteger(alt.tenureMonths) || alt.tenureMonths < 1 || alt.tenureMonths > 360))) {
+        throw new Error('Alternative loan duration must be 1–360 whole months.');
+      }
       const response = await api.assessGoalVehiclePurchase(month, { ...numeric, alternatives: more });
       if (analysisRevisionRef.current === revision) { setResult(response); onResult?.(response); }
     } catch (e) {
@@ -150,19 +160,26 @@ function VehicleForm({ month, onResult }) {
           max={key === 'tenureMonths' ? '360' : undefined}
           step={key === 'tenureMonths' ? '1' : '0.01'}/>)}
       </div>
-      <h4>Cheaper alternatives (optional)</h4>
+      <h4>Compare alternative quoted vehicles (optional)</h4>
+      <small>Leave an alternative's loan rate or tenure blank only if you intentionally want to reuse the primary loan assumptions; the price and lender terms may differ.</small>
       {alternatives.map((alt, i) => <div className="wg-goal-alternative" key={i}>
         <label className="wg-goal-field"><span>Vehicle / variant</span>
           <input value={alt.label} maxLength={100}
             onChange={e => { invalidateAnalysis(); setAlternatives(old => old.map((x, j) => i === j ? { ...x, label: e.target.value } : x)); }} />
         </label>
-        {['price', 'downPayment', 'upfrontFees', 'monthlyOwnershipCost'].map(key =>
-          <NumberEntry key={key} label={key.replace(/([A-Z])/g, ' $1')} value={alt[key]}
+        {['price', 'downPayment', 'upfrontFees', 'monthlyOwnershipCost', 'annualInterestRate', 'tenureMonths'].map(key =>
+          <NumberEntry key={key} label={{
+            price: 'Alternative base price (₹)', downPayment: 'Alternative down payment (₹)',
+            upfrontFees: 'Alternative upfront fees (₹)', monthlyOwnershipCost: 'Alternative monthly upkeep (₹)',
+            annualInterestRate: 'Alternative annual loan rate (%) — blank uses primary',
+            tenureMonths: 'Alternative loan duration (months) — blank uses primary',
+          }[key]} value={alt[key]}
+            step={key === 'tenureMonths' ? '1' : '0.01'}
             onChange={v => { invalidateAnalysis(); setAlternatives(old => old.map((x, j) => i === j ? { ...x, [key]: v } : x)); }}/>)}
         <button className="wg-goal-subtle" type="button" onClick={() => { invalidateAnalysis(); setAlternatives(old => old.filter((_, j) => i !== j)); }}>Remove alternative</button>
       </div>)}
       <button type="button" className="wg-goal-subtle" disabled={alternatives.length >= 8}
-        onClick={() => { invalidateAnalysis(); setAlternatives(old => [...old, { label: '', price: '', downPayment: '0', upfrontFees: '', monthlyOwnershipCost: '' }]); }}>+ Compare another vehicle</button>
+        onClick={() => { invalidateAnalysis(); setAlternatives(old => [...old, { label: '', price: '', downPayment: '0', upfrontFees: '', monthlyOwnershipCost: '', annualInterestRate: '', tenureMonths: '' }]); }}>+ Compare another vehicle</button>
       <div><button className="wg-goal-action" disabled={loading} type="submit">
         {loading ? 'Calculating…' : 'Analyze purchase and alternatives'}</button></div>
     </form>
@@ -187,7 +204,9 @@ function VehicleForm({ month, onResult }) {
       {result.alternatives.length > 0 && <div>
         <h4>Alternatives ranked by total stated costs</h4>
         <ul>{result.alternatives.map((option, i) => <li key={i}>
-          {option.label}: {moneyLabel(option.assessment.totalNominalCostDuringLoan)} · EMI {moneyLabel(option.assessment.loan.monthlyEmi)} · {option.assessment.status.replaceAll('_', ' ')}
+          {option.label}: {moneyLabel(option.assessment.totalNominalCostDuringLoan)} · EMI {moneyLabel(option.assessment.loan.monthlyEmi)} · {option.assessment.loan.annualInterestRate}% for {option.assessment.loan.tenureMonths} months · {option.assessment.status.replaceAll('_', ' ')}
+          {option.annualInterestRateSource === 'SHARED_PRIMARY_ASSUMPTION' || option.tenureSource === 'SHARED_PRIMARY_ASSUMPTION'
+            ? ' (some financing terms inherited from the primary quote)' : ''}
         </li>)}</ul>
       </div>}
       <Notice>Other active goal commitments must fit alongside this purchase; unknown or stale goals block a confident affordability result. Planning assumes a purchase and first loan payment in this budget month. Prices are user-supplied and not live verified. All registration, insurance, mandatory fees, fuel and upkeep must be entered. These are self-reported scenarios, not bank approval or guaranteed advice.</Notice>
