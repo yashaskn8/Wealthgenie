@@ -236,6 +236,11 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
         {isAssistant && msg.fallback && msg.provider === 'DETERMINISTIC_TEMPLATE' && (
           <div className="chat-fallback-note">Genie used a source-backed answer because a model answer was unavailable or could not be verified.</div>
         )}
+        {isAssistant && msg.grounded === false && msg.provider !== 'SYSTEM' && (
+          <div className="chat-fallback-note">
+            General AI answer · not checked against external sources or live information.
+          </div>
+        )}
         <div className="bubble-text">
           <MessageContent content={content} citations={displayCitations} onAction={onAction} hideDisclosure={isAssistant} />
           {shouldStream && !done && <span className="stream-cursor">|</span>}
