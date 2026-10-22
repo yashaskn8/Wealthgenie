@@ -280,3 +280,47 @@ test('missing deadline, blank title and suspected duplicated goals block afforda
   assert.equal(independent.status, 'WITHIN_CAPACITY');
   assert.equal(independent.totalRequested, 4500);
 });
+
+test('self-reported zero headroom and exactly exhausted emergency buffer never produce a positive vehicle verdict', () => {
+  const paidInCash = {
+    price: 10000, downPayment: 10000, upfrontFees: 1000,
+    monthlyOwnershipCost: 1000, annualInterestRate: 0,
+    tenureMonths: 12, emergencyCash: 40000, emergencyFloor: 19000,
+  };
+  const withoutHeadroom = assessVehiclePurchase(
+    { ...sampleBudget(), monthlyIncome: 48000 },
+    paidInCash, { monthlyGoalCommitments: 0 },
+  );
+  assert.equal(withoutHeadroom.purchaseMonthSurplusAfterGoals, 0);
+  assert.equal(withoutHeadroom.status, 'RISK_WARNING');
+  assert.ok(withoutHeadroom.reasons.includes('NO_CASH_FLOW_HEADROOM_AFTER_GOALS'));
+  const withoutExtraEmergencyCash = assessVehiclePurchase(
+    { ...sampleBudget(), monthlyIncome: 98000 },
+    { ...paidInCash, emergencyCash: 30000 }, { monthlyGoalCommitments: 0 },
+  );
+  assert.equal(withoutExtraEmergencyCash.emergencyCashAfterPurchase, 19000);
+  assert.equal(withoutExtraEmergencyCash.status, 'RISK_WARNING');
+  assert.ok(withoutExtraEmergencyCash.reasons.includes('EMERGENCY_CASH_ONLY_JUST_MEETS_FLOOR'));
+});
+
+test('target-price inflation follows the real calendar deadline rather than rounded deposit count', () => {
+  const start = new Date('2026-10-23T00:00:00.000Z');
+  const soon = planGoalSpecification({
+    targetAmount: 100000, currentSavings: 0, annualPriceInflationPct: 12,
+    targetDate: '2026-11-22',
+  }, start);
+  assert.equal(soon.monthsRemaining, 0);
+  assert.equal(soon.status, 'IMMEDIATE_FUNDING_REQUIRED');
+  assert.ok(soon.futureTargetAmount > 100000);
+  assert.equal(soon.requiredLumpSumToday, soon.futureTargetAmount);
+  const anniversary = planGoalSpecification({
+    targetAmount: 100000, currentSavings: 0, annualPriceInflationPct: 10,
+    targetDate: '2027-10-23',
+  }, start);
+  assert.equal(anniversary.futureTargetAmount, 110000);
+  const leap = planGoalSpecification({
+    targetAmount: 100000, currentSavings: 0, annualPriceInflationPct: 10,
+    targetDate: '2029-02-28',
+  }, new Date('2028-02-29T00:00:00.000Z'));
+  assert.equal(leap.futureTargetAmount, 110000);
+});
