@@ -196,11 +196,17 @@ function deterministicCandidate(packet, question = '') {
         : `Your stated risk tolerance is ${statedRisk} [${profileRisk.id}].`;
     const claims = [{ text: riskText, evidenceIds: [profileRisk.id] }];
     const reasons = packet.entries.find(item => item.id === 'E_SUITABILITY_REASONS' && item.kind === 'SUITABILITY');
-    if (finalRisk && statedRisk && Array.isArray(reasons?.value)
-        && reasons.value.includes('RISK_CAPACITY_REDUCED_PREFERENCE')) {
+    const capacityReducedPreference = finalRisk && statedRisk && Array.isArray(reasons?.value)
+      && reasons.value.includes('RISK_CAPACITY_REDUCED_PREFERENCE');
+    if (capacityReducedPreference) {
       claims.push({
         text: `The backend capacity check reduced your stated risk preference [${reasons.id}].`,
         evidenceIds: [reasons.id],
+      });
+    } else if (finalRisk && statedRisk && finalRisk !== statedRisk) {
+      claims.push({
+        text: `The checked evidence does not specify which profile factor caused that difference [${profileRisk.id}].`,
+        evidenceIds: [profileRisk.id],
       });
     }
     return {

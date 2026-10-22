@@ -353,6 +353,22 @@ test('profile fallback does not repeat an unsupported risk label as a financial 
   assert.doesNotMatch(result.text, /15% guaranteed/);
 });
 
+test('profile fallback admits when the checked evidence lacks a reason for a different risk ceiling', async () => {
+  const question = 'Why is my plan risk level different from my preference?';
+  const packet = buildGroundedEvidencePacket({
+    question,
+    purpose: 'RECOMMENDATION_EXPLANATION',
+    profile: { riskTolerance: 'Aggressive', suitabilityRisk: 'Conservative-Moderate' },
+  });
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /does not specify which profile factor caused that difference \[E_PROFILE_RISK\]/);
+  assert.doesNotMatch(result.text, /capacity check reduced/i);
+});
+
 test('semantic boilerplate is reported separately from financial grounding and fails closed', async () => {
   const packet = evidencePacket();
   let diagnostics = null;
