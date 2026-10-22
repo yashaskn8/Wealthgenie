@@ -12,7 +12,7 @@
 const EDUCATIONAL_DOCUMENTS = Object.freeze([
   Object.freeze({
     id: 'E_EDU_REBALANCING',
-    title: 'Rebalancing',
+    title: 'Asset Allocation and Diversification',
     url: 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation',
     intent: /\b(?:rebalanc(?:e|ing)|re-?balanc(?:e|ing)|portfolio\s+balanc(?:e|ing)|balanc(?:e|ing)\s+(?:my\s+|a\s+|the\s+)?portfolio|asset\s+allocation\s+drift)\b/i,
     explanation: [
@@ -87,6 +87,7 @@ export function retrieveChatEducationalEvidence(question, { maxEntries = 2 } = {
     .map(doc => ({
       id: doc.id,
       kind: 'EDUCATION',
+      sourceTitle: doc.title,
       value: { topic: doc.id, educationalOnly: true, jurisdictionNeutral: true },
       displayValue: doc.explanation,
       dataClass: 'CURATED_PUBLIC_EDUCATION',

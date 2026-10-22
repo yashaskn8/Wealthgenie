@@ -48,6 +48,16 @@ function claimAnchoredToEvidence(claim, candidate, evidenceById) {
     const entry = evidenceById.get(evidenceId);
     if (!entry) continue;
     const evidenceText = evidenceDisplayText(entry);
+    if (entry.kind === 'EDUCATION' || entry.kind === 'REGULATORY_REFERENCE') {
+      // Two shared words do not prove an educational or statutory claim.
+      // Require the cited assertion to appear verbatim in the vetted excerpt.
+      // Paraphrases or contradictory assertions fall back to curated text.
+      const stated = claimText.replace(CITATION_PATTERN, '').replace(/\s+/g, ' ').trim()
+        .replace(/[.!?]+$/, '');
+      const vetted = evidenceText.replace(/\s+/g, ' ').trim();
+      if (stated.length >= 24 && vetted.includes(stated)) return true;
+      continue;
+    }
     const anchors = new Set(tokens(evidenceText));
     // Word overlap alone can accept a sentence that reverses a cited fact.
     // Fail closed when the claim introduces a polarity marker absent from
