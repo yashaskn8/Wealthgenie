@@ -178,6 +178,21 @@ function chatMessageMatchesBinding(message, binding) {
     && (metadata.portfolioFingerprint || null) === (binding.sourcePortfolioFingerprint || null);
 }
 
+// A context-dependent follow-up inherits the preceding financial-answer mode.
+// Without this guard, "Why?" after a portfolio answer becomes an unsourced LLM
+// reply that could invent financial explanations and citations.
+function isContextDependentFollowUp(question) {
+  return /^(?:why(?:[?.!]\s*|\s+is\s+that\b)|how\s+(?:so|come)\b|tell\s+me\s+more\b|explain\s+(?:it|that|the\s+previous\s+answer)\b|what\s+about\s+(?:that|this|it|them)\b|can\s+you\s+(?:explain|elaborate|expand)\b|give\s+(?:me\s+)?an\s+example\b|continue\b)/i
+    .test(String(question || '').trim());
+}
+
+function lastChatAnswerWasFinancial(conversation) {
+  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const latest = [...messages].reverse().find(item => item.role === 'model');
+  return Boolean(latest && (latest.metadata?.grounded_on_profile !== false
+    || latest.metadata?.validation_status !== 'UNVERIFIED_GENERAL_CHAT'));
+}
+
 function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const newestPairs = [];
@@ -281,7 +296,9 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     // always uses the evidence-grounded path, including unknown finance topics.
     const generalMode = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
       && !promptInjectionDetected
-      && isGeneralChatQuestion(securityContext.sanitizedMessage);
+      && isGeneralChatQuestion(securityContext.sanitizedMessage)
+      && !(isContextDependentFollowUp(securityContext.sanitizedMessage)
+        && lastChatAnswerWasFinancial(claim.conversation));
     const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
       question: securityContext.sanitizedMessage,
       profile: llmProfile,
