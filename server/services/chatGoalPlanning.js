@@ -83,18 +83,27 @@ function moneyIn(question) {
       continue;
     }
     const targetCue = /\b(?:need|want|target(?:\s+is)?|goal(?:\s+is)?|save|raise|require)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before);
-    const savings = !targetCue && (/(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+    // Recurring contributions are not an existing cash corpus.
+    const monthlyBefore = /\b(?:monthly\s+(?:savings?|contributions?|capacity|budget)|(?:per|each|every)\s+month)(?:\s+(?:of|is|are|:))?\s*$/i.test(before);
+    const monthlyAfter = /^\s*(?:\/\s*month\b|per\s+month\b|each\s+month\b|every\s+month\b|a\s+month\b|monthly\b|pm\b)/i.test(after);
+    const recurring = monthlyBefore || monthlyAfter;
+    const statedSavedFlow = recurring && /\b(?:have|has|had)\s+saved\s*$|\bsaved\s*$/i.test(before);
+    const recurringGoalBudget = recurring && /\b(?:goal|target|need|require|want)\s*(?:is|of|to\s+be)?\s*$/i.test(before);
+    const ambiguousSaving = !recurring && /\b(?:am|are|been|currently)?\s*saving\s*$|\b(?:i|we)\s+save\s*$/i.test(before);
+    const savings = !recurring && !targetCue && (/(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:already\s+saved|saved(?:\s+already)?|earmarked|in\s+savings|as\s+savings|in\s+(?:my|our)\s+savings|set\s+aside)\b/i.test(after));
     const unrelated = !savings && (/\b(?:salary|income|earn(?:ings)?|wages?|paycheck|take[ -]?home|emi|rent|debt|loan|expenses?|spend(?:ing)?|paid|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:salary|income|wages?|paycheck|emi|rent|loan|in\s+debt|as\s+(?:emi|debt|loan|mortgage|expenses?))\b/i.test(after));
-    const capacity = !savings && !unrelated && (/(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+    const capacity = !savings && !unrelated && (recurring || /(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /(?:monthly\s+(?:saving|contribution|capacity|budget)|per\s+month|each\s+month)\s*(?:of\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:per\s+month|each\s+month|monthly|\/month|a\s+month|pm\b)\b/i.test(after));
     const ambiguousHolding = !savings && !capacity && !unrelated
       && /\b(?:i|we)\s+have\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       && !/^\s*(?:as\s+(?:my|our|the)\s+(?:target|goal)|(?:for|towards)\s+(?:my|our|the)\s+goal)\b/i.test(after);
-    found.push({ amount, role: savings ? 'SAVINGS' : capacity ? 'CAPACITY'
-      : unrelated ? 'OTHER' : ambiguousHolding ? 'AMBIGUOUS' : 'TARGET' });
+    found.push({ amount, role: (statedSavedFlow || recurringGoalBudget) ? 'INVALID'
+      : ambiguousSaving ? 'AMBIGUOUS'
+        : savings ? 'SAVINGS' : capacity ? 'CAPACITY'
+          : unrelated ? 'OTHER' : ambiguousHolding ? 'AMBIGUOUS' : 'TARGET' });
   }
   return found;
 }
