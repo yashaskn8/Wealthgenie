@@ -2285,7 +2285,25 @@ components:
     PortfolioWeights: { type: object, minProperties: 1, maxProperties: 30, additionalProperties: { type: number, minimum: 0, maximum: 1 }, description: Weights must sum to exactly 1. }
     CustomPortfolioProjectionRequest: { type: object, additionalProperties: false, required: [profileId, allocations, years], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, allocations: { $ref: '#/components/schemas/PortfolioWeights' }, years: { type: integer, minimum: 1, maximum: 30 } } }
     StressScenarioRequest: { type: object, additionalProperties: false, required: [profileId, instrumentId, principal], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, instrumentId: { type: string, minLength: 1, maxLength: 50 }, principal: { type: number, minimum: 1000, maximum: 10000000 } } }
-    StepUpProjectionRequest: { type: object, additionalProperties: false, required: [monthlyInvestment, annualReturnRate, years, annualStepUpRate], properties: { monthlyInvestment: { type: number, exclusiveMinimum: 0, maximum: 10000000 }, annualReturnRate: { type: number, exclusiveMinimum: -1, maximum: 1 }, years: { type: integer, minimum: 1, maximum: 50 }, annualStepUpRate: { type: number, minimum: 0, maximum: 1 } } }
+    StepUpProjectionRequest:
+      type: object
+      additionalProperties: false
+      description: "Offline deterministic SIP planning assumptions. No external market data or provider credentials. All returns are illustrative pre-tax nominal rates (APR divided by 12). Omitted financial context remains unassessed."
+      required: [monthlyInvestment, annualReturnRate, years, annualStepUpRate]
+      properties:
+        monthlyInvestment: { type: number, exclusiveMinimum: 0, maximum: 10000000, description: "Starting INR per month; at most two decimal places." }
+        annualReturnRate: { type: number, exclusiveMinimum: -1, maximum: 1, description: "Nominal annual rate as decimal, not effective annual CAGR." }
+        years: { type: integer, minimum: 1, maximum: 50 }
+        annualStepUpRate: { type: number, minimum: 0, maximum: 1 }
+        inflationRate: { type: number, minimum: 0, maximum: 1 }
+        downsideAnnualReturnRate: { type: number, exclusiveMinimum: -1, maximum: 1 }
+        monthlyIncome: { type: number, minimum: 0, maximum: 100000000, description: "Declared monthly take-home income in INR." }
+        monthlyExpenses: { type: number, minimum: 0, maximum: 100000000, description: "Declared monthly living expenses excluding EMI, in INR." }
+        monthlyEmi: { type: number, minimum: 0, maximum: 10000000, description: "Declared monthly EMI in INR; must be supplied explicitly, including zero." }
+        emergencySavings: { type: number, minimum: 0, maximum: 100000000 }
+        emergencyMonths: { type: integer, minimum: 0, maximum: 24 }
+        annualIncomeGrowthRate: { type: number, minimum: 0, maximum: 1 }
+        annualExpenseGrowthRate: { type: number, minimum: 0, maximum: 1 }
     XirrRequest:
       oneOf:
         - type: object
