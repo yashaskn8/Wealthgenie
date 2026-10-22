@@ -100,6 +100,13 @@ describe('Grow My SIP fail-closed response contract', () => {
     ['fabricated buffer threshold', r => { r.emergency_buffer.requiredAmount = 0; }],
     ['fabricated buffer status', r => { r.emergency_buffer.status = 'DECLARED_BUFFER_SHORT'; }],
     ['forged middle-year deposited principal', r => { r.chartData[0].stepUpInvested = 99999; }],
+    ['one-paisa change to intermediate flat deposits', r => { r.chartData[0].flatInvested += 0.01; }],
+    ['one-paisa change to intermediate step-up deposits', r => { r.chartData[0].stepUpInvested += 0.01; }],
+    ['one-paisa understatement of extra principal despite matching growth', r => {
+      r.additionalContributions -= 0.01;
+      r.additionalProjectedGrowth += 0.01;
+    }],
+    ['sub-paisa injected into total invested principal', r => { r.chartData[0].flatInvested += 0.001; }],
     ['hidden shortfall with positive budget status', r => { r.chartData[1].monthlyBudgetSurplus = -500; }],
     ['incorrect but plausible surplus', r => { r.chartData[1].monthlyBudgetSurplus = 6821; }],
     ['wrong maximum shortfall', r => { r.affordability.maxMonthlyShortfall = 250; }],
