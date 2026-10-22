@@ -6,10 +6,12 @@ import { validateStrict } from '../validation/financialSchemas.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { extractGenieProofClaims } from '../agents/genieProof/genieProofCore.js';
 import { checkGenieProofClaims } from '../agents/genieProof/genieProofCheckService.js';
+import { calculateGenieProofScenario } from '../agents/genieProof/genieProofMathService.js';
 import {
   genieProofConsentWithdrawalSchema,
   genieProofCreateCaseSchema,
   genieProofExtractSchema,
+  genieProofMathSchema,
   genieProofReassessSchema,
   proofBreakAcknowledgeSchema,
   proofBreakTimelineQuerySchema,
@@ -162,6 +164,18 @@ export function buildGenieProofClaimPreview(offerText) {
 
 // Read-only by design: no case, passport, signature creation, or user-text persistence.
 // Financial verdicts require independently qualified, applicable, signed evidence.
+// Only assumptions entered by the user are calculated; no provider rate is inferred.
+router.post('/calculate', verifyJWT, genieProofCheckLimiter, validateStrict(genieProofMathSchema), asyncHandler(async (req, res) => {
+  try {
+    return res.json(calculateGenieProofScenario(req.body));
+  } catch (error) {
+    if (error instanceof TypeError || error instanceof RangeError) {
+      throw createError(400, 'Unsupported financial calculation inputs.', 'Check the entered values and supported limits.', { code: 'GENIEPROOF_CALCULATION_INPUT_INVALID' });
+    }
+    throw error;
+  }
+}));
+
 router.post('/check', verifyJWT, genieProofCheckLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
   const result = await checkGenieProofClaims({
     offerText: req.body.offerText,
