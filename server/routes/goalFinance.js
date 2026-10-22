@@ -266,6 +266,14 @@ function safeStoredSpecificationPlan(spec) {
   }
 }
 
+function currentIndianDate() {
+  const dateParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const part = type => dateParts.find(item => item.type === type)?.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 const specPayload = Joi.object({
   kind: Joi.string().valid(...GOAL_SPEC_KINDS).required(),
   name: Joi.string().trim().min(2).max(100).required(),
@@ -342,7 +350,7 @@ router.post('/specifications', validateStrict(createSpecSchema), asyncHandler(as
   // A delayed retry must replay a previously committed goal even after its
   // target date has passed. Only new creations require a future deadline.
   const futureDate = new Date(`${req.body.targetDate}T00:00:00.000Z`);
-  if (futureDate <= new Date()) {
+  if (req.body.targetDate <= currentIndianDate()) {
     return sendError(req, res, 400, 'Choose a future goal target date.', 'GOAL_SPEC_DATE_INVALID');
   }
   try { planGoalSpecification({ ...req.body, targetDate: futureDate }); }
@@ -371,7 +379,7 @@ function validSpecId(req, res, next) {
 router.put('/specifications/:id', validSpecId, validateStrict(updateSpecSchema), asyncHandler(async (req, res) => {
   const { expectedVersion, ...values } = req.body;
   const futureDate = new Date(`${values.targetDate}T00:00:00.000Z`);
-  if (futureDate <= new Date()) {
+  if (values.targetDate <= currentIndianDate()) {
     return sendError(req, res, 400, 'Choose a future goal target date.', 'GOAL_SPEC_DATE_INVALID');
   }
   try { planGoalSpecification({ ...values, targetDate: futureDate }); }
