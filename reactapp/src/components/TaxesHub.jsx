@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import TaxScreen from './NewRegimeTaxScreen';
+import VerifiedCapitalGainsTaxScreen from './VerifiedCapitalGainsTaxScreen';
 import PostTaxAnalysis from '../PostTaxAnalysis';
 import ErrorBoundary from './ErrorBoundary';
 import { ShieldCheck, Percent } from 'lucide-react';
@@ -21,6 +22,7 @@ const TaxesHub = ({
   recommendationMeta,
   onLearnMore,
 }) => {
+  const [advancedCapitalGains, setAdvancedCapitalGains] = useState(false);
   const currentTab = activeTab === 'real-returns' ? 'real-returns' : 'regime-savings';
   const allowedTabs = ['regime-savings', 'real-returns'];
   const handleTabListKeyDown = event => {
@@ -89,12 +91,28 @@ const TaxesHub = ({
             aria-labelledby="tab-regime-savings"
             data-testid="panel-regime-savings"
           >
+            <div role="group" aria-label="Income tax calculator mode" className="hub-tabs-list">
+              <button type="button" aria-pressed={!advancedCapitalGains}
+                className={`hub-tab-btn ${!advancedCapitalGains ? 'hub-tab-btn--active' : ''}`}
+                onClick={() => setAdvancedCapitalGains(false)}>
+                Simple Ordinary Income
+              </button>
+              <button type="button" aria-pressed={advancedCapitalGains}
+                className={`hub-tab-btn ${advancedCapitalGains ? 'hub-tab-btn--active' : ''}`}
+                onClick={() => setAdvancedCapitalGains(true)}>
+                Advanced Equity Capital Gains
+              </button>
+            </div>
             <ErrorBoundary>
-              <TaxScreen
-                profile={profile}
-                recommendations={recommendations}
-                onLearnMore={onLearnMore}
-              />
+              {advancedCapitalGains ? (
+                <VerifiedCapitalGainsTaxScreen />
+              ) : (
+                <TaxScreen
+                  profile={profile}
+                  recommendations={recommendations}
+                  onLearnMore={onLearnMore}
+                />
+              )}
             </ErrorBoundary>
           </div>
         )}
