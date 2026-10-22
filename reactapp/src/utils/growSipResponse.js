@@ -31,6 +31,16 @@ function roundSignedPaise(n) {
   return (n < 0 ? -Number(cents) : Number(cents)) / 100;
 }
 
+function paiseUnits(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)
+    || Math.abs(value) > MAX_AMOUNT) return null;
+  const [numerator, denominator] = decimalFraction(Math.abs(value));
+  const units = numerator * 100n;
+  return units % denominator === 0n
+    ? (value < 0 ? -1n : 1n) * (units / denominator)
+    : null;
+}
+
 function expectedAnnualSipPaise(startingAmount, annualStepRate, yearIndex) {
   const [stepNumerator, stepDenominator] = decimalFraction(annualStepRate);
   const initialPaise = BigInt(Math.round(startingAmount * 100));
@@ -99,7 +109,9 @@ export function assertGrowSipResponse(value, input) {
     || value.stepUpInvested + 0.001 < value.flatInvested) invalid();
 
   const years = input.years;
-  let scheduledStepUpPrincipal = 0;
+  let scheduledStepUpPrincipalPaise = 0n;
+  const initialPaise = paiseUnits(input.monthlyInvestment);
+  if (initialPaise === null || initialPaise <= 0n) invalid();
   // Independent monthly compounding reconciliation: agreeing headline and
   // chart values are not sufficient if both have been inflated or shifted.
   const monthlyRate = Math.expm1(Math.log1p(input.annualReturnRate) / 12);
@@ -134,18 +146,28 @@ export function assertGrowSipResponse(value, input) {
       || row.downsideStepUp !== Math.round(downsideCorpus)
       || row.inflationAdjustedFlat !== Math.round(flatCorpus / purchasingPower)
       || row.inflationAdjustedStepUp !== Math.round(stepCorpus / purchasingPower)) invalid();
-    const expectedFlatPaid = Math.round(input.monthlyInvestment * 12 * (i + 1) * 100) / 100;
-    scheduledStepUpPrincipal += expectedSip * 12;
-    const expectedStepUpPaid = Math.round(scheduledStepUpPrincipal * 100) / 100;
-    if (Math.abs(row.monthlySip - expectedSip) > 0.00001
-      || Math.abs(row.flatInvested - expectedFlatPaid) > 0.02
-      || Math.abs(row.stepUpInvested - expectedStepUpPaid) > 0.02
+    const expectedSipUnits = paiseUnits(expectedSip);
+    if (expectedSipUnits === null) invalid();
+    const expectedFlatPaidUnits = initialPaise * BigInt(12 * (i + 1));
+    scheduledStepUpPrincipalPaise += expectedSipUnits * 12n;
+    if (paiseUnits(row.monthlySip) !== expectedSipUnits
+      || paiseUnits(row.flatInvested) !== expectedFlatPaidUnits
+      || paiseUnits(row.stepUpInvested) !== scheduledStepUpPrincipalPaise
       || row.stepUpInvested + 0.011 < row.flatInvested
       || row.stepUpSIP < row.flatSIP
       || row.downsideStepUp > row.stepUpSIP
       || row.inflationAdjustedStepUp > row.stepUpSIP) invalid();
   }
   const last = value.chartData[years - 1];
+  const investedDifferencePaise = scheduledStepUpPrincipalPaise
+    - initialPaise * BigInt(12 * years);
+  if (paiseUnits(value.additionalContributions) !== investedDifferencePaise
+    || paiseUnits(value.additionalProjectedGrowth)
+      !== BigInt(value.additionalCorpus) * 100n - investedDifferencePaise
+    || paiseUnits(value.flatProjectedGrowth)
+      !== BigInt(value.flatFinal) * 100n - initialPaise * BigInt(12 * years)
+    || paiseUnits(value.stepUpProjectedGrowth)
+      !== BigInt(value.stepUpFinal) * 100n - scheduledStepUpPrincipalPaise) invalid();
   const expectedUplift = flatCorpus >= 0.5 && Number.isFinite(stepCorpus / flatCorpus)
     ? ((stepCorpus / flatCorpus) - 1) * 100 : null;
   if (!(expectedUplift === null
