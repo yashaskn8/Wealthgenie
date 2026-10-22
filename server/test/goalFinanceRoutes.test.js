@@ -115,6 +115,21 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
       assert.ok(createdSpec.specification.plan.monthlyNeededWithoutReturns > 0);
       const { body: otherSpecs } = await jsonRequest(specsEndpoint, { headers: authB });
       assert.equal(otherSpecs.specifications.length, 0);
+      // The car appears affordable on the budget alone, but not after this
+      // typed goal's monthly savings requirement consumes the shared envelope.
+      const constrainedVehicle = {
+        price: 300000, downPayment: 200000, upfrontFees: 15000,
+        monthlyOwnershipCost: 2500, annualInterestRate: 10,
+        tenureMonths: 60, emergencyCash: 400000, emergencyFloor: 150000,
+      };
+      const { response: goalAwareRes, body: goalAware } = await jsonRequest(
+        `${base}/api/goals/finance/vehicle/2026-10`, {
+          method: 'POST', headers: authA, body: JSON.stringify(constrainedVehicle),
+        });
+      assert.equal(goalAwareRes.status, 200);
+      assert.ok(goalAware.primary.requiredMonthlyGoalContributions > 0);
+      assert.equal(goalAware.primary.status, 'BUDGET_SHORTFALL');
+      assert.ok(goalAware.primary.reasons.includes('GOALS_AND_PURCHASE_EXCEED_SAVINGS'));
       const typedId = createdSpec.specification.id;
       const { response: typedUpdated, body: updatedSpec } = await jsonRequest(`${specsEndpoint}/${typedId}`, {
         method: 'PUT', headers: authA,
