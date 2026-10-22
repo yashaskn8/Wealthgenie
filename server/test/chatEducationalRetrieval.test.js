@@ -21,7 +21,10 @@ test('suggested portfolio balancing question retrieves relevant, attributable ed
   assert.equal(matches[0].kind, 'EDUCATION');
   assert.equal(matches[0].source.provider, 'US_SEC_INVESTOR_GOV');
   assert.match(matches[0].source.url, /^https:\/\/www\.investor\.gov\//);
-  assert.match(matches[0].displayValue, /bringing the mix of investments back/);
+  assert.match(matches[0].displayValue, /brings investments back toward a chosen asset mix/);
+  assert.match(matches[0].displayValue, /Why it matters:/);
+  assert.match(matches[0].displayValue, /For example,/);
+  assert.match(matches[0].displayValue, /How investors review it:/);
 });
 
 test('unmatched or unsupported questions have no false educational match', () => {
@@ -38,13 +41,30 @@ test('unmatched or unsupported questions have no false educational match', () =>
 test('other supported concepts retrieve correct attributable source, not a generic disclaimer', () => {
   const expectations = [
     ['How does compound growth build wealth?', 'E_EDU_COMPOUND_GROWTH'],
-    ['How do I start my first investment?', 'E_EDU_INVESTING_BASICS'],
+    ['How do I start my first investment?', 'E_EDU_INVESTING_READINESS'],
     ['What is diversification?', 'E_EDU_DIVERSIFICATION'],
     ['What are fund fees?', 'E_EDU_FEES'],
   ];
   for (const [question, id] of expectations) {
     assert.equal(retrieveChatEducationalEvidence(question)[0]?.id, id, question);
   }
+});
+
+test('first-investment education gives a sourced starting sequence and emergency-fund boundary', async () => {
+  const question = 'How do I start my first investment?';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const education = packet.entries.filter(entry => entry.kind === 'EDUCATION');
+  assert.deepEqual(education.map(entry => entry.id), ['E_EDU_INVESTING_READINESS', 'E_EDU_INVESTING_BASICS']);
+  assert.ok(education.every(entry => entry.source.provider === 'SEBI_INVESTOR'));
+  const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(response.validation.status, 'PASS');
+  assert.match(response.text, /name one financial goal/);
+  assert.match(response.text, /emergency fund/);
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_EDU_INVESTING_BASICS'));
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_EDU_INVESTING_READINESS'));
+  assert.doesNotMatch(response.text, /guaranteed return|specific fund to buy/i);
 });
 
 test('chat evidence includes education without disclosing unrelated saved profile or portfolio', async () => {
@@ -71,11 +91,12 @@ test('without any model provider, educational fallback answers question and pres
   assert.equal(response.provider, 'DETERMINISTIC_TEMPLATE');
   assert.equal(response.fallback, true);
   assert.equal(response.validation.status, 'PASS');
-  assert.match(response.text, /Portfolio rebalancing means/);
+  assert.match(response.text, /Portfolio rebalancing brings investments back/);
+  assert.match(response.text, /preset threshold/);
   assert.doesNotMatch(response.text, /authoritative backend reports disclosure evidence/i);
   assert.ok(response.text.includes('[E_EDU_REBALANCING]'));
   assert.ok(response.citations.some(citation => citation.citation_id === 'E_EDU_REBALANCING'
-    && citation.source_url === 'https://www.investor.gov/introduction-investing/investing-basics/glossary/rebalancing'));
+    && citation.source_url === 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation'));
   assert.ok(response.text.includes('[E_REGULATORY_NOTICE]'));
   assert.equal(validateGroundedExplanation({
     text: response.text,
@@ -84,6 +105,76 @@ test('without any model provider, educational fallback answers question and pres
     financialClaims: response.financialClaims,
     unavailableFacts: [],
   }, packet).valid, true);
+});
+
+test('Groq claims that declare valid evidence receive inline citations before strict grounding validation', async () => {
+  const question = 'Explain portfolio balancing in simple terms';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const evidence = packet.entries.find(entry => entry.id === 'E_EDU_REBALANCING');
+  const text = evidence.displayValue;
+  const provider = {
+    name: 'groq',
+    configuredModel: () => 'groq-citation-test',
+    async generate() {
+      return {
+        provider: 'groq', model: 'groq-citation-test', tokensUsed: 31,
+        text: JSON.stringify({
+          text,
+          evidenceIdsUsed: [evidence.id],
+          claims: [{ text, evidenceIds: [evidence.id] }],
+          financialClaims: [],
+          unavailableFacts: packet.unavailableFacts,
+        }),
+      };
+    },
+  };
+
+  const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [provider], getCache: async () => null, setCache: async () => false,
+  });
+
+  assert.equal(response.provider, 'GROQ');
+  assert.equal(response.fallback, false);
+  assert.equal(response.validation.status, 'PASS');
+  assert.ok(response.text.includes(`${text} [${evidence.id}]`));
+  assert.ok(response.citations.some(citation => citation.citation_id === evidence.id));
+  assert.equal(validateGroundedExplanation({
+    text: response.text,
+    evidenceIdsUsed: response.evidenceIdsUsed,
+    claims: response.claims,
+    financialClaims: response.financialClaims,
+    unavailableFacts: response.unavailableFacts,
+  }, packet).valid, true);
+});
+
+test('inline citation normalization never adds an evidence ID absent from the packet', async () => {
+  const question = 'Explain portfolio balancing in simple terms';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const provider = {
+    name: 'groq', configuredModel: () => 'groq-unknown-citation-test',
+    async generate() {
+      const text = 'This unsupported claim has a citation [E_NOT_IN_PACKET].';
+      return {
+        provider: 'groq', model: 'groq-unknown-citation-test',
+        text: JSON.stringify({
+          text,
+          evidenceIdsUsed: ['E_NOT_IN_PACKET'],
+          claims: [{ text, evidenceIds: ['E_NOT_IN_PACKET'] }],
+          financialClaims: [], unavailableFacts: packet.unavailableFacts,
+        }),
+      };
+    },
+  };
+
+  const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [provider], getCache: async () => null, setCache: async () => false,
+  });
+
+  assert.equal(response.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(response.fallback, true);
+  assert.equal(response.validation.status, 'PASS');
+  assert.equal(response.text.includes('[E_NOT_IN_PACKET]'), false);
+  assert.ok(response.citations.every(citation => packet.entries.some(entry => entry.id === citation.citation_id)));
 });
 
 test('educational evidence cannot license a fabricated numeric return or stock prediction', async () => {
@@ -109,6 +200,21 @@ test('suggested tax-regime question explains missing inputs, not disclosure meta
   assert.ok(response.text.includes('[E_TAX_INPUT_BOUNDARY]'));
   assert.doesNotMatch(response.text, /authoritative backend reports disclosure evidence/i);
   assert.ok(!response.evidenceIdsUsed.some(id => id.startsWith('E_EDU_')));
+});
+
+test('suggested tax-assumptions action explains its input boundary instead of abstaining', async () => {
+  const question = 'Explain tax assumptions';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  assert.ok(packet.entries.some(entry => entry.id === 'E_TAX_INPUT_BOUNDARY'));
+  assert.ok(!packet.entries.some(entry => entry.id === 'E_CHAT_ANSWER_UNAVAILABLE'));
+  const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(response.validation.status, 'PASS');
+  assert.match(response.text, /has not calculated a personal tax result/i);
+  assert.match(response.text, /explicit fiscal year, annual income, regime, and income source/i);
+  assert.match(response.text, /cannot be inferred from your investing profile/i);
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_TAX_INPUT_BOUNDARY'));
 });
 
 test('unsupported question abstains with explicit system provenance instead of inventing a source', async () => {
@@ -191,6 +297,6 @@ test('disclosure-only generated answer triggers grounded educational fallback in
   assert.equal(result.providerAttemptFailureCount, 1);
   assert.equal(validation?.semanticCompletenessValid, false);
   assert.deepEqual(validation?.semanticReasonCodes, ['CLAIM_EVIDENCE_RELEVANCE_INSUFFICIENT']);
-  assert.match(result.text, /Portfolio rebalancing means/);
+  assert.match(result.text, /Portfolio rebalancing brings investments back/);
   assert.ok(result.citations.some(source => source.citation_id === 'E_EDU_REBALANCING'));
 });

@@ -17,8 +17,8 @@ describe('GenieChat grounded explanation metadata', () => {
         timestamp: '2026-09-09T00:00:00.000Z',
         _streamed: true,
         grounded: true,
-        provider: 'NVIDIA_NIM',
-        model: 'nvidia/nemotron-3.5-lightning-30b-a3b',
+        fallback: true,
+        provider: 'DETERMINISTIC_TEMPLATE',
         grounding_version: 'grounded-financial-evidence-1.0.0',
         unavailable_facts: ['POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS'],
         fallback_reason_codes: ['LLM_GROUNDING_VALIDATION_FAILED', 'UNSUPPORTED_FINANCIAL_NUMBER'],
@@ -34,11 +34,12 @@ describe('GenieChat grounded explanation metadata', () => {
     />);
 
     expect(screen.getByText('Existing answer body [1].')).toBeTruthy();
+    expect(screen.getByText(/Genie used a source-backed answer/)).toBeTruthy();
     expect(screen.queryByText(/\[E_PROFILE_RISK\]/)).toBeNull();
     const summary = screen.getByText('Answer evidence and provenance');
     expect(summary).toBeTruthy();
     fireEvent.click(summary);
-    expect(screen.getByText(/Provider: NVIDIA_NIM/)).toBeTruthy();
+    expect(screen.getByText(/Provider: DETERMINISTIC_TEMPLATE/)).toBeTruthy();
     expect(screen.getByText(/POST_TAX_RETURN_UNAVAILABLE/)).toBeTruthy();
     expect(screen.getByText(/Fallback diagnostics: LLM_GROUNDING_VALIDATION_FAILED, UNSUPPORTED_FINANCIAL_NUMBER/)).toBeTruthy();
   });

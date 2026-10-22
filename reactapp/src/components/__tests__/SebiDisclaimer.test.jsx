@@ -2,12 +2,11 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { render, screen, within, cleanup } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import SebiDisclaimer from '../SebiDisclaimer';
 import WhereToInvestTab from '../deepdive/WhereToInvestTab';
 import * as api from '../../services/api';
-import { resetMarketContextStoreForTest } from '../../state/useMarketContext';
 
 const { CURRENT_STATE_BINDING, CURRENT_RECOMMENDATION_META } = vi.hoisted(() => {
   const binding = {
@@ -86,7 +85,6 @@ function renderWti(element) {
 describe('SebiDisclaimer Component', () => {
   afterEach(() => {
     cleanup();
-    resetMarketContextStoreForTest();
   });
 
   it('renders regulatory disclaimer text', () => {
@@ -107,40 +105,11 @@ describe('SebiDisclaimer Component', () => {
     expect(screen.getByText('Plan: UNAVAILABLE')).toBeTruthy();
     expect(screen.getByTestId('wti-comparison-universe')).toBeTruthy();
     expect(screen.queryByText('Top Pick')).toBeNull();
-    expect(await screen.findByText('Market data unavailable', { selector: '.wti-beginner-market-badge' })).toBeTruthy();
-    expect(screen.getByTestId('market-data-status')).toHaveTextContent(/Market data unavailable/i);
-    expect(screen.getByText(/PROVIDER_NOT_CONFIGURED/)).toBeTruthy();
-  });
-
-  it('renders normalized NSE provenance, update class, timestamp, and freshness from the backend', async () => {
-    api.getCurrentMarketContext.mockResolvedValueOnce({
-      status: 'MARKET_CONTEXT_AVAILABLE',
-      context: 'NORMAL',
-      classification: 'DETERMINISTIC_POLICY_HEURISTIC',
-      policyVersion: 'market-context-policy-1.0.0',
-      confidence: null,
-      observedAt: '2026-09-08T10:00:00.000Z',
-      evaluatedAt: '2026-09-08T10:01:00.000Z',
-      freshness: { status: 'FRESH' },
-      reasonCodes: ['NO_CAUTION_OR_RISK_OFF_POLICY_THRESHOLD_MET'],
-      signals: {
-        nifty50Current: { value: 23635.1, unit: 'INDEX_POINTS', available: true },
-      },
-      sources: [{
-        provider: 'NSE', instrumentId: 'NIFTY 50', dataClass: 'LIVE',
-        observedAt: '2026-09-08T10:00:00.000Z',
-        fetchedAt: '2026-09-08T10:00:30.000Z',
-        freshness: { status: 'FRESH' },
-      }],
-    });
-    renderWti(<WhereToInvestTab inv={{ id: 'mid_cap_stocks', name: 'Mid Cap Growth Stocks', riskLevel: 5 }} userProfile={{ profileId: '64b000000000000000000001' }} />);
-    expect(await screen.findByText('NORMAL')).toBeTruthy();
-    const sourceEvidence = screen.getByText(/NSE \(NIFTY 50 · LIVE\)/);
-    expect(sourceEvidence).toBeTruthy();
-    expect(screen.getByText(/Observed: 2026-09-08T10:00:00.000Z/)).toBeTruthy();
-    const contextPanel = sourceEvidence.closest('[data-testid="market-context-panel"]');
-    expect(contextPanel).toBeTruthy();
-    expect(within(contextPanel).getByText(/Freshness: FRESH/)).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Market conditions overview' })).toBeNull();
+    expect(screen.queryByTestId('market-context-panel')).toBeNull();
+    expect(api.getCurrentMarketContext).not.toHaveBeenCalled();
+    expect(api.getPrivateMarketDemoData).not.toHaveBeenCalled();
+    expect(api.previewMarketContextAdjustment).not.toHaveBeenCalled();
   });
 
   it('labels the unique historical-return leader precisely without calling it a Top Pick', async () => {

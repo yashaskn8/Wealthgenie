@@ -301,7 +301,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
           }
           return sessionStore.reserveBudget(claim, providerBudgetUpperBound);
         },
-        } : { providers: [] }),
+        } : {
+          providers: [],
+          preflightFailureCodes: ['PROVIDER_BUDGET_EXHAUSTED'],
+        }),
         ...(reserveProviderAttempt ? {
           reserveProviderAttempt: async ({ provider, providerAttemptCount }) => reserveProviderAttempt({
             userId,
@@ -364,6 +367,8 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const usageUnavailable = !explanation.cached
       && explanation.provider !== 'DETERMINISTIC_TEMPLATE'
       && actualProviderTokens === 0;
+      const chargeSessionReservation = usageUnavailable
+        || (attemptedProviderFailure && explanation.providerUsageComplete !== true);
     const result = buildClientResponseDTO({
       response: explanation.text,
       session_id: sessionId,
@@ -390,7 +395,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       userMessage,
       modelMessage,
       actualTokens: actualProviderTokens,
-      chargeReservation: attemptedProviderFailure || usageUnavailable,
+      chargeReservation: chargeSessionReservation,
       preserveLease: true,
       turnReceipt: {
         keyHash,

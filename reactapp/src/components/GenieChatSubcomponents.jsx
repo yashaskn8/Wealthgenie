@@ -233,6 +233,9 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
     <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble--user' : 'chat-bubble--genie'}`}>
       {isAssistant && <div className="bubble-avatar"><span className="ba-letter">G</span></div>}
       <div className="bubble-body">
+        {isAssistant && msg.fallback && msg.provider === 'DETERMINISTIC_TEMPLATE' && (
+          <div className="chat-fallback-note">Genie used a source-backed answer because a model answer was unavailable or could not be verified.</div>
+        )}
         <div className="bubble-text">
           <MessageContent content={content} citations={displayCitations} onAction={onAction} hideDisclosure={isAssistant} />
           {shouldStream && !done && <span className="stream-cursor">|</span>}

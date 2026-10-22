@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Building2,
   Shield,
@@ -12,24 +12,18 @@ import {
   History as HistoryIcon,
   TrendingUp,
   AlertTriangle,
-  Globe,
   Activity,
   Sparkles,
   ChevronDown,
   ChevronUp,
   Calculator,
   IndianRupee,
-  ArrowUpRight,
-  RefreshCw,
 } from 'lucide-react';
 import * as api from '../../services/api';
 import SebiDisclaimer from '../SebiDisclaimer';
 import '../DeepDiveModal.css';
 import {
   formatMarketTimestamp,
-  getMarketAttemptedProvider,
-  getMarketDisplayState,
-  getMarketEvidenceSource,
   nullableMarketNumber,
   readableSource,
   safeSourceUrl,
@@ -38,11 +32,7 @@ import { formatINR } from '../../utils/recommendationPresentation';
 import { mayDisplayContractualProceeds } from '../../utils/cashflowResultGuard';
 import { isPresentFiniteNumber, toOptionalNumber } from '../../utils/financialValues';
 import { getCurrentRecommendedInstrument } from '../../utils/financialStateBinding';
-import { useMarketContext } from '../../state/useMarketContext';
 import UserDeclaredScenarioPanel from './UserDeclaredScenarioPanel';
-import QualifiedMarketEvidencePanel from './QualifiedMarketEvidencePanel';
-import PrivateMarketDataDemo from './PrivateMarketDataDemo';
-import { findPrivateQuoteForProduct } from '../../utils/privateMarketQuote';
 
 const RISK_LEVELS = [
   { label: 'Low', color: '#22c55e', desc: 'Lower relative risk. Any guarantee or insurance depends on the specific product terms.' },
@@ -101,156 +91,6 @@ const SUB_TAB_LABELS = {
 
 const ILLUSTRATIVE_PRINCIPALS = [5000, 10000, 25000, 50000, 100000];
 
-const MARKET_CONTEXT_COPY = {
-  NORMAL: {
-    headline: 'Market conditions look steady.',
-    explanation: 'Your plan maintains standard allocations within investments that fit your profile.',
-  },
-  CAUTIOUS: {
-    headline: 'Markets have been weaker recently.',
-    explanation: 'Your plan is being slightly more careful while staying within investments that already fit your profile.',
-  },
-  HIGH_VOLATILITY: {
-    headline: 'Markets are moving more sharply than usual.',
-    explanation: 'Your plan stays focused on profile-suitable investments with cautious risk management.',
-  },
-  RISK_OFF: {
-    headline: 'Market risk is elevated right now.',
-    explanation: 'Your plan applies the strongest allowed risk reduction while staying within your suitability limits.',
-  },
-  UNAVAILABLE: {
-    headline: 'Verified market context for your plan is unavailable.',
-    explanation: 'Your personal suitability rules remain fully active.',
-  },
-};
-
-function marketSnapshotFingerprint(snapshot, marketContext = null) {
-  const revision = snapshot?.contentRevision;
-  if (!revision || revision.version !== 'market-snapshot-content-1.1.0'
-      || !/^[a-f0-9]{64}$/i.test(revision.digest || '')) return null;
-  const usability = marketContext?.recommendationUsability || snapshot.recommendationUsability;
-  const usabilityStatus = usability?.status || 'UNKNOWN';
-  const usabilityReasons = Array.isArray(usability?.reasonCodes) ? [...usability.reasonCodes].sort() : [];
-  return `${revision.version}:${revision.digest}|${snapshot.status}|${usabilityStatus}|${usabilityReasons.join(',')}`;
-}
-
-const PREVIEW_MAX_TILT_PCT = Object.freeze({ NORMAL: 0, CAUTIOUS: 2, HIGH_VOLATILITY: 4, RISK_OFF: 5 });
-
-function validatePreviewResponse(result, binding) {
-  const responseBindingMatches = result?.profileId === binding.profileId
-    && Number(result?.profile_version) === binding.profileVersion
-    && result?.recommendationId === binding.recommendationId
-    && Number(result?.allocation_revision) === binding.allocationRevision
-    && result?.allocation_revision_id === binding.allocationRevisionId
-    && result?.portfolio_fingerprint === binding.portfolioFingerprint
-    && result?.recommendation_fingerprint === binding.recommendationFingerprint;
-  if (!responseBindingMatches) {
-    const error = new Error('Your saved plan changed while the preview was running. Refresh the plan and try again.');
-    error.code = 'FINANCIAL_STATE_CHANGED';
-    throw error;
-  }
-  if (result.persisted !== false) throw new Error('The server could not confirm that this preview leaves your saved plan unchanged.');
-
-  const snapshot = result.marketContext?.marketSnapshot;
-  if (!marketSnapshotFingerprint(snapshot, result.marketContext)) {
-    throw new Error('The server did not return a verified market snapshot for this preview. Refresh market data and try again.');
-  }
-
-  const baseWeights = result.baseWeights;
-  const adjustedWeights = result.adjustedWeights;
-  const instruments = result.adjustedInstruments;
-  if (!baseWeights || !adjustedWeights || !Array.isArray(instruments) || instruments.length === 0) {
-    throw new Error('The server returned an incomplete allocation comparison. Please try again.');
-  }
-  const baseIds = Object.keys(baseWeights).sort();
-  const adjustedIds = Object.keys(adjustedWeights).sort();
-  const instrumentIds = instruments.map(item => item?.id).sort();
-  if (baseIds.length !== adjustedIds.length
-      || baseIds.some((id, index) => id !== adjustedIds[index])
-      || baseIds.length !== instrumentIds.length
-      || baseIds.some((id, index) => id !== instrumentIds[index])) {
-    throw new Error('The server returned an allocation comparison that does not match your current holdings.');
-  }
-  const sumWeights = (weights) => Object.values(weights).reduce((sum, weight) => sum + Number(weight), 0);
-  if (baseIds.some(id => !Number.isFinite(baseWeights[id]) || baseWeights[id] < 0 || baseWeights[id] > 1
-      || !Number.isFinite(adjustedWeights[id]) || adjustedWeights[id] < 0 || adjustedWeights[id] > 1)
-      || Math.abs(sumWeights(baseWeights) - 1) > 0.001
-      || Math.abs(sumWeights(adjustedWeights) - 1) > 0.001
-      || instruments.some(item => Math.abs(Number(item.allocationWeight) - adjustedWeights[item.id]) > 0.000001)) {
-    throw new Error('The server returned invalid allocation weights. The preview has been withheld.');
-  }
-  const context = result.marketContext?.context;
-  const expectedMaxTilt = PREVIEW_MAX_TILT_PCT[context] ?? 0;
-  if (!Number.isFinite(result.maxTotalTiltPct) || result.maxTotalTiltPct !== expectedMaxTilt
-      || !Number.isFinite(result.actualTotalTiltPct) || result.actualTotalTiltPct < 0
-      || result.actualTotalTiltPct > result.maxTotalTiltPct + 0.000001
-      || (result.applied === true && result.marketContext?.recommendationUsability?.status !== 'USABLE')) {
-    throw new Error('The server returned a preview outside the verified market or adjustment limits.');
-  }
-  return result;
-}
-
-const PREVIEW_REASON_COPY = {
-  NORMAL_CONTEXT_NO_TACTICAL_ADJUSTMENT: 'Market conditions are steady, so no allocation shift is proposed.',
-  NO_LOWER_RISK_ELIGIBLE_TRANSFER_PATH: 'There is no lower-risk investment in your current suitable plan to receive a transfer.',
-  CONCENTRATION_CAPS_PREVENT_LOWER_RISK_TRANSFER: 'Your existing concentration limits prevent a further allocation shift.',
-  MARKET_CONTEXT_UNAVAILABLE_NO_ADJUSTMENT: 'Verified market information is unavailable, so no adjustment was calculated.',
-  MARKET_CONTEXT_NOT_USABLE_FOR_RECOMMENDATION: 'The latest market information is not fresh enough for a plan adjustment.',
-};
-
-function previewReasonText(reasonCode) {
-  if (PREVIEW_REASON_COPY[reasonCode]) return PREVIEW_REASON_COPY[reasonCode];
-  if (reasonCode === 'BOUNDED_REDUCTION_FROM_HIGHER_RISK_ELIGIBLE_INSTRUMENT') {
-    return 'A limited amount is moved away from a higher-risk investment already in your plan.';
-  }
-  if (reasonCode === 'BOUNDED_TRANSFER_TO_LOWEST_RISK_ALREADY_ELIGIBLE_INSTRUMENT') {
-    return 'The amount is moved to a lower-risk investment already in your suitable plan.';
-  }
-  return 'No additional change is permitted within your current plan constraints.';
-}
-
-function previewErrorCopy(error) {
-  if (error?.code === 'STALE_RECOMMENDATION_PROFILE' || error?.code === 'RECOMMENDATION_STALE'
-      || error?.code === 'FINANCIAL_STATE_CHANGED') {
-    return 'Your saved plan has changed since recommendations were created. Refresh or regenerate the plan, then try again.';
-  }
-  if (error?.code === 'MARKET_CONTEXT_CHANGED') {
-    return 'Verified market information changed while this preview was running. Refresh market data and run the preview again.';
-  }
-  if (error?.code === 'AUTH_REQUIRED' || error?.status === 401) {
-    return 'Your session has expired. Sign in again to preview your plan.';
-  }
-  if (error?.code === 'REQUEST_TIMEOUT' || error?.status === 408 || error?.status === 504) {
-    return 'The preview took too long to load. Check your connection and try again.';
-  }
-  return error?.message || 'The plan preview is unavailable. Refresh market data and try again.';
-}
-
-function formatAllocationPercent(weight) {
-  return `${(Number(weight) * 100).toFixed(2)}%`;
-}
-
-function formatAllocationDelta(deltaPct) {
-  const rounded = Math.abs(deltaPct) < 0.005 ? 0 : deltaPct;
-  if (rounded === 0) return '0.00 pp';
-  return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded).toFixed(2)} pp`;
-}
-
-const SIGNAL_DEFINITIONS = [
-  { key: 'nifty50Current', label: 'NIFTY 50', group: 'market' },
-  { key: 'nifty50PreviousClose', label: 'Previous close', group: 'market' },
-  { key: 'indiaVixCurrent', label: 'India VIX', group: 'market' },
-  { key: 'return1DayPct', label: '1-day return', group: 'market' },
-  { key: 'return5DayPct', label: '5-day return', group: 'market' },
-  { key: 'return20DayPct', label: '20-day return', group: 'market' },
-  { key: 'drawdownFromRecentHighPct', label: 'Drawdown from recent high', group: 'trend' },
-  { key: 'movingAverage50Day', label: '50-day moving average', group: 'trend' },
-  { key: 'movingAverage200Day', label: '200-day moving average', group: 'trend' },
-  { key: 'priceVsMovingAverage50Pct', label: 'vs. 50-day average', group: 'trend' },
-  { key: 'priceVsMovingAverage200Pct', label: 'vs. 200-day average', group: 'trend' },
-  { key: 'realizedVolatility20DayAnnualizedPct', label: '20-day realized volatility', group: 'volatility' },
-];
-
 function getRiskTierColor(tier) {
   switch (tier) {
     case 'Very Low Risk': return { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)' };
@@ -260,6 +100,9 @@ function getRiskTierColor(tier) {
     default: return { color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.1)', border: 'rgba(56, 189, 248, 0.3)' };
   }
 }
+
+const MAX_WTI_PRODUCTS = 5;
+const QUALIFIED_WTI_RANKING_STATUSES = new Set(['EVIDENCE_RANKED', 'VERIFIED_COMPARABLE_OPTIONS']);
 
 const WTI_SUPPORTED_TAX_CONTROLS = new Set([
   'annualGrossIncome', 'incomeSource', 'regime', 'fiscalYear', 'userAge',
@@ -288,7 +131,7 @@ function sameWtiStateBinding(left, right) {
     && left.recommendationFingerprint === right.recommendationFingerprint;
 }
 
-const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
+const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) => {
   const profileId = userProfile?.profileId;
   const parentInstrumentId = inv?.id;
   const recommendationProfile = userProfile && userProfile.version == null && userProfile.profileVersion == null
@@ -319,7 +162,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
     parentInstrumentId,
     revisionId: recommendationMeta?.allocation_revision_id,
   });
-  const previewBindingKey = JSON.stringify(financialStateBinding);
 
   const [rankingResult, setRankingResult] = useState({
     requestKey: null,
@@ -340,28 +182,7 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
   const subCategoryMap = wtiData?.sectors || wtiData?.subCategories || null;
   const subKeys = subCategoryMap ? Object.keys(subCategoryMap) : [];
 
-  const [contextPreview, setContextPreview] = useState(null);
-  const [contextPreviewVisible, setContextPreviewVisible] = useState(false);
-  const [contextPreviewError, setContextPreviewError] = useState(null);
-  const [contextPreviewLoading, setContextPreviewLoading] = useState(false);
-  const [privateQuoteSnapshot, setPrivateQuoteSnapshot] = useState(null);
-  const acceptPrivateQuoteSnapshot = useCallback(snapshot => {
-    setPrivateQuoteSnapshot(snapshot ? { profileId, snapshot } : null);
-  }, [profileId]);
-  const previewController = useRef(null);
-  const previewRequestGeneration = useRef(0);
-  const {
-    marketContext,
-    marketContextError,
-    marketContextLoading,
-    marketContextRefreshing,
-    marketContextTransport,
-    marketContextRevision,
-    refreshMarketContext,
-    acceptMarketContext,
-  } = useMarketContext();
   const [sortBy, setSortBy] = useState('score');
-  const [isTechExpanded, setIsTechExpanded] = useState(false);
 
   // Illustrative principal & tax context state
   const [illustrativePrincipal, setIllustrativePrincipal] = useState(10000);
@@ -403,112 +224,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    setActiveTaxContext(null);
-    setShowTaxDrawer(false);
-    setTaxAnnualIncome('');
-    setTaxIncomeSource('');
-    setTaxRegime('');
-    setTaxFiscalYear('');
-    setTaxUserAge('');
-    setHoldingPeriodMonths('');
-    setUseExactTransactionDates(false);
-    setAcquisitionDate('');
-    setRedemptionDate('');
-    setSection112AExemptionUsed('');
-    setTaxSection80C('');
-    setTaxNps80CCD1B('');
-    setTaxAdvancedDeductions({});
-    setSttConditionAssumedSatisfied(false);
-    setTaxFormError('');
-  }, [financialKey, userProfile?.age]);
-
-  useEffect(() => {
-    previewRequestGeneration.current += 1;
-    previewController.current?.abort();
-    previewController.current = null;
-    setContextPreview(null);
-    setContextPreviewVisible(false);
-    setContextPreviewError(null);
-    setContextPreviewLoading(false);
-    return () => {
-      previewRequestGeneration.current += 1;
-      previewController.current?.abort();
-      previewController.current = null;
-    };
-  }, [previewBindingKey]);
-
-
-  const currentMarketSnapshot = marketContext?.marketSnapshot || null;
-  const currentSnapshotFingerprint = marketSnapshotFingerprint(currentMarketSnapshot, marketContext);
-  const currentSnapshotFingerprintRef = useRef(currentSnapshotFingerprint);
-  const marketContextRevisionRef = useRef(marketContextRevision);
-  currentSnapshotFingerprintRef.current = currentSnapshotFingerprint;
-  marketContextRevisionRef.current = marketContextRevision;
-  useEffect(() => {
-    if (contextPreview && currentSnapshotFingerprint
-        && contextPreview.__marketSnapshotFingerprint !== currentSnapshotFingerprint) {
-      setContextPreview(null);
-      setContextPreviewVisible(false);
-      setContextPreviewError('This preview is stale because the verified market snapshot changed. Run it again.');
-    }
-  }, [currentSnapshotFingerprint, contextPreview]);
-
-  const toggleContextPreview = async () => {
-    if (contextPreview && contextPreview.__financialBindingKey === previewBindingKey
-        && contextPreview.__marketSnapshotFingerprint === currentSnapshotFingerprint) {
-      setContextPreviewVisible(visible => !visible);
-      return;
-    }
-    if (marketContext?.status !== 'MARKET_CONTEXT_AVAILABLE' || !profileId) {
-      setContextPreviewError('A live market context and saved Financial Profile are required.');
-      return;
-    }
-    const controller = new AbortController();
-    const requestId = ++previewRequestGeneration.current;
-    const requestMarketRevision = marketContextRevisionRef.current;
-    const requestSnapshotFingerprint = currentSnapshotFingerprintRef.current;
-    previewController.current = controller;
-    try {
-      setContextPreviewLoading(true);
-      setContextPreviewError(null);
-      setContextPreview(null);
-      setContextPreviewVisible(false);
-      const result = await api.previewMarketContextAdjustment(profileId, { signal: controller.signal });
-      if (controller.signal.aborted || requestId !== previewRequestGeneration.current) return;
-      const validatedResult = validatePreviewResponse(result, financialStateBinding);
-      const responseFingerprint = marketSnapshotFingerprint(
-        validatedResult.marketContext.marketSnapshot,
-        validatedResult.marketContext,
-      );
-      if (marketContextRevisionRef.current > requestMarketRevision
-          && currentSnapshotFingerprintRef.current
-          && responseFingerprint !== currentSnapshotFingerprintRef.current) {
-        const changed = new Error('Verified market information changed while this preview was running. Refresh market data and run the preview again.');
-        changed.code = 'MARKET_CONTEXT_CHANGED';
-        throw changed;
-      }
-      acceptMarketContext(validatedResult.marketContext);
-      setContextPreview({
-        ...validatedResult,
-        __financialBindingKey: previewBindingKey,
-        __marketSnapshotFingerprint: responseFingerprint,
-        __marketWasRefreshed: Boolean(requestSnapshotFingerprint && requestSnapshotFingerprint !== responseFingerprint),
-      });
-      setContextPreviewVisible(true);
-    } catch (error) {
-      if (controller.signal.aborted || requestId !== previewRequestGeneration.current) return;
-      setContextPreview(null);
-      setContextPreviewVisible(false);
-      setContextPreviewError(previewErrorCopy(error));
-    } finally {
-      if (!controller.signal.aborted && requestId === previewRequestGeneration.current) {
-        setContextPreviewLoading(false);
-        if (previewController.current === controller) previewController.current = null;
-      }
-    }
-  };
-
   // Fetch products whenever instrument, profile, or activeTaxContext changes
   useEffect(() => {
     const controller = new AbortController();
@@ -537,6 +252,12 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
           throw responseError;
         }
         const ranked = result.products;
+        if (ranked.length > MAX_WTI_PRODUCTS
+            || (ranked.length > 0 && !QUALIFIED_WTI_RANKING_STATUSES.has(result?.ranking?.status))) {
+          const responseError = new Error('The product ranking response did not meet the qualified display contract.');
+          responseError.code = 'PRODUCT_RANKING_RESPONSE_INVALID';
+          throw responseError;
+        }
         setRankingResult({
           requestKey,
           financialKey,
@@ -701,7 +422,8 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
     : rankingResult.requestKey === requestKey
     ? (rankingResult.error ? 'error' : 'ready')
     : 'loading';
-  const products = rankingStatus === 'ready' ? rankingResult.products : [];
+  const hasQualifiedRanking = QUALIFIED_WTI_RANKING_STATUSES.has(rankingResult.ranking?.status);
+  const products = rankingStatus === 'ready' && hasQualifiedRanking ? rankingResult.products : [];
   const isEvidenceRanked = rankingResult.ranking?.status === 'EVIDENCE_RANKED';
   const isComparableSet = rankingResult.ranking?.status === 'VERIFIED_COMPARABLE_OPTIONS';
 
@@ -717,452 +439,8 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
         ? `Verified Products (${products.length} Comparable Option${products.length === 1 ? '' : 's'})`
         : 'Verified Products Unavailable';
 
-  const contextAvailable = marketContext?.status === 'MARKET_CONTEXT_AVAILABLE';
-  const contextRawState = contextAvailable ? marketContext.context : 'MARKET_CONTEXT_UNAVAILABLE';
-  const beginnerMarketState = contextAvailable ? marketContext.context : 'UNAVAILABLE';
-  const contextCopy = MARKET_CONTEXT_COPY[beginnerMarketState] || MARKET_CONTEXT_COPY.UNAVAILABLE;
-  const marketSnapshot = marketContext?.marketSnapshot || null;
-  const providerSelection = marketContext?.liveProviderSelection || marketSnapshot?.providerSelection || null;
-  const marketDisplay = getMarketDisplayState(marketContext, {
-    loading: marketContextLoading && marketContext === null && !marketContextError,
-    refreshFailed: marketContextTransport?.revalidationStatus === 'FAILED',
-  });
-  const marketEvidenceSource = getMarketEvidenceSource(marketContext);
-  const marketAttemptedProvider = getMarketAttemptedProvider(marketContext);
-  const marketObservedAt = formatMarketTimestamp(marketSnapshot?.observedAt || marketContext?.observedAt);
-  const currentAllocationSource = recommendationMeta?.current_allocation_source
-    || recommendationMeta?.currentAllocationSource
-    || 'ORIGINAL_RECOMMENDATION';
-  const generationAdjustment = recommendationMeta?.generation_market_adjustment
-    || recommendationMeta?.market_adjustment
-    || null;
-  const adjustmentExplanation = !contextAvailable
-    ? 'Your saved recommendation remains profile-led. Any private market observations below are informational and do not change your plan.'
-    : currentAllocationSource === 'USER_REBALANCED'
-    ? 'Your current allocation was manually rebalanced. The market context below is current evidence; it is not proof that your saved weights were changed by the market policy.'
-    : currentAllocationSource === 'MARKET_CONTEXT_ADJUSTED' && generationAdjustment?.applied === true
-      ? 'The saved recommendation includes a bounded market-context adjustment inside your suitability limits.'
-      : 'The market context below is current evidence. Your saved recommendation remains profile-led unless the recommendation metadata says a bounded adjustment was applied.';
-
-  let marketBadgeColor = '#38bdf8';
-  let marketBadgeBg = 'rgba(56, 189, 248, 0.12)';
-  let marketBadgeBorder = 'rgba(56, 189, 248, 0.25)';
-  if (beginnerMarketState === 'NORMAL') {
-    marketBadgeColor = '#22c55e';
-    marketBadgeBg = 'rgba(34, 197, 94, 0.12)';
-    marketBadgeBorder = 'rgba(34, 197, 94, 0.25)';
-  } else if (beginnerMarketState === 'CAUTIOUS') {
-    marketBadgeColor = '#f59e0b';
-    marketBadgeBg = 'rgba(245, 158, 11, 0.12)';
-    marketBadgeBorder = 'rgba(245, 158, 11, 0.25)';
-  } else if (beginnerMarketState === 'HIGH_VOLATILITY' || beginnerMarketState === 'RISK_OFF') {
-    marketBadgeColor = '#ef4444';
-    marketBadgeBg = 'rgba(239, 68, 68, 0.12)';
-    marketBadgeBorder = 'rgba(239, 68, 68, 0.25)';
-  }
-
-  const signalMap = marketContext?.signals || {};
-  const definedSignalKeys = new Set(SIGNAL_DEFINITIONS.map(d => d.key));
-  const marketSignals = SIGNAL_DEFINITIONS.filter(d => d.group === 'market' && signalMap[d.key]);
-  const trendAndVolatilitySignals = SIGNAL_DEFINITIONS.filter(d => ['trend', 'volatility'].includes(d.group) && signalMap[d.key]);
-  const otherSignals = Object.keys(signalMap)
-    .filter(k => !definedSignalKeys.has(k))
-    .map(k => ({ key: k, label: k.replace(/([A-Z])/g, ' $1').trim() }));
-
-  const contextReasonCodes = marketContext?.reasonCodes || (marketContextError ? ['MARKET_CONTEXT_REQUEST_FAILED'] : []);
-
-  const semanticFacts = marketSnapshot
-    ? `${marketSnapshot.observedFacts?.length || 0} observed · ${marketSnapshot.derivedFacts?.length || 0} derived · 1 policy output`
-    : 'Observed, derived, and policy output are separated by the backend contract.';
-
-  const previewMarketSnapshot = contextPreview?.marketContext?.marketSnapshot;
-  const previewUsable = contextPreview?.marketContext?.recommendationUsability?.status === 'USABLE';
-  const previewRows = (contextPreview?.adjustedInstruments || []).map(instrument => {
-    const currentWeight = Number(contextPreview.baseWeights[instrument.id]);
-    const proposedWeight = Number(contextPreview.adjustedWeights[instrument.id]);
-    const changePct = (proposedWeight - currentWeight) * 100;
-    const explanation = contextPreview.explanations?.find(item => item.instrumentId === instrument.id);
-    return {
-      id: instrument.id,
-      name: instrument.name || instrument.id,
-      currentWeight,
-      proposedWeight,
-      changePct,
-      reason: explanation ? previewReasonText(explanation.reasonCode) : null,
-    };
-  });
-  const previewNoOpReason = !previewUsable
-    ? 'Verified market information is not fresh or complete enough to calculate an adjustment.'
-    : !contextPreview?.applied
-      ? previewReasonText(contextPreview?.reasonCodes?.[0])
-      : null;
-
-  const formatSignal = (item) => {
-    if (!item?.available || !Number.isFinite(item.value)) return 'UNAVAILABLE';
-    const value = Number(item.value).toLocaleString('en-IN', { maximumFractionDigits: 2 });
-    return item.unit === 'PERCENT' ? `${value}%` : value;
-  };
-
-  const signalSemanticClass = (key) => signalMap[key]?.semanticClass || signalMap[key]?.dataClass
-    || (['nifty50Current', 'nifty50PreviousClose', 'indiaVixCurrent'].includes(key) ? 'OBSERVED' : 'DERIVED');
-
   return (
     <div className="tab-fade-in">
-      {/* ─── Beginner-First Market Summary Card ─── */}
-      <section
-        className="wti-beginner-market-card"
-        aria-label="Market conditions overview"
-        style={{ '--market-accent': marketBadgeColor }}
-      >
-        <div className="wti-beginner-market-header">
-          <div className="wti-header-title-group">
-            <Globe size={16} className="wti-header-globe-icon" style={{ color: marketBadgeColor }} />
-            <h3 className="wti-header-title">Market today</h3>
-          </div>
-          <span
-            className="wti-beginner-market-badge"
-            style={{
-              color: marketBadgeColor,
-              background: marketBadgeBg,
-              borderColor: marketBadgeBorder,
-            }}
-          >
-            {contextAvailable ? contextRawState.replaceAll('_', ' ') : marketDisplay.label}
-          </span>
-        </div>
-
-        <div className="wti-beginner-market-body">
-          <p className="wti-beginner-market-headline">{contextCopy.headline}</p>
-          <p className="wti-beginner-meaning">
-            <span className="wti-meaning-lead">What this means for you:</span> {adjustmentExplanation}
-          </p>
-          <div className="wti-market-evidence-summary" data-testid="market-data-status">
-            <div className="wti-market-status-copy">
-              <span className="wti-market-data-status">{marketDisplay.label}</span>
-              <span title={marketDisplay.detail}>{marketDisplay.detail}</span>
-            </div>
-            {marketContextTransport?.revalidationStatus === 'FAILED' && (
-              <span className="wti-market-refresh-notice" role="status">Refresh failed; showing the last verified snapshot.</span>
-            )}
-            <span className="wti-market-data-asof" title={`As of: ${marketObservedAt || 'Unavailable'} · Verified source: ${marketEvidenceSource || 'Unavailable'}`}>
-              As of: {marketObservedAt || 'Unavailable'} · Verified source: {marketEvidenceSource || 'Unavailable'}
-            </span>
-            <button
-              type="button"
-              className="wti-market-refresh-btn"
-              onClick={() => refreshMarketContext()}
-              disabled={marketContextRefreshing || marketContextLoading}
-              aria-label="Refresh market data"
-            >
-              <RefreshCw size={13} className={marketContextRefreshing ? 'wti-refresh-spin' : ''} />
-              <span>{marketContextRefreshing ? 'Refreshing…' : 'Refresh'}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="wti-beginner-market-footer">
-          <button
-            type="button"
-            className="wti-preview-plan-btn"
-            onClick={toggleContextPreview}
-            disabled={contextPreviewLoading || !contextAvailable || !profileId}
-            aria-label={contextPreview ? `${contextPreviewVisible ? 'Hide' : 'Show'} allocation preview` : 'See how this affects my plan'}
-          >
-            <ArrowUpRight size={14} />
-            <span>
-              {contextPreviewLoading
-                ? 'Running Server Preview…'
-                : contextPreview
-                ? `${contextPreviewVisible ? 'Hide' : 'Show'} allocation preview`
-                : 'See how this affects my plan'}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className="wti-tech-toggle-btn"
-            onClick={() => setIsTechExpanded(prev => !prev)}
-            aria-expanded={isTechExpanded}
-            aria-controls="market-context-panel"
-          >
-            <span>Technical details</span>
-            <ChevronDown
-              size={14}
-              className={`wti-chevron-icon ${isTechExpanded ? 'wti-chevron-rotated' : ''}`}
-            />
-          </button>
-        </div>
-
-        {contextPreview && contextPreviewVisible && (
-          <section className="wti-preview-panel" aria-label="Hypothetical plan allocation preview" aria-live="polite" data-testid="market-adjustment-preview">
-            <div className="wti-preview-panel-heading">
-              <h4>Hypothetical allocation preview</h4>
-              <span>{contextPreview.applied ? 'Proposed change' : 'No allocation change'}</span>
-            </div>
-            <dl className="wti-preview-context-grid">
-              <div>
-                <dt>Market condition used</dt>
-                <dd>{contextPreview.marketContext?.context
-                  ? contextPreview.marketContext.context.replaceAll('_', ' ').toLowerCase().replace(/^./, char => char.toUpperCase())
-                  : 'Unavailable'}</dd>
-              </div>
-              <div>
-                <dt>Evidence observed</dt>
-                <dd>{formatMarketTimestamp(previewMarketSnapshot?.observedAt) || 'Unavailable'}</dd>
-              </div>
-              <div>
-                <dt>Proposed total shift</dt>
-                <dd>{previewUsable ? `${Number(contextPreview.actualTotalTiltPct).toFixed(2)}%` : 'Not calculated'}</dd>
-              </div>
-              <div>
-                <dt>Policy version</dt>
-                <dd>{previewMarketSnapshot?.policyOutput?.policyVersion || 'Unavailable'}</dd>
-              </div>
-            </dl>
-
-            {contextPreview.__marketWasRefreshed && (
-              <p className="wti-preview-refresh-note" role="status">
-                The server refreshed verified market information for this preview. The comparison below uses that exact snapshot.
-              </p>
-            )}
-
-            {!previewUsable && (
-              <p className="wti-preview-noop" role="status">{previewNoOpReason} No allocation change was calculated.</p>
-            )}
-            {previewUsable && !contextPreview.applied && (
-              <p className="wti-preview-noop" role="status">{previewNoOpReason}</p>
-            )}
-
-            {previewUsable && (
-              <div className="wti-preview-table-wrap" tabIndex="0" aria-label="Scrollable before and after allocation comparison">
-                <table className="wti-preview-table">
-                  <caption>Current and proposed allocation percentages</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Investment</th>
-                      <th scope="col">Current</th>
-                      <th scope="col">Preview</th>
-                      <th scope="col">Change</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewRows.map(row => (
-                      <tr key={row.id} data-testid={`preview-row-${row.id}`}>
-                        <th scope="row">
-                          <span>{row.name}</span>
-                          {row.reason && <small>{row.reason}</small>}
-                        </th>
-                        <td>{formatAllocationPercent(row.currentWeight)}</td>
-                        <td>{formatAllocationPercent(row.proposedWeight)}</td>
-                        <td>
-                          <span className={`wti-preview-delta ${row.changePct > 0.005 ? 'wti-preview-delta--increase' : row.changePct < -0.005 ? 'wti-preview-delta--reduce' : ''}`}>
-                            {row.changePct > 0.005 ? 'Increase ' : row.changePct < -0.005 ? 'Reduce ' : 'Unchanged '}
-                            {formatAllocationDelta(row.changePct)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <p className="wti-preview-disclaimer">
-              This is a hypothetical comparison within your suitability limits. Your saved plan has not changed; nothing has been bought or sold. It is not a guarantee of improved returns.
-            </p>
-          </section>
-        )}
-        {contextPreviewError && (
-          <p role="alert" className="wti-preview-error">{contextPreviewError}</p>
-        )}
-
-        {/* Technical Details Panel — Collapsed by Default */}
-        <div
-          id="market-context-panel"
-          data-testid="market-context-panel"
-          className={`wti-tech-panel ${isTechExpanded ? 'wti-tech-panel--expanded' : 'wti-tech-panel--collapsed'}`}
-          hidden={!isTechExpanded}
-        >
-          <div className="wti-tech-panel-inner">
-            <QualifiedMarketEvidencePanel />
-            {/* Metric Signal Groups */}
-            <div data-testid="market-context-signals" className="wti-tech-signals-container">
-              {marketSignals.length > 0 && (
-                <div className="wti-tech-group">
-                  <h4 className="wti-tech-group-title">Market & Benchmark Indicators</h4>
-                  <div className="wti-tech-metric-grid">
-                    {marketSignals.map(sig => {
-                      const valStr = String(formatSignal(signalMap[sig.key]));
-                      const isNegative = valStr.startsWith('-') || valStr.startsWith('−');
-                      const isPositivePct = valStr.endsWith('%') && Number(signalMap[sig.key]?.value) > 0;
-                      return (
-                        <div key={sig.key} className="wti-tech-metric-tile" data-signal-key={sig.key}>
-                          <div className="wti-tech-metric-top">
-                            <span className="wti-tech-metric-label">{sig.label}</span>
-                            <span className={`wti-tech-metric-class wti-class-${String(signalSemanticClass(sig.key)).toLowerCase()}`}>
-                              {signalSemanticClass(sig.key)}
-                            </span>
-                          </div>
-                          <span
-                            className="wti-tech-metric-value"
-                            style={{
-                              color: !signalMap[sig.key]?.available
-                                ? '#fbbf24'
-                                : isNegative
-                                ? '#f87171'
-                                : isPositivePct
-                                ? '#34d399'
-                                : '#f8fafc',
-                            }}
-                          >
-                            {formatSignal(signalMap[sig.key])}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {trendAndVolatilitySignals.length > 0 && (
-                <div className="wti-tech-group">
-                  <h4 className="wti-tech-group-title">Trend, Moving Averages & Volatility</h4>
-                  <div className="wti-tech-metric-grid">
-                    {trendAndVolatilitySignals.map(sig => {
-                      const valStr = String(formatSignal(signalMap[sig.key]));
-                      const isNegative = valStr.startsWith('-') || valStr.startsWith('−');
-                      const isPositivePct = valStr.endsWith('%') && Number(signalMap[sig.key]?.value) > 0;
-                      return (
-                        <div key={sig.key} className="wti-tech-metric-tile" data-signal-key={sig.key}>
-                          <div className="wti-tech-metric-top">
-                            <span className="wti-tech-metric-label">{sig.label}</span>
-                            <span className={`wti-tech-metric-class wti-class-${String(signalSemanticClass(sig.key)).toLowerCase()}`}>
-                              {signalSemanticClass(sig.key)}
-                            </span>
-                          </div>
-                          <span
-                            className="wti-tech-metric-value"
-                            style={{
-                              color: !signalMap[sig.key]?.available
-                                ? '#fbbf24'
-                                : isNegative
-                                ? '#f87171'
-                                : isPositivePct
-                                ? '#34d399'
-                                : '#f8fafc',
-                            }}
-                          >
-                            {formatSignal(signalMap[sig.key])}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {otherSignals.length > 0 && (
-                <div className="wti-tech-group wti-tech-group--other">
-                  <h4 className="wti-tech-group-title">Other Telemetry Signals</h4>
-                  <div className="wti-tech-metric-grid">
-                    {otherSignals.map(sig => (
-                      <div key={sig.key} className="wti-tech-metric-tile" data-signal-key={sig.key}>
-                        <div className="wti-tech-metric-top">
-                          <span className="wti-tech-metric-label">{sig.label}</span>
-                          <span className={`wti-tech-metric-class wti-class-${String(signalSemanticClass(sig.key)).toLowerCase()}`}>
-                            {signalSemanticClass(sig.key)}
-                          </span>
-                        </div>
-                        <span
-                          className="wti-tech-metric-value"
-                          style={{ color: signalMap[sig.key]?.available ? '#f8fafc' : '#fbbf24' }}
-                        >
-                          {formatSignal(signalMap[sig.key])}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Evidence & Provenance Section */}
-            <div className="wti-tech-evidence-section">
-              <div className="wti-tech-evidence-header">
-                <div className="wti-tech-evidence-title-group">
-                  <Shield size={16} />
-                  <h4 className="wti-tech-group-title">Evidence & Policy Provenance</h4>
-                </div>
-                <div className="wti-semantic-legend" data-testid="market-semantic-legend">
-                  <span className="wti-legend-chip wti-chip-observed"><span className="wti-chip-dot"></span> Observed facts: provider values</span>
-                  <span className="wti-legend-chip wti-chip-derived"><span className="wti-chip-dot"></span> Derived facts: deterministic calculations</span>
-                  <span className="wti-legend-chip wti-chip-policy"><span className="wti-chip-dot"></span> Policy output: market-context classification</span>
-                </div>
-              </div>
-
-              <div className="wti-tech-policy-dock">
-                <div className="wti-tech-policy-badge">
-                  {contextAvailable
-                    ? `${marketContext.classification} · ${marketContext.policyVersion} · confidence: unavailable (deterministic policy, not ML)`
-                    : marketContextError || 'No usable live context is published unless NIFTY 50, India VIX, and sufficient fresh history are all verified.'}
-                </div>
-                <div className="wti-tech-dataplane-badge">Data plane: {semanticFacts}</div>
-              </div>
-
-              <div className="wti-tech-provenance-grid">
-                <div className="wti-provenance-card">
-                  <span className="wti-provenance-kicker">Observation Timestamps</span>
-                  <div className="wti-provenance-val">
-                    <span>Observed: {marketContext?.observedAt || 'UNAVAILABLE'}</span>
-                    <span>Evaluated: {marketContext?.evaluatedAt || 'UNAVAILABLE'}</span>
-                    <span className="wti-freshness-pill">Freshness: {marketContext?.freshness?.status || 'UNAVAILABLE'}</span>
-                  </div>
-                </div>
-                <div className="wti-provenance-card">
-                  <span className="wti-provenance-kicker">Verified Data Sources</span>
-                  <div className="wti-provenance-val">
-                    {marketContext?.sources?.length
-                      ? marketContext.sources.map(source => `${source.provider || 'UNAVAILABLE'} (${source.instrumentId || 'benchmark history'} · ${source.dataClass || 'UNAVAILABLE'})`).join(', ')
-                      : 'UNAVAILABLE'}
-                  </div>
-                </div>
-                <div className="wti-provenance-card">
-                  <span className="wti-provenance-kicker">Provider Selection & Routing</span>
-                  <div className="wti-provenance-val">
-                    Provider attempts: {marketAttemptedProvider || 'UNAVAILABLE'} · Selected: {providerSelection?.selectedProvider || 'none'} · Fallback used: {providerSelection?.fallbackUsed ? 'yes' : 'no'}
-                    {providerSelection?.providerFailures?.length > 0 && ` · Failed attempts: ${providerSelection.providerFailures.map(failure => `${failure.provider} [${failure.reasonCodes.join(', ')}]`).join('; ')}`}
-                  </div>
-                </div>
-                <div className="wti-provenance-card wti-provenance-card--reasons">
-                  <span className="wti-provenance-kicker">Active Policy Reason Codes</span>
-                  <div className="wti-provenance-reasons">
-                    {contextReasonCodes.length
-                      ? contextReasonCodes.map(code => (
-                          <span key={code} className="wti-reason-chip">{code}</span>
-                        ))
-                      : 'UNAVAILABLE'}
-                  </div>
-                </div>
-              </div>
-
-              <p className="wti-tech-safety-note">
-                Context can only reduce risk within the already eligible recommendation. It cannot add products, override suitability, or execute trades.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Private Upstox observations are an explicit, user-initiated local research
-          preview. Keeping them outside the compact Market Today card preserves
-          its responsive layout, and no private-demo API call occurs on navigation. */}
-      {import.meta.env.DEV && (
-        <PrivateMarketDataDemo
-          key={profileId || 'no-profile'}
-          onSnapshot={acceptPrivateQuoteSnapshot}
-        />
-      )}
-
       {/* ─── Illustrative Investment & Tax Controls Bar ─── */}
       {rankingStatus === 'ready' && products.length > 0 && (
         <div className="wti-controls-bar">
@@ -1760,11 +1038,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
         {products.map((product) => {
           const riskStyle = getRiskTierColor(product.beginnerSuitability?.riskTier);
           const postTax = product.postTaxAnalysis;
-          const privateQuote = product.id === 'etf:isin:INF204KB14I2'
-            && privateQuoteSnapshot?.profileId === profileId
-            ? findPrivateQuoteForProduct(privateQuoteSnapshot.snapshot, product.id)
-            : null;
-          const privatePrice = privateQuote ? privateQuote.value : null;
           const productObservedAt = formatMarketTimestamp(
             product.officialRate?.observedAt
               || product.nav?.observedAt
@@ -1863,15 +1136,6 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
                       <small data-testid="wti-contractual-cashflow-unavailable">
                         Gross contract calculation unavailable: additional verified product terms, current rates, or approved source rights are required.
                       </small>
-                    )}
-                    {privatePrice > 0 && (
-                      <div className="wti-private-quote" data-testid="wti-private-etf-quote">
-                        <span>Private Upstox last-traded ETF price</span>
-                        <strong>₹{privatePrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong>
-                        <small>Last trade: {formatMarketTimestamp(privateQuote.quoteLastTradeAt || privateQuote.observedAt) || 'Unavailable'} · {['FRESH', 'STALE'].includes(privateQuote.freshness?.status) ? privateQuote.freshness.status : 'UNKNOWN'}</small>
-                        {privateQuote.freshness?.status !== 'FRESH' && <small>Historical last trade; not a current live price.</small>}
-                        <small>Educational preview only; not saved or used to rank this option.</small>
-                      </div>
                     )}
                   </div>
                 </div>
@@ -2062,6 +1326,29 @@ const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
       <SebiDisclaimer />
     </div>
   );
+};
+
+const WhereToInvestTab = ({ inv, userProfile, recommendationMeta = null }) => {
+  // A keyed subtree resets tax and ranking state when financial authority changes,
+  // rather than cascading synchronous state updates from an effect.
+  const financialContextKey = JSON.stringify({
+    profileId: userProfile?.profileId,
+    profileVersion: Number(userProfile?.version ?? recommendationMeta?.profile_version),
+    recommendationId: recommendationMeta?.recommendationId || recommendationMeta?.recommendation_id,
+    allocationRevision: Number(recommendationMeta?.allocation_revision),
+    allocationRevisionId: recommendationMeta?.allocation_revision_id,
+    portfolioFingerprint: recommendationMeta?.portfolio_fingerprint,
+    recommendationFingerprint: recommendationMeta?.recommendation_fingerprint,
+    parentInstrumentId: inv?.id,
+    revisionId: recommendationMeta?.allocation_revision_id,
+    age: userProfile?.age,
+  });
+  return <WhereToInvestContent
+    key={financialContextKey}
+    inv={inv}
+    userProfile={userProfile}
+    recommendationMeta={recommendationMeta}
+  />;
 };
 
 export default WhereToInvestTab;

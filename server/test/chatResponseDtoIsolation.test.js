@@ -184,7 +184,7 @@ describe('grounded chat DTO and persistence isolation', () => {
     assert.equal(providerCalls, 0);
     assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
     assert.equal(result.fallback, true);
-    assert.ok(conversation.messages.at(-1).metadata.validation_reason_codes.includes('NO_LLM_PROVIDER_CONFIGURED'));
+    assert.ok(conversation.messages.at(-1).metadata.validation_reason_codes.includes('PROVIDER_BUDGET_EXHAUSTED'));
   });
 
   it('returns a minimal system response when no Financial Profile exists', async () => {

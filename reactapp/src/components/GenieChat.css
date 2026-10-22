@@ -291,6 +291,15 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.15);
 }
 .bubble-text { white-space: pre-wrap; word-break: break-word; }
+.chat-fallback-note {
+  margin-bottom: 8px;
+  padding: 7px 9px;
+  border-left: 2px solid #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  color: #fde68a;
+  font-size: .72rem;
+  line-height: 1.45;
+}
 .bubble-text strong { color: var(--color-primary-light); font-weight: 700; }
 .stream-cursor { color: var(--color-primary); animation: blink 0.8s infinite; font-weight: 100; }
 @keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: 0 } }
