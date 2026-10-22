@@ -5,7 +5,7 @@
  * is created by this module.
  */
 const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|trip|startup|business|ceremony|emergency fund|school|tuition)\b/i;
-const GOAL_INTENT = /\b(?:need|want|save|fund|afford|plan|target|goal|corpus|budget|reach|arrange|require|how much|collect|build|set aside|prepare|raise)\b/i;
+const GOAL_INTENT = /\b(?:need|want|save|fund|afford|plan|target|goal|corpus|budget|reach|arrange|require|how much|collect|build|set aside|prepare|raise|costs?|pay|spend|estimate)\b/i;
 const AMOUNT = /(?:₹\s*|(?:rs\.?|inr)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(crores?|crors?|crs?|cr|lakhs?|lacs?|lac|thousands?|k|l)\b|(?:₹|inr|rs\.?)\s*(\d[\d,]*(?:\.\d+)?)(?!\d|[,.](?=\d)|[A-Za-z]|\s*(?:%|years?\b|months?\b|yrs?\b|mos?\b))/gi;
 const INR = amount => 'INR ' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const goalText = value => String(value || '').slice(0, 1000).trim();
@@ -16,7 +16,7 @@ export function isFinancialGoalPlanningQuestion(question) {
   // into the financial engine based solely on a shared subject word.
   const explicitAmount = new RegExp(AMOUNT.source, 'i').test(text)
     || /(?:₹|\binr\b|\brs\.?)\s*[-−]?\s*\d[\d,.]*(?:\s*[a-z]+)?/i.test(text);
-  const fundingIntent = /\b(?:sav(?:e|ing|ings)|fund(?:s|ing)?|financ(?:e|es|ial)|afford|target|budget|corpus|rupees?|money|invest(?:ing|ment)?|monthly|lump[ -]?sum|costs?|expenses?|payments?|set aside|crores?|crors?|lakhs?|lacs?|paise)\b/i.test(text);
+  const fundingIntent = /\b(?:sav(?:e|ing|ings)|fund(?:s|ing)?|financ(?:e|es|ial)|afford|target|budget|corpus|rupees?|money|invest(?:ing|ment)?|monthly|lump[ -]?sum|costs?|expenses?|payments?|pay|spend|price|set aside|crores?|crors?|lakhs?|lacs?|paise)\b/i.test(text);
   // Financial targets do not require a wedding/house/etc. noun. Otherwise
   // "I want to accumulate 2 crore in 10 years" falls through to a generic
   // finance reply even though the deterministic calculation has the inputs.
