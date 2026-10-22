@@ -254,7 +254,7 @@ export default function NewRegimeTaxScreen() {
         business adjustments, dividends, capital gains, and other special provisions are not
         automatically modeled. The server refuses unsupported inputs instead of guessing.</p>
       <p className="wg-new-tax__sources">Government sources: <a href="https://www.incometaxindia.gov.in/w/tax-rates-and-computation" target="_blank" rel="noopener noreferrer">Income Tax Department rates and rebates</a>
-        {' · '}<a href="https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/section-19-199" target="_blank" rel="noopener noreferrer">Section 19</a>
+        {' · '}<a href="https://www.incometaxindia.gov.in/w/section-19-199" target="_blank" rel="noopener noreferrer">Section 19</a>
         {' · '}<a href="https://www.incometaxindia.gov.in/w/section-156-84" target="_blank" rel="noopener noreferrer">Section 156 rebate</a>
         {' · '}<a href="https://www.incometaxindia.gov.in/w/section-516-3" target="_blank" rel="noopener noreferrer">Section 516 rounding</a>
       </p>
