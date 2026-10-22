@@ -938,3 +938,16 @@ test('red-team E2E: a stated savings ability without cadence is not an assumed m
   assert.equal(followUp.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
   assert.equal(followUp.some(e => e.id === 'E_GOAL_CAPACITY_CHECK'), false);
 });
+
+
+test('red-team E2E: a goal-payment target never converts EMI or debt payments into a new corpus', () => {
+  const loanOnly = retrieveChatGoalPlanningEvidence(
+    'I need to pay ₹30k for my home loan EMI in 10 years, starting from zero');
+  assert.equal(loanOnly.some(entry => entry.id === 'E_GOAL_STATED_TARGET'), false);
+  assert.equal(loanOnly.some(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE'), false);
+  const mixed = retrieveChatGoalPlanningEvidence(
+    "Need ₹2 crore for daughter's wedding in 10 years, starting from zero. I need to pay ₹30k for my home loan EMI");
+  assert.equal(mixed.find(entry => entry.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(mixed.find(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 166666.67);
+  assert.equal(mixed.some(entry => entry.id === 'E_GOAL_CAPACITY_CHECK'), false);
+});
