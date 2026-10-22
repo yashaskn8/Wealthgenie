@@ -479,7 +479,11 @@ const StepUpPlanner = ({ profile }) => {
 
       <section className="sup-safety-panel" aria-live="polite">
         <h3>Financial reality checks</h3>
-        {!projection && <p>{projectionInputsValid ? 'Calculating with your inputs…' : 'Enter valid numbers; the downside return must not exceed the base return.'}</p>}
+        {!projection && <p>{!projectionInputsValid
+          ? 'Enter valid numbers; the downside return must not exceed the base return.'
+          : projectionError
+            ? 'Projection unavailable. No amounts are shown until a verified calculation succeeds.'
+            : 'Calculating with your inputs…'}</p>}
         {projection && (
           <>
             <p className={isOverBudget ? 'sup-warning' : ''}>
