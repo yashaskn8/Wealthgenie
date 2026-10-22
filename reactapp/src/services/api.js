@@ -974,8 +974,10 @@ export async function projectGoalSavings(payload) {
 export async function getGoalSpecifications() {
   return request('GET', '/goals/finance/specifications');
 }
-export async function createGoalSpecification(payload) {
-  return request('POST', '/goals/finance/specifications', payload);
+export async function createGoalSpecification(payload, idempotencyKey = null) {
+  return request('POST', '/goals/finance/specifications', payload, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+  });
 }
 export async function updateGoalSpecification(id, payload) {
   return request('PUT', `/goals/finance/specifications/${encodeURIComponent(id)}`, payload);
