@@ -52,6 +52,30 @@ test('Section 124 NPS employer contribution cannot be double deducted or applied
   ]) assert.throws(() => run(patch), e => e.code === 'INVALID_TAX_REQUEST');
 });
 
+test('Section 122: employer NPS never creates an artificial negative ordinary tax base', () => {
+  for (const patch of [
+    { incomeType: 'salary', primaryIncome: '10000', npsEligibleSalary: '10000',
+      employerNpsContribution: '1000', confirmedNpsIncludedInSalary: true },
+    { incomeType: 'salary', primaryIncome: '80000', npsEligibleSalary: '80000',
+      employerNpsContribution: '10000', confirmedNpsIncludedInSalary: true,
+      lotteryWinnings: '100000' },
+  ]) {
+    const result = run(patch);
+    assert.equal(result.status, 'UNAVAILABLE', JSON.stringify(patch));
+    assert.equal(result.finalTax, null);
+    assert.ok(result.unavailableReasons.includes('NPS_DEDUCTION_EXCEEDS_QUALIFIED_ORDINARY_INCOME'));
+    assert.ok(result.sourceReferences.includes('https://www.incometaxindia.gov.in/w/section-122-96'));
+  }
+  // The same NPS deduction is allowed when separately qualified ordinary
+  // income gives it a sufficient base after the standard deduction.
+  const supported = run({ incomeType: 'salary', primaryIncome: '80000',
+    otherOrdinaryIncome: '10000', npsEligibleSalary: '80000',
+    employerNpsContribution: '10000', confirmedNpsIncludedInSalary: true });
+  assert.equal(supported.status, 'CALCULATED');
+  assert.equal(supported.employerNpsDeduction, '10000.0000');
+  assert.equal(supported.ordinaryTaxableIncome, '5000');
+});
+
 test('Section 202: net house-property loss is explicitly NOT offset against other income', () => {
   const r = run({ primaryIncome: '1200000', housePropertyLoss: '200000', residency: 'non_resident' });
   assert.equal(r.finalTax, '62400'); // 12L nonresident income, not 10L
