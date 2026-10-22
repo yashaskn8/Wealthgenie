@@ -101,6 +101,47 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
       });
       assert.equal(projected.status, 200);
       assert.equal(projection.projection.futureNominal, 22000);
+      const typedPayload = {
+        kind: 'vehicle', name: 'Lower cost commuter', targetAmount: 500000,
+        currentSavings: 50000, targetDate: '2028-12-20', priority: 'High',
+        annualPriceInflationPct: 3, notes: 'Price is illustrative and user-entered',
+      };
+      const specsEndpoint = `${base}/api/goals/finance/specifications`;
+      const { response: specCreated, body: createdSpec } = await jsonRequest(specsEndpoint, {
+        method: 'POST', headers: authA, body: JSON.stringify(typedPayload),
+      });
+      assert.equal(specCreated.status, 201);
+      assert.equal(createdSpec.specification.version, 1);
+      assert.ok(createdSpec.specification.plan.monthlyNeededWithoutReturns > 0);
+      const { body: otherSpecs } = await jsonRequest(specsEndpoint, { headers: authB });
+      assert.equal(otherSpecs.specifications.length, 0);
+      const typedId = createdSpec.specification.id;
+      const { response: typedUpdated, body: updatedSpec } = await jsonRequest(`${specsEndpoint}/${typedId}`, {
+        method: 'PUT', headers: authA,
+        body: JSON.stringify({ ...typedPayload, expectedVersion: 1, priority: 'Critical' }),
+      });
+      assert.equal(typedUpdated.status, 200);
+      assert.equal(updatedSpec.specification.version, 2);
+      const { response: specStale } = await jsonRequest(`${specsEndpoint}/${typedId}`, {
+        method: 'PUT', headers: authA, body: JSON.stringify({ ...typedPayload, expectedVersion: 1 }),
+      });
+      assert.equal(specStale.status, 409);
+      const { response: specBadDate } = await jsonRequest(specsEndpoint, {
+        method: 'POST', headers: authA, body: JSON.stringify({ ...typedPayload, targetDate: '2030-02-30' }),
+      });
+      assert.equal(specBadDate.status, 400);
+      const { response: specBadHorizon } = await jsonRequest(specsEndpoint, {
+        method: 'POST', headers: authA, body: JSON.stringify({ ...typedPayload, targetDate: '2100-10-20' }),
+      });
+      assert.equal(specBadHorizon.status, 400);
+      const { response: specOtherDelete } = await jsonRequest(`${specsEndpoint}/${typedId}`, {
+        method: 'DELETE', headers: { ...authB, 'If-Match': '"2"' },
+      });
+      assert.equal(specOtherDelete.status, 409);
+      const { response: specDeleted } = await jsonRequest(`${specsEndpoint}/${typedId}`, {
+        method: 'DELETE', headers: { ...authA, 'If-Match': '"2"' },
+      });
+      assert.equal(specDeleted.status, 200);
     });
   } finally {
     await teardownTestDatabase();
