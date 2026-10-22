@@ -32,7 +32,7 @@ function amount(value, field, { optional = false } = {}) {
   if (value === '' || value === null || value === undefined) throw new Error(`Enter ${field}.`);
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1_000_000_000
-    || Math.abs(Math.round(parsed * 100) - parsed * 100) > 1e-7) throw new Error(`Invalid ${field}; use a non-negative INR amount.`);
+    || Number(parsed.toFixed(2)) !== parsed) throw new Error(`Invalid ${field}; use a non-negative INR amount.`);
   return parsed;
 }
 function NumberEntry({ label, value, onChange, min = '0', max, step = '0.01', hint }) {
