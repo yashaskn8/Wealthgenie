@@ -64,7 +64,8 @@ function moneyIn(question) {
     if (amount === null) { found.push({ amount: null, role: 'INVALID' }); continue; }
     const before = goalText(question).slice(Math.max(0, match.index - 70), match.index).toLowerCase().trim();
     const after = goalText(question).slice(match.index + match[0].length, match.index + match[0].length + 55).toLowerCase();
-    const savings = /(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+    const targetCue = /\b(?:need|want|target(?:\s+is)?|goal(?:\s+is)?|save|raise|require)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before);
+    const savings = !targetCue && /(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:already\s+saved|saved(?:\s+already)?|earmarked|in\s+savings|as\s+savings|in\s+(?:my|our)\s+savings|set\s+aside)\b/i.test(after);
     const capacity = !savings && (/(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /(?:monthly\s+(?:saving|contribution|capacity|budget)|per\s+month|each\s+month)\s*(?:of\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
@@ -82,8 +83,11 @@ function moneyIn(question) {
 
 function goalHorizonMonths(question) {
   const candidates = [];
+  const supplied = goalText(question);
+  const text = /^\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s*(?:and\s*)?\d{1,2}\s*months?)?[.!]?$/i.test(supplied)
+    ? 'in ' + supplied : supplied;
   const pattern = /\b(?:in|within|after|over|next|for|timeframe(?: of)?|horizon(?: of)?|deadline(?: of| in)?)\s+(\d{1,3}(?:\.\d+)?)\s*(years?|yrs?|months?|mos?)\b(?:\s*(?:and\s*)?(\d{1,2})\s*months?\b)?/gi;
-  for (const match of goalText(question).matchAll(pattern)) {
+  for (const match of text.matchAll(pattern)) {
     const [whole, fraction = ''] = match[1].split('.');
     if (fraction.length > 6) return -1;
     const scale = 10n ** BigInt(fraction.length);
