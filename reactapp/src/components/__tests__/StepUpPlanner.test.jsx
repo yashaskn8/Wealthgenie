@@ -243,3 +243,20 @@ it('rejects malformed affordability data and refuses to show a false affordable 
   expect(await screen.findByText(/invalid or incompatible financial projection/)).toBeInTheDocument();
   expect(screen.queryByText(/Every planned instalment fits/)).not.toBeInTheDocument();
 });
+
+it.each([
+  'Starting monthly SIP amount (INR)',
+  'Annual SIP increase percentage',
+  'Investment horizon in years',
+  'Assumed annualised return CAGR percentage',
+])('keeps an intentionally cleared %s invalid after losing focus', async label => {
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse());
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  const input = screen.getByRole('spinbutton', { name: label });
+  fireEvent.change(input, { target: { value: '' } });
+  fireEvent.blur(input);
+  expect(input).toHaveValue(null);
+  await new Promise(resolve => setTimeout(resolve, 350));
+  expect(calculate).not.toHaveBeenCalled();
+  expect(screen.getByText(/Enter valid numbers/)).toBeInTheDocument();
+});
