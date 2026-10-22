@@ -141,6 +141,16 @@ export async function checkGenieProofClaims({
       return unverified(candidate, 'SYNTHETIC_EVIDENCE_REJECTED',
         'Test or synthetic evidence is not permitted to establish financial correctness.');
     }
+    // Signed source evidence must bind to the exact official page origin and
+    // the original page content digest; random or missing lineage is not enough.
+    const officialOrigin = new URL(SOURCE_URL).origin;
+    if (revisions.some(rev => !Array.isArray(rev.sourceLineage)
+      || rev.sourceLineage.length !== 2
+      || rev.sourceLineage[0] !== officialOrigin
+      || !/^[a-f0-9]{64}$/.test(rev.sourceLineage[1]))) {
+      return unverified(candidate, 'SOURCE_LINEAGE_NOT_VERIFIED',
+        'The source evidence cannot be traced to the expected official publication.');
+    }
     const first = revisions[0];
     return {
       claimId: candidate.claimId,
@@ -168,6 +178,7 @@ export async function checkGenieProofClaims({
     saved: false,
     claims,
     noClaimsFound: claims.length === 0,
-    completeInputExamined: true,
+    allExtractedCandidatesProcessed: true,
+    verificationScope: 'DETECTED_CLAIMS_ONLY',
   };
 }
