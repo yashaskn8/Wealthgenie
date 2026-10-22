@@ -46,10 +46,14 @@ const StepUpPlanner = ({ profile }) => {
   const projectionIsCurrent = projectionState.binding === projectionBinding;
 
   // Safe numerical fallback during manual typing states
-  const safeBaseSIP = Number(baseSIP) || 0;
-  const safeReturnRate = Number(returnRate) || 0;
-  const safeYears = Number(years) || 0;
-  const safeStepUpPercent = Number(stepUpPercent) || 0;
+  // Distinguish an explicit zero from an empty or malformed value. Invalid
+  // inputs must not silently become a flat SIP or a zero-return assumption.
+  const strictNumber = value => value === '' || value === null || value === undefined
+    ? NaN : Number(value);
+  const safeBaseSIP = strictNumber(baseSIP);
+  const safeReturnRate = strictNumber(returnRate);
+  const safeYears = strictNumber(years);
+  const safeStepUpPercent = strictNumber(stepUpPercent);
   const validOptionalMoney = value => value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 100000000);
   const projectionInputsValid = baseSIP !== '' && stepUpPercent !== '' && years !== '' && returnRate !== ''
     && Number.isFinite(safeBaseSIP) && safeBaseSIP > 0 && safeBaseSIP <= 10000000
