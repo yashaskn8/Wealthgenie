@@ -761,3 +761,58 @@ test('adversarial three-turn continuity cannot cross into a different named goal
   assert.equal(correction.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 10000000);
   assert.equal(correction.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false);
 });
+
+
+test('red-team E2E: unnamed rupee accumulation target gets the same verified contribution math', async () => {
+  for (const question of [
+    'I want to accumulate 2 crore in 10 years starting from zero',
+    'I need ₹2 crore in 10 years, starting from zero',
+    'Plan to save INR 2,00,00,000 in 10 years, starting from zero',
+  ]) {
+    assert.equal(isFinancialGoalPlanningQuestion(question), true, question);
+    assert.equal(isGeneralChatQuestion(question), false, question);
+    const packet = await createPacket(question);
+    const baseline = packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+    assert.equal(baseline?.value?.targetAmount, 20_000_000, question);
+    assert.equal(baseline?.value?.horizonMonths, 120, question);
+    assert.equal(baseline?.value?.earmarkedSavingsAmount, 0, question);
+    assert.equal(baseline?.value?.monthlyRequiredAmount, 166666.67, question);
+    const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+    assert.equal(answer.validation.status, 'PASS', question);
+    assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE', question);
+    assert.equal(answer.financialClaims.find(c => c.type === 'GOAL_MONTHLY_BASELINE')?.value, 166666.67, question);
+    assert.ok(answer.citations.every(c => !c.citation_id.startsWith('E_GOAL_') || c.source_url === null), question);
+    assert.doesNotMatch(answer.text, /guaranteed return|expected 12%|will grow/i, question);
+  }
+});
+
+test('red-team: income mentions and missing inputs never forge a new goal amount or monthly obligation', async () => {
+  for (const question of [
+    'I earn ₹2 crore salary. Explain my income.',
+    'My EMI is ₹35,000 per month. Why is it high?',
+    'I have saved ₹20 lakh already.',
+  ]) {
+    assert.equal(isFinancialGoalPlanningQuestion(question), false, question);
+    assert.deepEqual(retrieveChatGoalPlanningEvidence(question), [], question);
+  }
+  for (const question of [
+    'I want to accumulate 2 crore.',
+    'I want to accumulate 2 crore in 10 years.',
+  ]) {
+    const packet = await createPacket(question);
+    assert.equal(packet.entries.some(e => e.id === 'E_GOAL_STATED_TARGET'), true, question);
+    assert.equal(packet.entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, question);
+    const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+    assert.equal(answer.validation.status, 'PASS', question);
+    assert.match(answer.text, /how much is already earmarked/i, question);
+  }
+});
+
+test('red-team: upward paisa rounding is exact and never silently underfunds small amounts', () => {
+  assert.equal(calculateGoalMonthlyBaseline(1.01, 0, 3), 0.34);
+  assert.equal(calculateGoalMonthlyBaseline(20_000_000, 2_000_000, 120), 150000);
+  assert.equal(calculateGoalMonthlyBaseline(20_000_000, 0, 120), 166666.67);
+  assert.equal(calculateGoalMonthlyBaseline(0.01, 0, 3), 0.01);
+  assert.equal(calculateGoalMonthlyBaseline(20_000_000, 20_000_001, 120), null);
+  assert.equal(calculateGoalMonthlyBaseline(20_000_000, 0, 0), null);
+});
