@@ -699,3 +699,37 @@ test('adversarial unsupported money suffix remains a clear missing-input error',
   assert.equal(entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false);
   assert.match(entries.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '', /ambiguous or invalid/);
 });
+
+test('adversarial goal-explanation follow-ups reuse the verified target and ignore quoted amounts', async () => {
+  const priorUserTurns = ["Need 2 crore for daughter's wedding in 10 years starting from zero"];
+  for (const question of [
+    'Why?', 'Show the math', 'How was that calculated?', 'Explain that amount',
+    'Why is it ₹1.67 lakh per month?', 'Why ₹1,66,666.67?',
+  ]) {
+    assert.equal(isFinancialGoalFollowUpQuestion(question, priorUserTurns), true, question);
+    const packet = await buildChatEvidencePacket({
+      question, profile, recommendation: null,
+      priorTurns: priorUserTurns.map(content => ({ role: 'user', content })),
+    }, { queryRegulatoryRag: async () => null });
+    const goal = packet.entries.find(e => e.id === 'E_GOAL_STATED_TARGET');
+    const baseline = packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+    assert.equal(goal?.value.targetAmount, 20000000, question);
+    assert.equal(baseline?.value.monthlyRequiredAmount, 166666.67, question);
+    const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+    assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE', question);
+    assert.equal(answer.validation.status, 'PASS', question);
+    assert.match(answer.text, /Calculation method:/, question);
+    assert.match(answer.text, /1,66,666\.67 per month/, question);
+  }
+  for (const question of ['Why did NIFTY crash?', 'What is the latest NAV?', 'Show me market returns']) {
+    assert.equal(isFinancialGoalFollowUpQuestion(question, priorUserTurns), false, question);
+  }
+});
+
+test('adversarial named car loan expense does not erase the wedding goal', () => {
+  const question = "Need ₹2 crore for daughter's wedding in 10 years, saved ₹20 lakh and have car loan EMI ₹30k";
+  const evidence = retrieveChatGoalPlanningEvidence(question);
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150000);
+  assert.equal(evidence.some(e => e.id === 'E_GOAL_CAPACITY_CHECK'), false);
+});
