@@ -254,6 +254,7 @@ test('React labels catalog returns, tax references, and Monte Carlo values by th
   assert.match(jargon, /Simulated median/);
   assert.match(jargon, /Simulated 90th percentile/);
   assert.doesNotMatch(jargon, /treat it as a best-case forecast|chance your actual wealth/);
-  assert.match(goals, /SIMULATED GOAL REACH RATE/);
+  assert.match(goals, /AVERAGE INDIVIDUAL REACH RATE — NOT JOINT/);
+  assert.doesNotMatch(goals, />SIMULATED GOAL REACH RATE<\/div>/);
   assert.doesNotMatch(goals, /real-time Monte Carlo wealth forecasting|Quant Success Forecast/);
 });
