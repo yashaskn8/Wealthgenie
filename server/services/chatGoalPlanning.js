@@ -492,5 +492,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
       guidance += ' The growth assumptions are outside the supported exact calculation range or are contradictory; no return-based amount was calculated.';
     }
   }
+  // Keep the displayed authoritative boundary synchronized with scenario warnings
+  // assembled after the evidence array was initially constructed.
+  entries.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE').displayValue = guidance;
   return entries;
 }
