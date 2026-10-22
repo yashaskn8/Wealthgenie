@@ -95,7 +95,12 @@ function expectedClaimForEvidence(entry, type) {
       && finite(value.targetAmount) && finite(value.earmarkedSavingsAmount)
       && Number.isSafeInteger(value.horizonMonths) && value.horizonMonths > 0
       && value.earmarkedSavingsAmount >= 0 && value.earmarkedSavingsAmount <= value.targetAmount
-      && value.monthlyRequiredAmount === Math.ceil(((value.targetAmount - value.earmarkedSavingsAmount) * 100)
+      && Number.isSafeInteger(Math.round(value.targetAmount * 100))
+      && Number.isSafeInteger(Math.round(value.earmarkedSavingsAmount * 100))
+      && Math.abs(value.targetAmount * 100 - Math.round(value.targetAmount * 100)) < 0.001
+      && Math.abs(value.earmarkedSavingsAmount * 100 - Math.round(value.earmarkedSavingsAmount * 100)) < 0.001
+      && value.monthlyRequiredAmount === Math.ceil(
+        (Math.round(value.targetAmount * 100) - Math.round(value.earmarkedSavingsAmount * 100))
         / value.horizonMonths) / 100
       && value.assumedGrowthRate === null && value.inflationRate === null
       && value.returnForecast === false && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value.sourceScope)
