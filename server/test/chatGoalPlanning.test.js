@@ -148,7 +148,8 @@ test('successive follow-ups retain only trusted user goal inputs, never model-ge
   ];
   const question = 'I can save 50k per month';
   assert.equal(isFinancialGoalFollowUpQuestion(question, priorTurns), true);
-  assert.equal(isGeneralChatQuestion(question), false);
+  // Alone this is ambiguous; the authenticated router must override the general route.
+  assert.equal(isGeneralChatQuestion(question), true);
   const packet = await buildChatEvidencePacket({
     question, profile, recommendation: null, priorTurns,
   }, { queryRegulatoryRag: async () => null });
