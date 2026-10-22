@@ -251,7 +251,7 @@ function deterministicCandidate(packet, question = '') {
     if (inflatedGoal?.value?.inflatedTargetAmount > 0) {
       const text = 'Inflation-adjusted goal target: INR '
         + inflatedGoal.value.inflatedTargetAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-        + ' [' + inflatedGoal.id + '].';
+        + ' (illustrative, not a cost forecast) [' + inflatedGoal.id + '].';
       claims.push({ text, evidenceIds: [inflatedGoal.id] });
       financialClaims.push({
         type: 'GOAL_INFLATION_ADJUSTED_TARGET',
