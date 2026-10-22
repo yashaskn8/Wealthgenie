@@ -87,6 +87,7 @@ export function retrieveChatEducationalEvidence(question, { maxEntries = 2 } = {
     .map(doc => ({
       id: doc.id,
       kind: 'EDUCATION',
+      sourceTitle: doc.title,
       value: { topic: doc.id, educationalOnly: true, jurisdictionNeutral: true },
       displayValue: doc.explanation,
       dataClass: 'CURATED_PUBLIC_EDUCATION',
