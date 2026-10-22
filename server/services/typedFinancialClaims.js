@@ -95,8 +95,8 @@ function expectedClaimForEvidence(entry, type) {
       && finite(value.targetAmount) && finite(value.earmarkedSavingsAmount)
       && Number.isSafeInteger(value.horizonMonths) && value.horizonMonths > 0
       && value.earmarkedSavingsAmount >= 0 && value.earmarkedSavingsAmount <= value.targetAmount
-      && value.monthlyRequiredAmount === Math.ceil(((value.targetAmount - value.earmarkedSavingsAmount)
-        / value.horizonMonths) * 100) / 100
+      && value.monthlyRequiredAmount === Math.ceil(((value.targetAmount - value.earmarkedSavingsAmount) * 100)
+        / value.horizonMonths) / 100
       && value.assumedGrowthRate === null && value.inflationRate === null
       && value.returnForecast === false && value.sourceScope === 'CURRENT_USER_MESSAGE'
       && entry.authority === 'WEALTHGENIE_BACKEND') {
