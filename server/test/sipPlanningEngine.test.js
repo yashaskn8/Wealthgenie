@@ -46,8 +46,10 @@ test('reference annuity-due engines agree for fixed and annual step-up contribut
       assert.ok(Math.abs(result.stepUpFinal - legacy) <= upperBound,
         'step-up exceeds accumulated paise-rounding bound at '+rate+' / '+years);
       assert.equal(result.additionalCorpus, result.stepUpFinal - result.flatFinal);
-      assert.equal(result.additionalProjectedGrowth,
-        result.additionalCorpus - result.additionalContributions);
+      // Derived growth is deliberately rounded to exact paise; raw IEEE
+      // subtraction may differ by fractions of a paisa.
+      assert.ok(Math.abs(result.additionalProjectedGrowth
+        - (result.additionalCorpus - result.additionalContributions)) < 0.005);
     }
   }
 });
