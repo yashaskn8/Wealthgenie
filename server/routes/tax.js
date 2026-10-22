@@ -18,6 +18,7 @@ import {
   analyzeTaxOptimization,
 } from '../services/taxEngine.js';
 import { calculateVerifiedNewRegime } from '../services/verifiedNewRegimeCalculator.js';
+import { calculateAdvancedNewRegime } from '../services/advancedNewRegimeCalculator.js';
 import { calculateVerifiedComplexCapitalGainsTax } from '../services/verifiedComplexCapitalGainsTax.js';
 import { calculatePostTaxReturnSafe, calculatePostTaxProjection } from '../services/postTaxCalculator.js';
 import { calculateUserDeclaredPostTaxScenario } from '../services/userDeclaredPostTaxScenario.js';
@@ -66,6 +67,25 @@ router.post('/new-regime-verified-complex', asyncHandler(async (req, res) => {
     return res.json(calculateVerifiedComplexCapitalGainsTax(req.body));
   } catch (error) {
     if (error.code === 'UNSUPPORTED_TAX_YEAR') return sendError(req, res, 422, error.message, error.code);
+    if (error.code === 'INVALID_TAX_REQUEST' || error.code === 'INVALID_MONEY') {
+      return sendError(req, res, 400, error.message, error.code);
+    }
+    throw error;
+  }
+}));
+
+/**
+ * Strictly qualified supplementary new-regime scenarios (TY 2026-27).
+ * Does not alter the ordinary income endpoint or legacy tax APIs.
+ */
+router.post('/new-regime-advanced', asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.json(calculateAdvancedNewRegime(req.body));
+  } catch (error) {
+    if (error.code === 'UNSUPPORTED_TAX_YEAR') {
+      return sendError(req, res, 422, error.message, error.code);
+    }
     if (error.code === 'INVALID_TAX_REQUEST' || error.code === 'INVALID_MONEY') {
       return sendError(req, res, 400, error.message, error.code);
     }
