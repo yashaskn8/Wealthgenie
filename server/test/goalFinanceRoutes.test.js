@@ -10,6 +10,7 @@ import { enforceJsonContentType } from '../middleware/contentType.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import goalFinanceRoutes from '../routes/goalFinance.js';
 import GoalBudget from '../models/GoalBudget.js';
+import GoalSpecification from '../models/GoalSpecification.js';
 import User from '../models/User.js';
 
 const secret = 'goal-finance-integration-test-jwt-secret';
@@ -21,6 +22,9 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
   try {
     await GoalBudget.collection.createIndex({ userId: 1, month: 1 }, {
       unique: true, name: 'goal_budget_owner_month_unique',
+    });
+    await GoalSpecification.collection.createIndex({ userId: 1, creationKey: 1 }, {
+      unique: true, name: 'goal_spec_owner_create_key_unique',
     });
     const userA = new mongoose.Types.ObjectId();
     const userB = new mongoose.Types.ObjectId();
@@ -107,11 +111,25 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
         annualPriceInflationPct: 3, notes: 'Price is illustrative and user-entered',
       };
       const specsEndpoint = `${base}/api/goals/finance/specifications`;
+      const createHeaders = { ...authA, 'Idempotency-Key': 'goals-spec-test-key-0001' };
       const { response: specCreated, body: createdSpec } = await jsonRequest(specsEndpoint, {
-        method: 'POST', headers: authA, body: JSON.stringify(typedPayload),
+        method: 'POST', headers: createHeaders, body: JSON.stringify(typedPayload),
       });
       assert.equal(specCreated.status, 201);
       assert.equal(createdSpec.specification.version, 1);
+      const { response: replayRes, body: sameSpec } = await jsonRequest(specsEndpoint, {
+        method: 'POST', headers: createHeaders, body: JSON.stringify(typedPayload),
+      });
+      assert.equal(replayRes.status, 200);
+      assert.equal(sameSpec.replay, true);
+      assert.equal(sameSpec.specification.id, createdSpec.specification.id);
+      const { response: replayConflict } = await jsonRequest(specsEndpoint, {
+        method: 'POST', headers: createHeaders,
+        body: JSON.stringify({ ...typedPayload, name: 'Different purchase' }),
+      });
+      assert.equal(replayConflict.status, 409);
+      assert.equal(await GoalSpecification.countDocuments({ userId: userA }), 1);
+
       assert.ok(createdSpec.specification.plan.monthlyNeededWithoutReturns > 0);
       const { body: otherSpecs } = await jsonRequest(specsEndpoint, { headers: authB });
       assert.equal(otherSpecs.specifications.length, 0);
