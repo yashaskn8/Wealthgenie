@@ -131,3 +131,18 @@ test('revocation between preliminary screening and final publication drops the w
  assert.equal(r.products[0].id,'p2');
  assert.equal(r.exclusionCounts.MARKET_SOURCE_CHANGED_DURING_COMPARISON,1);
 });
+
+test('the comparison fetches only the reviewed provider identity, not a newer unrelated quote',async()=>{
+ const h=harness([product('one',{source_id:'verified-bank'})]);
+ const invoked=[];
+ h.store.latestPublishableObservation=async (id,kind,at,sourceId)=>{
+  invoked.push({id,kind,sourceId});
+  assert.equal(sourceId,'verified-bank');
+  return {id:71,source_id:sourceId,value:'7.10',unit:'PCT_PER_ANNUM',
+    observed_at:at,data_class:'PUBLISHED_RATE'};
+ };
+ const r=await compare(h);
+ assert.equal(r.products.length,1);
+ assert.equal(invoked.length,2);
+ assert.deepEqual(invoked.map(x=>x.sourceId),['verified-bank','verified-bank']);
+});

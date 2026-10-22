@@ -65,9 +65,12 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
     }
     return rows[0];
   }
-  async function latestPublishableObservation(productId, kind, now = new Date()) {
+  async function latestPublishableObservation(productId, kind, now = new Date(), sourceId = null) {
     assertIdentity(productId);
     if (!['PRICE','NAV','PUBLISHED_RATE','YIELD','VOLUME'].includes(kind)) throw new TypeError('Invalid market observation type');
+    if (sourceId !== null && (typeof sourceId !== 'string' || !/^[a-zA-Z0-9:_-]{1,160}$/.test(sourceId))) {
+      throw new TypeError('Exact provider source ID invalid');
+    }
     const { rows } = await pool.query(
       `SELECT o.id,o.product_id,o.observation_type,o.value::text AS value,o.currency,
               o.unit,o.data_class,o.effective_from,o.effective_to,o.observed_at,o.fetched_at,o.source_id,
@@ -77,6 +80,7 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
          JOIN finance.provider_rights r ON r.source_id=o.source_id
          JOIN finance.products p ON p.id=o.product_id
         WHERE o.product_id=$1 AND o.observation_type=$2
+          AND ($4::text IS NULL OR o.source_id=$4)
           AND p.record_kind='ACTUAL_PRODUCT' AND p.availability IN ('AVAILABLE','RESTRICTED')
           AND (o.observation_type NOT IN ('PRICE','NAV') OR o.value>0)
           AND (o.observation_type<>'NAV' OR o.data_class='END_OF_DAY')
@@ -99,7 +103,7 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
             SELECT 1 FROM finance.observation_corrections oc WHERE oc.observation_id=o.id
           )
         ORDER BY o.observed_at DESC,o.id DESC LIMIT 1`,
-      [productId, kind, now],
+      [productId, kind, now, sourceId],
     );
     return rows[0] || null;
   }

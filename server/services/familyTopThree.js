@@ -81,7 +81,7 @@ export async function compareQualifiedFamilyProducts({
     if (reason) { exclude(reason); continue; }
 
     // Revalidate rights + identifier + retention + freshness + corrections in SQL.
-    const fact = await observations.latestPublishableObservation(q.product_id, q.observation_type, now);
+    const fact = await observations.latestPublishableObservation(q.product_id, q.observation_type, now, q.source_id);
     if (!fact || fact.source_id !== q.source_id) { exclude('VERIFIED_MARKET_FACT_UNAVAILABLE'); continue; }
     const value = numeric(fact.value);
     if (value === null || value < 0 || (q.observation_type !== 'PUBLISHED_RATE' && value === 0)) {
@@ -117,7 +117,7 @@ export async function compareQualifiedFamilyProducts({
   for (const product of eligible) {
     if (selected.length === 3) break;
     const current = await observations.latestPublishableObservation(
-      product.id, product.marketFact.type, now,
+      product.id, product.marketFact.type, now, product.marketFact.sourceId,
     );
     if (!current || current.source_id !== product.marketFact.sourceId
       || String(current.id) !== product.marketFact.observationId
