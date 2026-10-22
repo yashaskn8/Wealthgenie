@@ -529,7 +529,7 @@ const StepUpPlanner = ({ profile }) => {
           </div>
           <span className="result-label">Extra projected corpus (nearest ₹1)</span>
           <span className="result-value text-green">+ {formatSipINR(additionalCorpus)}</span>
-          <span className="result-sub text-green-bold">{additionalPercent === null ? 'Projection unavailable' : `≈ ${additionalPercent}% more projected corpus (includes extra contributions)`}</span>
+          <span className="result-sub text-green-bold">{additionalPercent === null ? 'Percentage comparison unavailable at ₹1 precision' : `≈ ${additionalPercent}% more projected corpus (includes extra contributions)`}</span>
         </motion.div>
       </div>
 
