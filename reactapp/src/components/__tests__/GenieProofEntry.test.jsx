@@ -14,6 +14,7 @@ const status = (claims = []) => ({
   allExtractedCandidatesProcessed: true,
   verificationScope: 'DETECTED_CLAIMS_ONLY',
   checkedAt: '2026-10-23T01:00:00.000Z',
+  noClaimsFound: claims.length === 0,
   claims,
 });
 
@@ -54,6 +55,7 @@ describe('GenieProof beginner-facing claim checking', () => {
       verdict: 'SUPPORTED', reasonCode: 'EXACT_RATE_MATCH', explanation: 'Exact official rate matched.',
       warningSignals: [],
       source: {
+        name: 'India Post — Savings',
         url: 'https://www.indiapost.gov.in/banking-services/savings',
         observedRatePercentPerAnnum: 7.1,
         retrievedAt: '2026-10-23T01:00:00.000Z',
@@ -62,7 +64,7 @@ describe('GenieProof beginner-facing claim checking', () => {
       },
     }]));
     render(<GenieProofEntry />);
-    fireEvent.change(screen.getByLabelText('Financial statement to check'), { target: { value: 'PPF statement' } });
+    fireEvent.change(screen.getByLabelText('Financial statement to check'), { target: { value: 'The current official PPF interest rate is 7.1% p.a.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
     expect(await screen.findByText('Supported by evidence')).toBeInTheDocument();
     const source = screen.getByRole('link', { name: /India Post/ });
