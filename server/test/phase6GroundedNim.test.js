@@ -22,6 +22,7 @@ import {
   validateGroundedExplanation,
 } from '../services/groundingValidator.js';
 import {
+  buildChatEvidencePacket,
   generateGroundedExplanation,
   GROUNDED_EXPLANATION_PROMPT_VERSION,
   GROUNDED_LLM_TOOL_ALLOWLIST,
@@ -367,6 +368,25 @@ test('profile fallback admits when the checked evidence lacks a reason for a dif
   assert.equal(result.validation.status, 'PASS');
   assert.match(result.text, /does not specify which profile factor caused that difference \[E_PROFILE_RISK\]/);
   assert.doesNotMatch(result.text, /capacity check reduced/i);
+});
+
+test('natural question about stated risk tolerance retrieves only relevant saved risk evidence', async () => {
+  const question = 'What checked evidence explains the difference between my stated risk tolerance and final plan ceiling?';
+  const packet = await buildChatEvidencePacket({
+    question,
+    profile: {
+      riskTolerance: 'Aggressive', suitabilityRisk: 'Conservative-Moderate',
+      monthlySavings: 20000, suitabilityReasonCodes: [],
+    },
+    recommendation: null,
+  });
+  assert.ok(packet.entries.some(item => item.id === 'E_PROFILE_RISK'));
+  assert.ok(!packet.entries.some(item => item.id === 'E_PROFILE_SAVINGS'));
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /does not specify which profile factor caused that difference/);
 });
 
 test('semantic boilerplate is reported separately from financial grounding and fails closed', async () => {
