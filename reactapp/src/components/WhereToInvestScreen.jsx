@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import './WhereToInvestScreen.css';
 
+const FINANCIAL_SHORTLIST_UI_ENABLED = import.meta.env.VITE_FINANCIAL_ARCHITECTURE_ENABLED === 'true';
+
 /**
  * WhereToInvestScreen
  * Top-level screen for beginner investment selection.
@@ -46,7 +48,7 @@ const WhereToInvestScreen = ({
   const recommendationIds = recommendedParents.map(entry => entry?.id).join('|');
 
   useEffect(() => {
-    if (!profileId || !recommendedParents.length) {
+    if (!FINANCIAL_SHORTLIST_UI_ENABLED || !profileId || !recommendedParents.length) {
       setRiskShortlist(null);
       setShortlistState('UNAVAILABLE');
       return undefined;
@@ -70,7 +72,7 @@ const WhereToInvestScreen = ({
   }, [profileId, profileVersion, recommendationIds, recommendedParents.length]);
 
   const handleSaveRiskShortlist = useCallback(async () => {
-    if (!profileId || !riskShortlist || shortlistSaving) return;
+    if (!FINANCIAL_SHORTLIST_UI_ENABLED || !profileId || !riskShortlist || shortlistSaving) return;
     setShortlistSaving(true);
     try {
       const saved = await saveRiskShortlist(profileId);
@@ -172,7 +174,7 @@ const WhereToInvestScreen = ({
         </p>
       </header>
 
-      {riskShortlist && (
+      {FINANCIAL_SHORTLIST_UI_ENABLED && riskShortlist && (
         <section className="wti-risk-groups" aria-label="Profile-eligible Top 5 investment categories">
           <div className="wti-risk-groups-heading">
             <div>
