@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
+import GenieProofCalculator from './GenieProofCalculator';
 
 const MAX_BYTES = 16000;
 const OFFICIAL_PPF_SOURCE = 'https://www.indiapost.gov.in/banking-services/savings';
@@ -70,6 +71,7 @@ function validCheckResponse(value, submittedText) {
 
 
 export default function GenieProofEntry() {
+  const [selectedTool, setSelectedTool] = useState('CLAIM');
   const [statement, setStatement] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -119,6 +121,19 @@ export default function GenieProofEntry() {
 
   return (
     <main style={layout}>
+      <nav aria-label="GenieProof tools" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
+        <button type="button" aria-pressed={selectedTool === 'CLAIM'}
+          onClick={() => setSelectedTool('CLAIM')}
+          style={{ ...button, background: selectedTool === 'CLAIM' ? '#0369a1' : '#334155' }}>
+          Check a claim
+        </button>
+        <button type="button" aria-pressed={selectedTool === 'MATH'}
+          onClick={() => { requestRef.current?.abort(); setSelectedTool('MATH'); }}
+          style={{ ...button, background: selectedTool === 'MATH' ? '#0369a1' : '#334155' }}>
+          Check a calculation
+        </button>
+      </nav>
+      {selectedTool === 'MATH' ? <GenieProofCalculator /> : <>
       <section style={panel} aria-labelledby="genieproof-title">
         <h1 id="genieproof-title" style={{ marginTop: 0, color: '#f8fafc' }}>GenieProof · Check a financial claim</h1>
         <p style={{ lineHeight: 1.65 }}>
@@ -209,6 +224,7 @@ export default function GenieProofEntry() {
           </p>
         </section>
       )}
+      </>}
     </main>
   );
 }
