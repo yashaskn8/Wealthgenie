@@ -300,3 +300,90 @@ test('disclosure-only generated answer triggers grounded educational fallback in
   assert.match(result.text, /Portfolio rebalancing brings investments back/);
   assert.ok(result.citations.some(source => source.citation_id === 'E_EDU_REBALANCING'));
 });
+
+
+test('citation cannot justify an opposite public educational claim just by reusing source words', async () => {
+  const question = 'What is diversification?';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const evidence = packet.entries.find(item => item.id === 'E_EDU_DIVERSIFICATION');
+  assert.ok(evidence);
+  const falseClaim = 'Diversification increases concentration risk but cannot eliminate investment losses. [E_EDU_DIVERSIFICATION]';
+  const misleading = {
+    text: falseClaim,
+    evidenceIdsUsed: [evidence.id],
+    claims: [{ text: falseClaim, evidenceIds: [evidence.id] }],
+    financialClaims: [],
+    unavailableFacts: [],
+  };
+  assert.equal(validateGroundedExplanation(misleading, packet).valid, true,
+    'the numeric and citation-ID validator alone cannot detect a nonnumeric semantic reversal');
+  assert.deepEqual(validateGroundedExplanationCompleteness(misleading, packet), {
+    valid: false,
+    errors: ['CLAIM_EVIDENCE_RELEVANCE_INSUFFICIENT'],
+  });
+  const supportedClaim = evidence.displayValue + ' [E_EDU_DIVERSIFICATION]';
+  assert.equal(validateGroundedExplanationCompleteness({
+    ...misleading,
+    text: supportedClaim,
+    claims: [{ text: supportedClaim, evidenceIds: [evidence.id] }],
+  }, packet).valid, true);
+});
+
+test('invalid cached semantics trigger fresh verification instead of being replayed', async () => {
+  const question = 'What is diversification?';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const evidence = packet.entries.find(item => item.id === 'E_EDU_DIVERSIFICATION');
+  const supported = evidence.displayValue + ' [' + evidence.id + ']';
+  let cached = null;
+  let providerCalls = 0;
+  const provider = {
+    name: 'groq',
+    configuredModel: () => 'source-citation-regression-test',
+    isConfigured: () => true,
+    async generate() {
+      providerCalls += 1;
+      return {
+        provider: 'groq',
+        model: 'source-citation-regression-test',
+        tokensUsed: 30,
+        text: JSON.stringify({
+          text: supported,
+          evidenceIdsUsed: [evidence.id],
+          claims: [{ text: supported, evidenceIds: [evidence.id] }],
+          financialClaims: [],
+          unavailableFacts: [],
+        }),
+      };
+    },
+  };
+  const deps = {
+    providers: [provider],
+    getCache: async () => cached,
+    setCache: async (_key, value) => { cached = value; return true; },
+  };
+  const first = await generateGroundedExplanation({ question, evidencePacket: packet }, deps);
+  assert.equal(first.fallback, false);
+  assert.equal(first.validation.status, 'PASS');
+  assert.equal(providerCalls, 1);
+  assert.ok(first.citations.some(c => c.citation_id === evidence.id
+    && c.document_title === 'Asset Allocation and Diversification'));
+  assert.ok(first.citations.some(c => c.citation_id === evidence.id
+    && c.source_url === 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation'));
+
+  const reversed = 'Diversification increases concentration risk but cannot eliminate investment losses.';
+  cached = {
+    ...cached,
+    text: cached.text.replace(evidence.displayValue, reversed),
+    claims: cached.claims.map(c => c.evidenceIds.includes(evidence.id)
+      ? { ...c, text: c.text.replace(evidence.displayValue, reversed) } : c),
+  };
+  assert.equal(validateGroundedExplanation(cached, packet).valid, true);
+  assert.equal(validateGroundedExplanationCompleteness(cached, packet).valid, false);
+
+  const second = await generateGroundedExplanation({ question, evidencePacket: packet }, deps);
+  assert.equal(second.cached, false);
+  assert.equal(second.validation.status, 'PASS');
+  assert.equal(providerCalls, 2);
+  assert.doesNotMatch(second.text, /Diversification increases concentration risk/i);
+  assert.ok(second.text.includes('Diversification means spreading investments'));
+});
