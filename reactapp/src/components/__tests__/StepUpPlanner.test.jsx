@@ -224,6 +224,8 @@ it('shows a safe backend failure rather than inventing numerical results', async
   vi.spyOn(api, 'calculateStepUpProjection').mockRejectedValue(new Error('Backend is temporarily unavailable'));
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
   expect(await screen.findByText('Backend is temporarily unavailable')).toBeInTheDocument();
+  expect(screen.queryByText('Calculating with your inputs…')).not.toBeInTheDocument();
+  expect(screen.getByText(/No amounts are shown until a verified calculation succeeds/)).toBeInTheDocument();
   expect(screen.queryByText('₹12,30,00,000')).not.toBeInTheDocument();
 });
 
