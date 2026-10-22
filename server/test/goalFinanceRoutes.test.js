@@ -123,6 +123,41 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
       });
       assert.equal(projected.status, 200);
       assert.equal(projection.projection.futureNominal, 22000);
+
+      // Financially invalid cross-field inputs must return a typed 422 error,
+      // never a 500 that hides an invalid down payment or overflow.
+      const vehicleEndpoint = `${base}/api/goals/finance/vehicle/${currentIndianMonth()}`;
+      const validQuote = {
+        price: 400000, downPayment: 200000, upfrontFees: 9000,
+        monthlyOwnershipCost: 2000, annualInterestRate: 10,
+        tenureMonths: 60, emergencyCash: 300000, emergencyFloor: 20000,
+      };
+      const { response: invalidDownPayment, body: invalidDownPaymentBody } =
+        await jsonRequest(vehicleEndpoint, {
+          method: 'POST', headers: authA,
+          body: JSON.stringify({ ...validQuote, downPayment: 450000 }),
+        });
+      assert.equal(invalidDownPayment.status, 422);
+      assert.equal(invalidDownPaymentBody.code, 'GOAL_VEHICLE_SCENARIO_INVALID');
+      const { response: invalidAlternative } = await jsonRequest(vehicleEndpoint, {
+        method: 'POST', headers: authA,
+        body: JSON.stringify({ ...validQuote, alternatives: [{
+          label: 'Invalid dealer quote', price: 200000, downPayment: 250000,
+          upfrontFees: 9000, monthlyOwnershipCost: 2000,
+        }] }),
+      });
+      assert.equal(invalidAlternative.status, 422);
+      const { response: projectionOverflow, body: projectionOverflowBody } =
+        await jsonRequest(`${base}/api/goals/finance/projection`, {
+          method: 'POST', headers: authA,
+          body: JSON.stringify({
+            currentSavings: 1_000_000_000, monthlyContribution: 1_000_000_000,
+            years: 50, annualReturnAssumption: 100, annualInflationAssumption: 0,
+          }),
+        });
+      assert.equal(projectionOverflow.status, 422);
+      assert.equal(projectionOverflowBody.code, 'GOAL_PROJECTION_OUT_OF_RANGE');
+
       const typedPayload = {
         kind: 'vehicle', name: 'Lower cost commuter', targetAmount: 500000,
         currentSavings: 50000, targetDate: '2028-12-20', priority: 'High',
