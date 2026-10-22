@@ -110,3 +110,50 @@ test('typed financial claim: adversarial model cannot substitute a cheaper month
     claims: [bad], narrative: bad.statement, evidenceEntries: entries,
   }).passed, false);
 });
+
+
+test('metamorphic red-team: user-assumed growth, horizon and earmarked cash obey monotonicity', () => {
+  for (let i = 0; i < 60; i += 1) {
+    const target = 1_000_000 + 2_345.67 * i;
+    const months = 36 + i;
+    const rate = String(1 + i % 14);
+    const common = { target, months, annualReturnPercent: rate, earmarkedSavings: 50_000 };
+    const base = calculateGoalCompoundingScenario(common);
+    const moreTime = calculateGoalCompoundingScenario({ ...common, months: months + 12 });
+    const betterRate = calculateGoalCompoundingScenario({ ...common, annualReturnPercent: String(2 + i % 14) });
+    const moreCash = calculateGoalCompoundingScenario({ ...common, earmarkedSavings: 60_000 });
+    const biggerGoal = calculateGoalCompoundingScenario({ ...common, target: target + 10_000 });
+    assert.ok(base && moreTime && betterRate && moreCash && biggerGoal, i);
+    assert.ok(moreTime.requiredMonthlyContribution <= base.requiredMonthlyContribution, i);
+    assert.ok(betterRate.requiredMonthlyContribution <= base.requiredMonthlyContribution, i);
+    assert.ok(moreCash.requiredMonthlyContribution <= base.requiredMonthlyContribution, i);
+    assert.ok(biggerGoal.requiredMonthlyContribution >= base.requiredMonthlyContribution, i);
+    assert.equal(Math.round(base.requiredMonthlyContribution * 100),
+      base.requiredMonthlyContribution * 100, 'Expected integer paise');
+  }
+});
+
+test('metamorphic red-team: higher stated inflation cannot lower the payment', () => {
+  const common = {
+    target: 2_000_000, months: 132, earmarkedSavings: 0,
+    annualReturnPercent: '8', targetIsPresentValue: true,
+  };
+  const low = calculateGoalCompoundingScenario({ ...common, annualInflationPercent: '4' });
+  const high = calculateGoalCompoundingScenario({ ...common, annualInflationPercent: '7' });
+  assert.ok(low && high);
+  assert.ok(high.inflatedTarget > low.inflatedTarget);
+  assert.ok(high.requiredMonthlyContribution > low.requiredMonthlyContribution);
+});
+
+test('input red-team: annual returns are not silently extracted from unrelated percentages', () => {
+  const entries = retrieveChatGoalPlanningEvidence(
+    'Need 2 crore for my daughter wedding in 10 years; income tax rate 30%; 12% annual return and 6% inflation',
+  );
+  assert.equal(entries.some(e => e.id === 'E_GOAL_RETURN_SCENARIO'), false,
+    'Inflation cannot be applied when current-versus-future cost basis is unspecified');
+  const second = retrieveChatGoalPlanningEvidence(
+    "Need 2 crore for daughter's wedding at today's prices in 10 years with 12% annual return and 6% annual inflation",
+  );
+  assert.equal(second.find(e => e.id === 'E_GOAL_RETURN_SCENARIO')?.value.inflationAdjustedTargetAmount,
+    35_816_953.94);
+});
