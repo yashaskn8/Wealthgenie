@@ -117,6 +117,12 @@ export default function AdvancedNewRegimeTaxPanel() {
       setResult(null);
       return;
     }
+    // Never transmit income figures while residence or tax context is unverified.
+    if (form.residency === 'unknown' || !form.confirmedNoOtherTaxAdjustments) {
+      setError('Confirm residency and the restricted tax context before calculating. No income figures were submitted.');
+      setResult(null);
+      return;
+    }
     abort.current?.abort();
     const mySeq = ++seq.current;
     const controller = new AbortController();
