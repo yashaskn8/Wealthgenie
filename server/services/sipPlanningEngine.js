@@ -2,7 +2,9 @@
  * Key-free, deterministic, illustrative SIP planner. No live price dependencies.
  * Cash arrives at the START of each month. Explicit monthly-rate convention, with legacy APR as default for existing API callers.
  */
-const LIMIT = Number.MAX_SAFE_INTEGER / 100;
+// Financial outputs include exact paise. Above ₹10 trillion, IEEE-754
+// subtraction/serialization may lose paise even though rupee totals are safe.
+const LIMIT = 10000000000000;
 const money = n => {
   if (!Number.isFinite(n) || Math.abs(n) > LIMIT) {
     throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: amount exceeds safe currency precision');
