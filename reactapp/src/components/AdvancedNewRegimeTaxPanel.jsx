@@ -174,7 +174,7 @@ export default function AdvancedNewRegimeTaxPanel() {
     if (nps > 0n && (form.incomeType !== 'salary'
       || eligibleSalary === 0n || eligibleSalary > primary || nps > primary
       || !form.confirmedNpsIncludedInSalary)) {
-      setError('Employer NPS requires salaried income, verified qualifying basic/DA, and confirmation that employer NPS is already included in gross taxable salary. Nothing was submitted.');
+      setError('Employer NPS requires salaried income, verified qualifying basic pay, DA and turnover-linked commission, and confirmation that employer NPS is already included in gross taxable salary. Nothing was submitted.');
       setResult(null);
       return;
     }
@@ -241,13 +241,13 @@ export default function AdvancedNewRegimeTaxPanel() {
         <label htmlFor="wga-nps">Employer contribution to notified NPS already included in gross salary (₹)</label>
         <input id="wga-nps" type="text" inputMode="decimal" maxLength={13} value={form.employerNpsContribution}
           onChange={e => set('employerNpsContribution', e.target.value)} required />
-        <label htmlFor="wga-nps-base">NPS eligible basic salary + qualifying DA (not CTC) (₹)</label>
+        <label htmlFor="wga-nps-base">NPS eligible basic salary + qualifying DA + eligible turnover-linked commission (not CTC) (₹)</label>
         <input id="wga-nps-base" type="text" inputMode="decimal" maxLength={13} value={form.npsEligibleSalary}
           onChange={e => set('npsEligibleSalary', e.target.value)} required />
         <label className="wg-new-tax__confirm">
           <input type="checkbox" checked={form.confirmedNpsIncludedInSalary}
             onChange={e => set('confirmedNpsIncludedInSalary', e.target.checked)} />
-          <span>Employer NPS is included in the declared taxable gross salary and basic/DA is verified.
+          <span>Employer NPS is included in the declared taxable gross salary; the salary basis includes basic pay, qualifying DA, and eligible commission as a fixed percentage of turnover only.
             Leave unchecked with both NPS fields at zero if not applicable.</span>
         </label>
         <label htmlFor="wga-special">Non-online lottery / game winnings taxable at 30% (₹)</label>
