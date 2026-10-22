@@ -310,3 +310,78 @@ test('red-team: deadline abbreviations remain goal follow-ups, not detached gene
     assert.equal(isFinancialGoalFollowUpQuestion(question, trusted), true, question);
   }
 });
+
+
+test('goal red-team: exact paise are preserved and each payment rounds upward, never down', async () => {
+  const question = "Need ₹100.01 for daughter's wedding in 3 months; I have saved ₹0";
+  const packet = await createPacket(question);
+  assert.equal(packet.entries.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 100.01);
+  const monthly = packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+  assert.equal(monthly?.value.earmarkedSavingsAmount, 0);
+  assert.equal(monthly?.value.monthlyRequiredAmount, 33.34);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.equal(answer.financialClaims.find(claim => claim.type === 'GOAL_MONTHLY_BASELINE')?.value, 33.34);
+  assert.match(answer.text, /100\.01/);
+  assert.match(answer.text, /33\.34 per month/);
+});
+
+test('goal red-team: fractional crore converted to paise without assuming returns', () => {
+  const evidence = retrieveChatGoalPlanningEvidence(
+    "Need 2.000000001 crore for daughter wedding in 3 months and I have saved ₹0.01",
+  );
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20_000_000.01);
+  const monthly = evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+  assert.equal(monthly?.value.monthlyRequiredAmount, 6_666_666.67);
+  assert.equal(monthly?.value.assumedGrowthRate, null);
+  assert.equal(monthly?.value.inflationRate, null);
+});
+
+test('goal red-team: existing savings, salary and EMI never become the target', () => {
+  const evidence = retrieveChatGoalPlanningEvidence(
+    "Need 2 crore for daughter's wedding in 10 years; I have ₹20 lakh saved; my salary is 3 lakh and EMI is 50k",
+  );
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20_000_000);
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.earmarkedSavingsAmount, 2_000_000);
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150_000);
+});
+
+test('goal red-team: contradictory, negative, zero-target and sub-paise inputs abstain', () => {
+  for (const question of [
+    "Need ₹1.005 for daughter's wedding in 3 months starting from zero",
+    "Need ₹0 for daughter's wedding in 3 months starting from zero",
+    "Need ₹2 crore for daughter's wedding in 3 months, I have ₹20 lakh",
+    "Need ₹2 crore for daughter's wedding in 3 months, already saved ₹20 lakh, starting from zero",
+    "Need ₹2 crore for daughter's wedding in 3 months, I have saved ₹-20 lakh",
+    "Need 1 crore or 2 crore for daughter's wedding in 10 years and starting from zero",
+    "Need ₹2 crore for daughter's wedding in 10 years and in 5 years, starting from zero",
+    "Need ₹2 crore for daughter's wedding in 2.3 years starting from zero",
+  ]) {
+    const evidence = retrieveChatGoalPlanningEvidence(question);
+    assert.equal(evidence.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, question);
+  }
+});
+
+test('goal red-team: zero balances and bare deadline follow-ups work without model-created state', () => {
+  const priorUserTurns = ["Need 2 crore for daughter's wedding"];
+  const evidence = retrieveChatGoalPlanningEvidence('5 years', { priorUserTurns });
+  assert.equal(isFinancialGoalFollowUpQuestion('5 years', priorUserTurns), true);
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.horizonMonths, 60);
+  assert.equal(evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 333_333.34);
+  const evidenceZero = retrieveChatGoalPlanningEvidence(
+    "Need ₹1 lakh for daughter's wedding in 7 months, saved ₹0 and I can save ₹14285.72 per month",
+  );
+  assert.equal(evidenceZero.find(e => e.id === 'E_GOAL_CAPACITY_CHECK')?.value.goalIsContributionFundable, true);
+  assert.equal(evidenceZero.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 14285.72);
+});
+
+test('goal red-team: money and savings requests cannot escape to unsourced general chat', () => {
+  for (const question of [
+    'I can save 50k per month',
+    'Can I afford ₹2 crore?',
+    'I need INR 20 lakh',
+    'I want to save every month',
+    'Need 2 crore for my wedding',
+  ]) assert.equal(isGeneralChatQuestion(question), false, question);
+  assert.equal(isGeneralChatQuestion('How to save a Python file?'), true);
+});
