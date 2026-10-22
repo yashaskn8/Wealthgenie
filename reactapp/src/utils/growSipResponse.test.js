@@ -185,3 +185,68 @@ describe('signed decimal-paise affordability reconciliation', () => {
     );
   });
 });
+
+
+describe('unassessed financial context cannot carry fabricated money', () => {
+  function unknownContextFixture() {
+    const withoutContext = { ...input };
+    for (const key of ['monthlyIncome', 'monthlyExpenses', 'monthlyEmi', 'emergencySavings']) {
+      delete withoutContext[key];
+    }
+    const fixture = validFixture();
+    fixture.assumptions = {
+      ...fixture.assumptions, monthlyIncome: null, monthlyExpenses: null,
+      monthlyEmi: null, emergencySavings: null,
+    };
+    for (const row of fixture.chartData) row.monthlyBudgetSurplus = null;
+    fixture.affordability = {
+      ...fixture.affordability, status: 'NOT_ASSESSED',
+      firstUnaffordableMonth: null, maxMonthlyShortfall: 0,
+      worstMonthlySurplus: null, incomeExpensesUserDeclared: false,
+      annualContributionSchedule: fixture.chartData.map(row => ({
+        year: row.year, monthlySip: row.monthlySip, monthlyBudgetSurplus: null,
+      })),
+    };
+    fixture.emergency_buffer = {
+      status: 'NOT_ASSESSED', requiredAmount: null, declaredAmount: null,
+    };
+    fixture.warnings = [
+      'AFFORDABILITY_NOT_ASSESSED', 'MONTHLY_EMI_NOT_DECLARED',
+      'EMERGENCY_BUFFER_NOT_ASSESSED',
+      'PRE_TAX_NOT_A_TAX_ESTIMATE', 'ASSUMED_RETURNS_NOT_GUARANTEED',
+    ];
+    return { withoutContext, fixture };
+  }
+
+  it('accepts genuinely unassessed scenarios without invented figures', () => {
+    const { withoutContext, fixture } = unknownContextFixture();
+    expect(assertGrowSipResponse(fixture, withoutContext)).toBe(fixture);
+  });
+
+  it.each([
+    ['fabricated maximum shortfall', f => { f.affordability.maxMonthlyShortfall = 1; }],
+    ['invented reserve required', f => { f.emergency_buffer.requiredAmount = 1; }],
+    ['invented reserve declared', f => { f.emergency_buffer.declaredAmount = 500; }],
+  ])('rejects %s despite an unassessed status', (_name, alter) => {
+    const { withoutContext, fixture } = unknownContextFixture();
+    alter(fixture);
+    expect(() => assertGrowSipResponse(fixture, withoutContext)).toThrow(
+      /invalid or incompatible financial projection/,
+    );
+  });
+
+  it('retains a verifiable buffer threshold when only liquid savings are unknown', () => {
+    const withoutSavings = { ...input };
+    delete withoutSavings.emergencySavings;
+    const fixture = validFixture();
+    fixture.assumptions.emergencySavings = null;
+    fixture.emergency_buffer.status = 'NOT_ASSESSED';
+    fixture.emergency_buffer.declaredAmount = null;
+    fixture.warnings.push('EMERGENCY_BUFFER_NOT_ASSESSED');
+    expect(assertGrowSipResponse(fixture, withoutSavings)).toBe(fixture);
+    fixture.emergency_buffer.requiredAmount = 0;
+    expect(() => assertGrowSipResponse(fixture, withoutSavings)).toThrow(
+      /invalid or incompatible financial projection/,
+    );
+  });
+});
