@@ -17,10 +17,18 @@ export function isFinancialGoalPlanningQuestion(question) {
   const explicitAmount = new RegExp(AMOUNT.source, 'i').test(text)
     || /(?:₹|\binr\b|\brs\.?)\s*[-−]?\s*\d[\d,.]*(?:\s*[a-z]+)?/i.test(text);
   const fundingIntent = /\b(?:sav(?:e|ing|ings)|fund(?:s|ing)?|financ(?:e|es|ial)|afford|target|budget|corpus|rupees?|money|invest(?:ing|ment)?|monthly|lump[ -]?sum|costs?|expenses?|payments?|set aside|crores?|crors?|lakhs?|lacs?|paise)\b/i.test(text);
-  return SUBJECT.test(text) && (GOAL_INTENT.test(text)
+  // Financial targets do not require a wedding/house/etc. noun. Otherwise
+  // "I want to accumulate 2 crore in 10 years" falls through to a generic
+  // finance reply even though the deterministic calculation has the inputs.
+  // Require an amount and a clear goal-forming intent: mentioning an income,
+  // salary, EMI, or a product rate by itself must not become a new goal.
+  const genericGoalIntent = /\b(?:want|need|plan|planning|aim|hope|trying)\s+(?:to\s+)?(?:save|accumulate|build|reach|raise|collect|have)\b|\b(?:accumulate|save|build|reach|raise|collect)\s+(?:up\s+)?(?:₹|rs\.?|inr|\d)|\b(?:target|goal|corpus)\s*(?:is|of|:)?\s*(?:₹|rs\.?|inr|\d)/i.test(text)
+    || /\b(?:need|want|require)\s+(?:₹|rs\.?|inr|\d)\s*[\d,.]*(?:\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac))?\s+(?:in|within|over|after)\s+\d{1,3}\s*(?:years?|yrs?|months?|mos?)\b/i.test(text);
+  const namedGoal = SUBJECT.test(text) && (GOAL_INTENT.test(text)
     || /\b(?:will|would|may)\s+cost\b/i.test(text)
     || /^\s*(?:₹|inr|rs\.?)\s*\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac|l)\b.*\b(?:daughter|son|my|our|wedding|marriage)\b/i.test(text))
     && (explicitAmount || fundingIntent);
+  return namedGoal || (explicitAmount && genericGoalIntent);
 }
 
 function authenticatedUserTurns(priorTurns) {
