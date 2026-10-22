@@ -14,7 +14,7 @@ const MONEY_PRECISION = 100;
 function money(value, label, { allowNull = false } = {}) {
   if (allowNull && (value === null || value === undefined)) return null;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0
-      || value > MAX_RUPEES || Math.abs(Math.round(value * MONEY_PRECISION) - value * MONEY_PRECISION) > 1e-7) {
+      || value > MAX_RUPEES || Number(value.toFixed(2)) !== value) {
     throw new RangeError(`${label} must be a finite non-negative INR amount with at most two decimal places`);
   }
   return value;
