@@ -157,3 +157,23 @@ test('unknown or absent credentials never cause a network request', async () => 
   assert.equal(result.provider, 'SYSTEM');
   assert.deepEqual(result.citations, []);
 });
+
+
+test('NVIDIA is correctly identified as fallback when Groq has no credentials', async () => {
+  let nvidiaCalls = 0;
+  const result = await generateGeneralChat({ question: 'Explain binary search.' }, {
+    providers: [
+      { name: 'groq', isConfigured: () => false, async generate() { throw Error('must not call'); } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+        nvidiaCalls += 1;
+        return { text: 'Binary search repeatedly halves a sorted search interval.',
+          provider: 'nvidia_nim', model: 'test-nim', tokensUsed: 16, wasCompleted: true, tool_calls: [] };
+      } },
+    ],
+  });
+  assert.equal(nvidiaCalls, 1);
+  assert.equal(result.provider, 'NVIDIA_NIM');
+  assert.equal(result.fallback, true);
+  assert.equal(result.providerAttemptCount, 1);
+  assert.deepEqual(result.citations, []);
+});
