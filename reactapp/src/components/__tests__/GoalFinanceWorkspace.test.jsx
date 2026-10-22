@@ -78,6 +78,7 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
     fireEvent.change(screen.getByLabelText('Your goal name'), { target: { value: 'Practical city car' } });
     fireEvent.change(screen.getByLabelText('Target cost (₹)'), { target: { value: '450000' } });
     fireEvent.change(screen.getByLabelText('Desired date'), { target: { value: '2028-10-23' } });
+    fireEvent.change(screen.getByLabelText('Annual price rise assumption (%)'), { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save goal specification' }));
     await waitFor(() => expect(api.createGoalSpecification).toHaveBeenCalledOnce());
     expect(api.createGoalSpecification.mock.calls[0][0].targetAmount).toBe(450000);
