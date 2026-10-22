@@ -24,7 +24,7 @@ function fakePool({migrations=applied,archetypes=250,unsafePromoted=0}={}) {
     {rows:migrations} : {rows:[{archetypes,unsafe_promoted:unsafePromoted}]}};
 }
 
-test('finance SQL start only after five matching migrations and all 250 discovery entries',async()=>{
+test('finance SQL start only after seven matching migrations and all 250 discovery entries',async()=>{
  assert.deepEqual(await verifyFinancialPostgresReadiness(fakePool()),
    {ready:true,archetypes:250,migrations:7});
 });
