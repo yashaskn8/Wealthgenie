@@ -78,7 +78,29 @@ export function assertGrowSipResponse(value, input) {
     || last.inflationAdjustedStepUp !== value.inflationAdjustedStepUpFinal
     || Math.abs(last.monthlySip - value.finalMonthlySip) > 0.001) invalid();
 
+  // An 'approved' budget or met emergency buffer needs the corresponding
+  // *declared* financial inputs. Otherwise an old/corrupt backend could
+  // promote unknown income, expenses, or EMI to a reassuring status.
+  const hasBudget = ['monthlyIncome', 'monthlyExpenses', 'monthlyEmi']
+    .every(key => input[key] !== undefined && input[key] !== null);
+  const hasEmergency = ['monthlyExpenses', 'monthlyEmi', 'emergencySavings']
+    .every(key => input[key] !== undefined && input[key] !== null);
   const budget = value.affordability;
+  if ((hasBudget && budget.status === 'NOT_ASSESSED')
+    || (!hasBudget && budget.status !== 'NOT_ASSESSED')) invalid();
+  const buffer = value.emergency_buffer;
+  if ((hasEmergency && buffer.status === 'NOT_ASSESSED')
+    || (!hasEmergency && buffer.status !== 'NOT_ASSESSED')) invalid();
+  if (hasEmergency) {
+    const required = Math.round(((input.monthlyExpenses + input.monthlyEmi)
+      * (input.emergencyMonths ?? 6) + Number.EPSILON) * 100) / 100;
+    const expectedStatus = input.emergencySavings >= required
+      ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT';
+    if (buffer.status !== expectedStatus
+      || !matchingNumber(buffer.requiredAmount, required)
+      || !matchingNumber(buffer.declaredAmount, input.emergencySavings)) invalid();
+  }
+
   if ((budget.status === 'WITHIN_DECLARED_BUDGET' && budget.firstUnaffordableMonth !== null)
     || (budget.status === 'OVER_DECLARED_BUDGET'
       && (!Number.isInteger(budget.firstUnaffordableMonth) || budget.firstUnaffordableMonth < 1
