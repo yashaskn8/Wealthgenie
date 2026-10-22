@@ -309,7 +309,7 @@ test('published citation titles identify the actual education source rather than
     providers: [], getCache: async () => null, setCache: async () => {},
   });
   const source = answer.citations.find(item => item.citation_id === 'E_EDU_REBALANCING');
-  assert.equal(source.document_title, 'Rebalancing');
+  assert.equal(source.document_title, 'Asset Allocation and Diversification');
   assert.equal(source.source, 'US_SEC_INVESTOR_GOV');
   assert.equal(source.source_url, 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation');
 });
