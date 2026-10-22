@@ -167,6 +167,17 @@ test('goal-only finance APIs enforce ownership, optimistic versions and determin
         method: 'POST', headers: authA, body: JSON.stringify({ ...typedPayload, targetDate: '2100-10-20' }),
       });
       assert.equal(specBadHorizon.status, 400);
+      // Inject a malformed historical document without Mongoose casting,
+      // then require the owned list to remain available and fail closed.
+      await GoalSpecification.collection.updateOne({ _id: new mongoose.Types.ObjectId(typedId) },
+        { $set: { targetDate: 'legacy-invalid-date' } });
+      const { response: corruptStatus, body: corruptList } = await jsonRequest(specsEndpoint, { headers: authA });
+      assert.equal(corruptStatus.status, 200);
+      const corruptSpec = corruptList.specifications.find(s => s.id === typedId);
+      assert.equal(corruptSpec.targetDate, null);
+      assert.equal(corruptSpec.plan.status, 'DATA_INSUFFICIENT');
+      await GoalSpecification.collection.updateOne({ _id: new mongoose.Types.ObjectId(typedId) },
+        { $set: { targetDate: new Date('2028-12-20T00:00:00.000Z') } });
       const { response: specOtherDelete } = await jsonRequest(`${specsEndpoint}/${typedId}`, {
         method: 'DELETE', headers: { ...authB, 'If-Match': '"2"' },
       });
