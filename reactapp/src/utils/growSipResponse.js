@@ -70,6 +70,17 @@ export function assertGrowSipResponse(value, input) {
       || !validAmount(row.flatInvested) || !validAmount(row.stepUpInvested)
       || !validAmount(row.inflationAdjustedStepUp) || !validAmount(row.monthlySip)
       || !(row.monthlyBudgetSurplus === null || validSigned(row.monthlyBudgetSurplus))) invalid();
+    // Prevent forged intermediate-year charts: contribution schedule, nominal
+    // and downside ordering must hold for every year, not only the endpoint.
+    const expectedSip = Math.round(input.monthlyInvestment
+      * Math.pow(1 + input.annualStepUpRate, i) * 100) / 100;
+    const expectedFlatPaid = Math.round(input.monthlyInvestment * 12 * (i + 1) * 100) / 100;
+    if (Math.abs(row.monthlySip - expectedSip) > 0.00001
+      || Math.abs(row.flatInvested - expectedFlatPaid) > 0.02
+      || row.stepUpInvested + 0.011 < row.flatInvested
+      || row.stepUpSIP < row.flatSIP
+      || row.downsideStepUp > row.stepUpSIP
+      || row.inflationAdjustedStepUp > row.stepUpSIP) invalid();
   }
   const last = value.chartData[years - 1];
   if (last.flatSIP !== value.flatFinal || last.stepUpSIP !== value.stepUpFinal
