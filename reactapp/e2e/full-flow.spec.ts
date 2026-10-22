@@ -387,6 +387,35 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     await expect(page.getByText(/Estimated tax liability under the new regime/i)).toBeVisible();
     await expect(page.getByText(/Rounded under Section 516/i)).toBeVisible();
 
+    // Bounded complex tax E2E: the visible UI, the actual API and the
+    // legally distinct Section 196/198 tax heads must reconcile.
+    await page.getByRole('button', { name: 'Advanced Equity Capital Gains' }).click();
+    await expect(page.getByRole('heading', { name: 'Income Tax with Capital Gains' })).toBeVisible();
+    await page.getByLabel('Ordinary income type').selectOption('already_taxable');
+    await page.getByLabel(/Annual primary ordinary income/i).fill('1500000');
+    await page.getByLabel(/Additional ordinary-rate taxable income/i).fill('0');
+    await page.getByLabel(/Net annual STCG eligible/i).fill('200000');
+    await page.getByLabel(/Net annual LTCG eligible/i).fill('225000');
+    await page.getByLabel('Tax residence').selectOption('resident');
+    const capitalChecks = page.locator('[aria-label="Qualified resident capital gains tax calculator"] input[type="checkbox"]');
+    await expect(capitalChecks).toHaveCount(3);
+    for (let i = 0; i < 3; i += 1) await capitalChecks.nth(i).check();
+    const capitalPromise = page.waitForResponse(apiResponse('POST', '/api/tax/new-regime-verified-complex'));
+    await page.getByRole('button', { name: 'Calculate verified equity-gains tax' }).click();
+    const capitalResponse = await capitalPromise;
+    expect(capitalResponse.status()).toBe(200);
+    const capitalResult = await capitalResponse.json();
+    expect(capitalResult.status).toBe('CALCULATED');
+    expect(capitalResult.section196Tax).toBe('40000.000');
+    expect(capitalResult.section198Tax).toBe('12500.000');
+    expect(capitalResult.section198ExemptLongTermGain).toBe('125000');
+    expect(capitalResult.finalTax).toBe('163800');
+    await expect(page.getByRole('region', { name: 'Verified capital gains tax result' })).toBeVisible();
+    await expect(page.getByText('₹1,63,800').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Simple Ordinary Income' }).click();
+    await expect(page.getByRole('heading', { name: 'Income Tax Calculator' })).toBeVisible();
+
+
     const chatResponsePromise = page.waitForResponse(apiResponse('POST', '/api/chat/message'), { timeout: 90_000 });
     await page.getByRole('button', { name: 'Genie AI' }).click();
     await page.getByLabel('Ask Genie a financial question').fill('Explain why this recommendation fits my saved profile.');
