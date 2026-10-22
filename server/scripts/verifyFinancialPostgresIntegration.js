@@ -52,6 +52,14 @@ try {
     (id,name,record_kind,category_id,source_identity,availability)
     VALUES($1,$2,'ACTUAL_PRODUCT',$3,$4,'AVAILABLE')`,
   [productId,'CI Synthetic Product',categories.rows[0].id,'CI:' + suffix]);
+  const catalogSummary=await store.summary();
+  assert.equal(catalogSummary.totalCount,catalog.rows[0].n,
+    'Registering an actual instrument cannot inflate the discovery-family count');
+  assert.equal(catalogSummary.actualProducts,1,
+    'Real products are counted independently from the 250 family identities');
+  const firstPage=await store.browse({limit:100});
+  assert.ok(firstPage.items.every(row=>row.record_kind==='ARCHETYPE'),
+    'The family browser cannot present actual instruments as new families');
   await pool.query(`INSERT INTO finance.provider_rights
     (source_id,endpoint_url,evidence_url,retention_seconds)
     VALUES($1,$2,$3,3600)`,
