@@ -902,3 +902,39 @@ test('red-team E2E: a stated wedding cost is a target, not an invented savings b
       !citation.citation_id.startsWith('E_GOAL_') || citation.source_url === null), question);
   }
 });
+
+
+test('red-team E2E: a stated savings ability without cadence is not an assumed monthly income flow', async () => {
+  const goal = "Need ₹2 crore for daughter's wedding in 10 years starting from zero";
+  for (const phrase of [
+    'I can save ₹50k',
+    'I can invest ₹50k',
+    'I can contribute ₹50k',
+    'I can set aside ₹50k',
+    'I will save ₹50k',
+  ]) {
+    const packet = await createPacket(goal + '. ' + phrase);
+    assert.equal(packet.entries.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000, phrase);
+    assert.equal(packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 166666.67, phrase);
+    assert.equal(packet.entries.some(e => e.id === 'E_GOAL_CAPACITY_CHECK'), false, phrase);
+    assert.match(packet.entries.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '',
+      /without a frequency.*confirm whether that amount is monthly/i, phrase);
+    const answer = await generateGroundedExplanation({ question: goal + '. ' + phrase, evidencePacket: packet }, dependencies);
+    assert.equal(answer.validation.status, 'PASS', phrase);
+    assert.doesNotMatch(answer.text, /Your stated monthly savings capacity covers|At your stated monthly capacity/i, phrase);
+  }
+  for (const phrase of [
+    'I can save ₹50k per month',
+    'I can save ₹50k each month',
+    'My monthly savings are ₹50k',
+  ]) {
+    const packet = await createPacket(goal + '. ' + phrase);
+    assert.equal(packet.entries.find(e => e.id === 'E_GOAL_CAPACITY_CHECK')?.value.monthlyCapacityAmount, 50000, phrase);
+  }
+  assert.equal(isFinancialGoalFollowUpQuestion('I can set aside ₹50k', [{ role: 'user', content: goal }]), true);
+  const followUp = retrieveChatGoalPlanningEvidence('I can set aside ₹50k', {
+    priorUserTurns: [goal],
+  });
+  assert.equal(followUp.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(followUp.some(e => e.id === 'E_GOAL_CAPACITY_CHECK'), false);
+});
