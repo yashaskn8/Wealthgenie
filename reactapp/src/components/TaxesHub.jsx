@@ -1,5 +1,5 @@
 import React from 'react';
-import TaxScreen from './TaxScreen';
+import TaxScreen from './NewRegimeTaxScreen';
 import PostTaxAnalysis from '../PostTaxAnalysis';
 import ErrorBoundary from './ErrorBoundary';
 import { ShieldCheck, Percent } from 'lucide-react';
@@ -8,7 +8,7 @@ import './HubStyles.css';
 /**
  * TaxesHub
  * Consolidated beginner taxes hub:
- * - Tab 1: Regime & Savings (TaxScreen: Old vs New regime, 80C, deductions)
+ * - Tab 1: New-regime-only ordinary income tax calculator
  * - Tab 2: Real Returns (PostTaxAnalysis: Authoritative post-tax yield comparison)
  *
  * Strictly enforces active-tab-only mounting so inactive tabs do not run effects or API calls.
@@ -44,7 +44,7 @@ const TaxesHub = ({
         <div className="hub-eyebrow">TAXES & TAKE-HOME</div>
         <h1 className="hub-title">What You Keep After Tax</h1>
         <p className="hub-subtitle">
-          Compare income tax regimes to optimize your take-home pay and review the verified after-tax returns of your investments.
+          Calculate income tax for supported new-regime situations and review after-tax investment analysis separately.
         </p>
 
         {/* Tab Navigation */}
@@ -61,7 +61,7 @@ const TaxesHub = ({
             onClick={() => onTabChange?.('regime-savings')}
           >
             <ShieldCheck size={16} />
-            <span>Regime & Savings</span>
+            <span>New Regime Tax</span>
           </button>
           <button
             role="tab"
