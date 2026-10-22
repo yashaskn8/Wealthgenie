@@ -30,6 +30,7 @@ describe('new-regime calculator visible entry point', () => {
     const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => ({
       taxYear: request.taxYear, policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
       status: 'CALCULATED', calculationClass: 'SIMPLE_ORDINARY_INCOME_ONLY',
+      unavailableReasons: [],
       inputsUsed: { ...request }, finalTax: '0', taxableIncome: '1200000',
       grossPrimaryIncome: '1275000.0000', otherOrdinaryIncome: '0.0000',
       standardDeduction: '75000.0000', taxableIncomeBeforeRounding: '1200000.0000',
