@@ -94,7 +94,7 @@ const SOURCE_BADGES = {
 
 const _getSourceBadge = (source) => SOURCE_BADGES[source] || null;
 
-export const BackendFallbackBanner = ({ notice, onDismiss }) => {
+export const BackendFallbackBanner = ({ notice, onDismiss, onRegenerate, loading = false }) => {
   if (!notice) return null;
   return (
     <div
@@ -111,6 +111,15 @@ export const BackendFallbackBanner = ({ notice, onDismiss }) => {
         <div style={{ fontWeight: 800, marginBottom: 2 }}>{notice.message || 'Authoritative recommendations are temporarily unavailable'}</div>
         {notice.detail && <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>{notice.detail}</div>}
       </div>
+      {notice.canRegenerate === true && typeof onRegenerate === 'function' && (
+        <button type="button" onClick={onRegenerate} disabled={loading}
+          aria-label="Regenerate current recommendation"
+          style={{ border: '1px solid #38bdf8', borderRadius: 8, background: '#0369a1',
+            color: '#fff', padding: '7px 11px', cursor: loading ? 'wait' : 'pointer',
+            fontWeight: 700, fontSize: '0.72rem', fontFamily: 'inherit' }}>
+          {loading ? 'Regenerating...' : 'Regenerate recommendations'}
+        </button>
+      )}
       <button
         type="button"
         aria-label="Dismiss fallback notice"
@@ -138,7 +147,7 @@ const riskCategoryToSlider = (cat) => {
   return null;
 };
 
-const RecommendationDashboard = ({ userProfile, recommendations: propRecommendations, recommendationMeta, onExploreAll, onRebalance, onNavigate, onLearnMore, isLoading: isLoadingProp, explanation: _explanation, fallbackNotice, onDismissFallbackNotice }) => {
+const RecommendationDashboard = ({ userProfile, recommendations: propRecommendations, recommendationMeta, onExploreAll, onRebalance, onNavigate, onLearnMore, isLoading: isLoadingProp, explanation: _explanation, fallbackNotice, onDismissFallbackNotice, onRecalculate }) => {
   const profileHorizon = Number(userProfile?.investment_horizon_years);
   const horizon = Number.isFinite(profileHorizon) && profileHorizon > 0 ? profileHorizon : null;
   const isLoading = Boolean(isLoadingProp);
@@ -393,7 +402,8 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             </div>
           </header>
 
-          <BackendFallbackBanner notice={fallbackNotice} onDismiss={onDismissFallbackNotice} />
+          <BackendFallbackBanner notice={fallbackNotice} onDismiss={onDismissFallbackNotice}
+            onRegenerate={onRecalculate} loading={isLoading} />
 
           {(() => {
             const monthlyTakeHome = Number(userProfile?.monthly_take_home);
@@ -420,7 +430,12 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                       <div className="wg-plan-capacity-metrics">
                         <div className="wg-plan-capacity-metric-chip">
                           <Wallet size={13} aria-hidden="true" />
-                          <span>{hasSavings ? `${formatINR(currentMonthly)} of ${formatINR(monthlySavings)} allocated` : `${formatINR(currentMonthly)} allocated`}</span>
+                          <span>{isLoading ? 'Verifying current allocation...'
+                            : (!recommendations.length || fallbackNotice)
+                              ? 'Allocation unavailable — regenerate recommendations'
+                              : hasSavings
+                                ? `${formatINR(currentMonthly)} of ${formatINR(monthlySavings)} allocated`
+                                : `${formatINR(currentMonthly)} allocated`}</span>
                         </div>
                         {savingsRate !== null && (
                           <span className="wg-plan-capacity-ratio">

@@ -126,6 +126,9 @@ vi.mock('../RecommendationDashboard', async () => {
       ReactModule.createElement('output', { 'data-testid': 'advisory-text' }, recommendationMeta?.advisory_text ?? ''),
       ReactModule.createElement('output', { 'data-testid': 'advisory-loading' }, String(Boolean(isAdvisoryLoading))),
       ReactModule.createElement('button', { type: 'button', onClick: () => void onRecalculate() }, 'Retry recompute'),
+      fallbackNotice?.canRegenerate ? ReactModule.createElement('button', {
+        type: 'button', onClick: () => void onRecalculate(),
+      }, 'Regenerate recommendations') : null,
       ReactModule.createElement('button', { type: 'button', onClick: () => onLearnMore({ id: 'ppf', name: 'PPF' }) }, 'Open deep dive'),
       ReactModule.createElement('button', { type: 'button', onClick: () => onNavigate('progress') }, 'Open progress'),
       ReactModule.createElement('button', { type: 'button', onClick: () => onNavigate('plan') }, 'Open plan'),
@@ -920,6 +923,53 @@ describe('profile edits trigger one authoritative recommendation recompute', () 
     expect(appMocks.getCurrentProfile).toHaveBeenCalledTimes(1);
     expect(appMocks.getRecommendations).toHaveBeenCalledTimes(1);
     expect(appMocks.getCurrentRecommendation).not.toHaveBeenCalled();
+  });
+
+  it('offers explicit safe regeneration for stale saved state and restores verified allocation', async () => {
+    appMocks.initialRecommendation = null;
+    appMocks.getCurrentRecommendation.mockRejectedValueOnce(Object.assign(
+      new Error('Regenerate recommendations before opening the dashboard.'),
+      { status: 409, code: 'STALE_RECOMMENDATION' },
+    ));
+    appMocks.getRecommendations.mockResolvedValueOnce(revision4);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: 'Test home' }));
+      await waitFor(() => {
+        expect(screen.getByTestId('recommendation-fallback')).toHaveTextContent('needs to be regenerated');
+        expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('false');
+      });
+      expect(appMocks.getRecommendations).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Regenerate recommendations' }));
+      await waitFor(() => {
+        expect(appMocks.getRecommendations).toHaveBeenCalledTimes(1);
+        expect(screen.getByTestId('allocation-revision')).toHaveTextContent('4');
+      });
+      expect(screen.getByTestId('recommendation-fallback')).toBeEmptyDOMElement();
+      expect(screen.getByTestId('chat-context-ready')).toHaveTextContent('true');
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it('does not propose regeneration when canonical state integrity is unverified', async () => {
+    appMocks.initialRecommendation = null;
+    appMocks.getCurrentRecommendation.mockRejectedValueOnce(Object.assign(
+      new Error('Financial state pointer integrity failed.'),
+      { status: 503, code: 'FINANCIAL_STATE_POINTER_INVALID' },
+    ));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: 'Test home' }));
+      await waitFor(() => expect(screen.getByTestId('recommendation-fallback'))
+        .toHaveTextContent('temporarily unavailable'));
+      expect(screen.queryByRole('button', { name: 'Regenerate recommendations' })).toBeNull();
+      expect(appMocks.getRecommendations).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('keeps chat context unready when the canonical recommendation fetch fails', async () => {

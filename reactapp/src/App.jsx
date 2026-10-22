@@ -385,9 +385,17 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
         if (err?.code === 'REQUEST_ABORTED' || !operationIsCurrent(token)) return;
         console.error("Failed to fetch backend recommendations:", err);
         writeBackendRecs(null);
+        // Never regenerate silently: the user must confirm creation of new
+        // canonical financial state, and only recoverable stale/missing states
+        // can advertise that action.
+        const canRegenerate = err?.code === 'STALE_RECOMMENDATION'
+          || (err?.status === 404 && err?.code !== 'PROFILE_NOT_FOUND');
         setBackendFallback({
-          message: 'Authoritative recommendations are temporarily unavailable',
+          message: canRegenerate
+            ? 'Your saved recommendation needs to be regenerated'
+            : 'Authoritative recommendations are temporarily unavailable',
           detail: err?.message || null,
+          canRegenerate,
         });
         setIsRecommendationLoading(false);
       }

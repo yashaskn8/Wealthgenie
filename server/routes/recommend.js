@@ -307,6 +307,12 @@ router.get('/current', verifyJWT, validateQuery(recommendationCurrentQuerySchema
   } catch (error) {
     if (error.code === 'RECOMMENDATION_REQUIRED') throw createError(404, error.message, 'Recommendation not found.');
     if (error.code === 'RECOMMENDATION_STALE') {
+      // Diagnose stale state without disclosing profile contents or user IDs.
+      const reasonCodes = (Array.isArray(error.reasonCodes) ? error.reasonCodes : [])
+        .filter(code => typeof code === 'string' && /^[A-Z0-9_]{1,80}$/.test(code)).slice(0,24);
+      logger.warn('Authoritative recommendation rejected by freshness gate', {
+        reasonCodes, requestId: req.correlationId || null,
+      });
       throw createError(error.status || 409, error.message, 'Regenerate recommendations before opening the dashboard.', {
         code: error.reasonCodes?.includes('REGULATORY_VERSION_UNAVAILABLE') ? 'REGULATORY_POLICY_UNAVAILABLE' : 'STALE_RECOMMENDATION',
         details: {
