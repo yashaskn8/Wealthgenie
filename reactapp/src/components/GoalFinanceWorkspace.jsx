@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../services/api';
 import GoalSpecificationsPanel from './GoalSpecificationsPanel';
 import './GoalFinanceWorkspace.css';
@@ -217,6 +217,8 @@ function SavingsProjection() {
 }
 export default function GoalFinanceWorkspace({ refreshToken = '' }) {
   const [month, setMonth] = useState(thisMonth);
+  const activeMonthRef = useRef(month);
+  activeMonthRef.current = month;
   const [budget, setBudget] = useState(emptyBudget);
   const [summary, setSummary] = useState(null);
   const [funding, setFunding] = useState(null);
@@ -252,6 +254,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
   }, [month, refreshToken]);
 
   const save = async () => {
+    const savingMonth = month;
     setSaving(true); setError(null);
     try {
       const payload = {
@@ -265,14 +268,23 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
       };
       if (budget.expenses.some(e => e.amount === '' || e.amount === null))
         throw new Error('Enter an amount for each expense or remove blank rows.');
-      const result = await api.saveGoalBudget(month, payload);
+      const result = await api.saveGoalBudget(savingMonth, payload);
+      if (activeMonthRef.current !== savingMonth) return;
       setBudget(old => ({ ...old, ...result.budget, monthlyIncome: result.budget.monthlyIncome ?? '',
         expenses: result.budget.expenses.length ? result.budget.expenses : [emptyExpense()] }));
       setSummary(result.summary);
-      try { setFunding(await api.getGoalFundingPlan(month)); }
-      catch { setFunding(null); setError('Saved budget, but goal allocation could not be refreshed.'); }
+      try {
+        const refreshed = await api.getGoalFundingPlan(savingMonth);
+        if (activeMonthRef.current === savingMonth) setFunding(refreshed);
+      } catch {
+        if (activeMonthRef.current === savingMonth) {
+          setFunding(null); setError('Saved budget, but goal allocation could not be refreshed.');
+        }
+      }
     } catch (e) {
-      setError(e.message || 'Unable to save this monthly budget. Reload before retrying.');
+      if (activeMonthRef.current === savingMonth) {
+        setError(e.message || 'Unable to save this monthly budget. Reload before retrying.');
+      }
     } finally { setSaving(false); }
   };
   const tabs = [
