@@ -40,6 +40,23 @@ function finite(value) {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+// Keep the validator independent of floating-point division and independently
+// recompute the monthly obligation in integer paise. Round *up* to the paise.
+function checkedPaise(value) {
+  if (!finite(value) || value < 0 || value > 100_000_000_000) return null;
+  const scaled = Math.round(value * 100);
+  if (!Number.isSafeInteger(scaled) || Math.abs(value - scaled / 100) > 1e-8) return null;
+  return BigInt(scaled);
+}
+
+function exactGoalMonthlyAmount(target, savings, months) {
+  const targetPaise = checkedPaise(target);
+  const savedPaise = checkedPaise(savings);
+  if (targetPaise === null || savedPaise === null || !Number.isSafeInteger(months)
+      || months < 1 || targetPaise <= savedPaise) return null;
+  return Number((targetPaise - savedPaise + BigInt(months) - 1n) / BigInt(months)) / 100;
+}
+
 function validIsoDate(value) {
   return typeof value === 'string' && ISO_DATE.test(value)
     && Number.isFinite(Date.parse(`${value}T00:00:00.000Z`))
@@ -95,8 +112,8 @@ function expectedClaimForEvidence(entry, type) {
       && finite(value.targetAmount) && finite(value.earmarkedSavingsAmount)
       && Number.isSafeInteger(value.horizonMonths) && value.horizonMonths > 0
       && value.earmarkedSavingsAmount >= 0 && value.earmarkedSavingsAmount <= value.targetAmount
-      && value.monthlyRequiredAmount === Math.ceil(((value.targetAmount - value.earmarkedSavingsAmount) * 100)
-        / value.horizonMonths) / 100
+      && value.monthlyRequiredAmount === exactGoalMonthlyAmount(
+        value.targetAmount, value.earmarkedSavingsAmount, value.horizonMonths)
       && value.assumedGrowthRate === null && value.inflationRate === null
       && value.returnForecast === false && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value.sourceScope)
       && (value.scenario === 'DECLARED_SAVINGS'
