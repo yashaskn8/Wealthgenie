@@ -46,7 +46,7 @@ describe('investment universe browser', () => {
     await waitFor(() => expect(screen.getByText('250 catalog entries loaded from PostgreSQL.')).toBeTruthy());
     expect(getFinancialUniverse).toHaveBeenCalledTimes(3);
     expect(getFinancialUniverseSummary).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/Database total: 250/)).toBeTruthy();
+    expect(screen.getByText(/Discovery total: 250/)).toBeTruthy();
     expect(screen.getByText(/250 matching catalog entries/)).toBeTruthy();
     expect(screen.getByText('Investment family 1')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
