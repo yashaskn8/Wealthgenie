@@ -64,7 +64,7 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
   it('does not claim live vehicle prices and reveals user-supplied loan form', async () => {
     render(<GoalFinanceWorkspace />);
     await screen.findByText('Monthly income and expense tracking');
-    fireEvent.click(screen.getByRole('tab', { name: 'EMI & vehicles' }));
+    fireEvent.click(screen.getByRole('button', { name: 'EMI & vehicles' }));
     expect(screen.getByText('Can I afford this vehicle?')).toBeTruthy();
     expect(screen.getByText(/Use your own dealer quotes/)).toBeTruthy();
     expect(api.assessGoalVehiclePurchase).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
   it('creates a typed goal independently from portfolio advice', async () => {
     render(<GoalFinanceWorkspace />);
     await screen.findByText('Monthly income and expense tracking');
-    fireEvent.click(screen.getByRole('tab', { name: 'Goal specifications' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Goal specifications' }));
     await screen.findByText('New goal specification');
     fireEvent.change(screen.getByLabelText('Your goal name'), { target: { value: 'Practical city car' } });
     fireEvent.change(screen.getByLabelText('Target cost (₹)'), { target: { value: '450000' } });
