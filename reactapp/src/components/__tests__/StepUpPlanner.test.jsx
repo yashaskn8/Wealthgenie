@@ -47,6 +47,15 @@ function sipResponse(fields = {}, request = {}) {
       annualStepUpRate: request.annualStepUpRate ?? 0.1,
       years,
       returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+      inflationRate: request.inflationRate ?? 0.06,
+      downsideAnnualReturnRate: request.downsideAnnualReturnRate ?? 0,
+      annualIncomeGrowthRate: request.annualIncomeGrowthRate ?? 0,
+      annualExpenseGrowthRate: request.annualExpenseGrowthRate ?? 0.06,
+      monthlyIncome: request.monthlyIncome ?? null,
+      monthlyExpenses: request.monthlyExpenses ?? null,
+      monthlyEmi: request.monthlyEmi ?? null,
+      emergencySavings: request.emergencySavings ?? null,
+      emergencyMonths: 6,
     },
   };
   result.affordability = {
@@ -135,6 +144,9 @@ it('sends explicit affordability inputs and zero EMI without provider keys or ma
     finalMonthlySip: 1800, downsideFinal: 90000, inflationAdjustedStepUpFinal: 95000,
     affordability: { status: 'WITHIN_DECLARED_BUDGET' },
     emergency_buffer: { status: 'DECLARED_BUFFER_MET', requiredAmount: 126000 },
+  }, {
+    monthlyIncome: 30000, monthlyExpenses: 18000, monthlyEmi: 3000,
+    emergencySavings: 200000,
   }));
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
 
