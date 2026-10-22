@@ -55,3 +55,15 @@ export const proofBreakTimelineQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(50).default(25),
   cursor: Joi.string().max(256).allow(''),
 }).unknown(false);
+
+const scenarioAmount = Joi.string().pattern(/^(?:0|[1-9]\d{0,18})(?:\.\d{1,2})?$/);
+const scenarioPercent = Joi.string().pattern(/^(?:0|[1-9]\d{0,2})(?:\.\d{1,4})?$/);
+
+export const genieProofMathSchema = Joi.object({
+  type: Joi.string().valid('LUMPSUM', 'SIP', 'EMI').required(),
+  amountRupees: scenarioAmount.required(),
+  annualRatePercent: scenarioPercent.required(),
+  months: Joi.number().integer().min(1).max(600).strict().required(),
+  stepUpPercent: Joi.when('type', { is: 'SIP', then: scenarioPercent.optional(), otherwise: Joi.forbidden() }),
+  claimedResultRupees: scenarioAmount.optional(),
+}).unknown(false);

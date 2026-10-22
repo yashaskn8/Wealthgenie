@@ -5,10 +5,13 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { validateStrict } from '../validation/financialSchemas.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { extractGenieProofClaims } from '../agents/genieProof/genieProofCore.js';
+import { checkGenieProofClaims } from '../agents/genieProof/genieProofCheckService.js';
+import { calculateGenieProofScenario } from '../agents/genieProof/genieProofMathService.js';
 import {
   genieProofConsentWithdrawalSchema,
   genieProofCreateCaseSchema,
   genieProofExtractSchema,
+  genieProofMathSchema,
   genieProofReassessSchema,
   proofBreakAcknowledgeSchema,
   proofBreakTimelineQuerySchema,
@@ -49,6 +52,17 @@ const genieProofLimiter = createEndpointRateLimiter({
   max: 8,
   message: 'GenieProof request limit reached. Try again later.',
   prefix: 'rl:ep:genieproof:',
+  keyGenerator: req => req.user?.userId
+    ? String(req.user.userId)
+    : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
+});
+// This nonpersistent check is cheaper than legacy case/watch mutations.
+// Keep separate authenticated per-user throttling; never disable abuse limits.
+const genieProofCheckLimiter = createEndpointRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Claim check limit reached. Try again later.',
+  prefix: 'rl:ep:genieproof:check:',
   keyGenerator: req => req.user?.userId
     ? String(req.user.userId)
     : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
@@ -147,6 +161,31 @@ export function buildGenieProofClaimPreview(offerText) {
     signedPassportCreated: false,
   };
 }
+
+// Read-only by design: no case, passport, signature creation, or user-text persistence.
+// Financial verdicts require independently qualified, applicable, signed evidence.
+// Only assumptions entered by the user are calculated; no provider rate is inferred.
+router.post('/calculate', verifyJWT, genieProofCheckLimiter, validateStrict(genieProofMathSchema), asyncHandler(async (req, res) => {
+  try {
+    return res.json(calculateGenieProofScenario(req.body));
+  } catch (error) {
+    if (error instanceof TypeError || error instanceof RangeError) {
+      throw createError(400, 'Unsupported financial calculation inputs.', 'Check the entered values and supported limits.', { code: 'GENIEPROOF_CALCULATION_INPUT_INVALID' });
+    }
+    throw error;
+  }
+}));
+
+router.post('/check', verifyJWT, genieProofCheckLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
+  const result = await checkGenieProofClaims({
+    offerText: req.body.offerText,
+    verifier: req.app.locals.genieProofClaimVerifier || null,
+  });
+  if (!result.ok) {
+    throw createError(400, result.code, 'The statement could not be checked. Please shorten or correct it.', { code: result.code });
+  }
+  return res.json(result);
+}));
 
 router.post('/extract-preview', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
   const result = buildGenieProofClaimPreview(req.body.offerText);

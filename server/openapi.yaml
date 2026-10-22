@@ -198,6 +198,116 @@ paths:
                   productionVerified: { type: boolean, const: false }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/genieproof/calculate:
+    post:
+      operationId: calculateGenieProofScenario
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      description: Integer-paise scenario arithmetic using ONLY the user's unverified rate and monetary assumptions. Not a market fact check, source verification or product guarantee.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [type, amountRupees, annualRatePercent, months]
+              properties:
+                type: { type: string, enum: [LUMPSUM, SIP, EMI] }
+                amountRupees: { type: string }
+                annualRatePercent: { type: string }
+                months: { type: integer, minimum: 1, maximum: 600 }
+                stepUpPercent: { type: string }
+                claimedResultRupees: { type: string }
+      responses:
+        '200':
+          description: Read-only mathematical illustration; rates/terms not verified.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, mode, type, metric, months, assumptionRatePercent, assumptionSource, amountRupees, stepUpPercent, resultRupees, totalPaidOrContributedRupees, totalInterestRupees, lastInstallmentRupees, claimedResultRupees, absoluteDifferenceRupees, arithmeticFinding, convention, exclusions, caveat, saved]
+                properties:
+                  ok: { type: boolean, const: true }
+                  mode: { type: string, const: USER_INPUT_MATH_CHECK }
+                  type: { type: string, enum: [LUMPSUM, SIP, EMI] }
+                  metric: { type: string, enum: [FUTURE_VALUE, MONTHLY_EMI] }
+                  months: { type: integer, minimum: 1, maximum: 600 }
+                  assumptionRatePercent: { type: string }
+                  assumptionSource: { type: string, const: USER_SUPPLIED_NOT_VERIFIED }
+                  amountRupees: { type: string }
+                  stepUpPercent: { type: [string, 'null'] }
+                  resultRupees: { type: string }
+                  totalPaidOrContributedRupees: { type: string }
+                  totalInterestRupees: { type: string }
+                  lastInstallmentRupees: { type: [string, 'null'] }
+                  claimedResultRupees: { type: [string, 'null'] }
+                  absoluteDifferenceRupees: { type: [string, 'null'] }
+                  arithmeticFinding: { type: string, enum: [CALCULATED_ONLY, MATCHES_ASSUMPTIONS_WITHIN_ONE_PAISE, DIFFERS_FROM_ASSUMPTIONS] }
+                  convention: { type: string }
+                  exclusions: { type: array, items: { type: string } }
+                  caveat: { type: string }
+                  saved: { type: boolean, const: false }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/genieproof/check:
+    post:
+      operationId: checkGenieProofClaims
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      description: Authenticated read-only check of submitted financial statements. No claim case or signed passport is created. Unqualified evidence yields NOT_VERIFIED.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenieProofExtractRequest' } } } }
+      responses:
+        '200':
+          description: Nonpersistent bounded claim check with evidence-backed verdicts where available.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok, mode, checkedAt, saved, claims, noClaimsFound, allExtractedCandidatesProcessed, verificationScope]
+                properties:
+                  ok: { type: boolean, const: true }
+                  mode: { type: string, const: READ_ONLY_FINANCIAL_CLAIM_CHECK }
+                  checkedAt: { type: string, format: date-time }
+                  saved: { type: boolean, const: false }
+                  noClaimsFound: { type: boolean }
+                  allExtractedCandidatesProcessed: { type: boolean, const: true }
+                  verificationScope: { type: string, const: DETECTED_CLAIMS_ONLY }
+                  claims:
+                    type: array
+                    maxItems: 10
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [claimId, statement, verdict, reasonCode, explanation, source, warningSignals]
+                      properties:
+                        claimId: { type: string, pattern: '^[a-f0-9]{32}$' }
+                        statement: { type: string }
+                        verdict: { type: string, enum: [SUPPORTED, CONTRADICTED, NOT_VERIFIED] }
+                        reasonCode: { type: string }
+                        explanation: { type: string }
+                        source:
+                          type: [object, 'null']
+                          additionalProperties: false
+                          required: [name, url, observedRatePercentPerAnnum, retrievedAt, effectiveFrom, effectiveTo]
+                          properties:
+                            name: { type: string, const: India Post — Savings }
+                            url: { type: string, const: 'https://www.indiapost.gov.in/banking-services/savings' }
+                            observedRatePercentPerAnnum: { type: number, minimum: 0, maximum: 100 }
+                            retrievedAt: { type: string, format: date-time }
+                            effectiveFrom: { type: string, format: date-time }
+                            effectiveTo: { type: string, format: date-time }
+                        warningSignals: { type: array, items: { type: string } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/genieproof/extract-preview:
     post:
       operationId: previewGenieProofClaims

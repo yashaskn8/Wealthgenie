@@ -622,6 +622,17 @@ export async function getGenieProofCapabilities(options = {}) {
   return request('GET', '/genieproof/capabilities', null, { retries: 0, ...options });
 }
 
+export async function checkGenieProofClaims(offerText, options = {}) {
+  if (typeof offerText !== 'string' || !offerText.trim()) {
+    throw new TypeError('Enter a financial claim to check.');
+  }
+  return request('POST', '/genieproof/check', { offerText }, { retries: 0, ...options });
+}
+
+export async function calculateGenieProofScenario(scenario, options = {}) {
+  return request('POST', '/genieproof/calculate', scenario, { retries: 0, ...options });
+}
+
 export async function previewGenieProofClaims(offerText, options = {}) {
   if (typeof offerText !== 'string' || !offerText.trim()) {
     throw new TypeError('Offer text is required for an unsaved claim preview.');

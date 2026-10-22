@@ -376,52 +376,31 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(page.getByRole('heading', { name: 'Compare Investments' })).toBeVisible();
   });
 
-  test('authenticated mobile navigation shows restricted GenieProof preview and enforces UTF-8 limit', async ({ page }) => {
-    // A test-only capability fixture never activates signing or verified claims.
-    await page.route('**/api/genieproof/capabilities', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          interactiveEnabled: false,
-          extractionPreviewEnabled: true,
-          mode: 'UNAVAILABLE',
-          reasonCode: 'FEATURE_UNAVAILABLE',
-          productionVerified: false,
-        }),
-      });
-    });
+  test('authenticated mobile navigation exposes simple GenieProof claim checking with UTF-8 protection', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('http://127.0.0.1:5173/profile?page=home');
     await page.waitForLoadState('networkidle');
 
     await page.getByTestId('mobile-nav-more').click();
     const drawer = page.getByRole('dialog', { name: 'More navigation options' });
-    await expect(drawer.getByRole('button', { name: /GenieProof/i })).toBeVisible();
-    await drawer.getByRole('button', { name: /GenieProof/i }).click();
+    await expect(drawer.getByRole('button', { name: 'GenieProof' })).toBeVisible();
+    await drawer.getByRole('button', { name: 'GenieProof' }).click();
     await expect(page).toHaveURL(/page=genieproof/);
-    await expect(page.getByRole('heading', { name: 'GenieProof', exact: true })).toBeVisible();
-    await expect(page.getByText(/Signed GenieProof passports and evidence-based verdicts are unavailable/i)).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Review claim candidates' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Enable ProofBreak checks/i })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /GenieProof.*Check a financial claim/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Save private passport|Enable ProofBreak checks/i })).toHaveCount(0);
 
-    const offer = page.getByLabel('Financial offer or statement');
-    const extractButton = page.getByRole('button', { name: 'Review claims' });
-    await expect(extractButton).toBeDisabled();
+    const offer = page.getByLabel('Financial statement to check');
+    const checkButton = page.getByRole('button', { name: 'Check claim' });
+    await expect(checkButton).toBeDisabled();
     await offer.fill('₹'.repeat(6000));
-    const byteStatus = page.locator('#genieproof-preview-byte-status');
-    await expect(byteStatus).toContainText('exceeds the 16,000-byte extraction limit');
-    await expect(byteStatus).toHaveAttribute('role', 'alert');
-    await expect(page.locator('#genieproof-preview-byte-count')).toContainText('18,000 / 16,000 UTF-8 bytes');
-    await expect(extractButton).toBeDisabled();
+    await expect(page.locator('#genieproof-size')).toContainText('18,000 / 16,000 bytes');
+    await expect(checkButton).toBeDisabled();
     await expect(offer).toHaveAttribute('aria-invalid', 'true');
     await offer.fill('a'.repeat(16001));
-    await expect(offer).toHaveValue('a'.repeat(16001));
-    await expect(offer).toHaveJSProperty('maxLength', -1);
-    await expect(page.locator('#genieproof-preview-byte-count')).toContainText('16,001 / 16,000 UTF-8 bytes');
-    await expect(extractButton).toBeDisabled();
-    await offer.fill('A short PPF claim to review.');
-    await expect(extractButton).toBeEnabled();
+    await expect(page.locator('#genieproof-size')).toContainText('16,001 / 16,000 bytes');
+    await expect(checkButton).toBeDisabled();
+    await offer.fill('A short PPF claim to check.');
+    await expect(checkButton).toBeEnabled();
     await expect(offer).not.toHaveAttribute('aria-invalid', 'true');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });

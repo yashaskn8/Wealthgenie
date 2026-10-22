@@ -337,6 +337,8 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'POST /api/agent/plan-review/{runId}/action', method: 'POST', path: '/api/agent/plan-review/{runId}/action', url: '/api/agent/plan-review/65b00000-0000-4000-8000-000000000099/action', expectedStatus: 400, authenticated: true, body: { action: 'UNSAFE_ACTION' } },
   { operation: 'POST /api/agent/plan-review/{runId}/action', method: 'POST', path: '/api/agent/plan-review/{runId}/action', url: '/api/agent/plan-review/65b00000-0000-4000-8000-000000000099/action', expectedStatus: 404, authenticated: true, body: { action: 'OPEN_PROFILE' } },
   { operation: 'GET /api/market/mutual-funds/nav', method: 'GET', path: '/api/market/mutual-funds/nav', url: '/api/market/mutual-funds/nav?schemeCodes=1001&extra=unexpected', expectedStatus: 400 },
+  { operation: 'POST /api/genieproof/calculate', method: 'POST', path: '/api/genieproof/calculate', url: '/api/genieproof/calculate', expectedStatus: 200, authenticated: true, body: { type: 'SIP', amountRupees: '100.00', annualRatePercent: '0', months: 12, stepUpPercent: '0' } },
+  { operation: 'POST /api/genieproof/check', method: 'POST', path: '/api/genieproof/check', url: '/api/genieproof/check', expectedStatus: 200, authenticated: true, body: { offerText: 'The current official PPF interest rate is 7.1% p.a.' } },
   { operation: 'POST /api/genieproof/extract', method: 'POST', path: '/api/genieproof/extract', url: '/api/genieproof/extract', expectedStatus: 404, body: { offerText: 'The current PPF interest rate is 7.1% p.a.' } },
   { operation: 'POST /api/genieproof/cases', method: 'POST', path: '/api/genieproof/cases', url: '/api/genieproof/cases', expectedStatus: 404, body: { offerText: 'The current PPF interest rate is 7.1% p.a.', submissionHash: 'a'.repeat(64), savingConsent: true, confirmedClaims: [{ claimId: 'a'.repeat(32), statement: 'The current PPF interest rate is 7.1% p.a.', claimType: 'CURRENT_NOMINAL_RATE', productId: 'government:india-post:ppf', value: 7.1, unit: 'PERCENT_PER_ANNUM' }] } },
   { operation: 'GET /api/genieproof/cases', method: 'GET', path: '/api/genieproof/cases', url: '/api/genieproof/cases', expectedStatus: 401 },
@@ -1126,6 +1128,97 @@ test('OpenAPI runtime contracts exercise real HTTP success and canonical error r
     else process.env.JWT_SECRET = oldSecret;
     if (oldNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = oldNodeEnv;
+  }
+});
+
+test('GenieProof check HTTP requires auth and never returns a sourced financial verdict without a trusted source', async () => {
+  const previousSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'read-only-genieproof-http-test-secret-at-least-32';
+  const app = buildContractTestApp();
+  app.locals.genieProofClaimVerifier = null;
+  const token = jwt.sign({
+    userId: '65b000000000000000000001',
+    jti: 'genieproof-read-only-contract-check',
+  }, process.env.JWT_SECRET, { expiresIn: '5m' });
+  const url = '/api/genieproof/check';
+  const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+  try {
+    await withMockAuthAccountState(() => withServer(app, async baseUrl => {
+      const notAuthorized = await rawRequest(baseUrl + url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offerText: 'Guaranteed 25% profit.' }),
+      });
+      assert.equal(notAuthorized.status, 401);
+
+      const checked = await rawRequest(baseUrl + url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ offerText: 'Guaranteed 25% profit.' }),
+      });
+      assert.equal(checked.status, 200);
+      assert.equal(checked.headers.get('cache-control'), 'no-store');
+      const checkedBody = await checked.json();
+      assertRuntimeResponseMatchesContract({
+        method: 'POST', path: url, status: 200,
+        contentType: checked.headers.get('content-type'), body: checkedBody,
+      });
+      assert.equal(checkedBody.saved, false);
+      assert.equal(checkedBody.claims.length, 1);
+      assert.equal(checkedBody.claims[0].verdict, 'NOT_VERIFIED');
+      assert.ok(checkedBody.claims[0].warningSignals.length > 0);
+      assert.equal(checkedBody.claims[0].source, null);
+      assert.equal(Object.hasOwn(checkedBody, 'passport'), false);
+
+      const wrongFields = await rawRequest(baseUrl + url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ offerText: 'Guaranteed 25% profit.', confirmedClaims: ['force-approved'] }),
+      });
+      assert.equal(wrongFields.status, 400);
+      const overflow = await rawRequest(baseUrl + url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ offerText: Array(11).fill('Guaranteed 25% profit.').join('\n') }),
+      });
+      assert.equal(overflow.status, 400, 'checks must reject an incomplete >10-claim extraction');
+
+      const noVerifier = await rawRequest(baseUrl + url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ offerText: 'The current official PPF interest rate is 7.1% p.a.' }),
+      });
+      assert.equal(noVerifier.status, 200);
+      const noVerifierBody = await noVerifier.json();
+      assert.equal(noVerifierBody.claims[0].verdict, 'NOT_VERIFIED');
+      assert.equal(noVerifierBody.claims[0].reasonCode, 'NO_TRUSTED_EVIDENCE_VERIFIER');
+      const illustration = await rawRequest(baseUrl + '/api/genieproof/calculate', {
+        method: 'POST', headers,
+        body: JSON.stringify({ type: 'SIP', amountRupees: '100.00', annualRatePercent: '0', months: 12, stepUpPercent: '0' }),
+      });
+      assert.equal(illustration.status, 200);
+      assert.equal(illustration.headers.get('cache-control'), 'no-store');
+      const math = await illustration.json();
+      assertRuntimeResponseMatchesContract({
+        method: 'POST', path: '/api/genieproof/calculate', status: 200,
+        contentType: illustration.headers.get('content-type'), body: math,
+      });
+      assert.equal(math.resultRupees, '1200.00');
+      assert.equal(math.totalInterestRupees, '0.00');
+      assert.equal(math.assumptionSource, 'USER_SUPPLIED_NOT_VERIFIED');
+      assert.equal(math.saved, false);
+
+      const injected = await rawRequest(baseUrl + '/api/genieproof/calculate', {
+        method: 'POST', headers,
+        body: JSON.stringify({ type: 'SIP', amountRupees: '100.00', annualRatePercent: '0', months: 12,
+          verifiedRateFromSource: 'official' }),
+      });
+      assert.equal(injected.status, 400);
+      const denied = await rawRequest(baseUrl + '/api/genieproof/calculate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'SIP', amountRupees: '100', annualRatePercent: '0', months: 12 }),
+      });
+      assert.equal(denied.status, 401);
+
+    }));
+  } finally {
+    if (previousSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = previousSecret;
   }
 });
 

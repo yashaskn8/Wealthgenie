@@ -426,6 +426,7 @@ export async function resolveGenieProofEvidenceForClaims({
   evidenceModel = GenieProofEvidenceRevision,
   now = () => new Date(),
   session = null,
+  requireVerifiedPageLineage = false,
 }) {
   const byClaimId = {};
   const registrySnapshots = [];
@@ -444,7 +445,9 @@ export async function resolveGenieProofEvidenceForClaims({
     registrySnapshots.push(...latestSources.map(normalizedSourceDefinition));
     const applicableSources = latestSources.filter(source => source.productIds?.includes(claim.productId)
       && source.claimTypes?.includes(claim.claimType));
-    const eligibleSources = applicableSources.filter(source => source.qualificationStatus === 'QUALIFIED_FOR_USER_PRESENTATION'
+    const eligibleSources = applicableSources.filter(source => source.sourceId === SOURCE_ID
+      && source.endpoint === INDIA_POST_SAVINGS_URL
+      && source.qualificationStatus === 'QUALIFIED_FOR_USER_PRESENTATION'
       && source.reusePermissionStatus === 'APPROVED' && !source.revocationReasonCode
       && source.reviewRecord?.reviewedAt && String(source.reviewRecord?.reference || '').trim()
       && String(source.reviewRecord?.scope || '').trim()
@@ -479,6 +482,11 @@ export async function resolveGenieProofEvidenceForClaims({
           && receipt.responseLineage.includes(rootReceipt?.contentSha256));
         if (!rootReceipt || !scriptReceipts.length
             || !scriptReceipts.some(receipt => receipt.contentSha256 === revision.sourceContentCommitment)) continue;
+        // A signed lineage string is not proof of provenance. It must equal the
+        // independently persisted official-page receipt for this exact revision.
+        if (requireVerifiedPageLineage && (!Array.isArray(revision.sourceLineage) || revision.sourceLineage.length !== 2
+            || revision.sourceLineage[0] !== new URL(source.endpoint).origin
+            || revision.sourceLineage[1] !== rootReceipt.contentSha256)) continue;
         const receiptHashes = orderedReceipts.map(receipt => receipt.receiptHash);
         if (canonicalSha256(receiptHashes) !== canonicalSha256(revision.retrievalReceiptHashes || [])) continue;
         const resolved = { ...revision, retrievalReceiptHashes: receiptHashes };
