@@ -211,6 +211,7 @@ function deterministicCandidate(packet, question = '') {
   const goal = packet.entries.find(item => item.id === 'E_GOAL_STATED_TARGET');
   const monthly = packet.entries.find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
   const guidance = packet.entries.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE');
+  const capacity = packet.entries.find(item => item.id === 'E_GOAL_CAPACITY_CHECK');
   if (guidance) {
     const claims = [];
     const financialClaims = [];
@@ -236,6 +237,8 @@ function deterministicCandidate(packet, question = '') {
         jurisdiction: null, effectivePeriod: null, statement: text,
       });
     }
+    if (capacity) claims.push({ text: capacity.displayValue + ' [' + capacity.id + '].',
+      evidenceIds: [capacity.id] });
     claims.push({ text: guidance.displayValue + ' [' + guidance.id + '].',
       evidenceIds: [guidance.id] });
     return {
