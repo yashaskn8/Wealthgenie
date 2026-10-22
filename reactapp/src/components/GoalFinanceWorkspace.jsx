@@ -20,12 +20,12 @@ const emptyBudget = () => ({
   protectedMonthlyContributions: 0, expenses: [emptyExpense()],
 });
 const vehicleDefaults = {
-  price: '', downPayment: '', upfrontFees: '0', monthlyOwnershipCost: '0',
+  price: '', downPayment: '', upfrontFees: '', monthlyOwnershipCost: '',
   annualInterestRate: '', tenureMonths: '60', emergencyCash: '', emergencyFloor: '',
 };
 const projectionDefaults = {
   currentSavings: '0', monthlyContribution: '', years: '5',
-  annualReturnAssumption: '0', annualInflationAssumption: '5',
+  annualReturnAssumption: '', annualInflationAssumption: '',
 };
 function amount(value, field, { optional = false } = {}) {
   if ((value === '' || value === null || value === undefined) && optional) return null;
