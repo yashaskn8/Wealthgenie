@@ -223,6 +223,16 @@ test('injected synthetic fact exercises append-only receipts and persistence ind
   assert.equal(resolved.byClaimId[claim.claimId].length, 1);
   assert.equal(resolved.byClaimId[claim.claimId][0].factHash, evidenceRows[0].factHash);
 
+  const originalSourceLineage = [...evidenceRows[0].sourceLineage];
+  evidenceRows[0].sourceLineage = [new URL(INDIA_POST_SAVINGS_URL).origin, 'f'.repeat(64)];
+  const forgedLineage = await resolveGenieProofEvidenceForClaims({
+    claims: [claim], sourceModel, receiptModel, evidenceModel,
+    now: () => new Date('2026-10-11T12:00:00.000Z'),
+  });
+  assert.equal(forgedLineage.byClaimId[claim.claimId].length, 0,
+    'an otherwise trusted revision must bind signed lineage to the real page receipt hash');
+  evidenceRows[0].sourceLineage = originalSourceLineage;
+
   const missingReceiptIndex = receipts.findIndex(receipt => receipt.retrievalId === evidenceRows[0].retrievalIds[0]);
   assert.notEqual(missingReceiptIndex, -1, 'the evidence revision references a persisted receipt');
   const [missingReceipt] = receipts.splice(missingReceiptIndex, 1);
