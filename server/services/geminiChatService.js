@@ -246,7 +246,44 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
       });
     }
-    return noProfileResponse(sessionId, rateCheck);
+    // A completed financial profile must never be a prerequisite for ordinary
+    // educational questions. Stateless general responses cannot access account
+    // investments or be misrepresented as persisted financial advice.
+    const noProfileGeneral = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
+      && isGeneralChatQuestion(message) && !isGroundingBoundaryAttack(message);
+    if (!noProfileGeneral) return noProfileResponse(sessionId, rateCheck);
+    const upperBound = generalChatTokenUpperBound(message);
+    const startedAt = Date.now();
+    const answer = await generateGeneralChatAnswer({ question: message }, {
+      ...groundedExplanationDependencies,
+      ...(reserveProviderAttempt ? {
+        reserveProviderAttempt: ({ provider, providerAttemptCount }) => reserveProviderAttempt({
+          userId, sessionId, provider, providerAttemptCount, tokenUpperBound: upperBound,
+        }),
+      } : {}),
+      ...(settleProviderAttempt ? {
+        settleProviderAttempt: ({ reservation, actualTokens, provider, providerAttemptCount }) => settleProviderAttempt({
+          reservation, actualTokens, userId, sessionId, provider, providerAttemptCount,
+        }),
+      } : {}),
+    });
+    return buildClientResponseDTO({
+      response: answer.text,
+      session_id: sessionId,
+      latency_ms: Date.now() - startedAt,
+      grounded: false,
+      provider: answer.provider,
+      model: answer.model,
+      prompt_version: answer.promptVersion,
+      evidence_ids_used: [],
+      citations: [],
+      validation_status: answer.validation.status,
+      fallback: answer.fallback,
+      fallback_reason_codes: answer.fallback ? answer.validation.reasonCodes : [],
+      messages_this_hour: rateCheck.count,
+      rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+      rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
+    });
   }
   const profile = buildRecommendationProfile(storedProfile);
   const suitability = assessSuitabilityRisk(profile);
