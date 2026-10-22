@@ -65,7 +65,8 @@ function goalHorizonMonths(question) {
 }
 
 function goalName(text) {
-  if (/\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?)\b/i.test(text) && /\b(?:marriage|wedding)\b/i.test(text)) return "your daughter's wedding";
+  if (/\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?)\b/i.test(text) && /\bmarriage\b/i.test(text)) return "your daughter's marriage";
+  if (/\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?)\b/i.test(text) && /\bwedding\b/i.test(text)) return "your daughter's wedding";
   if (/\b(?:marriage|wedding|ceremony)\b/i.test(text)) return 'the wedding';
   if (/\b(?:college|university|education|study|school|tuition)\b/i.test(text)) return 'the education goal';
   if (/\b(?:medical|hospital|healthcare)\b/i.test(text)) return 'the medical expense';
@@ -110,8 +111,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   const context = goalName(source);
   const missing = [];
   if (target === null) missing.push(ambiguousTarget ? 'which amount is the actual goal target' : 'the target amount');
-  if (horizon === null) missing.push('the deadline or number of years remaining');
-  if (saved === null) missing.push('the amount already earmarked for this goal');
+  if (horizon === null) missing.push('the deadline in years');
+  if (saved === null) missing.push('how much is already earmarked for this goal');
   const scope = used.length > 1 ? 'TRUSTED_FINANCIAL_CHAT' : 'CURRENT_USER_MESSAGE';
 
   let guidance;
@@ -120,7 +121,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
       + ' before inflation or changes in future costs. Confirm whether the target is in today’s rupees and whether those funds are accessible. No investment return has been assumed.';
   } else if (missing.length) {
     guidance = 'To plan for ' + context + ', please confirm ' + missing.join(' and ')
-      + '. I will not guess the deadline, existing funds, inflation or investment returns.';
+      + '. Once those are confirmed, I can check the monthly saving required without guessing an investment return.';
   } else {
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
@@ -168,7 +169,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
           returnForecast: false, sourceScope: scope },
         displayValue: fundableFromContributions
           ? 'Your stated monthly savings capacity covers this contribution-only baseline; this does not predict future investment value'
-          : 'At your stated monthly capacity this target is not fundable from contributions alone before the deadline; review the target, timeline or affordable contributions rather than assuming higher returns',
+          : 'At your stated monthly capacity this target is not fundable from contributions alone before the deadline; consider revising the target or date or affordable contributions rather than assuming higher returns',
         dataClass: 'DETERMINISTIC_GOAL_CAPACITY_CHECK',
         source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
       });
