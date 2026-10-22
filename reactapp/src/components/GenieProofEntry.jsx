@@ -59,6 +59,10 @@ function validCheckResponse(value, submittedText) {
         || claim.source.observedRatePercentPerAnnum > 100
         || (claim.verdict === 'SUPPORTED' && claim.reasonCode !== 'EXACT_RATE_MATCH')
         || (claim.verdict === 'CONTRADICTED' && claim.reasonCode !== 'EXACT_RATE_MISMATCH')) return false;
+    const exactClaim = claim.statement.match(/^(?:the\s+)?(?:(?:current|official)\s+){0,2}(?:ppf|public\s+provident\s+fund(?:\s+scheme)?)\s+(?:current\s+)?(?:official\s+)?interest\s+rate\s+(?:is|stands\s+at|:)\s*(\d{1,2}(?:\.\d{1,4})?)\s*%\s*(?:p\.?\s*a\.?|per\s+annum)\.?$/i);
+    if (!exactClaim || (claim.verdict === 'SUPPORTED'
+      ? Number(exactClaim[1]) !== claim.source.observedRatePercentPerAnnum
+      : Number(exactClaim[1]) === claim.source.observedRatePercentPerAnnum)) return false;
     const retrieved = exactTimestamp(claim.source.retrievedAt);
     const effectiveFrom = exactTimestamp(claim.source.effectiveFrom);
     const effectiveTo = exactTimestamp(claim.source.effectiveTo);
@@ -128,7 +132,7 @@ export default function GenieProofEntry() {
           Check a claim
         </button>
         <button type="button" aria-pressed={selectedTool === 'MATH'}
-          onClick={() => { requestRef.current?.abort(); setSelectedTool('MATH'); }}
+          onClick={() => { edit(statement); setSelectedTool('MATH'); }}
           style={{ ...button, background: selectedTool === 'MATH' ? '#0369a1' : '#334155' }}>
           Check a calculation
         </button>
