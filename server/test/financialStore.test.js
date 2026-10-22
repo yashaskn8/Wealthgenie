@@ -30,3 +30,19 @@ test('market writes refuse invalid values before contacting the database',async(
  await assert.rejects(store.appendObservation({productId:'stock:abc123',kind:'PRICE',dataClass:'LIVE',
   sourceId:'provider',value:'NaN',observedAt:'2026-01-01',fetchedAt:'2026-01-02'}),/exact non-negative decimal/);
 });
+
+
+test('zero NAV and falsely live mutual-fund NAV cannot reach SQL',async()=>{
+ const pool={query:async()=>{throw new Error('SQL_SHOULD_NOT_RUN');},
+  connect:async()=>{throw new Error('CONNECTION_SHOULD_NOT_OPEN');}};
+ const store=createFinancialStore(pool);
+ const base={productId:'amfi:real100',kind:'NAV',value:'101.25',
+  currency:'INR',unit:'INR_PER_UNIT',dataClass:'END_OF_DAY',
+  sourceId:'amfi-provider',sourceInstrumentId:'100',
+  observedAt:'2026-10-21T15:00:00Z',fetchedAt:'2026-10-21T16:00:00Z'};
+ await assert.rejects(store.appendObservation({...base,value:'0'}),/strictly positive/);
+ await assert.rejects(store.appendObservation({...base,dataClass:'LIVE'}),/end-of-day/);
+ await assert.rejects(store.appendObservation({...base,kind:'PRICE',value:'0'}),/strictly positive/);
+ await assert.rejects(store.appendObservation({...base,kind:'PUBLISHED_RATE',
+   value:'6.50',unit:'PERCENT_PER_ANNUM'}),/rate metric and observation class/);
+});
