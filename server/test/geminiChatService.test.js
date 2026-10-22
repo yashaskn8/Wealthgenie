@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import axios from 'axios';
-import { processChat as processChatService } from '../services/geminiChatService.js';
+import { processChat as processChatService, isUnboundGoalFollowUp } from '../services/geminiChatService.js';
 import { AIToolOrchestrator } from '../services/aiToolOrchestrator.js';
 import { ConversationStateMachine, CONVERSATION_STATES } from '../services/conversationStateMachine.js';
 import { LayeredMemoryManager } from '../services/layeredMemoryManager.js';
@@ -888,4 +888,16 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.match(result.response, /ambiguous or invalid/i);
   });
 
+});
+
+
+describe('Unbound goal follow-up routing', () => {
+  it('never treats elliptical numeric goal turns as independent general LLM questions', () => {
+    for (const q of ['in 10 years', 'within 2.5 years', 'starting from zero']) {
+      assert.equal(isUnboundGoalFollowUp(q), true, q);
+    }
+    for (const q of ['Explain Python from 10 years ago', 'Write a wedding story', 'Hello Genie']) {
+      assert.equal(isUnboundGoalFollowUp(q), false, q);
+    }
+  });
 });
