@@ -43,7 +43,8 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
               s.id AS subcategory_id,s.label AS subcategory
          FROM finance.products p JOIN finance.categories c ON p.category_id=c.id
          LEFT JOIN finance.subcategories s ON p.subcategory_id=s.id
-        WHERE ($1::text IS NULL OR c.id=$1)
+        WHERE p.record_kind='ARCHETYPE'
+          AND ($1::text IS NULL OR c.id=$1)
           AND ($2::text IS NULL OR s.id=$2)
           AND ($3::text IS NULL OR p.id>$3)
         ORDER BY p.id LIMIT $4`,
@@ -53,7 +54,8 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
   }
   async function summary() {
     const { rows } = await pool.query(`
-      SELECT count(*)::integer AS "totalCount",
+      SELECT count(*) FILTER (WHERE record_kind='ARCHETYPE')::integer AS "totalCount",
+        count(*)::integer AS "allRecords",
         count(*) FILTER (WHERE record_kind='ARCHETYPE')::integer AS "discoveryFamilies",
         count(*) FILTER (WHERE record_kind='ACTUAL_PRODUCT')::integer AS "actualProducts",
         count(*) FILTER (WHERE availability='AVAILABLE')::integer AS "availableRecords",

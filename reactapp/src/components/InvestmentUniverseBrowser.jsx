@@ -170,7 +170,7 @@ export default function InvestmentUniverseBrowser() {
                 {items.length} catalog entries loaded from PostgreSQL.
               </p>
               {summary && <p style={{ color: '#cbd5e1', fontSize: '0.75rem' }}>
-                Database total: {summary.totalCount} · Discovery families: {summary.discoveryFamilies} · Actual products: {summary.actualProducts} · Availability verified: {summary.availableRecords} · Qualification-flagged: {summary.qualificationFlagged}. These flags do not establish suitability.
+                Discovery total: {summary.totalCount} · Discovery families: {summary.discoveryFamilies} · Actual products: {summary.actualProducts} · Availability-flagged records: {summary.availableRecords} · Qualification-flagged: {summary.qualificationFlagged}. These flags do not establish suitability.
               </p>}
               {items.length < 250 && (
                 <p role="alert" style={{ color: '#fbbf24' }}>

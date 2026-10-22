@@ -12,6 +12,7 @@ test('SQL financial store constrains catalog pagination and never interpolates u
  assert.equal(result.nextCursor,'beta');
  assert.deepEqual(calls[0].args,['safe-cat','sub-cat','start',3]);
  assert.ok(calls[0].sql.includes('ORDER BY p.id'));
+ assert.ok(calls[0].sql.includes("p.record_kind='ARCHETYPE'"), 'actual products are not discovery families');
  await assert.rejects(store.browse({category:'bad\nvalue'}),/Invalid catalog filter/);
  await assert.rejects(store.browse({limit:101}),/Invalid page size/);
 });
@@ -49,7 +50,7 @@ test('zero NAV and falsely live mutual-fund NAV cannot reach SQL',async()=>{
 
 test('financial catalog summary uses PostgreSQL counts, not a hardcoded universe size', async () => {
  const queries=[];
- const dbCount={totalCount:251,discoveryFamilies:250,actualProducts:1,
+ const dbCount={totalCount:250,allRecords:251,discoveryFamilies:250,actualProducts:1,
   availableRecords:1,unverifiedRecords:250,qualificationFlagged:1};
  const pool={query:async sql=>{queries.push(sql);return{rows:[dbCount]};},
   connect:async()=>({release(){}})};
@@ -57,4 +58,5 @@ test('financial catalog summary uses PostgreSQL counts, not a hardcoded universe
  assert.deepEqual(summary,dbCount);
  assert.match(queries[0],/FROM finance.products/);
  assert.match(queries[0],/recommendation_eligible IS TRUE/);
+ assert.match(queries[0],/count\(\*\) FILTER \(WHERE record_kind='ARCHETYPE'\)::integer AS "totalCount"/);
 });
