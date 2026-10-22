@@ -92,6 +92,7 @@ export function retrieveChatEducationalEvidence(question, { maxEntries = 2 } = {
       dataClass: 'CURATED_PUBLIC_EDUCATION',
       source: {
         provider: doc.provider || 'US_SEC_INVESTOR_GOV',
+        title: doc.title,
         url: doc.url,
         publicationDate: null,
         instrumentId: null,
