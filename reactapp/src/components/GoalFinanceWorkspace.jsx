@@ -105,10 +105,10 @@ function VehicleForm({ month, onResult }) {
     ['price', 'Vehicle base price excluding separately entered taxes and fees (₹)'],
     ['downPayment', 'Cash down payment (₹)'],
     ['upfrontFees', 'Registration, taxes, insurance and fees upfront (₹)'],
-    ['monthlyOwnershipCost', 'Fuel, servicing, parking and insurance renewals / month (₹)'],
+    ['monthlyOwnershipCost', 'Extra monthly vehicle costs not already in expenses (₹)'],
     ['annualInterestRate', 'Loan annual nominal interest rate (%)'],
     ['tenureMonths', 'Loan duration (months)'],
-    ['emergencyCash', 'Available cash reserve before buying (₹)'],
+    ['emergencyCash', 'Liquid cash excluding funds reserved for other goals (₹)'],
     ['emergencyFloor', 'Cash reserve to protect after buying (₹)'],
   ];
   const analyze = async event => {
@@ -140,7 +140,7 @@ function VehicleForm({ month, onResult }) {
   };
   return <div className="wg-goal-panel">
     <h3>Can I afford this vehicle?</h3>
-    <p>Use your own dealer quotes. We calculate EMI and ongoing affordability; we do not obtain a live price or determine bank loan approval.</p>
+    <p>Use your own dealer quotes. Enter the vehicle base price excluding fees you list separately, only additional ownership costs absent from your saved budget, and liquid cash excluding funds earmarked for other goals. No live prices or lender approval.</p>
     <form onSubmit={analyze}>
       <div className="wg-goal-input-grid">{fields.map(([key, label]) =>
         <NumberEntry key={key} label={label} value={values[key]} onChange={v => set(key, v)}
@@ -177,7 +177,7 @@ function VehicleForm({ month, onResult }) {
         <p><b>Required monthly funding for other goals</b><span>{moneyLabel(result.primary.requiredMonthlyGoalContributions)}</span></p>
         <p><b>Purchase-month surplus after other goals</b><span>{moneyLabel(result.primary.purchaseMonthSurplusAfterGoals)}</span></p>
         <p><b>Cash reserve after upfront cost</b><span>{moneyLabel(result.primary.emergencyCashAfterPurchase)}</span></p>
-        <p><b>Estimated nominal total during loan</b><span>{moneyLabel(result.primary.totalNominalCostDuringLoan)}</span></p>
+        <p><b>Estimated incremental nominal cost during loan</b><span>{moneyLabel(result.primary.totalNominalCostDuringLoan)}</span></p>
         <small>EMI uses monthly reducing-balance interest rounded to each paisa; real lender schedules can use different conventions.</small>
       </div>
       {result.primary.reasons.length > 0 && <Notice kind="warning">Reasons: {result.primary.reasons.join(', ').replaceAll('_', ' ')}</Notice>}
