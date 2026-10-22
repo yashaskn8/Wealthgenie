@@ -9,7 +9,7 @@ const CLAIM_FIELDS = Object.freeze([
 export const FINANCIAL_CLAIM_TYPES = Object.freeze([
   'CURRENT_RATE', 'HISTORICAL_RETURN', 'EXPECTED_RETURN', 'PROJECTED_RETURN',
   'POST_TAX_RETURN', 'ALLOCATION_WEIGHT', 'TAX_RATE', 'CURRENT_COUPON',
-  'MATURITY_AMOUNT', 'CONTRIBUTION', 'RISK_SCORE', 'GOAL_TARGET', 'GOAL_MONTHLY_BASELINE', 'GOAL_RETURN_SCENARIO_PAYMENT',
+  'MATURITY_AMOUNT', 'CONTRIBUTION', 'RISK_SCORE', 'GOAL_TARGET', 'GOAL_MONTHLY_BASELINE', 'GOAL_RETURN_SCENARIO_PAYMENT', 'GOAL_INFLATION_ADJUSTED_TARGET',
 ]);
 
 export const FINANCIAL_CLAIM_UNITS = Object.freeze([
@@ -152,6 +152,26 @@ function expectedClaimForEvidence(entry, type) {
         source: 'WEALTHGENIE_BACKEND', jurisdiction: null, effectivePeriod: null };
     }
   }
+  if (type === 'GOAL_INFLATION_ADJUSTED_TARGET'
+      && entry.id === 'E_GOAL_INFLATED_TARGET'
+      && entry.kind === 'GOAL_CALCULATION'
+      && entry.dataClass === 'DETERMINISTIC_USER_INFLATION_SCENARIO'
+      && entry.authority === 'WEALTHGENIE_BACKEND'
+      && value?.targetIsPresentCost === true
+      && value?.illustrativeOnly === true && value?.beforeTax === true
+      && value?.annualInflationPercent !== null
+      && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value?.sourceScope)) {
+    const scenario = calculateGoalCompoundingScenario({
+      target: value.originalTargetAmount, earmarkedSavings: value.earmarkedSavingsAmount,
+      months: value.horizonMonths, annualReturnPercent: value.annualReturnPercent,
+      annualInflationPercent: value.annualInflationPercent, targetIsPresentValue: true,
+    });
+    if (scenario && scenario.inflatedTarget === value.inflatedTargetAmount) {
+      return { ...base, value: scenario.inflatedTarget, unit: 'INR',
+        timePeriod: 'GOAL_HORIZON_USER_INFLATION_SCENARIO', source: 'WEALTHGENIE_BACKEND',
+        jurisdiction: null, effectivePeriod: null };
+    }
+  }
   if (type === 'CONTRIBUTION'
       && entry.id === 'E_PROFILE_SAVINGS'
       && entry.kind === 'PROFILE'
@@ -268,6 +288,7 @@ function inferredType(statement) {
     ['GOAL_TARGET', /\bgoal target\b/],
     ['GOAL_MONTHLY_BASELINE', /\bfunding-only baseline\b/],
     ['GOAL_RETURN_SCENARIO_PAYMENT', /\billustrative monthly goal payment\b/],
+    ['GOAL_INFLATION_ADJUSTED_TARGET', /\binflation-adjusted goal target\b/],
     ['RISK_SCORE', /\brisk score\b/],
   ];
   for (const [type, pattern] of rules) if (pattern.test(text)) matches.push(type);
