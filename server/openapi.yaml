@@ -672,26 +672,67 @@ paths:
       requestBody: { $ref: '#/components/requestBodies/RankInstruments' }
       responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '409': { $ref: '#/components/responses/Conflict' } }
 
-  /api/investment-explorer/taxonomy:
+  /api/financial-universe:
     get:
-      operationId: getInvestmentExplorerTaxonomy
+      operationId: browseFinancialUniverse
       tags: [Instruments]
       security: []
-      description: Returns the full investment-family discovery taxonomy. Category and family presence does not establish product availability, eligibility, source permissions, suitability, or current financial facts.
-      responses: { '200': { description: Investment discovery taxonomy, content: { application/json: { schema: { $ref: '#/components/schemas/InvestmentExplorerTaxonomy' } } } } }
-  /api/investment-explorer/catalog:
+      description: Paginated source-labeled discovery catalog. These are archetypes, not individually verified purchasable products.
+      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/financial-universe/summary:
     get:
-      operationId: searchInvestmentExplorerCatalog
+      operationId: summarizeFinancialUniverse
       tags: [Instruments]
       security: []
-      description: Searches the bounded legacy family catalog separately from personalized recommendations. Numeric market facts are excluded until exact product identity and source rights are qualified.
+      description: PostgreSQL actual source counts, not asserted verification of market instruments.
+      responses: { '200': { $ref: '#/components/responses/Object' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/financial-universe/categories:
+    get:
+      operationId: financialUniverseCategories
+      tags: [Instruments]
+      security: []
+      description: Read-only currently seeded discovery category counts.
+      responses: { '200': { $ref: '#/components/responses/Object' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/financial-universe/{productId}/observation:
+    get:
+      operationId: financialUniverseQualifiedObservation
+      tags: [Instruments]
+      security: []
       parameters:
-        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
-        - { name: categoryId, in: query, schema: { type: string, pattern: '^[a-z0-9-]{1,80}$' } }
-        - { name: subcategoryId, in: query, schema: { type: string, pattern: '^[a-z0-9-]{1,100}$' } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, x-raw-query-pattern: '^(0|[1-9][0-9]*)$' } }
-        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 100000, x-raw-query-pattern: '^(0|[1-9][0-9]*)$' } }
-      responses: { '200': { description: Paginated investment-family search results, content: { application/json: { schema: { $ref: '#/components/schemas/InvestmentExplorerCatalogPage' } } } }, '400': { $ref: '#/components/responses/BadRequest' } }
+        - { name: productId, in: path, required: true, schema: { type: string } }
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [PRICE, NAV, PUBLISHED_RATE, YIELD, VOLUME] } }
+      description: Only independently licensed, retained, currently publishable source-bound facts.
+      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/financial-universe/{productId}/contract-cashflow:
+    post:
+      operationId: financialUniverseContractCashflow
+      tags: [Instruments]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters:
+        - { name: productId, in: path, required: true, schema: { type: string } }
+      description: Authenticated source-bound product cashflow calculation with explicit tax facts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [principal], properties: { principal: { type: number, exclusiveMinimum: 0 }, taxEventContext: { type: [object, 'null'] } }, additionalProperties: false }
+      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/financial-universe/{familyId}/top-products:
+    post:
+      operationId: financialUniverseVerifiedTopProducts
+      tags: [Instruments]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters:
+        - { name: familyId, in: path, required: true, schema: { type: string, pattern: '^[a-zA-Z0-9:_-]{1,160}$' } }
+      description: Profile-bound deterministic comparison of zero to three independently reviewed actual products. No data or advice is issued without provider rights, current investor state, supported tax class, live observation and separately verified authority to give personal investment advice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [profileId], properties: { profileId: { type: string, pattern: '^[a-fA-F0-9]{24}$' } }, additionalProperties: false }
+      responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '409': { $ref: '#/components/responses/Conflict' }, '503': { $ref: '#/components/responses/Unavailable' } }
 
   /api/projection:
     post:
