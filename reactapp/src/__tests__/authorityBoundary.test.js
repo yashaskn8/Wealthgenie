@@ -22,9 +22,12 @@ describe('frontend financial authority boundary', () => {
   });
 
   it('uses Express for tax decisions and has no client tax-liability fallback', () => {
-    const taxScreen = source('components/TaxScreen.jsx');
+    const taxHub = source('components/TaxesHub.jsx');
+    const taxScreen = source('components/NewRegimeTaxScreen.jsx');
     const chat = source('components/GenieChat.jsx');
-    expect(taxScreen).toContain('api.compareTax');
+    expect(taxHub).toContain("from './NewRegimeTaxScreen'");
+    expect(taxScreen).toContain('api.computeVerifiedNewRegimeTax');
+    expect(taxScreen).not.toContain('api.compareTax');
     expect(taxScreen).not.toContain('calculateTaxesLocal');
     expect(chat).not.toContain('calculateTaxes(');
     expect(chat).toContain('api.sendChatMessage');
