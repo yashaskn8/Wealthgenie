@@ -31,7 +31,7 @@ function amount(value, field, { optional = false } = {}) {
   if (value === '' || value === null || value === undefined) throw new Error(`Enter ${field}.`);
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1_000_000_000
-    || Math.round(parsed * 100) !== parsed * 100) throw new Error(`Invalid ${field}; use a non-negative INR amount.`);
+    || Math.abs(Math.round(parsed * 100) - parsed * 100) > 1e-7) throw new Error(`Invalid ${field}; use a non-negative INR amount.`);
   return parsed;
 }
 function NumberEntry({ label, value, onChange, min = '0', max, step = '0.01', hint }) {
@@ -179,7 +179,15 @@ function SavingsProjection() {
   const run = async event => {
     event.preventDefault(); setError(null); setLoading(true); setResult(null);
     try {
-      const payload = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, amount(v, k)]));
+      const payload = Object.fromEntries(Object.entries(values).map(([k, v]) => {
+        if (['annualReturnAssumption', 'annualInflationAssumption'].includes(k)) {
+          if (v === '') throw new Error(`Enter ${k}.`);
+          const rate = Number(v);
+          if (!Number.isFinite(rate) || rate <= -100 || rate > 100) throw new Error(`Invalid ${k}.`);
+          return [k, rate];
+        }
+        return [k, amount(v, k)];
+      }));
       if (!Number.isInteger(payload.years)) throw new Error('Years must be whole numbers');
       setResult((await api.projectGoalSavings(payload)).projection);
     } catch (e) { setError(e.message || 'Projection failed'); }
@@ -192,7 +200,7 @@ function SavingsProjection() {
       <div className="wg-goal-input-grid">
         {Object.entries(values).map(([k, v]) => <NumberEntry key={k} label={k.replace(/([A-Z])/g, ' $1')}
           value={v} onChange={s => setValues(old => ({ ...old, [k]: s }))}
-          step={k === 'years' ? '1' : '0.01'}/>)}
+          step={k === 'years' ? '1' : '0.01'} min={k.startsWith('annual') ? '-99.99' : '0'}/>)}
       </div>
       <button type="submit" className="wg-goal-action" disabled={loading}>{loading ? 'Calculating…' : 'Calculate savings scenario'}</button>
     </form>
