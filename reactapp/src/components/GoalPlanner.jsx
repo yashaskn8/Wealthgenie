@@ -5,6 +5,7 @@ import SebiDisclaimer from './SebiDisclaimer';
 import api from '../services/api';
 import GoalForm from './GoalForm';
 import GoalDetailPane from './GoalDetailPane';
+import GoalFinanceWorkspace from './GoalFinanceWorkspace';
 import { submitGoal } from '../utils/goalSubmission';
 import { isFinancialCalculationFresh } from '../utils/financialFreshness';
 import { isPresentFiniteNumber } from '../utils/financialValues';
@@ -602,6 +603,10 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
           <Plus size={20} /> Create Target Goal
         </motion.button>
       </div>
+
+      <GoalFinanceWorkspace refreshToken={JSON.stringify(currentGoals.map(g => [
+        g._id || g.goalId, g.version, g.recommended_sip, g.calculation_freshness?.fresh,
+      ]))} />
 
       {/* Cyber Summary HUD Metrics */}
       {currentGoals.length > 0 && (
