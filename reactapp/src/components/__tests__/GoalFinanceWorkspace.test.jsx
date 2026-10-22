@@ -6,6 +6,7 @@ import GoalFinanceWorkspace from '../GoalFinanceWorkspace';
 import api from '../../services/api';
 
 vi.mock('../../services/api', () => ({
+  generateUUID: vi.fn(() => 'goals-client-retry-key-test-0001'),
   default: {
     getGoalBudget: vi.fn(), saveGoalBudget: vi.fn(),
     getGoalFundingPlan: vi.fn(), assessGoalVehiclePurchase: vi.fn(),
