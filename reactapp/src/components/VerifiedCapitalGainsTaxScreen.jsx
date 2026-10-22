@@ -102,6 +102,12 @@ export default function VerifiedCapitalGainsTaxScreen(){
       setError('Choose an income category and enter all amounts as non-negative whole multiples of ₹10 (enter 0 where none).');
       return;
     }
+    if(request.residency!=='resident' || !request.completeYearGainsConfirmed
+      || !request.sttAndClassificationConfirmed || !request.noOtherTaxSituationsConfirmed){
+      setResult(null);
+      setError('This specialized calculator requires a confirmed resident individual, a complete year-wide gain ledger, verified rate eligibility and confirmation of no other tax situations. No financial amounts were submitted.');
+      return;
+    }
     const id=++generation.current;
     controller.current?.abort();
     const current=new AbortController();
