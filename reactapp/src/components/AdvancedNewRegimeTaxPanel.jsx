@@ -159,7 +159,7 @@ export default function AdvancedNewRegimeTaxPanel() {
         <label htmlFor="wga-primary">Primary annual income (₹)</label>
         <input id="wga-primary" type="text" inputMode="decimal" maxLength={13} value={form.primaryIncome}
           onChange={e => set('primaryIncome', e.target.value)} required />
-        <label htmlFor="wga-other">Additional ordinary taxable income (₹)</label>
+        <label htmlFor="wga-other">Additional ordinary taxable income (₹; exclude dividends and gains)</label>
         <input id="wga-other" type="text" inputMode="decimal" maxLength={13} value={form.otherOrdinaryIncome}
           onChange={e => set('otherOrdinaryIncome', e.target.value)} required />
         <label htmlFor="wga-nps">Employer contribution to notified NPS already included in gross salary (₹)</label>
@@ -189,7 +189,7 @@ export default function AdvancedNewRegimeTaxPanel() {
         <label className="wg-new-tax__confirm">
           <input type="checkbox" checked={form.confirmedNoOtherTaxAdjustments}
             onChange={e => set('confirmedNoOtherTaxAdjustments', e.target.checked)} />
-          <span>I confirm this tax context excludes other special-rate income, dividend surcharge,
+          <span>I confirm this tax context excludes ALL dividends (ordinary-rate dividends can trigger a separate surcharge cap), other special-rate income,
             capital gains or loss schedules, other deductions, business income/loss, carried-forward losses,
             foreign income, agricultural-income rate integration, and other unmodelled adjustments.
             These figures are a restricted estimate, not a complete ITR.</span>
