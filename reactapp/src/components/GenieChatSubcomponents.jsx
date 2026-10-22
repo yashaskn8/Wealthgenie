@@ -28,13 +28,22 @@ export function CitationsList({ citations }) {
         <div className="citations-list">
           {citations.map((c, i) => {
             const scorePct = c.relevance_score ? Math.round(c.relevance_score * 100) : null;
+            // A URL in retrieved or cached RAG data is untrusted. Only HTTPS
+            // links are navigable; local computations are not external sources.
+            const sourceUrl = typeof c.source_url === 'string'
+              && /^https:\/\/[^\s"'<>]+$/i.test(c.source_url) ? c.source_url : null;
+            const originLabel = c.evidence_class === 'USER_INPUT'
+              ? 'Your stated input'
+              : String(c.evidence_class || '').startsWith('DETERMINISTIC_')
+                ? 'WealthGenie calculation — not an external source'
+                : (c.source || 'Knowledge Base');
             return (
               <div key={i} className="citation-item" style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '0.8rem' }}>
                 <div className="citation-title" style={{ fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>
                     <span className="citation-idx" style={{ color: '#38bdf8', marginRight: '4px' }}>[{i + 1}]</span>
-                    {c.source_url ? (
-                      <a href={c.source_url} target="_blank" rel="noreferrer">{c.document_title || 'Source document'}</a>
+                    {sourceUrl ? (
+                      <a href={sourceUrl} target="_blank" rel="noopener noreferrer">{c.document_title || 'Source document'}</a>
                     ) : (c.source === 'USER_INPUT' ? 'Your stated information' : c.document_title || 'Verified evidence')}
                     <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '6px', fontSize: '0.75rem' }}>({c.source === 'USER_INPUT' ? 'Your input' : c.source === 'WEALTHGENIE_BACKEND' ? 'Calculated by WealthGenie' : c.source || 'Knowledge Base'}{c.chunk_id ? ` #${c.chunk_id.split('#')[1] || c.chunk_id}` : ''})</span>
                   </span>
