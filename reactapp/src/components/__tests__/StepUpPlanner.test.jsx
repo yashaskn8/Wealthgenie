@@ -15,16 +15,66 @@ function deferred() {
   return { promise, resolve };
 }
 
+// Test-only protocol fixture: each display number must belong to a complete,
+// explicitly-CAGR response. Partial API responses are rejected in production.
+function sipResponse(fields = {}, request = {}) {
+  const flatFinal = fields.flatFinal ?? 90000;
+  const stepUpFinal = fields.stepUpFinal ?? flatFinal + 30000;
+  const flatInvested = fields.flatInvested ?? 60000;
+  const stepUpInvested = fields.stepUpInvested ?? Math.max(flatInvested, 75000);
+  const years = request.years ?? 5;
+  const payload = { ...fields };
+  delete payload.chartData;
+  const result = {
+    schema_version: 'sip-plan-v1',
+    monthly_rate_convention: 'EFFECTIVE_ANNUAL_CAGR',
+    annual_return_interpretation: 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN',
+    observed_market_fact: false, provider_forecast: false,
+    capital_gains_tax: null, estimated_post_tax_corpus: null,
+    flatFinal, stepUpFinal, flatInvested, stepUpInvested,
+    additionalCorpus: stepUpFinal - flatFinal,
+    additionalContributions: stepUpInvested - flatInvested,
+    additionalProjectedGrowth: stepUpFinal - flatFinal - (stepUpInvested - flatInvested),
+    additionalPercent: 33.33,
+    downsideFinal: 70000, inflationAdjustedStepUpFinal: 85000,
+    finalMonthlySip: 1500, chartData: [],
+    affordability: { status: 'NOT_ASSESSED', firstUnaffordableMonth: null },
+    emergency_buffer: { status: 'NOT_ASSESSED' },
+    ...payload,
+    assumptions: {
+      monthlyInvestment: request.monthlyInvestment ?? 1000,
+      annualReturnRate: request.annualReturnRate ?? 0.08,
+      annualStepUpRate: request.annualStepUpRate ?? 0.1,
+      years,
+      returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+    },
+  };
+  result.affordability = {
+    firstUnaffordableMonth: null, ...result.affordability,
+  };
+  result.chartData = Array.from({ length: years }, (_, index) => ({
+    year: index + 1,
+    flatSIP: index === years - 1 ? result.flatFinal : 0,
+    stepUpSIP: index === years - 1 ? result.stepUpFinal : 0,
+    flatInvested: index === years - 1 ? result.flatInvested : 0,
+    stepUpInvested: index === years - 1 ? result.stepUpInvested : 0,
+    downsideStepUp: index === years - 1 ? result.downsideFinal : 0,
+    inflationAdjustedStepUp: index === years - 1 ? result.inflationAdjustedStepUpFinal : 0,
+    monthlySip: index === years - 1 ? result.finalMonthlySip : 0,
+    monthlyBudgetSurplus: null,
+  }));
+  return result;
+}
+
 it('labels the step-up difference as extra projected corpus, not investment gain', async () => {
-  vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue({
+  vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse({
     flatFinal: 90000,
     stepUpFinal: 120000,
     flatInvested: 60000,
     stepUpInvested: 75000,
     additionalCorpus: 30000,
     additionalPercent: 33.3,
-    chartData: [],
-  });
+  }));
 
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
 
@@ -43,7 +93,7 @@ it('hides a prior projection when inputs change and ignores late results from ol
 
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(1));
-  await act(async () => initial.resolve({ flatFinal: 123000000 }));
+  await act(async () => initial.resolve(sipResponse({ flatFinal: 123000000 })));
   expect(await screen.findByText('₹12,30,00,000')).toBeInTheDocument();
 
   const numericInputs = screen.getAllByRole('spinbutton');
@@ -53,10 +103,10 @@ it('hides a prior projection when inputs change and ignores late results from ol
 
   fireEvent.change(numericInputs[1], { target: { value: '15' } });
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(3));
-  await act(async () => latest.resolve({ flatFinal: 67000000 }));
+  await act(async () => latest.resolve(sipResponse({ flatFinal: 67000000 }, { monthlyInvestment: 2000, annualStepUpRate: 0.15 })));
   expect(await screen.findByText('₹6,70,00,000')).toBeInTheDocument();
 
-  await act(async () => recalculation.resolve({ flatFinal: 89000000 }));
+  await act(async () => recalculation.resolve(sipResponse({ flatFinal: 89000000 }, { monthlyInvestment: 2000 })));
   expect(screen.getByText('₹6,70,00,000')).toBeInTheDocument();
   expect(screen.queryByText('₹8,90,00,000')).not.toBeInTheDocument();
 });
@@ -77,7 +127,7 @@ it.each([
 
 
 it('sends explicit affordability inputs and zero EMI without provider keys or market calls', async () => {
-  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue({
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse({
     flatFinal: 100000, stepUpFinal: 110000,
     flatInvested: 80000, stepUpInvested: 90000,
     additionalCorpus: 10000, additionalPercent: 10,
@@ -85,8 +135,7 @@ it('sends explicit affordability inputs and zero EMI without provider keys or ma
     finalMonthlySip: 1800, downsideFinal: 90000, inflationAdjustedStepUpFinal: 95000,
     affordability: { status: 'WITHIN_DECLARED_BUDGET' },
     emergency_buffer: { status: 'DECLARED_BUFFER_MET', requiredAmount: 126000 },
-    chartData: [],
-  });
+  }));
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
 
   fireEvent.change(screen.getByLabelText('Monthly take-home (₹)'), { target: { value: '30000' } });
@@ -98,6 +147,7 @@ it('sends explicit affordability inputs and zero EMI without provider keys or ma
     expect(last).toBeDefined();
     expect(last[0]).toBe(1000);
     expect(last[4].body).toMatchObject({
+      returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
       monthlyIncome: 30000, monthlyExpenses: 18000, monthlyEmi: 3000,
       emergencySavings: 200000, inflationRate: 0.06,
       downsideAnnualReturnRate: 0, annualIncomeGrowthRate: 0,
@@ -128,7 +178,7 @@ it('does not send a misleading downside scenario stronger than the base return',
 });
 
 it('renders exact rupee and paise amounts rather than silently abbreviating deposits', async () => {
-  vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue({
+  vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse({
     flatFinal: 123000000, stepUpFinal: 123000000,
     flatInvested: 12004.44, stepUpInvested: 12004.44,
     additionalCorpus: 0, additionalPercent: 0,
@@ -137,8 +187,7 @@ it('renders exact rupee and paise amounts rather than silently abbreviating depo
     inflationAdjustedStepUpFinal: 11500,
     affordability: { status: 'NOT_ASSESSED' },
     emergency_buffer: { status: 'NOT_ASSESSED' },
-    chartData: [],
-  });
+  }));
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
   expect((await screen.findAllByText('₹12,30,00,000')).length).toBe(2);
   expect(screen.getAllByText(/₹12,004\.44/).length).toBeGreaterThan(0);
@@ -151,4 +200,23 @@ it('does not convert a temporarily cleared downside rate to a zero-percent assum
   fireEvent.change(screen.getByLabelText('Downside annual return (%)'), { target: { value: '' } });
   await new Promise(resolve => setTimeout(resolve, 350));
   expect(calculate).not.toHaveBeenCalled();
+});
+
+it('rejects a nominal-APR or legacy response instead of displaying it as CAGR', async () => {
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(
+    sipResponse({ monthly_rate_convention: 'NOMINAL_APR_DIVIDED_BY_12' }),
+  );
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  expect(await screen.findByText(/invalid or incompatible financial projection/)).toBeInTheDocument();
+  expect(screen.queryByText('₹90,000')).not.toBeInTheDocument();
+  expect(calculate).toHaveBeenCalled();
+});
+
+it('rejects malformed affordability data and refuses to show a false affordable result', async () => {
+  vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(
+    sipResponse({ affordability: { status: 'UNKNOWN' } }),
+  );
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  expect(await screen.findByText(/invalid or incompatible financial projection/)).toBeInTheDocument();
+  expect(screen.queryByText(/Every planned instalment fits/)).not.toBeInTheDocument();
 });
