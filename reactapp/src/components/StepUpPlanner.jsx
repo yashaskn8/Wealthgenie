@@ -64,6 +64,7 @@ const StepUpPlanner = ({ profile }) => {
   const projectionBinding = JSON.stringify([
     baseSIP, stepUpPercent, years, returnRate, inflationRate, downsideRate,
     monthlyIncome, monthlyExpenses, monthlyEmi, emergencySavings, incomeGrowth, expenseGrowth,
+    retryAttempt,
   ]);
   const [projectionState, setProjectionState] = useState({ binding: null, status: 'idle', data: null, error: null });
   const projectionIsCurrent = projectionState.binding === projectionBinding;
@@ -92,7 +93,7 @@ const StepUpPlanner = ({ profile }) => {
     && validOptionalMoney(emergencySavings, 100000000);
   const projection = projectionIsCurrent && projectionState.status === 'ready' ? projectionState.data : null;
   const projectionError = projectionIsCurrent && projectionState.status === 'error' ? projectionState.error : null;
-  const isCalculating = projectionInputsValid && (!projectionIsCurrent || projectionState.status === 'pending');
+  const isCalculating = projectionInputsValid && !projectionIsCurrent;
 
   // Compute dynamic percentage fills for track bars
   const baseSipPct = Number.isFinite(safeBaseSIP) ? Math.min(100, Math.max(0, ((Math.min(100000, Math.max(1000, safeBaseSIP)) - 1000) / 99000) * 100)) : 0;
@@ -104,7 +105,6 @@ const StepUpPlanner = ({ profile }) => {
     if (!projectionInputsValid) return undefined;
     const controller = new AbortController();
     let cancelled = false;
-    setProjectionState({ binding: projectionBinding, status: 'pending', data: null, error: null });
     const timer = setTimeout(() => {
       // One immutable request snapshot validates both the backend calculation
       // and its response, including all financial-context assumptions.
