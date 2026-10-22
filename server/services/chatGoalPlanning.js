@@ -9,7 +9,7 @@ const INR = amount => 'INR ' + amount.toLocaleString('en-IN', { maximumFractionD
 
 export function isFinancialGoalPlanningQuestion(question) {
   const text = String(question || '').slice(0, 1000);
-  return GOAL_SUBJECT.test(text) && (GOAL_INTENT.test(text) || AMOUNT.test(text));
+  return GOAL_SUBJECT.test(text) && (GOAL_INTENT.test(text) || new RegExp(AMOUNT.source, 'i').test(text));
 }
 
 function extractMoney(question) {
