@@ -867,11 +867,13 @@ export async function getProjections(profileId, instruments, monthlyInvestment, 
 export async function calculateStepUpProjection(monthlyInvestment, annualReturnRate, years, annualStepUpRate, options = {}) {
   const { body = {}, ...requestOptions } = options;
   return request('POST', '/projection/step-up', {
+    ...body,
+    // Positional money and time inputs are authoritative. Optional scenario
+    // fields may extend the request but cannot silently replace its core.
     monthlyInvestment,
     annualReturnRate,
     years,
     annualStepUpRate,
-    ...body,
   }, requestOptions);
 }
 
