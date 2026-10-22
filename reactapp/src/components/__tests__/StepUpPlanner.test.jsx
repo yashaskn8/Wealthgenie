@@ -144,3 +144,11 @@ it('renders exact rupee and paise amounts rather than silently abbreviating depo
   expect(screen.getAllByText(/₹12,004\.44/).length).toBeGreaterThan(0);
   expect(screen.queryByText('₹12.3 Cr')).not.toBeInTheDocument();
 });
+
+it('does not convert a temporarily cleared downside rate to a zero-percent assumption', async () => {
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue({});
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  fireEvent.change(screen.getByLabelText('Downside annual return (%)'), { target: { value: '' } });
+  await new Promise(resolve => setTimeout(resolve, 350));
+  expect(calculate).not.toHaveBeenCalled();
+});
