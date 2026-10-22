@@ -2,7 +2,7 @@
  * Goals-only deterministic cash-flow planning. No market data, LLM, or lender authority.
  * Amounts are user-entered nominal INR and do not establish verified income.
  */
-export const GOAL_FINANCE_POLICY_VERSION = 'goal-finance-1.0.1';
+export const GOAL_FINANCE_POLICY_VERSION = 'goal-finance-1.0.2';
 export const GOAL_EXPENSE_CATEGORIES = Object.freeze([
   'housing', 'groceries', 'utilities', 'transport', 'healthcare', 'education',
   'insurance', 'existing_emi', 'subscriptions', 'taxes', 'family', 'other',
@@ -295,18 +295,33 @@ export function planGoalSpecification(spec, now = new Date()) {
   if (!Number.isFinite(targetDate.getTime()) || !Number.isFinite(asOf.getTime())) {
     throw new TypeError('Valid goal and calculation dates are required');
   }
-  const millisecondsRemaining = targetDate.getTime() - asOf.getTime();
-  if (millisecondsRemaining <= 0) return {
+  // Goals are Indian calendar-date commitments, not durations of average-sized
+  // 30.4375-day months. The old ceil(days / averageMonth) inflated a 31-day
+  // one-month horizon into TWO instalments and halved the displayed amount.
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(asOf);
+  const part = type => Number(parts.find(p => p.type === type)?.value);
+  const currentYear = part('year');
+  const currentMonth = part('month');
+  const currentDay = part('day');
+  const targetDateOnly = targetDate.toISOString().slice(0, 10);
+  const asOfDateOnly = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+  if (targetDateOnly <= asOfDateOnly) return {
     status: 'TARGET_DATE_REACHED', monthsRemaining: 0,
     futureTargetAmount: targetAmount, monthlyNeededWithoutReturns: null,
     remainingGap: rupees(Math.max(0, targetAmount - currentSavings)),
     assumptionSource: 'USER_DECLARED', forecast: false,
     policyVersion: GOAL_FINANCE_POLICY_VERSION,
   };
-  const monthsRemaining = Math.max(1, Math.ceil(millisecondsRemaining / (365.25 * 86400 * 1000 / 12)));
+  const targetYear = Number(targetDateOnly.slice(0, 4));
+  const targetMonth = Number(targetDateOnly.slice(5, 7));
+  const targetDay = Number(targetDateOnly.slice(8, 10));
+  // Cash contributions are modeled at monthly intervals; a partial final
+  // calendar month is conservatively counted as another instalment.
+  const monthsRemaining = Math.max(1, (targetYear - currentYear) * 12
+    + targetMonth - currentMonth + (targetDay > currentDay ? 1 : 0));
   if (monthsRemaining > 600) throw new RangeError('Goal date beyond 50-year planning horizon');
-  // Use the same modeled month count for cost inflation and cash funding,
-  // preventing annual targets from drifting due to 365 vs 365.25 days.
   const modeledYears = monthsRemaining / 12;
   const futureTargetAmount = rupees(targetAmount * Math.pow(1 + inflation / 100, modeledYears));
   if (futureTargetAmount > MAX_RUPEES) {
