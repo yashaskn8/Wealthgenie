@@ -226,7 +226,9 @@ function deterministicCandidate(packet, question = '') {
       });
     }
     if (monthly?.value?.monthlyRequiredAmount) {
-      const text = 'Funding-only baseline: INR '
+      const text = (monthly.value.scenario === 'ZERO_START_CONDITIONAL'
+        ? 'If starting with no savings earmarked for this goal, ' : '')
+        + 'Funding-only baseline: INR '
         + monthly.value.monthlyRequiredAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
         + ' per month [' + monthly.id + '].';
       claims.push({ text, evidenceIds: [monthly.id] });
@@ -239,6 +241,11 @@ function deterministicCandidate(packet, question = '') {
     }
     if (capacity) claims.push({ text: capacity.displayValue + ' [' + capacity.id + '].',
       evidenceIds: [capacity.id] });
+    const capacityCheck = packet.entries.find(item => item.id === 'E_GOAL_CAPACITY_CHECK');
+    if (capacityCheck) claims.push({
+      text: capacityCheck.displayValue + ' [' + capacityCheck.id + '].',
+      evidenceIds: [capacityCheck.id],
+    });
     claims.push({ text: guidance.displayValue + ' [' + guidance.id + '].',
       evidenceIds: [guidance.id] });
     return {
@@ -899,10 +906,10 @@ const GOVERNMENT_QUERY_TO_PARENT = Object.freeze([
   [/post office time deposit|\bpo td\b/i, 'po_td_1yr'],
 ]);
 
-export async function buildChatEvidencePacket({ question, profile, recommendation, userId = null }, dependencies = {}) {
+export async function buildChatEvidencePacket({ question, profile, recommendation, userId = null, priorTurns = [] }, dependencies = {}) {
   // General education comes from an allowlisted, reviewed reference corpus.
   // It never supplies user-specific allocations, tax rules or product rates.
-  const goalEvidence = retrieveChatGoalPlanningEvidence(question);
+  const goalEvidence = retrieveChatGoalPlanningEvidence(question, priorTurns);
   const entries = [...goalEvidence, ...retrieveChatEducationalEvidence(question)];
   const unavailableFacts = [];
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
