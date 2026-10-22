@@ -142,18 +142,37 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
     displayValue: 'Goal target: ' + INR(target),
     dataClass: 'USER_INPUT', source: null, observedAt: null, freshness: null, authority: 'USER_INPUT',
   });
-  if (target !== null && saved !== null && horizon !== null && saved < target) {
-    const baseline = Math.ceil(((target - saved) / horizon) * 100) / 100;
+  if (target !== null && horizon !== null && (saved === null || saved < target)) {
+    const scenarioSavings = saved === null ? 0 : saved;
+    const scenario = saved === null ? 'ZERO_START_CONDITIONAL' : 'DECLARED_SAVINGS';
+    const baseline = Math.ceil(((target - scenarioSavings) * 100) / horizon) / 100;
     if (Number.isFinite(baseline) && baseline > 0) entries.push({
       id: 'E_GOAL_MONTHLY_BASELINE', kind: 'GOAL_CALCULATION',
       value: { monthlyRequiredAmount: baseline, targetAmount: target,
-        earmarkedSavingsAmount: saved, horizonMonths: horizon, assumedGrowthRate: null,
+        earmarkedSavingsAmount: scenarioSavings, scenario,
+        horizonMonths: horizon, assumedGrowthRate: null,
         inflationRate: null, returnForecast: false, sourceScope: scope },
       displayValue: 'Funding-only baseline: ' + INR(baseline)
-        + ' per month using the stated target and earmarked funds over the stated horizon, with no investment growth or inflation assumed',
+        + ' per month ' + (scenario === 'ZERO_START_CONDITIONAL'
+          ? 'IF starting with no earmarked savings' : 'after deducting the savings stated for this goal')
+        + '; no investment returns, inflation or tax effects assumed',
       dataClass: 'DETERMINISTIC_NO_RETURN_ILLUSTRATION',
       source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
     });
+    if (monthlyCapacity !== null && saved !== null) {
+      const fundableFromContributions = monthlyCapacity >= baseline;
+      entries.push({
+        id: 'E_GOAL_CAPACITY_CHECK', kind: 'GOAL_CAPACITY',
+        value: { monthlyCapacityAmount: monthlyCapacity, monthlyRequiredAmount: baseline,
+          goalIsContributionFundable: fundableFromContributions,
+          returnForecast: false, sourceScope: scope },
+        displayValue: fundableFromContributions
+          ? 'Your stated monthly savings capacity covers this contribution-only baseline; this does not predict future investment value'
+          : 'At your stated monthly capacity this target is not fundable from contributions alone before the deadline; review the target, timeline or affordable contributions rather than assuming higher returns',
+        dataClass: 'DETERMINISTIC_GOAL_CAPACITY_CHECK',
+        source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
+      });
+    }
   }
   return entries;
 }
