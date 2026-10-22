@@ -114,7 +114,7 @@ export default function GenieProofEntry() {
             }}
           />
           <p id="genieproof-privacy" style={{ fontSize: '.9rem', color: '#cbd5e1' }}>
-            This check does not save your statement or create an account record. Avoid entering PAN,
+            GenieProof does not create a saved claim or account record in this check. Avoid entering PAN,
             Aadhaar, account numbers or other personal details.
           </p>
           <p id="genieproof-size" style={{ color: tooLarge ? '#fca5a5' : '#94a3b8', fontSize: '.85rem' }}>
