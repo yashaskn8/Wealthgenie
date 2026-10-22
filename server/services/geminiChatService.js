@@ -22,6 +22,11 @@ import {
   sanitizeExternalQuestion,
 } from './groundedExplanationService.js';
 import { resolveCurrentRecommendationState } from './recommendationState.js';
+import {
+  generateGeneralChatAnswer,
+  generalChatTokenUpperBound,
+  isGeneralChatQuestion,
+} from './generalChatService.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -268,19 +273,28 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
       });
     }
-    const evidencePacket = await buildChatEvidencePacket({
+    // General questions use a segregated unsourced LLM path. Personal finance
+    // always uses the evidence-grounded path, including unknown finance topics.
+    const generalMode = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
+      && !promptInjectionDetected
+      && isGeneralChatQuestion(securityContext.sanitizedMessage);
+    const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
       question: securityContext.sanitizedMessage,
       profile: llmProfile,
       recommendation,
       userId,
     });
     if (leaseFailure) throw leaseFailure;
-    const priorTurns = buildTrustedPriorTurns(claim.conversation, binding);
-    const providerBudgetUpperBound = getGroundedExplanationTokenUpperBound({
-      question: securityContext.sanitizedMessage,
-      evidencePacket,
-      priorTurns,
-    });
+    // Never pass previously generated financial explanations or user profile
+    // context into the general model; general chat starts without memory.
+    const priorTurns = generalMode ? [] : buildTrustedPriorTurns(claim.conversation, binding);
+    const providerBudgetUpperBound = generalMode
+      ? generalChatTokenUpperBound(securityContext.sanitizedMessage)
+      : getGroundedExplanationTokenUpperBound({
+        question: securityContext.sanitizedMessage,
+        evidencePacket,
+        priorTurns,
+      });
     const alreadyUsed = Number(claim.conversation.cumulative_tokens || 0)
       + Number(claim.conversation.reserved_tokens || 0);
     const remainingBudget = Math.max(0, SESSION_CUMULATIVE_TOKEN_CAP - alreadyUsed);
@@ -288,8 +302,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       && await sessionStore.reserveBudget(claim, providerBudgetUpperBound);
     const startedAt = Date.now();
     let initialProviderReservationAvailable = canReserveProvider;
-    const explanation = await generateGroundedExplanation(
-      { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
+    const explanation = await (generalMode ? generateGeneralChatAnswer : generateGroundedExplanation)(
+      generalMode
+        ? { question: securityContext.sanitizedMessage }
+        : { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
       {
         ...groundedExplanationDependencies,
         ...(canReserveProvider ? {
@@ -340,7 +356,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const auditMetadata = {
       provider: explanation.provider,
       model: explanation.model,
-      grounded_on_profile: true,
+      grounded_on_profile: !generalMode,
       grounding_version: explanation.groundingVersion,
       prompt_version: explanation.promptVersion,
       evidence_hash: explanation.evidenceHash,
@@ -358,7 +374,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const userMessage = {
       role: 'user',
       content: securityContext.sanitizedMessage,
-      metadata: { grounded_on_profile: true, prompt_injection_detected: promptInjectionDetected },
+      metadata: { grounded_on_profile: !generalMode, prompt_injection_detected: promptInjectionDetected },
     };
     const modelMessage = { role: 'model', content: explanation.text, metadata: auditMetadata };
     const actualProviderTokens = explanation.cached
@@ -373,7 +389,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       response: explanation.text,
       session_id: sessionId,
       latency_ms: latencyMs,
-      grounded: true,
+      grounded: !generalMode,
       provider: explanation.provider,
       model: explanation.model,
       prompt_version: explanation.promptVersion,
