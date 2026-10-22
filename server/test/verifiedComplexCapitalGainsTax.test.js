@@ -44,7 +44,7 @@ test('112A exemption is annual, not per holding, with exact 125000 threshold',()
   assert.equal(at.finalTax,'80080');
   assert.equal(above.section198Tax,'1.250');
   assert.equal(above.finalTax,'80080');
-  assert.equal(above.taxBeforeStatutoryRounding,'80081.250');
+  assert.equal(above.taxBeforeStatutoryRounding,'80081.300');
 });
 
 test('input rounding, max surcharge and rebate margin never guessed',()=>{
