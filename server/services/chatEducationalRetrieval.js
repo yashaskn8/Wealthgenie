@@ -13,9 +13,14 @@ const EDUCATIONAL_DOCUMENTS = Object.freeze([
   Object.freeze({
     id: 'E_EDU_REBALANCING',
     title: 'Rebalancing',
-    url: 'https://www.investor.gov/introduction-investing/investing-basics/glossary/rebalancing',
+    url: 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation',
     intent: /\b(?:rebalanc(?:e|ing)|re-?balanc(?:e|ing)|portfolio\s+balanc(?:e|ing)|balanc(?:e|ing)\s+(?:my\s+|a\s+|the\s+)?portfolio|asset\s+allocation\s+drift)\b/i,
-    explanation: 'Portfolio rebalancing means bringing the mix of investments back toward a chosen target when market movements change their relative weights. It is a way to manage allocation drift, not a guarantee of profits.',
+    explanation: [
+      'Portfolio rebalancing brings investments back toward a chosen asset mix after market movements shift their relative weights.',
+      'Why it matters: if one asset class grows faster, it can become a larger part of the portfolio and change the risk level you originally chose.',
+      'For example, a portfolio that started with shares and bonds can become more share-heavy after shares rise. Restoring the target mix can involve adding money to other asset classes or selling part of the overweight holding.',
+      'How investors review it: some check at regular intervals; others check when the mix moves beyond a preset threshold. Rebalancing manages allocation drift, but it does not guarantee a profit or prevent losses.',
+    ].join('\n\n'),
   }),
   Object.freeze({
     id: 'E_EDU_DIVERSIFICATION',
@@ -39,11 +44,24 @@ const EDUCATIONAL_DOCUMENTS = Object.freeze([
     explanation: 'Compound growth happens when invested money earns returns and those returns also begin earning returns when they remain invested. Actual market returns vary, and compounding does not guarantee a positive outcome.',
   }),
   Object.freeze({
-    id: 'E_EDU_INVESTING_BASICS',
-    title: 'Introduction to Investing',
-    url: 'https://www.investor.gov/introduction-investing',
+    id: 'E_EDU_INVESTING_READINESS',
+    title: 'Investing: Let’s Understand',
+    url: 'https://investor.sebi.gov.in/why_one_should_invest.html',
+    provider: 'SEBI_INVESTOR',
     intent: /\b(?:start\s+(?:my\s+)?first\s+investment|how\s+(?:do|can)\s+i\s+start\s+investing|investing\s+for\s+beginners|what\s+is\s+investing)\b/i,
-    explanation: 'Investing means committing money to assets with the possibility of future returns, while accepting the risk of loss. Before choosing investments, distinguish the financial goal, time horizon, risk tolerance and costs. General education cannot identify a suitable product for a particular person.',
+    explanation: 'Before investing, make sure everyday expenses are covered and keep an emergency fund for unexpected events. Once that foundation is in place, small regular contributions can be a way to start; the amount and product still depend on your circumstances.',
+  }),
+  Object.freeze({
+    id: 'E_EDU_INVESTING_BASICS',
+    title: 'Factors to Consider Before Investing',
+    url: 'https://investor.sebi.gov.in/investment-thingsbeforeinv.html',
+    provider: 'SEBI_INVESTOR',
+    intent: /\b(?:start\s+(?:my\s+)?first\s+investment|how\s+(?:do|can)\s+i\s+start\s+investing|investing\s+for\s+beginners|what\s+is\s+investing)\b/i,
+    explanation: [
+      'A practical first step is to name one financial goal and when you will need the money. That time horizon helps narrow the kinds of investments that may fit.',
+      'Next, assess how much fluctuation or loss you can tolerate. Learn the basic options, then compare their safety, liquidity and potential return before choosing anything.',
+      'Choose only an option that fits your goal and risk profile, and review it as your circumstances change. No investment return is guaranteed, and past performance does not promise a future result.',
+    ].join('\n\n'),
   }),
   Object.freeze({
     id: 'E_EDU_FEES',
@@ -73,7 +91,7 @@ export function retrieveChatEducationalEvidence(question, { maxEntries = 2 } = {
       displayValue: doc.explanation,
       dataClass: 'CURATED_PUBLIC_EDUCATION',
       source: {
-        provider: 'US_SEC_INVESTOR_GOV',
+        provider: doc.provider || 'US_SEC_INVESTOR_GOV',
         url: doc.url,
         publicationDate: null,
         instrumentId: null,

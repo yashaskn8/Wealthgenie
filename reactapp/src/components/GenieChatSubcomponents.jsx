@@ -32,7 +32,7 @@ export function CitationsList({ citations }) {
               <div key={i} className="citation-item" style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '0.8rem' }}>
                 <div className="citation-title" style={{ fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>
-                    <span className="citation-idx" style={{ color: '#38bdf8', marginRight: '4px' }}>[{c.citation_id || i + 1}]</span> 
+                    <span className="citation-idx" style={{ color: '#38bdf8', marginRight: '4px' }}>[{i + 1}]</span>
                     {c.source_url ? (
                       <a href={c.source_url} target="_blank" rel="noreferrer">{c.document_title || 'Authoritative evidence'}</a>
                     ) : (c.document_title || 'Authoritative evidence')}
@@ -176,11 +176,24 @@ function renderInline(line) {
   });
 }
 
+function formatEvidenceMarkers(text, citations, hideDisclosure = false) {
+  // The backend retains the canonical disclosure in signed evidence and chat
+  // history; the chat panel displays it once in its persistent footer.
+  const notice = 'For informational purposes only. Not registered investment advice under SEBI (IA) Regulations, 2013. Consult a SEBI-registered adviser before investing. Mutual fund investments are subject to market risks. [E_REGULATORY_NOTICE]';
+  const displayed = hideDisclosure
+    ? text.replaceAll(notice, '').trim() || 'No source-backed answer is available for this question.'
+    : text;
+  if (!Array.isArray(citations) || citations.length === 0) return displayed;
+  const sourceNumbers = new Map(citations.map((citation, index) => [citation.citation_id, index + 1]));
+  return displayed.replace(/\[(E_[A-Z0-9_:-]+)\]/g, (marker, id) =>
+    sourceNumbers.has(id) ? `[${sourceNumbers.get(id)}]` : marker);
+}
+
 // ── Message Content with Action Cards ─────────────────────────────
-export function MessageContent({ content, onAction }) {
+export function MessageContent({ content, citations, onAction, hideDisclosure = false }) {
   if (!content) return null;
   const { cleanText, cards } = parseActionCards(content);
-  const lines = cleanText.split('\n');
+  const lines = formatEvidenceMarkers(cleanText, citations, hideDisclosure).split('\n');
   return (
     <span className="genie-message-content">
       {lines.map((line, li) => {
@@ -196,6 +209,9 @@ export function MessageContent({ content, onAction }) {
 export const MessageBubble = ({ msg, onAction, isLatest }) => {
   const [copied, setCopied] = useState(false);
   const isAssistant = msg.role === 'assistant';
+  const displayCitations = isAssistant
+    ? msg.citations?.filter(citation => citation.citation_id !== 'E_REGULATORY_NOTICE')
+    : null;
   const shouldStream = isAssistant && isLatest && !msg._streamed && !streamedMessages.has(msg);
   const { displayed, done } = useStreamedText(shouldStream ? msg.content : null, 6);
   const content = shouldStream ? (done ? msg.content : displayed) : msg.content;
@@ -208,7 +224,7 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
 
   const handleCopy = () => {
     const { cleanText } = parseActionCards(msg.content);
-    navigator.clipboard.writeText(cleanText);
+    navigator.clipboard.writeText(formatEvidenceMarkers(cleanText, displayCitations, isAssistant));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -217,12 +233,15 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
     <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble--user' : 'chat-bubble--genie'}`}>
       {isAssistant && <div className="bubble-avatar"><span className="ba-letter">G</span></div>}
       <div className="bubble-body">
+        {isAssistant && msg.fallback && msg.provider === 'DETERMINISTIC_TEMPLATE' && (
+          <div className="chat-fallback-note">Genie used a source-backed answer because a model answer was unavailable or could not be verified.</div>
+        )}
         <div className="bubble-text">
-          <MessageContent content={content} onAction={onAction} />
+          <MessageContent content={content} citations={displayCitations} onAction={onAction} hideDisclosure={isAssistant} />
           {shouldStream && !done && <span className="stream-cursor">|</span>}
         </div>
-        {isAssistant && msg.citations && msg.citations.length > 0 && (
-          <CitationsList citations={msg.citations} />
+        {isAssistant && displayCitations?.length > 0 && (
+          <CitationsList citations={displayCitations} />
         )}
         {isAssistant && msg.grounded && (
           <details className="grounding-details" style={{ marginTop: 6, fontSize: '0.72rem', color: '#94a3b8' }}>
@@ -233,6 +252,9 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
             </div>
             {msg.unavailable_facts?.length > 0 && (
               <div style={{ marginTop: 3 }}>Unavailable: {msg.unavailable_facts.join(', ')}</div>
+            )}
+            {msg.fallback_reason_codes?.length > 0 && (
+              <div style={{ marginTop: 3 }}>Fallback diagnostics: {msg.fallback_reason_codes.join(', ')}</div>
             )}
           </details>
         )}

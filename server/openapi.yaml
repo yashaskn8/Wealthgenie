@@ -2711,7 +2711,7 @@ components:
     ChatRequest: { type: object, additionalProperties: false, required: [message], properties: { message: { type: string, minLength: 1, maxLength: 1000 }, session_id: { type: string, maxLength: 100 } } }
     ChatResponse:
       type: object
-      required: [version, response, session_id, latency_ms, grounded, provider, evidence_ids_used, unavailable_facts, validation_status, fallback, messages_this_hour, rate_limit_remaining, rate_limit_reset_at, citations, action_cards, idempotent_replay]
+      required: [version, response, session_id, latency_ms, grounded, provider, evidence_ids_used, unavailable_facts, validation_status, fallback, fallback_reason_codes, messages_this_hour, rate_limit_remaining, rate_limit_reset_at, citations, action_cards, idempotent_replay]
       properties:
         version: { type: string }
         response: { type: string }
@@ -2726,6 +2726,7 @@ components:
         unavailable_facts: { type: array, items: { type: string } }
         validation_status: { type: [string, 'null'] }
         fallback: { type: boolean }
+        fallback_reason_codes: { type: array, items: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,79}$' }, description: Sanitized machine-readable diagnostics only; empty when no fallback occurred. }
         messages_this_hour: { type: integer, minimum: 0 }
         rate_limit_remaining: { type: integer, minimum: 0 }
         rate_limit_reset_at: { type: [string, 'null'], format: date-time }
