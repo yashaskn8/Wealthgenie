@@ -8,6 +8,10 @@ import { isFinancialGoalPlanningQuestion } from './chatGoalPlanning.js';
 
 export const GENERAL_CHAT_PROMPT_VERSION = 'general-chat-v1';
 const FINANCIAL_QUERY = /\b(?:invest(?:ing|ment|or)?s?|mutual\s*funds?|stocks?|shares?|equity|etfs?|securities|bonds?|deposits?|fixed[ -]?deposits?|fds?|pensions?|ppf|nps|elss|sip|nav|portfolio|asset\s*allocation|rebalanc(?:e|ing)|market|nifty|sensex|rbi|sebi|income[ -]?tax|tax(?:es|ation|able)?|deductions?|ltcg|stcg|capital\s*gains?|interest\s*rates?|inflation|returns?|profit|wealth|savings?|interest|compound(?:ing)?|yield|liquidity|suitability|risk|retirement|budget(?:ing)?|salary|emi|loans?|debt|credit|insurance|financial|bank(?:s|ing)?|trading|commodities|crypto|bitcoin|my\s*(?:plan|profile|goal|risk|allocation|recommendation)|where\s+to\s+invest|what\s+should\s+i\s+buy)\b/i;
+// Currency and savings requests must not bypass evidence validation merely
+// because the user omitted the word "investment" or the goal subject.
+const FINANCIAL_MONEY = /(?:₹\s*[-+]?\d|\b(?:inr|rs\.?)\s*[-+]?\d|\b\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac)\b)/i;
+const FINANCIAL_SAVING_INTENT = /\b(?:can\s+i|should\s+i|need\s+to|want\s+to|plan\s+to|how\s+much\s+can\s+i)\s+(?:\w+\s+){0,3}(?:save|afford|fund|contribute)\b/i;
 const GROUNDED_FINANCIAL_CONTEXT = /\b(?:my|our)\s+(?:money|investments?|holdings?|finances?|budget|expenses?|future|retirement|home\s*purchase|age|name|profile|email|phone|address|income|dependents?|lump[ -]?sum|horizon|emergency\s*fund|account|transaction|suitability|financial\s*details)\b|\b(?:how\s+old\s+am\s+i|what\s+do\s+you\s+know\s+about\s+me)\b/i;
 const PROVIDER_FAILURES = new Set([
   'PROVIDER_TIMEOUT', 'PROVIDER_SERVER_ERROR', 'PROVIDER_NETWORK_ERROR',
@@ -26,7 +30,8 @@ const SYSTEM_PROMPT = [
 
 export function isGeneralChatQuestion(question) {
   const text = String(question || '').slice(0, 1000).trim();
-  return text.length > 0 && !FINANCIAL_QUERY.test(text) && !GROUNDED_FINANCIAL_CONTEXT.test(text)
+  return text.length > 0 && !FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
+    && !FINANCIAL_SAVING_INTENT.test(text) && !GROUNDED_FINANCIAL_CONTEXT.test(text)
     && !isFinancialGoalPlanningQuestion(text);
 }
 
