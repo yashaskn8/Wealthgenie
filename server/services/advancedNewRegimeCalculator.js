@@ -21,6 +21,7 @@ const POLICY_VERSION = 'advanced-new-regime-TY2026-27-v1';
 const SOURCES = Object.freeze([
   'https://www.incometaxindia.gov.in/w/section-202-78',
   'https://www.incometaxindia.gov.in/w/section-124-94',
+  'https://www.incometaxindia.gov.in/w/section-122-96',
   'https://www.incometaxindia.gov.in/w/section-156-84',
   'https://www.incometaxindia.gov.in/w/section-194-78',
   'https://www.incometaxindia.gov.in/w/section-516-3',
@@ -108,7 +109,14 @@ export function calculateAdvancedNewRegime(input) {
   const npsCap = eligibleSalary * 14n / 100n;
   const allowedNps = min(nps, npsCap);
   const disallowedNps = nps - allowedNps;
-  const rawOrdinary = max(0n, primary + other - standard - allowedNps);
+  // Section 122(2) limits Chapter VIII deductions to gross total income.
+  // For this qualified path, special-rate winnings cannot be substituted for
+  // the ordinary-income base; do not silently overstate the NPS deduction.
+  const ordinaryBeforeNps = primary + other - standard;
+  if (allowedNps > ordinaryBeforeNps) {
+    return unavailable(['NPS_DEDUCTION_EXCEEDS_QUALIFIED_ORDINARY_INCOME']);
+  }
+  const rawOrdinary = ordinaryBeforeNps - allowedNps;
   const rawTotal = rawOrdinary + lottery;
   if (rawTotal > MAX_PAISE) throw invalid('INVALID_MONEY', 'Computed total exceeds supported maximum');
 
