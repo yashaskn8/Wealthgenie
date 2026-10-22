@@ -89,6 +89,26 @@ describe('RecommendationDashboard authority boundary', () => {
     expect(screen.queryByText('AI RECOMMENDED ACTION')).toBeNull();
   });
 
+  it('shows a truthful 250-entry qualification breakdown without recommending discovery archetypes', () => {
+    render(<RecommendationDashboard
+      userProfile={profile}
+      recommendations={[{ id:'fd',name:'Server Deposit',cat:'Debt',allocation_pct:100,monthly_allocation:20000 }]}
+      recommendationMeta={{
+        generation_candidate_counts: {
+          catalog_total:250,legacy_catalog:155,discovery_qualification_blocked:95,
+          legacy_suitability_excluded:105,eligible:50,eligible_not_selected:40,
+          selected:10,excluded:200,
+        },
+        excluded_due_to_eligibility:[
+          {id:'unverified-1',reasonCode:'ACTUAL_PRODUCT_QUALIFICATION_REQUIRED'},
+        ],
+      }}
+    />);
+    expect(screen.getByText(/Reference catalog assessed at generation: 250 entries/)).toBeVisible();
+    expect(screen.getByText(/95 discovery families still need a qualified actual product/)).toBeVisible();
+    expect(screen.getByText(/selected \(up to 10\)/)).toBeVisible();
+  });
+
   it('does not infer product terms from names or IDs for emergency-fund recommendations', () => {
     render(<RecommendationDashboard
       userProfile={{ ...profile, investment_goals: ['Emergency Fund'] }}

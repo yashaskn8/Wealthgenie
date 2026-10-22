@@ -66,7 +66,7 @@ function fixture() {
     instruments: generationInstruments,
     modelVersion: 'test-model-1',
     recommendationGeneration: 1,
-    recommendationPolicyVersion: 'suitability-freeze-1.1.0',
+    recommendationPolicyVersion: 'suitability-freeze-1.2.0',
     regulatoryRuleVersion: 'tax-policy-FY2026-27-v2',
     profileVersion: 1,
     profileInputHash: buildRecommendationProfileHash(profile, { modelVersion: 'test-model-1' }),

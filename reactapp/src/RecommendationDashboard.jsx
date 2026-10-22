@@ -502,7 +502,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             <Info size={16} aria-hidden="true" />
             <p>
               <strong>{displayedCount} personalized recommendations selected</strong>
-              {excludedCount > 0 && <> · <strong>{excludedCount}</strong> legacy catalog instruments excluded by suitability, eligibility, horizon, or unavailable classifications.</>}
+              {excludedCount > 0 && <> · <strong>{excludedCount}</strong> reference entries excluded by suitability or product qualification.</>}
               {' '}This shortlist is not the complete investment universe.
               {isEmergencyFundGoal && ' This emergency-only plan requires checking actual access and withdrawal terms.'}
             </p>
@@ -511,7 +511,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
             <div className="wg-plan-eligibility" aria-label="Generation candidate breakdown">
               <Info size={16} aria-hidden="true" />
               <div>
-                <p>At recommendation generation: {generationCounts.legacy_catalog} legacy candidate families; {generationCounts.eligible} eligible; {generationCounts.excluded} excluded; {generationCounts.eligible_not_selected} eligible but not selected; {generationCounts.selected} selected. These counts exclude PostgreSQL discovery-only extensions and do not represent later manual allocation revisions.</p>
+                <p>Reference catalog assessed at generation: {generationCounts.catalog_total ?? generationCounts.legacy_catalog} entries; {generationCounts.discovery_qualification_blocked ?? 0} discovery families still need a qualified actual product; {generationCounts.legacy_suitability_excluded ?? generationCounts.excluded} excluded by suitability; {generationCounts.eligible} passed candidate checks; {generationCounts.eligible_not_selected} eligible but not shortlisted; {generationCounts.selected} selected (up to 10). These generation counts do not describe later manual allocation revisions.</p>
                 {generationAlternatives.length > 0 && <details>
                   <summary style={{ cursor: 'pointer' }}>Inspect {generationAlternatives.length} eligible alternatives and deterministic scores</summary>
                   <ol style={{ maxHeight: 220, overflowY: 'auto', marginTop: 8 }}>
@@ -953,7 +953,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                 <tbody>
                   {isLoading ? (
                     /* Enhanced skeleton loader */
-                    Array(8).fill(0).map((_, i) => (
+                    Array(10).fill(0).map((_, i) => (
                       <tr key={i}>
                         <td colSpan="8" style={{ padding: '12px' }}>
                           <div style={{ display: 'flex', gap: 16 }}>

@@ -79,7 +79,7 @@ async function createFinancialFixture() {
     profileVersion: storedProfile.version,
     profileInputHash,
     recommendationGeneration: 1,
-    recommendationPolicyVersion: 'suitability-freeze-1.1.0',
+    recommendationPolicyVersion: 'suitability-freeze-1.2.0',
     returnAssumptionHash: PROJECTION_ASSUMPTION_POLICY_HASH,
     responseSnapshot: {
       profileId: String(storedProfile._id),

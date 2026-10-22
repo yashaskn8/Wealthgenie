@@ -108,7 +108,7 @@ async function createFixture({ userId = userA, stale = false, regulatoryRuleVers
     profileVersion: storedProfile.version ?? 1,
     profileInputHash: stale ? 'b'.repeat(64) : profileInputHash,
     recommendationGeneration: 1,
-    recommendationPolicyVersion: 'suitability-freeze-1.1.0',
+    recommendationPolicyVersion: 'suitability-freeze-1.2.0',
     returnAssumptionHash: PROJECTION_ASSUMPTION_POLICY_HASH,
     responseSnapshot,
   });
@@ -225,7 +225,7 @@ async function createAdvisoryLifecycleFixture() {
     profileVersion: storedProfile.version ?? 1,
     profileInputHash,
     recommendationGeneration: 1,
-    recommendationPolicyVersion: 'suitability-freeze-1.1.0',
+    recommendationPolicyVersion: 'suitability-freeze-1.2.0',
     returnAssumptionHash: PROJECTION_ASSUMPTION_POLICY_HASH,
     responseSnapshot,
   });

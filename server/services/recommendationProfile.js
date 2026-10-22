@@ -47,7 +47,7 @@ export const SUPPORTED_INVESTMENT_GOALS = Object.freeze([
 ]);
 
 export const FINANCIAL_PROFILE_SCHEMA_VERSION = 'financial-profile-1.1.0';
-export const RECOMMENDATION_POLICY_VERSION = 'suitability-freeze-1.1.0';
+export const RECOMMENDATION_POLICY_VERSION = 'suitability-freeze-1.2.0';
 
 const GOALS = new Set(SUPPORTED_INVESTMENT_GOALS);
 const RISKS = new Set(['Conservative', 'Moderate', 'Aggressive']);

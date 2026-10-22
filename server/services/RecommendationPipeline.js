@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { investmentDatabase, CONCENTRATION_CAPS } from '../data/investmentDatabase.js';
 import {
   INSTRUMENT_PARAMS,
@@ -50,8 +51,8 @@ function reportPipelineTiming(onStageTiming, stage, startedAt, status = 'COMPLET
 }
 
 export const PIPELINE_CONFIG = Object.freeze({
-  version: 'recommendation-pipeline-4.0.0',
-  topN: 8,
+  version: 'recommendation-pipeline-4.1.0',
+  topN: 10,
   scoreWeights: Object.freeze({
     expectedReturn: 0.25,
     riskFit: 0.25,
@@ -66,6 +67,44 @@ export const INSTRUMENT_KEY_MAP = Object.freeze({
   ppf: 'PPF', scss: 'SCSS', sukanya: 'SSY', ssy: 'SSY', rbi_bonds: 'RBI_Bond',
   rbi_retail_direct_gilt: 'G-Sec', g_sec: 'G-Sec', sgb: 'SGB', nps: 'NPS',
 });
+
+// Screen every extension. Its category/index source does not establish the
+// existence, identity, availability, suitability or return of an actual product.
+const extendedManifest = JSON.parse(readFileSync(
+  new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
+));
+if (!Array.isArray(extendedManifest.entries) || extendedManifest.entries.length !== 95) {
+  throw new Error('RECOMMENDATION_DISCOVERY_MANIFEST_INCOMPLETE');
+}
+const seenUniverseIds = new Set(investmentDatabase.map(entry => entry.id));
+if (seenUniverseIds.size !== investmentDatabase.length) {
+  throw new Error('RECOMMENDATION_LEGACY_CATALOG_DUPLICATE_ID');
+}
+const discoveryQualificationExclusions = Object.freeze(extendedManifest.entries.map(entry => {
+  if (typeof entry.id !== 'string' || !/^[a-zA-Z0-9:_-]{1,160}$/.test(entry.id)
+      || seenUniverseIds.has(entry.id)
+      || typeof entry.name !== 'string' || !entry.name.trim()) {
+    throw new Error('RECOMMENDATION_DISCOVERY_CATALOG_ID_INVALID');
+  }
+  seenUniverseIds.add(entry.id);
+  if (entry.recordKind !== 'ARCHETYPE' || entry.recommendationEligible !== false
+      || entry.isActualPurchasableProduct !== false || entry.availability !== 'UNVERIFIED'
+      || entry.marketDataStatus !== 'UNAVAILABLE' || entry.postTaxStatus !== 'UNAVAILABLE'
+      || entry.verificationScope !== 'REGULATORY_CATEGORY_OR_INDEX_ONLY') {
+    // To qualify this category, register a real evidence-backed product and
+    // explicitly implement its suitability/scoring adapter. Flags alone never
+    // promote reference families into investable instruments.
+    throw new Error('RECOMMENDATION_DISCOVERY_PRODUCT_UNREVIEWED');
+  }
+  return Object.freeze({
+    id: entry.id,
+    name: entry.name,
+    reasonCode: 'ACTUAL_PRODUCT_QUALIFICATION_REQUIRED',
+  });
+}));
+if (seenUniverseIds.size !== 250) {
+  throw new Error('RECOMMENDATION_DISCOVERY_UNIVERSE_INCOMPLETE');
+}
 
 const RISK_LABEL_SCORE = Object.freeze({
   'Very Low': 1, Low: 1, 'Low-Medium': 2, 'Medium-Low': 2,
@@ -482,11 +521,18 @@ export function runPipeline(profileInput, mlResult = {}, options = {}) {
   }
   const selectedIds = new Set(instruments.map(instrument => instrument.id));
   const eligibleNotSelected = ranked.filter(row => !selectedIds.has(row.instrument.id));
-  riskReconciliation.excluded_due_to_eligibility = excluded;
+  riskReconciliation.excluded_due_to_eligibility = [
+    ...excluded, ...discoveryQualificationExclusions,
+  ];
   riskReconciliation.candidate_counts = {
+    catalog_total: seenUniverseIds.size,
+    assessed_for_qualification: seenUniverseIds.size,
+    legacy_suitability_assessed: investmentDatabase.length,
+    discovery_qualification_blocked: discoveryQualificationExclusions.length,
+    legacy_suitability_excluded: excluded.length,
     legacy_catalog: investmentDatabase.length,
     eligible: eligible.length,
-    excluded: excluded.length,
+    excluded: excluded.length + discoveryQualificationExclusions.length,
     ranked: ranked.length,
     selected: instruments.length,
     eligible_not_selected: eligibleNotSelected.length,

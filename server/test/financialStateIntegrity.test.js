@@ -49,7 +49,7 @@ function state() {
     _id: '64b000000000000000000002', userId: '64b000000000000000000003', profileId: '64b000000000000000000004',
     modelVersion: 'model-1.0.0', regulatoryRuleVersion: 'tax-policy-FY2026-27-v2',
     profileVersion: 1,
-    recommendationPolicyVersion: 'suitability-freeze-1.1.0',
+    recommendationPolicyVersion: 'suitability-freeze-1.2.0',
     profileInputHash: buildRecommendationProfileHash(profile, { modelVersion: 'model-1.0.0' }),
   };
   const allocationRevision = {

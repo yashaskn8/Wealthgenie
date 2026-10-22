@@ -1810,7 +1810,27 @@ components:
         financial_profile_schema_version: { type: string }
         return_basis: { type: string, const: PRE_TAX_NOMINAL }
         final_risk_tier: { type: string }
-        excluded_due_to_eligibility: { type: array, items: { type: object, additionalProperties: true } }
+        excluded_due_to_eligibility: { type: array, items: { type: object, additionalProperties: true }, description: Includes suitability exclusions from 155 legacy entries and unqualified discovery-only entries from the expanded manifest. }
+        generation_candidate_counts:
+          type: object
+          description: Generation-time eligibility accounting; not automatically recalculated for later manual allocation revisions. Qualification screening is not evidence of investability.
+          additionalProperties: false
+          properties:
+            catalog_total: { type: integer, minimum: 0 }
+            assessed_for_qualification: { type: integer, minimum: 0 }
+            legacy_suitability_assessed: { type: integer, minimum: 0 }
+            discovery_qualification_blocked: { type: integer, minimum: 0 }
+            legacy_suitability_excluded: { type: integer, minimum: 0 }
+            legacy_catalog: { type: integer, minimum: 0 }
+            eligible: { type: integer, minimum: 0 }
+            excluded: { type: integer, minimum: 0 }
+            ranked: { type: integer, minimum: 0 }
+            selected: { type: integer, minimum: 0, maximum: 10 }
+            eligible_not_selected: { type: integer, minimum: 0 }
+        generation_eligible_alternatives:
+          type: array
+          description: Pre-allocation deterministic scores for suitable legacy candidates not selected into the generation shortlist.
+          items: { type: object, additionalProperties: true }
       additionalProperties: true
     FinancialStateFreshness:
       type: object

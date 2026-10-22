@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   deriveWeights,
   enforceAllocationTargets,
+  PIPELINE_CONFIG,
   filterEligible,
   getInstrumentRisk,
   getWhereToInvestProviderCoverageMatrix,
@@ -242,9 +244,17 @@ test('generation candidate counts partition the authoritative legacy catalog wit
  const output=runPipeline(canonicalProfile());
  const counts=output.riskReconciliation.candidate_counts;
  assert.equal(counts.legacy_catalog,investmentDatabase.length);
- assert.equal(counts.eligible+counts.excluded,counts.legacy_catalog);
+ assert.equal(PIPELINE_CONFIG.topN,10);
+ assert.equal(counts.catalog_total,250);
+ assert.equal(counts.assessed_for_qualification,250);
+ assert.equal(counts.legacy_suitability_assessed,155);
+ assert.equal(counts.discovery_qualification_blocked,95);
+ assert.equal(counts.eligible+counts.legacy_suitability_excluded,counts.legacy_catalog);
+ assert.equal(counts.eligible+counts.excluded,counts.catalog_total);
  assert.equal(counts.ranked,counts.eligible);
+ assert.equal(counts.selected,Math.min(PIPELINE_CONFIG.topN,counts.eligible));
  assert.equal(counts.selected,output.instruments.length);
+ assert.ok(counts.selected<=10);
  assert.equal(counts.eligible_not_selected,counts.eligible-counts.selected);
  assert.equal(output.riskReconciliation.eligible_not_selected.length,counts.eligible_not_selected);
  const selectedIds=new Set(output.instruments.map(item=>item.id));
@@ -255,5 +265,27 @@ test('generation candidate counts partition the authoritative legacy catalog wit
  }
  const conservative=runPipeline(canonicalProfile({riskTolerance:'Conservative'}));
  assert.equal(conservative.riskReconciliation.candidate_counts.excluded+
-  conservative.riskReconciliation.candidate_counts.eligible,investmentDatabase.length);
+  conservative.riskReconciliation.candidate_counts.eligible,250);
+ const manifest=JSON.parse(readFileSync(
+  new URL('../data/investmentUniverseExtensions2026.json',import.meta.url),'utf8'));
+ const unqualified=output.riskReconciliation.excluded_due_to_eligibility
+  .filter(row=>row.reasonCode==='ACTUAL_PRODUCT_QUALIFICATION_REQUIRED');
+ assert.equal(unqualified.length,manifest.entries.length);
+ assert.deepEqual(new Set(unqualified.map(row=>row.id)),new Set(manifest.entries.map(row=>row.id)));
+ assert.ok(output.instruments.every(row=>!unqualified.some(item=>item.id===row.id)));
+});
+
+test('default cap is ten and source-unqualified discovery entries never pad a shortage', () => {
+ const profile=canonicalProfile();
+ const normal=runPipeline(profile);
+ assert.ok(normal.instruments.length<=10);
+ assert.deepEqual(normal.instruments.map(item=>item.id),runPipeline(profile).instruments.map(item=>item.id));
+ const legacyEight=runPipeline(profile, {}, {topN:8});
+ assert.ok(legacyEight.instruments.length<=8);
+ const unqualified=new Set(normal.riskReconciliation.excluded_due_to_eligibility
+  .filter(item=>item.reasonCode==='ACTUAL_PRODUCT_QUALIFICATION_REQUIRED').map(item=>item.id));
+ assert.ok(legacyEight.instruments.every(item=>!unqualified.has(item.id)));
+ assert.ok(normal.instruments.every(item=>!unqualified.has(item.id)));
+ assert.ok(normal.riskReconciliation.candidate_counts.selected<=
+  normal.riskReconciliation.candidate_counts.eligible);
 });

@@ -121,7 +121,7 @@ test.before(async () => {
     profileVersion: profileA.version ?? 1,
     profileInputHash: buildRecommendationProfileHash(profileA.toObject(), { modelVersion: 'test-rule-fallback-4.0.0' }),
     recommendationGeneration: 1,
-    recommendationPolicyVersion: 'suitability-freeze-1.1.0',
+    recommendationPolicyVersion: 'suitability-freeze-1.2.0',
     returnAssumptionHash: PROJECTION_ASSUMPTION_POLICY_HASH,
   });
   const allocationInstruments = recommendationA.instruments.map(instrument => instrument.toObject());
