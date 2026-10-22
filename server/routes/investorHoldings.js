@@ -47,7 +47,10 @@ router.get('/',verifyJWT,validateQuery(querySchema),asyncHandler(async(req,res)=
  const lots=await InvestorHoldingLot.find({userId:req.user.userId,profileId:req.query.profileId})
    .sort({createdAt:-1,_id:-1}).limit(200).lean();
  res.set('Cache-Control','private, no-store');
- res.json({status:'USER_DECLARED_HOLDINGS',lots:lots.map(summarizeHolding),currentMarketValue:null});
+ res.json({status:'UNRECONCILED_USER_DECLARED_PURCHASE_LOTS',
+  lots:lots.map(summarizeHolding),currentMarketValue:null,
+  holdingsBalanceVerified:false,
+  reason:'Sales, transfers and corporate actions are not yet reconciled.'});
 }));
 router.post('/',verifyJWT,validate(createSchema),asyncHandler(async(req,res)=>{
  const {profileId,canonicalProductId,clientMutationId,quantityDecimal,costBasisPaise,acquisitionDate}=req.body;
@@ -104,6 +107,14 @@ router.post('/valuation',verifyJWT,validate(valuationSchema),asyncHandler(async(
  }
  const value=calculateHoldingValuation({units:lot.quantityDecimal,unitPrice:fact.value,
   currency:fact.currency,costBasisPaise:lot.costBasisPaise});
+ // Guard against provider revocation or a newer market observation arriving
+ // between the initial source read and the private snapshot publication.
+ const stillQualified=await store.latestPublishableObservation(
+   lot.canonicalProductId,fact.observation_type);
+ if(!stillQualified || String(stillQualified.id)!==String(fact.id)){
+  return sendError(req,res,409,'Market observation changed or lost publication rights.',
+    'MARKET_VALUE_SOURCE_CHANGED');
+ }
  const binding={userId:req.user.userId,profileId:lot.profileId,holdingLotId:lot._id,
    canonicalProductId:lot.canonicalProductId,observationId:String(fact.id),
    observationKind:fact.observation_type,sourceId:fact.source_id,
@@ -117,8 +128,17 @@ router.post('/valuation',verifyJWT,validate(valuationSchema),asyncHandler(async(
    userId:req.user.userId,holdingLotId:lot._id,observationId:String(fact.id),
   }).lean();
  }
+ const qualifiedAtPublication=await store.latestPublishableObservation(
+   lot.canonicalProductId,fact.observation_type);
+ if(!qualifiedAtPublication || String(qualifiedAtPublication.id)!==String(fact.id)){
+  return sendError(req,res,409,'Market observation was revoked or superseded during publication.',
+    'MARKET_VALUE_SOURCE_CHANGED');
+ }
  res.set('Cache-Control','private, no-store');
- return res.json({status:'QUALIFIED_SNAPSHOT',valuationId:String(snapshot._id),
+ return res.json({status:'ILLUSTRATIVE_UNRECONCILED_LOT_VALUATION',
+   unverifiedCurrentUnits:true,dispositionsReconciled:false,
+   calculationBasis:'DECLARED_ACQUISITION_UNITS_ASSUMED_STILL_HELD',
+   valuationId:String(snapshot._id),
    observedAt:fact.observed_at,sourceId:fact.source_id,dataClass:fact.data_class,
    value:snapshot.result});
 }));
