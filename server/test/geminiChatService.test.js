@@ -851,4 +851,41 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.match(result.response, /authoritative backend reports/i);
     assert.match(result.response, /\[E_PROFILE_RISK\]/);
   });
+  it('end-to-end red-team: processChat routes goal arithmetic through verified deterministic answer', async () => {
+    const result = await processChat({
+      userId: mockUserId,
+      user: mockUser,
+      sessionId: mockSessionId,
+      idempotencyKey: 'adversarial-goal-amount-20261023',
+      message: "Need 2 crore for daughter's wedding in 10 years. I have ₹20 lakh saved. I can save 50k per month.",
+    }, { groundedExplanationDependencies: {
+      providers: [], getCache: async () => null, setCache: async () => false,
+    } });
+    assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+    assert.equal(result.validation_status, 'PASS');
+    assert.equal(result.grounded, true);
+    assert.match(result.response, /2,00,00,000/);
+    assert.match(result.response, /1,50,000 per month/);
+    assert.match(result.response, /not fundable from contributions alone/i);
+    assert.ok(result.citations.some(c => c.citation_id === 'E_GOAL_MONTHLY_BASELINE'));
+    assert.ok(result.citations.filter(c => c.citation_id.startsWith('E_GOAL_'))
+      .every(c => c.source_url === null));
+  });
+
+  it('end-to-end red-team: bad monetary precision fails closed before chat response', async () => {
+    const result = await processChat({
+      userId: mockUserId,
+      user: mockUser,
+      sessionId: mockSessionId,
+      idempotencyKey: 'adversarial-invalid-paise-20261023',
+      message: "Need ₹1.005 for daughter's wedding in 3 months starting from zero.",
+    }, { groundedExplanationDependencies: {
+      providers: [], getCache: async () => null, setCache: async () => false,
+    } });
+    assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+    assert.equal(result.validation_status, 'PASS');
+    assert.doesNotMatch(result.response, /Funding-only baseline/i);
+    assert.match(result.response, /ambiguous or invalid/i);
+  });
+
 });
