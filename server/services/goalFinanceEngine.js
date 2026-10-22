@@ -2,7 +2,7 @@
  * Goals-only deterministic cash-flow planning. No market data, LLM, or lender authority.
  * Amounts are user-entered nominal INR and do not establish verified income.
  */
-export const GOAL_FINANCE_POLICY_VERSION = 'goal-finance-1.0.2';
+export const GOAL_FINANCE_POLICY_VERSION = 'goal-finance-1.0.3';
 export const GOAL_EXPENSE_CATEGORIES = Object.freeze([
   'housing', 'groceries', 'utilities', 'transport', 'healthcare', 'education',
   'insurance', 'existing_emi', 'subscriptions', 'taxes', 'family', 'other',
@@ -317,10 +317,15 @@ export function planGoalSpecification(spec, now = new Date()) {
   const targetYear = Number(targetDateOnly.slice(0, 4));
   const targetMonth = Number(targetDateOnly.slice(5, 7));
   const targetDay = Number(targetDateOnly.slice(8, 10));
-  // Cash contributions are modeled at monthly intervals; a partial final
-  // calendar month is conservatively counted as another instalment.
-  const monthsRemaining = Math.max(1, (targetYear - currentYear) * 12
-    + targetMonth - currentMonth + (targetDay > currentDay ? 1 : 0));
+  // Monthly deposits are due on the current Indian calendar day in each
+  // subsequent month, clamped to that month's last day (e.g. Jan 31 -> Feb 28).
+  // Count ONLY payments due on or before the target; a partial month is not
+  // a fictitious extra contribution.
+  const calendarMonths = (targetYear - currentYear) * 12 + targetMonth - currentMonth;
+  const targetMonthLastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+  const scheduledDayInTargetMonth = Math.min(currentDay, targetMonthLastDay);
+  const monthsRemaining = Math.max(0, calendarMonths
+    - (targetDay < scheduledDayInTargetMonth ? 1 : 0));
   if (monthsRemaining > 600) throw new RangeError('Goal date beyond 50-year planning horizon');
   const modeledYears = monthsRemaining / 12;
   const futureTargetAmount = rupees(targetAmount * Math.pow(1 + inflation / 100, modeledYears));
@@ -328,10 +333,14 @@ export function planGoalSpecification(spec, now = new Date()) {
     throw new RangeError('Inflated target exceeds supported planning amount');
   }
   const remainingGap = rupees(Math.max(0, futureTargetAmount - currentSavings));
-  const monthlyNeededWithoutReturns = rupees(Math.ceil(remainingGap * 100 / monthsRemaining) / 100);
+  const monthlyNeededWithoutReturns = remainingGap === 0 ? 0
+    : monthsRemaining === 0 ? null : rupees(Math.ceil(remainingGap * 100 / monthsRemaining) / 100);
   return {
-    status: remainingGap === 0 ? 'CASH_TARGET_FUNDED' : 'MONTHLY_FUNDING_REQUIRED',
+    status: remainingGap === 0 ? 'CASH_TARGET_FUNDED'
+      : monthsRemaining === 0 ? 'IMMEDIATE_FUNDING_REQUIRED' : 'MONTHLY_FUNDING_REQUIRED',
     monthsRemaining, futureTargetAmount, remainingGap, monthlyNeededWithoutReturns,
+    requiredLumpSumToday: remainingGap > 0 && monthsRemaining === 0 ? remainingGap : null,
+    contributionTiming: 'MONTHLY_ON_INDIAN_CALENDAR_DAY_CLAMPED_TO_MONTH_END',
     returnAssumption: 0, taxStatus: 'NOT_CALCULATED',
     assumptionSource: 'USER_DECLARED', forecast: false, guarantee: false,
     policyVersion: GOAL_FINANCE_POLICY_VERSION,
