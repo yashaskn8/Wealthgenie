@@ -144,7 +144,8 @@ function moneyIn(question) {
     const before = goalText(question).slice(Math.max(0, match.index - 70), match.index).toLowerCase().trim();
     const after = goalText(question).slice(match.index + match[0].length, match.index + match[0].length + 55).toLowerCase();
     // Never turn an explicitly foreign or negative amount into a positive INR goal.
-    if (/(?:[-−]|minus|negative)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$|(?:\b(?:usd|gbp|eur|aed|cad|aud|dollars?|pounds?|euros?)|\$|€|£)\s*$/.test(before)) {
+    if (/(?:[-−]|minus|negative)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$|(?:\b(?:usd|gbp|eur|aed|cad|aud|dollars?|pounds?|euros?)|\$|€|£)\s*$/.test(before)
+        || /^\s*(?:(?:in|as|of)\s+)?(?:usd|gbp|eur|aed|cad|aud|dollars?|pounds?|euros?)\b/i.test(after)) {
       found.push({ amount: null, role: 'INVALID' });
       continue;
     }
@@ -230,7 +231,8 @@ function goalHorizonMonths(question) {
     // Never discard a trailing time component we could not parse; silently
     // interpreting "10 years and 2 weeks" as 120 months changes the amount.
     const trailing = text.slice(match.index + match[0].length);
-    if (/^\s*(?:,|\+|and|plus)\s*(?:(?:a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|half)\s+)?\d*(?:\.\d+)?\s*(?:days?|weeks?|months?|years?|yrs?|mos?)\b/i.test(trailing)) return -1;
+    if (/^\s*(?:,|\+|and|plus)\s*(?:(?:a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|half)\s+)?\d*(?:\.\d+)?\s*(?:days?|weeks?|months?|years?|yrs?|mos?)\b/i.test(trailing)
+        || /^\s*,?\s*(?:or|to|through)\s*(?:(?:in|within|after|over|next)\s*)?\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\b/i.test(trailing)) return -1;
     const months = numerator / scale + remainderMonths;
     if (months < 1n || months > 600n) return -1;
     candidates.push(Number(months));
