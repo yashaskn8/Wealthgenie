@@ -97,6 +97,7 @@ export async function retrieveQualifiedRegulatoryChatEvidence({
       authority: 'MANIFEST_VERIFIED_REGULATORY_SOURCE',
       source: {
         provider: 'INCOME_TAX_DEPARTMENT',
+        title: 'Income-tax Rules, 2026 commencement',
         url: CORPUS.sourceUrl,
         publicationDate: CORPUS.publicationDate,
         instrumentId: null,
