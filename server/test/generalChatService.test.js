@@ -14,7 +14,8 @@ test('general chat routes everyday questions without relabeling finance as unsou
   for (const q of ['What is a mutual fund?', 'What is compound interest?', 'What tax do I owe?',
     'Recommend an investment for my portfolio', 'What is liquidity risk?',
     'Which banking product offers the best return?', 'Calculate my budget',
-    'How should I invest in NIFTY?', 'Explain capital gains and deductions']) {
+    'How should I invest in NIFTY?', 'Explain capital gains and deductions',
+    'Explain my age evidence.', 'How old am I?', 'What is my email?']) {
     assert.equal(isGeneralChatQuestion(q), false, q);
   }
   assert.equal(generalChatTokenUpperBound('Hello', [{ role: 'user', content: 'Prior question' }])
