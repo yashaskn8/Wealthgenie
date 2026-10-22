@@ -193,8 +193,16 @@ function SavingsProjection() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const projectionRevisionRef = useRef(0);
+  const updateProjection = (name, value) => {
+    projectionRevisionRef.current += 1;
+    setResult(null); setError(null); setLoading(false);
+    setValues(old => ({ ...old, [name]: value }));
+  };
   const run = async event => {
-    event.preventDefault(); setError(null); setLoading(true); setResult(null);
+    event.preventDefault();
+    const revision = ++projectionRevisionRef.current;
+    setError(null); setLoading(true); setResult(null);
     try {
       const payload = Object.fromEntries(Object.entries(values).map(([k, v]) => {
         if (['annualReturnAssumption', 'annualInflationAssumption'].includes(k)) {
@@ -206,9 +214,13 @@ function SavingsProjection() {
         return [k, amount(v, k)];
       }));
       if (!Number.isInteger(payload.years)) throw new Error('Years must be whole numbers');
-      setResult((await api.projectGoalSavings(payload)).projection);
-    } catch (e) { setError(e.message || 'Projection failed'); }
-    finally { setLoading(false); }
+      const projection = (await api.projectGoalSavings(payload)).projection;
+      if (projectionRevisionRef.current === revision) setResult(projection);
+    } catch (e) {
+      if (projectionRevisionRef.current === revision) setError(e.message || 'Projection failed');
+    } finally {
+      if (projectionRevisionRef.current === revision) setLoading(false);
+    }
   };
   return <div className="wg-goal-panel">
     <h3>How much can I save?</h3>
@@ -216,7 +228,7 @@ function SavingsProjection() {
     <form onSubmit={run}>
       <div className="wg-goal-input-grid">
         {Object.entries(values).map(([k, v]) => <NumberEntry key={k} label={k.replace(/([A-Z])/g, ' $1')}
-          value={v} onChange={s => setValues(old => ({ ...old, [k]: s }))}
+          value={v} onChange={s => updateProjection(k, s)}
           step={k === 'years' ? '1' : '0.01'} min={k.startsWith('annual') ? '-99.99' : '0'}/>)}
       </div>
       <button type="submit" className="wg-goal-action" disabled={loading}>{loading ? 'Calculating…' : 'Calculate savings scenario'}</button>
