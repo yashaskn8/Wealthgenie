@@ -7,7 +7,12 @@ const money = n => {
   if (!Number.isFinite(n) || Math.abs(n) > LIMIT) {
     throw new RangeError('SIP_PLAN_LIMIT_EXCEEDED: amount exceeds safe currency precision');
   }
-  return Math.round((n + Math.sign(n) * Number.EPSILON) * 100) / 100;
+  // Decimal half-up to nearest paisa, symmetrically for surpluses and
+  // shortfalls. Math.round(negative * 100) incorrectly rounds negative
+  // half-paisa ties toward zero (and EPSILON is not a magnitude-scaled fix).
+  const [numerator, denominator] = decimalFraction(Math.abs(n));
+  const cents = (2n * numerator * 100n + denominator) / (2n * denominator);
+  return (n < 0 ? -Number(cents) : Number(cents)) / 100;
 };
 // Monetary inputs and yearly SIP instalments are decimal quantities. Use exact
 // rational arithmetic for paise so binary floating-point ties never lose ₹0.01.
