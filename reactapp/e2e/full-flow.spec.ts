@@ -354,30 +354,36 @@ test.describe('real WealthGenie dependency lifecycle', () => {
     await expect(page.getByText('Emergency Fund').first()).toBeVisible();
 
     await page.getByTestId('nav-tax-optimizer').click();
-    await page.getByLabel('Yearly gross income before tax').fill('1100000');
-    await page.getByLabel('Income source for tax calculation').selectOption('salary');
-    const taxPromise = page.waitForResponse(apiResponse('POST', '/api/tax/compare'));
-    await page.getByLabel('Fiscal year for tax calculation').selectOption('FY2026-27');
-    // The tax screen requires a taxpayer age explicitly for this fiscal year;
-    // it does not reuse the saved profile age.
-    await page.getByLabel('Age on March 31 of selected fiscal year').fill('34');
+    await expect(page.getByRole('heading', { name: 'Income Tax Calculator' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Old Regime' })).toHaveCount(0);
+    await page.getByLabel(/Annual taxable gross salary.*before standard deduction/i).fill('1275000.00');
+    await page.getByLabel(/Residential status for Tax Year 2026/i).selectOption('resident');
+    await page.getByLabel(/Any special-rate income or dividends/i).selectOption('no');
+    await page.locator('.wg-new-tax__confirm input').check();
+    const taxPromise = page.waitForResponse(apiResponse('POST', '/api/tax/new-regime-verified'));
+    await page.getByRole('button', { name: 'Calculate income tax' }).click();
     const taxResponse = await taxPromise;
     expect(taxResponse.status()).toBe(200);
     const taxRequest = taxResponse.request();
-    expect(taxRequest.method()).toBe('POST');
     expect(new URL(taxRequest.url()).search).toBe('');
     expect(JSON.parse(taxRequest.postData() || '{}')).toMatchObject({
-      income: 1100000,
-      incomeSource: 'salary',
-      fiscalYear: 'FY2026-27',
-      age: 34,
+      taxYear: '2026-27',
+      incomeType: 'salary',
+      primaryIncome: '1275000.00',
+      otherOrdinaryIncome: '0',
+      residency: 'resident',
+      specialRateIncome: 'no',
+      confirmedOrdinaryOnly: true,
     });
     const tax = await taxResponse.json();
-    expect(tax.new_regime.tax).toBeGreaterThanOrEqual(0);
-    expect(tax.old_regime.tax).toBeGreaterThanOrEqual(0);
-    await page.getByRole('button', { name: 'New Regime' }).click();
-    await expect(page.getByText('FY2026-27 · Verified Server Rules')).toBeVisible();
-    await expect(page.getByText('Total Income Tax')).toBeVisible();
+    expect(tax.status).toBe('CALCULATED');
+    expect(tax.taxableIncome).toBe('1200000');
+    expect(tax.standardDeduction).toBe('75000.0000');
+    expect(tax.taxBeforeRebate).toBe('60000.0000');
+    expect(tax.rebate).toBe('60000.0000');
+    expect(tax.finalTax).toBe('0');
+    await expect(page.getByText(/Estimated tax liability under the new regime/i)).toBeVisible();
+    await expect(page.getByText(/Rounded under Section 516/i)).toBeVisible();
 
     const chatResponsePromise = page.waitForResponse(apiResponse('POST', '/api/chat/message'), { timeout: 90_000 });
     await page.getByRole('button', { name: 'Genie AI' }).click();
