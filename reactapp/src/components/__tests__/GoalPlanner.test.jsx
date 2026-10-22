@@ -29,12 +29,22 @@ vi.mock('framer-motion', async () => {
 });
 
 vi.mock('../../services/api', () => ({
+  generateUUID: vi.fn(() => 'goals-client-retry-key-test-0001'),
   default: {
     getGoals: vi.fn(),
     createGoal: vi.fn(),
     updateGoal: vi.fn(),
     deleteGoal: vi.fn(),
     simulateGoal: vi.fn(),
+    getGoalBudget: vi.fn(),
+    getGoalFundingPlan: vi.fn(),
+    saveGoalBudget: vi.fn(),
+    assessGoalVehiclePurchase: vi.fn(),
+    projectGoalSavings: vi.fn(),
+    getGoalSpecifications: vi.fn(),
+    createGoalSpecification: vi.fn(),
+    updateGoalSpecification: vi.fn(),
+    deleteGoalSpecification: vi.fn(),
   },
 }));
 
@@ -144,9 +154,23 @@ const freshGoal = {
 
 describe('GoalPlanner financial freshness boundary', () => {
   beforeEach(() => {
-    [api.getGoals, api.createGoal, api.updateGoal, api.deleteGoal, api.simulateGoal]
+    [api.getGoals, api.createGoal, api.updateGoal, api.deleteGoal, api.simulateGoal,
+      api.getGoalBudget, api.getGoalFundingPlan, api.saveGoalBudget,
+      api.assessGoalVehiclePurchase, api.projectGoalSavings, api.getGoalSpecifications,
+      api.createGoalSpecification, api.updateGoalSpecification, api.deleteGoalSpecification]
       .forEach(mock => mock.mockReset());
     api.getGoals.mockResolvedValue({ goals: [] });
+    api.getGoalBudget.mockResolvedValue({
+      budget: { month: '2026-10', version: 0, monthlyIncome: null,
+        expensesComplete: false, protectedMonthlyContributions: 0, expenses: [] },
+      summary: { budgetStatus: 'DATA_INSUFFICIENT', recurringExpenses: 0, oneOffExpenses: 0,
+        recurringSurplus: null, actualMonthSurplus: null, missing: ['MONTHLY_INCOME_MISSING'] },
+    });
+    api.getGoalFundingPlan.mockResolvedValue({
+      plan: { status: 'DATA_INSUFFICIENT', capacity: null, totalRequested: null, totalAllocated: null,
+        allocations: [], warnings: ['GOAL_CALCULATION_OR_BUDGET_MISSING'] },
+    });
+    api.getGoalSpecifications.mockResolvedValue({ specifications: [] });
   });
 
   afterEach(() => {

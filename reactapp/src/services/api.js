@@ -950,6 +950,44 @@ export async function deleteGoal(goalId, expectedVersion) {
   });
 }
 
+// ─── GOALS: independent keyless budgeting and purchase planning ───
+export async function getGoalBudget(month) {
+  return request('GET', `/goals/finance/budget/${encodeURIComponent(month)}`);
+}
+
+export async function saveGoalBudget(month, payload) {
+  return request('PUT', `/goals/finance/budget/${encodeURIComponent(month)}`, payload);
+}
+
+export async function getGoalFundingPlan(month) {
+  return request('GET', `/goals/finance/funding/${encodeURIComponent(month)}`);
+}
+
+export async function assessGoalVehiclePurchase(month, payload) {
+  return request('POST', `/goals/finance/vehicle/${encodeURIComponent(month)}`, payload);
+}
+
+export async function projectGoalSavings(payload) {
+  return request('POST', '/goals/finance/projection', payload);
+}
+
+export async function getGoalSpecifications() {
+  return request('GET', '/goals/finance/specifications');
+}
+export async function createGoalSpecification(payload, idempotencyKey = null) {
+  return request('POST', '/goals/finance/specifications', payload, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+  });
+}
+export async function updateGoalSpecification(id, payload) {
+  return request('PUT', `/goals/finance/specifications/${encodeURIComponent(id)}`, payload);
+}
+export async function deleteGoalSpecification(id, expectedVersion) {
+  return request('DELETE', `/goals/finance/specifications/${encodeURIComponent(id)}`, null, {
+    headers: { 'If-Match': `"${expectedVersion}"` },
+  });
+}
+
 // ─── HEALTH ──────────────────────────────────────────────
 export async function healthCheck(options = {}) {
   return request('GET', '/health', null, options);
@@ -1080,7 +1118,9 @@ const api = {
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,
   buildProfile, precomputeProfile, completeFinancialProfile, getCurrentProfile, getCurrentRecommendation, updateProfile, getRecommendations, runPlanReview, getPlanReviewRun, getCurrentPlanReviewRun, cancelPlanReviewRun, actOnPlanReview, extractGenieProofClaims, createGenieProofCase, listGenieProofCases, getGenieProofCase, verifyGenieProofCase, listGenieProofRevisions, reassessGenieProofCase, withdrawGenieProofConsent, getProofWatchAvailability, createProofWatch, listProofWatches, updateProofWatch, deleteProofWatch, listProofBreakEvents, acknowledgeProofBreakEvent, deleteGenieProofCase, listAuthorizedMandates, getAuthorizedMandate, getMandateApprovalOptions, getPasskeyRegistrationOptions, verifyPasskeyRegistration, verifyMandateApproval, revokeAuthorizedMandate, executeAuthorizedMandate, getExecutionReceipt, verifyExecutionReceipt, getPlanHealth, getPlanHealthEvents, getInstruments, rankInvestmentCandidates, getProjections, calculateStepUpProjection, calculateAllocationSplit, compareInvestmentProjection, getCustomPortfolioProjection, runInstrumentStressTest,
-  runMonteCarlo, runPortfolioMonteCarlo, createGoal, getGoals, updateGoal, simulateGoal, deleteGoal, healthCheck,
+  runMonteCarlo, runPortfolioMonteCarlo, createGoal, getGoals, updateGoal, simulateGoal, deleteGoal,
+  getGoalBudget, saveGoalBudget, getGoalFundingPlan, assessGoalVehiclePurchase, projectGoalSavings,
+  getGoalSpecifications, createGoalSpecification, updateGoalSpecification, deleteGoalSpecification, healthCheck,
   getMarketRates, getBenchmarkMarketFacts, getStoredBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,
   updateRecommendationWeights, optimisePortfolio,

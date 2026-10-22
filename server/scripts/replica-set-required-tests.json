@@ -10,6 +10,7 @@
   "test/concurrency.test.js",
   "test/deferredAdvisory.test.js",
   "test/genieProofMongo.integration.test.js",
+  "test/goalFinanceRoutes.test.js",
   "test/goalPostCommitResponse.test.js",
   "test/goalUpdateRecompute.test.js",
   "test/helpers/mongoTestHelper.test.js",
@@ -21,9 +22,9 @@
   "test/proofBreakWorkerMongo.integration.test.js",
   "test/qualifiedEquityHistoryMongo.integration.test.js",
   "test/rbacRole.test.js",
-  "test/recommendationAllocationRevisionBehavior.test.js",
   "test/recommendPostCommitCurrentState.test.js",
   "test/recommendRestore.test.js",
+  "test/recommendationAllocationRevisionBehavior.test.js",
   "test/researchTaskLease.integration.test.js",
   "test/security.test.js"
 ]
