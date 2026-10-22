@@ -92,25 +92,25 @@ const StepUpPlanner = ({ profile }) => {
     const controller = new AbortController();
     let cancelled = false;
     const timer = setTimeout(() => {
+      // One immutable request snapshot validates both the backend calculation
+      // and its response, including all financial-context assumptions.
+      const financialInputs = {
+        returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+        inflationRate: Number(inflationRate) / 100,
+        downsideAnnualReturnRate: Number(downsideRate) / 100,
+        annualIncomeGrowthRate: Number(incomeGrowth) / 100,
+        annualExpenseGrowthRate: Number(expenseGrowth) / 100,
+        ...(monthlyIncome === '' ? {} : { monthlyIncome: Number(monthlyIncome) }),
+        ...(monthlyExpenses === '' ? {} : { monthlyExpenses: Number(monthlyExpenses) }),
+        ...(monthlyEmi === '' ? {} : { monthlyEmi: Number(monthlyEmi) }),
+        ...(emergencySavings === '' ? {} : { emergencySavings: Number(emergencySavings) }),
+      };
       api.calculateStepUpProjection(
         safeBaseSIP,
         safeReturnRate / 100,
         safeYears,
         safeStepUpPercent / 100,
-        {
-          signal: controller.signal,
-          body: {
-            returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
-            inflationRate: Number(inflationRate) / 100,
-            downsideAnnualReturnRate: Number(downsideRate) / 100,
-            annualIncomeGrowthRate: Number(incomeGrowth) / 100,
-            annualExpenseGrowthRate: Number(expenseGrowth) / 100,
-            ...(monthlyIncome === '' ? {} : { monthlyIncome: Number(monthlyIncome) }),
-            ...(monthlyExpenses === '' ? {} : { monthlyExpenses: Number(monthlyExpenses) }),
-            ...(monthlyEmi === '' ? {} : { monthlyEmi: Number(monthlyEmi) }),
-            ...(emergencySavings === '' ? {} : { emergencySavings: Number(emergencySavings) }),
-          },
-        },
+        { signal: controller.signal, body: financialInputs },
       ).then(result => {
         if (cancelled) return;
         const verified = assertGrowSipResponse(result, {
@@ -118,6 +118,7 @@ const StepUpPlanner = ({ profile }) => {
           annualReturnRate: safeReturnRate / 100,
           annualStepUpRate: safeStepUpPercent / 100,
           years: safeYears,
+          ...financialInputs,
         });
         setProjectionState({ binding: projectionBinding, status: 'ready', data: verified, error: null });
       }).catch(error => {
