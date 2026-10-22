@@ -42,7 +42,7 @@ function goalRateMentions(question) {
     const after = text.slice(match.index + match[0].length, match.index + match[0].length + 50).toLowerCase();
     const inflation = /^\s*(?:(?:annual|yearly|p\.?a\.?)\s+)?(?:inflation|price inflation)\b/.test(after)
       || /\b(?:inflation|price inflation|cost inflation)\s*(?:rate|is|of|at|:)?\s*$/.test(before);
-    const investment = /^\s*(?:(?:annual|yearly|p\.?a\.?)\s+)?(?:returns?|cagr|investment growth)\b/.test(after)
+    const investment = /^\s*(?:(?:effective|annual|yearly|p\.?a\.?|gross)\s+){0,4}(?:returns?|cagr|investment growth)\b/.test(after)
       || /\b(?:investment\s+)?(?:returns?|cagr|growth)\s*(?:rate|is|of|at|:)?\s*$/.test(before);
     // Never reinterpret nominal, simple or nonannual rates as an effective CAGR.
     const immediateContext = text.slice(Math.max(0, match.index - 20),
@@ -216,7 +216,7 @@ function goalHorizonMonths(question) {
   const supplied = goalText(question);
   const text = /^\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s*(?:and\s*)?\d{1,2}\s*months?)?[.!]?$/i.test(supplied)
     ? 'in ' + supplied : supplied;
-  const pattern = /\b(?:in|within|after|over|next|for|timeframe(?: of)?|horizon(?: of)?|deadline(?: of| in)?)\s+(\d{1,3}(?:\.\d+)?)\s*(years?|yrs?|months?|mos?)\b(?:\s*(?:and\s*)?(\d{1,2})\s*months?\b)?/gi;
+  const pattern = /\b(?:in|within|after|over|next|for|timeframe(?: of)?|horizon(?: of)?|deadline(?: of| in)?)\s+(\d{1,3}(?:\.\d+)?)\s*(years?|yrs?|months?|mos?)\b(?:\s*(?:(?:,|\+|and|plus)\s*)?(\d{1,2})\s*months?\b|\s+(?:and|plus)\s+(?:(?:a|one)\s+)?(half)(?:\s+years?)?\b)?/gi;
   for (const match of text.matchAll(pattern)) {
     const [whole, fraction = ''] = match[1].split('.');
     if (fraction.length > 6) return -1;
@@ -225,8 +225,12 @@ function goalHorizonMonths(question) {
     const isYears = /^(?:year|yr)/i.test(match[2]);
     const numerator = count * (isYears ? 12n : 1n);
     if (numerator % scale !== 0n) return -1;
-    const remainderMonths = match[3] ? BigInt(match[3]) : 0n;
-    if (!isYears && remainderMonths) return -1;
+    const remainderMonths = match[3] ? BigInt(match[3]) : match[4] ? 6n : 0n;
+    if (!isYears && match[4]) return -1;
+    // Never discard a trailing time component we could not parse; silently
+    // interpreting "10 years and 2 weeks" as 120 months changes the amount.
+    const trailing = text.slice(match.index + match[0].length);
+    if (/^\s*(?:,|\+|and|plus)\s*(?:(?:a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|half)\s+)?\d*(?:\.\d+)?\s*(?:days?|weeks?|months?|years?|yrs?|mos?)\b/i.test(trailing)) return -1;
     const months = numerator / scale + remainderMonths;
     if (months < 1n || months > 600n) return -1;
     candidates.push(Number(months));
@@ -495,5 +499,9 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   // Keep the displayed authoritative boundary synchronized with scenario warnings
   // assembled after the evidence array was initially constructed.
   entries.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE').displayValue = guidance;
+  // Earlier entries snapshot displayValue; late scenario validation must not
+  // drop any warning, especially when unsupported rates fail closed.
+  const planningGuidance = entries.find(entry => entry.id === 'E_GOAL_PLANNING_GUIDANCE');
+  if (planningGuidance) planningGuidance.displayValue = guidance;
   return entries;
 }
