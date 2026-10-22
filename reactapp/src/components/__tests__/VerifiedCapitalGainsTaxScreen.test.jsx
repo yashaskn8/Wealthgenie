@@ -67,3 +67,24 @@ describe('verified equity capital gains feature',()=>{
     expect(screen.getByRole('alert')).toHaveTextContent(/No financial amounts were submitted/i);
   });
 });
+
+describe('adversarial response integrity',()=>{
+  it.each([
+    ['foreign request binding', data=>({...data,inputsUsed:{...data.inputsUsed,ltcg198:'125000'}})],
+    ['invented surcharge', data=>({...data,surcharge:'10.000'})],
+    ['forged ordinary slab tax', data=>({...data,ordinarySlabTax:'104990.000'})],
+    ['inflated long-term exemption', data=>({...data,section198ExemptLongTermGain:'225000'})],
+    ['mutated cess', data=>({...data,cess:'6301.000'})],
+    ['forged final tax', data=>({...data,finalTax:'0'})],
+    ['invented residency', data=>({...data,inputsUsed:{...data.inputsUsed,residency:'non_resident'}})],
+  ])('rejects a financially inconsistent capital-gains payload: %s', async (_name,modify)=>{
+    const request=vi.spyOn(api,'computeVerifiedComplexCapitalGainsTax')
+      .mockImplementation(async input=>modify(validResponse(input)));
+    render(<VerifiedCapitalGainsTaxScreen/>);
+    fill();
+    fireEvent.click(screen.getByRole('button',{name:/Calculate verified equity-gains tax/i}));
+    await waitFor(()=>expect(request).toHaveBeenCalledOnce());
+    await waitFor(()=>expect(screen.getByRole('alert')).toHaveTextContent(/unverifiable computation/i));
+    expect(screen.queryByRole('region',{name:'Verified capital gains tax result'})).not.toBeInTheDocument();
+  });
+});
