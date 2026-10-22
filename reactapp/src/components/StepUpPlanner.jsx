@@ -71,10 +71,10 @@ const StepUpPlanner = ({ profile }) => {
   const isCalculating = projectionInputsValid && !projectionIsCurrent;
 
   // Compute dynamic percentage fills for track bars
-  const baseSipPct = Math.min(100, Math.max(0, ((Math.min(100000, Math.max(1000, safeBaseSIP)) - 1000) / 99000) * 100));
-  const stepUpPct = Math.min(100, Math.max(0, (Math.min(50, Math.max(0, safeStepUpPercent)) / 50) * 100));
-  const yearsPct = Math.min(100, Math.max(0, ((Math.min(40, Math.max(1, safeYears)) - 1) / 39) * 100));
-  const cagrPct = Math.min(100, Math.max(0, ((Math.min(30, Math.max(1, safeReturnRate)) - 1) / 29) * 100));
+  const baseSipPct = Number.isFinite(safeBaseSIP) ? Math.min(100, Math.max(0, ((Math.min(100000, Math.max(1000, safeBaseSIP)) - 1000) / 99000) * 100)) : 0;
+  const stepUpPct = Number.isFinite(safeStepUpPercent) ? Math.min(100, Math.max(0, (Math.min(50, Math.max(0, safeStepUpPercent)) / 50) * 100)) : 0;
+  const yearsPct = Number.isFinite(safeYears) ? Math.min(100, Math.max(0, ((Math.min(40, Math.max(1, safeYears)) - 1) / 39) * 100)) : 0;
+  const cagrPct = Number.isFinite(safeReturnRate) ? Math.min(100, Math.max(0, ((Math.min(30, Math.max(1, safeReturnRate)) - 1) / 29) * 100)) : 0;
 
   useEffect(() => {
     if (!projectionInputsValid) return undefined;
