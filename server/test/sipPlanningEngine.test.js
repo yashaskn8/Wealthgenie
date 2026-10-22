@@ -38,8 +38,13 @@ test('reference annuity-due engines agree for fixed and annual step-up contribut
       });
       assert.ok(Math.abs(result.flatFinal - sipFV(1000, rate, years)) <= 1,
         'flat SIP disagreement at '+rate+' / '+years);
-      assert.ok(Math.abs(result.stepUpFinal - stepUpSipFV(1000, rate, years, 0.05)) <= 5,
-        'step-up disagreement at '+rate+' / '+years);
+      // Legacy formula compounds theoretical sub-paise instalments. The planner
+      // instead schedules actual annual SIP payments rounded to paise.
+      const legacy = stepUpSipFV(1000, rate, years, 0.05);
+      const upperBound = 1 + 0.005 * 12 * years
+        * Math.pow(1 + Math.max(rate, 0) / 12, years * 12);
+      assert.ok(Math.abs(result.stepUpFinal - legacy) <= upperBound,
+        'step-up exceeds accumulated paise-rounding bound at '+rate+' / '+years);
       assert.equal(result.additionalCorpus, result.stepUpFinal - result.flatFinal);
       assert.equal(result.additionalProjectedGrowth,
         result.additionalCorpus - result.additionalContributions);
@@ -132,4 +137,31 @@ test('invalid, malicious and money-precision edge cases are rejected', () => {
     ...base, monthlyIncome: 100000000, monthlyExpenses: 0, monthlyEmi: 0,
     annualIncomeGrowthRate: 1, years: 50,
   }), /SIP_PLAN_LIMIT_EXCEEDED/);
+});
+
+test('independent monthly cash-flow oracle matches chart contributions and terminal corpus', () => {
+  for (const [starting, g, annualReturn, yrs] of [
+    [1000, 0, 0, 1], [1000, 0.1, 0.12, 15],
+    [500, 0.075, -0.25, 12], [12500.37, 0.033, 0.06, 7],
+    [23000, 0.4, 0, 6], [600, 0.04, 0.3, 20],
+  ]) {
+    const result = buildSipPlan({
+      monthlyInvestment: starting, annualStepUpRate: g,
+      annualReturnRate: annualReturn, years: yrs,
+    });
+    let invested = 0;
+    let corpus = 0;
+    for (let m = 0; m < yrs * 12; m += 1) {
+      const annualContribution = Math.round(starting * Math.pow(1 + g, Math.floor(m / 12)) * 100) / 100;
+      invested += annualContribution;
+      corpus = (corpus + annualContribution) * (1 + annualReturn / 12);
+      if (m % 12 === 11) {
+        const yearly = result.chartData[Math.floor(m / 12)];
+        assert.equal(yearly.stepUpInvested, Math.round(invested));
+        assert.equal(yearly.stepUpSIP, Math.round(corpus));
+      }
+    }
+    assert.equal(result.stepUpFinal, Math.round(corpus));
+    assert.equal(result.stepUpInvested, Math.round(invested));
+  }
 });
