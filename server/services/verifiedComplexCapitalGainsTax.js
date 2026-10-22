@@ -33,7 +33,7 @@ function parseTen(s,label) {
 function slabTax(rupees){
   let amount=0n;
   for(const [from,to,pct] of slabs){
-    if(rupees>from)amount+=(min(rupees,to??rupees)-from)*pct*100n;
+    if(rupees>from)amount+=(min(rupees,to??rupees)-from)*pct*10n;
   }
   return amount; // 1/1000 rupee units; Rs 1 = 1000 units
 }
