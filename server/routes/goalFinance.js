@@ -1,16 +1,18 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import Joi from 'joi';
 import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import { validateStrict } from '../validation/financialSchemas.js';
 import GoalBudget from '../models/GoalBudget.js';
 import Goal from '../models/Goal.js';
+import GoalSpecification, { GOAL_SPEC_KINDS } from '../models/GoalSpecification.js';
 import { resolveCurrentFinancialProfile } from '../services/currentFinancialProfile.js';
 import { resolveCurrentRecommendationState } from '../services/recommendationState.js';
 import { buildCurrentGoalResponse } from '../services/goalResponse.js';
 import {
   GOAL_EXPENSE_CATEGORIES, summarizeGoalBudget, allocateGoalFunding,
-  assessVehiclePurchase, projectGoalSavings,
+  assessVehiclePurchase, projectGoalSavings, planGoalSpecification,
 } from '../services/goalFinanceEngine.js';
 
 const router = Router();
@@ -202,6 +204,80 @@ router.post('/vehicle/:month', checkMonth, validateStrict(vehicleSchema), asyncH
     source: 'USER_ENTERED_QUOTES_ONLY',
     livePriceVerified: false, quoteProvider: null,
   });
+}));
+
+
+const specPayload = Joi.object({
+  kind: Joi.string().valid(...GOAL_SPEC_KINDS).required(),
+  name: Joi.string().trim().min(2).max(100).required(),
+  targetAmount: rupee.min(1000).required(),
+  currentSavings: rupee.required(),
+  targetDate: Joi.string().pattern(/^\\d{4}-\\d{2}-\\d{2}$/).custom((v, helpers) => {
+    const parsed = new Date(`${v}T00:00:00.000Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === v
+      ? v : helpers.error('date.format');
+  }).required(),
+  priority: Joi.string().valid('Critical', 'High', 'Medium', 'Low').required(),
+  annualPriceInflationPct: Joi.number().min(0).max(30).required(),
+  notes: Joi.string().trim().allow('').max(800).required(),
+}).unknown(false);
+const createSpecSchema = specPayload;
+const updateSpecSchema = specPayload.keys({
+  expectedVersion: Joi.number().integer().min(1).required(),
+});
+
+function specPublic(value) {
+  return {
+    id: String(value._id), version: value.version, kind: value.kind, name: value.name,
+    targetAmount: value.targetAmount, currentSavings: value.currentSavings,
+    targetDate: new Date(value.targetDate).toISOString().slice(0, 10),
+    priority: value.priority, annualPriceInflationPct: value.annualPriceInflationPct,
+    notes: value.notes,
+    plan: planGoalSpecification(value),
+  };
+}
+router.get('/specifications', asyncHandler(async (req, res) => {
+  const specs = await GoalSpecification.find({ userId: req.user.userId })
+    .sort({ targetDate: 1, _id: 1 }).limit(251).lean();
+  if (specs.length > 250) return sendError(req, res, 409, 'Goal specification limit reached.', 'GOAL_SPEC_LIMIT');
+  res.json({ specifications: specs.map(specPublic) });
+}));
+router.post('/specifications', validateStrict(createSpecSchema), asyncHandler(async (req, res) => {
+  const count = await GoalSpecification.countDocuments({ userId: req.user.userId });
+  if (count >= 250) return sendError(req, res, 409, 'Goal specification limit reached.', 'GOAL_SPEC_LIMIT');
+  const doc = await GoalSpecification.create({
+    ...req.body, userId: req.user.userId, targetDate: new Date(`${req.body.targetDate}T00:00:00.000Z`),
+  });
+  res.status(201).json({ specification: specPublic(doc) });
+}));
+function validSpecId(req, res, next) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return sendError(req, res, 400, 'Invalid goal specification ID.', 'GOAL_SPEC_ID_INVALID');
+  }
+  next();
+}
+router.put('/specifications/:id', validSpecId, validateStrict(updateSpecSchema), asyncHandler(async (req, res) => {
+  const { expectedVersion, ...values } = req.body;
+  const saved = await GoalSpecification.findOneAndUpdate(
+    { _id: req.params.id, userId: req.user.userId, version: expectedVersion },
+    { $set: { ...values, targetDate: new Date(`${values.targetDate}T00:00:00.000Z`) }, $inc: { version: 1 } },
+    { new: true, runValidators: true },
+  );
+  if (!saved) return sendError(req, res, 409, 'Specification changed, is missing or is not owned by this account.', 'GOAL_SPEC_VERSION_CONFLICT');
+  res.json({ specification: specPublic(saved) });
+}));
+router.delete('/specifications/:id', validSpecId, asyncHandler(async (req, res) => {
+  const rawVersion = req.headers['if-match'];
+  if (!/^"[1-9]\\d*"$/.test(String(rawVersion || ''))) {
+    return sendError(req, res, 400, 'A valid version is required in If-Match.', 'GOAL_SPEC_VERSION_REQUIRED');
+  }
+  const version = Number(rawVersion.slice(1, -1));
+  if (!Number.isSafeInteger(version)) return sendError(req, res, 400, 'Invalid version.', 'GOAL_SPEC_VERSION_REQUIRED');
+  const deleted = await GoalSpecification.findOneAndDelete({
+    _id: req.params.id, userId: req.user.userId, version,
+  });
+  if (!deleted) return sendError(req, res, 409, 'Specification changed, is missing or is not owned by this account.', 'GOAL_SPEC_VERSION_CONFLICT');
+  res.json({ deleted: true, id: String(deleted._id) });
 }));
 
 router.post('/projection', validateStrict(projectionSchema), asyncHandler(async (req, res) => {
