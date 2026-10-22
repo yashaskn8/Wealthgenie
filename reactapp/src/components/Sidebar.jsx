@@ -326,12 +326,12 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
             </div>
           </div>
 
-          {/* Keep the preview visible; backend permissions independently gate GenieProof operations. */}
+          {/* GenieProof is an authenticated read-only claim check; evidence policy stays server-side. */}
           {genieProofEnabled && (
             <div className="sidebar-group">
               {!collapsed && (
                 <div className="sidebar-group-header">
-                  <span className="sidebar-group-title">RESEARCH PREVIEW</span>
+                  <span className="sidebar-group-title">CLAIM CHECKING</span>
                   <span className="sidebar-group-line" />
                 </div>
               )}
@@ -562,14 +562,14 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
             <div className="mobile-drawer-items">
               {genieProofEnabled && (
                 <>
-                  <div className="mobile-drawer-section-title">RESEARCH PREVIEW</div>
+                  <div className="mobile-drawer-section-title">CLAIM CHECKING</div>
                   <button
                     type="button"
                     className={`mobile-drawer-btn ${activePage === NAV_PAGES.GENIEPROOF ? 'mobile-drawer-btn--active' : ''}`}
                     onClick={() => handleItemClick(NAV_PAGES.GENIEPROOF)}
                   >
                     <FileSearch size={18} color="#38bdf8" />
-                    <span>GenieProof Preview</span>
+                    <span>GenieProof</span>
                   </button>
                 </>
               )}
