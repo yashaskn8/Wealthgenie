@@ -67,7 +67,7 @@ export async function checkGenieProofClaims({
   if (supported.length && verifier?.verifySignedManifest) {
     try {
       const resolved = await evidenceResolver({ claims: supported, now: () => checkedAt });
-      if (!resolved || typeof resolved.byClaimId !== 'object' || Array.isArray(resolved.byClaimId)) {
+      if (!resolved || !resolved.byClaimId || typeof resolved.byClaimId !== 'object' || Array.isArray(resolved.byClaimId)) {
         evidenceError = true;
       } else {
         evidenceByClaim = resolved.byClaimId;
