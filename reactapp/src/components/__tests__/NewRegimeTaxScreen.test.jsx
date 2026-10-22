@@ -14,7 +14,7 @@ function populate({ primaryIncome = '1275000.00', residency = 'resident', specia
   });
   fireEvent.change(screen.getByLabelText(/Residential status/i), { target: { value: residency } });
   fireEvent.change(screen.getByLabelText(/Any special-rate income or dividends/i), { target: { value: specialRateIncome } });
-  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('checkbox', { name: /I confirm this is a single-individual/i }));
 }
 
 describe('new-regime calculator visible entry point', () => {
@@ -145,7 +145,7 @@ describe('new-regime calculator visible entry point', () => {
     expect(call).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent(/Cannot calculate this simplified return/i);
     fireEvent.change(screen.getByLabelText(/Residential status/i), { target: { value: 'resident' } });
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('checkbox', { name: /I confirm this is a single-individual/i }));
     fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
     expect(call).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent(/No income figures were submitted/i);
