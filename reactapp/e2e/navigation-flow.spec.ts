@@ -128,7 +128,17 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     // as unavailable, without inventing any budget or funding numbers.
     // Unknown API paths still trigger the strict unexpected-request guard.
     for (const endpoint of ['budget', 'funding']) {
-      await page.route(new RegExp('/api/goals/finance/' + endpoint + '/\\d{4}-\\d{2}(?:\\?.*)?
+      await page.route('**/api/goals/finance/' + endpoint + '/*', async route => {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'TEST_GOAL_FINANCE_UNAVAILABLE',
+            message: 'No qualified month-specific budget/funding evidence in navigation fixture.',
+          }),
+        });
+      });
+    }
     // 0. Disable onboarding modal so it does not intercept clicks
     await page.addInitScript(() => {
       try {
