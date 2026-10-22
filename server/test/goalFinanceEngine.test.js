@@ -185,3 +185,30 @@ test('the same vehicle cannot be called affordable if it drains monthly commitme
     - (withEducationAndEmergency.purchaseMonthSurplusAfterPurchase - 40000)) < 0.001);
   assert.equal(assessVehiclePurchase(budget, scenario).status, 'DATA_INSUFFICIENT');
 });
+
+test('EMI ledger reconciles every rupee and paisa for fixed, zero and high rates', () => {
+  let seed = 209381;
+  const next = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 750; i += 1) {
+    const principal = Math.round((10000 + next() * 20_000_000) * 100) / 100;
+    const annualInterestRate = i % 5 === 0 ? 0 : Math.round(next() * 4000) / 100;
+    const tenureMonths = 1 + Math.floor(next() * 360);
+    const loan = calculateEmi({ principal, annualInterestRate, tenureMonths });
+    assert.equal(
+      Math.round(loan.totalRepayment * 100),
+      Math.round(principal * 100) + Math.round(loan.totalInterest * 100),
+      `Loan did not reconcile for case ${i}`,
+    );
+    assert.ok(loan.monthlyEmi >= 0 && loan.finalPayment >= 0);
+    assert.ok(loan.finalPayment < loan.monthlyEmi + 2);
+    assert.ok(loan.totalInterest >= 0);
+  }
+  const zero = calculateEmi({ principal: 0, annualInterestRate: 0, tenureMonths: 60 });
+  assert.equal(zero.totalRepayment, 0);
+  assert.equal(zero.finalPayment, 0);
+  const interesting = calculateEmi({ principal: 700000, annualInterestRate: 10, tenureMonths: 60 });
+  assert.equal(
+    Math.round(interesting.totalRepayment * 100),
+    Math.round((interesting.loanPrincipal + interesting.totalInterest) * 100),
+  );
+});
