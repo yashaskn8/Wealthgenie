@@ -8,8 +8,8 @@ const POLICY = Object.freeze({
   taxYear: '2026-27',
   policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
   sources: Object.freeze([
-    'https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/section-202-78',
-    'https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/section-19-199',
+    'https://www.incometaxindia.gov.in/w/section-202-78',
+    'https://www.incometaxindia.gov.in/w/section-19-199',
     'https://www.incometaxindia.gov.in/w/tax-rates-and-computation',
     'https://www.incometaxindia.gov.in/w/section-156-84',
     'https://www.incometaxindia.gov.in/w/section-516-3',
