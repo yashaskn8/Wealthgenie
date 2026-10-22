@@ -5,6 +5,7 @@
  */
 import { ProviderManager } from './providerAbstraction.js';
 import { isFinancialGoalPlanningQuestion } from './chatGoalPlanning.js';
+import { sanitizeExternalQuestion } from './groundedExplanationService.js';
 
 export const GENERAL_CHAT_PROMPT_VERSION = 'general-chat-v1';
 const FINANCIAL_QUERY = /\b(?:diversif(?:y|ying|ied|ication)|rebalanc(?:e|ing)|invest(?:ing|ment|or)?s?|mutual\s*funds?|stocks?|shares?|equity|etfs?|securities|bonds?|deposits?|fixed[ -]?deposits?|fds?|pensions?|ppf|nps|elss|sip|nav|portfolio|asset\s*allocation|rebalanc(?:e|ing)|market|nifty|sensex|rbi|sebi|income[ -]?tax|tax(?:es|ation|able)?|deductions?|ltcg|stcg|capital\s*gains?|interest\s*rates?|inflation|returns?|profit|wealth|savings?|interest|compound(?:ing)?|yield|liquidity|suitability|risk|retirement|budget(?:ing)?|salary|emi|loans?|debt|credit|insurance|financial|bank(?:s|ing)?|trading|commodities|crypto|bitcoin|crores?|crors?|lakhs?|lacs?|rupees?|paise|my\s*(?:plan|profile|goal|risk|allocation|recommendation)|where\s+to\s+invest|what\s+should\s+i\s+buy)\b/i;
@@ -23,7 +24,7 @@ function safeGeneralHistory(priorTurns) {
       && isGeneralChatQuestion(turn.content))
     .map(turn => ({
       role: turn.role,
-      parts: [{ text: turn.content.slice(0, 1000) }],
+      parts: [{ text: sanitizeExternalQuestion(turn.content).slice(0, 1000) }],
     }));
 }
 
@@ -114,7 +115,7 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
         systemPrompt: SYSTEM_PROMPT,
         recentHistory: [
           ...safeGeneralHistory(priorTurns),
-          { role: 'user', parts: [{ text: String(question).slice(0, 1000) }] },
+          { role: 'user', parts: [{ text: sanitizeExternalQuestion(question) }] },
         ],
         maxTokens: 800,
         jsonMode: false,
