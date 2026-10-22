@@ -104,7 +104,11 @@ function sipResponse(fields = {}, request = {}) {
     if (key === 'flatInvested' || key === 'stepUpInvested'
         || key === 'additionalContributions' || key === 'additionalProjectedGrowth'
         || key === 'finalMonthlySip') continue;
-    result[key] = value;
+    if (key === 'affordability' || key === 'emergency_buffer') {
+      result[key] = { ...result[key], ...value };
+    } else {
+      result[key] = value;
+    }
   }
   result.additionalCorpus = result.stepUpFinal - result.flatFinal;
   result.additionalProjectedGrowth = result.additionalCorpus - result.additionalContributions;
