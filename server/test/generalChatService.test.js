@@ -191,3 +191,18 @@ test('red-team: PAN, Aadhaar, UPI PIN and personal identity facts are never unso
   }
   assert.equal(isGeneralChatQuestion('Explain how a Python for loop works'), true);
 });
+
+
+test('red-team: unsourced general routing refuses digital gold and Indian financial products', () => {
+  for (const question of [
+    'Should I buy digital gold?', 'What is XIRR?', 'Explain CAGR on my corpus',
+    'How do POMIS and KVP work?', 'PMS vs AIF for HNIs?',
+    'What are REITs and InvITs?', 'What is a ULIP?',
+    'How does SWP work?', 'What is P/E ratio?',
+    'Should I hold sovereign gold?', 'Does KYC require PAN?',
+  ]) assert.equal(isGeneralChatQuestion(question), false, question);
+  for (const question of [
+    'What is gold used for in electronics?', 'How to bake a wedding cake?',
+    'Explain Python decorators.', 'Write a job application email.',
+  ]) assert.equal(isGeneralChatQuestion(question), true, question);
+});
