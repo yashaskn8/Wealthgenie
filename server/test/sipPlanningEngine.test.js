@@ -243,3 +243,19 @@ test('SIP planner discloses key-free inputs, pre-tax status and amount precision
   assert.equal(result.assumptions.returnRateConvention, 'EFFECTIVE_ANNUAL_CAGR');
   assert.ok(result.warnings.includes('ASSUMED_RETURNS_NOT_GUARANTEED'));
 });
+
+test('uplift percentage uses unrounded finance values and never invents zero for negligible corpuses', () => {
+  const input = { ...base, annualReturnRate: 0.123456, annualStepUpRate: 0.076543, years: 13,
+    returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR' };
+  const x = buildSipPlan(input);
+  assert.ok(Number.isFinite(x.additionalPercent));
+  assert.ok(x.additionalPercent > 0);
+  assert.ok(Math.abs(x.additionalPercent - x.additionalCorpus / x.flatFinal * 100) < 0.02);
+  const tiny = buildSipPlan({
+    monthlyInvestment: 0.01, annualReturnRate: -0.99, annualStepUpRate: 0.05,
+    years: 10, returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+  });
+  assert.equal(tiny.flatFinal, 0);
+  assert.equal(tiny.additionalPercent, null);
+  assert.ok(tiny.flatInvested > 0);
+});
