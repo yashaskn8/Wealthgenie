@@ -48,6 +48,9 @@
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
     "vite": "^8.1.6",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "dompurify": "3.4.17"
   }
 }
