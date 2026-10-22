@@ -178,7 +178,7 @@ export default function VerifiedCapitalGainsTaxScreen(){
       Calculation not available for this case: {result.unavailableReasons.join(', ')}.
       A full tax computation is required; no speculative figure is displayed.
     </p>}
-    {result?.status==='CALCULATED'&&<section className="wg-new-tax__result" aria-label="Verified capital gains tax result" role="status">
+    {result?.status==='CALCULATED'&&<section className="wg-new-tax__result" aria-label="Verified capital gains tax result">
       <p>Estimated liability on the exact declared and qualified tax heads</p>
       <strong className="wg-new-tax__amount">{display(result.finalTax)}</strong>
       <p>Total income {display(result.grossTotalIncome)} · Tax Year 2026–27 · {result.policyVersion}</p>
