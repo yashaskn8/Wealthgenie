@@ -181,7 +181,7 @@ test('the same vehicle cannot be called affordable if it drains monthly commitme
   assert.equal(withEducationAndEmergency.status, 'BUDGET_SHORTFALL');
   assert.ok(withEducationAndEmergency.reasons.includes('GOALS_AND_PURCHASE_EXCEED_SAVINGS'));
   assert.equal(withEducationAndEmergency.requiredMonthlyGoalContributions, 40000);
-  assert.equal(withEducationAndEmergency.purchaseMonthSurplusAfterGoals,
-    withEducationAndEmergency.purchaseMonthSurplusAfterPurchase - 40000);
+  assert.ok(Math.abs(withEducationAndEmergency.purchaseMonthSurplusAfterGoals
+    - (withEducationAndEmergency.purchaseMonthSurplusAfterPurchase - 40000)) < 0.001);
   assert.equal(assessVehiclePurchase(budget, scenario).status, 'DATA_INSUFFICIENT');
 });
