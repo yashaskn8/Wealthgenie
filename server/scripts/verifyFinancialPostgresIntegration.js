@@ -65,6 +65,16 @@ try {
     WHERE source_id=$1`,[sourceId]);
   await assert.rejects(store.appendObservation({...input,
     sourceInstrumentId:'CI:WRONG:'+suffix}),/PRODUCT_PROVIDER_IDENTITY_MISMATCH/);
+  // No operator can silently assign listed-equity tax treatment to an
+  // imported product without an exact source and review timestamp.
+  await assert.rejects(
+    pool.query(`UPDATE finance.products SET qualified_tax_class=
+      'LISTED_EQUITY_STT_QUALIFIED' WHERE id=$1`,[productId]),
+    /financial_products_tax_class_evidence/,
+    'Actual product tax classification must carry evidence and a review time',
+  );
+  assert.deepEqual(await store.qualifiedHistoricalPrices(productId,'PRICE',sourceId),[],
+    'Unqualified or absent EOD histories must not be used to estimate equity risk');
   const stored = await store.appendObservation(input);
   assert.equal(stored.stored,true);
   const found = await store.latestPublishableObservation(productId,'PRICE');
