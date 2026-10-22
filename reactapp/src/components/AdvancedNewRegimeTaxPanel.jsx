@@ -44,6 +44,26 @@ const fields = [
   ['Tax before statutory rounding', 'taxBeforeStatutoryRounding'],
 ];
 
+const min = (a, b) => a < b ? a : b;
+const max = (a, b) => a > b ? a : b;
+const U = 10000n;
+
+// Independent, read-only legal policy verification for displayed totals.
+// This is a defensive browser check; the backend remains the calculation authority.
+function slabTaxUnits(income) {
+  let from = 0n;
+  let tax = 0n;
+  for (const [to, rate] of [[400000n, 0n], [800000n, 5n], [1200000n, 10n],
+    [1600000n, 15n], [2000000n, 20n], [2400000n, 25n], [income, 30n]]) {
+    if (min(income, to) > from) tax += (min(income, to) - from) * U * rate / 100n;
+    from = to;
+  }
+  return tax;
+}
+function surchargePercent(income) {
+  return income > 20000000n ? 25n : income > 10000000n ? 15n
+    : income > 5000000n ? 10n : 0n;
+}
 function responseIsBound(data, request) {
   if (!data || typeof data !== 'object' || data.taxYear !== '2026-27'
       || data.policyVersion !== 'advanced-new-regime-TY2026-27-v1'
@@ -53,7 +73,9 @@ function responseIsBound(data, request) {
       || Object.keys(request).some(k => data.inputsUsed[k] !== request[k])) return false;
   if (data.status === 'UNAVAILABLE') return data.finalTax === null
     && Array.isArray(data.unavailableReasons) && data.unavailableReasons.length > 0;
-  if (!request.confirmedNoOtherTaxAdjustments || request.residency === 'unknown'
+  if (!request.confirmedNoOtherTaxAdjustments
+      || !['resident', 'non_resident'].includes(request.residency)
+      || !['salary', 'pension', 'already_taxable'].includes(request.incomeType)
       || !Array.isArray(data.unavailableReasons) || data.unavailableReasons.length !== 0
       || !/^\d+$/.test(data.finalTax) || BigInt(data.finalTax) % 10n !== 0n
       || !/^\d+$/.test(data.ordinaryTaxableIncome)
@@ -61,35 +83,66 @@ function responseIsBound(data, request) {
       || !/^\d+$/.test(data.totalTaxableIncome)
       || fields.some(([, key]) => !(/^\d+$/.test(String(data[key])) || FOUR.test(String(data[key]))))
       || !Array.isArray(data.notes)) return false;
+  const p = Object.fromEntries(
+    ['primaryIncome', 'otherOrdinaryIncome', 'lotteryWinnings', 'housePropertyLoss',
+      'employerNpsContribution', 'npsEligibleSalary'].map(k => [k, paise(request[k])])
+  );
+  if (Object.values(p).some(v => v === null || v > MAX_PAISE)) return false;
+  const { primaryIncome: primary, otherOrdinaryIncome: other, lotteryWinnings: lottery,
+    housePropertyLoss: loss, employerNpsContribution: nps, npsEligibleSalary: basic } = p;
+  if (primary + other + lottery > MAX_PAISE) return false;
+  if (nps > 0n && (request.incomeType !== 'salary'
+      || !request.confirmedNpsIncludedInSalary || basic === 0n
+      || basic > primary || nps > primary)) return false;
+  if (nps === 0n && (basic !== 0n || request.confirmedNpsIncludedInSalary)) return false;
+  const expectedStandard = request.incomeType === 'already_taxable' ? 0n : min(primary, 7500000n);
+  const expectedNps = min(nps, basic * 14n / 100n);
+  const taxablePaise = primary + other - expectedStandard - expectedNps;
+  if (taxablePaise < 0n) return false;
+  const ordinary = ((taxablePaise / 100n + 5n) / 10n) * 10n;
   const u = key => BigInt(String(data[key]).replace('.', ''));
-  const primary = paise(request.primaryIncome);
-  const other = paise(request.otherOrdinaryIncome);
-  const lottery = paise(request.lotteryWinnings);
-  const loss = paise(request.housePropertyLoss);
-  const nps = paise(request.employerNpsContribution);
-  const basic = paise(request.npsEligibleSalary);
-  if ([primary, other, lottery, loss, nps, basic].some(v => v === null)) return false;
-  const expectedStandard = request.incomeType === 'already_taxable' ? 0n
-    : (primary < 7500000n ? primary : 7500000n);
-  const expectedNps = nps < basic * 14n / 100n ? nps : basic * 14n / 100n;
   if (u('grossOrdinaryIncome') !== (primary + other) * 100n
       || u('standardDeduction') !== expectedStandard * 100n
       || u('employerNpsDeduction') !== expectedNps * 100n
       || u('excessNpsNotDeducted') !== (nps - expectedNps) * 100n
-      || u('housePropertyLossNotSetOff') !== loss * 100n) return false;
-  const preRoundIncome = (primary + other - expectedStandard - expectedNps) / 100n;
-  const roundedIncome = ((preRoundIncome + 5n) / 10n) * 10n;
-  if (BigInt(data.ordinaryTaxableIncome) !== roundedIncome
+      || u('housePropertyLossNotSetOff') !== loss * 100n
+      || BigInt(data.ordinaryTaxableIncome) !== ordinary
       || BigInt(data.specialIncomeTaxable) !== lottery / 100n
-      || BigInt(data.totalTaxableIncome) !== roundedIncome + lottery / 100n) return false;
-  if (u('specialIncomeTax') !== lottery * 30n
-      || u('rebate') > u('ordinaryTaxBeforeRebate')
-      || u('rebate') < 0n || u('surchargeMarginalRelief') > u('surcharge')) return false;
-  const beforeCess = u('ordinaryTaxBeforeRebate') + u('specialIncomeTax') - u('rebate')
-    + u('surcharge') - u('surchargeMarginalRelief');
-  return beforeCess >= 0n && u('cess') === beforeCess * 4n / 100n
-    && u('taxBeforeStatutoryRounding') === beforeCess + u('cess')
-    && BigInt(data.finalTax) === ((u('taxBeforeStatutoryRounding') / 10000n + 5n) / 10n) * 10n;
+      || BigInt(data.totalTaxableIncome) !== ordinary + lottery / 100n) return false;
+  // Mixed special-rate cases are limited to income strictly below the first
+  // surcharge threshold and amounts for which component rounding is unambiguous.
+  if (lottery > 0n && (taxablePaise % 1000n !== 0n
+      || lottery % 1000n !== 0n || taxablePaise + lottery > 5000000n * 100n)) return false;
+
+  const totalIncome = ordinary + lottery / 100n;
+  const ordinaryTax = slabTaxUnits(ordinary);
+  const specialTax = lottery * 30n;
+  let rebate = 0n;
+  if (request.residency === 'resident') {
+    if (totalIncome <= 1200000n) rebate = min(ordinaryTax, 60000n * U);
+    else rebate = min(ordinaryTax, max(0n,
+      ordinaryTax + specialTax - (totalIncome - 1200000n) * U));
+  }
+  const afterRebate = ordinaryTax + specialTax - rebate;
+  const surcharge = lottery > 0n ? 0n : afterRebate * surchargePercent(ordinary) / 100n;
+  let relief = 0n;
+  if (lottery === 0n && ordinary > 5000000n) {
+    const threshold = ordinary > 20000000n ? 20000000n
+      : ordinary > 10000000n ? 10000000n : 5000000n;
+    const permitted = slabTaxUnits(threshold) * (100n + surchargePercent(threshold)) / 100n
+      + (ordinary - threshold) * U;
+    relief = max(0n, afterRebate + surcharge - permitted);
+  }
+  const cess = (afterRebate + surcharge - relief) * 4n / 100n;
+  const finalBeforeRounding = afterRebate + surcharge - relief + cess;
+  return u('ordinaryTaxBeforeRebate') === ordinaryTax
+    && u('specialIncomeTax') === specialTax
+    && u('rebate') === rebate
+    && u('surcharge') === surcharge
+    && u('surchargeMarginalRelief') === relief
+    && u('cess') === cess
+    && u('taxBeforeStatutoryRounding') === finalBeforeRounding
+    && BigInt(data.finalTax) === ((finalBeforeRounding / U + 5n) / 10n) * 10n;
 }
 
 export default function AdvancedNewRegimeTaxPanel() {
