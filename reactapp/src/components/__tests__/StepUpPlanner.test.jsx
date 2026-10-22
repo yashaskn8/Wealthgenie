@@ -140,7 +140,7 @@ it('renders exact rupee and paise amounts rather than silently abbreviating depo
     chartData: [],
   });
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
-  expect(await screen.findByText('₹12,30,00,000')).toBeInTheDocument();
+  expect((await screen.findAllByText('₹12,30,00,000')).length).toBe(2);
   expect(screen.getAllByText(/₹12,004\.44/).length).toBeGreaterThan(0);
   expect(screen.queryByText('₹12.3 Cr')).not.toBeInTheDocument();
 });
