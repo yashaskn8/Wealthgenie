@@ -20,6 +20,8 @@ const goal = (id, sip, priority = 'High') => ({
   goalId: id, goal_name: id, priority, target_date: '2028-01-01',
   recommended_sip: sip, current_savings: 0, calculation_freshness: { fresh: true },
 });
+const purchaseWithoutExistingGoals = (budget, scenario) =>
+  assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments: 0 });
 const purchase = () => ({
   price: 900000, downPayment: 200000, upfrontFees: 15000, monthlyOwnershipCost: 4500,
   annualInterestRate: 10, tenureMonths: 60, emergencyCash: 400000, emergencyFloor: 150000,
@@ -74,20 +76,20 @@ test('zero-interest amortization and nonzero EMI arithmetic are bounded', () => 
   assert.throws(() => calculateEmi({ principal: 1, annualInterestRate: 10, tenureMonths: 361 }), /duration/);
 });
 test('vehicle analysis respects upfront costs, monthly upkeep and emergency reserves', () => {
-  const result = assessVehiclePurchase(sampleBudget(), purchase());
+  const result = purchaseWithoutExistingGoals(sampleBudget(), purchase());
   assert.equal(result.priceBasis, 'USER_SUPPLIED_NOT_LIVE');
   assert.equal(result.lenderApproval, 'NOT_ASSESSED');
   assert.equal(result.upfront, 215000);
   assert.equal(result.emergencyCashAfterPurchase, 185000);
   assert.equal(result.status, 'BUDGET_SHORTFALL');
   assert.ok(result.monthlySurplusAfterPurchase < 0);
-  const cheaper = assessVehiclePurchase(sampleBudget(), { ...purchase(), price: 500000 });
+  const cheaper = purchaseWithoutExistingGoals(sampleBudget(), { ...purchase(), price: 500000 });
   assert.ok(cheaper.monthlySurplusAfterPurchase > result.monthlySurplusAfterPurchase);
-  const unknown = assessVehiclePurchase({ ...sampleBudget(), expensesComplete: false }, purchase());
+  const unknown = purchaseWithoutExistingGoals({ ...sampleBudget(), expensesComplete: false }, purchase());
   assert.equal(unknown.status, 'DATA_INSUFFICIENT');
-  const risky = assessVehiclePurchase({ ...sampleBudget(), monthlyIncome: 90000 }, { ...purchase(), emergencyFloor: 200000 });
+  const risky = purchaseWithoutExistingGoals({ ...sampleBudget(), monthlyIncome: 90000 }, { ...purchase(), emergencyFloor: 200000 });
   assert.equal(risky.status, 'RISK_WARNING');
-  assert.throws(() => assessVehiclePurchase(sampleBudget(), { ...purchase(), downPayment: 1000000 }), /Down payment/);
+  assert.throws(() => purchaseWithoutExistingGoals(sampleBudget(), { ...purchase(), downPayment: 1000000 }), /Down payment/);
 });
 test('goal projections label unsupported tax and return assumptions', () => {
   const result = projectGoalSavings({
@@ -132,16 +134,16 @@ test('one-off spending reduces this month, not nominal recurring earnings', () =
   assert.equal(expensiveMonth.recurringSurplus, 4000);
   assert.equal(expensiveMonth.actualMonthSurplus, -1000);
   assert.equal(expensiveMonth.budgetStatus, 'BUDGET_SHORTFALL');
-  const purchaseResult = assessVehiclePurchase(sampleBudget(), purchase());
+  const purchaseResult = purchaseWithoutExistingGoals(sampleBudget(), purchase());
   assert.equal(purchaseResult.purchaseMonthSurplusAfterPurchase,
     purchaseResult.monthlySurplusAfterPurchase - 5000);
 });
 test('zero or omitted real-world vehicle costs never yield an affordable claim', () => {
   const base = { ...sampleBudget(), monthlyIncome: 95000 };
-  assert.equal(assessVehiclePurchase(base, { ...purchase(), upfrontFees: 0 }).status, 'DATA_INSUFFICIENT');
-  assert.equal(assessVehiclePurchase(base, { ...purchase(), monthlyOwnershipCost: 0 }).status, 'DATA_INSUFFICIENT');
-  assert.throws(() => assessVehiclePurchase(base, { ...purchase(), price: 0, downPayment: 0 }), /price/);
-  assert.equal(assessVehiclePurchase({ ...base, expensesComplete: false }, purchase()).status, 'DATA_INSUFFICIENT');
+  assert.equal(purchaseWithoutExistingGoals(base, { ...purchase(), upfrontFees: 0 }).status, 'DATA_INSUFFICIENT');
+  assert.equal(purchaseWithoutExistingGoals(base, { ...purchase(), monthlyOwnershipCost: 0 }).status, 'DATA_INSUFFICIENT');
+  assert.throws(() => purchaseWithoutExistingGoals(base, { ...purchase(), price: 0, downPayment: 0 }), /price/);
+  assert.equal(purchaseWithoutExistingGoals({ ...base, expensesComplete: false }, purchase()).status, 'DATA_INSUFFICIENT');
 });
 test('derived rupee limits reject unrepresentable goal targets, rather than giving extreme forecasts', () => {
   const now = new Date('2026-10-23T00:00:00.000Z');
@@ -167,4 +169,19 @@ test('malformed persisted legacy goals cannot crash shared funding or receive mo
   const secondPlan = allocateGoalFunding([good, badMoney], 20000);
   assert.equal(secondPlan.status, 'DATA_INSUFFICIENT');
   assert.ok(secondPlan.warnings.includes('INVALID_PERSISTED_GOAL_INPUT'));
+});
+
+test('the same vehicle cannot be called affordable if it drains monthly commitments for other goals', () => {
+  const budget = { ...sampleBudget(), monthlyIncome: 90000 };
+  const scenario = { ...purchase(), price: 400000, downPayment: 200000,
+    monthlyOwnershipCost: 3000 };
+  const withoutGoals = assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments: 0 });
+  assert.equal(withoutGoals.status, 'AFFORDABLE_WITH_DECLARED_BUFFER');
+  const withEducationAndEmergency = assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments: 24000 });
+  assert.equal(withEducationAndEmergency.status, 'BUDGET_SHORTFALL');
+  assert.ok(withEducationAndEmergency.reasons.includes('GOALS_AND_PURCHASE_EXCEED_SAVINGS'));
+  assert.equal(withEducationAndEmergency.requiredMonthlyGoalContributions, 24000);
+  assert.equal(withEducationAndEmergency.purchaseMonthSurplusAfterGoals,
+    withEducationAndEmergency.purchaseMonthSurplusAfterPurchase - 24000);
+  assert.equal(assessVehiclePurchase(budget, scenario).status, 'DATA_INSUFFICIENT');
 });
