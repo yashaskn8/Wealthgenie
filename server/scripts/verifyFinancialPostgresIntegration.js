@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
+import { qualifyProductForFamily, suspendProductForFamily } from '../postgres/qualifyFamilyProduct.js';
+import { compareQualifiedFamilyProducts } from '../services/familyTopThree.js';
+import { canonicalProfile } from '../test/helpers/canonicalProfile.js';
 import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
 
 const dbUrl = new URL(process.env.FINANCIAL_POSTGRES_URL || '');
@@ -42,6 +45,8 @@ try {
   const unauthorized = await store.latestPublishableObservation(productId, 'PRICE');
   assert.equal(unauthorized, null);
   const categories = await pool.query('SELECT id FROM finance.categories ORDER BY id LIMIT 1');
+  const family = await pool.query("SELECT id FROM finance.products WHERE record_kind='ARCHETYPE' AND category_id=$1 ORDER BY id LIMIT 1", [categories.rows[0]?.id]);
+  assert.ok(family.rows.length, 'Need a reference family for the isolated product fixture');
   assert.ok(categories.rows.length, 'At least one catalog category must be staged');
   await pool.query(`INSERT INTO finance.products
     (id,name,record_kind,category_id,source_identity,availability)
@@ -84,7 +89,45 @@ try {
   const found = await store.latestPublishableObservation(productId,'PRICE');
   assert.equal(found?.value,'100.25000000');
   assert.equal(found?.source_id,sourceId);
+  // Synthetic _test database ONLY: prove the SQL review gate, product identity,
+  // actual observation publication and right-revocation behavior end-to-end.
+  await pool.query(`UPDATE finance.products SET
+    verification_scope='VERIFIED_ACTUAL_PRODUCT',
+    discovery_reference_url='https://example.invalid/synthetic-issuer',
+    qualified_tax_class='ORDINARY_INTEREST',
+    tax_class_evidence_url='https://example.invalid/synthetic-tax',
+    tax_class_reviewed_at=now() WHERE id=$1`,[productId]);
+  const familyId=family.rows[0].id;
+  const reviewed=await qualifyProductForFamily(pool,{
+    familyId,productId,sourceId,observationType:'PRICE',
+    evidenceUrl:'https://example.invalid/synthetic-issuer',
+    termsEvidenceUrl:'https://example.invalid/synthetic-terms',
+    riskEvidenceUrl:'https://example.invalid/synthetic-risk',
+    reviewedBy:'ci-isolated-synthetic-review',
+    reviewedAt:new Date(Date.now()-120000).toISOString(),
+    validUntil:new Date(Date.now()+3600000).toISOString(),
+    riskLevel:1,minInvestmentInr:1000,minHorizonYears:1,
+    lockInMonths:0,annualFeeBps:0,retailAccess:true,
+    reviewNote:'Synthetic isolated test only; not an approved real product or licensed commercial source.',
+  });
+  assert.equal(reviewed.status,'ACTIVE');
+  const compare=()=>compareQualifiedFamilyProducts({
+    pool,familyId,profileInput:canonicalProfile(),adviceAuthorized:true,
+  });
+  const available=await compare();
+  assert.equal(available.status,'AVAILABLE');
+  assert.deepEqual(available.products.map(p=>p.id),[productId]);
+  assert.equal(available.products[0].marketFact.sourceId,sourceId);
   await pool.query('UPDATE finance.provider_rights SET revoked_at=now() WHERE source_id=$1',[sourceId]);
+  const revoked=await compare();
+  assert.equal(revoked.status,'NO_QUALIFIED_PRODUCTS');
+  assert.deepEqual(revoked.products,[]);
+  assert.equal(revoked.exclusionCounts.DATA_RIGHTS_REVOKED_OR_EXPIRED,1);
+  const suspended=await suspendProductForFamily(pool,{
+    familyId,productId,reviewedBy:'ci-isolated-synthetic-review',
+    reviewNote:'Synthetic source rights revoked in isolated test database.',
+  });
+  assert.equal(suspended.status,'SUSPENDED');
   assert.equal(await store.latestPublishableObservation(productId,'PRICE'),null,
     'Revoked rights must prevent source publication immediately');
   execFileSync(process.execPath,
@@ -110,10 +153,12 @@ try {
     sourcedExtensions:added.rows[0].n,reviewMetadataRecords:detail.rows[0].n,
     licenseAbsentDenied:true,revocationDenied:true,
     wrongProviderInstrumentDenied:true,revocationDataPurged:true,
-    rightsAuditTrailVerified:true,sandboxFixture:true})+'\n');
+    rightsAuditTrailVerified:true,threeProductActivationFixturePassed:true,
+    revocationRemovesQualifiedProducts:true,sandboxFixture:true})+'\n');
 } finally {
   // This script is restricted to *_test databases. Never modify a live source registry.
   await pool.query('DELETE FROM finance.market_observations WHERE source_id=$1',[sourceId]);
+  await pool.query('DELETE FROM finance.family_product_qualifications WHERE product_id=$1',[productId]);
   await pool.query('DELETE FROM finance.product_external_ids WHERE source_id=$1',[sourceId]);
   await pool.query('DELETE FROM finance.products WHERE id=$1',[productId]);
   await pool.query('DELETE FROM finance.provider_rights WHERE source_id=$1',[sourceId]);
