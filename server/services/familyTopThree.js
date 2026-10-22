@@ -127,13 +127,15 @@ export async function compareQualifiedFamilyProducts({
     }
     selected.push(product);
   }
+  const hasThree = selected.length === 3;
   return {
-    status: selected.length ? 'AVAILABLE' : 'NO_QUALIFIED_PRODUCTS',
-    reasonCode: selected.length ? null : 'NO_SUITABLE_CURRENTLY_QUALIFIED_PRODUCTS',
+    status: hasThree ? 'AVAILABLE' : 'INSUFFICIENT_VERIFIED_PRODUCTS',
+    reasonCode: hasThree ? null : 'FEWER_THAN_THREE_SUITABLE_VERIFIED_PRODUCTS',
     version: FAMILY_TOP_THREE_VERSION, familyId, familyName, maxResults: 3,
     qualifyingCount: eligible.length, examinedCount: response.rows.length,
-    exclusionCounts: exclusions, products: selected,
-    disclosure: 'Up to three currently qualified products for comparison; no assured return, tax forecast, trade execution or automatic portfolio change.',
+    requiredProductCount:3,verifiedProductCount:selected.length,
+    exclusionCounts: exclusions, products: hasThree ? selected : [],
+    disclosure: 'Exactly three independently qualified products are required for this comparison; no assured return, tax forecast, trade execution or automatic portfolio change.',
     profileBasis: { riskLevelCeiling: riskLimit, investmentHorizonYears: profile.investmentHorizonYears },
   };
 }

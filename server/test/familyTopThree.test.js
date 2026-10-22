@@ -72,7 +72,7 @@ test('missing fact, revoked rights, invalid tax, restricted eligibility and stal
   product('bad-fact'),
  ],{'bad-fact':null});
  const r=await compare(h);
- assert.equal(r.status,'NO_QUALIFIED_PRODUCTS');
+ assert.equal(r.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
  assert.equal(r.products.length,0);
  assert.ok(r.exclusionCounts.DATA_RIGHTS_REVOKED_OR_EXPIRED>0);
  assert.ok(r.exclusionCounts.VERIFIED_MARKET_FACT_UNAVAILABLE>0);
@@ -127,8 +127,9 @@ test('revocation between preliminary screening and final publication drops the w
    data_class:'PUBLISHED_RATE',observed_at:now};
  };
  const r=await compare(h);
- assert.equal(r.products.length,1);
- assert.equal(r.products[0].id,'p2');
+ assert.equal(r.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.equal(r.verifiedProductCount,1);
+ assert.deepEqual(r.products,[]);
  assert.equal(r.exclusionCounts.MARKET_SOURCE_CHANGED_DURING_COMPARISON,1);
 });
 
@@ -142,7 +143,20 @@ test('the comparison fetches only the reviewed provider identity, not a newer un
     observed_at:at,data_class:'PUBLISHED_RATE'};
  };
  const r=await compare(h);
- assert.equal(r.products.length,1);
+ assert.equal(r.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.deepEqual(r.products,[]);
  assert.equal(invoked.length,2);
  assert.deepEqual(invoked.map(x=>x.sourceId),['verified-bank','verified-bank']);
+});
+
+test('zero, one and two qualified products never produce a top-three recommendation',async()=>{
+ for(const count of [0,1,2]){
+  const h=harness(Array.from({length:count},(_,i)=>product('qualified-'+i)));
+  const result=await compare(h);
+  assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+  assert.equal(result.reasonCode,'FEWER_THAN_THREE_SUITABLE_VERIFIED_PRODUCTS');
+  assert.equal(result.requiredProductCount,3);
+  assert.equal(result.verifiedProductCount,count);
+  assert.deepEqual(result.products,[]);
+ }
 });
