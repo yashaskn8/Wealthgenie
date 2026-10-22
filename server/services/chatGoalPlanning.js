@@ -78,7 +78,7 @@ export function isGoalPlanningFollowUp(question) {
   const referencedGoalDeadline = /^(?:(?:i|we)\s+(?:want|need|plan|hope)\s+(?:to\s+(?:do|reach|achieve|fund|make)\s+)?(?:it|that|this|the goal)?\s*)?(?:in|within|after|over)\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
   if (simpleDeadline.test(text) || namedDeadline.test(text) || referencedGoalDeadline.test(text)) return true;
   if (/\b(?:no savings|nothing saved|zero saved|saved zero|starting from zero|zero savings|0 savings)\b/i.test(text)) return true;
-  return moneyIn(text).some(item => ['SAVINGS', 'CAPACITY', 'AMBIGUOUS', 'INVALID'].includes(item.role));
+  return moneyIn(text).some(item => ['SAVINGS', 'CAPACITY', 'AMBIGUOUS', 'INVALID', 'UNSPECIFIED_FREQUENCY'].includes(item.role));
 }
 
 function parseExactRupees(raw, factor) {
@@ -124,8 +124,12 @@ function moneyIn(question) {
     const unlabelledMonthlyAmount = (monthlyBefore || monthlyAfter) && !recurring;
     const statedSavedFlow = recurring && /\b(?:have|has|had)\s+saved\s*$|\bsaved\s*$/i.test(before);
     const recurringGoalBudget = recurring && /\b(?:goal|target|need|require|want)\s*(?:is|of|to\s+be)?\s*$/i.test(before);
+    // "I can save ₹50k" does not establish ₹50k PER MONTH or an existing
+    // ₹50k balance. A cadence must be supplied before comparing affordability.
+    const unspecifiedFrequency = !monthlyBefore && !monthlyAfter
+      && /\b(?:(?:i|we)\s+)?(?:can|could|will|would|plan\s+to|able\s+to)\s+(?:save|invest|contribute|set\s+aside)\s*$/i.test(before);
     const ambiguousSaving = !recurring && /\b(?:am|are|been|currently)?\s*saving\s*$|\b(?:i|we)\s+save\s*$/i.test(before);
-    const savings = !recurring && !targetCue && (/(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+    const savings = !recurring && !unspecifiedFrequency && !targetCue && (/(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:already\s+saved|saved(?:\s+already)?|earmarked|in\s+savings|as\s+savings|in\s+(?:my|our)\s+savings|set\s+aside)\b/i.test(after));
     // A planned payment *for an explicitly named goal* is a target, while a
     // rent/loan/EMI payment remains an outflow. Without this distinction,
@@ -134,13 +138,14 @@ function moneyIn(question) {
       && /\b(?:for|toward(?:s)?)\s+(?:(?:my|our|the|a)\s+)?(?:daughter(?:'s)?|son(?:'s)?|child(?:'s)?|wedding|marriage|education|college|home|house|vehicle|car|retirement|medical|hospital)\b/i.test(after);
     const unrelated = !savings && !namedGoalPayment && (/\b(?:salary|income|earn(?:ings)?|wages?|paycheck|take[ -]?home|emi|rent|debt|loan|expenses?|spend(?:ing)?|pay(?:ing|ments?)?|paid|borrow(?:ing)?|bills?|groceries|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:salary|income|wages?|paycheck|emi|rent|loan|in\s+debt|as\s+(?:emi|debt|loan|mortgage|expenses?))\b/i.test(after));
-    const capacity = !savings && !unrelated && (recurring || /(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+    const capacity = !savings && !unrelated && (recurring
       || /(?:monthly\s+(?:saving|contribution|capacity|budget)|per\s+month|each\s+month)\s*(?:of\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:per\s+month|each\s+month|monthly|\/month|a\s+month|pm\b)\b/i.test(after));
     const ambiguousHolding = !savings && !capacity && !unrelated
       && /\b(?:i|we)\s+(?:(?:already|currently)\s+)?have(?:\s+(?:already|currently))?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       && !/^\s*(?:as\s+(?:my|our|the)\s+(?:target|goal)|(?:for|towards)\s+(?:my|our|the)\s+goal)\b/i.test(after);
     found.push({ amount, role: (statedSavedFlow || recurringGoalBudget) ? 'INVALID'
+      : unspecifiedFrequency ? 'UNSPECIFIED_FREQUENCY'
       : unlabelledMonthlyAmount && !unrelated ? 'AMBIGUOUS'
       : ambiguousSaving ? 'AMBIGUOUS'
         : savings ? 'SAVINGS' : capacity ? 'CAPACITY'
@@ -268,10 +273,12 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   let ambiguousHorizon = false;
   let invalidAmount = false;
   let contradictorySavings = false;
+  let unspecifiedFrequency = false;
   for (const turn of used) {
     // Numbers echoed in calculation questions never rewrite the user's target.
     const amounts = isGoalCalculationFollowUp(turn) ? [] : moneyIn(turn);
     if (amounts.some(item => item.role === 'INVALID' || item.role === 'AMBIGUOUS')) invalidAmount = true;
+    if (amounts.some(item => item.role === 'UNSPECIFIED_FREQUENCY')) unspecifiedFrequency = true;
     if (/\b(?:₹|rs\.?|inr)\s*[-−]\s*\d/i.test(turn)) invalidAmount = true;
     const targets = amounts.filter(item => item.role === 'TARGET');
     const savings = amounts.filter(item => item.role === 'SAVINGS');
@@ -309,6 +316,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   } else {
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
+  if (unspecifiedFrequency) guidance += ' You mentioned a possible saving or contribution without a frequency. Please confirm whether that amount is monthly, a one-time contribution, or already earmarked before I compare affordability.';
   if (isGoalCalculationFollowUp(text) && target !== null && horizon !== null) {
     guidance += ' Calculation method: subtract confirmed earmarked savings from the goal target, divide the remainder by the deadline in whole months, then round each required monthly payment upward to the next paisa. This baseline assumes no investment growth.';
   }
