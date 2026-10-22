@@ -32,7 +32,7 @@ function sipResponse(overrides = {}, request = {}) {
   const monthly = Math.expm1(Math.log1p(annualReturnRate) / 12);
   const downsideMonthly = Math.expm1(Math.log1p(downsideAnnualReturnRate) / 12);
   let flat = 0, step = 0, downside = 0, flatPaid = 0, stepPaid = 0;
-  let firstUnaffordableMonth = null, maxMonthlyShortfall = 0;
+  let firstUnaffordableMonth = null, maxMonthlyShortfall = 0, worstMonthlySurplus = null;
   const chartData = [];
   for (let year = 1; year <= years; year++) {
     const monthlySip = roundPaise(monthlyInvestment * Math.pow(1 + annualStepUpRate, year - 1));
@@ -40,6 +40,7 @@ function sipResponse(overrides = {}, request = {}) {
       ? request.monthlyIncome * Math.pow(1 + incomeGrowth, year - 1)
         - request.monthlyExpenses * Math.pow(1 + expenseGrowth, year - 1) - request.monthlyEmi - monthlySip
       : null;
+    if (surplus !== null) worstMonthlySurplus = worstMonthlySurplus === null ? surplus : Math.min(worstMonthlySurplus, surplus);
     if (surplus !== null && surplus < -0.005) {
       if (firstUnaffordableMonth === null) firstUnaffordableMonth = (year - 1) * 12 + 1;
       maxMonthlyShortfall = Math.max(maxMonthlyShortfall, -surplus);
@@ -74,7 +75,14 @@ function sipResponse(overrides = {}, request = {}) {
     return_assumption_source: 'USER_SUPPLIED_WHAT_IF',
     contribution_timing: 'START_OF_MONTH',
     scenario_interpretation: 'ILLUSTRATIVE_CONSTANT_RETURN_PATHS_NOT_PROBABILITIES',
-    warnings: ['PRE_TAX_NOT_A_TAX_ESTIMATE', 'ASSUMED_RETURNS_NOT_GUARANTEED'],
+    warnings: [
+      ...(!budgetKnown ? ['AFFORDABILITY_NOT_ASSESSED'] : []),
+      ...(request.monthlyEmi === undefined ? ['MONTHLY_EMI_NOT_DECLARED'] : []),
+      ...(firstUnaffordableMonth !== null ? ['STEP_UP_EXCEEDS_DECLARED_BUDGET'] : []),
+      ...(emergencyKnown && request.emergencySavings < emergencyRequired ? ['DECLARED_EMERGENCY_BUFFER_SHORT'] : []),
+      ...(!emergencyKnown ? ['EMERGENCY_BUFFER_NOT_ASSESSED'] : []),
+      'PRE_TAX_NOT_A_TAX_ESTIMATE', 'ASSUMED_RETURNS_NOT_GUARANTEED',
+    ],
     monthly_rate_convention: 'EFFECTIVE_ANNUAL_CAGR',
     annual_return_interpretation: 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN',
     observed_market_fact: false, provider_forecast: false,
@@ -93,6 +101,12 @@ function sipResponse(overrides = {}, request = {}) {
       status: !budgetKnown ? 'NOT_ASSESSED' : firstUnaffordableMonth === null
         ? 'WITHIN_DECLARED_BUDGET' : 'OVER_DECLARED_BUDGET',
       firstUnaffordableMonth, maxMonthlyShortfall: roundPaise(maxMonthlyShortfall),
+      worstMonthlySurplus: worstMonthlySurplus === null ? null : roundPaise(worstMonthlySurplus),
+      assumesEmiConstant: true, incomeExpensesUserDeclared: budgetKnown,
+      annualContributionSchedule: chartData.map(row => ({
+        year: row.year, monthlySip: row.monthlySip,
+        monthlyBudgetSurplus: row.monthlyBudgetSurplus,
+      })),
     },
     emergency_buffer: {
       status: !emergencyKnown ? 'NOT_ASSESSED'
