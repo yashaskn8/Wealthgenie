@@ -117,6 +117,15 @@ jobs:
         run: node server/scripts/verifyFinancialPostgresIntegration.js
       - name: Audit all 250 families and report missing real product evidence
         run: npm run finance:top3:audit --prefix server > financial-top3-coverage.json
+      - name: Generate 750 empty evidence slots without pretending issuer verification
+        run: npm run finance:top3:review-queue --prefix server > financial-top3-review-queue.csv
+      - name: Upload 250-family product evidence review queue
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: financial-top3-review-queue
+          path: financial-top3-review-queue.csv
+          if-no-files-found: warn
       - name: Publish audited family coverage report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
