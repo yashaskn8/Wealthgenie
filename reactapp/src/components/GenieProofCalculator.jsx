@@ -70,7 +70,7 @@ export default function GenieProofCalculator() {
     setWorking(false);
   }
 
-  const valid = amountPattern.test(amountRupees) && Number(amountRupees) > 0
+  const valid = amountPattern.test(amountRupees) && Number(amountRupees) > 0 && Number(amountRupees) <= 1_000_000_000
     && percentPattern.test(annualRatePercent) && Number(annualRatePercent) <= 100
     && /^\d{1,3}$/.test(months) && Number(months) >= 1 && Number(months) <= 600
     && (type !== 'SIP' || (percentPattern.test(stepUpPercent) && Number(stepUpPercent) <= 25))
