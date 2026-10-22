@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { motion } from 'framer-motion';
 import { TrendingUp, Rocket, PiggyBank, ArrowUpRight, Wallet, Calendar, Target, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { isPresentFiniteNumber } from '../utils/financialValues';
+import { assertGrowSipResponse } from '../utils/growSipResponse';
 import api from '../services/api';
 import JargonTooltip from './JargonTooltip';
 import './StepUpPlanner.css';
@@ -111,7 +112,14 @@ const StepUpPlanner = ({ profile }) => {
           },
         },
       ).then(result => {
-        if (!cancelled) setProjectionState({ binding: projectionBinding, status: 'ready', data: result, error: null });
+        if (cancelled) return;
+        const verified = assertGrowSipResponse(result, {
+          monthlyInvestment: safeBaseSIP,
+          annualReturnRate: safeReturnRate / 100,
+          annualStepUpRate: safeStepUpPercent / 100,
+          years: safeYears,
+        });
+        setProjectionState({ binding: projectionBinding, status: 'ready', data: verified, error: null });
       }).catch(error => {
         if (!cancelled && error?.code === 'REQUEST_ABORTED') {
           setProjectionState({ binding: projectionBinding, status: 'cancelled', data: null, error: null });
