@@ -990,6 +990,11 @@ export async function compareTax(income, deductions = {}, options = {}) {
   return request('POST', '/tax/compare', { ...omitEmptyTaxInputs(deductions), income }, options);
 }
 
+/** Qualified resident equity-gains path (196/198), separate from ordinary tax. */
+export async function computeVerifiedComplexCapitalGainsTax(input, options = {}) {
+  return request('POST', '/tax/new-regime-verified-complex', input, { retries: 0, ...options });
+}
+
 /** TY2026-27 only: fail-closed ordinary-income new-regime calculation. */
 export async function computeVerifiedNewRegimeTax(input, options = {}) {
   return request('POST', '/tax/new-regime-verified', input, { retries: 0, ...options });
