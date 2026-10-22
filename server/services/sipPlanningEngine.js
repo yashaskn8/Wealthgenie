@@ -41,8 +41,8 @@ export function buildSipPlan(input) {
       || annualExpenseGrowthRate < 0 || annualExpenseGrowthRate > 1) {
     throw new RangeError('SIP_PLAN_INVALID_INPUT: invalid planning assumptions');
   }
-  for (const [key, val] of Object.entries({ monthlyIncome, monthlyExpenses, emergencySavings })) {
-    if (val !== null && (!Number.isFinite(val) || val < 0 || val > 100000000 || !validPaise(val))) {
+  for (const [key, val] of Object.entries({ monthlyIncome, monthlyExpenses, monthlyEmi, emergencySavings })) {
+    if (val !== null && (!Number.isFinite(val) || val < 0 || val > (key === 'monthlyEmi' ? 10000000 : 100000000) || !validPaise(val))) {
       throw new RangeError('SIP_PLAN_INVALID_INPUT: invalid ' + key);
     }
   }
