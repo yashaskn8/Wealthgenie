@@ -76,6 +76,7 @@ describe('Grow My SIP fail-closed response contract', () => {
     ['mismatched emergency reserve', r => { r.assumptions.emergencySavings = 90000; }],
     ['fabricated buffer threshold', r => { r.emergency_buffer.requiredAmount = 0; }],
     ['fabricated buffer status', r => { r.emergency_buffer.status = 'DECLARED_BUFFER_SHORT'; }],
+    ['forged middle-year deposited principal', r => { r.chartData[0].stepUpInvested = 99999; }],
     ['hidden shortfall with positive budget status', r => { r.chartData[1].monthlyBudgetSurplus = -500; }],
     ['incorrect but plausible surplus', r => { r.chartData[1].monthlyBudgetSurplus = 6821; }],
     ['wrong maximum shortfall', r => { r.affordability.maxMonthlyShortfall = 250; }],
