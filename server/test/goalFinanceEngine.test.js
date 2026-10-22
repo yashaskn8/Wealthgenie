@@ -154,3 +154,17 @@ test('derived rupee limits reject unrepresentable goal targets, rather than givi
     annualReturnAssumption: 100, annualInflationAssumption: 0,
   }), /precision/);
 });
+
+test('malformed persisted legacy goals cannot crash shared funding or receive money', () => {
+  const good = goal('good', 3000);
+  const bad = { ...goal('bad', 5000), target_date: 'invalid-date', priority: 'Suspicious' };
+  const plan = allocateGoalFunding([good, bad], 20000);
+  assert.equal(plan.status, 'DATA_INSUFFICIENT');
+  assert.equal(plan.totalAllocated, null);
+  assert.ok(plan.warnings.includes('INVALID_PERSISTED_GOAL_INPUT'));
+  assert.ok(plan.allocations.every(item => item.allocatedMonthly === null));
+  const badMoney = { ...goal('money', 3000), recommended_sip: 10.005 };
+  const secondPlan = allocateGoalFunding([good, badMoney], 20000);
+  assert.equal(secondPlan.status, 'DATA_INSUFFICIENT');
+  assert.ok(secondPlan.warnings.includes('INVALID_PERSISTED_GOAL_INPUT'));
+});
