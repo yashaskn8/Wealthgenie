@@ -17,5 +17,5 @@ const goalBudgetSchema = new mongoose.Schema({
   expenses: { type: [expenseSchema], required: true, default: [] },
 }, { timestamps: true, strict: 'throw', optimisticConcurrency: true });
 
-goalBudgetSchema.index({ userId: 1, month: 1 }, { unique: true });
+goalBudgetSchema.index({ userId: 1, month: 1 }, { unique: true, name: 'goal_budget_owner_month_unique' });
 export default mongoose.model('GoalBudget', goalBudgetSchema);
