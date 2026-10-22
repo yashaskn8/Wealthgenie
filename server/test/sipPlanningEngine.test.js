@@ -190,3 +190,56 @@ test('downside scenario cannot use a higher annual return than the main projecti
   assert.ok(negative.assumptions.downsideAnnualReturnRate <= negative.assumptions.annualReturnRate);
   assert.ok(negative.downsideFinal <= negative.stepUpFinal);
 });
+
+test('CAGR convention uses effective monthly growth and never silently nominal APR', () => {
+  for (const annual of [-0.35, -0.01, 0, 0.08, 0.12, 0.6]) {
+    for (const years of [1, 3, 10, 25]) {
+      const plan = buildSipPlan({
+        ...base, years, annualReturnRate: annual,
+        annualStepUpRate: 0,
+        downsideAnnualReturnRate: annual,
+        returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+      });
+      const monthly = Math.expm1(Math.log1p(annual) / 12);
+      let corpus = 0;
+      for (let month = 0; month < 12 * years; month++) {
+        corpus = (corpus + base.monthlyInvestment) * (1 + monthly);
+      }
+      assert.equal(plan.flatFinal, Math.round(corpus));
+      assert.equal(plan.stepUpFinal, Math.round(corpus));
+      assert.equal(plan.monthly_rate_convention, 'EFFECTIVE_ANNUAL_CAGR');
+      assert.equal(plan.annual_return_interpretation, 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN');
+    }
+  }
+  const effective = buildSipPlan({
+    ...base, years: 20, annualReturnRate: 0.12,
+    returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+  });
+  const legacy = buildSipPlan({ ...base, years: 20, annualReturnRate: 0.12 });
+  assert.equal(legacy.monthly_rate_convention, 'NOMINAL_APR_DIVIDED_BY_12');
+  assert.ok(effective.stepUpFinal < legacy.stepUpFinal);
+  assert.deepEqual(effective, buildSipPlan({
+    ...base, years: 20, annualReturnRate: 0.12,
+    returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+  }));
+});
+
+test('rejects invalid rate conventions and budget growth beyond precise rupees', () => {
+  for (const returnRateConvention of ['', 'CAGR', null, 'APR', '__proto__', {}, 0]) {
+    assert.throws(() => buildSipPlan({ ...base, returnRateConvention }),
+      /SIP_PLAN_INVALID_INPUT/);
+  }
+  assert.throws(() => buildSipPlan({
+    ...base, years: 50, monthlyIncome: 100000000, monthlyExpenses: 100,
+    monthlyEmi: 0, annualIncomeGrowthRate: 1, annualExpenseGrowthRate: 0,
+  }), /SIP_PLAN_LIMIT_EXCEEDED/);
+});
+
+test('SIP planner discloses key-free inputs, pre-tax status and amount precision', () => {
+  const result = buildSipPlan({ ...base, returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR' });
+  assert.equal(result.observed_market_fact, false);
+  assert.equal(result.capital_gains_tax, null);
+  assert.equal(result.estimated_post_tax_corpus, null);
+  assert.equal(result.assumptions.returnRateConvention, 'EFFECTIVE_ANNUAL_CAGR');
+  assert.ok(result.warnings.includes('ASSUMED_RETURNS_NOT_GUARANTEED'));
+});
