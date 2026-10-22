@@ -11,6 +11,9 @@ const FINANCIAL_QUERY = /\b(?:invest(?:ing|ment|or)?s?|mutual\s*funds?|stocks?|s
 // Currency and savings requests must not bypass evidence validation merely
 // because the user omitted the word "investment" or the goal subject.
 const FINANCIAL_MONEY = /(?:₹\s*[-+]?\d|\b(?:inr|rs\.?)\s*[-+]?\d|\b\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac)\b)/i;
+// Fail closed on finance products and metrics that a general-language model
+// must never answer as verified account, return or suitability information.
+const FINANCIAL_PRODUCTS = /\b(?:xirr|cagr|irr|mirr|ulips?|swp|stp|scss|sukanya|pomis|kvp|nsc|epf|reits?|invits?|aifs?|pms|sgbs?|lic|treasury\s*bills?|t-?bills?|smallcases?|demat|kyc|index\s*funds?|expense\s*ratio|tracking\s*error|p\s*\/\s*e\s*ratio|price\s*to\s*earnings|digital\s*gold|gold\s*(?:price|etf|bond|investment|rate|return|allocation|savings|scheme)|(?:buy|sell|purchase|hold|own)\s+(?:physical\s+|sovereign\s+)?gold)\b/i;
 const FINANCIAL_SAVING_INTENT = /\b(?:(?:i|we)\s+(?:can|could|will|want|need|plan)\s+(?:to\s+)?(?:save|invest|contribute)|(?:can\s+i|should\s+i|need\s+to|want\s+to|plan\s+to|how\s+much\s+can\s+i)\s+(?:\w+\s+){0,3}(?:save|afford|fund|contribute))\b/i;
 const GROUNDED_FINANCIAL_CONTEXT = /\b(?:my|our)\s+(?:money|investments?|holdings?|finances?|budget|expenses?|future|retirement|home\s*purchase|age|name|profile|email|phone|address|income|dependents?|lump[ -]?sum|horizon|emergency\s*fund|account|transaction|suitability|pan|aadhaar|aadhar|upi(?:\s+pin)?|ifsc|kyc|date\s+of\s+birth|dob|financial\s*details)\b|\b(?:how\s+old\s+am\s+i|what\s+do\s+you\s+know\s+about\s+me)\b/i;
 const PROVIDER_FAILURES = new Set([
@@ -31,7 +34,8 @@ const SYSTEM_PROMPT = [
 export function isGeneralChatQuestion(question) {
   const text = String(question || '').slice(0, 1000).trim();
   return text.length > 0 && !FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
-    && !FINANCIAL_SAVING_INTENT.test(text) && !GROUNDED_FINANCIAL_CONTEXT.test(text)
+    && !FINANCIAL_SAVING_INTENT.test(text) && !FINANCIAL_PRODUCTS.test(text)
+    && !GROUNDED_FINANCIAL_CONTEXT.test(text)
     && !isFinancialGoalPlanningQuestion(text);
 }
 
