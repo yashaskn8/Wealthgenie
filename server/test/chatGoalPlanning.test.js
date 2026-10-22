@@ -4,6 +4,7 @@ import {
   isFinancialGoalPlanningQuestion,
   isFinancialGoalFollowUpQuestion,
   retrieveChatGoalPlanningEvidence,
+  calculateGoalMonthlyBaseline,
 } from '../services/chatGoalPlanning.js';
 import {
   buildChatEvidencePacket,
@@ -277,7 +278,7 @@ test('red-team: monthly salary, EMI debt and earmarked savings never overwrite t
 
 test('red-team: currently saving, abbreviated deadlines and exact paise arithmetic', () => {
   const cases = [
-    ["Need 2 crore for daughter wedding in 10 years, saving ₹20 lakh currently.", 150_000],
+    ["Need 2 crore for daughter wedding in 10 years, already saved ₹20 lakh.", 150_000],
     ["Need 2 crore for wedding in 2 yrs, starting from zero.", 833_333.34],
     ["Need 2 crore for wedding in 2.5 yrs, starting from zero.", 666_666.67],
     ["Need ₹1.01 for wedding in 2 months, starting from zero.", 0.51],
@@ -583,4 +584,118 @@ test('red-team: standalone named wedding target cannot bypass the deterministic 
   const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
   assert.equal(answer.validation.status, 'PASS');
   assert.match(answer.text, /deadline/);
+});
+
+test('adversarial E2E: monthly savings flow never becomes an existing balance', async () => {
+  const cases = [
+    "Need ₹2 crore for daughter's wedding in 10 years, starting from zero. I save ₹50k monthly",
+    "Need ₹2 crore for daughter's wedding in 10 years, starting from zero. Saving Rs 50000 every month",
+    "Need ₹2 crore for daughter's wedding in 10 years, starting from zero. My monthly savings are ₹50,000",
+    "Need ₹2 crore for daughter's wedding in 10 years, starting from zero. I can invest ₹50k per month",
+  ];
+  for (const question of cases) {
+    const packet = await createPacket(question);
+    const monthly = packet.entries.find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
+    const capacity = packet.entries.find(item => item.id === 'E_GOAL_CAPACITY_CHECK');
+    assert.equal(monthly?.value.earmarkedSavingsAmount, 0, question);
+    assert.equal(monthly?.value.monthlyRequiredAmount, 166666.67, question);
+    assert.equal(capacity?.value.monthlyCapacityAmount, 50000, question);
+    assert.equal(capacity?.value.goalIsContributionFundable, false, question);
+    const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+    assert.equal(answer.validation.status, 'PASS', question);
+    assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE', question);
+    assert.ok(answer.financialClaims.some(claim => claim.type === 'GOAL_MONTHLY_BASELINE'
+      && claim.value === 166666.67), question);
+    assert.ok(answer.citations.every(citation => !citation.citation_id.startsWith('E_GOAL_')
+      || citation.source_url === null), question);
+    assert.doesNotMatch(answer.text, /(?:guaranteed\s+\d+%|projected\s+return)/i, question);
+  }
+});
+
+test('adversarial E2E: existing savings, monthly capacity, salary and EMI remain separate', async () => {
+  const question = "Need ₹2 crore for daughter's wedding in 10 years. " +
+    'I have already saved ₹20 lakh; I save ₹50k monthly, earn ₹1 lakh monthly, and pay EMI ₹30k monthly';
+  const packet = await createPacket(question);
+  assert.equal(packet.entries.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.earmarkedSavingsAmount, 2000000);
+  assert.equal(packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150000);
+  assert.equal(packet.entries.find(e => e.id === 'E_GOAL_CAPACITY_CHECK')?.value.monthlyCapacityAmount, 50000);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /1,50,000 per month/);
+  assert.match(answer.text, /not fundable from contributions alone/);
+  assert.doesNotMatch(answer.text, /guaranteed investment returns/i);
+});
+
+test('adversarial E2E: periodic outflows and ambiguous accumulation cannot inflate capacity', () => {
+  for (const sentence of [
+    'I pay ₹50k monthly', 'I spend ₹50k per month', 'I borrow ₹50k every month',
+    'My EMI is ₹50k monthly', 'My salary is ₹50k per month',
+  ]) {
+    const evidence = retrieveChatGoalPlanningEvidence(
+      "Need ₹2 crore for daughter's wedding in 10 years starting from zero. " + sentence,
+    );
+    assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000, sentence);
+    assert.equal(evidence.some(e => e.id === 'E_GOAL_CAPACITY_CHECK'), false, sentence);
+    assert.equal(evidence.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 166666.67, sentence);
+  }
+  for (const sentence of ['I am saving ₹50k', 'I invest ₹50k monthly', 'I have ₹50k a month']) {
+    const evidence = retrieveChatGoalPlanningEvidence(
+      "Need ₹2 crore for daughter's wedding in 10 years starting from zero. " + sentence,
+    );
+    assert.equal(evidence.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, sentence);
+    assert.match(evidence.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '', /ambiguous or invalid/);
+  }
+});
+
+test('adversarial E2E: unrelated time references never mutate an existing goal', () => {
+  const priorUserTurns = ["Need 2 crore for daughter's wedding", 'I have saved 20 lakh'];
+  for (const question of [
+    'In 10 years, will AI replace developers?',
+    'The school closed 10 years ago',
+    'Was Bitcoin growing for 10 years?',
+    'My car loan is 3 years old',
+    'How many years does an elephant live?',
+  ]) {
+    assert.equal(isFinancialGoalFollowUpQuestion(question, priorUserTurns), false, question);
+    assert.deepEqual(retrieveChatGoalPlanningEvidence(question, { priorUserTurns }), [], question);
+  }
+  const confirmed = retrieveChatGoalPlanningEvidence('My deadline is 10 years', { priorUserTurns });
+  assert.equal(confirmed.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(confirmed.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount, 150000);
+});
+
+test('adversarial E2E: distinct named goals cannot inherit wedding corpus', () => {
+  const priorUserTurns = ["Need 2 crore for daughter's wedding in 10 years", 'I have saved 20 lakh'];
+  for (const question of ['I have saved ₹5 lakh for my car', 'I have saved ₹5 lakh for college']) {
+    assert.deepEqual(retrieveChatGoalPlanningEvidence(question, { priorUserTurns }), [], question);
+  }
+  const newGoal = retrieveChatGoalPlanningEvidence('I can save ₹50k monthly for college', { priorUserTurns });
+  assert.equal(newGoal.some(e => e.id === 'E_GOAL_STATED_TARGET'), false);
+  assert.equal(newGoal.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.value.goalContext, 'the education goal');
+});
+
+test('adversarial exact arithmetic: 5000 independent integer-paise funding baselines', () => {
+  let state = 0x25372545;
+  const random = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state; };
+  for (let i = 0; i < 5000; i++) {
+    const targetPaise = BigInt(random() % 1000000000 + 1);
+    const savingsPaise = BigInt(random() % Number(targetPaise));
+    const months = random() % 600 + 1;
+    const target = Number(targetPaise) / 100;
+    const saved = Number(savingsPaise) / 100;
+    const expected = Number((targetPaise - savingsPaise + BigInt(months) - 1n) / BigInt(months)) / 100;
+    assert.equal(calculateGoalMonthlyBaseline(target, saved, months), expected,
+      'Vector ' + i + ' target ' + target + ' saved ' + saved + ' months ' + months);
+  }
+});
+
+test('adversarial unsupported money suffix remains a clear missing-input error', () => {
+  const question = "I need ₹20m for daughter's wedding in 10 years starting from zero";
+  assert.equal(isFinancialGoalPlanningQuestion(question), true);
+  assert.equal(isGeneralChatQuestion(question), false);
+  const entries = retrieveChatGoalPlanningEvidence(question);
+  assert.equal(entries.some(e => e.id === 'E_GOAL_STATED_TARGET'), false);
+  assert.equal(entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false);
+  assert.match(entries.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '', /ambiguous or invalid/);
 });
