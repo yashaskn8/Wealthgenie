@@ -2288,11 +2288,12 @@ components:
     StepUpProjectionRequest:
       type: object
       additionalProperties: false
-      description: "Offline deterministic SIP planning assumptions. No external market data or provider credentials. All returns are illustrative pre-tax nominal rates (APR divided by 12). Omitted financial context remains unassessed."
+      description: "Offline deterministic SIP planning assumptions. No external market data or provider credentials. Annual return convention is explicit: legacy nominal APR by default, or effective annual CAGR when requested. Omitted financial context remains unassessed."
       required: [monthlyInvestment, annualReturnRate, years, annualStepUpRate]
       properties:
         monthlyInvestment: { type: number, exclusiveMinimum: 0, maximum: 10000000, description: "Starting INR per month; at most two decimal places." }
-        annualReturnRate: { type: number, exclusiveMinimum: -1, maximum: 1, description: "Nominal annual rate as decimal, not effective annual CAGR." }
+        annualReturnRate: { type: number, exclusiveMinimum: -1, maximum: 1, description: "Assumed annual percentage expressed as a decimal; interpreted according to returnRateConvention." }
+        returnRateConvention: { type: string, enum: [NOMINAL_APR_DIVIDED_BY_12, EFFECTIVE_ANNUAL_CAGR], default: NOMINAL_APR_DIVIDED_BY_12, description: "Preserves legacy nominal APR callers. The Grow My SIP UI explicitly requests effective annual CAGR." }
         years: { type: integer, minimum: 1, maximum: 50 }
         annualStepUpRate: { type: number, minimum: 0, maximum: 1 }
         inflationRate: { type: number, minimum: 0, maximum: 1 }
