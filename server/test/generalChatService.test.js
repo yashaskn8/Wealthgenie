@@ -340,3 +340,65 @@ test('red-team: uncited direct provider calls cannot bypass finance evidence req
   }
   assert.equal(providerCalls, 0);
 });
+
+
+test('red-team: general replies may not invent Indian balances, market rates or personal finance advice', async () => {
+  for (const unsolicited of [
+    'Invest all your savings in cryptocurrency; it guarantees 40% annual returns.',
+    'Your account balance is ₹2 crore.',
+    'Your salary is higher than the market average.',
+    'Buy stocks at 10% monthly interest.',
+    'The guaranteed investment return is 20% annually.',
+  ]) {
+    let secondaryCalled = 0;
+    const answer = await generateGeneralChatAnswer({ question: 'Say hello.' }, {
+      providers: [
+        { name: 'groq', isConfigured: () => true, async generate() {
+          return { text: unsolicited, wasCompleted: true, tokensUsed: 9 };
+        } },
+        { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+          secondaryCalled += 1;
+          return { provider: 'nvidia_nim', text: 'Hello there!',
+            wasCompleted: true, tokensUsed: 10 };
+        } },
+      ],
+    });
+    assert.equal(secondaryCalled, 1, unsolicited);
+    assert.equal(answer.provider, 'NVIDIA_NIM', unsolicited);
+    assert.equal(answer.text, 'Hello there!', unsolicited);
+    assert.equal(answer.fallback, true, unsolicited);
+    assert.equal(answer.providerAttemptFailureCount, 1, unsolicited);
+    assert.deepEqual(answer.citations, [], unsolicited);
+  }
+  const denied = await generateGeneralChatAnswer({ question: 'Say hello.' }, {
+    providers: [
+      { name: 'groq', isConfigured: () => true, async generate() {
+        return { text: 'Buy stocks at 10% monthly interest.', tokensUsed: 2 };
+      } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+        return { text: 'Invest in index funds.', tokensUsed: 2 };
+      } },
+    ],
+  });
+  assert.equal(denied.provider, 'SYSTEM');
+  assert.match(denied.text, /unavailable/i);
+  assert.ok(denied.validation.reasonCodes.includes('GENERAL_FINANCIAL_BOUNDARY_VIOLATION'));
+  assert.deepEqual(denied.citations, []);
+});
+
+test('red-team: general output filter retains ordinary explanations and code without investment claims', async () => {
+  const answers = [
+    'Hello there! How can I help?',
+    'Python lists are mutable and indexing starts at [0].',
+    'The banking example demonstrates a software interface, not an account.',
+  ];
+  for (const response of answers) {
+    const answer = await generateGeneralChatAnswer({ question: 'Say hello.' }, {
+      providers: [{ name: 'groq', isConfigured: () => true,
+        async generate() { return { text: response, wasCompleted: true, tokensUsed: 8 }; } }],
+    });
+    assert.equal(answer.provider, 'GROQ', response);
+    assert.equal(answer.text, response);
+    assert.deepEqual(answer.citations, []);
+  }
+});
