@@ -114,7 +114,7 @@ test.describe('GenieProof claim-first browser workflow', () => {
     await page.getByLabel('Assumed annual nominal rate (%)').fill('0');
     await page.getByLabel('Duration in months').fill('12');
     await page.getByRole('button', { name: 'Calculate and compare' }).click();
-    await expect(page.getByText('₹1,200.00')).toBeVisible();
+    await expect(page.getByText('₹1,200.00', { exact: true })).toBeVisible();
     await expect(page.getByText(/Rates and realized returns are NOT verified/)).toBeVisible();
     expect(submitted).toEqual([{ type: 'SIP', amountRupees: '100', annualRatePercent: '0', months: 12, stepUpPercent: '0' }]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
