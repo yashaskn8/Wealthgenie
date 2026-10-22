@@ -85,4 +85,39 @@ test.describe('GenieProof claim-first browser workflow', () => {
     await expect(page.getByRole('button', { name: 'Check claim' })).toBeDisabled();
     expect(requests).toEqual([]);
   });
+
+  test('calculates an explicitly supplied SIP scenario without saying its rate is verified', async ({ page }) => {
+    const submitted = [];
+    await page.route('**/api/genieproof/calculate', route => {
+      submitted.push(route.request().postDataJSON());
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true, mode: 'USER_INPUT_MATH_CHECK', type: 'SIP', metric: 'FUTURE_VALUE',
+          months: 12, amountRupees: '100', assumptionRatePercent: '0',
+          assumptionSource: 'USER_SUPPLIED_NOT_VERIFIED', stepUpPercent: '0',
+          resultRupees: '1200.00', totalPaidOrContributedRupees: '1200.00',
+          totalInterestRupees: '0.00', lastInstallmentRupees: null,
+          claimedResultRupees: null, absoluteDifferenceRupees: null,
+          arithmeticFinding: 'CALCULATED_ONLY',
+          convention: 'Month-end SIP.',
+          exclusions: ['TAXES', 'FEES', 'INFLATION', 'RATE_CHANGES'],
+          caveat: 'Rates and realized returns are NOT verified.', saved: false,
+        }),
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/e2e/fixtures/genieproof-claim-harness.html');
+    await page.getByRole('button', { name: 'Check a calculation' }).click();
+    await expect(page.getByRole('heading', { name: 'Check a calculation' })).toBeVisible();
+    await page.getByLabel('Monthly SIP (₹)').fill('100');
+    await page.getByLabel('Assumed annual nominal rate (%)').fill('0');
+    await page.getByLabel('Duration in months').fill('12');
+    await page.getByRole('button', { name: 'Calculate and compare' }).click();
+    await expect(page.getByText('₹1,200.00')).toBeVisible();
+    await expect(page.getByText(/Rates and realized returns are NOT verified/)).toBeVisible();
+    expect(submitted).toEqual([{ type: 'SIP', amountRupees: '100', annualRatePercent: '0', months: 12, stepUpPercent: '0' }]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  });
+
 });
