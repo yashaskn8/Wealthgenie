@@ -69,6 +69,7 @@ describe('grounded chat DTO and persistence isolation', () => {
       gemini: process.env.GEMINI_API_KEY,
       groq: process.env.GROQ_API_KEY,
       primary: process.env.LLM_PRIMARY_PROVIDER,
+      generalMode: process.env.CHAT_GENERAL_MODE_ENABLED,
     };
     process.env.NVIDIA_API_KEY = '';
     process.env.GEMINI_API_KEY = 'unit-test-only';
@@ -116,6 +117,7 @@ describe('grounded chat DTO and persistence isolation', () => {
       GEMINI_API_KEY: env.gemini,
       GROQ_API_KEY: env.groq,
       LLM_PRIMARY_PROVIDER: env.primary,
+      CHAT_GENERAL_MODE_ENABLED: env.generalMode,
     })) {
       if (value === undefined) delete process.env[name]; else process.env[name] = value;
     }
@@ -187,11 +189,55 @@ describe('grounded chat DTO and persistence isolation', () => {
     assert.ok(conversation.messages.at(-1).metadata.validation_reason_codes.includes('PROVIDER_BUDGET_EXHAUSTED'));
   });
 
-  it('returns a minimal system response when no Financial Profile exists', async () => {
+  it('answers a general question without a Financial Profile using isolated token-reserved LLM calls', async () => {
+    profileStateStatus = 'NO_CURRENT';
+    FinancialProfile.findOne = () => ({ sort: () => ({ lean: async () => null }) });
+    process.env.CHAT_GENERAL_MODE_ENABLED = 'true';
+    const settlements = [];
+    let providerCalls = 0;
+    const result = await processChat({
+      userId, user: {}, message: 'Explain Python decorators.',
+      sessionId: 'session-general-without-profile',
+    }, {
+      beforeGeneration: async () => undefined,
+      reserveProviderAttempt: async ({ tokenUpperBound }) => {
+        assert.ok(Number.isSafeInteger(tokenUpperBound) && tokenUpperBound > 0);
+        return { reservationId: 'general-before-profile' };
+      },
+      settleProviderAttempt: async ({ reservation, actualTokens }) => {
+        settlements.push({ reservation, actualTokens });
+        return { settled: true };
+      },
+      groundedExplanationDependencies: {
+        providers: [{
+          name: 'groq', isConfigured: () => true,
+          async generate({ recentHistory, jsonMode }) {
+            providerCalls += 1;
+            assert.equal(jsonMode, false);
+            assert.deepEqual(recentHistory.map(turn => turn.role), ['user']);
+            return { provider: 'groq', model: 'mock-model',
+              text: 'Decorators wrap functions.', tokensUsed: 14, wasCompleted: true };
+          },
+        }],
+      },
+    });
+    assert.equal(providerCalls, 1);
+    assert.equal(result.provider, 'GROQ');
+    assert.equal(result.grounded, false);
+    assert.equal(result.validation_status, 'UNVERIFIED_GENERAL_CHAT');
+    assert.deepEqual(result.citations, []);
+    assert.deepEqual(result.evidence_ids_used, []);
+    assert.equal(result.response, 'Decorators wrap functions.');
+    assert.equal(settlements.length, 1);
+    assert.equal(settlements[0].actualTokens, 14);
+    assert.deepEqual(conversation.messages, [], 'no profile-bound financial history must be created');
+  });
+
+  it('returns a minimal system response for financial questions when no Financial Profile exists', async () => {
     profileStateStatus = 'NO_CURRENT';
     FinancialProfile.findOne = () => ({ sort: () => ({ lean: async () => null }) });
     const result = await processChat({
-      userId, user: {}, message: 'Hello', sessionId: 'session-grounded',
+      userId, user: {}, message: 'Explain my investments', sessionId: 'session-grounded',
     });
     assert.equal(result.version, '3.0');
     assert.equal(result.grounded, false);
