@@ -336,17 +336,20 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       && isGeneralChatQuestion(securityContext.sanitizedMessage)
       && !(isContextDependentFollowUp(securityContext.sanitizedMessage)
         && lastChatAnswerWasFinancial(claim.conversation));
+    const trustedFinancialTurns = generalMode ? [] : buildTrustedPriorTurns(claim.conversation, binding, 'FINANCIAL');
     const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
       question: securityContext.sanitizedMessage,
       profile: llmProfile,
       recommendation,
       userId,
+      priorTurns: trustedFinancialTurns,
     });
     if (leaseFailure) throw leaseFailure;
     // General history contains only previously marked general turns. Do not
     // leak historical financial evidence or user-profile details across modes.
-    const priorTurns = buildTrustedPriorTurns(claim.conversation, binding,
-      generalMode ? 'GENERAL' : 'FINANCIAL');
+    const priorTurns = generalMode
+      ? buildTrustedPriorTurns(claim.conversation, binding, 'GENERAL')
+      : trustedFinancialTurns;
     const providerBudgetUpperBound = generalMode
       ? generalChatTokenUpperBound(securityContext.sanitizedMessage, priorTurns)
       : getGroundedExplanationTokenUpperBound({
