@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ChevronRight, TrendingUp, TrendingDown, Shield, Target, BarChart3, Zap, AlertTriangle, DollarSign, Copy, ThumbsUp, ThumbsDown, Info, BookOpen, ChevronDown } from 'lucide-react';
 import chatGenie from '../assets/chat_genie.png';
-import { parseActionCards, useStreamedText, streamedMessages } from '../utils/genieChatHelpers.js';
+import { useStreamedText, streamedMessages } from '../utils/genieChatHelpers.js';
 
 // ── Citations List Component ──────────────────────────────────────
 export function CitationsList({ citations }) {
@@ -200,9 +200,15 @@ function formatEvidenceMarkers(text, citations, hideDisclosure = false) {
 }
 
 // ── Message Content with Action Cards ─────────────────────────────
-export function MessageContent({ content, citations, onAction, hideDisclosure = false }) {
+export function MessageContent({ content, citations, hideDisclosure = false }) {
   if (!content) return null;
-  const { cleanText, cards } = parseActionCards(content);
+  // Assistant prose is not an authorized action channel. The backend explicitly
+  // returns action_cards: []; never parse arbitrary model text into clickable
+  // navigation cards (including cached or general-provider replies).
+  const cleanText = String(content).replace(
+    /<<<ACTION_CARD>>>[\s\S]*?<<<END_ACTION_CARD>>>/g,
+    '[Unverified action omitted]',
+  );
   const lines = formatEvidenceMarkers(cleanText, citations, hideDisclosure).split('\n');
   return (
     <span className="genie-message-content">
@@ -210,7 +216,6 @@ export function MessageContent({ content, citations, onAction, hideDisclosure = 
         if (!line.trim() && li === lines.length - 1) return null;
         return <span key={li}>{renderInline(line)}{li < lines.length - 1 && <br />}</span>;
       })}
-      {cards.map((card, i) => <ActionCard key={i} card={card} onAction={onAction} />)}
     </span>
   );
 }
