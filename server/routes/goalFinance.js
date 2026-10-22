@@ -166,10 +166,20 @@ async function currentlyPresentableGoals(userId) {
   }
   return goals.map(g => {
     const state = states.get(String(g.profileId));
-    return buildCurrentGoalResponse(g, {
-      state: state?.recommendation ? state : null,
-      resolutionFailure: !state || state.resolutionFailure === true,
-    });
+    try {
+      return buildCurrentGoalResponse(g, {
+        state: state?.recommendation ? state : null,
+        resolutionFailure: !state || state.resolutionFailure === true,
+      });
+    } catch {
+      // A corrupt legacy goal must not interrupt every other valid goal or
+      // reappear with falsely qualified SIP/probability fields.
+      return {
+        _id: g._id, goal_name: g.goal_name, priority: g.priority,
+        target_date: g.target_date, current_savings: null, recommended_sip: null,
+        calculation_freshness: { fresh: false, reasonCodes: ['GOAL_SOURCE_INVALID'] },
+      };
+    }
   });
 }
 
