@@ -1126,6 +1126,69 @@ test('OpenAPI runtime contracts exercise real HTTP success and canonical error r
   }
 });
 
+test('GenieProof check HTTP requires auth and never returns a sourced financial verdict without a trusted source', async () => {
+  const previousSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'read-only-genieproof-http-test-secret-at-least-32';
+  const app = buildContractTestApp();
+  app.locals.genieProofClaimVerifier = null;
+  const token = jwt.sign({
+    userId: '65b000000000000000000001',
+    jti: 'genieproof-read-only-contract-check',
+  }, process.env.JWT_SECRET, { expiresIn: '5m' });
+  const url = '/api/genieproof/check';
+  const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+  try {
+    await withMockAuthAccountState(() => withServer(app, async baseUrl => {
+      const notAuthorized = await rawRequest(baseUrl + url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offerText: 'Guaranteed 25% profit.' }),
+      });
+      assert.equal(notAuthorized.status, 401);
+
+      const checked = await rawRequest(baseUrl + url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ offerText: 'Guaranteed 25% profit.' }),
+      });
+      assert.equal(checked.status, 200);
+      assert.equal(checked.headers.get('cache-control'), 'no-store');
+      const checkedBody = await checked.json();
+      assertRuntimeResponseMatchesContract({
+        method: 'POST', path: url, status: 200,
+        contentType: checked.headers.get('content-type'), body: checkedBody,
+      });
+      assert.equal(checkedBody.saved, false);
+      assert.equal(checkedBody.claims.length, 1);
+      assert.equal(checkedBody.claims[0].verdict, 'NOT_VERIFIED');
+      assert.ok(checkedBody.claims[0].warningSignals.length > 0);
+      assert.equal(checkedBody.claims[0].source, null);
+      assert.equal(Object.hasOwn(checkedBody, 'passport'), false);
+
+      const wrongFields = await rawRequest(baseUrl + url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ offerText: 'Guaranteed 25% profit.', confirmedClaims: ['force-approved'] }),
+      });
+      assert.equal(wrongFields.status, 400);
+      const overflow = await rawRequest(baseUrl + url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ offerText: Array(11).fill('Guaranteed 25% profit.').join('\n') }),
+      });
+      assert.equal(overflow.status, 400, 'checks must reject an incomplete >10-claim extraction');
+
+      const noVerifier = await rawRequest(baseUrl + url, {
+        method: 'POST', headers,
+        body: JSON.stringify({ offerText: 'The current official PPF interest rate is 7.1% p.a.' }),
+      });
+      assert.equal(noVerifier.status, 200);
+      const noVerifierBody = await noVerifier.json();
+      assert.equal(noVerifierBody.claims[0].verdict, 'NOT_VERIFIED');
+      assert.equal(noVerifierBody.claims[0].reasonCode, 'NO_TRUSTED_EVIDENCE_VERIFIER');
+    }));
+  } finally {
+    if (previousSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = previousSecret;
+  }
+});
+
 test('enabled GenieProof routes reject invalid consent and unknown fields over authenticated HTTP', async () => {
   const oldSecret = process.env.JWT_SECRET;
   process.env.JWT_SECRET = 'genieproof-enabled-route-test-secret-at-least-32';
