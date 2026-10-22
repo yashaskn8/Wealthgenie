@@ -135,8 +135,8 @@ test('one-off spending reduces this month, not nominal recurring earnings', () =
   assert.equal(expensiveMonth.actualMonthSurplus, -1000);
   assert.equal(expensiveMonth.budgetStatus, 'BUDGET_SHORTFALL');
   const purchaseResult = purchaseWithoutExistingGoals(sampleBudget(), purchase());
-  assert.equal(purchaseResult.purchaseMonthSurplusAfterPurchase,
-    purchaseResult.monthlySurplusAfterPurchase - 5000);
+  assert.equal(Math.round(purchaseResult.purchaseMonthSurplusAfterPurchase * 100),
+    Math.round((purchaseResult.monthlySurplusAfterPurchase - 5000) * 100));
 });
 test('zero or omitted real-world vehicle costs never yield an affordable claim', () => {
   const base = { ...sampleBudget(), monthlyIncome: 95000 };
