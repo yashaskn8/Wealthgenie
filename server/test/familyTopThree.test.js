@@ -106,7 +106,7 @@ test('profile capacity, horizon and age are firm investment boundaries',async()=
 test('invalid family IDs and invalid profiles are rejected before serving products',async()=>{
  const h=harness();
  await assert.rejects(compare(h,{familyId:'family;DROP'}),/FAMILY_ID_INVALID/);
- await assert.rejects(compare(h,{profileInput:{}}),/RECOMMENDATION_PROFILE_INVALID/);
+ await assert.rejects(compare(h,{profileInput:{}}),{code:'RECOMMENDATION_PROFILE_INVALID'});
  assert.equal(h.calls.length,0);
 });
 test('a large qualification set is never truncated into a misleading top three',async()=>{
