@@ -12,7 +12,8 @@ test('general chat routes everyday questions without relabeling finance as unsou
     assert.equal(isGeneralChatQuestion(q), true, q);
   }
   for (const q of ['What is a mutual fund?', 'What is compound interest?', 'What tax do I owe?',
-    'Recommend an investment for my portfolio', 'What is liquidity risk?',
+    'Recommend an investment for my portfolio', 'Explain why this recommendation fits my saved profile.', 'Why is my recommendation suitable?', 'What is liquidity risk?',
+    'What is diversification?', 'How does rebalancing work?',
     'Which banking product offers the best return?', 'Calculate my budget',
     'How should I invest in NIFTY?', 'Explain capital gains and deductions',
     'Explain my age evidence.', 'How old am I?', 'What is my email?']) {
@@ -86,9 +87,8 @@ test('general questions call Groq first, NVIDIA second on a retryable outage, wi
   assert.equal(calls[1].request.recentHistory.length, 3);
 });
 
-test('rate limit, safety refusal and nonretryable failures never cause NVIDIA failover', async () => {
-  for (const failure of ['PROVIDER_RATE_LIMITED', 'PROVIDER_AUTHENTICATION_FAILED',
-    'PROVIDER_SAFETY_REJECTION', 'PROVIDER_BAD_REQUEST']) {
+test('safety refusals and nonretryable client failures never cause NVIDIA failover', async () => {
+  for (const failure of ['PROVIDER_SAFETY_REJECTION', 'PROVIDER_BAD_REQUEST']) {
     let secondaryCalled = false;
     const result = await generateGeneralChatAnswer({ question: 'Explain a greeting.' }, {
       providers: [
@@ -102,6 +102,48 @@ test('rate limit, safety refusal and nonretryable failures never cause NVIDIA fa
     assert.equal(result.provider, 'SYSTEM');
     assert.deepEqual(result.citations, []);
   }
+});
+
+
+test('red-team: rate-limit and expired Groq credential switch to NVIDIA but safety refusal never does', async () => {
+  for (const failure of ['PROVIDER_RATE_LIMITED', 'PROVIDER_AUTHENTICATION_FAILED']) {
+    let secondaryCalls = 0;
+    const answer = await generateGeneralChatAnswer({ question: 'Explain Python decorators.' }, {
+      providers: [
+        { name: 'groq', isConfigured: () => true, lastFailureReason: failure,
+          async generate() { return null; } },
+        { name: 'nvidia_nim', isConfigured: () => true,
+          async generate() { secondaryCalls += 1; return {
+            provider: 'nvidia_nim', text: 'A decorator wraps a callable.',
+            tokensUsed: 17, wasCompleted: true,
+          }; } },
+      ],
+    });
+    assert.equal(secondaryCalls, 1, failure);
+    assert.equal(answer.provider, 'NVIDIA_NIM', failure);
+    assert.equal(answer.fallback, true, failure);
+    assert.deepEqual(answer.validation.reasonCodes, ['PRIMARY_PROVIDER_UNAVAILABLE']);
+    assert.deepEqual(answer.citations, [], failure);
+    assert.equal(answer.providerAttemptCount, 2, failure);
+    assert.equal(answer.providerAttemptFailureCount, 1, failure);
+  }
+});
+
+test('red-team: an unconfigured primary is recorded as a fallback when the second provider succeeds', async () => {
+  const answer = await generateGeneralChatAnswer({ question: 'Explain Python decorators.' }, {
+    providers: [
+      { name: 'groq', isConfigured: () => false },
+      { name: 'nvidia_nim', isConfigured: () => true,
+        async generate() { return { provider: 'nvidia_nim',
+          text: 'A decorator wraps a function.', tokensUsed: 12, wasCompleted: true }; } },
+    ],
+  });
+  assert.equal(answer.provider, 'NVIDIA_NIM');
+  assert.equal(answer.fallback, true);
+  assert.deepEqual(answer.validation.reasonCodes, ['PRIMARY_PROVIDER_UNAVAILABLE']);
+  assert.deepEqual(answer.citations, []);
+  assert.equal(answer.providerAttemptCount, 1);
+  assert.equal(answer.providerAttemptFailureCount, 0);
 });
 
 test('unavailable providers or budget exhaustion return unsourced unavailability, not fabricated citations', async () => {
@@ -145,4 +187,218 @@ test('no tools, schema bypass or invented citations are sent to general provider
   assert.equal(answer.fallback, false);
   assert.equal(answer.validation.status, 'UNVERIFIED_GENERAL_CHAT');
   assert.deepEqual(answer.citations, []);
+});
+
+
+test('general red-team: coding array indices are not fabricated citations', async () => {
+  const codingExample = 'Example:\nconst values = [1, 2, 3];\nconsole.log(values[0]);';
+  const reply = await generateGeneralChatAnswer({ question: 'Explain JavaScript array indexing' }, {
+    providers: [{
+      name: 'groq', isConfigured: () => true,
+      async generate() { return { provider: 'groq', text: codingExample,
+        tokensUsed: 24, wasCompleted: true }; },
+    }],
+  });
+  assert.equal(reply.provider, 'GROQ');
+  assert.equal(reply.text, codingExample);
+  assert.deepEqual(reply.citations, []);
+  assert.equal(reply.validation.status, 'UNVERIFIED_GENERAL_CHAT');
+});
+
+test('general red-team: fabricated source reference still fails closed', async () => {
+  for (const fake of ['According to source [1], this is proven.',
+    'This is verified. [E_FAKE_EVIDENCE]', 'Visit https://unverified.example/a']) {
+    const reply = await generateGeneralChatAnswer({ question: 'Tell me something.' }, {
+      providers: [{ name: 'groq', isConfigured: () => true,
+        async generate() { return { provider: 'groq', text: fake,
+          tokensUsed: 20, wasCompleted: true }; } }],
+    });
+    assert.equal(reply.provider, 'SYSTEM', fake);
+    assert.deepEqual(reply.citations, [], fake);
+    assert.match(reply.text, /unavailable/i, fake);
+  }
+});
+
+
+test('red-team: PAN, Aadhaar, UPI PIN and personal identity facts are never unsourced general chat', () => {
+  for (const q of [
+    'What is my PAN number?',
+    'Tell me my Aadhaar number',
+    'What is my UPI PIN?',
+    'What is my IFSC code?',
+    'What is my KYC status?',
+    'What is my date of birth?',
+  ]) {
+    assert.equal(isGeneralChatQuestion(q), false, q);
+  }
+  assert.equal(isGeneralChatQuestion('Explain how a Python for loop works'), true);
+});
+
+
+test('red-team: unsourced general routing refuses digital gold and Indian financial products', () => {
+  for (const question of [
+    'Should I buy digital gold?', 'What is XIRR?', 'Explain CAGR on my corpus',
+    'How do POMIS and KVP work?', 'PMS vs AIF for HNIs?',
+    'What are REITs and InvITs?', 'What is a ULIP?',
+    'How does SWP work?', 'What is P/E ratio?',
+    'Should I hold sovereign gold?', 'Does KYC require PAN?',
+  ]) assert.equal(isGeneralChatQuestion(question), false, question);
+  for (const question of [
+    'What is gold used for in electronics?', 'How to bake a wedding cake?',
+    'Explain Python decorators.', 'Write a job application email.',
+  ]) assert.equal(isGeneralChatQuestion(question), true, question);
+});
+
+
+test('red-team: general provider-issued tool/function calls are discarded, never shown as answers', async () => {
+  let secondProviderCalls = 0;
+  for (const toolFixture of [
+    { tool_calls: [{ function: { name: 'transfer_funds' } }] },
+    { toolCalls: [{ function: { name: 'get_profile' } }] },
+    { function_call: { name: 'steal_token' } },
+  ]) {
+    const answer = await generateGeneralChatAnswer({ question: 'Explain Python arrays' }, {
+      providers: [
+        { name: 'groq', isConfigured: () => true, async generate() {
+          return { text: 'Use this unverified instruction.', wasCompleted: true,
+            tokensUsed: 5, ...toolFixture };
+        } },
+        { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+          secondProviderCalls += 1; return { text: 'never called' };
+        } },
+      ],
+    });
+    assert.equal(answer.provider, 'SYSTEM');
+    assert.equal(answer.fallback, true);
+    assert.ok(answer.validation.reasonCodes.includes('GENERAL_UNEXPECTED_TOOL_CALL'));
+    assert.deepEqual(answer.citations, []);
+  }
+  assert.equal(secondProviderCalls, 0);
+});
+
+
+test('red-team: emails, bearer credentials and raw URLs in general questions and history are redacted at the LLM boundary', async () => {
+  const captured = [];
+  const result = await generateGeneralChatAnswer({
+    question: 'Write a Python regex for help@example.com; visit https://private.example/secret',
+    priorTurns: [
+      { role: 'user', content: 'Write Python examples with foo@example.com' },
+      { role: 'model', content: 'Use this sample pattern with foo@example.com.' },
+    ],
+  }, {
+    providers: [{ name: 'groq', isConfigured: () => true, async generate(payload) {
+      captured.push(JSON.stringify(payload));
+      return { provider: 'groq', text: 'Use a regular expression for email patterns.',
+        tokensUsed: 25, wasCompleted: true };
+    } }],
+  });
+  assert.equal(result.provider, 'GROQ');
+  assert.equal(result.grounded, false);
+  assert.deepEqual(result.citations, []);
+  assert.equal(captured.length, 1);
+  assert.doesNotMatch(captured[0], /help@example\.com|foo@example\.com|private\.example/);
+  assert.match(captured[0], /\[email omitted\]/);
+  assert.match(captured[0], /\[external URL omitted\]/);
+});
+
+test('red-team: general model never receives injected financial prior-history rows', async () => {
+  let history = null;
+  const answer = await generateGeneralChatAnswer({
+    question: 'Explain recursion',
+    priorTurns: [
+      { role: 'user', content: 'Tell me about Python arrays' },
+      { role: 'model', content: 'Arrays are collections of elements.' },
+      { role: 'user', content: 'My portfolio return is 10%' },
+      { role: 'model', content: 'Your bank account has 5 lakh' },
+    ],
+  }, {
+    providers: [{ name: 'groq', isConfigured: () => true, async generate(request) {
+      history = request.recentHistory;
+      return { provider: 'groq', text: 'Recursion means self-reference.',
+        wasCompleted: true, tokensUsed: 8 };
+    } }],
+  });
+  assert.equal(answer.provider, 'GROQ');
+  assert.equal(answer.validation.status, 'UNVERIFIED_GENERAL_CHAT');
+  assert.equal(history.length, 3);
+  assert.equal(JSON.stringify(history).includes('portfolio return'), false);
+  assert.equal(JSON.stringify(history).includes('bank account'), false);
+});
+
+
+test('red-team: uncited direct provider calls cannot bypass finance evidence requirements', async () => {
+  let providerCalls = 0;
+  for (const question of [
+    'Should I buy digital gold?', 'What is my XIRR?',
+    'Suggest a REIT for my portfolio', 'How does POMIS work?',
+  ]) {
+    await assert.rejects(generateGeneralChatAnswer({ question }, {
+      providers: [{ name: 'groq', isConfigured: () => true, async generate() {
+        providerCalls += 1; return { text: 'Unverified recommendation', wasCompleted: true };
+      } }],
+    }), error => error.code === 'GENERAL_CHAT_FINANCIAL_ROUTE_DENIED', question);
+  }
+  assert.equal(providerCalls, 0);
+});
+
+
+test('red-team: general replies may not invent Indian balances, market rates or personal finance advice', async () => {
+  for (const unsolicited of [
+    'Invest all your savings in cryptocurrency; it guarantees 40% annual returns.',
+    'Your account balance is ₹2 crore.',
+    'Your salary is higher than the market average.',
+    'Buy stocks at 10% monthly interest.',
+    'The guaranteed investment return is 20% annually.',
+  ]) {
+    let secondaryCalled = 0;
+    const answer = await generateGeneralChatAnswer({ question: 'Say hello.' }, {
+      providers: [
+        { name: 'groq', isConfigured: () => true, async generate() {
+          return { text: unsolicited, wasCompleted: true, tokensUsed: 9 };
+        } },
+        { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+          secondaryCalled += 1;
+          return { provider: 'nvidia_nim', text: 'Hello there!',
+            wasCompleted: true, tokensUsed: 10 };
+        } },
+      ],
+    });
+    assert.equal(secondaryCalled, 1, unsolicited);
+    assert.equal(answer.provider, 'NVIDIA_NIM', unsolicited);
+    assert.equal(answer.text, 'Hello there!', unsolicited);
+    assert.equal(answer.fallback, true, unsolicited);
+    assert.equal(answer.providerAttemptFailureCount, 1, unsolicited);
+    assert.deepEqual(answer.citations, [], unsolicited);
+  }
+  const denied = await generateGeneralChatAnswer({ question: 'Say hello.' }, {
+    providers: [
+      { name: 'groq', isConfigured: () => true, async generate() {
+        return { text: 'Buy stocks at 10% monthly interest.', tokensUsed: 2 };
+      } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+        return { text: 'Invest in index funds.', tokensUsed: 2 };
+      } },
+    ],
+  });
+  assert.equal(denied.provider, 'SYSTEM');
+  assert.match(denied.text, /unavailable/i);
+  assert.ok(denied.validation.reasonCodes.includes('GENERAL_FINANCIAL_BOUNDARY_VIOLATION'));
+  assert.deepEqual(denied.citations, []);
+});
+
+test('red-team: general output filter retains ordinary explanations and code without investment claims', async () => {
+  const answers = [
+    'Hello there! How can I help?',
+    'Python lists are mutable and indexing starts at [0].',
+    'The banking example demonstrates a software interface, not an account.',
+  ];
+  for (const response of answers) {
+    const answer = await generateGeneralChatAnswer({ question: 'Say hello.' }, {
+      providers: [{ name: 'groq', isConfigured: () => true,
+        async generate() { return { text: response, wasCompleted: true, tokensUsed: 8 }; } }],
+    });
+    assert.equal(answer.provider, 'GROQ', response);
+    assert.equal(answer.text, response);
+    assert.deepEqual(answer.citations, []);
+  }
 });

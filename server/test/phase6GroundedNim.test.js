@@ -1484,3 +1484,117 @@ test('NVIDIA failover never bypasses absent durable reservations or primary safe
   assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
   assert.equal(answer.validation.status, 'PASS');
 });
+
+
+test('red-team E2E: model cannot invert stated Aggressive preference and final Moderate ceiling using the real evidence ID', async () => {
+  const question = 'Explain my suitability and why the final risk ceiling differs';
+  const packet = buildGroundedEvidencePacket({
+    question,
+    profile: { riskTolerance: 'Aggressive', suitabilityRisk: 'Moderate' },
+  });
+  const risk = packet.entries.find(e => e.id === 'E_PROFILE_RISK');
+  assert.equal(risk.value.statedRiskTolerance, 'Aggressive');
+  assert.equal(risk.value.finalSuitabilityRisk, 'Moderate');
+  const forged = 'Your final suitability ceiling is Aggressive [E_PROFILE_RISK].';
+  const candidate = {
+    text: forged,
+    evidenceIdsUsed: ['E_PROFILE_RISK'],
+    claims: [{ text: forged, evidenceIds: ['E_PROFILE_RISK'] }],
+    financialClaims: [], unavailableFacts: [],
+  };
+  assert.equal(validateGroundedExplanationCompleteness(candidate, packet).valid, false);
+  const truthful = 'Your final suitability ceiling is Moderate [E_PROFILE_RISK].';
+  assert.equal(validateGroundedExplanationCompleteness({
+    ...candidate,
+    text: truthful,
+    claims: [{ text: truthful, evidenceIds: ['E_PROFILE_RISK'] }],
+  }, packet).valid, true);
+  let calls = 0;
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [{
+      name: 'groq', isConfigured: () => true,
+      configuredModel: () => 'mock-adversarial-risk',
+      async generate() {
+        calls += 1;
+        return { provider: 'groq', model: 'mock-adversarial-risk',
+          text: JSON.stringify(candidate), tokensUsed: 29, wasCompleted: true };
+      },
+    }],
+    getCache: async () => null,
+    setCache: async () => true,
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /final suitability ceiling is Moderate/i);
+  assert.doesNotMatch(result.text, /final suitability ceiling is Aggressive/i);
+  assert.equal(result.fallback, true);
+});
+
+
+
+test('red-team: a raw Groq ECONNRESET still attempts independently reserved NVIDIA grounding', async () => {
+  const calls = [];
+  const settlements = [];
+  const answer = await generateGroundedExplanation({
+    question: 'Explain the approved official rate.', evidencePacket: evidencePacket(),
+  }, {
+    providers: [
+      {
+        name: 'groq', configuredModel: () => 'mock-groq',
+        async generate() {
+          calls.push('groq');
+          throw Object.assign(new Error('socket disconnected'), { code: 'ECONNRESET' });
+        },
+      },
+      {
+        name: 'nvidia_nim', configuredModel: () => NVIDIA_NIM_DEFAULT_MODEL,
+        async generate() {
+          calls.push('nvidia_nim');
+          return {
+            provider: 'nvidia_nim', model: NVIDIA_NIM_DEFAULT_MODEL,
+            text: JSON.stringify(candidate()), tokensUsed: 23, wasCompleted: true,
+          };
+        },
+      },
+    ],
+    allowNvidiaFallback: true,
+    beforeProviderAttempt: async () => true,
+    reserveProviderAttempt: async ({ providerAttemptCount }) => ({ id: providerAttemptCount }),
+    settleProviderAttempt: async ({ reservation, actualTokens }) => {
+      settlements.push([reservation.id, actualTokens]);
+      return { settled: true };
+    },
+    getCache: async () => null,
+    setCache: async () => false,
+  });
+  assert.deepEqual(calls, ['groq', 'nvidia_nim']);
+  assert.deepEqual(settlements, [[1, null], [2, 23]]);
+  assert.equal(answer.provider, 'NVIDIA_NIM');
+  assert.equal(answer.validation.status, 'PASS');
+  assert.equal(answer.fallback, true);
+  assert.equal(answer.providerAttemptFailureCount, 1);
+  assert.match(answer.text, /7\.1% p\.a\./);
+  assert.ok(answer.citations.some(c => c.citation_id === 'E_TEST_RATE'));
+});
+
+test('red-team: a thrown internal primary error never opens the secondary route', async () => {
+  let secondCalled = false;
+  const answer = await generateGroundedExplanation({
+    question: 'Explain the approved official rate.', evidencePacket: evidencePacket(),
+  }, {
+    providers: [
+      { name: 'groq', async generate() { throw Object.assign(new Error('internal'), { code: 'NON_RETRYABLE_BUG' }); } },
+      { name: 'nvidia_nim', async generate() { secondCalled = true; return null; } },
+    ],
+    allowNvidiaFallback: true,
+    beforeProviderAttempt: async () => true,
+    reserveProviderAttempt: async () => ({ id: 'admitted' }),
+    settleProviderAttempt: async () => ({ settled: true }),
+    getCache: async () => null,
+    setCache: async () => false,
+  });
+  assert.equal(secondCalled, false);
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(answer.validation.status, 'PASS');
+});

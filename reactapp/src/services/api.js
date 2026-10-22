@@ -1019,7 +1019,9 @@ export async function refreshMarketRates() {
 
 // ─── CHAT (Genie) ────────────────────────────────────────
 export async function sendChatMessage(message, sessionId, options = {}) {
-  return request('POST', '/chat/message', { message, session_id: sessionId }, { timeoutMs: 45000, ...options });
+  // The grounded Groq-to-NVIDIA chain allows up to 60s; do not abort a valid
+  // response at 45s. Leave margin for authenticated persistence and the route.
+  return request('POST', '/chat/message', { message, session_id: sessionId }, { timeoutMs: 75000, ...options });
 }
 
 export async function getChatHistory(sessionId, options = {}) {

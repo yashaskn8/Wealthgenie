@@ -1,3 +1,4 @@
+import { calculateGoalCompoundingScenario } from './chatGoalScenarioMath.js';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FINANCIAL_NUMBER = /(?:[+\-−]\s*)?(?:₹\s*(?:[+\-−]\s*)?\d[\d,]*(?:\.\d+)?|\b(?:INR|Rs\.?)\s*(?:[+\-−]\s*)?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\b)/gi;
 const CLAIM_FIELDS = Object.freeze([
@@ -8,7 +9,7 @@ const CLAIM_FIELDS = Object.freeze([
 export const FINANCIAL_CLAIM_TYPES = Object.freeze([
   'CURRENT_RATE', 'HISTORICAL_RETURN', 'EXPECTED_RETURN', 'PROJECTED_RETURN',
   'POST_TAX_RETURN', 'ALLOCATION_WEIGHT', 'TAX_RATE', 'CURRENT_COUPON',
-  'MATURITY_AMOUNT', 'CONTRIBUTION', 'RISK_SCORE', 'GOAL_TARGET', 'GOAL_MONTHLY_BASELINE',
+  'MATURITY_AMOUNT', 'CONTRIBUTION', 'RISK_SCORE', 'GOAL_TARGET', 'GOAL_MONTHLY_BASELINE', 'GOAL_RETURN_SCENARIO_PAYMENT', 'GOAL_INFLATION_ADJUSTED_TARGET',
 ]);
 
 export const FINANCIAL_CLAIM_UNITS = Object.freeze([
@@ -38,6 +39,23 @@ const VALID_POST_TAX_CLASSES = new Set([
 
 function finite(value) {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+// Keep the validator independent of floating-point division and independently
+// recompute the monthly obligation in integer paise. Round *up* to the paise.
+function checkedPaise(value) {
+  if (!finite(value) || value < 0 || value > 100_000_000_000) return null;
+  const scaled = Math.round(value * 100);
+  if (!Number.isSafeInteger(scaled) || Math.abs(value - scaled / 100) > 1e-8) return null;
+  return BigInt(scaled);
+}
+
+function exactGoalMonthlyAmount(target, savings, months) {
+  const targetPaise = checkedPaise(target);
+  const savedPaise = checkedPaise(savings);
+  if (targetPaise === null || savedPaise === null || !Number.isSafeInteger(months)
+      || months < 1 || targetPaise <= savedPaise) return null;
+  return Number((targetPaise - savedPaise + BigInt(months) - 1n) / BigInt(months)) / 100;
 }
 
 function validIsoDate(value) {
@@ -95,13 +113,8 @@ function expectedClaimForEvidence(entry, type) {
       && finite(value.targetAmount) && finite(value.earmarkedSavingsAmount)
       && Number.isSafeInteger(value.horizonMonths) && value.horizonMonths > 0
       && value.earmarkedSavingsAmount >= 0 && value.earmarkedSavingsAmount <= value.targetAmount
-      && Number.isSafeInteger(Math.round(value.targetAmount * 100))
-      && Number.isSafeInteger(Math.round(value.earmarkedSavingsAmount * 100))
-      && Math.abs(value.targetAmount * 100 - Math.round(value.targetAmount * 100)) < 0.001
-      && Math.abs(value.earmarkedSavingsAmount * 100 - Math.round(value.earmarkedSavingsAmount * 100)) < 0.001
-      && value.monthlyRequiredAmount === Math.ceil(
-        (Math.round(value.targetAmount * 100) - Math.round(value.earmarkedSavingsAmount * 100))
-        / value.horizonMonths) / 100
+      && value.monthlyRequiredAmount === exactGoalMonthlyAmount(
+        value.targetAmount, value.earmarkedSavingsAmount, value.horizonMonths)
       && value.assumedGrowthRate === null && value.inflationRate === null
       && value.returnForecast === false && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value.sourceScope)
       && (value.scenario === 'DECLARED_SAVINGS'
@@ -110,6 +123,54 @@ function expectedClaimForEvidence(entry, type) {
     return { ...base, value: value.monthlyRequiredAmount, unit: 'INR_PER_MONTH',
       timePeriod: 'MONTHLY_ZERO_RETURN_BASELINE', source: 'WEALTHGENIE_BACKEND',
       jurisdiction: null, effectivePeriod: null };
+  }
+  if (type === 'GOAL_RETURN_SCENARIO_PAYMENT'
+      && entry.id === 'E_GOAL_RETURN_SCENARIO'
+      && entry.kind === 'GOAL_CALCULATION'
+      && entry.dataClass === 'DETERMINISTIC_USER_ASSUMPTION_SCENARIO'
+      && entry.authority === 'WEALTHGENIE_BACKEND'
+      && value?.rateConvention === 'EFFECTIVE_ANNUAL_CAGR'
+      && value?.monthlyPaymentTiming === 'END_OF_MONTH'
+      && value?.savedBalanceGrowth === 'NONE'
+      && value?.illustrativeOnly === true && value?.beforeTax === true
+      && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value?.sourceScope)
+      && (value.scenario === 'DECLARED_SAVINGS'
+        || (value.scenario === 'ZERO_START_CONDITIONAL' && value.earmarkedSavingsAmount === 0))) {
+    const scenario = calculateGoalCompoundingScenario({
+      target: value.targetAmount,
+      earmarkedSavings: value.earmarkedSavingsAmount,
+      months: value.horizonMonths,
+      annualReturnPercent: value.annualReturnPercent,
+      annualInflationPercent: value.annualInflationPercent,
+      targetIsPresentValue: value.targetIsPresentCost === true,
+    });
+    if (scenario && scenario.requiredMonthlyContribution > 0
+        && value.monthlyRequiredAmount === scenario.requiredMonthlyContribution
+        && value.inflationAdjustedTargetAmount === scenario.inflatedTarget) {
+      return { ...base, value: scenario.requiredMonthlyContribution,
+        unit: 'INR_PER_MONTH', timePeriod: 'MONTHLY_USER_ASSUMPTION_SCENARIO',
+        source: 'WEALTHGENIE_BACKEND', jurisdiction: null, effectivePeriod: null };
+    }
+  }
+  if (type === 'GOAL_INFLATION_ADJUSTED_TARGET'
+      && entry.id === 'E_GOAL_INFLATED_TARGET'
+      && entry.kind === 'GOAL_CALCULATION'
+      && entry.dataClass === 'DETERMINISTIC_USER_INFLATION_SCENARIO'
+      && entry.authority === 'WEALTHGENIE_BACKEND'
+      && value?.targetIsPresentCost === true
+      && value?.illustrativeOnly === true && value?.beforeTax === true
+      && value?.annualInflationPercent !== null
+      && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value?.sourceScope)) {
+    const scenario = calculateGoalCompoundingScenario({
+      target: value.originalTargetAmount, earmarkedSavings: value.earmarkedSavingsAmount,
+      months: value.horizonMonths, annualReturnPercent: value.annualReturnPercent,
+      annualInflationPercent: value.annualInflationPercent, targetIsPresentValue: true,
+    });
+    if (scenario && scenario.inflatedTarget === value.inflatedTargetAmount) {
+      return { ...base, value: scenario.inflatedTarget, unit: 'INR',
+        timePeriod: 'GOAL_HORIZON_USER_INFLATION_SCENARIO', source: 'WEALTHGENIE_BACKEND',
+        jurisdiction: null, effectivePeriod: null };
+    }
   }
   if (type === 'CONTRIBUTION'
       && entry.id === 'E_PROFILE_SAVINGS'
@@ -224,8 +285,10 @@ function inferredType(statement) {
     ['CURRENT_COUPON', /\bcurrent coupon\b/],
     ['MATURITY_AMOUNT', /\bmaturity\s+(?:amount|value|proceeds)\b/],
     ['CONTRIBUTION', /\b(?:contribution|monthly savings)\b/],
-    ['GOAL_TARGET', /\bgoal target\b/],
+    ['GOAL_TARGET', /(?<!inflation-adjusted )\bgoal target\b/],
     ['GOAL_MONTHLY_BASELINE', /\bfunding-only baseline\b/],
+    ['GOAL_RETURN_SCENARIO_PAYMENT', /\billustrative monthly goal payment\b/],
+    ['GOAL_INFLATION_ADJUSTED_TARGET', /\binflation-adjusted goal target\b/],
     ['RISK_SCORE', /\brisk score\b/],
   ];
   for (const [type, pattern] of rules) if (pattern.test(text)) matches.push(type);

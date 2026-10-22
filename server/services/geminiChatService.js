@@ -33,6 +33,7 @@ import {
   retrieveChatGoalPlanningEvidence,
 } from './chatGoalPlanning.js';
 import { buildGroundedEvidencePacket } from './groundedEvidence.js';
+import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -94,6 +95,12 @@ export function buildClientResponseDTO({
     action_cards,
     idempotent_replay,
   };
+}
+
+// Without an authenticated financial profile there is no account-bound goal
+// history. Never send an elliptical goal follow-up to the unverified general LLM.
+export function isUnboundGoalFollowUp(question) {
+  return /^(?:(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))\s*[.!?]?$/i.test(String(question || '').trim());
 }
 
 function noProfileResponse(sessionId, rateCheck) {
@@ -254,20 +261,38 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
       });
     }
+    if (isUnboundGoalFollowUp(message)) {
+      return buildClientResponseDTO({
+        response: 'I do not have an account-bound goal from an earlier turn. Please restate the goal amount, deadline and savings together so I can calculate from the numbers you provide, without assuming an investment return.',
+        session_id: sessionId,
+        grounded: false,
+        provider: 'SYSTEM',
+        validation_status: 'GOAL_CONTEXT_REQUIRED',
+        messages_this_hour: rateCheck.count,
+        rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+        rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
+      });
+    }
     // A completed financial profile must never be a prerequisite for ordinary
     // educational questions. Stateless general responses cannot access account
     // investments or be misrepresented as persisted financial advice.
     const noProfileGeneral = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
       && isGeneralChatQuestion(message) && !isGroundingBoundaryAttack(message);
-    if (!noProfileGeneral && isFinancialGoalPlanningQuestion(message)
-        && !isGroundingBoundaryAttack(message)) {
-      // Anonymous profile context is absent; use only this user's question.
-      // Do not invent suitability, fetch market data, or create a financial
-      // session from an unbound profile.
+    // A public educational question does not require a financial profile.
+    // Only approved static educational excerpts are eligible: no account facts,
+    // personalized explanation, live rate or unqualified RAG content.
+    const sanitizedQuestion = sanitizeExternalQuestion(message);
+    const unboundGoal = isFinancialGoalPlanningQuestion(sanitizedQuestion);
+    const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
+      ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
+    if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
+        && (unboundGoal || reviewedPublicEducation.length > 0)) {
+      // No account-bound state is created or reused by this stateless answer.
       const packet = buildGroundedEvidencePacket({
-        question: sanitizeExternalQuestion(message),
+        question: sanitizedQuestion,
         profile: null,
-        additionalEntries: retrieveChatGoalPlanningEvidence(sanitizeExternalQuestion(message)),
+        additionalEntries: unboundGoal
+          ? retrieveChatGoalPlanningEvidence(sanitizedQuestion) : reviewedPublicEducation,
       });
       const answer = await generateGroundedExplanation({
         question: sanitizeExternalQuestion(message), evidencePacket: packet,
@@ -497,7 +522,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       response: explanation.text,
       session_id: sessionId,
       latency_ms: latencyMs,
-      grounded: !generalMode,
+      // A validated abstention is not a verified answer to the user's finance
+      // question. Preserve financial-session isolation, but never label the
+      // evidence-unavailable boundary as a grounded factual response.
+      grounded: !generalMode && !explanation.evidenceIdsUsed.includes('E_CHAT_ANSWER_UNAVAILABLE'),
       provider: explanation.provider,
       model: explanation.model,
       prompt_version: explanation.promptVersion,

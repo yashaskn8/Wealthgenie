@@ -53,12 +53,41 @@ function hasTypedEvidenceBinding(claim, candidate, evidenceId) {
     && item.statement.replace(/\s+/g, ' ').trim() === claimText);
 }
 
+
+// A source ID and two shared terms must never turn the user's stated risk
+// preference into the backend's stricter final suitability ceiling. Risk labels
+// are checked by semantic field, not by proximity/token overlap alone.
+function isStructuredRiskClaimSupported(claimText, entry) {
+  if (entry?.id !== 'E_PROFILE_RISK' || entry?.kind !== 'SUITABILITY') return true;
+  const text = String(claimText || '').replace(CITATION_PATTERN, ' ').replace(/\s+/g, ' ').trim();
+  if (/\b(?:actually|instead|rather than|however|or)\b/i.test(text)) return false;
+  const checks = [
+    { pattern: /\b(?:final\s+suitability\s+ceiling|final\s+risk|suitability\s+ceiling)\s+(?:is|:|=)\s+/gi,
+      expected: entry.value?.finalSuitabilityRisk },
+    { pattern: /\b(?:stated\s+)?risk\s+tolerance\s+(?:is|:|=)\s+/gi,
+      expected: entry.value?.statedRiskTolerance },
+  ];
+  let assertions = 0;
+  for (const { pattern, expected } of checks) {
+    for (const match of text.matchAll(pattern)) {
+      const actual = String(expected || '').trim().toLowerCase();
+      const remainder = text.slice(match.index + match[0].length).toLowerCase();
+      if (!actual || !remainder.startsWith(actual) || /[\p{L}\p{N}]/u.test(remainder.charAt(actual.length))) {
+        return false;
+      }
+      assertions += 1;
+    }
+  }
+  return assertions > 0;
+}
+
 function claimAnchoredToEvidence(claim, candidate, evidenceById) {
   const claimText = String(claim?.text || '');
   const claimTokens = new Set(tokens(claimText));
   for (const evidenceId of claim?.evidenceIds || []) {
     const entry = evidenceById.get(evidenceId);
-    if (!entry || !isExtractivePublicClaim(claimText, entry)) continue;
+    if (!entry || !isExtractivePublicClaim(claimText, entry)
+        || !isStructuredRiskClaimSupported(claimText, entry)) continue;
     const evidenceText = evidenceDisplayText(entry);
     const anchors = new Set(tokens(evidenceText));
     // Word overlap alone can accept a sentence that reverses a cited fact.

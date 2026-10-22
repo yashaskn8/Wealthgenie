@@ -11,7 +11,7 @@ import { parseActionCards, useStreamedText, streamedMessages } from '../utils/ge
 // ── Citations List Component ──────────────────────────────────────
 export function CitationsList({ citations }) {
   const [isOpen, setIsOpen] = useState(false);
-  if (!citations || citations.length === 0) return null;
+  if (!Array.isArray(citations) || citations.length === 0) return null;
 
   return (
     <div className="genie-citations">
@@ -21,22 +21,33 @@ export function CitationsList({ citations }) {
         onClick={() => setIsOpen(prev => !prev)}
       >
         <BookOpen size={12} style={{ marginRight: 4 }} />
-        <span>Sources ({citations.length})</span>
+        <span>Evidence ({citations.length})</span>
         <ChevronDown size={12} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: 'auto' }} />
       </button>
       {isOpen && (
         <div className="citations-list">
           {citations.map((c, i) => {
-            const scorePct = c.relevance_score ? Math.round(c.relevance_score * 100) : null;
+            const scorePct = typeof c.relevance_score === 'number' && Number.isFinite(c.relevance_score)
+              && c.relevance_score >= 0 && c.relevance_score <= 1
+              ? Math.round(c.relevance_score * 100) : null;
+            // A URL in retrieved or cached RAG data is untrusted. Only HTTPS
+            // links are navigable; local computations are not external sources.
+            const sourceUrl = typeof c.source_url === 'string'
+              && /^https:\/\/[^\s"'<>]+$/i.test(c.source_url) ? c.source_url : null;
+            const originLabel = c.evidence_class === 'USER_INPUT'
+              ? 'Your stated input'
+              : String(c.evidence_class || '').startsWith('DETERMINISTIC_')
+                ? 'WealthGenie calculation — not an external source'
+                : (c.source || 'Knowledge Base');
             return (
               <div key={i} className="citation-item" style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '0.8rem' }}>
                 <div className="citation-title" style={{ fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>
                     <span className="citation-idx" style={{ color: '#38bdf8', marginRight: '4px' }}>[{i + 1}]</span>
-                    {c.source_url ? (
-                      <a href={c.source_url} target="_blank" rel="noreferrer">{c.document_title || 'Authoritative evidence'}</a>
-                    ) : (c.document_title || 'Authoritative evidence')}
-                    <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '6px', fontSize: '0.75rem' }}>({c.source || 'Knowledge Base'}{c.chunk_id ? ` #${c.chunk_id.split('#')[1] || c.chunk_id}` : ''})</span>
+                    {sourceUrl ? (
+                      <a href={sourceUrl} target="_blank" rel="noopener noreferrer">{c.document_title || 'Source document'}</a>
+                    ) : (c.source === 'USER_INPUT' ? 'Your stated information' : c.document_title || 'Verified evidence')}
+                    <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '6px', fontSize: '0.75rem' }}>({originLabel}{typeof c.chunk_id === 'string' && c.chunk_id ? ` #${c.chunk_id.split('#')[1] || c.chunk_id}` : ''})</span>
                   </span>
                   {scorePct !== null && (
                     <span style={{ fontSize: '0.7rem', padding: '1px 6px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', borderRadius: '4px' }}>
@@ -44,7 +55,7 @@ export function CitationsList({ citations }) {
                     </span>
                   )}
                 </div>
-                {c.excerpt && <div className="citation-excerpt" style={{ marginTop: '4px', color: '#cbd5e1', fontStyle: 'italic', fontSize: '0.75rem' }}>"{c.excerpt}"</div>}
+                {c.excerpt && <div className="citation-excerpt" style={{ marginTop: '4px', color: '#cbd5e1', fontStyle: 'italic', fontSize: '0.75rem' }}>Evidence summary: {c.excerpt}</div>}
               </div>
             );
           })}
@@ -142,13 +153,12 @@ export function ActionCard({ card, onAction }) {
 }
 
 // ── Confidence Meter ──────────────────────────────────────────────
-export function ConfidenceMeter({ level }) {
-  const pct = level === 'high' ? 95 : level === 'medium' ? 70 : 40;
-  const color = pct > 80 ? '#22c55e' : pct > 55 ? '#f59e0b' : '#ef4444';
+export function ConfidenceMeter() {
+  // No model answer has a statistically calibrated probability of being right.
+  // Historical high/medium/low values were mapped to invented 95/70/40 scores.
   return (
-    <div className="confidence-meter" title={`AI Confidence: ${pct}%`}>
-      <div className="confidence-track"><div className="confidence-fill" style={{ width: `${pct}%`, background: color }} /></div>
-      <span className="confidence-label" style={{ color }}>{pct}%</span>
+    <div className="confidence-meter" title="Answer accuracy has not been statistically calibrated">
+      <span className="confidence-label">Confidence not scored</span>
     </div>
   );
 }
@@ -234,7 +244,7 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
       {isAssistant && <div className="bubble-avatar"><span className="ba-letter">G</span></div>}
       <div className="bubble-body">
         {isAssistant && msg.fallback && msg.provider === 'DETERMINISTIC_TEMPLATE' && (
-          <div className="chat-fallback-note">Genie used a source-backed answer because a model answer was unavailable or could not be verified.</div>
+          <div className="chat-fallback-note">{msg.fallback_reason_codes?.length ? 'Genie used a source-backed fallback because a model answer was unavailable or did not pass verification.' : 'Genie used a deterministic, evidence-based explanation without a model forecast.'}</div>
         )}
         {isAssistant && msg.grounded === false && msg.provider !== 'SYSTEM' && (
           <div className="chat-fallback-note">
@@ -300,13 +310,16 @@ export function ProactiveNudge({ profile, onAsk }) {
 // ── Portfolio Snapshot Widget ─────────────────────────────────────
 export function PortfolioSnapshot({ profile }) {
   if (!profile) return null;
-  const monthlySavings = Number(profile.monthly_savings);
-  const riskLabel = profile.final_suitability_risk || 'N/A';
-  const horizon = Number(profile.investment_horizon_years);
+  const parsePresentNumber = value => (value === null || value === undefined || String(value).trim() === ''
+    ? null : Number.isFinite(Number(value)) ? Number(value) : null);
+  const monthlySavings = parsePresentNumber(profile.monthly_savings);
+  const riskLabel = typeof profile.final_suitability_risk === 'string'
+    ? profile.final_suitability_risk : 'N/A';
+  const horizon = parsePresentNumber(profile.investment_horizon_years);
   const items = [
-    { label: 'Monthly capacity', value: Number.isFinite(monthlySavings) ? `₹${monthlySavings.toLocaleString('en-IN')}` : 'N/A', color: '#38bdf8' },
+    { label: 'Monthly capacity', value: monthlySavings !== null && monthlySavings >= 0 ? `₹${monthlySavings.toLocaleString('en-IN')}` : 'N/A', color: '#38bdf8' },
     { label: 'Risk', value: riskLabel, color: riskLabel.includes('Aggressive') ? '#ef4444' : riskLabel.includes('Conservative') ? '#22c55e' : '#f59e0b' },
-    { label: 'Horizon', value: Number.isFinite(horizon) ? `${horizon} years` : 'N/A', color: '#a855f7' },
+    { label: 'Horizon', value: horizon !== null && horizon > 0 ? `${horizon} years` : 'N/A', color: '#a855f7' },
   ];
   return (
     <div className="portfolio-snapshot">

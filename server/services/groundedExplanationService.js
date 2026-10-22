@@ -195,11 +195,18 @@ export function getGroundedExplanationTokenUpperBound({ question, evidencePacket
 }
 
 function citationFor(entry) {
+  const rawUrl = entry.source?.url;
+  const internalOnly = entry.authority === 'USER_INPUT' || entry.dataClass === 'USER_INPUT'
+    || String(entry.dataClass || '').startsWith('DETERMINISTIC_');
+  // Citations are data, not executable links. Never let retrieved documents
+  // or a cache result introduce a javascript:, data: or insecure URL.
+  const sourceUrl = !internalOnly && typeof rawUrl === 'string'
+    && /^https:\/\/[^\s"'<>]+$/i.test(rawUrl) ? rawUrl : null;
   return {
     citation_id: entry.id,
     document_title: entry.source?.title || (entry.kind === 'PRODUCT_FACT' && entry.value?.name ? `${entry.value.name} — official product fact` : entry.kind.replace(/_/g, ' ')),
     source: entry.source?.provider || entry.authority || 'WealthGenie backend',
-    source_url: entry.source?.url || null,
+    source_url: sourceUrl,
     excerpt: entry.displayValue || String(entry.value ?? 'Unavailable'),
     evidence_class: entry.dataClass,
     observed_at: entry.observedAt,
@@ -212,6 +219,8 @@ function deterministicCandidate(packet, question = '') {
   const monthly = packet.entries.find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
   const guidance = packet.entries.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE');
   const capacity = packet.entries.find(item => item.id === 'E_GOAL_CAPACITY_CHECK');
+  const returnScenario = packet.entries.find(item => item.id === 'E_GOAL_RETURN_SCENARIO');
+  const inflatedGoal = packet.entries.find(item => item.id === 'E_GOAL_INFLATED_TARGET');
   if (guidance) {
     const claims = [];
     const financialClaims = [];
@@ -236,6 +245,32 @@ function deterministicCandidate(packet, question = '') {
         type: 'GOAL_MONTHLY_BASELINE', value: monthly.value.monthlyRequiredAmount,
         unit: 'INR_PER_MONTH', timePeriod: 'MONTHLY_ZERO_RETURN_BASELINE',
         source: 'WEALTHGENIE_BACKEND', evidenceId: monthly.id,
+        jurisdiction: null, effectivePeriod: null, statement: text,
+      });
+    }
+    if (inflatedGoal?.value?.inflatedTargetAmount > 0) {
+      const text = 'Inflation-adjusted goal target: INR '
+        + inflatedGoal.value.inflatedTargetAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+        + ' (illustrative, not a cost forecast) [' + inflatedGoal.id + '].';
+      claims.push({ text, evidenceIds: [inflatedGoal.id] });
+      financialClaims.push({
+        type: 'GOAL_INFLATION_ADJUSTED_TARGET',
+        value: inflatedGoal.value.inflatedTargetAmount,
+        unit: 'INR', timePeriod: 'GOAL_HORIZON_USER_INFLATION_SCENARIO',
+        source: 'WEALTHGENIE_BACKEND', evidenceId: inflatedGoal.id,
+        jurisdiction: null, effectivePeriod: null, statement: text,
+      });
+    }
+    if (returnScenario?.value?.monthlyRequiredAmount > 0) {
+      const text = 'Illustrative monthly goal payment: INR '
+        + returnScenario.value.monthlyRequiredAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+        + ' per month, not a forecast [' + returnScenario.id + '].';
+      claims.push({ text, evidenceIds: [returnScenario.id] });
+      financialClaims.push({
+        type: 'GOAL_RETURN_SCENARIO_PAYMENT',
+        value: returnScenario.value.monthlyRequiredAmount,
+        unit: 'INR_PER_MONTH', timePeriod: 'MONTHLY_USER_ASSUMPTION_SCENARIO',
+        source: 'WEALTHGENIE_BACKEND', evidenceId: returnScenario.id,
         jurisdiction: null, effectivePeriod: null, statement: text,
       });
     }
@@ -714,18 +749,20 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
           providerAttemptFailureCount += 1;
           break;
         }
-        const code = String(provider.lastFailureReason || error?.code || '');
-        // Provider adapters normally normalize transport failures. A custom or
-        // unexpectedly throwing adapter still degrades to the deterministic,
-        // evidence-only answer without leaking its exception text.
-        failures.push(code.startsWith('PROVIDER_') ? code : 'PROVIDER_INTERNAL_ERROR');
+        const rawCode = String(provider.lastFailureReason || error?.code || '');
+        // Raw Node/fetch transport failures are not adapter-normalized. If
+        // Groq's socket resets, a healthy NVIDIA fallback must still run.
+        // Do not retry arbitrary application or budget errors.
+        const networkFailure = /^(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|EHOSTUNREACH|UND_ERR_CONNECT_TIMEOUT|UND_ERR_HEADERS_TIMEOUT|FETCH_FAILED|NETWORK_ERROR)$/i.test(rawCode);
+        const code = networkFailure ? 'PROVIDER_NETWORK_ERROR'
+          : rawCode.startsWith('PROVIDER_') ? rawCode : 'PROVIDER_INTERNAL_ERROR';
+        failures.push(code);
         providerAttemptFailureCount += 1;
         if (mayUseSecondaryFallback({
           provider,
           nextProvider,
           dependencies,
           failureCode: code,
-          requestBudget,
           fallbackAttempted,
         })) continue;
         break;
