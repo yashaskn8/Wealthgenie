@@ -27,6 +27,7 @@ import {
   generalChatTokenUpperBound,
   isGeneralChatQuestion,
 } from './generalChatService.js';
+import { isFinancialGoalFollowUpQuestion } from './chatGoalPlanning.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -333,12 +334,16 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     }
     // General questions use a segregated unsourced LLM path. Personal finance
     // always uses the evidence-grounded path, including unknown finance topics.
+    const recentFinancialTurns = buildTrustedPriorTurns(claim.conversation, binding, 'FINANCIAL');
+    const financialGoalFollowUp = isFinancialGoalFollowUpQuestion(
+      securityContext.sanitizedMessage, recentFinancialTurns);
     const generalMode = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
       && !promptInjectionDetected
+      && !financialGoalFollowUp
       && isGeneralChatQuestion(securityContext.sanitizedMessage)
       && !(isContextDependentFollowUp(securityContext.sanitizedMessage)
         && lastChatAnswerWasFinancial(claim.conversation));
-    const trustedFinancialTurns = generalMode ? [] : buildTrustedPriorTurns(claim.conversation, binding, 'FINANCIAL');
+    const trustedFinancialTurns = generalMode ? [] : recentFinancialTurns;
     const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
       question: securityContext.sanitizedMessage,
       profile: llmProfile,
