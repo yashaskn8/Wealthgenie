@@ -81,7 +81,7 @@ export function calculateGoalCompoundingScenario({
   // Geometric sum: 1 + f + f^2 + ... + f^(n-1), scaled by SCALE^(n-1).
   const sum = growthFactor === SCALE
     ? monthsBig * scaleNMinusOne
-    : ((growthFactor ** monthsBig - scaleN) / (growthFactor - SCALE)) * SCALE;
+    : (growthFactor ** monthsBig - scaleN) / (growthFactor - SCALE);
   if (sum <= 0n) return null;
   const monthlyPaise = ceilDiv(gap * scaleNMinusOne, sum);
   if (monthlyPaise > MAX_PAISE) return null;
