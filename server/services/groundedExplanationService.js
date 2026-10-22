@@ -23,6 +23,7 @@ import {
 } from './marketDataService.js';
 import { compareVerifiedFixedIncomeProducts } from './fixedIncomeProductRanking.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveChatGoalPlanningEvidence } from './chatGoalPlanning.js';
 import { retrieveQualifiedRegulatoryChatEvidence } from './chatRegulatoryRetrieval.js';
 import { queryRAG } from './ragClient.js';
 import { PrometheusMetrics } from './metricsCollector.js';
@@ -207,6 +208,42 @@ function citationFor(entry) {
 }
 
 function deterministicCandidate(packet, question = '') {
+  const goal = packet.entries.find(item => item.id === 'E_GOAL_STATED_TARGET');
+  const monthly = packet.entries.find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
+  const guidance = packet.entries.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE');
+  if (guidance) {
+    const claims = [];
+    const financialClaims = [];
+    if (goal?.value?.targetAmount) {
+      const text = 'Goal target: INR ' + goal.value.targetAmount.toLocaleString('en-IN')
+        + ' [' + goal.id + '].';
+      claims.push({ text, evidenceIds: [goal.id] });
+      financialClaims.push({
+        type: 'GOAL_TARGET', value: goal.value.targetAmount, unit: 'INR',
+        timePeriod: 'STATED_GOAL', source: 'USER_INPUT', evidenceId: goal.id,
+        jurisdiction: null, effectivePeriod: null, statement: text,
+      });
+    }
+    if (monthly?.value?.monthlyRequiredAmount) {
+      const text = 'Funding-only baseline: INR '
+        + monthly.value.monthlyRequiredAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+        + ' per month [' + monthly.id + '].';
+      claims.push({ text, evidenceIds: [monthly.id] });
+      financialClaims.push({
+        type: 'GOAL_MONTHLY_BASELINE', value: monthly.value.monthlyRequiredAmount,
+        unit: 'INR_PER_MONTH', timePeriod: 'MONTHLY_ZERO_RETURN_BASELINE',
+        source: 'WEALTHGENIE_BACKEND', evidenceId: monthly.id,
+        jurisdiction: null, effectivePeriod: null, statement: text,
+      });
+    }
+    claims.push({ text: guidance.displayValue + ' [' + guidance.id + '].',
+      evidenceIds: [guidance.id] });
+    return {
+      text: claims.map(claim => claim.text).join(' '),
+      evidenceIdsUsed: claims.flatMap(claim => claim.evidenceIds),
+      claims, financialClaims, unavailableFacts: packet.unavailableFacts,
+    };
+  }
   const personalizedRiskQuestion = /\b(?:risk|suitability|tolerance|capacity)\b/i.test(question)
     && /\b(?:my|me|plan|profile|portfolio|recommendation)\b/i.test(question);
   const profileRisk = personalizedRiskQuestion
@@ -496,6 +533,20 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
   const runProviderChain = async () => {
     let failedProviderTokensUsed = 0;
     let failedProviderUsageUnknown = false;
+    // Goal amounts and monthly arithmetic are deterministic USER_INPUT /
+    // backend-calculation facts, not permission for an LLM to guess a SIP.
+    // Answer these scoped planning questions without any model calls.
+    if (evidencePacket.entries.some(item => item.id === 'E_GOAL_PLANNING_GUIDANCE')) {
+      const result = outputResult({
+        candidate: deterministicCandidate(evidencePacket, question),
+        packet: evidencePacket, provider: 'deterministic_template',
+        model: null, latencyMs: 0, tokensUsed: 0,
+        fallback: true, reasonCodes: [],
+      });
+      result.providerAttemptCount = 0;
+      result.providerAttemptFailureCount = 0;
+      return result;
+    }
     if (isGroundingBoundaryAttack(question)) {
       const result = outputResult({
         candidate: deterministicCandidate(evidencePacket),
@@ -848,7 +899,8 @@ const GOVERNMENT_QUERY_TO_PARENT = Object.freeze([
 export async function buildChatEvidencePacket({ question, profile, recommendation, userId = null }, dependencies = {}) {
   // General education comes from an allowlisted, reviewed reference corpus.
   // It never supplies user-specific allocations, tax rules or product rates.
-  const entries = retrieveChatEducationalEvidence(question);
+  const goalEvidence = retrieveChatGoalPlanningEvidence(question);
+  const entries = [...goalEvidence, ...retrieveChatEducationalEvidence(question)];
   const unavailableFacts = [];
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
   const regulatoryLookup = dependencies.queryRegulatoryRag
