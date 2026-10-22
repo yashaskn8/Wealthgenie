@@ -11,7 +11,8 @@ const POLICY = Object.freeze({
     'https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/section-202-78',
     'https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/section-19-199',
     'https://www.incometaxindia.gov.in/w/tax-rates-and-computation',
-    'https://www.incometaxindia.gov.in/w/how-to-round-off-the-tax-liability-',
+    'https://www.incometaxindia.gov.in/w/section-156-84',
+    'https://www.incometaxindia.gov.in/w/section-516-3',
   ]),
 });
 const U = 10000n; // One rupee in 1/10,000-rupee accounting units.
