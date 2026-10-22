@@ -41,7 +41,7 @@ test('reviewed source corrections preserve family IDs and fail closed on actual 
   const family=extensions.find(e=>e.id===id);
   assert.equal(family.name,change.currentName,id);
   assert.equal(family.sourceUrl,change.currentSourceUrl,id);
-  assert.match(family.sourceUrl,/^https:\\/\\//,id);
+  assert.equal(new URL(family.sourceUrl).protocol,'https:',id);
   assert.equal(family.recommendationEligible,false,id);
   assert.equal(family.isActualPurchasableProduct,false,id);
   assert.equal(family.researchEvidence.actualIssuerOrSchemeVerified,false,id);
