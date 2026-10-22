@@ -283,7 +283,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     // personalized explanation, live rate or unqualified RAG content.
     const sanitizedQuestion = sanitizeExternalQuestion(message);
     const unboundGoal = isFinancialGoalPlanningQuestion(sanitizedQuestion);
-    const reviewedPublicEducation = !unboundGoal && !/\\b(?:my|our|mine)\\b/i.test(sanitizedQuestion)
+    const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
       ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
     if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
         && (unboundGoal || reviewedPublicEducation.length > 0)) {
