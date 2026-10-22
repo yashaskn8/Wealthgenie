@@ -99,6 +99,7 @@ const StepUpPlanner = ({ profile }) => {
         {
           signal: controller.signal,
           body: {
+            returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
             inflationRate: Number(inflationRate) / 100,
             downsideAnnualReturnRate: Number(downsideRate) / 100,
             annualIncomeGrowthRate: Number(incomeGrowth) / 100,
@@ -386,8 +387,8 @@ const StepUpPlanner = ({ profile }) => {
               <Target size={18} />
             </div>
             <div>
-              <h3 className="sup-card-title">Assumed Annual Return (Nominal APR)</h3>
-              <p className="sup-card-desc">Illustrative pre-tax assumption; monthly rate = APR / 12</p>
+              <h3 className="sup-card-title">Assumed Annualised Return (CAGR)</h3>
+              <p className="sup-card-desc">Illustrative pre-tax effective annual rate; monthly rate = (1 + CAGR)^(1/12) − 1</p>
             </div>
           </div>
           
@@ -461,7 +462,7 @@ const StepUpPlanner = ({ profile }) => {
             </label>
           ))}
         </div>
-        <p className="sup-planning-note">All percentage defaults are illustrative inputs, not observed market facts. Leave a required rate blank to stop calculation. The downside return cannot exceed the base return. This is a constant-return what-if, not a probability forecast. EMI is held fixed. Income and expenses change once each year. The model assumes start-of-month SIPs; contributions retain paise, projected corpuses are rounded to the nearest rupee, and returns are before taxes and fees.</p>
+        <p className="sup-planning-note">The assumed annual return is an effective CAGR, not nominal APR. All percentage defaults are illustrative inputs, not observed market facts. Leave a required rate blank to stop calculation. The downside return cannot exceed the base return. This is a constant-return what-if, not a probability forecast. EMI is held fixed. Income and expenses change once each year. The model assumes start-of-month SIPs; contributions retain paise, projected corpuses are rounded to the nearest rupee, and returns are before taxes and fees.</p>
       </section>
 
       <section className="sup-safety-panel" aria-live="polite">
