@@ -33,7 +33,11 @@ describe('new-regime calculator visible entry point', () => {
       standardDeduction: '75000.0000', taxableIncomeBeforeRounding: '1200000.0000',
       taxBeforeRebate: '60000.0000', rebate: '60000.0000', taxAfterRebate: '0.0000',
       surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '0.0000',
-      taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [],
+      taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [
+        { from: '0', to: '400000', percent: 0, taxableInSlab: '400000', tax: '0.0000' },
+        { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000.0000' },
+        { from: '800000', to: '1200000', percent: 10, taxableInSlab: '400000', tax: '40000.0000' },
+      ],
     }));
     render(<NewRegimeTaxScreen />);
     populate();
@@ -54,6 +58,29 @@ describe('new-regime calculator visible entry point', () => {
       status: 'CALCULATED', finalTax: '0',
       inputsUsed: { residency: 'non_resident' },
     });
+    render(<NewRegimeTaxScreen />);
+    populate();
+    fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
+    await waitFor(() => expect(call).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/unverified or mismatched calculation/i));
+    expect(screen.queryByText(/Estimated tax liability under the new regime/i)).not.toBeInTheDocument();
+  });
+
+  it('rejects a forged or incomplete slab breakdown instead of displaying false details', async () => {
+    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => ({
+      taxYear: request.taxYear,
+      policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
+      status: 'CALCULATED', calculationClass: 'SIMPLE_ORDINARY_INCOME_ONLY',
+      inputsUsed: { ...request }, finalTax: '0', taxableIncome: '1200000',
+      grossPrimaryIncome: '1275000.0000', otherOrdinaryIncome: '0.0000',
+      standardDeduction: '75000.0000', taxableIncomeBeforeRounding: '1200000.0000',
+      taxBeforeRebate: '60000.0000', rebate: '60000.0000', taxAfterRebate: '0.0000',
+      surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '0.0000',
+      taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [
+        { from: '0', to: '400000', percent: 0, taxableInSlab: '400000', tax: '0.0000' },
+        { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000.0000' },
+      ],
+    }));
     render(<NewRegimeTaxScreen />);
     populate();
     fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
