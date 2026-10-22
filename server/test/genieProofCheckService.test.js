@@ -210,3 +210,30 @@ test('two separate financial statements never inherit each other\'s verdict', as
   assert.equal(result.claims[1].verdict, 'NOT_VERIFIED');
   assert.ok(result.claims[1].warningSignals.length > 0);
 });
+
+
+test('guarantee warnings cover numbered claims without mislabeling ordinary guarantees', async () => {
+  const unsafe = [
+    'Guaranteed 25% profit.',
+    'Guaranteed 12% annual returns.',
+    'Assured ₹2 crore maturity.',
+    'This investment is risk-free.',
+    'Guaranteed returns of 15% every month.',
+    'RBI approved investment scheme.',
+    'Double your money today only.',
+  ];
+  for (const statement of unsafe) {
+    const result = await checkGenieProofClaims({ offerText: statement, now: () => NOW });
+    assert.equal(result.ok, true, statement);
+    assert.ok(result.claims.length > 0, statement);
+    assert.ok(result.claims[0].warningSignals.length > 0, statement);
+    assert.equal(result.claims[0].verdict, 'NOT_VERIFIED', statement);
+  }
+  const ordinary = await checkGenieProofClaims({
+    offerText: 'This investment website guarantees on-time shipping of welcome documents.',
+    now: () => NOW,
+  });
+  assert.equal(ordinary.ok, true);
+  assert.equal(ordinary.claims[0].verdict, 'NOT_VERIFIED');
+  assert.equal(ordinary.claims[0].warningSignals.length, 0);
+});
