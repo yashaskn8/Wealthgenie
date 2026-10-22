@@ -481,3 +481,18 @@ test('goal red-team: 500 deterministic paise-level metamorphic funding cases', (
     assert.equal(baseline?.assumedGrowthRate, null, question);
   }
 });
+
+
+test('goal red-team: spoken amount words are never silently guessed by an unsourced general model', async () => {
+  const question = "I need two crore for my daughter's wedding";
+  assert.equal(isGeneralChatQuestion(question), false);
+  assert.equal(isFinancialGoalPlanningQuestion(question), true);
+  const packet = await createPacket(question);
+  assert.equal(packet.entries.some(e => e.id === 'E_GOAL_STATED_TARGET'), false);
+  assert.equal(packet.entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /target amount/);
+  assert.doesNotMatch(answer.text, /2,00,00,000|guaranteed returns/i);
+});
