@@ -43,16 +43,25 @@ function contextLabel(question) {
   return 'this financial goal';
 }
 
-export function retrieveChatGoalPlanningEvidence(question, priorTurns = []) {
-  // Financial-session-bound USER statements may add missing inputs in follow-ups.
-  // Never read a model's answer back as if it were verified user input.
-  const previous = Array.isArray(priorTurns) ? priorTurns
+function financialGoalHistory(priorTurns) {
+  return Array.isArray(priorTurns) ? priorTurns
     .filter(turn => turn?.role === 'user' && typeof turn.content === 'string')
-    .slice(-2).map(turn => turn.content.slice(0, 1000)) : [];
+    .slice(-4).map(turn => turn.content.slice(0, 1000)) : [];
+}
+
+export function isFinancialGoalFollowUpQuestion(question, priorTurns = []) {
+  const previous = financialGoalHistory(priorTurns);
+  if (!previous.some(text => isFinancialGoalPlanningQuestion(text))) return false;
+  return /^(?:(?:in|within|after|over)\s+\d|(?:i(?:'ve| have)|we(?:'ve| have))\s+(?:already\s+)?sav|(?:i|we)\s+can\s+(?:save|contribute)|(?:i|we)\s+have\s+(?:saved|set aside)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))/i
+    .test(String(question || '').slice(0, 1000).trim());
+}
+
+export function retrieveChatGoalPlanningEvidence(question, priorTurns = []) {
+  // Reuse *user-authored* turns only, never model-authored explanations.
+  const previous = financialGoalHistory(priorTurns);
   const current = String(question || '').slice(0, 1000);
-  const followedGoal = previous.some(text => isFinancialGoalPlanningQuestion(text));
-  const shortFollowUp = /^(?:(?:in|within|after|over)\s+\d|(?:i(?:'ve| have)|we(?:'ve| have))\s+(?:already\s+)?sav|(?:i|we)\s+can\s+(?:save|contribute)|(?:i|we)\s+have\s+(?:saved|set aside)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))/i.test(current.trim());
-  const text = followedGoal && shortFollowUp ? [...previous, current].join(' ').slice(-2800) : current;
+  const text = isFinancialGoalFollowUpQuestion(current, priorTurns)
+    ? [...previous, current].join(' ').slice(-4000) : current;
   if (!isFinancialGoalPlanningQuestion(text)) return [];
   const amounts = extractMoney(text);
   const targets = amounts.filter(item => !item.savings);
