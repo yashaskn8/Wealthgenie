@@ -5,6 +5,7 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { validateStrict } from '../validation/financialSchemas.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { extractGenieProofClaims } from '../agents/genieProof/genieProofCore.js';
+import { checkGenieProofClaims, createGenieProofReadOnlyVerifier } from '../agents/genieProof/genieProofCheckService.js';
 import {
   genieProofConsentWithdrawalSchema,
   genieProofCreateCaseSchema,
@@ -147,6 +148,20 @@ export function buildGenieProofClaimPreview(offerText) {
     signedPassportCreated: false,
   };
 }
+
+// Read-only by design: no case, passport, signature creation, or user-text persistence.
+// Financial verdicts require independently qualified, applicable, signed evidence.
+const readOnlyEvidenceVerifier = createGenieProofReadOnlyVerifier();
+router.post('/check', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
+  const result = await checkGenieProofClaims({
+    offerText: req.body.offerText,
+    verifier: readOnlyEvidenceVerifier,
+  });
+  if (!result.ok) {
+    throw createError(400, result.code, 'The statement could not be checked. Please shorten or correct it.', { code: result.code });
+  }
+  return res.json(result);
+}));
 
 router.post('/extract-preview', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
   const result = buildGenieProofClaimPreview(req.body.offerText);
