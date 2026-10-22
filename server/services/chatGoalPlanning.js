@@ -16,7 +16,7 @@ export function isFinancialGoalPlanningQuestion(question) {
   // into the financial engine based solely on a shared subject word.
   const explicitAmount = new RegExp(AMOUNT.source, 'i').test(text);
   const fundingIntent = /\b(?:sav(?:e|ing|ings)|fund(?:s|ing)?|financ(?:e|es|ial)|afford|target|budget|corpus|rupees?|money|invest(?:ing|ment)?|monthly|lump[ -]?sum|costs?|expenses?|payments?|set aside|crores?|crors?|lakhs?|lacs?|paise)\b/i.test(text);
-  return SUBJECT.test(text) && GOAL_INTENT.test(text)
+  return SUBJECT.test(text) && (GOAL_INTENT.test(text) || /\b(?:will|would|may)\s+cost\b/i.test(text))
     && (explicitAmount || fundingIntent);
 }
 
@@ -77,11 +77,11 @@ function moneyIn(question) {
     const targetCue = /\b(?:need|want|target(?:\s+is)?|goal(?:\s+is)?|save|raise|require)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before);
     const savings = !targetCue && (/(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:already\s+saved|saved(?:\s+already)?|earmarked|in\s+savings|as\s+savings|in\s+(?:my|our)\s+savings|set\s+aside)\b/i.test(after));
-    const capacity = !savings && (/(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+    const unrelated = !savings && (/\b(?:salary|income|earn(?:ings)?|wages?|paycheck|take[ -]?home|emi|rent|debt|loan|expenses?|spend(?:ing)?|paid|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+      || /^\s*(?:salary|income|wages?|paycheck|emi|rent|loan|in\s+debt|as\s+(?:emi|debt|loan|mortgage|expenses?))\b/i.test(after));
+    const capacity = !savings && !unrelated && (/(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /(?:monthly\s+(?:saving|contribution|capacity|budget)|per\s+month|each\s+month)\s*(?:of\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:per\s+month|each\s+month|monthly|\/month|a\s+month|pm\b)\b/i.test(after));
-    const unrelated = !savings && !capacity && (/\b(?:salary|income|earn(?:ings)?|emi|rent|debt|loan|expenses?|spend(?:ing)?|paid|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
-      || /^\s*(?:salary|income|emi|rent|loan|in\s+debt|as\s+(?:emi|debt|loan|mortgage|expenses?))\b/i.test(after));
     const ambiguousHolding = !savings && !capacity && !unrelated
       && /\b(?:i|we)\s+have\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       && !/^\s*(?:as\s+(?:my|our|the)\s+(?:target|goal)|(?:for|towards)\s+(?:my|our|the)\s+goal)\b/i.test(after);
@@ -89,6 +89,22 @@ function moneyIn(question) {
       : unrelated ? 'OTHER' : ambiguousHolding ? 'AMBIGUOUS' : 'TARGET' });
   }
   return found;
+}
+
+// The same canonical paise arithmetic is reused when generating and validating
+// financial claims. No binary floating-point ceiling can add or lose a paisa.
+export function calculateGoalMonthlyBaseline(target, savings, months) {
+  if (!Number.isSafeInteger(months) || months < 1 || months > 600
+      || !Number.isFinite(target) || !Number.isFinite(savings)
+      || target <= 0 || savings < 0 || savings > target) return null;
+  const targetPaise = target * 100;
+  const savingsPaise = savings * 100;
+  if (!Number.isSafeInteger(Math.round(targetPaise))
+      || !Number.isSafeInteger(Math.round(savingsPaise))
+      || Math.abs(targetPaise - Math.round(targetPaise)) > 0.0001
+      || Math.abs(savingsPaise - Math.round(savingsPaise)) > 0.0001) return null;
+  const remainingPaise = BigInt(Math.round(targetPaise)) - BigInt(Math.round(savingsPaise));
+  return Number((remainingPaise + BigInt(months) - 1n) / BigInt(months)) / 100;
 }
 
 function goalHorizonMonths(question) {
@@ -143,6 +159,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   let horizon = null;
   let monthlyCapacity = null;
   let ambiguousTarget = false;
+  let ambiguousHorizon = false;
   let invalidAmount = false;
   let contradictorySavings = false;
   for (const turn of used) {
@@ -185,9 +202,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   } else {
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
-  if (monthlyCapacity !== null && saved !== null && horizon !== null && target !== null) {
-    const leftPaise = BigInt(Math.round(target * 100)) - BigInt(Math.round(saved * 100));
-    const required = Number((leftPaise + BigInt(horizon) - 1n) / BigInt(horizon)) / 100;
+  if (monthlyCapacity !== null && saved !== null && horizon !== null && target !== null && saved < target) {
+    const required = calculateGoalMonthlyBaseline(target, saved, horizon);
     guidance += monthlyCapacity >= required
       ? ' Your stated monthly capacity is at least this contribution-only baseline.'
       : ' Your stated monthly capacity is below this contribution-only baseline; the goal, deadline or contributions would need reviewing.';
@@ -207,9 +223,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   if (target !== null && horizon !== null && (saved === null || saved < target)) {
     const scenarioSavings = saved === null ? 0 : saved;
     const scenario = saved === null ? 'ZERO_START_CONDITIONAL' : 'DECLARED_SAVINGS';
-    const remainingPaise = BigInt(Math.round(target * 100)) - BigInt(Math.round(scenarioSavings * 100));
-    const baseline = Number((remainingPaise + BigInt(horizon) - 1n) / BigInt(horizon)) / 100;
-    if (Number.isFinite(baseline) && baseline > 0) entries.push({
+    const baseline = calculateGoalMonthlyBaseline(target, scenarioSavings, horizon);
+    if (baseline !== null && baseline > 0) entries.push({
       id: 'E_GOAL_MONTHLY_BASELINE', kind: 'GOAL_CALCULATION',
       value: { monthlyRequiredAmount: baseline, targetAmount: target,
         earmarkedSavingsAmount: scenarioSavings, scenario,
