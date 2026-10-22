@@ -81,10 +81,17 @@ try {
     [sourceId],
   );
   assert.equal(purged.rows[0].n,0,'Revoked market facts must be physically removed');
+  const audited=await pool.query(
+    'SELECT count(*)::integer AS n FROM finance.provider_rights_audit WHERE source_id=$1',
+    [sourceId],
+  );
+  assert.ok(audited.rows[0].n>=3,
+    'Rights creation, explicit approval and revocation must all be auditable');
   process.stdout.write(JSON.stringify({status:'PASS',archetypes:catalog.rows[0].n,
     sourcedExtensions:added.rows[0].n,reviewMetadataRecords:detail.rows[0].n,
     licenseAbsentDenied:true,revocationDenied:true,
-    wrongProviderInstrumentDenied:true,revocationDataPurged:true,sandboxFixture:true})+'\n');
+    wrongProviderInstrumentDenied:true,revocationDataPurged:true,
+    rightsAuditTrailVerified:true,sandboxFixture:true})+'\n');
 } finally {
   // This script is restricted to *_test databases. Never modify a live source registry.
   await pool.query('DELETE FROM finance.market_observations WHERE source_id=$1',[sourceId]);
