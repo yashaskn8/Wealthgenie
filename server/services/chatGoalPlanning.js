@@ -127,7 +127,12 @@ function moneyIn(question) {
     const ambiguousSaving = !recurring && /\b(?:am|are|been|currently)?\s*saving\s*$|\b(?:i|we)\s+save\s*$/i.test(before);
     const savings = !recurring && !targetCue && (/(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:already\s+saved|saved(?:\s+already)?|earmarked|in\s+savings|as\s+savings|in\s+(?:my|our)\s+savings|set\s+aside)\b/i.test(after));
-    const unrelated = !savings && (/\b(?:salary|income|earn(?:ings)?|wages?|paycheck|take[ -]?home|emi|rent|debt|loan|expenses?|spend(?:ing)?|pay(?:ing|ments?)?|paid|borrow(?:ing)?|bills?|groceries|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
+    // A planned payment *for an explicitly named goal* is a target, while a
+    // rent/loan/EMI payment remains an outflow. Without this distinction,
+    // "I need to pay ₹2 crore for my daughter's wedding" silently loses its target.
+    const namedGoalPayment = /\b(?:need|want|plan|planning|must|will|would)\s+(?:to\s+)?pay\s*$/i.test(before)
+      && /\b(?:for|toward(?:s)?)\s+(?:(?:my|our|the|a)\s+)?(?:daughter(?:'s)?|son(?:'s)?|child(?:'s)?|wedding|marriage|education|college|home|house|vehicle|car|retirement|medical|hospital)\b/i.test(after);
+    const unrelated = !savings && !namedGoalPayment && (/\b(?:salary|income|earn(?:ings)?|wages?|paycheck|take[ -]?home|emi|rent|debt|loan|expenses?|spend(?:ing)?|pay(?:ing|ments?)?|paid|borrow(?:ing)?|bills?|groceries|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:salary|income|wages?|paycheck|emi|rent|loan|in\s+debt|as\s+(?:emi|debt|loan|mortgage|expenses?))\b/i.test(after));
     const capacity = !savings && !unrelated && (recurring || /(?:can|could|able\s+to)\s+(?:save|invest|contribute)\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /(?:monthly\s+(?:saving|contribution|capacity|budget)|per\s+month|each\s+month)\s*(?:of\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
