@@ -2,7 +2,7 @@
  * Goals-only deterministic cash-flow planning. No market data, LLM, or lender authority.
  * Amounts are user-entered nominal INR and do not establish verified income.
  */
-export const GOAL_FINANCE_POLICY_VERSION = 'goal-finance-1.0.3';
+export const GOAL_FINANCE_POLICY_VERSION = 'goal-finance-1.0.4';
 export const GOAL_EXPENSE_CATEGORIES = Object.freeze([
   'housing', 'groceries', 'utilities', 'transport', 'healthcare', 'education',
   'insurance', 'existing_emi', 'subscriptions', 'taxes', 'family', 'other',
@@ -234,10 +234,13 @@ export function assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments
   if (upfrontFees === 0) missing.push('UPFRONT_FEES_UNCONFIRMED');
   if (recurringOwnership === 0) missing.push('VEHICLE_RUNNING_COSTS_UNCONFIRMED');
   const bufferInsufficient = afterCash !== null && emergencyFloor !== null && afterCash < emergencyFloor;
+  const zeroMonthlyHeadroom = actualMonthAfterPurchaseAndGoals === 0;
+  const noCashAboveReserveFloor = afterCash !== null && emergencyFloor !== null && afterCash === emergencyFloor;
   const status = missing.length ? 'DATA_INSUFFICIENT'
     : afterPurchase < 0 || actualMonthAfterPurchase < 0
         || actualMonthAfterPurchaseAndGoals < 0 || afterCash < 0 ? 'BUDGET_SHORTFALL'
-      : bufferInsufficient ? 'RISK_WARNING' : 'PASSES_SELF_REPORTED_CHECKS';
+      : bufferInsufficient || zeroMonthlyHeadroom || noCashAboveReserveFloor
+        ? 'RISK_WARNING' : 'PASSES_SELF_REPORTED_CHECKS';
   const reasons = [
     ...missing,
     ...(afterPurchase !== null && afterPurchase < 0 ? ['NEGATIVE_MONTHLY_CASHFLOW'] : []),
@@ -245,6 +248,8 @@ export function assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments
     ...(actualMonthAfterPurchaseAndGoals !== null && actualMonthAfterPurchaseAndGoals < 0 ? ['GOALS_AND_PURCHASE_EXCEED_SAVINGS'] : []),
     ...(afterCash !== null && afterCash < 0 ? ['UPFRONT_CASH_SHORTFALL'] : []),
     ...(bufferInsufficient ? ['EMERGENCY_RESERVE_BREACHED'] : []),
+    ...(zeroMonthlyHeadroom ? ['NO_CASH_FLOW_HEADROOM_AFTER_GOALS'] : []),
+    ...(noCashAboveReserveFloor ? ['EMERGENCY_CASH_ONLY_JUST_MEETS_FLOOR'] : []),
   ];
   return {
     policyVersion: GOAL_FINANCE_POLICY_VERSION, dataClass: 'USER_DECLARED',
@@ -337,7 +342,19 @@ export function planGoalSpecification(spec, now = new Date()) {
   const monthsRemaining = Math.max(0, calendarMonths
     - (targetDay < scheduledDayInTargetMonth ? 1 : 0));
   if (monthsRemaining > 600) throw new RangeError('Goal date beyond 50-year planning horizon');
-  const modeledYears = monthsRemaining / 12;
+  // Deposits are counted on scheduled calendar days, but target inflation
+  // accrues until the ACTUAL deadline, including partial months. Decoupling
+  // these clocks avoids understating a price rise when no deposit is due.
+  const anniversary = year => {
+    const lastDay = new Date(Date.UTC(year, currentMonth, 0)).getUTCDate();
+    return Date.UTC(year, currentMonth - 1, Math.min(currentDay, lastDay));
+  };
+  const deadlineUtc = Date.UTC(targetYear, targetMonth - 1, targetDay);
+  let fullYears = targetYear - currentYear;
+  if (deadlineUtc < anniversary(currentYear + fullYears)) fullYears -= 1;
+  const lastAnniversary = anniversary(currentYear + fullYears);
+  const nextAnniversary = anniversary(currentYear + fullYears + 1);
+  const modeledYears = fullYears + (deadlineUtc - lastAnniversary) / (nextAnniversary - lastAnniversary);
   const futureTargetAmount = rupees(targetAmount * Math.pow(1 + inflation / 100, modeledYears));
   if (futureTargetAmount > MAX_RUPEES) {
     throw new RangeError('Inflated target exceeds supported planning amount');
