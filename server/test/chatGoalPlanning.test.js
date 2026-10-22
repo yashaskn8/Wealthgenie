@@ -982,3 +982,67 @@ test('red-team: large but in-range goal inputs retain exact BigInt funding resul
   assert.equal(monthly?.value.horizonMonths, 248);
   assert.equal(monthly?.value.monthlyRequiredAmount, 130588670.58);
 });
+
+
+test('red-team: compound deadlines preserve every full month rather than overstating monthly savings', async () => {
+  const forms = [
+    ['10 years plus 6 months', 126],
+    ['10 years, 6 months', 126],
+    ['10 years and 6 months', 126],
+    ['10 years + 6 months', 126],
+    ['10 years and a half', 126],
+    ['10 years 6 months', 126],
+    ['10 years', 120],
+    ['1.5 years', 18],
+  ];
+  for (const [deadline, months] of forms) {
+    const question = "Need ₹2 crore for daughter's wedding in " + deadline + ', saved ₹20 lakh';
+    const entries = retrieveChatGoalPlanningEvidence(question);
+    const monthly = entries.find(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE');
+    assert.equal(monthly?.value.horizonMonths, months, question);
+    assert.equal(monthly?.value.monthlyRequiredAmount,
+      calculateGoalMonthlyBaseline(20_000_000, 2_000_000, months), question);
+  }
+  for (const deadline of ['10 years and 3 weeks', '10 years and two months',
+    '10 years or 12 years', '10 years, or 12 years', '5 years or within 10 years']) {
+    const question = "Need ₹2 crore for daughter's wedding in " + deadline + ', saved ₹20 lakh';
+    const entries = retrieveChatGoalPlanningEvidence(question);
+    assert.equal(entries.some(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE'), false,
+      'Ambiguous or unsupported deadline must not produce an exact amount: ' + question);
+    assert.match(entries.find(entry => entry.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '',
+      /unambiguous deadline/i, question);
+  }
+});
+
+test('red-team: foreign-currency suffix can never silently become Indian rupees', () => {
+  for (const currency of ['USD', 'EUR', 'GBP', 'dollars', 'euros']) {
+    const q = "Need 2 crore " + currency + " for daughter's wedding in 10 years, saved 20 lakh";
+    const entries = retrieveChatGoalPlanningEvidence(q);
+    assert.equal(entries.some(entry => entry.id === 'E_GOAL_STATED_TARGET'), false, q);
+    assert.equal(entries.some(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE'), false, q);
+    assert.equal(entries.some(entry => entry.id === 'E_GOAL_RETURN_SCENARIO'), false, q);
+  }
+  const inr = retrieveChatGoalPlanningEvidence(
+    "Need ₹2 crore for daughter's wedding in 10 years, saved ₹20 lakh");
+  assert.equal(inr.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE')?.value.monthlyRequiredAmount,
+    150000);
+});
+
+test('red-team: explicit effective annual returns and all rejected-rate warnings reach evidence', () => {
+  const q = "Need ₹2 crore for daughter's wedding in 10 years; " +
+    "12% effective annual return and 6% inflation at today's prices";
+  const entries = retrieveChatGoalPlanningEvidence(q);
+  const scenario = entries.find(e => e.id === 'E_GOAL_RETURN_SCENARIO');
+  assert.equal(scenario?.value.annualReturnPercent, 12);
+  assert.equal(scenario?.value.annualInflationPercent, 6);
+  assert.equal(scenario?.value.monthlyRequiredAmount, 161388.49);
+  assert.equal(entries.find(e => e.id === 'E_GOAL_INFLATED_TARGET')?.value.inflatedTargetAmount,
+    35816953.94);
+  assert.match(entries.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '',
+    /not a prediction or verified market rate/i);
+  const denied = retrieveChatGoalPlanningEvidence("Need ₹2 crore for daughter's wedding " +
+    "in 10 years; 110% CAGR");
+  assert.equal(denied.some(e => e.id === 'E_GOAL_RETURN_SCENARIO'), false);
+  assert.match(denied.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')?.displayValue || '',
+    /outside the supported exact calculation range/i);
+});
