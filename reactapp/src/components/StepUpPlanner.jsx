@@ -244,13 +244,8 @@ const StepUpPlanner = ({ profile }) => {
             <input 
               type="number"
               value={baseSIP}
-              onChange={e => {
-                const val = e.target.value === '' ? '' : Math.min(1000000, Number(e.target.value));
-                setBaseSIP(val);
-              }}
-              onBlur={() => {
-                if (baseSIP === '' || Number(baseSIP) < 500) setBaseSIP(500);
-              }}
+              aria-label="Starting monthly SIP amount (INR)"
+              onChange={e => setBaseSIP(e.target.value)}
               className="sup-num-input text-sky"
             />
           </div>
@@ -258,6 +253,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="sup-slider-wrap">
             <input
               type="range" 
+              aria-label="Adjust starting monthly SIP using slider"
               value={Number(baseSIP) || 0} 
               onChange={e => setBaseSIP(Number(e.target.value))}
               min="1000" 
@@ -291,13 +287,8 @@ const StepUpPlanner = ({ profile }) => {
             <input 
               type="number"
               value={stepUpPercent}
-              onChange={e => {
-                const val = e.target.value === '' ? '' : Math.min(50, Number(e.target.value));
-                setStepUpPercent(val);
-              }}
-              onBlur={() => {
-                if (stepUpPercent === '' || Number(stepUpPercent) < 0) setStepUpPercent(0);
-              }}
+              aria-label="Annual SIP increase percentage"
+              onChange={e => setStepUpPercent(e.target.value)}
               className="sup-num-input text-purple"
             />
             <span className="unit-symbol text-purple">%</span>
@@ -306,6 +297,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="sup-slider-wrap">
             <input
               type="range" 
+              aria-label="Adjust annual SIP increase using slider"
               value={Number(stepUpPercent) || 0} 
               onChange={e => setStepUpPercent(Number(e.target.value))}
               min="0" 
@@ -333,7 +325,7 @@ const StepUpPlanner = ({ profile }) => {
                 key={preset.val}
                 type="button"
                 onClick={() => setStepUpPercent(preset.val)}
-                className={`preset-btn ${stepUpPercent === preset.val ? 'active' : ''}`}
+                className={`preset-btn ${stepUpPercent !== '' && Number(stepUpPercent) === preset.val ? 'active' : ''}`}
               >
                 {preset.label}
               </button>
@@ -357,13 +349,8 @@ const StepUpPlanner = ({ profile }) => {
             <input 
               type="number"
               value={years}
-              onChange={e => {
-                const val = e.target.value === '' ? '' : Math.min(50, Number(e.target.value));
-                setYears(val);
-              }}
-              onBlur={() => {
-                if (years === '' || Number(years) < 1) setYears(1);
-              }}
+              aria-label="Investment horizon in years"
+              onChange={e => setYears(e.target.value)}
               className="sup-num-input text-sky"
             />
             <span className="unit-symbol text-sky">Years</span>
@@ -372,6 +359,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="sup-slider-wrap">
             <input
               type="range" 
+              aria-label="Adjust investment horizon using slider"
               value={Number(years) || 0} 
               onChange={e => setYears(Number(e.target.value))}
               min="1" 
@@ -406,13 +394,8 @@ const StepUpPlanner = ({ profile }) => {
               type="number"
               step="0.5"
               value={returnRate}
-              onChange={e => {
-                const val = e.target.value === '' ? '' : Math.min(50, Number(e.target.value));
-                setReturnRate(val);
-              }}
-              onBlur={() => {
-                if (returnRate === '' || Number(returnRate) <= -100) setReturnRate(0);
-              }}
+              aria-label="Assumed annualised return CAGR percentage"
+              onChange={e => setReturnRate(e.target.value)}
               className="sup-num-input text-purple"
             />
             <span className="unit-symbol text-purple">% p.a.</span>
@@ -421,6 +404,7 @@ const StepUpPlanner = ({ profile }) => {
           <div className="sup-slider-wrap">
             <input
               type="range" 
+              aria-label="Adjust assumed annual CAGR using slider"
               value={Number(returnRate) || 0} 
               onChange={e => setReturnRate(Number(e.target.value))}
               min="1" 
