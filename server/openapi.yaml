@@ -686,6 +686,13 @@ paths:
       security: []
       description: PostgreSQL actual source counts, not asserted verification of market instruments.
       responses: { '200': { $ref: '#/components/responses/Object' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/financial-universe/three-product-families:
+    get:
+      operationId: financialUniverseFamiliesWithThreeQualifiedProducts
+      tags: [Instruments]
+      security: []
+      description: Source-rights-gated candidate families with at least three distinct actual products. Must be rechecked against the investor profile; discovery of a candidate is not advice.
+      responses: { '200': { $ref: '#/components/responses/Object' }, '503': { $ref: '#/components/responses/Unavailable' } }
   /api/financial-universe/categories:
     get:
       operationId: financialUniverseCategories

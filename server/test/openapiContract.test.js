@@ -307,6 +307,7 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'GET /api/financial-universe', method: 'GET', path: '/api/financial-universe', url: '/api/financial-universe?limit=10', expectedStatus: 503 },
   { operation: 'GET /api/financial-universe/summary', method: 'GET', path: '/api/financial-universe/summary', url: '/api/financial-universe/summary', expectedStatus: 503 },
   { operation: 'GET /api/financial-universe/categories', method: 'GET', path: '/api/financial-universe/categories', url: '/api/financial-universe/categories', expectedStatus: 503 },
+  { operation: 'GET /api/financial-universe/three-product-families', method: 'GET', path: '/api/financial-universe/three-product-families', url: '/api/financial-universe/three-product-families', expectedStatus: 503 },
   { operation: 'GET /api/financial-universe/{productId}/observation', method: 'GET', path: '/api/financial-universe/{productId}/observation', url: '/api/financial-universe/fixture-product/observation?kind=PRICE', expectedStatus: 503 },
 
   { operation: 'GET /api/market/params', method: 'GET', path: '/api/market/params', url: '/api/market/params', expectedStatus: 200 },
