@@ -42,6 +42,19 @@ export function assertGrowSipResponse(value, input) {
     || value.assumptions.years !== input.years
     || value.assumptions.returnRateConvention !== 'EFFECTIVE_ANNUAL_CAGR') invalid();
 
+  // Validation must bind the entire scenario (not just the SIP amount).
+  for (const key of ['inflationRate', 'downsideAnnualReturnRate',
+    'annualIncomeGrowthRate', 'annualExpenseGrowthRate']) {
+    if (key in input && !matchingNumber(value.assumptions[key], input[key])) invalid();
+  }
+  for (const key of ['monthlyIncome', 'monthlyExpenses', 'monthlyEmi', 'emergencySavings']) {
+    const expected = Object.prototype.hasOwnProperty.call(input, key) ? input[key] : null;
+    if (expected === null) {
+      if (value.assumptions[key] !== null) invalid();
+    } else if (!matchingNumber(value.assumptions[key], expected)) invalid();
+  }
+  if (value.assumptions.emergencyMonths !== (input.emergencyMonths ?? 6)) invalid();
+
   if (value.additionalCorpus !== value.stepUpFinal - value.flatFinal
     || Math.abs(value.additionalContributions - (value.stepUpInvested - value.flatInvested)) > 0.011
     || Math.abs(value.additionalProjectedGrowth - (value.additionalCorpus - value.additionalContributions)) > 0.011
