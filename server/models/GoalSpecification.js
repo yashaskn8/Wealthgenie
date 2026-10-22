@@ -7,6 +7,8 @@ export const GOAL_SPEC_KINDS = Object.freeze([
 
 const schema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, immutable: true, required: true, ref: 'User' },
+  creationKey: { type: String, required: true, immutable: true, minlength: 16, maxlength: 128 },
+  creationRequestHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   version: { type: Number, default: 1, required: true, min: 1 },
   kind: { type: String, required: true, enum: GOAL_SPEC_KINDS },
   name: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
@@ -19,4 +21,5 @@ const schema = new mongoose.Schema({
 }, { timestamps: true, strict: 'throw', optimisticConcurrency: true });
 
 schema.index({ userId: 1, targetDate: 1 });
+schema.index({ userId: 1, creationKey: 1 }, { unique: true, name: 'goal_spec_owner_create_key_unique' });
 export default mongoose.model('GoalSpecification', schema);
