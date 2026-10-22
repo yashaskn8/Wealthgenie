@@ -109,7 +109,12 @@ export function isGoalPlanningFollowUp(question) {
   const simpleDeadline = /^(?:(?:in|within|after|over|next|for)\s+)?\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?(?:\s+instead)?\s*[.!?]?$/i;
   const namedDeadline = /^(?:(?:the|my|our|this|that)\s+)?(?:goal\s+)?(?:deadline|timeline|horizon|timeframe)\s*(?:is|of|to|:)?\s*(?:in|within|after|over)?\s*\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
   const referencedGoalDeadline = /^(?:(?:i|we)\s+(?:want|need|plan|hope)\s+(?:to\s+(?:do|reach|achieve|fund|make)\s+)?(?:it|that|this|the goal)?\s*)?(?:in|within|after|over)\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
-  if (simpleDeadline.test(text) || namedDeadline.test(text) || referencedGoalDeadline.test(text)) return true;
+  // Natural follow-up variants must inherit only a still-active, same-goal
+  // session. A subject plus an updated deadline is not a new target.
+  const whatAboutDeadline = /^what\s+about\s+(?:in|within|after|over)\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\s*[.!?]?$/i;
+  const subjectDeadline = /^(?:(?:my|our|the)\s+)?(?:daughter(?:'s)?\s+(?:marriage|wedding)|son(?:'s)?\s+(?:marriage|wedding)|(?:wedding|marriage|education|college|retirement|home|house|vehicle|car))\s+(?:is|will\s+be|happens?|occurs?)\s+in\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\s*[.!?]?$/i;
+  if (simpleDeadline.test(text) || namedDeadline.test(text) || referencedGoalDeadline.test(text)
+      || whatAboutDeadline.test(text) || subjectDeadline.test(text)) return true;
   if (/\b(?:no savings|nothing saved|zero saved|saved zero|starting from zero|zero savings|0 savings)\b/i.test(text)) return true;
   return moneyIn(text).some(item => ['SAVINGS', 'CAPACITY', 'AMBIGUOUS', 'INVALID', 'UNSPECIFIED_FREQUENCY'].includes(item.role));
 }
