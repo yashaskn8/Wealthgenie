@@ -2,7 +2,7 @@
  * Goals-only deterministic cash-flow planning. No market data, LLM, or lender authority.
  * Amounts are user-entered nominal INR and do not establish verified income.
  */
-export const GOAL_FINANCE_POLICY_VERSION = 'goal-finance-1.0.0';
+export const GOAL_FINANCE_POLICY_VERSION = 'goal-finance-1.0.1';
 export const GOAL_EXPENSE_CATEGORIES = Object.freeze([
   'housing', 'groceries', 'utilities', 'transport', 'healthcare', 'education',
   'insurance', 'existing_emi', 'subscriptions', 'taxes', 'family', 'other',
@@ -19,7 +19,12 @@ function money(value, label, { allowNull = false } = {}) {
   }
   return value;
 }
-const rupees = value => Math.round((value + Number.EPSILON) * MONEY_PRECISION) / MONEY_PRECISION;
+const rupees = value => {
+  if (!Number.isFinite(value) || !Number.isSafeInteger(Math.round(value * MONEY_PRECISION))) {
+    throw new RangeError('Derived INR amount is outside supported precision');
+  }
+  return Math.round((value + Number.EPSILON) * MONEY_PRECISION) / MONEY_PRECISION;
+};
 function sum(values) { return rupees(values.reduce((total, value) => total + value, 0)); }
 
 export function summarizeGoalBudget(input) {
@@ -46,7 +51,8 @@ export function summarizeGoalBudget(input) {
     policyVersion: GOAL_FINANCE_POLICY_VERSION, dataClass: 'USER_DECLARED',
     monthlyIncome: income, recurringExpenses, oneOffExpenses,
     protectedMonthlyContributions: committed, recurringSurplus, actualMonthSurplus,
-    budgetStatus: missing.length ? 'DATA_INSUFFICIENT' : recurringSurplus < 0 ? 'BUDGET_SHORTFALL' : 'SELF_REPORTED',
+    budgetStatus: missing.length ? 'DATA_INSUFFICIENT'
+      : recurringSurplus < 0 || actualMonthSurplus < 0 ? 'BUDGET_SHORTFALL' : 'SELF_REPORTED',
     missing,
     // A self-reported budget is never independently bank-verified.
     verifiedByBank: false,
@@ -130,6 +136,7 @@ export function assessVehiclePurchase(budget, scenario) {
   const downPayment = money(scenario.downPayment, 'downPayment');
   const upfrontFees = money(scenario.upfrontFees, 'upfrontFees');
   const recurringOwnership = money(scenario.monthlyOwnershipCost, 'monthlyOwnershipCost');
+  if (price === 0) throw new RangeError('Vehicle purchase price must be greater than zero');
   const emergencyCash = money(scenario.emergencyCash, 'emergencyCash', { allowNull: true });
   const emergencyFloor = money(scenario.emergencyFloor, 'emergencyFloor', { allowNull: true });
   if (downPayment > price) throw new RangeError('Down payment cannot exceed purchase price');
@@ -137,18 +144,23 @@ export function assessVehiclePurchase(budget, scenario) {
     annualInterestRate: scenario.annualInterestRate, tenureMonths: scenario.tenureMonths });
   const ongoing = rupees(loan.monthlyEmi + recurringOwnership);
   const afterPurchase = summary.recurringSurplus === null ? null : rupees(summary.recurringSurplus - ongoing);
+  const actualMonthAfterPurchase = summary.actualMonthSurplus === null ? null
+    : rupees(summary.actualMonthSurplus - ongoing);
   const upfront = rupees(downPayment + upfrontFees);
   const afterCash = emergencyCash === null ? null : rupees(emergencyCash - upfront);
   const missing = [...summary.missing];
   if (emergencyCash === null) missing.push('AVAILABLE_CASH_UNKNOWN');
   if (emergencyFloor === null) missing.push('EMERGENCY_RESERVE_FLOOR_UNKNOWN');
+  if (upfrontFees === 0) missing.push('UPFRONT_FEES_UNCONFIRMED');
+  if (recurringOwnership === 0) missing.push('VEHICLE_RUNNING_COSTS_UNCONFIRMED');
   const bufferInsufficient = afterCash !== null && emergencyFloor !== null && afterCash < emergencyFloor;
   const status = missing.length ? 'DATA_INSUFFICIENT'
-    : afterPurchase < 0 || afterCash < 0 ? 'BUDGET_SHORTFALL'
+    : afterPurchase < 0 || actualMonthAfterPurchase < 0 || afterCash < 0 ? 'BUDGET_SHORTFALL'
       : bufferInsufficient ? 'RISK_WARNING' : 'AFFORDABLE_WITH_DECLARED_BUFFER';
   const reasons = [
     ...missing,
     ...(afterPurchase !== null && afterPurchase < 0 ? ['NEGATIVE_MONTHLY_CASHFLOW'] : []),
+    ...(actualMonthAfterPurchase !== null && actualMonthAfterPurchase < 0 ? ['NEGATIVE_PURCHASE_MONTH_CASHFLOW'] : []),
     ...(afterCash !== null && afterCash < 0 ? ['UPFRONT_CASH_SHORTFALL'] : []),
     ...(bufferInsufficient ? ['EMERGENCY_RESERVE_BREACHED'] : []),
   ];
@@ -156,10 +168,12 @@ export function assessVehiclePurchase(budget, scenario) {
     policyVersion: GOAL_FINANCE_POLICY_VERSION, dataClass: 'USER_DECLARED',
     status, reasons, loan, upfront, monthlyOwnershipCost: recurringOwnership,
     additionalMonthlyCommitment: ongoing, monthlySurplusAfterPurchase: afterPurchase,
+    purchaseMonthSurplusAfterPurchase: actualMonthAfterPurchase,
     emergencyCashAfterPurchase: afterCash,
     totalNominalCostDuringLoan: rupees(price + loan.totalInterest + upfrontFees + recurringOwnership * scenario.tenureMonths),
     priceBasis: 'USER_SUPPLIED_NOT_LIVE', priceUpdatedAt: null, lenderApproval: 'NOT_ASSESSED',
-    warnings: ['EXCLUDES_UNKNOWN_TAXES_AND_FEES', 'USER_INPUTS_NOT_INDEPENDENTLY_VERIFIED'],
+    warnings: ['USER_QUOTES_NOT_LIVE_VERIFIED', 'ASSUMES_BUY_NOW_AND_FIRST_EMI_THIS_MONTH',
+      'COSTS_MUST_INCLUDE_ALL_REQUIRED_FEES_AND_MAINTENANCE', 'USER_INPUTS_NOT_INDEPENDENTLY_VERIFIED'],
   };
 }
 
@@ -219,6 +233,9 @@ export function planGoalSpecification(spec, now = new Date()) {
   // preventing annual targets from drifting due to 365 vs 365.25 days.
   const modeledYears = monthsRemaining / 12;
   const futureTargetAmount = rupees(targetAmount * Math.pow(1 + inflation / 100, modeledYears));
+  if (futureTargetAmount > MAX_RUPEES) {
+    throw new RangeError('Inflated target exceeds supported planning amount');
+  }
   const remainingGap = rupees(Math.max(0, futureTargetAmount - currentSavings));
   const monthlyNeededWithoutReturns = rupees(Math.ceil(remainingGap * 100 / monthsRemaining) / 100);
   return {
