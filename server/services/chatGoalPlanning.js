@@ -193,7 +193,25 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   const text = goalText(question);
   const past = authenticatedUserTurns(priorUserTurns);
   const direct = isFinancialGoalPlanningQuestion(text);
-  const previousGoalIndex = past.findLastIndex(isFinancialGoalPlanningQuestion);
+  // A repeated goal label with only a savings-flow update is not a new target.
+  // Walk backward within the latest same-topic goal segment so subsequent
+  // follow-ups can still access the original trusted target, never another goal.
+  const latestNamedIndex = past.findLastIndex(isFinancialGoalPlanningQuestion);
+  let previousGoalIndex = latestNamedIndex;
+  if (latestNamedIndex >= 0) {
+    const latestTopics = namedGoalTopics(past[latestNamedIndex]);
+    if (latestTopics.length === 1 && !moneyIn(past[latestNamedIndex]).some(item => item.role === 'TARGET')) {
+      for (let index = latestNamedIndex - 1; index >= 0; index -= 1) {
+        const topics = namedGoalTopics(past[index]);
+        if (topics.length > 0 && (topics.length !== 1 || topics[0] !== latestTopics[0])) break;
+        if (isFinancialGoalPlanningQuestion(past[index])
+            && moneyIn(past[index]).some(item => item.role === 'TARGET')) {
+          previousGoalIndex = index;
+          break;
+        }
+      }
+    }
+  }
   if (!direct && (previousGoalIndex < 0 || !isGoalPlanningFollowUp(text))) return [];
   // A later, distinctly named goal must never reuse an older goal's corpus.
   const questionTopics = namedGoalTopics(text);
