@@ -778,7 +778,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
         message: 'Explain Python generators.',
         sessionId: mockSessionId,
         idempotencyKey: 'general-python-turn-001',
-      });
+      }, { groundedExplanationDependencies: { providers: [ProviderManager.groq] } });
       assert.equal(providerCalls, 1);
       assert.equal(result.provider, 'GROQ');
       assert.equal(result.grounded, false);
