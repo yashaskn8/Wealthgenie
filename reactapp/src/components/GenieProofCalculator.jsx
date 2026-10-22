@@ -17,6 +17,12 @@ function readableMoney(value) {
   return '₹' + rupees.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + paisa;
 }
 
+function canonicalMoney(value) {
+  if (!claimPattern.test(value || '')) return null;
+  const parts = value.split('.');
+  return String(BigInt(parts[0])) + '.' + (parts[1] || '').padEnd(2, '0');
+}
+
 function validResult(result, values) {
   if (!result || result.ok !== true || result.mode !== 'USER_INPUT_MATH_CHECK'
       || result.saved !== false || result.type !== values.type
@@ -30,7 +36,7 @@ function validResult(result, values) {
       || !moneyPattern.test(result.totalInterestRupees || '')
       || !moneyPattern.test(result.totalPaidOrContributedRupees || '')
       || result.claimedResultRupees !== (values.claimedResultRupees
-        ? Number(values.claimedResultRupees).toFixed(2) : null)
+        ? canonicalMoney(values.claimedResultRupees) : null)
       || !Array.isArray(result.exclusions)
       || !['CALCULATED_ONLY', 'MATCHES_ASSUMPTIONS_WITHIN_ONE_PAISE', 'DIFFERS_FROM_ASSUMPTIONS'].includes(result.arithmeticFinding)
       || typeof result.convention !== 'string' || typeof result.caveat !== 'string') return false;
