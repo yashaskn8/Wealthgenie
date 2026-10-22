@@ -208,7 +208,17 @@ async function loadFundingGoals(userId) {
   return [...goals, ...typedGoals];
 }
 
-router.get('/funding/:month', checkMonth, asyncHandler(async (req, res) => {
+function requireCurrentGoalAssessmentMonth(req, res, next) {
+  const activeMonth = currentIndianDate().slice(0, 7);
+  if (req.params.month !== activeMonth) {
+    return sendError(req, res, 409,
+      'Funding and vehicle affordability assessments use the current Indian month only. Select the current month to avoid mixing historical budgets with current goal commitments.',
+      'GOAL_ASSESSMENT_MONTH_MISMATCH');
+  }
+  next();
+}
+
+router.get('/funding/:month', checkMonth, requireCurrentGoalAssessmentMonth, asyncHandler(async (req, res) => {
   const saved = await getBudget(req.user.userId, req.params.month);
   const budget = visibleBudget(saved) || emptyBudget(req.params.month);
   const summary = summarizeGoalBudget(budget);
@@ -222,7 +232,7 @@ router.get('/funding/:month', checkMonth, asyncHandler(async (req, res) => {
   });
 }));
 
-router.post('/vehicle/:month', checkMonth, validateStrict(vehicleSchema), asyncHandler(async (req, res) => {
+router.post('/vehicle/:month', checkMonth, requireCurrentGoalAssessmentMonth, validateStrict(vehicleSchema), asyncHandler(async (req, res) => {
   const saved = await getBudget(req.user.userId, req.params.month);
   const budget = visibleBudget(saved) || emptyBudget(req.params.month);
   const { alternatives = [], ...scenario } = req.body;
