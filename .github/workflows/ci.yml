@@ -107,6 +107,8 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - name: Install reproducible server dependencies
         run: npm ci --prefix server
+      - name: Red-team product qualification, suitability and migration hashes
+        run: node --test server/test/familyTopThree.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js
       - name: Apply financial-universe schema with migration checksum
         run: npm run finance:pg:migrate --prefix server
       - name: Stage and reconcile canonical 155-entry archetype catalog
