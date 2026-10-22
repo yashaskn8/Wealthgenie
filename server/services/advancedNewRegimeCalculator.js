@@ -106,7 +106,16 @@ export function calculateAdvancedNewRegime(input) {
 
   const standard = input.incomeType === 'salary' || input.incomeType === 'pension'
     ? min(primary, 75000n * PAISA) : 0n;
-  const npsCap = eligibleSalary * 14n / 100n;
+  // The 14% ceiling can fall between two paise (e.g. salary ₹100.01 → ₹14.0014).
+  // Rounding that ceiling DOWN to whole paise and calling the result exact
+  // understates a statutory deduction. Until the full 1/10,000-rupee ledger
+  // can be propagated through the ordinary-tax engine, refuse cap-binding
+  // sub-paise cases instead of producing a plausible but imprecise result.
+  const npsCapNumerator = eligibleSalary * 14n;
+  if (nps * 100n > npsCapNumerator && npsCapNumerator % 100n !== 0n) {
+    return unavailable(['NPS_14_PERCENT_CAP_REQUIRES_SUB_PAISE_PRECISION']);
+  }
+  const npsCap = npsCapNumerator / 100n;
   const allowedNps = min(nps, npsCap);
   const disallowedNps = nps - allowedNps;
   // Section 122(2) limits Chapter VIII deductions to gross total income.
