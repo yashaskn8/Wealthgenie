@@ -38,14 +38,16 @@ export function isFinancialGoalFollowUpQuestion(question, priorTurns = []) {
 export function isGoalPlanningFollowUp(question) {
   const text = goalText(question);
   if (!text || text.length > 240) return false;
-  // A correction to an already established goal must supersede the old
-  // target instead of falling through to an unrelated generic finance reply.
   const targetRevision = /\b(?:actually|instead|make\s+(?:it|that)|change\s+(?:the\s+)?(?:goal|target)|(?:my|the)\s+(?:goal|target)\s+(?:is|should\s+be))\b/i.test(text)
     && moneyIn(text).some(item => item.role === 'TARGET');
   if (targetRevision) return true;
-  return /^(?:(?:in|within|after|over)\s+)?\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\b/i.test(text)
-    || /^(?:in|within|after|over)\s+\d/i.test(text)
-    || /\b(?:saved|savings|set aside|already have|starting from zero|nothing saved|no savings|per month|monthly|years?|yrs?|months?|mos?|horizon|deadline|timeline|afford|can contribute|can save|can invest)\b/i.test(text);
+  // Stray time references in unrelated questions must not rewrite an active goal.
+  const simpleDeadline = /^(?:(?:in|within|after|over|next|for)\s+)?\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?(?:\s+instead)?\s*[.!?]?$/i;
+  const namedDeadline = /^(?:(?:the|my|our|this|that)\s+)?(?:goal\s+)?(?:deadline|timeline|horizon|timeframe)\s*(?:is|of|to|:)?\s*(?:in|within|after|over)?\s*\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
+  const referencedGoalDeadline = /^(?:(?:i|we)\s+(?:want|need|plan|hope)\s+(?:to\s+(?:do|reach|achieve|fund|make)\s+)?(?:it|that|this|the goal)?\s*)?(?:in|within|after|over)\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
+  if (simpleDeadline.test(text) || namedDeadline.test(text) || referencedGoalDeadline.test(text)) return true;
+  if (/\b(?:no savings|nothing saved|zero saved|saved zero|starting from zero|zero savings|0 savings)\b/i.test(text)) return true;
+  return moneyIn(text).some(item => ['SAVINGS', 'CAPACITY', 'AMBIGUOUS', 'INVALID'].includes(item.role));
 }
 
 function parseExactRupees(raw, factor) {
