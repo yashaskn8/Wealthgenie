@@ -135,6 +135,12 @@ export async function checkGenieProofClaims({
       return unverified(candidate, 'SOURCE_IDENTITY_NOT_QUALIFIED',
         'The source identity or fact could not be confirmed.');
     }
+    // Test-only evidence must never become a public financial truth claim.
+    if (revisions.some(rev => Array.isArray(rev.sourceLineage)
+      && rev.sourceLineage.some(item => /synthetic|test[-_ ]fixture/i.test(String(item))))) {
+      return unverified(candidate, 'SYNTHETIC_EVIDENCE_REJECTED',
+        'Test or synthetic evidence is not permitted to establish financial correctness.');
+    }
     const first = revisions[0];
     return {
       claimId: candidate.claimId,
