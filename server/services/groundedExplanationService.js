@@ -219,6 +219,7 @@ function deterministicCandidate(packet, question = '') {
   const monthly = packet.entries.find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
   const guidance = packet.entries.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE');
   const capacity = packet.entries.find(item => item.id === 'E_GOAL_CAPACITY_CHECK');
+  const returnScenario = packet.entries.find(item => item.id === 'E_GOAL_RETURN_SCENARIO');
   if (guidance) {
     const claims = [];
     const financialClaims = [];
@@ -243,6 +244,19 @@ function deterministicCandidate(packet, question = '') {
         type: 'GOAL_MONTHLY_BASELINE', value: monthly.value.monthlyRequiredAmount,
         unit: 'INR_PER_MONTH', timePeriod: 'MONTHLY_ZERO_RETURN_BASELINE',
         source: 'WEALTHGENIE_BACKEND', evidenceId: monthly.id,
+        jurisdiction: null, effectivePeriod: null, statement: text,
+      });
+    }
+    if (returnScenario?.value?.monthlyRequiredAmount > 0) {
+      const text = 'Illustrative monthly goal payment: INR '
+        + returnScenario.value.monthlyRequiredAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+        + ' per month, not a forecast [' + returnScenario.id + '].';
+      claims.push({ text, evidenceIds: [returnScenario.id] });
+      financialClaims.push({
+        type: 'GOAL_RETURN_SCENARIO_PAYMENT',
+        value: returnScenario.value.monthlyRequiredAmount,
+        unit: 'INR_PER_MONTH', timePeriod: 'MONTHLY_USER_ASSUMPTION_SCENARIO',
+        source: 'WEALTHGENIE_BACKEND', evidenceId: returnScenario.id,
         jurisdiction: null, effectivePeriod: null, statement: text,
       });
     }
