@@ -46,3 +46,21 @@ GenieProof's beginner-facing product is now a **read-only claim check**, not a p
 For additional types, implement independent claim contracts and source-specific qualified adapters, never a single LLM truth score. An LLM may extract candidate text in the future, but must never authorize a financial verdict. Preserve claim origin spans and source-to-fact provenance, use fail-closed deterministic comparison for the decision.
 
 **Coverage semantics:** A successful check covers only financial statements detected by the deterministic extractor; it never certifies the full original text. `allExtractedCandidatesProcessed` means no detected candidate was truncated. The UI must disclose this limitation on every result.
+
+
+## Deterministic numerical checks (API key-free)
+Users switch between **Check a claim** and **Check a calculation**:
+- Claim check: only authentic, qualified official source facts establish a factual verdict. Unsupported types abstain.
+- Calculation check: only **user-entered** rate, duration, amount, optional SIP step-up and optionally advertised number are used. This checks mathematics, not whether the rate is genuine, currently available, guaranteed, or licensed for reuse.
+
+The authenticated /api/genieproof/calculate endpoint is rate limited, validated and never writes a claim or passport. The engine uses integer paise with round-half-up monthly interest and no binary floating-point arithmetic for money.
+
+1. **LUMPSUM**: deposit at time zero; nominal annual rate / 12 compounded monthly, 1–600 months.
+2. **SIP**: contributions at each month-end; monthly interest before each contribution; annual step-up before month 13, 25, etc., rounded to paise.
+3. **EMI**: reducing-balance month-end instalments, monthly interest rounded to paise, smallest constant payment found by bounded integer binary search; final instalment may be lower.
+
+User-advertised totals and EMI are compared with one-paisa tolerance. Result labels say **matches entered assumptions** rather than **financial claim verified**.
+
+**Numerical red-team gates:** zero interest, 1/12/13-month boundaries, maximum duration and principal, paise rounding, high rates, negative/overprecision/scientific notation, safe integer conversion, EMI amortization, rate source confusion, monthly SIP payment timing, annual step-up timing, client-side response tampering, stale UI, authentication and no-store headers.
+
+**Not implemented or not verified:** changing market return sequences, XIRR of irregular cash flows, product-specific taxes, lender day-count/fees/prepayment terms, insurance premiums, actual bank/product APR validation, inflation-adjusted withdrawals and real-world rate licensing. Do not present assumed growth as verified investment performance. Expand only with versioned product rules, sourced facts, independent test oracles and rights review.
