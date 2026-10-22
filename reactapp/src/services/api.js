@@ -541,6 +541,14 @@ export async function saveRiskShortlist(profileId, options = {}) {
   if (!profileId) throw new TypeError('A profile ID is required to save a shortlist.');
   return request('POST', '/recommendation-shortlist/save', { profileId }, { retries:0, ...options });
 }
+export async function getQualifiedFamilyTopProducts(familyId, profileId, options = {}) {
+  if (!/^[a-zA-Z0-9:_-]{1,160}$/.test(familyId) || !/^[a-fA-F0-9]{24}$/.test(profileId)) {
+    throw new TypeError('A current profile and a valid financial family ID are required.');
+  }
+  return request('POST', '/financial-universe/' + encodeURIComponent(familyId) + '/top-products',
+    { profileId }, { retries: 0, ...options });
+}
+
 export async function getFinancialUniverseCategories(options={}) {
   return request('GET','/financial-universe/categories',null,{retries:0,...options});
 }

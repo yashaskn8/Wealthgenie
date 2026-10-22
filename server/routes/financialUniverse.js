@@ -7,6 +7,8 @@ import { taxDeductionSchema } from '../validation/taxSchemas.js';
 import { calculateSourceBoundContractCashflow } from '../services/qualifiedPostgresCashflow.js';
 import { getFinancialPostgresPool } from '../postgres/connection.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
+import { compareQualifiedFamilyProducts } from '../services/familyTopThree.js';
+import { requireFreshRecommendationState } from '../services/recommendationState.js';
 const router = Router();
 const slug = Joi.string().trim().min(1).max(160).pattern(/^[a-zA-Z0-9:_-]+$/);
 const browseSchema = Joi.object({
@@ -94,4 +96,46 @@ router.get('/:productId/observation', validateQuery(Joi.object({
   if (!fact) return res.json({status:'UNAVAILABLE',reasonCode:'QUALIFIED_MARKET_FACT_UNAVAILABLE',value:null});
   return res.json({status:'AVAILABLE',dataClass:fact.data_class,observation:fact});
 }));
+
+const topProductsSchema = Joi.object({
+  profileId: Joi.string().pattern(/^[a-fA-F0-9]{24}$/).required(),
+}).unknown(false);
+// Identity is bound twice to the immutable MongoDB recommendation state.
+router.post('/:familyId/top-products', verifyJWT, validate(topProductsSchema),
+  asyncHandler(async (req, res) => {
+    if (process.env.FINANCIAL_ARCHITECTURE_ENABLED !== 'true') {
+      return sendError(req, res, 503, 'Financial architecture is not enabled.', 'FINANCIAL_ARCHITECTURE_NOT_ENABLED');
+    }
+    const { familyId } = req.params;
+    if (!/^[a-zA-Z0-9:_-]{1,160}$/.test(familyId)) {
+      return sendError(req, res, 400, 'Invalid financial family ID.', 'FAMILY_ID_INVALID');
+    }
+    const pool = await getFinancialPostgresPool();
+    if (!pool) return sendError(req, res, 503, 'Financial PostgreSQL unavailable.', 'FINANCIAL_POSTGRES_NOT_ENABLED');
+    const identity = { userId: req.user.userId, profileId: req.body.profileId };
+    const current = await requireFreshRecommendationState(identity);
+    const comparison = await compareQualifiedFamilyProducts({
+      pool, familyId, profileInput: current.profile, now: new Date(),
+      adviceAuthorized: process.env.FINANCIAL_PERSONALIZED_ADVICE_ENABLED === 'true',
+    });
+    const latest = await requireFreshRecommendationState(identity);
+    if (String(current.recommendation?._id) !== String(latest.recommendation?._id)
+      || String(current.allocationRevision?._id) !== String(latest.allocationRevision?._id)
+      || current.profileVersion !== latest.profileVersion
+      || current.portfolioFingerprint !== latest.portfolioFingerprint) {
+      return sendError(req, res, 409, 'Financial state changed during comparison.', 'COMPARISON_PROFILE_CHANGED');
+    }
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({
+      ...comparison,
+      source: {
+        profileId: String(current.profile._id),
+        recommendationId: String(current.recommendation._id),
+        allocationRevisionId: String(current.allocationRevision._id),
+        profileVersion: current.profileVersion,
+        portfolioFingerprint: current.portfolioFingerprint,
+      },
+    });
+  }));
+
 export default router;
