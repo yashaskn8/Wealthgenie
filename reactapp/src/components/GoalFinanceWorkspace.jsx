@@ -218,6 +218,7 @@ function SavingsProjection() {
 export default function GoalFinanceWorkspace({ refreshToken = '' }) {
   const [month, setMonth] = useState(thisMonth);
   const activeMonthRef = useRef(month);
+  const monthRevisionRef = useRef(0);
   activeMonthRef.current = month;
   const [budget, setBudget] = useState(emptyBudget);
   const [summary, setSummary] = useState(null);
@@ -255,6 +256,9 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
 
   const save = async () => {
     const savingMonth = month;
+    const savingRevision = monthRevisionRef.current;
+    const stillSameMonth = () => activeMonthRef.current === savingMonth
+      && monthRevisionRef.current === savingRevision;
     setSaving(true); setError(null);
     try {
       const payload = {
@@ -269,20 +273,20 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
       if (budget.expenses.some(e => e.amount === '' || e.amount === null))
         throw new Error('Enter an amount for each expense or remove blank rows.');
       const result = await api.saveGoalBudget(savingMonth, payload);
-      if (activeMonthRef.current !== savingMonth) return;
+      if (!stillSameMonth()) return;
       setBudget(old => ({ ...old, ...result.budget, monthlyIncome: result.budget.monthlyIncome ?? '',
         expenses: result.budget.expenses.length ? result.budget.expenses : [emptyExpense()] }));
       setSummary(result.summary);
       try {
         const refreshed = await api.getGoalFundingPlan(savingMonth);
-        if (activeMonthRef.current === savingMonth) setFunding(refreshed);
+        if (stillSameMonth()) setFunding(refreshed);
       } catch {
-        if (activeMonthRef.current === savingMonth) {
+        if (stillSameMonth()) {
           setFunding(null); setError('Saved budget, but goal allocation could not be refreshed.');
         }
       }
     } catch (e) {
-      if (activeMonthRef.current === savingMonth) {
+      if (stillSameMonth()) {
         setError(e.message || 'Unable to save this monthly budget. Reload before retrying.');
       }
     } finally { setSaving(false); }
@@ -297,7 +301,11 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
       <div><h2>Financial Life Planner</h2>
         <p>Budget, debt, savings and purchase decisions — no extra API key or stock tips.</p></div>
       <label className="wg-goal-field"><span>Budget month</span>
-        <input type="month" value={month} onChange={e => { if (e.target.value) setMonth(e.target.value); }} />
+        <input type="month" value={month} onChange={e => { if (e.target.value && e.target.value !== month) {
+          monthRevisionRef.current += 1;
+          activeMonthRef.current = e.target.value;
+          setMonth(e.target.value);
+        } }} />
       </label>
     </div>
     <nav aria-label="Goals planning sections" className="wg-goal-tabs">
