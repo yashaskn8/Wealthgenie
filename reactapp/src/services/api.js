@@ -549,6 +549,11 @@ export async function getQualifiedFamilyTopProducts(familyId, profileId, options
     { profileId }, { retries: 0, ...options });
 }
 
+export async function getThreeProductReadyFamilies(options = {}) {
+  return request('GET', '/financial-universe/three-product-families', null,
+    { retries: 0, ...options });
+}
+
 export async function getFinancialUniverseCategories(options={}) {
   return request('GET','/financial-universe/categories',null,{retries:0,...options});
 }

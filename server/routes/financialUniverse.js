@@ -8,6 +8,7 @@ import { calculateSourceBoundContractCashflow } from '../services/qualifiedPostg
 import { getFinancialPostgresPool } from '../postgres/connection.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
 import { compareQualifiedFamilyProducts } from '../services/familyTopThree.js';
+import { listFamiliesWithThreeSourceQualifiedProducts } from '../services/threeProductFamilyCatalog.js';
 import { requireFreshRecommendationState } from '../services/recommendationState.js';
 const router = Router();
 const slug = Joi.string().trim().min(1).max(160).pattern(/^[a-zA-Z0-9:_-]+$/);
@@ -33,6 +34,12 @@ router.get('/summary', asyncHandler(async (req, res) => {
     'Financial-universe PostgreSQL is not enabled.', 'FINANCIAL_UNIVERSE_NOT_ENABLED');
   res.set('Cache-Control', 'no-store');
   return res.json({ status: 'DISCOVERY_ONLY', ...await createFinancialStore(pool).summary() });
+}));
+router.get('/three-product-families', asyncHandler(async (req,res)=>{
+  const pool=await getFinancialPostgresPool();
+  if(!pool)return sendError(req,res,503,'Financial PostgreSQL unavailable.','FINANCIAL_UNIVERSE_NOT_ENABLED');
+  res.set('Cache-Control','no-store');
+  return res.json(await listFamiliesWithThreeSourceQualifiedProducts(pool,new Date()));
 }));
 router.get('/categories', asyncHandler(async(req,res)=>{
   const pool=await getFinancialPostgresPool();
