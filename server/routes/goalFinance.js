@@ -228,7 +228,7 @@ const specPayload = Joi.object({
   name: Joi.string().trim().min(2).max(100).required(),
   targetAmount: rupee.min(1000).required(),
   currentSavings: rupee.required(),
-  targetDate: Joi.string().pattern(/^\\d{4}-\\d{2}-\\d{2}$/).custom((v, helpers) => {
+  targetDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).custom((v, helpers) => {
     const parsed = new Date(`${v}T00:00:00.000Z`);
     return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === v
       ? v : helpers.error('date.format');
@@ -297,7 +297,7 @@ router.put('/specifications/:id', validSpecId, validateStrict(updateSpecSchema),
 }));
 router.delete('/specifications/:id', validSpecId, asyncHandler(async (req, res) => {
   const rawVersion = req.headers['if-match'];
-  if (!/^"[1-9]\\d*"$/.test(String(rawVersion || ''))) {
+  if (!/^"[1-9]\d*"$/.test(String(rawVersion || ''))) {
     return sendError(req, res, 400, 'A valid version is required in If-Match.', 'GOAL_SPEC_VERSION_REQUIRED');
   }
   const version = Number(rawVersion.slice(1, -1));
