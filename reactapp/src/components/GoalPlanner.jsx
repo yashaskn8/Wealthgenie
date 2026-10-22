@@ -525,9 +525,11 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
   const totalSip = sipValues.every(value => Number.isFinite(value) && value >= 0)
     ? sipValues.reduce((sum, value) => sum + value, 0)
     : null;
-  const avgProb = currentGoals.length > 0 && probabilityValues.every(value => Number.isFinite(value) && value >= 0 && value <= 1)
-    ? probabilityValues.reduce((sum, value) => sum + value, 0) / probabilityValues.length
-    : null;
+  // Reporting an arithmetic mean of individual Monte Carlo success rates as
+  // a dashboard percentage implies a joint probability we cannot calculate.
+  // Coverage is a count of separately qualified simulations, not likelihood.
+  const qualifiedIndividualSimulations = probabilityValues
+    .filter(value => Number.isFinite(value) && value >= 0 && value <= 1).length;
 
   return (
     <motion.div 
@@ -665,8 +667,8 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
               <ArrowUpRight size={22} color="#8b5cf6" />
             </div>
             <div>
-              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px' }}>AVERAGE INDIVIDUAL REACH RATE — NOT JOINT</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: avgProb === null ? '#64748b' : avgProb >= 0.65 ? '#10b981' : '#f59e0b', marginTop: 2 }}>{avgProb === null ? '—' : `${Math.round(avgProb * 100)}%`}</div>
+              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px' }}>INDIVIDUAL SIMULATIONS AVAILABLE</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#8b5cf6', marginTop: 2 }}>{qualifiedIndividualSimulations} of {currentGoals.length}</div>
             </div>
           </motion.div>
         </motion.div>
