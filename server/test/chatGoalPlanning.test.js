@@ -837,3 +837,18 @@ test('red-team E2E: switching to an unrelated finance topic fences the older goa
   assert.equal(evidence.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount === 20_000_000, false);
   assert.equal(isFinancialGoalFollowUpQuestion('in 10 years', resumed), true);
 });
+
+
+test('red-team: ambiguous already-have amounts must not silently overwrite a known wedding target', () => {
+  for (const question of ['I already have 1 crore', 'I have already ₹1 crore', 'We currently have INR 1 crore']) {
+    const turns = [
+      { role: 'user', content: 'I need 2 crore for my daughter wedding in 10 years' },
+      { role: 'model', content: 'How much is earmarked for this goal?' },
+    ];
+    const packetEntries = retrieveChatGoalPlanningEvidence(question, { priorUserTurns: turns });
+    assert.equal(packetEntries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, question);
+    assert.equal(packetEntries.some(e => e.id === 'E_GOAL_STATED_TARGET'), false, question);
+    assert.ok(packetEntries.some(e => e.id === 'E_GOAL_PLANNING_GUIDANCE'
+      && /ambiguous or invalid/.test(e.displayValue)), question);
+  }
+});
