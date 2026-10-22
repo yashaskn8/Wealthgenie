@@ -213,10 +213,12 @@ export function planGoalSpecification(spec, now = new Date()) {
     assumptionSource: 'USER_DECLARED', forecast: false,
     policyVersion: GOAL_FINANCE_POLICY_VERSION,
   };
-  const yearsRemaining = millisecondsRemaining / (365.25 * 86400 * 1000);
-  if (yearsRemaining > 50) throw new RangeError('Goal date beyond 50-year planning horizon');
-  const monthsRemaining = Math.max(1, Math.ceil(yearsRemaining * 12));
-  const futureTargetAmount = rupees(targetAmount * Math.pow(1 + inflation / 100, yearsRemaining));
+  const monthsRemaining = Math.max(1, Math.ceil(millisecondsRemaining / (365.25 * 86400 * 1000 / 12)));
+  if (monthsRemaining > 600) throw new RangeError('Goal date beyond 50-year planning horizon');
+  // Use the same modeled month count for cost inflation and cash funding,
+  // preventing annual targets from drifting due to 365 vs 365.25 days.
+  const modeledYears = monthsRemaining / 12;
+  const futureTargetAmount = rupees(targetAmount * Math.pow(1 + inflation / 100, modeledYears));
   const remainingGap = rupees(Math.max(0, futureTargetAmount - currentSavings));
   const monthlyNeededWithoutReturns = rupees(Math.ceil(remainingGap * 100 / monthsRemaining) / 100);
   return {
