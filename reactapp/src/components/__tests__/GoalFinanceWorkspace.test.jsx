@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import React from 'react';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import GoalFinanceWorkspace from '../GoalFinanceWorkspace';
 import api from '../../services/api';
@@ -87,6 +87,48 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
     await waitFor(() => expect(screen.getByLabelText('Monthly take-home income (₹)').value).toBe('41000'));
     finishOldSave({ budget: { ...budget, version: 4, monthlyIncome: 99999 }, summary });
     await waitFor(() => expect(screen.getByLabelText('Monthly take-home income (₹)').value).toBe('41000'));
+  });
+
+
+  it('blocks vehicle assessments against unsaved budget edits', async () => {
+    render(<GoalFinanceWorkspace />);
+    await screen.findByText('Monthly income and expense tracking');
+    fireEvent.change(screen.getByLabelText('Monthly take-home income (₹)'), { target: { value: '20000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'EMI & vehicles' }));
+    expect(screen.getByText(/Save your updated monthly budget before assessing a purchase/)).toBeTruthy();
+    expect(screen.queryByText('Can I afford this vehicle?')).toBeNull();
+    expect(api.assessGoalVehiclePurchase).not.toHaveBeenCalled();
+  });
+
+  it('never displays a stale vehicle verdict after the price is edited while its request is pending', async () => {
+    let release;
+    api.assessGoalVehiclePurchase.mockReturnValueOnce(new Promise(resolve => { release = resolve; }));
+    const response = {
+      primary: {
+        status: 'PASSES_SELF_REPORTED_CHECKS', reasons: [], loan: { monthlyEmi: 9000, totalInterest: 70000 },
+        additionalMonthlyCommitment: 12000, monthlySurplusAfterPurchase: 21000,
+        purchaseMonthSurplusAfterPurchase: 21000,
+        requiredMonthlyGoalContributions: 0, purchaseMonthSurplusAfterGoals: 21000,
+        emergencyCashAfterPurchase: 180000, totalNominalCostDuringLoan: 900000,
+      }, alternatives: [],
+    };
+    render(<GoalFinanceWorkspace />);
+    await screen.findByText('Monthly income and expense tracking');
+    fireEvent.click(screen.getByRole('button', { name: 'EMI & vehicles' }));
+    const inputs = [
+      ['Vehicle purchase price (₹)', '600000'], ['Cash down payment (₹)', '200000'],
+      ['Registration, taxes, insurance and fees upfront (₹)', '20000'],
+      ['Fuel, servicing, parking and insurance renewals / month (₹)', '5000'],
+      ['Loan annual nominal interest rate (%)', '10'],
+      ['Available cash reserve before buying (₹)', '400000'],
+      ['Cash reserve to protect after buying (₹)', '150000'],
+    ];
+    for (const [label, value] of inputs) fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze purchase and alternatives' }));
+    await waitFor(() => expect(api.assessGoalVehiclePurchase).toHaveBeenCalledOnce());
+    fireEvent.change(screen.getByLabelText('Vehicle purchase price (₹)'), { target: { value: '500000' } });
+    await act(async () => { release(response); });
+    expect(screen.queryByText(/Assessment: PASSES SELF REPORTED CHECKS/)).toBeNull();
   });
 
   it('creates a typed goal independently from portfolio advice', async () => {
