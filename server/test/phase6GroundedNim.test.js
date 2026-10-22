@@ -25,6 +25,7 @@ import {
   buildChatEvidencePacket,
   generateGroundedExplanation,
   GROUNDED_EXPLANATION_PROMPT_VERSION,
+  GROUNDED_PROVIDER_CHAIN_DEADLINE_MS,
   GROUNDED_LLM_TOOL_ALLOWLIST,
 } from '../services/groundedExplanationService.js';
 import { createPlanReviewTokenBudget } from '../agents/planReview/planReviewTokenBudget.js';
@@ -339,6 +340,29 @@ test('profile fallback states the checked risk ceiling and capacity reason witho
   assert.doesNotMatch(result.text, /authoritative backend reports|expected return/i);
 });
 
+test('profile fallback translates only checked capacity reason codes', async () => {
+  const packet = buildGroundedEvidencePacket({
+    question: 'Why is my plan risk level lower than my preference?',
+    purpose: 'RECOMMENDATION_EXPLANATION',
+    profile: {
+      riskTolerance: 'Aggressive',
+      suitabilityRisk: 'Moderate',
+      suitabilityReasonCodes: [
+        'RISK_CAPACITY_REDUCED_PREFERENCE',
+        'LOW_EMERGENCY_COVERAGE',
+        'SHORT_INVESTMENT_HORIZON',
+        'UNRECOGNIZED_CODE',
+      ],
+    },
+  });
+  const result = await generateGroundedExplanation({ question: 'Why is my plan risk level lower?', evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(result.validation.status, 'PASS');
+  assert.match(result.text, /limited emergency coverage, a short investment horizon \[E_SUITABILITY_REASONS\]/);
+  assert.doesNotMatch(result.text, /UNRECOGNIZED_CODE|EMI burden|financial dependents/i);
+});
+
 test('profile fallback does not repeat an unsupported risk label as a financial fact', async () => {
   const packet = buildGroundedEvidencePacket({
     question: 'Explain my suitability.',
@@ -499,6 +523,7 @@ test('Gemini provider fallback must pass the same substantive and advice-policy 
   };
   let geminiCalls = 0;
   let diagnostics = null;
+  let reserved = 0;
   const primary = {
     name: 'groq',
     async generate() { this.lastFailureReason = 'PROVIDER_TIMEOUT'; return null; },
@@ -512,25 +537,20 @@ test('Gemini provider fallback must pass the same substantive and advice-policy 
       return { provider: 'gemini', model: 'gemini-test-model', tokensUsed: 42, text: JSON.stringify(directive) };
     },
   };
-  const requestBudget = createPlanReviewTokenBudget({
-    maxInputTokens: 4000,
-    maxOutputTokens: 1200,
-    maxTotalTokens: 5200,
-    maxModelCalls: 2,
-    onReserve: async () => undefined,
-  });
-
   const result = await generateGroundedExplanation({
     question: 'Explain the verified rate.', evidencePacket: packet,
   }, {
     providers: [primary, backup],
     allowGeminiFallback: true,
-    requestBudget,
+    beforeProviderAttempt: async () => true,
+    reserveProviderAttempt: async () => ({ reservationId: `attempt-${++reserved}`, tokens: 90 }),
+    settleProviderAttempt: async () => ({ settled: true }),
     getCache: async () => null,
     setCache: async () => false,
   });
 
-  assert.equal(geminiCalls, 1);
+  assert.equal(geminiCalls, 1, JSON.stringify({ provider: result.provider, reasons: result.validation.reasonCodes }));
+  assert.equal(reserved, 2);
   assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE', 'unsafe backup output fails closed');
   assert.equal(result.fallback, true);
   assert.ok(result.validation.reasonCodes.includes('EXPLANATION_POLICY_FAILED'));
@@ -677,7 +697,7 @@ test('provider failure and fallback settle each separately reserved attempt', as
   const result = await generateGroundedExplanation({ question: 'Explain.', evidencePacket: evidencePacket() }, {
     providers: [primary, fallback],
     allowGeminiFallback: true,
-    requestBudget: { durableReservations: true, reserve: async () => ({}), settle: async () => true },
+    beforeProviderAttempt: async () => true,
     getCache: async () => null,
     setCache: async () => false,
     reserveProviderAttempt: async () => ({ reservationId: `attempt-${++reserved}`, tokens: 90 }),
@@ -690,6 +710,61 @@ test('provider failure and fallback settle each separately reserved attempt', as
   assert.equal(result.provider, 'GEMINI');
   assert.equal(reserved, 2);
   assert.deepEqual(settlements.map(item => item.actualTokens), [null, 23]);
+});
+
+test('grounding rejection retries once with Gemini under the same strict validator and settles known usage', async () => {
+  const packet = evidencePacket();
+  const settlements = [];
+  let groqCalls = 0;
+  let geminiCalls = 0;
+  const primary = {
+    name: 'groq',
+    configuredModel: () => 'groq-grounding-test',
+    async generate() {
+      groqCalls += 1;
+      return {
+        provider: 'groq', model: 'groq-grounding-test', tokensUsed: 42,
+        text: JSON.stringify(candidate('This investment will return 25% every year [E_TEST_RATE].')),
+      };
+    },
+  };
+  const fallback = {
+    name: 'gemini',
+    configuredModel: () => 'gemini-grounding-test',
+    async generate() {
+      geminiCalls += 1;
+      return {
+        provider: 'gemini', model: 'gemini-grounding-test', tokensUsed: 23,
+        text: JSON.stringify(candidate()),
+      };
+    },
+  };
+
+  const result = await generateGroundedExplanation({
+    question: 'Explain the verified rate.', evidencePacket: packet,
+  }, {
+    providers: [primary, fallback],
+    allowGeminiFallback: true,
+    beforeProviderAttempt: async () => true,
+    getCache: async () => null,
+    setCache: async () => false,
+    reserveProviderAttempt: async ({ providerAttemptCount }) => ({ reservationId: `known-${providerAttemptCount}`, tokens: 90 }),
+    settleProviderAttempt: async ({ reservation, actualTokens }) => {
+      settlements.push({ reservation, actualTokens });
+      return { settled: true };
+    },
+  });
+
+  assert.equal(groqCalls, 1);
+  assert.equal(geminiCalls, 1, JSON.stringify({ provider: result.provider, reasons: result.validation.reasonCodes }));
+  assert.equal(result.provider, 'GEMINI');
+  assert.equal(result.fallback, true);
+  assert.equal(result.providerUsageComplete, true);
+  assert.equal(result.tokensUsed, 65);
+  assert.match(result.text, /7\.1% p\.a\./);
+  assert.ok(result.validation.reasonCodes.includes('LLM_GROUNDING_VALIDATION_FAILED'));
+  assert.deepEqual(settlements.map(item => item.actualTokens), [42, 23]);
+  assert.equal(GROUNDED_PROVIDER_CHAIN_DEADLINE_MS, 60000);
 });
 
 test('grounded explanation fails closed when a provider quota reservation cannot be settled', async () => {
@@ -849,7 +924,7 @@ test('application regulatory disclosure insertion produces aligned text, claim, 
 
   assert.equal(result.fallback, false);
   assert.equal(result.validation.status, 'PASS');
-  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.2');
+  assert.equal(GROUNDED_EXPLANATION_PROMPT_VERSION, 'grounded-financial-explanation-prompt-1.3.3');
   assert.equal(result.text.includes(text), true);
   assert.deepEqual(result.claims[0], { text, evidenceIds: ['E_PROFILE_RISK'] });
   assert.equal(result.evidenceIdsUsed.includes('E_PROFILE_RISK'), true);
@@ -1106,10 +1181,10 @@ test('grounded explanation prompt keeps semantic controls concise for the struct
   assert.equal(request.outputContract, 'GROUNDED_EXPLANATION_V1');
   assert.ok(request.systemPrompt.length < 1400, 'schema details should remain in the output contract, not duplicated in the prompt');
   assert.match(request.systemPrompt, /text=claims\[\]\.text joined by one space/i);
-  assert.match(request.systemPrompt, /Cite exact IDs from each entry's id field in square brackets in text and matching claim\.text/i);
-  assert.match(request.systemPrompt, /claim\.evidenceIds=that claim's inline IDs/i);
-  assert.match(request.systemPrompt, /evidenceIdsUsed=unique IDs cited in text/i);
-  assert.match(request.systemPrompt, /Compact rows: find id via entryFields/i);
+  assert.match(request.systemPrompt, /Cite exact packet IDs in square brackets in text and claim\.text/i);
+  assert.match(request.systemPrompt, /Every claim\.evidenceIds ID must appear inline in claim\.text/i);
+  assert.match(request.systemPrompt, /evidenceIdsUsed=unique inline IDs/i);
+  assert.match(request.systemPrompt, /Compact rows: id is in entryFields/i);
   assert.match(request.systemPrompt, /bind each once to one typed record/i);
   assert.match(request.systemPrompt, /fewest claims needed, normally one; state a concrete packet fact/i);
   assert.doesNotMatch(request.systemPrompt, /"financialClaims":\[\{/);
@@ -1157,13 +1232,13 @@ test('PlanReview Groq JSON mode keeps every evidence entry intact while omitting
   assert.equal(Object.hasOwn(modelPacket, 'purpose'), false);
   assert.equal(Object.hasOwn(modelPacket, 'evidenceHash'), false);
   assert.match(request.systemPrompt, /suitability\/ranking\/allocation\/tax\/market decisions/);
-  assert.match(request.systemPrompt, /claim\.evidenceIds=that claim's inline IDs/);
-  assert.match(request.systemPrompt, /evidenceIdsUsed=unique IDs cited in text/);
+  assert.match(request.systemPrompt, /Every claim\.evidenceIds ID must appear inline in claim\.text/);
+  assert.match(request.systemPrompt, /evidenceIdsUsed=unique inline IDs/);
   assert.match(request.systemPrompt, /Include only relevant supported numbers; bind each once to one typed record/);
   assert.match(request.systemPrompt, /fewest claims needed, normally one; state a concrete packet fact/);
   assert.match(request.systemPrompt, /regulator endorsement/);
   assert.match(request.systemPrompt, /Omit E_REGULATORY_NOTICE; app appends exact notice\+claim/);
-  assert.match(request.systemPrompt, /Compact rows: find id via entryFields/);
+  assert.match(request.systemPrompt, /Compact rows: id is in entryFields/);
   assert.match(request.systemPrompt, /effectivePeriod:null\|\{from:s,to:s\|null\}/);
   assert.equal(result.evidenceHash, packet.evidenceHash, 'the full original packet remains authoritative for validation and attestation');
 });

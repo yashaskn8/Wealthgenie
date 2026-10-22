@@ -210,6 +210,103 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.match(result.response, /Moderate \[E_PROFILE_RISK\]/);
   });
 
+  it('processChat retries a rejected Groq answer with a separately reserved Gemini attempt', async () => {
+    const reservations = [];
+    const settlements = [];
+    let groqCalls = 0;
+    let geminiCalls = 0;
+    const groq = {
+      name: 'groq',
+      configuredModel: () => 'groq-test-model',
+      isConfigured: () => true,
+      async generate() {
+        groqCalls += 1;
+        const text = 'This profile is guaranteed to earn 25% each year [E_PROFILE_RISK].';
+        return {
+          provider: 'groq', model: 'groq-test-model', tokensUsed: 42,
+          text: JSON.stringify({
+            text,
+            evidenceIdsUsed: ['E_PROFILE_RISK'],
+            claims: [{ text, evidenceIds: ['E_PROFILE_RISK'] }],
+            financialClaims: [],
+            unavailableFacts: [],
+          }),
+        };
+      },
+    };
+    const gemini = {
+      name: 'gemini',
+      configuredModel: () => 'gemini-runtime-test',
+      isConfigured: () => true,
+      async generate() {
+        geminiCalls += 1;
+        return {
+          provider: 'gemini', model: 'gemini-runtime-test', tokensUsed: 17,
+          text: JSON.stringify({
+            text: 'The final suitability ceiling is Moderate [E_PROFILE_RISK].',
+            evidenceIdsUsed: ['E_PROFILE_RISK'],
+            claims: [{ text: 'The final suitability ceiling is Moderate [E_PROFILE_RISK].', evidenceIds: ['E_PROFILE_RISK'] }],
+            financialClaims: [],
+            unavailableFacts: [],
+          }),
+        };
+      },
+    };
+
+    const result = await processChat({
+      userId: mockUserId,
+      user: mockUser,
+      message: 'Explain my suitability risk.',
+      sessionId: mockSessionId,
+      idempotencyKey: 'groq-gemini-chat-fallback-001',
+    }, {
+      reserveProviderAttempt: async ({ providerAttemptCount }) => {
+        const reservation = { reservationId: `provider-attempt-${providerAttemptCount}`, tokens: 90 };
+        reservations.push(reservation);
+        return reservation;
+      },
+      settleProviderAttempt: async ({ reservation, actualTokens }) => {
+        settlements.push({ reservation, actualTokens });
+        return { settled: true };
+      },
+      groundedExplanationDependencies: {
+        providers: [groq, gemini],
+        allowGeminiFallback: true,
+        getCache: async () => null,
+        setCache: async () => false,
+      },
+    });
+
+    assert.equal(groqCalls, 1);
+    assert.equal(geminiCalls, 1);
+    assert.equal(reservations.length, 2);
+    assert.equal(result.provider, 'GEMINI');
+    assert.equal(result.fallback, true);
+    assert.equal(result.validation_status, 'PASS');
+    assert.equal(result.response.includes('25%'), false);
+    assert.match(result.response, /Moderate \[E_PROFILE_RISK\]/);
+    assert.deepEqual(settlements.map(item => item.actualTokens), [42, 17]);
+    assert.equal(savedMessages.filter(message => message.role === 'model').at(-1).metadata.tokens_used, 59);
+  });
+
+  it('reports exhausted session token budget instead of mislabeling it as missing provider configuration', async () => {
+    const sessionStore = {
+      ...defaultChatSessionStore,
+      reserveBudget: async () => false,
+    };
+
+    const result = await processChat({
+      userId: mockUserId,
+      user: mockUser,
+      message: 'Explain my suitability risk.',
+      sessionId: mockSessionId,
+    }, { sessionStore });
+
+    assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+    assert.ok(result.fallback_reason_codes.includes('PROVIDER_BUDGET_EXHAUSTED'));
+    assert.equal(result.fallback_reason_codes.includes('NO_LLM_PROVIDER_CONFIGURED'), false);
+  });
+
   it('replays a completed turn by its stable key without another provider call or quota charge', async () => {
     let providerCalls = 0;
     axios.post = async url => {
