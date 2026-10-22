@@ -23,7 +23,8 @@ const verdicts = {
 
 function validCheckResponse(value) {
   if (value?.ok !== true || value?.mode !== 'READ_ONLY_FINANCIAL_CLAIM_CHECK'
-      || value.saved !== false || value.completeInputExamined !== true
+      || value.saved !== false || value.allExtractedCandidatesProcessed !== true
+      || value.verificationScope !== 'DETECTED_CLAIMS_ONLY'
       || !Array.isArray(value.claims) || value.claims.length > 10
       || !Number.isFinite(Date.parse(value.checkedAt))) return false;
   return value.claims.every(claim => {
@@ -134,7 +135,8 @@ export default function GenieProofEntry() {
           <h2 id="genieproof-results-title" style={{ marginTop: 0 }}>Claim check results</h2>
           <p style={{ color: '#cbd5e1', fontSize: '.9rem' }}>
             Checked {new Date(result.checkedAt).toLocaleString('en-IN')}.
-            This is an evidence check, not a product recommendation or safety certification.
+            Only the statements detected below were assessed. Other text may contain unchecked claims.
+            This is not a product recommendation, authenticity check or safety certification.
           </p>
           {result.claims.length === 0 ? (
             <p role="status">
