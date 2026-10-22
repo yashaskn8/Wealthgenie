@@ -172,3 +172,34 @@ test('accounting identities and ₹10 rounding hold across 4200 seeded supported
     );
   }
 });
+
+
+test('red team: employer NPS 14% ceiling must not silently truncate fractions of one paisa', () => {
+  // ₹100.01 * 14% = ₹14.0014, which cannot be represented by integer paise.
+  // A binding statutory cap is declined instead of silently converting it to ₹14.00.
+  const unsupported = run({
+    incomeType: 'salary', primaryIncome: '1500000',
+    npsEligibleSalary: '100.01', employerNpsContribution: '14.01',
+    confirmedNpsIncludedInSalary: true,
+  });
+  assert.equal(unsupported.status, 'UNAVAILABLE');
+  assert.equal(unsupported.finalTax, null);
+  assert.ok(unsupported.unavailableReasons.includes('NPS_14_PERCENT_CAP_REQUIRES_SUB_PAISE_PRECISION'));
+  // Contribution below a fractional ceiling is exact because the actual
+  // contribution, not the 14% ceiling, binds the allowable deduction.
+  const exactContribution = run({
+    incomeType: 'salary', primaryIncome: '1500000',
+    npsEligibleSalary: '100.01', employerNpsContribution: '14.00',
+    confirmedNpsIncludedInSalary: true,
+  });
+  assert.equal(exactContribution.status, 'CALCULATED');
+  assert.equal(exactContribution.employerNpsDeduction, '14.0000');
+  // An exact whole-paise percentage ceiling can be applied normally.
+  const exactCeiling = run({
+    incomeType: 'salary', primaryIncome: '1500000',
+    npsEligibleSalary: '100.00', employerNpsContribution: '14.01',
+    confirmedNpsIncludedInSalary: true,
+  });
+  assert.equal(exactCeiling.status, 'CALCULATED');
+  assert.equal(exactCeiling.employerNpsDeduction, '14.0000');
+});
