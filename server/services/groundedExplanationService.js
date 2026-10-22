@@ -721,18 +721,20 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
           providerAttemptFailureCount += 1;
           break;
         }
-        const code = String(provider.lastFailureReason || error?.code || '');
-        // Provider adapters normally normalize transport failures. A custom or
-        // unexpectedly throwing adapter still degrades to the deterministic,
-        // evidence-only answer without leaking its exception text.
-        failures.push(code.startsWith('PROVIDER_') ? code : 'PROVIDER_INTERNAL_ERROR');
+        const rawCode = String(provider.lastFailureReason || error?.code || '');
+        // Raw Node/fetch transport failures are not adapter-normalized. If
+        // Groq's socket resets, a healthy NVIDIA fallback must still run.
+        // Do not retry arbitrary application or budget errors.
+        const networkFailure = /^(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|EHOSTUNREACH|UND_ERR_CONNECT_TIMEOUT|UND_ERR_HEADERS_TIMEOUT|FETCH_FAILED|NETWORK_ERROR)$/i.test(rawCode);
+        const code = networkFailure ? 'PROVIDER_NETWORK_ERROR'
+          : rawCode.startsWith('PROVIDER_') ? rawCode : 'PROVIDER_INTERNAL_ERROR';
+        failures.push(code);
         providerAttemptFailureCount += 1;
         if (mayUseSecondaryFallback({
           provider,
           nextProvider,
           dependencies,
           failureCode: code,
-          requestBudget,
           fallbackAttempted,
         })) continue;
         break;
