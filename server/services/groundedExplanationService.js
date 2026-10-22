@@ -79,9 +79,18 @@ function providerOrder(dependencies = {}) {
   };
   const requested = String(process.env.LLM_PRIMARY_PROVIDER || 'GROQ').trim().toUpperCase();
   const selected = [providers[requested]].filter(Boolean);
-  const fallbackEnabled = isGeminiFallbackEnabled(dependencies);
-  if (requested === 'GROQ' && fallbackEnabled
-      && hasProviderAttemptReservations(dependencies)) selected.push(providers.GEMINI);
+  if (selected.length && hasProviderAttemptReservations(dependencies)) {
+    // A request may make at most two model calls. Prefer Groq/NVIDIA for the
+    // assistant, retaining Gemini as the last compatible configured option.
+    const backups = requested === 'NVIDIA_NIM'
+      ? ['GROQ', 'GEMINI']
+      : requested === 'GEMINI'
+        ? ['GROQ', 'NVIDIA_NIM']
+        : ['NVIDIA_NIM', 'GEMINI'];
+    const next = backups.find(name => name !== requested
+      && isProviderFallbackEnabled(providers[name], dependencies));
+    if (next) selected.push(providers[next]);
+  }
   return selected.filter(Boolean);
 }
 
@@ -120,14 +129,33 @@ function hasProviderAttemptReservations(dependencies = {}) {
     && typeof dependencies.settleProviderAttempt === 'function';
 }
 
-function mayUseGeminiFallback({ provider, nextProvider, dependencies, failureCode, fallbackAttempted }) {
-  const fallbackEnabled = isGeminiFallbackEnabled(dependencies);
-  return !fallbackAttempted
-    && fallbackEnabled
-    && provider?.name === 'groq'
-    && nextProvider?.name === 'gemini'
-    && TRANSIENT_PROVIDER_FAILURES.has(failureCode)
-    && hasProviderAttemptReservations(dependencies);
+function isProviderFallbackEnabled(provider, dependencies = {}) {
+  if (provider?.name === 'gemini') return isGeminiFallbackEnabled(dependencies);
+  if (provider?.name === 'nvidia_nim') {
+    if (typeof dependencies.allowNvidiaFallback === 'boolean') return dependencies.allowNvidiaFallback;
+    if (String(process.env.LLM_NVIDIA_FALLBACK_ENABLED || '').trim().toLowerCase() === 'false') return false;
+    return ProviderManager.nvidia.isConfigured();
+  }
+  if (provider?.name === 'groq') {
+    if (typeof dependencies.allowGroqFallback === 'boolean') return dependencies.allowGroqFallback;
+    return ProviderManager.groq.isConfigured();
+  }
+  return false;
+}
+
+function mayUseProviderFallback({ provider, nextProvider, dependencies, failureCode, fallbackAttempted }) {
+  if (!nextProvider || nextProvider.name === provider?.name
+      || fallbackAttempted || !TRANSIENT_PROVIDER_FAILURES.has(failureCode)
+      || !hasProviderAttemptReservations(dependencies)) return false;
+  // Explicit adapter lists are exercised by tests and other bounded callers;
+  // the production default chain only includes configured providers.
+  if (Array.isArray(dependencies.providers)) {
+    if (nextProvider.name === 'gemini') return isGeminiFallbackEnabled(dependencies);
+    if (nextProvider.name === 'nvidia_nim') return dependencies.allowNvidiaFallback !== false;
+    if (nextProvider.name === 'groq') return dependencies.allowGroqFallback !== false;
+    return false;
+  }
+  return isProviderFallbackEnabled(nextProvider, dependencies);
 }
 
 const MODEL_OMITTED_EVIDENCE_METADATA = new Set(['groundingVersion', 'purpose', 'evidenceHash']);
@@ -556,7 +584,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
       }
       if (typeof provider.isConfigured === 'function' && !provider.isConfigured()) {
         failures.push('PROVIDER_NOT_CONFIGURED');
-        if (mayUseGeminiFallback({
+        if (mayUseProviderFallback({
           provider,
           nextProvider,
           dependencies,
@@ -661,7 +689,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
         // evidence-only answer without leaking its exception text.
         failures.push(code.startsWith('PROVIDER_') ? code : 'PROVIDER_INTERNAL_ERROR');
         providerAttemptFailureCount += 1;
-        if (mayUseGeminiFallback({
+        if (mayUseProviderFallback({
           provider,
           nextProvider,
           dependencies,
@@ -676,7 +704,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
         const reason = provider.lastFailureReason || `${providerName.toUpperCase()}_UNAVAILABLE`;
         failures.push(reason);
         providerAttemptFailureCount += 1;
-        if (mayUseGeminiFallback({
+        if (mayUseProviderFallback({
           provider,
           nextProvider,
           dependencies,
@@ -692,7 +720,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
         provider.recordOutputValidation?.({ errorClassification: reason });
         failures.push(reason);
         providerAttemptFailureCount += 1;
-        if (mayUseGeminiFallback({
+        if (mayUseProviderFallback({
           provider,
           nextProvider,
           dependencies,
@@ -706,7 +734,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
         provider.recordOutputValidation?.({ jsonSyntaxValid: false, errorClassification: 'EMPTY_COMPLETION' });
         failures.push('EMPTY_COMPLETION');
         providerAttemptFailureCount += 1;
-        if (mayUseGeminiFallback({
+        if (mayUseProviderFallback({
           provider,
           nextProvider,
           dependencies,
@@ -723,7 +751,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
         provider.recordOutputValidation?.({ jsonSyntaxValid: false, errorClassification: 'MALFORMED_GROUNDED_JSON' });
         providerAttemptFailureCount += 1;
         failures.push('MALFORMED_GROUNDED_JSON');
-        if (mayUseGeminiFallback({
+        if (mayUseProviderFallback({
           provider,
           nextProvider,
           dependencies,
@@ -739,7 +767,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
         provider.recordOutputValidation?.({ errorClassification: 'INVALID_GROUNDED_EXPLANATION_SCHEMA' });
         providerAttemptFailureCount += 1;
         failures.push('INVALID_GROUNDED_EXPLANATION_SCHEMA');
-        if (mayUseGeminiFallback({
+        if (mayUseProviderFallback({
           provider,
           nextProvider,
           dependencies,
@@ -792,7 +820,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
               : 'PROVIDER_UNAVAILABLE';
         failures.push(failureCode);
         failures.push(...sanitizeGroundingReasonCodes(error.validation?.errors));
-        if (mayUseGeminiFallback({
+        if (mayUseProviderFallback({
           provider,
           nextProvider,
           dependencies,
