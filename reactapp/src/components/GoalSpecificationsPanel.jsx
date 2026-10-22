@@ -17,7 +17,7 @@ const parseAmount = (value, name) => {
   if (value === '') throw new Error(`Enter ${name}.`);
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0 || n > 1_000_000_000
-    || Math.abs(Math.round(n * 100) - n * 100) > 1e-7) throw new Error(`Invalid ${name}.`);
+    || Number(n.toFixed(2)) !== n) throw new Error(`Invalid ${name}.`);
   return n;
 };
 const label = { kind:'Goal type', name:'Your goal name', targetAmount:'Target cost (₹)',
