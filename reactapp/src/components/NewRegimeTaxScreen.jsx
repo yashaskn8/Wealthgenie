@@ -161,7 +161,7 @@ export default function NewRegimeTaxScreen() {
           <option value="resident">Resident individual in India</option>
           <option value="non_resident">Non-resident individual</option>
         </select>
-        <label htmlFor="wg-tax-special">Any income taxed at special rates (e.g. equity capital gains, lottery, crypto)?</label>
+        <label htmlFor="wg-tax-special">Any special-rate income or dividends (which may have different surcharge rules)?</label>
         <select id="wg-tax-special" value={form.specialRateIncome} onChange={e => change('specialRateIncome', e.target.value)}>
           <option value="unknown">Not sure (cannot calculate)</option>
           <option value="yes">Yes (requires a full tax computation)</option>
@@ -215,7 +215,7 @@ export default function NewRegimeTaxScreen() {
       )}
       <p className="wg-new-tax__footnote">Scope: individual, ordinary-rate income, selected tax year only.
         This is not an ITR, TDS, advance-tax or refund calculation. Employer NPS, family pension,
-        business adjustments, multiple employers, capital gains, and other special provisions are not
+        business adjustments, dividends, capital gains, and other special provisions are not
         automatically modeled. The server refuses unsupported inputs instead of guessing.</p>
       <p className="wg-new-tax__sources">Government sources: <a href="https://www.incometaxindia.gov.in/w/tax-rates-and-computation" target="_blank" rel="noopener noreferrer">Income Tax Department rates and rebates</a>
         {' · '}<a href="https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/section-19-199" target="_blank" rel="noopener noreferrer">Section 19</a>
