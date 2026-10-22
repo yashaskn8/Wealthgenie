@@ -82,7 +82,7 @@ function expectedClaimForEvidence(entry, type) {
       && entry.dataClass === 'USER_INPUT'
       && finite(value?.targetAmount)
       && value.targetAmount > 0
-      && value.sourceScope === 'CURRENT_USER_MESSAGE'
+      && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value.sourceScope)
       && entry.authority === 'USER_INPUT') {
     return { ...base, value: value.targetAmount, unit: 'INR', timePeriod: 'STATED_GOAL',
       source: 'USER_INPUT', jurisdiction: null, effectivePeriod: null };
@@ -98,7 +98,7 @@ function expectedClaimForEvidence(entry, type) {
       && value.monthlyRequiredAmount === Math.ceil(((value.targetAmount - value.earmarkedSavingsAmount) * 100)
         / value.horizonMonths) / 100
       && value.assumedGrowthRate === null && value.inflationRate === null
-      && value.returnForecast === false && value.sourceScope === 'CURRENT_USER_MESSAGE'
+      && value.returnForecast === false && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value.sourceScope)
       && (value.scenario === 'DECLARED_SAVINGS'
         || (value.scenario === 'ZERO_START_CONDITIONAL' && value.earmarkedSavingsAmount === 0))
       && entry.authority === 'WEALTHGENIE_BACKEND') {
