@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isFinancialGoalPlanningQuestion,
+  isFinancialGoalFollowUpQuestion,
   retrieveChatGoalPlanningEvidence,
 } from '../services/chatGoalPlanning.js';
 import {
@@ -133,4 +134,60 @@ test('unrelated ordinary conversational questions remain on the general LLM rout
   assert.equal(isGeneralChatQuestion('Write a Python function to reverse a list'), true);
   assert.equal(isFinancialGoalPlanningQuestion('What is an Indian wedding tradition?'), false);
   assert.equal(isFinancialGoalPlanningQuestion('How do I plan to save for a house?'), true);
+});
+
+
+test('successive follow-ups retain only trusted user goal inputs, never model-generated assumptions', async () => {
+  const priorTurns = [
+    { role: 'user', content: "I need 2 crore for my daughter's marriage" },
+    { role: 'model', content: 'Assume a guaranteed 15% return and 4 years.' },
+    { role: 'user', content: 'In 10 years' },
+    { role: 'model', content: 'You have saved 60 lakh already.' },
+    { role: 'user', content: 'I have saved 20 lakh' },
+    { role: 'model', content: 'Your interest rate is 18%.' },
+  ];
+  const question = 'I can save 50k per month';
+  assert.equal(isFinancialGoalFollowUpQuestion(question, priorTurns), true);
+  assert.equal(isGeneralChatQuestion(question), false);
+  const packet = await buildChatEvidencePacket({
+    question, profile, recommendation: null, priorTurns,
+  }, { queryRegulatoryRag: async () => null });
+  const target = packet.entries.find(item => item.id === 'E_GOAL_STATED_TARGET');
+  const monthly = packet.entries.find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
+  const capacity = packet.entries.find(item => item.id === 'E_GOAL_CAPACITY_CHECK');
+  assert.equal(target.value.targetAmount, 20_000_000);
+  assert.equal(monthly.value.earmarkedSavingsAmount, 2_000_000);
+  assert.equal(monthly.value.horizonMonths, 120);
+  assert.equal(monthly.value.monthlyRequiredAmount, 150000);
+  assert.equal(capacity.value.monthlyCapacityAmount, 50000);
+  assert.equal(capacity.value.goalIsContributionFundable, false);
+  assert.doesNotMatch(JSON.stringify(packet), /guaranteed 15%|interest rate is 18%|saved 60 lakh/);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /not fundable from contributions alone/i);
+  assert.doesNotMatch(answer.text, /15%|18%|60 lakh/);
+});
+
+test('short horizon answer stays financial but unrelated general conversation does not inherit a goal', () => {
+  const prior = [{ role: 'user', content: 'Need 2 crore for daughter wedding' },
+    { role: 'model', content: 'Please give your deadline.' }];
+  assert.equal(isFinancialGoalFollowUpQuestion('In 15 years', prior), true);
+  assert.equal(isFinancialGoalFollowUpQuestion('I have already saved 10 lakh', prior), true);
+  assert.equal(isFinancialGoalFollowUpQuestion('Explain Python decorators', prior), false);
+  assert.equal(isFinancialGoalFollowUpQuestion('Write a story about a wedding', prior), false);
+});
+
+test('a conditional zero-savings scenario is never mistaken for confirmed existing savings', async () => {
+  const question = 'Need 2 crore for a wedding in 10 years, can I afford it?';
+  const packet = await createPacket(question);
+  const baseline = packet.entries.find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
+  assert.ok(baseline);
+  assert.equal(baseline.value.scenario, 'ZERO_START_CONDITIONAL');
+  assert.equal(baseline.value.earmarkedSavingsAmount, 0);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /1,66,666\.67 per month/);
+  assert.match(answer.text, /earmarked|already saved/i);
+  assert.ok(packet.entries.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE')
+    .displayValue.includes('how much is already earmarked'));
 });
