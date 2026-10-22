@@ -990,6 +990,11 @@ export async function compareTax(income, deductions = {}, options = {}) {
   return request('POST', '/tax/compare', { ...omitEmptyTaxInputs(deductions), income }, options);
 }
 
+/** TY2026-27 only: fail-closed ordinary-income new-regime calculation. */
+export async function computeVerifiedNewRegimeTax(input, options = {}) {
+  return request('POST', '/tax/new-regime-verified', input, { retries: 0, ...options });
+}
+
 export async function getTaxPolicyMetadata(options = {}) {
   return request('GET', '/tax/policies', null, options);
 }
@@ -1084,7 +1089,7 @@ const api = {
   getMarketRates, getBenchmarkMarketFacts, getStoredBenchmarkMarketFacts, getMutualFundNavFacts, refreshMarketRates,
   sendChatMessage, getChatHistory, clearChatSession, rebalancePortfolio,
   updateRecommendationWeights, optimisePortfolio,
-  computeTax, compareTax, getTaxPolicyMetadata, computeUserDeclaredPostTaxScenario, getCurrentMarketContext, getPrivateMarketDemoData, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,
+  computeTax, compareTax, computeVerifiedNewRegimeTax, getTaxPolicyMetadata, computeUserDeclaredPostTaxScenario, getCurrentMarketContext, getPrivateMarketDemoData, previewMarketContextAdjustment, computePostTaxReturn, computePostTaxReturnBatch,
 };
 
 export default api;
