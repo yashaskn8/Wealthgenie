@@ -117,7 +117,9 @@ export default function GoalSpecificationsPanel({ onChanged }) {
   return <div className="wg-goal-panel">
     <h3>Goal-specific planning</h3>
     <p>Create separately typed savings targets without stock tips or needing an investment portfolio.
-      The baseline assumes <b>zero investment growth</b>; your own annual cost-increase percentage changes the target, not returns.</p>
+      The baseline assumes <b>zero investment growth</b>; your own annual cost-increase percentage changes the target, not returns.
+      Monthly deposits are counted on your current Indian calendar day in subsequent months, clamped to month-end;
+      payments after the deadline never count.</p>
     {loading && <p>Loading your saved goal specifications…</p>}
     {error && <p role="alert" className="wg-goal-notice wg-goal-notice--error">{error}</p>}
     {notice && <p role="status" className="wg-goal-notice">{notice}</p>}
@@ -140,7 +142,12 @@ export default function GoalSpecificationsPanel({ onChanged }) {
           <p><b>Target date</b><span>{item.targetDate}</span></p>
           <p><b>Future target (hypothetical price growth)</b><span>{rupees(item.plan.futureTargetAmount)}</span></p>
           <p><b>Reserved savings (self-reported)</b><span>{rupees(item.currentSavings)}</span></p>
+          <p><b>Eligible monthly deposits before deadline</b><span>{item.plan.monthsRemaining ?? 'Unavailable'}</span></p>
           <p><b>Monthly saving needed, zero growth</b><span>{rupees(item.plan.monthlyNeededWithoutReturns)}</span></p>
+          {item.plan.status === 'IMMEDIATE_FUNDING_REQUIRED' && <p>
+            <b>Funding needed before the deadline — no regular monthly payment is due in time</b>
+            <span>{rupees(item.plan.requiredLumpSumToday)}</span>
+          </p>}
         </div>
         <p>Calculation: {item.plan.status.replaceAll('_',' ')}. No tax calculation, income verification or assumed interest income.</p>
         <div className="wg-goal-spec-actions">
