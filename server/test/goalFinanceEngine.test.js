@@ -176,7 +176,7 @@ test('the same vehicle cannot be called affordable if it drains monthly commitme
   const scenario = { ...purchase(), price: 400000, downPayment: 200000,
     monthlyOwnershipCost: 3000 };
   const withoutGoals = assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments: 0 });
-  assert.equal(withoutGoals.status, 'AFFORDABLE_WITH_DECLARED_BUFFER');
+  assert.equal(withoutGoals.status, 'PASSES_SELF_REPORTED_CHECKS');
   const withEducationAndEmergency = assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments: 40000 });
   assert.equal(withEducationAndEmergency.status, 'BUDGET_SHORTFALL');
   assert.ok(withEducationAndEmergency.reasons.includes('GOALS_AND_PURCHASE_EXCEED_SAVINGS'));
