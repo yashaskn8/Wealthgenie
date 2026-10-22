@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { getFinancialUniverse, getFinancialUniverseSummary } from '../services/api';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getFinancialUniverse, getFinancialUniverseSummary, getCurrentProfile, getQualifiedFamilyTopProducts } from '../services/api';
 
 const PAGE_SIZE = 25;
 const REQUEST_LIMIT = 100;
@@ -53,6 +53,39 @@ export default function InvestmentUniverseBrowser() {
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
+  const [selectedFamilyId, setSelectedFamilyId] = useState(null);
+  const [compareStatus, setCompareStatus] = useState('idle');
+  const [compareResult, setCompareResult] = useState(null);
+  const compareController = useRef(null);
+  useEffect(() => () => compareController.current?.abort(), []);
+
+  const compareFamily = async familyId => {
+    compareController.current?.abort();
+    const controller = new AbortController();
+    compareController.current = controller;
+    setSelectedFamilyId(familyId);
+    setCompareResult(null);
+    setCompareStatus('loading');
+    try {
+      const profile = await getCurrentProfile({ signal: controller.signal });
+      const profileId = profile?.profileId;
+      if (!/^[a-fA-F0-9]{24}$/.test(profileId || '')) {
+        throw new Error('A complete current financial profile is required.');
+      }
+      const result = await getQualifiedFamilyTopProducts(familyId, profileId, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (!result || !Array.isArray(result.products) || result.products.length > 3) {
+        throw new Error('Invalid financial product comparison response.');
+      }
+      setCompareResult(result);
+      setCompareStatus('loaded');
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setCompareResult({ reasonCode: error?.code || 'COMPARISON_UNAVAILABLE' });
+      setCompareStatus('error');
+    }
+  };
+
 
   useEffect(() => {
     if (!open || status !== 'loading') return undefined;
@@ -187,7 +220,13 @@ export default function InvestmentUniverseBrowser() {
                   </tr></thead>
                   <tbody>{visible.map(item => (
                     <tr key={item.id} style={{ borderTop: '1px solid rgba(148,163,184,.12)' }}>
-                      <td style={{ padding: 9, color: '#e2e8f0' }}>{item.name || item.id}</td>
+                      <td style={{ padding: 9, color: '#e2e8f0' }}>{item.name || item.id}
+                        <button type="button" onClick={() => compareFamily(item.id)}
+                          aria-label={'Compare verified products for ' + (item.name || item.id)}
+                          style={{ display: 'block', marginTop: 6, cursor: 'pointer' }}>
+                          Compare up to 3 verified products
+                        </button>
+                      </td>
                       <td style={{ padding: 9, color: '#cbd5e1' }}>{item.category || 'Not classified'}{item.subcategory ? ' / ' + item.subcategory : ''}</td>
                       <td style={{ padding: 9, color: '#cbd5e1' }}>{item.record_kind === 'ACTUAL_PRODUCT' ? 'Actual product' : 'Discovery family'}</td>
                       <td style={{ padding: 9, color: '#cbd5e1' }}>{item.availability || 'Not established'}</td>
@@ -199,6 +238,45 @@ export default function InvestmentUniverseBrowser() {
                   ))}</tbody>
                 </table>
               </div>
+              {selectedFamilyId && (
+                <section aria-label="Verified product comparison"
+                  style={{ marginTop: 14, padding: 12, border: '1px solid rgba(148,163,184,.3)', borderRadius: 8 }}>
+                  <strong>Product comparison — {items.find(item => item.id === selectedFamilyId)?.name || selectedFamilyId}</strong>
+                  {compareStatus === 'loading' && <p role="status">Checking current product, licence and suitability evidence...</p>}
+                  {compareStatus === 'error' && <p role="alert">
+                    This category cannot be compared yet. A current financial profile, PostgreSQL qualification,
+                    permitted market data and verified advisory authorization are required.
+                    {' '}{compareResult?.reasonCode || 'COMPARISON_UNAVAILABLE'}.
+                  </p>}
+                  {compareStatus === 'loaded' && compareResult?.products?.length === 0 && <p role="status">
+                    No currently qualified products can be ranked for this profile. Reason: {compareResult.reasonCode || 'NONE_QUALIFIED'}.
+                    No unverified alternatives are substituted.
+                  </p>}
+                  {compareStatus === 'loaded' && compareResult?.products?.length > 0 && (
+                    <>
+                      <p role="status">
+                        {compareResult.products.length} of at most 3 suitably qualified products,
+                        ordered by risk fit, verified charges and lock-in—not promised returns.
+                      </p>
+                      <ol>{compareResult.products.map(product => <li key={product.id}
+                        style={{ padding: '8px 0', borderBottom: '1px solid rgba(148,163,184,.2)' }}>
+                        <strong>{product.name}</strong> — fit {product.matchScore}/100,
+                        risk {product.riskLevel}/5, min ₹{Number(product.minimumInvestmentInr).toLocaleString('en-IN')},
+                        charges {product.annualFeeBps} bps/year, lock-in {product.lockInMonths} months.
+                        <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                          {product.marketFact?.type}: {product.marketFact?.value} ({product.marketFact?.dataClass})
+                          · observed {product.marketFact?.asOf ? new Date(product.marketFact.asOf).toLocaleString('en-IN') : 'date unavailable'}
+                        </div>
+                        <a href={product.evidence?.product} target="_blank" rel="noopener noreferrer">Issuer evidence</a>
+                        {' · '}<a href={product.evidence?.terms} target="_blank" rel="noopener noreferrer">Product terms</a>
+                      </li>)}</ol>
+                    </>
+                  )}
+                  <p style={{ color: '#94a3b8', fontSize: '0.72rem' }}>
+                    Comparison is not a trade instruction. Missing source rights or suitability evidence blocks display.
+                  </p>
+                </section>
+              )}
               {filtered.length === 0 && <p>No catalog entries match your filters.</p>}
               {maxPage > 0 && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
                 <button type="button" disabled={currentPage === 0} onClick={() => setPageIndex(n => Math.max(0, n - 1))}>Previous</button>
