@@ -335,3 +335,17 @@ test('signed half-paisa budget ties round symmetrically and never understate a d
   assert.equal(positive.chartData[1].monthlyBudgetSurplus, 111501.13);
   assert.equal(positive.affordability.status, 'WITHIN_DECLARED_BUDGET');
 });
+
+test('paisa safety ceiling rejects huge otherwise-finite projected corpus', () => {
+  // At extreme future values Number's ULP exceeds a paisa; the contract
+  // must reject rather than report fractional growth with a lost cent.
+  for (const [monthlyInvestment, annualReturnRate, annualStepUpRate, years] of [
+    [199.39, 0.7519356804015115, 0.05526599938748404, 42],
+    [2370.16, 0.7101984008448198, 0.06617649419931694, 39],
+  ]) {
+    assert.throws(() => buildSipPlan({
+      monthlyInvestment, annualReturnRate, annualStepUpRate, years,
+      returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+    }), /SIP_PLAN_LIMIT_EXCEEDED/);
+  }
+});
