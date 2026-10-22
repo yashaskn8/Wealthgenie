@@ -3,7 +3,7 @@
  * query/connect; this adapter intentionally never owns MongoDB investor state.
  * Publication and storage require separately verified rights.
  */
-export function createFinancialStore(pool) {
+export function createFinancialStore(pool, {env = process.env} = {}) {
   if (!pool || typeof pool.query !== 'function' || typeof pool.connect !== 'function') {
     throw new TypeError('A PostgreSQL pool with query and connect is required');
   }
@@ -175,6 +175,25 @@ export function createFinancialStore(pool) {
       const retainedUntil = new Date(+fetched + Number(seconds) * 1000);
       if (!Number.isFinite(+retainedUntil) || retainedUntil <= new Date()) {
         throw new Error('MARKET_DATA_RETENTION_EXPIRED');
+      }
+      // Supabase Free has a 500 MB database ceiling. Preserve headroom for
+      // indexes, migrations and catalog metadata; never attempt a write when
+      // the explicit trial budget is exhausted. This is not a paid-data license.
+      if (env.FINANCIAL_POSTGRES_TRIAL_MODE === 'true') {
+        const maxBytes = env.FINANCIAL_POSTGRES_MAX_BYTES === undefined
+          ? 350_000_000 : Number(env.FINANCIAL_POSTGRES_MAX_BYTES);
+        if (!Number.isSafeInteger(maxBytes) || maxBytes < 10_000_000 || maxBytes > 450_000_000) {
+          throw new RangeError('FINANCIAL_POSTGRES_MAX_BYTES must be 10000000-450000000');
+        }
+        const usage = await client.query(
+          'SELECT pg_database_size(current_database())::bigint AS bytes',
+        );
+        if (BigInt(usage.rows[0]?.bytes ?? -1) < 0n
+          || BigInt(usage.rows[0].bytes) >= BigInt(maxBytes)) {
+          const error = new Error('FINANCIAL_TRIAL_DATABASE_BUDGET_EXCEEDED');
+          error.code = 'FINANCIAL_TRIAL_DATABASE_BUDGET_EXCEEDED';
+          throw error;
+        }
       }
       const result = await client.query(
         `INSERT INTO finance.market_observations
