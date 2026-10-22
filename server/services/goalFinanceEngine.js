@@ -132,10 +132,32 @@ export function calculateEmi({ principal, annualInterestRate, tenureMonths }) {
   }
   const principalPaise = Math.round(principal * MONEY_PRECISION);
   const rate = annualInterestRate / 1200;
+  // A textbook (unrounded) EMI can underpay a loan after hundreds of rounded
+  // interest accruals. Find the smallest cent-denominated regular instalment
+  // which actually amortizes the rounded ledger by the stated month.
   const theoreticalEmi = principalPaise === 0 ? 0 : rate === 0 ? principal / tenureMonths
     : principal * rate / (-Math.expm1(-tenureMonths * Math.log1p(rate)));
   if (!Number.isFinite(theoreticalEmi)) throw new RangeError('EMI could not be calculated');
-  const scheduledPaymentPaise = Math.round(theoreticalEmi * MONEY_PRECISION);
+  if (principalPaise > 0 && theoreticalEmi * MONEY_PRECISION < 0.5) {
+    throw new RangeError('Loan is too small for a nonzero monthly EMI at this tenure');
+  }
+  const amortizes = regularPaise => {
+    let remaining = principalPaise;
+    for (let month = 1; month <= tenureMonths && remaining > 0; month += 1) {
+      const interest = Math.round(remaining * rate);
+      const next = remaining + interest - regularPaise;
+      remaining = Math.max(0, next);
+    }
+    return remaining === 0;
+  };
+  let low = 0;
+  let high = Math.ceil(principalPaise * (1 + rate));
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (amortizes(mid)) high = mid;
+    else low = mid + 1;
+  }
+  const scheduledPaymentPaise = low;
   if (!Number.isSafeInteger(scheduledPaymentPaise)) throw new RangeError('EMI exceeds safe precision');
   let balance = principalPaise;
   let paid = 0;
