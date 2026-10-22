@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import TaxesHub from '../TaxesHub';
 
-vi.mock('../TaxScreen', () => ({
+vi.mock('../NewRegimeTaxScreen', () => ({
   default: () => <div>Tax regime controls</div>,
 }));
 vi.mock('../../PostTaxAnalysis', () => ({
@@ -19,7 +19,7 @@ describe('TaxesHub accessible keyboard navigation', () => {
   it('uses a single reachable tab and arrow keys focus and activate the correct panel', () => {
     render(<ControlledTaxesHub />);
     const tabs = within(screen.getByRole('tablist', { name: 'Tax views' }));
-    const regime = tabs.getByRole('tab', { name: /Regime & Savings/i });
+    const regime = tabs.getByRole('tab', { name: /New Regime Tax/i });
     const returns = tabs.getByRole('tab', { name: /Real Returns on Investments/i });
     expect(regime).toHaveAttribute('tabindex', '0');
     expect(returns).toHaveAttribute('tabindex', '-1');
