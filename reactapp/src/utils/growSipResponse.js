@@ -62,6 +62,7 @@ export function assertGrowSipResponse(value, input) {
     || value.stepUpInvested + 0.001 < value.flatInvested) invalid();
 
   const years = input.years;
+  let scheduledStepUpPrincipal = 0;
   for (let i = 0; i < years; i++) {
     const row = value.chartData[i];
     if (!row || row.year !== i + 1
@@ -75,8 +76,11 @@ export function assertGrowSipResponse(value, input) {
     const expectedSip = Math.round(input.monthlyInvestment
       * Math.pow(1 + input.annualStepUpRate, i) * 100) / 100;
     const expectedFlatPaid = Math.round(input.monthlyInvestment * 12 * (i + 1) * 100) / 100;
+    scheduledStepUpPrincipal += expectedSip * 12;
+    const expectedStepUpPaid = Math.round(scheduledStepUpPrincipal * 100) / 100;
     if (Math.abs(row.monthlySip - expectedSip) > 0.00001
       || Math.abs(row.flatInvested - expectedFlatPaid) > 0.02
+      || Math.abs(row.stepUpInvested - expectedStepUpPaid) > 0.02
       || row.stepUpInvested + 0.011 < row.flatInvested
       || row.stepUpSIP < row.flatSIP
       || row.downsideStepUp > row.stepUpSIP
