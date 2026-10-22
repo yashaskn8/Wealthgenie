@@ -124,9 +124,10 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
     else if (typeof response?.text !== 'string' || !response.text.trim()) {
       failure = failure || provider.lastFailureReason || 'EMPTY_COMPLETION';
     }
-    if (!failure && /\[(?:E_[A-Z0-9_:-]+|\d+)\]|https?:\/\/|www\./i.test(response.text)) {
+    if (!failure && /\[E_[A-Z0-9_:-]+\]|\b(?:according to|sources?|citations?|references?|as (?:shown|seen) in)\b[^\n]{0,48}\[[1-9]\d{0,2}\]|\[[1-9]\d{0,2}\]\s*(?:sources?|citations?|references?)\b|https?:\/\/|www\./i.test(response.text)) {
       // General replies have no verified citation or link provenance.
-      // A fabricated source marker must never be shown as a real citation.
+      // Reject invented source references, not legitimate programming syntax
+      // such as list[0] or arr[1]. General replies never attach citations.
       failure = 'GENERAL_UNVERIFIED_SOURCE_MARKER';
     }
     if (!failure) {
