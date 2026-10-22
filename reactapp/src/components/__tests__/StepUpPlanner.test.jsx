@@ -68,6 +68,13 @@ function sipResponse(overrides = {}, request = {}) {
   const additionalCorpus = last.stepUpSIP - last.flatSIP;
   const result = {
     schema_version: 'sip-plan-v1',
+    calculation_classification: 'NON_RECOMMENDATION_STEP_UP_CALCULATION',
+    return_basis: 'PRE_TAX_NOMINAL',
+    return_data_class: 'USER_INPUT',
+    return_assumption_source: 'USER_SUPPLIED_WHAT_IF',
+    contribution_timing: 'START_OF_MONTH',
+    scenario_interpretation: 'ILLUSTRATIVE_CONSTANT_RETURN_PATHS_NOT_PROBABILITIES',
+    warnings: ['PRE_TAX_NOT_A_TAX_ESTIMATE', 'ASSUMED_RETURNS_NOT_GUARANTEED'],
     monthly_rate_convention: 'EFFECTIVE_ANNUAL_CAGR',
     annual_return_interpretation: 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN',
     observed_market_fact: false, provider_forecast: false,
