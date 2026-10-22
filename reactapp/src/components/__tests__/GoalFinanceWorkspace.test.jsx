@@ -72,6 +72,45 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
   });
 
 
+
+  it('uses each alternative vehicle quote own annual rate and tenure rather than inventing matching lender terms', async () => {
+    render(<GoalFinanceWorkspace />);
+    await screen.findByText('Monthly income and expense tracking');
+    fireEvent.click(screen.getByRole('button', { name: 'EMI & vehicles' }));
+    const fields = [
+      ['Vehicle base price excluding separately entered taxes and fees (₹)', '600000'],
+      ['Cash down payment (₹)', '200000'],
+      ['Registration, taxes, insurance and fees upfront (₹)', '20000'],
+      ['Extra monthly vehicle costs not already in expenses (₹)', '5000'],
+      ['Loan annual nominal interest rate (%)', '10'],
+      ['Liquid cash excluding funds reserved for other goals (₹)', '400000'],
+      ['Cash reserve to protect after buying (₹)', '150000'],
+    ];
+    for (const [name, value] of fields) {
+      fireEvent.change(screen.getByLabelText(name), { target: { value } });
+    }
+    fireEvent.click(screen.getByRole('button', { name: '+ Compare another vehicle' }));
+    const alternative = [
+      ['Vehicle / variant', 'Bank B offer'],
+      ['Alternative base price (₹)', '400000'],
+      ['Alternative down payment (₹)', '100000'],
+      ['Alternative upfront fees (₹)', '15000'],
+      ['Alternative monthly upkeep (₹)', '3000'],
+      ['Alternative annual loan rate (%) — blank uses primary', '7'],
+      ['Alternative loan duration (months) — blank uses primary', '36'],
+    ];
+    for (const [name, value] of alternative) {
+      fireEvent.change(screen.getByLabelText(name), { target: { value } });
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze purchase and alternatives' }));
+    await waitFor(() => expect(api.assessGoalVehiclePurchase).toHaveBeenCalledOnce());
+    const other = api.assessGoalVehiclePurchase.mock.calls[0][1].alternatives[0];
+    expect(other.annualInterestRate).toBe(7);
+    expect(other.tenureMonths).toBe(36);
+    expect(other.price).toBe(400000);
+  });
+
+
   it('does not display a prior-month save after switching budget periods', async () => {
     let finishOldSave;
     const oldSave = new Promise(resolve => { finishOldSave = resolve; });
