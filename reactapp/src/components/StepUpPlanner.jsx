@@ -60,6 +60,7 @@ const StepUpPlanner = ({ profile }) => {
   const [incomeGrowth, setIncomeGrowth] = useState(0);
   const [expenseGrowth, setExpenseGrowth] = useState(6);
   const [showDetails, setShowDetails] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const projectionBinding = JSON.stringify([
     baseSIP, stepUpPercent, years, returnRate, inflationRate, downsideRate,
     monthlyIncome, monthlyExpenses, monthlyEmi, emergencySavings, incomeGrowth, expenseGrowth,
@@ -91,7 +92,7 @@ const StepUpPlanner = ({ profile }) => {
     && validOptionalMoney(emergencySavings, 100000000);
   const projection = projectionIsCurrent && projectionState.status === 'ready' ? projectionState.data : null;
   const projectionError = projectionIsCurrent && projectionState.status === 'error' ? projectionState.error : null;
-  const isCalculating = projectionInputsValid && !projectionIsCurrent;
+  const isCalculating = projectionInputsValid && (!projectionIsCurrent || projectionState.status === 'pending');
 
   // Compute dynamic percentage fills for track bars
   const baseSipPct = Number.isFinite(safeBaseSIP) ? Math.min(100, Math.max(0, ((Math.min(100000, Math.max(1000, safeBaseSIP)) - 1000) / 99000) * 100)) : 0;
@@ -103,6 +104,7 @@ const StepUpPlanner = ({ profile }) => {
     if (!projectionInputsValid) return undefined;
     const controller = new AbortController();
     let cancelled = false;
+    setProjectionState({ binding: projectionBinding, status: 'pending', data: null, error: null });
     const timer = setTimeout(() => {
       // One immutable request snapshot validates both the backend calculation
       // and its response, including all financial-context assumptions.
@@ -134,14 +136,14 @@ const StepUpPlanner = ({ profile }) => {
         });
         setProjectionState({ binding: projectionBinding, status: 'ready', data: verified, error: null });
       }).catch(error => {
-        if (!cancelled && error?.code === 'REQUEST_ABORTED') {
-          setProjectionState({ binding: projectionBinding, status: 'cancelled', data: null, error: null });
-        } else if (!cancelled) {
+        if (!cancelled) {
           setProjectionState({
             binding: projectionBinding,
             status: 'error',
             data: null,
-            error: error.message || 'Projection service is unavailable.',
+            error: error?.code === 'REQUEST_ABORTED'
+              ? 'The projection request was interrupted. Retry to calculate with these inputs.'
+              : error?.message || 'Projection service is unavailable.',
           });
         }
       });
@@ -163,7 +165,7 @@ const StepUpPlanner = ({ profile }) => {
     projectionBinding,
     projectionInputsValid,
     inflationRate, downsideRate, monthlyIncome, monthlyExpenses, monthlyEmi,
-    emergencySavings, incomeGrowth, expenseGrowth,
+    emergencySavings, incomeGrowth, expenseGrowth, retryAttempt,
   ]);
 
   const flatFinal = projection?.flatFinal ?? null;
@@ -228,6 +230,11 @@ const StepUpPlanner = ({ profile }) => {
           <div className="onboard-text">
             <h4>{projectionError ? 'Projection unavailable' : 'Updating projection'}</h4>
             <p>{projectionError || 'The authoritative backend is recalculating the chart and result cards.'}</p>
+            {projectionError && (
+              <button type="button" onClick={() => setRetryAttempt(current => current + 1)}>
+                Retry projection
+              </button>
+            )}
           </div>
         </div>
       )}
