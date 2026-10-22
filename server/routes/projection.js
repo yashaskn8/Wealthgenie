@@ -3,7 +3,8 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { allocationSplitSchema, customPortfolioProjectionSchema, historicalXirrSchema, personalizedProjectionSchema, projectionComparisonSchema, stepUpProjectionSchema, stressScenarioSchema, validateStrict } from '../validation/financialSchemas.js';
 import { requireCurrentFinancialProfile } from '../services/currentFinancialProfile.js';
-import { generateAllocationSplit, generatePortfolioProjection, generateProjectionComparison, generateProjections, sipFV, stepUpSipFV } from '../services/projectionEngine.js';
+import { generateAllocationSplit, generatePortfolioProjection, generateProjectionComparison, generateProjections } from '../services/projectionEngine.js';
+import { buildSipPlan } from '../services/sipPlanningEngine.js';
 import { normalizeAllocationWeights } from '../utils/allocationWeights.js';
 import { computeXIRR, computeSIPXIRR } from '../services/xirrCalculator.js';
 import {
@@ -194,38 +195,16 @@ router.post('/allocation-split', verifyJWT, validateStrict(allocationSplitSchema
 }));
 
 router.post('/step-up', verifyJWT, validateStrict(stepUpProjectionSchema), asyncHandler(async (req, res) => {
-  const { monthlyInvestment, annualReturnRate, years, annualStepUpRate } = req.body;
-  const chartData = [];
-  let steppedInvested = 0;
-  let currentMonthlyInvestment = monthlyInvestment;
-  for (let year = 1; year <= years; year += 1) {
-    steppedInvested += currentMonthlyInvestment * 12;
-    chartData.push({
-      year,
-      flatSIP: Math.round(sipFV(monthlyInvestment, annualReturnRate, year)),
-      stepUpSIP: Math.round(stepUpSipFV(monthlyInvestment, annualReturnRate, year, annualStepUpRate)),
-      flatInvested: Math.round(monthlyInvestment * 12 * year),
-      stepUpInvested: Math.round(steppedInvested),
-    });
-    currentMonthlyInvestment *= 1 + annualStepUpRate;
+  try {
+    res.json(buildSipPlan(req.body));
+  } catch (error) {
+    if (error instanceof RangeError && error.message.startsWith('SIP_PLAN_')) {
+      throw createError(400, error.message, 'Check the SIP amount, horizon and step-up assumptions.', {
+        code: error.message.split(':')[0],
+      });
+    }
+    throw error;
   }
-  const last = chartData.at(-1);
-  res.json({
-    calculation_classification: 'NON_RECOMMENDATION_STEP_UP_CALCULATION',
-    return_basis: 'PRE_TAX_NOMINAL',
-    return_data_class: 'USER_INPUT',
-    return_assumption_source: 'USER_SUPPLIED_WHAT_IF',
-    observed_market_fact: false,
-    provider_forecast: false,
-    assumptions: { monthlyInvestment, annualReturnRate, years, annualStepUpRate },
-    chartData,
-    flatFinal: last.flatSIP,
-    stepUpFinal: last.stepUpSIP,
-    flatInvested: last.flatInvested,
-    stepUpInvested: last.stepUpInvested,
-    additionalCorpus: last.stepUpSIP - last.flatSIP,
-    additionalPercent: last.flatSIP > 0 ? ((last.stepUpSIP - last.flatSIP) / last.flatSIP) * 100 : 0,
-  });
 }));
 
 /**
