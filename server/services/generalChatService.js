@@ -68,6 +68,13 @@ function result({ text, provider = 'SYSTEM', model = null, tokensUsed = 0, fallb
 }
 
 export async function generateGeneralChatAnswer({ question, priorTurns = [] }, dependencies = {}) {
+  // Defense in depth: direct callers may never turn a finance request into
+  // an uncited model assertion by bypassing the HTTP route classifier.
+  if (!isGeneralChatQuestion(question)) {
+    throw Object.assign(new Error('Financial question requires grounded evidence.'), {
+      code: 'GENERAL_CHAT_FINANCIAL_ROUTE_DENIED',
+    });
+  }
   // Integration and unit tests must not accidentally contact public LLM APIs
   // when placeholder credentials are present; explicit injected mocks remain valid.
   const mockOnly = process.env.NODE_ENV === 'test'
