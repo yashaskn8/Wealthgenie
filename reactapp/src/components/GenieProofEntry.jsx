@@ -21,25 +21,53 @@ const verdicts = {
   NOT_VERIFIED: { label: 'Not verified', color: '#fcd34d' },
 };
 
-function validCheckResponse(value) {
+const EVIDENCE_MAX_AGE_MS = 72 * 60 * 60 * 1000;
+const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+function exactTimestamp(value) {
+  return typeof value === 'string' && ISO_UTC.test(value) && Number.isFinite(Date.parse(value))
+    ? Date.parse(value) : null;
+}
+
+function validCheckResponse(value, submittedText) {
   if (value?.ok !== true || value?.mode !== 'READ_ONLY_FINANCIAL_CLAIM_CHECK'
       || value.saved !== false || value.allExtractedCandidatesProcessed !== true
       || value.verificationScope !== 'DETECTED_CLAIMS_ONLY'
       || !Array.isArray(value.claims) || value.claims.length > 10
-      || !Number.isFinite(Date.parse(value.checkedAt))) return false;
+      || typeof submittedText !== 'string'
+      || value.noClaimsFound !== (value.claims.length === 0)) return false;
+  const checkedAt = exactTimestamp(value.checkedAt);
+  if (checkedAt === null) return false;
+  const claimIds = new Set();
   return value.claims.every(claim => {
-    if (!claim || typeof claim.claimId !== 'string'
-        || typeof claim.statement !== 'string'
+    if (!claim || !/^[a-f0-9]{32}$/.test(claim.claimId)
+        || claimIds.has(claim.claimId)
+        || typeof claim.statement !== 'string' || !claim.statement.trim()
+        || !submittedText.includes(claim.statement)
         || !Object.hasOwn(verdicts, claim.verdict)
-        || typeof claim.explanation !== 'string'
-        || !Array.isArray(claim.warningSignals)
-        || claim.warningSignals.some(item => typeof item !== 'string')) return false;
+        || typeof claim.reasonCode !== 'string' || !/^[A-Z][A-Z0-9_]{2,99}$/.test(claim.reasonCode)
+        || typeof claim.explanation !== 'string' || !claim.explanation.trim()
+        || !Array.isArray(claim.warningSignals) || claim.warningSignals.length > 6
+        || claim.warningSignals.some(item => typeof item !== 'string' || item.length > 300)) return false;
+    claimIds.add(claim.claimId);
     if (claim.verdict === 'NOT_VERIFIED') return claim.source === null;
-    return claim.source?.url === OFFICIAL_PPF_SOURCE
-      && Number.isFinite(claim.source.observedRatePercentPerAnnum)
-      && Number.isFinite(Date.parse(claim.source.retrievedAt));
+    if (claim.source?.name !== 'India Post — Savings'
+        || claim.source?.url !== OFFICIAL_PPF_SOURCE
+        || typeof claim.source.observedRatePercentPerAnnum !== 'number'
+        || claim.source.observedRatePercentPerAnnum <= 0
+        || claim.source.observedRatePercentPerAnnum > 100
+        || (claim.verdict === 'SUPPORTED' && claim.reasonCode !== 'EXACT_RATE_MATCH')
+        || (claim.verdict === 'CONTRADICTED' && claim.reasonCode !== 'EXACT_RATE_MISMATCH')) return false;
+    const retrieved = exactTimestamp(claim.source.retrievedAt);
+    const effectiveFrom = exactTimestamp(claim.source.effectiveFrom);
+    const effectiveTo = exactTimestamp(claim.source.effectiveTo);
+    return retrieved !== null && effectiveFrom !== null && effectiveTo !== null
+      && effectiveFrom <= checkedAt && checkedAt <= effectiveTo
+      && retrieved <= checkedAt + 5 * 60 * 1000
+      && checkedAt - retrieved <= EVIDENCE_MAX_AGE_MS;
   });
 }
+
 
 export default function GenieProofEntry() {
   const [statement, setStatement] = useState('');
@@ -73,7 +101,7 @@ export default function GenieProofEntry() {
     try {
       const next = await api.checkGenieProofClaims(statement, { signal: controller.signal });
       if (controller.signal.aborted || requestRef.current !== controller) return;
-      if (!validCheckResponse(next)) throw new Error('Unexpected verification result');
+      if (!validCheckResponse(next, statement)) throw new Error('Unexpected verification result');
       setResult(next);
     } catch (error) {
       if (!controller.signal.aborted && requestRef.current === controller) {
