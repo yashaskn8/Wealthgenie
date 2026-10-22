@@ -15,6 +15,19 @@ export function isFinancialGoalPlanningQuestion(question) {
   return SUBJECT.test(text) && GOAL_INTENT.test(text);
 }
 
+function authenticatedUserTurns(priorTurns) {
+  // Only user-authored text from the already verified account/profile binding.
+  const turns = Array.isArray(priorTurns) ? priorTurns
+    : Array.isArray(priorTurns?.priorUserTurns) ? priorTurns.priorUserTurns : [];
+  return turns.filter(turn => typeof turn === 'string' || turn?.role === 'user')
+    .map(turn => goalText(typeof turn === 'string' ? turn : turn.content)).slice(-3);
+}
+
+export function isFinancialGoalFollowUpQuestion(question, priorTurns = []) {
+  return isGoalPlanningFollowUp(question)
+    && authenticatedUserTurns(priorTurns).some(isFinancialGoalPlanningQuestion);
+}
+
 export function isGoalPlanningFollowUp(question) {
   const text = goalText(question);
   if (!text || text.length > 240) return false;
@@ -66,8 +79,7 @@ function goalName(text) {
 
 export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = [] } = {}) {
   const text = goalText(question);
-  const past = (Array.isArray(priorUserTurns) ? priorUserTurns : [])
-    .filter(item => typeof item === 'string').slice(-3).map(goalText);
+  const past = authenticatedUserTurns(priorUserTurns);
   const direct = isFinancialGoalPlanningQuestion(text);
   const previousGoalIndex = past.findLastIndex(isFinancialGoalPlanningQuestion);
   if (!direct && (previousGoalIndex < 0 || !isGoalPlanningFollowUp(text))) return [];
