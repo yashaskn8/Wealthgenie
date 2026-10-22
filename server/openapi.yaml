@@ -1283,29 +1283,37 @@ components:
         specialRateIncome: { type: string, enum: ['no', 'yes', unknown] }
         confirmedOrdinaryOnly: { type: boolean }
     VerifiedNewRegimeTaxResponse:
+      oneOf:
+        - $ref: '#/components/schemas/VerifiedNewRegimeTaxCalculated'
+        - $ref: '#/components/schemas/VerifiedNewRegimeTaxUnavailable'
+    VerifiedNewRegimeTaxMoneyFour:
+      type: string
+      pattern: '^(0|[1-9][0-9]*)[.][0-9]{4}$'
+    VerifiedNewRegimeTaxCalculated:
       type: object
-      required: [taxYear, policyVersion, sourceReferences, status, inputsUsed, unavailableReasons, finalTax]
+      additionalProperties: false
+      required: [taxYear, policyVersion, sourceReferences, status, inputsUsed, unavailableReasons, calculationClass, grossPrimaryIncome, otherOrdinaryIncome, standardDeduction, taxableIncomeBeforeRounding, taxableIncome, taxBeforeRebate, rebate, taxAfterRebate, surcharge, surchargeMarginalRelief, cess, taxBeforeStatutoryRounding, finalTax, slabBreakdown]
       properties:
         taxYear: { type: string, const: '2026-27' }
         policyVersion: { type: string, const: verified-simple-new-regime-TY2026-27-v1 }
         sourceReferences: { type: array, minItems: 1, items: { type: string, format: uri } }
-        status: { type: string, enum: [CALCULATED, UNAVAILABLE] }
+        status: { type: string, const: CALCULATED }
         inputsUsed: { $ref: '#/components/schemas/VerifiedNewRegimeTaxRequest' }
-        unavailableReasons: { type: array, items: { type: string } }
+        unavailableReasons: { type: array, maxItems: 0, items: { type: string } }
         calculationClass: { type: string, const: SIMPLE_ORDINARY_INCOME_ONLY }
-        grossPrimaryIncome: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        otherOrdinaryIncome: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        standardDeduction: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        taxableIncomeBeforeRounding: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        taxableIncome: { type: string, pattern: '^[0-9]+$' }
-        taxBeforeRebate: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        rebate: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        taxAfterRebate: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        surcharge: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        surchargeMarginalRelief: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        cess: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        taxBeforeStatutoryRounding: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
-        finalTax: { type: [string, 'null'], pattern: '^[0-9]+$' }
+        grossPrimaryIncome: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        otherOrdinaryIncome: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        standardDeduction: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxableIncomeBeforeRounding: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxableIncome: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+        taxBeforeRebate: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        rebate: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxAfterRebate: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        surcharge: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        surchargeMarginalRelief: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        cess: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        taxBeforeStatutoryRounding: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+        finalTax: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
         slabBreakdown:
           type: array
           maxItems: 7
@@ -1314,11 +1322,23 @@ components:
             additionalProperties: false
             required: [from, to, percent, taxableInSlab, tax]
             properties:
-              from: { type: string, pattern: '^[0-9]+$' }
-              to: { type: [string, 'null'], pattern: '^[0-9]+$' }
+              from: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+              to: { type: [string, 'null'], pattern: '^(0|[1-9][0-9]*)$' }
               percent: { type: integer, enum: [0, 5, 10, 15, 20, 25, 30] }
-              taxableInSlab: { type: string, pattern: '^[0-9]+$' }
-              tax: { type: string, pattern: '^[0-9]+[.][0-9]{4}$' }
+              taxableInSlab: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+              tax: { $ref: '#/components/schemas/VerifiedNewRegimeTaxMoneyFour' }
+    VerifiedNewRegimeTaxUnavailable:
+      type: object
+      additionalProperties: false
+      required: [taxYear, policyVersion, sourceReferences, status, inputsUsed, unavailableReasons, finalTax]
+      properties:
+        taxYear: { type: string, const: '2026-27' }
+        policyVersion: { type: string, const: verified-simple-new-regime-TY2026-27-v1 }
+        sourceReferences: { type: array, minItems: 1, items: { type: string, format: uri } }
+        status: { type: string, const: UNAVAILABLE }
+        inputsUsed: { $ref: '#/components/schemas/VerifiedNewRegimeTaxRequest' }
+        unavailableReasons: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+        finalTax: { type: 'null' }
     Error:
       type: object
       required: [error, message, code, request_id]
