@@ -55,7 +55,7 @@ export function CitationsList({ citations }) {
                     </span>
                   )}
                 </div>
-                {c.excerpt && <div className="citation-excerpt" style={{ marginTop: '4px', color: '#cbd5e1', fontStyle: 'italic', fontSize: '0.75rem' }}>"{c.excerpt}"</div>}
+                {c.excerpt && <div className="citation-excerpt" style={{ marginTop: '4px', color: '#cbd5e1', fontStyle: 'italic', fontSize: '0.75rem' }}>Evidence summary: {c.excerpt}</div>}
               </div>
             );
           })}
