@@ -22,7 +22,7 @@ export function buildSipPlan(input) {
   const {
     monthlyInvestment, annualReturnRate, annualStepUpRate, years,
     inflationRate = 0.06,
-    downsideAnnualReturnRate = Math.max(-0.99, annualReturnRate - 0.08),
+    downsideAnnualReturnRate = Math.min(annualReturnRate, Math.max(-0.99, annualReturnRate - 0.08)),
     monthlyIncome = null, monthlyExpenses = null, monthlyEmi = null,
     emergencySavings = null, emergencyMonths = 6,
     annualIncomeGrowthRate = 0, annualExpenseGrowthRate = 0.06,
@@ -34,7 +34,7 @@ export function buildSipPlan(input) {
       || monthlyInvestment <= 0 || monthlyInvestment > 10000000 || !validPaise(monthlyInvestment)
       || annualStepUpRate < 0 || annualStepUpRate > 1
       || annualReturnRate <= -1 || annualReturnRate > 1
-      || downsideAnnualReturnRate <= -1 || downsideAnnualReturnRate > 1
+      || downsideAnnualReturnRate <= -1 || downsideAnnualReturnRate > annualReturnRate
       || inflationRate < 0 || inflationRate > 1
       || emergencyMonths < 0 || emergencyMonths > 24
       || annualIncomeGrowthRate < 0 || annualIncomeGrowthRate > 1
@@ -83,7 +83,7 @@ export function buildSipPlan(input) {
     chartData.push({
       year, flatSIP: rounded(flat), stepUpSIP: rounded(stepped),
       downsideStepUp: rounded(downside),
-      flatInvested: rounded(flatPaid), stepUpInvested: rounded(steppedPaid),
+      flatInvested: money(flatPaid), stepUpInvested: money(steppedPaid),
       inflationAdjustedFlat: rounded(flat / factor),
       inflationAdjustedStepUp: rounded(stepped / factor),
       monthlySip: money(annualSip),
@@ -95,7 +95,7 @@ export function buildSipPlan(input) {
     ? null : (monthlyExpenses + monthlyEmi) * emergencyMonths;
   const emergencyStatus = emergencyRequired === null || emergencySavings === null
     ? 'NOT_ASSESSED'
-    : emergencySavings >= emergencyRequired ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT';
+    : emergencySavings >= money(emergencyRequired) ? 'DECLARED_BUFFER_MET' : 'DECLARED_BUFFER_SHORT';
   const budgetStatus = !assessBudget ? 'NOT_ASSESSED'
     : firstUnaffordableMonth === null ? 'WITHIN_DECLARED_BUDGET' : 'OVER_DECLARED_BUDGET';
   const extra = last.stepUpSIP - last.flatSIP;
@@ -142,7 +142,7 @@ export function buildSipPlan(input) {
     },
     emergency_buffer: {
       status: emergencyStatus,
-      requiredAmount: emergencyRequired === null ? null : rounded(emergencyRequired),
+      requiredAmount: emergencyRequired === null ? null : money(emergencyRequired),
       declaredAmount: emergencySavings,
     },
     warnings,
