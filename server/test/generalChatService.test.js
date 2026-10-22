@@ -457,3 +457,26 @@ test('PR42 reconciliation: client cancellation cannot be mistaken for a retryabl
   await assert.rejects(pending, /Client disconnected/);
   assert.equal(secondaryCalls, 0);
 });
+
+test('PR42 reconciliation: provider AbortError from the shared deadline is a safe unavailable result', async () => {
+  let secondaryCalls = 0;
+  const answer = await generateGeneralChatAnswer({ question: 'Explain a Python dictionary.' }, {
+    providerDeadlineMs: 20,
+    providers: [
+      { name: 'groq', isConfigured: () => true, async generate(request) {
+        return await new Promise((_, reject) => {
+          request.signal.addEventListener('abort', () =>
+            reject(Object.assign(new Error('Adapter aborted'), { name: 'AbortError' })), { once: true });
+        });
+      } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+        secondaryCalls += 1;
+        return { text: 'No retry after shared deadline.' };
+      } },
+    ],
+  });
+  assert.equal(answer.provider, 'SYSTEM');
+  assert.deepEqual(answer.validation.reasonCodes, ['PROVIDER_CHAIN_DEADLINE_EXCEEDED']);
+  assert.equal(answer.providerUsageComplete, false);
+  assert.equal(secondaryCalls, 0);
+});
