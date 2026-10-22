@@ -190,8 +190,9 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   // A later, distinctly named goal must never reuse an older goal's corpus.
   const questionTopics = namedGoalTopics(text);
   const priorTopics = previousGoalIndex >= 0 ? namedGoalTopics(past[previousGoalIndex]) : [];
-  if (questionTopics.length > 1 || (!direct && questionTopics.length > 0
-      && (priorTopics.length !== 1 || questionTopics[0] !== priorTopics[0]))) return [];
+  if (!direct && questionTopics.length > 0
+      && (questionTopics.length !== 1 || priorTopics.length !== 1
+        || questionTopics[0] !== priorTopics[0])) return [];
 
   // A new named goal must not inherit amounts from an unrelated older goal.
   const used = direct ? [text] : [...past.slice(previousGoalIndex), text];
