@@ -507,3 +507,55 @@ input[type="range"].sup-slider::-webkit-slider-thumb:hover {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Grow My SIP planner: separate verified budget inputs from model assumptions. */
+.sup-planning-panel,.sup-safety-panel{
+  margin: 0 0 24px;
+  padding: 24px;
+  border-radius: 18px;
+  border: 1px solid var(--border-default);
+  background: rgba(15,23,42,.74);
+  color: var(--text-secondary);
+}
+.sup-planning-panel h3,.sup-safety-panel h3{
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+.sup-planning-panel p,.sup-safety-panel p{line-height:1.65;margin:8px 0 16px;}
+.sup-planning-fields{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin:16px 0 24px;
+}
+.sup-planning-field{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  gap:7px;
+  font-size:.78rem;
+  font-weight:600;
+}
+.sup-planning-field input{
+  width:100%;
+  box-sizing:border-box;
+  min-height:43px;
+  padding:10px 12px;
+  border:1px solid var(--border-default);
+  border-radius:8px;
+  background:rgba(2,6,23,.7);
+  color:var(--text-primary);
+  font-size:.95rem;
+}
+.sup-planning-field input:focus-visible,
+.sup-num-input:focus-visible{
+  outline:2px solid var(--color-primary);
+  outline-offset:3px;
+}
+.sup-planning-note{font-size:.79rem;color:var(--text-muted);}
+.sup-safety-panel strong{color:var(--text-primary);}
+.sup-safety-panel .sup-warning{color:#fbbf24;}
+@media (max-width:1100px){.sup-planning-fields{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (max-width:640px){.sup-planning-panel,.sup-safety-panel{padding:16px;}.sup-planning-fields{grid-template-columns:1fr;}}
