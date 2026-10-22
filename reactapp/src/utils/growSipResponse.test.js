@@ -33,7 +33,12 @@ function validFixture() {
     finalMonthlySip: 1100,
     affordability: {
       status: 'WITHIN_DECLARED_BUDGET', firstUnaffordableMonth: null,
-      maxMonthlyShortfall: 0,
+      maxMonthlyShortfall: 0, worstMonthlySurplus: 6820,
+      assumesEmiConstant: true, incomeExpensesUserDeclared: true,
+      annualContributionSchedule: [
+        { year: 1, monthlySip: 1000, monthlyBudgetSurplus: 8000 },
+        { year: 2, monthlySip: 1100, monthlyBudgetSurplus: 6820 },
+      ],
     },
     emergency_buffer: {
       status: 'DECLARED_BUFFER_MET', requiredAmount: 126000,
@@ -110,6 +115,12 @@ describe('Grow My SIP fail-closed response contract', () => {
     ['hidden shortfall with positive budget status', r => { r.chartData[1].monthlyBudgetSurplus = -500; }],
     ['incorrect but plausible surplus', r => { r.chartData[1].monthlyBudgetSurplus = 6821; }],
     ['wrong maximum shortfall', r => { r.affordability.maxMonthlyShortfall = 250; }],
+    ['tampered worst surplus', r => { r.affordability.worstMonthlySurplus = 9000; }],
+    ['tampered contribution schedule month', r => { r.affordability.annualContributionSchedule[1].monthlySip = 1500; }],
+    ['deleted contribution schedule', r => { r.affordability.annualContributionSchedule.pop(); }],
+    ['unknown affordability provenance', r => { r.affordability.incomeExpensesUserDeclared = false; }],
+    ['contradictory EMI assumption', r => { r.affordability.assumesEmiConstant = false; }],
+    ['contradictory shortfall flag', r => { r.warnings.push('STEP_UP_EXCEEDS_DECLARED_BUDGET'); }],
     ['first failed month on affordable projection', r => { r.affordability.firstUnaffordableMonth = 4; }],
   ])('blocks %s', (_label, alter) => {
     const corrupted = validFixture();
@@ -154,7 +165,14 @@ describe('signed decimal-paise affordability reconciliation', () => {
       status: 'OVER_DECLARED_BUDGET',
       firstUnaffordableMonth: 1,
       maxMonthlyShortfall: 113601.13,
+      worstMonthlySurplus: -113601.13,
+      assumesEmiConstant: true, incomeExpensesUserDeclared: true,
+      annualContributionSchedule: [
+        { year: 1, monthlySip: 1000, monthlyBudgetSurplus: -101001 },
+        { year: 2, monthlySip: 1100, monthlyBudgetSurplus: -113601.13 },
+      ],
     };
+    fixture.warnings.push('STEP_UP_EXCEEDS_DECLARED_BUDGET', 'DECLARED_EMERGENCY_BUFFER_SHORT');
     fixture.emergency_buffer = {
       status: 'DECLARED_BUFFER_SHORT',
       requiredAmount: 600006,
