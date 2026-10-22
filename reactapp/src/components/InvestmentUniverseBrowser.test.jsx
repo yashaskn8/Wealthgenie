@@ -50,6 +50,8 @@ describe('investment universe browser', () => {
     expect(getFinancialUniverse).toHaveBeenCalledTimes(3);
     expect(getFinancialUniverseSummary).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/Discovery total: 250/)).toBeTruthy();
+    expect(screen.getByText(/250 matching catalog entries/)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Show unqualified discovery families'));
     expect(screen.getByText(/1 matching catalog entries/)).toBeTruthy();
     fireEvent.click(screen.getByLabelText('Show unqualified discovery families'));
     expect(screen.getByText(/250 matching catalog entries/)).toBeTruthy();
@@ -62,7 +64,6 @@ describe('investment universe browser', () => {
     render(<InvestmentUniverseBrowser />);
     fireEvent.click(screen.getByRole('button', { name: 'Browse all investment options' }));
     await waitFor(() => expect(screen.getByText('250 catalog entries loaded from PostgreSQL.')).toBeTruthy());
-    fireEvent.click(screen.getByLabelText('Show unqualified discovery families'));
     fireEvent.change(screen.getByLabelText('Filter investment category'), { target: { value: 'Expanded family' } });
     expect(screen.getByText(/95 matching catalog entries/)).toBeTruthy();
     expect(screen.getAllByText('Discovery family').length).toBeGreaterThan(0);
@@ -136,7 +137,10 @@ describe('three-product-only catalog safety',()=>{
   render(<InvestmentUniverseBrowser />);
   fireEvent.click(screen.getByRole('button',{name:'Browse all investment options'}));
   await waitFor(()=>expect(screen.getByText(/No investment family currently has three/)).toBeTruthy());
+  expect(screen.getByText('Investment family 1')).toBeTruthy();
   expect(screen.queryByRole('button',{name:'Compare verified products for Investment family 1'})).toBeNull();
+  fireEvent.click(screen.getByLabelText('Show unqualified discovery families'));
+  expect(screen.queryByText('Investment family 1')).toBeNull();
   fireEvent.click(screen.getByLabelText('Show unqualified discovery families'));
   expect(screen.getByText('Investment family 1')).toBeTruthy();
   expect(screen.queryByRole('button',{name:'Compare verified products for Investment family 1'})).toBeNull();
