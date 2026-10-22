@@ -157,7 +157,8 @@ function VehicleForm({ month, onResult }) {
         <p><b>Monthly EMI</b><span>{moneyLabel(result.primary.loan.monthlyEmi)}</span></p>
         <p><b>Loan interest</b><span>{moneyLabel(result.primary.loan.totalInterest)}</span></p>
         <p><b>Monthly cost including upkeep</b><span>{moneyLabel(result.primary.additionalMonthlyCommitment)}</span></p>
-        <p><b>Monthly surplus after purchase</b><span>{moneyLabel(result.primary.monthlySurplusAfterPurchase)}</span></p>
+        <p><b>Recurring-month surplus after purchase</b><span>{moneyLabel(result.primary.monthlySurplusAfterPurchase)}</span></p>
+        <p><b>Selected purchase-month surplus (includes one-offs)</b><span>{moneyLabel(result.primary.purchaseMonthSurplusAfterPurchase)}</span></p>
         <p><b>Cash reserve after upfront cost</b><span>{moneyLabel(result.primary.emergencyCashAfterPurchase)}</span></p>
         <p><b>Estimated nominal total during loan</b><span>{moneyLabel(result.primary.totalNominalCostDuringLoan)}</span></p>
       </div>
@@ -168,7 +169,7 @@ function VehicleForm({ month, onResult }) {
           {option.label}: {moneyLabel(option.assessment.totalNominalCostDuringLoan)} · EMI {moneyLabel(option.assessment.loan.monthlyEmi)} · {option.assessment.status.replaceAll('_', ' ')}
         </li>)}</ul>
       </div>}
-      <Notice>Prices are manually supplied and not live-verified. Results exclude unknown costs and are not a loan approval or guaranteed financial recommendation.</Notice>
+      <Notice>Planning assumes a purchase and first loan payment in this budget month. Prices are user-supplied and not live verified. All registration, insurance, mandatory fees, fuel and upkeep must be entered. These are self-reported scenarios, not bank approval or guaranteed advice.</Notice>
     </div>}
   </div>;
 }
