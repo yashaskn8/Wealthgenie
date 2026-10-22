@@ -6,6 +6,7 @@ import {
   retrieveChatGoalPlanningEvidence,
 } from '../services/chatGoalPlanning.js';
 import { validateTypedFinancialClaims } from '../services/typedFinancialClaims.js';
+import { buildChatEvidencePacket, generateGroundedExplanation } from '../services/groundedExplanationService.js';
 
 test('scenario: high-precision effective annual CAGR is not mistaken for nominal 12% / 12', () => {
   const actual = calculateGoalCompoundingScenario({
@@ -191,4 +192,44 @@ test('net-of-tax or fee-adjusted future goals cannot borrow an unsupported gross
   assert.equal(entries.some(e => e.id === 'E_GOAL_RETURN_SCENARIO'), false);
   assert.match(entries.find(e => e.id === 'E_GOAL_PLANNING_GUIDANCE').displayValue,
     /net-of-tax or fee-adjusted SIP cannot be calculated/i);
+});
+
+test('end-to-end grounded explanation publishes both independently validated gross SIP and inflated corpus', async () => {
+  const question = "Need 2 crore for daughter's wedding at today's prices in 10 years with 12% annual return and 6% annual inflation";
+  const packet = await buildChatEvidencePacket({
+    question, profile: { age: 38, monthlySavings: 25_000, investmentHorizonYears: 10,
+      riskTolerance: 'Moderate', suitabilityRisk: 'Moderate' },
+    recommendation: null,
+  }, { queryRegulatoryRag: async () => null });
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(result.validation.status, 'PASS');
+  assert.equal(result.grounded, true);
+  assert.ok(result.financialClaims.some(claim => claim.type === 'GOAL_RETURN_SCENARIO_PAYMENT'
+    && claim.value === 152_376.64));
+  assert.ok(result.financialClaims.some(claim => claim.type === 'GOAL_INFLATION_ADJUSTED_TARGET'
+    && claim.value === 35_816_953.94));
+  assert.match(result.text, /1,52,376\.64 per month/);
+  assert.match(result.text, /3,58,16,953\.94/);
+  assert.ok(result.citations.some(c => c.citation_id === 'E_GOAL_RETURN_SCENARIO'
+    && c.source_url === null));
+  assert.ok(result.citations.some(c => c.citation_id === 'E_GOAL_INFLATED_TARGET'
+    && c.source_url === null));
+});
+
+test('end-to-end projected return rate never flows to the model when the user did not specify it', async () => {
+  const question = "Need 2 crore for daughter's wedding in 10 years";
+  const packet = await buildChatEvidencePacket({
+    question, profile: { age: 38, monthlySavings: 25_000,
+      riskTolerance: 'Moderate', suitabilityRisk: 'Moderate' },
+    recommendation: null,
+  }, { queryRegulatoryRag: async () => null });
+  assert.equal(packet.entries.some(e => e.id === 'E_GOAL_RETURN_SCENARIO'), false);
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(result.validation.status, 'PASS');
+  assert.equal(result.financialClaims.some(claim => claim.type === 'GOAL_RETURN_SCENARIO_PAYMENT'), false);
 });
