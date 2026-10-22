@@ -285,7 +285,7 @@ function inferredType(statement) {
     ['CURRENT_COUPON', /\bcurrent coupon\b/],
     ['MATURITY_AMOUNT', /\bmaturity\s+(?:amount|value|proceeds)\b/],
     ['CONTRIBUTION', /\b(?:contribution|monthly savings)\b/],
-    ['GOAL_TARGET', /\bgoal target\b/],
+    ['GOAL_TARGET', /(?<!inflation-adjusted )\bgoal target\b/],
     ['GOAL_MONTHLY_BASELINE', /\bfunding-only baseline\b/],
     ['GOAL_RETURN_SCENARIO_PAYMENT', /\billustrative monthly goal payment\b/],
     ['GOAL_INFLATION_ADJUSTED_TARGET', /\binflation-adjusted goal target\b/],
