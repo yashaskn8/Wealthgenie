@@ -43,7 +43,9 @@
     "finance:pg:seed": "node scripts/seedFinancialUniverse.js",
     "finance:pg:prune": "node scripts/pruneFinancialPostgres.js",
     "finance:mongo:migrate-indexes": "node scripts/migrateFinancialPrivateIndexes.js",
-    "finance:mongo:prune-valuations": "node scripts/prunePrivateFinancialValuations.js"
+    "finance:mongo:prune-valuations": "node scripts/prunePrivateFinancialValuations.js",
+    "finance:top3:audit": "node scripts/auditFinancialTopThreeCoverage.js",
+    "finance:top3:qualify": "node scripts/qualifyFinancialFamily.js"
   },
   "dependencies": {
     "@a2a-js/sdk": "1.2.0",
