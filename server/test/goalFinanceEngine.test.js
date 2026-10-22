@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   summarizeGoalBudget, allocateGoalFunding, calculateEmi,
-  assessVehiclePurchase, projectGoalSavings,
+  assessVehiclePurchase, projectGoalSavings, planGoalSpecification,
 } from '../services/goalFinanceEngine.js';
 
 const sampleBudget = () => ({
@@ -103,4 +103,21 @@ test('goal projections label unsupported tax and return assumptions', () => {
     currentSavings: 1, monthlyContribution: 1, years: 2,
     annualReturnAssumption: -100, annualInflationAssumption: 5,
   }), /annualReturnAssumption/);
+});
+
+test('typed goal cash baseline is price-inflation-aware without claiming investment growth', () => {
+  const referenceDate = new Date('2026-10-23T00:00:00.000Z');
+  const goal = {
+    targetAmount: 600000, currentSavings: 120000, annualPriceInflationPct: 0,
+    targetDate: '2027-10-23T00:00:00.000Z',
+  };
+  const forecast = planGoalSpecification(goal, referenceDate);
+  assert.equal(forecast.futureTargetAmount, 600000);
+  assert.equal(forecast.monthsRemaining, 12);
+  assert.equal(forecast.monthlyNeededWithoutReturns, 40000);
+  assert.equal(forecast.forecast, false);
+  assert.equal(planGoalSpecification({ ...goal, annualPriceInflationPct: 10 }, referenceDate).futureTargetAmount, 660000);
+  assert.equal(planGoalSpecification({ ...goal, targetDate: referenceDate }, referenceDate).status, 'TARGET_DATE_REACHED');
+  assert.throws(() => planGoalSpecification({ ...goal, annualPriceInflationPct: 31 }, referenceDate), /inflation/);
+  assert.throws(() => planGoalSpecification({ ...goal, targetDate: '2100-10-23' }, referenceDate), /50-year/);
 });
