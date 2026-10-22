@@ -852,3 +852,53 @@ test('red-team: ambiguous already-have amounts must not silently overwrite a kno
       && /ambiguous or invalid/.test(e.displayValue)), question);
   }
 });
+
+
+test('red-team: life-goal cost wording cannot escape to unsourced general chat', async () => {
+  for (const question of [
+    "What is the cost of my daughter's marriage?",
+    "How much would I spend on my daughter's wedding?",
+    "Estimate the cost of my daughter's wedding",
+    "How much should I pay for my daughter's wedding?",
+  ]) {
+    assert.equal(isFinancialGoalPlanningQuestion(question), true, question);
+    assert.equal(isGeneralChatQuestion(question), false, question);
+    const entries = retrieveChatGoalPlanningEvidence(question);
+    assert.ok(entries.some(entry => entry.id === 'E_GOAL_PLANNING_GUIDANCE'), question);
+    assert.equal(entries.some(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE'), false, question);
+    assert.equal(entries.some(entry => entry.id === 'E_GOAL_STATED_TARGET'), false, question);
+  }
+  assert.equal(isGeneralChatQuestion('What is the cost of sorting a Python list?'), true);
+  assert.equal(isGeneralChatQuestion('Write a wedding invitation message'), true);
+});
+
+test('red-team E2E: a stated wedding cost is a target, not an invented savings balance', async () => {
+  for (const question of [
+    "My daughter's wedding costs ₹2 crore in 10 years, starting from zero",
+    "My daughter's wedding will cost 2 crore in 10 years, starting from zero",
+    "I need to pay ₹2 crore for my daughter's wedding in 10 years, starting from zero",
+  ]) {
+    assert.equal(isFinancialGoalPlanningQuestion(question), true, question);
+    assert.equal(isGeneralChatQuestion(question), false, question);
+    const packet = await createPacket(question);
+    const target = packet.entries.find(entry => entry.id === 'E_GOAL_STATED_TARGET');
+    const monthly = packet.entries.find(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE');
+    assert.equal(target?.value.targetAmount, 20_000_000, question);
+    assert.equal(monthly?.value.earmarkedSavingsAmount, 0, question);
+    assert.equal(monthly?.value.horizonMonths, 120, question);
+    assert.equal(monthly?.value.monthlyRequiredAmount, 166666.67, question);
+    let llmCalled = false;
+    const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+      ...dependencies,
+      providers: [{
+        name: 'groq', isConfigured: () => true,
+        async generate() { llmCalled = true; return { text: '10% guaranteed' }; },
+      }],
+    });
+    assert.equal(llmCalled, false, question);
+    assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE', question);
+    assert.equal(answer.validation.status, 'PASS', question);
+    assert.ok(answer.citations.every(citation =>
+      !citation.citation_id.startsWith('E_GOAL_') || citation.source_url === null), question);
+  }
+});
