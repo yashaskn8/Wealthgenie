@@ -29,6 +29,7 @@ vi.mock('framer-motion', async () => {
 });
 
 vi.mock('../../services/api', () => ({
+  generateUUID: vi.fn(() => 'goals-client-retry-key-test-0001'),
   default: {
     getGoals: vi.fn(),
     createGoal: vi.fn(),
