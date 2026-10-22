@@ -29,9 +29,11 @@ describe('new-regime calculator visible entry point', () => {
       taxYear: request.taxYear, policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
       status: 'CALCULATED', calculationClass: 'SIMPLE_ORDINARY_INCOME_ONLY',
       inputsUsed: { ...request }, finalTax: '0', taxableIncome: '1200000',
-      standardDeduction: '75000.0000', taxBeforeRebate: '60000.0000',
-      rebate: '60000.0000', surcharge: '0.0000', surchargeMarginalRelief: '0.0000',
-      cess: '0.0000', taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [],
+      grossPrimaryIncome: '1275000.0000', otherOrdinaryIncome: '0.0000',
+      standardDeduction: '75000.0000', taxableIncomeBeforeRounding: '1200000.0000',
+      taxBeforeRebate: '60000.0000', rebate: '60000.0000', taxAfterRebate: '0.0000',
+      surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '0.0000',
+      taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [],
     }));
     render(<NewRegimeTaxScreen />);
     populate();
