@@ -128,8 +128,8 @@ test('metamorphic red-team: user-assumed growth, horizon and earmarked cash obey
     assert.ok(betterRate.requiredMonthlyContribution <= base.requiredMonthlyContribution, i);
     assert.ok(moreCash.requiredMonthlyContribution <= base.requiredMonthlyContribution, i);
     assert.ok(biggerGoal.requiredMonthlyContribution >= base.requiredMonthlyContribution, i);
-    assert.equal(Math.round(base.requiredMonthlyContribution * 100),
-      base.requiredMonthlyContribution * 100, 'Expected integer paise');
+    assert.ok(Math.abs(Math.round(base.requiredMonthlyContribution * 100)
+      - base.requiredMonthlyContribution * 100) < 1e-6, 'Expected integer paise');
   }
 });
 
