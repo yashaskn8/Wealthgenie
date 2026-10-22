@@ -39,9 +39,23 @@ function authenticatedUserTurns(priorTurns) {
     .map(turn => goalText(typeof turn === 'string' ? turn : turn.content)).slice(-4);
 }
 
+// Never revive an older goal after an intervening finance topic. A short
+// "in 10 years" / "why that number?" is only meaningful within one continuous
+// run of goal-related user turns, even when all turns share the same profile.
+function goalScopedUserTurns(priorTurns) {
+  const turns = authenticatedUserTurns(priorTurns);
+  let start = turns.length;
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    if (!isFinancialGoalPlanningQuestion(turns[index])
+        && !isGoalPlanningFollowUp(turns[index])) break;
+    start = index;
+  }
+  return turns.slice(start);
+}
+
 export function isFinancialGoalFollowUpQuestion(question, priorTurns = []) {
   return isGoalPlanningFollowUp(question)
-    && authenticatedUserTurns(priorTurns).some(isFinancialGoalPlanningQuestion);
+    && goalScopedUserTurns(priorTurns).some(isFinancialGoalPlanningQuestion);
 }
 
 export function isGoalCalculationFollowUp(question) {
@@ -199,7 +213,7 @@ function namedGoalTopics(text) {
 
 export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = [] } = {}) {
   const text = goalText(question);
-  const past = authenticatedUserTurns(priorUserTurns);
+  const past = goalScopedUserTurns(priorUserTurns);
   const direct = isFinancialGoalPlanningQuestion(text);
   // A repeated goal label with only a savings-flow update is not a new target.
   // Walk backward within the latest same-topic goal segment so subsequent
