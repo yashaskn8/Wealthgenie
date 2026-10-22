@@ -11,7 +11,8 @@ const status = (claims = []) => ({
   ok: true,
   mode: 'READ_ONLY_FINANCIAL_CLAIM_CHECK',
   saved: false,
-  completeInputExamined: true,
+  allExtractedCandidatesProcessed: true,
+  verificationScope: 'DETECTED_CLAIMS_ONLY',
   checkedAt: '2026-10-23T01:00:00.000Z',
   claims,
 });
