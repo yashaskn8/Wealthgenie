@@ -12,7 +12,7 @@ const FINANCIAL_QUERY = /\b(?:invest(?:ing|ment|or)?s?|mutual\s*funds?|stocks?|s
 // because the user omitted the word "investment" or the goal subject.
 const FINANCIAL_MONEY = /(?:₹\s*[-+]?\d|\b(?:inr|rs\.?)\s*[-+]?\d|\b\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac)\b)/i;
 const FINANCIAL_SAVING_INTENT = /\b(?:(?:i|we)\s+(?:can|could|will|want|need|plan)\s+(?:to\s+)?(?:save|invest|contribute)|(?:can\s+i|should\s+i|need\s+to|want\s+to|plan\s+to|how\s+much\s+can\s+i)\s+(?:\w+\s+){0,3}(?:save|afford|fund|contribute))\b/i;
-const GROUNDED_FINANCIAL_CONTEXT = /\b(?:my|our)\s+(?:money|investments?|holdings?|finances?|budget|expenses?|future|retirement|home\s*purchase|age|name|profile|email|phone|address|income|dependents?|lump[ -]?sum|horizon|emergency\s*fund|account|transaction|suitability|financial\s*details)\b|\b(?:how\s+old\s+am\s+i|what\s+do\s+you\s+know\s+about\s+me)\b/i;
+const GROUNDED_FINANCIAL_CONTEXT = /\b(?:my|our)\s+(?:money|investments?|holdings?|finances?|budget|expenses?|future|retirement|home\s*purchase|age|name|profile|email|phone|address|income|dependents?|lump[ -]?sum|horizon|emergency\s*fund|account|transaction|suitability|pan|aadhaar|aadhar|upi(?:\s+pin)?|ifsc|kyc|date\s+of\s+birth|dob|financial\s*details)\b|\b(?:how\s+old\s+am\s+i|what\s+do\s+you\s+know\s+about\s+me)\b/i;
 const PROVIDER_FAILURES = new Set([
   'PROVIDER_TIMEOUT', 'PROVIDER_SERVER_ERROR', 'PROVIDER_NETWORK_ERROR',
   'PROVIDER_CIRCUIT_OPEN', 'PROVIDER_NOT_CONFIGURED',
