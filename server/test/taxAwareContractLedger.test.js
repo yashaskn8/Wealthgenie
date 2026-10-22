@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {calculateTaxedContractLedger} from '../services/taxAwareContractLedger.js';
 const ledger={
  status:'RECONCILED',events:[
-  {id:'subscription',kind:'SUBSCRIPTION',amountPaise:-1000000},
-  {id:'coupon:12',kind:'INTEREST_PAYOUT',amountPaise:100000},
-  {id:'principal',kind:'PRINCIPAL_REDEMPTION',amountPaise:1000000},
+  {id:'subscription',monthOffset:0,kind:'SUBSCRIPTION',amountPaise:-1000000},
+  {id:'coupon:12',monthOffset:12,kind:'INTEREST_PAYOUT',amountPaise:100000},
+  {id:'principal',monthOffset:12,kind:'PRINCIPAL_REDEMPTION',amountPaise:1000000},
  ]};
 const options={
  ledger,eventDates:{subscription:'2026-04-01','coupon:12':'2027-03-31',principal:'2027-03-31'},
@@ -53,4 +53,35 @@ test('taxed contractual ledger rejects duplicate, sign-forged and principal-inco
   'FY2026-27':{...options.taxContexts['FY2026-27'],baselineExcludesTheseInterestEvents:'true'},
  }});
  assert.equal(result.status,'UNAVAILABLE','Only an explicit boolean may authorize baseline exclusion');
+});
+
+test('contract tax rejects missing offsets and fiscal-year manipulation through inverted dated coupons',()=>{
+ const missing=calculateTaxedContractLedger({...options,ledger:{
+  ...ledger,events:ledger.events.map((e,i)=>i===1?{...e,monthOffset:undefined}:e),
+ }});
+ assert.equal(missing.status,'UNAVAILABLE');
+ assert.ok(missing.reasonCodes.includes('CONTRACT_PAYMENT_OFFSET_MISSING_OR_INVALID'));
+ const twoYearEvents=[
+  {id:'subscription',monthOffset:0,kind:'SUBSCRIPTION',amountPaise:-1000000},
+  {id:'coupon:12',monthOffset:12,kind:'INTEREST_PAYOUT',amountPaise:100000},
+  {id:'coupon:24',monthOffset:24,kind:'INTEREST_PAYOUT',amountPaise:100000},
+  {id:'principal',monthOffset:24,kind:'PRINCIPAL_REDEMPTION',amountPaise:1000000},
+ ];
+ const inverted=calculateTaxedContractLedger({...options,
+  ledger:{status:'RECONCILED',events:twoYearEvents,totalReceiptsPaise:1200000},
+  eventDates:{
+   subscription:'2026-04-01','coupon:12':'2028-03-30',
+   'coupon:24':'2027-03-30',principal:'2028-04-01',
+  },
+ });
+ assert.equal(inverted.status,'UNAVAILABLE');
+ assert.deepEqual(inverted.reasonCodes,['CONTRACT_PAYMENT_DATES_OUT_OF_ORDER']);
+ const redemptionEarly=calculateTaxedContractLedger({...options,
+  ledger:{status:'RECONCILED',events:twoYearEvents,totalReceiptsPaise:1200000},
+  eventDates:{
+   subscription:'2026-04-01','coupon:12':'2027-03-30',
+   'coupon:24':'2028-03-30',principal:'2027-01-01',
+  },
+ });
+ assert.equal(redemptionEarly.status,'UNAVAILABLE');
 });

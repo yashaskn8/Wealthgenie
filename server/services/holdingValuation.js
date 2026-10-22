@@ -1,3 +1,14 @@
+/**
+ * An exchange quote and mutual-fund NAV have different valuation meanings.
+ * Unsupported identities must not silently choose the newest available metric.
+ */
+export function resolveQualifiedValuationKind(canonicalProductId){
+ if(typeof canonicalProductId!=='string')return null;
+ if(canonicalProductId.startsWith('mf:amfi:'))return 'NAV';
+ if(['equity:isin:','stock:isin:','etf:isin:'].some(prefix=>canonicalProductId.startsWith(prefix)))
+   return 'PRICE';
+ return null;
+}
 const DECIMAL=/^(0|[1-9][0-9]*)(?:\.([0-9]{1,8}))?$/;
 const SCALE=100000000n;
 function toScaled(value){

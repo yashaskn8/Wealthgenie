@@ -9,7 +9,7 @@ import InvestorHoldingLot from '../models/InvestorHoldingLot.js';
 import HoldingValuationSnapshot from '../models/HoldingValuationSnapshot.js';
 import {getFinancialPostgresPool} from '../postgres/connection.js';
 import {createFinancialStore} from '../postgres/financialStore.js';
-import {calculateHoldingValuation} from '../services/holdingValuation.js';
+import {calculateHoldingValuation,resolveQualifiedValuationKind} from '../services/holdingValuation.js';
 const router=Router();
 const objectId=Joi.string().pattern(/^[a-fA-F0-9]{24}$/);
 const productId=Joi.string().min(3).max(160).pattern(/^[a-zA-Z0-9:_-]+$/);
@@ -92,9 +92,10 @@ router.post('/valuation',verifyJWT,validate(valuationSchema),asyncHandler(async(
  if(!lot)return sendError(req,res,404,'Holding lot was not found','HOLDING_NOT_FOUND');
  await ownedProfile(req.user.userId,lot.profileId);
  const store=await requiredStore(req,res);if(!store)return;
- const facts=await Promise.all(['PRICE','NAV'].map(kind=>store.latestPublishableObservation(lot.canonicalProductId,kind)));
- const available=facts.filter(Boolean).sort((a,b)=>+new Date(b.observed_at)-+new Date(a.observed_at));
- const fact=available[0];
+ const observationKind=resolveQualifiedValuationKind(lot.canonicalProductId);
+ if(!observationKind)return res.json({status:'UNAVAILABLE',
+   reasonCode:'PRODUCT_VALUATION_METRIC_NOT_QUALIFIED',value:null});
+ const fact=await store.latestPublishableObservation(lot.canonicalProductId,observationKind);
  if(!fact)return res.json({status:'UNAVAILABLE',reasonCode:'QUALIFIED_MARKET_VALUE_UNAVAILABLE',value:null});
  if(fact.currency!=='INR')return res.json({status:'UNAVAILABLE',reasonCode:'MARKET_VALUE_CURRENCY_NOT_QUALIFIED',value:null});
  const deadlines=[fact.retain_until,fact.rights_expire_at].filter(Boolean).map(t=>new Date(t));

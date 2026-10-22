@@ -49,15 +49,27 @@ export async function calculateSourceBoundContractCashflow({
    ||!identity[0].tax_class_reviewed_at))
    return unavailable('PRODUCT_TAX_CLASS_NOT_VERIFIED',productId);
  const {rows:termRows}=await pool.query(`
-  SELECT t.term_type,t.term_value::text AS value,t.unit
+  SELECT t.term_type,t.term_value::text AS value,t.unit,
+         t.contract_evidence_url,t.contract_reviewed_at
     FROM finance.product_terms t
    WHERE t.product_id=$1 AND t.source_id=$2
+     AND t.contract_evidence_url LIKE 'https://www.indiapost.gov.in/%'
+     AND t.contract_reviewed_at IS NOT NULL
+     AND t.contract_reviewed_at<=$3::timestamptz
      AND t.effective_from<=($3::timestamptz AT TIME ZONE 'Asia/Kolkata')::date
      AND (t.effective_to IS NULL OR t.effective_to>=
        ($3::timestamptz AT TIME ZONE 'Asia/Kolkata')::date)
    ORDER BY t.term_type`,[productId,fact.source_id,now]);
  const terms=new Map();
  for(const row of termRows){
+  // A reviewed issuer document, not a provider rate alone, must establish
+  // each contractual term. Incomplete provenance fails closed.
+  if(typeof row.contract_evidence_url!=='string'
+    ||!row.contract_evidence_url.startsWith('https://www.indiapost.gov.in/')
+    ||!row.contract_reviewed_at
+    ||!Number.isFinite(+new Date(row.contract_reviewed_at))
+    ||new Date(row.contract_reviewed_at)>now)
+    return unavailable('ISSUER_TERMS_PROVENANCE_UNVERIFIED',productId);
   if(terms.has(row.term_type))return unavailable('CONFLICTING_PRODUCT_CONTRACT_TERMS',productId);
   terms.set(row.term_type,row);
  }
@@ -94,7 +106,8 @@ export async function calculateSourceBoundContractCashflow({
  return {...result,dataClass:'QUALIFIED_PUBLISHED_RATE',
    officialSourceId:fact.source_id,officialObservationId:String(fact.id),
    sourceObservationTime:fact.observed_at,
-   sourceTermsReviewedIndependently:false,
+   sourceTermsReviewedIndependently:true,
+   termEvidenceUrls:[...new Set([...terms.values()].map(term=>term.contract_evidence_url))],
    notMarketPrice:true,
  };
 }

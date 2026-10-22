@@ -11,8 +11,12 @@ const fact={
  observed_at:'2026-10-01T06:30:00Z',
 };
 const terms=[
- {term_type:'TENURE_MONTHS',value:'12',unit:'MONTHS'},
- {term_type:'COMPOUNDING_PERIODS_PER_YEAR',value:'4',unit:'PER_YEAR'},
+ {term_type:'TENURE_MONTHS',value:'12',unit:'MONTHS',
+   contract_evidence_url:'https://www.indiapost.gov.in/banking-services/savings',
+   contract_reviewed_at:new Date('2026-10-21T09:00:00Z')},
+ {term_type:'COMPOUNDING_PERIODS_PER_YEAR',value:'4',unit:'PER_YEAR',
+   contract_evidence_url:'https://www.indiapost.gov.in/banking-services/savings',
+   contract_reviewed_at:new Date('2026-10-21T09:00:00Z')},
 ];
 function harness({rows=[...terms],identity=true,taxClass='UNVERIFIED'}={}){
  const queries=[];
@@ -44,6 +48,8 @@ test('real-source published rate and exact reviewed contractual terms admit a bo
  assert.equal(result.postTaxProceeds,null);
  assert.ok(result.grossMaturityProceeds>=1000);
  assert.equal(result.notMarketPrice,true);
+ assert.equal(result.sourceTermsReviewedIndependently,true);
+ assert.ok(h.queries[1].sql.includes('contract_reviewed_at'));
  assert.equal(h.queries.length,2);
  assert.deepEqual(h.queries[0].args.slice(0,3),
    [productId,'india-post-publication','https://www.indiapost.gov.in/banking-services/savings']);
@@ -52,6 +58,9 @@ test('no source identity, no complete scheme terms, or unsafe tax class yields U
  for(const h of [
    harness({identity:false}),
    harness({rows:terms.slice(0,1)}),
+   harness({rows:terms.map((term,i)=>i===0?{...term,contract_reviewed_at:null}:term)}),
+   harness({rows:terms.map((term,i)=>i===1?{...term,contract_evidence_url:'https://example.org/unverified'}:term)}),
+   harness({rows:terms.map((term,i)=>i===0?{...term,contract_reviewed_at:new Date('2099-01-01')}:term)}),
    harness({rows:[...terms,{...terms[0]}]}),
    harness({rows:[...terms.slice(0,1),{...terms[1],value:'2'}]}),
  ]){
