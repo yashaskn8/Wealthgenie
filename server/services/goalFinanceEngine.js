@@ -142,8 +142,9 @@ export function calculateEmi({ principal, annualInterestRate, tenureMonths }) {
     assumptionSource: 'USER_DECLARED', policyVersion: GOAL_FINANCE_POLICY_VERSION };
 }
 
-export function assessVehiclePurchase(budget, scenario) {
+export function assessVehiclePurchase(budget, scenario, { monthlyGoalCommitments = null } = {}) {
   const summary = summarizeGoalBudget(budget);
+  const reservedForGoals = money(monthlyGoalCommitments, 'monthlyGoalCommitments', { allowNull: true });
   if (!scenario || typeof scenario !== 'object') throw new TypeError('Purchase scenario required');
   const price = money(scenario.price, 'price');
   const downPayment = money(scenario.downPayment, 'downPayment');
@@ -159,21 +160,26 @@ export function assessVehiclePurchase(budget, scenario) {
   const afterPurchase = summary.recurringSurplus === null ? null : rupees(summary.recurringSurplus - ongoing);
   const actualMonthAfterPurchase = summary.actualMonthSurplus === null ? null
     : rupees(summary.actualMonthSurplus - ongoing);
+  const actualMonthAfterPurchaseAndGoals = actualMonthAfterPurchase === null || reservedForGoals === null
+    ? null : rupees(actualMonthAfterPurchase - reservedForGoals);
   const upfront = rupees(downPayment + upfrontFees);
   const afterCash = emergencyCash === null ? null : rupees(emergencyCash - upfront);
   const missing = [...summary.missing];
   if (emergencyCash === null) missing.push('AVAILABLE_CASH_UNKNOWN');
   if (emergencyFloor === null) missing.push('EMERGENCY_RESERVE_FLOOR_UNKNOWN');
+  if (reservedForGoals === null) missing.push('GOAL_COMMITMENTS_UNVERIFIED');
   if (upfrontFees === 0) missing.push('UPFRONT_FEES_UNCONFIRMED');
   if (recurringOwnership === 0) missing.push('VEHICLE_RUNNING_COSTS_UNCONFIRMED');
   const bufferInsufficient = afterCash !== null && emergencyFloor !== null && afterCash < emergencyFloor;
   const status = missing.length ? 'DATA_INSUFFICIENT'
-    : afterPurchase < 0 || actualMonthAfterPurchase < 0 || afterCash < 0 ? 'BUDGET_SHORTFALL'
+    : afterPurchase < 0 || actualMonthAfterPurchase < 0
+        || actualMonthAfterPurchaseAndGoals < 0 || afterCash < 0 ? 'BUDGET_SHORTFALL'
       : bufferInsufficient ? 'RISK_WARNING' : 'AFFORDABLE_WITH_DECLARED_BUFFER';
   const reasons = [
     ...missing,
     ...(afterPurchase !== null && afterPurchase < 0 ? ['NEGATIVE_MONTHLY_CASHFLOW'] : []),
     ...(actualMonthAfterPurchase !== null && actualMonthAfterPurchase < 0 ? ['NEGATIVE_PURCHASE_MONTH_CASHFLOW'] : []),
+    ...(actualMonthAfterPurchaseAndGoals !== null && actualMonthAfterPurchaseAndGoals < 0 ? ['GOALS_AND_PURCHASE_EXCEED_SAVINGS'] : []),
     ...(afterCash !== null && afterCash < 0 ? ['UPFRONT_CASH_SHORTFALL'] : []),
     ...(bufferInsufficient ? ['EMERGENCY_RESERVE_BREACHED'] : []),
   ];
@@ -182,6 +188,8 @@ export function assessVehiclePurchase(budget, scenario) {
     status, reasons, loan, upfront, monthlyOwnershipCost: recurringOwnership,
     additionalMonthlyCommitment: ongoing, monthlySurplusAfterPurchase: afterPurchase,
     purchaseMonthSurplusAfterPurchase: actualMonthAfterPurchase,
+    requiredMonthlyGoalContributions: reservedForGoals,
+    purchaseMonthSurplusAfterGoals: actualMonthAfterPurchaseAndGoals,
     emergencyCashAfterPurchase: afterCash,
     totalNominalCostDuringLoan: rupees(price + loan.totalInterest + upfrontFees + recurringOwnership * scenario.tenureMonths),
     priceBasis: 'USER_SUPPLIED_NOT_LIVE', priceUpdatedAt: null, lenderApproval: 'NOT_ASSESSED',
