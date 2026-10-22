@@ -66,10 +66,12 @@ test('HTTP endpoint rejects malformed money, additional fields, wrong types and 
     ]) {
       const { response, body } = await post(baseUrl, payload);
       assert.equal(response.status, 400, JSON.stringify({ payload, body }));
+      assert.equal(response.headers.get('cache-control'), 'no-store');
       assert.ok(['INVALID_MONEY', 'INVALID_TAX_REQUEST'].includes(body.code), JSON.stringify(body));
     }
     const { response, body } = await post(baseUrl, { ...input, taxYear: '2027-28' });
     assert.equal(response.status, 422);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal(body.code, 'UNSUPPORTED_TAX_YEAR');
   });
 });
