@@ -244,7 +244,7 @@ it('renders exact rupee and paise deposits without abbreviating the values', asy
   }, { monthlyInvestment: 1000.37, years: 1 }));
   render(<StepUpPlanner profile={{ monthly_savings: 1000.37, investment_horizon_years: 1 }} />);
   expect((await screen.findAllByText('₹12,30,00,000')).length).toBe(2);
-  expect(screen.getAllByText(/₹12,004\\.44/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/₹12,004\.44/).length).toBeGreaterThan(0);
   expect(screen.queryByText('₹12.3 Cr')).not.toBeInTheDocument();
 });
 
