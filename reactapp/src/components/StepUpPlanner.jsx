@@ -12,7 +12,19 @@ const formatSipINR = value => isPresentFiniteNumber(value)
   ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value))
   : '—';
 
-const withinPaise = value => Math.abs(value * 100 - Math.round(value * 100)) < 0.000001;
+const withinPaise = value => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return false;
+  // Match the backend's canonical decimal-paise policy. A hidden third
+  // fractional digit cannot silently be rounded or accepted in the UI.
+  const [mantissa, exponentText = '0'] = n.toString().toLowerCase().split('e');
+  const [whole, fraction = ''] = mantissa.split('.');
+  const digits = BigInt(whole + fraction);
+  const exp = Number(exponentText) - fraction.length;
+  return exp >= 0
+    ? true
+    : digits * 100n % (10n ** BigInt(-exp)) === 0n;
+};
 const validOptionalMoney = (value, cap) => value === '' || (
   Number.isFinite(Number(value)) && Number(value) >= 0
   && Number(value) <= cap && withinPaise(Number(value))
@@ -425,7 +437,7 @@ const StepUpPlanner = ({ profile }) => {
 
       <section className="sup-planning-panel" aria-label="SIP affordability and scenario inputs">
         <h3>Can you sustain this SIP?</h3>
-        <p>All figures are editable. Expenses exclude EMI. Income is take-home pay. Empty amounts mean “not assessed”, not zero. Enter ₹0 when you have no EMI.</p>
+        <p>All figures are editable. Income is take-home pay. Include other committed investments, subscriptions, insurance premiums and regular obligations in the declared living-expense amount; do not include this planned SIP twice. Expenses exclude EMI, which is entered separately. Unknown amounts mean “not assessed”, not zero. Enter ₹0 when you have no EMI.</p>
         <div className="sup-planning-fields">
           {[
             ['Monthly take-home (₹)', monthlyIncome, setMonthlyIncome],
