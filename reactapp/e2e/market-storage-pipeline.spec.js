@@ -13,7 +13,9 @@ const requireServer = createRequire(new URL('../../server/package.json', import.
 const express = requireServer('express');
 const mongoose = requireServer('mongoose');
 
-const now = new Date('2026-10-20T12:00:00.000Z');
+// MongoDB's real TTL monitor must not purge this isolated fixture before UI reads it.
+// Freeze time only within the fixture, not at a historical date in the past.
+const now = new Date();
 const observedAt = new Date(now.getTime() - 60_000);
 const env = { NODE_ENV: 'test', MARKET_BENCHMARK_QUOTE_STORE_ENABLED: 'true',
   MARKET_BENCHMARK_QUOTE_RETENTION_SECONDS: '3600' };
@@ -88,7 +90,10 @@ test('fixture provider → Mongo → authenticated API → React preserves one e
     await page.getByRole('button', { name: 'View stored prices and history' }).click();
     await expect(page.getByText('25,123.45')).toBeVisible();
     await expect(page.getByText('Source: UPSTOX')).toBeVisible();
-    await expect(page.getByText(/Provider observed: 20 Oct 2026/)).toBeVisible();
+    const providerObservedDate = observedAt.toLocaleDateString('en-IN', {
+      timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric',
+    });
+    await expect(page.getByText(new RegExp('Provider observed: ' + providerObservedDate))).toBeVisible();
 
     await stop();
     base = await listen();
