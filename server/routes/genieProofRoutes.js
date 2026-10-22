@@ -54,6 +54,17 @@ const genieProofLimiter = createEndpointRateLimiter({
     ? String(req.user.userId)
     : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
 });
+// This nonpersistent check is cheaper than legacy case/watch mutations.
+// Keep separate authenticated per-user throttling; never disable abuse limits.
+const genieProofCheckLimiter = createEndpointRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Claim check limit reached. Try again later.',
+  prefix: 'rl:ep:genieproof:check:',
+  keyGenerator: req => req.user?.userId
+    ? String(req.user.userId)
+    : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
+});
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // An authenticated capability report is the only source of truth for the UI.
@@ -151,7 +162,7 @@ export function buildGenieProofClaimPreview(offerText) {
 
 // Read-only by design: no case, passport, signature creation, or user-text persistence.
 // Financial verdicts require independently qualified, applicable, signed evidence.
-router.post('/check', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
+router.post('/check', verifyJWT, genieProofCheckLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
   const result = await checkGenieProofClaims({
     offerText: req.body.offerText,
     verifier: req.app.locals.genieProofClaimVerifier || null,
