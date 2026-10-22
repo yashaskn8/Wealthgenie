@@ -223,6 +223,9 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
   const monthRevisionRef = useRef(0);
   activeMonthRef.current = month;
   const [budget, setBudget] = useState(emptyBudget);
+  const [budgetDirty, setBudgetDirty] = useState(false);
+  const [budgetLoadFailed, setBudgetLoadFailed] = useState(false);
+  const budgetEditRevisionRef = useRef(0);
   const [summary, setSummary] = useState(null);
   const [funding, setFunding] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -234,6 +237,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
     let cancelled = false;
     const load = async () => {
       setLoading(true); setError(null); setSummary(null); setFunding(null);
+      setBudgetDirty(false); setBudgetLoadFailed(false);
       const [budgetResponse, fundingResponse] = await Promise.allSettled([
         api.getGoalBudget(month), api.getGoalFundingPlan(month),
       ]);
@@ -244,8 +248,10 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
           monthlyIncome: next.budget.monthlyIncome ?? '',
           expenses: next.budget.expenses.length ? next.budget.expenses : [emptyExpense()] });
         setSummary(next.summary);
+        setBudgetLoadFailed(false);
       } else {
         setBudget(emptyBudget());
+        setBudgetLoadFailed(true);
         setError('Monthly budget is unavailable. Changes cannot be saved until it loads.');
       }
       if (fundingResponse.status === 'fulfilled') setFunding(fundingResponse.value);
@@ -256,9 +262,18 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
     return () => { cancelled = true; };
   }, [month, refreshToken]);
 
+  const handleBudgetChange = update => {
+    budgetEditRevisionRef.current += 1;
+    setBudgetDirty(true);
+    setSummary(null);
+    setFunding(null);
+    setBudget(update);
+  };
+
   const save = async () => {
     const savingMonth = month;
     const savingRevision = monthRevisionRef.current;
+    const savingEditRevision = budgetEditRevisionRef.current;
     const stillSameMonth = () => activeMonthRef.current === savingMonth
       && monthRevisionRef.current === savingRevision;
     setSaving(true); setError(null);
@@ -276,6 +291,13 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
         throw new Error('Enter an amount for each expense or remove blank rows.');
       const result = await api.saveGoalBudget(savingMonth, payload);
       if (!stillSameMonth()) return;
+      if (budgetEditRevisionRef.current !== savingEditRevision) {
+        setBudget(old => ({ ...old, version: result.budget.version }));
+        setBudgetDirty(true);
+        setError('Edits made after saving began are still unsaved. Save the budget again before planning.');
+        return;
+      }
+      setBudgetDirty(false);
       setBudget(old => ({ ...old, ...result.budget, monthlyIncome: result.budget.monthlyIncome ?? '',
         expenses: result.budget.expenses.length ? result.budget.expenses : [emptyExpense()] }));
       setSummary(result.summary);
@@ -318,7 +340,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
     {loading && <Notice>Loading your private monthly budget and goal plan…</Notice>}
     {error && <Notice kind="error">{error}</Notice>}
     {!loading && activeTab === 'budget' && <>
-      <MonthBudget budget={budget} setBudget={setBudget} onSave={save} saving={saving || Boolean(error && !summary)}/>
+      <MonthBudget budget={budget} setBudget={handleBudgetChange} onSave={save} saving={saving || budgetLoadFailed}/>
       {summary && <div className="wg-goal-panel wg-goal-metrics" aria-live="polite">
         <h3>Monthly cash flow — {summary.budgetStatus.replaceAll('_', ' ')}</h3>
         <p><b>Recurring costs</b><span>{moneyLabel(summary.recurringExpenses)}</span></p>
@@ -331,7 +353,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
     {!loading && activeTab === 'funding' && <div className="wg-goal-panel">
       <h3>Allocate one shared savings budget</h3>
       <p>All goals compete for the same monthly surplus. A goal's previously entered savings cannot be proven distinct from savings used by another goal.</p>
-      {funding ? <><h4>Status: {funding.plan.status.replaceAll('_', ' ')}</h4>
+      {budgetDirty || budgetLoadFailed ? <Notice kind="warning">Save the current budget before assessing shared goal funding.</Notice> : funding ? <><h4>Status: {funding.plan.status.replaceAll('_', ' ')}</h4>
         <div className="wg-goal-metrics">
           <p><b>Available for goals</b><span>{moneyLabel(funding.plan.capacity)}</span></p>
           <p><b>Combined required contributions</b><span>{moneyLabel(funding.plan.totalRequested)}</span></p>
@@ -345,7 +367,9 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
       </> : <Notice kind="error">Funding plan unavailable. No amount is assumed affordable.</Notice>}
     </div>}
     {!loading && activeTab === 'specs' && <GoalSpecificationsPanel onChanged={() => { void api.getGoalFundingPlan(month).then(setFunding).catch(() => setError('Shared funding could not be updated after saving your goal.')); }}/>}
-    {!loading && activeTab === 'vehicle' && <VehicleForm key={month} month={month}/>}
+    {!loading && activeTab === 'vehicle' && (budgetDirty || budgetLoadFailed
+      ? <Notice kind="warning">Save your updated monthly budget before assessing a purchase. Existing estimates are not reused.</Notice>
+      : <VehicleForm key={month} month={month}/>)}
     {!loading && activeTab === 'projection' && <SavingsProjection/>}
     {!loading && activeTab === 'learn' && <div className="wg-goal-panel">
       <h3>Financial decisions explained</h3>
