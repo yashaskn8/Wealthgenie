@@ -11,6 +11,25 @@ const validAmount = value => typeof value === 'number' && Number.isFinite(value)
 const validSigned = value => typeof value === 'number' && Number.isFinite(value)
   && Math.abs(value) <= MAX_AMOUNT;
 
+// Independent decimal paise oracle for annual contribution schedules.
+// Do not reconstruct monetary deposits with Math.pow() floating-point ties.
+function decimalFraction(value) {
+  const [mantissa, exponentText = '0'] = value.toString().toLowerCase().split('e');
+  const [whole, part = ''] = mantissa.split('.');
+  const digits = BigInt(whole + part);
+  const exp = Number(exponentText) - part.length;
+  return exp >= 0
+    ? [digits * (10n ** BigInt(exp)), 1n]
+    : [digits, 10n ** BigInt(-exp)];
+}
+function expectedAnnualSipPaise(startingAmount, annualStepRate, yearIndex) {
+  const [stepNumerator, stepDenominator] = decimalFraction(annualStepRate);
+  const initialPaise = BigInt(Math.round(startingAmount * 100));
+  const numerator = initialPaise * ((stepDenominator + stepNumerator) ** BigInt(yearIndex));
+  const denominator = stepDenominator ** BigInt(yearIndex);
+  return Number((2n * numerator + denominator) / (2n * denominator)) / 100;
+}
+
 export function assertGrowSipResponse(value, input) {
   const invalid = () => { throw new Error('Grow My SIP received an invalid or incompatible financial projection. No results were displayed.'); };
   if (!value || Array.isArray(value) || typeof value !== 'object'
@@ -73,8 +92,9 @@ export function assertGrowSipResponse(value, input) {
       || !(row.monthlyBudgetSurplus === null || validSigned(row.monthlyBudgetSurplus))) invalid();
     // Prevent forged intermediate-year charts: contribution schedule, nominal
     // and downside ordering must hold for every year, not only the endpoint.
-    const expectedSip = Math.round(input.monthlyInvestment
-      * Math.pow(1 + input.annualStepUpRate, i) * 100) / 100;
+    const expectedSip = expectedAnnualSipPaise(
+      input.monthlyInvestment, input.annualStepUpRate, i,
+    );
     const expectedFlatPaid = Math.round(input.monthlyInvestment * 12 * (i + 1) * 100) / 100;
     scheduledStepUpPrincipal += expectedSip * 12;
     const expectedStepUpPaid = Math.round(scheduledStepUpPrincipal * 100) / 100;
