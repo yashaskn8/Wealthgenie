@@ -135,7 +135,8 @@ function moneyIn(question) {
     // rent/loan/EMI payment remains an outflow. Without this distinction,
     // "I need to pay ₹2 crore for my daughter's wedding" silently loses its target.
     const namedGoalPayment = /\b(?:need|want|plan|planning|must|will|would)\s+(?:to\s+)?pay\s*$/i.test(before)
-      && /\b(?:for|toward(?:s)?)\s+(?:(?:my|our|the|a)\s+)?(?:daughter(?:'s)?|son(?:'s)?|child(?:'s)?|wedding|marriage|education|college|home|house|vehicle|car|retirement|medical|hospital)\b/i.test(after);
+      && /\b(?:for|toward(?:s)?)\s+(?:(?:my|our|the|a)\s+)?(?:daughter(?:'s)?|son(?:'s)?|child(?:'s)?|wedding|marriage|education|college|home|house|vehicle|car|retirement|medical|hospital)\b/i.test(after)
+      && !/\b(?:emi|loan|rent|mortgage|debt|premium|bills?)\b/i.test(after);
     const unrelated = !savings && !namedGoalPayment && (/\b(?:salary|income|earn(?:ings)?|wages?|paycheck|take[ -]?home|emi|rent|debt|loan|expenses?|spend(?:ing)?|pay(?:ing|ments?)?|paid|borrow(?:ing)?|bills?|groceries|premium)\s*(?:of|is|are|:)?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       || /^\s*(?:salary|income|wages?|paycheck|emi|rent|loan|in\s+debt|as\s+(?:emi|debt|loan|mortgage|expenses?))\b/i.test(after));
     const capacity = !savings && !unrelated && (recurring
