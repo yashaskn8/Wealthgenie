@@ -98,6 +98,7 @@ export async function generateGeneralChat({ question, priorTurns = [] }, depende
   const providers = providerChain(dependencies);
   const failures = [];
   let attempts = 0;
+  let firstProviderSkipped = false;
   let usageTokens = 0;
   let complete = true;
   const history = [
@@ -117,6 +118,7 @@ export async function generateGeneralChat({ question, priorTurns = [] }, depende
     for (const provider of providers) {
       if (controller.signal.aborted) break;
       if (!provider?.isConfigured?.()) {
+        firstProviderSkipped = true;
         failures.push('PROVIDER_NOT_CONFIGURED');
         continue;
       }
@@ -208,7 +210,7 @@ export async function generateGeneralChat({ question, priorTurns = [] }, depende
         generatedAt: new Date().toISOString(),
         tokensUsed: usageTokens,
         providerUsageComplete: complete,
-        fallback: attempts > 1,
+        fallback: attempts > 1 || firstProviderSkipped,
         providerAttemptCount: attempts,
         providerAttemptFailureCount: Math.max(0, attempts - 1),
         cached: false,
