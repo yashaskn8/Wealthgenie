@@ -17,11 +17,12 @@ function validFixture() {
     annual_return_interpretation: 'USER_ASSUMED_EFFECTIVE_ANNUAL_RETURN',
     observed_market_fact: false, provider_forecast: false,
     capital_gains_tax: null, estimated_post_tax_corpus: null,
-    flatFinal: 27000, stepUpFinal: 28000,
+    flatFinal: 26029, stepUpFinal: 27280,
     flatInvested: 24000, stepUpInvested: 25200,
-    additionalCorpus: 1000, additionalContributions: 1200,
-    additionalProjectedGrowth: -200, additionalPercent: 3.7,
-    downsideFinal: 25200, inflationAdjustedStepUpFinal: 24920,
+    additionalCorpus: 1251, additionalContributions: 1200,
+    additionalProjectedGrowth: 51, additionalPercent: 4.807692307692313,
+    flatProjectedGrowth: 2029, stepUpProjectedGrowth: 2080,
+    downsideFinal: 25200, inflationAdjustedStepUpFinal: 24279,
     finalMonthlySip: 1100,
     affordability: {
       status: 'WITHIN_DECLARED_BUDGET', firstUnaffordableMonth: null,
@@ -33,15 +34,15 @@ function validFixture() {
     },
     chartData: [
       {
-        year: 1, flatSIP: 12400, stepUpSIP: 12400,
+        year: 1, flatSIP: 12514, stepUpSIP: 12514,
         flatInvested: 12000, stepUpInvested: 12000,
-        downsideStepUp: 12000, inflationAdjustedStepUp: 11700,
+        downsideStepUp: 12000, inflationAdjustedFlat: 11806, inflationAdjustedStepUp: 11806,
         monthlySip: 1000, monthlyBudgetSurplus: 8000,
       },
       {
-        year: 2, flatSIP: 27000, stepUpSIP: 28000,
+        year: 2, flatSIP: 26029, stepUpSIP: 27280,
         flatInvested: 24000, stepUpInvested: 25200,
-        downsideStepUp: 25200, inflationAdjustedStepUp: 24920,
+        downsideStepUp: 25200, inflationAdjustedFlat: 23166, inflationAdjustedStepUp: 24279,
         monthlySip: 1100, monthlyBudgetSurplus: 6820,
       },
     ],
@@ -62,6 +63,17 @@ describe('Grow My SIP fail-closed response contract', () => {
     ['wrong APR convention', r => { r.monthly_rate_convention = 'NOMINAL_APR_DIVIDED_BY_12'; }],
     ['missing CAGR interpretation', r => { delete r.annual_return_interpretation; }],
     ['market data impersonation', r => { r.observed_market_fact = true; }],
+    ['doubled all projected balances (coherent forged chart)', r => {
+      for (const row of r.chartData) {
+        row.flatSIP *= 2; row.stepUpSIP *= 2; row.downsideStepUp *= 2;
+        row.inflationAdjustedFlat *= 2; row.inflationAdjustedStepUp *= 2;
+      }
+      r.flatFinal *= 2; r.stepUpFinal *= 2; r.downsideFinal *= 2;
+      r.inflationAdjustedStepUpFinal *= 2; r.additionalCorpus *= 2;
+      r.additionalProjectedGrowth = r.additionalCorpus - r.additionalContributions;
+    }],
+    ['forged intermediate-year compounding', r => { r.chartData[0].flatSIP += 500; }],
+    ['inflated uplift percentage', r => { r.additionalPercent *= 10; }],
     ['invented post-tax corpus', r => { r.estimated_post_tax_corpus = 1; }],
     ['non-finite result', r => { r.flatFinal = Infinity; }],
     ['negative principal', r => { r.stepUpInvested = -1; }],
