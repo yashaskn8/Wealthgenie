@@ -67,7 +67,7 @@ const StepUpPlanner = ({ profile }) => {
     && Number.isFinite(safeReturnRate) && safeReturnRate > -100 && safeReturnRate <= 100
     && Number.isInteger(safeYears) && safeYears > 0 && safeYears <= 50
     && Number.isFinite(safeStepUpPercent) && safeStepUpPercent >= 0 && safeStepUpPercent <= 100
-    && [inflationRate, downsideRate, incomeGrowth, expenseGrowth].every(value => Number.isFinite(Number(value)))
+    && [inflationRate, downsideRate, incomeGrowth, expenseGrowth].every(value => value !== '' && Number.isFinite(Number(value)))
     && Number(inflationRate) >= 0 && Number(inflationRate) <= 100
     && Number(downsideRate) > -100 && Number(downsideRate) <= safeReturnRate
     && Number(incomeGrowth) >= 0 && Number(incomeGrowth) <= 100
@@ -461,7 +461,7 @@ const StepUpPlanner = ({ profile }) => {
             </label>
           ))}
         </div>
-        <p className="sup-planning-note">The downside return cannot exceed the base return. This is a constant-return what-if, not a probability forecast. EMI is held fixed. Income and expenses change once each year. The model assumes start-of-month SIPs; contributions retain paise, projected corpuses are rounded to the nearest rupee, and returns are before taxes and fees.</p>
+        <p className="sup-planning-note">All percentage defaults are illustrative inputs, not observed market facts. Leave a required rate blank to stop calculation. The downside return cannot exceed the base return. This is a constant-return what-if, not a probability forecast. EMI is held fixed. Income and expenses change once each year. The model assumes start-of-month SIPs; contributions retain paise, projected corpuses are rounded to the nearest rupee, and returns are before taxes and fees.</p>
       </section>
 
       <section className="sup-safety-panel" aria-live="polite">
