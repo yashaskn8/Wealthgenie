@@ -196,8 +196,17 @@ export function assertGrowSipResponse(value, input) {
   const budget = value.affordability;
   let firstUnfundedMonth = null;
   let largestShortfall = 0;
+  let worstRawSurplus = null;
+  if (!Array.isArray(budget.annualContributionSchedule)
+    || budget.annualContributionSchedule.length !== years
+    || budget.assumesEmiConstant !== true
+    || budget.incomeExpensesUserDeclared !== hasBudget) invalid();
   for (let i = 0; i < years; i++) {
     const row = value.chartData[i];
+    const statedSchedule = budget.annualContributionSchedule[i];
+    if (!statedSchedule || statedSchedule.year !== row.year
+      || statedSchedule.monthlySip !== row.monthlySip
+      || statedSchedule.monthlyBudgetSurplus !== row.monthlyBudgetSurplus) invalid();
     if (!hasBudget) {
       if (row.monthlyBudgetSurplus !== null) invalid();
       continue;
@@ -206,6 +215,7 @@ export function assertGrowSipResponse(value, input) {
       - input.monthlyExpenses * Math.pow(1 + input.annualExpenseGrowthRate, i)
       - input.monthlyEmi;
     const surplus = available - row.monthlySip;
+    worstRawSurplus = worstRawSurplus === null ? surplus : Math.min(worstRawSurplus, surplus);
     if (!Number.isFinite(surplus) || !validSigned(surplus)
       || !matchingNumber(row.monthlyBudgetSurplus, roundSignedPaise(surplus))) invalid();
     if (surplus < -0.005) {
@@ -213,6 +223,7 @@ export function assertGrowSipResponse(value, input) {
       largestShortfall = Math.max(largestShortfall, -surplus);
     }
   }
+  if (budget.worstMonthlySurplus !== (hasBudget ? roundSignedPaise(worstRawSurplus) : null)) invalid();
   if (hasBudget) {
     const expectedStatus = firstUnfundedMonth === null
       ? 'WITHIN_DECLARED_BUDGET' : 'OVER_DECLARED_BUDGET';
@@ -234,6 +245,18 @@ export function assertGrowSipResponse(value, input) {
     if (buffer.status !== expectedStatus
       || !matchingNumber(buffer.requiredAmount, required)
       || !matchingNumber(buffer.declaredAmount, input.emergencySavings)) invalid();
+  }
+
+  // Every published warning must match the underlying status. Omissions or
+  // contradictory flags can mislead other clients even if this UI ignores them.
+  for (const [code, shouldExist] of [
+    ['AFFORDABILITY_NOT_ASSESSED', !hasBudget],
+    ['MONTHLY_EMI_NOT_DECLARED', input.monthlyEmi === undefined || input.monthlyEmi === null],
+    ['STEP_UP_EXCEEDS_DECLARED_BUDGET', firstUnfundedMonth !== null],
+    ['DECLARED_EMERGENCY_BUFFER_SHORT', buffer.status === 'DECLARED_BUFFER_SHORT'],
+    ['EMERGENCY_BUFFER_NOT_ASSESSED', buffer.status === 'NOT_ASSESSED'],
+  ]) {
+    if (value.warnings.includes(code) !== shouldExist) invalid();
   }
 
   if ((budget.status === 'WITHIN_DECLARED_BUDGET' && budget.firstUnaffordableMonth !== null)
