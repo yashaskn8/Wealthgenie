@@ -1,3 +1,4 @@
+import { calculateGoalCompoundingScenario } from './chatGoalScenarioMath.js';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FINANCIAL_NUMBER = /(?:[+\-−]\s*)?(?:₹\s*(?:[+\-−]\s*)?\d[\d,]*(?:\.\d+)?|\b(?:INR|Rs\.?)\s*(?:[+\-−]\s*)?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\b)/gi;
 const CLAIM_FIELDS = Object.freeze([
@@ -8,7 +9,7 @@ const CLAIM_FIELDS = Object.freeze([
 export const FINANCIAL_CLAIM_TYPES = Object.freeze([
   'CURRENT_RATE', 'HISTORICAL_RETURN', 'EXPECTED_RETURN', 'PROJECTED_RETURN',
   'POST_TAX_RETURN', 'ALLOCATION_WEIGHT', 'TAX_RATE', 'CURRENT_COUPON',
-  'MATURITY_AMOUNT', 'CONTRIBUTION', 'RISK_SCORE', 'GOAL_TARGET', 'GOAL_MONTHLY_BASELINE',
+  'MATURITY_AMOUNT', 'CONTRIBUTION', 'RISK_SCORE', 'GOAL_TARGET', 'GOAL_MONTHLY_BASELINE', 'GOAL_RETURN_SCENARIO_PAYMENT',
 ]);
 
 export const FINANCIAL_CLAIM_UNITS = Object.freeze([
@@ -122,6 +123,34 @@ function expectedClaimForEvidence(entry, type) {
     return { ...base, value: value.monthlyRequiredAmount, unit: 'INR_PER_MONTH',
       timePeriod: 'MONTHLY_ZERO_RETURN_BASELINE', source: 'WEALTHGENIE_BACKEND',
       jurisdiction: null, effectivePeriod: null };
+  }
+  if (type === 'GOAL_RETURN_SCENARIO_PAYMENT'
+      && entry.id === 'E_GOAL_RETURN_SCENARIO'
+      && entry.kind === 'GOAL_CALCULATION'
+      && entry.dataClass === 'DETERMINISTIC_USER_ASSUMPTION_SCENARIO'
+      && entry.authority === 'WEALTHGENIE_BACKEND'
+      && value?.rateConvention === 'EFFECTIVE_ANNUAL_CAGR'
+      && value?.monthlyPaymentTiming === 'END_OF_MONTH'
+      && value?.savedBalanceGrowth === 'NONE'
+      && value?.illustrativeOnly === true && value?.beforeTax === true
+      && ['CURRENT_USER_MESSAGE', 'TRUSTED_FINANCIAL_CHAT'].includes(value?.sourceScope)
+      && (value.scenario === 'DECLARED_SAVINGS'
+        || (value.scenario === 'ZERO_START_CONDITIONAL' && value.earmarkedSavingsAmount === 0))) {
+    const scenario = calculateGoalCompoundingScenario({
+      target: value.targetAmount,
+      earmarkedSavings: value.earmarkedSavingsAmount,
+      months: value.horizonMonths,
+      annualReturnPercent: value.annualReturnPercent,
+      annualInflationPercent: value.annualInflationPercent,
+      targetIsPresentValue: value.targetIsPresentCost === true,
+    });
+    if (scenario && scenario.requiredMonthlyContribution > 0
+        && value.monthlyRequiredAmount === scenario.requiredMonthlyContribution
+        && value.inflationAdjustedTargetAmount === scenario.inflatedTarget) {
+      return { ...base, value: scenario.requiredMonthlyContribution,
+        unit: 'INR_PER_MONTH', timePeriod: 'MONTHLY_USER_ASSUMPTION_SCENARIO',
+        source: 'WEALTHGENIE_BACKEND', jurisdiction: null, effectivePeriod: null };
+    }
   }
   if (type === 'CONTRIBUTION'
       && entry.id === 'E_PROFILE_SAVINGS'
@@ -238,6 +267,7 @@ function inferredType(statement) {
     ['CONTRIBUTION', /\b(?:contribution|monthly savings)\b/],
     ['GOAL_TARGET', /\bgoal target\b/],
     ['GOAL_MONTHLY_BASELINE', /\bfunding-only baseline\b/],
+    ['GOAL_RETURN_SCENARIO_PAYMENT', /\billustrative monthly goal payment\b/],
     ['RISK_SCORE', /\brisk score\b/],
   ];
   for (const [type, pattern] of rules) if (pattern.test(text)) matches.push(type);
