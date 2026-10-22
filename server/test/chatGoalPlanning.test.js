@@ -263,3 +263,50 @@ test('a new named goal does not inherit older daughter-wedding target or savings
   assert.equal(goal?.value.targetAmount, 1_500_000);
   assert.equal(result.some(entry => entry.id === 'E_GOAL_MONTHLY_BASELINE'), false);
 });
+
+
+test('red-team: monthly salary, EMI debt and earmarked savings never overwrite the goal', () => {
+  const input = 'Need 2 crore for daughter marriage in 10 years, my monthly income ₹2 lakh, ' +
+    'EMI debt ₹30 lakh, and saved ₹20 lakh.';
+  const entries = retrieveChatGoalPlanningEvidence(input);
+  assert.equal(entries.find(e => e.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20_000_000);
+  const baseline = entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+  assert.equal(baseline?.value.monthlyRequiredAmount, 150_000);
+  assert.equal(baseline?.value.earmarkedSavingsAmount, 2_000_000);
+});
+
+test('red-team: currently saving, abbreviated deadlines and exact paise arithmetic', () => {
+  const cases = [
+    ["Need 2 crore for daughter wedding in 10 years, saving ₹20 lakh currently.", 150_000],
+    ["Need 2 crore for wedding in 2 yrs, starting from zero.", 833_333.34],
+    ["Need 2 crore for wedding in 2.5 yrs, starting from zero.", 666_666.67],
+    ["Need ₹1.01 for wedding in 2 months, starting from zero.", 0.51],
+    ["Need ₹0.01 for wedding in 2 months, starting from zero.", 0.01],
+  ];
+  for (const [input, expected] of cases) {
+    const baseline = retrieveChatGoalPlanningEvidence(input)
+      .find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+    assert.equal(baseline?.value.monthlyRequiredAmount, expected, input);
+    assert.equal(baseline?.value.assumedGrowthRate, null);
+    assert.equal(baseline?.value.inflationRate, null);
+  }
+});
+
+test('red-team: misleading user input fails closed instead of emitting false numbers', () => {
+  for (const input of [
+    'Need ₹0.001 for wedding in 2 months, starting from zero.',
+    'Need 2 crore or 3 crore for wedding in 10 years, starting from zero.',
+    'Need 2 crore for wedding in 10 years and I have 20 lakh.',
+    'Need 2 crore for wedding in 10 years, saved ₹20 lakh, starting from zero.',
+  ]) {
+    const entries = retrieveChatGoalPlanningEvidence(input);
+    assert.equal(entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, input);
+  }
+});
+
+test('red-team: deadline abbreviations remain goal follow-ups, not detached general chat', () => {
+  const trusted = [{ role: 'user', content: 'Need 2 crore for daughter wedding' }];
+  for (const question of ['in 2 yrs', '2 yrs', 'in 30 mos']) {
+    assert.equal(isFinancialGoalFollowUpQuestion(question, trusted), true, question);
+  }
+});
