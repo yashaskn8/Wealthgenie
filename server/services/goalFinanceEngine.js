@@ -14,7 +14,7 @@ const MONEY_PRECISION = 100;
 function money(value, label, { allowNull = false } = {}) {
   if (allowNull && (value === null || value === undefined)) return null;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0
-      || value > MAX_RUPEES || Math.round(value * MONEY_PRECISION) !== value * MONEY_PRECISION) {
+      || value > MAX_RUPEES || Math.abs(Math.round(value * MONEY_PRECISION) - value * MONEY_PRECISION) > 1e-7) {
     throw new RangeError(`${label} must be a finite non-negative INR amount with at most two decimal places`);
   }
   return value;
@@ -115,6 +115,7 @@ export function calculateEmi({ principal, annualInterestRate, tenureMonths }) {
   const emi = principal === 0 ? 0 : r === 0 ? principal / tenureMonths
     : principal * r / (1 - Math.pow(1 + r, -tenureMonths));
   if (!Number.isFinite(emi)) throw new RangeError('EMI could not be calculated');
+  if (!Number.isSafeInteger(Math.floor(emi * tenureMonths))) throw new RangeError('Loan calculation exceeds safe rupee precision');
   const monthlyEmi = rupees(emi);
   const totalRepayment = rupees(emi * tenureMonths);
   return { monthlyEmi, totalRepayment, totalInterest: rupees(totalRepayment - principal),
@@ -174,7 +175,13 @@ export function projectGoalSavings({ currentSavings, monthlyContribution, years,
   const fvContributions = Math.abs(r) < 1e-12 ? contribution * months
     : contribution * Math.expm1(months * Math.log1p(r)) / r;
   const futureNominal = rupees(capital * Math.pow(1 + r, months) + fvContributions);
+  if (!Number.isFinite(futureNominal) || !Number.isSafeInteger(Math.floor(futureNominal))) {
+    throw new RangeError('Projection exceeds safe rupee precision');
+  }
   const futurePurchasingPower = rupees(futureNominal / Math.pow(1 + annualInflationAssumption / 100, years));
+  if (!Number.isFinite(futurePurchasingPower) || !Number.isSafeInteger(Math.floor(futurePurchasingPower))) {
+    throw new RangeError('Inflation-adjusted projection exceeds safe rupee precision');
+  }
   return { futureNominal, futurePurchasingPower, totalContributed: rupees(capital + months * contribution),
     returnBasis: 'USER_HYPOTHETICAL_PRE_TAX', taxStatus: 'NOT_CALCULATED',
     forecast: false, guarantee: false, policyVersion: GOAL_FINANCE_POLICY_VERSION };
