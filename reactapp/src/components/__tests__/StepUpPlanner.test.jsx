@@ -274,3 +274,17 @@ it.each([
   expect(calculate).not.toHaveBeenCalled();
   expect(screen.getByText(/Enter valid numbers/)).toBeInTheDocument();
 });
+
+it('recovers from an aborted in-flight request using the visible retry action', async () => {
+  const rejected = Object.assign(new Error('Interrupted'), { code: 'REQUEST_ABORTED' });
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection')
+    .mockRejectedValueOnce(rejected)
+    .mockResolvedValueOnce(sipResponse());
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  expect(await screen.findByText(/projection request was interrupted/)).toBeInTheDocument();
+  expect(screen.queryByText(/Every planned instalment fits/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry projection' }));
+  await waitFor(() => expect(calculate).toHaveBeenCalledTimes(2));
+  expect(await screen.findAllByText(formattedINR(sipResponse().stepUpFinal))).not.toHaveLength(0);
+  expect(screen.queryByText(/projection request was interrupted/)).not.toBeInTheDocument();
+});
