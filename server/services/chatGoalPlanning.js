@@ -1,3 +1,4 @@
+import { calculateGoalCompoundingScenario } from './chatGoalScenarioMath.js';
 /**
  * Conservative Indian-rupee financial-goal planner. It operates only on the
  * present question and short account-bound USER turns supplied by chat.
@@ -29,6 +30,32 @@ export function isFinancialGoalPlanningQuestion(question) {
     || /^\s*(?:₹|inr|rs\.?)\s*\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac|l)\b.*\b(?:daughter|son|my|our|wedding|marriage)\b/i.test(text))
     && (explicitAmount || fundingIntent);
   return namedGoal || (explicitAmount && genericGoalIntent);
+}
+
+
+const PERCENT_INPUT = /(-?\d{1,3}(?:\.\d{1,4})?)\s*%/g;
+function goalRateMentions(question) {
+  const text = goalText(question);
+  const matches = [];
+  for (const match of text.matchAll(PERCENT_INPUT)) {
+    const before = text.slice(Math.max(0, match.index - 50), match.index).toLowerCase();
+    const after = text.slice(match.index + match[0].length, match.index + match[0].length + 50).toLowerCase();
+    const inflation = /^\s*(?:(?:annual|yearly|p\.?a\.?)\s+)?(?:inflation|price inflation)\b/.test(after)
+      || /\b(?:inflation|price inflation|cost inflation)\s*(?:rate|is|of|at|:)?\s*$/.test(before);
+    const investment = /^\s*(?:(?:annual|yearly|p\.?a\.?)\s+)?(?:returns?|cagr|investment growth)\b/.test(after)
+      || /\b(?:investment\s+)?(?:returns?|cagr|growth)\s*(?:rate|is|of|at|:)?\s*$/.test(before);
+    if (inflation && investment) matches.push({ kind: 'INVALID' });
+    else if (inflation || investment) matches.push({ kind: inflation ? 'INFLATION' : 'RETURN', rate: match[1] });
+  }
+  return matches;
+}
+function isGoalScenarioRateQuestion(question) {
+  const text = goalText(question);
+  return text.length > 0 && text.length <= 240 && /\d(?:\.\d+)?\s*%/.test(text)
+    && /\b(?:inflation|returns?|cagr|investment growth|compounding)\b/i.test(text);
+}
+function isTargetPresentCost(question) {
+  return /\b(?:today'?s|current|present(?:-day)?)\s+(?:rupees|cost|price|value|money)\b|\b(?:cost|price|value)\s+(?:today|now)\b/i.test(question);
 }
 
 function authenticatedUserTurns(priorTurns) {
@@ -71,7 +98,7 @@ export function isGoalPlanningFollowUp(question) {
   const targetRevision = /\b(?:actually|instead|make\s+(?:it|that)|change\s+(?:the\s+)?(?:goal|target)|(?:my|the)\s+(?:goal|target)\s+(?:is|should\s+be))\b/i.test(text)
     && moneyIn(text).some(item => item.role === 'TARGET');
   if (targetRevision) return true;
-  if (isGoalCalculationFollowUp(text)) return true;
+  if (isGoalCalculationFollowUp(text) || isGoalScenarioRateQuestion(text)) return true;
   // Stray time references in unrelated questions must not rewrite an active goal.
   const simpleDeadline = /^(?:(?:in|within|after|over|next|for)\s+)?\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?(?:\s+instead)?\s*[.!?]?$/i;
   const namedDeadline = /^(?:(?:the|my|our|this|that)\s+)?(?:goal\s+)?(?:deadline|timeline|horizon|timeframe)\s*(?:is|of|to|:)?\s*(?:in|within|after|over)?\s*\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
@@ -282,9 +309,24 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   let invalidAmount = false;
   let contradictorySavings = false;
   let unspecifiedFrequency = false;
+  let declaredAnnualReturn = null;
+  let declaredAnnualInflation = null;
+  let conflictingRates = false;
+  let targetIsPresentCost = false;
   for (const turn of used) {
     // Numbers echoed in calculation questions never rewrite the user's target.
     const amounts = isGoalCalculationFollowUp(turn) ? [] : moneyIn(turn);
+    if (isTargetPresentCost(turn)) targetIsPresentCost = true;
+    const rateMentions = goalRateMentions(turn);
+    for (const kind of ['RETURN', 'INFLATION']) {
+      const rates = rateMentions.filter(item => item.kind === kind).map(item => item.rate);
+      if (rates.length > 1 && new Set(rates).size > 1) conflictingRates = true;
+      if (rates.length) {
+        if (kind === 'RETURN') declaredAnnualReturn = rates[rates.length - 1];
+        else declaredAnnualInflation = rates[rates.length - 1];
+      }
+    }
+    if (rateMentions.some(item => item.kind === 'INVALID')) conflictingRates = true;
     if (amounts.some(item => item.role === 'INVALID' || item.role === 'AMBIGUOUS')) invalidAmount = true;
     if (amounts.some(item => item.role === 'UNSPECIFIED_FREQUENCY')) unspecifiedFrequency = true;
     if (/\b(?:₹|rs\.?|inr)\s*[-−]\s*\d/i.test(turn)) invalidAmount = true;
@@ -324,6 +366,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   } else {
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
+  if (conflictingRates) guidance += ' Conflicting annual-rate assumptions were supplied; give one investment return rate and one inflation rate before using a growth scenario.';
+  if (declaredAnnualInflation !== null && !targetIsPresentCost) guidance += ' You supplied an inflation rate, but the goal target is not clearly stated in today’s rupees. Confirm whether the target is a present-day cost or already the amount needed at the deadline; I will not inflate it twice.';
   if (unspecifiedFrequency) guidance += ' You mentioned a possible saving or contribution without a frequency. Please confirm whether that amount is monthly, a one-time contribution, or already earmarked before I compare affordability.';
   if (isGoalCalculationFollowUp(text) && target !== null && horizon !== null) {
     guidance += ' Calculation method: subtract confirmed earmarked savings from the goal target, divide the remainder by the deadline in whole months, then round each required monthly payment upward to the next paisa. This baseline assumes no investment growth.';
@@ -376,6 +420,49 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
         dataClass: 'DETERMINISTIC_GOAL_CAPACITY_CHECK',
         source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
       });
+    }
+  }
+  // This optional growth scenario uses user-supplied rates only. The exact
+  // zero-growth obligation remains visible independently as a safety baseline.
+  // An inflation rate without a present-day target is not safe to apply.
+  if (target !== null && horizon !== null && !invalidAmount && !conflictingRates
+      && (declaredAnnualReturn !== null || declaredAnnualInflation !== null)
+      && (declaredAnnualInflation === null || targetIsPresentCost)) {
+    const scenarioSavings = saved === null ? 0 : saved;
+    const scenario = calculateGoalCompoundingScenario({
+      target, earmarkedSavings: scenarioSavings, months: horizon,
+      annualReturnPercent: declaredAnnualReturn === null ? '0' : declaredAnnualReturn,
+      annualInflationPercent: declaredAnnualInflation,
+      targetIsPresentValue: targetIsPresentCost,
+    });
+    if (scenario) {
+      const assumptionText = 'using ' + (declaredAnnualReturn === null
+        ? 'zero investment growth' : 'your stated ' + declaredAnnualReturn + '% effective annual investment return')
+        + (declaredAnnualInflation === null ? ' and no modeled inflation'
+          : ', your stated ' + declaredAnnualInflation + '% effective annual inflation on a current-price target')
+        + '. Existing earmarked savings are held constant; investments are made at month-end. Before taxes, fees and uncertainty.';
+      entries.push({
+        id: 'E_GOAL_RETURN_SCENARIO', kind: 'GOAL_CALCULATION',
+        value: {
+          monthlyRequiredAmount: scenario.requiredMonthlyContribution,
+          inflationAdjustedTargetAmount: scenario.inflatedTarget,
+          targetAmount: target, earmarkedSavingsAmount: scenarioSavings,
+          horizonMonths: horizon,
+          annualReturnPercent: scenario.annualReturnPercent,
+          annualInflationPercent: scenario.annualInflationPercent,
+          targetIsPresentCost, scenario: saved === null ? 'ZERO_START_CONDITIONAL' : 'DECLARED_SAVINGS',
+          rateConvention: scenario.rateConvention, monthlyPaymentTiming: scenario.monthlyPaymentTiming,
+          savedBalanceGrowth: scenario.savedBalanceGrowth, illustrativeOnly: true, beforeTax: true,
+          sourceScope: scope,
+        },
+        displayValue: 'Illustrative monthly goal payment: ' + INR(scenario.requiredMonthlyContribution)
+          + ' per month ' + assumptionText,
+        dataClass: 'DETERMINISTIC_USER_ASSUMPTION_SCENARIO',
+        source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
+      });
+      guidance += ' I can also show an illustrative monthly goal payment based on your stated rate assumptions; that is not a prediction or verified market rate.';
+    } else {
+      guidance += ' The growth assumptions are outside the supported exact calculation range or are contradictory; no return-based amount was calculated.';
     }
   }
   return entries;
