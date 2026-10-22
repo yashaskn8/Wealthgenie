@@ -99,6 +99,8 @@ function expectedClaimForEvidence(entry, type) {
         / value.horizonMonths) / 100
       && value.assumedGrowthRate === null && value.inflationRate === null
       && value.returnForecast === false && value.sourceScope === 'CURRENT_USER_MESSAGE'
+      && (value.scenario === 'DECLARED_SAVINGS'
+        || (value.scenario === 'ZERO_START_CONDITIONAL' && value.earmarkedSavingsAmount === 0))
       && entry.authority === 'WEALTHGENIE_BACKEND') {
     return { ...base, value: value.monthlyRequiredAmount, unit: 'INR_PER_MONTH',
       timePeriod: 'MONTHLY_ZERO_RETURN_BASELINE', source: 'WEALTHGENIE_BACKEND',
