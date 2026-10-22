@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
+import GoalSpecificationsPanel from './GoalSpecificationsPanel';
 import './GoalFinanceWorkspace.css';
 
 const CATEGORIES = [
@@ -222,6 +223,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('budget');
+  const [specRevision, setSpecRevision] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,7 +249,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
     };
     void load();
     return () => { cancelled = true; };
-  }, [month, refreshToken]);
+  }, [month, refreshToken, specRevision]);
 
   const save = async () => {
     setSaving(true); setError(null);
@@ -275,7 +277,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
   };
   const tabs = [
     ['budget', 'Budget & expenses'], ['funding', 'Shared goal funding'],
-    ['vehicle', 'EMI & vehicles'], ['projection', 'Savings forecast'],
+    ['specs', 'Goal specifications'], ['vehicle', 'EMI & vehicles'], ['projection', 'Savings forecast'],
     ['learn', 'Finance & gold basics'],
   ];
   return <section className="wg-goal-workspace" aria-label="Goals financial planning tools">
@@ -320,6 +322,7 @@ export default function GoalFinanceWorkspace({ refreshToken = '' }) {
         <Notice kind="warning">{funding.plan.warnings.join('; ').replaceAll('_', ' ')}</Notice>
       </> : <Notice kind="error">Funding plan unavailable. No amount is assumed affordable.</Notice>}
     </div>}
+    {!loading && activeTab === 'specs' && <GoalSpecificationsPanel onChanged={() => setSpecRevision(x => x + 1)}/>}
     {!loading && activeTab === 'vehicle' && <VehicleForm key={month} month={month}/>}
     {!loading && activeTab === 'projection' && <SavingsProjection/>}
     {!loading && activeTab === 'learn' && <div className="wg-goal-panel">
