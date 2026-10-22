@@ -86,9 +86,8 @@ test('general questions call Groq first, NVIDIA second on a retryable outage, wi
   assert.equal(calls[1].request.recentHistory.length, 3);
 });
 
-test('rate limit, safety refusal and nonretryable failures never cause NVIDIA failover', async () => {
-  for (const failure of ['PROVIDER_RATE_LIMITED', 'PROVIDER_AUTHENTICATION_FAILED',
-    'PROVIDER_SAFETY_REJECTION', 'PROVIDER_BAD_REQUEST']) {
+test('safety refusals and nonretryable client failures never cause NVIDIA failover', async () => {
+  for (const failure of ['PROVIDER_SAFETY_REJECTION', 'PROVIDER_BAD_REQUEST']) {
     let secondaryCalled = false;
     const result = await generateGeneralChatAnswer({ question: 'Explain a greeting.' }, {
       providers: [
@@ -102,6 +101,48 @@ test('rate limit, safety refusal and nonretryable failures never cause NVIDIA fa
     assert.equal(result.provider, 'SYSTEM');
     assert.deepEqual(result.citations, []);
   }
+});
+
+
+test('red-team: rate-limit and expired Groq credential switch to NVIDIA but safety refusal never does', async () => {
+  for (const failure of ['PROVIDER_RATE_LIMITED', 'PROVIDER_AUTHENTICATION_FAILED']) {
+    let secondaryCalls = 0;
+    const answer = await generateGeneralChatAnswer({ question: 'Explain Python decorators.' }, {
+      providers: [
+        { name: 'groq', isConfigured: () => true, lastFailureReason: failure,
+          async generate() { return null; } },
+        { name: 'nvidia_nim', isConfigured: () => true,
+          async generate() { secondaryCalls += 1; return {
+            provider: 'nvidia_nim', text: 'A decorator wraps a callable.',
+            tokensUsed: 17, wasCompleted: true,
+          }; } },
+      ],
+    });
+    assert.equal(secondaryCalls, 1, failure);
+    assert.equal(answer.provider, 'NVIDIA_NIM', failure);
+    assert.equal(answer.fallback, true, failure);
+    assert.deepEqual(answer.validation.reasonCodes, ['PRIMARY_PROVIDER_UNAVAILABLE']);
+    assert.deepEqual(answer.citations, [], failure);
+    assert.equal(answer.providerAttemptCount, 2, failure);
+    assert.equal(answer.providerAttemptFailureCount, 1, failure);
+  }
+});
+
+test('red-team: an unconfigured primary is recorded as a fallback when the second provider succeeds', async () => {
+  const answer = await generateGeneralChatAnswer({ question: 'Explain Python decorators.' }, {
+    providers: [
+      { name: 'groq', isConfigured: () => false },
+      { name: 'nvidia_nim', isConfigured: () => true,
+        async generate() { return { provider: 'nvidia_nim',
+          text: 'A decorator wraps a function.', tokensUsed: 12, wasCompleted: true }; } },
+    ],
+  });
+  assert.equal(answer.provider, 'NVIDIA_NIM');
+  assert.equal(answer.fallback, true);
+  assert.deepEqual(answer.validation.reasonCodes, ['PRIMARY_PROVIDER_UNAVAILABLE']);
+  assert.deepEqual(answer.citations, []);
+  assert.equal(answer.providerAttemptCount, 1);
+  assert.equal(answer.providerAttemptFailureCount, 0);
 });
 
 test('unavailable providers or budget exhaustion return unsourced unavailability, not fabricated citations', async () => {
