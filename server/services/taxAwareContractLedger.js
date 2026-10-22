@@ -42,17 +42,37 @@ export function calculateTaxedContractLedger({
  if(!sourceRightsQualified)return unavailable('SOURCE_RIGHTS_UNQUALIFIED');
  if(qualifiedProductTaxClass!=='ORDINARY_INTEREST')return unavailable('TAX_CLASS_NOT_QUALIFIED');
  if(ledger?.status!=='RECONCILED'||!Array.isArray(ledger.events))return unavailable('CONTRACT_LEDGER_UNQUALIFIED');
+ if(ledger.events.length<3 || ledger.events.length>40) return unavailable('CONTRACT_LEDGER_EVENT_COUNT_INVALID');
+ if(ledger.currency && ledger.currency!=='INR')return unavailable('CONTRACT_LEDGER_CURRENCY_UNQUALIFIED');
+ if(ledger.timingBasis && ledger.timingBasis!=='RELATIVE_MONTH_OFFSETS_NOT_SETTLEMENT_DATES')
+   return unavailable('CONTRACT_LEDGER_TIMING_BASIS_UNQUALIFIED');
  if(!eventDates||typeof eventDates!=='object'||Array.isArray(eventDates))return unavailable('EXACT_SETTLEMENT_DATES_REQUIRED');
  if(!taxContexts||typeof taxContexts!=='object'||Array.isArray(taxContexts))return unavailable('TAX_YEARS_REQUIRED');
  const events=[];
+ const uniqueIds=new Set();
  for(const item of ledger.events) {
+  if(typeof item?.id!=='string'||uniqueIds.has(item.id))
+    return unavailable('CONTRACT_LEDGER_DUPLICATE_OR_INVALID_EVENT_ID');
+  uniqueIds.add(item.id);
+  if(item.kind==='SUBSCRIPTION' && item.amountPaise>=0
+    ||item.kind==='INTEREST_PAYOUT' && item.amountPaise<=0
+    ||item.kind==='PRINCIPAL_REDEMPTION' && item.amountPaise<=0)
+    return unavailable('CONTRACT_LEDGER_INVALID_CASHFLOW_SIGN');
   const date=eventDates[item.id];
   if(!dateValid(date))return unavailable('EXACT_SETTLEMENT_DATE_MISSING:'+item.id);
   if(!Number.isSafeInteger(item.amountPaise))return unavailable('CASHFLOW_PRECISION_INVALID');
   events.push({id:item.id,kind:item.kind,date,grossAmountPaise:item.amountPaise,netAmountPaise:item.amountPaise});
  }
  events.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
- if(!['SUBSCRIPTION'].includes(events[0]?.kind))return unavailable('MISSING_INITIAL_SUBSCRIPTION');
+ if(events.filter(e=>e.kind==='SUBSCRIPTION').length!==1
+  ||events[0]?.kind!=='SUBSCRIPTION')return unavailable('MISSING_OR_DUPLICATED_INITIAL_SUBSCRIPTION');
+ const principalEvents=events.filter(e=>e.kind==='PRINCIPAL_REDEMPTION');
+ if(principalEvents.length!==1 || principalEvents[0].grossAmountPaise!==-events[0].grossAmountPaise)
+   return unavailable('PRINCIPAL_REDEMPTION_RECONCILIATION_FAILED');
+ if(principalEvents[0].date < events.at(-1).date)
+   return unavailable('PRINCIPAL_REDEMPTION_PRECEDES_FINAL_CASHFLOW');
+ if(new Set(events.map(e=>e.id)).size!==events.length)
+   return unavailable('CONTRACT_LEDGER_DUPLICATE_EVENT_ID');
  const interest=events.filter(e=>e.kind==='INTEREST_PAYOUT');
  if(!interest.length)return unavailable('VERIFIED_INTEREST_ACCRUAL_SCHEDULE_REQUIRED');
  if(events.some(e=>!['SUBSCRIPTION','INTEREST_PAYOUT','PRINCIPAL_REDEMPTION'].includes(e.kind))){
@@ -64,6 +84,11 @@ export function calculateTaxedContractLedger({
   totals.set(year,(totals.get(year)||0)+event.grossAmountPaise);
  }
  const taxByYear=new Map();
+ if(ledger.totalReceiptsPaise!==undefined){
+  const receipts=events.reduce((sum,e)=>sum+Math.max(0,e.grossAmountPaise),0);
+  if(!Number.isSafeInteger(receipts)||receipts!==ledger.totalReceiptsPaise)
+   return unavailable('CONTRACT_LEDGER_SOURCE_RECEIPTS_MISMATCH');
+ }
  for(const [year,amountPaise] of totals) {
   const context=taxContexts[year];
   if(!context||context.fiscalYear!==year
@@ -71,7 +96,7 @@ export function calculateTaxedContractLedger({
      ||!Number.isInteger(context.userAge)||context.userAge<18||context.userAge>120
      ||!['salary','pension','family_pension','business','other'].includes(context.incomeSource)
      ||!['new','old'].includes(context.regime)
-     ||!context.baselineExcludesTheseInterestEvents
+     ||context.baselineExcludesTheseInterestEvents!==true
      ||!context.deductions||typeof context.deductions!=='object')return unavailable('INCOMPLETE_INVESTOR_TAX_YEAR:'+year);
   try {
    getTaxPolicyMetadata(year);
@@ -80,6 +105,8 @@ export function calculateTaxedContractLedger({
    const baseline=computeTax(...args);
    const withInterest=computeTax(context.annualGrossIncome+amountPaise/100,
       context.regime,context.deductions,context.incomeSource,year,context.userAge);
+   if(!Number.isFinite(withInterest.taxAmount)||!Number.isFinite(baseline.taxAmount))
+     return unavailable('TAX_AMOUNT_NOT_ESTABLISHED:'+year);
    const liability=Math.max(0,Math.round((withInterest.taxAmount-baseline.taxAmount)*100));
    if(!Number.isSafeInteger(liability))return unavailable('TAX_PRECISION_INVALID');
    taxByYear.set(year,liability);
