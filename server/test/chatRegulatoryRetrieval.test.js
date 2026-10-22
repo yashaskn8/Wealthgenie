@@ -81,6 +81,7 @@ test('unverified, tenant-scoped, mutated or mismatched chunks cannot become auth
     r => { r.retrieved_chunks[0].chunk.metadata.source = 'https://attacker.example/phishing'; },
     r => { r.retrieved_chunks[0].chunk.lifecycle_state = 'SOFT_DELETED'; },
     r => { r.citations[0].chunk_id = 'different-chunk'; },
+    r => { r.retrieved_chunks[0].chunk.metadata.title = 'Forged tax source'; r.citations[0].document_title = 'Forged tax source'; },
   ];
   for (const mutate of variants) {
     const bad = approvedResponse();
