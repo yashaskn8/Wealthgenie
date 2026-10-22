@@ -38,9 +38,10 @@ router.get('/policies', asyncHandler(async (req, res) => {
  * Deliberately separate from the legacy compare, cash-flow, and capital-gain APIs.
  */
 router.post('/new-regime-verified', asyncHandler(async (req, res) => {
+  // No tax submission or rejected amount may be cached by an intermediary.
+  res.set('Cache-Control', 'no-store');
   try {
     const result = calculateVerifiedNewRegime(req.body);
-    res.set('Cache-Control', 'no-store');
     return res.json(result);
   } catch (error) {
     if (error.code === 'UNSUPPORTED_TAX_YEAR') {
