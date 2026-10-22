@@ -75,9 +75,9 @@ export function allocateGoalFunding(goals, capacity) {
     try { currentSavings = money(g.current_savings ?? null, `goal ${index} current_savings`, { allowNull: true }); }
     catch { invalidInputs = true; }
     const date = g.target_date ? new Date(g.target_date) : null;
-    if (date && !Number.isFinite(date.getTime())) invalidInputs = true;
+    if (!date || !Number.isFinite(date.getTime())) invalidInputs = true;
     const knownPriority = Object.hasOwn(PRIORITIES, g.priority);
-    if (!knownPriority) invalidInputs = true;
+    if (!knownPriority || !String(g.goal_name ?? '').trim()) invalidInputs = true;
     return {
       goalId: String(g.goalId ?? g._id ?? ''),
       name: String(g.goal_name ?? '').slice(0, 100),
@@ -92,7 +92,16 @@ export function allocateGoalFunding(goals, capacity) {
   const ordered = entries.sort((a, b) => (PRIORITIES[a.priority] ?? 99) - (PRIORITIES[b.priority] ?? 99)
     || (a.dueDate || '').localeCompare(b.dueDate || '') || a.goalId.localeCompare(b.goalId));
   const overlappingSavingsRisk = ordered.filter(e => e.currentSavings > 0).length > 1;
-  const fundingVerified = available !== null && !overlappingSavingsRisk
+  // A typed goal and a legacy goal may describe the same real-world expense.
+  // Identical normalized names and Indian target dates cannot be counted twice
+  // as independently confirmed liabilities in an affordability judgement.
+  const normalizedGoals = ordered.map(e => ({
+    name: e.name.trim().toLocaleLowerCase('en-IN').replace(/\\s+/g, ' '),
+    day: e.dueDate?.slice(0, 10) ?? '',
+  }));
+  const keys = normalizedGoals.map(e => e.name && e.day ? `${e.name}:${e.day}` : null).filter(Boolean);
+  const duplicateRealWorldGoalRisk = new Set(keys).size !== keys.length;
+  const fundingVerified = available !== null && !overlappingSavingsRisk && !duplicateRealWorldGoalRisk
     && ordered.every(e => e.fresh && e.required !== null);
   let remaining = available;
   const allocations = ordered.map(e => {
@@ -118,6 +127,7 @@ export function allocateGoalFunding(goals, capacity) {
       ...(!fundingVerified ? ['GOAL_CALCULATION_OR_BUDGET_MISSING'] : []),
       ...(ordered.some(e => e.invalidInputs) ? ['INVALID_PERSISTED_GOAL_INPUT'] : []),
       ...(overlappingSavingsRisk ? ['MULTIPLE_GOALS_CLAIM_POTENTIALLY_OVERLAPPING_SAVINGS'] : []),
+      ...(duplicateRealWorldGoalRisk ? ['POSSIBLY_DUPLICATE_REAL_WORLD_GOAL'] : []),
       ...(fundingVerified && totalRequested > available ? ['GOALS_COMPETE_FOR_ONE_SAVINGS_POOL'] : []),
       'CURRENT_GOAL_SAVINGS_ARE_USER_DECLARED_NOT_BANK_VERIFIED',
       'PER_GOAL_PROBABILITIES_NOT_JOINT_PROBABILITY',
