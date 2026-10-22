@@ -35,7 +35,7 @@ try {
     "(o.data_class='PUBLISHED_RATE' AND",
     "o.effective_from<=(now() AT TIME ZONE 'Asia/Kolkata')::date AND",
     "(o.effective_to IS NULL OR o.effective_to>=(now() AT TIME ZONE 'Asia/Kolkata')::date))",
-    ')) AS potentially_qualified',
+    '))) AS potentially_qualified',
     'FROM finance.products f',
     'JOIN finance.categories c ON c.id=f.category_id',
     'LEFT JOIN finance.family_product_qualifications q ON q.family_id=f.id',
