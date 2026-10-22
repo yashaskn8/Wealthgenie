@@ -9,7 +9,7 @@ const INR = amount => 'INR ' + amount.toLocaleString('en-IN', { maximumFractionD
 
 export function isFinancialGoalPlanningQuestion(question) {
   const text = String(question || '').slice(0, 1000);
-  return GOAL_SUBJECT.test(text) && GOAL_INTENT.test(text);
+  return GOAL_SUBJECT.test(text) && (GOAL_INTENT.test(text) || AMOUNT.test(text));
 }
 
 function extractMoney(question) {
@@ -53,8 +53,21 @@ export function retrieveChatGoalPlanningEvidence(question) {
   const horizonMatch = text.match(/\b(?:in|within|after|over)\s+(\d{1,2}(?:\.\d+)?)\s+years?\b/i);
   const months = horizonMatch ? Number(horizonMatch[1]) * 12 : null;
   const validMonths = Number.isSafeInteger(months) && months > 0 && months <= 600;
-  const guidance = 'For ' + contextLabel(text)
-    + ', I can plan a funding target, not promise an investment outcome. Please confirm when the money is needed, how much is already saved specifically for this goal, and how much can be saved each month. A contribution-only calculation assumes no investment growth or inflation; actual future costs, returns, taxes and product suitability require separate verified inputs.';
+  const capacityMatch = text.match(/\b(?:can\s+(?:save|contribute|afford)|monthly\s+(?:savings|saving|capacity|contribution))\s+(?:(?:₹|rs\.?|inr)\s*)?([\d,]+(?:\.\d+)?)\s*(k|thousand|lakhs?|lacs?)?\s*(?:per\s+month|monthly|a\s+month)?\b/i);
+  const capacityMultiplier = /^k$|^thousand$/i.test(capacityMatch?.[2] || '') ? 1000
+    : /^(?:lakh|lakhs|lac|lacs)$/i.test(capacityMatch?.[2] || '') ? 100_000 : 1;
+  const capacity = capacityMatch ? Number(capacityMatch[1].replace(/,/g, '')) * capacityMultiplier : null;
+  const validCapacity = Number.isSafeInteger(capacity) && capacity >= 0 && capacity <= 100_000_000;
+  const missing = [];
+  if (target === null) missing.push('a single clear target amount');
+  if (!validMonths) missing.push('the deadline in years');
+  if (existing === null) missing.push('how much is already earmarked for this goal (or confirm zero)');
+  if (!validCapacity) missing.push('how much you can set aside monthly');
+  const guidance = 'For ' + contextLabel(text) + ', '
+    + (missing.length
+      ? 'to build a usable funding plan please confirm ' + missing.join(', ') + '.'
+      : 'your stated inputs allow a contribution-only funding check.')
+    + ' Any contribution-only illustration excludes investment growth and inflation; future costs, taxes, investment performance and product suitability need independent verified inputs.';
   const entries = [{
     id: 'E_GOAL_PLANNING_GUIDANCE', kind: 'ANSWER_BOUNDARY',
     value: { goalContext: contextLabel(text), forecastAuthorized: false, sourceScope: 'CURRENT_USER_MESSAGE' },
@@ -68,7 +81,8 @@ export function retrieveChatGoalPlanningEvidence(question) {
     dataClass: 'USER_INPUT', source: null, observedAt: null, freshness: null, authority: 'USER_INPUT',
   });
   if (target !== null && existing !== null && validMonths && existing <= target) {
-    const baseline = Math.ceil(((target - existing) / months) * 100) / 100;
+    // All rupee inputs are integers, so do ceiling to paisa in integer space.
+    const baseline = Math.ceil(((target - existing) * 100) / months) / 100;
     if (Number.isFinite(baseline) && baseline > 0) entries.push({
       id: 'E_GOAL_MONTHLY_BASELINE', kind: 'GOAL_CALCULATION',
       value: { monthlyRequiredAmount: baseline, targetAmount: target,
@@ -79,6 +93,20 @@ export function retrieveChatGoalPlanningEvidence(question) {
       dataClass: 'DETERMINISTIC_NO_RETURN_ILLUSTRATION',
       source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
     });
+    if (validCapacity) {
+      const affordable = capacity >= baseline;
+      entries.push({
+        id: 'E_GOAL_CAPACITY_CHECK', kind: 'GOAL_CAPACITY',
+        value: { monthlyCapacityAmount: capacity, monthlyRequiredAmount: baseline,
+          goalIsContributionFundable: affordable, returnForecast: false,
+          sourceScope: 'CURRENT_USER_MESSAGE' },
+        displayValue: affordable
+          ? 'At the monthly saving capacity you supplied, the contribution-only baseline is within capacity. This is not a prediction of market returns or future costs'
+          : 'At the monthly saving capacity you supplied, this target is not fundable from contributions alone by the requested deadline. Consider revising the target or date; do not assume higher returns will close the gap',
+        dataClass: 'DETERMINISTIC_GOAL_CAPACITY_CHECK',
+        source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
+      });
+    }
   }
   return entries;
 }
