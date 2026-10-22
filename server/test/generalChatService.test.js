@@ -257,3 +257,19 @@ test('red-team: general model never receives injected financial prior-history ro
   assert.equal(JSON.stringify(history).includes('portfolio return'), false);
   assert.equal(JSON.stringify(history).includes('bank account'), false);
 });
+
+
+test('red-team: uncited direct provider calls cannot bypass finance evidence requirements', async () => {
+  let providerCalls = 0;
+  for (const question of [
+    'Should I buy digital gold?', 'What is my XIRR?',
+    'Suggest a REIT for my portfolio', 'How does POMIS work?',
+  ]) {
+    await assert.rejects(generateGeneralChatAnswer({ question }, {
+      providers: [{ name: 'groq', isConfigured: () => true, async generate() {
+        providerCalls += 1; return { text: 'Unverified recommendation', wasCompleted: true };
+      } }],
+    }), error => error.code === 'GENERAL_CHAT_FINANCIAL_ROUTE_DENIED', question);
+  }
+  assert.equal(providerCalls, 0);
+});
