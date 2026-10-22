@@ -206,8 +206,11 @@ export default function NewRegimeTaxScreen() {
         <label className="wg-new-tax__confirm">
           <input type="checkbox" checked={form.confirmedOrdinaryOnly}
             onChange={e => change('confirmedOrdinaryOnly', e.target.checked)} />
-          <span>I confirm these amounts represent ordinary-rate income only, with no unmodelled exemptions,
-            deductions, losses or adjustments. All amounts belong to Tax Year 2026–27.</span>
+          <span>I confirm this is a single-individual, ordinary-rate-income estimate for Tax Year 2026–27,
+            with no unmodelled exemptions, deductions, business adjustments, brought-forward losses,
+            foreign income or tax credits, salary arrears requiring special relief, or agricultural income
+            requiring rate integration. I understand that capital gains, dividends and other special-rate
+            income need a full tax computation.</span>
         </label>
         <button type="submit" disabled={loading}>{loading ? 'Verifying calculation…' : 'Calculate income tax'}</button>
       </form>
