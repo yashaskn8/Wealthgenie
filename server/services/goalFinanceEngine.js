@@ -64,20 +64,32 @@ export function allocateGoalFunding(goals, capacity) {
   if (!Array.isArray(goals) || goals.length > 250) throw new TypeError('Expected up to 250 goals');
   const available = money(capacity, 'available goal capacity', { allowNull: true });
   const entries = goals.map((g, index) => {
-    const required = money(g.recommended_sip, `goal ${index} required_sip`, { allowNull: true });
+    if (!g || typeof g !== 'object') throw new TypeError(`Goal ${index} is not an object`);
+    // Legacy and corrupted records must fail closed, not crash the entire planner
+    // or be coerced into a plausible rupee amount or valid deadline.
+    let required = null;
+    let currentSavings = null;
+    let invalidInputs = false;
+    try { required = money(g.recommended_sip, `goal ${index} required_sip`, { allowNull: true }); }
+    catch { invalidInputs = true; }
+    try { currentSavings = money(g.current_savings ?? null, `goal ${index} current_savings`, { allowNull: true }); }
+    catch { invalidInputs = true; }
+    const date = g.target_date ? new Date(g.target_date) : null;
+    if (date && !Number.isFinite(date.getTime())) invalidInputs = true;
+    const knownPriority = Object.hasOwn(PRIORITIES, g.priority);
+    if (!knownPriority) invalidInputs = true;
     return {
       goalId: String(g.goalId ?? g._id ?? ''),
       name: String(g.goal_name ?? '').slice(0, 100),
-      priority: g.priority,
-      dueDate: g.target_date ? new Date(g.target_date).toISOString() : null,
-      required, currentSavings: money(g.current_savings ?? null, `goal ${index} current_savings`, { allowNull: true }),
-      // A stale recommendation cannot consume capacity authoritatively.
-      fresh: g.calculation_freshness?.fresh === true,
+      priority: knownPriority ? g.priority : 'Unknown',
+      dueDate: date && Number.isFinite(date.getTime()) ? date.toISOString() : null,
+      required, currentSavings, invalidInputs,
+      fresh: !invalidInputs && g.calculation_freshness?.fresh === true,
     };
   });
-  if (entries.some(e => !e.goalId || !Object.hasOwn(PRIORITIES, e.priority))) throw new TypeError('Goal identity or priority invalid');
+  if (entries.some(e => !e.goalId)) throw new TypeError('Goal identity invalid');
   if (new Set(entries.map(e => e.goalId)).size !== entries.length) throw new TypeError('Duplicate goal identities');
-  const ordered = entries.sort((a, b) => PRIORITIES[a.priority] - PRIORITIES[b.priority]
+  const ordered = entries.sort((a, b) => (PRIORITIES[a.priority] ?? 99) - (PRIORITIES[b.priority] ?? 99)
     || (a.dueDate || '').localeCompare(b.dueDate || '') || a.goalId.localeCompare(b.goalId));
   const fundingVerified = available !== null && ordered.every(e => e.fresh && e.required !== null);
   let remaining = available;
@@ -102,6 +114,7 @@ export function allocateGoalFunding(goals, capacity) {
     remainingCapacity: fundingVerified ? remaining : null,
     warnings: [
       ...(!fundingVerified ? ['GOAL_CALCULATION_OR_BUDGET_MISSING'] : []),
+      ...(ordered.some(e => e.invalidInputs) ? ['INVALID_PERSISTED_GOAL_INPUT'] : []),
       ...(fundingVerified && totalRequested > available ? ['GOALS_COMPETE_FOR_ONE_SAVINGS_POOL'] : []),
       'CURRENT_GOAL_SAVINGS_NOT_PROVEN_DISTINCT',
       'PER_GOAL_PROBABILITIES_NOT_JOINT_PROBABILITY',
