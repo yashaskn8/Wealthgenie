@@ -14,7 +14,8 @@ export function isFinancialGoalPlanningQuestion(question) {
   const text = goalText(question);
   // Never divert ordinary travel, healthcare, education or wedding questions
   // into the financial engine based solely on a shared subject word.
-  const explicitAmount = new RegExp(AMOUNT.source, 'i').test(text);
+  const explicitAmount = new RegExp(AMOUNT.source, 'i').test(text)
+    || /(?:₹|\binr\b|\brs\.?)\s*[-−]?\s*\d[\d,.]*(?:\s*[a-z]+)?/i.test(text);
   const fundingIntent = /\b(?:sav(?:e|ing|ings)|fund(?:s|ing)?|financ(?:e|es|ial)|afford|target|budget|corpus|rupees?|money|invest(?:ing|ment)?|monthly|lump[ -]?sum|costs?|expenses?|payments?|set aside|crores?|crors?|lakhs?|lacs?|paise)\b/i.test(text);
   return SUBJECT.test(text) && (GOAL_INTENT.test(text)
     || /\b(?:will|would|may)\s+cost\b/i.test(text)
@@ -166,12 +167,31 @@ function goalName(text) {
   return 'this goal';
 }
 
+function namedGoalTopics(text) {
+  const topics = [];
+  if (/\b(?:marriage|wedding|ceremony)\b/i.test(text)) topics.push('WEDDING');
+  if (/\b(?:college|university|education|study|school|tuition)\b/i.test(text)) topics.push('EDUCATION');
+  if (/\b(?:medical|hospital|healthcare)\b/i.test(text)) topics.push('HEALTH');
+  if (/\b(?:home|house|property|down payment)\b/i.test(text)) topics.push('HOME');
+  if (/\b(?:car|vehicle)\b/i.test(text)) topics.push('VEHICLE');
+  if (/\b(?:travel|vacation|trip)\b/i.test(text)) topics.push('TRAVEL');
+  if (/\b(?:startup|business)\b/i.test(text)) topics.push('BUSINESS');
+  if (/\bretirement\b/i.test(text)) topics.push('RETIREMENT');
+  if (/\bemergency fund\b/i.test(text)) topics.push('EMERGENCY');
+  return topics;
+}
+
 export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = [] } = {}) {
   const text = goalText(question);
   const past = authenticatedUserTurns(priorUserTurns);
   const direct = isFinancialGoalPlanningQuestion(text);
   const previousGoalIndex = past.findLastIndex(isFinancialGoalPlanningQuestion);
   if (!direct && (previousGoalIndex < 0 || !isGoalPlanningFollowUp(text))) return [];
+  // A later, distinctly named goal must never reuse an older goal's corpus.
+  const questionTopics = namedGoalTopics(text);
+  const priorTopics = previousGoalIndex >= 0 ? namedGoalTopics(past[previousGoalIndex]) : [];
+  if (questionTopics.length > 1 || (!direct && questionTopics.length > 0
+      && (priorTopics.length !== 1 || questionTopics[0] !== priorTopics[0]))) return [];
 
   // A new named goal must not inherit amounts from an unrelated older goal.
   const used = direct ? [text] : [...past.slice(previousGoalIndex), text];
