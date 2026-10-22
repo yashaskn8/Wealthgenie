@@ -146,3 +146,33 @@ test('no tools, schema bypass or invented citations are sent to general provider
   assert.equal(answer.validation.status, 'UNVERIFIED_GENERAL_CHAT');
   assert.deepEqual(answer.citations, []);
 });
+
+
+test('general red-team: coding array indices are not fabricated citations', async () => {
+  const codingExample = 'Example:\nconst values = [1, 2, 3];\nconsole.log(values[0]);';
+  const reply = await generateGeneralChatAnswer({ question: 'Explain JavaScript array indexing' }, {
+    providers: [{
+      name: 'groq', isConfigured: () => true,
+      async generate() { return { provider: 'groq', text: codingExample,
+        tokensUsed: 24, wasCompleted: true }; },
+    }],
+  });
+  assert.equal(reply.provider, 'GROQ');
+  assert.equal(reply.text, codingExample);
+  assert.deepEqual(reply.citations, []);
+  assert.equal(reply.validation.status, 'UNVERIFIED_GENERAL_CHAT');
+});
+
+test('general red-team: fabricated source reference still fails closed', async () => {
+  for (const fake of ['According to source [1], this is proven.',
+    'This is verified. [E_FAKE_EVIDENCE]', 'Visit https://unverified.example/a']) {
+    const reply = await generateGeneralChatAnswer({ question: 'Tell me something.' }, {
+      providers: [{ name: 'groq', isConfigured: () => true,
+        async generate() { return { provider: 'groq', text: fake,
+          tokensUsed: 20, wasCompleted: true }; } }],
+    });
+    assert.equal(reply.provider, 'SYSTEM', fake);
+    assert.deepEqual(reply.citations, [], fake);
+    assert.match(reply.text, /unavailable/i, fake);
+  }
+});
