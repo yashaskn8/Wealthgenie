@@ -6,7 +6,9 @@
  */
 const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|trip|startup|business|ceremony|emergency fund|school|tuition)\b/i;
 const GOAL_INTENT = /\b(?:need|want|save|fund|afford|plan|target|goal|corpus|budget|reach|arrange|require|how much|collect|build|set aside|prepare|raise)\b/i;
-const AMOUNT = /(?:₹\s*|(?:rs\.?|inr)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(crores?|crors?|crs?|cr|lakhs?|lacs?|lac|thousands?|k)\b|(?:₹|inr|rs\.?)\s*(\d[\d,]*(?:\.\d+)?)(?!\s*(?:%|years?|months?))/gi;
+// The numeric lookahead is essential: without it, "₹50,000 monthly"
+ // backtracks to "₹50,00" (₹5,000) to bypass the unit exclusion.
+const AMOUNT = /(?:₹\s*|(?:rs\.?|inr)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(crores?|crors?|crs?|cr|lakhs?|lacs?|lac|thousands?|k)\b|(?:₹|inr|rs\.?)\s*(\d[\d,]*(?:\.\d+)?)(?![\d,.])(?!\s*(?:%|years?|months?))/gi;
 const INR = amount => 'INR ' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const goalText = value => String(value || '').slice(0, 1000).trim();
 
@@ -40,16 +42,36 @@ export function isGoalPlanningFollowUp(question) {
     || /\b(?:saved|savings|set aside|already have|starting from zero|nothing saved|no savings|per month|monthly|years?|months?|horizon|deadline|timeline|afford|can contribute|can save|can invest)\b/i.test(text);
 }
 
+/**
+ * Exact decimal → integer paisa conversion using base-10 arithmetic.
+ * Reject malformed Indian/western separators, fractional paisa and >₹100bn.
+ * No parseFloat, binary-float multiplication or decimal truncation.
+ */
+function moneyInPaise(raw, unit) {
+  const normalized = String(raw || '').trim();
+  if (!/^(?:\d+|\d{1,3}(?:,\d{2})*,\d{3}|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(normalized)) return null;
+  const [whole, fraction = ''] = normalized.replace(/,/g, '').split('.');
+  const scale = /^cr/.test(unit) ? 9
+    : /^(?:lakh|lac)/.test(unit) ? 7
+      : /^(?:k|thousand)/.test(unit) ? 5 : 2;
+  const trimmedFraction = fraction.replace(/0+$/, '');
+  if (trimmedFraction.length > scale) return null; // cannot represent below 1 paisa
+  const amountPaise = BigInt(whole) * (10n ** BigInt(scale))
+    + BigInt((trimmedFraction + '0'.repeat(scale)).slice(0, scale) || '0');
+  const maxPaise = 100_000_000_000n * 100n;
+  if (amountPaise <= 0n || amountPaise > maxPaise
+      || amountPaise > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  return Number(amountPaise);
+}
+
 function moneyIn(question) {
   const found = [];
   for (const match of goalText(question).matchAll(AMOUNT)) {
     const amountUnit = String(match[3] ? '' : match[2] || '').toLowerCase();
-    const factor = /^cr/.test(amountUnit) ? 10_000_000
-      : /^(?:lakh|lac)/.test(amountUnit) ? 100_000
-        : /^(?:k|thousand)/.test(amountUnit) ? 1000 : 1;
     const raw = match[1] || match[3];
-    const amount = Number(raw.replace(/,/g, '')) * factor;
-    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 100_000_000_000) continue;
+    const paisa = moneyInPaise(raw, amountUnit);
+    if (paisa === null) continue;
+    const amount = paisa / 100;
     const before = String(question).slice(Math.max(0, match.index - 55), match.index).toLowerCase();
     const after = String(question).slice(match.index + match[0].length, match.index + match[0].length + 34).toLowerCase();
     const savings = /(?:already\s+)?(?:have|saved|earmarked|set aside|saved up|have put aside|accumulated|existing savings)\s*(?:up to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before.trim())
@@ -131,7 +153,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
   if (monthlyCapacity !== null && saved !== null && horizon !== null && target !== null) {
-    const required = Math.ceil(((Math.max(0, target - saved)) / horizon) * 100) / 100;
+    const required = Math.ceil((Math.max(0, Math.round(target * 100) - Math.round(saved * 100))) / horizon) / 100;
     guidance += monthlyCapacity >= required
       ? ' Your stated monthly capacity is at least this contribution-only baseline.'
       : ' Your stated monthly capacity is below this contribution-only baseline; the goal, deadline or contributions would need reviewing.';
@@ -151,7 +173,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   if (target !== null && horizon !== null && (saved === null || saved < target)) {
     const scenarioSavings = saved === null ? 0 : saved;
     const scenario = saved === null ? 'ZERO_START_CONDITIONAL' : 'DECLARED_SAVINGS';
-    const baseline = Math.ceil(((target - scenarioSavings) * 100) / horizon) / 100;
+    const baseline = Math.ceil((Math.round(target * 100) - Math.round(scenarioSavings * 100)) / horizon) / 100;
     if (Number.isFinite(baseline) && baseline > 0) entries.push({
       id: 'E_GOAL_MONTHLY_BASELINE', kind: 'GOAL_CALCULATION',
       value: { monthlyRequiredAmount: baseline, targetAmount: target,
