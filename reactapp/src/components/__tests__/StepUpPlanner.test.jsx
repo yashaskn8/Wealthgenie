@@ -28,7 +28,7 @@ it('labels the step-up difference as extra projected corpus, not investment gain
 
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
 
-  expect(screen.getByText('Extra projected corpus')).toBeInTheDocument();
+  expect(screen.getByText('Extra projected corpus (nearest ₹1)')).toBeInTheDocument();
   expect(screen.queryByText('Extra Wealth Gained')).not.toBeInTheDocument();
 });
 
@@ -44,21 +44,21 @@ it('hides a prior projection when inputs change and ignores late results from ol
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(1));
   await act(async () => initial.resolve({ flatFinal: 123000000 }));
-  expect(await screen.findByText('₹12.3 Cr')).toBeInTheDocument();
+  expect(await screen.findByText('₹12,30,00,000')).toBeInTheDocument();
 
   const numericInputs = screen.getAllByRole('spinbutton');
   fireEvent.change(numericInputs[0], { target: { value: '2000' } });
-  expect(screen.queryByText('₹12.3 Cr')).not.toBeInTheDocument();
+  expect(screen.queryByText('₹12,30,00,000')).not.toBeInTheDocument();
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(2));
 
   fireEvent.change(numericInputs[1], { target: { value: '15' } });
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(3));
   await act(async () => latest.resolve({ flatFinal: 67000000 }));
-  expect(await screen.findByText('₹6.7 Cr')).toBeInTheDocument();
+  expect(await screen.findByText('₹6,70,00,000')).toBeInTheDocument();
 
   await act(async () => recalculation.resolve({ flatFinal: 89000000 }));
-  expect(screen.getByText('₹6.7 Cr')).toBeInTheDocument();
-  expect(screen.queryByText('₹8.9 Cr')).not.toBeInTheDocument();
+  expect(screen.getByText('₹6,70,00,000')).toBeInTheDocument();
+  expect(screen.queryByText('₹8,90,00,000')).not.toBeInTheDocument();
 });
 
 it.each([
@@ -115,5 +115,32 @@ it('shows a safe backend failure rather than inventing numerical results', async
   vi.spyOn(api, 'calculateStepUpProjection').mockRejectedValue(new Error('Backend is temporarily unavailable'));
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
   expect(await screen.findByText('Backend is temporarily unavailable')).toBeInTheDocument();
+  expect(screen.queryByText('₹12,30,00,000')).not.toBeInTheDocument();
+});
+
+it('does not send a misleading downside scenario stronger than the base return', async () => {
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue({});
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  fireEvent.change(screen.getByLabelText('Downside annual return (%)'), { target: { value: '20' } });
+  await new Promise(resolve => setTimeout(resolve, 350));
+  expect(calculate).not.toHaveBeenCalled();
+  expect(screen.getByText(/the downside return must not exceed the base return/)).toBeInTheDocument();
+});
+
+it('renders exact rupee and paise amounts rather than silently abbreviating deposits', async () => {
+  vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue({
+    flatFinal: 123000000, stepUpFinal: 123000000,
+    flatInvested: 12004.44, stepUpInvested: 12004.44,
+    additionalCorpus: 0, additionalPercent: 0,
+    additionalContributions: 0, additionalProjectedGrowth: 0,
+    finalMonthlySip: 1000.37, downsideFinal: 12004,
+    inflationAdjustedStepUpFinal: 11500,
+    affordability: { status: 'NOT_ASSESSED' },
+    emergency_buffer: { status: 'NOT_ASSESSED' },
+    chartData: [],
+  });
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  expect(await screen.findByText('₹12,30,00,000')).toBeInTheDocument();
+  expect(screen.getAllByText(/₹12,004\.44/).length).toBeGreaterThan(0);
   expect(screen.queryByText('₹12.3 Cr')).not.toBeInTheDocument();
 });
