@@ -7,7 +7,8 @@ const checkResponse = claims => ({
   mode: 'READ_ONLY_FINANCIAL_CLAIM_CHECK',
   checkedAt: now,
   saved: false,
-  completeInputExamined: true,
+  allExtractedCandidatesProcessed: true,
+  verificationScope: 'DETECTED_CLAIMS_ONLY',
   claims,
 });
 
