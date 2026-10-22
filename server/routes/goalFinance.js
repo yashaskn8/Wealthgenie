@@ -286,13 +286,21 @@ const updateSpecSchema = specPayload.keys({
 });
 
 function specPublic(value) {
+  const date = value?.targetDate == null ? null : new Date(value.targetDate);
+  // A corrupted historical document must not crash GET /specifications for
+  // every other goal on the account, or masquerade as a valid 1970 date.
+  const validDate = date && Number.isFinite(date.getTime());
   return {
     id: String(value._id), version: value.version, kind: value.kind, name: value.name,
     targetAmount: value.targetAmount, currentSavings: value.currentSavings,
-    targetDate: new Date(value.targetDate).toISOString().slice(0, 10),
+    targetDate: validDate ? date.toISOString().slice(0, 10) : null,
     priority: value.priority, annualPriceInflationPct: value.annualPriceInflationPct,
     notes: value.notes,
-    plan: safeStoredSpecificationPlan(value),
+    plan: validDate ? safeStoredSpecificationPlan(value) : {
+      status: 'DATA_INSUFFICIENT', monthlyNeededWithoutReturns: null,
+      futureTargetAmount: null, remainingGap: null, monthsRemaining: null,
+      reasonCodes: ['INVALID_STORED_GOAL_DATE'],
+    },
   };
 }
 router.get('/specifications', asyncHandler(async (req, res) => {
