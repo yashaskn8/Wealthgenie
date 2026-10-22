@@ -146,6 +146,7 @@ export function calculateEmi({ principal, annualInterestRate, tenureMonths }) {
     for (let month = 1; month <= tenureMonths && remaining > 0; month += 1) {
       const interest = Math.round(remaining * rate);
       const next = remaining + interest - regularPaise;
+      if (!Number.isSafeInteger(next)) return false;
       remaining = Math.max(0, next);
     }
     return remaining === 0;
@@ -186,6 +187,7 @@ export function calculateEmi({ principal, annualInterestRate, tenureMonths }) {
     calculation: 'REDUCING_BALANCE_FIXED_RATE_MONTHLY_PAISE_ROUNDING',
     paymentTiming: 'END_OF_MONTH', rounding: 'NEAREST_PAISE_EACH_MONTH',
     feeCoverage: 'EXCLUDES_LENDER_FEES_AND_VARIABLE_RATE_CHANGES',
+    scheduleNote: 'Regular EMI is rounded to paise to fully amortize by the stated term; the final instalment can be smaller.',
     assumptionSource: 'USER_DECLARED', policyVersion: GOAL_FINANCE_POLICY_VERSION,
   };
 }
