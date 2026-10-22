@@ -221,25 +221,53 @@ function firstPositiveTokenUsage(response) {
   return null;
 }
 
+const SAFE_FALLBACK_CODES = new Set([
+  'LLM_GROUNDING_VALIDATION_FAILED', 'EXPLANATION_SEMANTIC_COMPLETENESS_FAILED',
+  'EXPLANATION_POLICY_FAILED', 'MALFORMED_GROUNDED_JSON',
+  'INVALID_GROUNDED_EXPLANATION_SCHEMA', 'EMPTY_COMPLETION',
+  'PROVIDER_INCOMPLETE_OUTPUT', 'PROVIDER_NOT_CONFIGURED',
+  'PROVIDER_BUDGET_EXHAUSTED', 'PROVIDER_CHAIN_DEADLINE_EXCEEDED',
+  'PROVIDER_OUTPUT_CONTRACT_UNSUPPORTED', 'PROVIDER_NETWORK_ERROR',
+  'PROVIDER_INTERNAL_ERROR', 'PROVIDER_UNAVAILABLE',
+  'EXPLANATION_CACHE_READ_FAILED', 'EXPLANATION_CACHE_VALIDATION_FAILED',
+  'NO_LLM_PROVIDER_CONFIGURED', 'PROMPT_INJECTION_BLOCKED',
+]);
+
+function safeFallbackCodes(codes) {
+  const values = Array.isArray(codes) ? codes : [];
+  return [...new Set(values.flatMap(code => SAFE_FALLBACK_CODES.has(code)
+    ? [code]
+    : sanitizeGroundingReasonCodes([code]).length
+      ? [code]
+      : ['PROVIDER_INTERNAL_ERROR']))];
+}
+
 function outputResult({ candidate, packet, provider, providerAdapter = null, model, latencyMs, tokensUsed, fallback, reasonCodes, cached = false, requireSubstantive = false }) {
   const regulatory = packet.entries.find(item => item.id === 'E_REGULATORY_NOTICE');
+  const disclosure = regulatory ? `${regulatory.value} [${regulatory.id}]` : null;
+  // The model can repeat the exact app disclosure inside a larger claim despite
+  // the prompt asking it to omit it. Keep the checked evidence claim, then add
+  // the canonical disclosure once as its own claim at the end.
+  const claimsWithoutDisclosure = (candidate.claims || []).map(claim => {
+    if (!disclosure || !claim?.text?.includes(disclosure)) return claim;
+    const text = claim.text.replaceAll(disclosure, '').trim();
+    if (!text) return null;
+    return {
+      ...claim,
+      text,
+      evidenceIds: claim.evidenceIds.filter(id => id !== regulatory.id || text.includes(`[${id}]`)),
+    };
+  }).filter(Boolean);
   const normalizedCandidate = {
     ...candidate,
     evidenceIdsUsed: [...new Set([...(candidate.evidenceIdsUsed || []), regulatory?.id].filter(Boolean))],
-    claims: [...(candidate.claims || [])],
+    text: disclosure ? String(candidate.text || '').replaceAll(disclosure, '').trim() : candidate.text,
+    claims: claimsWithoutDisclosure,
     financialClaims: [...(candidate.financialClaims || [])],
   };
   if (regulatory) {
-    const disclosure = `${regulatory.value} [${regulatory.id}]`;
-    const hasCanonicalDisclosure = String(normalizedCandidate.text || '').includes(disclosure)
-      && normalizedCandidate.claims.some(claim => claim?.text === disclosure
-        && Array.isArray(claim.evidenceIds)
-        && claim.evidenceIds.length === 1
-        && claim.evidenceIds[0] === regulatory.id);
-    if (!hasCanonicalDisclosure) {
-      normalizedCandidate.text = `${String(normalizedCandidate.text || '').trim()}\n\n${disclosure}`.trim();
-      normalizedCandidate.claims.push({ text: disclosure, evidenceIds: [regulatory.id] });
-    }
+    normalizedCandidate.text = `${String(normalizedCandidate.text || '').trim()}\n\n${disclosure}`.trim();
+    normalizedCandidate.claims.push({ text: disclosure, evidenceIds: [regulatory.id] });
   }
   const validation = validateGroundedExplanation(normalizedCandidate, packet);
   providerAdapter?.recordOutputValidation?.({
@@ -300,7 +328,7 @@ function outputResult({ candidate, packet, provider, providerAdapter = null, mod
     unavailableFacts: [...new Set([...(packet.unavailableFacts || []), ...(normalizedCandidate.unavailableFacts || [])])],
     citations: validation.evidenceIdsUsed.map(id => evidenceById.get(id)).filter(Boolean).map(citationFor),
     generatedAt: new Date().toISOString(),
-    validation: { status: 'PASS', reasonCodes: reasonCodes || [] },
+    validation: { status: 'PASS', reasonCodes: safeFallbackCodes(reasonCodes) },
     latencyMs,
     tokensUsed: Number(tokensUsed) || 0,
     fallback,
@@ -612,7 +640,8 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
             ? 'EXPLANATION_SEMANTIC_COMPLETENESS_FAILED'
             : error.message === 'EXPLANATION_POLICY_FAILED'
               ? 'EXPLANATION_POLICY_FAILED'
-            : error.message);
+            : 'PROVIDER_UNAVAILABLE');
+        failures.push(...sanitizeGroundingReasonCodes(error.validation?.errors));
         break;
       }
     }

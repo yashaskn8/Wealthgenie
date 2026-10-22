@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertMongoDatabaseIdentity } from '../config/db.js';
+import mongoose from 'mongoose';
+import connectDB, { assertMongoDatabaseIdentity } from '../config/db.js';
 
 test('explicit MongoDB identity guard refuses a different account database', () => {
   const connected = { connection: { db: { databaseName: 'wealthgenie' } } };
@@ -24,5 +25,35 @@ test('invalid database pin is rejected with no connection details leaked', () =>
       error => error.code === 'MONGODB_EXPECTED_DATABASE_INVALID'
         && !error.message.includes('mongodb://'),
     );
+  }
+});
+
+
+test('connection explicitly selects the pinned database instead of the driver default', async () => {
+  const originalConnect = mongoose.connect;
+  let observedOptions;
+  mongoose.connect = async (_uri, options) => {
+    observedOptions = options;
+    return {
+      connection: {
+        host: 'unit-test',
+        db: {
+          databaseName: options.dbName,
+          admin: () => ({ command: async () => ({ setName: 'rs0' }) }),
+        },
+      },
+    };
+  };
+
+  try {
+    await connectDB({
+      uri: 'mongodb+srv://unit.test.invalid',
+      retries: 1,
+      env: { MONGODB_FLAVOR: 'mongodb', MONGODB_EXPECTED_DATABASE: 'wealthgenie_expo' },
+      options: { dbName: 'wrong-database' },
+    });
+    assert.equal(observedOptions.dbName, 'wealthgenie_expo');
+  } finally {
+    mongoose.connect = originalConnect;
   }
 });

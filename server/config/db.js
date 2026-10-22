@@ -53,7 +53,11 @@ const connectDB = async ({
   }
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const conn = await mongoose.connect(uri, getMongoConnectionOptions(env, options));
+      const connectionOptions = getMongoConnectionOptions(env, {
+        ...options,
+        ...(expectedDatabase ? { dbName: expectedDatabase } : {}),
+      });
+      const conn = await mongoose.connect(uri, connectionOptions);
       // Fail closed on a database switch before authentication routes can
       // claim that an existing account is missing.
       assertMongoDatabaseIdentity(conn, expectedDatabase);
