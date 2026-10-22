@@ -21,7 +21,7 @@ export function createGenieProofReadOnlyVerifier(env = process.env) {
 
 function warningSignals(statement) {
   const warnings = [];
-  if (/\b(?:guaranteed?\s+(?:returns?|profit|income)|risk[- ]?free|assured\s+(?:returns?|profit))\b/i.test(statement)) {
+  if (/\b(?:guarantee(?:d|s)?|assured)\b(?=[^.!?\n]{0,120}(?:\b(?:returns?|profit|income|yield|payout|interest|maturity|money|investment|capital)\b|%|₹|\b(?:rs|inr)\.?\s*\d))|\brisk[- ]?free\b/i.test(statement)) {
     warnings.push('Guarantee or risk-free wording needs independently checked product terms.');
   }
   if (/\b(?:SEBI|RBI|government)\s+(?:approved|certified|guaranteed|endorsed)\b/i.test(statement)) {
