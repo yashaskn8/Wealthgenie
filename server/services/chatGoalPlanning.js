@@ -47,8 +47,8 @@ function goalRateMentions(question) {
     // Never reinterpret nominal, simple or nonannual rates as an effective CAGR.
     const immediateContext = text.slice(Math.max(0, match.index - 20),
       match.index + match[0].length + 20);
-    const incompatibleRateBasis = /\b(?:monthly|quarterly|weekly|daily|nominal|simple interest)\b/i.test(immediateContext)
-      && /\b(?:interest|return|growth|cagr|inflation|rate|compounded)\b/i.test(immediateContext);
+    const incompatibleRateBasis = /\b(?:monthly|quarterly|weekly|daily|nominal|simple interest|post[- ]tax|after[- ]tax)\b/i.test(immediateContext)
+      && (inflation || investment || /\b(?:nominal|simple interest|post[- ]tax|after[- ]tax)\b/i.test(immediateContext));
     if (incompatibleRateBasis) matches.push({ kind: 'INVALID' });
     else if (inflation && investment) matches.push({ kind: 'INVALID' });
     else if (inflation || investment) matches.push({ kind: inflation ? 'INFLATION' : 'RETURN', rate: match[1] });
@@ -61,7 +61,7 @@ function isGoalScenarioRateQuestion(question) {
     && /\b(?:inflation|returns?|cagr|investment growth|compounding)\b/i.test(text);
 }
 function isTargetPresentCost(question) {
-  return /\b(?:today'?s|current|present(?:-day)?)\s+(?:rupees|cost|price|value|money)\b|\b(?:cost|price|value)\s+(?:today|now)\b/i.test(question);
+  return /\b(?:today'?s|current|present(?:-day)?)\s+(?:rupees|cost|costs|price|prices|value|money)\b|\b(?:cost|price|value)\s+(?:today|now)\b/i.test(question);
 }
 
 function authenticatedUserTurns(priorTurns) {
