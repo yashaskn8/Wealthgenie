@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
+import crypto from 'node:crypto';
 import Joi from 'joi';
 import { verifyJWT } from '../middleware/authMiddleware.js';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
@@ -298,12 +299,49 @@ router.post('/specifications', validateStrict(createSpecSchema), asyncHandler(as
   // Validate all derived calculations before the document is committed.
   try { planGoalSpecification({ ...req.body, targetDate: futureDate }); }
   catch { return sendError(req, res, 400, 'Goal target or horizon is outside supported limits.', 'GOAL_SPEC_CALCULATION_INVALID'); }
-  const count = await GoalSpecification.countDocuments({ userId: req.user.userId });
-  if (count >= 250) return sendError(req, res, 409, 'Goal specification limit reached.', 'GOAL_SPEC_LIMIT');
-  const doc = await GoalSpecification.create({
-    ...req.body, userId: req.user.userId, targetDate: new Date(`${req.body.targetDate}T00:00:00.000Z`),
+  const userId = req.user.userId;
+  const creationKey = String(req.headers['idempotency-key'] || '');
+  if (!/^[A-Za-z0-9._:-]{16,128}$/.test(creationKey)) {
+    return sendError(req, res, 400, 'A valid Idempotency-Key is required to create a goal.',
+      'GOAL_SPEC_IDEMPOTENCY_KEY_REQUIRED');
+  }
+  // The unique index is required for concurrent retries; never accept a create
+  // if the persisted server-side fencing guarantee has not been established.
+  const specIndexes = await GoalSpecification.collection.indexes().catch(error => {
+    if (error?.code === 26 || error?.codeName === 'NamespaceNotFound') return [];
+    throw error;
   });
-  res.status(201).json({ specification: specPublic(doc) });
+  const indexReady = specIndexes.some(index => index.name === 'goal_spec_owner_create_key_unique'
+    && index.unique === true && index.key?.userId === 1 && index.key?.creationKey === 1);
+  if (!indexReady) {
+    return sendError(req, res, 503, 'Goals storage requires its index migration before creating targets.',
+      'GOAL_SPEC_INDEX_MIGRATION_REQUIRED');
+  }
+  const canonical = Object.fromEntries(Object.entries(req.body).sort(([a], [b]) => a.localeCompare(b)));
+  const creationRequestHash = crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+  const replay = doc => {
+    if (doc.creationRequestHash !== creationRequestHash) {
+      return sendError(req, res, 409, 'Idempotency-Key reused for a different goal request.',
+        'GOAL_SPEC_IDEMPOTENCY_PAYLOAD_CONFLICT');
+    }
+    return res.status(200).json({ specification: specPublic(doc), replay: true });
+  };
+  const existing = await GoalSpecification.findOne({ userId, creationKey }).lean();
+  if (existing) return replay(existing);
+  const count = await GoalSpecification.countDocuments({ userId });
+  if (count >= 250) return sendError(req, res, 409, 'Goal specification limit reached.', 'GOAL_SPEC_LIMIT');
+  let doc;
+  try {
+    doc = await GoalSpecification.create({
+      ...req.body, userId, creationKey, creationRequestHash, targetDate: futureDate,
+    });
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+    const committed = await GoalSpecification.findOne({ userId, creationKey }).lean();
+    if (!committed) throw error;
+    return replay(committed);
+  }
+  res.status(201).json({ specification: specPublic(doc), replay: false });
 }));
 function validSpecId(req, res, next) {
   if (!mongoose.isValidObjectId(req.params.id)) {
