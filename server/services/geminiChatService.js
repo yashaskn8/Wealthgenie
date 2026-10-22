@@ -288,7 +288,11 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       });
     }
     const isGeneralQuestion = !promptInjectionDetected
-      && classifyGenieChatQuestion(securityContext.sanitizedMessage) === 'GENERAL_UNCITED';
+      && classifyGenieChatQuestion(securityContext.sanitizedMessage) === 'GENERAL_UNCITED'
+      // "Can you explain that simply?" must inherit a cited finance answer;
+      // otherwise a general model can make up facts about the saved profile.
+      && !(isContextDependentFollowUp(securityContext.sanitizedMessage)
+        && lastChatTurnWasFinancial(claim.conversation));
     // Never give the general-purpose LLM the user's private profile or recommendation.
     const evidencePacket = isGeneralQuestion ? null : await buildChatEvidencePacket({
       question: securityContext.sanitizedMessage,
