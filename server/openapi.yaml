@@ -1294,10 +1294,32 @@ components:
         taxYear: { type: string, const: '2026-27' }
         residency: { type: string, enum: [resident, non_resident, unknown] }
         incomeType: { type: string, enum: [salary, pension, already_taxable] }
-        primaryIncome: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
+        primaryIncome: { type: string, pattern: '^(0|[1-9][0-9]{0,8}0)([.]0{1,2})? }
         otherOrdinaryIncome: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
         stcg196: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
         ltcg198: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
+        completeYearGainsConfirmed: { type: boolean }
+        sttAndClassificationConfirmed: { type: boolean }
+        noOtherTaxSituationsConfirmed: { type: boolean }
+ }
+        otherOrdinaryIncome: { type: string, pattern: '^(0|[1-9][0-9]{0,8}0)([.]0{1,2})? }
+        stcg196: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
+        ltcg198: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
+        completeYearGainsConfirmed: { type: boolean }
+        sttAndClassificationConfirmed: { type: boolean }
+        noOtherTaxSituationsConfirmed: { type: boolean }
+ }
+        stcg196: { type: string, pattern: '^(0|[1-9][0-9]{0,8}0)([.]0{1,2})? }
+        ltcg198: { type: string, pattern: '^(0|[1-9][0-9]{0,9})([.][0-9]{1,2})?$' }
+        completeYearGainsConfirmed: { type: boolean }
+        sttAndClassificationConfirmed: { type: boolean }
+        noOtherTaxSituationsConfirmed: { type: boolean }
+ }
+        ltcg198: { type: string, pattern: '^(0|[1-9][0-9]{0,8}0)([.]0{1,2})? }
+        completeYearGainsConfirmed: { type: boolean }
+        sttAndClassificationConfirmed: { type: boolean }
+        noOtherTaxSituationsConfirmed: { type: boolean }
+ }
         completeYearGainsConfirmed: { type: boolean }
         sttAndClassificationConfirmed: { type: boolean }
         noOtherTaxSituationsConfirmed: { type: boolean }
