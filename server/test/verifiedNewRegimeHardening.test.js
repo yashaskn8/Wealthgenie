@@ -15,7 +15,6 @@ const base = Object.freeze({
 });
 const calculate = changes => calculateVerifiedNewRegime({ ...base, ...changes });
 const units = (answer, key) => BigInt(answer[key].replace('.', ''));
-const exactFromPaise = paise => paise.toString().padStart(3, '0');
 
 test('red team: invalid shapes and polluted JSON inputs cannot pass the financial contract', () => {
   for (const malformed of [null, [], ['1200000'], 0, 1, '1200000', true]) {
