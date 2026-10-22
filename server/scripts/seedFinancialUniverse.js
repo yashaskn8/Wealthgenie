@@ -2,6 +2,7 @@ import 'dotenv/config';
 import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { investmentDatabase } from '../data/investmentDatabase.js';
+import { REVIEWED_DISCOVERY_CORRECTIONS } from '../data/financialReferenceCorrections2026.js';
 import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
 
 const extensionManifest = JSON.parse(
@@ -88,13 +89,37 @@ try {
          FROM finance.products WHERE id=$1 FOR UPDATE`,[entry.id,entry.discoveryMetadata ? JSON.stringify(entry.discoveryMetadata):null]);
     if (rows.length) {
       const p=rows[0];
-      if (p.name!==entry.name || p.category_id!==catId
-          || p.subcategory_id!==subId || p.record_kind!=='ARCHETYPE'
+      // Existing investment-family IDs may only receive audited name/reference
+      // corrections. Unapproved identity changes remain conflicts and never
+      // change availability, product rights, or recommendation qualification.
+      if (p.category_id!==catId || p.subcategory_id!==subId
+          || p.record_kind!=='ARCHETYPE'
           || p.recommendation_eligible!==false || p.availability!=='UNVERIFIED'
-          || p.discovery_reference_url!==(entry.referenceUrl||null)
           || p.verification_scope!==entry.verificationScope
           || p.metadata_matches!==true) {
         throw new Error('CATALOG_IDENTITY_OR_EVIDENCE_CONFLICT:'+entry.id);
+      }
+      if (p.name!==entry.name || p.discovery_reference_url!==(entry.referenceUrl||null)) {
+        const reviewed=REVIEWED_DISCOVERY_CORRECTIONS[entry.id];
+        if (!reviewed || reviewed.previousName!==p.name
+            || reviewed.previousSourceUrl!==p.discovery_reference_url
+            || reviewed.currentName!==entry.name
+            || reviewed.currentSourceUrl!==entry.referenceUrl) {
+          throw new Error('CATALOG_UNREVIEWED_SOURCE_OR_NAME_CHANGE:'+entry.id);
+        }
+        const updated=await client.query(`
+          UPDATE finance.products
+             SET name=$2,discovery_reference_url=$3,assessed_as_of=$4
+           WHERE id=$1 AND name=$5 AND discovery_reference_url=$6
+             AND record_kind='ARCHETYPE' AND recommendation_eligible=false
+             AND availability='UNVERIFIED'
+          RETURNING id`,[
+          entry.id,entry.name,entry.referenceUrl,entry.assessedAsOf,
+          reviewed.previousName,reviewed.previousSourceUrl,
+        ]);
+        if (updated.rows.length!==1) {
+          throw new Error('CATALOG_REVIEWED_CORRECTION_CONFLICT:'+entry.id);
+        }
       }
       continue;
     }

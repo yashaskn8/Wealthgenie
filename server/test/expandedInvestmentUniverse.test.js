@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { investmentDatabase } from '../data/investmentDatabase.js';
+import { REVIEWED_DISCOVERY_CORRECTIONS } from '../data/financialReferenceCorrections2026.js';
 
 const { entries: extensions }=JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json',import.meta.url),'utf8',
@@ -29,5 +30,21 @@ test('every extended investment is a source-referenced non-tradable catalog arch
   assert.equal(entry.postTaxStatus,'UNAVAILABLE',entry.id);
   assert.ok(entry.subCategory?.trim(),entry.id);
   assert.match(entry.sourceUrl,/^https:\/\//,entry.id);
+ }
+});
+
+test('reviewed source corrections preserve family IDs and fail closed on actual product recommendations',()=>{
+ assert.equal(Object.keys(REVIEWED_DISCOVERY_CORRECTIONS).length,28);
+ const ids=new Set(extensions.map(e=>e.id));
+ for(const [id,change] of Object.entries(REVIEWED_DISCOVERY_CORRECTIONS)){
+  assert.ok(ids.has(id),id);
+  const family=extensions.find(e=>e.id===id);
+  assert.equal(family.name,change.currentName,id);
+  assert.equal(family.sourceUrl,change.currentSourceUrl,id);
+  assert.match(family.sourceUrl,/^https:\\/\\//,id);
+  assert.equal(family.recommendationEligible,false,id);
+  assert.equal(family.isActualPurchasableProduct,false,id);
+  assert.equal(family.researchEvidence.actualIssuerOrSchemeVerified,false,id);
+  assert.equal(family.dataRights.publicDisplay,false,id);
  }
 });
