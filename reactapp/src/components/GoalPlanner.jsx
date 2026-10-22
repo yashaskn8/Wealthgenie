@@ -665,13 +665,21 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
               <ArrowUpRight size={22} color="#8b5cf6" />
             </div>
             <div>
-              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px' }}>SIMULATED GOAL REACH RATE</div>
+              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px' }}>AVERAGE INDIVIDUAL REACH RATE — NOT JOINT</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 900, color: avgProb === null ? '#64748b' : avgProb >= 0.65 ? '#10b981' : '#f59e0b', marginTop: 2 }}>{avgProb === null ? '—' : `${Math.round(avgProb * 100)}%`}</div>
             </div>
           </motion.div>
         </motion.div>
       )}
 
+      {currentGoals.length > 0 && <p style={{ color: '#fbbf24', marginBottom: 18, fontSize: '0.8rem' }}>
+        Individual goal probabilities do not account for competing goals. Use Shared goal funding above to
+        check whether combined contributions fit your reported budget.
+        {Number.isFinite(totalSip) && isPresentFiniteNumber(profile?.monthly_savings)
+          && totalSip > Number(profile.monthly_savings)
+          ? ' Warning: combined required monthly contributions exceed the financial profile savings figure.'
+          : ''}
+      </p>}
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {deletingId && (
