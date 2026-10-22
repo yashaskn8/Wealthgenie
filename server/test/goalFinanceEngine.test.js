@@ -232,8 +232,8 @@ test('calendar-month goals never count one normal 31-day month as two payments',
   assert.equal(october.monthlyNeededWithoutReturns, 12000);
   assert.equal(planGoalSpecification({ ...common, targetDate: '2027-03-23' }, date('2027-02-23')).monthsRemaining, 1);
   assert.equal(planGoalSpecification({ ...common, targetDate: '2028-02-29' }, date('2028-01-29')).monthsRemaining, 1);
-  assert.equal(planGoalSpecification({ ...common, targetDate: '2028-03-01' }, date('2028-02-29')).monthsRemaining, 1);
-  assert.equal(planGoalSpecification({ ...common, targetDate: '2027-11-24' }, date('2027-10-23')).monthsRemaining, 2);
+  assert.equal(planGoalSpecification({ ...common, targetDate: '2028-03-01' }, date('2028-02-29')).status, 'IMMEDIATE_FUNDING_REQUIRED');
+  assert.equal(planGoalSpecification({ ...common, targetDate: '2027-11-24' }, date('2027-10-23')).monthsRemaining, 1);
   assert.equal(planGoalSpecification({ ...common, targetDate: '2027-10-23' }, date('2026-10-23')).monthsRemaining, 12);
   assert.equal(planGoalSpecification({ ...common, targetDate: '2026-10-23' }, date('2026-10-23')).status, 'TARGET_DATE_REACHED');
 });
@@ -241,5 +241,22 @@ test('India-local date rollover is honored before UTC midnight', () => {
   const base = { targetAmount: 10000, currentSavings: 0, annualPriceInflationPct: 0 };
   const localOct23 = new Date('2026-10-22T20:00:00.000Z'); // 01:30 IST Oct 23
   assert.equal(planGoalSpecification({ ...base, targetDate: '2026-10-23' }, localOct23).status, 'TARGET_DATE_REACHED');
-  assert.equal(planGoalSpecification({ ...base, targetDate: '2026-10-24' }, localOct23).monthsRemaining, 1);
+  const dueTomorrow = planGoalSpecification({ ...base, targetDate: '2026-10-24' }, localOct23);
+  assert.equal(dueTomorrow.monthsRemaining, 0);
+  assert.equal(dueTomorrow.status, 'IMMEDIATE_FUNDING_REQUIRED');
+  assert.equal(dueTomorrow.monthlyNeededWithoutReturns, null);
+  assert.equal(dueTomorrow.requiredLumpSumToday, 10000);
+});
+
+test('clamped payment dates prevent false monthly installments near month end', () => {
+  const goalInput = { targetAmount: 70000, currentSavings: 0, annualPriceInflationPct: 0 };
+  const calc = (start, end) => planGoalSpecification({ ...goalInput, targetDate: end },
+    new Date(start + 'T00:00:00.000Z'));
+  assert.equal(calc('2027-01-31', '2027-02-28').monthsRemaining, 1);
+  assert.equal(calc('2027-01-31', '2027-02-27').status, 'IMMEDIATE_FUNDING_REQUIRED');
+  assert.equal(calc('2026-10-23', '2026-11-24').monthsRemaining, 1);
+  assert.equal(calc('2026-10-23', '2026-11-22').monthlyNeededWithoutReturns, null);
+  assert.equal(calc('2026-10-23', '2026-11-22').requiredLumpSumToday, 70000);
+  assert.equal(calc('2026-10-23', '2026-12-24').monthsRemaining, 2);
+  assert.equal(calc('2026-10-23', '2026-12-22').monthsRemaining, 1);
 });
