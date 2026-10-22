@@ -117,7 +117,7 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
     await screen.findByText('Monthly income and expense tracking');
     fireEvent.click(screen.getByRole('button', { name: 'EMI & vehicles' }));
     const inputs = [
-      ['Vehicle purchase price (₹)', '600000'], ['Cash down payment (₹)', '200000'],
+      ['Vehicle base price excluding separately entered taxes and fees (₹)', '600000'], ['Cash down payment (₹)', '200000'],
       ['Registration, taxes, insurance and fees upfront (₹)', '20000'],
       ['Fuel, servicing, parking and insurance renewals / month (₹)', '5000'],
       ['Loan annual nominal interest rate (%)', '10'],
@@ -127,7 +127,7 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
     for (const [label, value] of inputs) fireEvent.change(screen.getByLabelText(label), { target: { value } });
     fireEvent.click(screen.getByRole('button', { name: 'Analyze purchase and alternatives' }));
     await waitFor(() => expect(api.assessGoalVehiclePurchase).toHaveBeenCalledOnce());
-    fireEvent.change(screen.getByLabelText('Vehicle purchase price (₹)'), { target: { value: '500000' } });
+    fireEvent.change(screen.getByLabelText('Vehicle base price excluding separately entered taxes and fees (₹)'), { target: { value: '500000' } });
     await act(async () => { release(response); });
     expect(screen.queryByText(/Assessment: PASSES SELF REPORTED CHECKS/)).toBeNull();
   });
