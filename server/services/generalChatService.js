@@ -172,9 +172,19 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
         signal: controller.signal,
       }));
     } catch (error) {
-      if (parentSignal?.aborted || error?.name === 'AbortError') throw error;
-      failure = error?.code === 'PROVIDER_CHAIN_DEADLINE_EXCEEDED'
-        ? 'PROVIDER_CHAIN_DEADLINE_EXCEEDED' : 'PROVIDER_NETWORK_ERROR';
+      if (parentSignal?.aborted) throw error;
+      // Adapters may turn our own deadline abort into a generic AbortError.
+      // That is an availability failure, not a client cancellation or a
+      // reason to start the secondary provider after the shared deadline.
+      if (controller.signal.aborted
+          && controller.signal.reason?.code === 'PROVIDER_CHAIN_DEADLINE_EXCEEDED') {
+        failure = 'PROVIDER_CHAIN_DEADLINE_EXCEEDED';
+      } else if (error?.name === 'AbortError') {
+        throw error;
+      } else {
+        failure = error?.code === 'PROVIDER_CHAIN_DEADLINE_EXCEEDED'
+          ? 'PROVIDER_CHAIN_DEADLINE_EXCEEDED' : 'PROVIDER_NETWORK_ERROR';
+      }
     }
     const actualTokens = Number(response?.tokensUsed);
     const knownTokens = response && Number.isSafeInteger(actualTokens) && actualTokens > 0
