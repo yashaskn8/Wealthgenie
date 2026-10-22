@@ -14,7 +14,7 @@ const kinds = {
 function readableMoney(value) {
   if (!moneyPattern.test(value || '')) return 'Invalid amount';
   const [rupees, paisa] = value.split('.');
-  return '₹' + rupees.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + paisa;
+  return '₹' + new Intl.NumberFormat('en-IN').format(BigInt(rupees)) + '.' + paisa;
 }
 
 function canonicalMoney(value) {
