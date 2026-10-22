@@ -61,6 +61,10 @@ function sipResponse(fields = {}, request = {}) {
   result.affordability = {
     firstUnaffordableMonth: null, ...result.affordability,
   };
+  result.emergency_buffer = {
+    declaredAmount: request.emergencySavings ?? null,
+    ...result.emergency_buffer,
+  };
   result.chartData = Array.from({ length: years }, (_, index) => ({
     year: index + 1,
     flatSIP: index === years - 1 ? result.flatFinal : 0,
