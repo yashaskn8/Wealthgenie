@@ -138,6 +138,16 @@ test('resolver errors and missing results cannot imply verification', async () =
   assert.equal(empty.claims[0].reasonCode, 'NO_QUALIFIED_SOURCE');
 });
 
+test('malformed resolver maps always abstain instead of causing a server exception', async () => {
+  const fixture = trustedFixture();
+  for (const invalid of [null, {}, { byClaimId: null }, { byClaimId: [] }, { byClaimId: 1 }]) {
+    const result = await withFixture(PPF, fixture, { evidenceResolver: async () => invalid });
+    assert.equal(result.ok, true);
+    assert.equal(result.claims[0].verdict, 'NOT_VERIFIED');
+    assert.equal(result.claims[0].reasonCode, 'EVIDENCE_LOOKUP_UNAVAILABLE');
+  }
+});
+
 test('truncated inputs and oversized text must not return partial success', async () => {
   const elevenClaims = Array.from({ length: 11 }, () => PPF).join('\n');
   assert.equal(extractGenieProofClaims(elevenClaims).claimsTruncated, true);
