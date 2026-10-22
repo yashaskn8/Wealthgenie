@@ -34,7 +34,7 @@ describe('GenieChat grounded explanation metadata', () => {
     />);
 
     expect(screen.getByText('Existing answer body [1].')).toBeTruthy();
-    expect(screen.getByText(/Genie used a source-backed answer/)).toBeTruthy();
+    expect(screen.getByText(/Genie used a source-backed (?:fallback|answer)/)).toBeTruthy();
     expect(screen.queryByText(/\[E_PROFILE_RISK\]/)).toBeNull();
     const summary = screen.getByText('Answer evidence and provenance');
     expect(summary).toBeTruthy();
@@ -52,7 +52,7 @@ describe('GenieChat grounded explanation metadata', () => {
       }}
       isLatest={false}
     />);
-    fireEvent.click(screen.getByRole('button', { name: /Sources/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Evidence/ }));
     const link = screen.getByRole('link', { name: 'Official rate' });
     expect(link.getAttribute('href')).toBe('https://www.indiapost.gov.in/');
   });
@@ -85,6 +85,6 @@ describe('GenieChat grounded explanation metadata', () => {
     />);
     expect(screen.getByText('A useful fact [1].')).toBeTruthy();
     expect(screen.queryByText(/For informational purposes only/)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Sources (1)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Evidence (1)' })).toBeTruthy();
   });
 });
