@@ -75,9 +75,11 @@ export default function GenieProofEntry() {
       if (controller.signal.aborted || requestRef.current !== controller) return;
       if (!validCheckResponse(next)) throw new Error('Unexpected verification result');
       setResult(next);
-    } catch {
+    } catch (error) {
       if (!controller.signal.aborted && requestRef.current === controller) {
-        setError('The claim could not be checked right now. No financial conclusion was reached.');
+        setError(error?.status === 429
+          ? 'You have reached the check limit for now. Please try again later; no verdict was issued.'
+          : 'The claim could not be checked right now. No financial conclusion was reached.');
       }
     } finally {
       if (requestRef.current === controller) {
