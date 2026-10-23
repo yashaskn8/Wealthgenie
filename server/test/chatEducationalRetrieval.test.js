@@ -387,3 +387,81 @@ test('invalid cached semantics trigger fresh verification instead of being repla
   assert.doesNotMatch(second.text, /Diversification increases concentration risk/i);
   assert.ok(second.text.includes('Diversification means spreading investments'));
 });
+
+
+test('Review my portfolio uses actual saved recommendation percentages, not meaningless evidence notices', async () => {
+  const question = 'Review my portfolio';
+  const recommendation = {
+    modelVersion: 'verified-test-model',
+    instruments: [
+      { id: 'BOND_A', type: 'bond', name: 'Government Bonds', allocation_pct: 35,
+        nominalReturn: null },
+      { id: 'EQUITY_B', type: 'equity', name: 'Equity Funds', allocation_pct: 65,
+        nominalReturn: null },
+    ],
+  };
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation }, {
+    queryRegulatoryRag: async () => null,
+  });
+  assert.ok(packet.entries.some(entry => entry.id === 'E_PORTFOLIO_REVIEW_SCOPE'));
+  assert.ok(packet.entries.some(entry => entry.id === 'E_REC_001'));
+  let calls = 0;
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [{ name: 'groq', isConfigured: () => true, async generate() {
+      calls += 1; throw new Error('Model unexpectedly called');
+    } }],
+    getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(calls, 0);
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(answer.fallback, false);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /35% to Government Bonds/);
+  assert.match(answer.text, /65% to Equity Funds/);
+  assert.match(answer.text, /saved suitability assessment caps it at Moderate/);
+  assert.match(answer.text, /not verified investments you currently hold/);
+  assert.doesNotMatch(answer.text, /authoritative backend reports|suitability evidence|recommendation evidence/i);
+  assert.equal(answer.financialClaims.filter(claim => claim.type === 'ALLOCATION_WEIGHT').length, 2);
+  assert.ok(answer.citations.some(c => c.citation_id === 'E_REC_001'));
+  assert.ok(answer.citations.every(c => c.source_url === null));
+  assert.equal(validateGroundedExplanation({
+    text: answer.text, claims: answer.claims, evidenceIdsUsed: answer.evidenceIdsUsed,
+    financialClaims: answer.financialClaims, unavailableFacts: answer.unavailableFacts,
+  }, packet).valid, true);
+});
+
+test('portfolio review never invents current holdings when there is no qualified saved recommendation', async () => {
+  const question = 'Review my portfolio';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null }, {
+    queryRegulatoryRag: async () => null,
+  });
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(answer.fallback, false);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /no current saved recommendation allocation available/i);
+  assert.match(answer.text, /not verified investments you currently hold/i);
+  assert.doesNotMatch(answer.text, /The authoritative backend reports|The fund returned|guaranteed/i);
+  assert.equal(answer.financialClaims.length, 0);
+});
+
+test('tax assumptions remain a substantial standalone answer after a portfolio review', async () => {
+  const question = 'Explain tax assumptions';
+  const packet = await buildChatEvidencePacket({ question, profile, recommendation: null }, {
+    queryRegulatoryRag: async () => null,
+  });
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(answer.fallback, false);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /only the new income-tax regime/i);
+  assert.match(answer.text, /fiscal-year-versioned new-regime rules/i);
+  assert.match(answer.text, /not automatically after-tax returns/i);
+  assert.ok(answer.citations.some(c => c.citation_id === 'E_TAX_ASSUMPTIONS_INPUTS'));
+  assert.doesNotMatch(answer.text, /^For informational purposes only\./i);
+  assert.doesNotMatch(answer.text, /authoritative backend reports/i);
+});
