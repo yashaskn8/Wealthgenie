@@ -27,6 +27,7 @@ import {
   generateGeneralChatAnswer,
   generalChatTokenUpperBound,
   isGeneralChatQuestion,
+  isPublicFinancialEducationQuestion,
 } from './generalChatService.js';
 import {
   isFinancialGoalPlanningQuestion,
@@ -277,12 +278,16 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     // A completed financial profile must never be a prerequisite for ordinary
     // educational questions. Stateless general responses cannot access account
     // investments or be misrepresented as persisted financial advice.
+    const sanitizedQuestion = sanitizeExternalQuestion(message);
+    const publicEducationOnly = isPublicFinancialEducationQuestion(sanitizedQuestion)
+      && retrieveChatEducationalEvidence(sanitizedQuestion).length === 0
+      && retrieveTaxAssumptionEvidence(sanitizedQuestion).length === 0;
     const noProfileGeneral = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
-      && isGeneralChatQuestion(message) && !isGroundingBoundaryAttack(message);
+      && (isGeneralChatQuestion(sanitizedQuestion) || publicEducationOnly)
+      && !isGroundingBoundaryAttack(message);
     // A public educational question does not require a financial profile.
     // Only approved static educational excerpts are eligible: no account facts,
     // personalized explanation, live rate or unqualified RAG content.
-    const sanitizedQuestion = sanitizeExternalQuestion(message);
     const unboundGoal = isFinancialGoalPlanningQuestion(sanitizedQuestion);
     const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
       ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
@@ -324,7 +329,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     if (!noProfileGeneral) return noProfileResponse(sessionId, rateCheck);
     const upperBound = generalChatTokenUpperBound(message);
     const startedAt = Date.now();
-    const answer = await generateGeneralChatAnswer({ question: message }, {
+    const answer = await generateGeneralChatAnswer({ question: message, educationOnly: publicEducationOnly }, {
       ...groundedExplanationDependencies,
       ...(reserveProviderAttempt ? {
         reserveProviderAttempt: ({ provider, providerAttemptCount }) => reserveProviderAttempt({
@@ -404,10 +409,13 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const recentFinancialTurns = buildTrustedPriorTurns(claim.conversation, binding, 'FINANCIAL');
     const financialGoalFollowUp = isFinancialGoalFollowUpQuestion(
       securityContext.sanitizedMessage, recentFinancialTurns);
+    const publicEducationOnly = isPublicFinancialEducationQuestion(securityContext.sanitizedMessage)
+      && retrieveChatEducationalEvidence(securityContext.sanitizedMessage).length === 0
+      && retrieveTaxAssumptionEvidence(securityContext.sanitizedMessage).length === 0;
     const generalMode = process.env.CHAT_GENERAL_MODE_ENABLED !== 'false'
       && !promptInjectionDetected
       && !financialGoalFollowUp
-      && isGeneralChatQuestion(securityContext.sanitizedMessage)
+      && (isGeneralChatQuestion(securityContext.sanitizedMessage) || publicEducationOnly)
       && !(isContextDependentFollowUp(securityContext.sanitizedMessage)
         && lastChatAnswerWasFinancial(claim.conversation));
     const trustedFinancialTurns = generalMode ? [] : recentFinancialTurns;
@@ -440,7 +448,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     let initialProviderReservationAvailable = canReserveProvider;
     const explanation = await (generalMode ? generateGeneralChatAnswer : generateGroundedExplanation)(
       generalMode
-        ? { question: securityContext.sanitizedMessage, priorTurns }
+        ? { question: securityContext.sanitizedMessage, priorTurns, educationOnly: publicEducationOnly }
         : { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
       {
         ...groundedExplanationDependencies,
