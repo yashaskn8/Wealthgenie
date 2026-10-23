@@ -21,6 +21,7 @@ export default function FreeSourceResearchPanel(){
  const [mode,setMode]=useState('mf');
  const [query,setQuery]=useState('HDFC');
  const [funds,setFunds]=useState([]);
+ const [searchSource,setSearchSource]=useState(null);
  const [selected,setSelected]=useState(null);
  const [expectedReturn,setExpectedReturn]=useState('8');
  const [horizon,setHorizon]=useState('5');
@@ -55,6 +56,7 @@ export default function FreeSourceResearchPanel(){
   if(value?.status!=='AVAILABLE'||!Array.isArray(value.results))
    throw new Error('Source returned no qualified research list');
   setFunds(value.results);setSelected(null);
+  setSearchSource(value.source?.provider||'UNKNOWN_PROVIDER');
   });
  };
  const loadRates=()=>request(signal=>getFreeSmallSavingsRates({signal}),setRates);
@@ -122,6 +124,12 @@ export default function FreeSourceResearchPanel(){
         <input style={style.field} aria-label="Search mutual fund scheme" value={query}
          maxLength={80} onChange={e=>{invalidateFinancialResult();setQuery(e.target.value);setSelected(null);setFunds([]);}}/></label>{' '}
        <button type="button" style={style.action} disabled={busy} onClick={search}>Search online NAV</button>
+       {searchSource&&<p style={{fontSize:12,color:'#cbd5e1'}}>
+        Source: <strong>{searchSource}</strong>.
+        {searchSource==='MFapi.in'
+         ? ' Provisional scheme search only; plan, identity and risk must be revalidated when running the simulation.'
+         : ' Investment suitability, underlying source rights, and forward returns are not verified.'}
+       </p>}
        {funds.length>0&&(
         <label style={{display:'block',marginTop:10,fontSize:12}}>Exact scheme and plan
          <select style={{...style.field,display:'block',marginTop:6,width:'100%'}}
