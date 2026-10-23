@@ -4,6 +4,7 @@ import {
   createMulberry32, runMonteCarlo, runMonteCarloWithGoal,
   sampleLogNormalMonthly, reverseSIP,
 } from '../services/monteCarloEngine.js';
+import { calculatePostTaxReturn, calculatePostTaxProjection } from '../services/postTaxCalculator.js';
 
 const run=(overrides={})=>runMonteCarlo({
   monthlyInvestment:2500,currentSavings:120000,annualExpectedReturn:0.08,
@@ -81,4 +82,51 @@ test('seeded 30-year simulated mean stays within five percent of independent ana
   assert.ok(error < 0.05, `30-year sampling deviation: ${(error * 100).toFixed(2)}%`);
   assert.equal(scenario.variance_reduction, 'antithetic');
   assert.equal(scenario.model_version, 'monte-carlo-gbm-2.3.0');
+});
+
+test('cash-flow and Monte Carlo nominal engines reconcile when their rate conventions match', () => {
+  // This is a model-arithmetic consistency test, NOT approval to run GBM for
+  // fixed deposits in the HTTP API or proof of any issuer-specific product rate.
+  const monthlySIP = 2500;
+  const context = {
+    annualGrossIncome: 0, regime: 'new', incomeSource: 'salary',
+    userAge: 35, fiscalYear: 'FY2026-27', deductions: {},
+  };
+  for (const years of [1, 3, 5]) {
+    for (const nominalAPR of [0, 0.05, 0.08, 0.12]) {
+      const annualEffective = Math.pow(1 + nominalAPR / 12, 12) - 1;
+      const monteCarlo = run({
+        monthlyInvestment: monthlySIP, currentSavings: 0,
+        annualExpectedReturn: annualEffective, annualVolatility: 0,
+        years, simulations: 100, inflationRate: 0,
+      });
+      const taxResult = calculatePostTaxReturn(
+        'FD', nominalAPR, context.annualGrossIncome, years, 'new',
+        monthlySIP, 35, 'salary', undefined, 'FY2026-27', { deductions: {} },
+      );
+      const cashFlow = calculatePostTaxProjection(
+        taxResult, { nominalRate: nominalAPR, holdingYears: years, monthlySIP },
+        0, context,
+      );
+      assert.equal(cashFlow.status, 'CALCULATED');
+      assert.equal(cashFlow.taxEvents.every(event => event.tax === 0), true);
+      assert.ok(Math.abs(monteCarlo.p50.at(-1) - cashFlow.nominalFutureValue) <= 1,
+        `nominal reconciliation failed for APR ${nominalAPR} over ${years} years`);
+      assert.ok(Math.abs(cashFlow.postTaxFutureValue - cashFlow.nominalFutureValue) <= 1);
+    }
+  }
+});
+
+test('same investment amounts with different rate assumptions yield different nominal outcomes', () => {
+  const low = run({
+    currentSavings: 0, monthlyInvestment: 15000,
+    annualExpectedReturn: 0.06, annualVolatility: 0, years: 5,
+  });
+  const high = run({
+    currentSavings: 0, monthlyInvestment: 15000,
+    annualExpectedReturn: 0.12, annualVolatility: 0, years: 5,
+  });
+  assert.ok(high.p50.at(-1) > low.p50.at(-1));
+  assert.equal(low.p10.at(-1), low.p90.at(-1));
+  assert.equal(high.p10.at(-1), high.p90.at(-1));
 });
