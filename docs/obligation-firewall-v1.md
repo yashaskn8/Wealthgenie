@@ -41,3 +41,7 @@ The hypothetical scenario endpoint also requires the currently declared India-da
 ## Free CSV-first responsive workflow
 
 See [free responsive monitoring design](./obligation-firewall-live-free.md) for exact CSV parsing, user-reviewed recurrence candidates, and cross-tab freshness. This is not live bank streaming.
+
+## Cash alerts and attested one-off settlement
+
+See [free monitoring deployment and red-team safety runbook](./obligation-firewall-live-free.md#durable-in-app-cash-risk-alerts-and-one-time-commitment-settlement) for the opt-in worker, required index migration, owner-scoped alert inbox, immutable settlement records, current-cash reconfirmation and production launch gates.

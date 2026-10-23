@@ -59,3 +59,37 @@ Strict due-date derivation requires an original calendar-day anchor that is exac
 An in-flight local CSV read is explicitly invalidated on logout, a changed saved-account input hash, deletion or component unmount; its late promise may not repopulate a later account's import review. This prevents stale asynchronous file content from leaking across authentication changes even though the CSV is browser-local.
 
 The Cash Check component is also keyed to the authenticated user ID in the dashboard shell, so React forcibly unmounts it (clearing private draft/import state and cancelling pending CSV reads) when the connected account changes—even if both users happen to have the same saved ledger revision and input hash. Server-side ownership checks remain the authoritative security boundary.
+
+
+## Durable in-app cash risk alerts and one-time commitment settlement
+
+The browser-independent implementation adds \`CoverageRiskAlert\`, \`CoverageSettlement\`,
+\`coverageRiskPolicy\`, and an opt-in \`coverageRiskAlerts\` worker.
+
+**Cash-risk event correctness**
+- A confirmed saved ledger produces a new in-app alert only when a possible shortfall first appears, its earliest date or exact minimum balance changes, or the prior shortfall is resolved. A normal no-shortfall forecast does not create a reassuring "guaranteed safe" notification.
+- The minimal alert record holds owner, unique event identity, revision, policy kind, cash-as-of day and optional risk date. It never stores bank account numbers, statement narrations, passwords or external push payloads.
+- \`GET /api/coverage/alerts?limit=20\` returns only the authenticated owner's **current-revision** alerts, with \`Cache-Control: no-store\`; \`PATCH /api/coverage/alerts/:id/ack\` is owner-scoped and naturally idempotent. Acknowledgement never initiates payments or changes financial inputs.
+- All risk records are transactionally written/superseded with the cash snapshot and idempotency receipt. Injected event-storage failures must roll back the entire ledger revision. Explicit cash deletion atomically removes risk alerts and settlement history.
+- Old cash is never used by a background worker to calculate a new financial forecast. Instead, its only duty is to notify the user that the opening cash declaration must be reconfirmed. Multiple instances are protected by unique alert identities, optimistic ledger revision fencing and transactional writes.
+- \`COVERAGE_ALERT_WORKER_ENABLED=true\` is an **opt-in** server setting and is active only with \`COVERAGE_ENABLED=true\`. It scans up to 100 candidate ledgers per bounded iteration (default 60 seconds), using an index and cursor; it does not require Redis, third-party queues, an LLM or external messaging providers. Its current implementation is an **in-app** durable notifier, NOT push/email/SMS. Worker shutdown drains its in-flight Mongo operation before closing connections.
+
+**One-time settlement correctness**
+- A one-off commitment can be marked settled only through explicit user attestation, its saved entry ID, quoted If-Match revision, durable Idempotency-Key, a freshly declared **post-payment** accessible cash balance, and confirmation of remaining obligations.
+- The server rejects automatic settlement of recurring obligations or expected income. It removes the single confirmed settled obligation from the **new revision** while retaining the original immutable prior snapshot, and writes an owner-only \`CoverageSettlement\` event with the attestation. This is user-declared, **not bank verified**, and cannot be used as a claim that a bank transfer succeeded.
+- \`GET /api/coverage/settlements\` shows up to the latest 20 audit entries. Settlements are deleted when the underlying user's cash plan is erased. Network retries reuse the same operation identity, avoiding duplicate settlement revisions.
+- For manual/CSV reconciliation, a matching settled debit is a *suggestion for review*, never automatic bank evidence. Removing one-off planned outflows without reconfirming post-payment cash is prohibited because it would double count available money.
+
+**Explicit index migration / launch sequence**
+1. Keep production flags off. Run the standard \`migrate:phase2-indexes\` one-shot deployment migration using an authorised \`MONGODB_MIGRATION_URI\`, followed by read-only index verification and backup-restore preflight. This provisions unique owner/event identities and the staleness-scan index.
+2. Run the targeted coverage safety GitHub Actions workflow (engine, real Mongo transactions, React, Chromium desktop/mobile) and the entire repository CI on the **same exact commit**.
+3. Validate authenticated cookie-CSRF sessions and cross-user isolation, API latency/availability, Mongo majority writes and replica-set failover on production-like infrastructure. Test rollback for missing event and settlement storage plus duplicate worker execution.
+4. Privately enable \`COVERAGE_ENABLED=true\` and \`VITE_COVERAGE_ENABLED=true\` for a controlled test environment only, with logs excluding financial details.
+5. After separate review, enable \`COVERAGE_ALERT_WORKER_ENABLED=true\` on an authorised backend process. The unique index makes concurrent workers safe, but additional worker instances raise database load.
+6. Launch only after establishing encryption/key management, retention/deletion and backup policy, user-support procedures, accessibility, measurable SLOs, load and disaster-recovery evidence, and applicable Indian privacy/financial-law approval.
+
+**Remaining intentional product limits**
+- The current saved-snapshot capacity is 256 revisions per account. An approved privacy-sensitive archival/retention strategy is required before advertising indefinite use; do not silently delete historical financial records to bypass the cap.
+- There is no production AA/FIU banking integration, externally verified transactions, UPI payments, credit-card/BBPS bill retrieval, push notifications or investment execution. Making claims about these features without authorised providers would be misleading.
+- A browser-only CSV comparison cannot establish that a payment actually settled; the attestation is user-provided, and the updated balance must be reconfirmed.
+- "Production grade" additionally requires measured deployment, security, backup and regulator-dependent evidence—not solely passing source-code tests.
