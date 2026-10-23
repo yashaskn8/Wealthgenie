@@ -164,8 +164,10 @@ export default function FreeSourceResearchPanel(){
         </div>
        )}
        <p style={{fontSize:11,color:'#94a3b8',marginTop:10}}>
-        Source: <a href="https://mfnav.in/api-docs" target="_blank" rel="noreferrer">mfnav.in API</a>.
-        No persistent market-data storage. Provider's API license does not itself resolve underlying AMFI rights.
+        Research provider used: {result?.source?.provider==='MFapi.in'
+         ? <a href="https://www.mfapi.in/docs/" target="_blank" rel="noopener noreferrer">MFapi.in (fallback)</a>
+         : <a href="https://mfnav.in/api-docs" target="_blank" rel="noopener noreferrer">mfnav.in</a>}.
+        {' '}This is research-only data with no persistent storage and no implied rights to redistribute AMFI data.
        </p>
       </div>
      ):(
