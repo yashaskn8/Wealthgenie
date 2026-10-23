@@ -56,3 +56,7 @@
 
 - A delayed authenticated ledger response must never overwrite active unsaved input. If a user starts editing before loading completes, preserve their typed figures and fail closed with an explicit refresh request instead of silently replacing them.
 - The no-future-income track must not claim any hypothetical same-day income credit. Conditional receipt timing warnings and their exact labels belong only to the income-including track.
+
+## Dedicated adversarial CI gate
+
+The pull request runs the fast-failing `Household Runway Adversarial Gate` independently from the long-running backend suite. It provisions isolated MongoDB 7 in replica-set mode, executes the deterministic engine and independent numerical oracle tests, and then the real authenticated owner-isolation/CAS/idempotency/tamper/recovery integration suite. A pass in this gate is necessary but not sufficient for production approval; full CI, staging and privacy requirements remain separately required.
