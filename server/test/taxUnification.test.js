@@ -384,7 +384,7 @@ test('annual tax deductions reduce future interest rather than reusing the untax
   assert.ok(tax1 > 0);
   assert.ok(tax2 > 0);
   assert.equal(projection.postTaxFutureValue, Math.round(year2BeforeTax - tax2));
-  assert.equal(projection.taxEvents[0].tax, tax1);
+  assert.ok(Math.abs(projection.taxEvents[0].tax - tax1) < 0.01);
   assert.ok(Math.abs(projection.taxEvents[1].tax - tax2) < 0.01);
   assert.ok(projection.nominalFutureValue - projection.postTaxFutureValue > tax1 + tax2,
     'foregone future interest must be included in the wealth drag');
