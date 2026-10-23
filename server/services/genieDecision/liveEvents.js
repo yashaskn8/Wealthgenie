@@ -4,7 +4,7 @@ import DecisionEventState from '../../models/DecisionEventState.js';
 
 const RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 export const LIVE_POLL_MS = 2500;
-export const LIVE_STREAM_LIMIT_MS = 45000;
+export const LIVE_STREAM_LIMIT_MS = 30000;
 
 export function parseEventCursor(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -45,6 +45,7 @@ export async function fetchDecisionEvents({ userId, after = null, limit = 32 }) 
   const cursor = after ?? latestSequence;
   // A cursor from a future event or a rolled-back replica cannot be accepted.
   if (cursor > latestSequence) return { events: [], latestSequence, resetRequired: true };
+  if (cursor === latestSequence) return { events: [], latestSequence, resetRequired: false };
   const oldest = await DecisionEvent.findOne({ userId }).sort({ sequence: 1 }).select('sequence').lean();
   if (cursor < latestSequence && (!oldest || cursor < oldest.sequence - 1)) {
     return { events: [], latestSequence, resetRequired: true };
