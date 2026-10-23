@@ -80,6 +80,26 @@ test('date-derived horizon cannot bypass the cash-flow rupee precision guard', (
   }
 });
 
+test('cash-flow projection never truncates a dated holding period beyond its supported horizon', () => {
+  const input = { nominalRate: 0, monthlySIP: 10_000, holdingYears: 1 };
+  const context = {
+    annualGrossIncome: 2_000_000, regime: 'new', incomeSource: 'salary',
+    fiscalYear: FY, userAge: 35, deductions: {},
+    acquisitionDate: '1876-10-23', redemptionDate: '2026-10-23',
+  };
+  const rate = calculatePostTaxReturn('FD', input.nominalRate,
+    context.annualGrossIncome, input.holdingYears, context.regime,
+    input.monthlySIP, context.userAge, context.incomeSource,
+    undefined, FY, { deductions: {} });
+  assert.equal(rate.status, 'CALCULATED');
+  const projection = calculatePostTaxProjection(rate, input, 0, context);
+  assert.equal(projection.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.deepEqual(projection.unavailableReasons, ['EXACT_TRANSACTION_HORIZON_EXCEEDS_SUPPORTED_LIMIT']);
+  assert.equal(projection.nominalFutureValue, null);
+  assert.equal(projection.totalInvested, null);
+  assert.equal(projection.postTaxFutureValue, null);
+});
+
 test('holding-period classification uses exact calendar dates at the boundary', () => {
   const before = classifyHoldingPeriodByDates({
     acquisitionDate: '2024-04-01', redemptionDate: '2025-03-31', thresholdMonths: 12,
