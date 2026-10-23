@@ -103,9 +103,21 @@ router.post('/mutual-funds/simulate',verifyJWT,freeProviderLimiter,validate(simu
   sourceChecks:nav.sourceChecks||null,
  });
  const {schemeCode,...scenario}=req.body;
- const result=await executeMonteCarlo({...scenario,
-  annualVolatility:nav.observedAnnualVolatility,
- });
+ let result;
+ try {
+  result=await executeMonteCarlo({...scenario,
+   annualVolatility:nav.observedAnnualVolatility,
+  });
+ } catch(error) {
+  if(error?.code==='SIMULATION_WEALTH_PRECISION_EXCEEDED')return res.json({
+   status:'UNAVAILABLE',reasonCode:'SIMULATION_WEALTH_PRECISION_EXCEEDED',
+   dataClass:'UNVERIFIED_NAV_RISK_USER_DECLARED_EXPECTED_RETURN',
+   postTaxAvailable:false,postTaxFutureValue:null,grossScenario:null,
+   sourceChecks:nav.sourceChecks||null,
+   productionInvestmentQualification:false,
+  });
+  throw error;
+ }
  // No market-history rights/issuer tax qualification is assumed.
  return res.json({
   status:'CALCULATED',dataClass:'UNVERIFIED_NAV_RISK_USER_DECLARED_EXPECTED_RETURN',
