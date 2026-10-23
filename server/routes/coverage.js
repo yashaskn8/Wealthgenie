@@ -10,6 +10,7 @@ import { verifyPersistenceIndexes } from '../services/persistenceIndexReadiness.
 import { canonicalSha256 } from '../utils/canonicalJson.js';
 import CoverageLedger from '../models/CoverageLedger.js';
 import CoverageResult from '../models/CoverageResult.js';
+import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
 import {
   validateCoverageLedger, calculateCoverage, previewVoluntaryExclusions,
   COVERAGE_POLICY_VERSION, CoverageInputError, parseCalendarDate,
@@ -70,7 +71,7 @@ function publicSnapshot(snapshot) {
   };
 }
 async function ready() {
-  await verifyPersistenceIndexes({ models: [CoverageLedger, CoverageResult], scope: 'persistence' });
+  await verifyPersistenceIndexes({ models: [CoverageLedger, CoverageResult, CoverageDeletionReceipt], scope: 'persistence' });
 }
 async function resolveCoverageReplay(req, record) {
   const snapshot = await CoverageResult.findOne({ _id: record.resourceId, userId: req.user.userId }).lean();
@@ -207,5 +208,77 @@ router.get('/revisions/:revision', verifyJWT, asyncHandler(async (req, res) => {
   }
   res.json({ ...publicSnapshot(snapshot), input: snapshot.input });
 }));
+
+
+async function resolveDeletionReplay(req, record) {
+  const receipt = await CoverageDeletionReceipt.findOne({
+    _id: record.resourceId, userId: req.user.userId,
+    idempotencyOperationId: record._id,
+  }).lean();
+  if (!receipt) {
+    throw createError(503, 'Committed deletion receipt is unavailable.', 'Deletion state unavailable.', {
+      code: 'COVERAGE_DELETION_STATE_UNAVAILABLE',
+    });
+  }
+  return { deleted: true, deletedRevision: receipt.deletedRevision, deletedAt: receipt.deletedAt };
+}
+
+/**
+ * Explicit, revision-bound removal of all saved cash plans and results.
+ * A minimal receipt and hashed idempotency keys remain solely to prevent
+ * deleted mutation requests being resurrected by retries.
+ */
+router.delete('/ledger',
+  verifyJWT,
+  asyncHandler(async (req, _res, next) => {
+    req.coverageExpectedRevision = parseIfMatch(req.headers['if-match']);
+    await ready();
+    next();
+  }),
+  idempotency({ operation: 'coverage.ledger.delete', resolveReplay: resolveDeletionReplay }),
+  asyncHandler(async (req, res) => {
+    const userId = req.user.userId;
+    const session = await mongoose.startSession();
+    let deletedReceipt;
+    try {
+      await session.withTransaction(async () => {
+        const ledger = await CoverageLedger.findOne({
+          userId, revision: req.coverageExpectedRevision,
+        }).session(session).lean();
+        if (!ledger) throw conflict();
+        const removed = await CoverageLedger.deleteOne({
+          _id: ledger._id, userId, revision: req.coverageExpectedRevision,
+        }).session(session);
+        if (removed.deletedCount !== 1) throw conflict();
+        await CoverageResult.deleteMany({ userId }, { session });
+        const [receipt] = await CoverageDeletionReceipt.create([{
+          userId, idempotencyOperationId: req.idempotencyClaim.operationId,
+          deletedRevision: ledger.revision, deletedAt: new Date(),
+        }], { session });
+        await completeMutationIdempotency(session, req.idempotencyClaim, {
+          resourceType: 'CoverageDeletionReceipt', resourceId: receipt._id, status: 200,
+        });
+        deletedReceipt = receipt;
+      });
+      req.idempotencyCommitted = true;
+    } catch (error) {
+      if (error?.status === 409 || error?.code === 11000) {
+        const completed = await resolveCommittedMutationForClaim(req, req.idempotencyClaim);
+        if (completed) {
+          req.idempotencyCommitted = true;
+          return res.status(completed.status).json(completed.body);
+        }
+        throw conflict();
+      }
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+    return res.json({
+      deleted: true, deletedRevision: deletedReceipt.deletedRevision,
+      deletedAt: deletedReceipt.deletedAt,
+    });
+  }),
+);
 
 export default router;
