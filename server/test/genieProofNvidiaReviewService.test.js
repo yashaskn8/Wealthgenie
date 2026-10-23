@@ -83,6 +83,32 @@ test('financial identifiers are rejected before sending the text to NVIDIA', asy
   assert.equal(model.calls.length, 0);
 });
 
+test('production NVIDIA calls are blocked unless licensed commercial use is explicitly authorized', async () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalLicensed = process.env.GENIEPROOF_NVIDIA_LICENSED_PRODUCTION_USE;
+  const model = nvidia();
+  try {
+    process.env.NODE_ENV = 'production';
+    delete process.env.GENIEPROOF_NVIDIA_LICENSED_PRODUCTION_USE;
+    const blocked = await review(model);
+    assert.equal(blocked.status, 'UNAVAILABLE');
+    assert.equal(blocked.reasonCode, 'NVIDIA_PRODUCTION_LICENSE_NOT_CONFIRMED');
+    assert.equal(model.calls.length, 0);
+    process.env.GENIEPROOF_NVIDIA_LICENSED_PRODUCTION_USE = 'false';
+    assert.equal((await review(model)).reasonCode, 'NVIDIA_PRODUCTION_LICENSE_NOT_CONFIRMED');
+    assert.equal(model.calls.length, 0);
+    // This only checks explicit operator configuration, not actual license validity.
+    process.env.GENIEPROOF_NVIDIA_LICENSED_PRODUCTION_USE = 'true';
+    assert.equal((await review(model)).status, 'GUIDANCE_AVAILABLE');
+    assert.equal(model.calls.length, 1);
+  } finally {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+    if (originalLicensed === undefined) delete process.env.GENIEPROOF_NVIDIA_LICENSED_PRODUCTION_USE;
+    else process.env.GENIEPROOF_NVIDIA_LICENSED_PRODUCTION_USE = originalLicensed;
+  }
+});
+
 test('model output cannot smuggle verdicts, rates, URLs, citations, arbitrary prose or duplicate steps', async () => {
   const injections = [
     { nextStepIds: ['VERIFY_REGULATOR'], verdict: 'SUPPORTED' },
