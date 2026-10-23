@@ -216,4 +216,26 @@ describe('90-day cash check', () => {
     expect(screen.queryByRole('region', { name: 'Resolve cash plan conflict' })).toBeNull();
   });
 
+  it('refuses to show a superseded idempotent replay as a current cash result', async () => {
+    api.getCoverageLedger.mockResolvedValueOnce({ revision: 0, ledger: null, latestResult: null })
+      .mockResolvedValueOnce({
+        revision: 3,
+        ledger: { asOfDate: indiaToday(), openingCashPaise: 20000,
+          cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+        latestResult: { result: baseline() }, requiresCashReconfirmation: false,
+      });
+    api.saveCoverageLedger.mockResolvedValueOnce({
+      revision: 1, result: baseline(), replayed: true, superseded: true, currentRevision: 3,
+    });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByPlaceholderText('50000.00'), { target: { value: '450.00' } });
+    fireEvent.click(screen.getByLabelText(/I have entered the commitments/i));
+    fireEvent.click(screen.getByRole('button', { name: /save and calculate/i }));
+    await screen.findByRole('region', { name: 'Resolve cash plan conflict' });
+    expect(screen.getByPlaceholderText('50000.00').value).toBe('450.00');
+    expect(screen.queryByText(/Entries saved and recalculated/i)).toBeNull();
+    expect(screen.queryByText(/No shortfall in the entries supplied for these dates/i)).toBeNull();
+  });
+
 });

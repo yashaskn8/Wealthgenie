@@ -211,6 +211,18 @@ export default function CashCheck() {
       const response = await api.saveCoverageLedger(payload, revision, {
         headers: { 'Idempotency-Key': pendingSave.current.key },
       });
+      if (response.superseded) {
+        // Do not display a valid but obsolete financial calculation as current.
+        setSaved(null);
+        setPreview(null);
+        setDirty(true);
+        setError('An earlier save was replayed after another session changed the cash plan. Review the newer revision.');
+        const current = await api.getCoverageLedger();
+        setConflictState(current);
+        setConfirmOverwrite(false);
+        pendingSave.current = null;
+        return;
+      }
       pendingSave.current = null;
       setRevision(response.revision);
       setSaved(response.result);

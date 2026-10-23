@@ -89,7 +89,14 @@ async function resolveCoverageReplay(req, record) {
   if (!snapshot) throw createError(503, 'Committed coverage result is unavailable.', 'Coverage result unavailable.', {
     code: 'COVERAGE_RESULT_UNAVAILABLE',
   });
-  return publicSnapshot(snapshot);
+  // A historical retry can be correct but superseded by a newer save.
+  const current = await CoverageLedger.findOne({ userId: req.user.userId })
+    .select('revision deletedAt').lean();
+  return {
+    ...publicSnapshot(snapshot), replayed: true,
+    superseded: !current || Boolean(current.deletedAt) || current.revision !== snapshot.ledgerRevision,
+    currentRevision: current?.revision ?? null,
+  };
 }
 
 router.get('/ledger', verifyJWT, asyncHandler(async (req, res) => {
@@ -193,7 +200,7 @@ router.put(
     } finally {
       await session.endSession();
     }
-    return res.json(publicSnapshot(saved));
+    return res.json({ ...publicSnapshot(saved), replayed: false, superseded: false });
   }),
 );
 

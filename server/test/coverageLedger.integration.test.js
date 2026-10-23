@@ -97,6 +97,8 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     const replay = await call(owner, 'PUT', '/ledger', submitted, 0, firstKey);
     assert.equal(replay.status, 200);
     assert.equal(replay.body.revision, 1);
+    assert.equal(replay.body.replayed, true);
+    assert.equal(replay.body.superseded, false);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 1);
 
     const stale = await call(owner, 'PUT', '/ledger', submitted, 0, randomUUID());
@@ -162,6 +164,12 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(second.status, 200);
     assert.equal(second.body.revision, 2);
     assert.equal(second.body.result.status, 'SHORTFALL_IN_ENTERED_PLAN');
+    const lateReplay = await call(owner, 'PUT', '/ledger', submitted, 0, firstKey);
+    assert.equal(lateReplay.status, 200);
+    assert.equal(lateReplay.body.revision, 1);
+    assert.equal(lateReplay.body.replayed, true);
+    assert.equal(lateReplay.body.superseded, true);
+    assert.equal(lateReplay.body.currentRevision, 2);
     const preview = await call(owner, 'POST', '/scenarios/preview',
       { revision: 2, excludedVoluntaryEntryIds: ['sip_confirmed'] });
     assert.equal(preview.status, 200);
