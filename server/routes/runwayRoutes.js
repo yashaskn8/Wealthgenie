@@ -117,7 +117,6 @@ router.put('/ledger', asyncHandler(async (req, res) => {
   const key = idempotency(req);
   const expected = matchRevision(req);
   validateLedger(req.body);
-  if (req.body.asOfDate !== indiaCivilToday()) throw failure(400, 'RUNWAY_CASH_CONFIRMATION_STALE', 'Confirm accessible cash for today in India before saving.');
   const ledger = req.body;
   const requestHash = canonicalSha256({ userId, ledger, expected, operation: 'LEDGER' });
   const receiptId = canonicalSha256({ operation: 'LEDGER', key, userId: String(userId) });
@@ -130,6 +129,8 @@ router.put('/ledger', asyncHandler(async (req, res) => {
     return res.status(200).json({ revision: rev.revision, ledger: rev.ledger, inputHash: rev.inputHash,
       confirmedAt: rev.confirmedAt, historical: found?.state.revision !== rev.revision, replayed: true });
   }
+  // A committed retry remains retrievable after midnight; only new writes need a fresh confirmation.
+  if (req.body.asOfDate !== indiaCivilToday()) throw failure(400, 'RUNWAY_CASH_CONFIRMATION_STALE', 'Confirm accessible cash for today in India before saving.');
   if (expected >= Number.MAX_SAFE_INTEGER) throw failure(400, 'RUNWAY_REVISION_LIMIT', 'Revision counter is exhausted.');
   let created;
   try {

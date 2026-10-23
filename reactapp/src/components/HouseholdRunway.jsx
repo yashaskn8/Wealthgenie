@@ -9,7 +9,12 @@ const todayIndia = () => {
   const part = type => parts.find(x => x.type === type).value;
   return part('year') + '-' + part('month') + '-' + part('day');
 };
-const newId = () => 'e_' + crypto.randomUUID();
+const newId = () => {
+  const generator = globalThis.crypto;
+  if (!generator?.getRandomValues) throw new Error('Secure random identifiers are unavailable in this browser.');
+  return 'e_' + (generator.randomUUID?.() ||
+    Array.from(generator.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join(''));
+};
 const newEntry = () => ({ id: newId(), label: '', kind: 'OBLIGATION', rupees: '',
   date: todayIndia(), recurrence: 'NONE', untilDate: todayIndia(), monthEndRule: 'CLAMP' });
 function toPaise(rupees, { allowZero = false } = {}) {

@@ -16,6 +16,7 @@ export class RunwayInputError extends Error {
     super(message);
     this.name = 'RunwayInputError';
     this.status = 400;
+    this.clientMessage = message;
     this.code = code;
   }
 }
