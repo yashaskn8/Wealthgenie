@@ -1173,9 +1173,35 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
   }, requestOptions);
 }
 
+// Household Runway only uses declared cash and events; no profile cash estimate.
+export function getRunwayCurrent(options = {}) {
+  return request('GET', '/runway/current', null, { retries: 0, ...options });
+}
+export function saveRunwayLedger(ledger, revision, options = {}) {
+  return request('PUT', '/runway/ledger', ledger, {
+    ...options, retries: 0, headers: { ...(options.headers || {}), 'If-Match': '"' + revision + '"' },
+  });
+}
+export function simulateHouseholdRunway(input, options = {}) {
+  return request('POST', '/runway/simulations', input, { retries: 0, ...options });
+}
+export function saveRunwaySnapshot(input, options = {}) {
+  return request('POST', '/runway/snapshots', input, { retries: 0, ...options });
+}
+export function getRunwaySnapshot(id, options = {}) {
+  return request('GET', '/runway/snapshots/' + encodeURIComponent(id), null, { retries: 0, ...options });
+}
+export function explainRunwaySnapshot(snapshotId, options = {}) {
+  return request('POST', '/runway/explanations', { snapshotId }, { retries: 0, ...options });
+}
+export function deleteRunwayData(options = {}) {
+  return request('DELETE', '/runway/data', { confirmation: 'DELETE_RUNWAY_DATA' }, { retries: 0, ...options });
+}
+
 // Default export for convenience
 const api = {
   register, login, logout, restoreSession,
+  getRunwayCurrent, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, getRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,
