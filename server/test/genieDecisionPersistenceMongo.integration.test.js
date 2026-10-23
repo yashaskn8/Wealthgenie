@@ -9,6 +9,10 @@ import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { createDecisionsRouter } from '../routes/decisionScenarios.js';
 import { createDecisionEventsRouter } from '../routes/decisionEvents.js';
+import { createDecisionMonitorRoutes } from '../routes/decisionMonitor.js';
+import { scanDecisionMonitors } from '../services/genieDecision/monitor.js';
+import DecisionMonitor from '../models/DecisionMonitor.js';
+import DecisionAssessment from '../models/DecisionAssessment.js';
 import DecisionEvent from '../models/DecisionEvent.js';
 import DecisionEventState from '../models/DecisionEventState.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
@@ -23,6 +27,7 @@ import { signDecisionReceipt } from '../services/genieDecision/integrity.js';
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'geniedecision-test-secret-only-2026';
 process.env.DISABLE_RATE_LIMIT = 'true';
+process.env.GENIEDECISION_MONITOR_ENABLED = 'true';
 const userOne = new mongoose.Types.ObjectId();
 const userTwo = new mongoose.Types.ObjectId();
 let profile;
@@ -35,6 +40,7 @@ function app() {
   instance.use(express.json());
   instance.use('/api/decisions', createDecisionsRouter());
   instance.use('/api/decisions', createDecisionEventsRouter());
+  instance.use('/api/decisions', createDecisionMonitorRoutes());
   instance.use(errorHandler);
   return instance;
 }
@@ -62,7 +68,7 @@ const scenarioInput = () => ({
 test.before(async () => {
   await setupTestDatabase({ requireReplicaSet: true });
   for (const model of [DecisionScenario, DecisionScenarioRevision, DecisionRun,
-    DecisionEvent, DecisionEventState]) {
+    DecisionEvent, DecisionEventState, DecisionMonitor, DecisionAssessment]) {
     await model.createIndexes();
   }
   await User.create([
