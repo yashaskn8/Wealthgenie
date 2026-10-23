@@ -145,7 +145,9 @@ export default function GenieDecisionWorkspace() {
   const [liveState, setLiveState] = useState('connecting');
   const [liveNotice, setLiveNotice] = useState('');
   const activeRef = useRef(null);
+  const currentReportRef = useRef(null);
   activeRef.current = active;
+  currentReportRef.current = report;
 
   const visibleFingerprint = JSON.stringify({ title, type, horizon, baseline, details, goalReservations });
   const hasUnsavedChanges = Boolean(active && savedFingerprint !== visibleFingerprint);
@@ -183,7 +185,31 @@ export default function GenieDecisionWorkspace() {
     const controller = new AbortController();
     subscribeDecisionEvents({
       signal: controller.signal,
-      onStatus: state => { if (!controller.signal.aborted) setLiveState(state); },
+      onStatus: state => {
+        if (controller.signal.aborted) return;
+        setLiveState(state);
+        if (state !== 'connected') return;
+        // A profile may have changed while offline. Reconcile on EVERY
+        // reconnect; a new SSE handshake is not proof that cached UI is fresh.
+        refresh({ signal: controller.signal }).catch(err => {
+          if (!controller.signal.aborted) setLiveNotice(`Reconnection refresh failed: ${errorMessage(err)}`);
+        });
+        const openReportId = currentReportRef.current?.run?.id;
+        if (openReportId) {
+          getDecisionRun(openReportId, { signal: controller.signal })
+            .then(updated => {
+              if (controller.signal.aborted) return;
+              setReport(previous => previous?.run?.id === updated?.run?.id ? updated : previous);
+            }).catch(() => {
+              if (!controller.signal.aborted) {
+                setLiveNotice('Could not verify the saved report after reconnecting. Reopen the scenario before relying on it.');
+                setReport(previous => previous?.run
+                  ? { ...previous, run: { ...previous.run, status: 'HISTORICAL' } }
+                  : previous);
+              }
+            });
+        }
+      },
       onEvent: event => {
         if (controller.signal.aborted) return;
         // Never rewrite a form being edited. Notify the user to re-open a
@@ -196,7 +222,7 @@ export default function GenieDecisionWorkspace() {
         } else if (event.type === 'reset') {
           setLiveNotice('Updates were missed while disconnected. Financial state has been refreshed; reopen any active scenario.');
         } else if (event.scenarioId === activeRef.current?.id) {
-          setLiveNotice('This scenario changed in another session. Reopen it to review the new revision or report.');
+          setLiveNotice('A committed change is available for this scenario. Reopen it to review the saved revision or report.');
         }
         refresh({ signal: controller.signal }).catch(err => {
           if (!controller.signal.aborted) setLiveNotice(`Live refresh failed: ${errorMessage(err)}`);
