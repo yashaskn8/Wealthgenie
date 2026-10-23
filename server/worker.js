@@ -28,6 +28,7 @@ import DecisionMonitor from './models/DecisionMonitor.js';
 import DecisionAssessment from './models/DecisionAssessment.js';
 import DecisionEvent from './models/DecisionEvent.js';
 import DecisionEventState from './models/DecisionEventState.js';
+import DecisionWorkerHeartbeat from './models/DecisionWorkerHeartbeat.js';
 
 let healthServer = null;
 let worker = null;
@@ -153,7 +154,8 @@ export async function startWorker({ env = process.env } = {}) {
       throw new Error('GenieDecision monitoring cannot start without a valid authenticated receipt keyring.');
     }
     await verifyPersistenceIndexes({
-      models: [DecisionMonitor, DecisionAssessment, DecisionEvent, DecisionEventState],
+      models: [DecisionMonitor, DecisionAssessment, DecisionEvent,
+        DecisionEventState, DecisionWorkerHeartbeat],
       scope: 'persistence',
     });
     decisionMonitorWorker = createDecisionMonitorWorker({

@@ -13,6 +13,7 @@ import { createDecisionMonitorRoutes } from '../routes/decisionMonitor.js';
 import { scanDecisionMonitors } from '../services/genieDecision/monitor.js';
 import DecisionMonitor from '../models/DecisionMonitor.js';
 import DecisionAssessment from '../models/DecisionAssessment.js';
+import DecisionWorkerHeartbeat from '../models/DecisionWorkerHeartbeat.js';
 import DecisionEvent from '../models/DecisionEvent.js';
 import DecisionEventState from '../models/DecisionEventState.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
@@ -68,7 +69,7 @@ const scenarioInput = () => ({
 test.before(async () => {
   await setupTestDatabase({ requireReplicaSet: true });
   for (const model of [DecisionScenario, DecisionScenarioRevision, DecisionRun,
-    DecisionEvent, DecisionEventState, DecisionMonitor, DecisionAssessment]) {
+    DecisionEvent, DecisionEventState, DecisionMonitor, DecisionAssessment, DecisionWorkerHeartbeat]) {
     await model.createIndexes();
   }
   await User.create([
@@ -451,11 +452,16 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
     assert.equal(initial.body.monitor.enabled, false);
     assert.deepEqual(initial.body.assessments, []);
 
+    await DecisionWorkerHeartbeat.create({
+      _id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      heartbeatAt: new Date(), expiresAt: new Date(Date.now() + 60000),
+    });
     const enabled = await call(base, userOne, monitorPath, 'PUT',
       { enabled: true, expectedRevision: 1 });
     assert.equal(enabled.response.status, 200, JSON.stringify(enabled.body));
     assert.equal(enabled.body.monitor.enabled, true);
     const gen = enabled.body.monitor.generation;
+    assert.equal(enabled.body.monitor.workerConfigured, true);
     const consent = await DecisionMonitor.findOne({ userId: userOne, scenarioId: id }).lean();
     assert.match(consent.integrityTag, /^[a-f0-9]{64}$/);
     // An attacker changing a DB boolean cannot manufacture valid user consent.

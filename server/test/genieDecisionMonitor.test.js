@@ -7,6 +7,7 @@ import {
   verifyDecisionAssessment, assessmentContext,
 } from '../services/genieDecision/monitor.js';
 import { signDecisionReceipt } from '../services/genieDecision/integrity.js';
+import { hasActiveDecisionWorker } from '../services/genieDecision/workerHeartbeat.js';
 import { makeDecisionSourceSnapshot, hashDecisionSourceSnapshot } from '../services/genieDecision/sourceSnapshot.js';
 
 test('signed monitoring opt-in cannot be forged or replayed for other users or generations', () => {
@@ -99,7 +100,9 @@ test('monitor worker prevents concurrent ticks and drains before stopping', asyn
     calls += 1;
     release = () => resolve({ inspected: 1, created: 1 });
   });
-  const worker = createDecisionMonitorWorker({ pollMs: 10000, scan });
+  const worker = createDecisionMonitorWorker({ pollMs: 10000, scan,
+    heartbeat: { beat: async () => {}, stop: async () => {} },
+  });
   const a = worker.runOnce();
   const b = worker.runOnce();
   await Promise.resolve();
@@ -111,4 +114,18 @@ test('monitor worker prevents concurrent ticks and drains before stopping', asyn
   assert.equal(worker.state().activeJobs, 0);
   assert.deepEqual(await worker.stop(), { drained: true });
   assert.throws(() => createDecisionMonitorWorker({ pollMs: 200 }), RangeError);
+});
+
+test('operator flag alone never authorizes monitoring without live worker heartbeat', async () => {
+  const before = process.env.GENIEDECISION_MONITOR_ENABLED;
+  process.env.GENIEDECISION_MONITOR_ENABLED = 'true';
+  try {
+    const model = { findOne: () => ({
+      select: () => ({ lean: async () => null }),
+    }) };
+    assert.equal(await hasActiveDecisionWorker({ model }), false);
+  } finally {
+    if (before === undefined) delete process.env.GENIEDECISION_MONITOR_ENABLED;
+    else process.env.GENIEDECISION_MONITOR_ENABLED = before;
+  }
 });

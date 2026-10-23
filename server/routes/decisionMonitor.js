@@ -14,6 +14,7 @@ import DecisionScenario from '../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionEvent from '../models/DecisionEvent.js';
 import DecisionEventState from '../models/DecisionEventState.js';
+import { hasActiveDecisionWorker } from '../services/genieDecision/workerHeartbeat.js';
 
 const fail = (status, code, message) => { throw createError(status, message, message, { code }); };
 const handle = fn => asyncHandler(async (req, res) => {
@@ -73,7 +74,7 @@ export function createDecisionMonitorRoutes({ resolveProfile = resolveCurrentFin
       userId: req.user.userId, requireRecommendation: false,
     });
     res.json({
-      monitor: { ...projection(monitor), workerConfigured: process.env.GENIEDECISION_MONITOR_ENABLED === 'true' },
+      monitor: { ...projection(monitor), workerConfigured: await hasActiveDecisionWorker() },
       assessments: assessments.map(item => assessmentDto(item, current, scenario, monitor)),
     });
   }));
@@ -85,7 +86,7 @@ export function createDecisionMonitorRoutes({ resolveProfile = resolveCurrentFin
       || !Number.isSafeInteger(req.body.expectedRevision) || req.body.expectedRevision < 1) {
       fail(400, 'INVALID_MONITOR_INPUT', 'Expected an explicit enabled boolean and scenario revision.');
     }
-    if (req.body.enabled && process.env.GENIEDECISION_MONITOR_ENABLED !== 'true') {
+    if (req.body.enabled && !(await hasActiveDecisionWorker())) {
       fail(503, 'DECISION_MONITOR_DISABLED', 'Automatic decision monitoring is not enabled on this deployment.');
     }
     if (req.body.enabled && !decisionIntegrityReady()) {
@@ -121,6 +122,7 @@ export function createDecisionMonitorRoutes({ resolveProfile = resolveCurrentFin
             _id: existing._id, userId: req.user.userId, generation: existing.generation,
           }, { $set: {
             enabled: req.body.enabled, generation: nextGeneration, lastCheckedAt: null,
+            leaseToken: null, leaseUntil: null,
             ...receipt,
           } }, { session, new: true }).lean();
           if (!result) fail(409, 'DECISION_MONITOR_CONFLICT', 'Monitoring changed concurrently.');
@@ -137,7 +139,7 @@ export function createDecisionMonitorRoutes({ resolveProfile = resolveCurrentFin
         });
       }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
     } finally { await session.endSession(); }
-    res.json({ monitor: { ...projection(result), workerConfigured: process.env.GENIEDECISION_MONITOR_ENABLED === 'true' } });
+    res.json({ monitor: { ...projection(result), workerConfigured: await hasActiveDecisionWorker() } });
   }));
 
   return router;

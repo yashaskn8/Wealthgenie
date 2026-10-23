@@ -19,7 +19,7 @@ function exactMoney(number, field) {
 export function makeDecisionSourceSnapshot(current, ingestedAt = new Date().toISOString()) {
   if (!current?.profile || current.state?.resolutionStatus !== 'CURRENT'
       || !Number.isSafeInteger(current.state.revision) || current.state.revision < 1
-      || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(ingestedAt)) {
+      || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(ingestedAt)) {
     throw new Error('DECISION_SNAPSHOT_SOURCE_UNAVAILABLE');
   }
   const profile = current.profile;
@@ -51,7 +51,7 @@ export function verifyDecisionSourceSnapshot(snapshot, candidate) {
       || snapshot.profileFinancialFence !== candidate.profileFinancialFence
       || snapshot.facts.some((fact, index) => fact.field !== fields[index][0]
         || typeof fact.value !== 'string'
-        || !/^(?:0|[1-9]\\d{0,11})\\.\\d{2}$/.test(fact.value)
+        || !/^(?:0|[1-9]\d{0,11})\.\d{2}$/.test(fact.value)
         || fact.sourceType !== 'USER_DECLARED'
         || fact.sourceReference !== snapshot.profileId
         || fact.observedAt !== null || fact.ingestedAt !== snapshot.ingestedAt
