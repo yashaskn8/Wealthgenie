@@ -93,6 +93,35 @@ test('transaction date integrity applies to partial WTI tax contexts', () => {
   }).error);
 });
 
+test('post-tax API rejects mathematically unsafe long-horizon rupee amounts', () => {
+  const base = {
+    instrumentId: 'fd', instrumentType: 'FD', nominalRate: 0.08,
+    holdingYears: 3, monthlySIP: 10000,
+    annualIncome: 1_000_000, regime: 'new', userAge: 35,
+    incomeSource: 'salary', fiscalYear: 'FY2026-27',
+  };
+  assert.equal(postTaxReturnSchema.validate(base).error, undefined);
+  assert.equal(postTaxReturnBatchSchema.validate({
+    instruments: [base], annualIncome: base.annualIncome,
+    regime: base.regime, userAge: base.userAge,
+    incomeSource: base.incomeSource, fiscalYear: base.fiscalYear,
+    inflationRate: 0.05,
+  }).error, undefined);
+  const extreme = { ...base, nominalRate: 1, holdingYears: 100, monthlySIP: 100_000_000 };
+  for (const result of [
+    postTaxReturnSchema.validate(extreme),
+    postTaxReturnBatchSchema.validate({
+      instruments: [extreme], annualIncome: base.annualIncome,
+      regime: base.regime, userAge: base.userAge,
+      incomeSource: base.incomeSource, fiscalYear: base.fiscalYear,
+      inflationRate: 0.05,
+    }),
+  ]) {
+    assert.ok(result.error, 'unsafe projection should not be calculated');
+    assert.match(result.error.message, /PROJECTION_WEALTH_PRECISION_EXCEEDED/);
+  }
+});
+
 test('single post-tax request enforces paired, real, chronological transaction dates', () => {
   const base = {
     instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0,
