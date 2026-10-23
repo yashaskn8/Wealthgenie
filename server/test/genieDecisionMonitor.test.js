@@ -7,7 +7,10 @@ import {
   verifyDecisionAssessment, assessmentContext,
 } from '../services/genieDecision/monitor.js';
 import { signDecisionReceipt } from '../services/genieDecision/integrity.js';
-import { hasActiveDecisionWorker } from '../services/genieDecision/workerHeartbeat.js';
+import {
+  hasActiveDecisionWorker, createDecisionWorkerHeartbeat,
+  signDecisionWorkerHeartbeat, verifyDecisionWorkerHeartbeat,
+} from '../services/genieDecision/workerHeartbeat.js';
 import { makeDecisionSourceSnapshot, hashDecisionSourceSnapshot } from '../services/genieDecision/sourceSnapshot.js';
 
 test('signed monitoring opt-in cannot be forged or replayed for other users or generations', () => {
@@ -121,11 +124,65 @@ test('operator flag alone never authorizes monitoring without live worker heartb
   process.env.GENIEDECISION_MONITOR_ENABLED = 'true';
   try {
     const model = { findOne: () => ({
-      select: () => ({ lean: async () => null }),
+      sort: () => ({ lean: async () => null }),
     }) };
     assert.equal(await hasActiveDecisionWorker({ model }), false);
   } finally {
     if (before === undefined) delete process.env.GENIEDECISION_MONITOR_ENABLED;
     else process.env.GENIEDECISION_MONITOR_ENABLED = before;
+  }
+});
+
+test('monitor worker health requires an authenticated identity, timestamp and expiry', async () => {
+  const previous = {
+    node: process.env.NODE_ENV, jwt: process.env.JWT_SECRET,
+    enabled: process.env.GENIEDECISION_MONITOR_ENABLED,
+    keys: process.env.GENIEDECISION_INTEGRITY_KEYS,
+  };
+  process.env.NODE_ENV = 'test';
+  process.env.JWT_SECRET = 'geniedecision-worker-heartbeat-test-secret-2026';
+  process.env.GENIEDECISION_MONITOR_ENABLED = 'true';
+  delete process.env.GENIEDECISION_INTEGRITY_KEYS;
+  try {
+    const now = new Date('2026-10-23T12:00:00.000Z');
+    let stored = null;
+    const model = {
+      updateOne: async (where, operation) => {
+        stored = { _id: where._id, ...operation.$set };
+      },
+      findOne: () => ({ sort: () => ({ lean: async () => stored }) }),
+      deleteOne: async () => { stored = null; },
+    };
+    const heartbeat = createDecisionWorkerHeartbeat({ model, now: () => now });
+    await heartbeat.beat();
+    assert.equal(verifyDecisionWorkerHeartbeat(stored, { now }), true);
+    assert.equal(await hasActiveDecisionWorker({ model, now }), true);
+    assert.equal(verifyDecisionWorkerHeartbeat({ ...stored, _id: crypto.randomUUID() }, { now }), false);
+    assert.equal(verifyDecisionWorkerHeartbeat({
+      ...stored, heartbeatAt: new Date('2026-10-23T12:00:01.000Z'),
+    }, { now: new Date('2026-10-23T12:00:01.000Z') }), false);
+    assert.equal(verifyDecisionWorkerHeartbeat({
+      ...stored, expiresAt: new Date('2026-10-23T12:02:00.000Z'),
+    }, { now }), false);
+    assert.equal(verifyDecisionWorkerHeartbeat({
+      ...stored, integrityTag: '0'.repeat(64),
+    }, { now }), false);
+    assert.equal(await hasActiveDecisionWorker({
+      model, now: new Date('2026-10-23T12:01:00.000Z'),
+    }), false);
+    assert.deepEqual(signDecisionWorkerHeartbeat({
+      workerId: stored._id, heartbeatAt: stored.heartbeatAt, expiresAt: stored.expiresAt,
+    }), { integrityKeyId: stored.integrityKeyId, integrityTag: stored.integrityTag });
+    await heartbeat.stop();
+    assert.equal(await hasActiveDecisionWorker({ model, now }), false);
+  } finally {
+    for (const [key, value] of [
+      ['NODE_ENV', previous.node], ['JWT_SECRET', previous.jwt],
+      ['GENIEDECISION_MONITOR_ENABLED', previous.enabled],
+      ['GENIEDECISION_INTEGRITY_KEYS', previous.keys],
+    ]) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 });
