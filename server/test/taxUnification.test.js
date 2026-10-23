@@ -497,6 +497,9 @@ test('SIP return metrics remain explicitly unavailable for zero contributions an
   );
   assert.equal(zeroContributionProjection.status, 'CALCULATED');
   assert.equal(zeroContributionProjection.totalInvested, 0);
+  assert.equal(zeroContributionProjection.postTaxReturnPercent, null);
+  assert.equal(zeroContributionProjection.realReturnPercent, null);
+  assert.equal(zeroContributionProjection.postTaxCAGR, null);
   assert.deepEqual(zeroContributionProjection.sipReturnMetrics, {
     basis: 'MODELLED_MONTHLY_SIP_MONEY_WEIGHTED_EQUIVALENT_ANNUAL_RATE',
     status: 'UNAVAILABLE',
