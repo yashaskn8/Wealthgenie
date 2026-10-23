@@ -117,7 +117,12 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [], edu
   // when placeholder credentials are present; explicit injected mocks remain valid.
   const mockOnly = process.env.NODE_ENV === 'test'
     || String(process.env.LLM_DEFAULT_PROVIDER || '').trim().toLowerCase() === 'mock';
-  const providers = dependencies.providers || (mockOnly ? [] : [ProviderManager.groq, ProviderManager.nvidia]);
+  // Keep Groq -> NVIDIA priority. If either is unconfigured, a separately
+  // configured Gemini adapter may fill an available slot; never exceed two
+  // paid upstream attempts for one answer.
+  const providers = dependencies.providers || (mockOnly ? []
+    : [ProviderManager.groq, ProviderManager.nvidia, ProviderManager.gemini]
+      .filter(provider => provider.isConfigured()));
   const maxAttempts = 2;
   // One deadline for Groq and NVIDIA together, even when an adapter ignores
   // AbortSignal. Parent cancellation and server-side expiry are distinct.
