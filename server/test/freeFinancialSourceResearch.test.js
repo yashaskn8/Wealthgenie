@@ -59,6 +59,32 @@ test('NAV identity mismatch, duplicate trading day, stale history and extreme ju
  assert.equal(normalizeFreeNavHistory(jump,'100641',{now}).reasonCode,
   'NAV_JUMP_REQUIRES_ADJUSTMENT_REVIEW');
 });
+test('real mfnav date and decimal schemas survive parsing without unsafe coercion',()=>{
+ const realLike=observedNav();
+ realLike.data[0].nav=Number(realLike.data[0].nav);
+ const valid=normalizeFreeNavHistory(realLike,'100641',{now});
+ assert.equal(valid.status,'AVAILABLE',valid.reasonCode);
+ assert.equal(valid.latestNavDate,'2026-10-21');
+ assert.equal(typeof valid.latestNavDate,'string');
+ assert.ok(Number.isFinite(valid.observedAnnualVolatility));
+ for (const poisoned of [true,false,{},[],null,'Infinity','NaN','2e5',' 100 ','-1']){
+  const input=observedNav();
+  input.data[3].nav=poisoned;
+  assert.equal(normalizeFreeNavHistory(input,'100641',{now}).status,'UNAVAILABLE',
+    JSON.stringify(poisoned));
+ }
+ const malformed=observedNav();
+ malformed.data[3].nav_date='2026-02-30';
+ assert.equal(normalizeFreeNavHistory(malformed,'100641',{now}).status,'UNAVAILABLE');
+});
+test('NAV history parser rejects oversized untrusted upstream arrays without sorting',()=>{
+ const raw=observedNav();
+ raw.data=Array.from({length:1001},(_,i)=>({...raw.data[i%raw.data.length]}));
+ const result=normalizeFreeNavHistory(raw,'100641',{now});
+ assert.equal(result.status,'UNAVAILABLE');
+ assert.equal(result.reasonCode,'FREE_NAV_HISTORY_TOO_LARGE');
+});
+
 test('no-key adapter uses fixed source, no redirects, and never accepts arbitrary scheme URL',async()=>{
  const calls=[];
  const fetchImpl=async(url,options)=>{
