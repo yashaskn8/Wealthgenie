@@ -77,6 +77,28 @@ describe('GenieChat grounded explanation metadata', () => {
     expect(screen.getByText(/General AI answer/)).toBeTruthy();
   });
 
+  it('opens internal policy evidence automatically and never presents it as an external citation', () => {
+    render(<MessageBubble
+      msg={{
+        role: 'assistant',
+        content: 'WealthGenie uses the new regime only [E_TAX_ASSUMPTIONS_INPUTS].',
+        timestamp: '2026-10-23T00:00:00.000Z', _streamed: true,
+        grounded: true, provider: 'DETERMINISTIC_TEMPLATE', fallback: false,
+        citations: [{
+          citation_id: 'E_TAX_ASSUMPTIONS_INPUTS',
+          document_title: 'WealthGenie tax input and limitation policy',
+          source: 'WealthGenie backend policy', source_url: null,
+          evidence_class: 'DETERMINISTIC_POLICY_EXPLANATION',
+          excerpt: 'Only the new regime is supported',
+        }],
+      }}
+      isLatest={false}
+    />);
+    expect(screen.getByText('WealthGenie uses the new regime only [1].')).toBeTruthy();
+    expect(screen.getByText(/WealthGenie app policy — not an external source/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /WealthGenie tax input/ })).toBeNull();
+  });
+
   it('renders only backend-supplied source URLs as links', () => {
     render(<MessageBubble
       msg={{
