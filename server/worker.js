@@ -22,6 +22,7 @@ import { verifyAgentRuntimePersistence, verifyPlanHealthPersistence } from './se
 import { verifyGenieProofPersistenceIndexes } from './services/persistenceIndexReadiness.js';
 import logger from './utils/logger.js';
 import { createDecisionMonitorWorker } from './services/genieDecision/monitor.js';
+import { decisionIntegrityReady } from './services/genieDecision/integrity.js';
 import { verifyPersistenceIndexes } from './services/persistenceIndexReadiness.js';
 import DecisionMonitor from './models/DecisionMonitor.js';
 import DecisionAssessment from './models/DecisionAssessment.js';
@@ -148,6 +149,9 @@ export async function startWorker({ env = process.env } = {}) {
   }
   if (config.planHealth.enabled) startPlanHealthScheduler({ config: config.planHealth });
   if (env.GENIEDECISION_MONITOR_ENABLED === 'true') {
+    if (!decisionIntegrityReady()) {
+      throw new Error('GenieDecision monitoring cannot start without a valid authenticated receipt keyring.');
+    }
     await verifyPersistenceIndexes({
       models: [DecisionMonitor, DecisionAssessment, DecisionEvent, DecisionEventState],
       scope: 'persistence',
