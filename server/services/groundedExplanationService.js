@@ -1100,11 +1100,16 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
   const regulatoryLookup = dependencies.queryRegulatoryRag
     || (process.env.ML_SERVICE_API_KEY ? queryRAG : null);
-  const regulatory = await retrieveQualifiedRegulatoryChatEvidence({
-    question,
-    userId,
-    queryRag: regulatoryLookup,
-  });
+  // These two answers are backed by the current saved recommendation or
+  // versioned internal tax policy. Unrelated retrieved regulatory excerpts
+  // must not contaminate their citations or add network latency.
+  const regulatory = isPortfolioReviewQuestion(question) || isTaxPolicyExplanationQuestion(question)
+    ? { entries: [], unavailableFacts: [] }
+    : await retrieveQualifiedRegulatoryChatEvidence({
+      question,
+      userId,
+      queryRag: regulatoryLookup,
+    });
   entries.push(...regulatory.entries);
   unavailableFacts.push(...regulatory.unavailableFacts);
   if (/market context|cautious|risk.off|high.volatility|nifty|india vix/i.test(question)) {
