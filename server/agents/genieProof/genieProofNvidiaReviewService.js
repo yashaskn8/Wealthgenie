@@ -121,7 +121,9 @@ export async function reviewGenieProofWithNvidia({
           warningSignals: claim.warningSignals,
         }),
       }],
-      jsonMode: true,
+      // NVIDIA's selected model API does not document response_format=json_object.
+      // Request plain text and enforce the strict JSON allowlist after inference.
+      jsonMode: false,
       maxTokens: 192,
       signal,
     });
