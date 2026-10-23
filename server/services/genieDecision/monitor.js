@@ -308,10 +308,17 @@ export function createDecisionMonitorWorker({
   let heartTimer = null;
   let heartbeatHealthy = false;
   let lastHeartbeatAt = null;
+  let heartbeatInFlight = null;
   const beat = async () => {
-    await heartbeat.beat();
-    heartbeatHealthy = true;
-    lastHeartbeatAt = new Date().toISOString();
+    // Serialize heartbeat writes. An old, in-flight upsert must never
+    // resurrect a healthy-worker marker after shutdown deletes it.
+    if (heartbeatInFlight) return heartbeatInFlight;
+    heartbeatInFlight = Promise.resolve().then(() => heartbeat.beat()).then(() => {
+      heartbeatHealthy = true;
+      lastHeartbeatAt = new Date().toISOString();
+    });
+    try { await heartbeatInFlight; }
+    finally { heartbeatInFlight = null; }
   };
   const tick = async () => {
     if (active) return active;
@@ -336,7 +343,9 @@ export function createDecisionMonitorWorker({
       if (heartTimer) clearInterval(heartTimer);
       timer = null;
       heartTimer = null;
+      heartbeatHealthy = false;
       if (active) await active;
+      if (heartbeatInFlight) await heartbeatInFlight;
       heartbeatHealthy = false;
       await heartbeat.stop();
       return { drained: true };
