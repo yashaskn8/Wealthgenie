@@ -140,3 +140,52 @@ test('Long-horizon aggregate balances exceed the input cap without corrupting ex
   assert.equal(output.alternatives[1].endingProjectedLiquidCash, '-32400000000.00');
   assert.equal(output.alternativeBLiquidCashMinusA, '-36000000000.00');
 });
+
+
+test('Loan comparisons remain accurate after the declared loan maturity and conserve all liquid cash outflows', () => {
+  const base = {
+    openingLiquidCash: '1000000.00', monthlyTakeHome: '100000.00',
+    monthlyLivingExpenses: '70000.00', monthlyDebtPayments: '10000.00',
+    monthlyInvestments: '10000.00', declaredMonthlySavings: '20000.00',
+  };
+  const report = run('HOUSE_VS_RENT', {
+    purchasePrice: '120000.00', downPayment: '0.00', upfrontFees: '0.00',
+    loanAprBps: 0, loanTermMonths: 12, monthlyOwnerCosts: '0.00',
+    monthlyRent: '0.00', rentalUpfrontCash: '0.00',
+    housingCostAlreadyInExpenses: '0.00',
+  }, { baseline: base, horizonMonths: 24, goalReservations: [] });
+  const [purchase, rent] = report.alternatives;
+  assert.equal(purchase.endingProjectedLiquidCash, '1120000.00');
+  assert.equal(rent.endingProjectedLiquidCash, '1240000.00');
+  assert.equal(purchase.rows[11].debtPayments, '20000.00');
+  assert.equal(purchase.rows[12].debtPayments, '10000.00');
+  assert.equal(purchase.remainingLoanBalance, '0.00');
+  assert.equal(purchase.loanInterestPaid, '0.00');
+  // Independent cash-equation check (total invested funds are cash outflows).
+  for (const option of [purchase, rent]) {
+    const opening = toPaise(base.openingLiquidCash, 'opening');
+    const totalIncome = toPaise(base.monthlyTakeHome, 'income') * 24n;
+    const ending = toPaise(option.endingProjectedLiquidCash, 'ending');
+    assert.equal(
+      toPaise(option.cumulativeOutflowsIncludingUpfront, 'outflows'),
+      opening + totalIncome - ending,
+    );
+  }
+});
+
+test('Major expense scenarios represent lender maturity followed by zero payment months', () => {
+  const base = {
+    openingLiquidCash: '1000000.00', monthlyTakeHome: '100000.00',
+    monthlyLivingExpenses: '70000.00', monthlyDebtPayments: '10000.00',
+    monthlyInvestments: '10000.00', declaredMonthlySavings: '20000.00',
+  };
+  const report = run('MAJOR_EXPENSE', {
+    purchaseCost: '120000.00', financePrincipal: '120000.00',
+    financeFees: '0.00', financeAprBps: 0, financeTermMonths: 12,
+    monthlyMaintenance: '0.00',
+  }, { baseline: base, horizonMonths: 24, goalReservations: [] });
+  assert.equal(report.alternatives[0].endingProjectedLiquidCash, '1120000.00');
+  assert.equal(report.alternatives[1].endingProjectedLiquidCash, '1120000.00');
+  assert.equal(report.alternatives[1].rows[12].debtPayments, '10000.00');
+  assert.equal(report.alternatives[1].loanInterestPaid, '0.00');
+});
