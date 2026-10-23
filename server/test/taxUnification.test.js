@@ -295,7 +295,7 @@ function makeAgeBoundaryProjection(userAge, annualGrossIncome) {
 }
 
 test('ordinary-interest projection holds the selected fiscal-year age across unanchored events', () => {
-  const { context, projection } = makeAgeBoundaryProjection(59, 1_250_000);
+  const { context, projection } = makeAgeBoundaryProjection(59, 3_000_000);
   assert.equal(projection.status, 'CALCULATED');
   assert.deepEqual(projection.taxEvents.map(event => event.taxpayerAgeForSelectedFiscalYear), [59, 59]);
   assert.ok(projection.taxEvents.every(event => !('projectedFiscalYearOffset' in event)));
@@ -337,7 +337,7 @@ test('ordinary-interest projection preserves selected ages at the 80-year and ma
 
 test('interest TDS remains an informational credit and is not subtracted again in projection events', () => {
   const context = {
-    annualGrossIncome: 1_000_000,
+    annualGrossIncome: 3_000_000,
     regime: 'new',
     incomeSource: 'salary',
     fiscalYear: FY,
