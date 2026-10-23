@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
+import { inspectCashStatementCsv, MAX_CASH_CSV_BYTES } from '../utils/cashStatementImport';
 import './CashCheck.css';
 
 const ENTRY_TYPES = [
@@ -51,6 +52,13 @@ const newEntry = () => ({
   id: 'cash_' + Date.now().toString(36) + '_' + (++localCounter).toString(36),
   type: 'ESSENTIAL_PAYMENT', label: '', amount: '', startDate: INDIA_DATE(), recurrence: 'ONCE',
 });
+function signalCashRevisionChanged() {
+  // No balances, identities, narration, or other financial data cross tabs.
+  if (typeof BroadcastChannel === 'undefined') return;
+  const channel = new BroadcastChannel('wealthgenie-cash-revision');
+  channel.postMessage({ type: 'revision-updated' });
+  channel.close();
+}
 const EMPTY = () => ({
   asOfDate: INDIA_DATE(), cashSource: 'USER_DECLARED_BANK_CASH',
   openingCash: '', completenessConfirmed: false, entries: [],
@@ -153,6 +161,10 @@ export default function CashCheck() {
   const [hasStoredLedger, setHasStoredLedger] = useState(false);
   const [conflictState, setConflictState] = useState(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+  const [csvReview, setCsvReview] = useState(null);
+  const [csvError, setCsvError] = useState('');
+  const [csvReading, setCsvReading] = useState(false);
+  const [candidateTypes, setCandidateTypes] = useState({});
 
   useEffect(() => {
     const timer = setInterval(() => setIndiaDate(INDIA_DATE()), 60_000);
@@ -173,6 +185,109 @@ export default function CashCheck() {
     }).catch(err => { if (active) { setLoadFailed(true); setError(err.message || 'Unable to fetch cash entries.'); setLoaded(true); } });
     return () => { active = false; };
   }, [loadAttempt]);
+
+  useEffect(() => {
+    if (!loaded || loadFailed) return undefined;
+    let active = true;
+    let inFlight = false;
+    const checkForChanges = async () => {
+      if (busy || conflictState || inFlight || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return;
+      inFlight = true;
+      try {
+        const latest = await api.getCoverageLedger();
+        if (!active || latest.revision === revision) return;
+        // Never overwrite local unsaved amounts with a poll or a tab signal.
+        if (dirty) {
+          setConflictState(latest);
+          setConfirmOverwrite(false);
+          setError('Another session changed your cash plan. Review both versions before saving.');
+        } else {
+          setRevision(latest.revision);
+          setDraft(latest.ledger ? toDraft(latest.ledger) : EMPTY());
+          setSaved(latest.latestResult?.result || null);
+          setHasStoredLedger(Boolean(latest.ledger));
+          setStale(Boolean(latest.requiresCashReconfirmation || latest.requiresPolicyReconfirmation));
+          setPreview(null);
+          setNotice('Cash plan refreshed from a newer saved revision. Bank balances are not streamed.');
+        }
+      } catch {
+        if (active) setNotice('Automatic revision check unavailable. Confirm the latest saved state before relying on these results.');
+      } finally { inFlight = false; }
+    };
+    const interval = setInterval(checkForChanges, 45_000);
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void checkForChanges(); };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('wealthgenie-cash-revision');
+    if (channel) channel.onmessage = event => {
+      if (event.data?.type === 'revision-updated') void checkForChanges();
+    };
+    return () => {
+      active = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (channel) channel.close();
+    };
+  }, [loaded, loadFailed, busy, dirty, conflictState, revision]);
+
+  const importStatement = async event => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || csvReading || busy) return;
+    setCsvError('');
+    setCsvReview(null);
+    if (!file.name.toLowerCase().endsWith('.csv') || file.size > MAX_CASH_CSV_BYTES || file.size === 0) {
+      setCsvError('Choose a nonempty .csv statement of at most 512 KB. PDF, Excel and bank-login links are not accepted.');
+      return;
+    }
+    setCsvReading(true);
+    try {
+      // Sensitive transaction descriptions never leave the browser during
+      // import, and full rows are not copied into app state, logs or storage.
+      const result = inspectCashStatementCsv(await file.text());
+      setCsvReview({ ...result, reviewedOn: INDIA_DATE() });
+      setCandidateTypes({});
+    } catch (err) {
+      setCsvError(err.message || 'Statement could not be parsed; nothing was saved.');
+    } finally { setCsvReading(false); }
+  };
+  const acceptStatementSuggestion = candidate => {
+    if (busy || !csvReview) return;
+    if (csvReview.reviewedOn !== INDIA_DATE()) {
+      setCsvError('This statement review crossed an India calendar day. Import it again before confirming a future due date.');
+      return;
+    }
+    const type = candidateTypes[candidate.id];
+    if (!['ESSENTIAL_PAYMENT', 'CONTRACTUAL_PAYMENT', 'VOLUNTARY_CONTRIBUTION', 'OTHER_PAYMENT'].includes(type)) {
+      setCsvError('Explicitly classify this future payment before adding it.');
+      return;
+    }
+    if (draft.entries.length >= 100) {
+      setCsvError('The 100-commitment limit is reached; remove an entry before importing.');
+      return;
+    }
+    if (draft.entries.some(e => e.label.trim().toLowerCase() === candidate.label.trim().toLowerCase()
+      && e.amount === rupees(candidate.amountPaise)
+      && e.recurrence === candidate.recurrence)) {
+      setCsvError('A similar future commitment already exists. Resolve possible duplicates manually.');
+      return;
+    }
+    editDraft(d => ({
+      ...d,
+      completenessConfirmed: false,
+      entries: [...d.entries, {
+        ...newEntry(), type,
+        label: candidate.label,
+        amount: rupees(candidate.amountPaise),
+        startDate: candidate.firstDueDate,
+        recurrence: candidate.recurrence,
+      }],
+    }));
+    setCsvReview(current => current && ({
+      ...current, proposals: current.proposals.filter(p => p.id !== candidate.id),
+    }));
+    setCsvError('');
+    setNotice('Proposed payment added to your unsaved draft. Reconfirm obligations before saving; no bank statement was uploaded.');
+  };
 
   const editDraft = updater => {
     // A response must never publish an old calculation over a later local edit.
@@ -231,6 +346,7 @@ export default function CashCheck() {
       setDirty(false);
       setStale(draft.asOfDate !== INDIA_DATE());
       setNotice('Entries saved and recalculated. Revision ' + response.revision + '.');
+      signalCashRevisionChanged();
     } catch (err) {
       if (err.status === 409 && err.code === 'COVERAGE_REVISION_CONFLICT') {
         // This lookup is read-only; never silently overwrite another device's
@@ -323,7 +439,9 @@ export default function CashCheck() {
       setDirty(false);
       setStale(false);
       setConfirmDelete(false);
+      setCsvReview(null);
       setNotice('Saved cash entries and calculations deleted. A minimal deletion receipt remains for retry safety.');
+      signalCashRevisionChanged();
     } catch (err) {
       setError(err.status === 409 && err.code === 'COVERAGE_REVISION_CONFLICT'
         ? 'Deletion blocked: the saved revision changed. Reload and reconcile first.'
@@ -423,6 +541,40 @@ export default function CashCheck() {
               {SOURCES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select></label>
           </div>
+        </section>
+        <section className="cash-check-panel" aria-label="Local bank statement assistant">
+          <h2>Optional: review a bank-statement CSV locally</h2>
+          <p>Private, browser-only CSV review. Nothing is sent to a bank, WealthGenie API, AI model, or cloud storage until you explicitly choose a draft commitment and save it. This is <strong>not</strong> a live bank connection or balance verification.</p>
+          <p>Accepts Date, Description/Narration, Debit, Credit and optional Balance columns; ISO dates or India day-first dates. Up to 512 KB / 1,500 rows. PDF and XLSX are not accepted.</p>
+          <label>Choose a CSV statement
+            <input type="file" accept=".csv,text/csv" disabled={busy || csvReading} onChange={importStatement} aria-label="Choose bank statement CSV" />
+          </label>
+          {csvReading && <p role="status">Reviewing local statement…</p>}
+          {csvError && <p className="cash-check-error" role="alert">{csvError}</p>}
+          {csvReview && (
+            <div className="cash-check-statement-review" role="region" aria-label="Statement review">
+              <p><strong>Unverified local statement:</strong> {csvReview.rowsInspected} completed transactions, {csvReview.firstTransactionDate} to {csvReview.lastTransactionDate}. {csvReview.freshness === 'DATED_TODAY_NOT_VERIFIED' ? 'File contains a transaction dated today; balance is not bank-verified.' : 'Historical file; it is not a live bank feed.'}</p>
+              {csvReview.lastReportedBalancePaise !== null && <p>File-reported closing balance: <strong>{formatMoney(csvReview.lastReportedBalancePaise)}</strong> on {csvReview.lastReportedBalanceDate}. Do not copy this automatically into accessible cash; reconfirm today's actual balance yourself.</p>}
+              <p>Possible recurring debits require your confirmation. Past settled debits are never added as future bills, and transfers may resemble recurring payments.</p>
+              {csvReview.proposals.length === 0 && <p>No confident recurring-payment patterns found. You can still enter future bills manually.</p>}
+              {csvReview.proposals.map(candidate => (
+                <fieldset className="cash-check-entry" key={candidate.id}>
+                  <legend>Unverified recurring-payment suggestion</legend>
+                  <p><strong>{candidate.label}</strong> — {formatMoney(candidate.amountPaise)}, {candidate.recurrence.toLowerCase()}, next possible due {candidate.firstDueDate}. Historical dates: {candidate.supportingDates.join(', ')}.</p>
+                  <label>Confirm payment type
+                    <select value={candidateTypes[candidate.id] || ''} onChange={e => setCandidateTypes(old => ({ ...old, [candidate.id]: e.target.value }))}>
+                      <option value="">Choose explicitly</option>
+                      {ENTRY_TYPES.filter(([value]) => value !== 'EXPECTED_INCOME').map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" disabled={busy || draft.entries.length >= 100 || !candidateTypes[candidate.id]}
+                    onClick={() => acceptStatementSuggestion(candidate)}>Add reviewed payment to unsaved draft</button>
+                </fieldset>
+              ))}
+              <button type="button" onClick={() => { setCsvReview(null); setCsvError(''); }} disabled={busy}>Discard statement review</button>
+              <small>Raw CSV rows remain on this device only during parsing. Review summaries disappear when you discard them or leave this page. The upload does not authorize banking access.</small>
+            </div>
+          )}
         </section>
         <section className="cash-check-panel">
           <div className="cash-check-headline"><h2>2. Date your cash entries</h2>
