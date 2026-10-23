@@ -44,7 +44,16 @@ const snapshotSchema = new Schema({
 }, options);
 snapshotSchema.index({ userId: 1, createdAt: -1 }, { name: 'runway_snapshots_by_owner' });
 
+const snapshotDeletionSchema = new Schema({
+  // Retain a non-financial deletion marker until full account Runway erasure.
+  // This prevents a delayed/retried Idempotency-Key from resurrecting a deleted result.
+  _id: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  userId: { type: Schema.Types.ObjectId, required: true, immutable: true },
+  deletedAt: { type: Date, required: true, immutable: true },
+}, options);
+
 export const RunwayLedgerState = mongoose.models.RunwayLedgerState || mongoose.model('RunwayLedgerState', stateSchema);
 export const RunwayLedgerRevision = mongoose.models.RunwayLedgerRevision || mongoose.model('RunwayLedgerRevision', ledgerRevisionSchema);
 export const RunwayMutationReceipt = mongoose.models.RunwayMutationReceipt || mongoose.model('RunwayMutationReceipt', receiptSchema);
 export const RunwaySnapshot = mongoose.models.RunwaySnapshot || mongoose.model('RunwaySnapshot', snapshotSchema);
+export const RunwaySnapshotDeletion = mongoose.models.RunwaySnapshotDeletion || mongoose.model('RunwaySnapshotDeletion', snapshotDeletionSchema);

@@ -91,3 +91,9 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 - `GET /api/runway/export/snapshots?page=0..4` exports at most 20 owner-scoped snapshots per page (maximum 100), with server-side HMAC validation, sealed original ledger provenance, and current-engine recomputation when possible. Recently issued authentication is required.
 - The browser's private JSON export now includes **all retained ledger revisions and saved scenario snapshots**, not just ledger entries. It checks each response's format, total and bounds and refuses incomplete downloads.
 - This is portability of application-held user declarations, not a bank-confirmed financial evidence archive; backup expiry, secure handling on the end-user device, and legal retention obligations require separate approvals.
+
+## Replay after deletion and pointer-rollback red-team controls
+
+- Individually deleted snapshots leave a tiny owner-scoped ID tombstone (hash ID, owner ID, deletion timestamp; no financial amounts). In-flight retries with a previously deleted `Idempotency-Key` return `RUNWAY_SNAPSHOT_DELETED`, not a recreated record. Creation and individual deletion both write the owner state inside MongoDB transactions to serialize races.
+- A full Runway data deletion removes these tombstones as well. Preventing an authenticated client from deliberately re-entering old data after a full erasure would require a separately governed account-lifecycle generation policy; do **not** represent full erasure as revoking all future authenticated writes.
+- Read paths check the current ledger pointer against the latest persisted immutable revision; rolling it back to a previously signed revision fails closed with `RUNWAY_REVISION_POINTER_INVALID`. This detects pointer rollback, but not a fully compromised signing key, deletion of the entire revision history, or a malicious system administrator.

@@ -9,7 +9,7 @@ import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
-import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot } from '../models/Runway.js';
+import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '../models/Runway.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 
@@ -146,6 +146,14 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
         { method: 'DELETE', headers: authA });
       assert.equal(deletedOne.response.status, 200);
       assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 1);
+      assert.equal(await RunwaySnapshotDeletion.countDocuments({ userId: userA }), 1);
+      const delayedReplayAfterDeletion = await mutation(base, 'snapshots', request, authA, 'runway-snapshot-002');
+      assert.equal(delayedReplayAfterDeletion.response.status, 409);
+      assert.equal(delayedReplayAfterDeletion.body.code, 'RUNWAY_SNAPSHOT_DELETED');
+      assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 1);
+      const repeatDeletion = await jsonRequest(ownedBase + 'snapshots/' + additional.body.snapshotId,
+        { method: 'DELETE', headers: authA });
+      assert.equal(repeatDeletion.response.status, 404);
 
       const original = await RunwaySnapshot.collection.findOne({ _id: snapshot.body.snapshotId });
       await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
@@ -213,6 +221,14 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.deepEqual(raced.map(x => x.response.status).sort(), [201, 409]);
       const current = await jsonRequest(ownedBase + 'current', { headers: authA });
       assert.equal(current.body.revision, 2);
+      // State rollback to a formerly valid, properly sealed revision must fail closed.
+      await RunwayLedgerState.collection.updateOne({ _id: userA }, { $set: { revision: 1 } });
+      const rolledBackPointer = await jsonRequest(ownedBase + 'current', { headers: authA });
+      assert.equal(rolledBackPointer.response.status, 503);
+      assert.equal(rolledBackPointer.body.code, 'RUNWAY_REVISION_POINTER_INVALID');
+      const rolledBackSnapshotList = await jsonRequest(ownedBase + 'snapshots?page=0', { headers: authA });
+      assert.equal(rolledBackSnapshotList.response.status, 503);
+      await RunwayLedgerState.collection.updateOne({ _id: userA }, { $set: { revision: 2 } });
       const historic = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(historic.body.status, 'HISTORICAL');
       const stale = await mutation(base, 'simulations', request);
@@ -274,6 +290,7 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(deleted.body.status, 'DELETED');
       assert.equal(await RunwayLedgerRevision.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 0);
+      assert.equal(await RunwaySnapshotDeletion.countDocuments({ userId: userA }), 0);
       const missing = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(missing.response.status, 404);
       assert.equal(await FinancialProfile.countDocuments({ userId: userA }), 0);

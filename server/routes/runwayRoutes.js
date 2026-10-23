@@ -9,7 +9,7 @@ import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLim
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { RUNWAY_ENGINE_VERSION, simulateRunway, validateLedger, validateRequest } from '../services/runwayEngine.js';
 import {
-  RunwayLedgerState, RunwayLedgerRevision, RunwayMutationReceipt, RunwaySnapshot,
+  RunwayLedgerState, RunwayLedgerRevision, RunwayMutationReceipt, RunwaySnapshot, RunwaySnapshotDeletion,
 } from '../models/Runway.js';
 
 const router = Router();
@@ -68,8 +68,17 @@ function matchRevision(req) {
   return Number(match[1]);
 }
 async function currentRevision(userId, session = null) {
-  const state = await RunwayLedgerState.findById(userId).session(session).lean();
-  if (!state) return null;
+  const [state, latest] = await Promise.all([
+    RunwayLedgerState.findById(userId).session(session).lean(),
+    RunwayLedgerRevision.findOne({ userId }).sort({ revision: -1 }).select('revision').session(session).lean(),
+  ]);
+  // An attacker or bug must not roll back the current pointer to an older
+  // validly sealed revision and silently present stale cash as current.
+  if (!state && !latest) return null;
+  if (!state || !latest || state.revision !== latest.revision) {
+    throw failure(503, 'RUNWAY_REVISION_POINTER_INVALID',
+      'Current financial ledger pointer cannot be reconciled with immutable history.');
+  }
   const revision = await RunwayLedgerRevision.findOne({ userId, revision: state.revision }).session(session).lean();
   if (!revision || canonicalSha256(revision.ledger) !== revision.inputHash) {
     throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved ledger could not be reconciled.');
@@ -282,7 +291,7 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
     RunwaySnapshot.find({ userId }).sort({ createdAt: -1, _id: -1 })
       .skip(page * 20).limit(20).lean(),
     RunwaySnapshot.countDocuments({ userId }),
-    RunwayLedgerState.findById(userId).select('revision').lean(),
+    currentRevision(userId),
   ]);
   for (const item of items) requireValidSnapshotSeal(item);
   return res.json({
@@ -291,7 +300,7 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
       snapshotId: item._id, ledgerRevision: item.ledgerRevision, createdAt: item.createdAt,
       inputHash: item.inputHash,
       engineStatus: item.result?.engineVersion === RUNWAY_ENGINE_VERSION ? 'CURRENT_ENGINE' : 'HISTORICAL_ENGINE',
-      status: state?.revision === item.ledgerRevision
+      status: state?.state?.revision === item.ledgerRevision
         && item.result?.engineVersion === RUNWAY_ENGINE_VERSION
         && item.result?.asOfDate === indiaCivilToday() ? 'CURRENT' : 'HISTORICAL',
     })),
@@ -332,6 +341,9 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
   assertShape(req.body, ['ledgerRevision', 'horizonDays', 'scenarios']);
   const snapshotId = canonicalSha256({ operation: 'SNAPSHOT', userId: String(userId), key });
   const requestHash = canonicalSha256({ operation: 'SNAPSHOT', userId: String(userId), request: req.body });
+  const deletedBefore = await RunwaySnapshotDeletion.exists({ _id: snapshotId, userId });
+  if (deletedBefore) throw failure(409, 'RUNWAY_SNAPSHOT_DELETED',
+    'This saved result was intentionally deleted. Use a new request to create a new result.');
   const existing = await RunwaySnapshot.findOne({ _id: snapshotId, userId }).lean();
   if (existing) {
     if (existing.requestHash !== requestHash) throw failure(409, 'RUNWAY_IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different input.');
@@ -346,6 +358,9 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
       requireFreshCash(found.revision.ledger);
       validateRequest(req.body, found.revision.ledger);
       requireListedPayments(found.revision.ledger);
+      const tombstone = await RunwaySnapshotDeletion.exists({ _id: snapshotId, userId }).session(session);
+      if (tombstone) throw failure(409, 'RUNWAY_SNAPSHOT_DELETED',
+        'The requested saved result has been deleted. Create a new result with a new key.');
       const count = await RunwaySnapshot.countDocuments({ userId }).session(session);
       if (count >= MAX_SNAPSHOTS) throw failure(409, 'RUNWAY_SNAPSHOT_LIMIT', 'Delete older snapshots before saving more.');
       // A shared owner-state write forces concurrent snapshot creators to
@@ -413,9 +428,9 @@ async function verifiedSnapshot(userId, id) {
 router.get('/snapshots/:id', asyncHandler(async (req, res) => {
   const userId = owner(req);
   const snapshot = await verifiedSnapshot(userId, req.params.id);
-  const state = await RunwayLedgerState.findById(userId).lean();
+  const found = await currentRevision(userId);
   return res.json({ snapshotId: snapshot._id, ledgerRevision: snapshot.ledgerRevision, inputHash: snapshot.inputHash,
-    status: state?.revision === snapshot.ledgerRevision
+    status: found?.state?.revision === snapshot.ledgerRevision
       && snapshot.engineStatus === 'CURRENT_ENGINE'
       && snapshot.result?.asOfDate === indiaCivilToday() ? 'CURRENT' : 'HISTORICAL',
     engineStatus: snapshot.engineStatus, verification: snapshot.verification,
@@ -424,9 +439,23 @@ router.get('/snapshots/:id', asyncHandler(async (req, res) => {
 
 router.delete('/snapshots/:id', asyncHandler(async (req, res) => {
   const userId = owner(req);
+  requireRecentSession(req);
   if (!SNAPSHOT_ID.test(req.params.id)) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
-  const deleted = await RunwaySnapshot.deleteOne({ _id: req.params.id, userId });
-  if (deleted.deletedCount !== 1) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
+  try {
+    await inTransaction(async session => {
+      const original = await RunwaySnapshot.findOne({ _id: req.params.id, userId }).session(session).lean();
+      if (!original) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
+      const found = await currentRevision(userId, session);
+      if (!found) throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Ledger pointer unavailable.');
+      // Serialize deletion with snapshot creation to close in-flight create/delete races.
+      const fence = await RunwayLedgerState.updateOne({ _id: userId, revision: found.state.revision },
+        { $inc: { snapshotGeneration: 1 } }, { session });
+      if (fence.matchedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Ledger changed concurrently.');
+      await RunwaySnapshotDeletion.create([{ _id: req.params.id, userId, deletedAt: new Date() }], { session });
+      const deleted = await RunwaySnapshot.deleteOne({ _id: req.params.id, userId }).session(session);
+      if (deleted.deletedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Saved result changed concurrently.');
+    });
+  } catch (error) { rethrowTransaction(error); }
   return res.json({ status: 'DELETED', scope: 'ONE_RUNWAY_SNAPSHOT' });
 }));
 
@@ -460,6 +489,7 @@ router.delete('/data', asyncHandler(async (req, res) => {
   requireRecentSession(req);
   await inTransaction(async session => {
     await RunwaySnapshot.deleteMany({ userId }, { session });
+    await RunwaySnapshotDeletion.deleteMany({ userId }, { session });
     await RunwayMutationReceipt.deleteMany({ userId }, { session });
     await RunwayLedgerRevision.deleteMany({ userId }, { session });
     await RunwayLedgerState.deleteOne({ _id: userId }, { session });
