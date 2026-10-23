@@ -1193,6 +1193,10 @@ export async function evaluateDecisionScenario(id, expectedRevision, options = {
   return request('POST', `/decisions/scenarios/${encodeURIComponent(id)}/evaluate`,
     { expectedRevision }, { retries: 0, ...options });
 }
+export async function listDecisionRuns(scenarioId, options = {}) {
+  return request('GET', `/decisions/scenarios/${encodeURIComponent(scenarioId)}/runs`, null,
+    { retries: 0, ...options });
+}
 export async function getDecisionRun(id, options = {}) {
   return request('GET', `/decisions/runs/${encodeURIComponent(id)}`, null, { retries: 0, ...options });
 }
@@ -1204,7 +1208,7 @@ export async function deleteDecisionScenario(id, expectedRevision, options = {})
 // Default export for convenience
 const api = {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario, createDecisionScenario,
-  updateDecisionScenario, evaluateDecisionScenario, getDecisionRun, deleteDecisionScenario,
+  updateDecisionScenario, evaluateDecisionScenario, getDecisionRun, listDecisionRuns, deleteDecisionScenario,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
