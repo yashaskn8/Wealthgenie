@@ -203,9 +203,19 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         userId: req.user.userId, requireRecommendation: false, session,
       });
       assertProfile(fresh, source);
+      // A database-unique (userId, quotaSlot) index prevents a concurrent
+      // request from racing past the 50-scenario bound across replicas.
+      const occupied = await DecisionScenario.find({ userId: req.user.userId })
+        .select('quotaSlot').session(session).lean();
+      const used = new Set(occupied.map(item => item.quotaSlot));
+      let quotaSlot = null;
+      for (let slot = 0; slot < 50; slot += 1) {
+        if (!used.has(slot)) { quotaSlot = slot; break; }
+      }
+      if (quotaSlot === null) fail(429, 'DECISION_SCENARIO_LIMIT', 'Maximum of 50 saved scenarios reached.');
       const [created] = await DecisionScenario.create([{
         userId: req.user.userId, ...source,
-        scenarioType: payload.scenarioType, title: payload.title,
+        scenarioType: payload.scenarioType, title: payload.title, quotaSlot,
         createKeyHash, createPayloadHash,
       }], { session });
       await DecisionScenarioRevision.create([{
