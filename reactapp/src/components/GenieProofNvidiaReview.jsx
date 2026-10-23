@@ -27,7 +27,7 @@ function validReview(value, claim) {
       && step.text === STEPS[step.id]);
 }
 
-export default function GenieProofNvidiaReview({ offerText, claim }) {
+export default function GenieProofNvidiaReview({ claim }) {
   const [consent, setConsent] = useState(false);
   const [review, setReview] = useState(null);
   const [error, setError] = useState('');
@@ -37,7 +37,7 @@ export default function GenieProofNvidiaReview({ offerText, claim }) {
   useEffect(() => () => controllerRef.current?.abort(), []);
 
   async function submit() {
-    if (!consent || busy || review?.status === 'GUIDANCE_AVAILABLE') return;
+    if (!consent || busy || claim.statement.length > 500 || review?.status === 'GUIDANCE_AVAILABLE') return;
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -45,7 +45,7 @@ export default function GenieProofNvidiaReview({ offerText, claim }) {
     setReview(null);
     setError('');
     try {
-      const next = await api.reviewGenieProofWithNvidia(offerText, claim.claimId, { signal: controller.signal });
+      const next = await api.reviewGenieProofWithNvidia(claim.statement, claim.claimId, { signal: controller.signal });
       if (controller.signal.aborted || controllerRef.current !== controller) return;
       if (!validReview(next, claim)) throw new Error('INVALID_AI_REVIEW');
       setReview(next);
@@ -72,10 +72,11 @@ export default function GenieProofNvidiaReview({ offerText, claim }) {
         <input type="checkbox" checked={consent} disabled={busy} onChange={e => setConsent(e.target.checked)} />
         I agree to send only this displayed financial statement and its check summary to NVIDIA for AI guidance.
       </label>
-      <button type="button" disabled={!consent || busy || review?.status === 'GUIDANCE_AVAILABLE'}
+      <button type="button" disabled={!consent || busy || claim.statement.length > 500 || review?.status === 'GUIDANCE_AVAILABLE'}
         onClick={submit} style={{ marginTop: 10, padding: '9px 14px', borderRadius: 8 }}>
         {busy ? 'Getting guidance…' : 'Get NVIDIA guidance'}
       </button>
+      {claim.statement.length > 500 && <p role="status">AI guidance is limited to a single statement of up to 500 characters.</p>}
       {error && <p role="alert">{error}</p>}
       {review?.status === 'UNAVAILABLE' && (
         <p role="status">NVIDIA guidance is not available right now. No new evidence was checked.</p>
