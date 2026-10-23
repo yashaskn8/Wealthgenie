@@ -10,7 +10,7 @@ import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
 import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt } from '../models/Runway.js';
-import { RunwayStatement, RunwaySignal } from '../models/RunwayEvidence.js';
+import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 
@@ -51,6 +51,9 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
     });
     await RunwaySignal.collection.createIndex({ expiresAt: 1 }, {
       name: 'runway_signal_ttl', expireAfterSeconds: 0,
+    });
+    await RunwaySettlement.collection.createIndex({ userId: 1, decidedAt: -1 }, {
+      name: 'runway_settlement_owner_audit',
     });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
     await User.create([
@@ -376,6 +379,7 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(await RunwaySnapshotDeletion.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwayStatement.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySignal.countDocuments({ userId: userA }), 0);
+      assert.equal(await RunwaySettlement.countDocuments({ userId: userA }), 0);
       const missing = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(missing.response.status, 404);
       assert.equal(await FinancialProfile.countDocuments({ userId: userA }), 0);
@@ -385,4 +389,127 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
   } finally {
     await teardownTestDatabase();
   }
+});
+
+
+test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempotent replay and sealed history', async () => {
+  await setupTestDatabase({ requireReplicaSet: true });
+  try {
+    // These are the same explicitly migrated indexes checked by readiness.
+    await RunwayLedgerRevision.collection.createIndex({ userId: 1, revision: 1 },
+      { name: 'uniq_runway_ledger_revision', unique: true });
+    await RunwaySnapshot.collection.createIndex({ userId: 1, createdAt: -1 },
+      { name: 'runway_snapshots_by_owner' });
+    await RunwaySnapshotDeletion.collection.createIndex({ expiresAt: 1 },
+      { name: 'runway_deleted_snapshot_ttl', expireAfterSeconds: 0 });
+    await RunwayStatement.collection.createIndex({ userId: 1, importedAt: -1 },
+      { name: 'runway_statement_owner_newest' });
+    await RunwaySignal.collection.createIndex({ userId: 1, _id: 1 },
+      { name: 'runway_signal_owner_cursor' });
+    await RunwaySignal.collection.createIndex({ expiresAt: 1 },
+      { name: 'runway_signal_ttl', expireAfterSeconds: 0 });
+    await RunwaySettlement.collection.createIndex({ userId: 1, decidedAt: -1 },
+      { name: 'runway_settlement_owner_audit' });
+    const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
+    await User.create([
+      { _id: userA, name: 'Settlement A', email: 'r-a-' + crypto.randomUUID() + '@example.test',
+        passwordHash: 'test-hash' },
+      { _id: userB, name: 'Settlement B', email: 'r-b-' + crypto.randomUUID() + '@example.test',
+        passwordHash: 'test-hash' },
+    ]);
+    const now = today();
+    const ledger = { asOfDate: now, confirmationDate: now, openingCashPaise: '5000000',
+      entries: [
+        { id: 'rent', label: 'Rent', kind: 'OBLIGATION', amountPaise: '1500000',
+          date: now, recurrence: 'NONE' },
+        { id: 'salary', label: 'Salary', kind: 'EXPECTED_INCOME', amountPaise: '3000000',
+          date: now, recurrence: 'NONE' },
+      ] };
+    const csv = [
+      'date,description,debit,credit,balance,reference',
+      now + ',Rent posted,15000.00,0,35000.00,pay-1',
+      now + ',Salary credit,0,30000.00,65000.00,pay-2',
+    ].join('\n');
+    const app = createApp({ env: { ...process.env, RUNWAY_ENABLED: 'true', NODE_ENV: 'test' } });
+    const authA = { Authorization: 'Bearer ' + token(userA) };
+    const authB = { Authorization: 'Bearer ' + token(userB) };
+    const send = (base, endpoint, body, auth = authA, key = crypto.randomUUID()) =>
+      jsonRequest(base + '/api/runway/' + endpoint, {
+        method: 'POST', headers: { ...auth, 'Content-Type': 'application/json',
+          'Idempotency-Key': key }, body: JSON.stringify(body),
+      });
+    await withServer(app, async base => {
+      const root = base + '/api/runway/';
+      const created = await jsonRequest(root + 'ledger', {
+        method: 'PUT', headers: { ...authA, 'Content-Type': 'application/json',
+          'If-Match': '"0"', 'Idempotency-Key': 'settlement-create-ledger-1' },
+        body: JSON.stringify(ledger),
+      });
+      assert.equal(created.response.status, 201, JSON.stringify(created.body));
+      const imported = await send(base, 'live/statements', {
+        accountLabel: 'Single salary account', csvText: csv,
+      });
+      assert.equal(imported.response.status, 201, JSON.stringify(imported.body));
+      const candidates = await jsonRequest(root + 'live/matches', { headers: authA });
+      assert.equal(candidates.response.status, 200);
+      assert.equal(candidates.body.revision, 1);
+      assert.deepEqual(candidates.body.items.map(x => x.status),
+        ['UNIQUE_POSSIBLE_MATCH', 'UNIQUE_POSSIBLE_MATCH']);
+      const otherMatches = await jsonRequest(root + 'live/matches', { headers: authB });
+      assert.equal(otherMatches.body.items.length, 0);
+      const before = await jsonRequest(root + 'current', { headers: authA });
+      assert.equal(before.body.ledger.entries.length, 2, 'Preview must never mutate saved cash');
+      const request = {
+        ledgerRevision: 1, statementId: imported.body.statementId, rowIndex: 0,
+        entryId: 'rent', openingCashPaise: '3500000',
+        confirmation: 'I_RECONFIRM_HOUSEHOLD_CASH_AFTER_TRANSACTION',
+      };
+      const missingConsent = await send(base, 'live/settlements', { ...request, confirmation: 'YES' });
+      assert.equal(missingConsent.response.status, 400);
+      const posted = await send(base, 'live/settlements', request, authA, 'rent-posting-unique-1');
+      assert.equal(posted.response.status, 201, JSON.stringify(posted.body));
+      assert.equal(posted.body.revision, 2);
+      assert.equal(posted.body.evidenceStatus, 'USER_CONFIRMED_NOT_BANK_VERIFIED');
+      const after = await jsonRequest(root + 'current', { headers: authA });
+      assert.equal(after.body.revision, 2);
+      assert.equal(after.body.ledger.openingCashPaise, '3500000');
+      assert.deepEqual(after.body.ledger.entries.map(x => x.id), ['salary']);
+      const original = await RunwayLedgerRevision.findOne({ userId: userA, revision: 1 }).lean();
+      assert.equal(original.ledger.entries.length, 2, 'Prior signed ledger must remain immutable');
+      const replay = await send(base, 'live/settlements', request, authA, 'rent-posting-unique-1');
+      assert.equal(replay.response.status, 200);
+      assert.equal(replay.body.replayed, true);
+      assert.equal(await RunwayLedgerRevision.countDocuments({ userId: userA }), 2);
+      const misuse = await send(base, 'live/settlements',
+        { ...request, openingCashPaise: '9000000' }, authA, 'rent-posting-unique-1');
+      assert.equal(misuse.response.status, 409);
+      assert.equal(misuse.body.code, 'RUNWAY_IDEMPOTENCY_CONFLICT');
+      const stale = await send(base, 'live/settlements', request, authA, 'different-key-stale');
+      assert.equal(stale.response.status, 409);
+      assert.equal(stale.body.code, 'RUNWAY_STALE_INPUT');
+      const foreign = await send(base, 'live/settlements', request, authB, 'foreign-settlement-1');
+      assert.notEqual(foreign.response.status, 201);
+      const history = await jsonRequest(root + 'live/settlements?page=0', { headers: authA });
+      assert.equal(history.response.status, 200);
+      assert.equal(history.body.total, 1);
+      assert.equal(history.body.items[0].resultRevision, 2);
+      const foreignHistory = await jsonRequest(root + 'live/settlements?page=0', { headers: authB });
+      assert.equal(foreignHistory.body.total, 0);
+      const events = await jsonRequest(root + 'live/events', { headers: authA });
+      assert.ok(events.body.items.some(x => x.eventType === 'SETTLEMENT_CONFIRMED'));
+      // Database-only writers can tamper with amounts and recompute ordinary
+      // SHA digests. They cannot forge the server-owned HMAC of a receipt.
+      await RunwaySettlement.collection.updateOne({ _id: posted.body.receiptId },
+        { $set: { confirmedCashPaise: '9900000' } });
+      const forged = await jsonRequest(root + 'live/settlements?page=0', { headers: authA });
+      assert.equal(forged.response.status, 503);
+      assert.equal(forged.body.code, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID');
+      await jsonRequest(root + 'data', {
+        method: 'DELETE', headers: { ...authA, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE_RUNWAY_DATA' }),
+      });
+      assert.equal(await RunwaySettlement.countDocuments({ userId: userA }), 0);
+      assert.equal(await RunwayLedgerRevision.countDocuments({ userId: userA }), 0);
+    });
+  } finally { await teardownTestDatabase(); }
 });
