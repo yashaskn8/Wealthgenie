@@ -21,3 +21,7 @@
 .runway fieldset.runway-options{min-width:0}
 .runway fieldset.runway-options legend{padding:0 8px;font-size:1.25rem}
 .runway fieldset:disabled{opacity:.85}
+
+.runway .runway-history{list-style:none;padding:0;margin:10px 0}
+.runway .runway-history li{border-top:1px solid #475569;padding:12px 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.runway .runway-history-actions{display:flex;gap:4px;flex-wrap:wrap}

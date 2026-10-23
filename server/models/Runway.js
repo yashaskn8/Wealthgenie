@@ -6,6 +6,9 @@ const options = { strict: 'throw', versionKey: false, timestamps: true };
 const stateSchema = new Schema({
   _id: { type: Schema.Types.ObjectId, required: true },
   revision: { type: Number, min: 1, required: true, validate: Number.isSafeInteger },
+  // Serializes snapshot creation transactions so the per-owner hard cap cannot
+  // be bypassed by concurrent requests reading the same count.
+  snapshotGeneration: { type: Number, min: 0, default: 0, validate: Number.isSafeInteger },
 }, options);
 
 const ledgerRevisionSchema = new Schema({

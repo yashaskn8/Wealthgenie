@@ -153,7 +153,7 @@ router.put('/ledger', asyncHandler(async (req, res) => {
       const next = expected + 1;
       const inputHash = canonicalSha256(ledger);
       await RunwayLedgerRevision.create([{ userId, revision: next, ledger, inputHash, confirmedAt: new Date() }], { session });
-      if (!previous) await RunwayLedgerState.create([{ _id: userId, revision: next }], { session });
+      if (!previous) await RunwayLedgerState.create([{ _id: userId, revision: next, snapshotGeneration: 0 }], { session });
       else {
         const cas = await RunwayLedgerState.updateOne({ _id: userId, revision: expected }, { $set: { revision: next } }, { session });
         if (cas.matchedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Ledger was edited elsewhere.');
@@ -180,6 +180,28 @@ router.post('/simulations', asyncHandler(async (req, res) => {
     ...simulateRunway(found.revision.ledger, req.body) });
 }));
 
+router.get('/snapshots', asyncHandler(async (req, res) => {
+  const userId = owner(req);
+  const page = req.query.page === undefined ? 0 : Number(req.query.page);
+  if (!Number.isSafeInteger(page) || page < 0 || page > 4
+      || (req.query.page !== undefined && String(page) !== req.query.page)) {
+    throw failure(400, 'RUNWAY_PAGE_INVALID', 'Snapshot page must be an integer from 0 to 4.');
+  }
+  const [items, total, state] = await Promise.all([
+    RunwaySnapshot.find({ userId }).sort({ createdAt: -1, _id: -1 })
+      .skip(page * 20).limit(20).select('_id ledgerRevision createdAt inputHash').lean(),
+    RunwaySnapshot.countDocuments({ userId }),
+    RunwayLedgerState.findById(userId).select('revision').lean(),
+  ]);
+  return res.json({
+    page, total, hasMore: (page + 1) * 20 < total,
+    items: items.map(item => ({
+      snapshotId: item._id, ledgerRevision: item.ledgerRevision, createdAt: item.createdAt,
+      inputHash: item.inputHash, status: state?.revision === item.ledgerRevision ? 'CURRENT' : 'HISTORICAL',
+    })),
+  });
+}));
+
 router.post('/snapshots', asyncHandler(async (req, res) => {
   const userId = owner(req);
   await requireRunwayIndexes();
@@ -201,7 +223,12 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
       validateRequest(req.body, found.revision.ledger);
       requireListedPayments(found.revision.ledger);
       const count = await RunwaySnapshot.countDocuments({ userId }).session(session);
-      if (count >= MAX_SNAPSHOTS) throw failure(409, 'RUNWAY_SNAPSHOT_LIMIT', 'Delete old Runway data before saving additional results.');
+      if (count >= MAX_SNAPSHOTS) throw failure(409, 'RUNWAY_SNAPSHOT_LIMIT', 'Delete older snapshots before saving more.');
+      // A shared owner-state write forces concurrent snapshot creators to
+      // conflict, preventing snapshot count write-skew at the 100-item boundary.
+      const fence = await RunwayLedgerState.updateOne({ _id: userId, revision: found.state.revision },
+        { $inc: { snapshotGeneration: 1 } }, { session });
+      if (fence.matchedCount !== 1) throw failure(409, 'RUNWAY_STALE_INPUT', 'Ledger changed. Refresh and retry.');
       const result = simulateRunway(found.revision.ledger, req.body);
       await RunwaySnapshot.create([{
         _id: snapshotId, userId, ledgerRevision: found.state.revision,
@@ -239,6 +266,14 @@ router.get('/snapshots/:id', asyncHandler(async (req, res) => {
   return res.json({ snapshotId: snapshot._id, ledgerRevision: snapshot.ledgerRevision, inputHash: snapshot.inputHash,
     status: state?.revision === snapshot.ledgerRevision ? 'CURRENT' : 'HISTORICAL',
     createdAt: snapshot.createdAt, request: snapshot.request, result: snapshot.result });
+}));
+
+router.delete('/snapshots/:id', asyncHandler(async (req, res) => {
+  const userId = owner(req);
+  if (!SNAPSHOT_ID.test(req.params.id)) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
+  const deleted = await RunwaySnapshot.deleteOne({ _id: req.params.id, userId });
+  if (deleted.deletedCount !== 1) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
+  return res.json({ status: 'DELETED', scope: 'ONE_RUNWAY_SNAPSHOT' });
 }));
 
 router.post('/explanations', asyncHandler(async (req, res) => {

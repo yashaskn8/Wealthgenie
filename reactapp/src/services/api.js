@@ -1185,6 +1185,12 @@ export function saveRunwayLedger(ledger, revision, options = {}) {
 export function simulateHouseholdRunway(input, options = {}) {
   return request('POST', '/runway/simulations', input, { retries: 0, ...options });
 }
+export function listRunwaySnapshots(page = 0, options = {}) {
+  return request('GET', '/runway/snapshots?page=' + encodeURIComponent(page), null, { retries: 0, ...options });
+}
+export function deleteRunwaySnapshot(id, options = {}) {
+  return request('DELETE', '/runway/snapshots/' + encodeURIComponent(id), null, { retries: 0, ...options });
+}
 export function saveRunwaySnapshot(input, options = {}) {
   return request('POST', '/runway/snapshots', input, { retries: 0, ...options });
 }
@@ -1201,7 +1207,7 @@ export function deleteRunwayData(options = {}) {
 // Default export for convenience
 const api = {
   register, login, logout, restoreSession,
-  getRunwayCurrent, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, getRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
+  getRunwayCurrent, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, listRunwaySnapshots, getRunwaySnapshot, deleteRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,

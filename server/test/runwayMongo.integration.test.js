@@ -99,12 +99,39 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(duplicated.response.status, 200);
       assert.equal(duplicated.body.snapshotId, snapshot.body.snapshotId);
       assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 1);
+      const listing = await jsonRequest(ownedBase + 'snapshots?page=0', { headers: authA });
+      assert.equal(listing.response.status, 200);
+      assert.equal(listing.body.total, 1);
+      assert.equal(listing.body.items[0].snapshotId, snapshot.body.snapshotId);
+      assert.equal(listing.body.items[0].status, 'CURRENT');
+      const privateListing = await jsonRequest(ownedBase + 'snapshots?page=0', { headers: authB });
+      assert.equal(privateListing.body.total, 0);
+      const invalidPage = await jsonRequest(ownedBase + 'snapshots?page=-1', { headers: authA });
+      assert.equal(invalidPage.response.status, 400);
 
       const invisible = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authB });
       assert.equal(invisible.response.status, 404);
       const ownedSnapshot = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(ownedSnapshot.body.status, 'CURRENT');
       assert.equal(ownedSnapshot.body.result.scenarios[0].ifExpectedIncomeArrives.endBalancePaise, '18000');
+      const additional = await mutation(base, 'snapshots', request, authA, 'runway-snapshot-002');
+      assert.equal(additional.response.status, 201);
+      const privateDelete = await jsonRequest(ownedBase + 'snapshots/' + additional.body.snapshotId,
+        { method: 'DELETE', headers: authB });
+      assert.equal(privateDelete.response.status, 404);
+      const deletedOne = await jsonRequest(ownedBase + 'snapshots/' + additional.body.snapshotId,
+        { method: 'DELETE', headers: authA });
+      assert.equal(deletedOne.response.status, 200);
+      assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 1);
+
+      const original = await RunwaySnapshot.collection.findOne({ _id: snapshot.body.snapshotId });
+      await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
+        { $set: { 'result.disclaimer': 'Forged reassurance' } });
+      const corrupted = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
+      assert.equal(corrupted.response.status, 503);
+      assert.equal(corrupted.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
+        { $set: { 'result.disclaimer': original.result.disclaimer } });
 
       const updatedLedger = { ...ledger, openingCashPaise: '9000' };
       const raced = await Promise.all([

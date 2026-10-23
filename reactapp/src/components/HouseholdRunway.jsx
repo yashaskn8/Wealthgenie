@@ -88,6 +88,10 @@ export default function HouseholdRunway() {
   const [result, setResult] = useState(null);
   const [lastRequest, setLastRequest] = useState(null);
   const [snapshot, setSnapshot] = useState('');
+  const [history, setHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyDeleteId, setHistoryDeleteId] = useState('');
   const [explanation, setExplanation] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
@@ -96,6 +100,12 @@ export default function HouseholdRunway() {
 
   useEffect(() => {
     let active = true;
+    api.listRunwaySnapshots(0).then(data => {
+      if (!active) return;
+      setHistory(data.items || []); setHistoryHasMore(data.hasMore); setHistoryPage(0);
+    }).catch(err => {
+      if (active && err.status !== 404) setError(err.message || 'Unable to load saved results.');
+    });
     api.getRunwayCurrent().then(saved => {
       if (!active) return;
       setRevision(saved.revision);
@@ -200,6 +210,8 @@ export default function HouseholdRunway() {
         headers: { 'Idempotency-Key': snapshotRetry.current.key },
       });
       setSnapshot(saved.snapshotId);
+      const data = await api.listRunwaySnapshots(0).catch(() => null);
+      if (data) { setHistory(data.items || []); setHistoryPage(0); setHistoryHasMore(Boolean(data.hasMore)); }
       setMessage('Snapshot saved against ledger revision ' + saved.ledgerRevision + '.');
       try {
         const text = await api.explainRunwaySnapshot(saved.snapshotId);
@@ -211,6 +223,41 @@ export default function HouseholdRunway() {
     } catch (err) { setError(err.message || 'Could not save the snapshot.'); }
     finally { setBusy(false); }
   };
+  const openHistory = async id => {
+    setBusy(true); setError('');
+    try {
+      const saved = await api.getRunwaySnapshot(id);
+      setResult(saved.result);
+      setSnapshot(id);
+      setLastRequest(null);
+      setExplanation(null);
+      setMessage(saved.status === 'HISTORICAL'
+        ? 'Viewing a historical saved result. Reconfirm today’s cash for new calculations.'
+        : 'Viewing a stored, server-verified result.');
+    } catch (err) { setError(err.message || 'Could not open saved result.'); }
+    finally { setBusy(false); }
+  };
+  const loadHistory = async page => {
+    setBusy(true); setError('');
+    try {
+      const data = await api.listRunwaySnapshots(page);
+      setHistory(data.items || []); setHistoryHasMore(Boolean(data.hasMore)); setHistoryPage(page);
+    } catch (err) { setError(err.message || 'Could not load saved results.'); }
+    finally { setBusy(false); }
+  };
+  const deleteHistory = async id => {
+    if (historyDeleteId !== id) { setHistoryDeleteId(id); return; }
+    setBusy(true); setError('');
+    try {
+      await api.deleteRunwaySnapshot(id);
+      setHistoryDeleteId('');
+      if (snapshot === id) { setSnapshot(''); setResult(null); setExplanation(null); }
+      const data = await api.listRunwaySnapshots(historyPage);
+      setHistory(data.items || []); setHistoryHasMore(Boolean(data.hasMore));
+      setMessage('The selected saved result was deleted from the primary database.');
+    } catch (err) { setError(err.message || 'Could not delete this result.'); }
+    finally { setBusy(false); }
+  };
   const clear = async () => {
     if (deleteConfirmation !== 'DELETE_RUNWAY_DATA') return;
     setBusy(true); setError('');
@@ -219,6 +266,7 @@ export default function HouseholdRunway() {
       ledgerRetry.current = null; snapshotRetry.current = null;
       setRevision(0); setOpening(''); setCashConfirmed(false); setEntries([newEntry()]); setDirty(true);
       setResult(null); setLastRequest(null); setExplanation(null); setSnapshot('');
+      setHistory([]); setHistoryPage(0); setHistoryHasMore(false); setHistoryDeleteId('');
       setDeleteConfirmation('');
       setMessage('Runway data removed from the primary database. Backup expiry is not verified.');
     } catch (err) { setError(err.message || 'Deletion unavailable. Sign in again if required.'); }
@@ -337,6 +385,36 @@ export default function HouseholdRunway() {
         {snapshot && <p>Saved snapshot: <code>{snapshot}</code></p>}
         {explanation?.messages?.map(x => <p key={x.scenarioId}>{x.scenarioId}: {x.text}</p>)}
       </div>}
+      <div className="runway-panel">
+        <h2>5. Your saved results</h2>
+        <p>Only you can view these saved calculations. Historical means the cash ledger has been revised,
+          not that bank records have been verified.</p>
+        {history.length === 0 ? <p>No saved results on this page.</p> : (
+          <ul className="runway-history">
+            {history.map(item => <li key={item.snapshotId}>
+              <div><strong>{item.status === 'CURRENT' ? 'Current ledger' : 'Historical ledger'}</strong>
+                {' '}· Revision {item.ledgerRevision}
+                {' '}· {new Date(item.createdAt).toLocaleString('en-IN')}
+              </div>
+              <div className="runway-history-actions">
+                <button type="button" className="runway-minor" disabled={busy}
+                  onClick={() => openHistory(item.snapshotId)}>View result</button>
+                <button type="button" className="runway-minor" disabled={busy}
+                  onClick={() => deleteHistory(item.snapshotId)}>
+                  {historyDeleteId === item.snapshotId ? 'Confirm delete' : 'Delete result'}
+                </button>
+              </div>
+            </li>)}
+          </ul>
+        )}
+        <div>
+          <button type="button" className="runway-minor" disabled={busy || historyPage === 0}
+            onClick={() => loadHistory(historyPage - 1)}>Previous saved results</button>
+          <span>Page {historyPage + 1}</span>
+          <button type="button" className="runway-minor" disabled={busy || !historyHasMore}
+            onClick={() => loadHistory(historyPage + 1)}>Next saved results</button>
+        </div>
+      </div>
       <details className="runway-panel"><summary>Delete my Household Runway data</summary>
         <p>This deletes the current ledger, historical revisions, and saved results in the primary database. Backup expiry is not verified.
           You must have signed in recently.</p>
