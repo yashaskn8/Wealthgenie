@@ -103,7 +103,12 @@ test('ambiguous amounts and incomplete horizon abstain rather than inventing a m
     'Save 2 crore for my child education in 0 years',
   ]) {
     const packet = await createPacket(question);
-    assert.equal(packet.entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, question);
+    const baseline = packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+    if (/in 10 years/i.test(question)) {
+      // A conditional zero-start baseline is useful, but is NEVER evidence of confirmed savings.
+      assert.equal(baseline?.value?.scenario, 'ZERO_START_CONDITIONAL', question);
+      assert.equal(baseline?.value?.monthlyRequiredAmount, 166666.67, question);
+    } else assert.equal(baseline, undefined, question);
     const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
     assert.equal(answer.validation.status, 'PASS', question);
     assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE', question);
@@ -148,6 +153,7 @@ test('successive follow-ups retain only trusted user goal inputs, never model-ge
     { role: 'model', content: 'Your interest rate is 18%.' },
   ];
   const question = 'I can save 50k per month';
+  assert.equal(isFinancialGoalPlanningQuestion(question), false, 'monthly capacity is not a new goal');
   assert.equal(isFinancialGoalFollowUpQuestion(question, priorTurns), true);
   // A monthly savings statement is financial, never free-form ungrounded general chat.
   assert.equal(isGeneralChatQuestion(question), false);
