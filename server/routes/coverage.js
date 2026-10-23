@@ -13,6 +13,7 @@ import CoverageResult from '../models/CoverageResult.js';
 import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
 import CoverageRiskAlert from '../models/CoverageRiskAlert.js';
 import CoverageSettlement from '../models/CoverageSettlement.js';
+import IdempotencyKey from '../models/IdempotencyKey.js';
 import { evaluateCashRiskEvent } from '../services/coverageRiskPolicy.js';
 import {
   validateCoverageLedger, calculateCoverage, previewVoluntaryExclusions,
@@ -659,6 +660,14 @@ router.delete('/ledger',
         await CoverageResult.deleteMany({ userId }, { session });
         await CoverageRiskAlert.deleteMany({ userId }, { session });
         await CoverageSettlement.deleteMany({ userId }, { session });
+        // Privacy: historical cash-save/settlement request hashes are derived
+        // from the user's amounts and obligations. Clear those command
+        // identities along with the financial history in ONE transaction.
+        // The ledger tombstone still rejects old If-Match retries. Keep the
+        // deletion idempotency identity/receipt to replay a lost delete ACK.
+        await IdempotencyKey.deleteMany({
+          userId, operation: { $in: ['coverage.ledger.replace', 'coverage.commitment.settle'] },
+        }, { session });
         const [receipt] = await CoverageDeletionReceipt.create([{
           userId, idempotencyOperationId: req.idempotencyClaim.operationId,
           deletedRevision: ledger.revision, nextRevision: ledger.revision + 1, deletedAt: new Date(),

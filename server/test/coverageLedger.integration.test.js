@@ -13,6 +13,7 @@ import CoverageResult from '../models/CoverageResult.js';
 import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
 import CoverageRiskAlert from '../models/CoverageRiskAlert.js';
 import CoverageSettlement from '../models/CoverageSettlement.js';
+import IdempotencyKey from '../models/IdempotencyKey.js';
 import { sweepStaleCashDeclarations } from '../jobs/coverageRiskAlerts.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 
@@ -288,6 +289,10 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     const settleDeleted = await call(settledOwner, 'DELETE', '/ledger', undefined, 2, randomUUID());
     assert.equal(settleDeleted.status, 200);
     assert.equal(await CoverageSettlement.countDocuments({ userId: settledOwner }), 0);
+    assert.equal(await IdempotencyKey.countDocuments({
+      userId: settledOwner,
+      operation: { $in: ['coverage.ledger.replace', 'coverage.commitment.settle'] },
+    }), 0, 'deleted settled owner must not retain cash-derived mutation hashes');
     assert.deepEqual((await call(settledOwner, 'GET', '/settlements')).body.settlements, []);
 
     // A risk-event persistence outage must roll back the ledger and immutable
@@ -467,6 +472,14 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(await CoverageLedger.countDocuments({ userId: owner }), 1);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 0);
     assert.equal(await CoverageRiskAlert.countDocuments({ userId: owner }), 0);
+    assert.equal(await IdempotencyKey.countDocuments({
+      userId: owner, operation: { $in: ['coverage.ledger.replace', 'coverage.commitment.settle'] },
+    }), 0, 'deleted owner must not retain prior cash request hashes');
+    assert.ok(await IdempotencyKey.exists({
+      userId: owner, operation: 'coverage.ledger.delete', status: 'DONE',
+    }), 'minimal deletion retry identity must survive a lost response');
+    const staleOldWrite = await call(owner, 'PUT', '/ledger', submitted, 0, firstKey);
+    assert.equal(staleOldWrite.status, 409, 'cleared prior write key cannot bypass the tombstone');
     await sweepStaleCashDeclarations({ now: tomorrow, limit: 100 });
     assert.equal(await CoverageRiskAlert.countDocuments({ userId: owner }), 0,
       'background stale-cash sweep must never resurrect deleted financial alerts');
