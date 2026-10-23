@@ -568,6 +568,24 @@ export async function getFinancialUniverse({category, subcategory, cursor, limit
   return request('GET', `/financial-universe?${q.toString()}`, null, { retries:0, ...options });
 }
 
+// On-demand keyless research. No provider facts are persisted or auto-promoted
+// into the qualified product/tax calculation authority.
+export async function searchFreeMutualFunds(q, options={}) {
+  return request('GET','/free-financial-sources/mutual-funds/search?q='+encodeURIComponent(q),
+    null,{retries:0,...options});
+}
+export async function simulateFreeMutualFundNavResearch(input,options={}) {
+  return request('POST','/free-financial-sources/mutual-funds/simulate',
+    input,{retries:0,...options});
+}
+export async function getFreeSmallSavingsRates(options={}) {
+  return request('GET','/free-financial-sources/small-savings',null,{retries:0,...options});
+}
+export async function calculateFreeSmallSavingsGross(input,options={}) {
+  return request('POST','/free-financial-sources/small-savings/calculate',
+    input,{retries:0,...options});
+}
+
 export async function getCurrentProfile(options = {}) {
   return request('GET', '/profile/current', null, { retries: 0, ...options });
 }
