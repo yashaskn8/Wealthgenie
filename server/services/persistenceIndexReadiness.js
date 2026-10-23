@@ -3,6 +3,8 @@ import AuditRecord from '../models/AuditRecord.js';
 import ConversationHistory from '../models/ConversationHistory.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
+import CoverageLedger from '../models/CoverageLedger.js';
+import CoverageResult from '../models/CoverageResult.js';
 import IdempotencyKey from '../models/IdempotencyKey.js';
 import InvestmentProduct from '../models/InvestmentProduct.js';
 import MarketObservation from '../models/MarketObservation.js';
@@ -75,6 +77,8 @@ export const MIGRATION_INDEX_MODELS = Object.freeze([
   ...PHASE2_INDEX_MODELS,
   ...AUTHORIZATION_INDEX_MODELS,
   ...GENIEPROOF_INDEX_MODELS,
+  CoverageLedger,
+  CoverageResult,
 ]);
 
 // These schema-declared unique indexes fence every durable market-data upsert.
