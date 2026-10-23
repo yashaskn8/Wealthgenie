@@ -120,6 +120,55 @@ export async function getMfapiHistoryResearch(schemeCode,options={}){
  };
 }
 
+/**
+ * Strict fallback fund discovery. MFapi's /mf/search contains only a scheme
+ * code and name, so its results are PROVISIONAL. Never forge a fund house,
+ * ISIN, plan type, category or rights qualification from search text.
+ */
+export function normalizeMfapiSearch(raw) {
+ if(!Array.isArray(raw))return unknown('MFAPI_SEARCH_SCHEMA_INVALID');
+ const results=[];
+ const seen=new Set();
+ for(const item of raw.slice(0,60)){
+  const code=String(item?.schemeCode??'');
+  const name=item?.schemeName;
+  if(!/^[1-9]\\d{4,6}$/.test(code)||seen.has(code)
+   ||typeof name!=='string'||name.trim().length<5||name.length>250)
+    continue;
+  seen.add(code);
+  const normalized=name.trim().replace(/\\s+/g,' ');
+  const growth=/\\bGROWTH\\b/i.test(normalized)
+    && !/\\b(?:IDCW|DIVIDEND|DISTRIBUTION)\\b/i.test(normalized);
+  results.push({
+   schemeCode:Number(code),name:normalized,
+   fundHouse:null,isin:null,category:null,subcategory:null,
+   planType:null,optionType:null,
+   navOnlyRiskEligible:growth,
+   identityValidation:'PENDING_DIRECT_SCHEME_DETAILS',
+  });
+  if(results.length>=20)break;
+ }
+ return {
+  status:'AVAILABLE',dataClass:'RESEARCH_ONLY_AMFI_DERIVED_NAV',
+  results,source:{provider:'MFapi.in',url:'https://www.mfapi.in/docs/'},
+  searchSourceStatus:'FALLBACK_PROVISIONAL_IDENTITIES_REQUIRE_DIRECT_LOOKUP',
+  sourceRightsStatus:'RESEARCH_ONLY_UPSTREAM_AMFI_RIGHTS_NOT_QUALIFIED',
+  postTaxAvailable:false,productionInvestmentQualification:false,
+ };
+}
+export async function searchMfapiFunds(query,options={}) {
+ if(typeof query!=='string'||query.trim().length<2||query.length>80
+  ||!/^[a-zA-Z0-9 .()&_-]+$/.test(query.trim()))
+  throw new RangeError('INVALID_FUND_SEARCH');
+ try{
+  const data=await getBoundedJson(BASE+'/mf/search?q='+
+   encodeURIComponent(query.trim()),options);
+  return normalizeMfapiSearch(data);
+ }catch{
+  return unknown('MFAPI_SEARCH_UNAVAILABLE');
+ }
+}
+
 export async function getMfapiLatest(schemeCode,options={}){
  if(typeof schemeCode!=='string'||!/^[1-9]\d{4,6}$/.test(schemeCode))
   throw new RangeError('INVALID_FUND_SCHEME_CODE');
