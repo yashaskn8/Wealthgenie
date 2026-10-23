@@ -387,10 +387,14 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       userId: req.user.userId, scenarioId: scenario._id,
     }).sort({ createdAt: -1 }).limit(20).lean();
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
-    res.json({
-      runs: records.map(record => reportDto(record, current, scenario)),
-      maxReturned: 20,
+    // A navigation list must not echo 20 full 360-month financial ledgers.
+    // Verify each snapshot but return minimal owner-scoped metadata.
+    const runs = records.map(record => {
+      const { result, ...metadata } = reportDto(record, current, scenario);
+      void result;
+      return metadata;
     });
+    res.json({ runs, maxReturned: 20 });
   }));
 
   router.delete('/scenarios/:id', requireDecisionIndexes, handleInput(async (req, res) => {
