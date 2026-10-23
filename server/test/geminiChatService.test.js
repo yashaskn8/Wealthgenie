@@ -854,7 +854,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.equal(result.fallback, false);
     assert.equal(result.validation_status, 'PASS');
     assert.match(result.response, /only the new income-tax regime/i);
-    assert.match(result.response, /annual income, tax regime.*income-source breakdown/i);
+    assert.match(result.response, /declared tax year, income type, primary income, other ordinary income/i);
     assert.doesNotMatch(result.response, /source-backed fallback|model answer was unavailable/i);
     assert.ok(result.citations.some(c => c.source === 'WealthGenie backend policy'));
     assert.ok(result.citations.every(c => c.source_url === null));
