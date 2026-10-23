@@ -48,15 +48,26 @@ function validNavValue(value){
   const nav = Number(value);
   return Number.isFinite(nav) && nav > 0 && nav < 1e9 ? nav : null;
 }
+function isNavOnlyGrowthPlan(fund) {
+  if (!fund) return false;
+  const option=(fund.optionType||'').trim().toUpperCase();
+  const name=(fund.name||'').toUpperCase();
+  // A distribution payout is a return of wealth outside the daily NAV path.
+  // It must not be silently modeled as NAV-only capital accumulation.
+  if (/\\b(?:IDCW|DIVIDEND|DISTRIBUTION)\\b/.test(name)
+    || option==='IDCW'||option==='DIVIDEND') return false;
+  return option==='GROWTH'||/\\bGROWTH\\b/.test(name);
+}
 function normalizedFund(data,requestedCode){
  const code=Number(data?.scheme_code);
  if(!Number.isSafeInteger(code)||String(code)!==String(requestedCode))return null;
  const name=text(data.scheme_name);
  const house=text(data.fund_house);
  if(!name||!house)return null;
- return {schemeCode:code,name,fundHouse:house,isin:text(data.isin,16),
+ const fund={schemeCode:code,name,fundHouse:house,isin:text(data.isin,16),
   category:text(data.category,80),subcategory:text(data.sub_category,100),
   planType:text(data.plan_type,25),optionType:text(data.option_type,25)};
+ return {...fund,navOnlyRiskEligible:isNavOnlyGrowthPlan(fund)};
 }
 export function normalizeFreeFundSearch(raw){
  if(!Array.isArray(raw?.results))return unavailable('UNEXPECTED_FREE_NAV_SCHEMA');
@@ -81,6 +92,8 @@ export async function searchFreeFunds(q,options={}){
 export function normalizeFreeNavHistory(raw,schemeCode,{now=new Date()}={}){
  const fund=normalizedFund(raw?.fund_details,schemeCode);
  if(!fund||!Array.isArray(raw?.data))return unavailable('FREE_NAV_IDENTITY_OR_SCHEMA_INVALID');
+ if(!fund.navOnlyRiskEligible)
+  return unavailable('NAV_ONLY_GROWTH_PLAN_NOT_VERIFIED');
  if(raw.data.length>1000)return unavailable('FREE_NAV_HISTORY_TOO_LARGE');
  const daily=[];const seen=new Set();
  for(const row of raw.data){
