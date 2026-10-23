@@ -36,21 +36,26 @@ export const GROUNDED_LLM_TOOL_ALLOWLIST = Object.freeze([]);
 export const GROUNDED_PROVIDER_CHAIN_DEADLINE_MS = 60000;
 
 // Explain WealthGenie's input assumptions without fabricating a tax result.
-const TAX_ASSUMPTIONS_EXPLANATION_QUESTION = /^(?:(?:please\s+)?(?:explain|show|list|describe|outline|clarify|what\s+are|tell\s+me\s+about)\s+)?(?:(?:the|my|your|wealthgenie's|current)\s+)?tax\s+assumptions(?:\s+(?:used|here|in\s+(?:wealthgenie|the\s+app)|for\s+(?:my|the)\s+(?:plan|portfolio)))?[?.!\s]*$/i;
+const TAX_ASSUMPTIONS_EXPLANATION_QUESTION = /^(?:(?:please\s+)?(?:explain|show|list|describe|outline|clarify|what\s+are|tell\s+me\s+about)\s+)?(?:(?:the|my|your|wealthgenie's|current|app's)\s+)?(?:tax|income[ -]?tax)\s+(?:assumptions?|policy)(?:\s+(?:used|here|in\s+(?:wealthgenie|the\s+app)|for\s+(?:my|the)\s+(?:plan|portfolio)))?[?.!\s]*$/i;
+const TAX_REGIME_POLICY_QUESTION = /^(?:(?:which|what)\s+(?:income[ -]?)?tax\s+regime\s+(?:does\s+(?:wealthgenie|the\s+app|genie)\s+use|is\s+(?:used|supported|assumed)(?:\s+(?:in|by)\s+(?:wealthgenie|the\s+app))?)|does\s+(?:wealthgenie|the\s+app|genie)\s+use\s+(?:the\s+)?(?:new|old|new\s+or\s+old)\s+(?:income[ -]?)?tax\s+regime)[?.!\s]*$/i;
+function isTaxPolicyExplanationQuestion(question) {
+  const text = String(question || '').trim();
+  return TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(text) || TAX_REGIME_POLICY_QUESTION.test(text);
+}
 
 export function retrieveTaxAssumptionEvidence(question) {
-  if (!TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(String(question || '').trim())) return [];
+  if (!isTaxPolicyExplanationQuestion(question)) return [];
   const policy = { dataClass: 'DETERMINISTIC_POLICY_EXPLANATION',
     source: { provider: 'WealthGenie backend policy', title: 'WealthGenie tax input and limitation policy', url: null } };
   return [
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_INPUTS', 'TAX', {
       inputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
       inferredFromInvestmentProfile: false,
-    }, { ...policy, displayValue: 'Before a personal income-tax calculation, the Tax Optimizer needs a selected financial year, annual income, applicable tax regime and income-source breakdown; these are not inferred from your investing profile' }),
+    }, { ...policy, displayValue: 'WealthGenie supports only the new income-tax regime, not an old-versus-new comparison. Before a personal calculation, its Tax Optimizer needs an explicit financial year, annual income, tax regime (new only) and income-source breakdown; none is inferred from your investing profile' }),
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_TREATMENT', 'TAX', {
       requirement: 'VERIFIED_RULES_AND_APPLICABLE_INPUTS',
       unsupportedTreatment: 'UNAVAILABLE',
-    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge, special-rate income and investment-specific tax treatment must be supported by the selected calculator and your supplied facts; unsupported treatment is not guessed' }),
+    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge follow the backend's fiscal-year-versioned new-regime rules only where the declared income type qualifies. Special-rate income and investment-specific tax treatment need supported evidence and inputs; unavailable treatment is not guessed' }),
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_LIMITS', 'TAX', {
       personalTaxCalculatedInChat: false,
       projectedReturnsAreAfterTax: false,
@@ -239,7 +244,7 @@ function citationFor(entry) {
 
 function deterministicCandidate(packet, question = '') {
   const taxInputs = packet.entries.find(item => item.id === 'E_TAX_ASSUMPTIONS_INPUTS');
-  if (taxInputs && TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(String(question || '').trim())) {
+  if (taxInputs && isTaxPolicyExplanationQuestion(question)) {
     const taxEntries = ['E_TAX_ASSUMPTIONS_INPUTS', 'E_TAX_ASSUMPTIONS_TREATMENT', 'E_TAX_ASSUMPTIONS_LIMITS']
       .map(id => packet.entries.find(item => item.id === id && item.kind === 'TAX'
         && item.dataClass === 'DETERMINISTIC_POLICY_EXPLANATION'))
@@ -615,7 +620,7 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
     // backend-calculation facts, not permission for an LLM to guess a SIP.
     // Answer these scoped planning questions without any model calls.
     if (evidencePacket.entries.some(item => item.id === 'E_TAX_ASSUMPTIONS_INPUTS')
-        && TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(String(question || '').trim())) {
+        && isTaxPolicyExplanationQuestion(question)) {
       const result = outputResult({
         candidate: deterministicCandidate(evidencePacket, question),
         packet: evidencePacket, provider: 'deterministic_template',
