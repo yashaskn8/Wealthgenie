@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middleware/authMiddleware.js';
+import { isTokenBlacklisted } from '../config/redis.js';
+import User from '../models/User.js';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import { resolveCurrentFinancialProfile } from '../services/currentFinancialProfile.js';
 import {
@@ -113,6 +115,7 @@ export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFina
 
     const deadline = Date.now() + LIVE_STREAM_LIMIT_MS;
     let nextProfileCheck = Date.now() + 10000;
+    let nextAuthenticationCheck = Date.now() + 10000;
     try {
       while (!closed && Date.now() < deadline) {
         if (page.resetRequired) {
@@ -126,6 +129,16 @@ export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFina
           }
         }
         if (closed) break;
+        if ((req.user.exp && Date.now() / 1000 >= req.user.exp)
+            || (Date.now() >= nextAuthenticationCheck && (
+              !await User.exists({ _id: req.user.userId })
+              || (req.user.jti && await isTokenBlacklisted(req.user.jti))))) {
+          send('unavailable', { retry: false, reason: 'SESSION_NO_LONGER_VALID' });
+          break;
+        }
+        if (Date.now() >= nextAuthenticationCheck) {
+          nextAuthenticationCheck = Date.now() + 10000;
+        }
         if (Date.now() >= nextProfileCheck) {
           const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
           const next = sourceStateFingerprint(current);
