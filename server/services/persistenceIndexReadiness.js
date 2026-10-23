@@ -5,6 +5,7 @@ import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import CoverageLedger from '../models/CoverageLedger.js';
 import CoverageResult from '../models/CoverageResult.js';
+import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
 import IdempotencyKey from '../models/IdempotencyKey.js';
 import InvestmentProduct from '../models/InvestmentProduct.js';
 import MarketObservation from '../models/MarketObservation.js';
@@ -79,6 +80,7 @@ export const MIGRATION_INDEX_MODELS = Object.freeze([
   ...GENIEPROOF_INDEX_MODELS,
   CoverageLedger,
   CoverageResult,
+  CoverageDeletionReceipt,
 ]);
 
 // These schema-declared unique indexes fence every durable market-data upsert.
