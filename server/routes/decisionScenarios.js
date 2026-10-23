@@ -173,10 +173,8 @@ function makeRevision({ scenario, revision, payload }) {
       revisionReceiptContext(scenario, revision, inputHash), payload),
   };
 }
-function reportDto(run, current, scenario = null) {
-  // Both financial-profile and scenario-revision pointers must remain current.
-  // Independently verify the immutable result snapshot before presenting it.
-  if (!run.result || typeof run.result !== 'object'
+function checkRunRecord(run) {
+  if (!run || !run.result || typeof run.result !== 'object'
       || !/^[a-f0-9]{64}$/.test(run.resultHash || '')
       || hash(run.result) !== run.resultHash
       || !verifyDecisionReceipt(run, 'decision_run', reportReceiptContext(run),
@@ -184,6 +182,28 @@ function reportDto(run, current, scenario = null) {
     fail(503, 'DECISION_REPORT_INTEGRITY_FAILURE',
       'The saved decision report failed integrity verification.');
   }
+}
+async function checkCurrentRunPointers(userId, scenarios) {
+  const withRun = scenarios.filter(row => row.lastRunId);
+  if (!withRun.length) return;
+  const records = await DecisionRun.find({
+    userId, _id: { $in: withRun.map(row => row.lastRunId) },
+  }).lean();
+  const byId = new Map(records.map(run => [identity(run._id), run]));
+  for (const scenario of withRun) {
+    const run = byId.get(identity(scenario.lastRunId));
+    if (!run || identity(run.scenarioId) !== identity(scenario._id)
+        || run.revision !== scenario.revision) {
+      fail(503, 'DECISION_RUN_POINTER_INTEGRITY_FAILURE',
+        'The current scenario report pointer could not be verified.');
+    }
+    checkRunRecord(run);
+  }
+}
+function reportDto(run, current, scenario = null) {
+  // Both financial-profile and scenario-revision pointers must remain current.
+  // Independently verify the immutable result snapshot before presenting it.
+  checkRunRecord(run);
   const staleProfile = !sameProfile(current, run);
   const staleScenario = !scenario || scenario.revision !== run.revision;
   const staleCalculationPolicy = run.result.modelVersion !== DECISION_LEDGER_VERSION;
@@ -380,6 +400,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         checkRevision(byIdentity.get(`${scenario._id}:${scenario.revision}`), scenario);
       }
     }
+    await checkCurrentRunPointers(req.user.userId, scenarios);
     res.json({ scenarios: scenarios.map(scenarioDto), maxReturned: 50 });
   }));
 
@@ -389,6 +410,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       userId: req.user.userId, scenarioId: scenario._id, revision: scenario.revision,
     }).lean();
     checkRevision(revision, scenario);
+    await checkCurrentRunPointers(req.user.userId, [scenario]);
     res.json({ scenario: scenarioDto(scenario), payload: revision.payload, inputHash: revision.inputHash });
   }));
 
