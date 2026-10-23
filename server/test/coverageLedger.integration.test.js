@@ -333,6 +333,21 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     const riskId = riskInbox.body.alerts[0].id;
     assert.equal((await call(other, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 404);
     assert.equal((await call(other, 'GET', '/alerts')).body.alerts.length, 0);
+    // Fault injection: an alert storage outage must roll back the cash-ledger
+    // write fence and leave the inbox UNREAD for a safe user retry.
+    const beforeAckFence = await CoverageLedger.findOne({ userId: owner }).lean();
+    const originalAckWrite = CoverageRiskAlert.findOneAndUpdate;
+    CoverageRiskAlert.findOneAndUpdate = function failAlertAckWrite(filter, ...argumentsRest) {
+      if (String(filter?._id) === String(riskId)) throw new Error('INJECTED_CASH_ACK_WRITE_FAILED');
+      return originalAckWrite.call(this, filter, ...argumentsRest);
+    };
+    try {
+      assert.equal((await call(owner, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 500);
+    } finally {
+      CoverageRiskAlert.findOneAndUpdate = originalAckWrite;
+    }
+    assert.equal((await CoverageRiskAlert.findById(riskId)).state, 'UNREAD');
+    assert.equal((await CoverageLedger.findOne({ userId: owner })).revision, beforeAckFence.revision);
     assert.equal((await call(owner, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 200);
     assert.equal((await call(owner, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 200);
     assert.equal((await call(owner, 'GET', '/alerts')).body.alerts[0].acknowledged, true);

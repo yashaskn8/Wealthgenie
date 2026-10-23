@@ -492,40 +492,58 @@ router.patch('/alerts/:id/ack', verifyJWT, asyncHandler(async (req, res) => {
       { code: 'COVERAGE_ACK_INVALID' });
   }
   const owner = req.user.userId;
-  const ledger = await CoverageLedger.findOne({ userId: owner }).select('revision deletedAt input.asOfDate').lean();
-  if (!ledger || ledger.deletedAt) {
-    throw createError(404, 'Current alert not found.', 'Alert not found.',
-      { code: 'COVERAGE_ALERT_NOT_FOUND' });
+  const session = await mongoose.startSession();
+  let acknowledged;
+  let revision;
+  try {
+    await session.withTransaction(async () => {
+      // The acknowledgement and current cash revision share a write fence.
+      // Without this touch, a concurrent delete/save can invalidate the
+      // request while its acknowledgement remains committed.
+      acknowledged = null;
+      const ledger = await CoverageLedger.findOne({ userId: owner })
+        .select('revision deletedAt input.asOfDate').session(session).lean();
+      if (!ledger || ledger.deletedAt) {
+        throw createError(404, 'Current alert not found.', 'Alert not found.',
+          { code: 'COVERAGE_ALERT_NOT_FOUND' });
+      }
+      revision = ledger.revision;
+      const requiresCashReconfirmation = ledger.input?.asOfDate !== todayInIndia();
+      const currentPolicy = await CoverageResult.exists({
+        userId: owner, ledgerRevision: revision, policyVersion: COVERAGE_POLICY_VERSION,
+      }).session(session);
+      const eligibleAlertKinds = requiresCashReconfirmation
+        ? { kind: 'CASH_RECONFIRMATION_REQUIRED' }
+        : !currentPolicy
+          ? { kind: { $in: [] } }
+          : { kind: { $ne: 'CASH_RECONFIRMATION_REQUIRED' } };
+      const fence = await CoverageLedger.updateOne({
+        _id: ledger._id, userId: owner, revision, deletedAt: null,
+        'input.asOfDate': ledger.input.asOfDate,
+      }, { $currentDate: { updatedAt: true } }, { session });
+      if (fence.matchedCount !== 1) throw conflict();
+      const changed = await CoverageRiskAlert.findOneAndUpdate({
+        _id: req.params.id, userId: owner, ledgerRevision: revision,
+        state: 'UNREAD', ...eligibleAlertKinds,
+      }, { $set: { state: 'ACKNOWLEDGED', acknowledgedAt: new Date() } },
+      { session, new: true, runValidators: true }).lean();
+      const saved = changed || await CoverageRiskAlert.findOne({
+        _id: req.params.id, userId: owner, ledgerRevision: revision,
+        state: 'ACKNOWLEDGED', ...eligibleAlertKinds,
+      }).session(session).lean();
+      if (!saved) {
+        throw createError(404, 'Current alert not found.', 'Alert not found.',
+          { code: 'COVERAGE_ALERT_NOT_FOUND' });
+      }
+      acknowledged = saved;
+    }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+  } catch (error) {
+    if (isRevisionRace(error)) throw conflict();
+    throw error;
+  } finally {
+    await session.endSession();
   }
-  const requiresCashReconfirmation = ledger.input?.asOfDate !== todayInIndia();
-  const currentPolicy = await CoverageResult.exists({
-    userId: owner, ledgerRevision: ledger.revision, policyVersion: COVERAGE_POLICY_VERSION,
-  });
-  const requiresPolicyReconfirmation = !currentPolicy;
-  const eligibleAlertKinds = requiresCashReconfirmation
-    ? { kind: 'CASH_RECONFIRMATION_REQUIRED' }
-    : requiresPolicyReconfirmation
-      ? { kind: { $in: [] } }
-      : { kind: { $ne: 'CASH_RECONFIRMATION_REQUIRED' } };
-  // User-visible acknowledgement is idempotent and only scoped to the
-  // current owner's current revision.
-  const changed = await CoverageRiskAlert.findOneAndUpdate({
-    _id: req.params.id, userId: owner, ledgerRevision: ledger.revision, state: 'UNREAD',
-    ...eligibleAlertKinds,
-  }, { $set: { state: 'ACKNOWLEDGED', acknowledgedAt: new Date() } },
-  { new: true, runValidators: true }).lean();
-  const saved = changed || await CoverageRiskAlert.findOne({
-    _id: req.params.id, userId: owner, ledgerRevision: ledger.revision, state: 'ACKNOWLEDGED',
-    ...eligibleAlertKinds,
-  }).lean();
-  if (!saved) {
-    throw createError(404, 'Current alert not found.', 'Alert not found.',
-      { code: 'COVERAGE_ALERT_NOT_FOUND' });
-  }
-  if (!await CoverageLedger.exists({
-    _id: ledger._id, userId: owner, revision: ledger.revision, deletedAt: null,
-  })) throw conflict();
-  return res.json({ id: String(saved._id), acknowledged: true, revision: ledger.revision });
+  return res.json({ id: String(acknowledged._id), acknowledged: true, revision });
 }));
 
 // Privacy export: bounded, cursor-paginated owned data, never an unbounded query.
