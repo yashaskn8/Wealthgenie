@@ -39,7 +39,7 @@ describe('GenieProof beginner-facing claim checking', () => {
     for (const claim of [
       'My PAN ABCDE1234F earned 20%.',
       'Aadhaar 1234-5678-9012 receives guaranteed profits.',
-      'Bank account number 123456789012 offers 10% income.',
+      'Bank account number: 123456789012 offers 10% income.',
     ]) {
       fireEvent.change(field, { target: { value: claim } });
       expect(screen.getByRole('button', { name: 'Check claim' })).toBeDisabled();
