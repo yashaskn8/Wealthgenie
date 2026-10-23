@@ -367,7 +367,7 @@ async function taxTable(panel: Locator, body: JsonObject, instruments: JsonObjec
   expect(body.portfolioStatus).toBe(calculated === 0 ? 'UNAVAILABLE' : calculated === results.length ? 'COMPLETE' : 'PARTIAL');
   const summary = object(body.summary, 'summary');
   expect(summary.status).toBe(body.portfolioStatus);
-  await expect(panel.getByRole('status')).toContainText(`Portfolio status: ${body.portfolioStatus}`);
+  await expect(panel.getByRole('status').filter({ hasText: /^Portfolio status:/ })).toContainText(`Portfolio status: ${body.portfolioStatus}`);
   const kpi = (label: string) => panel.locator('.pta-kpi-card').filter({ has: panel.page().getByText(label, { exact: true }) }).locator('.pta-kpi-value');
   const summaryFields = ['totalTaxDrag', 'maxTaxRate', 'keptPerThousand', 'erodedPerThousand', 'retentionEfficiencyPercent'];
   if (body.portfolioStatus === 'UNAVAILABLE') {
