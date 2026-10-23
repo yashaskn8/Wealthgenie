@@ -334,6 +334,13 @@ export default function GenieDecisionWorkspace() {
           <Field name="horizon" labelText="Comparison period (months)" integer value={horizon} onChange={setHorizon}/>
           <h3>Shared monthly budget</h3>
           <p className="gd-muted">Income and declared savings come from your canonical profile. Enter living expenses, existing EMI payments and investment transfers without double-counting.</p>
+          {availability?.profileFacts && <div className="gd-profile-facts" aria-label="Current profile income and savings">
+            <p><strong>Verified profile inputs (user-declared, not bank-verified):</strong></p>
+            <p>Monthly take-home: <strong>{prettyMoney(availability.profileFacts.monthlyTakeHome)}</strong>
+              {' · '}Declared savings: <strong>{prettyMoney(availability.profileFacts.declaredMonthlySavings)}</strong>
+              {' · '}Opening liquid savings: <strong>{prettyMoney(availability.profileFacts.openingLiquidCash)}</strong></p>
+            <p className="gd-muted">For the scenario to reconcile, monthly living expenses + existing debt payments must equal take-home minus declared savings. Monthly investments must fit within those declared savings.</p>
+          </div>}
           <div className="gd-field-grid">
             {[
               ['monthlyLivingExpenses', 'Monthly living expenses (₹)'],
