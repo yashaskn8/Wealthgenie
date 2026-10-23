@@ -12,6 +12,7 @@ import CoverageLedger from '../models/CoverageLedger.js';
 import CoverageResult from '../models/CoverageResult.js';
 import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
 import CoverageRiskAlert from '../models/CoverageRiskAlert.js';
+import CoverageSettlement from '../models/CoverageSettlement.js';
 import { evaluateCashRiskEvent } from '../services/coverageRiskPolicy.js';
 import {
   validateCoverageLedger, calculateCoverage, previewVoluntaryExclusions,
@@ -84,7 +85,7 @@ function publicSnapshot(snapshot) {
   };
 }
 async function ready() {
-  await verifyPersistenceIndexes({ models: [CoverageLedger, CoverageResult, CoverageDeletionReceipt, CoverageRiskAlert], scope: 'persistence' });
+  await verifyPersistenceIndexes({ models: [CoverageLedger, CoverageResult, CoverageDeletionReceipt, CoverageRiskAlert, CoverageSettlement], scope: 'persistence' });
 }
 async function resolveCoverageReplay(req, record) {
   const snapshot = await CoverageResult.findOne({ _id: record.resourceId, userId: req.user.userId }).lean();
@@ -220,6 +221,138 @@ router.put(
     return res.json({ ...publicSnapshot(saved), replayed: false, superseded: false });
   }),
 );
+
+
+/** Explicit settlement of a SINGLE planned one-off payment.
+ * Users must confirm a refreshed cash balance AFTER the payment. Without it,
+ * deleting a planned debit would falsely inflate the forecast.
+ */
+router.post('/commitments/:entryId/settle',
+  verifyJWT,
+  asyncHandler(async (req, _res, next) => {
+    req.coverageExpectedRevision = parseIfMatch(req.headers['if-match']);
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(req.params.entryId || '')) {
+      throw createError(400, 'Invalid commitment identity.', 'Invalid commitment.',
+        { code: 'COVERAGE_COMMITMENT_INVALID' });
+    }
+    const body = req.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)
+        || Object.keys(body).some(key => !['asOfDate', 'openingCashPaise', 'completenessConfirmed', 'settlementConfirmed'].includes(key))
+        || body.settlementConfirmed !== true || body.completenessConfirmed !== true
+        || !Number.isSafeInteger(body.openingCashPaise)
+        || body.openingCashPaise < 0 || body.openingCashPaise > 1_000_000_000_000) {
+      throw createError(400, 'Reconfirm cash AFTER the payment and explicitly attest settlement.',
+        'Cash and settlement confirmation required.', { code: 'COVERAGE_SETTLEMENT_INVALID' });
+    }
+    assertRecentDeclaredCash({ asOfDate: body.asOfDate });
+    await ready();
+    next();
+  }),
+  idempotency({ operation: 'coverage.commitment.settle', resolveReplay: resolveCoverageReplay }),
+  asyncHandler(async (req, res) => {
+    const userId = req.user.userId;
+    const expectedRevision = req.coverageExpectedRevision;
+    let resultSnapshot;
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const existing = await CoverageLedger.findOne({ userId, revision: expectedRevision,
+          deletedAt: null }).session(session).lean();
+        if (!existing?.input) throw conflict();
+        const target = existing.input.entries?.find(entry => entry.id === req.params.entryId);
+        if (!target || target.recurrence !== 'ONCE' || target.type === 'EXPECTED_INCOME') {
+          throw createError(409, 'Only one-off user-confirmed outflows may be settled. Recurring bills require manual date review.',
+            'Cannot automatically settle this commitment.',
+            { code: 'COVERAGE_SETTLEMENT_NOT_ONE_OFF' });
+        }
+        const input = validateCoverageLedger({
+          ...existing.input,
+          asOfDate: req.body.asOfDate,
+          openingCashPaise: req.body.openingCashPaise,
+          completenessConfirmed: true,
+          entries: existing.input.entries.filter(entry => entry.id !== target.id),
+        });
+        const count = await CoverageResult.countDocuments({ userId }).session(session);
+        if (count >= MAX_SAVED_REVISIONS) {
+          throw createError(409, 'Cash history capacity reached.',
+            'Export and archive financial history before another revision.',
+            { code: 'COVERAGE_HISTORY_LIMIT_REACHED' });
+        }
+        const prior = await CoverageResult.findOne({
+          userId, ledgerRevision: expectedRevision,
+        }).session(session).lean();
+        if (!prior) {
+          throw createError(503, 'Previous saved calculation unavailable.',
+            'Cash calculation history unavailable.', { code: 'COVERAGE_RESULT_UNAVAILABLE' });
+        }
+        const revision = expectedRevision + 1;
+        const calculation = calculateCoverage(input);
+        const inputHash = canonicalSha256({ policyVersion: COVERAGE_POLICY_VERSION, input });
+        const cas = await CoverageLedger.updateOne({
+          _id: existing._id, userId, revision: expectedRevision, deletedAt: null,
+        }, { $set: { input }, $inc: { revision: 1 } },
+        { session, runValidators: true });
+        if (cas.modifiedCount !== 1) throw conflict();
+        const [snapshot] = await CoverageResult.create([{
+          userId, ledgerRevision: revision, policyVersion: COVERAGE_POLICY_VERSION,
+          inputHash, input, calculation,
+        }], { session });
+        await CoverageSettlement.create([{
+          userId, ledgerRevision: revision, priorRevision: expectedRevision,
+          entryId: target.id, entryType: target.type, amountPaise: target.amountPaise,
+          declaredAsOfDate: input.asOfDate, provenance: 'USER_CONFIRMED_NOT_BANK_VERIFIED',
+        }], { session });
+        await CoverageRiskAlert.updateMany({ userId, state: 'UNREAD' },
+          { $set: { state: 'SUPERSEDED' } }, { session });
+        const nextEvent = evaluateCashRiskEvent({
+          userId, revision, input, result: calculation, priorResult: prior.calculation,
+        });
+        if (nextEvent) await CoverageRiskAlert.create([nextEvent], { session });
+        await completeMutationIdempotency(session, req.idempotencyClaim, {
+          resourceType: 'CoverageResult', resourceId: snapshot._id, status: 200,
+        });
+        resultSnapshot = snapshot;
+      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+      req.idempotencyCommitted = true;
+    } catch (error) {
+      if (isRevisionRace(error)) {
+        const completed = await resolveCommittedMutationForClaim(req, req.idempotencyClaim);
+        if (completed) {
+          req.idempotencyCommitted = true;
+          return res.status(completed.status).json(completed.body);
+        }
+        throw conflict();
+      }
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+    return res.json({ ...publicSnapshot(resultSnapshot), userConfirmedSettlement: true,
+      settledEntryId: req.params.entryId, bankVerified: false,
+      replayed: false, superseded: false });
+  }),
+);
+
+router.get('/settlements', verifyJWT, asyncHandler(async (req, res) => {
+  if (Object.keys(req.query).length !== 0) {
+    throw createError(400, 'Invalid settlements query.', 'Invalid settlements query.',
+      { code: 'COVERAGE_SETTLEMENT_QUERY_INVALID' });
+  }
+  const userId = req.user.userId;
+  const current = await CoverageLedger.findOne({ userId }).select('revision deletedAt').lean();
+  if (!current || current.deletedAt) return res.json({ settlements: [] });
+  const rows = await CoverageSettlement.find({ userId }).sort({ ledgerRevision: -1 })
+    .limit(20).lean();
+  if (!await CoverageLedger.exists({
+    _id: current._id, userId, revision: current.revision, deletedAt: null,
+  })) throw conflict();
+  return res.json({ settlements: rows.map(row => ({
+    ledgerRevision: row.ledgerRevision, entryId: row.entryId,
+    amountPaise: row.amountPaise, entryType: row.entryType,
+    declaredAsOfDate: row.declaredAsOfDate,
+    provenance: row.provenance, createdAt: row.createdAt,
+  })) });
+}));
 
 router.post('/scenarios/preview', verifyJWT, asyncHandler(async (req, res) => {
   const body = req.body;
@@ -403,6 +536,7 @@ router.delete('/ledger',
         if (removed.modifiedCount !== 1) throw conflict();
         await CoverageResult.deleteMany({ userId }, { session });
         await CoverageRiskAlert.deleteMany({ userId }, { session });
+        await CoverageSettlement.deleteMany({ userId }, { session });
         const [receipt] = await CoverageDeletionReceipt.create([{
           userId, idempotencyOperationId: req.idempotencyClaim.operationId,
           deletedRevision: ledger.revision, nextRevision: ledger.revision + 1, deletedAt: new Date(),
