@@ -195,7 +195,9 @@ export default function HouseholdRunway() {
       if (editVersion.current !== atStart) return;
       snapshotRetry.current = null;
       setResult(outcome); setLastRequest(request); setSnapshot('');
-      if (outcome.status === 'INSUFFICIENT_INPUT') setMessage('Add at least one dated payment to calculate a runway.');
+      if (outcome.status === 'INSUFFICIENT_INPUT') {
+        setMessage('No listed payments fall within the chosen horizon. Add a payment inside that period or increase the horizon.');
+      }
       else setMessage('Conditional results calculated from your listed entries.');
     } catch (err) { setError(err.message || 'Could not simulate.'); }
     finally { setBusy(false); }

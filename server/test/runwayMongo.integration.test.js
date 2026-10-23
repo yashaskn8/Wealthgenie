@@ -90,7 +90,7 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(simulation.body.scenarios[0].cashAlreadyAvailable.status, 'LISTED_SHORTFALL');
       assert.equal(simulation.body.scenarios[0].ifExpectedIncomeArrives.status, 'SAME_DAY_TIMING_UNKNOWN');
 
-      const browserTamper = await mutation(base, 'snapshots', { ...request, allegedBalancePaise: '999999' });
+       const browserTamper = await mutation(base, 'snapshots', { ...request, allegedBalancePaise: '999999' });
       assert.equal(browserTamper.response.status, 400);
       assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 0);
 
@@ -165,6 +165,18 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const stale = await mutation(base, 'simulations', request);
       assert.equal(stale.response.status, 409);
       assert.equal(stale.body.code, 'RUNWAY_STALE_INPUT');
+      const future = new Date(Date.UTC(Number(now.slice(0, 4)), Number(now.slice(5, 7)) - 1,
+        Number(now.slice(8, 10)) + 10)).toISOString().slice(0, 10);
+      const horizonLedger = { ...ledger, entries: [{ ...bill, date: future }] };
+      const third = await write(base, horizonLedger, 2, 'runway-third-003');
+      assert.equal(third.response.status, 201);
+      const tooShort = { ledgerRevision: 3, horizonDays: 1, scenarios: [] };
+      const noBillInHorizon = await mutation(base, 'simulations', tooShort);
+      assert.equal(noBillInHorizon.response.status, 200);
+      assert.equal(noBillInHorizon.body.status, 'INSUFFICIENT_INPUT');
+      const blockedEmptySnapshot = await mutation(base, 'snapshots', tooShort);
+      assert.equal(blockedEmptySnapshot.response.status, 400);
+      assert.equal(blockedEmptySnapshot.body.code, 'RUNWAY_INSUFFICIENT_INPUT');
 
       const invalidDelete = await jsonRequest(ownedBase + 'data', {
         method: 'DELETE', headers: { ...authB, 'Content-Type': 'application/json' },

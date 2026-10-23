@@ -247,6 +247,10 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
         { $inc: { snapshotGeneration: 1 } }, { session });
       if (fence.matchedCount !== 1) throw failure(409, 'RUNWAY_STALE_INPUT', 'Ledger changed. Refresh and retry.');
       const result = simulateRunway(found.revision.ledger, req.body);
+      if (result.status !== 'READY') {
+        throw failure(400, 'RUNWAY_INSUFFICIENT_INPUT',
+          'No listed payments fall within the selected horizon. Add payments or increase the horizon.');
+      }
       await RunwaySnapshot.create([{
         _id: snapshotId, userId, ledgerRevision: found.state.revision,
         inputHash: found.revision.inputHash, requestHash, request: req.body, result,

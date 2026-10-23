@@ -192,6 +192,20 @@ export function simulateRunway(ledger, request) {
   validateRequest(request, ledger);
   const asOf = civilDate(ledger.asOfDate);
   const events = expand(ledger, asOf.ordinal + request.horizonDays);
+  // A payment listed beyond the selected period is NOT evidence that bills
+  // inside this period were assessed. Never report an all-clear on an empty
+  // obligation horizon even when there are future obligations in the ledger.
+  if (!events.some(event => event.kind === 'OBLIGATION')) {
+    return {
+      status: 'INSUFFICIENT_INPUT',
+      engineVersion: RUNWAY_ENGINE_VERSION,
+      asOfDate: ledger.asOfDate,
+      horizonDays: request.horizonDays,
+      unknowns: ['NO_LISTED_OBLIGATIONS_IN_HORIZON', 'UNLISTED_SPENDING'],
+      disclaimer: 'No listed payments fall within the selected horizon; no affordability conclusion is possible.',
+      scenarios: [],
+    };
+  }
   const scenarioEvents = [{ id: 'baseline', events }, ...request.scenarios.map(scenario => {
     if (scenario.type === 'SKIP_RECEIPTS') {
       const ids = new Set(scenario.receiptIds);

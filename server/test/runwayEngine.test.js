@@ -91,3 +91,21 @@ test('rejects invalid revision numbers, protecting snapshot provenance', () => {
     assert.throws(() => simulateRunway(base(), { ledgerRevision: revision, horizonDays: 30, scenarios: [] }));
   }
 });
+
+
+test('never issues a reassuring READY result when all payments fall beyond the chosen horizon', () => {
+  const ledger = base();
+  ledger.entries = [
+    { id: 'late_bill', label: 'Later bill', kind: 'OBLIGATION', amountPaise: '19000',
+      date: '2026-03-15', recurrence: 'NONE' },
+    { id: 'salary', label: 'Income', kind: 'EXPECTED_INCOME', amountPaise: '30000',
+      date: '2026-02-01', recurrence: 'NONE' },
+  ];
+  const tooShort = run(ledger, [], 20);
+  assert.equal(tooShort.status, 'INSUFFICIENT_INPUT');
+  assert.deepEqual(tooShort.scenarios, []);
+  assert.ok(tooShort.unknowns.includes('NO_LISTED_OBLIGATIONS_IN_HORIZON'));
+  const coveringTheBill = run(ledger, [], 45);
+  assert.equal(coveringTheBill.status, 'READY');
+  assert.equal(coveringTheBill.scenarios[0].cashAlreadyAvailable.status, 'LISTED_SHORTFALL');
+});

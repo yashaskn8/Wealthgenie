@@ -42,3 +42,5 @@
 - Snapshot rendering distinguishes `RECOMPUTED_CURRENT_ENGINE` (the stored result was recalculated with the same engine version) from `STORED_HASH_ONLY` (an older/unknown engine version cannot be safely re-run). A stored SHA-256 hash is a consistency check, **not a signed attestation against a malicious database administrator**. Historical engine results may remain viewable with explicit warnings, never silently promoted to current.
 - Both declared ledger revisions and engine requests are capped at 2,048 immutable revisions per account; snapshot count is capped at 100. No silent pruning of historical evidence. A reviewable retention/export policy is needed before unrestricted production rollout.
 - Runtime migration readiness now verifies the snapshot-owner query index as well as the unique ledger revision index.
+
+- A ledger that contains payments only **after** the selected horizon returns \`INSUFFICIENT_INPUT\` (not \`NO_LISTED_SHORTFALL\`) for that period. Saving a misleading snapshot is rejected. This is tested at both numerical-engine and authenticated Mongo API levels.
