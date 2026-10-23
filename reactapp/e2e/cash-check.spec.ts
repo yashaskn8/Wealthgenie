@@ -51,6 +51,9 @@ async function installCashApi(page: Page) {
       status, headers: cors, contentType: 'application/json', body: JSON.stringify(json),
     });
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (path.endsWith('/settlements') && method === 'GET') {
+      return fulfill(200, { settlements: [] });
+    }
     if (path.endsWith('/alerts') && method === 'GET') {
       return fulfill(200, { revision, alerts: [] });
     }

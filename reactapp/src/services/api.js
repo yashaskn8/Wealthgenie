@@ -1173,6 +1173,18 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
   }, requestOptions);
 }
 
+export function settleCoverageOneOff(entryId, settlement, revision, options = {}) {
+  if (typeof entryId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(entryId)) throw new TypeError('Invalid cash commitment identity.');
+  if (!Number.isSafeInteger(revision) || revision < 1) throw new TypeError('Cash revision must be positive.');
+  return request('POST', '/coverage/commitments/' + encodeURIComponent(entryId) + '/settle',
+    settlement, {
+      ...options,
+      headers: { ...options.headers, 'If-Match': '"' + revision + '"' },
+    });
+}
+export function getCoverageSettlements(options = {}) {
+  return request('GET', '/coverage/settlements', null, options);
+}
 export function getCoverageAlerts(options = {}) {
   return request('GET', '/coverage/alerts?limit=20', null, options);
 }
@@ -1214,6 +1226,7 @@ export function exportCoverageHistoryPage(afterRevision = 0, options = {}) {
 // Default export for convenience
 const api = {
   getCoverageLedger, getCoverageAlerts, acknowledgeCoverageAlert,
+  settleCoverageOneOff, getCoverageSettlements,
   saveCoverageLedger, previewCoverageScenario, getCoverageRevision, deleteCoverageLedger, exportCoverageHistoryPage,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,

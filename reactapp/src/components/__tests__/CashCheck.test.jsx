@@ -10,6 +10,7 @@ vi.mock('../../services/api', () => ({
   previewCoverageScenario: vi.fn(), deleteCoverageLedger: vi.fn(),
   exportCoverageHistoryPage: vi.fn(),
   getCoverageAlerts: vi.fn(), acknowledgeCoverageAlert: vi.fn(),
+  settleCoverageOneOff: vi.fn(), getCoverageSettlements: vi.fn(),
 }));
 
 const baseline = () => ({
@@ -30,6 +31,7 @@ beforeEach(() => {
   api.getCoverageLedger.mockResolvedValue({ revision: 0, ledger: null, latestResult: null });
   api.getCoverageAlerts.mockResolvedValue({ revision: 1, alerts: [] });
   api.acknowledgeCoverageAlert.mockResolvedValue({ revision: 1, acknowledged: true });
+  api.getCoverageSettlements.mockResolvedValue({ settlements: [] });
   api.saveCoverageLedger.mockResolvedValue({ revision: 1, result: baseline() });
   api.deleteCoverageLedger.mockResolvedValue({ deleted: true, deletedRevision: 1, nextRevision: 2 });
 });
@@ -432,6 +434,39 @@ describe('90-day cash check', () => {
     render(<CashCheck />);
     await screen.findByText(/Risk alerts could not be verified/i);
     expect(screen.queryByText('Possible cash shortfall detected')).toBeNull();
+  });
+
+  it('requires post-payment cash attestation and never settles an unconfirmed bill', async () => {
+    const original = { asOfDate: indiaToday(), openingCashPaise: 20000,
+      cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true,
+      entries: [{ id: 'rent', label: 'Rent', type: 'ESSENTIAL_PAYMENT',
+        amountPaise: 19000, startDate: indiaToday(), recurrence: 'ONCE' }] };
+    api.getCoverageLedger.mockResolvedValueOnce({
+      revision: 1, ledger: original, latestResult: { result: baseline() },
+    }).mockResolvedValueOnce({
+      revision: 2, ledger: { ...original, openingCashPaise: 1000, entries: [] },
+      latestResult: { result: baseline() },
+    });
+    api.settleCoverageOneOff.mockResolvedValue({
+      revision: 2, userConfirmedSettlement: true, bankVerified: false,
+    });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm this one-time payment is settled' }));
+    expect(api.settleCoverageOneOff).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByPlaceholderText('Enter current post-payment cash'), {
+      target: { value: '10.00' },
+    });
+    fireEvent.click(screen.getByLabelText(/I confirm this one-off bill is already paid/i));
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment and recalculate' }));
+    await waitFor(() => expect(api.settleCoverageOneOff).toHaveBeenCalledWith(
+      'rent', { asOfDate: indiaToday(), openingCashPaise: 1000,
+        completenessConfirmed: true, settlementConfirmed: true }, 1,
+      { headers: { 'Idempotency-Key': 'coverage-test-client-uuid-000001' } },
+    ));
+    await screen.findByText(/one-time payment was marked settled by your confirmation/i);
+    expect(screen.queryByRole('button', { name: 'Confirm this one-time payment is settled' })).toBeNull();
+    expect(screen.getByPlaceholderText('50000.00').value).toBe('10.00');
   });
 
 });

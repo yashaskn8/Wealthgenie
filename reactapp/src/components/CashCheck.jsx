@@ -150,6 +150,11 @@ export default function CashCheck() {
   const [draft, setDraft] = useState(EMPTY);
   const pendingSave = useRef(null);
   const pendingDelete = useRef(null);
+  const pendingSettlement = useRef(null);
+  const [settling, setSettling] = useState(null);
+  const [settlementCash, setSettlementCash] = useState('');
+  const [settlementConfirmed, setSettlementConfirmed] = useState(false);
+  const [settlementHistory, setSettlementHistory] = useState(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [indiaDate, setIndiaDate] = useState(INDIA_DATE);
@@ -296,6 +301,8 @@ export default function CashCheck() {
           setCandidateTypes({});
           setAlerts([]);
           setAlertsError('');
+          setSettlementHistory(null);
+          setSettling(null);
           setPreview(null);
           setHasStoredLedger(false);
           setLoadFailed(true);
@@ -554,6 +561,8 @@ export default function CashCheck() {
       setHasStoredLedger(false);
       setAlerts([]);
       setAlertsError('');
+      setSettlementHistory(null);
+      setSettling(null);
       setConflictState(null);
       setConfirmOverwrite(false);
       setPreview(null);
@@ -569,6 +578,72 @@ export default function CashCheck() {
       setError(err.status === 409 && err.code === 'COVERAGE_REVISION_CONFLICT'
         ? 'Deletion blocked: the saved revision changed. Reload and reconcile first.'
         : err.message || 'Could not delete cash entries.');
+    } finally { setBusy(false); }
+  };
+  const openSettlement = entry => {
+    if (busy || dirty || conflictState || !hasStoredLedger || settling || stale) return;
+    setSettling({ id: entry.id, label: entry.label });
+    setSettlementCash('');
+    setSettlementConfirmed(false);
+    setError('');
+  };
+  const confirmSettlement = async () => {
+    if (!settling || !settlementConfirmed || busy || dirty || conflictState || stale) return;
+    setBusy(true);
+    setError(''); setNotice(''); setPreview(null);
+    try {
+      const body = {
+        asOfDate: INDIA_DATE(),
+        openingCashPaise: parseRupeeInput(settlementCash),
+        completenessConfirmed: true,
+        settlementConfirmed: true,
+      };
+      const identity = JSON.stringify({ entryId: settling.id, revision, body });
+      if (pendingSettlement.current?.identity !== identity) {
+        pendingSettlement.current = { identity, key: api.generateUUID() };
+      }
+      // Never claim settlement until the authoritative post-commit ledger
+      // has been fetched. A lost response can replay the exact same command.
+      const response = await api.settleCoverageOneOff(settling.id, body, revision, {
+        headers: { 'Idempotency-Key': pendingSettlement.current.key },
+      });
+      if (response.superseded) throw new Error('A different cash revision is current. Reload and reconcile.');
+      const confirmed = await api.getCoverageLedger();
+      if (confirmed.revision !== response.revision || !confirmed.ledger) {
+        throw new Error('Cash changed during settlement verification. Reload before relying on the plan.');
+      }
+      setRevision(confirmed.revision);
+      setDraft(toDraft(confirmed.ledger));
+      setSaved(confirmed.latestResult?.result || null);
+      setLastCalculatedAt(confirmed.latestResult?.calculatedAt || null);
+      setServerInputHash(confirmed.latestResult?.inputHash || null);
+      setServerPolicyStale(Boolean(confirmed.requiresPolicyReconfirmation));
+      setVerificationFailed(false);
+      setHasStoredLedger(true);
+      setStale(Boolean(confirmed.requiresCashReconfirmation || confirmed.requiresPolicyReconfirmation));
+      setDirty(false);
+      setSettling(null);
+      setSettlementConfirmed(false);
+      setSettlementCash('');
+      setSettlementHistory(null);
+      pendingSettlement.current = null;
+      setNotice('Your one-time payment was marked settled by your confirmation. The updated cash calculation was saved. Bank payment was not verified.');
+      signalCashRevisionChanged();
+    } catch (err) {
+      setSaved(null);
+      setStale(true);
+      setError(err.message || 'Settlement was not verified. Retry the same confirmation after reviewing your cash.');
+    } finally { setBusy(false); }
+  };
+  const loadSettlementHistory = async () => {
+    if (busy) return;
+    setBusy(true); setError('');
+    try {
+      const response = await api.getCoverageSettlements();
+      setSettlementHistory(Array.isArray(response.settlements) ? response.settlements : []);
+    } catch (err) {
+      setSettlementHistory(null);
+      setError(err.message || 'User-confirmed settlement history unavailable.');
     } finally { setBusy(false); }
   };
   const acknowledgeAlert = async id => {
@@ -666,6 +741,40 @@ export default function CashCheck() {
           : 'No verified calculation timestamp yet'}.</p>
         <p>Open WealthGenie tabs check for saved changes after a revision notification, approximately every 45 seconds, and on returning to the page. Updates depend on your connection and are not guaranteed instant.</p>
       </section>
+      {settling && (
+        <section className="cash-check-panel" role="region" aria-label="Confirm one-time payment settlement">
+          <h2>Confirm a one-time payment was made</h2>
+          <p>{settling.label}: only confirm if you personally know this payment is complete. This is not a bank verification or payment instruction.</p>
+          <label>Accessible cash AFTER this payment (₹)
+            <input value={settlementCash} inputMode="decimal" placeholder="Enter current post-payment cash"
+              disabled={busy} onChange={event => setSettlementCash(event.target.value)} />
+          </label>
+          <label className="cash-check-confirm">
+            <input type="checkbox" checked={settlementConfirmed}
+              disabled={busy} onChange={event => setSettlementConfirmed(event.target.checked)} />
+            I confirm this one-off bill is already paid, the balance above is accessible NOW, and I reviewed remaining commitments.
+          </label>
+          <button type="button" disabled={busy || !settlementConfirmed || !settlementCash.trim()}
+            onClick={() => { void confirmSettlement(); }}>Record payment and recalculate</button>
+          <button type="button" disabled={busy} onClick={() => {
+            setSettling(null); setSettlementConfirmed(false); setSettlementCash('');
+            pendingSettlement.current = null;
+          }}>Cancel settlement</button>
+        </section>
+      )}
+      {hasStoredLedger && (
+        <section className="cash-check-panel" aria-label="User-confirmed payment history">
+          <h2>Previously confirmed payments</h2>
+          <button type="button" disabled={busy} onClick={() => { void loadSettlementHistory(); }}>View settlement history</button>
+          {settlementHistory && (settlementHistory.length
+            ? <ul>{settlementHistory.map((item, index) => (
+              <li key={item.ledgerRevision + '-' + index}>
+                {item.entryId}: {formatMoney(item.amountPaise)} — confirmed {item.declaredAsOfDate} (user-declared, not bank-verified)
+              </li>
+            ))}</ul>
+            : <p>No saved settlement confirmations in the current history.</p>)}
+        </section>
+      )}
       {conflictState && (
         <section className="cash-check-panel" role="region" aria-label="Resolve cash plan conflict">
           <h2>Review cash-plan conflict</h2>
@@ -791,6 +900,11 @@ export default function CashCheck() {
                 </select></label>
               </div>
               <button type="button" className="cash-check-remove" onClick={() => { editDraft(d => ({ ...d, entries: d.entries.filter(e => e.id !== entry.id) })); setPreview(null); }}>Remove entry</button>
+              {hasStoredLedger && !dirty && entry.recurrence === 'ONCE'
+                && entry.type !== 'EXPECTED_INCOME' && !stale && (
+                <button type="button" disabled={busy || Boolean(settling)}
+                  onClick={() => openSettlement(entry)}>Confirm this one-time payment is settled</button>
+              )}
             </fieldset>
           ))}
           {draft.entries.length === 0 && <p>No entries yet. Add each known obligation and uncertain future income separately.</p>}
