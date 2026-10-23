@@ -220,7 +220,7 @@ export default function CashCheck() {
       setStale(draft.asOfDate !== INDIA_DATE());
       setNotice('Entries saved and recalculated. Revision ' + response.revision + '.');
     } catch (err) {
-      if (err.status === 409) {
+      if (err.status === 409 && err.code === 'COVERAGE_REVISION_CONFLICT') {
         // This lookup is read-only; never silently overwrite another device's
         // changes or resurrect a plan that was deliberately deleted.
         try {
@@ -313,7 +313,7 @@ export default function CashCheck() {
       setConfirmDelete(false);
       setNotice('Saved cash entries and calculations deleted. A minimal deletion receipt remains for retry safety.');
     } catch (err) {
-      setError(err.status === 409
+      setError(err.status === 409 && err.code === 'COVERAGE_REVISION_CONFLICT'
         ? 'Deletion blocked: the saved revision changed. Reload and reconcile first.'
         : err.message || 'Could not delete cash entries.');
     } finally { setBusy(false); }

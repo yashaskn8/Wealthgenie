@@ -175,7 +175,7 @@ describe('90-day cash check', () => {
 
 
   it('never auto-overwrites another tab and requires explicit conflict reconciliation', async () => {
-    api.saveCoverageLedger.mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }));
+    api.saveCoverageLedger.mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409, code: 'COVERAGE_REVISION_CONFLICT' }));
     api.getCoverageLedger.mockResolvedValueOnce({ revision: 0, ledger: null, latestResult: null })
       .mockResolvedValueOnce({
         revision: 2,
@@ -200,6 +200,18 @@ describe('90-day cash check', () => {
     fireEvent.click(screen.getByRole('button', { name: /save and calculate/i }));
     await waitFor(() => expect(api.saveCoverageLedger).toHaveBeenCalledTimes(2));
     expect(api.saveCoverageLedger.mock.calls[1][1]).toBe(2);
+  });
+  it('does not falsely classify history-limit errors as a concurrent edit', async () => {
+    api.saveCoverageLedger.mockRejectedValueOnce(Object.assign(
+      new Error('Saved cash history has reached its 256-revision limit.'),
+      { status: 409, code: 'COVERAGE_HISTORY_LIMIT_REACHED' },
+    ));
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByPlaceholderText('50000.00'), { target: { value: '1000.00' } });
+    fireEvent.click(screen.getByRole('button', { name: /save and calculate/i }));
+    await screen.findByText(/Saved cash history has reached its 256-revision limit/i);
+    expect(screen.queryByRole('region', { name: 'Resolve cash plan conflict' })).toBeNull();
   });
 
 });
