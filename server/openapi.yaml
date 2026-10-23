@@ -2615,7 +2615,7 @@ components:
         fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$', description: Fiscal year used by the server-owned tax policy; FY2025-26 maps to AY2026-27. }
         incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
         annualGrossIncome: { type: number, minimum: 0, maximum: 1000000000 }
-        regime: { type: string, enum: [new, old] }
+        regime: { type: string, enum: [new] }
         userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }
         deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }
         illustrativePrincipal: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
@@ -2740,7 +2740,7 @@ components:
         - type: object
           required: [regime]
           properties:
-            regime: { type: string, enum: [new, old] }
+            regime: { type: string, enum: [new] }
         - if:
             properties: { regime: { const: old } }
             required: [regime]
@@ -2814,7 +2814,7 @@ components:
         fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
         incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
         annualGrossIncome: { type: number, minimum: 0, maximum: 1000000000 }
-        regime: { type: string, enum: [new, old] }
+        regime: { type: string, enum: [new] }
         userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }
         deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }
         illustrativePrincipal: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
@@ -2962,7 +2962,7 @@ components:
           properties:
             annualIncome: { type: number, minimum: 0 }
             incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
-            regime: { type: string, enum: [new, old] }
+            regime: { type: string, enum: [new] }
             userAge: { type: integer, minimum: 18, maximum: 120 }
             inflationRate: { type: number, minimum: 0, maximum: 1 }
             fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
@@ -2979,7 +2979,7 @@ components:
           properties:
             annualIncome: { type: number, minimum: 0 }
             incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
-            regime: { type: string, enum: [new, old] }
+            regime: { type: string, enum: [new] }
             userAge: { type: integer, minimum: 18, maximum: 120 }
             inflationRate: { type: number, minimum: 0, maximum: 1 }
             fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
@@ -3104,7 +3104,7 @@ components:
           required: [annualIncome, regime, userAge, incomeSource, fiscalYear]
           properties:
             annualIncome: { type: number, minimum: 0, maximum: 1000000000 }
-            regime: { type: string, enum: [new, old] }
+            regime: { type: string, enum: [new] }
             userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }
             incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
             fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
@@ -3113,7 +3113,7 @@ components:
       unevaluatedProperties: false
       x-runtime-validation:
         transactionDates: acquisitionDate and redemptionDate must be supplied together; both must be real calendar dates; redemptionDate must be on or after acquisitionDate.
-    PostTaxReturnBatchRequestV2: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. } } }
+    PostTaxReturnBatchRequestV2: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new] }, userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }, deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }, section112AExemptionUsed: { type: number, minimum: 0, maximum: 125000, description: Required as an explicit value, including 0 when none was used, for Section 112A equity calculations; annual taxpayer-wide usage. Omission returns REQUIRES_TAX_INPUTS for equity results. } } }
     UserDeclaredPostTaxScenarioRequest:
       type: object
       additionalProperties: false
@@ -3131,7 +3131,7 @@ components:
         sttConditionAssumedSatisfied: { type: boolean, description: User assumption only; the service does not verify an actual STT event. }
         annualGrossIncome: { type: number, minimum: 0, maximum: 1000000000 }
         incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
-        regime: { type: string, enum: [new, old] }
+        regime: { type: string, enum: [new] }
         fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
         userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. If deductions.age is also supplied, the server rejects unequal values.' }
         deductions: { $ref: '#/components/schemas/TaxDeductionInputs' }
@@ -3176,14 +3176,14 @@ components:
           required: [annualIncome, regime, userAge, incomeSource, fiscalYear]
           properties:
             annualIncome: { type: number, minimum: 0, maximum: 1000000000 }
-            regime: { type: string, enum: [new, old] }
+            regime: { type: string, enum: [new] }
             userAge: { type: integer, minimum: 18, maximum: 120, description: 'Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age.' }
             incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }
             fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' }
       unevaluatedProperties: false
       x-runtime-validation:
         transactionDates: acquisitionDate and redemptionDate must be supplied together; both must be real calendar dates; redemptionDate must be on or after acquisitionDate.
-    PostTaxReturnBatchRequest: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new, old] }, userAge: { type: integer, minimum: 18, maximum: 120, description: Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' } } }
+    PostTaxReturnBatchRequest: { type: object, additionalProperties: false, required: [instruments, annualIncome, regime, userAge, incomeSource, inflationRate, fiscalYear], properties: { instruments: { type: array, minItems: 1, maxItems: 50, items: { $ref: '#/components/schemas/PostTaxInstrument' } }, annualIncome: { type: number, minimum: 0, maximum: 1000000000 }, regime: { type: string, enum: [new] }, userAge: { type: integer, minimum: 18, maximum: 120, description: Explicit tax age on March 31 of the supplied fiscalYear; never inferred from profile age. }, incomeSource: { type: string, enum: [salary, pension, family_pension, business, other] }, inflationRate: { type: number, minimum: 0, maximum: 1 }, fiscalYear: { type: string, pattern: '^FY\d{4}-\d{2}$' } } }
     PortfolioOptimiseRequest: { type: object, additionalProperties: false, required: [profileId, assets, strategy], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, assets: { type: array, minItems: 2, maxItems: 20, uniqueItems: true, items: { type: string, maxLength: 50 } }, strategy: { type: string, enum: [min_variance, max_sharpe, risk_parity, max_return] } } }
     RebalanceRequest: { type: object, additionalProperties: false, required: [profileId, current_allocation, target_allocation, threshold, partial_ratio, holding_months], properties: { profileId: { type: string, pattern: '^[0-9a-fA-F]{24}$' }, current_allocation: { type: object, minProperties: 1, maxProperties: 30, additionalProperties: { type: number, minimum: 0, maximum: 1000000000 } }, target_allocation: { type: object, minProperties: 1, maxProperties: 30, additionalProperties: { type: number, minimum: 0, maximum: 100 }, description: Weights must sum to exactly 100. }, threshold: { type: number, minimum: 0, maximum: 50 }, partial_ratio: { type: number, minimum: 0.1, maximum: 1 }, holding_months: { type: number, minimum: 0, maximum: 600 } } }
     PortfolioResult: { type: object, properties: { weights: { type: object, additionalProperties: { type: number } }, trades: { type: array, items: { type: object, additionalProperties: true } } }, additionalProperties: true }
