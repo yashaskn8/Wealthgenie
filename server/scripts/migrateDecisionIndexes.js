@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import DecisionScenario from '../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionRun from '../models/DecisionRun.js';
+import DecisionEvent from '../models/DecisionEvent.js';
+import DecisionEventState from '../models/DecisionEventState.js';
 
 // Index work belongs in an explicit migration, never request-time execution.
 const uri = String(process.env.MONGODB_MIGRATION_URI || '').trim();
@@ -16,6 +18,9 @@ const expected = [
   [DecisionRun, { userId: 1, runKeyHash: 1 }, 'uniq_decision_run_key', true],
   [DecisionRun, { userId: 1, scenarioId: 1, createdAt: -1 },
     'decision_run_owner_history', false],
+  [DecisionEventState, { userId: 1 }, 'uniq_decision_event_owner_sequence', true],
+  [DecisionEvent, { userId: 1, sequence: 1 }, 'uniq_decision_event_owner_order', true],
+  [DecisionEvent, { expiresAt: 1 }, 'decision_event_expiration', false],
 ];
 
 function sameKeys(left, right) {
@@ -25,10 +30,13 @@ function sameKeys(left, right) {
 try {
   await mongoose.connect(uri, { autoIndex: false });
   for (const [model, keys, name, unique] of expected) {
-    await model.collection.createIndex(keys, { name, unique });
+    await model.collection.createIndex(keys, {
+      name, unique, ...(name === 'decision_event_expiration' ? { expireAfterSeconds: 0 } : {}),
+    });
     const indexes = await model.collection.indexes();
     if (!indexes.some(index => index.name === name && Boolean(index.unique) === unique
-      && sameKeys(index.key, keys))) {
+      && sameKeys(index.key, keys)
+      && (name !== 'decision_event_expiration' || index.expireAfterSeconds === 0))) {
       throw new Error(`Required GenieDecision index ${name} did not verify.`);
     }
   }
