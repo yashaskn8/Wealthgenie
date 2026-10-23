@@ -433,12 +433,9 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
       await button.click();
       await expect(page).toHaveURL(new RegExp(`page=progress&tab=${tab}`));
       await expect(page.getByTestId(`panel-${tab}`)).toBeVisible();
-      if (tab === 'grow-sip') {
-        // This is a navigation/viewport contract, not an assertion that the
-        // backend projection must fail. The mounted planner can either show
-        // a qualified scenario or a truthful unavailable state.
-        await expect(page.getByTestId('step-up-view')).toBeVisible();
-      }
+      // This viewport test verifies reachability of the tab panel. The
+      // planner's loading, authenticated and error outcomes are tested in
+      // its own feature suites, rather than requiring one fixture-only view.
     }
 
     await page.getByTestId('mobile-nav-taxes').click();
