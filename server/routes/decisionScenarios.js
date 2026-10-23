@@ -241,12 +241,17 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       declaredMonthlySavings: optionalFact(current.profile.monthlySavings, 'monthlySavings'),
     } : { openingLiquidCash: null, monthlyTakeHome: null, declaredMonthlySavings: null };
     const complete = Object.values(facts).every(value => value !== null);
+    // Presence alone is not readiness: there must be positive income and
+    // room for nonnegative expenses/debt before any savings can reconcile.
+    const financiallyCoherent = complete
+      && Number(facts.monthlyTakeHome) > 0
+      && Number(facts.monthlyTakeHome) >= Number(facts.declaredMonthlySavings);
     res.json({
-      available: currentProfile && complete,
+      available: currentProfile && financiallyCoherent,
       profileId: currentProfile ? identity(current.profile._id) : null,
       profileStateRevision: currentProfile ? current.state.revision : null,
       openingLiquidCashAvailable: facts.openingLiquidCash !== null,
-      profileFacts: facts, requiredInputsComplete: complete,
+      profileFacts: facts, requiredInputsComplete: financiallyCoherent,
       externalFinancialEvidence: 'UNAVAILABLE',
       llmRequired: false, providerForecastAvailable: false,
     });
