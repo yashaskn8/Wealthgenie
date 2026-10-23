@@ -456,6 +456,16 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
     assert.equal(enabled.response.status, 200, JSON.stringify(enabled.body));
     assert.equal(enabled.body.monitor.enabled, true);
     const gen = enabled.body.monitor.generation;
+    const consent = await DecisionMonitor.findOne({ userId: userOne, scenarioId: id }).lean();
+    assert.match(consent.integrityTag, /^[a-f0-9]{64}$/);
+    // An attacker changing a DB boolean cannot manufacture valid user consent.
+    await DecisionMonitor.collection.updateOne({ _id: consent._id },
+      { $set: { enabled: false } });
+    const forgedConsent = await call(base, userOne, monitorPath);
+    assert.equal(forgedConsent.response.status, 503);
+    assert.equal(forgedConsent.body.code, 'DECISION_MONITOR_CONSENT_INTEGRITY_FAILURE');
+    await DecisionMonitor.collection.updateOne({ _id: consent._id },
+      { $set: { enabled: true } });
     const repeated = await call(base, userOne, monitorPath, 'PUT',
       { enabled: true, expectedRevision: 1 });
     assert.equal(repeated.response.status, 200);
