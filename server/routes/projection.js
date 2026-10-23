@@ -167,7 +167,9 @@ router.post('/custom-portfolio', verifyJWT, validateStrict(customPortfolioProjec
     allocation_match_pct: recommendationMatchPct,
     risk_match_pct: Math.max(0, Math.round(100 - (Math.abs(portfolioRiskScore - suitability.finalLevel) * 25))),
     goal_horizon_match_pct: 100,
-    affordability_match_pct: 100,
+    // Do not assert affordability from a monthly savings aggregate.
+    affordability_match_pct: null,
+    affordability_assessment: 'NOT_ASSESSED',
     liquidity_warning: safeWeight < 0.15,
     asset_class_allocation: Object.fromEntries(Object.entries(assetClassAllocation).map(([key, value]) => [key, Math.round(value)])),
     allocation_percentages: Object.fromEntries(Object.entries(normalizedAllocations).map(([key, weight]) => [key, Number((weight * 100).toFixed(4))])),
