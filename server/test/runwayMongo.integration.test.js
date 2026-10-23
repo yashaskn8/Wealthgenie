@@ -55,6 +55,9 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
     await RunwaySettlement.collection.createIndex({ userId: 1, decidedAt: -1 }, {
       name: 'runway_settlement_owner_audit',
     });
+    await RunwaySettlement.collection.createIndex({ userId: 1, statementId: 1, rowIndex: 1 }, {
+      name: 'uniq_runway_settled_source_row', unique: true,
+    });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
     await User.create([
       { _id: userA, name: 'Runway A', email: 'runway-a-' + crypto.randomUUID() + '@example.test', passwordHash: 'test-hash' },
@@ -410,6 +413,8 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       { name: 'runway_signal_ttl', expireAfterSeconds: 0 });
     await RunwaySettlement.collection.createIndex({ userId: 1, decidedAt: -1 },
       { name: 'runway_settlement_owner_audit' });
+    await RunwaySettlement.collection.createIndex({ userId: 1, statementId: 1, rowIndex: 1 },
+      { name: 'uniq_runway_settled_source_row', unique: true });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
     await User.create([
       { _id: userA, name: 'Settlement A', email: 'r-a-' + crypto.randomUUID() + '@example.test',

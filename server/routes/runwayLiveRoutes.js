@@ -177,9 +177,13 @@ export function createRunwayLiveRouter({
       return res.json({ revision: found.state.revision, items: [], status: 'CASH_CONFIRMATION_STALE' });
     }
     const sources = await verifiedSources(userId);
+    const used = await RunwaySettlement.find({ userId })
+      .select('statementId rowIndex -_id').lean();
+    const consumed = new Set(used.map(x => x.statementId + '/' + x.rowIndex));
     return res.json({
       revision: found.state.revision,
-      items: buildRunwayMatchCandidates(found.revision.ledger, sources, indiaCivilToday()),
+      items: buildRunwayMatchCandidates(found.revision.ledger, sources, indiaCivilToday())
+        .filter(x => !consumed.has(x.statementId + '/' + x.rowIndex)),
       status: 'REVIEW_REQUIRED',
       notice: 'Amount/date matches are suggestions only, not independently bank-verified posting.',
     });
@@ -246,6 +250,13 @@ export function createRunwayLiveRouter({
           throw fail(409, 'RUNWAY_SETTLEMENT_LIMIT',
             'Export settled-item history and manage older ledger records before continuing.');
         }
+        const previouslyApplied = await RunwaySettlement.exists({
+          userId, statementId: requested.statementId, rowIndex: requested.rowIndex,
+        }).session(session);
+        if (previouslyApplied) {
+          throw fail(409, 'RUNWAY_POSTED_ROW_REUSED',
+            'This user-imported transaction was already applied to a ledger.');
+        }
         const sources = await verifiedSources(userId, session);
         const { nextLedger, match } = prepareRunwaySettlement(
           found.revision.ledger, sources, requested, indiaCivilToday(),
@@ -279,6 +290,14 @@ export function createRunwayLiveRouter({
       });
     } catch (error) {
       if (error?.code === 11000) {
+        const rowAlreadyUsed = await RunwaySettlement.exists({
+          userId, statementId: requested.statementId, rowIndex: requested.rowIndex,
+          _id: { $ne: receiptId },
+        });
+        if (rowAlreadyUsed) {
+          throw fail(409, 'RUNWAY_POSTED_ROW_REUSED',
+            'This posted row has already been applied.');
+        }
         const saved = await RunwaySettlement.findOne({ _id: receiptId, userId }).lean();
         if (saved) {
           if (saved.requestHash !== requestHash) {

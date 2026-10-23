@@ -32,6 +32,7 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
   const settlementRetry = useRef(null);
   const cursor = useRef(null);
   const polling = useRef(false);
+  const lastFullRefresh = useRef(0);
 
   const reload = useCallback(async () => {
     const [next, data] = await Promise.all([api.getRunwayLiveOverview(), api.listRunwayStatements()]);
@@ -46,7 +47,7 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
     const refresh = async () => {
       try {
         const [next, data] = await Promise.all([api.getRunwayLiveOverview(), api.listRunwayStatements()]);
-        if (mounted) { setOverview(next); setImports(data.items || []); }
+        if (mounted) { setOverview(next); setImports(data.items || []); lastFullRefresh.current = Date.now(); }
       } catch (e) { if (mounted) setError(e.message || 'Unable to refresh evidence.'); }
     };
     const poll = async () => {
@@ -56,7 +57,10 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
         const events = await api.getRunwayLiveEvents(cursor.current || '');
         if (!mounted) return;
         if (events.nextCursor) cursor.current = events.nextCursor;
-        if (events.items?.length) await refresh();
+        // A Mongo ObjectId event cursor is not a globally ordered transaction
+        // commit log across writers/replicas. Full reconciliation every minute
+        // guarantees recovery from a missed or expired event cursor.
+        if (events.items?.length || Date.now() - lastFullRefresh.current > 60_000) await refresh();
         // Catch up on bursts by fetching the remaining 30-item windows on
         // later polls; do not trust event content as financial evidence.
       } catch (e) { if (mounted) setError(e.message || 'Change polling unavailable.'); }
@@ -145,12 +149,16 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
       });
       settlementRetry.current = null;
       setSelectedMatch(null); setConfirmedCash(''); setSettlementChecked(false);
-      setMessage('Settlement recorded in revision ' + saved.revision + '.'
-        + ' This was your confirmation, not bank verification.');
-      await onSettlementApplied?.(saved);
-      await reload();
-      const refreshed = await api.getRunwayReconciliationMatches();
-      setMatches(refreshed);
+      setMessage('Settlement committed to revision ' + saved.revision
+        + '. This was user-confirmed, not bank-verified.');
+      try {
+        await onSettlementApplied?.(saved);
+        await reload();
+        setMatches(await api.getRunwayReconciliationMatches());
+      } catch {
+        setMessage('Settlement was committed to revision ' + saved.revision
+          + ', but refreshing the screen failed. Reload the page before further edits.');
+      }
     } catch (e) { setError(e.message || 'Could not confirm posted payment. Retry with the same inputs.'); }
     finally { setBusy(false); }
   };

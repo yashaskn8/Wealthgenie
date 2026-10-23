@@ -40,7 +40,10 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
     && signal.some(i => i.name === 'runway_signal_ttl'
       && i.key?.expiresAt === 1 && i.expireAfterSeconds === 0)
     && settlement.some(i => i.name === 'runway_settlement_owner_audit'
-      && i.key?.userId === 1 && i.key?.decidedAt === -1);
+      && i.key?.userId === 1 && i.key?.decidedAt === -1)
+    && settlement.some(i => i.name === 'uniq_runway_settled_source_row'
+      && i.unique === true && i.key?.userId === 1
+      && i.key?.statementId === 1 && i.key?.rowIndex === 1);
   if (!ready) {
     const error = new Error('Required Runway unique and TTL indexes are missing or incorrect.');
     error.code = 'RUNWAY_INDEXES_UNAVAILABLE';

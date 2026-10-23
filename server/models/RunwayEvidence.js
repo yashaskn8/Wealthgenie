@@ -47,4 +47,8 @@ const settlementSchema = new Schema({
   sealHmac: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
 }, opts);
 settlementSchema.index({ userId: 1, decidedAt: -1 }, { name: 'runway_settlement_owner_audit' });
+// Exactly one approved forecast adjustment per imported posted transaction row.
+settlementSchema.index({ userId: 1, statementId: 1, rowIndex: 1 }, {
+  name: 'uniq_runway_settled_source_row', unique: true,
+});
 export const RunwaySettlement = mongoose.models.RunwaySettlement || mongoose.model('RunwaySettlement', settlementSchema);
