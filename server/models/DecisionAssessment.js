@@ -8,6 +8,8 @@ const schema = new mongoose.Schema({
   monitorGeneration: { type: Number, required: true, min: 1, immutable: true },
   profileId: { type: mongoose.Schema.Types.ObjectId, required: true, immutable: true },
   profileStateRevision: { type: Number, required: true, min: 1, immutable: true },
+  profileVersion: { type: Number, required: true, min: 1, immutable: true },
+  profileFinancialFence: { type: Number, required: true, min: 0, immutable: true },
   profileFactsHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
   modelVersion: { type: String, required: true, immutable: true },
   inputHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
@@ -20,12 +22,12 @@ const schema = new mongoose.Schema({
   integrityTag: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
 }, { strict: 'throw', timestamps: { createdAt: true, updatedAt: false } });
 schema.index({ userId: 1, scenarioId: 1, scenarioRevision: 1, monitorGeneration: 1,
-  profileFactsHash: 1, profileStateRevision: 1, modelVersion: 1 },
+  profileFactsHash: 1, profileStateRevision: 1, profileVersion: 1, profileFinancialFence: 1, modelVersion: 1 },
 { unique: true, name: 'uniq_decision_assessment_source_policy' });
 schema.index({ userId: 1, scenarioId: 1, createdAt: -1 }, { name: 'decision_assessment_owner_history' });
 protectImmutableIdentity(schema, [
   'userId', 'scenarioId', 'scenarioRevision', 'monitorGeneration', 'profileId', 'profileStateRevision',
-  'profileFactsHash', 'modelVersion', 'inputHash', 'status', 'reasonCode', 'result', 'resultHash',
+  'profileFactsHash', 'profileVersion', 'profileFinancialFence', 'modelVersion', 'inputHash', 'status', 'reasonCode', 'result', 'resultHash',
   'issuedAt', 'integrityKeyId', 'integrityTag',
 ], { code: 'DECISION_ASSESSMENT_IMMUTABLE', label: 'GenieDecision reassessment' });
 export default mongoose.models.DecisionAssessment || mongoose.model('DecisionAssessment', schema);
