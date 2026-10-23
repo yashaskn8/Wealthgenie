@@ -225,7 +225,7 @@ export default function InvestmentUniverseExplorer() {
               <p>{filtered.length} matching options</p>
               <ul className="wti-universe-list">
                 {filtered.map(item => (
-                  <li key={item.id}>
+                  <li key={item.id} className={selectedFamily?.id === item.id ? 'wti-universe-selected' : undefined}>
                     <div>
                       <strong>{item.name}</strong>
                       <small>{item.category}{item.subcategory ? ' · ' + item.subcategory : ''}</small>
@@ -236,16 +236,16 @@ export default function InvestmentUniverseExplorer() {
                     </span>
                     <button type="button" className="wti-universe-more"
                       onClick={() => inspectFamily(item)}
+                      aria-expanded={selectedFamily?.id === item.id}
+                      aria-controls={'wti-top-three-' + item.id}
                       aria-label={'Check tailored top 3 for ' + item.name}>
                       Check tailored top 3
                     </button>
-                  </li>
-                ))}
-              </ul>
-              {!filtered.length && <p>No matching investment categories.</p>}
-              {selectedFamily && (
-                <section aria-label="Selected investment tailored top three"
-                  style={{ borderTop: '1px solid rgba(148,163,184,.25)', paddingTop: 16 }}>
+              {selectedFamily?.id === item.id && (
+                <section id={'wti-top-three-' + item.id}
+                  className="wti-universe-detail"
+                  aria-label={'Tailored top three for ' + item.name}
+                  aria-live="polite">
                   <h3>{selectedFamily.name}: tailored top three</h3>
                   {comparison?.status === 'LOADING' && <p role="status">Revalidating your profile and product evidence...</p>}
                   {comparison?.status === 'UNAVAILABLE' && (
@@ -292,6 +292,11 @@ export default function InvestmentUniverseExplorer() {
                   )}
                 </section>
               )}
+                  </li>
+                ))}
+              </ul>
+              {!filtered.length && <p>No matching investment categories.</p>}
+
             </>
           )}
         </div>
