@@ -19,6 +19,7 @@ const money = value => {
 export default function RunwayLiveEvidence({ canImport, canSettle = false, onChooseCash, onSettlementApplied }) {
   const [overview, setOverview] = useState(null);
   const [imports, setImports] = useState([]);
+  const [observations, setObservations] = useState(null);
   const [accountLabel, setAccountLabel] = useState('');
   const [csvFile, setCsvFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -35,9 +36,12 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
   const lastFullRefresh = useRef(0);
 
   const reload = useCallback(async () => {
-    const [next, data] = await Promise.all([api.getRunwayLiveOverview(), api.listRunwayStatements()]);
+    const [next, data, accounts] = await Promise.all([
+      api.getRunwayLiveOverview(), api.listRunwayStatements(), api.getRunwayAccountObservations(),
+    ]);
     setOverview(next);
     setImports(data.items || []);
+    setObservations(accounts);
   }, []);
   useEffect(() => {
     let mounted = true;
@@ -46,8 +50,13 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
     // authoritative, and an event contains only the notification type.
     const refresh = async () => {
       try {
-        const [next, data] = await Promise.all([api.getRunwayLiveOverview(), api.listRunwayStatements()]);
-        if (mounted) { setOverview(next); setImports(data.items || []); lastFullRefresh.current = Date.now(); }
+        const [next, data, accounts] = await Promise.all([
+          api.getRunwayLiveOverview(), api.listRunwayStatements(), api.getRunwayAccountObservations(),
+        ]);
+        if (mounted) {
+          setOverview(next); setImports(data.items || []);
+          setObservations(accounts); lastFullRefresh.current = Date.now();
+        }
       } catch (e) { if (mounted) setError(e.message || 'Unable to refresh evidence.'); }
     };
     const poll = async () => {
@@ -188,6 +197,23 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
           <strong>{conditional ? money(conditional.endBalancePaise) : 'Unknown'}</strong>
           <span className="runway-live-subtitle">Conditional scenario, never guaranteed.</span></div>
       </div>
+      <details>
+        <summary>Separate account observations ({observations?.items?.length || 0})</summary>
+        <p>Account nicknames are provided by you, not verified bank account IDs.
+          Each statement is shown separately; balances are never added together
+          or silently used as confirmed household cash.</p>
+        {observations?.potentiallyOverlappingNicknames?.length > 0 && (
+          <p role="status">Repeated nicknames may represent overlapping statements.
+            Verify which account each belongs to before using any amount.</p>
+        )}
+        {observations?.items?.length
+          ? <ul>{observations.items.map(item => <li key={item.statementId}>
+            <strong>{item.accountNickname}</strong> · {item.asOfDate}
+            {' '}· {money(item.closingBalancePaise)} · {item.freshness}
+            {' '}· Not bank verified
+          </li>)}</ul>
+          : <p>No account evidence imported.</p>}
+      </details>
       <p className="runway-live-subtitle">
         Evidence status: {overview?.freshness || 'Loading'} · Source: user-uploaded CSV
         · Polls for authenticated changes approximately every six seconds while visible.

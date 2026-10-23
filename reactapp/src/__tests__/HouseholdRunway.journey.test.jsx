@@ -44,6 +44,10 @@ beforeEach(() => {
   });
   vi.spyOn(api, 'listRunwayStatements').mockResolvedValue({ items: [], maxImports: 30 });
   vi.spyOn(api, 'getRunwayLiveEvents').mockResolvedValue({ items: [], nextCursor: null });
+  vi.spyOn(api, 'getRunwayAccountObservations').mockResolvedValue({
+    items: [], householdTotalPaise: null, independentlyVerified: false,
+    potentiallyOverlappingNicknames: [],
+  });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 function absentLedger() {

@@ -32,6 +32,13 @@ function common({ imported = null } = {}) {
     items: imported ? [imported] : [], maxImports: 30,
   });
   vi.spyOn(api, 'getRunwayLiveEvents').mockResolvedValue({ items: [], nextCursor: null });
+  vi.spyOn(api, 'getRunwayAccountObservations').mockResolvedValue({
+    items: imported ? [{ ...imported, accountNickname: imported.accountLabel,
+      asOfDate: imported.periodEnd, evidenceStatus: 'USER_IMPORTED_UNVERIFIED',
+      freshness: 'HISTORICAL_OBSERVATION' }] : [],
+    householdTotalPaise: null, independentlyVerified: false,
+    potentiallyOverlappingNicknames: [],
+  });
 }
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 it('CSV import requires a saved ledger, uploads only text, and never claims real bank verification', async () => {

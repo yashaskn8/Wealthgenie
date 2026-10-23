@@ -20,6 +20,7 @@ import {
   buildRunwayMatchCandidates, prepareRunwaySettlement, runwayTransactionIdentity,
 } from '../services/runwayReconciliation.js';
 import { RunwayLedgerState, RunwayLedgerRevision } from '../models/Runway.js';
+import { buildRunwayObservedAccounts } from '../services/runwayAccountObservations.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
 import {
@@ -138,6 +139,12 @@ export function createRunwayLiveRouter({
         : 'NO_IMPORTED_EVIDENCE',
       notice: 'Statements are user-uploaded, not a real-time bank feed. Imported transactions never silently change your confirmed cash or settle planned bills.',
     });
+  }));
+  router.get('/accounts', asyncHandler(async (req, res) => {
+    const userId = owner(req);
+    const records = await RunwayStatement.find({ userId }).sort({ importedAt: -1, _id: -1 })
+      .limit(MAX_IMPORTS).lean();
+    return res.json(buildRunwayObservedAccounts(records.map(verified), indiaCivilToday()));
   }));
   router.get('/projection', asyncHandler(async (req, res) => {
     const userId = owner(req);

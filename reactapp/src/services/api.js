@@ -1185,6 +1185,9 @@ export function listRunwaySettlements(page = 0, options = {}) {
 export function confirmRunwaySettlement(input, options = {}) {
   return request('POST', '/runway/live/settlements', input, { retries: 0, ...options });
 }
+export function getRunwayAccountObservations(options = {}) {
+  return request('GET', '/runway/live/accounts', null, { retries: 0, ...options });
+}
 export function getRunwayLiveOverview(horizonDays = 90, options = {}) {
   return request('GET', '/runway/live/overview?horizonDays=' + encodeURIComponent(horizonDays), null, { retries: 0, ...options });
 }
@@ -1243,7 +1246,7 @@ export function deleteRunwayData(options = {}) {
 // Default export for convenience
 const api = {
   register, login, logout, restoreSession,
-  getRunwayCurrent, getRunwayLiveOverview, getRunwayLiveEvents,
+  getRunwayCurrent, getRunwayLiveOverview, getRunwayLiveEvents, getRunwayAccountObservations,
   getRunwayReconciliationMatches, listRunwaySettlements, confirmRunwaySettlement, listRunwayStatements,
   getRunwayStatement, importRunwayStatement, deleteRunwayStatement,
   getRunwayLedgerHistoryPage, getRunwaySnapshotHistoryPage, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, listRunwaySnapshots, getRunwaySnapshot, deleteRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,

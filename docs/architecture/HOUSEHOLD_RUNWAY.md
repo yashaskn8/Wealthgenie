@@ -171,3 +171,7 @@ Every new ledger revision (manual update or guided settlement) queues a bounded 
 - Jobs have unique owner/revision keys, retry/backoff, 45-second leases and terminal BLOCKED state on financial integrity errors. Worker does not emit notifications or charge for APIs. It runs independently of the AI agent worker and must be deployed explicitly with separate logs/health.
 - The outbox worker does not establish authenticated bank balance freshness. Claim lease and DB write fencing must be validated with race/crash integration tests before relying on it for regulated or time-critical alerts.
 - Versioned projections and job records are deleted inside full user Runway primary-data erasure. Explicit index migration and startup readiness gate verify their collection indexes. A real deployment must backfill older existing ledgers via a separate audited migration or keep the LEGACY state.
+
+## Account observations (no false household aggregation)
+
+`GET /api/runway/live/accounts` verifies HMAC and decrypts each owner-only imported source before returning separate labeled observations, observation dates and freshness. It explicitly sets `householdTotalPaise: null` and `independentlyVerified: false`, detects repeated user-supplied nicknames, and never interprets CSV titles as actual account IDs. React shows separate observation rows so a single account cannot be mistaken for total household money. Persistent bank-authorized account identifiers and approved balance reconciliation remain a separate release milestone.
