@@ -62,6 +62,16 @@ test('date-derived horizon cannot bypass the cash-flow rupee precision guard', (
     assumed.monthlySIP, context.userAge, context.incomeSource,
     undefined, FY, { deductions: {} });
   assert.equal(tax.status, 'CALCULATED');
+  // The canonical result must also abstain when exact dates are supplied
+  // directly, rather than returning a plausible-looking headline tax rate.
+  const dateBoundTax = calculatePostTaxReturn('FD', assumed.nominalRate,
+    context.annualGrossIncome, assumed.holdingYears, 'new',
+    assumed.monthlySIP, context.userAge, context.incomeSource,
+    undefined, FY, { deductions: {},
+      acquisitionDate: context.acquisitionDate,
+      redemptionDate: context.redemptionDate });
+  assert.equal(dateBoundTax.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.deepEqual(dateBoundTax.unavailableReasons, ['PROJECTION_WEALTH_PRECISION_EXCEEDED']);
   const projection = calculatePostTaxProjection(tax, assumed, 0.05, context);
   assert.equal(projection.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
   assert.deepEqual(projection.unavailableReasons, ['PROJECTION_WEALTH_PRECISION_EXCEEDED']);
