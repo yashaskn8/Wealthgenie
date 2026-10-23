@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   generateGeneralChatAnswer,
   isGeneralChatQuestion,
+  isPublicFinancialEducationQuestion,
   generalChatTokenUpperBound,
 } from '../services/generalChatService.js';
 
@@ -401,4 +402,71 @@ test('red-team: general output filter retains ordinary explanations and code wit
     assert.equal(answer.text, response);
     assert.deepEqual(answer.citations, []);
   }
+});
+
+test('concept-only financial education is allowed without reclassifying personal or current investment questions', () => {
+  for (const question of [
+    'What is XIRR?', 'Explain SIP', 'How does the stock market work?',
+    'Difference between a bond and a stock', 'What is a demat account?',
+  ]) {
+    assert.equal(isPublicFinancialEducationQuestion(question), true, question);
+    assert.equal(isGeneralChatQuestion(question), false, question);
+  }
+  for (const question of [
+    'How should I invest my savings?', 'What is my XIRR?',
+    'What is the best fund to buy now?', 'What is the current tax slab for 2026?',
+    'I need ₹2 crore for my daughter\'s wedding', 'What is the NAV today?',
+  ]) {
+    assert.equal(isPublicFinancialEducationQuestion(question), false, question);
+  }
+});
+
+test('concept-only financial questions produce labeled uncited explanations without profile facts', async () => {
+  const answer = await generateGeneralChatAnswer({
+    question: 'What is XIRR?', educationOnly: true,
+  }, { providers: [{
+    name: 'groq', isConfigured: () => true, async generate(request) {
+      assert.equal(request.tools, null);
+      assert.match(request.systemPrompt, /Explain the finance concept educationally/);
+      return { text: 'XIRR summarizes an annualized return across cash flows with different dates.', tokensUsed: 23, wasCompleted: true };
+    },
+  }] });
+  assert.equal(answer.provider, 'GROQ');
+  assert.equal(answer.grounded, false);
+  assert.deepEqual(answer.citations, []);
+  assert.ok(answer.validation.reasonCodes.includes('PUBLIC_EDUCATION_NOT_SOURCE_VERIFIED'));
+  await assert.rejects(generateGeneralChatAnswer({ question: 'How should I invest my savings?', educationOnly: true }, { providers: [] }), /Financial question requires grounded evidence/);
+});
+
+test('a permanently hanging general provider returns before one overall deadline', async () => {
+  let fallbackCalls = 0;
+  const answer = await generateGeneralChatAnswer({ question: 'Explain Python generators.' }, {
+    providerDeadlineMs: 35,
+    providers: [
+      { name: 'groq', isConfigured: () => true, generate: () => new Promise(() => {}) },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() { fallbackCalls += 1; return { text: 'Unexpected second attempt' }; } },
+    ],
+  });
+  assert.equal(answer.provider, 'SYSTEM');
+  assert.ok(answer.validation.reasonCodes.includes('PROVIDER_CHAIN_DEADLINE_EXCEEDED'));
+  assert.equal(answer.providerAttemptCount, 1);
+  assert.equal(fallbackCalls, 0);
+});
+
+test('upstream AbortError can fall back, but cancellation from the user is propagated', async () => {
+  let secondaryCalls = 0;
+  const answer = await generateGeneralChatAnswer({ question: 'Explain Python decorators.' }, {
+    providerDeadlineMs: 1000,
+    providers: [
+      { name: 'groq', isConfigured: () => true, async generate() { throw Object.assign(new Error('upstream timed out'), { name: 'AbortError' }); } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() { secondaryCalls += 1; return { text: 'Decorators wrap functions.', tokensUsed: 14, wasCompleted: true }; } },
+    ],
+  });
+  assert.equal(secondaryCalls, 1);
+  assert.equal(answer.provider, 'NVIDIA_NIM');
+  const controller = new AbortController();
+  controller.abort(Object.assign(new Error('Client cancelled'), { name: 'AbortError' }));
+  await assert.rejects(generateGeneralChatAnswer({ question: 'Hello.' }, {
+    signal: controller.signal, providers: [],
+  }), /Client cancelled/);
 });
