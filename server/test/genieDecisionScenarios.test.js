@@ -75,7 +75,12 @@ test('Debt prepayment versus investment does not spend reserved goal contributio
   assert.ok(toPaise(report.alternatives[1].loanInterestPaid, 'prepay interest')
     < toPaise(report.alternatives[0].loanInterestPaid, 'regular interest'));
   assert.equal(report.alternatives[0].cumulativeInvestmentTransfers, '240000.00');
-  assert.equal(report.alternatives[1].cumulativeInvestmentTransfers, '180000.00');
+  assert.ok(toPaise(report.alternatives[1].cumulativeInvestmentTransfers, 'prepay investments')
+    > toPaise('180000.00', 'minimum investment transfers'));
+  assert.ok(toPaise(report.alternatives[1].cumulativeInvestmentTransfers, 'prepay investments')
+    < toPaise('240000.00', 'original investment transfers'));
+  assert.equal(report.alternatives[1].rows.at(-1).investments, '20000.00');
+  assert.equal(report.alternatives[1].rows.at(-1).debtPayments, '9000.00');
 });
 
 test('Debt budget rejects double allocations, non-amortization and hidden debt', () => {
