@@ -63,6 +63,11 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     }
     assert.deepEqual((await call(owner, 'GET', '/ledger')).body,
       { revision: 0, ledger: null, latestResult: null });
+    const yesterday = new Date(Date.parse(indiaToday() + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10);
+    const staleDeclaration = await call(owner, 'PUT', '/ledger', {
+      ...payload(), asOfDate: yesterday,
+    }, 0, randomUUID());
+    assert.equal(staleDeclaration.status, 400);
     const firstKey = randomUUID();
     const submitted = payload();
     const first = await call(owner, 'PUT', '/ledger', submitted, 0, firstKey);
@@ -79,6 +84,17 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     const sameKeyOtherRevision = await call(owner, 'PUT', '/ledger', submitted, 1, firstKey);
     assert.equal(sameKeyOtherRevision.status, 409);
     assert.equal(sameKeyOtherRevision.body.code, 'IDEMPOTENCY_PAYLOAD_CONFLICT');
+    // Independent owner: two clients race on the same confirmed revision.
+    const racer = new mongoose.Types.ObjectId();
+    const racerBase = payload();
+    assert.equal((await call(racer, 'PUT', '/ledger', racerBase, 0, randomUUID())).status, 200);
+    const race = await Promise.all([
+      call(racer, 'PUT', '/ledger', { ...racerBase, openingCashPaise: 80_000 }, 1, randomUUID()),
+      call(racer, 'PUT', '/ledger', { ...racerBase, openingCashPaise: 90_000 }, 1, randomUUID()),
+    ]);
+    assert.deepEqual(race.map(r => r.status).sort(), [200, 409]);
+    assert.equal((await call(racer, 'GET', '/ledger')).body.revision, 2);
+    assert.equal(await CoverageResult.countDocuments({ userId: racer }), 2);
     const otherRead = await call(other, 'GET', '/ledger');
     assert.equal(otherRead.status, 200);
     assert.equal(otherRead.body.revision, 0);

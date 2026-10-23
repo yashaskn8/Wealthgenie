@@ -214,9 +214,9 @@ export default function CashCheck() {
         : err.message || 'Could not delete cash entries.');
     } finally { setBusy(false); }
   };
-  if (!loaded) return <main className="cash-check-workspace" role="status">Loading your cash entries…</main>;
+  if (!loaded) return <section className="cash-check-workspace" role="status">Loading your cash entries…</section>;
   return (
-    <main className="cash-check-workspace">
+    <section className="cash-check-workspace">
       <header>
         <p className="cash-check-eyebrow">OBLIGATION FIREWALL · PRIVATE CASH WORKSPACE</p>
         <h1>90-day cash check</h1>
@@ -228,9 +228,9 @@ export default function CashCheck() {
       <form onSubmit={save}>
         <section className="cash-check-panel">
           <h2>1. Declare accessible cash</h2>
-          <p>Use money available for scheduled payments—not FD principal, mutual funds, locked balances or future salary.</p>
+          <p>Enter cash available immediately <strong>before</strong> any payments scheduled for the as-of date. Exclude FD principal, mutual funds, locked balances and future salary. Do not list bills already deducted from this opening balance.</p>
           <div className="cash-check-grid">
-            <label>Cash as-of date <input type="date" required value={draft.asOfDate}
+            <label>Cash as-of date (today in India) <input type="date" required min={INDIA_DATE()} max={INDIA_DATE()} value={draft.asOfDate}
               onChange={e => editDraft(d => ({ ...d, asOfDate: e.target.value }))} /></label>
             <label>Accessible cash (₹, blank if unknown)
               <input inputMode="decimal" value={draft.openingCash} placeholder="50000.00"
@@ -299,6 +299,6 @@ export default function CashCheck() {
           {dirty && <p>Save or reload and reconcile unsaved changes before deletion.</p>}
         </section>
       )}
-    </main>
+    </section>
   );
 }

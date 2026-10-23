@@ -54,9 +54,11 @@ function assertRecentDeclaredCash(input) {
   const today = parseCalendarDate(todayInIndia());
   const asOf = parseCalendarDate(input.asOfDate);
   const ageDays = (today - asOf) / 86_400_000;
-  if (ageDays < 0 || ageDays > 1) {
+  // A yesterday balance can already include paid bills. Require an explicitly
+  // current declaration to avoid misrepresenting old cash as today's balance.
+  if (ageDays !== 0) {
     throw createError(
-      400, 'Opening accessible cash must be dated today or yesterday in India.',
+      400, 'Opening accessible cash must be dated today in India.',
       'Please reconfirm your accessible cash for today.', { code: 'COVERAGE_CASH_AS_OF_STALE' },
     );
   }
@@ -116,7 +118,6 @@ router.put(
       }
       throw error;
     }
-    assertRecentDeclaredCash(req.coverageValidatedInput);
     await ready();
     next();
   }),
@@ -125,6 +126,9 @@ router.put(
     const userId = req.user.userId;
     const expectedRevision = req.coverageExpectedRevision;
     const input = req.coverageValidatedInput;
+    // Do not reject a legitimate replay merely because India moved to a new day.
+    // This check applies to new mutations only; the durable replay path precedes it.
+    assertRecentDeclaredCash(input);
     const calculation = calculateCoverage(input);
     const inputHash = canonicalSha256({ policyVersion: COVERAGE_POLICY_VERSION, input });
     let saved;

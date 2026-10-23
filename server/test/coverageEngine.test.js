@@ -90,3 +90,49 @@ test('scenarios are 90 days and cannot invent savings inflows', () => {
   assert.equal(r.baseline.closingBalancePaise, 5000);
   assert.equal(r.cashProvenance, 'USER_DECLARED_NOT_BANK_VERIFIED');
 });
+
+test('recurrence conservation oracle: deterministic entries never invent cash', () => {
+  for (let seed = 1; seed <= 250; seed += 1) {
+    let state = seed;
+    const random = n => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state % n;
+    };
+    const anchor = new Date(Date.UTC(2027, 0, 1 + random(180))).toISOString().slice(0, 10);
+    const opening = random(100000);
+    const entries = Array.from({ length: random(12) }, (_, i) => ({
+      id: 'payment_' + i, label: 'Cash entry',
+      type: ['EXPECTED_INCOME', 'ESSENTIAL_PAYMENT', 'CONTRACTUAL_PAYMENT',
+        'VOLUNTARY_CONTRIBUTION', 'OTHER_PAYMENT'][random(5)],
+      amountPaise: 1 + random(20000),
+      startDate: new Date(Date.UTC(2027, 0, 1 + random(270))).toISOString().slice(0, 10),
+      recurrence: ['ONCE', 'WEEKLY', 'MONTHLY'][random(3)],
+    }));
+    const result = calculateCoverage(base({ asOfDate: anchor, openingCashPaise: opening, entries }));
+    let prior = opening;
+    for (const day of result.baseline.daily) {
+      const ordinal = Date.parse(day.date + 'T00:00:00Z');
+      const matching = entries.filter(item => {
+        const start = Date.parse(item.startDate + 'T00:00:00Z');
+        if (ordinal < start) return false;
+        if (item.recurrence === 'ONCE') return ordinal === start;
+        if (item.recurrence === 'WEEKLY') return (ordinal - start) % (7 * 86400000) === 0;
+        const d = new Date(ordinal);
+        const year = d.getUTCFullYear();
+        const month = d.getUTCMonth();
+        const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+        const lengths = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        return d.getUTCDate() === Math.min(Number(item.startDate.slice(8, 10)), lengths[month]);
+      });
+      const outgoing = matching.filter(x => x.type !== 'EXPECTED_INCOME')
+        .reduce((sum, x) => sum + x.amountPaise, 0);
+      const incoming = matching.filter(x => x.type === 'EXPECTED_INCOME')
+        .reduce((sum, x) => sum + x.amountPaise, 0);
+      assert.equal(day.lowestBalancePaise, prior - outgoing);
+      assert.equal(day.closingBalancePaise, prior - outgoing + incoming);
+      prior = day.closingBalancePaise;
+    }
+    assert.equal(result.baseline.closingBalancePaise, prior);
+    assert.ok(result.noExpectedIncome.closingBalancePaise <= prior);
+  }
+});

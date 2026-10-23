@@ -90,44 +90,68 @@ export function validateCoverageLedger(input) {
     completenessConfirmed: input.completenessConfirmed, entries,
   };
 }
-function occursOn(entry, date, ordinal) {
-  const start = parseCalendarDate(entry.startDate);
-  if (ordinal < start) return false;
-  if (entry.recurrence === 'ONCE') return start === ordinal;
-  if (entry.recurrence === 'WEEKLY') return ((ordinal - start) / DAY_MS) % 7 === 0;
-  const [year, month, day] = date.split('-').map(Number);
-  const anchorDay = Number(entry.startDate.slice(8, 10));
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return day === Math.min(anchorDay, lastDay);
+/**
+ * One bounded recurrence expansion is reused by both scenarios.
+ * The original monthly anchor is never advanced through clamped dates.
+ */
+function expandSchedule(ledger) {
+  const origin = parseCalendarDate(ledger.asOfDate);
+  const prepared = ledger.entries.map(entry => ({
+    ...entry,
+    startOrdinal: parseCalendarDate(entry.startDate),
+    originalDay: Number(entry.startDate.slice(8, 10)),
+  }));
+  const days = [];
+  for (let index = 0; index < COVERAGE_DAYS; index += 1) {
+    const ordinal = origin + index * DAY_MS;
+    const current = new Date(ordinal);
+    const date = current.toISOString().slice(0, 10);
+    const dayOfMonth = current.getUTCDate();
+    const monthLastDay = new Date(Date.UTC(
+      current.getUTCFullYear(), current.getUTCMonth() + 1, 0,
+    )).getUTCDate();
+    const outflows = [];
+    const inflows = [];
+    for (const entry of prepared) {
+      if (ordinal < entry.startOrdinal) continue;
+      const occurs = entry.recurrence === 'ONCE'
+        ? ordinal === entry.startOrdinal
+        : entry.recurrence === 'WEEKLY'
+          ? (ordinal - entry.startOrdinal) % (7 * DAY_MS) === 0
+          : dayOfMonth === Math.min(entry.originalDay, monthLastDay);
+      if (!occurs) continue;
+      if (entry.type === 'EXPECTED_INCOME') inflows.push(entry);
+      else outflows.push(entry);
+    }
+    days.push({ date, outflows, inflows });
+  }
+  return days;
 }
-function computeScenario(ledger, { omitExpectedIncome = false } = {}) {
+function computeScenario(ledger, schedule, { omitExpectedIncome = false } = {}) {
   let cash = ledger.openingCashPaise;
   let minWithinDayPaise = cash;
   let earliestShortfall = null;
   const daily = [];
-  for (let index = 0; index < COVERAGE_DAYS; index += 1) {
-    const date = dayAt(index, ledger.asOfDate);
-    const ordinal = parseCalendarDate(date);
-    const due = ledger.entries.filter(entry => occursOn(entry, date, ordinal));
-    const outflows = due.filter(entry => entry.type !== 'EXPECTED_INCOME');
-    const inflows = omitExpectedIncome ? [] : due.filter(entry => entry.type === 'EXPECTED_INCOME');
+  for (const day of schedule) {
     let withinDayPaise = cash;
     const contributingEntryIds = [];
-    // Unknown bank settlement order: always subtract every dated outflow first.
-    for (const payment of outflows) {
+    // Bank intraday settlement order is unknown: all outflows precede inflows.
+    for (const payment of day.outflows) {
       cash = safeArithmetic(cash - payment.amountPaise);
       contributingEntryIds.push(payment.id);
       if (cash < withinDayPaise) withinDayPaise = cash;
     }
     if (cash < 0 && !earliestShortfall) {
       earliestShortfall = {
-        date, lowestBalancePaise: cash,
+        date: day.date, lowestBalancePaise: cash,
         dueOutflowEntryIds: [...contributingEntryIds],
       };
     }
-    for (const income of inflows) cash = safeArithmetic(cash + income.amountPaise);
+    if (!omitExpectedIncome) {
+      for (const income of day.inflows) cash = safeArithmetic(cash + income.amountPaise);
+    }
     if (withinDayPaise < minWithinDayPaise) minWithinDayPaise = withinDayPaise;
-    daily.push({ date, lowestBalancePaise: withinDayPaise, closingBalancePaise: cash });
+    daily.push({ date: day.date, lowestBalancePaise: withinDayPaise, closingBalancePaise: cash });
   }
   return {
     status: earliestShortfall ? 'SHORTFALL_IN_ENTERED_PLAN' : 'NO_SHORTFALL_IN_ENTERED_PLAN',
@@ -153,8 +177,9 @@ export function calculateCoverage(input) {
       baseline: null, noExpectedIncome: null,
     };
   }
-  const baseline = computeScenario(ledger);
-  const noExpectedIncome = computeScenario(ledger, { omitExpectedIncome: true });
+  const schedule = expandSchedule(ledger);
+  const baseline = computeScenario(ledger, schedule);
+  const noExpectedIncome = computeScenario(ledger, schedule, { omitExpectedIncome: true });
   return {
     ...base, status: baseline.status, missingInputCodes: [],
     message: baseline.status === 'NO_SHORTFALL_IN_ENTERED_PLAN'
