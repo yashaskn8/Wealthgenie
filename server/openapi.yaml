@@ -1591,8 +1591,11 @@ paths:
     get:
       operationId: listOwnedCashSettlements
       tags: [CashCoverage]
-      description: Owner-only latest 20 immutable user-attested one-off settlements, not bank-verified. Deleted with saved cash records.
+      description: Owner-only latest 20 immutable user-attested settlements. Supplying afterRevision enables bounded ascending cursor pagination for complete private export. Deleted with saved cash records.
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: afterRevision, in: query, required: false, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 20 } }
       responses:
         '200': { $ref: '#/components/responses/Object' }
         '401': { $ref: '#/components/responses/Unauthorized' }

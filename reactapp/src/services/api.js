@@ -1182,6 +1182,12 @@ export function settleCoverageOneOff(entryId, settlement, revision, options = {}
       headers: { ...options.headers, 'If-Match': '"' + revision + '"' },
     });
 }
+export function exportCoverageSettlementPage(afterRevision = 0, options = {}) {
+  if (!Number.isSafeInteger(afterRevision) || afterRevision < 0) {
+    throw new TypeError('Invalid cash settlement export cursor.');
+  }
+  return request('GET', '/coverage/settlements?limit=20&afterRevision=' + afterRevision, null, options);
+}
 export function getCoverageSettlements(options = {}) {
   return request('GET', '/coverage/settlements', null, options);
 }
@@ -1226,7 +1232,7 @@ export function exportCoverageHistoryPage(afterRevision = 0, options = {}) {
 // Default export for convenience
 const api = {
   getCoverageLedger, getCoverageAlerts, acknowledgeCoverageAlert,
-  settleCoverageOneOff, getCoverageSettlements,
+  settleCoverageOneOff, getCoverageSettlements, exportCoverageSettlementPage,
   saveCoverageLedger, previewCoverageScenario, getCoverageRevision, deleteCoverageLedger, exportCoverageHistoryPage,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,

@@ -270,6 +270,12 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(settlementHistory.body.settlements[0].entryId, 'rent');
     assert.equal(settlementHistory.body.settlements[0].amountPaise, 19000);
     assert.equal(settlementHistory.body.settlements[0].provenance, 'USER_CONFIRMED_NOT_BANK_VERIFIED');
+    const settlementExport = await call(settledOwner, 'GET', '/settlements?afterRevision=0&limit=1');
+    assert.equal(settlementExport.status, 200);
+    assert.equal(settlementExport.body.settlements.length, 1);
+    assert.equal(settlementExport.body.nextAfterRevision, null);
+    assert.equal((await call(other, 'GET', '/settlements?afterRevision=0')).body.settlements.length, 0);
+    assert.equal((await call(settledOwner, 'GET', '/settlements?afterRevision=bad')).status, 400);
     assert.equal(await CoverageSettlement.countDocuments({ userId: settledOwner }), 1);
     const settleDeleted = await call(settledOwner, 'DELETE', '/ledger', undefined, 2, randomUUID());
     assert.equal(settleDeleted.status, 200);

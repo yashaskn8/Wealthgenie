@@ -52,7 +52,7 @@ async function installCashApi(page: Page) {
     });
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     if (path.endsWith('/settlements') && method === 'GET') {
-      return fulfill(200, { settlements: [] });
+      return fulfill(200, { settlements: [], nextAfterRevision: null });
     }
     if (path.endsWith('/alerts') && method === 'GET') {
       return fulfill(200, { revision, alerts: [] });

@@ -11,6 +11,7 @@ vi.mock('../../services/api', () => ({
   exportCoverageHistoryPage: vi.fn(),
   getCoverageAlerts: vi.fn(), acknowledgeCoverageAlert: vi.fn(),
   settleCoverageOneOff: vi.fn(), getCoverageSettlements: vi.fn(),
+  exportCoverageSettlementPage: vi.fn(),
 }));
 
 const baseline = () => ({
@@ -32,6 +33,7 @@ beforeEach(() => {
   api.getCoverageAlerts.mockResolvedValue({ revision: 1, alerts: [] });
   api.acknowledgeCoverageAlert.mockResolvedValue({ revision: 1, acknowledged: true });
   api.getCoverageSettlements.mockResolvedValue({ settlements: [] });
+  api.exportCoverageSettlementPage.mockResolvedValue({ settlements: [], nextAfterRevision: null });
   api.saveCoverageLedger.mockResolvedValue({ revision: 1, result: baseline() });
   api.deleteCoverageLedger.mockResolvedValue({ deleted: true, deletedRevision: 1, nextRevision: 2 });
 });

@@ -518,14 +518,27 @@ export default function CashCheck() {
         afterRevision = page.nextAfterRevision;
       }
       if (!completed) throw new Error('Export page limit exceeded.');
+      let settlementCursor = 0;
+      const settlements = [];
+      let settlementsComplete = false;
+      for (let pageNumber = 0; pageNumber < 16; pageNumber += 1) {
+        const page = await api.exportCoverageSettlementPage(settlementCursor);
+        if (!Array.isArray(page.settlements)) throw new Error('Invalid settlement export response.');
+        settlements.push(...page.settlements);
+        if (page.nextAfterRevision === null) { settlementsComplete = true; break; }
+        if (!Number.isSafeInteger(page.nextAfterRevision)
+            || page.nextAfterRevision <= settlementCursor) throw new Error('Non-advancing settlement cursor.');
+        settlementCursor = page.nextAfterRevision;
+      }
+      if (!settlementsComplete) throw new Error('Settlement export page limit exceeded.');
       const final = await api.getCoverageLedger();
       if (!final.ledger || final.revision !== expectedRevision) {
         throw new Error('Cash plan changed while exporting. Export cancelled to prevent a mixed history.');
       }
       const serialized = JSON.stringify({
-        format: 'wealthgenie-cash-history-v1',
+        format: 'wealthgenie-cash-history-v2',
         provenance: 'USER_DECLARED_NOT_BANK_VERIFIED',
-        exportedAt: new Date().toISOString(), records,
+        exportedAt: new Date().toISOString(), records, settlements,
       }, null, 2);
       const file = new Blob([serialized], { type: 'application/json' });
       const url = URL.createObjectURL(file);

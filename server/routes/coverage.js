@@ -334,24 +334,51 @@ router.post('/commitments/:entryId/settle',
 );
 
 router.get('/settlements', verifyJWT, asyncHandler(async (req, res) => {
-  if (Object.keys(req.query).length !== 0) {
+  const queryKeys = Object.keys(req.query);
+  const exportMode = queryKeys.includes('afterRevision');
+  if (queryKeys.some(key => !['afterRevision', 'limit'].includes(key))
+      || (!exportMode && queryKeys.includes('limit'))) {
     throw createError(400, 'Invalid settlements query.', 'Invalid settlements query.',
+      { code: 'COVERAGE_SETTLEMENT_QUERY_INVALID' });
+  }
+  const rawCursor = req.query.afterRevision;
+  const rawLimit = req.query.limit ?? '20';
+  if (exportMode && (typeof rawCursor !== 'string'
+      || !/^(0|[1-9]\d{0,12})$/.test(rawCursor)
+      || !Number.isSafeInteger(Number(rawCursor)))) {
+    throw createError(400, 'Invalid settlement export cursor.', 'Invalid settlement export cursor.',
+      { code: 'COVERAGE_SETTLEMENT_QUERY_INVALID' });
+  }
+  if (typeof rawLimit !== 'string' || !/^(?:[1-9]|1\d|20)$/.test(rawLimit)) {
+    throw createError(400, 'Invalid settlement export limit.', 'Invalid settlement export limit.',
       { code: 'COVERAGE_SETTLEMENT_QUERY_INVALID' });
   }
   const userId = req.user.userId;
   const current = await CoverageLedger.findOne({ userId }).select('revision deletedAt').lean();
-  if (!current || current.deletedAt) return res.json({ settlements: [] });
-  const rows = await CoverageSettlement.find({ userId }).sort({ ledgerRevision: -1 })
-    .limit(20).lean();
+  if (!current || current.deletedAt) {
+    return res.json({ settlements: [], ...(exportMode ? { nextAfterRevision: null } : {}) });
+  }
+  const limit = Number(rawLimit);
+  const rows = await CoverageSettlement.find({
+    userId,
+    ...(exportMode ? { ledgerRevision: { $gt: Number(rawCursor) } } : {}),
+  }).sort({ ledgerRevision: exportMode ? 1 : -1 })
+    .limit(exportMode ? limit + 1 : limit).lean();
   if (!await CoverageLedger.exists({
     _id: current._id, userId, revision: current.revision, deletedAt: null,
   })) throw conflict();
-  return res.json({ settlements: rows.map(row => ({
+  const records = rows.slice(0, limit).map(row => ({
     ledgerRevision: row.ledgerRevision, entryId: row.entryId,
     amountPaise: row.amountPaise, entryType: row.entryType,
     declaredAsOfDate: row.declaredAsOfDate,
     provenance: row.provenance, createdAt: row.createdAt,
-  })) });
+  }));
+  return res.json({
+    settlements: records,
+    ...(exportMode ? {
+      nextAfterRevision: rows.length > limit ? records.at(-1).ledgerRevision : null,
+    } : {}),
+  });
 }));
 
 router.post('/scenarios/preview', verifyJWT, asyncHandler(async (req, res) => {
