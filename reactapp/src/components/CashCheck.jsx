@@ -155,6 +155,7 @@ export default function CashCheck() {
   const [indiaDate, setIndiaDate] = useState(INDIA_DATE);
   const [revision, setRevision] = useState(0);
   const [saved, setSaved] = useState(null);
+  const [lastCalculatedAt, setLastCalculatedAt] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -185,6 +186,7 @@ export default function CashCheck() {
       setHasStoredLedger(Boolean(response.ledger));
       setRevision(response.revision);
       setSaved(response.latestResult?.result || null);
+      setLastCalculatedAt(response.latestResult?.calculatedAt || null);
       setStale(Boolean(response.requiresCashReconfirmation || response.requiresPolicyReconfirmation));
       setLoaded(true);
     }).catch(err => { if (active) { setLoadFailed(true); setError(err.message || 'Unable to fetch cash entries.'); setLoaded(true); } });
@@ -210,10 +212,13 @@ export default function CashCheck() {
           setRevision(latest.revision);
           setDraft(latest.ledger ? toDraft(latest.ledger) : EMPTY());
           setSaved(latest.latestResult?.result || null);
+          setLastCalculatedAt(latest.latestResult?.calculatedAt || null);
           setHasStoredLedger(Boolean(latest.ledger));
           setStale(Boolean(latest.requiresCashReconfirmation || latest.requiresPolicyReconfirmation));
           setPreview(null);
-          setNotice('Cash plan refreshed from a newer saved revision. Bank balances are not streamed.');
+          setNotice(latest.latestResult?.result?.status === 'SHORTFALL_IN_ENTERED_PLAN'
+            ? 'New saved revision shows a shortfall in your entered cash plan. Review the dated payments.'
+            : 'Cash plan refreshed from a newer saved revision. Bank balances are not streamed.');
         }
       } catch {
         if (active) setNotice('Automatic revision check unavailable. Confirm the latest saved state before relying on these results.');
@@ -346,6 +351,7 @@ export default function CashCheck() {
       pendingSave.current = null;
       setRevision(response.revision);
       setSaved(response.result);
+      setLastCalculatedAt(response.calculatedAt || null);
       setConflictState(null);
       setHasStoredLedger(true);
       setDirty(false);
@@ -437,6 +443,7 @@ export default function CashCheck() {
       pendingDelete.current = null;
       setDraft(EMPTY());
       setSaved(null);
+      setLastCalculatedAt(null);
       setHasStoredLedger(false);
       setConflictState(null);
       setConfirmOverwrite(false);
@@ -458,6 +465,7 @@ export default function CashCheck() {
     setRevision(conflictState.revision);
     setDraft(conflictState.ledger ? toDraft(conflictState.ledger) : EMPTY());
     setSaved(conflictState.latestResult?.result || null);
+    setLastCalculatedAt(conflictState.latestResult?.calculatedAt || null);
     setHasStoredLedger(Boolean(conflictState.ledger));
     setStale(Boolean(conflictState.requiresCashReconfirmation || conflictState.requiresPolicyReconfirmation));
     setDirty(false);
@@ -498,6 +506,14 @@ export default function CashCheck() {
       </header>
       {error && <p className="cash-check-error" role="alert">{error}</p>}
       {notice && <p className="cash-check-notice" role="status">{notice}</p>}
+      <section className="cash-check-panel" aria-label="Cash data freshness">
+        <h2>Data freshness and saved state</h2>
+        <p>Saved revision: <strong>{revision}</strong>. Source: <strong>user-declared cash and commitments</strong>; this feature does not stream actual bank transactions.</p>
+        <p>Last backend calculation: {lastCalculatedAt && !Number.isNaN(Date.parse(lastCalculatedAt))
+          ? new Date(lastCalculatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+          : 'No verified calculation timestamp yet'}.</p>
+        <p>Open WealthGenie tabs check for saved changes after a revision notification, approximately every 45 seconds, and on returning to the page. Updates depend on your connection and are not guaranteed instant.</p>
+      </section>
       {conflictState && (
         <section className="cash-check-panel" role="region" aria-label="Resolve cash plan conflict">
           <h2>Review cash-plan conflict</h2>

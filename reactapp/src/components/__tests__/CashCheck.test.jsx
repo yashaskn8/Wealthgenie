@@ -290,5 +290,31 @@ describe('90-day cash check', () => {
     expect(api.saveCoverageLedger).not.toHaveBeenCalled();
     expect(screen.queryByRole('region', { name: 'Statement review' })).toBeNull();
   });
+  it('rechecks a newer cash revision on page refocus and displays its risk without claiming live bank data', async () => {
+    api.getCoverageLedger.mockResolvedValueOnce({ revision: 0, ledger: null, latestResult: null })
+      .mockResolvedValueOnce({
+        revision: 1,
+        ledger: {
+          asOfDate: indiaToday(), openingCashPaise: 10000,
+          cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [],
+        },
+        latestResult: {
+          calculatedAt: '2026-10-23T12:00:00.000Z',
+          result: { ...baseline(), status: 'SHORTFALL_IN_ENTERED_PLAN',
+            baseline: { ...baseline().baseline,
+              earliestShortfall: { date: indiaToday(), lowestBalancePaise: -100, dueOutflowEntryIds: [] },
+              minWithinDayPaise: -100 },
+          },
+        },
+        requiresCashReconfirmation: false,
+      });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent(document, new Event('visibilitychange'));
+    await waitFor(() => expect(api.getCoverageLedger).toHaveBeenCalledTimes(2));
+    await screen.findByText(/New saved revision shows a shortfall/i);
+    expect(screen.getByRole('region', { name: 'Cash data freshness' }).textContent)
+      .toMatch(/does not stream actual bank transactions/i);
+  });
 
 });
