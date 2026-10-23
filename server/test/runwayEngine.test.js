@@ -123,3 +123,27 @@ test('income loss must actually remove a scheduled receipt within the selected h
   assert.equal(compared.length, 2);
   assert.equal(compared[1].ifExpectedIncomeArrives.endBalancePaise, '-1000');
 });
+
+test('red-team: horizon days are inclusive calendar day counts, never date offsets', () => {
+  const l = {
+    asOfDate: '2026-01-31', confirmationDate: '2026-01-31', openingCashPaise: '1000',
+    entries: [
+      { id: 'today_bill', label: 'Today', kind: 'OBLIGATION', amountPaise: '100',
+        date: '2026-01-31', recurrence: 'NONE' },
+      { id: 'tomorrow_bill', label: 'Tomorrow', kind: 'OBLIGATION', amountPaise: '200',
+        date: '2026-02-01', recurrence: 'NONE' },
+    ],
+  };
+  const one = simulateRunway(l, { ledgerRevision: 1, horizonDays: 1, scenarios: [] });
+  assert.equal(one.scenarios[0].eventCount, 1);
+  assert.equal(one.scenarios[0].cashAlreadyAvailable.endBalancePaise, '900');
+  const two = simulateRunway(l, { ledgerRevision: 1, horizonDays: 2, scenarios: [] });
+  assert.equal(two.scenarios[0].eventCount, 2);
+  assert.equal(two.scenarios[0].cashAlreadyAvailable.endBalancePaise, '700');
+  assert.throws(() => simulateRunway(l, { ledgerRevision: 1, horizonDays: 1,
+    scenarios: [{ id: 'tomorrow', type: 'EXTRA_EXPENSE',
+      date: '2026-02-01', amountPaise: '20', label: 'Tomorrow' }],
+  }), /outside the horizon/);
+  const oldEnd = { ...l, entries: [{ ...l.entries[0], date: '2027-03-02' }] };
+  assert.throws(() => validateLedger(oldEnd), /outside the confirmed horizon/);
+});

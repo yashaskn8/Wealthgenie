@@ -5,7 +5,7 @@
  */
 // A financial-result semantics change must change this version. Historical
 // results are never quietly reinterpreted using a different algorithm.
-export const RUNWAY_ENGINE_VERSION = 'runway-cashflow-1.1.0';
+export const RUNWAY_ENGINE_VERSION = 'runway-cashflow-1.2.0';
 export const MAX_PAISE = 1000000000000000n;
 const DAY_LIMIT = 395;
 const ENTRY_LIMIT = 256;
@@ -73,7 +73,8 @@ export function validateLedger(ledger) {
   if (!Array.isArray(ledger.entries) || ledger.entries.length > ENTRY_LIMIT) reject('At most 256 entries are allowed.');
   const seen = new Set();
   for (const e of ledger.entries) {
-    validateEntry(e, asOf, asOf.ordinal + DAY_LIMIT);
+    // A 1-day horizon is the as-of date only, not today plus tomorrow.
+    validateEntry(e, asOf, asOf.ordinal + DAY_LIMIT - 1);
     if (seen.has(e.id)) reject('Duplicate ledger entry ID.');
     seen.add(e.id);
   }
@@ -86,7 +87,7 @@ export function validateRequest(request, ledger) {
       || request.ledgerRevision > 2048) reject('Ledger revision must be an integer from 1 to 2048.');
   if (!Array.isArray(request.scenarios) || request.scenarios.length > SCENARIO_LIMIT) reject('At most 3 scenarios are supported.');
   const asOf = civilDate(ledger.asOfDate);
-  const end = asOf.ordinal + request.horizonDays;
+  const end = asOf.ordinal + request.horizonDays - 1;
   const ids = new Set();
   for (const scenario of request.scenarios) {
     object(scenario, ['id', 'type', 'receiptIds', 'fromDate', 'throughDate', 'date', 'amountPaise', 'label'], 'scenario');
@@ -193,7 +194,7 @@ export function simulateRunway(ledger, request) {
   validateLedger(ledger);
   validateRequest(request, ledger);
   const asOf = civilDate(ledger.asOfDate);
-  const events = expand(ledger, asOf.ordinal + request.horizonDays);
+  const events = expand(ledger, asOf.ordinal + request.horizonDays - 1);
   // A payment listed beyond the selected period is NOT evidence that bills
   // inside this period were assessed. Never report an all-clear on an empty
   // obligation horizon even when there are future obligations in the ledger.

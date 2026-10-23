@@ -93,3 +93,23 @@ test('512 event limit remains valid for baseline but a shock cannot expand it to
     { id: 'surge', type: 'EXTRA_EXPENSE', date: '2026-01-15', amountPaise: '1', label: 'Shock' },
   ] }), RunwayInputError);
 });
+
+// An independent UTC calendar oracle catches date-window and recurrence
+// boundary regressions without using the engine's own civilDate helper.
+test('UTC oracle: a 1-day window excludes tomorrow on all month boundaries', () => {
+  for (const anchor of ['2026-01-31', '2026-02-28', '2028-02-29', '2026-12-31']) {
+    const d = new Date(anchor + 'T00:00:00Z');
+    const next = new Date(d.getTime() + 86400000).toISOString().slice(0, 10);
+    const l = { asOfDate: anchor, confirmationDate: anchor, openingCashPaise: '1000', entries: [
+      { id: 'today', label: 'Day one bill', kind: 'OBLIGATION',
+        amountPaise: '100', date: anchor, recurrence: 'NONE' },
+      { id: 'tomorrow', label: 'Day two bill', kind: 'OBLIGATION',
+        amountPaise: '200', date: next, recurrence: 'NONE' },
+    ] };
+    for (const [days, expectedBalance, expectedEvents] of [[1, '900', 1], [2, '700', 2]]) {
+      const result = simulateRunway(l, { ledgerRevision: 1, horizonDays: days, scenarios: [] }).scenarios[0];
+      assert.equal(result.eventCount, expectedEvents, anchor + '/' + days);
+      assert.equal(result.cashAlreadyAvailable.endBalancePaise, expectedBalance, anchor + '/' + days);
+    }
+  }
+});

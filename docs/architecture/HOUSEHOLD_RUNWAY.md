@@ -60,3 +60,8 @@
 ## Dedicated adversarial CI gate
 
 The pull request runs the fast-failing `Household Runway Adversarial Gate` independently from the long-running backend suite. It provisions isolated MongoDB 7 in replica-set mode, executes the deterministic engine and independent numerical oracle tests, and then the real authenticated owner-isolation/CAS/idempotency/tamper/recovery integration suite. A pass in this gate is necessary but not sufficient for production approval; full CI, staging and privacy requirements remain separately required.
+
+## Off-by-one financial window defense
+
+- `horizonDays` counts calendar dates **including** the confirmed `asOfDate`: `1` means today only; `395` ends at `asOfDate + 394 days`. Never reinterpret this as an exclusive offset.
+- Version `runway-cashflow-1.2.0` is deliberately different from earlier engine versions because the previous end-boundary included an extra day. Historical snapshots retain their older engine version and are not silently recomputed as if calculated under the new calendar rule.
