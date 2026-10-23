@@ -9,6 +9,7 @@
   "test/chaos.test.js",
   "test/concurrency.test.js",
   "test/deferredAdvisory.test.js",
+  "test/genieDecisionPersistenceMongo.integration.test.js",
   "test/genieProofMongo.integration.test.js",
   "test/goalFinanceRoutes.test.js",
   "test/goalPostCommitResponse.test.js",
