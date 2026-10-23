@@ -1,4 +1,4 @@
-import { ProviderManager } from '../../services/providerAbstraction.js';
+import { ProviderManager, NVIDIA_NIM_DEFAULT_BASE_URL } from '../../services/providerAbstraction.js';
 import { checkGenieProofClaims } from './genieProofCheckService.js';
 
 // Model output is treated as an untrusted choice among these reviewed statements.
@@ -64,6 +64,14 @@ export async function reviewGenieProofWithNvidia({
     return unavailable(null, 'EXPLICIT_CONSENT_AND_CLAIM_REQUIRED');
   }
   if (signal?.aborted) return unavailable(claimId, 'REQUEST_CANCELLED');
+  // Prevent accidental disclosure of recognizable Indian financial identity data.
+  // This intentionally rejects the optional review instead of transmitting redacted,
+  // potentially misleading text to an outside AI provider.
+  if (/\\b[A-Z]{5}\\d{4}[A-Z]\\b/i.test(statement)
+      || /\\b(?:\\d{4}[- ]?){2}\\d{4}\\b/.test(statement)
+      || /\\b\\d{13,19}\\b/.test(statement)) {
+    return unavailable(claimId, 'POTENTIAL_PERSONAL_DATA');
+  }
 
   const checked = await checkGenieProofClaims({
     offerText: statement, verifier,
@@ -77,6 +85,13 @@ export async function reviewGenieProofWithNvidia({
   if (!claim) return unavailable(claimId, 'CLAIM_NOT_IN_SUBMISSION');
 
   if (!nvidia?.isConfigured?.()) return unavailable(claimId, 'NVIDIA_NOT_CONFIGURED');
+  // The general adapter accepts custom endpoints for other tools. GenieProof
+  // requires the known NVIDIA API origin so user text and credentials cannot be
+  // redirected to an arbitrary configured host.
+  if (nvidia === ProviderManager.nvidia
+      && nvidia.configuredBaseUrl() !== NVIDIA_NIM_DEFAULT_BASE_URL) {
+    return unavailable(claimId, 'NVIDIA_ENDPOINT_NOT_APPROVED');
+  }
   let response;
   try {
     response = await nvidia.generate({
