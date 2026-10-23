@@ -361,10 +361,20 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
 
   const projectionFields = [
     'effectiveTaxPercent', 'postTaxGain', 'taxDragWealth', 'taxDragCAGR',
-    'totalInvested', 'nominalReturnPercent', 'postTaxReturnPercent', 'realReturnPercent',
+    'totalInvested', 'nominalReturnPercent',
   ];
   const calculatedResults = results.filter(item => item.status === 'CALCULATED'
-    && projectionFields.every(field => Number.isFinite(item[field])));
+    && projectionFields.every(field => Number.isFinite(item[field]))
+    && ((
+      item.totalInvested === 0
+      && item.sipReturnMetrics?.status === 'UNAVAILABLE'
+      && item.sipReturnMetrics.unavailableReason === 'NO_MONTHLY_CONTRIBUTIONS'
+      && item.postTaxReturnPercent === null
+      && item.realReturnPercent === null
+    ) || (
+      Number.isFinite(item.postTaxReturnPercent)
+      && Number.isFinite(item.realReturnPercent)
+    )));
   const excludedInstruments = results.map((item, index) => ({ item, index }))
     .filter(({ item }) => !calculatedResults.includes(item))
     .map(({ item, index }) => ({
