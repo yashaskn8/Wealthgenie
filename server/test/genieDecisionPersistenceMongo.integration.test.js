@@ -96,6 +96,23 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     const forbidden = await call(base, userTwo, `/scenarios/${id}`);
     assert.equal(forbidden.response.status, 404);
 
+    // A database-side mutation which forgets to advance the financial state
+    // revision must still make the pinned scenario unusable for new writes.
+    await FinancialProfile.collection.updateOne({ _id: profile._id },
+      { $set: { monthlySavings: 31000 } });
+    try {
+      const blocked = await call(base, userOne, `/scenarios/${id}`, 'PATCH', {
+        expectedRevision: 1, title: 'Must not recompute on changed profile facts',
+        horizonMonths: payload.horizonMonths, baseline: payload.baseline,
+        goalReservations: payload.goalReservations, details: payload.details,
+      });
+      assert.equal(blocked.response.status, 409);
+      assert.equal(blocked.body.code, 'DECISION_STALE_PROFILE');
+    } finally {
+      await FinancialProfile.collection.updateOne({ _id: profile._id },
+        { $set: { monthlySavings: 30000 } });
+    }
+
     const modified = await call(base, userOne, `/scenarios/${id}`, 'PATCH', {
       expectedRevision: 1, title: 'Revised income scenario', horizonMonths: payload.horizonMonths,
       baseline: payload.baseline, goalReservations: payload.goalReservations,
