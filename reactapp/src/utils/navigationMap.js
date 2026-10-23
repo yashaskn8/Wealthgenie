@@ -13,6 +13,7 @@ export const NAV_PAGES = {
   GROW_MY_SIP: 'grow-my-sip',
   KEEP_ON_TRACK: 'keep-on-track',
   GENIEPROOF: 'genieproof',
+  GENIEDECISION: 'geniedecision',
   ACCOUNT: 'account',
   HELP: 'help',
 };
@@ -27,6 +28,7 @@ export const PAGE_ALLOWLIST = [
   NAV_PAGES.GROW_MY_SIP,
   NAV_PAGES.KEEP_ON_TRACK,
   NAV_PAGES.GENIEPROOF,
+  NAV_PAGES.GENIEDECISION,
   NAV_PAGES.ACCOUNT,
   NAV_PAGES.HELP,
 ];

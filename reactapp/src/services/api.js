@@ -1173,8 +1173,169 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
   }, requestOptions);
 }
 
+/**
+ * An authenticated, resumable live decision stream. EventSource cannot carry
+ * the development Authorization header, so read standard SSE with fetch.
+ * Production uses the same-origin HttpOnly session cookie. No API keys or
+ * provider tokens are exposed to the browser.
+ */
+export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}) {
+  if (!signal || typeof onEvent !== 'function') throw new Error('An abortable live-event subscriber is required.');
+  let cursor = 0; // start with a durable replay rather than a racy bare handshake
+  let failures = 0;
+  const authAtStart = authRevision;
+  let sessionInvalidated = false;
+  let currentStream = null;
+  const unsubscribeAuth = subscribeAuth(() => {
+    if (authRevision !== authAtStart) {
+      sessionInvalidated = true;
+      currentStream?.abort();
+    }
+  });
+  const pause = delay => new Promise(resolve => {
+    if (signal?.aborted) return resolve();
+    const timer = setTimeout(done, delay);
+    function done() { clearTimeout(timer); signal?.removeEventListener('abort', done); resolve(); }
+    signal?.addEventListener('abort', done, { once: true });
+  });
+  try {
+  while (!signal.aborted && !sessionInvalidated) {
+    const streamAbort = new AbortController();
+    currentStream = streamAbort;
+    const cancelStream = () => streamAbort.abort();
+    signal.addEventListener('abort', cancelStream, { once: true });
+    let watchdog = null;
+    const keepAlive = () => {
+      if (watchdog) clearTimeout(watchdog);
+      watchdog = setTimeout(() => streamAbort.abort(), 15000);
+    };
+    try {
+      keepAlive();
+      const params = cursor === null ? '' : `?after=${cursor}`;
+      const headers = { Accept: 'text/event-stream' };
+      if (authToken) headers.Authorization = `Bearer ${authToken}`;
+      const response = await fetch(`${API_BASE}/decisions/events/stream${params}`, {
+        method: 'GET', credentials: 'include', cache: 'no-store', headers,
+        signal: streamAbort.signal,
+      });
+      if (response.status === 401 || response.status === 403) {
+        onStatus?.('unauthorized');
+        return;
+      }
+      if (!response.ok || !response.body
+          || !response.headers.get('content-type')?.includes('text/event-stream')) {
+        throw new Error('Live decision stream is temporarily unavailable.');
+      }
+      failures = 0;
+      onStatus?.('connected');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      try {
+        while (!signal?.aborted) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          keepAlive();
+          buffer += decoder.decode(value, { stream: true });
+          buffer = buffer.replace(/\r\n/g, '\n');
+          if (buffer.length > 65536) throw new Error('Live event frame exceeds allowed size.');
+          let boundary;
+          while ((boundary = buffer.indexOf('\n\n')) >= 0) {
+            const frame = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            const fields = Object.fromEntries(frame.split('\n')
+              .filter(line => /^(?:event|data|id): /.test(line))
+              .map(line => [line.slice(0, line.indexOf(':')), line.slice(line.indexOf(':') + 2)]));
+            if (!fields.event || !fields.data) continue;
+            const payload = JSON.parse(fields.data);
+            if (fields.event === 'decision') {
+              if (!Number.isSafeInteger(payload.sequence) || payload.sequence < 1) continue;
+              if (cursor !== null && payload.sequence <= cursor) continue;
+              cursor = payload.sequence;
+            } else if (fields.event === 'reset') {
+              cursor = Number.isSafeInteger(payload.latestSequence) ? payload.latestSequence : null;
+            } else if (fields.event === 'connected' && cursor === null) {
+              cursor = Number.isSafeInteger(payload.latestSequence) ? payload.latestSequence : null;
+            }
+            if (['decision', 'reset', 'profile-changed'].includes(fields.event)) {
+              onEvent?.({ type: fields.event, ...payload });
+            }
+            if (fields.event === 'unavailable') throw new Error('Live decision stream disconnected.');
+          }
+        }
+      } finally {
+        try { await reader.cancel(); } catch { /* stream was already interrupted */ }
+      }
+      if (!signal?.aborted) {
+        onStatus?.('reconnecting');
+        await pause(350);
+      }
+    } catch (error) {
+      if (signal.aborted || sessionInvalidated) return;
+      failures += 1;
+      onStatus?.('reconnecting');
+      await pause(Math.min(12000, 1000 * 2 ** Math.min(failures, 4)));
+    } finally {
+      if (watchdog) clearTimeout(watchdog);
+      signal.removeEventListener('abort', cancelStream);
+      streamAbort.abort();
+      if (currentStream === streamAbort) currentStream = null;
+    }
+  }
+  } finally {
+    unsubscribeAuth();
+    currentStream?.abort();
+  }
+}
+
+// ─── GENIEDECISION V3: deterministic and owner-scoped decision workspace ───
+export async function simulateDecisionScenario(payload, options = {}) {
+  return request('POST', '/decisions/simulate', payload, { retries: 0, ...options });
+}
+export async function getDecisionAvailability(options = {}) {
+  return request('GET', '/decisions/data-availability', null, { retries: 0, ...options });
+}
+export async function listDecisionScenarios(options = {}) {
+  return request('GET', '/decisions/scenarios', null, { retries: 0, ...options });
+}
+export async function getDecisionScenario(id, options = {}) {
+  return request('GET', `/decisions/scenarios/${encodeURIComponent(id)}`, null, { retries: 0, ...options });
+}
+export async function createDecisionScenario(payload, options = {}) {
+  return request('POST', '/decisions/scenarios', payload, { retries: 0, ...options });
+}
+export async function updateDecisionScenario(id, payload, options = {}) {
+  return request('PATCH', `/decisions/scenarios/${encodeURIComponent(id)}`, payload, { retries: 0, ...options });
+}
+export async function evaluateDecisionScenario(id, expectedRevision, options = {}) {
+  return request('POST', `/decisions/scenarios/${encodeURIComponent(id)}/evaluate`,
+    { expectedRevision }, { retries: 0, ...options });
+}
+export async function getDecisionMonitor(scenarioId, options = {}) {
+  return request('GET', `/decisions/scenarios/${encodeURIComponent(scenarioId)}/monitor`,
+    null, { retries: 0, ...options });
+}
+export async function setDecisionMonitor(scenarioId, enabled, expectedRevision, options = {}) {
+  return request('PUT', `/decisions/scenarios/${encodeURIComponent(scenarioId)}/monitor`,
+    { enabled, expectedRevision }, { retries: 0, ...options });
+}
+export async function listDecisionRuns(scenarioId, options = {}) {
+  return request('GET', `/decisions/scenarios/${encodeURIComponent(scenarioId)}/runs`, null,
+    { retries: 0, ...options });
+}
+export async function getDecisionRun(id, options = {}) {
+  return request('GET', `/decisions/runs/${encodeURIComponent(id)}`, null, { retries: 0, ...options });
+}
+export async function deleteDecisionScenario(id, expectedRevision, options = {}) {
+  return request('DELETE', `/decisions/scenarios/${encodeURIComponent(id)}`,
+    { expectedRevision }, { retries: 0, ...options });
+}
+
 // Default export for convenience
 const api = {
+  getDecisionAvailability, listDecisionScenarios, getDecisionScenario, createDecisionScenario,
+  updateDecisionScenario, evaluateDecisionScenario, getDecisionRun, listDecisionRuns, deleteDecisionScenario,
+  subscribeDecisionEvents, simulateDecisionScenario, getDecisionMonitor, setDecisionMonitor,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,

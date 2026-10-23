@@ -14,7 +14,16 @@ test('OpenAPI is a single parseable document with one declared history route per
   assert.deepEqual(yaml.errors.map(error => error.message), []);
   const doc = yaml.toJS();
   assert.equal(doc.openapi, '3.1.0');
-  assert.ok(source.length < 260_000, 'API specification unexpectedly duplicated');
+  // A fixed 260 KB ceiling falsely rejects newly documented endpoints.
+  // Check actual duplicate document/path structure and retain a generous
+  // size tripwire against the former full-file multiplication bug.
+  assert.equal((source.match(/^openapi:/gm) || []).length, 1, 'OpenAPI header duplicated');
+  assert.equal((source.match(/^paths:/gm) || []).length, 1, 'OpenAPI paths block duplicated');
+  assert.equal((source.match(/^components:/gm) || []).length, 1, 'OpenAPI components block duplicated');
+  assert.equal((source.match(/^  \/api\//gm) || []).length,
+    Object.keys(doc.paths).filter(route => route.startsWith('/api/')).length,
+    'Path declarations are missing or duplicated');
+  assert.ok(source.length < 320_000, 'API specification unexpectedly multiplied');
   for (const route of [
     '/api/market-data/admin/equity-history',
     '/api/market-data/admin/equity-history/ingest',
