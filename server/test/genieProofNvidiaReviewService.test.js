@@ -65,6 +65,21 @@ test('NVIDIA only chooses vetted next steps after the independent claim check', 
   assert.equal(Object.hasOwn(result, 'source'), false);
 });
 
+test('financial identifiers are rejected before sending the text to NVIDIA', async () => {
+  const fixtures = [
+    'My PAN is ABCDE1234F and the offer guarantees 25% profit.',
+    'The Aadhaar 1234 5678 9012 was used to claim a 25% return.',
+    'Transfer to account 1234567890123456 to earn guaranteed 25% profit.',
+  ];
+  const model = nvidia();
+  for (const text of fixtures) {
+    const result = await review(model, { statement: text });
+    assert.equal(result.status, 'UNAVAILABLE');
+    assert.equal(result.reasonCode, 'POTENTIAL_PERSONAL_DATA');
+  }
+  assert.equal(model.calls.length, 0);
+});
+
 test('model output cannot smuggle verdicts, rates, URLs, citations, arbitrary prose or duplicate steps', async () => {
   const injections = [
     { nextStepIds: ['VERIFY_REGULATOR'], verdict: 'SUPPORTED' },
