@@ -336,7 +336,7 @@ export class ToolRegistry {
         incomeSource: Joi.string().valid('salary', 'pension', 'family_pension', 'business', 'other').required(),
         fiscalYear: Joi.string().valid('FY2025-26', 'FY2026-27').required(),
         age: Joi.number().integer().min(18).max(120).required(),
-        regime: Joi.string().valid('new', 'old').required(),
+        regime: Joi.string().valid('new').required(),
         section80C: Joi.number().min(0).max(150000).required(),
         nps80CCD1B: Joi.number().min(0).max(50000).required(),
         section80D_self: Joi.number().min(0).max(50000).required(),

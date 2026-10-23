@@ -59,7 +59,7 @@ const taxFacts=Joi.object({
  annualGrossIncome:Joi.number().min(0).max(1e9).required(),
  userAge:Joi.number().integer().min(18).max(120).required(),
  incomeSource:Joi.string().valid('salary','pension','family_pension','business','other').required(),
- regime:Joi.string().valid('new','old').required(),
+ regime:Joi.string().valid('new').required(),
  deductions:taxDeductionSchema.required(),
  baselineExcludesTheseInterestEvents:Joi.boolean().valid(true).required(),
 }).unknown(false);
