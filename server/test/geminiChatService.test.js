@@ -861,6 +861,30 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.ok(!result.unavailable_facts.includes('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS'));
   });
 
+  it('no-profile path: tax assumptions are explained without requiring a financial form', async () => {
+    const originalStateLookup = FinancialProfileState.findOne;
+    try {
+      FinancialProfileState.findOne = () => ({
+        lean: async () => ({
+          currentProfileId: null, resolutionStatus: 'NO_CURRENT',
+          revision: 0, promotionFence: 0,
+        }),
+      });
+      const result = await processChat({
+        userId: mockUserId, user: mockUser, sessionId: mockSessionId,
+        idempotencyKey: 'no-profile-tax-assumptions-20261023',
+        message: 'Which tax regime does WealthGenie use?',
+      });
+      assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+      assert.equal(result.grounded, true);
+      assert.equal(result.fallback, false);
+      assert.match(result.response, /only the new income-tax regime/i);
+      assert.ok(result.citations.some(c => c.source === 'WealthGenie backend policy'));
+    } finally {
+      FinancialProfileState.findOne = originalStateLookup;
+    }
+  });
+
   it('Phase 6: provider failure returns a deterministic evidence-backed fallback', async () => {
     axios.post = async () => {
       throw Object.assign(new Error('provider unavailable'), { code: 'ECONNRESET' });
