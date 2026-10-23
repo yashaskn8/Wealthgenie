@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {
  searchFreeMutualFunds,simulateFreeMutualFundNavResearch,
  getFreeSmallSavingsRates,calculateFreeSmallSavingsGross,
+ getFreeFinancialSourceCoverage,
 } from '../services/api';
 
 const INR=n=>Number.isFinite(n)?new Intl.NumberFormat('en-IN',{
@@ -25,6 +26,8 @@ export default function FreeSourceResearchPanel(){
  const [horizon,setHorizon]=useState('5');
  const [monthly,setMonthly]=useState('10000');
  const [rates,setRates]=useState(null);
+ const [directory,setDirectory]=useState(null);
+ const [showSources,setShowSources]=useState(false);
  const [productId,setProductId]=useState('government:india-post:nsc');
  const [principal,setPrincipal]=useState('10000');
  const [result,setResult]=useState(null);
@@ -46,6 +49,15 @@ export default function FreeSourceResearchPanel(){
   setFunds(value.results);setSelected(null);
  });
  const loadRates=()=>request(signal=>getFreeSmallSavingsRates({signal}),setRates);
+ const loadSources=()=>{
+  if(showSources){setShowSources(false);return;}
+  if(directory){setShowSources(true);return;}
+  request(signal=>getFreeFinancialSourceCoverage({signal}),value=>{
+   if(value?.status!=='SOURCE_CANDIDATE_DIRECTORY'||!Array.isArray(value.sources))
+    throw new Error('Provider directory is unavailable.');
+   setDirectory(value);setShowSources(true);
+  });
+ };
  const simulate=()=>{
   const amount=Number(monthly),rate=Number(expectedReturn),years=Number(horizon);
   if(!selected||!Number.isFinite(amount)||amount<=0||amount>1e7
@@ -186,6 +198,24 @@ export default function FreeSourceResearchPanel(){
        </p>
       </div>
      )}
+     <div style={{marginTop:16,borderTop:'1px solid #334155',paddingTop:10}}>
+      <button type="button" style={style.action} disabled={busy} onClick={loadSources}
+       aria-expanded={showSources}>{showSources?'Hide all sources':'See all supported and candidate free sources'}</button>
+      {showSources&&directory&&(
+       <div style={{marginTop:8,maxHeight:290,overflow:'auto',fontSize:12}}>
+        <p>Research directory: {directory.count} providers or official references.
+         Live production-qualified sources: {directory.productionQualifiedSourceCount}.
+         Entries labelled reference-only are not connected calculation feeds.</p>
+        {directory.sources.map(source=>(
+         <div key={source.id} style={{padding:'7px 0',borderBottom:'1px solid #334155'}}>
+          <a href={source.url} target="_blank" rel="noopener noreferrer">{source.name}</a>
+          <div>{source.categories.join(', ')} · {source.mode.replaceAll('_',' ')}</div>
+          <div style={{color:'#fbbf24'}}>Reuse status: {source.rightsStatus.replaceAll('_',' ')}</div>
+         </div>
+        ))}
+       </div>
+      )}
+     </div>
      {busy&&<p role="status">Checking the selected financial source...</p>}
      {result?.status==='UNAVAILABLE'&&<p role="alert">
       Source or calculation unavailable: {result.reasonCode||result.postTaxReasonCode||'EVIDENCE_NOT_QUALIFIED'}.
