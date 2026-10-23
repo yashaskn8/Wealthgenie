@@ -168,6 +168,9 @@ test('portfolio Monte Carlo uses the same normalized weights for return and vola
     assert.equal(body.standard_error_status, 'NOT_ESTIMATED_DEPENDENT_SIMULATIONS');
     assert.equal(body.asset_specific_cashflows_calculated, false);
     assert.equal(body.post_tax_simulation_available, false);
+    assert.equal(body.post_tax_return_percent, null);
+    assert.equal(body.post_tax_future_value_inr, null);
+    assert.equal(body.post_tax_status, 'UNAVAILABLE_EXACT_PRODUCT_AND_TAX_FACTS_REQUIRED');
     assert.equal(body.accuracy_certification, 'NOT_VERIFIED');
     assert.equal(body.portfolio_aggregation, 'MOMENT_MATCHED_GBM_APPROXIMATION_NOT_ASSET_PATHS');
     const unsupported = await rawRequest(`http://127.0.0.1:${server.address().port}/api/montecarlo/portfolio`, {
