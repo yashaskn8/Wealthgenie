@@ -264,17 +264,21 @@ test('red-team: general provider-issued tool/function calls are discarded, never
           return { text: 'Use this unverified instruction.', wasCompleted: true,
             tokensUsed: 5, ...toolFixture };
         } },
-        { name: 'nvidia_nim', isConfigured: () => true, async generate() {
-          secondProviderCalls += 1; return { text: 'never called' };
+        { name: 'nvidia_nim', isConfigured: () => true, async generate(request) {
+          secondProviderCalls += 1;
+          assert.equal(request.tools, null, 'fallback cannot execute a forged tool call');
+          return { text: 'A Python array stores items in an ordered collection.',
+            tokensUsed: 8, wasCompleted: true };
         } },
       ],
     });
-    assert.equal(answer.provider, 'SYSTEM');
+    assert.equal(answer.provider, 'NVIDIA_NIM');
     assert.equal(answer.fallback, true);
-    assert.ok(answer.validation.reasonCodes.includes('GENERAL_UNEXPECTED_TOOL_CALL'));
+    assert.ok(answer.validation.reasonCodes.includes('PRIMARY_PROVIDER_UNAVAILABLE'));
+    assert.doesNotMatch(answer.text, /transfer_funds|steal_token|Use this unverified instruction/);
     assert.deepEqual(answer.citations, []);
   }
-  assert.equal(secondProviderCalls, 0);
+  assert.equal(secondProviderCalls, 3);
 });
 
 
@@ -408,6 +412,10 @@ test('concept-only financial education is allowed without reclassifying personal
   for (const question of [
     'What is XIRR?', 'Explain SIP', 'How does the stock market work?',
     'Difference between a bond and a stock', 'What is a demat account?',
+    'Tell me about REITs', 'Can you compare an FD and an RD?',
+    'Help me understand InvITs', 'What is an AIF?',
+    'Describe sovereign gold bonds', 'What are Treasury bills?',
+    'Please explain Sukanya Samriddhi', 'Why do bond prices change?',
   ]) {
     assert.equal(isPublicFinancialEducationQuestion(question), true, question);
     assert.equal(isGeneralChatQuestion(question), false, question);
