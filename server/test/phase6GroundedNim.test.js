@@ -394,6 +394,53 @@ test('profile fallback admits when the checked evidence lacks a reason for a dif
   assert.doesNotMatch(result.text, /capacity check reduced/i);
 });
 
+test('Explain tax assumptions answers the actual question with cited internal policy, without guessing tax or calling an LLM', async () => {
+  const question = 'Explain tax assumptions';
+  const packet = await buildChatEvidencePacket({
+    question, profile: null, recommendation: null,
+  });
+  assert.ok(packet.entries.some(item => item.id === 'E_TAX_ASSUMPTIONS_INPUTS'));
+  assert.ok(!packet.entries.some(item => item.id === 'E_TAX_INPUT_BOUNDARY'));
+  assert.ok(!packet.unavailableFacts.includes('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS'));
+
+  let providerCalls = 0;
+  const result = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [{
+      name: 'groq', configuredModel: () => 'mock',
+      generate: async () => { providerCalls += 1; throw new Error('Must not call an LLM'); },
+    }],
+    getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(providerCalls, 0);
+  assert.equal(result.validation.status, 'PASS');
+  assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(result.fallback, false);
+  assert.equal(result.status, 'GROUNDED_EXPLANATION_AVAILABLE');
+  assert.equal(result.financialClaims.length, 0);
+  assert.deepEqual(result.evidenceIdsUsed, [
+    'E_TAX_ASSUMPTIONS_INPUTS',
+    'E_TAX_ASSUMPTIONS_TREATMENT',
+    'E_TAX_ASSUMPTIONS_LIMITS',
+    'E_REGULATORY_NOTICE',
+  ]);
+  assert.match(result.text, /financial year.*annual income.*tax regime.*income-source breakdown/i);
+  assert.match(result.text, /Deductions, rebates, cess or surcharge/);
+  assert.match(result.text, /not automatically after-tax returns/);
+  assert.doesNotMatch(result.text, /a model answer was unavailable|has not calculated a personal tax result here/);
+  assert.ok(result.citations.every(item => item.source_url === null));
+  assert.ok(result.citations.some(item => item.source === 'WealthGenie backend policy'));
+});
+
+test('tax assumptions explainer does not disguise personal post-tax questions as generic explanations', async () => {
+  const question = 'Explain my post-tax investment return';
+  const packet = await buildChatEvidencePacket({
+    question, profile: null, recommendation: null,
+  });
+  assert.ok(!packet.entries.some(item => item.id === 'E_TAX_ASSUMPTIONS_INPUTS'));
+  assert.ok(packet.entries.some(item => item.id === 'E_TAX_INPUT_BOUNDARY'));
+  assert.ok(packet.unavailableFacts.includes('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS'));
+});
+
 test('natural question about stated risk tolerance retrieves only relevant saved risk evidence', async () => {
   const question = 'What checked evidence explains the difference between my stated risk tolerance and final plan ceiling?';
   const packet = await buildChatEvidencePacket({
