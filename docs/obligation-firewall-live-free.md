@@ -111,3 +111,7 @@ When a browser-local debit dated today has exactly one match among already saved
 ### Historical data deletion/revision race fencing
 
 Owner-scoped export and individual historical revision reads first verify an existing, non-deleted current cash ledger; they cannot disclose orphaned financial snapshots after a deleted/nonexistent ledger. Pagination only includes revisions at or below the initially observed current revision. A second exact owner/revision/deleted-state check prevents returning a mixed result after a concurrent save or deletion. A stale request fails as a conflict rather than presenting possibly erased records as current. This does not replace encrypted backup-retention and production privacy validation.
+
+### Startup index-readiness gate
+
+When `COVERAGE_ENABLED=true`, the backend now checks the exact required unique indexes for the current cash ledger, immutable results, deletion receipts, owner-scoped risk alerts, settlement receipts and idempotency operations **before** reporting startup readiness. When `COVERAGE_ALERT_WORKER_ENABLED=true`, it additionally checks the `{ 'input.asOfDate': 1, _id: 1 }` scan index by name and refuses worker-only misconfiguration without the underlying feature. All checks are read-only; apply the documented one-shot MongoDB migration first. A missing index causes startup failure rather than a deployed but broken cash feature. In the default disabled mode the new checks are skipped.
