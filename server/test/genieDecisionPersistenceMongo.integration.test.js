@@ -451,6 +451,11 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
     assert.equal(initial.response.status, 200);
     assert.equal(initial.body.monitor.enabled, false);
     assert.deepEqual(initial.body.assessments, []);
+    assert.equal(initial.body.monitor.workerConfigured, false);
+    const refusedWithoutWorker = await call(base, userOne, monitorPath, 'PUT',
+      { enabled: true, expectedRevision: 1 });
+    assert.equal(refusedWithoutWorker.response.status, 503);
+    assert.equal(await DecisionMonitor.countDocuments({ userId: userOne, scenarioId: id }), 0);
 
     await DecisionWorkerHeartbeat.create({
       _id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -479,6 +484,19 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
     const unchanged = await scanDecisionMonitors();
     assert.ok(unchanged.statuses.UNCHANGED >= 1);
     assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 0);
+    const monitorBeforeLease = await DecisionMonitor.findOne({ userId: userOne, scenarioId: id }).lean();
+    await DecisionMonitor.collection.updateOne({ _id: monitorBeforeLease._id },
+      { $set: { leaseToken: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        leaseUntil: new Date(Date.now() + 60000) } });
+    const noDoubleClaim = await scanDecisionMonitors();
+    assert.equal(noDoubleClaim.inspected, 0,
+      'A second worker must not claim an unexpired lease');
+    await DecisionMonitor.collection.updateOne({ _id: monitorBeforeLease._id },
+      { $set: { leaseUntil: new Date(Date.now() - 10) } });
+    const crashRecovery = await scanDecisionMonitors();
+    assert.equal(crashRecovery.inspected, 1,
+      'An abandoned lease must be reclaimed without operator intervention');
+    assert.equal(crashRecovery.statuses.UNCHANGED, 1);
 
     // Income changed but previous expense/debt/savings assumptions no longer
     // reconcile. Publishing a made-up balancing expense would be unacceptable.
@@ -514,6 +532,18 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
       userId: userOne, scenarioId: id, status: 'RECALCULATED',
     }).lean();
     assert.ok(latest.integrityTag);
+    // A different canonical profile record with the same visible facts is
+    // NOT the same deduplication identity. Insert a deliberately unsigned
+    // index-only sentinel, then delete it before any read-path verification.
+    const sentinelId = new mongoose.Types.ObjectId();
+    await DecisionAssessment.collection.insertOne({
+      ...latest, _id: sentinelId, profileId: new mongoose.Types.ObjectId(),
+    });
+    try {
+      assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 3);
+    } finally {
+      await DecisionAssessment.collection.deleteOne({ _id: sentinelId });
+    }
     assert.equal(latest.sourceSnapshot.facts.length, 3);
     assert.ok(latest.sourceSnapshot.facts.every(fact =>
       fact.verificationStatus === 'DECLARED' && fact.sourceType === 'USER_DECLARED'
