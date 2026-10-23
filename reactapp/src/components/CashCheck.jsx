@@ -556,6 +556,20 @@ export default function CashCheck() {
               <p><strong>Unverified local statement:</strong> {csvReview.rowsInspected} completed transactions, {csvReview.firstTransactionDate} to {csvReview.lastTransactionDate}. {csvReview.freshness === 'DATED_TODAY_NOT_VERIFIED' ? 'File contains a transaction dated today; balance is not bank-verified.' : 'Historical file; it is not a live bank feed.'}</p>
               {csvReview.lastReportedBalancePaise !== null && <p>File-reported closing balance: <strong>{formatMoney(csvReview.lastReportedBalancePaise)}</strong> on {csvReview.lastReportedBalanceDate}. Do not copy this automatically into accessible cash; reconfirm today's actual balance yourself.</p>}
               <p>Possible recurring debits require your confirmation. Past settled debits are never added as future bills, and transfers may resemble recurring payments.</p>
+              {csvReview.settledToday.length > 0 && (
+                <div role="region" aria-label="Review transactions already settled today">
+                  <h3>Check for today's payments already included in your opening cash</h3>
+                  <p>These debits appear as settled in the uploaded file dated today. If your declared opening cash already reflects them, do not also include them as due today. Check the actual balance/timing manually.</p>
+                  <ul>{csvReview.settledToday.map((item, i) => (
+                    <li key={i}>{item.description}: {formatMoney(item.amountPaise)}
+                      {draft.entries.some(entry => entry.startDate === item.date && entry.amount === rupees(item.amountPaise))
+                        ? ' — possible match to an existing scheduled entry; review for double counting.'
+                        : ' — review whether already included in accessible cash.'}
+                    </li>
+                  ))}</ul>
+                  {csvReview.settledTodayTruncated && <p>More than 20 same-day debits. Review the full statement before confirming cash.</p>}
+                </div>
+              )}
               {csvReview.proposals.length === 0 && <p>No confident recurring-payment patterns found. You can still enter future bills manually.</p>}
               {csvReview.proposals.map(candidate => (
                 <fieldset className="cash-check-entry" key={candidate.id}>

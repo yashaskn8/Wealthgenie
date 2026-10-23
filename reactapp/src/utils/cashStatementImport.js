@@ -178,10 +178,8 @@ export function inspectCashStatementCsv(text, { today } = {}) {
   if (headings.some((h, i) => h && headings.indexOf(h) !== i)) {
     fail('Ambiguous repeated CSV column; import cancelled.');
   }
-  const todayDate = today === undefined
-    ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
-    : statementDate(today);
-  // en-CA display may vary by runtime; use formatToParts for the strict ISO date.
+  const todayDate = today === undefined ? null : statementDate(today);
+  // Build India dates from formatToParts rather than locale-dependent text.
   const indiaParts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata',
     year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   const parts = Object.fromEntries(indiaParts.map(x => [x.type, x.value]));
@@ -220,6 +218,14 @@ export function inspectCashStatementCsv(text, { today } = {}) {
     lastTransactionDate: last.date,
     lastReportedBalancePaise: lastBalance,
     lastReportedBalanceDate: lastBalance === null ? null : last.date,
+    // Only show a bounded list of settled debits dated TODAY to help the
+    // user identify potential double-counting; no auto-matching or subtraction.
+    settledToday: transactions.filter(item =>
+      item.date === confirmedToday && item.direction === 'DEBIT')
+      .slice(0, 20)
+      .map(({ date, description, amountPaise }) => ({ date, description, amountPaise })),
+    settledTodayTruncated: transactions.filter(item =>
+      item.date === confirmedToday && item.direction === 'DEBIT').length > 20,
     freshness: last.date === confirmedToday ? 'DATED_TODAY_NOT_VERIFIED' : 'HISTORICAL_NOT_LIVE',
     proposals: proposalCandidates(transactions, confirmedToday),
     warning: 'This is locally uploaded, unverified history. Suggestions are not future bills until you confirm them; never add settled debits to opening cash.',

@@ -89,5 +89,15 @@ describe('local-only Indian bank statement review', () => {
   });
   it('rejects obsolete historical patterns rather than forecasting confidence', () => {
     expect(inspectCashStatementCsv(threeMonths, { today: '2026-11-20' }).proposals).toEqual([]);
+  });  it('flags settled-today outflows for human double-count review without changing cash', () => {
+    const r = inspectCashStatementCsv(headers
+      + '2026-10-01,Rent already withdrawn,12000,,8000\n'
+      + '2026-10-01,Salary,,50000,58000\n', { today: '2026-10-01' });
+    expect(r.lastReportedBalancePaise).toBe(5800000);
+    expect(r.settledToday).toEqual([{ date: '2026-10-01',
+      description: 'Rent already withdrawn', amountPaise: 1200000 }]);
+    expect(r.proposals).toEqual([]);
+    expect(r).not.toHaveProperty('openingCashPaise');
   });
+
 });
