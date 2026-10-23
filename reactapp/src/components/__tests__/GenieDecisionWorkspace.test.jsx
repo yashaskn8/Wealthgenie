@@ -6,14 +6,14 @@ import GenieDecisionWorkspace from '../GenieDecisionWorkspace';
 import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
-  getDecisionRun, deleteDecisionScenario,
+  getDecisionRun, listDecisionRuns, deleteDecisionScenario,
 } from '../../services/api';
 
 vi.mock('../../services/api', () => ({
   getDecisionAvailability: vi.fn(), listDecisionScenarios: vi.fn(),
   getDecisionScenario: vi.fn(), createDecisionScenario: vi.fn(),
   updateDecisionScenario: vi.fn(), evaluateDecisionScenario: vi.fn(),
-  getDecisionRun: vi.fn(), deleteDecisionScenario: vi.fn(),
+  getDecisionRun: vi.fn(), listDecisionRuns: vi.fn(), deleteDecisionScenario: vi.fn(),
 }));
 
 const profileId = '64a000000000000000000001';
@@ -54,7 +54,7 @@ describe('GenieDecision workspace red-team integration', () => {
     for (const stub of [
       getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
       createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
-      getDecisionRun, deleteDecisionScenario,
+      getDecisionRun, listDecisionRuns, deleteDecisionScenario,
     ]) stub.mockReset();
     getDecisionAvailability.mockResolvedValue({
       available: true, profileId, profileStateRevision: 3,
@@ -63,6 +63,7 @@ describe('GenieDecision workspace red-team integration', () => {
     listDecisionScenarios.mockResolvedValue({ scenarios: [saved] });
     getDecisionScenario.mockResolvedValue({ scenario: saved, payload });
     getDecisionRun.mockResolvedValue(report);
+    listDecisionRuns.mockResolvedValue({ runs: [{ id: report.run.id, status: 'PARTIAL', scenarioRevision: 1, asOf: report.run.asOf }] });
     createDecisionScenario.mockResolvedValue({ scenario: { ...saved, lastRunId: null } });
     updateDecisionScenario.mockResolvedValue({ scenario: { ...saved, revision: 2, lastRunId: null } });
     evaluateDecisionScenario.mockResolvedValue(report);
