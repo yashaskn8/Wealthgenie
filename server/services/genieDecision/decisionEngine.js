@@ -252,7 +252,7 @@ export function calculateDecision({ scenarioType, baseline, horizonMonths, goalR
     // Generated ledger balances are already validated BigInt outputs. A
     // 360-month cumulative balance may exceed the per-input amount ceiling;
     // never re-apply input limits to a computed result.
-    if (typeof value !== 'string' || !/^-?(?:0|[1-9]\\d*)\\.\\d{2}$/.test(value)) {
+    if (typeof value !== 'string' || !/^-?(?:0|[1-9][0-9]*)[.][0-9]{2}$/.test(value)) {
       throw new Error('GENIEDECISION_INVALID_GENERATED_LEDGER_BALANCE');
     }
     const negative = value.startsWith('-');
