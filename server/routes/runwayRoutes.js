@@ -205,7 +205,7 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
   }
   const [items, total, state] = await Promise.all([
     RunwaySnapshot.find({ userId }).sort({ createdAt: -1, _id: -1 })
-      .skip(page * 20).limit(20).select('_id ledgerRevision createdAt inputHash result.engineVersion').lean(),
+      .skip(page * 20).limit(20).select('_id ledgerRevision createdAt inputHash result.engineVersion result.asOfDate').lean(),
     RunwaySnapshot.countDocuments({ userId }),
     RunwayLedgerState.findById(userId).select('revision').lean(),
   ]);
@@ -216,7 +216,8 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
       inputHash: item.inputHash,
       engineStatus: item.result?.engineVersion === RUNWAY_ENGINE_VERSION ? 'CURRENT_ENGINE' : 'HISTORICAL_ENGINE',
       status: state?.revision === item.ledgerRevision
-        && item.result?.engineVersion === RUNWAY_ENGINE_VERSION ? 'CURRENT' : 'HISTORICAL',
+        && item.result?.engineVersion === RUNWAY_ENGINE_VERSION
+        && item.result?.asOfDate === indiaCivilToday() ? 'CURRENT' : 'HISTORICAL',
     })),
   });
 }));
@@ -306,8 +307,9 @@ router.get('/snapshots/:id', asyncHandler(async (req, res) => {
   const snapshot = await verifiedSnapshot(userId, req.params.id);
   const state = await RunwayLedgerState.findById(userId).lean();
   return res.json({ snapshotId: snapshot._id, ledgerRevision: snapshot.ledgerRevision, inputHash: snapshot.inputHash,
-    status: state?.revision === snapshot.ledgerRevision && snapshot.engineStatus === 'CURRENT_ENGINE'
-      ? 'CURRENT' : 'HISTORICAL',
+    status: state?.revision === snapshot.ledgerRevision
+      && snapshot.engineStatus === 'CURRENT_ENGINE'
+      && snapshot.result?.asOfDate === indiaCivilToday() ? 'CURRENT' : 'HISTORICAL',
     engineStatus: snapshot.engineStatus, verification: snapshot.verification,
     createdAt: snapshot.createdAt, request: snapshot.request, result: snapshot.result });
 }));

@@ -46,3 +46,6 @@
 - A ledger that contains payments only **after** the selected horizon returns \`INSUFFICIENT_INPUT\` (not \`NO_LISTED_SHORTFALL\`) for that period. Saving a misleading snapshot is rejected. This is tested at both numerical-engine and authenticated Mongo API levels.
 
 - Financial-result algorithm version was bumped to \`runway-cashflow-1.1.0\`. An older snapshot can be viewed as archival data after hash verification, but generating a current explanation from an unrecomputed historical version returns \`RUNWAY_HISTORICAL_ENGINE_UNSUPPORTED\`. The saved-results list also labels engine-obsolete rows historical.
+
+- A result is marked CURRENT only if the current ledger revision matches **and** the engine version matches **and** cash was declared for today's India civil date. Results turn HISTORICAL across midnight until new cash is confirmed.
+- Database integration red-team case seeds 99 owner-scoped saved results, races two independent creators and asserts exactly one success and 100 total records. A separate owner-state fixture verifies new immutable revisions cannot exceed the 2,048 cap.

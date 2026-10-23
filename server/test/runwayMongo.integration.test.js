@@ -8,7 +8,7 @@ import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
-import { RunwayLedgerRevision, RunwaySnapshot } from '../models/Runway.js';
+import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot } from '../models/Runway.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 
@@ -180,6 +180,35 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const blockedEmptySnapshot = await mutation(base, 'snapshots', tooShort);
       assert.equal(blockedEmptySnapshot.response.status, 400);
       assert.equal(blockedEmptySnapshot.body.code, 'RUNWAY_INSUFFICIENT_INPUT');
+
+      // Red-team the owner-scoped snapshot cap at the concurrency boundary:
+      // 99 prior records + two simultaneous writers must yield exactly 100,
+      // never the invalid 101st result.
+      const originalForCap = await RunwaySnapshot.collection.findOne({ _id: snapshot.body.snapshotId });
+      const filler = Array.from({ length: 98 }, (_, i) => ({
+        ...originalForCap,
+        _id: crypto.createHash('sha256').update('runway-cap-filler-' + i).digest('hex'),
+        createdAt: new Date(),
+      }));
+      await RunwaySnapshot.collection.insertMany(filler);
+      assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 99);
+      const capRequest = { ledgerRevision: 3, horizonDays: 11, scenarios: [] };
+      const capResults = await Promise.all([
+        mutation(base, 'snapshots', capRequest, authA, 'runway-cap-race-001'),
+        mutation(base, 'snapshots', capRequest, authA, 'runway-cap-race-002'),
+      ]);
+      assert.deepEqual(capResults.map(x => x.response.status).sort(), [201, 409]);
+      assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 100);
+      assert.equal(capResults.find(x => x.response.status === 409).body.code, 'RUNWAY_SNAPSHOT_LIMIT');
+
+      // Quota is enforced before a new immutable revision is created.
+      await RunwayLedgerState.create({ _id: userB, revision: 2048, snapshotGeneration: 0 });
+      await RunwayLedgerRevision.create({
+        userId: userB, revision: 2048, ledger, inputHash: canonicalSha256(ledger), confirmedAt: new Date(),
+      });
+      const blockedRevision = await write(base, ledger, 2048, 'runway-revision-cap', authB);
+      assert.equal(blockedRevision.response.status, 409);
+      assert.equal(blockedRevision.body.code, 'RUNWAY_REVISION_LIMIT');
 
       const invalidDelete = await jsonRequest(ownedBase + 'data', {
         method: 'DELETE', headers: { ...authB, 'Content-Type': 'application/json' },
