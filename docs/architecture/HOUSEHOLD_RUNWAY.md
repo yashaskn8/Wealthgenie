@@ -85,3 +85,9 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 - Immutable **ledger revisions** now also have server-held, purpose-separated HMAC-SHA256 seals binding owner ID, revision, original self-reported ledger, its input hash, and confirmation timestamp. The active ledger, historical export, mutation replay, and snapshot source all reject forged ledger seals.
 - Saved-result listing metadata is checked against its HMAC seal before publication; no forged database row may be labeled as a current result.
 - Any records created with pre-sealing experimental code lack required seals and need an explicitly approved migration or deletion before release; there is no silent unsigned compatibility mode.
+
+## Full owner-controlled export
+
+- `GET /api/runway/export/snapshots?page=0..4` exports at most 20 owner-scoped snapshots per page (maximum 100), with server-side HMAC validation, sealed original ledger provenance, and current-engine recomputation when possible. Recently issued authentication is required.
+- The browser's private JSON export now includes **all retained ledger revisions and saved scenario snapshots**, not just ledger entries. It checks each response's format, total and bounds and refuses incomplete downloads.
+- This is portability of application-held user declarations, not a bank-confirmed financial evidence archive; backup expiry, secure handling on the end-user device, and legal retention obligations require separate approvals.

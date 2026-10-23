@@ -117,6 +117,16 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(listing.body.total, 1);
       assert.equal(listing.body.items[0].snapshotId, snapshot.body.snapshotId);
       assert.equal(listing.body.items[0].status, 'CURRENT');
+      const exportedSnapshots = await jsonRequest(ownedBase + 'export/snapshots?page=0', { headers: authA });
+      assert.equal(exportedSnapshots.response.status, 200);
+      assert.equal(exportedSnapshots.body.format, 'WEALTHGENIE_RUNWAY_SNAPSHOT_HISTORY_V1');
+      assert.equal(exportedSnapshots.body.total, 1);
+      assert.equal(exportedSnapshots.body.items[0].snapshotId, snapshot.body.snapshotId);
+      assert.equal(exportedSnapshots.body.items[0].verification, 'RECOMPUTED_CURRENT_ENGINE');
+      const otherSnapshots = await jsonRequest(ownedBase + 'export/snapshots?page=0', { headers: authB });
+      assert.equal(otherSnapshots.body.total, 0);
+      const wrongExportPage = await jsonRequest(ownedBase + 'export/snapshots?page=5', { headers: authA });
+      assert.equal(wrongExportPage.response.status, 400);
       const privateListing = await jsonRequest(ownedBase + 'snapshots?page=0', { headers: authB });
       assert.equal(privateListing.body.total, 0);
       const invalidPage = await jsonRequest(ownedBase + 'snapshots?page=-1', { headers: authA });
@@ -151,6 +161,9 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const forgedChecksum = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(forgedChecksum.response.status, 503);
       assert.equal(forgedChecksum.body.code, 'RUNWAY_SEAL_INVALID');
+      const rejectedExport = await jsonRequest(ownedBase + 'export/snapshots?page=0', { headers: authA });
+      assert.equal(rejectedExport.response.status, 503);
+      assert.equal(rejectedExport.body.code, 'RUNWAY_SEAL_INVALID');
       const forgedExplanation = await mutation(base, 'explanations', { snapshotId: snapshot.body.snapshotId });
       assert.equal(forgedExplanation.response.status, 503);
       assert.equal(forgedExplanation.body.code, 'RUNWAY_SEAL_INVALID');

@@ -290,11 +290,26 @@ export default function HouseholdRunway() {
         if (page === 20) throw new Error('Export page limit reached. No file was saved.');
       }
       if (pages.length !== expectedTotal) throw new Error('Ledger history changed during export. No file was saved.');
+      const snapshots = [];
+      let expectedSnapshots = null;
+      for (let page = 0; page <= 4; page++) {
+        const part = await api.getRunwaySnapshotHistoryPage(page);
+        if (expectedSnapshots === null) expectedSnapshots = part.total;
+        if (part.format !== 'WEALTHGENIE_RUNWAY_SNAPSHOT_HISTORY_V1'
+            || part.total !== expectedSnapshots || !Array.isArray(part.items)) {
+          throw new Error('Saved scenario history changed during export. No file was saved.');
+        }
+        snapshots.push(...part.items);
+        if (!part.hasMore) break;
+        if (page === 4) throw new Error('Saved scenario export page limit reached. No file was saved.');
+      }
+      if (snapshots.length !== expectedSnapshots) throw new Error('Saved scenario history changed during export. No file was saved.');
       const json = JSON.stringify({
-        format: 'WEALTHGENIE_RUNWAY_LEDGER_HISTORY_V1',
-        exportedAt: new Date().toISOString(), itemCount: pages.length,
-        financialEvidence: 'USER_DECLARED_ONLY', ledgerRevisions: pages,
-        disclosure: 'Contains private user-entered financial facts; keep the downloaded file secure.',
+        format: 'WEALTHGENIE_RUNWAY_PRIVATE_EXPORT_V1',
+        exportedAt: new Date().toISOString(), ledgerRevisionCount: pages.length,
+        snapshotCount: snapshots.length, financialEvidence: 'USER_DECLARED_ONLY',
+        ledgerRevisions: pages, savedScenarioSnapshots: snapshots,
+        disclosure: 'Contains private user-entered financial facts. Historical-engine snapshots may be HMAC/hash-checked only and do not establish live bank balances.',
       }, null, 2);
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
       try {
@@ -305,7 +320,7 @@ export default function HouseholdRunway() {
         anchor.click();
         anchor.remove();
       } finally { URL.revokeObjectURL(url); }
-      setMessage('Your historical ledgers were exported to a private JSON file. Saved scenario snapshots are not included.');
+      setMessage('Your verified ledger history and saved scenario snapshots were exported to a private JSON file.');
     } catch (err) { setError(err.message || 'Unable to export your ledger history.'); }
     finally { setBusy(false); }
   };
@@ -468,11 +483,11 @@ export default function HouseholdRunway() {
         </div>
       </div>
       <div className="runway-panel">
-        <h2>6. Export your ledger history</h2>
-        <p>Download every saved ledger revision as private JSON before deleting data or reaching the revision cap.
-          This export does not contain saved scenario snapshots. Sign in again if your session is older than five minutes.</p>
+        <h2>6. Export your Household Runway records</h2>
+        <p>Download your saved ledger revisions and scenario snapshots as private JSON before deletion.
+          These contain sensitive financial declarations. Sign in again if your session is older than five minutes.</p>
         <button type="button" className="runway-minor" disabled={busy}
-          onClick={exportLedgerHistory}>Export ledger history (private JSON)</button>
+          onClick={exportLedgerHistory}>Export all Runway records (private JSON)</button>
       </div>
       <details className="runway-panel"><summary>Delete my Household Runway data</summary>
         <p>This deletes the current ledger, historical revisions, and saved results in the primary database. Backup expiry is not verified.

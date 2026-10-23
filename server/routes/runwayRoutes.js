@@ -298,6 +298,33 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
   });
 }));
 
+router.get('/export/snapshots', asyncHandler(async (req, res) => {
+  const userId = owner(req);
+  requireRecentSession(req);
+  const page = req.query.page === undefined ? 0 : Number(req.query.page);
+  if (!Number.isSafeInteger(page) || page < 0 || page > 4
+      || (req.query.page !== undefined && String(page) !== req.query.page)) {
+    throw failure(400, 'RUNWAY_EXPORT_PAGE_INVALID', 'Snapshot export page must be an integer from 0 to 4.');
+  }
+  const [headers, total] = await Promise.all([
+    RunwaySnapshot.find({ userId }).sort({ createdAt: -1, _id: -1 }).skip(page * 20)
+      .limit(20).select('_id').lean(),
+    RunwaySnapshot.countDocuments({ userId }),
+  ]);
+  const records = await Promise.all(headers.map(item => verifiedSnapshot(userId, item._id)));
+  return res.json({
+    format: 'WEALTHGENIE_RUNWAY_SNAPSHOT_HISTORY_V1',
+    page, total, hasMore: (page + 1) * 20 < total,
+    items: records.map(item => ({
+      snapshotId: item._id, ledgerRevision: item.ledgerRevision,
+      inputHash: item.inputHash, createdAt: item.createdAt,
+      request: item.request, result: item.result, engineStatus: item.engineStatus,
+      verification: item.verification,
+    })),
+    disclaimer: 'Saved scenarios are not verified bank or affordability facts. Historical engines can only be checked against their stored HMAC and hash.',
+  });
+}));
+
 router.post('/snapshots', asyncHandler(async (req, res) => {
   const userId = owner(req);
   await requireRunwayIndexes();

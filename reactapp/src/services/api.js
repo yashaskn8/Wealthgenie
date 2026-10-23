@@ -1174,6 +1174,9 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
 }
 
 // Household Runway only uses declared cash and events; no profile cash estimate.
+export function getRunwaySnapshotHistoryPage(page = 0, options = {}) {
+  return request('GET', '/runway/export/snapshots?page=' + encodeURIComponent(page), null, { retries: 0, ...options });
+}
 export function getRunwayLedgerHistoryPage(page = 0, options = {}) {
   return request('GET', '/runway/ledger/revisions?page=' + encodeURIComponent(page), null, { retries: 0, ...options });
 }
@@ -1210,7 +1213,7 @@ export function deleteRunwayData(options = {}) {
 // Default export for convenience
 const api = {
   register, login, logout, restoreSession,
-  getRunwayCurrent, getRunwayLedgerHistoryPage, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, listRunwaySnapshots, getRunwaySnapshot, deleteRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
+  getRunwayCurrent, getRunwayLedgerHistoryPage, getRunwaySnapshotHistoryPage, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, listRunwaySnapshots, getRunwaySnapshot, deleteRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,
