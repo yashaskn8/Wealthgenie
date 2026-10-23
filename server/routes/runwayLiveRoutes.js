@@ -287,6 +287,17 @@ export function createRunwayLiveRouter({
             'This user-imported transaction was already applied to a ledger.');
         }
         const sources = await verifiedSources(userId, session);
+        const requestedSource = sources.find(x => x.statementId === requested.statementId);
+        const requestedRow = Number.isSafeInteger(requested.rowIndex)
+          && requested.rowIndex >= 0
+          ? requestedSource?.statement?.records?.[requested.rowIndex] : null;
+        // A re-uploaded consumed row must report an explicit reuse conflict
+        // even if the duplicate files also make the match ambiguous.
+        if (requestedSource && requestedRow && usedRows.some(x =>
+          x.transactionIdentity === runwayTransactionIdentity(requestedSource, requestedRow))) {
+          throw fail(409, 'RUNWAY_POSTED_TRANSACTION_REUSED',
+            'This apparent bank transaction already changed a financial ledger.');
+        }
         const { nextLedger, match } = prepareRunwaySettlement(
           found.revision.ledger, sources, requested, indiaCivilToday(),
         );
