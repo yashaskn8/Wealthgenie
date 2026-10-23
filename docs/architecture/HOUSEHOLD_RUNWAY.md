@@ -103,3 +103,8 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 - Individually deleted snapshot replay markers expire automatically after 45 days using a MongoDB TTL index (`runway_deleted_snapshot_ttl`), preventing unbounded accumulation. This TTL must be migrated before enabling Runway; writes fail closed if it is missing.
 - Idempotency replay protection for an individually deleted snapshot is **45 days**, not forever; tokens and clients must not retry old mutation keys beyond that period. Account-wide deletion clears the markers immediately. This is metadata retention requiring sign-off under the product's privacy policy.
 - The transaction-level ledger state and latest immutable revision reads are serialized on the Mongo session; running `Promise.all` on one transaction is prohibited.
+
+## Idempotency provenance and listing integrity
+
+- Ledger idempotency receipts are untrusted database pointers. A replay must verify the signed revision's input hash equals the **exact original request ledger**, and that its number is the expected predecessor plus one. Retargeting a receipt to a different valid signed revision fails with `RUNWAY_RECEIPT_INTEGRITY_INVALID`.
+- The saved-result listing now invokes full result-source verification, including source-ledger seal and current-engine recomputation, before designating a snapshot `CURRENT`. A signed snapshot with a corrupted source ledger fails closed even on the metadata-only list.

@@ -235,6 +235,12 @@ router.put('/ledger', asyncHandler(async (req, res) => {
       throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Committed revision is unavailable.');
     }
     requireValidLedgerSeal(rev);
+    // A database-only writer must not retarget an idempotency receipt to
+    // another separately valid, sealed ledger revision.
+    if (rev.revision !== expected + 1 || rev.inputHash !== canonicalSha256(ledger)) {
+      throw failure(503, 'RUNWAY_RECEIPT_INTEGRITY_INVALID',
+        'This saved request receipt no longer matches its original financial inputs.');
+    }
     return res.status(200).json({ revision: rev.revision, ledger: rev.ledger, inputHash: rev.inputHash,
       confirmedAt: rev.confirmedAt, historical: found?.state.revision !== rev.revision, replayed: true });
   }
@@ -299,10 +305,12 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
     RunwaySnapshot.countDocuments({ userId }),
     currentRevision(userId),
   ]);
-  for (const item of items) requireValidSnapshotSeal(item);
+  // Listing "CURRENT" must mean the same source and deterministic calculation
+  // integrity as a detailed read, not just a valid result HMAC.
+  const verifiedItems = await Promise.all(items.map(item => verifiedSnapshot(userId, item._id)));
   return res.json({
     page, total, hasMore: (page + 1) * 20 < total,
-    items: items.map(item => ({
+    items: verifiedItems.map(item => ({
       snapshotId: item._id, ledgerRevision: item.ledgerRevision, createdAt: item.createdAt,
       inputHash: item.inputHash,
       engineStatus: item.result?.engineVersion === RUNWAY_ENGINE_VERSION ? 'CURRENT_ENGINE' : 'HISTORICAL_ENGINE',

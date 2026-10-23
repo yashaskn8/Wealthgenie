@@ -9,7 +9,7 @@ import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
-import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '../models/Runway.js';
+import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt } from '../models/Runway.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 
@@ -217,6 +217,9 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const forgedLedgerSnapshot = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(forgedLedgerSnapshot.response.status, 503);
       assert.equal(forgedLedgerSnapshot.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      const forgedSourceList = await jsonRequest(ownedBase + 'snapshots?page=0', { headers: authA });
+      assert.equal(forgedSourceList.response.status, 503);
+      assert.equal(forgedSourceList.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
       await RunwayLedgerRevision.collection.updateOne({ userId: userA, revision: 1 },
         { $set: { ledger: sourceRevision.ledger, inputHash: sourceRevision.inputHash } });
 
@@ -236,6 +239,15 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const rolledBackSnapshotList = await jsonRequest(ownedBase + 'snapshots?page=0', { headers: authA });
       assert.equal(rolledBackSnapshotList.response.status, 503);
       await RunwayLedgerState.collection.updateOne({ _id: userA }, { $set: { revision: 2 } });
+      const receiptId = canonicalSha256({ operation: 'LEDGER', key: 'runway-initial-001', userId: String(userA) });
+      await RunwayMutationReceipt.collection.updateOne({ _id: receiptId }, { $set: { revision: 2 } });
+      const forgedReceiptReplay = await write(base, ledger, 0, 'runway-initial-001');
+      assert.equal(forgedReceiptReplay.response.status, 503);
+      assert.equal(forgedReceiptReplay.body.code, 'RUNWAY_RECEIPT_INTEGRITY_INVALID');
+      await RunwayMutationReceipt.collection.updateOne({ _id: receiptId }, { $set: { revision: 1 } });
+      const replayAfterRepair = await write(base, ledger, 0, 'runway-initial-001');
+      assert.equal(replayAfterRepair.response.status, 200);
+      assert.equal(replayAfterRepair.body.ledger.openingCashPaise, '10000');
       const historic = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(historic.body.status, 'HISTORICAL');
       const stale = await mutation(base, 'simulations', request);
