@@ -185,4 +185,34 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(generateUUID).toHaveBeenCalledTimes(1);
   });
 
+  it('requires explicit monitoring opt-in and allows the user to opt out', async () => {
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    const enable = await screen.findByRole('button', { name: 'Enable monitoring' });
+    expect(setDecisionMonitor).not.toHaveBeenCalled();
+    fireEvent.click(enable);
+    await waitFor(() => expect(setDecisionMonitor).toHaveBeenCalledWith(saved.id, true, 1));
+    expect(await screen.findByRole('button', { name: 'Disable monitoring' })).toBeTruthy();
+    setDecisionMonitor.mockResolvedValueOnce({
+      monitor: { enabled: false, generation: 2, workerConfigured: true },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Disable monitoring' }));
+    await waitFor(() => expect(setDecisionMonitor).toHaveBeenCalledWith(saved.id, false, 1));
+  });
+
+  it('never displays a forged result when reassessment asks for a new budget', async () => {
+    getDecisionMonitor.mockResolvedValue({
+      monitor: { enabled: true, generation: 1, workerConfigured: true },
+      assessments: [{
+        id: 'assessment-1', originalStatus: 'NEEDS_REVIEW', status: 'NEEDS_REVIEW',
+        isCurrent: true, asOf: '2026-10-23T10:00:00Z', result: null,
+      }],
+    });
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Needs review/ }));
+    expect(screen.getByText(/Your newer financial facts no longer reconcile/)).toBeTruthy();
+    expect(setDecisionMonitor).not.toHaveBeenCalled();
+  });
+
 });
