@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
 import GenieProofCalculator from './GenieProofCalculator';
+import GenieProofNvidiaReview from './GenieProofNvidiaReview';
 
 const MAX_BYTES = 16000;
 const OFFICIAL_PPF_SOURCE = 'https://www.indiapost.gov.in/banking-services/savings';
@@ -220,6 +221,7 @@ export default function GenieProofEntry() {
                   <ul>{claim.warningSignals.map(signal => <li key={signal}>{signal}</li>)}</ul>
                 </div>
               )}
+              <GenieProofNvidiaReview offerText={statement} claim={claim} />
             </article>
           ))}
           <p style={{ fontSize: '.85rem', color: '#94a3b8', marginBottom: 0 }}>
