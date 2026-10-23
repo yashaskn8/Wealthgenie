@@ -3,6 +3,7 @@ import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
   getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
+  subscribeDecisionEvents,
 } from '../services/api';
 import './GenieDecisionWorkspace.css';
 
@@ -138,6 +139,10 @@ export default function GenieDecisionWorkspace() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [liveState, setLiveState] = useState('connecting');
+  const [liveNotice, setLiveNotice] = useState('');
+  const activeRef = useRef(null);
+  activeRef.current = active;
 
   const visibleFingerprint = JSON.stringify({ title, type, horizon, baseline, details, goalReservations });
   const hasUnsavedChanges = Boolean(active && savedFingerprint !== visibleFingerprint);
@@ -169,6 +174,35 @@ export default function GenieDecisionWorkspace() {
       .catch(err => { if (!controller.signal.aborted) setError(errorMessage(err)); })
       .finally(() => { if (!controller.signal.aborted) setInitialLoading(false); });
     return () => { controller.abort(); loadGeneration.current += 1; };
+  }, [refresh]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    subscribeDecisionEvents({
+      signal: controller.signal,
+      onStatus: state => { if (!controller.signal.aborted) setLiveState(state); },
+      onEvent: event => {
+        if (controller.signal.aborted) return;
+        // Never rewrite a form being edited. Notify the user to re-open a
+        // changed scenario rather than silently destroying uncommitted input.
+        if (event.type === 'profile-changed') {
+          setLiveNotice('Your financial profile changed. Review current inputs before evaluating again.');
+          setReport(previous => previous
+            ? { ...previous, run: { ...previous.run, status: 'HISTORICAL' } }
+            : previous);
+        } else if (event.type === 'reset') {
+          setLiveNotice('Updates were missed while disconnected. Financial state has been refreshed; reopen any active scenario.');
+        } else if (event.scenarioId === activeRef.current?.id) {
+          setLiveNotice('This scenario changed in another session. Reopen it to review the new revision or report.');
+        }
+        refresh({ signal: controller.signal }).catch(err => {
+          if (!controller.signal.aborted) setLiveNotice(`Live refresh failed: ${errorMessage(err)}`);
+        });
+      },
+    }).catch(() => {
+      if (!controller.signal.aborted) setLiveState('reconnecting');
+    });
+    return () => controller.abort();
   }, [refresh]);
 
   const newScenario = () => {
@@ -332,10 +366,12 @@ export default function GenieDecisionWorkspace() {
     <header className="gd-intro"><span className="gd-eyebrow">GENIEDECISION · FINANCIAL DIGITAL TWIN</span>
       <h1>Understand what a big decision changes.</h1>
       <p>Four evidence-labeled scenarios. One shared household budget. No AI-generated rates, imaginary returns, or automatic transactions.</p>
+      <p className="gd-muted" role="status">Live updates: {liveState === 'connected' ? 'Connected' : liveState === 'unauthorized' ? 'Sign in required' : 'Reconnecting'}. Profile and scenario changes are refreshed automatically; reports are not silently recalculated.</p>
     </header>
     {initialLoading && <p role="status">Loading your private decision workspace…</p>}
     {error && <p className="gd-warning" role="alert">{error}</p>}
     {success && <p className="gd-success" role="status">{success}</p>}
+    {liveNotice && <p className="gd-warning" role="status">{liveNotice}</p>}
     {availability && !availability.available && <p className="gd-warning" role="alert">
       A current financial profile is required. Complete your profile before saving a decision.
     </p>}
