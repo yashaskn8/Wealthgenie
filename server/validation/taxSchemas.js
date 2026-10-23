@@ -140,7 +140,7 @@ export const taxCalculationContextSchema = Joi.object({
   fiscalYear: Joi.string().pattern(FISCAL_YEAR_PATTERN).optional(),
   incomeSource: Joi.string().valid(...incomeSourceValues).optional(),
   annualGrossIncome: Joi.number().min(0).max(1000000000).optional(),
-  regime: Joi.string().valid('new', 'old').optional(),
+  regime: Joi.string().valid('new').optional(),
   userAge: Joi.number().integer().min(18).max(120).optional(),
   deductions: taxDeductionSchema.optional(),
   illustrativePrincipal: Joi.number().greater(0).max(1000000000).optional(),

@@ -128,16 +128,16 @@ test('single post-tax text inputs are trimmed before Joi length validation', () 
 
 test('tax request schemas reject ambiguous aggregate and granular Section 80D inputs', () => {
   const computeBase = {
-    income: 1_000_000, incomeSource: 'salary', fiscalYear: 'FY2026-27', regime: 'old', age: 45,
+    income: 1_000_000, incomeSource: 'salary', fiscalYear: 'FY2026-27', regime: 'new', age: 45,
   };
   const compareBase = { income: 1_000_000, incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 45 };
   const postTaxBase = {
     instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0,
-    annualIncome: 1_000_000, regime: 'old', userAge: 45, incomeSource: 'salary', fiscalYear: 'FY2026-27',
+    annualIncome: 1_000_000, regime: 'new', userAge: 45, incomeSource: 'salary', fiscalYear: 'FY2026-27',
   };
   const batchBase = {
     instruments: [{ instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0 }],
-    annualIncome: 1_000_000, regime: 'old', userAge: 45, incomeSource: 'salary', inflationRate: 0.02,
+    annualIncome: 1_000_000, regime: 'new', userAge: 45, incomeSource: 'salary', inflationRate: 0.02,
     fiscalYear: 'FY2026-27',
   };
 
@@ -215,27 +215,27 @@ test('tax schemas require employer and parent-seniority facts for dependent dedu
 
 test('tax request schemas reject conflicting aliases for the Section 80CCD(1B) deduction', () => {
   const computeBase = {
-    income: 1_000_000, incomeSource: 'salary', fiscalYear: 'FY2026-27', regime: 'old', age: 45,
+    income: 1_000_000, incomeSource: 'salary', fiscalYear: 'FY2026-27', regime: 'new', age: 45,
   };
   const compareBase = {
     income: 1_000_000, incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 45,
   };
   const postTaxBase = {
     instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0,
-    annualIncome: 1_000_000, regime: 'old', userAge: 45, incomeSource: 'salary', fiscalYear: 'FY2026-27',
+    annualIncome: 1_000_000, regime: 'new', userAge: 45, incomeSource: 'salary', fiscalYear: 'FY2026-27',
   };
   const postTaxBatchBase = {
     instruments: [{ instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0 }],
-    annualIncome: 1_000_000, regime: 'old', userAge: 45, incomeSource: 'salary',
+    annualIncome: 1_000_000, regime: 'new', userAge: 45, incomeSource: 'salary',
     inflationRate: 0.02, fiscalYear: 'FY2026-27',
   };
   const declaredScenarioBase = {
     canonicalInstrumentId: 'fd', scenarioType: 'INTEREST_INCOME', interestReceived: 10_000,
-    annualGrossIncome: 1_000_000, incomeSource: 'salary', regime: 'old',
+    annualGrossIncome: 1_000_000, incomeSource: 'salary', regime: 'new',
     fiscalYear: 'FY2026-27', userAge: 45,
   };
   const taxContextBase = {
-    annualGrossIncome: 1_000_000, incomeSource: 'salary', regime: 'old',
+    annualGrossIncome: 1_000_000, incomeSource: 'salary', regime: 'new',
     fiscalYear: 'FY2026-27', userAge: 45,
   };
   const conflictingAmounts = [
@@ -285,11 +285,11 @@ test('tax request schemas reject conflicting aliases for the Section 80CCD(1B) d
 test('tax API age aliases reject conflicting request and deductions ages', () => {
   const postTaxBase = {
     instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0,
-    annualIncome: 1_000_000, regime: 'old', userAge: 45, incomeSource: 'salary', fiscalYear: 'FY2026-27',
+    annualIncome: 1_000_000, regime: 'new', userAge: 45, incomeSource: 'salary', fiscalYear: 'FY2026-27',
   };
   const batchBase = {
     instruments: [{ instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0 }],
-    annualIncome: 1_000_000, regime: 'old', userAge: 45, incomeSource: 'salary', inflationRate: 0.02,
+    annualIncome: 1_000_000, regime: 'new', userAge: 45, incomeSource: 'salary', inflationRate: 0.02,
     fiscalYear: 'FY2026-27',
   };
   const equalAliases = { age: 45 };
@@ -304,7 +304,7 @@ test('tax API age aliases reject conflicting request and deductions ages', () =>
 
   const declaredScenario = {
     canonicalInstrumentId: 'fd', scenarioType: 'INTEREST_INCOME', interestReceived: 10_000,
-    annualGrossIncome: 1_000_000, incomeSource: 'salary', regime: 'old', fiscalYear: 'FY2026-27', userAge: 45,
+    annualGrossIncome: 1_000_000, incomeSource: 'salary', regime: 'new', fiscalYear: 'FY2026-27', userAge: 45,
   };
   assert.equal(userDeclaredPostTaxScenarioSchema.validate({ ...declaredScenario, deductions: equalAliases }).error, undefined);
   assert.ok(userDeclaredPostTaxScenarioSchema.validate({ ...declaredScenario, deductions: conflictingAliases }).error
@@ -318,4 +318,33 @@ test('tax API age aliases reject conflicting request and deductions ages', () =>
     ?.details.some(detail => detail.message.includes('USER_AGE_CONFLICTING_INPUTS')));
   assert.equal(taxCalculationContextSchema.validate({ ...context, userAge: 45 }).error, undefined);
   assert.equal(taxCalculationContextSchema.validate({ ...context, deductions: equalAliases }).error, undefined);
+});
+
+test('all active tax request contracts explicitly refuse old-regime data', () => {
+  const oldTax = { income: 1000000, regime: 'old', fiscalYear: 'FY2026-27', incomeSource: 'salary', age: 45 };
+  const prior = { annualGrossIncome: 1000000, incomeSource: 'salary', regime: 'old', fiscalYear: 'FY2026-27', userAge: 45 };
+  const postTax = {
+    instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0,
+    annualIncome: 1000000, userAge: 45, incomeSource: 'salary', regime: 'old', fiscalYear: 'FY2026-27',
+  };
+  const batch = {
+    instruments: [{ instrumentType: 'FD', nominalRate: 0.07, holdingYears: 1, monthlySIP: 0 }],
+    annualIncome: 1000000, userAge: 45, incomeSource: 'salary', regime: 'old',
+    inflationRate: 0.02, fiscalYear: 'FY2026-27',
+  };
+  const userDeclared = {
+    canonicalInstrumentId: 'fd', scenarioType: 'INTEREST_INCOME', interestReceived: 1000,
+    ...prior,
+  };
+  for (const [name, schema, input] of [
+    ['taxCompute', taxComputeSchema, oldTax],
+    ['postTax', postTaxReturnSchema, postTax],
+    ['postTaxBatch', postTaxReturnBatchSchema, batch],
+    ['userDeclared', userDeclaredPostTaxScenarioSchema, userDeclared],
+    ['wtiTaxContext', taxCalculationContextSchema, prior],
+  ]) {
+    const result = schema.validate(input, { abortEarly: false });
+    assert.ok(result.error, name + ' must reject retired old regime');
+    assert.ok(result.error.details.some(d => d.path.includes('regime')), JSON.stringify(result.error.details));
+  }
 });

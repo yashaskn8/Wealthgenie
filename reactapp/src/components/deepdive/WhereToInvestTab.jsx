@@ -530,8 +530,8 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
           </div>}
 
           {requiredTaxInputs.includes('regime') && <div className="wti-tax-input-group">
-            <label htmlFor="wti-tax-regime">Tax Regime</label>
-            <span id="wti-tax-regime" role="status">New tax regime only</span>
+            <span id="wti-tax-regime-label">Tax Regime</span>
+            <span id="wti-tax-regime" role="status" aria-labelledby="wti-tax-regime-label">New tax regime only</span>
           </div>}
 
           {requiredTaxInputs.includes('fiscalYear') && <div className="wti-tax-input-group">
