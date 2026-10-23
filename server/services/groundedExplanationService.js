@@ -34,6 +34,30 @@ export const GROUNDED_LLM_TOOL_ALLOWLIST = Object.freeze([]);
 // Groq and the single NVIDIA/Gemini fallback have bounded adapter timeouts. Keep a
 // 60s hard ceiling so a primary timeout still leaves one bounded fallback slot.
 export const GROUNDED_PROVIDER_CHAIN_DEADLINE_MS = 60000;
+
+// Explain WealthGenie's input assumptions without fabricating a tax result.
+const TAX_ASSUMPTIONS_EXPLANATION_QUESTION = /^(?:(?:please\s+)?(?:explain|show|list|describe|outline|clarify|what\s+are|tell\s+me\s+about)\s+)?(?:(?:the|my|your|wealthgenie's|current)\s+)?tax\s+assumptions(?:\s+(?:used|here|in\s+(?:wealthgenie|the\s+app)|for\s+(?:my|the)\s+(?:plan|portfolio)))?[?.!\s]*$/i;
+
+export function retrieveTaxAssumptionEvidence(question) {
+  if (!TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(String(question || '').trim())) return [];
+  const policy = { dataClass: 'DETERMINISTIC_POLICY_EXPLANATION',
+    source: { provider: 'WealthGenie backend policy', title: 'WealthGenie tax input and limitation policy', url: null } };
+  return [
+    makeEvidenceEntry('E_TAX_ASSUMPTIONS_INPUTS', 'TAX', {
+      inputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
+      inferredFromInvestmentProfile: false,
+    }, { ...policy, displayValue: 'Before a personal income-tax calculation, the Tax Optimizer needs a selected financial year, annual income, applicable tax regime and income-source breakdown; these are not inferred from your investing profile' }),
+    makeEvidenceEntry('E_TAX_ASSUMPTIONS_TREATMENT', 'TAX', {
+      requirement: 'VERIFIED_RULES_AND_APPLICABLE_INPUTS',
+      unsupportedTreatment: 'UNAVAILABLE',
+    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge, special-rate income and investment-specific tax treatment must be supported by the selected calculator and your supplied facts; unsupported treatment is not guessed' }),
+    makeEvidenceEntry('E_TAX_ASSUMPTIONS_LIMITS', 'TAX', {
+      personalTaxCalculatedInChat: false,
+      projectedReturnsAreAfterTax: false,
+    }, { ...policy, displayValue: 'Investment-return illustrations are not automatically after-tax returns; this chat has not calculated your tax liability or a verified post-tax investment return. Use Taxes to enter the relevant details and review the calculation breakdown and assumptions' }),
+  ];
+}
+
 const EXPLANATION_CACHE_TTL_SECONDS = 900;
 
 const PROVIDER_LABELS = Object.freeze({
@@ -214,6 +238,21 @@ function citationFor(entry) {
 }
 
 function deterministicCandidate(packet, question = '') {
+  const taxInputs = packet.entries.find(item => item.id === 'E_TAX_ASSUMPTIONS_INPUTS');
+  if (taxInputs && TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(String(question || '').trim())) {
+    const taxEntries = ['E_TAX_ASSUMPTIONS_INPUTS', 'E_TAX_ASSUMPTIONS_TREATMENT', 'E_TAX_ASSUMPTIONS_LIMITS']
+      .map(id => packet.entries.find(item => item.id === id && item.kind === 'TAX'
+        && item.dataClass === 'DETERMINISTIC_POLICY_EXPLANATION'))
+      .filter(Boolean);
+    const claims = taxEntries.map(item => ({
+      text: item.displayValue + ' [' + item.id + '].', evidenceIds: [item.id],
+    }));
+    return {
+      text: claims.map(claim => claim.text).join(' '),
+      evidenceIdsUsed: claims.flatMap(claim => claim.evidenceIds),
+      claims, financialClaims: [], unavailableFacts: packet.unavailableFacts,
+    };
+  }
   const goal = packet.entries.find(item => item.id === 'E_GOAL_STATED_TARGET');
   const monthly = packet.entries.find(item => item.id === 'E_GOAL_MONTHLY_BASELINE');
   const guidance = packet.entries.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE');
@@ -575,6 +614,18 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
     // Goal amounts and monthly arithmetic are deterministic USER_INPUT /
     // backend-calculation facts, not permission for an LLM to guess a SIP.
     // Answer these scoped planning questions without any model calls.
+    if (evidencePacket.entries.some(item => item.id === 'E_TAX_ASSUMPTIONS_INPUTS')
+        && TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(String(question || '').trim())) {
+      const result = outputResult({
+        candidate: deterministicCandidate(evidencePacket, question),
+        packet: evidencePacket, provider: 'deterministic_template',
+        model: null, latencyMs: 0, tokensUsed: 0,
+        fallback: false, reasonCodes: [],
+      });
+      result.providerAttemptCount = 0;
+      result.providerAttemptFailureCount = 0;
+      return result;
+    }
     if (evidencePacket.entries.some(item => item.id === 'E_GOAL_PLANNING_GUIDANCE')) {
       const result = outputResult({
         candidate: deterministicCandidate(evidencePacket, question),
@@ -945,7 +996,8 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
       .filter(turn => turn?.role === 'user' && typeof turn.content === 'string')
       .map(turn => turn.content),
   });
-  const entries = [...goalEvidence, ...retrieveChatEducationalEvidence(question)];
+  const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(question);
+  const entries = [...goalEvidence, ...taxAssumptionEvidence, ...retrieveChatEducationalEvidence(question)];
   const unavailableFacts = [];
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
   const regulatoryLookup = dependencies.queryRegulatoryRag
@@ -1001,7 +1053,7 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     if (!entries.some(item => item.kind === 'PROJECTION')) unavailableFacts.push('PROJECTION_ASSUMPTION_UNAVAILABLE');
   }
 
-  if (/\b(?:tax\s+regime|post[ -]?tax|deductions?|tax\s+slabs?|tax\s+liabilit(?:y|ies)|tax\s+(?:assumptions?|calculation|comparison))\b/i.test(question)) {
+  if (taxAssumptionEvidence.length === 0 && /\b(?:tax\s+regime|post[ -]?tax|deductions?|tax\s+slabs?|tax\s+liabilit(?:y|ies)|tax\s+(?:assumptions?|calculation|comparison))\b/i.test(question)) {
     unavailableFacts.push('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS');
     entries.push(makeEvidenceEntry('E_TAX_INPUT_BOUNDARY', 'TAX', {
       requiredInputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
