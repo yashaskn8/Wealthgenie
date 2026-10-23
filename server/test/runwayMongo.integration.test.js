@@ -539,7 +539,13 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       await RunwayProjectionJob.collection.updateOne({ _id: dueJob._id },
         { $set: { status: 'LEASED', leaseToken: 'orphaned-worker',
           leaseUntil: new Date(Date.now() - 60_000) } });
-      assert.equal((await processOneRunwayProjection()).status, 'DONE');
+      // The older revision-1 job may still be pending. Draining that job
+      // must NOT be confused with computing the current revision-2 projection.
+      const firstClaim = await processOneRunwayProjection();
+      assert.equal(firstClaim.status, 'DONE');
+      const secondClaim = await processOneRunwayProjection();
+      assert.equal(secondClaim.status, 'DONE');
+      assert.equal((await RunwayProjectionJob.findById(dueJob._id).lean()).status, 'DONE');
       assert.equal((await RunwayProjectionJob.findById(dueJob._id).lean()).attempts, 1,
         'Expired worker claim should be recovered without duplicate revision');
       const projectionAfter = await jsonRequest(root + 'live/projection', { headers: authA });
