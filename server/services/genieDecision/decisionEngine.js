@@ -241,7 +241,13 @@ export function calculateDecision({ scenarioType, baseline, horizonMonths, goalR
       modelAlternative({
         baseline, horizonMonths: horizon, goalReservations, name: 'Prepay loan',
         debtDelta: onPrepay.payments.map(p => p.debt - regular),
-        investmentDelta: zero.map(() => -extra),
+        // Redirect only the unreserved amount actually applied to principal/interest.
+        // Once debt is cleared, resume normal investing; do not mislabel idle
+        // post-payoff cash as a permanently reduced investment contribution.
+        investmentDelta: onPrepay.payments.map(p => {
+          const redirected = p.debt > regular ? p.debt - regular : 0n;
+          return - (redirected < extra ? redirected : extra);
+        }),
         obligations: onPrepay,
       }),
     ];
