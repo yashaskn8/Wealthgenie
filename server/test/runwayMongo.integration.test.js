@@ -522,6 +522,24 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       }, authA, 'settlement-reused-different-key');
       assert.equal(reused.response.status, 409);
       assert.equal(reused.body.code, 'RUNWAY_POSTED_ROW_REUSED');
+      // Overlapping upload has a different file digest, CSV description and
+      // case-different nickname, but the SAME stated account/reference/amount.
+      // A second ledger revision MUST NOT reuse that posted payment.
+      const overlapCsv = csv.replace('Rent posted', 'Rent imported from another export');
+      const overlapping = await send(base, 'live/statements', {
+        accountLabel: 'SINGLE SALARY ACCOUNT', csvText: overlapCsv,
+      }, authA, 'different-upload-same-posted-money');
+      assert.equal(overlapping.response.status, 201, JSON.stringify(overlapping.body));
+      assert.notEqual(overlapping.body.statementId, imported.body.statementId);
+      const blockedAcrossUploads = await send(base, 'live/settlements', {
+        ...request, ledgerRevision: 3, entryId: 'rent_again',
+        statementId: overlapping.body.statementId,
+      }, authA, 'settlement-cross-file-reused');
+      assert.equal(blockedAcrossUploads.response.status, 409, JSON.stringify(blockedAcrossUploads.body));
+      assert.equal(blockedAcrossUploads.body.code, 'RUNWAY_POSTED_TRANSACTION_REUSED');
+      const afterDuplicate = await jsonRequest(root + 'current', { headers: authA });
+      assert.equal(afterDuplicate.body.revision, 3);
+      assert.equal(await RunwaySettlement.countDocuments({ userId: userA }), 1);
       const history = await jsonRequest(root + 'live/settlements?page=0', { headers: authA });
       assert.equal(history.response.status, 200);
       assert.equal(history.body.total, 1);
