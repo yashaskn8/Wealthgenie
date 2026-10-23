@@ -36,7 +36,7 @@ describe('optional NVIDIA GenieProof review', () => {
     expect(reviewGenieProofWithNvidia).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(button);
-    expect(await screen.findByText(/What to check next/)).toBeInTheDocument();
+    expect(await screen.findByText('What to check next', { exact: true })).toBeInTheDocument();
     expect(screen.getByText(good.nextSteps[0].text)).toBeInTheDocument();
     expect(reviewGenieProofWithNvidia).toHaveBeenCalledWith(claim.statement, claim.claimId,
       expect.objectContaining({ signal: expect.any(AbortSignal) }));
