@@ -353,6 +353,44 @@ test('ordinary-interest projection applies annual tax events after gross cash fl
   assert.ok(projection.assumptions.includes('TAX_POLICY_HELD_CONSTANT_FOR_PROJECTION'));
 });
 
+test('annual tax deductions reduce future interest rather than reusing the untaxed gross path', () => {
+  const context = {
+    annualGrossIncome: 3_000_000,
+    regime: 'new', incomeSource: 'salary', fiscalYear: FY, userAge: 35, deductions: {},
+  };
+  const monthlySIP = 10_000;
+  const annualRate = 0.07;
+  const taxResult = calculatePostTaxReturn(
+    'FD', annualRate, context.annualGrossIncome, 2, 'new', monthlySIP,
+    context.userAge, context.incomeSource, undefined, FY, { deductions: {} },
+  );
+  const projection = calculatePostTaxProjection(
+    taxResult, { nominalRate: annualRate, monthlySIP, holdingYears: 2 }, 0, context,
+  );
+  assert.equal(projection.status, 'CALCULATED');
+  // Independent two-year annuity-due reference: Year 2 must compound the
+  // post-tax Year 1 corpus, not gross Year 1 corpus.
+  const r = annualRate / 12;
+  const growth = (1 + r) ** 12;
+  const annualContributionsAtYearEnd = monthlySIP * (1 + r) * ((growth - 1) / r);
+  const tax1 = expectedOrdinaryIncrementalTaxForAge(
+    context, annualContributionsAtYearEnd - 12 * monthlySIP, context.userAge,
+  );
+  const year1Net = annualContributionsAtYearEnd - tax1;
+  const year2BeforeTax = year1Net * growth + annualContributionsAtYearEnd;
+  const tax2 = expectedOrdinaryIncrementalTaxForAge(
+    context, year2BeforeTax - year1Net - 12 * monthlySIP, context.userAge,
+  );
+  assert.ok(tax1 > 0);
+  assert.ok(tax2 > 0);
+  assert.equal(projection.postTaxFutureValue, Math.round(year2BeforeTax - tax2));
+  assert.equal(projection.taxEvents[0].tax, tax1);
+  assert.ok(Math.abs(projection.taxEvents[1].tax - tax2) < 0.01);
+  assert.ok(projection.nominalFutureValue - projection.postTaxFutureValue > tax1 + tax2,
+    'foregone future interest must be included in the wealth drag');
+  assert.ok(projection.assumptions.includes('PROJECTED_TAX_DEDUCTED_FROM_BALANCE_AND_REDUCES_FUTURE_INTEREST'));
+});
+
 function futureValueForBeginningOfMonthContributions(monthlyContribution, monthlyRate, months) {
   let balance = 0;
   for (let month = 0; month < months; month += 1) {
