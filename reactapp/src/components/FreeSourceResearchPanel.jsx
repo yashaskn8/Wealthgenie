@@ -159,8 +159,18 @@ export default function FreeSourceResearchPanel(){
          <p>Illustrative pre-tax future value — 10th: {INR(result.grossScenario.p10?.at(-1))};
           median: {INR(result.grossScenario.p50?.at(-1))};
           90th: {INR(result.grossScenario.p90?.at(-1))}.</p>
+         <p>Investment assumptions: {result.scenarioAssumptions?.monthlyContributionTiming==='BEGINNING_OF_MONTH'
+           ? 'Monthly SIPs are invested at the beginning of each month, before simulated returns.'
+           : 'Contribution timing was not qualified.'}
+           {' '}Expected return: {typeof result.scenarioAssumptions?.annualExpectedReturn==='number'
+             ? (result.scenarioAssumptions.annualExpectedReturn*100).toFixed(2)+'% annually (your assumption)'
+             : 'Unavailable'}.
+           {' '}Inflation: {typeof result.scenarioAssumptions?.annualInflationRate==='number'
+             ? (result.scenarioAssumptions.annualInflationRate*100).toFixed(2)+'% assumed'
+             : 'Unavailable'}.
+         </p>
          <p>After-tax: <strong>Unavailable</strong>. Scheme-specific tax evidence and transactions
-          are not verified. NAV returns are not guaranteed forecasts or total returns.</p>
+          are not verified. Fees, NAV distributions and future returns are not guaranteed or separately modeled.</p>
         </div>
        )}
        <p style={{fontSize:11,color:'#94a3b8',marginTop:10}}>
