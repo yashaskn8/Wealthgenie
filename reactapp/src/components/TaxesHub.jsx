@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import TaxScreen from './NewRegimeTaxScreen';
 import VerifiedCapitalGainsTaxScreen from './VerifiedCapitalGainsTaxScreen';
 import PostTaxAnalysis from '../PostTaxAnalysis';
+import FreeSourceResearchPanel from './FreeSourceResearchPanel';
 import ErrorBoundary from './ErrorBoundary';
 import { ShieldCheck, Percent } from 'lucide-react';
 import './HubStyles.css';
@@ -130,6 +131,7 @@ const TaxesHub = ({
                 recommendations={recommendations}
                 recommendationMeta={recommendationMeta}
               />
+              <FreeSourceResearchPanel />
             </ErrorBoundary>
           </div>
         )}
