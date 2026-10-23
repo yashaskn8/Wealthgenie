@@ -249,9 +249,15 @@ export function calculateDecision({ scenarioType, baseline, horizonMonths, goalR
   }
   const [a, b] = alternatives;
   const parseSigned = value => {
+    // Generated ledger balances are already validated BigInt outputs. A
+    // 360-month cumulative balance may exceed the per-input amount ceiling;
+    // never re-apply input limits to a computed result.
+    if (typeof value !== 'string' || !/^-?(?:0|[1-9]\\d*)\\.\\d{2}$/.test(value)) {
+      throw new Error('GENIEDECISION_INVALID_GENERATED_LEDGER_BALANCE');
+    }
     const negative = value.startsWith('-');
-    const p = money(negative ? value.slice(1) : value, 'comparisonAmount');
-    return negative ? -p : p;
+    const digits = (negative ? value.slice(1) : value).replace('.', '');
+    return (negative ? -1n : 1n) * BigInt(digits);
   };
   const delta = parseSigned(b.endingProjectedLiquidCash) - parseSigned(a.endingProjectedLiquidCash);
   const result = {

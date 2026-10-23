@@ -121,3 +121,17 @@ test('Interest-only instalments are rejected as non-amortizing, below-interest i
     ...input, existingLoanPayment: '999.99',
   }));
 });
+
+test('Long-horizon aggregate balances exceed the input cap without corrupting exact-paise comparisons', () => {
+  const scenario = {
+    openingLiquidCash: '0.00', monthlyTakeHome: '100000000.00',
+    monthlyLivingExpenses: '90000000.00', monthlyDebtPayments: '0.00',
+    declaredMonthlySavings: '10000000.00', monthlyInvestments: '0.00',
+  };
+  const output = run('INCOME_INTERRUPTION', {
+    startMonth: 1, durationMonths: 360, incomeLossPerMonth: '100000000.00',
+  }, { baseline: scenario, horizonMonths: 360, goalReservations: [] });
+  assert.equal(output.alternatives[0].endingProjectedLiquidCash, '3600000000.00');
+  assert.equal(output.alternatives[1].endingProjectedLiquidCash, '-32400000000.00');
+  assert.equal(output.alternativeBLiquidCashMinusA, '-36000000000.00');
+});
