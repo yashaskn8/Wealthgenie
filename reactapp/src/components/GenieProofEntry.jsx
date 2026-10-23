@@ -28,7 +28,7 @@ const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 function containsSensitiveIdentifiers(text) {
   return /\b[A-Z]{5}\d{4}[A-Z]\b/i.test(text)
     || /\b(?:aadhaar|aadhar|uidai)\s*(?:card\s*)?(?:number|no\.?|id|:|#)?\s*\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/i.test(text)
-    || /\b(?:bank\s+)?(?:account|a\/c)\s*(?:number|no\.?|#|:)?\s*\d{9,18}\b/i.test(text);
+    || /\b(?:bank\s+)?(?:account|a\/c)\s*(?:(?:number|no\.?|#)\s*)?:?\s*\d{9,18}\b/i.test(text);
 }
 
 function exactTimestamp(value) {
