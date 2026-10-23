@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
- normalizeMfapiLatest,getMfapiLatest,getMfapiHistoryResearch,reconcileFreeNavSources,
+ normalizeMfapiLatest,getMfapiLatest,getMfapiHistoryResearch,reconcileFreeNavSources,normalizeMfapiSearch,searchMfapiFunds,
 } from '../services/freeNavSecondaryVerification.js';
 import {getFreeFinancialSourceDirectory} from '../services/freeFinancialSourceDirectory.js';
 
@@ -144,4 +144,41 @@ test('MFapi historical fallback rejects source identity drift and malformed NAV'
   fetchImpl:async()=>{throw new Error('PROVIDER_DOWN');},
  });
  assert.equal(down.reasonCode,'MFAPI_HISTORY_SOURCE_UNAVAILABLE');
+});
+
+test('MFapi search fallback preserves only provisional exact scheme identity',async()=>{
+ const response=[
+  {schemeCode:125497,schemeName:'HDFC Top 100 Fund - Direct Plan - Growth'},
+  {schemeCode:125498,schemeName:'HDFC Top 100 Fund - Regular Plan - IDCW'},
+  {schemeCode:125497,schemeName:'DUPLICATE'},
+  {schemeCode:'https://internal.example',schemeName:'Invalid Fund - Growth'},
+ ];
+ const normalized=normalizeMfapiSearch(response);
+ assert.equal(normalized.status,'AVAILABLE');
+ assert.equal(normalized.results.length,2);
+ assert.equal(normalized.results[0].schemeCode,125497);
+ assert.equal(normalized.results[0].navOnlyRiskEligible,true);
+ assert.equal(normalized.results[1].navOnlyRiskEligible,false);
+ assert.equal(normalized.results[0].fundHouse,null);
+ assert.equal(normalized.results[0].isin,null);
+ assert.equal(normalized.results[0].identityValidation,'PENDING_DIRECT_SCHEME_DETAILS');
+ assert.equal(normalized.postTaxAvailable,false);
+ assert.equal(normalized.productionInvestmentQualification,false);
+ const calls=[];
+ const result=await searchMfapiFunds('HDFC 100',{fetchImpl:async(url,params)=>{
+  calls.push({url,params});
+  return new Response(JSON.stringify(response),{status:200});
+ }});
+ assert.equal(result.status,'AVAILABLE');
+ assert.equal(calls[0].url,'https://api.mfapi.in/mf/search?q=HDFC%20100');
+ assert.equal(calls[0].params.redirect,'error');
+});
+test('MFapi search failure, invalid scheme, and unsafe input abstain',async()=>{
+ assert.equal(normalizeMfapiSearch({results:[]}).status,'NOT_VERIFIED');
+ const o=await searchMfapiFunds('HDFC',{fetchImpl:async()=>{
+  throw new Error('PROVIDER_DOWN');
+ }});
+ assert.equal(o.status,'NOT_VERIFIED');
+ assert.equal(o.reasonCode,'MFAPI_SEARCH_UNAVAILABLE');
+ await assert.rejects(()=>searchMfapiFunds('http://127.0.0.1'),/INVALID_FUND_SEARCH/);
 });
