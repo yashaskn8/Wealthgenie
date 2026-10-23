@@ -11,7 +11,9 @@ import {
   hasActiveDecisionWorker, createDecisionWorkerHeartbeat,
   signDecisionWorkerHeartbeat, verifyDecisionWorkerHeartbeat,
 } from '../services/genieDecision/workerHeartbeat.js';
-import { makeDecisionSourceSnapshot, hashDecisionSourceSnapshot } from '../services/genieDecision/sourceSnapshot.js';
+import {
+  makeDecisionSourceSnapshot, hashDecisionSourceSnapshot, fingerprintDecisionSnapshotFacts,
+} from '../services/genieDecision/sourceSnapshot.js';
 
 test('signed monitoring opt-in cannot be forged or replayed for other users or generations', () => {
   const restore = {
@@ -67,10 +69,52 @@ test('automatically reassessed financial results are authenticated to source and
       }, state: { resolutionStatus: 'CURRENT', revision: item.profileStateRevision },
     }, item.issuedAt);
     item.sourceSnapshotHash = hashDecisionSourceSnapshot(item.sourceSnapshot);
+    item.profileFactsHash = fingerprintDecisionSnapshotFacts(item.sourceSnapshot);
     const receipt = signDecisionReceipt('decision_reassessment', assessmentContext(item), {
       status: item.status, reasonCode: item.reasonCode, resultHash: item.resultHash,
     });
     verifyDecisionAssessment({ ...item, ...receipt });
+    // Simulate a buggy signer producing *valid HMACs* for mismatched numbers.
+    // Financial evidence and computed report must agree independently.
+    const amountFacts = Object.fromEntries(item.sourceSnapshot.facts.map(fact => [fact.field, fact.value]));
+    const validResult = { modelVersion: item.modelVersion, profileFacts: amountFacts };
+    const matchingHash = crypto.createHash('sha256').update(JSON.stringify(validResult)).digest('hex');
+    const matching = {
+      ...item, status: 'RECALCULATED', reasonCode: 'FINANCIAL_FACTS_CHANGED',
+      result: validResult, resultHash: matchingHash,
+    };
+    const signedMatching = {
+      ...matching,
+      ...signDecisionReceipt('decision_reassessment', assessmentContext(matching), {
+        status: matching.status, reasonCode: matching.reasonCode, resultHash: matching.resultHash,
+      }),
+    };
+    verifyDecisionAssessment(signedMatching);
+    const invalidResult = {
+      ...validResult, profileFacts: { ...amountFacts, monthlyTakeHome: '999999.00' },
+    };
+    const invalid = { ...matching, result: invalidResult,
+      resultHash: crypto.createHash('sha256').update(JSON.stringify(invalidResult)).digest('hex') };
+    const signedInvalid = {
+      ...invalid,
+      ...signDecisionReceipt('decision_reassessment', assessmentContext(invalid), {
+        status: invalid.status, reasonCode: invalid.reasonCode, resultHash: invalid.resultHash,
+      }),
+    };
+    assert.throws(() => verifyDecisionAssessment(signedInvalid),
+      error => error.code === 'DECISION_ASSESSMENT_INTEGRITY_FAILURE');
+    const wrongPolicy = { ...matching, result: {
+      ...validResult, modelVersion: 'incorrect-calculation-version',
+    } };
+    wrongPolicy.resultHash = crypto.createHash('sha256').update(JSON.stringify(wrongPolicy.result)).digest('hex');
+    const signedWrongPolicy = {
+      ...wrongPolicy,
+      ...signDecisionReceipt('decision_reassessment', assessmentContext(wrongPolicy), {
+        status: wrongPolicy.status, reasonCode: wrongPolicy.reasonCode, resultHash: wrongPolicy.resultHash,
+      }),
+    };
+    assert.throws(() => verifyDecisionAssessment(signedWrongPolicy),
+      error => error.code === 'DECISION_ASSESSMENT_INTEGRITY_FAILURE');
     for (const tampering of [
       { status: 'RECALCULATED' }, { monitorGeneration: 3 },
       { reasonCode: 'FINANCIAL_FACTS_CHANGED' },
