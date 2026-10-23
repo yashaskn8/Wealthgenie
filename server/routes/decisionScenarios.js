@@ -238,7 +238,9 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const revision = await DecisionScenarioRevision.findOne({
       userId: req.user.userId, scenarioId: scenario._id, revision: scenario.revision,
     }).lean();
-    if (!revision) fail(503, 'DECISION_STATE_INCOMPLETE', 'Scenario revision is missing.');
+    if (!revision || revision.inputHash !== hash(revision.payload)) {
+      fail(503, 'DECISION_STATE_INCOMPLETE', 'Stored scenario revision failed its integrity check.');
+    }
     res.json({ scenario: scenarioDto(scenario), payload: revision.payload, inputHash: revision.inputHash });
   }));
 
@@ -273,8 +275,31 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
 
   router.post('/scenarios/:id/evaluate', handleInput(async (req, res) => {
     exact(req.body, ['expectedRevision']);
+    if (!Number.isSafeInteger(req.body.expectedRevision) || req.body.expectedRevision < 1) {
+      fail(400, 'INVALID_DECISION_REVISION', 'A positive expected revision is required.');
+    }
     const key = idempotency(req, `decision.evaluate:${req.params.id}`);
     const first = await ownedScenario(req);
+    // A committed idempotent run must replay from its *pinned* revision even
+    // after a subsequent edit. It must never be recomputed from today's inputs.
+    const prior = await DecisionRun.findOne({ userId: req.user.userId, runKeyHash: key }).lean();
+    if (prior) {
+      if (identity(prior.scenarioId) !== identity(first._id)
+        || prior.revision !== req.body.expectedRevision) {
+        fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Evaluation key was used for different inputs.');
+      }
+      const originalRevision = await DecisionScenarioRevision.findOne({
+        userId: req.user.userId, scenarioId: first._id, revision: prior.revision,
+      }).lean();
+      if (!originalRevision || originalRevision.inputHash !== hash(originalRevision.payload)) {
+        fail(503, 'DECISION_STATE_INCOMPLETE', 'Stored scenario revision cannot be verified.');
+      }
+      if (prior.inputHash !== originalRevision.inputHash) {
+        fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Stored report input does not match the requested revision.');
+      }
+      const fresh = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+      return res.status(200).json({ run: reportDto(prior, fresh), replayed: true });
+    }
     if (first.revision !== req.body.expectedRevision) {
       fail(409, 'DECISION_REVISION_CONFLICT', 'Scenario revision changed. Refresh before evaluating.');
     }
@@ -283,15 +308,6 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     }).lean();
     if (!revision || revision.inputHash !== hash(revision.payload)) {
       fail(503, 'DECISION_STATE_INCOMPLETE', 'Decision revision integrity check failed.');
-    }
-    const prior = await DecisionRun.findOne({ userId: req.user.userId, runKeyHash: key }).lean();
-    if (prior) {
-      if (identity(prior.scenarioId) !== identity(first._id)
-        || prior.inputHash !== revision.inputHash || prior.revision !== first.revision) {
-        fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Evaluation key was used for different inputs.');
-      }
-      const fresh = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
-      return res.status(200).json({ run: reportDto(prior, fresh), replayed: true });
     }
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
     assertProfile(current, first);
@@ -306,6 +322,11 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         userId: req.user.userId, requireRecommendation: false, session,
       });
       assertProfile(latest, latestScenario);
+      const runCount = await DecisionRun.countDocuments({
+        userId: req.user.userId, scenarioId: first._id,
+      }).session(session);
+      if (runCount >= 20) fail(429, 'DECISION_REPORT_LIMIT',
+        'Maximum of 20 retained reports per scenario reached. Delete the scenario to clear the history.');
       const [created] = await DecisionRun.create([{
         userId: req.user.userId, scenarioId: first._id, revision: first.revision,
         profileId: first.profileId, profileStateRevision: first.profileStateRevision,
@@ -319,8 +340,10 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       if (!head) fail(409, 'DECISION_REVISION_CONFLICT', 'Concurrent scenario evaluation detected.');
       return created.toObject();
     });
-    // Freshness is re-evaluated on each read; the immutable report never self-modifies.
-    res.status(201).json({ run: reportDto(run, current), replayed: false });
+    // Re-resolve after commit: a parallel profile update must never yield a
+    // newly published report falsely labeled CURRENT.
+    const afterCommit = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+    res.status(201).json({ run: reportDto(run, afterCommit), replayed: false });
   }));
 
   router.get('/runs/:id', handleInput(async (req, res) => {
