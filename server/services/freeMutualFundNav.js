@@ -38,7 +38,7 @@ async function requestJson(path,{fetchImpl=globalThis.fetch}={}){
  }
  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
-function text(v,max=150){return typeof v==='string'?v.slice(0,max):null;}
+function text(v,max=150){return typeof v==='string'?v.trim().slice(0,max)||null:null;}
 function validNavValue(value){
   // JSON booleans and whitespace are not fund prices. A generic Number()
   // cast silently changes true to 1 and '' to 0, distorting volatility.
@@ -63,7 +63,7 @@ function normalizedFund(data,requestedCode){
  if(!Number.isSafeInteger(code)||String(code)!==String(requestedCode))return null;
  const name=text(data.scheme_name);
  const house=text(data.fund_house);
- if(!name||!house)return null;
+ if(!name||!house||name.length<4||house.length<4)return null;
  const fund={schemeCode:code,name,fundHouse:house,isin:text(data.isin,16),
   category:text(data.category,80),subcategory:text(data.sub_category,100),
   planType:text(data.plan_type,25),optionType:text(data.option_type,25)};
