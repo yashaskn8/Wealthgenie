@@ -7,6 +7,7 @@ import {
   TrendingUp,
   ArrowLeftRight,
   FileSearch,
+  Scale,
   User,
   BookOpen,
   LogOut,
@@ -31,6 +32,7 @@ const PRIMARY_NAV_ITEMS = [
 const DESKTOP_PRIMARY_NAV_ITEMS = PRIMARY_NAV_ITEMS.filter(item => item.id !== NAV_PAGES.PROGRESS);
 // Mobile continues using the original PRIMARY_NAV_ITEMS.
 const JOURNEY_NAV_ITEMS = [
+  { id: NAV_PAGES.GENIEDECISION, label: 'Decision Lab', icon: Scale, testId: 'nav-geniedecision', legacyTestIds: [] },
   { id: NAV_PAGES.GOALS, label: 'Goals', icon: Target, testId: 'nav-my-goals', legacyTestIds: ['nav-goals', 'nav-goal-planner'] },
   { id: NAV_PAGES.GROW_MY_SIP, label: 'Grow My SIP', icon: TrendingUp, testId: 'nav-grow-my-sip', legacyTestIds: ['nav-sip-planner'] },
   { id: NAV_PAGES.KEEP_ON_TRACK, label: 'Keep on Track', icon: ArrowLeftRight, testId: 'nav-keep-on-track', legacyTestIds: ['nav-rebalancer'] },
@@ -514,7 +516,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
           aria-expanded={mobileMenuOpen}
           aria-label="More navigation options"
           className={`tab-item ${
-            [NAV_PAGES.GENIEPROOF, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
+            [NAV_PAGES.GENIEPROOF, NAV_PAGES.GENIEDECISION, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
               ? 'tab-item--active'
               : ''
           }`}
