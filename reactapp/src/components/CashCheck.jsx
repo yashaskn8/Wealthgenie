@@ -24,7 +24,7 @@ const INDIA_DATE = () => {
 const formatMoney = paise => Number.isSafeInteger(paise)
   ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(paise / 100)
   : 'Not available';
-export function parseRupeeInput(value, { allowEmpty = false } = {}) {
+function parseRupeeInput(value, { allowEmpty = false } = {}) {
   if (allowEmpty && value.trim() === '') return null;
   const match = /^(0|[1-9]\d{0,9})(?:\.(\d{1,2}))?$/.exec(value.trim());
   if (!match) throw new Error('Enter rupees with at most two decimal places (no commas).');
