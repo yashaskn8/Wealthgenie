@@ -67,9 +67,9 @@ export async function reviewGenieProofWithNvidia({
   // Prevent accidental disclosure of recognizable Indian financial identity data.
   // This intentionally rejects the optional review instead of transmitting redacted,
   // potentially misleading text to an outside AI provider.
-  if (/\\b[A-Z]{5}\\d{4}[A-Z]\\b/i.test(statement)
-      || /\\b(?:\\d{4}[- ]?){2}\\d{4}\\b/.test(statement)
-      || /\\b\\d{13,19}\\b/.test(statement)) {
+  if (/\b[A-Z]{5}\d{4}[A-Z]\b/i.test(statement)
+      || /\b(?:\d{4}[- ]?){2}\d{4}\b/.test(statement)
+      || /\b\d{13,19}\b/.test(statement)) {
     return unavailable(claimId, 'POTENTIAL_PERSONAL_DATA');
   }
 
