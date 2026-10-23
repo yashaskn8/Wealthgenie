@@ -3,7 +3,7 @@ import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
   getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
-  subscribeDecisionEvents, simulateDecisionScenario,
+  subscribeDecisionEvents, simulateDecisionScenario, subscribeAuth, getAuthSnapshot,
 } from '../services/api';
 import './GenieDecisionWorkspace.css';
 
@@ -143,6 +143,7 @@ export default function GenieDecisionWorkspace() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [liveState, setLiveState] = useState('connecting');
+  const [authGeneration, setAuthGeneration] = useState(getAuthSnapshot);
   const [liveNotice, setLiveNotice] = useState('');
   const activeRef = useRef(null);
   const currentReportRef = useRef(null);
@@ -180,6 +181,8 @@ export default function GenieDecisionWorkspace() {
       .finally(() => { if (!controller.signal.aborted) setInitialLoading(false); });
     return () => { controller.abort(); loadGeneration.current += 1; };
   }, [refresh]);
+
+  useEffect(() => subscribeAuth(() => setAuthGeneration(getAuthSnapshot())), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -232,7 +235,7 @@ export default function GenieDecisionWorkspace() {
       if (!controller.signal.aborted) setLiveState('reconnecting');
     });
     return () => controller.abort();
-  }, [refresh]);
+  }, [refresh, authGeneration]);
 
   const newScenario = () => {
     loadGeneration.current += 1;
