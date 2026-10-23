@@ -3028,11 +3028,11 @@ components:
               postTaxReturnPercent:
                 type: [number, 'null']
                 deprecated: true
-                description: Legacy percentage-valued metric derived from the total-contributed-principal CAGR, with a scalar post-tax rate fallback when CAGR is unavailable. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.postTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate. Null when the projection is unavailable.
+                description: Legacy percentage-valued metric derived from the total-contributed-principal CAGR. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.postTaxAnnualizedReturnPercent for the modeled SIP equivalent annual rate. Null when the projection is unavailable or no contributions were invested.
               realReturnPercent:
                 type: [number, 'null']
                 deprecated: true
-                description: Legacy percentage-valued real metric derived from the total-contributed-principal CAGR, with a scalar post-tax rate fallback when CAGR is unavailable. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.realPostTaxAnnualizedReturnPercent for the modeled real SIP equivalent annual rate. Null when the projection is unavailable.
+                description: Legacy percentage-valued real metric derived from the total-contributed-principal CAGR. It does not account for monthly contribution timing and is preserved for compatibility; use sipReturnMetrics.realPostTaxAnnualizedReturnPercent for the modeled real SIP equivalent annual rate. Null when the projection is unavailable or no contributions were invested.
               effectiveTaxPercent: { type: [number, 'null'] }
               sipReturnMetrics: { $ref: '#/components/schemas/SipReturnMetrics' }
               taxDragCAGR:
