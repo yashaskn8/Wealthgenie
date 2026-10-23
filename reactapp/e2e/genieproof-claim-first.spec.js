@@ -125,12 +125,12 @@ test.describe('GenieProof claim-first browser workflow', () => {
     expect(posted).toEqual([]);
     await page.getByRole('checkbox', { name: /I agree to send only this displayed financial statement/i }).check();
     await guidance.click();
-    await expect(page.getByText(/What to check next/)).toBeVisible();
+    await expect(page.getByText('What to check next', { exact: true })).toBeVisible();
     await expect(page.getByText('Not verified', { exact: true })).toBeVisible();
     await expect(page.getByText(/NVIDIA did not check the internet/)).toBeVisible();
     expect(posted).toEqual([{ statement: claim, claimId, consent: true }]);
     await page.getByLabel('Financial statement to check').fill('Other statement');
-    await expect(page.getByText(/What to check next/)).toHaveCount(0);
+    await expect(page.getByText('What to check next', { exact: true })).toHaveCount(0);
   });
 
   test('calculates an explicitly supplied SIP scenario without saying its rate is verified', async ({ page }) => {
