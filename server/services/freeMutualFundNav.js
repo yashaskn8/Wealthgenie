@@ -54,9 +54,9 @@ function isNavOnlyGrowthPlan(fund) {
   const name=(fund.name||'').toUpperCase();
   // A distribution payout is a return of wealth outside the daily NAV path.
   // It must not be silently modeled as NAV-only capital accumulation.
-  if (/\\b(?:IDCW|DIVIDEND|DISTRIBUTION)\\b/.test(name)
+  if (/\b(?:IDCW|DIVIDEND|DISTRIBUTION)\b/.test(name)
     || option==='IDCW'||option==='DIVIDEND') return false;
-  return option==='GROWTH'||/\\bGROWTH\\b/.test(name);
+  return option==='GROWTH'||/\bGROWTH\b/.test(name);
 }
 function normalizedFund(data,requestedCode){
  const code=Number(data?.scheme_code);
