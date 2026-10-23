@@ -8,6 +8,9 @@ import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { parseRunwayStatement } from '../services/runwayStatementImport.js';
 import {
+  encryptRunwayStatement, decryptRunwayStatement,
+} from '../services/runwayEvidenceCrypto.js';
+import {
   createRunwayStatementSeal, verifyRunwayStatementSeal, RUNWAY_SEAL_VERSION,
   createRunwayLedgerSeal, verifyRunwayLedgerSeal,
   createRunwaySettlementSeal, verifyRunwaySettlementSeal,
@@ -39,12 +42,20 @@ function verified(item) {
   try { authentic = verifyRunwayStatementSeal(item); } catch {
     throw fail(503, 'RUNWAY_EVIDENCE_KEY_UNAVAILABLE', 'Statement verification key is unavailable.');
   }
-  if (!authentic || canonicalSha256({
-    accountLabel: item.statement?.accountLabel, records: item.statement?.records,
-  }) !== item.evidenceHash || item.statement?.evidenceHash !== item.evidenceHash) {
+  if (!authentic) {
     throw fail(503, 'RUNWAY_EVIDENCE_INVALID', 'Imported statement authenticity could not be verified.');
   }
-  return item;
+  let statement;
+  try { statement = decryptRunwayStatement(item); } catch {
+    throw fail(503, 'RUNWAY_EVIDENCE_DECRYPTION_FAILED',
+      'Imported evidence cannot be decrypted or still requires a secure migration.');
+  }
+  if (canonicalSha256({
+    accountLabel: statement.accountLabel, records: statement.records,
+  }) !== item.evidenceHash || statement.evidenceHash !== item.evidenceHash) {
+    throw fail(503, 'RUNWAY_EVIDENCE_INVALID', 'Imported statement checksum does not match decrypted source.');
+  }
+  return { ...item, statement };
 }
 export async function createRunwaySignal(userId, eventType, session) {
   const at = new Date();
@@ -94,8 +105,8 @@ export function createRunwayLiveRouter({
     // Every candidate is authenticated before it can affect the view.
     const candidates = await RunwayStatement.find({ userId })
       .sort({ importedAt: -1, _id: -1 }).limit(MAX_IMPORTS).lean();
-    candidates.forEach(verified);
-    const source = candidates.sort((a, b) =>
+    const authenticated = candidates.map(verified);
+    const source = authenticated.sort((a, b) =>
       b.statement.periodEnd.localeCompare(a.statement.periodEnd)
       || b.importedAt.getTime() - a.importedAt.getTime())[0] || null;
     const observed = source ? summary(source) : null;
@@ -142,8 +153,8 @@ export function createRunwayLiveRouter({
     const records = await RunwayStatement.find({ userId }).sort({ importedAt: -1 })
       .limit(MAX_IMPORTS).session(session).lean();
     return records.map(x => {
-      verified(x);
-      return { statementId: x._id, statement: x.statement };
+      const authenticated = verified(x);
+      return { statementId: x._id, statement: authenticated.statement };
     });
   }
   async function verifiedSettledRows(userId, session = null) {
@@ -362,7 +373,8 @@ export function createRunwayLiveRouter({
     if (!/^[a-f0-9]{64}$/.test(req.params.id)) throw fail(404, 'RUNWAY_STATEMENT_NOT_FOUND', 'Import not found.');
     const existing = await RunwayStatement.findOne({ _id: req.params.id, userId }).lean();
     if (!existing) throw fail(404, 'RUNWAY_STATEMENT_NOT_FOUND', 'Import not found.');
-    return res.json({ ...summary(verified(existing)), records: existing.statement.records });
+    const authenticated = verified(existing);
+    return res.json({ ...summary(authenticated), records: authenticated.statement.records });
   }));
   router.post('/statements', asyncHandler(async (req, res) => {
     const userId = owner(req);
@@ -388,9 +400,10 @@ export function createRunwayLiveRouter({
           { $inc: { snapshotGeneration: 1 } }, { session });
         if (fence.matchedCount !== 1) throw fail(409, 'RUNWAY_LEDGER_CHANGED', 'Ledger changed concurrently.');
         const item = {
-          _id: id, userId, statement, evidenceHash: statement.evidenceHash,
+          _id: id, userId, evidenceHash: statement.evidenceHash,
           importedAt: new Date(), sealVersion: RUNWAY_SEAL_VERSION,
         };
+        item.statement = encryptRunwayStatement({ ...item, statement });
         item.sealHmac = createRunwayStatementSeal(item);
         await RunwayStatement.create([item], { session });
         await createRunwaySignal(userId, 'STATEMENT_IMPORTED', session);

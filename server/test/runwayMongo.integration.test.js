@@ -18,6 +18,7 @@ process.env.NODE_ENV = 'test';
 process.env.DISABLE_RATE_LIMIT = 'true';
 process.env.JWT_SECRET ||= 'runway-mongo-integration-test-secret';
 process.env.RUNWAY_INTEGRITY_SECRET ||= '84ba1e61657ab8a4b989e710a9b35e39d2f0b5f1c749d364fdbb0a81a55efb96'; // disposable test key only
+process.env.RUNWAY_EVIDENCE_KEY_V1 ||= '45'.repeat(32); // disposable test data-encryption key
 const { createApp } = await import('../app.js');
 
 const today = () => {
@@ -148,13 +149,16 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       });
       assert.equal(badStatement.response.status, 400);
       const savedEvidence = await RunwayStatement.collection.findOne({ _id: imported.body.statementId });
+      assert.equal(savedEvidence.statement.encryptionVersion, 'RUNWAY_AES256GCM_V1');
+      assert.equal(JSON.stringify(savedEvidence.statement).includes('Salary credit'), false);
+      assert.equal(JSON.stringify(savedEvidence.statement).includes('12500'), false);
       await RunwayStatement.collection.updateOne({ _id: imported.body.statementId },
-        { $set: { 'statement.closingBalancePaise': '99999999' } });
+        { $set: { 'statement.tag': 'f'.repeat(32) } });
       const tampered = await jsonRequest(ownedBase + 'live/overview', { headers: authA });
       assert.equal(tampered.response.status, 503);
       assert.equal(tampered.body.code, 'RUNWAY_EVIDENCE_INVALID');
       await RunwayStatement.collection.updateOne({ _id: imported.body.statementId },
-        { $set: { 'statement.closingBalancePaise': savedEvidence.statement.closingBalancePaise } });
+        { $set: { 'statement.tag': savedEvidence.statement.tag } });
       const ownExport = await jsonRequest(ownedBase + 'ledger/revisions?page=0', { headers: authA });
       assert.equal(ownExport.response.status, 200);
       assert.equal(ownExport.body.format, 'WEALTHGENIE_RUNWAY_LEDGER_HISTORY_V1');

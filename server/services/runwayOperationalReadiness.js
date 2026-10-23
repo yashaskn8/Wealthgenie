@@ -5,6 +5,7 @@
  */
 import { RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '../models/Runway.js';
 import { assertRunwaySigningKey } from './runwaySeal.js';
+import { assertRunwayEvidenceEncryptionReady } from './runwayEvidenceCrypto.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 
 async function readIndexes() {
@@ -55,9 +56,20 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
 }
 export async function verifyRunwayOperationalReadiness({
   env = process.env, loadIndexes = readIndexes,
+  legacyCount = () => RunwayStatement.countDocuments({
+    'statement.encryptionVersion': { $ne: 'RUNWAY_AES256GCM_V1' },
+  }),
 } = {}) {
   if (env.RUNWAY_ENABLED !== 'true') return { enabled: false, ready: true };
   assertRunwaySigningKey(env);
+  assertRunwayEvidenceEncryptionReady(env);
   await verifyRunwayIndexes({ loadIndexes });
+  // Never report ready while older unencrypted statements remain in MongoDB.
+  // They must be verified and re-sealed by the explicit one-time migration.
+  if (await legacyCount() !== 0) {
+    const error = new Error('Legacy unencrypted Runway imports require migration.');
+    error.code = 'RUNWAY_EVIDENCE_MIGRATION_REQUIRED';
+    throw error;
+  }
   return { enabled: true, ready: true };
 }
