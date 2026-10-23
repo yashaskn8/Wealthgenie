@@ -577,6 +577,23 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
     await DecisionAssessment.collection.updateOne({ _id: latest._id },
       { $set: { result: latest.result } });
 
+    // Historical evidence must still be browsable when the source-state
+    // pointer becomes ambiguous. It must *never* retain a CURRENT badge.
+    await FinancialProfileState.collection.updateOne({ userId: userOne },
+      { $set: { resolutionStatus: 'LEGACY_AMBIGUOUS' } });
+    try {
+      const unavailableSourceHistory = await call(base, userOne, monitorPath);
+      assert.equal(unavailableSourceHistory.response.status, 200,
+        JSON.stringify(unavailableSourceHistory.body));
+      assert.ok(unavailableSourceHistory.body.assessments.length >= 2);
+      assert.ok(unavailableSourceHistory.body.assessments.every(item =>
+        item.status === 'HISTORICAL' && item.isCurrent === false
+        && item.requiresUserReview === true));
+    } finally {
+      await FinancialProfileState.collection.updateOne({ userId: userOne },
+        { $set: { resolutionStatus: 'CURRENT' } });
+    }
+
     const off = await call(base, userOne, monitorPath, 'PUT',
       { enabled: false, expectedRevision: 1 });
     assert.equal(off.response.status, 200);
