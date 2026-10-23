@@ -343,6 +343,43 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(page.getByTestId('beginner-home-hero')).toBeVisible();
   });
 
+  test('free-source mutual-fund fallback is labelled provisional and blocks IDCW assumptions', async ({ page }) => {
+    await page.route('**/api/free-financial-sources/mutual-funds/search?*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'AVAILABLE', dataClass: 'RESEARCH_ONLY_AMFI_DERIVED_NAV',
+          results: [
+            { schemeCode: 125497, name: 'HDFC Top 100 Fund - Direct Plan - Growth',
+              fundHouse: null, isin: null, navOnlyRiskEligible: true,
+              identityValidation: 'PENDING_DIRECT_SCHEME_DETAILS' },
+            { schemeCode: 125498, name: 'HDFC Top 100 Fund - Regular Plan - IDCW',
+              fundHouse: null, isin: null, navOnlyRiskEligible: false,
+              identityValidation: 'PENDING_DIRECT_SCHEME_DETAILS' },
+          ],
+          source: { provider: 'MFapi.in', url: 'https://www.mfapi.in/docs/' },
+          searchSourceStatus: 'FALLBACK_PROVISIONAL_IDENTITIES_REQUIRE_DIRECT_LOOKUP',
+          sourceRightsStatus: 'RESEARCH_ONLY_UPSTREAM_AMFI_RIGHTS_NOT_QUALIFIED',
+          postTaxAvailable: false, productionInvestmentQualification: false,
+        }),
+      });
+    });
+    await page.goto('http://127.0.0.1:5173/profile');
+    await page.getByTestId('nav-taxes').click();
+    await page.getByTestId('tab-real-returns').click();
+    const panel = page.getByTestId('free-source-research-panel');
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Open free-source research' }).click();
+    await panel.getByRole('button', { name: 'Search online NAV' }).click();
+    await expect(panel).toContainText('Provisional scheme search only');
+    await expect(panel).toContainText('MFapi.in');
+    const selector = panel.getByRole('combobox', { name: 'Choose mutual fund NAV scheme' });
+    await expect(selector.locator('option[value="125498"]')).toBeDisabled();
+    await expect(selector.locator('option[value="125497"]')).toBeEnabled();
+    await expect(panel.getByText('After-tax:', { exact: false })).toHaveCount(0);
+  });
+
   test('desktop retired Progress bookmarks redirect to surviving pages', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     for (const [tab, slug] of [
