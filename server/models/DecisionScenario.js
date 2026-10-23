@@ -7,6 +7,7 @@ const schema = new mongoose.Schema({
   profileStateRevision: { type: Number, required: true, min: 1, immutable: true },
   profileVersion: { type: Number, required: true, min: 1, immutable: true },
   profileFinancialFence: { type: Number, required: true, min: 0, immutable: true },
+  profileFactsHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   scenarioType: { type: String, required: true,
     enum: ['HOUSE_VS_RENT', 'MAJOR_EXPENSE', 'INCOME_INTERRUPTION', 'DEBT_VS_INVEST'], immutable: true },
   quotaSlot: { type: Number, required: true, immutable: true, min: 0, max: 49 },
@@ -21,7 +22,7 @@ const schema = new mongoose.Schema({
 schema.index({ userId: 1, createKeyHash: 1 }, { unique: true, name: 'uniq_decision_create_key' });
 schema.index({ userId: 1, quotaSlot: 1 }, { unique: true, name: 'uniq_decision_owner_quota_slot' });
 schema.index({ userId: 1, createdAt: -1 }, { name: 'decision_owner_history' });
-protectImmutableIdentity(schema, ['userId', 'profileId', 'scenarioType', 'createKeyHash', 'createPayloadHash', 'quotaSlot'], {
+protectImmutableIdentity(schema, ['userId', 'profileId', 'scenarioType', 'createKeyHash', 'createPayloadHash', 'quotaSlot', 'profileFactsHash'], {
   code: 'DECISION_SCENARIO_IDENTITY_IMMUTABLE', label: 'GenieDecision scenario identity',
 });
 export default mongoose.models.DecisionScenario || mongoose.model('DecisionScenario', schema);
