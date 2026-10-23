@@ -18,7 +18,7 @@ function requireFacts(tax) {
     ||!Number.isInteger(tax.userAge)||tax.userAge<18||tax.userAge>120
     ||!Number.isFinite(tax.section112AExemptionUsed)||tax.section112AExemptionUsed<0
     ||!['salary','pension','family_pension','business','other'].includes(tax.incomeSource)
-    ||!['new','old'].includes(tax.regime) || !tax.deductions
+    ||tax.regime !== 'new' || !tax.deductions
     ||typeof tax.deductions!=='object'||Array.isArray(tax.deductions))return ['INVALID_TAX_CONTEXT'];
   return [];
 }

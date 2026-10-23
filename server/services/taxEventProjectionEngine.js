@@ -363,6 +363,14 @@ function assessInterestTds({ instrumentType, grossGain, userAge, policy }) {
 }
 
 export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, annualIncome, holdingYears, regime, monthlySIP, userAge, incomeSource, fiscalYear, deductions = {}, options = {} }) {
+  // Refuse every legacy tax context before any model or tax computation.
+  // Do not silently relabel historical 'old' contexts as 'new'.
+  if (regime !== 'new') return unavailableResult({
+    instrumentType,
+    status: MODEL_POST_TAX_STATUSES.REQUIRES_TAX_INPUTS,
+    reasons: ['UNSUPPORTED_TAX_REGIME_NEW_ONLY'],
+    fiscalYear,
+  });
   const modelTaxClass = resolveServerModelTaxClass(instrumentType);
   if (!modelTaxClass) {
     if (!isKnownModelInstrumentType(instrumentType)) {
@@ -730,7 +738,7 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       ? [] : ['annualGrossIncome']),
     ...(['salary', 'pension', 'family_pension', 'business', 'other'].includes(context.incomeSource)
       ? [] : ['incomeSource']),
-    ...(['new', 'old'].includes(context.regime) ? [] : ['regime']),
+    ...(context.regime === 'new' ? [] : ['regime']),
     ...(typeof context.fiscalYear === 'string' && /^FY[0-9]{4}-[0-9]{2}$/.test(context.fiscalYear)
       ? [] : ['fiscalYear']),
     ...(Number.isInteger(context.userAge) && context.userAge >= 18 && context.userAge <= 120

@@ -98,7 +98,7 @@ function validTaxContext(input) {
     && Number.isInteger(input.userAge)
     && input.userAge >= 18
     && input.userAge <= 120
-    && ['new', 'old'].includes(input.regime)
+    && input.regime === 'new'
     && ['salary', 'pension', 'family_pension', 'business', 'other'].includes(input.incomeSource)
     && typeof input.fiscalYear === 'string';
 }
