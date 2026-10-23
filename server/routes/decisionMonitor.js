@@ -6,6 +6,7 @@ import { resolveCurrentFinancialProfile } from '../services/currentFinancialProf
 import { verifyPersistenceIndexes } from '../services/persistenceIndexReadiness.js';
 import { verifyDecisionRevision } from './decisionScenarios.js';
 import { assessmentDto, signMonitorConsent, verifyMonitorConsent } from '../services/genieDecision/monitor.js';
+import { decisionIntegrityReady, DecisionIntegrityUnavailable } from '../services/genieDecision/integrity.js';
 import { appendDecisionEvent } from '../services/genieDecision/liveEvents.js';
 import DecisionMonitor from '../models/DecisionMonitor.js';
 import DecisionAssessment from '../models/DecisionAssessment.js';
@@ -17,6 +18,9 @@ import DecisionEventState from '../models/DecisionEventState.js';
 const fail = (status, code, message) => { throw createError(status, message, message, { code }); };
 const handle = fn => asyncHandler(async (req, res) => {
   try { await fn(req, res); } catch (error) {
+    if (error instanceof DecisionIntegrityUnavailable) {
+      return sendError(req, res, 503, 'Decision signing keys unavailable.', 'DECISION_INTEGRITY_UNAVAILABLE');
+    }
     if (error?.code === 'DECISION_MONITOR_CONSENT_INTEGRITY_FAILURE') {
       return sendError(req, res, 503, 'Monitoring consent integrity could not be verified.', error.code);
     }
@@ -83,6 +87,9 @@ export function createDecisionMonitorRoutes({ resolveProfile = resolveCurrentFin
     }
     if (req.body.enabled && process.env.GENIEDECISION_MONITOR_ENABLED !== 'true') {
       fail(503, 'DECISION_MONITOR_DISABLED', 'Automatic decision monitoring is not enabled on this deployment.');
+    }
+    if (req.body.enabled && !decisionIntegrityReady()) {
+      fail(503, 'DECISION_INTEGRITY_UNAVAILABLE', 'Monitoring requires an authenticated signing key.');
     }
     await verifyPersistenceIndexes({
       models: [DecisionMonitor, DecisionAssessment, DecisionEvent, DecisionEventState],
