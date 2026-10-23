@@ -149,3 +149,23 @@ it('renders durable shortfall warning without representing self-reported cash as
   expect(screen.getByText(/bank-confirmed prediction/)).toBeInTheDocument();
   expect(screen.getByText(/₹1,500.12/)).toBeInTheDocument();
 });
+
+it('red-team: failed optional alerts and account feeds cannot freeze core financial overview', async () => {
+  common({ imported: statement() });
+  api.getRunwayAlerts.mockRejectedValue(new Error('Alert backend unavailable'));
+  api.getRunwayAccountObservations.mockRejectedValue(new Error('Account view unavailable'));
+  render(<RunwayLiveEvidence canImport onChooseCash={vi.fn()} />);
+  await waitFor(() => expect(screen.getByText(/UPLOADED_TODAY_UNVERIFIED/)).toBeInTheDocument());
+  expect(screen.getByText(/Risk alert verification unavailable/)).toBeInTheDocument();
+  expect(screen.getByText(/Separate account observations are temporarily unavailable/))
+    .toBeInTheDocument();
+  expect(screen.getByText(/No future income counted/)).toBeInTheDocument();
+});
+it('red-team: unavailable core financial response cannot preserve apparently current old figures', async () => {
+  common({ imported: statement() });
+  api.getRunwayLiveOverview.mockRejectedValue(new Error('Core ledger unavailable'));
+  render(<RunwayLiveEvidence canImport onChooseCash={vi.fn()} />);
+  await waitFor(() => expect(screen.getByRole('alert'))
+    .toHaveTextContent(/Values were cleared/));
+  expect(screen.queryByText(/UPLOADED_TODAY_UNVERIFIED/)).not.toBeInTheDocument();
+});

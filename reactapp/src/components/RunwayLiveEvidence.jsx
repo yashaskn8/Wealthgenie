@@ -16,6 +16,26 @@ const money = value => {
     + String(abs % 100n).padStart(2, '0');
 };
 
+/**
+ * Authoritative financial balances may not be hostage to auxiliary alert /
+ * account-list APIs. Separate failure states are visible; failed core
+ * financial reads MUST NOT silently leave previous values on the screen.
+ */
+async function fetchRunwayDashboard() {
+  const [overview, statements, accounts, alerts] = await Promise.all([
+    api.getRunwayLiveOverview(),
+    api.listRunwayStatements(),
+    api.getRunwayAccountObservations().then(value => ({ value }), () => ({ failed: true })),
+    api.getRunwayAlerts().then(value => ({ value }), () => ({ failed: true })),
+  ]);
+  return {
+    overview, statements,
+    accounts: accounts.failed
+      ? { status: 'ACCOUNT_OBSERVATIONS_UNAVAILABLE', items: [] } : accounts.value,
+    alerts: alerts.failed
+      ? { status: 'ALERT_CHECK_UNAVAILABLE', items: [] } : alerts.value,
+  };
+}
 export default function RunwayLiveEvidence({ canImport, canSettle = false, onChooseCash, onSettlementApplied }) {
   const [overview, setOverview] = useState(null);
   const [imports, setImports] = useState([]);
@@ -37,14 +57,11 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
   const lastFullRefresh = useRef(0);
 
   const reload = useCallback(async () => {
-    const [next, data, accounts, alerts] = await Promise.all([
-      api.getRunwayLiveOverview(), api.listRunwayStatements(),
-      api.getRunwayAccountObservations(), api.getRunwayAlerts(),
-    ]);
-    setOverview(next);
-    setImports(data.items || []);
-    setObservations(accounts);
-    setRiskAlerts(alerts);
+    const result = await fetchRunwayDashboard();
+    setOverview(result.overview);
+    setImports(result.statements.items || []);
+    setObservations(result.accounts);
+    setRiskAlerts(result.alerts);
   }, []);
   useEffect(() => {
     let mounted = true;
@@ -53,16 +70,19 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
     // authoritative, and an event contains only the notification type.
     const refresh = async () => {
       try {
-        const [next, data, accounts, alerts] = await Promise.all([
-          api.getRunwayLiveOverview(), api.listRunwayStatements(),
-          api.getRunwayAccountObservations(), api.getRunwayAlerts(),
-        ]);
+        const result = await fetchRunwayDashboard();
         if (mounted) {
-          setOverview(next); setImports(data.items || []);
-          setObservations(accounts); setRiskAlerts(alerts);
+          setOverview(result.overview); setImports(result.statements.items || []);
+          setObservations(result.accounts); setRiskAlerts(result.alerts);
+          setError('');
           lastFullRefresh.current = Date.now();
         }
-      } catch (e) { if (mounted) setError(e.message || 'Unable to refresh evidence.'); }
+      } catch {
+        if (mounted) {
+          setOverview(null); setObservations(null); setRiskAlerts(null); setImports([]);
+          setError('Current financial evidence could not be verified. Values were cleared; retry when connected.');
+        }
+      }
     };
     const poll = async () => {
       if (polling.current || stopped || document.visibilityState === 'hidden') return;
@@ -189,6 +209,13 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
         It is <strong>not connected to a bank</strong>; balances are not independently verified.</p>
       {error && <p className="runway-error" role="alert">{error}</p>}
       {message && <p className="runway-message" role="status">{message}</p>}
+      {riskAlerts?.status === 'ALERT_CHECK_UNAVAILABLE' && <p role="status">
+        Risk alert verification unavailable. The saved cash-flow overview remains separate;
+        do not assume that no shortfall alerts exist.
+      </p>}
+      {observations?.status === 'ACCOUNT_OBSERVATIONS_UNAVAILABLE' && <p role="status">
+        Separate account observations are temporarily unavailable; no bank balances were verified.
+      </p>}
       {riskAlerts?.status === 'CURRENT_USER_DECLARED_RISK'
         && riskAlerts.items?.map(alert => (
           <div className="runway-live-statement" role="status" key={alert.alertId}>
