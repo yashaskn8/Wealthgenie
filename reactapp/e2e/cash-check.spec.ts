@@ -64,7 +64,8 @@ async function installCashApi(page: Page) {
     }
     if (path.includes('/commitments/') && path.endsWith('/settle') && method === 'POST') {
       const body = req.postDataJSON();
-      const entryId = path.split('/').at(-2);
+      const pathSegments = path.split('/');
+      const entryId = pathSegments[pathSegments.length - 2];
       const existingEntries: Array<{ id: string; recurrence: string; amountPaise: number; type: string }> =
         ledger && Array.isArray(ledger.entries) ? ledger.entries : [];
       const original = existingEntries.find(item => item.id === entryId);
