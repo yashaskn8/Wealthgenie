@@ -69,6 +69,6 @@ it('only explicitly offers importing a same-day nonnegative balance as unconfirm
 it('stale statements cannot be offered as current available cash', async () => {
   common({ imported: { ...statement(), periodEnd: '2026-01-01' } });
   render(<RunwayLiveEvidence canImport onChooseCash={vi.fn()} />);
-  await waitFor(() => expect(screen.getByText(/2026-01-01/)).toBeInTheDocument());
+  await waitFor(() => expect(screen.getAllByText(/2026-01-01/).length).toBeGreaterThan(0));
   expect(screen.queryByRole('button', { name: /Copy today's observed balance/ })).not.toBeInTheDocument();
 });

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import '@testing-library/jest-dom/vitest';
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import axe from 'axe-core';
 import HouseholdRunway from '../components/HouseholdRunway.jsx';
@@ -37,6 +37,14 @@ const sampleResult = {
     },
   }],
 };
+beforeEach(() => {
+  vi.spyOn(api, 'getRunwayLiveOverview').mockResolvedValue({
+    mode: 'FREE_SELF_MANAGED_NEAR_REAL_TIME', freshness: 'NO_IMPORTED_EVIDENCE',
+    observedStatement: null, modeled: { status: 'NO_CONFIRMED_LEDGER' },
+  });
+  vi.spyOn(api, 'listRunwayStatements').mockResolvedValue({ items: [], maxImports: 30 });
+  vi.spyOn(api, 'getRunwayLiveEvents').mockResolvedValue({ items: [], nextCursor: null });
+});
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 function absentLedger() {
   vi.spyOn(api, 'getRunwayCurrent').mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
