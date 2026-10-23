@@ -12,6 +12,7 @@ import { connectRedis, redisAvailable, redisClient } from './config/redis.js';
 import { getRuntimeConfig, assertValidRuntimeConfig } from './config/runtime.js';
 import { validateEnvironmentConfig } from './config/validateEnv.js';
 import { startMarketDataRefreshJobs, stopMarketDataRefreshJobs } from './jobs/marketDataRefresh.js';
+import { startCoverageRiskWorker, stopCoverageRiskWorker } from './jobs/coverageRiskAlerts.js';
 import { startPlanReviewWorker, stopPlanReviewWorker } from './agents/planReview/planReviewWorker.js';
 import logger from './utils/logger.js';
 import { createRuntimeState } from './services/runtimeState.js';
@@ -60,6 +61,7 @@ function closeHttpServer(httpServer) {
 
 async function closeInfrastructure({ stopAgentWorker = false } = {}) {
   stopMarketDataRefreshJobs();
+  stopCoverageRiskWorker();
   if (stopAgentWorker) await stopPlanReviewWorker();
   await stopProductionEvaluationReconciliation();
   if (authorizedRecoveryTimer) clearInterval(authorizedRecoveryTimer);
@@ -149,6 +151,7 @@ export async function startServer({ env = process.env } = {}) {
       server.listen(config.port);
     });
     startMarketDataRefreshJobs();
+    startCoverageRiskWorker({ env });
     if (config.agentWorkerEnabled && config.agentWorkerMode === 'embedded') {
       startPlanReviewWorker({ runtimeConfig: config, eventModel: AgentRunEvent, productionEvaluationModel: ProductionAgentEvaluation });
       if (config.agenticPlanReviewEnabled) {

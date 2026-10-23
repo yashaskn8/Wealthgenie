@@ -9,4 +9,6 @@ const coverageLedgerSchema = new mongoose.Schema({
 }, { strict: 'throw', timestamps: true });
 
 coverageLedgerSchema.index({ userId: 1 }, { unique: true, name: 'uniq_coverage_ledger_owner' });
+coverageLedgerSchema.index({ 'input.asOfDate': 1, _id: 1 },
+  { name: 'cash_staleness_batch_scan' });
 export default mongoose.models.CoverageLedger || mongoose.model('CoverageLedger', coverageLedgerSchema);
