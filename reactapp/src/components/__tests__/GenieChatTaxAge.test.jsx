@@ -1,6 +1,7 @@
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { cwd } from 'node:process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import GenieChat from '../GenieChat';
@@ -12,7 +13,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const chatSource = () => readFileSync(resolve(process.cwd(), 'src/components/GenieChat.jsx'), 'utf8');
+const chatSource = () => readFileSync(resolve(cwd(), 'src/components/GenieChat.jsx'), 'utf8');
 
 describe('GenieChat tax-mode retirement safety', () => {
   it('does not contain old-vs-new tax calculation or recommendation code', () => {
