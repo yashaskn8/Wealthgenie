@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { sendError } from '../middleware/errorHandler.js';
+import { isSafelyRepresentableModelSip } from '../services/taxEventProjectionEngine.js';
 import {
   FISCAL_YEAR_PATTERN,
   incomeSourceValues,
@@ -68,6 +69,13 @@ function validatePostTaxTransactionDates(value, helpers) {
   return value;
 }
 
+function validateModelProjectionPrecision(value, helpers) {
+  if (!isSafelyRepresentableModelSip(value)) {
+    return helpers.message({ custom: 'PROJECTION_WEALTH_PRECISION_EXCEEDED: investment, rate and horizon exceed safe INR projection precision' });
+  }
+  return value;
+}
+
 const postTaxInstrumentSchema = Joi.object({
   // An instrument's canonical catalog ID is an identity/correlation token,
   // never evidence that its generic category return is an exact product quote.
@@ -83,7 +91,7 @@ const postTaxInstrumentSchema = Joi.object({
   couponRate: Joi.number().min(0).max(1).optional(),
   annuityFraction: Joi.number().min(0).max(1).optional(),
   retirementTiming: Joi.string().trim().min(2).max(100).optional(),
-}).custom(validatePostTaxTransactionDates).unknown(false);
+}).custom(validatePostTaxTransactionDates).custom(validateModelProjectionPrecision).unknown(false);
 
 export const postTaxReturnSchema = postTaxInstrumentSchema.keys({
   annualIncome: Joi.number().min(0).max(1000000000).required(),
