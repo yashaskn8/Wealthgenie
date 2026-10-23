@@ -82,6 +82,15 @@ test('cashflow free reference lists published rates but refuses unsupported prod
  assert.equal(reference.rates.find(x=>x.id==='government:india-post:post-office-savings').annualRatePercent,4);
  assert.equal(reference.rates.find(x=>x.id==='government:india-post:post-office-rd-5y').annualRatePercent,6.7);
  assert.equal(reference.corroboratingOfficialSources.length,3);
+ const rdSource=reference.rates.find(x=>x.id==='government:india-post:post-office-rd-5y');
+ const sbSource=reference.rates.find(x=>x.id==='government:india-post:post-office-savings');
+ const nscSource=reference.rates.find(x=>x.id==='government:india-post:nsc');
+ assert.equal(rdSource.rateSourceUrl,'https://www.indiapost.gov.in/banking-services/savings');
+ assert.equal(sbSource.rateSourceUrl,'https://www.indiapost.gov.in/banking-services/savings');
+ assert.equal(nscSource.rateSourceUrl,
+   'https://indianbank.bank.in/en/interest-rates-for-small-savings-schemes');
+ assert.ok(reference.rates.every(x=>x.rateVerification==='DATED_MANUALLY_REVIEWED_REFERENCE_NOT_LIVE'));
+
  for(const entry of reference.rates.filter(x=>
   ['government:india-post:post-office-savings','government:india-post:post-office-rd-5y'].includes(x.id))){
   assert.equal(entry.grossCashflowSupported,false,
