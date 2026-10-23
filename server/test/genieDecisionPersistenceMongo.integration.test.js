@@ -172,6 +172,29 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(history.body.run.status, 'HISTORICAL');
     assert.equal(history.body.run.originalStatus, 'PARTIAL');
 
+    // A profile mutation that bypasses the normal version increment cannot
+    // silently preserve a report's CURRENT classification.
+    await FinancialProfile.collection.updateOne({ _id: profile._id },
+      { $set: { monthlySavings: 31000 } });
+    const drifted = await call(base, userOne, `/runs/${reportId}`);
+    assert.equal(drifted.response.status, 200);
+    assert.ok(drifted.body.run.reasonCodes.includes('DECISION_CANONICAL_FACTS_CHANGED'));
+    await FinancialProfile.collection.updateOne({ _id: profile._id },
+      { $set: { monthlySavings: 30000 } });
+
+    // A recalculation-policy upgrade does not rewrite history or present an
+    // outdated numerical report as if it came from today's code.
+    const originalRun = await DecisionRun.findById(reportId).lean();
+    const previousModelResult = { ...originalRun.result, modelVersion: 'geniedecision-ledger-0.0.1' };
+    const oldResultHash = crypto.createHash('sha256').update(JSON.stringify(previousModelResult)).digest('hex');
+    await DecisionRun.collection.updateOne({ _id: originalRun._id },
+      { $set: { result: previousModelResult, resultHash: oldResultHash } });
+    const previousPolicy = await call(base, userOne, `/runs/${reportId}`);
+    assert.equal(previousPolicy.response.status, 200);
+    assert.ok(previousPolicy.body.run.reasonCodes.includes('DECISION_CALCULATION_POLICY_SUPERSEDED'));
+    await DecisionRun.collection.updateOne({ _id: originalRun._id },
+      { $set: { result: originalRun.result, resultHash: originalRun.resultHash } });
+
     // Simulate an out-of-band Mongo corruption. The report must fail closed.
     await DecisionRun.collection.updateOne({ _id: new mongoose.Types.ObjectId(reportId) },
       { $set: { 'result.alternatives.0.endingProjectedLiquidCash': '999999999.00' } });
