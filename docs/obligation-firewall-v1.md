@@ -37,3 +37,7 @@ A stale update never silently overwrites concurrent changes. The UI fetches the 
 If a stored ledger's current revision was calculated under a retired cash policy, the API returns the owned historical snapshot with `requiresPolicyReconfirmation: true` rather than a permanent 503. The UI suppresses obsolete positive/negative results and asks the user to confirm today's cash and commitments before recalculating under the active policy. Historical revision reads and privacy exports remain available across policy versions; read paths never mutate or silently reinterpret the old calculation.
 
 The hypothetical scenario endpoint also requires the currently declared India-day cash balance and an authoritative saved result under the active policy. Stale or retired-policy snapshots are not silently recalculated as if they were current. This guard applies to direct API callers as well as the React interface.
+
+## Free CSV-first responsive workflow
+
+See [free responsive monitoring design](./obligation-firewall-live-free.md) for exact CSV parsing, user-reviewed recurrence candidates, and cross-tab freshness. This is not live bank streaming.
