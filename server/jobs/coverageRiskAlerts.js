@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import CoverageLedger from '../models/CoverageLedger.js';
 import CoverageRiskAlert from '../models/CoverageRiskAlert.js';
-import { cashReconfirmationEvent } from '../services/coverageRiskPolicy.js';
+import { cashReconfirmationEvent, shouldRunCashStalenessPage } from '../services/coverageRiskPolicy.js';
 import { verifyPersistenceIndexes } from '../services/persistenceIndexReadiness.js';
 import logger from '../utils/logger.js';
 
@@ -9,6 +9,8 @@ const BATCH_LIMIT = 100;
 let timer = null;
 let activeTick = null;
 let cursor = null;
+let scanDay = null;
+let completedDay = null;
 function indiaToday(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -92,8 +94,18 @@ export function startCoverageRiskWorker({ env = process.env, intervalMs = 60_000
     if (activeTick) return activeTick;
     activeTick = (async () => {
       try {
+        const today = indiaToday();
+        if (scanDay !== today) {
+          // The day rolled over. Restart at the beginning so all newly stale
+          // records are checked. Event-key uniqueness prevents duplicates.
+          scanDay = today;
+          cursor = null;
+          completedDay = null;
+        }
+        if (!shouldRunCashStalenessPage({ today, scanDay, completedDay, cursor })) return;
         const page = await sweepStaleCashDeclarations({ afterId: cursor });
         cursor = page.nextAfterId;
+        if (cursor === null) completedDay = today;
         // Never log financial data or user identifiers.
       } catch (error) {
         logger.warn('Cash risk sweep failed', { code: error.code || 'CASH_RISK_SWEEP_FAILED' });
@@ -114,4 +126,6 @@ export async function stopCoverageRiskWorker() {
   // Wait for any in-flight Mongo transaction to settle before close.
   if (activeTick) await activeTick;
   cursor = null;
+  scanDay = null;
+  completedDay = null;
 }

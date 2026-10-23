@@ -6,6 +6,11 @@ export function cashEventKey({ userId, revision, kind, sourceAsOfDate }) {
     'coverage-alert-v1', String(userId), revision, kind, sourceAsOfDate,
   ])).digest('hex');
 }
+/** One full stale-cash scan per India calendar day. A non-null cursor means
+ * the bounded scan is incomplete; a failed page must never mark the day done. */
+export function shouldRunCashStalenessPage({ today, scanDay, completedDay, cursor }) {
+  return scanDay !== today || cursor !== null || completedDay !== today;
+}
 const knownStatuses = new Set([
   'SHORTFALL_IN_ENTERED_PLAN', 'NO_SHORTFALL_IN_ENTERED_PLAN',
 ]);

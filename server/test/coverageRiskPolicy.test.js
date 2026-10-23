@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateCashRiskEvent, cashReconfirmationEvent, cashEventKey } from '../services/coverageRiskPolicy.js';
+import { evaluateCashRiskEvent, cashReconfirmationEvent, cashEventKey, shouldRunCashStalenessPage } from '../services/coverageRiskPolicy.js';
 const userId = '507f191e810c19729de860ea';
 const input = { asOfDate: '2026-10-23', openingCashPaise: 10_000, completenessConfirmed: true };
 const short = { status: 'SHORTFALL_IN_ENTERED_PLAN', baseline: {
@@ -60,4 +60,19 @@ test('a changed minimum cash deficit on the same date also generates an in-app r
   assert.equal(e.kind, 'SHORTFALL_CHANGED');
   assert.equal(e.dueDate, '2026-10-30');
   assert.equal('amountPaise' in e, false);
+});
+
+test('stale-cash sweep skips repeated full scans within the same India day but resumes incomplete pages', () => {
+  assert.equal(shouldRunCashStalenessPage({
+    today: '2026-10-24', scanDay: '2026-10-24', completedDay: '2026-10-24', cursor: null,
+  }), false);
+  assert.equal(shouldRunCashStalenessPage({
+    today: '2026-10-24', scanDay: '2026-10-24', completedDay: null, cursor: '507f191e810c19729de860ea',
+  }), true);
+  assert.equal(shouldRunCashStalenessPage({
+    today: '2026-10-24', scanDay: '2026-10-24', completedDay: null, cursor: null,
+  }), true, 'a failed page must be retried');
+  assert.equal(shouldRunCashStalenessPage({
+    today: '2026-10-25', scanDay: '2026-10-24', completedDay: '2026-10-24', cursor: null,
+  }), true, 'the next India date opens a new scan');
 });
