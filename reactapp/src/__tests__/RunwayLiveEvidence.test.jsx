@@ -32,6 +32,7 @@ function common({ imported = null } = {}) {
     items: imported ? [imported] : [], maxImports: 30,
   });
   vi.spyOn(api, 'getRunwayLiveEvents').mockResolvedValue({ items: [], nextCursor: null });
+  vi.spyOn(api, 'getRunwayAlerts').mockResolvedValue({ status: 'NO_ALERT_FOR_CURRENT_REVISION', items: [] });
   vi.spyOn(api, 'getRunwayAccountObservations').mockResolvedValue({
     items: imported ? [{ ...imported, accountNickname: imported.accountLabel,
       asOfDate: imported.periodEnd, evidenceStatus: 'USER_IMPORTED_UNVERIFIED',
@@ -132,4 +133,19 @@ it('blocks ambiguous matches rather than presenting a confirm action', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Find possible matches' }));
   await waitFor(() => expect(screen.getByText(/Ambiguous — edit ledger manually/)).toBeInTheDocument());
   expect(screen.queryByRole('button', { name: 'Review this match' })).not.toBeInTheDocument();
+});
+
+it('renders durable shortfall warning without representing self-reported cash as bank verified', async () => {
+  common();
+  api.getRunwayAlerts.mockResolvedValue({
+    status: 'CURRENT_USER_DECLARED_RISK',
+    items: [{
+      alertId: 'b'.repeat(64), kind: 'LISTED_CASH_SHORTFALL', revision: 3,
+      date: today(), deficitPaise: '150012',
+    }],
+  });
+  render(<RunwayLiveEvidence canImport onChooseCash={vi.fn()} />);
+  await waitFor(() => expect(screen.getByText(/Review listed-payment shortfall/)).toBeInTheDocument());
+  expect(screen.getByText(/bank-confirmed prediction/)).toBeInTheDocument();
+  expect(screen.getByText(/₹1,500.12/)).toBeInTheDocument();
 });

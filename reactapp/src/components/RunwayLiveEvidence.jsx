@@ -20,6 +20,7 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
   const [overview, setOverview] = useState(null);
   const [imports, setImports] = useState([]);
   const [observations, setObservations] = useState(null);
+  const [riskAlerts, setRiskAlerts] = useState(null);
   const [accountLabel, setAccountLabel] = useState('');
   const [csvFile, setCsvFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -36,12 +37,14 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
   const lastFullRefresh = useRef(0);
 
   const reload = useCallback(async () => {
-    const [next, data, accounts] = await Promise.all([
-      api.getRunwayLiveOverview(), api.listRunwayStatements(), api.getRunwayAccountObservations(),
+    const [next, data, accounts, alerts] = await Promise.all([
+      api.getRunwayLiveOverview(), api.listRunwayStatements(),
+      api.getRunwayAccountObservations(), api.getRunwayAlerts(),
     ]);
     setOverview(next);
     setImports(data.items || []);
     setObservations(accounts);
+    setRiskAlerts(alerts);
   }, []);
   useEffect(() => {
     let mounted = true;
@@ -50,12 +53,14 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
     // authoritative, and an event contains only the notification type.
     const refresh = async () => {
       try {
-        const [next, data, accounts] = await Promise.all([
-          api.getRunwayLiveOverview(), api.listRunwayStatements(), api.getRunwayAccountObservations(),
+        const [next, data, accounts, alerts] = await Promise.all([
+          api.getRunwayLiveOverview(), api.listRunwayStatements(),
+          api.getRunwayAccountObservations(), api.getRunwayAlerts(),
         ]);
         if (mounted) {
           setOverview(next); setImports(data.items || []);
-          setObservations(accounts); lastFullRefresh.current = Date.now();
+          setObservations(accounts); setRiskAlerts(alerts);
+          lastFullRefresh.current = Date.now();
         }
       } catch (e) { if (mounted) setError(e.message || 'Unable to refresh evidence.'); }
     };
@@ -184,6 +189,15 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
         It is <strong>not connected to a bank</strong>; balances are not independently verified.</p>
       {error && <p className="runway-error" role="alert">{error}</p>}
       {message && <p className="runway-message" role="status">{message}</p>}
+      {riskAlerts?.status === 'CURRENT_USER_DECLARED_RISK'
+        && riskAlerts.items?.map(alert => (
+          <div className="runway-live-statement" role="status" key={alert.alertId}>
+            <strong>Review listed-payment shortfall</strong>
+            <p>Based only on declared accessible cash and listed obligations, a possible
+              deficit of {money(alert.deficitPaise)} occurs on {alert.date}.
+              This is an in-app financial warning, not a bank-confirmed prediction.</p>
+          </div>
+        ))}
       <div className="runway-live-grid">
         <div><span>Imported balance</span>
           <strong>{observed ? money(observed.closingBalancePaise) : 'Not supplied'}</strong>
