@@ -5,7 +5,7 @@ import {createEndpointRateLimiter} from '../middleware/rateLimiter.js';
 import {validate,validateQuery} from '../validation/schemas.js';
 import {asyncHandler,sendError} from '../middleware/errorHandler.js';
 import {searchFreeFunds,getFreeFundNavResearch} from '../services/freeMutualFundNav.js';
-import {getMfapiLatest,getMfapiHistoryResearch,reconcileFreeNavSources} from '../services/freeNavSecondaryVerification.js';
+import {getMfapiLatest,getMfapiHistoryResearch,reconcileFreeNavSources,searchMfapiFunds} from '../services/freeNavSecondaryVerification.js';
 import {
  getPublicSmallSavingsRates,calculatePublicSmallSavingsGrossResearch,
 } from '../services/publicSmallSavingsResearch.js';
@@ -83,8 +83,18 @@ router.use((req,res,next)=>{
 });
 // Apply per-user/provider quota AFTER JWT verification, never to anonymous traffic.
 router.get('/mutual-funds/search',verifyJWT,freeProviderLimiter,validateQuery(searchSchema),asyncHandler(async(req,res)=>{
- try{return res.json(await searchFreeFunds(req.query.q));}
- catch{return sendError(req,res,503,'Free mutual-fund research source is unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
+ // Transport-outage fallback only. An invalid primary response indicates
+ // provider/schema drift and must never be silently replaced by another feed.
+ try{
+  const primary=await searchFreeFunds(req.query.q);
+  return res.json(primary);
+ }catch{
+  const secondary=await searchMfapiFunds(req.query.q);
+  if(secondary.status==='AVAILABLE')return res.json(secondary);
+  return sendError(req,res,503,
+   'Both free mutual-fund research sources are unavailable.',
+   'FREE_NAV_SEARCH_SOURCES_UNAVAILABLE');
+ }
 }));
 router.get('/mutual-funds/:schemeCode',verifyJWT,freeProviderLimiter,asyncHandler(async(req,res)=>{
  const {error}=schemeCode.validate(req.params.schemeCode);
