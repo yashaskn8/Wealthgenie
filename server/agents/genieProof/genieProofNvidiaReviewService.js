@@ -92,6 +92,13 @@ export async function reviewGenieProofWithNvidia({
 
   // DB/source checks can outlive a disconnected caller; stop before inference.
   if (signal?.aborted) return unavailable(claimId, 'REQUEST_CANCELLED');
+  // NVIDIA's free catalog terms restrict it to development/evaluation. The
+  // configuration flag is an operator attestation, not a grant of rights.
+  // Never send user text to a trial provider from production by default.
+  if (process.env.NODE_ENV === 'production'
+      && process.env.GENIEPROOF_NVIDIA_LICENSED_PRODUCTION_USE !== 'true') {
+    return unavailable(claimId, 'NVIDIA_PRODUCTION_LICENSE_NOT_CONFIRMED');
+  }
   if (!nvidia?.isConfigured?.()) return unavailable(claimId, 'NVIDIA_NOT_CONFIGURED');
   // The general adapter accepts custom endpoints for other tools. GenieProof
   // requires the known NVIDIA API origin so user text and credentials cannot be
