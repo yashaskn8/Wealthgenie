@@ -120,6 +120,12 @@ export async function processOneRunwayProjection({
   if (!job) return { status: 'IDLE' };
   let code = null;
   try {
+    if (job._id !== runwayProjectionId(job.userId, job.revision)
+      || !RE.test(job.inputHash || '') || !Number.isSafeInteger(job.revision)
+      || job.revision < 1 || !Number.isSafeInteger(job.attempts)
+      || job.attempts > MAX_ATTEMPTS) {
+      throw failed('RUNWAY_PROJECTION_JOB_IDENTITY_INVALID');
+    }
     const source = await revisionModel.findOne({
       userId: job.userId, revision: job.revision,
     }).lean();
@@ -192,7 +198,8 @@ export async function processOneRunwayProjection({
     const final = job.attempts >= MAX_ATTEMPTS || code === 'RUNWAY_PROJECTION_SOURCE_INTEGRITY'
       || code === 'RUNWAY_PROJECTION_REPLAY_CONFLICT'
       || code === 'RUNWAY_PROJECTION_SOURCE_MISSING'
-      || code === 'RUNWAY_PROJECTION_ALERT_CONFLICT';
+      || code === 'RUNWAY_PROJECTION_ALERT_CONFLICT'
+      || code === 'RUNWAY_PROJECTION_JOB_IDENTITY_INVALID';
     await jobModel.updateOne({ _id: job._id, status: 'LEASED', leaseToken: token },
       { $set: { status: final ? 'BLOCKED' : 'PENDING', leaseToken: null, leaseUntil: null,
         availableAt: new Date(now().getTime() + Math.min(job.attempts * 5_000, 60_000)),

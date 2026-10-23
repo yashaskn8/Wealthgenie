@@ -65,3 +65,29 @@ test('worker cannot report IDLE while an exhausted financial job was newly quara
   assert.equal(state.code, 'RUNWAY_PROJECTION_LEASE_EXHAUSTED');
   assert.equal(claims, 0, 'Must fail closed before processing any more financial jobs');
 });
+
+test('database-only forged projection job owner/revision cannot publish financial results', async () => {
+  const { processOneRunwayProjection } = await import('../services/runwayProjectionOutbox.js');
+  let changed;
+  let ledgerReads = 0;
+  const state = await processOneRunwayProjection({
+    jobModel: {
+      updateMany: async () => ({ modifiedCount: 0 }),
+      findOneAndUpdate: async () => ({
+        _id: 'f'.repeat(64), userId: 'a'.repeat(24), revision: 1,
+        inputHash: 'c'.repeat(64), status: 'LEASED', attempts: 1,
+      }),
+      updateOne: async (where, update) => {
+        changed = { where, update };
+        return { matchedCount: 1 };
+      },
+    },
+    revisionModel: {
+      findOne: () => { ledgerReads++; throw new Error('Must not read forged source'); },
+    },
+  });
+  assert.equal(state.status, 'BLOCKED');
+  assert.equal(state.code, 'RUNWAY_PROJECTION_JOB_IDENTITY_INVALID');
+  assert.equal(ledgerReads, 0);
+  assert.equal(changed.update.$set.status, 'BLOCKED');
+});
