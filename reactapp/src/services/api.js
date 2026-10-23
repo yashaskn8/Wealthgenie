@@ -1192,9 +1192,16 @@ export function getCoverageRevision(revision, options = {}) {
   return request('GET', '/coverage/revisions/' + encodeURIComponent(String(revision)), null, options);
 }
 
+export function deleteCoverageLedger(revision, options = {}) {
+  if (!Number.isSafeInteger(revision) || revision < 1) throw new TypeError('Coverage revision must be positive integer.');
+  return request('DELETE', '/coverage/ledger', null, {
+    ...options, headers: { ...options.headers, 'If-Match': String.fromCharCode(34) + revision + String.fromCharCode(34) },
+  });
+}
+
 // Default export for convenience
 const api = {
-  getCoverageLedger, saveCoverageLedger, previewCoverageScenario, getCoverageRevision,
+  getCoverageLedger, saveCoverageLedger, previewCoverageScenario, getCoverageRevision, deleteCoverageLedger,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
