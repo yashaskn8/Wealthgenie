@@ -465,3 +465,25 @@ test('tax assumptions remain a substantial standalone answer after a portfolio r
   assert.doesNotMatch(answer.text, /^For informational purposes only\./i);
   assert.doesNotMatch(answer.text, /authoritative backend reports/i);
 });
+
+
+test('nullable legacy weights do not become fake zero allocations or zero expected returns', async () => {
+  const question = 'Review my portfolio';
+  const packet = await buildChatEvidencePacket({
+    question, profile,
+    recommendation: { modelVersion: 'nullable-test', instruments: [
+      { id: 'LEGACY_WEIGHT', name: 'Treasury Bonds', type: 'bond',
+        allocation_pct: null, allocationWeight: 0.45, nominalReturn: null },
+    ] },
+  }, { queryRegulatoryRag: async () => null });
+  const instrument = packet.entries.find(item => item.id === 'E_REC_001');
+  assert.equal(instrument.value.allocationPct, 45);
+  assert.equal(instrument.value.modelReturnAssumptionPct, null);
+  assert.match(instrument.displayValue, /return assumption unavailable/i);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /45% to Treasury Bonds/);
+  assert.doesNotMatch(answer.text, /0% pre-tax nominal|authoritative backend reports/i);
+});
