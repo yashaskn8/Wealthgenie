@@ -58,7 +58,7 @@ function canonicalProfileFacts(profile) {
     declaredMonthlySavings: profileMoney(profile?.monthlySavings, 'monthlySavings'),
   };
 }
-function fingerprintCurrentFacts(profile) {
+export function fingerprintCurrentFacts(profile) {
   return hash(canonicalProfileFacts(profile));
 }
 function sameProfile(current, scenario) {
@@ -78,7 +78,7 @@ function assertProfile(current, scenario) {
     fail(409, 'DECISION_STALE_PROFILE', 'Financial profile changed. Create a new scenario using the current profile.');
   }
 }
-function sourceProfile(current) {
+export function sourceProfile(current) {
   if (!current.profile || current.state.resolutionStatus !== 'CURRENT') {
     fail(422, 'REQUIRES_INPUTS', 'Complete your financial profile before using GenieDecision.');
   }
@@ -113,7 +113,7 @@ function normalizeScenario(body, scenarioType, expected = false) {
     scenarioType: scenarioType || body.scenarioType,
   };
 }
-function compute(current, payload) {
+export function computeDecisionScenario(current, payload) {
   const profile = current.profile;
   const baseline = { ...canonicalProfileFacts(profile), ...payload.baseline };
   const report = calculateDecision({
@@ -159,7 +159,7 @@ function reportReceiptContext(run) {
     profileFinancialFence: run.profileFinancialFence, issuedAt: run.issuedAt,
   };
 }
-function checkRevision(revision, scenario) {
+export function verifyDecisionRevision(revision, scenario) {
   if (!revision || revision.inputHash !== hash(revision.payload)
       || !verifyDecisionReceipt(revision, 'scenario_revision',
         revisionReceiptContext(scenario, revision.revision, revision.inputHash), revision.payload)
@@ -340,7 +340,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         || source.profileStateRevision !== req.body.expectedProfileStateRevision) {
       fail(409, 'DECISION_STALE_PROFILE', 'Refresh the current financial profile before simulating.');
     }
-    const result = compute(current, payload);
+    const result = computeDecisionScenario(current, payload);
     const final = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
     assertProfile(final, source);
     return res.json({
@@ -365,7 +365,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       const signed = await DecisionScenarioRevision.findOne({
         userId: req.user.userId, scenarioId: prior._id, revision: prior.revision,
       }).lean();
-      checkRevision(signed, prior);
+      verifyDecisionRevision(signed, prior);
       await checkCurrentRunPointers(req.user.userId, [prior]);
       return res.status(200).json({ scenario: scenarioDto(prior), replayed: true });
     }
@@ -375,7 +375,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       || source.profileStateRevision !== req.body.expectedProfileStateRevision) {
       fail(409, 'DECISION_STALE_PROFILE', 'Refresh your canonical financial profile.');
     }
-    compute(current, payload); // Validation only; no report is published for a draft.
+    computeDecisionScenario(current, payload); // Validation only; no report is published for a draft.
     const doc = await transaction(async session => {
       const fresh = await resolveProfile({
         userId: req.user.userId, requireRecommendation: false, session,
@@ -415,7 +415,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       const signed = await DecisionScenarioRevision.findOne({
         userId: req.user.userId, scenarioId: saved._id, revision: saved.revision,
       }).lean();
-      checkRevision(signed, saved);
+      verifyDecisionRevision(signed, saved);
       await checkCurrentRunPointers(req.user.userId, [saved]);
       return { ...saved, replayedAfterRace: true };
     });
@@ -436,7 +436,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       }).lean();
       const byIdentity = new Map(revisions.map(row => [`${row.scenarioId}:${row.revision}`, row]));
       for (const scenario of scenarios) {
-        checkRevision(byIdentity.get(`${scenario._id}:${scenario.revision}`), scenario);
+        verifyDecisionRevision(byIdentity.get(`${scenario._id}:${scenario.revision}`), scenario);
       }
     }
     await checkCurrentRunPointers(req.user.userId, scenarios);
@@ -448,7 +448,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const revision = await DecisionScenarioRevision.findOne({
       userId: req.user.userId, scenarioId: scenario._id, revision: scenario.revision,
     }).lean();
-    checkRevision(revision, scenario);
+    verifyDecisionRevision(revision, scenario);
     await checkCurrentRunPointers(req.user.userId, [scenario]);
     res.json({ scenario: scenarioDto(scenario), payload: revision.payload, inputHash: revision.inputHash });
   }));
@@ -458,14 +458,14 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const payload = normalizeScenario(req.body, first.scenarioType, true);
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
     assertProfile(current, first);
-    compute(current, payload);
+    computeDecisionScenario(current, payload);
     const updated = await transaction(async session => {
       const currentScenario = await ownedScenario(req, session);
       const currentRevision = await DecisionScenarioRevision.findOne({
         userId: req.user.userId, scenarioId: currentScenario._id,
         revision: currentScenario.revision,
       }).session(session).lean();
-      checkRevision(currentRevision, currentScenario);
+      verifyDecisionRevision(currentRevision, currentScenario);
       if (currentScenario.revision !== req.body.expectedRevision) {
         fail(409, 'DECISION_REVISION_CONFLICT', 'Scenario was changed by another request.');
       }
@@ -512,7 +512,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       const originalRevision = await DecisionScenarioRevision.findOne({
         userId: req.user.userId, scenarioId: first._id, revision: prior.revision,
       }).lean();
-      checkRevision(originalRevision, first);
+      verifyDecisionRevision(originalRevision, first);
       if (prior.inputHash !== originalRevision.inputHash) {
         fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Stored report input does not match the requested revision.');
       }
@@ -525,10 +525,10 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const revision = await DecisionScenarioRevision.findOne({
       userId: req.user.userId, scenarioId: first._id, revision: first.revision,
     }).lean();
-    checkRevision(revision, first);
+    verifyDecisionRevision(revision, first);
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
     assertProfile(current, first);
-    const result = compute(current, revision.payload);
+    const result = computeDecisionScenario(current, revision.payload);
     const run = await transaction(async session => {
       const latestScenario = await ownedScenario(req, session);
       if (latestScenario.revision !== first.revision
