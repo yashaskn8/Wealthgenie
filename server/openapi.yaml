@@ -308,6 +308,56 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/genieproof/nvidia-review:
+    post:
+      operationId: reviewGenieProofClaimWithNvidia
+      tags: [GenieProof]
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      description: Authenticated, rate-limited, explicitly consented next-step guidance for one already-checked claim statement. The model only selects among server-reviewed guidance IDs; it does not search, verify sources, or change the deterministic verdict. Returns status UNAVAILABLE with a reasonCode when consent, privacy, licensing or provider conditions are not met.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [statement, claimId, consent]
+              properties:
+                statement: { type: string, minLength: 1, maxLength: 500 }
+                claimId: { type: string, pattern: '^[a-f0-9]{32}$' }
+                consent: { type: boolean, const: true }
+      responses:
+        '200':
+          description: Reviewed guidance or a typed UNAVAILABLE result. Never alters the deterministic verdict.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, claimId, onlineSearchPerformedByNvidia, verificationChanged, nextSteps]
+                properties:
+                  status: { type: string, enum: [GUIDANCE_AVAILABLE, UNAVAILABLE] }
+                  reasonCode: { type: string }
+                  claimId: { type: [string, 'null'] }
+                  provider: { type: string, const: NVIDIA_NIM }
+                  model: { type: string }
+                  onlineSearchPerformedByNvidia: { type: boolean, const: false }
+                  verificationChanged: { type: boolean, const: false }
+                  assessedVerdict: { type: string, enum: [SUPPORTED, CONTRADICTED, NOT_VERIFIED] }
+                  explanation: { type: string }
+                  nextSteps:
+                    type: array
+                    maxItems: 3
+                    items:
+                      type: object
+                      required: [id, text]
+                      properties:
+                        id: { type: string }
+                        text: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/genieproof/extract-preview:
     post:
       operationId: previewGenieProofClaims

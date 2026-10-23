@@ -375,8 +375,8 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(panel).toContainText('Provisional scheme search only');
     await expect(panel).toContainText('MFapi.in');
     const selector = panel.getByRole('combobox', { name: 'Choose mutual fund NAV scheme' });
-    await expect(selector.locator('option[value="125498"]')).toBeDisabled();
-    await expect(selector.locator('option[value="125497"]')).toBeEnabled();
+    await expect(selector.locator('option[value="125498"]')).toHaveJSProperty('disabled', true);
+    await expect(selector.locator('option[value="125497"]')).toHaveJSProperty('disabled', false);
     await expect(panel.getByText('After-tax:', { exact: false })).toHaveCount(0);
   });
 
