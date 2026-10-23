@@ -885,6 +885,31 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     }
   });
 
+  it('end-to-end: portfolio review gives an actionable saved-state result instead of generic evidence boilerplate', async () => {
+    let calls = 0;
+    const result = await processChat({
+      userId: mockUserId, user: mockUser,
+      message: 'Review my portfolio',
+      sessionId: mockSessionId,
+      idempotencyKey: 'portfolio-review-specific-answer-20261023',
+    }, {
+      groundedExplanationDependencies: {
+        providers: [{ name: 'groq', isConfigured: () => true, async generate() {
+          calls += 1; throw new Error('Portfolio review should use vetted backend facts');
+        } }],
+        getCache: async () => null, setCache: async () => false,
+      },
+    });
+    assert.equal(calls, 0);
+    assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+    assert.equal(result.fallback, false);
+    assert.equal(result.validation_status, 'PASS');
+    assert.match(result.response, /no current saved recommendation allocation available/i);
+    assert.match(result.response, /saved WealthGenie recommended allocation/i);
+    assert.doesNotMatch(result.response, /authoritative backend reports|suitability evidence|recommendation evidence/i);
+    assert.ok(result.citations.some(c => c.citation_id === 'E_PORTFOLIO_REVIEW_SCOPE'));
+  });
+
   it('Phase 6: provider failure returns a deterministic evidence-backed fallback', async () => {
     axios.post = async () => {
       throw Object.assign(new Error('provider unavailable'), { code: 'ECONNRESET' });
