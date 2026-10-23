@@ -126,9 +126,14 @@ for (const viewport of [
     const csv = 'Date,Description,Debit,Credit,Balance\n'
       + statements.map((day, i) => day + ',Recurring home bill,200.25,,' + (50000 - i * 200))
         .join('\n');
-    await page.getByLabel('Choose bank statement CSV').setInputFiles({
-      name: 'private-statement.csv', mimeType: 'text/csv', buffer: Buffer.from(csv),
-    });
+    await page.evaluate(csvData => {
+      const input = document.querySelector('input[aria-label="Choose bank statement CSV"]');
+      if (!(input instanceof HTMLInputElement)) throw new Error('CSV file picker missing');
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([csvData], 'private-statement.csv', { type: 'text/csv' }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, csv);
     const review = page.getByRole('region', { name: 'Statement review' });
     await expect(review).toBeVisible();
     await expect(review).toContainText('Unverified local statement');

@@ -192,7 +192,10 @@ export function inspectCashStatementCsv(text, { today } = {}) {
     const date = statementDate(get('date'));
     if (date > confirmedToday) fail('Future-dated bank transactions cannot be presented as completed.');
     const description = get('description').replace(/\s+/g, ' ').trim();
-    if (!description || description.length > 160 || /[\u0000-\u001f\u007f]/.test(description)) {
+    if (!description || description.length > 160 || Array.from(description).some(char => {
+      const code = char.charCodeAt(0);
+      return code < 32 || code === 127;
+    })) {
       fail('CSV row ' + (idx + 2) + ' has an invalid narration.');
     }
     const debit = decimalPaise(get('debit'), { nullable: true });
