@@ -10,6 +10,9 @@ import DecisionScenario from '../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionRun from '../models/DecisionRun.js';
 import { verifyPersistenceIndexes } from '../services/persistenceIndexReadiness.js';
+import {
+  DecisionIntegrityUnavailable, decisionIntegrityReady, signDecisionReceipt, verifyDecisionReceipt,
+} from '../services/genieDecision/integrity.js';
 
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const identity = id => String(id);
@@ -135,12 +138,45 @@ function scenarioDto(row) {
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
 }
+function revisionReceiptContext(scenario, revision, inputHash) {
+  return {
+    userId: identity(scenario.userId), scenarioId: identity(scenario._id),
+    revision, inputHash, scenarioType: scenario.scenarioType,
+    profileId: identity(scenario.profileId), profileFactsHash: scenario.profileFactsHash,
+  };
+}
+function reportReceiptContext(run) {
+  return {
+    userId: identity(run.userId), scenarioId: identity(run.scenarioId),
+    revision: run.revision, profileId: identity(run.profileId),
+    profileFactsHash: run.profileFactsHash, inputHash: run.inputHash, runKeyHash: run.runKeyHash,
+  };
+}
+function checkRevision(revision, scenario) {
+  if (!revision || revision.inputHash !== hash(revision.payload)
+      || !verifyDecisionReceipt(revision, 'scenario_revision',
+        revisionReceiptContext(scenario, revision.revision, revision.inputHash), revision.payload)) {
+    fail(503, 'DECISION_REVISION_INTEGRITY_FAILURE',
+      'Stored scenario revision failed authenticated integrity verification.');
+  }
+}
+function makeRevision({ scenario, revision, payload }) {
+  const inputHash = hash(payload);
+  return {
+    userId: scenario.userId, scenarioId: scenario._id,
+    revision, payload, inputHash,
+    ...signDecisionReceipt('scenario_revision',
+      revisionReceiptContext(scenario, revision, inputHash), payload),
+  };
+}
 function reportDto(run, current, scenario = null) {
   // Both financial-profile and scenario-revision pointers must remain current.
   // Independently verify the immutable result snapshot before presenting it.
   if (!run.result || typeof run.result !== 'object'
       || !/^[a-f0-9]{64}$/.test(run.resultHash || '')
-      || hash(run.result) !== run.resultHash) {
+      || hash(run.result) !== run.resultHash
+      || !verifyDecisionReceipt(run, 'decision_run', reportReceiptContext(run),
+        { resultHash: run.resultHash })) {
     fail(503, 'DECISION_REPORT_INTEGRITY_FAILURE',
       'The saved decision report failed integrity verification.');
   }
@@ -197,6 +233,11 @@ const handleInput = fn => asyncHandler(async (req, res) => {
   try { await fn(req, res); }
   catch (err) {
     if (err instanceof DecisionInputError) return sendError(req, res, 422, err.message, err.code);
+    if (err instanceof DecisionIntegrityUnavailable) {
+      return sendError(req, res, 503,
+        'Authenticated decision report signing is unavailable.',
+        'DECISION_INTEGRITY_UNAVAILABLE');
+    }
     if (err?.code === 11000 || err?.name === 'MongoServerError' && err?.code === 11000) {
       return sendError(req, res, 409, 'Concurrent or duplicate scenario mutation.', 'DECISION_CONFLICT');
     }
@@ -246,8 +287,10 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const financiallyCoherent = complete
       && Number(facts.monthlyTakeHome) > 0
       && Number(facts.monthlyTakeHome) >= Number(facts.declaredMonthlySavings);
+    const authenticatedReports = decisionIntegrityReady();
     res.json({
-      available: currentProfile && financiallyCoherent,
+      available: currentProfile && financiallyCoherent && authenticatedReports,
+      authenticatedReports,
       profileId: currentProfile ? identity(current.profile._id) : null,
       profileStateRevision: currentProfile ? current.state.revision : null,
       openingLiquidCashAvailable: facts.openingLiquidCash !== null,
@@ -259,6 +302,9 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
 
   router.post('/scenarios', requireDecisionIndexes, handleInput(async (req, res) => {
     const payload = normalizeScenario(req.body);
+    if (!decisionIntegrityReady()) {
+      fail(503, 'DECISION_INTEGRITY_UNAVAILABLE', 'Authenticated receipt signing is unavailable.');
+    }
     const createKeyHash = idempotency(req, 'decision.create');
     const createPayloadHash = hash(req.body);
     const prior = await DecisionScenario.findOne({ userId: req.user.userId, createKeyHash }).lean();
@@ -295,10 +341,9 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         scenarioType: payload.scenarioType, title: payload.title, quotaSlot,
         createKeyHash, createPayloadHash,
       }], { session });
-      await DecisionScenarioRevision.create([{
-        userId: req.user.userId, scenarioId: created._id,
-        revision: 1, payload, inputHash: hash(payload),
-      }], { session });
+      await DecisionScenarioRevision.create([
+        makeRevision({ scenario: created.toObject(), revision: 1, payload }),
+      ], { session });
       return created.toObject();
     }).catch(async error => {
       // Two replicas may commit the same key concurrently. A unique-index
@@ -327,9 +372,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const revision = await DecisionScenarioRevision.findOne({
       userId: req.user.userId, scenarioId: scenario._id, revision: scenario.revision,
     }).lean();
-    if (!revision || revision.inputHash !== hash(revision.payload)) {
-      fail(503, 'DECISION_STATE_INCOMPLETE', 'Stored scenario revision failed its integrity check.');
-    }
+    checkRevision(revision, scenario);
     res.json({ scenario: scenarioDto(scenario), payload: revision.payload, inputHash: revision.inputHash });
   }));
 
@@ -357,10 +400,9 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       }, { $inc: { revision: 1 }, $set: { title: payload.title, lastRunId: null } },
       { new: true, session }).lean();
       if (!next) fail(409, 'DECISION_REVISION_CONFLICT', 'Scenario was concurrently updated.');
-      await DecisionScenarioRevision.create([{
-        userId: req.user.userId, scenarioId: currentScenario._id,
-        revision: next.revision, payload, inputHash: hash(payload),
-      }], { session });
+      await DecisionScenarioRevision.create([
+        makeRevision({ scenario: next, revision: next.revision, payload }),
+      ], { session });
       return next;
     });
     res.json({ scenario: scenarioDto(updated) });
@@ -384,9 +426,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       const originalRevision = await DecisionScenarioRevision.findOne({
         userId: req.user.userId, scenarioId: first._id, revision: prior.revision,
       }).lean();
-      if (!originalRevision || originalRevision.inputHash !== hash(originalRevision.payload)) {
-        fail(503, 'DECISION_STATE_INCOMPLETE', 'Stored scenario revision cannot be verified.');
-      }
+      checkRevision(originalRevision, first);
       if (prior.inputHash !== originalRevision.inputHash) {
         fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Stored report input does not match the requested revision.');
       }
@@ -399,9 +439,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const revision = await DecisionScenarioRevision.findOne({
       userId: req.user.userId, scenarioId: first._id, revision: first.revision,
     }).lean();
-    if (!revision || revision.inputHash !== hash(revision.payload)) {
-      fail(503, 'DECISION_STATE_INCOMPLETE', 'Decision revision integrity check failed.');
-    }
+    checkRevision(revision, first);
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
     assertProfile(current, first);
     const result = compute(current, revision.payload);
@@ -420,11 +458,17 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       }).session(session);
       if (runCount >= 20) fail(429, 'DECISION_REPORT_LIMIT',
         'Maximum of 20 retained reports per scenario reached. Delete the scenario to clear the history.');
-      const [created] = await DecisionRun.create([{
+      const storedRun = {
         userId: req.user.userId, scenarioId: first._id, revision: first.revision,
         profileId: first.profileId, profileStateRevision: first.profileStateRevision,
         profileVersion: first.profileVersion, profileFinancialFence: first.profileFinancialFence,
-        profileFactsHash: first.profileFactsHash, runKeyHash: key, inputHash: revision.inputHash, result, resultHash: hash(result),
+        profileFactsHash: first.profileFactsHash, runKeyHash: key, inputHash: revision.inputHash,
+        result, resultHash: hash(result),
+      };
+      const [created] = await DecisionRun.create([{
+        ...storedRun,
+        ...signDecisionReceipt('decision_run', reportReceiptContext(storedRun),
+          { resultHash: storedRun.resultHash }),
       }], { session });
       const head = await DecisionScenario.findOneAndUpdate({
         ...own(req, first._id), revision: first.revision, runGeneration: first.runGeneration,
