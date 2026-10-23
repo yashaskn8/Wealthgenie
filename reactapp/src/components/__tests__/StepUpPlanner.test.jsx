@@ -320,6 +320,7 @@ it('recovers from an aborted in-flight request using the visible retry action', 
 it('does not make an investment forecast or display random looking rupee amounts on initial profile load', async () => {
   const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse());
   render(<StepUpPlanner profile={{ monthly_savings: 11998, investment_horizon_years: 20 }} />);
+  expect(screen.getByTestId('step-up-view')).toBeVisible();
   expect(screen.getByText(/No projection calculated yet/)).toBeInTheDocument();
   expect(screen.getByText(/₹11,998 per month, increasing 10% each year for 20 years/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Calculate SIP projection' })).toBeEnabled();
