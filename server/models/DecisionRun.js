@@ -12,6 +12,8 @@ const schema = new mongoose.Schema({
   profileFactsHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   runKeyHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   inputHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  integrityKeyId: { type: String, required: true, immutable: true, match: /^[A-Za-z0-9_-]{1,32}$/ },
+  integrityTag: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   result: { type: mongoose.Schema.Types.Mixed, required: true, immutable: true },
   resultHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
 }, { timestamps: { createdAt: true, updatedAt: false }, strict: 'throw' });
@@ -19,6 +21,6 @@ const schema = new mongoose.Schema({
 schema.index({ userId: 1, runKeyHash: 1 }, { unique: true, name: 'uniq_decision_run_key' });
 schema.index({ userId: 1, scenarioId: 1, createdAt: -1 }, { name: 'decision_run_owner_history' });
 protectImmutableIdentity(schema, [
-  'userId', 'scenarioId', 'revision', 'profileId', 'runKeyHash', 'inputHash', 'result', 'resultHash', 'profileFactsHash',
+  'userId', 'scenarioId', 'revision', 'profileId', 'runKeyHash', 'inputHash', 'result', 'resultHash', 'profileFactsHash', 'integrityKeyId', 'integrityTag',
 ], { code: 'DECISION_REPORT_IMMUTABLE', label: 'GenieDecision report' });
 export default mongoose.models.DecisionRun || mongoose.model('DecisionRun', schema);
