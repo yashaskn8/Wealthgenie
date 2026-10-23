@@ -85,7 +85,8 @@ export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFina
       if (remaining <= 0) liveClients.delete(userId);
       else liveClients.set(userId, remaining);
     }
-    req.once('close', release);
+    // IncomingMessage closes once its GET request has been fully received,
+    // NOT when the response stream closes. Only the response owns this lease.
     res.once('close', release);
     res.status(200).set({
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -103,7 +104,6 @@ export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFina
       return true;
     };
     let cursor = after ?? page.latestSequence;
-    const initialCursor = cursor;
     if (!send('connected', { latestSequence: page.latestSequence,
       profileCurrentness: initial?.state?.resolutionStatus || 'UNAVAILABLE',
       updateMode: 'OWNER_SCOPED_DURABLE_EVENTS', pollMilliseconds: LIVE_POLL_MS })) {
@@ -146,7 +146,6 @@ export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFina
       release();
       res.end();
     }
-    void initialCursor;
   }));
 
   return router;
