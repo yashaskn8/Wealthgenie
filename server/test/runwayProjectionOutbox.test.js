@@ -51,3 +51,17 @@ test('restores test-only signing state', () => {
   else process.env.RUNWAY_INTEGRITY_SECRET = original;
   assert.ok(true);
 });
+
+test('worker cannot report IDLE while an exhausted financial job was newly quarantined', async () => {
+  const { processOneRunwayProjection } = await import('../services/runwayProjectionOutbox.js');
+  let claims = 0;
+  const state = await processOneRunwayProjection({
+    jobModel: {
+      updateMany: async () => ({ modifiedCount: 1 }),
+      findOneAndUpdate: async () => { claims++; return null; },
+    },
+  });
+  assert.equal(state.status, 'BLOCKED');
+  assert.equal(state.code, 'RUNWAY_PROJECTION_LEASE_EXHAUSTED');
+  assert.equal(claims, 0, 'Must fail closed before processing any more financial jobs');
+});

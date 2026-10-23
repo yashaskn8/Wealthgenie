@@ -98,7 +98,12 @@ export async function processOneRunwayProjection({
 } = {}) {
   const at = now();
   const token = randomUUID();
-  await quarantineExhaustedRunwayProjectionJobs({ at, jobModel });
+  const exhausted = await quarantineExhaustedRunwayProjectionJobs({ at, jobModel });
+  if (exhausted) {
+    return {
+      status: 'BLOCKED', code: 'RUNWAY_PROJECTION_LEASE_EXHAUSTED', count: exhausted,
+    };
+  }
   // Due states include expired leases. DB compare-and-swap guarantees
   // one live owner per token; stolen claims cannot publish financial results.
   const job = await jobModel.findOneAndUpdate({

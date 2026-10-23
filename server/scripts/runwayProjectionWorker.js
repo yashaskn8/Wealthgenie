@@ -1,9 +1,7 @@
 /** Standalone opt-in Runway worker, independent from the AI agent worker. */
 import 'dotenv/config';
 import mongoose from 'mongoose';
-import {
-  processOneRunwayProjection, quarantineExhaustedRunwayProjectionJobs,
-} from '../services/runwayProjectionOutbox.js';
+import { processOneRunwayProjection } from '../services/runwayProjectionOutbox.js';
 import connectDB from '../config/db.js';
 import { verifyRunwayOperationalReadiness } from '../services/runwayOperationalReadiness.js';
 const env = process.env;
@@ -23,10 +21,6 @@ process.on('SIGINT', stop);
 try {
   await verifyRunwayOperationalReadiness();
   while (!stopping) {
-    const exhausted = await quarantineExhaustedRunwayProjectionJobs();
-    if (exhausted) {
-      process.stderr.write('Runway: exhausted projection leases quarantined: ' + exhausted + '\n');
-    }
     const done = await processOneRunwayProjection();
     if (done.status === 'IDLE') {
       await new Promise(resolve => setTimeout(resolve, 2000));

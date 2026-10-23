@@ -145,6 +145,12 @@ export function createRunwayLiveRouter({
     const userId = owner(req);
     const current = await currentRevision(userId);
     if (!current) return res.json({ status: 'NO_CONFIRMED_LEDGER', items: [] });
+    if (current.revision.ledger.asOfDate !== indiaCivilToday()) {
+      return res.json({
+        status: 'CASH_CONFIRMATION_STALE', revision: current.state.revision,
+        items: [], warning: 'Reconfirm your household cash for today before using risk alerts.',
+      });
+    }
     const alert = await RunwayAlert.findOne({
       userId, revision: current.state.revision, kind: 'LISTED_CASH_SHORTFALL',
     }).lean();
@@ -182,6 +188,12 @@ export function createRunwayLiveRouter({
     const userId = owner(req);
     const current = await currentRevision(userId);
     if (!current) return res.json({ status: 'NO_CONFIRMED_LEDGER', revision: null });
+    if (current.revision.ledger.asOfDate !== indiaCivilToday()) {
+      return res.json({
+        status: 'CASH_CONFIRMATION_STALE', revision: current.state.revision,
+        source: 'SIGNED_HISTORICAL_LEDGER_NOT_CURRENT_BANK_CASH',
+      });
+    }
     const id = runwayProjectionId(userId, current.state.revision);
     const [job, result] = await Promise.all([
       RunwayProjectionJob.findOne({ _id: id, userId }).lean(),
