@@ -206,6 +206,15 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     // A recalculation-policy upgrade does not rewrite history or present an
     // outdated numerical report as if it came from today's code.
     const originalRun = await DecisionRun.findById(reportId).lean();
+    assert.equal((await call(base, userOne, `/runs/${reportId}`)).body.run.asOf, originalRun.issuedAt);
+    await DecisionRun.collection.updateOne({ _id: originalRun._id },
+      { $set: { issuedAt: '2099-01-01T00:00:00.000Z' } });
+    const falsifiedFreshness = await call(base, userOne, `/runs/${reportId}`);
+    assert.equal(falsifiedFreshness.response.status, 503);
+    assert.equal(falsifiedFreshness.body.code, 'DECISION_REPORT_INTEGRITY_FAILURE');
+    await DecisionRun.collection.updateOne({ _id: originalRun._id },
+      { $set: { issuedAt: originalRun.issuedAt } });
+
     const previousModelResult = { ...originalRun.result, modelVersion: 'geniedecision-ledger-0.0.1' };
     const oldResultHash = crypto.createHash('sha256').update(JSON.stringify(previousModelResult)).digest('hex');
     // A *legitimately signed* historical report must remain readable but
@@ -215,7 +224,7 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
       userId: String(originalRun.userId), scenarioId: String(originalRun.scenarioId),
       revision: originalRun.revision, profileId: String(originalRun.profileId),
       profileFactsHash: originalRun.profileFactsHash, inputHash: originalRun.inputHash,
-      runKeyHash: originalRun.runKeyHash,
+      runKeyHash: originalRun.runKeyHash, issuedAt: originalRun.issuedAt,
     }, { resultHash: oldResultHash });
     await DecisionRun.collection.updateOne({ _id: originalRun._id },
       { $set: { result: previousModelResult, resultHash: oldResultHash, ...oldReceipt } });
