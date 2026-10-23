@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import CashCheck from '../CashCheck';
 import * as api from '../../services/api';
@@ -367,6 +367,35 @@ describe('90-day cash check', () => {
     fireEvent(document, new Event('visibilitychange'));
     await screen.findByDisplayValue('9000.00');
     expect(api.getCoverageLedger).toHaveBeenCalledTimes(2);
+  });
+
+  it('never resurrects a pending old-account CSV import after logout and a new login', async () => {
+    const csv = 'Date,Description,Debit,Credit\n2026-09-01,Private old account rent,500,\n';
+    let completeRead;
+    const delayedRead = new Promise(resolve => { completeRead = resolve; });
+    const file = new File([csv], 'private.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', { value: vi.fn(() => delayedRead) });
+    api.getCoverageLedger.mockResolvedValueOnce({
+      revision: 1, ledger: { asOfDate: indiaToday(), openingCashPaise: 10000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+      latestResult: { inputHash: 'a'.repeat(64), result: baseline() },
+      requiresCashReconfirmation: false,
+    }).mockRejectedValueOnce(Object.assign(new Error('Session expired'), { status: 401 }))
+      .mockResolvedValueOnce({ revision: 0, ledger: null, latestResult: null });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByLabelText('Choose bank statement CSV'), {
+      target: { files: [file] },
+    });
+    await screen.findByText('Reviewing local statement…');
+    fireEvent(document, new Event('visibilitychange'));
+    await screen.findByRole('button', { name: 'Retry loading saved records' });
+    await act(async () => { completeRead(csv); });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading saved records' }));
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    await screen.findByPlaceholderText('50000.00');
+    expect(screen.queryByRole('region', { name: 'Statement review' })).toBeNull();
+    expect(screen.queryByText(/Private old account rent/)).toBeNull();
   });
 
 });

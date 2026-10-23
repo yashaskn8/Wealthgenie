@@ -174,7 +174,11 @@ export default function CashCheck() {
   const [csvError, setCsvError] = useState('');
   const [csvReading, setCsvReading] = useState(false);
   const [candidateTypes, setCandidateTypes] = useState({});
+  const importGeneration = useRef(0);
 
+  useEffect(() => {
+    return () => { importGeneration.current += 1; };
+  }, []);
   useEffect(() => {
     const timer = setInterval(() => setIndiaDate(INDIA_DATE()), 60_000);
     return () => clearInterval(timer);
@@ -230,6 +234,8 @@ export default function CashCheck() {
           setServerPolicyStale(Boolean(latest.requiresPolicyReconfirmation));
           setVerificationFailed(false);
           if (differentSnapshot) {
+            importGeneration.current += 1;
+            setCsvReading(false);
             // Imported statements are not owner-bound. On an unseen source
             // identity change, discard any unsaved import-review material.
             setCsvReview(null);
@@ -252,6 +258,8 @@ export default function CashCheck() {
           setServerInputHash(null);
           setServerPolicyStale(false);
           setVerificationFailed(false);
+          importGeneration.current += 1;
+          setCsvReading(false);
           setCsvReview(null);
           setCandidateTypes({});
           setPreview(null);
@@ -294,6 +302,7 @@ export default function CashCheck() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file || csvReading || busy) return;
+    const generation = ++importGeneration.current;
     setCsvError('');
     setCsvReview(null);
     if (!file.name.toLowerCase().endsWith('.csv') || file.size > MAX_CASH_CSV_BYTES || file.size === 0) {
@@ -304,12 +313,19 @@ export default function CashCheck() {
     try {
       // Sensitive transaction descriptions never leave the browser during
       // import, and full rows are not copied into app state, logs or storage.
-      const result = inspectCashStatementCsv(await file.text());
+      const contents = await file.text();
+      if (generation !== importGeneration.current) return;
+      const result = inspectCashStatementCsv(contents);
+      if (generation !== importGeneration.current) return;
       setCsvReview({ ...result, reviewedOn: INDIA_DATE() });
       setCandidateTypes({});
     } catch (err) {
-      setCsvError(err.message || 'Statement could not be parsed; nothing was saved.');
-    } finally { setCsvReading(false); }
+      if (generation === importGeneration.current) {
+        setCsvError(err.message || 'Statement could not be parsed; nothing was saved.');
+      }
+    } finally {
+      if (generation === importGeneration.current) setCsvReading(false);
+    }
   };
   const acceptStatementSuggestion = candidate => {
     if (busy || !csvReview) return;
@@ -508,7 +524,9 @@ export default function CashCheck() {
       setDirty(false);
       setStale(false);
       setConfirmDelete(false);
+      importGeneration.current += 1;
       setCsvReview(null);
+      setCsvReading(false);
       setNotice('Saved cash entries and calculations deleted. A minimal deletion receipt remains for retry safety.');
       signalCashRevisionChanged();
     } catch (err) {
@@ -670,7 +688,12 @@ export default function CashCheck() {
                     onClick={() => acceptStatementSuggestion(candidate)}>Add reviewed payment to unsaved draft</button>
                 </fieldset>
               ))}
-              <button type="button" onClick={() => { setCsvReview(null); setCsvError(''); }} disabled={busy}>Discard statement review</button>
+              <button type="button" onClick={() => {
+                importGeneration.current += 1;
+                setCsvReview(null);
+                setCandidateTypes({});
+                setCsvError('');
+              }} disabled={busy}>Discard statement review</button>
               <small>Raw CSV rows remain on this device only during parsing. Review summaries disappear when you discard them or leave this page. The upload does not authorize banking access.</small>
             </div>
           )}
