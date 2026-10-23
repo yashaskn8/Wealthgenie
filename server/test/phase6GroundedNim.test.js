@@ -423,7 +423,7 @@ test('Explain tax assumptions answers the actual question with cited internal po
     'E_TAX_ASSUMPTIONS_LIMITS',
     'E_REGULATORY_NOTICE',
   ]);
-  assert.match(result.text, /financial year.*annual income.*tax regime.*income-source breakdown/i);
+  assert.match(result.text, /declared tax year, income type, primary income, other ordinary income/i);
   assert.match(result.text, /Deductions, rebates, cess or surcharge/);
   assert.match(result.text, /not automatically after-tax returns/);
   assert.doesNotMatch(result.text, /a model answer was unavailable|has not calculated a personal tax result here/);
@@ -1527,9 +1527,12 @@ test('NVIDIA failover never bypasses absent durable reservations or primary safe
     settleProviderAttempt: async () => ({ settled: true }),
     getCache: async () => null, setCache: async () => false,
   });
-  assert.equal(calls, 1);
+  // A separately reserved NVIDIA attempt is permitted after a Groq 429.
+  // Both malformed/unavailable providers must still yield a cited deterministic answer.
+  assert.equal(calls, 2);
   assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
   assert.equal(answer.validation.status, 'PASS');
+  assert.equal(answer.providerAttemptCount, 2);
 });
 
 
@@ -1667,7 +1670,7 @@ test('tax policy explainer red-team: natural paraphrases never become model gues
     assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE', question);
     assert.equal(answer.fallback, false, question);
     assert.match(answer.text, /only the new income-tax regime/i, question);
-    assert.match(answer.text, /explicit financial year, annual income, tax regime.*income-source breakdown/i, question);
+    assert.match(answer.text, /declared tax year, income type, primary income, other ordinary income/i, question);
     assert.doesNotMatch(answer.text, /source-backed fallback|model answer was unavailable/i, question);
     assert.ok(answer.citations.some(entry => entry.source === 'WealthGenie backend policy'), question);
     assert.ok(answer.citations.every(entry => entry.source_url === null), question);
