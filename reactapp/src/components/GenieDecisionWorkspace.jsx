@@ -49,9 +49,15 @@ const PARAMETERS = {
 const DEFAULT_BASE = { monthlyLivingExpenses: '', monthlyDebtPayments: '', monthlyInvestments: '' };
 const label = value => TYPES.find(x => x.key === value)?.label || value;
 const errorMessage = err => err?.message || 'The financial analysis could not be completed.';
-const prettyMoney = value => typeof value === 'string' && /^-?\d+\.\d{2}$/.test(value)
-  ? `${value.startsWith('-') ? '-' : ''}₹${Number(value.replace('-', '')).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  : 'Not available';
+const prettyMoney = value => {
+  if (typeof value !== 'string' || !/^-?\d+\.\d{2}$/.test(value)) return 'Not available';
+  // Never convert a full ledger aggregate through IEEE-754.
+  const negative = value.startsWith('-');
+  const [integer, paise] = (negative ? value.slice(1) : value).split('.');
+  const finalThree = integer.slice(-3);
+  const firstGroups = integer.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+  return `${negative ? '-' : ''}₹${firstGroups ? `${firstGroups},` : ''}${finalThree}.${paise}`;
+};
 const shortDate = text => text ? new Date(text).toLocaleDateString('en-IN') : '';
 // Never create a fresh idempotency key for an identical retry after a lost
 // response: the server may already have committed the first submission.
@@ -295,9 +301,15 @@ export default function GenieDecisionWorkspace() {
         `decision.evaluate:${active.id}`, { expectedRevision: active.revision });
       const result = await evaluateDecisionScenario(active.id, active.revision,
         { headers: { 'Idempotency-Key': key } });
-      evaluationRequestRef.current = null;
       setReport(result);
-      setRuns((await listDecisionRuns(active.id)).runs || []);
+      evaluationRequestRef.current = null;
+      // Evaluation already committed: a secondary history failure must not
+      // invite an accidental second publication.
+      try {
+        setRuns((await listDecisionRuns(active.id)).runs || []);
+      } catch {
+        setError('Report saved, but history could not be refreshed. Open this scenario again to retry loading history.');
+      }
       setSuccess('A versioned report was published without changing your investments or profile.');
       await refresh();
     } catch (err) { setError(errorMessage(err)); }
