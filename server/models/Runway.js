@@ -17,6 +17,8 @@ const ledgerRevisionSchema = new Schema({
   ledger: { type: Schema.Types.Mixed, required: true, immutable: true },
   inputHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   confirmedAt: { type: Date, required: true, immutable: true },
+  sealVersion: { type: String, required: true, immutable: true, enum: ['HMAC_SHA256_V1'] },
+  sealHmac: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
 }, options);
 ledgerRevisionSchema.index({ userId: 1, revision: 1 }, { unique: true, name: 'uniq_runway_ledger_revision' });
 

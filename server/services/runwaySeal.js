@@ -46,3 +46,27 @@ export function verifyRunwaySeal(record, env = process.env) {
       || !/^[a-f0-9]{64}$/.test(record.sealHmac)) return false;
   return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(record.sealHmac, 'hex'));
 }
+
+function ledgerSealPayload(record) {
+  return {
+    purpose: 'WEALTHGENIE_RUNWAY_LEDGER_REVISION_V1',
+    userId: String(record.userId),
+    revision: record.revision,
+    ledger: record.ledger,
+    inputHash: record.inputHash,
+    confirmedAt: record.confirmedAt,
+  };
+}
+export function createRunwayLedgerSeal(record, env = process.env) {
+  return crypto.createHmac('sha256', keyFromEnv(env))
+    .update('wealthgenie:household-runway:ledger-revision:v1:', 'utf8')
+    .update(canonicalJson(ledgerSealPayload(record)), 'utf8')
+    .digest('hex');
+}
+export function verifyRunwayLedgerSeal(record, env = process.env) {
+  const expected = createRunwayLedgerSeal(record, env);
+  if (record.sealVersion !== RUNWAY_SEAL_VERSION
+      || typeof record.sealHmac !== 'string'
+      || !/^[a-f0-9]{64}$/.test(record.sealHmac)) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(record.sealHmac, 'hex'));
+}

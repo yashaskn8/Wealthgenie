@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
-import { createRunwaySeal, verifyRunwaySeal, RUNWAY_SEAL_VERSION } from '../services/runwaySeal.js';
+import {
+  createRunwaySeal, verifyRunwaySeal, createRunwayLedgerSeal, verifyRunwayLedgerSeal, RUNWAY_SEAL_VERSION,
+} from '../services/runwaySeal.js';
 import { verifyJWTWithRevocationAvailability as requireSession } from '../middleware/authMiddleware.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
@@ -72,6 +74,7 @@ async function currentRevision(userId, session = null) {
   if (!revision || canonicalSha256(revision.ledger) !== revision.inputHash) {
     throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved ledger could not be reconciled.');
   }
+  requireValidLedgerSeal(revision);
   return { state, revision };
 }
 async function inTransaction(action) {
@@ -125,6 +128,22 @@ function makeSnapshotSeal(record) {
       'Saved financial results are unavailable until snapshot signing is configured.');
   }
 }
+function makeLedgerSeal(record) {
+  try { return createRunwayLedgerSeal(record); } catch (error) {
+    if (error?.code !== 'RUNWAY_SEAL_KEY_UNAVAILABLE') throw error;
+    throw failure(503, 'RUNWAY_SEAL_KEY_UNAVAILABLE',
+      'Saved financial records are unavailable until ledger signing is configured.');
+  }
+}
+function requireValidLedgerSeal(record) {
+  let valid;
+  try { valid = verifyRunwayLedgerSeal(record); } catch (error) {
+    if (error?.code !== 'RUNWAY_SEAL_KEY_UNAVAILABLE') throw error;
+    throw failure(503, 'RUNWAY_SEAL_KEY_UNAVAILABLE',
+      'Saved financial records are unavailable until ledger signing is configured.');
+  }
+  if (!valid) throw failure(503, 'RUNWAY_LEDGER_SEAL_INVALID', 'Ledger provenance could not be verified.');
+}
 function requireValidSnapshotSeal(record) {
   let valid;
   try { valid = verifyRunwaySeal(record); } catch (error) {
@@ -165,17 +184,19 @@ router.get('/ledger/revisions', asyncHandler(async (req, res) => {
   }
   const [items, total] = await Promise.all([
     RunwayLedgerRevision.find({ userId }).sort({ revision: -1 }).skip(page * 100)
-      .limit(100).select('revision ledger inputHash confirmedAt -_id').lean(),
+      .limit(100).select('revision ledger inputHash confirmedAt sealVersion sealHmac userId -_id').lean(),
     RunwayLedgerRevision.countDocuments({ userId }),
   ]);
   for (const item of items) {
     if (canonicalSha256(item.ledger) !== item.inputHash) {
       throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Historical ledger verification failed. Export stopped.');
     }
+    requireValidLedgerSeal(item);
   }
   return res.json({
     format: 'WEALTHGENIE_RUNWAY_LEDGER_HISTORY_V1',
-    page, total, hasMore: (page + 1) * 100 < total, items,
+    page, total, hasMore: (page + 1) * 100 < total,
+    items: items.map(({ revision, ledger, inputHash, confirmedAt }) => ({ revision, ledger, inputHash, confirmedAt })),
     verified: 'SERVER_RECOMPUTED_INPUT_HASH',
     disclaimer: 'Self-reported financial inputs, not verified bank balances. Keep this export private.',
   });
@@ -198,6 +219,7 @@ router.put('/ledger', asyncHandler(async (req, res) => {
     if (!rev || canonicalSha256(rev.ledger) !== rev.inputHash) {
       throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Committed revision is unavailable.');
     }
+    requireValidLedgerSeal(rev);
     return res.status(200).json({ revision: rev.revision, ledger: rev.ledger, inputHash: rev.inputHash,
       confirmedAt: rev.confirmedAt, historical: found?.state.revision !== rev.revision, replayed: true });
   }
@@ -214,7 +236,10 @@ router.put('/ledger', asyncHandler(async (req, res) => {
       if ((previous?.revision || 0) !== expected) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Ledger was edited elsewhere. Refresh before saving.');
       const next = expected + 1;
       const inputHash = canonicalSha256(ledger);
-      await RunwayLedgerRevision.create([{ userId, revision: next, ledger, inputHash, confirmedAt: new Date() }], { session });
+      const revisionRecord = { userId, revision: next, ledger, inputHash, confirmedAt: new Date(),
+        sealVersion: RUNWAY_SEAL_VERSION };
+      revisionRecord.sealHmac = makeLedgerSeal(revisionRecord);
+      await RunwayLedgerRevision.create([revisionRecord], { session });
       if (!previous) await RunwayLedgerState.create([{ _id: userId, revision: next, snapshotGeneration: 0 }], { session });
       else {
         const cas = await RunwayLedgerState.updateOne({ _id: userId, revision: expected }, { $set: { revision: next } }, { session });
@@ -228,6 +253,7 @@ router.put('/ledger', asyncHandler(async (req, res) => {
   if (!found || canonicalSha256(found.ledger) !== found.inputHash) {
     throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Committed ledger could not be verified.');
   }
+  requireValidLedgerSeal(found);
   return res.status(201).json({ revision: created, ledger: found.ledger, inputHash: found.inputHash, confirmedAt: found.confirmedAt, replayed: false });
 }));
 
@@ -254,10 +280,11 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
   }
   const [items, total, state] = await Promise.all([
     RunwaySnapshot.find({ userId }).sort({ createdAt: -1, _id: -1 })
-      .skip(page * 20).limit(20).select('_id ledgerRevision createdAt inputHash result.engineVersion result.asOfDate').lean(),
+      .skip(page * 20).limit(20).lean(),
     RunwaySnapshot.countDocuments({ userId }),
     RunwayLedgerState.findById(userId).select('revision').lean(),
   ]);
+  for (const item of items) requireValidSnapshotSeal(item);
   return res.json({
     page, total, hasMore: (page + 1) * 20 < total,
     items: items.map(item => ({
@@ -339,6 +366,7 @@ async function verifiedSnapshot(userId, id) {
       || canonicalSha256(snapshot.result) !== snapshot.resultHash) {
     throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved snapshot verification failed.');
   }
+  requireValidLedgerSeal(source);
   // A snapshot from an older engine must remain viewable as historical data.
   // Never silently recompute it with a different algorithm or pass it off as
   // newly verified. Only the same version can be independently recalculated.

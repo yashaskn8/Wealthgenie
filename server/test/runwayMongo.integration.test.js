@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
-import { createRunwaySeal } from '../services/runwaySeal.js';
+import { createRunwaySeal, createRunwayLedgerSeal, RUNWAY_SEAL_VERSION } from '../services/runwaySeal.js';
 import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
@@ -177,6 +177,21 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
         { $set: { result: original.result, resultHash: original.resultHash, sealHmac: original.sealHmac } });
 
+      // Forging a ledger plus its unkeyed input hash must NOT be accepted
+      // without the server-only HMAC seal.
+      const sourceRevision = await RunwayLedgerRevision.collection.findOne({ userId: userA, revision: 1 });
+      const forgedLedger = { ...sourceRevision.ledger, openingCashPaise: '999999999' };
+      await RunwayLedgerRevision.collection.updateOne({ userId: userA, revision: 1 },
+        { $set: { ledger: forgedLedger, inputHash: canonicalSha256(forgedLedger) } });
+      const forgedLedgerExport = await jsonRequest(ownedBase + 'ledger/revisions?page=0', { headers: authA });
+      assert.equal(forgedLedgerExport.response.status, 503);
+      assert.equal(forgedLedgerExport.body.code, 'RUNWAY_LEDGER_SEAL_INVALID');
+      const forgedLedgerSnapshot = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
+      assert.equal(forgedLedgerSnapshot.response.status, 503);
+      assert.equal(forgedLedgerSnapshot.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      await RunwayLedgerRevision.collection.updateOne({ userId: userA, revision: 1 },
+        { $set: { ledger: sourceRevision.ledger, inputHash: sourceRevision.inputHash } });
+
       const updatedLedger = { ...ledger, openingCashPaise: '9000' };
       const raced = await Promise.all([
         write(base, updatedLedger, 1, 'runway-race-001'),
@@ -225,9 +240,10 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
 
       // Quota is enforced before a new immutable revision is created.
       await RunwayLedgerState.create({ _id: userB, revision: 2048, snapshotGeneration: 0 });
-      await RunwayLedgerRevision.create({
-        userId: userB, revision: 2048, ledger, inputHash: canonicalSha256(ledger), confirmedAt: new Date(),
-      });
+      const cappedRevision = { userId: userB, revision: 2048, ledger, inputHash: canonicalSha256(ledger),
+        confirmedAt: new Date(), sealVersion: RUNWAY_SEAL_VERSION };
+      cappedRevision.sealHmac = createRunwayLedgerSeal(cappedRevision);
+      await RunwayLedgerRevision.create(cappedRevision);
       const blockedRevision = await write(base, ledger, 2048, 'runway-revision-cap', authB);
       assert.equal(blockedRevision.response.status, 409);
       assert.equal(blockedRevision.body.code, 'RUNWAY_REVISION_LIMIT');

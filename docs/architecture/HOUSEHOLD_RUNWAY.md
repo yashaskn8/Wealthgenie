@@ -79,3 +79,9 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 - `GET /api/runway/ledger/revisions?page=0..20` returns at most 100 verified, owner-scoped ledger revisions per request (2048 total per account). It requires a recently issued valid session and returns `Cache-Control: no-store`. Corrupt historical revision hashes fail closed.
 - The browser provides an explicit, warning-confirmed JSON export that checks the page count and refuses partial/stale downloads. The file is sensitive and stays on the user's device; no external exporter or paid API is involved.
 - This exports **ledger revisions only**, not saved simulation snapshots, and is not a regulatory audit package. Snapshot detail retrieval is separately supported. Full account portability and backup-retention guarantees require a broader product review.
+
+## Ledger provenance red-team finding
+
+- Immutable **ledger revisions** now also have server-held, purpose-separated HMAC-SHA256 seals binding owner ID, revision, original self-reported ledger, its input hash, and confirmation timestamp. The active ledger, historical export, mutation replay, and snapshot source all reject forged ledger seals.
+- Saved-result listing metadata is checked against its HMAC seal before publication; no forged database row may be labeled as a current result.
+- Any records created with pre-sealing experimental code lack required seals and need an explicitly approved migration or deletion before release; there is no silent unsigned compatibility mode.
