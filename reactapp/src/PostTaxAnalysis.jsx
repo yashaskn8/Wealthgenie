@@ -380,7 +380,9 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
           Modeled Post-Tax Returns Summary
         </h1>
         <p className="pta-header-subtitle">
-          Estimated growth under a versioned tax policy and your explicit inflation assumption
+          Estimated growth under a versioned tax policy and your explicit inflation assumption.
+          This is an investment-category model, not an exact-product return calculation.
+          Categories using identical rates, contributions and horizons can show identical values.
         </p>
       </motion.header>
 
