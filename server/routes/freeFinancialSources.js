@@ -4,6 +4,7 @@ import {verifyJWT} from '../middleware/authMiddleware.js';
 import {validate,validateQuery} from '../validation/schemas.js';
 import {asyncHandler,sendError} from '../middleware/errorHandler.js';
 import {searchFreeFunds,getFreeFundNavResearch} from '../services/freeMutualFundNav.js';
+import {getMfapiLatest,reconcileFreeNavSources} from '../services/freeNavSecondaryVerification.js';
 import {
  getPublicSmallSavingsRates,calculatePublicSmallSavingsGrossResearch,
 } from '../services/publicSmallSavingsResearch.js';
@@ -26,6 +27,19 @@ const simulateSchema=Joi.object({
  targetAmount:Joi.number().greater(0).max(1e12).allow(null).required(),
 }).custom((v,h)=>v.monthlyInvestment===0&&v.currentSavings===0?
  h.error('any.custom'):v).unknown(false);
+// Two no-key mirrors are compared by exact scheme/date/NAV. Both derive from
+// AMFI, so this is a consistency check rather than independent licensing.
+async function loadResearchWithMirror(code){
+ const primary=await getFreeFundNavResearch(code);
+ if(primary.status!=='AVAILABLE')return primary;
+ const secondary=await getMfapiLatest(code);
+ const crossCheck=reconcileFreeNavSources(primary,secondary);
+ if(crossCheck.status==='CONFLICT')return {
+  status:'UNAVAILABLE',reasonCode:crossCheck.reasonCode,postTaxAvailable:false,
+  postTaxFutureValue:null,sourceChecks:crossCheck,
+ };
+ return {...primary,sourceChecks:crossCheck};
+}
 const smallCashflowSchema=Joi.object({
  productId:Joi.string().pattern(/^[a-z0-9:_-]{4,100}$/).required(),
  principal:Joi.number().integer().min(1000).max(1e10).required(),
@@ -42,17 +56,18 @@ router.get('/mutual-funds/search',verifyJWT,validateQuery(searchSchema),asyncHan
 router.get('/mutual-funds/:schemeCode',verifyJWT,asyncHandler(async(req,res)=>{
  const {error}=schemeCode.validate(req.params.schemeCode);
  if(error)return sendError(req,res,400,'Invalid scheme code.','SCHEME_CODE_INVALID');
- try{return res.json(await getFreeFundNavResearch(req.params.schemeCode));}
+ try{return res.json(await loadResearchWithMirror(req.params.schemeCode));}
  catch{return sendError(req,res,503,'Free mutual-fund research source is unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
 }));
 router.post('/mutual-funds/simulate',verifyJWT,validate(simulateSchema),asyncHandler(async(req,res)=>{
  let nav;
- try{nav=await getFreeFundNavResearch(req.body.schemeCode);}
+ try{nav=await loadResearchWithMirror(req.body.schemeCode);}
  catch{return sendError(req,res,503,'Free NAV source unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
  if(nav.status!=='AVAILABLE')return res.json({
   status:'UNAVAILABLE',reasonCode:nav.reasonCode,
   dataClass:'RESEARCH_ONLY_AMFI_DERIVED_NAV',postTaxAvailable:false,
   postTaxFutureValue:null,grossScenario:null,
+  sourceChecks:nav.sourceChecks||null,
  });
  const {schemeCode,...scenario}=req.body;
  const result=await executeMonteCarlo({...scenario,
@@ -66,6 +81,7 @@ router.post('/mutual-funds/simulate',verifyJWT,validate(simulateSchema),asyncHan
   persistenceStatus:'NOT_STORED_RESEARCH_ONLY',
   asset:{...nav.fund,latestNav:nav.latestNav,navDate:nav.latestNavDate},
   source:nav.source,
+  sourceChecks:nav.sourceChecks,
   calibration:{
    observedAnnualVolatility:nav.observedAnnualVolatility,
    historicalNavCount:nav.sampleCount,
