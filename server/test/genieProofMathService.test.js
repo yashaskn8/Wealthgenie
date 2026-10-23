@@ -113,3 +113,50 @@ test('SIP and EMI scenario values are monetary illustrations and never claimed v
     assert.equal(Object.hasOwn(value, 'verified'), false);
   }
 });
+
+
+test('adversarial amortization and growth identities hold across amounts, rates and horizons', () => {
+  const toPaise = value => {
+    const [rupees, paise] = value.split('.');
+    return BigInt(rupees) * 100n + BigInt(paise);
+  };
+  const amounts = ['0.01', '100.00', '999999999.99'];
+  const rates = ['0', '0.0001', '8.5', '12', '100'];
+  const horizons = [1, 2, 12, 13, 60, 600];
+  for (const amount of amounts) {
+    for (const rate of rates) {
+      for (const months of horizons) {
+        const principal = toPaise(amount);
+        for (const type of ['LUMPSUM', 'SIP', 'EMI']) {
+          const out = calculateGenieProofScenario(scenario(type, amount, rate, months,
+            type === 'SIP' ? { stepUpPercent: '10' } : {}));
+          const result = toPaise(out.resultRupees);
+          const paid = toPaise(out.totalPaidOrContributedRupees);
+          const interest = toPaise(out.totalInterestRupees);
+          assert.ok(result >= 0n && paid >= 0n && interest >= 0n,
+            type + ' cannot produce negative currency');
+          if (type === 'EMI') {
+            assert.equal(paid, principal + interest, 'loan repayments must conserve principal and interest');
+            assert.ok(result > 0n, 'loan EMI must be positive');
+            const finalInstalment = toPaise(out.lastInstallmentRupees);
+            assert.ok(finalInstalment > 0n && finalInstalment <= result);
+          } else {
+            assert.equal(result, paid + interest, 'investment future value must conserve cash flows');
+            if (type === 'LUMPSUM') assert.equal(paid, principal);
+            if (type === 'SIP') assert.ok(paid >= principal * BigInt(months));
+          }
+        }
+      }
+    }
+  }
+});
+
+test('one paise tolerance never turns a larger inconsistent claim into a match', () => {
+  const base = scenario('LUMPSUM', '100.00', '0', 1);
+  const accepted = calculateGenieProofScenario({ ...base, claimedResultRupees: '100.01' });
+  assert.equal(accepted.absoluteDifferenceRupees, '0.01');
+  assert.equal(accepted.arithmeticFinding, 'MATCHES_ASSUMPTIONS_WITHIN_ONE_PAISE');
+  const rejected = calculateGenieProofScenario({ ...base, claimedResultRupees: '100.02' });
+  assert.equal(rejected.absoluteDifferenceRupees, '0.02');
+  assert.equal(rejected.arithmeticFinding, 'DIFFERS_FROM_ASSUMPTIONS');
+});
