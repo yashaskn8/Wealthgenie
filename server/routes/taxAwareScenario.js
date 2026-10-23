@@ -26,6 +26,9 @@ const schema=Joi.object({
  inflationRate:Joi.number().min(0).max(1).required(),
  seed:Joi.number().integer().min(0).max(4294967295).required(),
  targetAmount:Joi.number().greater(0).max(1e12).allow(null).required(),
+ // Explicit assumption only. Absence/false must never claim favorable
+ // listed-equity tax treatment; the engine returns UNAVAILABLE instead.
+ sttConditionAssumedSatisfied:Joi.boolean().strict().optional(),
  acquisitionDate:isoDate.required(),
  redemptionDate:isoDate.required(),
 }).unknown(false);
@@ -69,6 +72,7 @@ router.post('/equity-history-risk',verifyJWT,validate(sqlRiskSchema),asyncHandle
      annualGrossIncome:tax.annualGrossIncome,incomeSource:tax.incomeSource,
      regime:tax.regime,fiscalYear:tax.fiscalYear,userAge:tax.userAge,
      deductions:tax.deductions,section112AExemptionUsed:tax.section112AExemptionUsed,
+     sttConditionAssumedSatisfied:scenario.sttConditionAssumedSatisfied,
    },
  });
  const [profileAfter,taxAfter,historyAfter]=await Promise.all([
@@ -105,6 +109,7 @@ router.post('/equity-lump-sum',verifyJWT,validate(schema),asyncHandler(async(req
      annualGrossIncome:tax.annualGrossIncome,incomeSource:tax.incomeSource,
      regime:tax.regime,fiscalYear:tax.fiscalYear,userAge:tax.userAge,
      deductions:tax.deductions,section112AExemptionUsed:tax.section112AExemptionUsed,
+     sttConditionAssumedSatisfied:scenario.sttConditionAssumedSatisfied,
    },
  });
  const [latestProfile,latestTax]=await Promise.all([
