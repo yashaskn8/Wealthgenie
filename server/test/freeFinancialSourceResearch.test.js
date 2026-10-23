@@ -68,6 +68,33 @@ test('NAV-only Monte Carlo excludes dividend distributions and uncertain plan ty
  assert.equal(search.results[1].navOnlyRiskEligible,true);
 });
 
+test('NAV risk respects irregular calendar intervals, not blindly 252 returns per year',()=>{
+ const base={
+  scheme_code:100641,scheme_name:'TEST SBI LIQUID GROWTH',
+  fund_house:'Test Mutual Fund',option_type:'Growth',plan_type:'Direct',
+ };
+ const series=(gapDays)=>{
+  const rows=[];
+  for(let i=0;i<160;i++){
+   const date=new Date(Date.parse('2026-10-21T00:00:00Z')-i*gapDays*86400000)
+    .toISOString().slice(0,10);
+   // Identical log-return distribution but observations further apart.
+   rows.push({nav_date:date,nav:(100*Math.exp((159-i)*.0003+
+     Math.sin(i*1.9)*.015)).toFixed(6)});
+  }
+  return normalizeFreeNavHistory({fund_details:base,data:rows},'100641',{
+   now:new Date('2026-10-23T08:00:00Z'),
+  });
+ };
+ const twoDays=series(2),fourDays=series(4);
+ assert.equal(twoDays.status,'AVAILABLE',twoDays.reasonCode);
+ assert.equal(fourDays.status,'AVAILABLE',fourDays.reasonCode);
+ assert.ok(twoDays.observedAnnualVolatility>fourDays.observedAnnualVolatility,
+  'same per-observation variation spread over more days must have less yearly risk');
+ const factor=twoDays.observedAnnualVolatility/fourDays.observedAnnualVolatility;
+ assert.ok(Math.abs(factor-Math.SQRT2)<0.025,`expected sqrt(2), got ${factor}`);
+ assert.match(twoDays.volatilityBasis,/IRREGULAR_NAV_INTERVALS/);
+});
 test('NAV identity mismatch, duplicate trading day, stale history and extreme jump fail closed',()=>{
  assert.equal(normalizeFreeNavHistory(observedNav(),'100642',{now}).status,'UNAVAILABLE');
  const duplicate=observedNav();duplicate.data[1].nav_date=duplicate.data[0].nav_date;
