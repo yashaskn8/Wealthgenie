@@ -34,6 +34,8 @@ async function installCashApi(page: Page) {
   let saveCount = 0;
   let previewCount = 0;
   let deleteCount = 0;
+  let settleCount = 0;
+  let settlementHistory: Array<Record<string, unknown>> = [];
   const failures: string[] = [];
   await page.route(/\/api\/coverage(?:\/|$)/, async route => {
     const req = route.request();
@@ -52,7 +54,41 @@ async function installCashApi(page: Page) {
     });
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     if (path.endsWith('/settlements') && method === 'GET') {
-      return fulfill(200, { settlements: [], nextAfterRevision: null });
+      const cursor = Number(url.searchParams.get('afterRevision') || '0');
+      return fulfill(200, {
+        settlements: url.searchParams.has('afterRevision')
+          ? settlementHistory.filter(item => Number(item.ledgerRevision) > cursor)
+          : settlementHistory.slice(-20).reverse(),
+        nextAfterRevision: null,
+      });
+    }
+    if (path.includes('/commitments/') && path.endsWith('/settle') && method === 'POST') {
+      const body = req.postDataJSON();
+      const entryId = path.split('/').at(-2);
+      const original = ledger && Array.isArray(ledger.entries)
+        ? ledger.entries.find((item: { id: string }) => item.id === entryId)
+        : null;
+      if (!ledger || !original || original.recurrence !== 'ONCE'
+          || req.headers()['if-match'] !== '"' + revision + '"'
+          || !req.headers()['idempotency-key'] || !body.settlementConfirmed
+          || !body.completenessConfirmed || body.openingCashPaise !== 10000) {
+        failures.push('invalid or unconfirmed one-off payment settlement');
+        return fulfill(409, { code: 'COVERAGE_SETTLEMENT_INVALID' });
+      }
+      ledger = { ...ledger, asOfDate: body.asOfDate,
+        openingCashPaise: body.openingCashPaise,
+        entries: ledger.entries.filter((item: { id: string }) => item.id !== entryId),
+      };
+      revision += 1;
+      settleCount += 1;
+      settlementHistory = [...settlementHistory, {
+        ledgerRevision: revision, entryId, amountPaise: original.amountPaise,
+        entryType: original.type, declaredAsOfDate: body.asOfDate,
+        provenance: 'USER_CONFIRMED_NOT_BANK_VERIFIED',
+      }];
+      calculation = result();
+      return fulfill(200, { revision, result: calculation, replayed: false,
+        userConfirmedSettlement: true, settledEntryId: entryId, bankVerified: false });
     }
     if (path.endsWith('/alerts') && method === 'GET') {
       return fulfill(200, { revision, alerts: [] });
@@ -113,7 +149,7 @@ async function installCashApi(page: Page) {
     failures.push('unexpected ' + method + ' ' + path);
     return fulfill(404, { error: 'Unsupported test API call' });
   });
-  return { counters: () => ({ saveCount, previewCount, deleteCount }), failures };
+  return { counters: () => ({ saveCount, previewCount, deleteCount, settleCount }), failures };
 }
 
 for (const viewport of [
@@ -178,11 +214,43 @@ for (const viewport of [
     await page.getByRole('button', { name: 'Delete my saved cash records' }).click();
     await expect(page.getByText(/Saved cash entries and calculations deleted/)).toBeVisible();
     await expect(page.getByText('No shortfall in the entries supplied for these dates')).toHaveCount(0);
-    expect(api.counters()).toEqual({ saveCount: 2, previewCount: 0, deleteCount: 1 });
+    expect(api.counters()).toEqual({ saveCount: 2, previewCount: 0, deleteCount: 1, settleCount: 0 });
     expect(api.failures).toEqual([]);
     const layout = await page.evaluate(() => ({
       width: document.documentElement.scrollWidth, visible: window.innerWidth,
     }));
     expect(layout.width).toBeLessThanOrEqual(layout.visible + 2);
   });
+  test('one-off settlement reconciles entered cash only after an explicit user attestation: ' + viewport.label,
+    async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      const api = await installCashApi(page);
+      await page.goto('/e2e/cash-check-harness.html');
+      await expect(page.getByRole('heading', { name: '90-day cash check', level: 1 })).toBeVisible();
+      await page.getByPlaceholder('50000.00').fill('1000.01');
+      await page.getByRole('button', { name: 'Add entry' }).click();
+      await page.getByLabel('Description').fill('Home rent');
+      await page.getByLabel('Amount (₹)').fill('400.25');
+      await page.getByLabel(/I have entered the commitments/).check();
+      await page.getByRole('button', { name: 'Save and calculate 90 days' }).click();
+      await expect(page.getByText(/Entries saved and recalculated/)).toBeVisible();
+      await page.getByRole('button', { name: 'Confirm this one-time payment is settled' }).click();
+      await expect(page.getByRole('region', { name: 'Confirm one-time payment settlement' })).toBeVisible();
+      expect(api.counters().settleCount).toBe(0);
+      await page.getByPlaceholder('Enter current post-payment cash').fill('100.00');
+      await page.getByLabel(/I confirm this one-off bill is already paid/).check();
+      await page.getByRole('button', { name: 'Record payment and recalculate' }).click();
+      await expect(page.getByText(/one-time payment was marked settled by your confirmation/i)).toBeVisible();
+      await expect(page.getByPlaceholder('50000.00')).toHaveValue('100.00');
+      await expect(page.getByRole('button', { name: 'Confirm this one-time payment is settled' })).toHaveCount(0);
+      await page.getByRole('button', { name: 'View settlement history' }).click();
+      await expect(page.getByRole('region', { name: 'User-confirmed payment history' })).toContainText('₹400.25');
+      expect(api.counters()).toEqual({ saveCount: 1, previewCount: 0, deleteCount: 0, settleCount: 1 });
+      expect(api.failures).toEqual([]);
+      const layout = await page.evaluate(() => ({
+        width: document.documentElement.scrollWidth, visible: window.innerWidth,
+      }));
+      expect(layout.width).toBeLessThanOrEqual(layout.visible + 2);
+    });
+
 }
