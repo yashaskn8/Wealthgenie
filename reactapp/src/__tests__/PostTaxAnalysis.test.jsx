@@ -35,8 +35,8 @@ const unavailableSipReturnMetrics = (unavailableReason = 'PROJECTION_UNAVAILABLE
   realPostTaxAnnualizedReturnPercent: null,
   taxDragAnnualizedPercentagePoints: null,
 });
-const fdInstrumentInput = { instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 };
-const etfInstrumentInput = { ...fdInstrumentInput, instrumentType: 'ETF' };
+const fdInstrumentInput = { instrumentId: 'fd', instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 };
+const etfInstrumentInput = { ...fdInstrumentInput, instrumentId: 'etf', instrumentType: 'ETF' };
 const calculated = {
   calculation_classification: 'SEPARATE_TAX_WHAT_IF',
   fiscalYear: 'FY2026-27',
@@ -53,7 +53,7 @@ const calculated = {
     annualIncome: 1000000, incomeSource: 'salary', regime: 'new', userAge: 30,
     inflationRate: 0.06, fiscalYear: 'FY2026-27', deductions: {},
   },
-  results: [{ instrumentIndex: 0, instrumentInput: fdInstrumentInput, instrumentType: 'FD', status: 'CALCULATED', taxType: 'Slab Rate', nominalReturnPercent: 7,
+  results: [{ instrumentIndex: 0, instrumentInput: fdInstrumentInput, instrumentId: 'fd', exactProductReturnVerified: false, instrumentType: 'FD', status: 'CALCULATED', taxType: 'Slab Rate', nominalReturnPercent: 7,
     postTaxReturnPercent: 0, realReturnPercent: -5.66, effectiveTaxPercent: 0, taxRate: 0,
     postTaxGain: 0, taxDragWealth: 123456.7, taxDragCAGR: 0.025, totalInvested: 360000,
     nominalFutureValue: 400000, postTaxFutureValue: 360000,
@@ -109,11 +109,11 @@ describe('PostTaxAnalysis separate tax what-if', () => {
       { ...demoRecommendations[0], id: 'fd-second', name: 'Second Fixed Deposit', nominalReturn: 8, monthly_allocation: 20000 },
     ];
     const requestInstruments = [
-      { instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
-      { instrumentType: 'FD', nominalRate: 0.08, holdingYears: 3, monthlySIP: 20000 },
+      { instrumentId: 'fd', instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
+      { instrumentId: 'fd-second', instrumentType: 'FD', nominalRate: 0.08, holdingYears: 3, monthlySIP: 20000 },
     ];
     const firstRow = { ...calculated.results[0], instrumentIndex: 0, instrumentInput: requestInstruments[0], postTaxReturnPercent: 1, postTaxGain: 111 };
-    const secondRow = { ...calculated.results[0], instrumentIndex: 1, instrumentInput: requestInstruments[1], postTaxReturnPercent: 9, postTaxGain: 999 };
+    const secondRow = { ...calculated.results[0], instrumentId: 'fd-second', instrumentIndex: 1, instrumentInput: requestInstruments[1], postTaxReturnPercent: 9, postTaxGain: 999 };
     apiModule.computePostTaxReturnBatch.mockResolvedValue({
       ...calculated,
       inputsUsed: { ...calculated.inputsUsed, instruments: requestInstruments },
@@ -188,13 +188,13 @@ describe('PostTaxAnalysis separate tax what-if', () => {
   });
 
   it('keeps partial results explicit and rejects an incomplete calculated row', async () => {
-    const unavailable = { instrumentIndex: 1, instrumentInput: { ...fdInstrumentInput }, instrumentType: 'FD', status: 'MODEL_TAX_CLASS_UNAVAILABLE', nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null, totalInvested: 360000,
+    const unavailable = { instrumentIndex: 1, instrumentId: 'etf', exactProductReturnVerified: false, instrumentInput: { ...fdInstrumentInput, instrumentId: 'etf' }, instrumentType: 'FD', status: 'MODEL_TAX_CLASS_UNAVAILABLE', nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null, totalInvested: 360000,
       sipReturnMetrics: unavailableSipReturnMetrics() };
     apiModule.computePostTaxReturnBatch.mockResolvedValue({
       ...calculated,
       inputsUsed: {
         ...calculated.inputsUsed,
-        instruments: [...calculated.inputsUsed.instruments, { ...calculated.inputsUsed.instruments[0] }],
+        instruments: [...calculated.inputsUsed.instruments, { ...calculated.inputsUsed.instruments[0], instrumentId: 'etf' }],
       },
       portfolioStatus: 'PARTIAL', results: [calculated.results[0], unavailable],
     });
@@ -208,7 +208,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
       ...calculated,
       inputsUsed: {
         ...calculated.inputsUsed,
-        instruments: [...calculated.inputsUsed.instruments, { ...calculated.inputsUsed.instruments[0] }],
+        instruments: [...calculated.inputsUsed.instruments, { ...calculated.inputsUsed.instruments[0], instrumentId: 'etf' }],
       },
       results: [{ ...calculated.results[0], postTaxGain: null }, unavailable],
     });
@@ -219,7 +219,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
 
   it('rejects a portfolio status that contradicts the row calculation statuses', async () => {
     const unavailable = {
-      instrumentIndex: 1, instrumentInput: etfInstrumentInput, instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
+      instrumentIndex: 1, instrumentId: 'etf', exactProductReturnVerified: false, instrumentInput: etfInstrumentInput, instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
       nominalReturnPercent: 7, postTaxReturnPercent: null, realReturnPercent: null,
       totalInvested: 360000,
       sipReturnMetrics: unavailableSipReturnMetrics(),
@@ -425,6 +425,8 @@ describe('PostTaxAnalysis separate tax what-if', () => {
       results: [{
         instrumentIndex: 0,
         instrumentInput: fdInstrumentInput,
+        instrumentId: 'fd',
+        exactProductReturnVerified: false,
         instrumentType: 'FD',
         status: 'CALCULATED',
         taxRate: 0,
@@ -467,7 +469,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
     fireEvent.click(screen.getByRole('button', { name: /calculate explicit tax what-if/i }));
     await waitFor(() => expect(apiModule.computePostTaxReturnBatch).toHaveBeenCalledWith(
-      [{ instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 }],
+      [{ instrumentId: 'fd', instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 }],
       1000000, 'new', 30, 'salary', 0.06, 'FY2026-27',
       { body: { deductions: {} }, signal: expect.any(AbortSignal) },
     ));
@@ -499,13 +501,14 @@ describe('PostTaxAnalysis separate tax what-if', () => {
       ...calculated,
       inputsUsed: {
         ...calculated.inputsUsed,
-        instruments: [{ ...calculated.inputsUsed.instruments[0], instrumentType: 'ETF', nominalRate: 0.12 }],
+        instruments: [{ ...calculated.inputsUsed.instruments[0], instrumentId: 'etf', instrumentType: 'ETF', nominalRate: 0.12 }],
       },
       portfolioStatus: 'UNAVAILABLE',
       assumptions: calculated.assumptions,
       results: [{
         instrumentIndex: 0,
-        instrumentInput: { ...calculated.inputsUsed.instruments[0], instrumentType: 'ETF', nominalRate: 0.12 },
+        instrumentInput: { ...calculated.inputsUsed.instruments[0], instrumentId: 'etf', instrumentType: 'ETF', nominalRate: 0.12 },
+        instrumentId: 'etf', exactProductReturnVerified: false,
         instrumentType: 'ETF', status: 'MODEL_TAX_CLASS_UNAVAILABLE',
         unavailableReasons: ['MODEL_TAX_CLASS_UNAVAILABLE_FOR_GENERIC_INSTRUMENT_TYPE'],
         sipReturnMetrics: unavailableSipReturnMetrics(),
