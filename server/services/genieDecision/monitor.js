@@ -214,6 +214,17 @@ export async function scanDecisionMonitors({ limit = 25, resolveProfile } = {}) 
       // Owner financial information and Mongo exception messages must not be
       // copied into monitoring/logging channels.
       summary.failed += 1;
+    } finally {
+      try {
+        // Every attempt, including an already-current result or an unavailable
+        // source, must advance the scheduling cursor. Otherwise a fixed first
+        // page of 25 watches can permanently starve all later users.
+        await DecisionMonitor.updateOne({
+          _id: monitor._id, enabled: true, generation: monitor.generation,
+        }, { $set: { lastCheckedAt: new Date() } });
+      } catch {
+        summary.failed += 1;
+      }
     }
   }
   return summary;
