@@ -101,8 +101,15 @@ test('post-tax API rejects mathematically unsafe long-horizon rupee amounts', ()
     incomeSource: 'salary', fiscalYear: 'FY2026-27',
   };
   assert.equal(postTaxReturnSchema.validate(base).error, undefined);
+  // Batch instruments carry per-product inputs only. Investor tax context is
+  // supplied once at the batch root, not forged into every product.
+  const batchInstrument = {
+    instrumentId: base.instrumentId, instrumentType: base.instrumentType,
+    nominalRate: base.nominalRate, holdingYears: base.holdingYears,
+    monthlySIP: base.monthlySIP,
+  };
   assert.equal(postTaxReturnBatchSchema.validate({
-    instruments: [base], annualIncome: base.annualIncome,
+    instruments: [batchInstrument], annualIncome: base.annualIncome,
     regime: base.regime, userAge: base.userAge,
     incomeSource: base.incomeSource, fiscalYear: base.fiscalYear,
     inflationRate: 0.05,
@@ -111,7 +118,10 @@ test('post-tax API rejects mathematically unsafe long-horizon rupee amounts', ()
   for (const result of [
     postTaxReturnSchema.validate(extreme),
     postTaxReturnBatchSchema.validate({
-      instruments: [extreme], annualIncome: base.annualIncome,
+      instruments: [{
+        ...batchInstrument, nominalRate: extreme.nominalRate,
+        holdingYears: extreme.holdingYears, monthlySIP: extreme.monthlySIP,
+      }], annualIncome: base.annualIncome,
       regime: base.regime, userAge: base.userAge,
       incomeSource: base.incomeSource, fiscalYear: base.fiscalYear,
       inflationRate: 0.05,
