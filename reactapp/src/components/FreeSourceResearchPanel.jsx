@@ -106,6 +106,8 @@ export default function FreeSourceResearchPanel(){
        <p style={{fontSize:12,color:'#cbd5e1'}}>
         Search individual AMFI scheme codes through mfnav.in. Historical NAV volatility
         calibrates a <strong>pre-tax</strong> Monte Carlo illustration; expected return is your assumption.
+        Only identified Growth plans support this NAV-only simulation. IDCW distributions
+        need a separate verified total-return history.
        </p>
        <label style={{fontSize:12}}>Scheme search{' '}
         <input style={style.field} aria-label="Search mutual fund scheme" value={query}
@@ -117,8 +119,9 @@ export default function FreeSourceResearchPanel(){
           aria-label="Choose mutual fund NAV scheme" value={selected?.schemeCode||''}
           onChange={e=>{setSelected(funds.find(f=>String(f.schemeCode)===e.target.value)||null);setResult(null);}}>
           <option value="">Choose a real scheme</option>
-          {funds.map(f=><option key={f.schemeCode} value={f.schemeCode}>
-           {f.schemeCode} — {f.name}</option>)}
+          {funds.map(f=><option key={f.schemeCode} value={f.schemeCode}
+           disabled={!f.navOnlyRiskEligible}>
+           {f.schemeCode} — {f.name}{f.navOnlyRiskEligible?'':' (NAV-only risk unavailable)'}</option>)}
          </select>
         </label>
        )}
