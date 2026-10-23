@@ -42,6 +42,8 @@ export function mutationRequestHash(req, operation, userId) {
     resourceScope: req.params || {},
     query: req.query || {},
     payload: req.body || {},
+    // A coverage write's If-Match revision is part of the command identity.
+    ...(operation.startsWith('coverage.') ? { ifMatch: req.headers['if-match'] || null } : {}),
   });
 }
 
