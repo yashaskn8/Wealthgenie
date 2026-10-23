@@ -74,7 +74,7 @@ test('read-only claim check refuses common personal identifiers without echoing 
   const identifiers = [
     'My PAN ABCDE1234F promises 12% interest.',
     'Aadhaar number 1234-5678-9012 for 8% guaranteed returns.',
-    'Bank account number 123456789012 receives 20% profit.',
+    'Bank account number: 123456789012 receives 20% profit.',
   ];
   for (const offerText of identifiers) {
     const result = await checkGenieProofClaims({ offerText, now: () => NOW });
