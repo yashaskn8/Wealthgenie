@@ -4,6 +4,7 @@ import {
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
   getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
   subscribeDecisionEvents, simulateDecisionScenario, subscribeAuth, getAuthSnapshot,
+  getDecisionMonitor, setDecisionMonitor,
 } from '../services/api';
 import './GenieDecisionWorkspace.css';
 
@@ -131,6 +132,9 @@ export default function GenieDecisionWorkspace() {
   const [details, setDetails] = useState({});
   const [goalReservations, setGoalReservations] = useState([]);
   const [report, setReport] = useState(null);
+  const [monitor, setMonitor] = useState(null);
+  const [assessments, setAssessments] = useState([]);
+  const [selectedAssessment, setSelectedAssessment] = useState(null);
   const [draftPreview, setDraftPreview] = useState(null);
   const [previewState, setPreviewState] = useState('waiting');
   const [runs, setRuns] = useState([]);
@@ -225,7 +229,16 @@ export default function GenieDecisionWorkspace() {
         } else if (event.type === 'reset') {
           setLiveNotice('Updates were missed while disconnected. Financial state has been refreshed; reopen any active scenario.');
         } else if (event.scenarioId === activeRef.current?.id) {
-          setLiveNotice('A committed change is available for this scenario. Reopen it to review the saved revision or report.');
+          setLiveNotice('A committed change is available for this scenario. Review the latest monitoring status or reopen the revision.');
+          getDecisionMonitor(event.scenarioId, { signal: controller.signal })
+            .then(result => {
+              if (!controller.signal.aborted && activeRef.current?.id === event.scenarioId) {
+                setMonitor(result.monitor);
+                setAssessments(result.assessments || []);
+              }
+            }).catch(() => {
+              if (!controller.signal.aborted) setLiveNotice('Monitoring updates could not be verified. Reopen this scenario.');
+            });
         }
         refresh({ signal: controller.signal }).catch(err => {
           if (!controller.signal.aborted) setLiveNotice(`Live refresh failed: ${errorMessage(err)}`);
@@ -250,6 +263,9 @@ export default function GenieDecisionWorkspace() {
     setDetails({});
     setGoalReservations([]);
     setReport(null);
+    setMonitor(null);
+    setAssessments([]);
+    setSelectedAssessment(null);
     setRuns([]);
     setSavedFingerprint(null);
     setError('');
@@ -259,12 +275,15 @@ export default function GenieDecisionWorkspace() {
   const openScenario = async scenario => {
     const generation = ++loadGeneration.current;
     setPending(true); setError(''); setSuccess(''); setReport(null); setRuns([]);
+    setMonitor(null); setAssessments([]); setSelectedAssessment(null);
     try {
-      const [saved, reportHistory] = await Promise.all([
-        getDecisionScenario(scenario.id), listDecisionRuns(scenario.id),
+      const [saved, reportHistory, watching] = await Promise.all([
+        getDecisionScenario(scenario.id), listDecisionRuns(scenario.id), getDecisionMonitor(scenario.id),
       ]);
       if (generation !== loadGeneration.current) return;
       setRuns(reportHistory.runs || []);
+      setMonitor(watching.monitor);
+      setAssessments(watching.assessments || []);
       setActive(saved.scenario);
       setType(saved.scenario.scenarioType);
       setTitle(saved.payload.title);
@@ -422,6 +441,19 @@ export default function GenieDecisionWorkspace() {
     finally { setPending(false); }
   };
 
+  const toggleMonitoring = async () => {
+    if (!active || !monitor || pending || hasUnsavedChanges) return;
+    setPending(true); setError(''); setSuccess('');
+    try {
+      const response = await setDecisionMonitor(active.id, !monitor.enabled, active.revision);
+      setMonitor(response.monitor);
+      setSuccess(response.monitor.enabled
+        ? 'Continuous monitoring enabled. Revised financial facts will generate a signed candidate assessment, never an automatic trade.'
+        : 'Continuous monitoring disabled. Existing assessments remain available for review.');
+    } catch (err) { setError(errorMessage(err)); }
+    finally { setPending(false); }
+  };
+
   const remove = async () => {
     if (!active || !window.confirm('Permanently delete this scenario and all of its decision reports?')) return;
     setPending(true); setError('');
@@ -523,6 +555,37 @@ export default function GenieDecisionWorkspace() {
             {active && <button type="button" className="gd-danger" onClick={() => void remove()} disabled={pending}>Delete scenario</button>}
           </div>
         </form>
+        {active && <section className="gd-panel" aria-label="Continuous decision monitoring">
+          <h3>Continuous decision monitoring</h3>
+          <p className="gd-muted">Opt in to an automatic check when your canonical financial facts change. The original signed report is never replaced. No brokerage trades, invented rates or product recommendations occur.</p>
+          {monitor ? <>
+            <p role="status">Monitor: {monitor.enabled ? 'Enabled' : 'Disabled'}
+              {monitor.workerConfigured ? '' : ' · Background worker not configured on this deployment'}</p>
+            <button type="button" disabled={pending || hasUnsavedChanges || (!monitor.workerConfigured && !monitor.enabled)}
+              onClick={() => void toggleMonitoring()}>
+              {monitor.enabled ? 'Disable monitoring' : 'Enable monitoring'}
+            </button>
+            <p className="gd-muted">New financial facts can invalidate old monthly expense assumptions. When they cannot reconcile, we ask you to review instead of manufacturing an answer.</p>
+            {assessments.length > 0 && <ul>{assessments.map(item => <li key={item.id}>
+              <button type="button" disabled={pending} onClick={() => setSelectedAssessment(item)}>
+                {shortDate(item.asOf)} · {item.originalStatus === 'NEEDS_REVIEW' ? 'Needs review' : 'Reassessed'}
+                {item.isCurrent ? ' · Current source' : ' · Historical'}
+              </button>
+            </li>)}</ul>}
+            {selectedAssessment && <div>
+              {selectedAssessment.originalStatus === 'NEEDS_REVIEW' && <p role="alert" className="gd-warning">
+                Your newer financial facts no longer reconcile with this scenario's saved assumptions. Open a new decision scenario using your current budget.
+              </p>}
+              {!selectedAssessment.isCurrent && <p role="alert" className="gd-warning">
+                This automatic reassessment is historical. Refresh the source facts before relying on any displayed numbers.
+              </p>}
+              {selectedAssessment.result && <Report report={{ run: {
+                result: selectedAssessment.result, asOf: selectedAssessment.asOf,
+                status: selectedAssessment.status,
+              } }}/>}
+            </div>}
+          </> : <p className="gd-muted">Monitoring status is available after the scenario loads.</p>}
+        </section>}
         {active && runs.length > 0 && <section className="gd-panel" aria-label="Past reports">
           <h3>Saved decision reports</h3>
           <p className="gd-muted">Select a report to review its immutable calculation snapshot. Older scenarios are labeled historical.</p>
