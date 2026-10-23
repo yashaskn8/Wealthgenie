@@ -139,6 +139,11 @@ export default function FreeSourceResearchPanel(){
          <strong>{result.asset?.name}</strong>
          <p>Latest NAV: ₹{Number(result.asset?.latestNav).toFixed(4)} ({result.asset?.navDate});
           observed annualized NAV volatility: {(result.calibration?.observedAnnualVolatility*100).toFixed(2)}%</p>
+         <p>MFapi.in cross-check: <strong>{result.sourceChecks?.status||'NOT_VERIFIED'}</strong>.
+          {result.sourceChecks?.status==='MATCHED_SAME_AMFI_SOURCE'
+           ? ' NAV date and value match a second API serving the same AMFI publication.'
+           : ' Two feeds have not independently confirmed the same dated NAV.'}
+          {' '}Neither API certifies future returns or grants publisher redistribution rights.</p>
          <p>Illustrative pre-tax future value — 10th: {INR(result.grossScenario.p10?.at(-1))};
           median: {INR(result.grossScenario.p50?.at(-1))};
           90th: {INR(result.grossScenario.p90?.at(-1))}.</p>
