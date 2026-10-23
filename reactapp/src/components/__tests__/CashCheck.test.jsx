@@ -33,7 +33,7 @@ afterEach(cleanup);
 describe('90-day cash check', () => {
   it('saves exact paise and hides old results as soon as the user edits', async () => {
     render(<CashCheck />);
-    await screen.findByRole('heading', { name: '90-day cash check' });
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
     fireEvent.change(screen.getByPlaceholderText('50000.00'), { target: { value: '1000.01' } });
     fireEvent.click(screen.getByRole('button', { name: /add entry/i }));
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Rent' } });
@@ -62,7 +62,7 @@ describe('90-day cash check', () => {
       latestResult: { result: baseline() }, requiresCashReconfirmation: true,
     });
     render(<CashCheck />);
-    await screen.findByRole('heading', { name: '90-day cash check' });
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
     expect(screen.getByText(/Saved cash entries are out of date/i)).toBeTruthy();
     expect(screen.queryByText(/No shortfall in the entries supplied for these dates/i)).toBeNull();
   });
@@ -76,7 +76,7 @@ describe('90-day cash check', () => {
       latestResult: { result: baseline() }, requiresCashReconfirmation: false,
     });
     render(<CashCheck />);
-    await screen.findByRole('heading', { name: '90-day cash check' });
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
     fireEvent.click(screen.getByLabelText(/I understand this permanently removes/i));
     fireEvent.click(screen.getByRole('button', { name: /delete my saved cash records/i }));
     await waitFor(() => expect(api.deleteCoverageLedger).toHaveBeenCalledWith(1));
