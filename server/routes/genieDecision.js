@@ -11,6 +11,13 @@ export function createGenieDecisionRouter({
   resolveProfile = resolveCurrentFinancialProfile,
 } = {}) {
 const router = Router();
+  // GenieDecision contains personally sensitive financial scenarios. Neither
+  // authenticated results nor failures may be cached by browsers or proxies.
+  router.use((_req, res, next) => {
+    res.set('Cache-Control', 'private, no-store, max-age=0');
+    res.set('Pragma', 'no-cache');
+    next();
+  });
 const ALLOWED_INPUTS = new Set([
   'profileId', 'expectedProfileStateRevision', 'horizonMonths',
   'monthlyLivingExpenses', 'monthlyDebtPayments', 'monthlyInvestments',
