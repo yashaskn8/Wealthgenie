@@ -35,6 +35,12 @@ export default function FreeSourceResearchPanel(){
  const [error,setError]=useState('');
  const controller=useRef(null);
  useEffect(()=>()=>controller.current?.abort(),[]);
+ function invalidateFinancialResult(){
+  controller.current?.abort();
+  setBusy(false);
+  setError('');
+  setResult(null);
+ }
  async function request(fn,onDone){
   controller.current?.abort();
   const c=new AbortController();controller.current=c;
@@ -100,9 +106,9 @@ export default function FreeSourceResearchPanel(){
     <div style={{marginTop:14}}>
      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
       <button type="button" style={style.action} aria-pressed={mode==='mf'}
-       onClick={()=>{setMode('mf');setResult(null);setError('');}}>Mutual fund NAV risk</button>
+       onClick={()=>{invalidateFinancialResult();setMode('mf');}}>Mutual fund NAV risk</button>
       <button type="button" style={style.action} aria-pressed={mode==='savings'}
-       onClick={()=>{setMode('savings');setResult(null);setError('');}}>Government savings cash flows</button>
+       onClick={()=>{invalidateFinancialResult();setMode('savings');}}>Government savings cash flows</button>
      </div>
      {mode==='mf'?(
       <div>
@@ -114,13 +120,13 @@ export default function FreeSourceResearchPanel(){
        </p>
        <label style={{fontSize:12}}>Scheme search{' '}
         <input style={style.field} aria-label="Search mutual fund scheme" value={query}
-         maxLength={80} onChange={e=>{controller.current?.abort();setBusy(false);setQuery(e.target.value);setSelected(null);setFunds([]);setResult(null);}}/></label>{' '}
+         maxLength={80} onChange={e=>{invalidateFinancialResult();setQuery(e.target.value);setSelected(null);setFunds([]);}}/></label>{' '}
        <button type="button" style={style.action} disabled={busy} onClick={search}>Search online NAV</button>
        {funds.length>0&&(
         <label style={{display:'block',marginTop:10,fontSize:12}}>Exact scheme and plan
          <select style={{...style.field,display:'block',marginTop:6,width:'100%'}}
           aria-label="Choose mutual fund NAV scheme" value={selected?.schemeCode||''}
-          onChange={e=>{setSelected(funds.find(f=>String(f.schemeCode)===e.target.value)||null);setResult(null);}}>
+          onChange={e=>{invalidateFinancialResult();setSelected(funds.find(f=>String(f.schemeCode)===e.target.value)||null);}}>
           <option value="">Choose a real scheme</option>
           {funds.map(f=><option key={f.schemeCode} value={f.schemeCode}
            disabled={!f.navOnlyRiskEligible}>
@@ -131,11 +137,11 @@ export default function FreeSourceResearchPanel(){
        {selected&&(
         <div style={{display:'flex',gap:12,flexWrap:'wrap',marginTop:12,alignItems:'end'}}>
          <label style={{fontSize:12}}>Monthly SIP (₹)<input aria-label="Free NAV monthly SIP" style={{...style.field,display:'block',width:120}}
-          inputMode="numeric" value={monthly} onChange={e=>{setMonthly(e.target.value);setResult(null);}}/></label>
+          inputMode="numeric" value={monthly} onChange={e=>{invalidateFinancialResult();setMonthly(e.target.value);}}/></label>
          <label style={{fontSize:12}}>Assumed annual return (%)<input aria-label="Free NAV assumed annual return" style={{...style.field,display:'block',width:120}}
-          inputMode="decimal" value={expectedReturn} onChange={e=>{setExpectedReturn(e.target.value);setResult(null);}}/></label>
+          inputMode="decimal" value={expectedReturn} onChange={e=>{invalidateFinancialResult();setExpectedReturn(e.target.value);}}/></label>
          <label style={{fontSize:12}}>Years<input aria-label="Free NAV horizon years" style={{...style.field,display:'block',width:80}}
-          inputMode="numeric" value={horizon} onChange={e=>{setHorizon(e.target.value);setResult(null);}}/></label>
+          inputMode="numeric" value={horizon} onChange={e=>{invalidateFinancialResult();setHorizon(e.target.value);}}/></label>
          <button type="button" style={style.action} disabled={busy} onClick={simulate}>
           Simulate with observed NAV volatility</button>
         </div>
@@ -182,14 +188,14 @@ export default function FreeSourceResearchPanel(){
          </div>
          <label style={{display:'block',fontSize:12,marginTop:10}}>Gross contractual example
           <select style={{...style.field,display:'block'}} aria-label="Choose savings cashflow product"
-           value={productId} onChange={e=>{setProductId(e.target.value);setResult(null);}}>
+           value={productId} onChange={e=>{invalidateFinancialResult();setProductId(e.target.value);}}>
            {rates.rates?.filter(r=>r.grossCashflowSupported).map(r=>
             <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
          </label>
          <label style={{fontSize:12}}>Investment principal (₹){' '}
           <input style={style.field} aria-label="Small savings principal" inputMode="numeric"
-           value={principal} onChange={e=>{setPrincipal(e.target.value);setResult(null);}}/></label>{' '}
+           value={principal} onChange={e=>{invalidateFinancialResult();setPrincipal(e.target.value);}}/></label>{' '}
          <button type="button" style={style.action} disabled={busy} onClick={calculate}>
           Calculate gross cash flows</button>
         </div>
