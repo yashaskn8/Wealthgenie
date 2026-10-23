@@ -19,7 +19,8 @@ export function parseEventCursor(value) {
 }
 
 export async function appendDecisionEvent(session, { userId, type, scenarioId, revision }) {
-  if (!session || !['SCENARIO_CREATED', 'SCENARIO_UPDATED', 'RUN_PUBLISHED', 'SCENARIO_DELETED'].includes(type)) {
+  if (!session || !['SCENARIO_CREATED', 'SCENARIO_UPDATED', 'RUN_PUBLISHED', 'SCENARIO_DELETED',
+    'MONITOR_UPDATED', 'ASSESSMENT_AVAILABLE'].includes(type)) {
     throw new Error('INVALID_DECISION_EVENT_OPERATION');
   }
   // The unique userId index serializes writers on an owner even across pods.
