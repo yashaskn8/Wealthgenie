@@ -5,6 +5,7 @@ import CashCheck from '../CashCheck';
 import * as api from '../../services/api';
 
 vi.mock('../../services/api', () => ({
+  generateUUID: vi.fn(() => 'coverage-test-client-uuid-000001'),
   getCoverageLedger: vi.fn(), saveCoverageLedger: vi.fn(),
   previewCoverageScenario: vi.fn(), deleteCoverageLedger: vi.fn(),
 }));
@@ -44,7 +45,7 @@ describe('90-day cash check', () => {
       expect.objectContaining({
         openingCashPaise: 100001,
         entries: [expect.objectContaining({ label: 'Rent', amountPaise: 40025 })],
-      }), 0,
+      }), 0, { headers: { 'Idempotency-Key': 'coverage-test-client-uuid-000001' } },
     ));
     await screen.findByText(/Entries saved and recalculated/i);
     expect(screen.getByText(/No shortfall in the entries supplied for these dates/i)).toBeTruthy();
@@ -83,4 +84,21 @@ describe('90-day cash check', () => {
     expect(screen.getByText(/Revision 2/)).toBeTruthy();
     expect(screen.queryByText(/No shortfall in the entries supplied for these dates/i)).toBeNull();
   });
+  it('reuses the identical idempotency key after a failed network response', async () => {
+    api.saveCoverageLedger.mockRejectedValueOnce(new Error('Network response lost'))
+      .mockResolvedValueOnce({ revision: 1, result: baseline() });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByPlaceholderText('50000.00'), { target: { value: '200.00' } });
+    fireEvent.click(screen.getByLabelText(/I have entered the commitments/i));
+    fireEvent.click(screen.getByRole('button', { name: /save and calculate/i }));
+    await screen.findByText(/Network response lost/i);
+    fireEvent.click(screen.getByRole('button', { name: /save and calculate/i }));
+    await waitFor(() => expect(api.saveCoverageLedger).toHaveBeenCalledTimes(2));
+    expect(api.saveCoverageLedger.mock.calls[1][2].headers['Idempotency-Key']).toBe(
+      api.saveCoverageLedger.mock.calls[0][2].headers['Idempotency-Key'],
+    );
+    await screen.findByText(/Entries saved and recalculated/i);
+  });
+
 });

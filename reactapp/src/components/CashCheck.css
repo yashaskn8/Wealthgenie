@@ -26,3 +26,6 @@
 .cash-check-workspace table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .cash-check-workspace th,.cash-check-workspace td{padding:9px;text-align:left;border-bottom:1px solid var(--border-color,#445168);white-space:nowrap}
 .cash-check-workspace small{display:block;margin-top:14px;line-height:1.6}
+
+.cash-check-form-fields{border:0;min-width:0;margin:0;padding:0}
+.cash-check-hidden-legend{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}

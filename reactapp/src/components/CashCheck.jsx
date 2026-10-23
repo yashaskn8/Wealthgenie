@@ -275,6 +275,7 @@ export default function CashCheck() {
       {stale && <p className="cash-check-error" role="alert">Your cash declaration may be stale. Check the accessible balance and update the date before saving again.</p>}
       <form onSubmit={save} aria-busy={busy}>
         <fieldset className="cash-check-form-fields" disabled={busy}>
+          <legend className="cash-check-hidden-legend">Cash amounts and commitments</legend>
         <section className="cash-check-panel">
           <h2>1. Declare accessible cash</h2>
           <p>Enter cash available immediately <strong>before</strong> any payments scheduled for the as-of date. Exclude FD principal, mutual funds, locked balances and future salary. Do not list bills already deducted from this opening balance.</p>
