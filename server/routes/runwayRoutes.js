@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
+import { createRunwaySeal, verifyRunwaySeal, RUNWAY_SEAL_VERSION } from '../services/runwaySeal.js';
 import { verifyJWTWithRevocationAvailability as requireSession } from '../middleware/authMiddleware.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
@@ -116,6 +117,22 @@ function requireFreshCash(ledger) {
     throw failure(409, 'RUNWAY_CASH_CONFIRMATION_STALE',
       'Accessible cash was confirmed on an earlier date. Reconfirm for today before calculating.');
   }
+}
+function makeSnapshotSeal(record) {
+  try { return createRunwaySeal(record); } catch (error) {
+    if (error?.code !== 'RUNWAY_SEAL_KEY_UNAVAILABLE') throw error;
+    throw failure(503, 'RUNWAY_SEAL_KEY_UNAVAILABLE',
+      'Saved financial results are unavailable until snapshot signing is configured.');
+  }
+}
+function requireValidSnapshotSeal(record) {
+  let valid;
+  try { valid = verifyRunwaySeal(record); } catch (error) {
+    if (error?.code !== 'RUNWAY_SEAL_KEY_UNAVAILABLE') throw error;
+    throw failure(503, 'RUNWAY_SEAL_KEY_UNAVAILABLE',
+      'Saved financial results are unavailable until snapshot signing is configured.');
+  }
+  if (!valid) throw failure(503, 'RUNWAY_SEAL_INVALID', 'Saved financial result authenticity could not be verified.');
 }
 function requireListedPayments(ledger) {
   if (!ledger.entries.some(entry => entry.kind === 'OBLIGATION')) {
@@ -255,11 +272,14 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
         throw failure(400, 'RUNWAY_INSUFFICIENT_INPUT',
           'No listed payments fall within the selected horizon. Add payments or increase the horizon.');
       }
-      await RunwaySnapshot.create([{
+      const newSnapshot = {
         _id: snapshotId, userId, ledgerRevision: found.state.revision,
         inputHash: found.revision.inputHash, requestHash, request: req.body, result,
-        resultHash: canonicalSha256(result),
-      }], { session });
+        resultHash: canonicalSha256(result), createdAt: new Date(),
+        sealVersion: RUNWAY_SEAL_VERSION,
+      };
+      newSnapshot.sealHmac = makeSnapshotSeal(newSnapshot);
+      await RunwaySnapshot.create([newSnapshot], { session });
       return { snapshotId, ledgerRevision: found.state.revision };
     });
   } catch (error) {
@@ -280,6 +300,7 @@ async function verifiedSnapshot(userId, id) {
   if (!SNAPSHOT_ID.test(id)) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
   const snapshot = await RunwaySnapshot.findOne({ _id: id, userId }).lean();
   if (!snapshot) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
+  requireValidSnapshotSeal(snapshot);
   const source = await RunwayLedgerRevision.findOne({ userId, revision: snapshot.ledgerRevision }).lean();
   if (!source || canonicalSha256(source.ledger) !== source.inputHash
       || source.inputHash !== snapshot.inputHash

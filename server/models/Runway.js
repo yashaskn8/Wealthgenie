@@ -37,6 +37,8 @@ const snapshotSchema = new Schema({
   request: { type: Schema.Types.Mixed, required: true, immutable: true },
   result: { type: Schema.Types.Mixed, required: true, immutable: true },
   resultHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  sealVersion: { type: String, required: true, immutable: true, enum: ['HMAC_SHA256_V1'] },
+  sealHmac: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
 }, options);
 snapshotSchema.index({ userId: 1, createdAt: -1 }, { name: 'runway_snapshots_by_owner' });
 

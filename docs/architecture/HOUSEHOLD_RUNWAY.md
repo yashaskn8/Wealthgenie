@@ -65,3 +65,11 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 
 - `horizonDays` counts calendar dates **including** the confirmed `asOfDate`: `1` means today only; `395` ends at `asOfDate + 394 days`. Never reinterpret this as an exclusive offset.
 - Version `runway-cashflow-1.2.0` is deliberately different from earlier engine versions because the previous end-boundary included an extra day. Historical snapshots retain their older engine version and are not silently recomputed as if calculated under the new calendar rule.
+
+## Server-keyed snapshot integrity (red-team requirement)
+
+- A raw SHA256 digest cannot establish snapshot authenticity when a database writer can change both result and checksum. Snapshots now include an HMAC-SHA256 seal binding owner, ID, ledger revision, input hash, request, output, output hash, and creation timestamp.
+- The HMAC key is a **server-only secret** outside MongoDB: configure \`RUNWAY_INTEGRITY_SECRET\` to 64 or more hexadecimal characters produced by \`openssl rand -hex 32\` (32-byte minimum). This is not an LLM or paid external API key. Store it in the deployment secret manager; never expose it in Vite or commit it.
+- Missing key, missing seal, or mismatched seal fails closed (503), including for explanations and idempotency replays. There is no checksum-only "verified" fallback.
+- This is only tamper evidence against a *database-only* writer; it is not a substitute for access control, backup immutability, HSM-backed key custody, verified audit logging, or compromise recovery.
+- **Deployment NO-GO** until key custody, rotation, rollback, and existing-snapshot sealing/migration have documented procedures. Rotating the key without a migration makes old snapshots unreadable; do not rotate casually.

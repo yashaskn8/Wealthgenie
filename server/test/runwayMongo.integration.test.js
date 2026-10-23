@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
+import { createRunwaySeal } from '../services/runwaySeal.js';
 import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
@@ -15,6 +16,7 @@ import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 process.env.NODE_ENV = 'test';
 process.env.DISABLE_RATE_LIMIT = 'true';
 process.env.JWT_SECRET ||= 'runway-mongo-integration-test-secret';
+process.env.RUNWAY_INTEGRITY_SECRET ||= '84ba1e61657ab8a4b989e710a9b35e39d2f0b5f1c749d364fdbb0a81a55efb96'; // disposable test key only
 const { createApp } = await import('../app.js');
 
 const today = () => {
@@ -130,18 +132,28 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
         { $set: { 'result.disclaimer': 'Forged reassurance' } });
       const corrupted = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(corrupted.response.status, 503);
-      assert.equal(corrupted.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      assert.equal(corrupted.body.code, 'RUNWAY_SEAL_INVALID');
+      // A database writer can recompute an unkeyed checksum, but cannot
+      // rewrite the server-held HMAC. It must remain rejected.
+      const checksumForgery = { ...original.result, disclaimer: 'FORGED_SAFE' };
+      await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
+        { $set: { result: checksumForgery, resultHash: canonicalSha256(checksumForgery) } });
+      const forgedChecksum = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
+      assert.equal(forgedChecksum.response.status, 503);
+      assert.equal(forgedChecksum.body.code, 'RUNWAY_SEAL_INVALID');
       const forgedExplanation = await mutation(base, 'explanations', { snapshotId: snapshot.body.snapshotId });
       assert.equal(forgedExplanation.response.status, 503);
-      assert.equal(forgedExplanation.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      assert.equal(forgedExplanation.body.code, 'RUNWAY_SEAL_INVALID');
       const forgedReplay = await mutation(base, 'snapshots', request, authA, 'runway-snapshot-001');
       assert.equal(forgedReplay.response.status, 503);
-      assert.equal(forgedReplay.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      assert.equal(forgedReplay.body.code, 'RUNWAY_SEAL_INVALID');
       await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
         { $set: { 'result.disclaimer': original.result.disclaimer } });
       const historicalResult = { ...original.result, engineVersion: 'runway-cashflow-0.9.0' };
+      const historicRecord = { ...original, result: historicalResult, resultHash: canonicalSha256(historicalResult) };
       await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
-        { $set: { result: historicalResult, resultHash: canonicalSha256(historicalResult) } });
+        { $set: { result: historicalResult, resultHash: historicRecord.resultHash,
+          sealHmac: createRunwaySeal(historicRecord) } });
       const oldEngineRead = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(oldEngineRead.response.status, 200);
       assert.equal(oldEngineRead.body.engineStatus, 'HISTORICAL_ENGINE');
@@ -153,7 +165,7 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(historicalExplanation.response.status, 409);
       assert.equal(historicalExplanation.body.code, 'RUNWAY_HISTORICAL_ENGINE_UNSUPPORTED');
       await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
-        { $set: { result: original.result, resultHash: original.resultHash } });
+        { $set: { result: original.result, resultHash: original.resultHash, sealHmac: original.sealHmac } });
 
       const updatedLedger = { ...ledger, openingCashPaise: '9000' };
       const raced = await Promise.all([
