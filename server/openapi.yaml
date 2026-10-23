@@ -5836,6 +5836,17 @@ components:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /api/free-financial-sources/coverage:
+    get:
+      operationId: getFreeFinancialSourceDirectory
+      tags: [FinancialResearch]
+      description: Research-only catalogue of no-key and official source candidates; does not qualify data for production.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200':
+          description: Coverage and source-rights status.
+          content: { application/json: { schema: { type: object, required: [status, sources, count, productionQualifiedSourceCount], properties: { status: { type: string, const: SOURCE_CANDIDATE_DIRECTORY }, sources: { type: array, items: { type: object, additionalProperties: true } }, count: { type: integer, minimum: 0 }, productionQualifiedSourceCount: { type: integer, const: 0 } }, additionalProperties: true } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/free-financial-sources/small-savings:
     get:
       operationId: getPublicSmallSavingsReference
