@@ -11,7 +11,7 @@ function validSchemeCode(v){return typeof v==='string'&&/^[1-9][0-9]{4,6}$/.test
 function isoDate(s){
  if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return null;
  const t=new Date(s+'T00:00:00Z');
- return Number.isFinite(+t)&&t.toISOString().slice(0,10)===s?t:null;
+ return Number.isFinite(+t)&&t.toISOString().slice(0,10)===s?s:null;
 }
 async function requestJson(path,{fetchImpl=globalThis.fetch}={}){
  const url=SOURCE+path; // built only from bounded integer scheme codes / encoded search
@@ -44,7 +44,7 @@ function validNavValue(value){
   // cast silently changes true to 1 and '' to 0, distorting volatility.
   if (typeof value !== 'number' && typeof value !== 'string') return null;
   if (typeof value === 'string'
-    && !/^(?:0|[1-9]\\d*)(?:\\.\\d{1,8})?$/.test(value)) return null;
+    && !/^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(value)) return null;
   const nav = Number(value);
   return Number.isFinite(nav) && nav > 0 && nav < 1e9 ? nav : null;
 }
