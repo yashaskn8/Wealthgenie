@@ -115,7 +115,7 @@ test('typed financial claim: adversarial model cannot substitute a cheaper month
 
 test('metamorphic red-team: user-assumed growth, horizon and earmarked cash obey monotonicity', () => {
   for (let i = 0; i < 60; i += 1) {
-    const target = 1_000_000 + 2_345.67 * i;
+    const target = Number((1_000_000 + 2_345.67 * i).toFixed(2));
     const months = 36 + i;
     const rate = String(1 + i % 14);
     const common = { target, months, annualReturnPercent: rate, earmarkedSavings: 50_000 };
@@ -123,7 +123,7 @@ test('metamorphic red-team: user-assumed growth, horizon and earmarked cash obey
     const moreTime = calculateGoalCompoundingScenario({ ...common, months: months + 12 });
     const betterRate = calculateGoalCompoundingScenario({ ...common, annualReturnPercent: String(2 + i % 14) });
     const moreCash = calculateGoalCompoundingScenario({ ...common, earmarkedSavings: 60_000 });
-    const biggerGoal = calculateGoalCompoundingScenario({ ...common, target: target + 10_000 });
+    const biggerGoal = calculateGoalCompoundingScenario({ ...common, target: Number((target + 10_000).toFixed(2)) });
     assert.ok(base && moreTime && betterRate && moreCash && biggerGoal, i);
     assert.ok(moreTime.requiredMonthlyContribution <= base.requiredMonthlyContribution, i);
     assert.ok(betterRate.requiredMonthlyContribution <= base.requiredMonthlyContribution, i);
@@ -206,7 +206,10 @@ test('end-to-end grounded explanation publishes both independently validated gro
   });
   assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
   assert.equal(result.validation.status, 'PASS');
-  assert.equal(result.grounded, true);
+  // The service emits provenance and validation status. "grounded" is an
+  // HTTP DTO field, not a property on the raw explanation object.
+  assert.ok(result.evidenceIdsUsed.includes('E_GOAL_RETURN_SCENARIO'));
+  assert.ok(result.evidenceIdsUsed.includes('E_GOAL_INFLATED_TARGET'));
   assert.ok(result.financialClaims.some(claim => claim.type === 'GOAL_RETURN_SCENARIO_PAYMENT'
     && claim.value === 152_376.64));
   assert.ok(result.financialClaims.some(claim => claim.type === 'GOAL_INFLATION_ADJUSTED_TARGET'

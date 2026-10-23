@@ -149,8 +149,8 @@ test('successive follow-ups retain only trusted user goal inputs, never model-ge
   ];
   const question = 'I can save 50k per month';
   assert.equal(isFinancialGoalFollowUpQuestion(question, priorTurns), true);
-  // Alone this is ambiguous; the authenticated router must override the general route.
-  assert.equal(isGeneralChatQuestion(question), true);
+  // A monthly savings statement is financial, never free-form ungrounded general chat.
+  assert.equal(isGeneralChatQuestion(question), false);
   const packet = await buildChatEvidencePacket({
     question, profile, recommendation: null, priorTurns,
   }, { queryRegulatoryRag: async () => null });
@@ -406,9 +406,15 @@ test('goal red-team: explicit correction supersedes original target without rese
 test('goal red-team: retrieved fake citation URLs are never exposed as clickable sources', async () => {
   const question = "Need 1 crore for daughter's wedding";
   const packet = await createPacket(question);
-  const target = packet.entries.find(e => e.id === 'E_GOAL_STATED_TARGET');
-  target.source = { url: 'javascript:alert(1)', title: 'Fake source', provider: 'FAKE' };
-  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
+  // The trusted evidence packet is intentionally immutable. An attacker can
+  // supply a forged copy, but must never mutate the authoritative packet.
+  const attackerPacket = {
+    ...packet,
+    entries: packet.entries.map(entry => entry.id === 'E_GOAL_STATED_TARGET'
+      ? { ...entry, source: { url: 'javascript:alert(1)', title: 'Fake source', provider: 'FAKE' } }
+      : entry),
+  };
+  const answer = await generateGroundedExplanation({ question, evidencePacket: attackerPacket }, dependencies);
   assert.equal(answer.validation.status, 'PASS');
   assert.equal(answer.citations.find(c => c.citation_id === 'E_GOAL_STATED_TARGET')?.source_url, null);
 });
@@ -510,7 +516,7 @@ test('red-team: previously floating-point false rejection accepts the exact ₹8
   assert.equal(answer.validation.status, 'PASS');
   assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
   assert.equal(answer.financialClaims.find(claim => claim.type === 'GOAL_MONTHLY_BASELINE')?.value, 823.05);
-  assert.match(answer.text, /823\\.05 per month/);
+  assert.match(answer.text, /823\.05 per month/);
 });
 
 test('red-team: salary is never silently relabelled as investable monthly capacity', async () => {
