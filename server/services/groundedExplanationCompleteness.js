@@ -86,9 +86,9 @@ function isStructuredRiskClaimSupported(claimText, entry) {
   // Accept exactly that recorded phrase, either alone or within the fixed
   // descriptive wrapper. An appended or altered risk assertion must never
   // inherit the citation simply through token overlap.
-  const display = evidenceDisplayText(entry).replace(/\\s+/g, ' ').trim();
-  const canonical = value => String(value).replace(/\\s+([.!?])/g, '$1')
-    .replace(/\\s+/g, ' ').trim().toLowerCase();
+  const display = evidenceDisplayText(entry).replace(/\s+/g, ' ').trim();
+  const canonical = value => String(value).replace(/\s+([.!?])/g, '$1')
+    .replace(/\s+/g, ' ').trim().toLowerCase();
   return Boolean(display) && (
     canonical(text) === canonical(display)
     || canonical(text) === canonical(`The current profile records ${display}.`)
