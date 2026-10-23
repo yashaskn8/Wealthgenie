@@ -48,6 +48,26 @@ test('no-key NAV history calculates observed risk without using historical retur
  assert.ok(Number.isFinite(simulated.p50.at(-1)));
  assert.ok(simulated.p10.at(-1)<simulated.p90.at(-1));
 });
+test('NAV-only Monte Carlo excludes dividend distributions and uncertain plan types',()=>{
+ const dividend=observedNav();
+ dividend.fund_details={...dividend.fund_details,
+  scheme_name:'TEST SBI LIQUID IDCW',option_type:'IDCW'};
+ assert.equal(normalizeFreeNavHistory(dividend,'100641',{now}).reasonCode,
+  'NAV_ONLY_GROWTH_PLAN_NOT_VERIFIED');
+ const mislabeled=observedNav();
+ mislabeled.fund_details={...mislabeled.fund_details,
+  scheme_name:'TEST SBI LIQUID DIVIDEND GROWTH',option_type:'Growth'};
+ assert.equal(normalizeFreeNavHistory(mislabeled,'100641',{now}).status,'UNAVAILABLE');
+ const uncertain=observedNav();
+ uncertain.fund_details={...uncertain.fund_details,
+  scheme_name:'TEST SBI LIQUID',option_type:'Unknown'};
+ assert.equal(normalizeFreeNavHistory(uncertain,'100641',{now}).status,'UNAVAILABLE');
+ const search=normalizeFreeFundSearch({results:[dividend.fund_details,
+  observedNav().fund_details]});
+ assert.equal(search.results[0].navOnlyRiskEligible,false);
+ assert.equal(search.results[1].navOnlyRiskEligible,true);
+});
+
 test('NAV identity mismatch, duplicate trading day, stale history and extreme jump fail closed',()=>{
  assert.equal(normalizeFreeNavHistory(observedNav(),'100642',{now}).status,'UNAVAILABLE');
  const duplicate=observedNav();duplicate.data[1].nav_date=duplicate.data[0].nav_date;
