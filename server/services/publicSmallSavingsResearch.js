@@ -1,5 +1,5 @@
 /**
- * Manually reviewed, dated PUBLIC reference from Indian Bank's published
+ * Manually reviewed, dated PUBLIC references from Indian Bank and India Post's published
  * Government small-savings table for 1 Oct through 31 Dec 2026.
  * Not a live scraper, permission grant, fresh future-quarter rate or
  * qualification to reproduce protected source material commercially.
@@ -49,6 +49,11 @@ export function getPublicSmallSavingsRates({now=new Date()}={}){
   sourceRightsStatus:'REFERENCE_RESEARCH_ONLY_COMMERCIAL_REUSE_NOT_QUALIFIED',
   rates:table.map(([id,name,annualRatePercent,compoundingBasis,tenureMonths])=>({
     id,name,annualRatePercent,compoundingBasis,tenureMonths,
+    rateSourceUrl: ['government:india-post:post-office-savings',
+      'government:india-post:post-office-rd-5y'].includes(id)
+      ? 'https://www.indiapost.gov.in/banking-services/savings'
+      : SMALL_SAVINGS_Q3_FY27_SOURCE,
+    rateVerification:'DATED_MANUALLY_REVIEWED_REFERENCE_NOT_LIVE',
     grossCashflowSupported:id==='government:india-post:nsc'
       ||id.startsWith('government:india-post:post-office-td-'),
   })),
@@ -103,7 +108,9 @@ export function calculatePublicSmallSavingsGrossResearch({productId,principal,no
   postTaxReasonCode:'ACCOUNT_AND_PRODUCT_TAX_FACTS_NOT_QUALIFIED',
   scenarioClass:'USER_PRINCIPAL_DATED_OFFICIAL_REFERENCE_NOT_VERIFIED_OFFER',
   productionProductQualification:false,
-  sourceRightsStatus:ref.sourceRightsStatus,source:ref.source,
+  sourceRightsStatus:ref.sourceRightsStatus,source:{
+   ...ref.source,rateEvidenceUrl:row.rateSourceUrl,
+  },
   caveat:'Historical quarter reference: not a live rate, guaranteed future renewal, personalized recommendation, or verified net-of-tax outcome.',
  };
 }
