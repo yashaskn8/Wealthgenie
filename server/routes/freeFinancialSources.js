@@ -35,6 +35,10 @@ async function loadResearchWithMirror(code){
  try{primary=await getFreeFundNavResearch(code);}
  catch{primary={status:'UNAVAILABLE',reasonCode:'MFNAV_PRIMARY_SOURCE_UNAVAILABLE'};}
  if(primary.status!=='AVAILABLE'){
+  // If the primary responded but failed identity, freshness or arithmetic
+  // validation, never mask that warning with a second-provider fallback.
+  // Fall back ONLY for transport/provider outage.
+  if(primary.reasonCode!=='MFNAV_PRIMARY_SOURCE_UNAVAILABLE')return primary;
   const secondaryHistory=await getMfapiHistoryResearch(code);
   if(secondaryHistory.status!=='AVAILABLE')return {
    status:'UNAVAILABLE',postTaxAvailable:false,postTaxFutureValue:null,
