@@ -100,6 +100,20 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(replay.body.replayed, true);
     assert.equal(replay.body.superseded, false);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 1);
+    // An idempotent replay of the current revision is not a fresh-policy
+    // calculation if its stored model policy has since been retired.
+    const firstSnapshot = await CoverageResult.findOne({ userId: owner, ledgerRevision: 1 });
+    await CoverageResult.collection.updateOne({ _id: firstSnapshot._id }, {
+      $set: { policyVersion: 'retired-policy-before-replay' },
+    });
+    const retiredReplay = await call(owner, 'PUT', '/ledger', submitted, 0, firstKey);
+    assert.equal(retiredReplay.status, 200);
+    assert.equal(retiredReplay.body.replayed, true);
+    assert.equal(retiredReplay.body.superseded, true);
+    assert.equal(retiredReplay.body.currentRevision, 1);
+    await CoverageResult.collection.updateOne({ _id: firstSnapshot._id }, {
+      $set: { policyVersion: firstSnapshot.policyVersion },
+    });
 
     const stale = await call(owner, 'PUT', '/ledger', submitted, 0, randomUUID());
     assert.equal(stale.status, 409);

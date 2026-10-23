@@ -94,7 +94,9 @@ async function resolveCoverageReplay(req, record) {
     .select('revision deletedAt').lean();
   return {
     ...publicSnapshot(snapshot), replayed: true,
-    superseded: !current || Boolean(current.deletedAt) || current.revision !== snapshot.ledgerRevision,
+    superseded: !current || Boolean(current.deletedAt)
+      || current.revision !== snapshot.ledgerRevision
+      || snapshot.policyVersion !== COVERAGE_POLICY_VERSION,
     currentRevision: current?.revision ?? null,
   };
 }
