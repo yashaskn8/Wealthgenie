@@ -86,6 +86,53 @@ test.describe('GenieProof claim-first browser workflow', () => {
     expect(requests).toEqual([]);
   });
 
+
+  test('NVIDIA guidance needs explicit consent, sends only the chosen statement, and cannot replace an evidence verdict', async ({ page }) => {
+    const posted = [];
+    const claim = 'Guaranteed 25% profit.';
+    const claimId = 'c'.repeat(32);
+    await page.route(routePath, route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(checkResponse([{
+        claimId, statement: claim,
+        verdict: 'NOT_VERIFIED', reasonCode: 'CLAIM_NOT_SUPPORTED',
+        explanation: 'This statement is not verifiable with current qualified evidence.',
+        warningSignals: [], source: null,
+      }])),
+    }));
+    await page.route('**/api/genieproof/nvidia-review', route => {
+      posted.push(route.request().postDataJSON());
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'GUIDANCE_AVAILABLE', claimId, provider: 'NVIDIA_NIM',
+          model: 'test-nvidia-model', onlineSearchPerformedByNvidia: false,
+          verificationChanged: false, assessedVerdict: 'NOT_VERIFIED',
+          nextSteps: [{
+            id: 'VERIFY_GUARANTEE',
+            text: 'Ask for the written guarantee terms and independently check who legally backs the promise.',
+          }],
+        }),
+      });
+    });
+    await page.goto('/e2e/fixtures/genieproof-claim-harness.html');
+    await page.getByLabel('Financial statement to check').fill(claim);
+    await page.getByRole('button', { name: 'Check claim' }).click();
+    await expect(page.getByText('Not verified', { exact: true })).toBeVisible();
+    const guidance = page.getByRole('button', { name: 'Get NVIDIA guidance' });
+    await expect(guidance).toBeDisabled();
+    expect(posted).toEqual([]);
+    await page.getByRole('checkbox', { name: /I agree to send only this displayed financial statement/i }).check();
+    await guidance.click();
+    await expect(page.getByText('What to check next', { exact: true })).toBeVisible();
+    await expect(page.getByText('Not verified', { exact: true })).toBeVisible();
+    await expect(page.getByText(/NVIDIA did not check the internet/)).toBeVisible();
+    expect(posted).toEqual([{ statement: claim, claimId, consent: true }]);
+    await page.getByLabel('Financial statement to check').fill('Other statement');
+    await expect(page.getByText('What to check next', { exact: true })).toHaveCount(0);
+  });
+
   test('calculates an explicitly supplied SIP scenario without saying its rate is verified', async ({ page }) => {
     const submitted = [];
     await page.route('**/api/genieproof/calculate', route => {

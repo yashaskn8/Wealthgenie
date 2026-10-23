@@ -5,12 +5,14 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { validateStrict } from '../validation/financialSchemas.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { extractGenieProofClaims } from '../agents/genieProof/genieProofCore.js';
+import { reviewGenieProofWithNvidia } from '../agents/genieProof/genieProofNvidiaReviewService.js';
 import { checkGenieProofClaims } from '../agents/genieProof/genieProofCheckService.js';
 import { calculateGenieProofScenario } from '../agents/genieProof/genieProofMathService.js';
 import {
   genieProofConsentWithdrawalSchema,
   genieProofCreateCaseSchema,
   genieProofExtractSchema,
+  genieProofNvidiaReviewSchema,
   genieProofMathSchema,
   genieProofReassessSchema,
   proofBreakAcknowledgeSchema,
@@ -185,6 +187,40 @@ router.post('/check', verifyJWT, genieProofCheckLimiter, validateStrict(geniePro
     throw createError(400, result.code, 'The statement could not be checked. Please shorten or correct it.', { code: result.code });
   }
   return res.json(result);
+}));
+
+// Explicit second action only: client consents to sending this single claim to NVIDIA.
+// This has a stricter quota than deterministic claim checks and cannot change verdicts.
+const genieProofNvidiaLimiter = createEndpointRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'GenieProof AI review limit reached. Try again later.',
+  prefix: 'rl:ep:genieproof:nvidia:',
+  keyGenerator: req => req.user?.userId
+    ? String(req.user.userId)
+    : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
+});
+router.post('/nvidia-review', verifyJWT, genieProofNvidiaLimiter, validateStrict(genieProofNvidiaReviewSchema), asyncHandler(async (req, res) => {
+  const controller = new AbortController();
+  // An abandoned browser request must not keep incurring third-party inference.
+  // 'close' on the response indicates a disconnected caller when not yet ended.
+  const disconnect = () => {
+    if (!res.writableEnded) controller.abort();
+  };
+  res.once('close', disconnect);
+  try {
+    const result = await reviewGenieProofWithNvidia({
+      statement: req.body.statement,
+      claimId: req.body.claimId,
+      consent: req.body.consent,
+      verifier: req.app.locals.genieProofClaimVerifier || null,
+      signal: controller.signal,
+    });
+    if (controller.signal.aborted || res.destroyed) return;
+    return res.json(result);
+  } finally {
+    res.off('close', disconnect);
+  }
 }));
 
 router.post('/extract-preview', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {

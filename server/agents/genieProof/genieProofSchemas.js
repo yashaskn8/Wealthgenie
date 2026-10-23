@@ -13,6 +13,15 @@ export const genieProofExtractSchema = Joi.object({
   offerText: offerText.required(),
 }).unknown(false);
 
+// No passive or automatic third-party disclosure; consent must be explicit.
+export const genieProofNvidiaReviewSchema = Joi.object({
+  statement: Joi.string().min(1).max(500).custom((value, helpers) => (
+    Buffer.byteLength(value, 'utf8') > 1600 ? helpers.error('string.maxUtf8Bytes') : value
+  )).required(),
+  claimId,
+  consent: Joi.boolean().valid(true).required(),
+}).unknown(false);
+
 export const genieProofConfirmedClaimSchema = Joi.object({
   claimId,
   statement: Joi.string().trim().min(1).max(500).required(),
