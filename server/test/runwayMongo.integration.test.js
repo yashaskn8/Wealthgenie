@@ -39,6 +39,9 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
     await RunwaySnapshot.collection.createIndex({ userId: 1, createdAt: -1 }, {
       name: 'runway_snapshots_by_owner',
     });
+    await RunwaySnapshotDeletion.collection.createIndex({ expiresAt: 1 }, {
+      name: 'runway_deleted_snapshot_ttl', expireAfterSeconds: 0,
+    });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
     await User.create([
       { _id: userA, name: 'Runway A', email: 'runway-a-' + crypto.randomUUID() + '@example.test', passwordHash: 'test-hash' },
@@ -147,6 +150,10 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(deletedOne.response.status, 200);
       assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 1);
       assert.equal(await RunwaySnapshotDeletion.countDocuments({ userId: userA }), 1);
+      const tombstone = await RunwaySnapshotDeletion.findById(additional.body.snapshotId).lean();
+      assert.ok(tombstone.expiresAt > tombstone.deletedAt);
+      assert.ok(tombstone.expiresAt.getTime() - tombstone.deletedAt.getTime()
+        === 45 * 24 * 60 * 60 * 1000);
       const delayedReplayAfterDeletion = await mutation(base, 'snapshots', request, authA, 'runway-snapshot-002');
       assert.equal(delayedReplayAfterDeletion.response.status, 409);
       assert.equal(delayedReplayAfterDeletion.body.code, 'RUNWAY_SNAPSHOT_DELETED');

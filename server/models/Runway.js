@@ -50,7 +50,11 @@ const snapshotDeletionSchema = new Schema({
   _id: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   userId: { type: Schema.Types.ObjectId, required: true, immutable: true },
   deletedAt: { type: Date, required: true, immutable: true },
+  expiresAt: { type: Date, required: true, immutable: true },
 }, options);
+snapshotDeletionSchema.index({ expiresAt: 1 }, {
+  name: 'runway_deleted_snapshot_ttl', expireAfterSeconds: 0,
+});
 
 export const RunwayLedgerState = mongoose.models.RunwayLedgerState || mongoose.model('RunwayLedgerState', stateSchema);
 export const RunwayLedgerRevision = mongoose.models.RunwayLedgerRevision || mongoose.model('RunwayLedgerRevision', ledgerRevisionSchema);

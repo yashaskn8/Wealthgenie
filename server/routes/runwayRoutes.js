@@ -68,10 +68,11 @@ function matchRevision(req) {
   return Number(match[1]);
 }
 async function currentRevision(userId, session = null) {
-  const [state, latest] = await Promise.all([
-    RunwayLedgerState.findById(userId).session(session).lean(),
-    RunwayLedgerRevision.findOne({ userId }).sort({ revision: -1 }).select('revision').session(session).lean(),
-  ]);
+  // MongoDB forbids concurrent operations on the same transaction session.
+  // These queries must be sequential, even though they are individually read-only.
+  const state = await RunwayLedgerState.findById(userId).session(session).lean();
+  const latest = await RunwayLedgerRevision.findOne({ userId })
+    .sort({ revision: -1 }).select('revision').session(session).lean();
   // An attacker or bug must not roll back the current pointer to an older
   // validly sealed revision and silently present stale cash as current.
   if (!state && !latest) return null;
@@ -106,15 +107,20 @@ function rethrowTransaction(error) {
 }
 async function requireRunwayIndexes() {
   try {
-    const [ledgerIndexes, snapshotIndexes] = await Promise.all([
+    const [ledgerIndexes, snapshotIndexes, deletionIndexes] = await Promise.all([
       RunwayLedgerRevision.collection.indexes(),
       RunwaySnapshot.collection.indexes(),
+      RunwaySnapshotDeletion.collection.indexes(),
     ]);
     const revisionIndexReady = ledgerIndexes.some(index => index.name === 'uniq_runway_ledger_revision'
       && index.unique === true && index.key?.userId === 1 && index.key?.revision === 1);
     const snapshotIndexReady = snapshotIndexes.some(index => index.name === 'runway_snapshots_by_owner'
       && index.key?.userId === 1 && index.key?.createdAt === -1);
-    if (!revisionIndexReady || !snapshotIndexReady) throw new Error('RUNWAY_INDEX_MISSING');
+    const deletionIndexReady = deletionIndexes.some(index => index.name === 'runway_deleted_snapshot_ttl'
+      && index.key?.expiresAt === 1 && index.expireAfterSeconds === 0);
+    if (!revisionIndexReady || !snapshotIndexReady || !deletionIndexReady) {
+      throw new Error('RUNWAY_INDEX_MISSING');
+    }
   } catch {
     throw failure(503, 'RUNWAY_INDEXES_UNAVAILABLE',
       'Runway writes are unavailable until the explicit Mongo index migration is verified.');
@@ -451,7 +457,11 @@ router.delete('/snapshots/:id', asyncHandler(async (req, res) => {
       const fence = await RunwayLedgerState.updateOne({ _id: userId, revision: found.state.revision },
         { $inc: { snapshotGeneration: 1 } }, { session });
       if (fence.matchedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Ledger changed concurrently.');
-      await RunwaySnapshotDeletion.create([{ _id: req.params.id, userId, deletedAt: new Date() }], { session });
+      const deletedAt = new Date();
+      const expiresAt = new Date(deletedAt.getTime() + 45 * 24 * 60 * 60 * 1000);
+      await RunwaySnapshotDeletion.create([{
+        _id: req.params.id, userId, deletedAt, expiresAt,
+      }], { session });
       const deleted = await RunwaySnapshot.deleteOne({ _id: req.params.id, userId }).session(session);
       if (deleted.deletedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Saved result changed concurrently.');
     });

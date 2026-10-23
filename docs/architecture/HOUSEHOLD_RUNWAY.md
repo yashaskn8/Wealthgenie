@@ -97,3 +97,9 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 - Individually deleted snapshots leave a tiny owner-scoped ID tombstone (hash ID, owner ID, deletion timestamp; no financial amounts). In-flight retries with a previously deleted `Idempotency-Key` return `RUNWAY_SNAPSHOT_DELETED`, not a recreated record. Creation and individual deletion both write the owner state inside MongoDB transactions to serialize races.
 - A full Runway data deletion removes these tombstones as well. Preventing an authenticated client from deliberately re-entering old data after a full erasure would require a separately governed account-lifecycle generation policy; do **not** represent full erasure as revoking all future authenticated writes.
 - Read paths check the current ledger pointer against the latest persisted immutable revision; rolling it back to a previously signed revision fails closed with `RUNWAY_REVISION_POINTER_INVALID`. This detects pointer rollback, but not a fully compromised signing key, deletion of the entire revision history, or a malicious system administrator.
+
+### Bounded tombstone retention
+
+- Individually deleted snapshot replay markers expire automatically after 45 days using a MongoDB TTL index (`runway_deleted_snapshot_ttl`), preventing unbounded accumulation. This TTL must be migrated before enabling Runway; writes fail closed if it is missing.
+- Idempotency replay protection for an individually deleted snapshot is **45 days**, not forever; tokens and clients must not retry old mutation keys beyond that period. Account-wide deletion clears the markers immediately. This is metadata retention requiring sign-off under the product's privacy policy.
+- The transaction-level ledger state and latest immutable revision reads are serialized on the Mongo session; running `Promise.all` on one transaction is prohibited.
