@@ -177,6 +177,14 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(policyRead.status, 200);
     assert.equal(policyRead.body.requiresPolicyReconfirmation, true);
     assert.equal(policyRead.body.latestResult.policyVersion, 'retired-cash-policy-v0');
+    const blockedOldPreview = await call(owner, 'POST', '/scenarios/preview',
+      { revision: 2, excludedVoluntaryEntryIds: ['sip_confirmed'] });
+    assert.equal(blockedOldPreview.status, 409);
+    assert.equal(blockedOldPreview.body.code, 'COVERAGE_POLICY_RECONFIRMATION_REQUIRED');
+    const exportAcrossPolicies = await call(owner, 'GET', '/export?afterRevision=1');
+    assert.equal(exportAcrossPolicies.status, 200);
+    assert.equal(exportAcrossPolicies.body.records.length, 1);
+    assert.equal(exportAcrossPolicies.body.records[0].policyVersion, 'retired-cash-policy-v0');
     const policyRevision = await call(owner, 'GET', '/revisions/2');
     assert.equal(policyRevision.status, 200);
     assert.equal(policyRevision.body.policyVersion, 'retired-cash-policy-v0');

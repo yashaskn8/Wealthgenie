@@ -116,7 +116,7 @@ router.get('/ledger', verifyJWT, asyncHandler(async (req, res) => {
     ledger: ledger.input,
     latestResult: publicSnapshot(snapshot),
     requiresPolicyReconfirmation: snapshot.policyVersion !== COVERAGE_POLICY_VERSION,
-    requiresCashReconfirmation: (parseCalendarDate(todayInIndia()) - parseCalendarDate(ledger.input.asOfDate)) >= 86_400_000,
+    requiresCashReconfirmation: parseCalendarDate(todayInIndia()) !== parseCalendarDate(ledger.input.asOfDate),
   });
 }));
 
@@ -208,6 +208,17 @@ router.post('/scenarios/preview', verifyJWT, asyncHandler(async (req, res) => {
   }
   const ledger = await CoverageLedger.findOne({ userId: req.user.userId, revision: body.revision }).lean();
   if (!ledger || ledger.deletedAt || ledger.input === null) throw conflict();
+  assertRecentDeclaredCash(ledger.input);
+  const currentPolicySnapshot = await CoverageResult.exists({
+    userId: req.user.userId, ledgerRevision: body.revision,
+    policyVersion: COVERAGE_POLICY_VERSION,
+  });
+  if (!currentPolicySnapshot) {
+    throw createError(
+      409, 'Reconfirm your entries and save a new cash plan before requesting a hypothetical calculation.',
+      'Cash calculation policy has changed.', { code: 'COVERAGE_POLICY_RECONFIRMATION_REQUIRED' },
+    );
+  }
   let result;
   try {
     result = previewVoluntaryExclusions(ledger.input, body.excludedVoluntaryEntryIds);
