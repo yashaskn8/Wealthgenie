@@ -106,7 +106,8 @@ export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFina
     let cursor = after ?? page.latestSequence;
     if (!send('connected', { latestSequence: page.latestSequence,
       profileCurrentness: initial?.state?.resolutionStatus || 'UNAVAILABLE',
-      updateMode: 'OWNER_SCOPED_DURABLE_EVENTS', pollMilliseconds: LIVE_POLL_MS })) {
+      updateMode: 'OWNER_SCOPED_DURABLE_EVENTS', pollMilliseconds: LIVE_POLL_MS,
+      pollingLatencyNotice: 'This is near-real-time after a committed mutation, not tick-by-tick market pricing.' })) {
       res.end(); return;
     }
 
