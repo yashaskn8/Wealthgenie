@@ -1142,7 +1142,7 @@ paths:
       security: []
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/TaxCompute' }
-      responses: { '410': { description: Legacy generic tax API retired; submit to verified new-regime interface } }
+      responses: { '410': { description: Legacy tax computation retired, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } } }
   /api/tax/policies:
     get:
       operationId: getTaxPolicyMetadata
@@ -1158,7 +1158,7 @@ paths:
       security: []
       x-csrf-protection: cookie-session
       requestBody: { $ref: '#/components/requestBodies/TaxCompare' }
-      responses: { '410': { description: Old/new tax comparison no longer supported } }
+      responses: { '410': { description: Old/new tax comparison no longer supported, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } } }
   /api/tax/post-tax-return:
     post:
       operationId: calculatePostTaxReturn

@@ -126,14 +126,16 @@ function _parseTaxDeductions(input) {
  * format submission as new-regime input. Historical data is retained.
  * Explicitly return Gone for both retired public comparison endpoints.
  */
-for (const retiredRoute of ['/compute', '/compare']) {
-  router.post(retiredRoute, (req, res) => {
-    res.set('Cache-Control', 'no-store');
-    return sendError(req, res, 410,
-      'Legacy tax computation and regime comparison are retired. Submit qualified TY2026-27 facts to /api/tax/new-regime-verified.',
-      'TAX_LEGACY_ENDPOINT_RETIRED');
-  });
+function respondRetiredLegacyTax(req, res) {
+  res.set('Cache-Control', 'no-store');
+  return sendError(req, res, 410,
+    'Legacy tax computation and regime comparison are retired. Submit qualified TY2026-27 facts to /api/tax/new-regime-verified.',
+    'TAX_LEGACY_ENDPOINT_RETIRED');
 }
+
+// Explicit routes are included in the source-derived OpenAPI security inventory.
+router.post('/compute', respondRetiredLegacyTax);
+router.post('/compare', respondRetiredLegacyTax);
 
 /**
  * POST /api/tax/post-tax-return

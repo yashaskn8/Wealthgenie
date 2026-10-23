@@ -884,7 +884,7 @@ test('tax OpenAPI mirrors Joi conditional age requirements and compare compatibi
   const validateLegacyContext = validateSchema('TaxCalculationContext');
   assert.equal(validateLegacyContext(context), true);
   assert.equal(validateLegacyContext({ ...context, regime: 'old' }), false);
-  assert.equal(validateLegacyContext({ ...context, regime: 'old', userAge: 45 }), true);
+  assert.equal(validateLegacyContext({ ...context, regime: 'old', userAge: 45 }), false, 'old regime is retired even if an age is given');
   assert.equal(validateLegacyContext({ ...context, deductions: { section80D: 1 } }), false);
   assert.equal(validateLegacyContext({ ...context, deductions: { section80D: 1 }, userAge: 45 }), true);
   assert.equal(validateLegacyContext({ ...context, deductions: { section80D: 0 } }), true);
@@ -939,7 +939,7 @@ test('tax OpenAPI mirrors Joi conditional age requirements and compare compatibi
   assert.match(contextV2Schema['x-runtime-validation'].transactionDates, /redemptionDate must be on or after acquisitionDate/);
   assert.match(contextV2Schema.properties.redemptionDate.description, /cannot precede it/);
   assert.equal(validateContext({ ...context, regime: 'old' }), false);
-  assert.equal(validateContext({ ...context, regime: 'old', userAge: 45 }), true);
+  assert.equal(validateContext({ ...context, regime: 'old', userAge: 45 }), false, 'age must not re-enable old regime');
   assert.equal(validateContext({ ...context, deductions: { section80D: 1 } }), false);
   assert.equal(validateContext({ ...context, deductions: { section80D: 1 }, userAge: 45 }), true);
   assert.equal(validateContext({ ...context, deductions: { section80D: 0 } }), true);

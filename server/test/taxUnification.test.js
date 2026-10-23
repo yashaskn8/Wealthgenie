@@ -250,7 +250,7 @@ function expectedOrdinaryIncrementalTaxForAge(context, grossIncome, userAge) {
 function makeAgeBoundaryProjection(userAge, annualGrossIncome) {
   const context = {
     annualGrossIncome,
-    regime: 'old',
+    regime: 'new',
     incomeSource: 'salary',
     fiscalYear: FY,
     userAge,
@@ -267,7 +267,7 @@ function makeAgeBoundaryProjection(userAge, annualGrossIncome) {
 }
 
 test('ordinary-interest projection holds the selected fiscal-year age across unanchored events', () => {
-  const { context, projection } = makeAgeBoundaryProjection(59, 545_000);
+  const { context, projection } = makeAgeBoundaryProjection(59, 1_250_000);
   assert.equal(projection.status, 'CALCULATED');
   assert.deepEqual(projection.taxEvents.map(event => event.taxpayerAgeForSelectedFiscalYear), [59, 59]);
   assert.ok(projection.taxEvents.every(event => !('projectedFiscalYearOffset' in event)));
@@ -299,7 +299,7 @@ test('ordinary-interest projection preserves selected ages at the 80-year and ma
   const age80 = makeAgeBoundaryProjection(80, 535_000).projection;
   assert.ok(age80.taxEvents.every(event => event.taxpayerAgeForSelectedFiscalYear === 80));
   assert.ok(age80.taxEvents.every(event => event.tax === expectedOrdinaryIncrementalTaxForAge(
-    { annualGrossIncome: 535_000, regime: 'old', incomeSource: 'salary', fiscalYear: FY, deductions: {} },
+    { annualGrossIncome: 535_000, regime: 'new', incomeSource: 'salary', fiscalYear: FY, deductions: {} },
     event.grossIncome,
     80,
   )));
