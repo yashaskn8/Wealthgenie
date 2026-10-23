@@ -295,8 +295,8 @@ jobs:
       REDIS_URL: redis://127.0.0.1:6379
       JWT_SECRET: e2e-only-jwt-secret-with-more-than-32-characters
       ML_SERVICE_URL: http://127.0.0.1:8000
-      ML_SERVICE_API_KEY: e2e-ml-service-api-key
-      ML_OPERATOR_KEY: e2e-ml-operator-key
+      ML_SERVICE_API_KEY: ''
+      ML_OPERATOR_KEY: ''
       ENVIRONMENT: test
       ML_STATE_BACKEND: mongodb
       RAG_EMBEDDING_PROVIDER: tf_idf_dense
@@ -316,6 +316,13 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+
+      - name: Generate isolated ML integration credentials
+        run: |
+          # Compose starts ML with production-grade secret validation even in CI.
+          # Generate distinct ephemeral values shared by host tests and containers.
+          echo "ML_SERVICE_API_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "ML_OPERATOR_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
       - name: Setup Node.js 22.x
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -367,8 +374,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -387,8 +392,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -402,8 +405,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -414,8 +415,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -429,8 +428,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -444,8 +441,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -459,8 +454,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -474,8 +467,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -486,8 +477,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -501,8 +490,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -513,8 +500,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -537,8 +522,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -547,8 +530,6 @@ jobs:
       - name: Run production-edge Playwright test through Nginx
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
@@ -563,8 +544,6 @@ jobs:
 
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
-          ML_SERVICE_API_KEY: edge-e2e-ml-service-api-key
-          ML_OPERATOR_KEY: edge-e2e-ml-operator-key
           CORS_ORIGINS: http://127.0.0.1
           AUTH_COOKIE_SECURE: 'false'
           MONGODB_FLAVOR: mongodb
