@@ -38,6 +38,11 @@ test('both no-key AMFI mirrors must agree on identity, NAV date and price',()=>{
   'CROSS_SOURCE_NAV_VALUE_CONFLICT');
  assert.equal(reconcileFreeNavSources(primary,{...secondary,schemeCode:'100642'}).status,'CONFLICT');
  assert.equal(reconcileFreeNavSources(primary,{...secondary,isin:'INF111111111'}).status,'CONFLICT');
+ assert.equal(reconcileFreeNavSources(
+  {...primary,fund:{...primary.fund,fundHouse:'SBI Mutual Fund'}},
+  {...secondary,fundHouse:'Other Asset Manager'}
+ ).reasonCode,'CROSS_SOURCE_FUND_HOUSE_CONFLICT');
+
  assert.equal(reconcileFreeNavSources(primary,{...secondary,navDate:'2026-10-01'}).status,'CONFLICT');
  const sameWeekDifferentDay=reconcileFreeNavSources(primary,{...secondary,navDate:'2026-10-22'});
  assert.equal(sameWeekDifferentDay.status,'SINGLE_SOURCE');
