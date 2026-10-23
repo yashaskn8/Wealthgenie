@@ -347,4 +347,26 @@ describe('90-day cash check', () => {
     expect(screen.queryByText(/No shortfall in the entries supplied for these dates/)).toBeNull();
   });
 
+  it('reloads a different server cash snapshot even if another account has an identical revision number', async () => {
+    api.getCoverageLedger.mockResolvedValueOnce({
+      revision: 1,
+      ledger: { asOfDate: indiaToday(), openingCashPaise: 10000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+      latestResult: { inputHash: 'a'.repeat(64), result: baseline() },
+      requiresCashReconfirmation: false,
+    }).mockResolvedValueOnce({
+      revision: 1,
+      ledger: { asOfDate: indiaToday(), openingCashPaise: 900000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+      latestResult: { inputHash: 'b'.repeat(64), result: baseline() },
+      requiresCashReconfirmation: false,
+    });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    await screen.findByDisplayValue('100.00');
+    fireEvent(document, new Event('visibilitychange'));
+    await screen.findByDisplayValue('9000.00');
+    expect(api.getCoverageLedger).toHaveBeenCalledTimes(2);
+  });
+
 });

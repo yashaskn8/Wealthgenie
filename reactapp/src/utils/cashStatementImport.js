@@ -180,9 +180,11 @@ function proposalCandidates(transactions, today) {
     if (monthly) {
       const samples = group.slice(-3);
       const anchor = Math.max(...samples.map(item => Number(item.date.slice(8, 10))));
+      // Payment-processing delays are not evidence of an exact contractual
+      // due date. Accept only identical original anchors or real month-end
+      // clamping (31 -> 28/29/30), never arbitrary +/- three-day drift.
       const matches = samples.every(item =>
-        Math.abs(Number(item.date.slice(8, 10))
-          - Number(dateAtMonth(monthId(item.date), anchor).slice(8, 10))) <= 3);
+        item.date === dateAtMonth(monthId(item.date), anchor));
       if (matches) { recurrence = 'MONTHLY'; due = suggestDueDate(last.date, anchor, recurrence, today); }
     }
     if (!recurrence && group.length >= 4) {

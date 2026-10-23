@@ -156,4 +156,22 @@ describe('local-only Indian bank statement review', () => {
     expect(() => inspectCashStatementCsv(csv, { today: '2026-10-01' })).toThrow(CashCsvError);
   });
 
+  it('does not infer the contractual due day from month-to-month processing jitter', () => {
+    const csv = 'Date,Description,Debit,Credit\n'
+      + '2026-07-15,House rent,15000,\n'
+      + '2026-08-17,House rent,15000,\n'
+      + '2026-09-15,House rent,15000,\n';
+    expect(inspectCashStatementCsv(csv, { today: '2026-10-01' }).proposals).toEqual([]);
+  });
+  it('preserves true calendar-month-end clamping for dates 31, 28 and 31', () => {
+    const csv = 'Date,Description,Debit,Credit\n'
+      + '2026-01-31,Monthly bill,15000,\n'
+      + '2026-02-28,Monthly bill,15000,\n'
+      + '2026-03-31,Monthly bill,15000,\n';
+    const p = inspectCashStatementCsv(csv, { today: '2026-04-01' }).proposals;
+    expect(p).toEqual([expect.objectContaining({
+      recurrence: 'MONTHLY', firstDueDate: '2026-04-30',
+    })]);
+  });
+
 });
