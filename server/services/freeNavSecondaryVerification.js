@@ -137,7 +137,7 @@ export async function getMfapiLatest(schemeCode,options={}){
 function canonicalSchemeName(name){
  if(typeof name!=='string')return null;
  const normalized=name.normalize('NFKC').toUpperCase()
-  .replace(/[^A-Z0-9]+/g,' ').trim().replace(/\\s+/g,' ');
+  .replace(/[^A-Z0-9]+/g,' ').trim().replace(/\s+/g,' ');
  return normalized||null;
 }
 export function reconcileFreeNavSources(primary,secondary,{now=new Date()}={}){
