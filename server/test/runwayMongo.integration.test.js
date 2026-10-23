@@ -138,7 +138,7 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const otherEvents = await jsonRequest(ownedBase + 'live/events', { headers: authB });
       assert.equal(otherEvents.body.items.length, 0);
       const badStatement = await mutation(base, 'live/statements', {
-        accountLabel: 'Salary account', csvText: csv.replace('125.00', '125.01'),
+        accountLabel: 'Salary account', csvText: csv + '\n' + now + ',Rent,20.00,0,100.00,rent-001',
       });
       assert.equal(badStatement.response.status, 400);
       const savedEvidence = await RunwayStatement.collection.findOne({ _id: imported.body.statementId });
