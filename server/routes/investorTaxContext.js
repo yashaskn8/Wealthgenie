@@ -41,9 +41,15 @@ router.get('/',verifyJWT,validateQuery(querySchema),asyncHandler(async(req,res)=
   const row=await InvestorTaxContext.findOne({userId:req.user.userId,profileId:profile._id})
     .sort({version:-1}).lean();
   res.set('Cache-Control','private, no-store');
-  return res.json({status:row?'AVAILABLE':'NOT_SAVED',context:present(row),
-    currentProfileVersion:profile.version,
-    isCurrent:row ? row.profileVersion===profile.version : false});
+  // Historical old-regime records remain readable for audit and migration,
+  // but are never labelled as current input to a new calculation.
+  const legacyRegime = row?.regime === 'old';
+  return res.json({
+    status: legacyRegime ? 'HISTORICAL_REGIME_UNSUPPORTED' : row ? 'AVAILABLE' : 'NOT_SAVED',
+    context: present(row),
+    currentProfileVersion: profile.version,
+    isCurrent: row ? row.profileVersion === profile.version && row.regime === 'new' : false,
+  });
 }));
 router.post('/',verifyJWT,validate(requestSchema),asyncHandler(async(req,res)=>{
   const profile=await ownedProfile(req.user.userId,req.body.profileId);
