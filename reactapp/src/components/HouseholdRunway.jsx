@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
 import './HouseholdRunway.css';
+import RunwayLiveEvidence from './RunwayLiveEvidence.jsx';
 
 const todayIndia = () => {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -304,11 +305,16 @@ export default function HouseholdRunway() {
         if (page === 4) throw new Error('Saved scenario export page limit reached. No file was saved.');
       }
       if (snapshots.length !== expectedSnapshots) throw new Error('Saved scenario history changed during export. No file was saved.');
+      const sources = await api.listRunwayStatements();
+      if (!Array.isArray(sources.items) || sources.items.length > 30) throw new Error('Imported evidence list invalid. No file was saved.');
+      const statementEvidence = [];
+      for (const item of sources.items) statementEvidence.push(await api.getRunwayStatement(item.statementId));
       const json = JSON.stringify({
         format: 'WEALTHGENIE_RUNWAY_PRIVATE_EXPORT_V1',
         exportedAt: new Date().toISOString(), ledgerRevisionCount: pages.length,
         snapshotCount: snapshots.length, financialEvidence: 'USER_DECLARED_ONLY',
         ledgerRevisions: pages, savedScenarioSnapshots: snapshots,
+        importedStatementEvidence: statementEvidence,
         disclosure: 'Contains private user-entered financial facts. Historical-engine snapshots may be HMAC/hash-checked only and do not establish live bank balances.',
       }, null, 2);
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
@@ -361,6 +367,9 @@ export default function HouseholdRunway() {
         </label>
         <p>Confirmation date (India): <strong>{confirmedDate}</strong> · Current revision: <strong>{revision || 'Not saved'}</strong></p>
       </div>
+      <RunwayLiveEvidence key={revision ? 'runway-saved' : 'runway-empty'}
+        canImport={revision > 0}
+        onChooseCash={amount => edited(() => { setOpening(toRupees(amount)); setCashConfirmed(false); })} />
       <div className="runway-panel">
         <h2>2. List the payments and expected income you know</h2>
         <p>Expected income is never treated as cash already received. Leave unconfirmed future amounts out rather than guessing.</p>
@@ -484,7 +493,7 @@ export default function HouseholdRunway() {
       </div>
       <div className="runway-panel">
         <h2>6. Export your Household Runway records</h2>
-        <p>Download your saved ledger revisions and scenario snapshots as private JSON before deletion.
+        <p>Download your saved ledger revisions, scenario snapshots, and uploaded statement evidence as private JSON before deletion.
           These contain sensitive financial declarations. Sign in again if your session is older than five minutes.</p>
         <button type="button" className="runway-minor" disabled={busy}
           onClick={exportLedgerHistory}>Export all Runway records (private JSON)</button>

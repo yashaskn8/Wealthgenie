@@ -7,7 +7,7 @@ import { civilDate, MAX_PAISE } from './runwayEngine.js';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
 
 export const STATEMENT_CSV_HEADER = 'date,description,debit,credit,balance,reference';
-const LIMIT_BYTES = 192 * 1024;
+const LIMIT_BYTES = 48 * 1024;
 const MAX_ROWS = 250;
 const AMOUNT = /^(0|[1-9][0-9]{0,12})(?:\.([0-9]{1,2}))?$/;
 const SIGNED = /^-?(?:0|[1-9][0-9]{0,12})(?:\.([0-9]{1,2}))?$/;
@@ -36,7 +36,7 @@ function rupees(value, { negative = false } = {}) {
 }
 function csvRows(text) {
   if (typeof text !== 'string' || !text.trim() || Buffer.byteLength(text, 'utf8') > LIMIT_BYTES) {
-    reject('CSV must be nonempty and at most 192 KiB.');
+    reject('CSV must be nonempty and at most 48 KiB.');
   }
   const rows = [];
   let row = [], cell = '', quoted = false, wasQuoted = false, justClosed = false;

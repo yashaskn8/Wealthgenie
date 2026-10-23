@@ -1174,6 +1174,26 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
 }
 
 // Household Runway only uses declared cash and events; no profile cash estimate.
+// User-uploaded statement evidence is never a verified live bank connection.
+export function getRunwayLiveOverview(horizonDays = 90, options = {}) {
+  return request('GET', '/runway/live/overview?horizonDays=' + encodeURIComponent(horizonDays), null, { retries: 0, ...options });
+}
+export function getRunwayLiveEvents(after = '', options = {}) {
+  const query = after ? '?after=' + encodeURIComponent(after) : '';
+  return request('GET', '/runway/live/events' + query, null, { retries: 0, ...options });
+}
+export function listRunwayStatements(options = {}) {
+  return request('GET', '/runway/live/statements', null, { retries: 0, ...options });
+}
+export function getRunwayStatement(id, options = {}) {
+  return request('GET', '/runway/live/statements/' + encodeURIComponent(id), null, { retries: 0, ...options });
+}
+export function importRunwayStatement(accountLabel, csvText, options = {}) {
+  return request('POST', '/runway/live/statements', { accountLabel, csvText }, { retries: 0, ...options });
+}
+export function deleteRunwayStatement(id, options = {}) {
+  return request('DELETE', '/runway/live/statements/' + encodeURIComponent(id), null, { retries: 0, ...options });
+}
 export function getRunwaySnapshotHistoryPage(page = 0, options = {}) {
   return request('GET', '/runway/export/snapshots?page=' + encodeURIComponent(page), null, { retries: 0, ...options });
 }
@@ -1213,7 +1233,9 @@ export function deleteRunwayData(options = {}) {
 // Default export for convenience
 const api = {
   register, login, logout, restoreSession,
-  getRunwayCurrent, getRunwayLedgerHistoryPage, getRunwaySnapshotHistoryPage, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, listRunwaySnapshots, getRunwaySnapshot, deleteRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
+  getRunwayCurrent, getRunwayLiveOverview, getRunwayLiveEvents, listRunwayStatements,
+  getRunwayStatement, importRunwayStatement, deleteRunwayStatement,
+  getRunwayLedgerHistoryPage, getRunwaySnapshotHistoryPage, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, listRunwaySnapshots, getRunwaySnapshot, deleteRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,

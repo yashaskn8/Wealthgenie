@@ -41,7 +41,7 @@ test('rejects formula injection, missing references, giant CSV and malformed quo
     csv.replace('Rent', '"Rent'),
     csv.replace('date,description,debit,credit,balance,reference',
       'date,debit,description,credit,balance,reference'),
-    csv + '\n' + 'a'.repeat(192 * 1024),
+    csv + '\n' + 'a'.repeat(48 * 1024),
   ]) assert.throws(() => parse(bad));
   assert.throws(() => parse(csv, '=HYPERLINK()'));
 });

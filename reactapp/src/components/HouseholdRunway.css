@@ -25,3 +25,10 @@
 .runway .runway-history{list-style:none;padding:0;margin:10px 0}
 .runway .runway-history li{border-top:1px solid #475569;padding:12px 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
 .runway .runway-history-actions{display:flex;gap:4px;flex-wrap:wrap}
+
+.runway-live-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;margin:12px 0}
+.runway-live-grid>div{border:1px solid #475569;border-radius:12px;padding:12px;background:#0b1427}
+.runway-live-grid strong{display:block;font-size:1.15rem;margin-top:5px}
+.runway-live-subtitle{font-size:.87rem;color:#cbd5e1}
+.runway-live-csv{font:inherit;max-width:100%;border:1px solid #64748b;border-radius:9px;padding:7px}
+.runway-live-statement{padding:12px 0;border-top:1px solid #475569}
