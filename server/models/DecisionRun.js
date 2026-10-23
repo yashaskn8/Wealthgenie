@@ -12,11 +12,12 @@ const schema = new mongoose.Schema({
   runKeyHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   inputHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   result: { type: mongoose.Schema.Types.Mixed, required: true, immutable: true },
+  resultHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
 }, { timestamps: { createdAt: true, updatedAt: false }, strict: 'throw' });
 
 schema.index({ userId: 1, runKeyHash: 1 }, { unique: true, name: 'uniq_decision_run_key' });
 schema.index({ userId: 1, scenarioId: 1, createdAt: -1 }, { name: 'decision_run_owner_history' });
 protectImmutableIdentity(schema, [
-  'userId', 'scenarioId', 'revision', 'profileId', 'runKeyHash', 'inputHash', 'result',
+  'userId', 'scenarioId', 'revision', 'profileId', 'runKeyHash', 'inputHash', 'result', 'resultHash',
 ], { code: 'DECISION_REPORT_IMMUTABLE', label: 'GenieDecision report' });
 export default mongoose.models.DecisionRun || mongoose.model('DecisionRun', schema);
