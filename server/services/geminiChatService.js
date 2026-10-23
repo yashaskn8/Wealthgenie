@@ -100,7 +100,7 @@ export function buildClientResponseDTO({
 // Without an authenticated financial profile there is no account-bound goal
 // history. Never send an elliptical goal follow-up to the unverified general LLM.
 export function isUnboundGoalFollowUp(question) {
-  return /^(?:(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))\s*[.!?]?$/i.test(String(question || '').trim());
+  return /^(?:(?:what\s+about\s+)?(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)|(?:(?:my|our|the)\s+)?(?:daughter(?:'s)?\s+(?:marriage|wedding)|son(?:'s)?\s+(?:marriage|wedding)|(?:wedding|marriage|education|college|retirement|home|house|vehicle|car))\s+(?:is|will\s+be|happens?|occurs?)\s+in\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing))\s*[.!?]?$/i.test(String(question || '').trim());
 }
 
 function noProfileResponse(sessionId, rateCheck) {
@@ -196,7 +196,7 @@ function chatMessageMatchesBinding(message, binding) {
 // reply that could invent financial explanations and citations.
 function isContextDependentFollowUp(question) {
   const text = String(question || '').trim();
-  if (/^(?:(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\b|(?:i(?:'ve| have)|we(?:'ve| have))\s+(?:already\s+)?saved?\b|(?:i|we)\s+have\s+(?:saved|set aside)\b|(?:i|we)\s+can\s+(?:save|contribute)\b|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing)\b)/i.test(text)) return true;
+  if (/^(?:(?:what\s+about\s+)?(?:in|within|after|over)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\b|(?:i(?:'ve| have)|we(?:'ve| have))\s+(?:already\s+)?saved?\b|(?:i|we)\s+have\s+(?:saved|set aside)\b|(?:i|we)\s+can\s+(?:save|contribute)\b|(?:starting|start)\s+(?:from|with)\s+(?:zero|nothing)\b)/i.test(text)) return true;
   return /^(?:why(?:[?.!]\s*|\s+is\s+that\b)|how\s+(?:so|come)\b|tell\s+me\s+more\b|explain\s+(?:it|that|the\s+previous\s+answer)\b|what\s+about\s+(?:that|this|it|them)\b|can\s+you\s+(?:explain|elaborate|expand)\b|give\s+(?:me\s+)?an\s+example\b|continue\b)/i
     .test(text);
 }

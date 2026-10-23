@@ -109,7 +109,12 @@ export function isGoalPlanningFollowUp(question) {
   const simpleDeadline = /^(?:(?:in|within|after|over|next|for)\s+)?\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?(?:\s+instead)?\s*[.!?]?$/i;
   const namedDeadline = /^(?:(?:the|my|our|this|that)\s+)?(?:goal\s+)?(?:deadline|timeline|horizon|timeframe)\s*(?:is|of|to|:)?\s*(?:in|within|after|over)?\s*\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
   const referencedGoalDeadline = /^(?:(?:i|we)\s+(?:want|need|plan|hope)\s+(?:to\s+(?:do|reach|achieve|fund|make)\s+)?(?:it|that|this|the goal)?\s*)?(?:in|within|after|over)\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s+(?:and\s+)?\d{1,2}\s+months?)?\s*[.!?]?$/i;
-  if (simpleDeadline.test(text) || namedDeadline.test(text) || referencedGoalDeadline.test(text)) return true;
+  // Natural follow-up variants must inherit only a still-active, same-goal
+  // session. A subject plus an updated deadline is not a new target.
+  const whatAboutDeadline = /^what\s+about\s+(?:in|within|after|over)\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\s*[.!?]?$/i;
+  const subjectDeadline = /^(?:(?:my|our|the)\s+)?(?:daughter(?:'s)?\s+(?:marriage|wedding)|son(?:'s)?\s+(?:marriage|wedding)|(?:wedding|marriage|education|college|retirement|home|house|vehicle|car))\s+(?:is|will\s+be|happens?|occurs?)\s+in\s+\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\s*[.!?]?$/i;
+  if (simpleDeadline.test(text) || namedDeadline.test(text) || referencedGoalDeadline.test(text)
+      || whatAboutDeadline.test(text) || subjectDeadline.test(text)) return true;
   if (/\b(?:no savings|nothing saved|zero saved|saved zero|starting from zero|zero savings|0 savings)\b/i.test(text)) return true;
   return moneyIn(text).some(item => ['SAVINGS', 'CAPACITY', 'AMBIGUOUS', 'INVALID', 'UNSPECIFIED_FREQUENCY'].includes(item.role));
 }
@@ -160,7 +165,9 @@ function moneyIn(question) {
     const recurringGoalBudget = recurring && /\b(?:goal|target|need|require|want)\s*(?:is|of|to\s+be)?\s*$/i.test(before);
     // "I can save ₹50k" does not establish ₹50k PER MONTH or an existing
     // ₹50k balance. A cadence must be supplied before comparing affordability.
-    const unspecifiedFrequency = !monthlyBefore && !monthlyAfter
+    const explicitlyTimedAccumulationTarget = /\b(?:plan\s+to|want\s+to|need\s+to)\s+(?:save|accumulate|build|raise)\s*$/i.test(before)
+      && /^\s*(?:in|within|over|after)\s+\d+(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)\b/i.test(after);
+    const unspecifiedFrequency = !monthlyBefore && !monthlyAfter && !explicitlyTimedAccumulationTarget
       && /\b(?:(?:i|we)\s+)?(?:can|could|will|would|plan\s+to|able\s+to)\s+(?:save|invest|contribute|set\s+aside)\s*$/i.test(before);
     const ambiguousSaving = !recurring && /\b(?:am|are|been|currently)?\s*saving\s*$|\b(?:i|we)\s+save\s*$/i.test(before);
     const savings = !recurring && !unspecifiedFrequency && !targetCue && (/(?:already\s+)?(?:have\s+saved|have\s+put\s+aside|currently\s+saving|saving|saved|saved\s+up|earmarked|set\s+aside|accumulated|existing\s+savings|savings(?:\s+(?:of|are|is))?|starting\s+(?:with|from))\s*(?:up\s+to\s*)?(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
@@ -180,6 +187,7 @@ function moneyIn(question) {
       && /\b(?:i|we)\s+(?:(?:already|currently)\s+)?have(?:\s+(?:already|currently))?\s*(?:₹\s*|(?:rs\.?|inr)\s*)?$/i.test(before)
       && !/^\s*(?:as\s+(?:my|our|the)\s+(?:target|goal)|(?:for|towards)\s+(?:my|our|the)\s+goal)\b/i.test(after);
     found.push({ amount, role: (statedSavedFlow || recurringGoalBudget) ? 'INVALID'
+      : explicitlyTimedAccumulationTarget ? 'TARGET'
       : unspecifiedFrequency ? 'UNSPECIFIED_FREQUENCY'
       : unlabelledMonthlyAmount && !unrelated ? 'AMBIGUOUS'
       : ambiguousSaving ? 'AMBIGUOUS'
@@ -217,7 +225,7 @@ function goalHorizonMonths(question) {
   const supplied = goalText(question);
   const text = /^\d{1,3}(?:\.\d+)?\s*(?:years?|yrs?|months?|mos?)(?:\s*(?:and\s*)?\d{1,2}\s*months?)?[.!]?$/i.test(supplied)
     ? 'in ' + supplied : supplied;
-  const pattern = /\b(?:in|within|after|over|next|for|timeframe(?: of)?|horizon(?: of)?|deadline(?: of| in)?)\s+(\d{1,3}(?:\.\d+)?)\s*(years?|yrs?|months?|mos?)\b(?:\s*(?:(?:,|\+|and|plus)\s*)?(\d{1,2})\s*months?\b|\s+(?:and|plus)\s+(?:(?:a|one)\s+)?(half)(?:\s+years?)?\b)?/gi;
+  const pattern = /\b(?:in|within|after|over|next|for|timeframe(?: of)?|horizon(?: of)?|deadline(?: is| of| in)?)\s+(\d{1,3}(?:\.\d+)?)\s*(years?|yrs?|months?|mos?)\b(?:\s*(?:(?:,|\+|and|plus)\s*)?(\d{1,2})\s*months?\b|\s+(?:and|plus)\s+(?:(?:a|one)\s+)?(half)(?:\s+years?)?\b)?/gi;
   for (const match of text.matchAll(pattern)) {
     const [whole, fraction = ''] = match[1].split('.');
     if (fraction.length > 6) return -1;
@@ -307,8 +315,13 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   const sameNamedGoal = previousGoalIndex >= 0
     && questionTopics.length === 1 && priorTopics.length === 1
     && questionTopics[0] === priorTopics[0];
-  const continuation = sameNamedGoal && isGoalPlanningFollowUp(text)
-    && !moneyIn(text).some(item => item.role === 'TARGET');
+  // A short unnamed target correction belongs to the active authenticated
+  // goal segment. Never reuse an older subject after a different named goal.
+  const unnamedCorrection = previousGoalIndex >= 0 && questionTopics.length === 0
+    && /^(?:actually|instead|make\s+(?:it|that)|change\s+(?:the\s+)?(?:goal|target)|(?:my|the)\s+(?:goal|target)\s+(?:is|should\s+be))\b/i.test(text)
+    && isGoalPlanningFollowUp(text);
+  const continuation = (sameNamedGoal && isGoalPlanningFollowUp(text)
+    && !moneyIn(text).some(item => item.role === 'TARGET')) || unnamedCorrection;
   const reset = direct && !continuation;
   const used = reset ? [text] : [...past.slice(previousGoalIndex), text];
   const source = reset ? text : past[previousGoalIndex];
