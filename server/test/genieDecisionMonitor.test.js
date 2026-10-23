@@ -163,6 +163,35 @@ test('monitor worker prevents concurrent ticks and drains before stopping', asyn
   assert.throws(() => createDecisionMonitorWorker({ pollMs: 200 }), RangeError);
 });
 
+test('worker shutdown drains an in-flight signed heartbeat before deleting readiness', async () => {
+  const actions = [];
+  let finishBeat;
+  let started;
+  const beatStarted = new Promise(resolve => { started = resolve; });
+  const heartbeat = {
+    beat: () => new Promise(resolve => {
+      actions.push('heartbeat-started');
+      finishBeat = () => { actions.push('heartbeat-saved'); resolve(); };
+      started();
+    }),
+    stop: async () => { actions.push('heartbeat-deleted'); },
+  };
+  const worker = createDecisionMonitorWorker({
+    pollMs: 10000, heartbeat, scan: async () => ({ inspected: 0 }),
+  });
+  worker.start();
+  await beatStarted;
+  const stopping = worker.stop();
+  await Promise.resolve();
+  assert.equal(actions.includes('heartbeat-deleted'), false);
+  finishBeat();
+  assert.deepEqual(await stopping, { drained: true });
+  assert.deepEqual(actions, [
+    'heartbeat-started', 'heartbeat-saved', 'heartbeat-deleted',
+  ]);
+  assert.equal(worker.state().heartbeatHealthy, false);
+});
+
 test('operator flag alone never authorizes monitoring without live worker heartbeat', async () => {
   const before = process.env.GENIEDECISION_MONITOR_ENABLED;
   process.env.GENIEDECISION_MONITOR_ENABLED = 'true';
