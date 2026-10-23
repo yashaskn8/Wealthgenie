@@ -162,12 +162,16 @@ function recommendationEntries(recommendation) {
     displayValue: `Recommendation model ${recommendation.modelVersion || 'unavailable'}`,
   })];
   recommendation.instruments.slice(0, 8).forEach((instrument, index) => {
-    const allocationPct = Number.isFinite(Number(instrument.allocation_pct))
+    // null and empty strings are "unknown", not a legitimate zero weight or
+    // zero return. Older revisions may store only allocationWeight (0..1).
+    const presentFinite = value => (typeof value === 'number' && Number.isFinite(value))
+      || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
+    const allocationPct = presentFinite(instrument.allocation_pct)
       ? Number(instrument.allocation_pct)
-      : Number(instrument.allocationWeight) * 100;
-    const modelReturnAssumptionPct = Number.isFinite(Number(instrument.nominalReturn))
-      ? Number(instrument.nominalReturn)
-      : null;
+      : presentFinite(instrument.allocationWeight)
+        ? Number(instrument.allocationWeight) * 100 : null;
+    const modelReturnAssumptionPct = presentFinite(instrument.nominalReturn)
+      ? Number(instrument.nominalReturn) : null;
     rows.push(entry(`E_REC_${String(index + 1).padStart(3, '0')}`, 'RECOMMENDATION', {
       instrumentId: instrument.id,
       name: instrument.name,
@@ -180,9 +184,11 @@ function recommendationEntries(recommendation) {
       riskLevel: instrument.riskLevel ?? null,
     }, {
       dataClass: 'AUTHORITATIVE_BACKEND_RESULT',
-      displayValue: modelReturnAssumptionPct === null
-        ? `${instrument.name}: ${allocationPct}% allocation; return assumption unavailable`
-        : `${instrument.name}: ${allocationPct}% allocation; ${modelReturnAssumptionPct}% pre-tax nominal model assumption`,
+      displayValue: allocationPct === null
+        ? `${instrument.name || 'Instrument'}: allocation weight unavailable; return assumption not used`
+        : modelReturnAssumptionPct === null
+          ? `${instrument.name}: ${allocationPct}% allocation; return assumption unavailable`
+          : `${instrument.name}: ${allocationPct}% allocation; ${modelReturnAssumptionPct}% pre-tax nominal model assumption`,
     }));
   });
   return rows;
