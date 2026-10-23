@@ -9,6 +9,9 @@ import { calculateDecision, DECISION_TYPES } from '../services/genieDecision/dec
 import DecisionScenario from '../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionRun from '../models/DecisionRun.js';
+import DecisionEvent from '../models/DecisionEvent.js';
+import DecisionEventState from '../models/DecisionEventState.js';
+import { appendDecisionEvent } from '../services/genieDecision/liveEvents.js';
 import { verifyPersistenceIndexes } from '../services/persistenceIndexReadiness.js';
 import {
   DecisionIntegrityUnavailable, decisionIntegrityReady, signDecisionReceipt, verifyDecisionReceipt,
@@ -280,7 +283,7 @@ const requireDecisionIndexes = asyncHandler(async (_req, _res, next) => {
   // create indexes in request processing: missing unique keys break quotas
   // and exactly-once guarantees under concurrent writers.
   await verifyPersistenceIndexes({
-    models: [DecisionScenario, DecisionScenarioRevision, DecisionRun],
+    models: [DecisionScenario, DecisionScenarioRevision, DecisionRun, DecisionEvent, DecisionEventState],
     scope: 'persistence',
   });
   next();
@@ -371,6 +374,9 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       await DecisionScenarioRevision.create([
         makeRevision({ scenario: created.toObject(), revision: 1, payload }),
       ], { session });
+      await appendDecisionEvent(session, {
+        userId: req.user.userId, type: 'SCENARIO_CREATED', scenarioId: created._id, revision: 1,
+      });
       return created.toObject();
     }).catch(async error => {
       // Two replicas may commit the same key concurrently. A unique-index
@@ -444,6 +450,10 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       await DecisionScenarioRevision.create([
         makeRevision({ scenario: next, revision: next.revision, payload }),
       ], { session });
+      await appendDecisionEvent(session, {
+        userId: req.user.userId, type: 'SCENARIO_UPDATED',
+        scenarioId: next._id, revision: next.revision,
+      });
       return next;
     });
     res.json({ scenario: scenarioDto(updated) });
@@ -516,6 +526,10 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       }, { $set: { lastRunId: created._id }, $inc: { runGeneration: 1 } },
       { session, new: true }).lean();
       if (!head) fail(409, 'DECISION_REVISION_CONFLICT', 'Concurrent scenario evaluation detected.');
+      await appendDecisionEvent(session, {
+        userId: req.user.userId, type: 'RUN_PUBLISHED',
+        scenarioId: first._id, revision: first.revision,
+      });
       return created.toObject();
     }).catch(async error => {
       // Retry convergence for a concurrently committed evaluation keyed
@@ -578,6 +592,10 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       if (removed.deletedCount !== 1) fail(409, 'DECISION_REVISION_CONFLICT', 'Scenario changed during deletion.');
       await DecisionScenarioRevision.deleteMany({ userId: req.user.userId, scenarioId: scenario._id }, { session });
       await DecisionRun.deleteMany({ userId: req.user.userId, scenarioId: scenario._id }, { session });
+      await appendDecisionEvent(session, {
+        userId: req.user.userId, type: 'SCENARIO_DELETED',
+        scenarioId: scenario._id, revision: scenario.revision,
+      });
       return identity(scenario._id);
     });
     res.json({ deleted: true, scenarioId: deleted });
