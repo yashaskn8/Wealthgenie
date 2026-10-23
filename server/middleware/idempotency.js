@@ -152,7 +152,7 @@ async function claimMutation({ req, operation, userId, key, requestHash }) {
 
 /** Complete the operation in the same Mongo transaction as the durable create. */
 export async function completeMutationIdempotency(session, claim, { resourceType, resourceId, status = 201 } = {}) {
-  if (!claim?.operationId || !claim?.ownerToken || !['FinancialProfile', 'Goal', 'CoverageResult'].includes(resourceType) || !resourceId) {
+  if (!claim?.operationId || !claim?.ownerToken || !['FinancialProfile', 'Goal', 'CoverageResult', 'CoverageDeletionReceipt'].includes(resourceType) || !resourceId) {
     throw mutationError(503, 'Mutation idempotency completion is not bound to a durable resource.', 'IDEMPOTENCY_STATE_CORRUPT');
   }
   if (claim.lost) throw mutationError(503, 'The mutation idempotency lease was lost before commit.', 'IDEMPOTENCY_UNAVAILABLE');
