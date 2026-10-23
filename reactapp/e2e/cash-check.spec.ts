@@ -116,6 +116,30 @@ for (const viewport of [
     const api = await installCashApi(page);
     await page.goto('/e2e/cash-check-harness.html');
     await expect(page.getByRole('heading', { name: '90-day cash check', level: 1 })).toBeVisible();
+    // An entire statement stays in Chromium; suggestions do not touch the API
+    // unless explicitly classified and saved by the user.
+    const current = new Date(indiaDate() + 'T00:00:00Z');
+    const anchorDay = Math.min(current.getUTCDate(), 15);
+    const statements = [2, 1, 0].map(monthOffset =>
+      new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() - monthOffset, anchorDay))
+        .toISOString().slice(0, 10));
+    const csv = 'Date,Description,Debit,Credit,Balance\n'
+      + statements.map((day, i) => day + ',Recurring home bill,200.25,,' + (50000 - i * 200))
+        .join('\n');
+    await page.getByLabel('Choose bank statement CSV').setInputFiles({
+      name: 'private-statement.csv', mimeType: 'text/csv', buffer: Buffer.from(csv),
+    });
+    const review = page.getByRole('region', { name: 'Statement review' });
+    await expect(review).toBeVisible();
+    await expect(review).toContainText('Unverified local statement');
+    await expect(review).toContainText('Recurring home bill');
+    expect(api.counters().saveCount).toBe(0);
+    await page.getByLabel('Confirm payment type').selectOption('ESSENTIAL_PAYMENT');
+    await page.getByRole('button', { name: 'Add reviewed payment to unsaved draft' }).click();
+    await expect(page.getByLabel('Description')).toHaveValue('Recurring home bill');
+    await expect(page.getByLabel('Amount (₹)')).toHaveValue('200.25');
+    expect(api.counters().saveCount).toBe(0);
+    await page.getByRole('button', { name: 'Remove entry' }).click();
     await page.getByPlaceholder('50000.00').fill('1000.01');
     await page.getByRole('button', { name: 'Add entry' }).click();
     await page.getByLabel('Description').fill('Scheduled EMI');
