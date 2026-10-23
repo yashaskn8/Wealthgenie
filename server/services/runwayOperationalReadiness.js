@@ -5,12 +5,15 @@
  */
 import { RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '../models/Runway.js';
 import { assertRunwaySigningKey } from './runwaySeal.js';
+import { RunwayStatement, RunwaySignal } from '../models/RunwayEvidence.js';
 
 async function readIndexes() {
   return Promise.all([
     RunwayLedgerRevision.collection.indexes(),
     RunwaySnapshot.collection.indexes(),
     RunwaySnapshotDeletion.collection.indexes(),
+    RunwayStatement.collection.indexes(),
+    RunwaySignal.collection.indexes(),
   ]);
 }
 export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
@@ -20,13 +23,20 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
     error.code = 'RUNWAY_INDEXES_UNAVAILABLE';
     throw error;
   }
-  const [ledger, snapshot, deletion] = Array.isArray(indexes) ? indexes : [];
+  const [ledger, snapshot, deletion, statement, signal] = Array.isArray(indexes) ? indexes : [];
   const ready = Array.isArray(ledger) && Array.isArray(snapshot) && Array.isArray(deletion)
+    && Array.isArray(statement) && Array.isArray(signal)
     && ledger.some(i => i.name === 'uniq_runway_ledger_revision'
       && i.unique === true && i.key?.userId === 1 && i.key?.revision === 1)
     && snapshot.some(i => i.name === 'runway_snapshots_by_owner'
       && i.key?.userId === 1 && i.key?.createdAt === -1)
     && deletion.some(i => i.name === 'runway_deleted_snapshot_ttl'
+      && i.key?.expiresAt === 1 && i.expireAfterSeconds === 0)
+    && statement.some(i => i.name === 'runway_statement_owner_newest'
+      && i.key?.userId === 1 && i.key?.createdAt === -1)
+    && signal.some(i => i.name === 'runway_signal_owner_cursor'
+      && i.key?.userId === 1 && i.key?._id === 1)
+    && signal.some(i => i.name === 'runway_signal_ttl'
       && i.key?.expiresAt === 1 && i.expireAfterSeconds === 0);
   if (!ready) {
     const error = new Error('Required Runway unique and TTL indexes are missing or incorrect.');

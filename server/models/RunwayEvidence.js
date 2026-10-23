@@ -7,6 +7,7 @@ const statementSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, required: true, immutable: true },
   statement: { type: Schema.Types.Mixed, required: true, immutable: true },
   evidenceHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  importedAt: { type: Date, required: true, immutable: true },
   sealVersion: { type: String, required: true, immutable: true, enum: ['HMAC_SHA256_V1'] },
   sealHmac: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
 }, opts);

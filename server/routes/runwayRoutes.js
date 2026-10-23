@@ -2,6 +2,8 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { verifyRunwayIndexes } from '../services/runwayOperationalReadiness.js';
+import { createRunwayLiveRouter, createRunwaySignal } from './runwayLiveRoutes.js';
+import { RunwayStatement, RunwaySignal } from '../models/RunwayEvidence.js';
 import {
   createRunwaySeal, verifyRunwaySeal, createRunwayLedgerSeal, verifyRunwayLedgerSeal, RUNWAY_SEAL_VERSION,
 } from '../services/runwaySeal.js';
@@ -168,6 +170,10 @@ function requireListedPayments(ledger) {
 
 router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 router.use(requireSession, enable, limiter);
+router.use('/live', createRunwayLiveRouter({
+  owner, currentRevision, inTransaction, rethrowTransaction, requireRecentSession,
+  indiaCivilToday, requireRunwayIndexes,
+}));
 
 router.get('/current', asyncHandler(async (req, res) => {
   const found = await currentRevision(owner(req));
@@ -253,6 +259,7 @@ router.put('/ledger', asyncHandler(async (req, res) => {
         if (cas.matchedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Ledger was edited elsewhere.');
       }
       await RunwayMutationReceipt.create([{ _id: receiptId, userId, operation: 'LEDGER', requestHash, revision: next }], { session });
+      await createRunwaySignal(userId, 'LEDGER_UPDATED', session);
       return next;
     });
   } catch (error) { rethrowTransaction(error); }
@@ -495,6 +502,8 @@ router.delete('/data', asyncHandler(async (req, res) => {
     await RunwaySnapshot.deleteMany({ userId }, { session });
     await RunwaySnapshotDeletion.deleteMany({ userId }, { session });
     await RunwayMutationReceipt.deleteMany({ userId }, { session });
+    await RunwayStatement.deleteMany({ userId }, { session });
+    await RunwaySignal.deleteMany({ userId }, { session });
     await RunwayLedgerRevision.deleteMany({ userId }, { session });
     await RunwayLedgerState.deleteOne({ _id: userId }, { session });
   });

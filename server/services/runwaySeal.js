@@ -76,3 +76,20 @@ export function assertRunwaySigningKey(env = process.env) {
   keyFromEnv(env);
   return true;
 }
+
+function statementSealPayload(record) {
+  return { purpose: 'WEALTHGENIE_RUNWAY_USER_CSV_V1',
+    id: String(record._id), userId: String(record.userId),
+    statement: record.statement, evidenceHash: record.evidenceHash, importedAt: record.importedAt };
+}
+export function createRunwayStatementSeal(record, env = process.env) {
+  return crypto.createHmac('sha256', keyFromEnv(env))
+    .update('wealthgenie:runway:user-import:v1:', 'utf8')
+    .update(canonicalJson(statementSealPayload(record)), 'utf8').digest('hex');
+}
+export function verifyRunwayStatementSeal(record, env = process.env) {
+  const expected = createRunwayStatementSeal(record, env);
+  return record.sealVersion === RUNWAY_SEAL_VERSION
+    && typeof record.sealHmac === 'string' && /^[a-f0-9]{64}$/.test(record.sealHmac)
+    && crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(record.sealHmac, 'hex'));
+}
