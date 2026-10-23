@@ -7,10 +7,15 @@ import mongoose from 'mongoose';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { parseRunwayStatement } from '../services/runwayStatementImport.js';
-import { createRunwayStatementSeal, verifyRunwayStatementSeal, RUNWAY_SEAL_VERSION } from '../services/runwaySeal.js';
+import {
+  createRunwayStatementSeal, verifyRunwayStatementSeal, RUNWAY_SEAL_VERSION,
+  createRunwayLedgerSeal, verifyRunwayLedgerSeal,
+  createRunwaySettlementSeal, verifyRunwaySettlementSeal,
+} from '../services/runwaySeal.js';
 import { simulateRunway } from '../services/runwayEngine.js';
-import { RunwayLedgerState } from '../models/Runway.js';
-import { RunwayStatement, RunwaySignal } from '../models/RunwayEvidence.js';
+import { buildRunwayMatchCandidates, prepareRunwaySettlement } from '../services/runwayReconciliation.js';
+import { RunwayLedgerState, RunwayLedgerRevision } from '../models/Runway.js';
+import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 
 const MAX_IMPORTS = 30;
 const SIGNAL_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -73,7 +78,7 @@ function queryNumber(value, min, max) {
 }
 export function createRunwayLiveRouter({
   owner, currentRevision, inTransaction, rethrowTransaction,
-  requireRecentSession, indiaCivilToday, requireRunwayIndexes,
+  requireRecentSession, indiaCivilToday, requireRunwayIndexes, idempotency,
 }) {
   const router = Router();
   router.get('/overview', asyncHandler(async (req, res) => {
@@ -129,6 +134,163 @@ export function createRunwayLiveRouter({
       hasMore: items.length === 30,
     });
   }));
+
+  async function verifiedSources(userId, session = null) {
+    const records = await RunwayStatement.find({ userId }).sort({ importedAt: -1 })
+      .limit(MAX_IMPORTS).session(session).lean();
+    return records.map(x => {
+      verified(x);
+      return { statementId: x._id, statement: x.statement };
+    });
+  }
+  async function verifiedSettlement(userId, receipt) {
+    if (!verifyRunwaySettlementSeal(receipt)) {
+      throw fail(503, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID', 'Settlement authenticity failed.');
+    }
+    const prior = await RunwayLedgerRevision.findOne({ userId, revision: receipt.ledgerRevision }).lean();
+    const next = await RunwayLedgerRevision.findOne({ userId, revision: receipt.resultRevision }).lean();
+    if (!prior || !next || receipt.resultRevision !== receipt.ledgerRevision + 1
+      || canonicalSha256(prior.ledger) !== prior.inputHash
+      || canonicalSha256(next.ledger) !== next.inputHash
+      || !verifyRunwayLedgerSeal(prior) || !verifyRunwayLedgerSeal(next)
+      || receipt.priorInputHash !== prior.inputHash || receipt.nextInputHash !== next.inputHash) {
+      throw fail(503, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID', 'Settlement source revisions failed verification.');
+    }
+    const expected = {
+      ...prior.ledger, openingCashPaise: receipt.confirmedCashPaise,
+      entries: prior.ledger.entries.filter(x => x.id !== receipt.entryId),
+    };
+    if (prior.ledger.entries.length !== expected.entries.length + 1
+      || canonicalSha256(expected) !== next.inputHash) {
+      throw fail(503, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID',
+        'Settlement receipt cannot explain the exact ledger change.');
+    }
+    return receipt;
+  }
+
+  router.get('/matches', asyncHandler(async (req, res) => {
+    const userId = owner(req);
+    const found = await currentRevision(userId);
+    if (!found) return res.json({ revision: null, items: [], status: 'NO_CONFIRMED_LEDGER' });
+    if (found.revision.ledger.asOfDate !== indiaCivilToday()) {
+      return res.json({ revision: found.state.revision, items: [], status: 'CASH_CONFIRMATION_STALE' });
+    }
+    const sources = await verifiedSources(userId);
+    return res.json({
+      revision: found.state.revision,
+      items: buildRunwayMatchCandidates(found.revision.ledger, sources, indiaCivilToday()),
+      status: 'REVIEW_REQUIRED',
+      notice: 'Amount/date matches are suggestions only, not independently bank-verified posting.',
+    });
+  }));
+
+  router.get('/settlements', asyncHandler(async (req, res) => {
+    const userId = owner(req);
+    requireRecentSession(req);
+    const page = req.query.page === undefined ? 0 : queryNumber(req.query.page, 0, 20);
+    const [items, total] = await Promise.all([
+      RunwaySettlement.find({ userId }).sort({ decidedAt: -1, _id: -1 })
+        .skip(page * 25).limit(25).lean(),
+      RunwaySettlement.countDocuments({ userId }),
+    ]);
+    const checked = [];
+    for (const item of items) checked.push(await verifiedSettlement(userId, item));
+    return res.json({
+      page, total, hasMore: (page + 1) * 25 < total,
+      items: checked.map(x => ({
+        receiptId: x._id, ledgerRevision: x.ledgerRevision,
+        resultRevision: x.resultRevision, entryId: x.entryId,
+        statementId: x.statementId, rowIndex: x.rowIndex,
+        confirmedCashPaise: x.confirmedCashPaise, decidedAt: x.decidedAt,
+        status: 'USER_CONFIRMED_NOT_BANK_VERIFIED',
+      })),
+    });
+  }));
+
+  router.post('/settlements', asyncHandler(async (req, res) => {
+    const userId = owner(req);
+    requireRecentSession(req);
+    await requireRunwayIndexes();
+    const key = idempotency(req);
+    const receiptId = canonicalSha256({ operation: 'RUNWAY_SETTLEMENT', userId: String(userId), key });
+    const requestHash = canonicalSha256({
+      operation: 'RUNWAY_SETTLEMENT', userId: String(userId), request: req.body,
+    });
+    const earlier = await RunwaySettlement.findOne({ _id: receiptId, userId }).lean();
+    if (earlier) {
+      if (earlier.requestHash !== requestHash) {
+        throw fail(409, 'RUNWAY_IDEMPOTENCY_CONFLICT', 'Settlement key was reused with different inputs.');
+      }
+      await verifiedSettlement(userId, earlier);
+      return res.json({ revision: earlier.resultRevision, receiptId, replayed: true,
+        evidenceStatus: 'USER_CONFIRMED_NOT_BANK_VERIFIED' });
+    }
+    const requested = req.body;
+    if (!requested || typeof requested !== 'object'
+      || !Number.isSafeInteger(requested.ledgerRevision) || requested.ledgerRevision >= 2048) {
+      throw fail(400, 'RUNWAY_RECONCILIATION_INVALID', 'Valid ledger revision below the cap is required.');
+    }
+    let created;
+    try {
+      created = await inTransaction(async session => {
+        const found = await currentRevision(userId, session);
+        if (!found || found.state.revision !== requested.ledgerRevision) {
+          throw fail(409, 'RUNWAY_STALE_INPUT', 'Ledger changed. Refresh and review matches again.');
+        }
+        if (found.revision.ledger.asOfDate !== indiaCivilToday()) {
+          throw fail(409, 'RUNWAY_CASH_CONFIRMATION_STALE', 'Reconfirm household cash for today.');
+        }
+        const sources = await verifiedSources(userId, session);
+        const { nextLedger, match } = prepareRunwaySettlement(
+          found.revision.ledger, sources, requested, indiaCivilToday(),
+        );
+        const next = found.state.revision + 1;
+        const nextInputHash = canonicalSha256(nextLedger);
+        const revisionRecord = {
+          userId, revision: next, ledger: nextLedger, inputHash: nextInputHash,
+          confirmedAt: new Date(), sealVersion: RUNWAY_SEAL_VERSION,
+        };
+        revisionRecord.sealHmac = createRunwayLedgerSeal(revisionRecord);
+        const fence = await RunwayLedgerState.updateOne({
+          _id: userId, revision: found.state.revision,
+        }, { $set: { revision: next }, $inc: { snapshotGeneration: 1 } }, { session });
+        if (fence.matchedCount !== 1) {
+          throw fail(409, 'RUNWAY_STALE_INPUT', 'Ledger was edited concurrently.');
+        }
+        await RunwayLedgerRevision.create([revisionRecord], { session });
+        const receipt = {
+          _id: receiptId, userId, requestHash,
+          ledgerRevision: found.state.revision, resultRevision: next,
+          priorInputHash: found.revision.inputHash, nextInputHash,
+          statementId: match.statementId, rowIndex: match.rowIndex, entryId: match.entryId,
+          rowHash: match.rowHash, confirmedCashPaise: requested.openingCashPaise,
+          decidedAt: new Date(), sealVersion: RUNWAY_SEAL_VERSION,
+        };
+        receipt.sealHmac = createRunwaySettlementSeal(receipt);
+        await RunwaySettlement.create([receipt], { session });
+        await createRunwaySignal(userId, 'SETTLEMENT_CONFIRMED', session);
+        return { revision: next, receiptId };
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        const saved = await RunwaySettlement.findOne({ _id: receiptId, userId }).lean();
+        if (saved) {
+          if (saved.requestHash !== requestHash) {
+            throw fail(409, 'RUNWAY_IDEMPOTENCY_CONFLICT', 'Settlement request conflicted.');
+          }
+          await verifiedSettlement(userId, saved);
+          return res.json({ revision: saved.resultRevision, receiptId,
+            replayed: true, evidenceStatus: 'USER_CONFIRMED_NOT_BANK_VERIFIED' });
+        }
+      }
+      rethrowTransaction(error);
+    }
+    return res.status(201).json({
+      ...created, replayed: false, evidenceStatus: 'USER_CONFIRMED_NOT_BANK_VERIFIED',
+      note: 'Planned item removed only after independently reconfirmed household cash.',
+    });
+  }));
+
   router.get('/statements', asyncHandler(async (req, res) => {
     const items = await RunwayStatement.find({ userId: owner(req) })
       .sort({ importedAt: -1, _id: -1 }).limit(MAX_IMPORTS).lean();

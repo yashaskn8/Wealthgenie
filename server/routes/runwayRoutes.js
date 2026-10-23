@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { verifyRunwayIndexes } from '../services/runwayOperationalReadiness.js';
 import { createRunwayLiveRouter, createRunwaySignal } from './runwayLiveRoutes.js';
-import { RunwayStatement, RunwaySignal } from '../models/RunwayEvidence.js';
+import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 import {
   createRunwaySeal, verifyRunwaySeal, createRunwayLedgerSeal, verifyRunwayLedgerSeal, RUNWAY_SEAL_VERSION,
 } from '../services/runwaySeal.js';
@@ -182,7 +182,7 @@ router.use(requireSession, enable, (req, res, next) =>
   (req.method === 'GET' ? readLimiter : limiter)(req, res, next));
 router.use('/live', createRunwayLiveRouter({
   owner, currentRevision, inTransaction, rethrowTransaction, requireRecentSession,
-  indiaCivilToday, requireRunwayIndexes,
+  indiaCivilToday, requireRunwayIndexes, idempotency,
 }));
 
 router.get('/current', asyncHandler(async (req, res) => {
@@ -514,6 +514,7 @@ router.delete('/data', asyncHandler(async (req, res) => {
     await RunwayMutationReceipt.deleteMany({ userId }, { session });
     await RunwayStatement.deleteMany({ userId }, { session });
     await RunwaySignal.deleteMany({ userId }, { session });
+    await RunwaySettlement.deleteMany({ userId }, { session });
     await RunwayLedgerRevision.deleteMany({ userId }, { session });
     await RunwayLedgerState.deleteOne({ _id: userId }, { session });
   });

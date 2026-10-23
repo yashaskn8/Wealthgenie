@@ -15,7 +15,7 @@ statementSchema.index({ userId: 1, importedAt: -1 }, { name: 'runway_statement_o
 
 const signalSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, required: true, immutable: true },
-  eventType: { type: String, enum: ['LEDGER_UPDATED', 'STATEMENT_IMPORTED', 'STATEMENT_DELETED'], required: true, immutable: true },
+  eventType: { type: String, enum: ['LEDGER_UPDATED', 'STATEMENT_IMPORTED', 'STATEMENT_DELETED', 'SETTLEMENT_CONFIRMED'], required: true, immutable: true },
   occurredAt: { type: Date, required: true, immutable: true },
   expiresAt: { type: Date, required: true, immutable: true },
 }, { strict: 'throw', versionKey: false, timestamps: true });
