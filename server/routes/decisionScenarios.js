@@ -290,6 +290,10 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       if (currentScenario.revision !== req.body.expectedRevision) {
         fail(409, 'DECISION_REVISION_CONFLICT', 'Scenario was changed by another request.');
       }
+      if (currentScenario.revision >= 200) {
+        fail(429, 'DECISION_REVISION_LIMIT',
+          'A saved scenario supports at most 200 revisions. Start a new scenario for further changes.');
+      }
       const latest = await resolveProfile({
         userId: req.user.userId, requireRecommendation: false, session,
       });
