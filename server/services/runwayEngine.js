@@ -213,7 +213,13 @@ export function simulateRunway(ledger, request) {
       const ids = new Set(scenario.receiptIds);
       const from = civilDate(scenario.fromDate).ordinal;
       const to = civilDate(scenario.throughDate).ordinal;
-      return { id: scenario.id, events: events.filter(e => !(e.kind === 'EXPECTED_INCOME' && ids.has(e.id) && e.day >= from && e.day <= to)) };
+      const omitted = events.filter(e => e.kind === 'EXPECTED_INCOME' && ids.has(e.id)
+        && e.day >= from && e.day <= to);
+      if (!omitted.length) {
+        reject('The selected income-loss scenario has no matching receipt within this date range and horizon.');
+      }
+      return { id: scenario.id, events: events.filter(e => !(e.kind === 'EXPECTED_INCOME'
+        && ids.has(e.id) && e.day >= from && e.day <= to)) };
     }
     if (events.length >= EVENT_LIMIT) reject('Expanded event limit exceeded with added expense.');
     return { id: scenario.id, events: [...events, {

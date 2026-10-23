@@ -109,3 +109,17 @@ test('never issues a reassuring READY result when all payments fall beyond the c
   assert.equal(coveringTheBill.status, 'READY');
   assert.equal(coveringTheBill.scenarios[0].cashAlreadyAvailable.status, 'LISTED_SHORTFALL');
 });
+
+
+test('income loss must actually remove a scheduled receipt within the selected horizon', () => {
+  const l = base();
+  const noEffect = {
+    id: 'lost_salary', type: 'SKIP_RECEIPTS', receiptIds: ['salary'],
+    fromDate: '2026-01-31', throughDate: '2026-02-02',
+  };
+  assert.throws(() => run(l, [noEffect]), /no matching receipt/);
+  const effective = { ...noEffect, throughDate: '2026-03-01' };
+  const compared = run(l, [effective]).scenarios;
+  assert.equal(compared.length, 2);
+  assert.equal(compared[1].ifExpectedIncomeArrives.endBalancePaise, '-1000');
+});

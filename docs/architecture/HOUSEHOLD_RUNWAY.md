@@ -49,3 +49,5 @@
 
 - A result is marked CURRENT only if the current ledger revision matches **and** the engine version matches **and** cash was declared for today's India civil date. Results turn HISTORICAL across midnight until new cash is confirmed.
 - Database integration red-team case seeds 99 owner-scoped saved results, races two independent creators and asserts exactly one success and 100 total records. A separate owner-state fixture verifies new immutable revisions cannot exceed the 2,048 cap.
+
+- \`SKIP_RECEIPTS\` cannot quietly do nothing: the chosen income ID and time window must remove at least one actually expanded receipt inside the requested horizon, or the API returns a validation error instead of a misleadingly unchanged stress-test comparison.
