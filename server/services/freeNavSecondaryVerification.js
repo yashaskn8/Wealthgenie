@@ -134,6 +134,12 @@ export async function getMfapiLatest(schemeCode,options={}){
  * Both sites derive NAV from AMFI; a match is a consistency check, NOT
  * independent validation of the underlying AMFI publication or its license.
  */
+function canonicalSchemeName(name){
+ if(typeof name!=='string')return null;
+ const normalized=name.normalize('NFKC').toUpperCase()
+  .replace(/[^A-Z0-9]+/g,' ').trim().replace(/\\s+/g,' ');
+ return normalized||null;
+}
 export function reconcileFreeNavSources(primary,secondary,{now=new Date()}={}){
  const summary={
   primaryProvider:'mfnav.in',secondaryProvider:'MFapi.in',
@@ -151,6 +157,13 @@ export function reconcileFreeNavSources(primary,secondary,{now=new Date()}={}){
  if(primary.fund?.isin&&secondary.isin
    &&primary.fund.isin.toUpperCase()!==secondary.isin.toUpperCase())
   return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_ISIN_CONFLICT'};
+ // Scheme code alone is not enough if a mirror mislabels its fund name or
+ // plan. A valid ISIN can be missing for older schemes, so preserve a second
+ // scheme-identity fence before publishing simulated financial values.
+ const primaryName=canonicalSchemeName(primary.fund?.name);
+ const secondaryName=canonicalSchemeName(secondary.fundName);
+ if(primaryName&&secondaryName&&primaryName!==secondaryName)
+  return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_FUND_NAME_CONFLICT'};
  const primaryDate=Date.parse(primary.latestNavDate),secondaryDate=Date.parse(secondary.navDate);
  if(!Number.isFinite(primaryDate)||!Number.isFinite(secondaryDate)||!Number.isFinite(+now))
   return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_INVALID_DATE'};
