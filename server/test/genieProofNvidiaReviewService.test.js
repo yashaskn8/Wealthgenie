@@ -70,6 +70,9 @@ test('financial identifiers are rejected before sending the text to NVIDIA', asy
     'My PAN is ABCDE1234F and the offer guarantees 25% profit.',
     'The Aadhaar 1234 5678 9012 was used to claim a 25% return.',
     'Transfer to account 1234567890123456 to earn guaranteed 25% profit.',
+    'My mobile number 9876543210 was included in the 25% return claim.',
+    'Send the full offer to someone@example.com for a 25% annual return.',
+    'Send the amount to someone@okaxis for a guaranteed return.',
   ];
   const model = nvidia();
   for (const text of fixtures) {
