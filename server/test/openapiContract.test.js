@@ -462,10 +462,10 @@ const sourceOperations = publicMounts.flatMap(([filename, prefix]) => {
   // injected "authenticate" argument defaulting to verifyJWT for /preview.
   // Confirm actual source enforcement rather than inferring security
   // from a path prefix or copying it from OpenAPI.
-  const routerGate = decisionModule && /router\\.use\\([\\s\\S]{0,300}?verifyJWT\\s*\\)/.test(moduleSource);
+  const routerGate = decisionModule && /router\.use\([\s\S]{0,300}?verifyJWT\s*\)/.test(moduleSource);
   const previewGate = filename === 'genieDecision.js'
-    && /authenticate\\s*=\\s*verifyJWT/.test(moduleSource)
-    && /router\\.post\\('\/preview',\\s*authenticate/.test(moduleSource);
+    && /authenticate\s*=\s*verifyJWT/.test(moduleSource)
+    && /router\.post\('\/preview',\s*authenticate/.test(moduleSource);
   const operations = extractRoutes(moduleSource, 'router', prefix);
   if (decisionModule) {
     assert.ok(routerGate || previewGate, `${filename} lost the authenticated router gate`);
