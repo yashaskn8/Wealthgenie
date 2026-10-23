@@ -20,6 +20,12 @@ const idempotencyKeySchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 }, { strict: 'throw' });
 
+// Used for bounded per-owner cash mutation cleanup at financial data deletion.
+// Only the explicit migration installs this index on deployed databases.
+idempotencyKeySchema.index({ userId: 1, operation: 1 }, {
+  name: 'idx_idempotency_owner_operation',
+});
+
 protectImmutableIdentity(idempotencyKeySchema, ['operation', 'method', 'userId', 'requestHash'], {
   code: 'IDEMPOTENCY_IDENTITY_IMMUTABLE',
   label: 'Idempotency operation identity',

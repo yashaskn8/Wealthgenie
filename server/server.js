@@ -54,6 +54,7 @@ const COVERAGE_STARTUP_MODELS = Object.freeze([
 export async function verifyEnabledCoveragePersistence(
   env, verifier = verifyPersistenceIndexes,
   readScanIndexes = () => CoverageLedger.collection.indexes(),
+  readCleanupIndexes = () => IdempotencyKey.collection.indexes(),
 ) {
   const feature = env.COVERAGE_ENABLED === 'true';
   const worker = env.COVERAGE_ALERT_WORKER_ENABLED === 'true';
@@ -62,6 +63,15 @@ export async function verifyEnabledCoveragePersistence(
   }
   if (!feature) return { ready: true, skipped: true };
   await verifier({ models: COVERAGE_STARTUP_MODELS, force: true, scope: 'persistence' });
+  const cleanupIndexes = await readCleanupIndexes();
+  const cleanupReady = Array.isArray(cleanupIndexes) && cleanupIndexes.some(index => (
+    index.name === 'idx_idempotency_owner_operation'
+      && index.key?.userId === 1 && index.key?.operation === 1
+      && Object.keys(index.key).length === 2
+  ));
+  if (!cleanupReady) {
+    throw new Error('Cash mutation cleanup index missing; run the controlled Phase 2 Mongo migration');
+  }
   if (worker) {
     const indexes = await readScanIndexes();
     const matching = Array.isArray(indexes) && indexes.some(index => (

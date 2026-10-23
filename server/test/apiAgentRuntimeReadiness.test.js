@@ -52,6 +52,9 @@ test('coverage startup verifies all unique owner/idempotency indexes when enable
       invocations.push(options);
       return { ready: true };
     },
+    undefined,
+    async () => [{ name: 'idx_idempotency_owner_operation',
+      key: { userId: 1, operation: 1 } }],
   );
   assert.deepEqual(result, { ready: true });
   assert.equal(invocations.length, 1);
@@ -75,6 +78,8 @@ test('coverage startup fails closed when a financial index or worker scan is mis
       { COVERAGE_ENABLED: 'true', COVERAGE_ALERT_WORKER_ENABLED: 'true' },
       async () => ({ ready: true }),
       async () => [{ name: '_id_', key: { _id: 1 } }],
+      async () => [{ name: 'idx_idempotency_owner_operation',
+      key: { userId: 1, operation: 1 } }],
     ),
     /staleness-scan index is missing/,
   );
@@ -84,11 +89,22 @@ test('coverage startup fails closed when a financial index or worker scan is mis
     ),
     /requires COVERAGE_ENABLED=true/,
   );
+  await assert.rejects(
+    verifyEnabledCoveragePersistence(
+      { COVERAGE_ENABLED: 'true' },
+      async () => ({ ready: true }),
+      undefined,
+      async () => [{ name: '_id_', key: { _id: 1 } }],
+    ),
+    /Cash mutation cleanup index missing/,
+  );
   const ready = await verifyEnabledCoveragePersistence(
     { COVERAGE_ENABLED: 'true', COVERAGE_ALERT_WORKER_ENABLED: 'true' },
     async () => ({ ready: true }),
     async () => [{ name: 'cash_staleness_batch_scan',
       key: { 'input.asOfDate': 1, _id: 1 } }],
+    async () => [{ name: 'idx_idempotency_owner_operation',
+      key: { userId: 1, operation: 1 } }],
   );
   assert.deepEqual(ready, { ready: true });
 });

@@ -121,3 +121,6 @@ The Mongo alert worker processes at most 100 stale declarations per pass and res
 
 ### Mutation-derived personal data after cash deletion
 A cash-data deletion now atomically purges prior `coverage.ledger.replace` and `coverage.commitment.settle` idempotency records, whose request hashes can be derived from private amounts, alongside the ledger snapshots, risk alerts and settlement history. The anonymous ledger revision tombstone still prevents an old write replay from resurrecting the deleted cash plan. The minimal `coverage.ledger.delete` operation and nonfinancial deletion receipt must survive to support a lost-response delete retry. Backups and external log retention remain subject to separate operational deletion policy.
+
+### Index migration gate for deleted financial request hashes
+`IdempotencyKey` now declares the nonunique compound index `idx_idempotency_owner_operation` (`userId`, `operation`) to allow bounded per-user removal of financial mutation request hashes during data deletion. The existing controlled `migrate:phase2-indexes` job creates it. Cash Check startup with `COVERAGE_ENABLED=true` fails closed if that index is missing, rather than allowing global collection scans. Run the migration, verify the index in the intended Mongo replica set, and only then enable the API or worker; do not set `autoIndex:true` in live application servers.

@@ -475,6 +475,10 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(await IdempotencyKey.countDocuments({
       userId: owner, operation: { $in: ['coverage.ledger.replace', 'coverage.commitment.settle'] },
     }), 0, 'deleted owner must not retain prior cash request hashes');
+    const cleanupIndexes = await IdempotencyKey.collection.indexes();
+    assert.ok(cleanupIndexes.some(index => index.name === 'idx_idempotency_owner_operation'
+      && index.key?.userId === 1 && index.key?.operation === 1),
+    'the owner-scoped cleanup index must exist before deleting private mutation hashes');
     assert.ok(await IdempotencyKey.exists({
       userId: owner, operation: 'coverage.ledger.delete', status: 'DONE',
     }), 'minimal deletion retry identity must survive a lost response');
