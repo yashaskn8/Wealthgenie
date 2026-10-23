@@ -240,6 +240,18 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(tampered.response.status, 503);
     assert.equal(tampered.body.code, 'DECISION_REPORT_INTEGRITY_FAILURE');
 
+    // A database-only attacker cannot forge displayed scenario titles by
+    // modifying the mutable head while keeping the signed revision untouched.
+    await DecisionScenario.collection.updateOne({ _id: new mongoose.Types.ObjectId(id) },
+      { $set: { title: 'Attacker-controlled headline' } });
+    const forgedListing = await call(base, userOne, '/scenarios');
+    assert.equal(forgedListing.response.status, 503);
+    assert.equal(forgedListing.body.code, 'DECISION_REVISION_INTEGRITY_FAILURE');
+    await DecisionScenario.collection.updateOne({ _id: new mongoose.Types.ObjectId(id) },
+      { $set: { title: 'Edited after published report' } });
+    const restoredListing = await call(base, userOne, '/scenarios');
+    assert.equal(restoredListing.response.status, 200);
+
     const revisionRecord = await DecisionScenarioRevision.findOne({
       userId: userOne, scenarioId: id, revision: 3,
     }).lean();
