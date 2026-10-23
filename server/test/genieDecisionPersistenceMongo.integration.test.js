@@ -96,6 +96,36 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.deepEqual(ownerEvents.body.events.map(event => event.type), ['SCENARIO_CREATED']);
     assert.deepEqual(Object.keys(ownerEvents.body.events[0]).sort(),
       ['createdAt', 'scenarioId', 'scenarioRevision', 'sequence', 'type']);
+    // End-to-end SSE: credentials are header-scoped, the server emits only
+    // owner events and the receiver can abort without leaving a live lease.
+    const streamController = new AbortController();
+    try {
+      const stream = await fetch(`${base}/api/decisions/events/stream?after=0`, {
+        headers: { authorization: `Bearer ${token(userOne)}`, accept: 'text/event-stream' },
+        signal: streamController.signal,
+      });
+      assert.equal(stream.status, 200);
+      assert.match(stream.headers.get('content-type'), /^text\/event-stream/);
+      const reader = stream.body.getReader();
+      const decoder = new TextDecoder();
+      let observed = '';
+      const expires = Date.now() + 4000;
+      while (!observed.includes('event: decision') && Date.now() < expires) {
+        const next = await reader.read();
+        if (next.done) break;
+        observed += decoder.decode(next.value);
+      }
+      assert.ok(observed.includes('event: connected'), 'Stream handshake must complete');
+      assert.ok(observed.includes('event: decision'), 'Stream must replay a committed owner event');
+      assert.ok(observed.includes('SCENARIO_CREATED'));
+      assert.ok(!observed.includes('monthlyTakeHome'), 'Never send financial data in SSE notifications');
+      assert.ok(!observed.includes('100000.00'), 'Never send financial amounts in SSE notifications');
+    } finally {
+      streamController.abort();
+    }
+    const noSseAccept = await call(base, userOne, '/events/stream?after=0');
+    assert.equal(noSseAccept.response.status, 406);
+
     const otherEvents = await call(base, userTwo, '/events?after=0');
     assert.equal(otherEvents.response.status, 200);
     assert.deepEqual(otherEvents.body.events, []);
