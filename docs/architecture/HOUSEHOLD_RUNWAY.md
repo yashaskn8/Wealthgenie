@@ -31,3 +31,5 @@
 - `GET /api/runway/snapshots?page=0..4` returns owner-only 20-item paginated metadata, never another user's data. `GET /snapshots/:id` verifies both ledger and deterministic result before returning a saved result.
 - `DELETE /api/runway/snapshots/:id` removes exactly one owner-scoped result. Deleting the entire Runway area continues to require recent session issuance and explicit `DELETE_RUNWAY_DATA` confirmation.
 - Snapshot creation increments a shared owner-state generation under the same Mongo transaction as its insert, serializing concurrent creators so the 100-item cap cannot suffer concurrent read/write skew.
+
+- The same persisted-result verification runs before serving **either** snapshot details or natural-language explanation. A corrupted result must never be interpreted as valid by bypassing the detail endpoint.

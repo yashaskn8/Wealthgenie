@@ -130,6 +130,9 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const corrupted = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(corrupted.response.status, 503);
       assert.equal(corrupted.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      const forgedExplanation = await mutation(base, 'explanations', { snapshotId: snapshot.body.snapshotId });
+      assert.equal(forgedExplanation.response.status, 503);
+      assert.equal(forgedExplanation.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
       await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
         { $set: { 'result.disclaimer': original.result.disclaimer } });
 

@@ -138,7 +138,9 @@ router.put('/ledger', asyncHandler(async (req, res) => {
     if (replay.requestHash !== requestHash) throw failure(409, 'RUNWAY_IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different input.');
     const found = await currentRevision(userId);
     const rev = await RunwayLedgerRevision.findOne({ userId, revision: replay.revision }).lean();
-    if (!rev) throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Committed revision is unavailable.');
+    if (!rev || canonicalSha256(rev.ledger) !== rev.inputHash) {
+      throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Committed revision is unavailable.');
+    }
     return res.status(200).json({ revision: rev.revision, ledger: rev.ledger, inputHash: rev.inputHash,
       confirmedAt: rev.confirmedAt, historical: found?.state.revision !== rev.revision, replayed: true });
   }
@@ -250,10 +252,9 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
   return res.status(201).json({ ...saved, replayed: false });
 }));
 
-router.get('/snapshots/:id', asyncHandler(async (req, res) => {
-  const userId = owner(req);
-  if (!SNAPSHOT_ID.test(req.params.id)) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
-  const snapshot = await RunwaySnapshot.findOne({ _id: req.params.id, userId }).lean();
+async function verifiedSnapshot(userId, id) {
+  if (!SNAPSHOT_ID.test(id)) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
+  const snapshot = await RunwaySnapshot.findOne({ _id: id, userId }).lean();
   if (!snapshot) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
   const source = await RunwayLedgerRevision.findOne({ userId, revision: snapshot.ledgerRevision }).lean();
   if (!source || canonicalSha256(source.ledger) !== source.inputHash
@@ -262,6 +263,11 @@ router.get('/snapshots/:id', asyncHandler(async (req, res) => {
       || canonicalSha256(simulateRunway(source.ledger, snapshot.request)) !== snapshot.resultHash) {
     throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved snapshot verification failed.');
   }
+  return snapshot;
+}
+router.get('/snapshots/:id', asyncHandler(async (req, res) => {
+  const userId = owner(req);
+  const snapshot = await verifiedSnapshot(userId, req.params.id);
   const state = await RunwayLedgerState.findById(userId).lean();
   return res.json({ snapshotId: snapshot._id, ledgerRevision: snapshot.ledgerRevision, inputHash: snapshot.inputHash,
     status: state?.revision === snapshot.ledgerRevision ? 'CURRENT' : 'HISTORICAL',
@@ -278,10 +284,8 @@ router.delete('/snapshots/:id', asyncHandler(async (req, res) => {
 
 router.post('/explanations', asyncHandler(async (req, res) => {
   assertShape(req.body, ['snapshotId']);
-  if (!SNAPSHOT_ID.test(req.body.snapshotId || '')) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
   const userId = owner(req);
-  const snapshot = await RunwaySnapshot.findOne({ _id: req.body.snapshotId, userId }).lean();
-  if (!snapshot) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
+  const snapshot = await verifiedSnapshot(userId, req.body.snapshotId);
   const messages = snapshot.result.scenarios.map(s => ({
     scenarioId: s.scenarioId,
     text: s.ifExpectedIncomeArrives.status === 'LISTED_SHORTFALL'
