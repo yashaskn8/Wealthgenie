@@ -362,6 +362,11 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       if (prior.createPayloadHash !== createPayloadHash) {
         fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Idempotency key already belongs to another scenario.');
       }
+      const signed = await DecisionScenarioRevision.findOne({
+        userId: req.user.userId, scenarioId: prior._id, revision: prior.revision,
+      }).lean();
+      checkRevision(signed, prior);
+      await checkCurrentRunPointers(req.user.userId, [prior]);
       return res.status(200).json({ scenario: scenarioDto(prior), replayed: true });
     }
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
@@ -407,6 +412,11 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       if (saved.createPayloadHash !== createPayloadHash) {
         fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Idempotency key already belongs to another scenario.');
       }
+      const signed = await DecisionScenarioRevision.findOne({
+        userId: req.user.userId, scenarioId: saved._id, revision: saved.revision,
+      }).lean();
+      checkRevision(signed, saved);
+      await checkCurrentRunPointers(req.user.userId, [saved]);
       return { ...saved, replayedAfterRace: true };
     });
     res.status(doc.replayedAfterRace ? 200 : 201).json({
@@ -451,6 +461,11 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     compute(current, payload);
     const updated = await transaction(async session => {
       const currentScenario = await ownedScenario(req, session);
+      const currentRevision = await DecisionScenarioRevision.findOne({
+        userId: req.user.userId, scenarioId: currentScenario._id,
+        revision: currentScenario.revision,
+      }).session(session).lean();
+      checkRevision(currentRevision, currentScenario);
       if (currentScenario.revision !== req.body.expectedRevision) {
         fail(409, 'DECISION_REVISION_CONFLICT', 'Scenario was changed by another request.');
       }
