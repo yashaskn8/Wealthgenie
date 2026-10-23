@@ -127,7 +127,6 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [], edu
   const onParentAbort = () => controller.abort(parentSignal.reason || Object.assign(new Error('Request cancelled'), { name: 'AbortError' }));
   parentSignal?.addEventListener('abort', onParentAbort, { once: true });
   const deadline = setTimeout(() => controller.abort(Object.assign(new Error('General chat deadline expired'), { code: 'PROVIDER_CHAIN_DEADLINE_EXCEEDED' })), providerDeadlineMs);
-  deadline.unref?.();
   const waitForProvider = async (run) => {
     if (controller.signal.aborted) throw controller.signal.reason;
     let onAbort;
