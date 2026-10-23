@@ -144,6 +144,22 @@ export function createRunwayLiveRouter({
       return { statementId: x._id, statement: x.statement };
     });
   }
+  async function verifiedSettledRows(userId, session = null) {
+    // Never derive "available to match" rows from unauthenticated database
+    // metadata: a writer could alter the row identity to bypass replay defense.
+    const receipts = await RunwaySettlement.find({ userId })
+      .limit(MAX_SETTLEMENTS + 1).session(session).lean();
+    if (receipts.length > MAX_SETTLEMENTS) {
+      throw fail(503, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID', 'Settlement history exceeds its verified limit.');
+    }
+    for (const receipt of receipts) {
+      if (!verifyRunwaySettlementSeal(receipt)) {
+        throw fail(503, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID',
+          'Existing settlement row identity was modified without authorization.');
+      }
+    }
+    return receipts;
+  }
   async function verifiedSettlement(userId, receipt) {
     if (!verifyRunwaySettlementSeal(receipt)) {
       throw fail(503, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID', 'Settlement authenticity failed.');
@@ -177,8 +193,7 @@ export function createRunwayLiveRouter({
       return res.json({ revision: found.state.revision, items: [], status: 'CASH_CONFIRMATION_STALE' });
     }
     const sources = await verifiedSources(userId);
-    const used = await RunwaySettlement.find({ userId })
-      .select('statementId rowIndex -_id').lean();
+    const used = await verifiedSettledRows(userId);
     const consumed = new Set(used.map(x => x.statementId + '/' + x.rowIndex));
     return res.json({
       revision: found.state.revision,
@@ -245,14 +260,13 @@ export function createRunwayLiveRouter({
         if (found.revision.ledger.asOfDate !== indiaCivilToday()) {
           throw fail(409, 'RUNWAY_CASH_CONFIRMATION_STALE', 'Reconfirm household cash for today.');
         }
-        const settlementCount = await RunwaySettlement.countDocuments({ userId }).session(session);
-        if (settlementCount >= MAX_SETTLEMENTS) {
+        const usedRows = await verifiedSettledRows(userId, session);
+        if (usedRows.length >= MAX_SETTLEMENTS) {
           throw fail(409, 'RUNWAY_SETTLEMENT_LIMIT',
             'Export settled-item history and manage older ledger records before continuing.');
         }
-        const previouslyApplied = await RunwaySettlement.exists({
-          userId, statementId: requested.statementId, rowIndex: requested.rowIndex,
-        }).session(session);
+        const previouslyApplied = usedRows.some(receipt =>
+          receipt.statementId === requested.statementId && receipt.rowIndex === requested.rowIndex);
         if (previouslyApplied) {
           throw fail(409, 'RUNWAY_POSTED_ROW_REUSED',
             'This user-imported transaction was already applied to a ledger.');
@@ -290,11 +304,15 @@ export function createRunwayLiveRouter({
       });
     } catch (error) {
       if (error?.code === 11000) {
-        const rowAlreadyUsed = await RunwaySettlement.exists({
+        const rowAlreadyUsed = await RunwaySettlement.findOne({
           userId, statementId: requested.statementId, rowIndex: requested.rowIndex,
           _id: { $ne: receiptId },
-        });
+        }).lean();
         if (rowAlreadyUsed) {
+          if (!verifyRunwaySettlementSeal(rowAlreadyUsed)) {
+            throw fail(503, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID',
+              'Settlement provenance has been modified.');
+          }
           throw fail(409, 'RUNWAY_POSTED_ROW_REUSED',
             'This posted row has already been applied.');
         }

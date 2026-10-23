@@ -536,6 +536,15 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       const retainedHistory = await jsonRequest(root + 'live/settlements?page=0', { headers: authA });
       assert.equal(retainedHistory.response.status, 200);
       assert.equal(retainedHistory.body.total, 1);
+      // Mutation of signed row identity must not allow a second use, nor
+      // suppress the consumed-row list via forged mutable metadata.
+      await RunwaySettlement.collection.updateOne({ _id: posted.body.receiptId },
+        { $set: { rowIndex: 99 } });
+      const forgedAvailable = await jsonRequest(root + 'live/matches', { headers: authA });
+      assert.equal(forgedAvailable.response.status, 503);
+      assert.equal(forgedAvailable.body.code, 'RUNWAY_SETTLEMENT_INTEGRITY_INVALID');
+      await RunwaySettlement.collection.updateOne({ _id: posted.body.receiptId },
+        { $set: { rowIndex: 0 } });
       await RunwaySettlement.collection.updateOne({ _id: posted.body.receiptId },
         { $set: { confirmedCashPaise: '9900000' } });
       const forged = await jsonRequest(root + 'live/settlements?page=0', { headers: authA });
