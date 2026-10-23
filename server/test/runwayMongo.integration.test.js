@@ -82,6 +82,16 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(reused.response.status, 409);
       assert.equal(reused.body.code, 'RUNWAY_IDEMPOTENCY_CONFLICT');
 
+      const ownExport = await jsonRequest(ownedBase + 'ledger/revisions?page=0', { headers: authA });
+      assert.equal(ownExport.response.status, 200);
+      assert.equal(ownExport.body.format, 'WEALTHGENIE_RUNWAY_LEDGER_HISTORY_V1');
+      assert.equal(ownExport.body.total, 1);
+      assert.equal(ownExport.body.items[0].ledger.openingCashPaise, '10000');
+      const otherExport = await jsonRequest(ownedBase + 'ledger/revisions?page=0', { headers: authB });
+      assert.equal(otherExport.response.status, 200);
+      assert.equal(otherExport.body.total, 0);
+      const invalidExportPage = await jsonRequest(ownedBase + 'ledger/revisions?page=21', { headers: authA });
+      assert.equal(invalidExportPage.response.status, 400);
       const otherUser = await jsonRequest(ownedBase + 'current', { headers: authB });
       assert.equal(otherUser.response.status, 404);
       assert.equal(otherUser.response.headers.get('cache-control'), 'no-store');

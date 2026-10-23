@@ -271,6 +271,44 @@ export default function HouseholdRunway() {
     } catch (err) { setError(err.message || 'Could not delete this result.'); }
     finally { setBusy(false); }
   };
+  const exportLedgerHistory = async () => {
+    const agreed = window.confirm('This will save your private Household Runway ledger history as JSON on this device. Only continue on a trusted computer.');
+    if (!agreed) return;
+    setBusy(true); setError('');
+    try {
+      const pages = [];
+      let expectedTotal = null;
+      for (let page = 0; page <= 20; page++) {
+        const part = await api.getRunwayLedgerHistoryPage(page);
+        if (expectedTotal === null) expectedTotal = part.total;
+        if (part.format !== 'WEALTHGENIE_RUNWAY_LEDGER_HISTORY_V1'
+            || part.total !== expectedTotal || !Array.isArray(part.items)) {
+          throw new Error('Ledger export changed during download. No file was saved.');
+        }
+        pages.push(...part.items);
+        if (!part.hasMore) break;
+        if (page === 20) throw new Error('Export page limit reached. No file was saved.');
+      }
+      if (pages.length !== expectedTotal) throw new Error('Ledger history changed during export. No file was saved.');
+      const json = JSON.stringify({
+        format: 'WEALTHGENIE_RUNWAY_LEDGER_HISTORY_V1',
+        exportedAt: new Date().toISOString(), itemCount: pages.length,
+        financialEvidence: 'USER_DECLARED_ONLY', ledgerRevisions: pages,
+        disclosure: 'Contains private user-entered financial facts; keep the downloaded file secure.',
+      }, null, 2);
+      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      try {
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'wealthgenie-runway-ledgers-' + todayIndia() + '.json';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      } finally { URL.revokeObjectURL(url); }
+      setMessage('Your historical ledgers were exported to a private JSON file. Saved scenario snapshots are not included.');
+    } catch (err) { setError(err.message || 'Unable to export your ledger history.'); }
+    finally { setBusy(false); }
+  };
   const clear = async () => {
     if (deleteConfirmation !== 'DELETE_RUNWAY_DATA') return;
     setBusy(true); setError('');
@@ -428,6 +466,13 @@ export default function HouseholdRunway() {
           <button type="button" className="runway-minor" disabled={busy || !historyHasMore}
             onClick={() => loadHistory(historyPage + 1)}>Next saved results</button>
         </div>
+      </div>
+      <div className="runway-panel">
+        <h2>6. Export your ledger history</h2>
+        <p>Download every saved ledger revision as private JSON before deleting data or reaching the revision cap.
+          This export does not contain saved scenario snapshots. Sign in again if your session is older than five minutes.</p>
+        <button type="button" className="runway-minor" disabled={busy}
+          onClick={exportLedgerHistory}>Export ledger history (private JSON)</button>
       </div>
       <details className="runway-panel"><summary>Delete my Household Runway data</summary>
         <p>This deletes the current ledger, historical revisions, and saved results in the primary database. Backup expiry is not verified.

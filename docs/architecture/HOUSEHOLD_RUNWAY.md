@@ -73,3 +73,9 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 - Missing key, missing seal, or mismatched seal fails closed (503), including for explanations and idempotency replays. There is no checksum-only "verified" fallback.
 - This is only tamper evidence against a *database-only* writer; it is not a substitute for access control, backup immutability, HSM-backed key custody, verified audit logging, or compromise recovery.
 - **Deployment NO-GO** until key custody, rotation, rollback, and existing-snapshot sealing/migration have documented procedures. Rotating the key without a migration makes old snapshots unreadable; do not rotate casually.
+
+## Owner-controlled data portability
+
+- `GET /api/runway/ledger/revisions?page=0..20` returns at most 100 verified, owner-scoped ledger revisions per request (2048 total per account). It requires a recently issued valid session and returns `Cache-Control: no-store`. Corrupt historical revision hashes fail closed.
+- The browser provides an explicit, warning-confirmed JSON export that checks the page count and refuses partial/stale downloads. The file is sensitive and stays on the user's device; no external exporter or paid API is involved.
+- This exports **ledger revisions only**, not saved simulation snapshots, and is not a regulatory audit package. Snapshot detail retrieval is separately supported. Full account portability and backup-retention guarantees require a broader product review.

@@ -134,6 +134,12 @@ function requireValidSnapshotSeal(record) {
   }
   if (!valid) throw failure(503, 'RUNWAY_SEAL_INVALID', 'Saved financial result authenticity could not be verified.');
 }
+function requireRecentSession(req) {
+  const age = Math.floor(Date.now() / 1000) - Number(req.user.iat);
+  if (!Number.isFinite(age) || age < 0 || age > 300) {
+    throw failure(403, 'RUNWAY_RECENT_AUTH_REQUIRED', 'Sign in again before exporting or deleting Runway data.');
+  }
+}
 function requireListedPayments(ledger) {
   if (!ledger.entries.some(entry => entry.kind === 'OBLIGATION')) {
     throw failure(400, 'RUNWAY_INSUFFICIENT_INPUT', 'List at least one dated payment before calculating.');
@@ -147,6 +153,32 @@ router.get('/current', asyncHandler(async (req, res) => {
   const found = await currentRevision(owner(req));
   if (!found) throw failure(404, 'RUNWAY_LEDGER_NOT_FOUND', 'No confirmed cash ledger exists.');
   return res.json(serializeLedger(found));
+}));
+
+router.get('/ledger/revisions', asyncHandler(async (req, res) => {
+  const userId = owner(req);
+  requireRecentSession(req);
+  const page = req.query.page === undefined ? 0 : Number(req.query.page);
+  if (!Number.isSafeInteger(page) || page < 0 || page > 20
+      || (req.query.page !== undefined && String(page) !== req.query.page)) {
+    throw failure(400, 'RUNWAY_EXPORT_PAGE_INVALID', 'Ledger export page must be an integer from 0 to 20.');
+  }
+  const [items, total] = await Promise.all([
+    RunwayLedgerRevision.find({ userId }).sort({ revision: -1 }).skip(page * 100)
+      .limit(100).select('revision ledger inputHash confirmedAt -_id').lean(),
+    RunwayLedgerRevision.countDocuments({ userId }),
+  ]);
+  for (const item of items) {
+    if (canonicalSha256(item.ledger) !== item.inputHash) {
+      throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Historical ledger verification failed. Export stopped.');
+    }
+  }
+  return res.json({
+    format: 'WEALTHGENIE_RUNWAY_LEDGER_HISTORY_V1',
+    page, total, hasMore: (page + 1) * 100 < total, items,
+    verified: 'SERVER_RECOMPUTED_INPUT_HASH',
+    disclaimer: 'Self-reported financial inputs, not verified bank balances. Keep this export private.',
+  });
 }));
 
 router.put('/ledger', asyncHandler(async (req, res) => {
@@ -370,8 +402,7 @@ router.delete('/data', asyncHandler(async (req, res) => {
   const userId = owner(req);
   assertShape(req.body, ['confirmation']);
   if (req.body.confirmation !== 'DELETE_RUNWAY_DATA') throw failure(400, 'RUNWAY_DELETE_CONFIRMATION', 'Explicit deletion confirmation required.');
-  const age = Math.floor(Date.now() / 1000) - Number(req.user.iat);
-  if (!Number.isFinite(age) || age < 0 || age > 300) throw failure(403, 'RUNWAY_RECENT_AUTH_REQUIRED', 'Sign in again before deleting Runway data.');
+  requireRecentSession(req);
   await inTransaction(async session => {
     await RunwaySnapshot.deleteMany({ userId }, { session });
     await RunwayMutationReceipt.deleteMany({ userId }, { session });
