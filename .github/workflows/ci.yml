@@ -79,6 +79,8 @@ jobs:
           node --test --test-concurrency=1 \
             server/test/genieDecisionLedger.test.js \
             server/test/genieDecisionScenarios.test.js \
+            server/test/genieDecisionIntegrity.test.js \
+            server/test/genieDecisionProperty.test.js \
             server/test/genieDecisionPreview.test.js \
             server/test/genieDecisionPersistenceMongo.integration.test.js
 
