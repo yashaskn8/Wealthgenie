@@ -211,10 +211,19 @@ test('end-to-end grounded explanation publishes both independently validated gro
   assert.ok(result.evidenceIdsUsed.includes('E_GOAL_RETURN_SCENARIO'));
   assert.ok(result.evidenceIdsUsed.includes('E_GOAL_INFLATED_TARGET'));
   assert.ok(result.financialClaims.some(claim => claim.type === 'GOAL_RETURN_SCENARIO_PAYMENT'
-    && claim.value === 152_376.64));
+    && claim.value === 161_388.49));
+  // Independent end-of-month annuity calculation with an effective annual
+  // return converted to its equivalent monthly growth factor. Both rates are
+  // hypothetical USER inputs; this is not a market-return forecast.
+  const monthlyGrowth = 1.12 ** (1 / 12) - 1;
+  const inflationAdjustedCost = 20_000_000 * 1.06 ** 10;
+  const ordinaryAnnuityFactor = ((1 + monthlyGrowth) ** 120 - 1) / monthlyGrowth;
+  const independentPayment = inflationAdjustedCost / ordinaryAnnuityFactor;
+  assert.ok(Math.abs(independentPayment - 161_388.49) < 0.01);
+
   assert.ok(result.financialClaims.some(claim => claim.type === 'GOAL_INFLATION_ADJUSTED_TARGET'
     && claim.value === 35_816_953.94));
-  assert.match(result.text, /1,52,376\.64 per month/);
+  assert.match(result.text, /1,61,388\.49 per month/);
   assert.match(result.text, /3,58,16,953\.94/);
   assert.ok(result.citations.some(c => c.citation_id === 'E_GOAL_RETURN_SCENARIO'
     && c.source_url === null));
