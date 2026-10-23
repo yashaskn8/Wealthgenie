@@ -806,12 +806,20 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
         generalCalls += 1;
         return { provider: 'groq', text: 'I would invent a financial reason.' };
       };
-      savedMessages.push(
-        { role: 'user', content: 'Explain my suitability.',
-          metadata: { grounded_on_profile: true } },
-        { role: 'model', content: 'Your suitability is Moderate [E_PROFILE_RISK].',
-          metadata: { grounded_on_profile: true, validation_status: 'PASS' } },
-      );
+      // Complete a real bound financial turn. Hand-inserting messages without
+      // binding provenance is not trusted history and must not authorize a
+      // personalized follow-up.
+      const prior = await processChat({
+        userId: mockUserId, user: mockUser,
+        message: 'Explain my suitability.', sessionId: mockSessionId,
+        idempotencyKey: 'financial-first-turn-001',
+      }, {
+        groundedExplanationDependencies: {
+          providers: [], getCache: async () => null, setCache: async () => false,
+        },
+      });
+      assert.equal(prior.grounded, true);
+      assert.equal(prior.validation_status, 'PASS');
       const answer = await processChat({
         userId: mockUserId, user: mockUser,
         message: 'Why?', sessionId: mockSessionId,

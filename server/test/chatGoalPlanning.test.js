@@ -135,6 +135,9 @@ test('unrelated ordinary conversational questions remain on the general LLM rout
   assert.equal(isGeneralChatQuestion('Write a Python function to reverse a list'), true);
   assert.equal(isFinancialGoalPlanningQuestion('What is an Indian wedding tradition?'), false);
   assert.equal(isFinancialGoalPlanningQuestion('How do I plan to save for a house?'), true);
+  assert.equal(isFinancialGoalPlanningQuestion('I can save 50k per month'), false,
+    'monthly contribution must not reset an existing target');
+  assert.equal(isFinancialGoalPlanningQuestion('I want to accumulate 2 crore in 10 years'), true);
 });
 
 
@@ -807,10 +810,19 @@ test('red-team: income mentions and missing inputs never forge a new goal amount
   ]) {
     const packet = await createPacket(question);
     assert.equal(packet.entries.some(e => e.id === 'E_GOAL_STATED_TARGET'), true, question);
-    assert.equal(packet.entries.some(e => e.id === 'E_GOAL_MONTHLY_BASELINE'), false, question);
+    const baseline = packet.entries.find(e => e.id === 'E_GOAL_MONTHLY_BASELINE');
+    if (/in 10 years/i.test(question)) {
+      // An explicitly CONDITIONAL zero-start example is not a claim about
+      // savings the user already has or a verified monthly obligation.
+      assert.equal(baseline?.value?.scenario, 'ZERO_START_CONDITIONAL', question);
+      assert.equal(baseline?.value?.earmarkedSavingsAmount, 0, question);
+    } else {
+      assert.equal(baseline, undefined, question);
+    }
     const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, dependencies);
     assert.equal(answer.validation.status, 'PASS', question);
     assert.match(answer.text, /how much is already earmarked/i, question);
+    if (baseline) assert.match(answer.text, /If starting with no savings earmarked for this goal/, question);
   }
 });
 

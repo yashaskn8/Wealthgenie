@@ -179,10 +179,10 @@ async function products(dialog: Locator, result: JsonObject, parentId: string) {
       // or inventing a fallback price or post-tax result.
       expect(object(result.comparisonUniverse, 'comparisonUniverse').productionSourceUseAllowed).toBe(false);
       await expect(dialog.getByRole('status')).toContainText(
-        'This source is not cleared for WealthGenie production display.',
+        /this source is not cleared for WealthGenie production display\./i,
       );
       await expect(dialog.getByRole('status')).toContainText(
-        'Product data and post-tax amounts remain unavailable',
+        'Product data and post-tax amounts are not shown.',
       );
     } else {
       await expect(dialog.getByRole('status')).toContainText(

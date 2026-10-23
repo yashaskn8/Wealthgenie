@@ -1518,18 +1518,31 @@ test('NVIDIA failover never bypasses absent durable reservations or primary safe
       async generate() { calls += 1; return { provider: 'nvidia_nim', text: '{}' }; },
     },
   ];
-  const answer = await generateGroundedExplanation({
-    question: 'Explain the verified official rate.', evidencePacket: evidencePacket(),
-  }, {
+  const request = { question: 'Explain the verified official rate.', evidencePacket: evidencePacket() };
+  const common = {
     providers, allowNvidiaFallback: true,
     beforeProviderAttempt: async () => true,
+    getCache: async () => null, setCache: async () => false,
+  };
+  // A rate limit is transient, but a second provider is forbidden when the
+  // attempt lacks its own durable token reservation and settlement functions.
+  const unreserved = await generateGroundedExplanation(request, common);
+  assert.equal(calls, 1);
+  assert.equal(unreserved.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(unreserved.validation.status, 'PASS');
+
+  // Even with a durable reservation, provider safety rejection must never
+  // be treated as a transient failure authorizing a different model.
+  calls = 0;
+  providers[0].lastFailureReason = 'PROVIDER_SAFETY_REJECTION';
+  const safetyRejected = await generateGroundedExplanation(request, {
+    ...common,
     reserveProviderAttempt: async () => ({ id: 1 }),
     settleProviderAttempt: async () => ({ settled: true }),
-    getCache: async () => null, setCache: async () => false,
   });
   assert.equal(calls, 1);
-  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
-  assert.equal(answer.validation.status, 'PASS');
+  assert.equal(safetyRejected.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.equal(safetyRejected.validation.status, 'PASS');
 });
 
 

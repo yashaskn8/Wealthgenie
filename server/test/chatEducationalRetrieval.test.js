@@ -202,19 +202,25 @@ test('suggested tax-regime question explains missing inputs, not disclosure meta
   assert.ok(!response.evidenceIdsUsed.some(id => id.startsWith('E_EDU_')));
 });
 
-test('suggested tax-assumptions action explains its input boundary instead of abstaining', async () => {
+test('suggested tax-assumptions action cites the qualified new-regime policy without inventing tax', async () => {
   const question = 'Explain tax assumptions';
   const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
-  assert.ok(packet.entries.some(entry => entry.id === 'E_TAX_INPUT_BOUNDARY'));
+  // The explicit tax-policy route supersedes the generic missing-input boundary.
+  assert.ok(packet.entries.some(entry => entry.id === 'E_TAX_ASSUMPTIONS_INPUTS'));
+  assert.ok(packet.entries.some(entry => entry.id === 'E_TAX_ASSUMPTIONS_LIMITS'));
+  assert.ok(!packet.entries.some(entry => entry.id === 'E_TAX_INPUT_BOUNDARY'));
   assert.ok(!packet.entries.some(entry => entry.id === 'E_CHAT_ANSWER_UNAVAILABLE'));
   const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
     providers: [], getCache: async () => null, setCache: async () => {},
   });
   assert.equal(response.validation.status, 'PASS');
-  assert.match(response.text, /has not calculated a personal tax result/i);
-  assert.match(response.text, /explicit fiscal year, annual income, regime, and income source/i);
-  assert.match(response.text, /cannot be inferred from your investing profile/i);
-  assert.ok(response.citations.some(citation => citation.citation_id === 'E_TAX_INPUT_BOUNDARY'));
+  assert.match(response.text, /supports only the new income-tax regime/i);
+  assert.match(response.text, /explicit financial year, annual income, tax regime/i);
+  assert.match(response.text, /none is inferred from your investing profile/i);
+  assert.match(response.text, /has not calculated your tax liability/i);
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_TAX_ASSUMPTIONS_INPUTS'));
+  assert.ok(response.citations.some(citation => citation.citation_id === 'E_TAX_ASSUMPTIONS_LIMITS'));
+  assert.ok(!response.evidenceIdsUsed.includes('E_TAX_INPUT_BOUNDARY'));
 });
 
 test('unsupported question abstains with explicit system provenance instead of inventing a source', async () => {

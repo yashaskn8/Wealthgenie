@@ -29,7 +29,11 @@ export function isFinancialGoalPlanningQuestion(question) {
     || /\b(?:will|would|may)\s+cost\b/i.test(text)
     || /^\s*(?:₹|inr|rs\.?)\s*\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac|l)\b.*\b(?:daughter|son|my|our|wedding|marriage)\b/i.test(text))
     && (explicitAmount || fundingIntent);
-  return namedGoal || (explicitAmount && genericGoalIntent);
+  // A monthly contribution ("I can save 50k per month") updates an existing
+  // goal's capacity; it must not establish or reset a goal target. Require
+  // an actual target amount in generic goal-forming utterances.
+  return namedGoal || (explicitAmount && genericGoalIntent
+    && moneyIn(text).some(item => item.role === 'TARGET'));
 }
 
 

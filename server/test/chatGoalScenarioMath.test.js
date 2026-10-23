@@ -195,7 +195,9 @@ test('net-of-tax or fee-adjusted future goals cannot borrow an unsupported gross
 });
 
 test('end-to-end grounded explanation publishes both independently validated gross SIP and inflated corpus', async () => {
-  const question = "Need 2 crore for daughter's wedding at today's prices in 10 years with 12% annual return and 6% annual inflation";
+  // ₹20 lakh must be genuinely user-declared; otherwise the backend must not
+  // invent it to match an illustration's expected monthly payment.
+  const question = "Need 2 crore for daughter's wedding at today's prices in 10 years. I have already saved 20 lakh, with 12% annual return and 6% annual inflation";
   const packet = await buildChatEvidencePacket({
     question, profile: { age: 38, monthlySavings: 25_000, investmentHorizonYears: 10,
       riskTolerance: 'Moderate', suitabilityRisk: 'Moderate' },
