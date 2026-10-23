@@ -11,6 +11,8 @@ import CoverageLedger from '../models/CoverageLedger.js';
 import User from '../models/User.js';
 import CoverageResult from '../models/CoverageResult.js';
 import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
+import CoverageRiskAlert from '../models/CoverageRiskAlert.js';
+import { sweepStaleCashDeclarations } from '../jobs/coverageRiskAlerts.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 
 const SECRET = 'cash-check-isolated-integration-secret';
@@ -108,6 +110,9 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(first.status, 200);
     assert.equal(first.body.revision, 1);
     assert.equal(first.body.result.status, 'NO_SHORTFALL_IN_ENTERED_PLAN');
+    assert.equal((await call(owner, 'GET', '/alerts')).status, 200);
+    assert.deepEqual((await call(owner, 'GET', '/alerts')).body.alerts, []);
+    assert.equal(await CoverageRiskAlert.countDocuments({ userId: owner }), 0);
     const replay = await call(owner, 'PUT', '/ledger', submitted, 0, firstKey);
     assert.equal(replay.status, 200);
     assert.equal(replay.body.revision, 1);
@@ -217,6 +222,31 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(second.status, 200);
     assert.equal(second.body.revision, 2);
     assert.equal(second.body.result.status, 'SHORTFALL_IN_ENTERED_PLAN');
+    const riskInbox = await call(owner, 'GET', '/alerts');
+    assert.equal(riskInbox.status, 200);
+    assert.equal(riskInbox.body.revision, 2);
+    assert.equal(riskInbox.body.alerts.length, 1);
+    assert.equal(riskInbox.body.alerts[0].kind, 'SHORTFALL_DETECTED');
+    assert.equal(riskInbox.body.alerts[0].acknowledged, false);
+    const riskId = riskInbox.body.alerts[0].id;
+    assert.equal((await call(other, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 404);
+    assert.equal((await call(other, 'GET', '/alerts')).body.alerts.length, 0);
+    assert.equal((await call(owner, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 200);
+    assert.equal((await call(owner, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 200);
+    assert.equal((await call(owner, 'GET', '/alerts')).body.alerts[0].acknowledged, true);
+    assert.equal((await call(owner, 'GET', '/alerts?limit=21')).status, 400);
+    // Worker never calculates risk from yesterday's money; it generates a
+    // durable once-per-revision reconfirmation warning instead.
+    const tomorrow = new Date(Date.parse(indiaToday() + 'T00:00:00Z') + 2 * 86400000);
+    const firstSweep = await sweepStaleCashDeclarations({ now: tomorrow, limit: 100 });
+    assert.ok(firstSweep.created >= 1);
+    const secondSweep = await sweepStaleCashDeclarations({ now: tomorrow, limit: 100 });
+    assert.equal(secondSweep.created, 0);
+    const staleEvents = await CoverageRiskAlert.find({
+      userId: owner, kind: 'CASH_RECONFIRMATION_REQUIRED',
+    }).lean();
+    assert.equal(staleEvents.length, 1);
+    assert.equal(staleEvents[0].ledgerRevision, 2);
     const lateReplay = await call(owner, 'PUT', '/ledger', submitted, 0, firstKey);
     assert.equal(lateReplay.status, 200);
     assert.equal(lateReplay.body.revision, 1);
@@ -283,6 +313,8 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(deleted.body.nextRevision, 3);
     assert.equal(await CoverageLedger.countDocuments({ userId: owner }), 1);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 0);
+    assert.equal(await CoverageRiskAlert.countDocuments({ userId: owner }), 0);
+    assert.deepEqual((await call(owner, 'GET', '/alerts')).body.alerts, []);
     assert.deepEqual((await call(owner, 'GET', '/export')).body.records, []);
     assert.equal(await CoverageDeletionReceipt.countDocuments({ userId: owner }), 1);
     assert.equal((await call(owner, 'GET', '/revisions/1')).status, 404);

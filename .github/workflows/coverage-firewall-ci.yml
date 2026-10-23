@@ -7,6 +7,8 @@ on:
       - 'server/routes/coverage.js'
       - 'server/services/coverageEngine.js'
       - 'server/models/Coverage*.js'
+      - 'server/services/coverageRiskPolicy.js'
+      - 'server/jobs/coverageRiskAlerts.js'
       - 'server/middleware/idempotency.js'
       - 'server/test/coverage*.test.js'
       - 'server/scripts/*required-tests.json'
@@ -47,7 +49,7 @@ jobs:
       - name: Reproduce locked backend dependencies
         run: npm ci --prefix server
       - name: Verify and exercise exact money arithmetic
-        run: node --test server/test/coverageEngine.test.js
+        run: node --test server/test/coverageEngine.test.js server/test/coverageRiskPolicy.test.js
       - name: Exercise authenticated Mongo replica-set transactions and fault injection
         env:
           NODE_ENV: test

@@ -1582,6 +1582,39 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/coverage/alerts:
+    get:
+      operationId: listOwnedCashRiskAlerts
+      tags: [CashCoverage]
+      description: Owner-scoped bounded alerts for the current saved cash revision. Does not contain raw bank transactions or account numbers.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 20 } }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/coverage/alerts/{id}/ack:
+    patch:
+      operationId: acknowledgeOwnedCashRiskAlert
+      tags: [CashCoverage]
+      description: Idempotently acknowledge an owned alert only if its cash revision is still current. No transaction, transfer or investment action is performed.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/coverage/export:
     get:
       operationId: exportOwnedCoverageHistory
