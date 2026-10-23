@@ -37,8 +37,10 @@ test('Mongo-required suites are partitioned exhaustively between standalone and 
   const replicaSetSet = new Set(replicaSetRequiredTests);
   const standalone = mongoRequiredTests.filter(file => !replicaSetSet.has(file)).sort();
 
-  assert.equal(mongoRequiredTests.length, 32);
-  assert.equal(replicaSetRequiredTests.length, 28);
+  assert.equal(mongoRequiredTests.length, 33);
+  assert.equal(replicaSetRequiredTests.length, 29);
+  assert.ok(replicaSetSet.has('test/genieDecisionPersistenceMongo.integration.test.js'),
+    'GenieDecision integration must use Mongo replica-set tests');
   assert.ok(replicaSetSet.has('test/qualifiedEquityHistoryMongo.integration.test.js'));
   assert.ok(replicaSetSet.has('test/goalFinanceRoutes.test.js'), 'Goals integration must run under MongoDB replica set');
   assert.equal(mongoSet.size, mongoRequiredTests.length, 'Mongo manifest must not contain duplicates');
