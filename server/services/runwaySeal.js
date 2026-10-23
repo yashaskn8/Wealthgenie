@@ -93,3 +93,28 @@ export function verifyRunwayStatementSeal(record, env = process.env) {
     && typeof record.sealHmac === 'string' && /^[a-f0-9]{64}$/.test(record.sealHmac)
     && crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(record.sealHmac, 'hex'));
 }
+
+function settlementPayload(record) {
+  return {
+    purpose: 'WEALTHGENIE_RUNWAY_USER_POSTED_SETTLEMENT_V1',
+    id: String(record._id), userId: String(record.userId),
+    requestHash: record.requestHash, ledgerRevision: record.ledgerRevision,
+    resultRevision: record.resultRevision, priorInputHash: record.priorInputHash,
+    nextInputHash: record.nextInputHash,
+    statementId: record.statementId, rowIndex: record.rowIndex,
+    entryId: record.entryId, rowHash: record.rowHash,
+    confirmedCashPaise: record.confirmedCashPaise, decidedAt: record.decidedAt,
+  };
+}
+export function createRunwaySettlementSeal(record, env = process.env) {
+  return crypto.createHmac('sha256', keyFromEnv(env))
+    .update('wealthgenie:runway:user-settlement:v1:', 'utf8')
+    .update(canonicalJson(settlementPayload(record)), 'utf8')
+    .digest('hex');
+}
+export function verifyRunwaySettlementSeal(record, env = process.env) {
+  const expected = createRunwaySettlementSeal(record, env);
+  return record.sealVersion === RUNWAY_SEAL_VERSION
+    && typeof record.sealHmac === 'string' && /^[a-f0-9]{64}$/.test(record.sealHmac)
+    && crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(record.sealHmac, 'hex'));
+}

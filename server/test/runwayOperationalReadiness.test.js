@@ -11,6 +11,7 @@ const valid = [
     { name: 'runway_signal_owner_cursor', key: { userId: 1, _id: 1 } },
     { name: 'runway_signal_ttl', key: { expiresAt: 1 }, expireAfterSeconds: 0 },
   ],
+  [{ name: 'runway_settlement_owner_audit', key: { userId: 1, decidedAt: -1 } }],
 ];
 const configured = { RUNWAY_ENABLED: 'true', RUNWAY_INTEGRITY_SECRET: 'a6'.repeat(32) };
 test('feature disabled: readiness bypasses optional signing key and indexes', async () => {
@@ -33,7 +34,7 @@ test('feature enabled: all unique, owner-lookup and expiration indexes must matc
     env: configured, loadIndexes: async () => valid,
   }), { enabled: true, ready: true });
   for (const [group, field] of [[0, 'unique'], [1, 'name'], [2, 'expireAfterSeconds'],
-    [3, 'name'], [4, 'name']]) {
+    [3, 'name'], [4, 'name'], [5, 'name']]) {
     const mutated = structuredClone(valid);
     mutated[group][0][field] = group === 2 ? 7200 : group === 0 ? false : 'wrong';
     await assert.rejects(verifyRunwayOperationalReadiness({

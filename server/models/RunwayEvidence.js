@@ -24,3 +24,27 @@ signalSchema.index({ expiresAt: 1 }, { name: 'runway_signal_ttl', expireAfterSec
 
 export const RunwayStatement = mongoose.models.RunwayStatement || mongoose.model('RunwayStatement', statementSchema);
 export const RunwaySignal = mongoose.models.RunwaySignal || mongoose.model('RunwaySignal', signalSchema);
+
+/**
+ * Immutable receipt for one user-confirmed forecast settlement.
+ * Raw bank references/descriptions are NOT copied to this record.
+ */
+const settlementSchema = new Schema({
+  _id: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  userId: { type: Schema.Types.ObjectId, required: true, immutable: true },
+  requestHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  ledgerRevision: { type: Number, required: true, immutable: true, min: 1 },
+  resultRevision: { type: Number, required: true, immutable: true, min: 2 },
+  priorInputHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  nextInputHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  statementId: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  rowIndex: { type: Number, required: true, immutable: true, min: 0 },
+  entryId: { type: String, required: true, immutable: true },
+  rowHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  confirmedCashPaise: { type: String, required: true, immutable: true },
+  decidedAt: { type: Date, required: true, immutable: true },
+  sealVersion: { type: String, required: true, immutable: true, enum: ['HMAC_SHA256_V1'] },
+  sealHmac: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+}, opts);
+settlementSchema.index({ userId: 1, decidedAt: -1 }, { name: 'runway_settlement_owner_audit' });
+export const RunwaySettlement = mongoose.models.RunwaySettlement || mongoose.model('RunwaySettlement', settlementSchema);

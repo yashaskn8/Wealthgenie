@@ -4,7 +4,7 @@
  */
 import mongoose from 'mongoose';
 import { RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '../models/Runway.js';
-import { RunwayStatement, RunwaySignal } from '../models/RunwayEvidence.js';
+import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 
 const uri = String(process.env.MONGODB_MIGRATION_URI || '').trim();
 if (!uri) throw new Error('MONGODB_MIGRATION_URI is required for Household Runway index migration.');
@@ -28,12 +28,16 @@ try {
   await RunwaySignal.collection.createIndex({ expiresAt: 1 }, {
     name: 'runway_signal_ttl', expireAfterSeconds: 0,
   });
-  const [indexes, snapshots, deletions, statements, signals] = await Promise.all([
+  await RunwaySettlement.collection.createIndex({ userId: 1, decidedAt: -1 }, {
+    name: 'runway_settlement_owner_audit',
+  });
+  const [indexes, snapshots, deletions, statements, signals, settlements] = await Promise.all([
     RunwayLedgerRevision.collection.indexes(),
     RunwaySnapshot.collection.indexes(),
     RunwaySnapshotDeletion.collection.indexes(),
     RunwayStatement.collection.indexes(),
     RunwaySignal.collection.indexes(),
+    RunwaySettlement.collection.indexes(),
   ]);
   if (!indexes.some(index => index.name === 'uniq_runway_ledger_revision'
       && index.unique === true && index.key.userId === 1 && index.key.revision === 1)
@@ -46,7 +50,9 @@ try {
       || !signals.some(index => index.name === 'runway_signal_owner_cursor'
         && index.key.userId === 1 && index.key._id === 1)
       || !signals.some(index => index.name === 'runway_signal_ttl'
-        && index.key.expiresAt === 1 && index.expireAfterSeconds === 0)) {
+        && index.key.expiresAt === 1 && index.expireAfterSeconds === 0)
+      || !settlements.some(index => index.name === 'runway_settlement_owner_audit'
+        && index.key.userId === 1 && index.key.decidedAt === -1)) {
     throw new Error('RUNWAY_INDEX_MISSING');
   }
   process.stdout.write('Runway revisions, evidence and notification indexes verified.\n');
