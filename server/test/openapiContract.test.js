@@ -17,6 +17,7 @@ import freeFinancialSourcesRoutes from '../routes/freeFinancialSources.js';
 import chatRoutes from '../routes/chatRoutes.js';
 import recommendRoutes from '../routes/recommend.js';
 import goalsRoutes from '../routes/goals.js';
+import coverageRoutes from '../routes/coverage.js';
 import marketRoutes from '../routes/market.js';
 import { createMarketQuotesRouter } from '../routes/marketQuotes.js';
 import marketDataAdminRoutes from '../routes/marketDataAdmin.js';
@@ -294,6 +295,10 @@ function buildContractTestApp() {
   app.use('/api/montecarlo', montecarloRoutes);
   app.use('/api/portfolio', portfolioRoutes);
   app.use('/api/goals', goalsRoutes);
+  // Live authenticated OpenAPI cases must mount every documented router.
+  // Coverage remains production-gated in the real app; this test harness
+  // deliberately exercises the enabled route for its 401/CSRF contract.
+  app.use('/api/coverage', coverageRoutes);
   app.use('/api/regime', regimeRoutes);
   app.use((req, res) => sendError(req, res, 404, 'Route not found.', 'ROUTE_NOT_FOUND'));
   app.use(errorHandler);
