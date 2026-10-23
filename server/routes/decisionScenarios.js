@@ -9,6 +9,7 @@ import { calculateDecision, DECISION_TYPES } from '../services/genieDecision/dec
 import DecisionScenario from '../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionRun from '../models/DecisionRun.js';
+import { verifyPersistenceIndexes } from '../services/persistenceIndexReadiness.js';
 
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const identity = id => String(id);
@@ -163,6 +164,17 @@ const handleInput = fn => asyncHandler(async (req, res) => {
   }
 });
 
+const requireDecisionIndexes = asyncHandler(async (_req, _res, next) => {
+  // The production instance must have explicit migrations completed. Do not
+  // create indexes in request processing: missing unique keys break quotas
+  // and exactly-once guarantees under concurrent writers.
+  await verifyPersistenceIndexes({
+    models: [DecisionScenario, DecisionScenarioRevision, DecisionRun],
+    scope: 'persistence',
+  });
+  next();
+});
+
 export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancialProfile } = {}) {
   const router = Router();
   router.use(verifyJWT);
@@ -180,7 +192,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     });
   }));
 
-  router.post('/scenarios', handleInput(async (req, res) => {
+  router.post('/scenarios', requireDecisionIndexes, handleInput(async (req, res) => {
     const payload = normalizeScenario(req.body);
     const createKeyHash = idempotency(req, 'decision.create');
     const createPayloadHash = hash(req.body);
@@ -244,7 +256,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     res.json({ scenario: scenarioDto(scenario), payload: revision.payload, inputHash: revision.inputHash });
   }));
 
-  router.patch('/scenarios/:id', handleInput(async (req, res) => {
+  router.patch('/scenarios/:id', requireDecisionIndexes, handleInput(async (req, res) => {
     const first = await ownedScenario(req);
     const payload = normalizeScenario(req.body, first.scenarioType, true);
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
@@ -273,7 +285,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     res.json({ scenario: scenarioDto(updated) });
   }));
 
-  router.post('/scenarios/:id/evaluate', handleInput(async (req, res) => {
+  router.post('/scenarios/:id/evaluate', requireDecisionIndexes, handleInput(async (req, res) => {
     exact(req.body, ['expectedRevision']);
     if (!Number.isSafeInteger(req.body.expectedRevision) || req.body.expectedRevision < 1) {
       fail(400, 'INVALID_DECISION_REVISION', 'A positive expected revision is required.');
@@ -353,7 +365,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     res.json({ run: reportDto(run, current) });
   }));
 
-  router.delete('/scenarios/:id', handleInput(async (req, res) => {
+  router.delete('/scenarios/:id', requireDecisionIndexes, handleInput(async (req, res) => {
     exact(req.body, ['expectedRevision']);
     const deleted = await transaction(async session => {
       const scenario = await ownedScenario(req, session);
