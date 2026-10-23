@@ -26,3 +26,18 @@ Authenticated, owner-scoped financial scenarios and a React Decision Lab; exact-
 
 ## Safety and scope boundaries
 No portfolio writes, transactions, API-key dependency, or unconsented disclosure of sensitive finances to free-tier LLM providers. No claim of verified future returns, asset valuation or regulated financial advice.
+
+
+## Signed decision records (security hardening)
+New scenario revisions and published reports carry domain-separated HMAC-SHA256 integrity receipts bound to owner, scenario, profile facts, source input fingerprint, revision, and report hash. Integrity verification is fail-closed on reads and replays. This prevents a database-only attacker from forging accepted financial values by recalculating the previous ordinary SHA-256 hash; it does **not** protect against compromise of the service signing key, malicious application code, or replay of an entirely valid older database snapshot.
+
+**Mandatory production deployment secret:** Set `GENIEDECISION_INTEGRITY_KEYS` as a JSON object of key IDs mapped to cryptographically random, minimum 32-byte hex secrets, and set `GENIEDECISION_ACTIVE_KEY_ID` to one of the IDs. Generate each key in a trusted secrets manager, not in Git. Example environment *shape* only (do not paste literal dummy keys into production):
+```
+GENIEDECISION_INTEGRITY_KEYS='{"v1":"<64+ hexadecimal characters from a CSPRNG>"}'
+GENIEDECISION_ACTIVE_KEY_ID=v1
+```
+The production API refuses to issue receipts if the dedicated key configuration is unavailable or invalid. Only local development/test may derive a domain-separated signing key from `JWT_SECRET`. The system does not automatically migrate existing unsigned records: determine whether any unsigned data exists before release; require migration/quarantine rather than silently trusting unsigned records.
+
+**Rotation:** Add `v2` alongside `v1`, set `GENIEDECISION_ACTIVE_KEY_ID=v2` to sign new records, and continue retaining `v1` in the verification key ring until all v1-signed data reaches a verified retention endpoint. Deleting old keys makes old receipts unverifiable and the read path fails closed. Back up key versions and test restore procedures. Never disclose keys through client responses or logs.
+
+**Additional release limitations:** The database can still be rolled back to a complete, previously authentic state without an externally anchored append-only audit chain. For regulated or high-assurance deployments, add a separate immutable receipt/audit service with version-fenced checkpoints. Strict secrets management, operational rotation rehearsals, and an independent penetration test remain outstanding.
