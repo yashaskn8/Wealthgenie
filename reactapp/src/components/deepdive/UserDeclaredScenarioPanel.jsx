@@ -31,7 +31,7 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
   const isNiftyBees = canonicalInstrumentId === 'nifty_etf';
   const supportsScenario = isInterest || isNiftyBees;
   const [taxFacts, setTaxFacts] = useState({
-    annualGrossIncome: '', incomeSource: '', regime: '', fiscalYear: '',
+    annualGrossIncome: '', incomeSource: '', regime: 'new', fiscalYear: '',
     userAge: '',
   });
   const [deductionValues, setDeductionValues] = useState({});
@@ -232,11 +232,7 @@ export default function UserDeclaredScenarioPanel({ canonicalInstrumentId, instr
               </label>
               <label className="wti-user-scenario__field">
                 Tax regime
-                <select required value={taxFacts.regime} onChange={event => updateTaxFact('regime', event.target.value)}>
-                  <option value="">Choose one</option>
-                  <option value="new">New regime</option>
-                  <option value="old">Old regime</option>
-                </select>
+                <span role="status">New regime only</span>
               </label>
               <label className="wti-user-scenario__field">
                 Fiscal year

@@ -145,8 +145,8 @@ const HelpTourScreen = () => {
       icon: Calculator, color: '#10b981', colorRgb: '16, 185, 129',
       title: 'Post-Tax Analysis & Tax Optimizer',
       tag: 'Tax Intelligence',
-      desc: "These modules don't just look at nominal returns. They calculate exact Indian IT slabs (Old vs New Regime) and deduct STCG/LTCG mathematically.",
-      details: 'Visualize the real spending power of your investments after tax deductions. Compare Old vs New regime side-by-side to pick the optimal strategy.',
+      desc: "These modules don't just look at nominal returns. They show supported new-regime estimates and report unqualified capital-gains cases as unavailable.",
+      details: 'Visualize the real spending power of your investments after tax deductions. Use only the supported new tax regime with explicit tax facts and source-qualified product classifications.',
       step: '02'
     },
     {
