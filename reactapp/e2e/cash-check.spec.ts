@@ -65,9 +65,9 @@ async function installCashApi(page: Page) {
     if (path.includes('/commitments/') && path.endsWith('/settle') && method === 'POST') {
       const body = req.postDataJSON();
       const entryId = path.split('/').at(-2);
-      const original = ledger && Array.isArray(ledger.entries)
-        ? ledger.entries.find((item: { id: string }) => item.id === entryId)
-        : null;
+      const existingEntries: Array<{ id: string; recurrence: string; amountPaise: number; type: string }> =
+        ledger && Array.isArray(ledger.entries) ? ledger.entries : [];
+      const original = existingEntries.find(item => item.id === entryId);
       if (!ledger || !original || original.recurrence !== 'ONCE'
           || req.headers()['if-match'] !== '"' + revision + '"'
           || !req.headers()['idempotency-key'] || !body.settlementConfirmed
@@ -77,7 +77,7 @@ async function installCashApi(page: Page) {
       }
       ledger = { ...ledger, asOfDate: body.asOfDate,
         openingCashPaise: body.openingCashPaise,
-        entries: ledger.entries.filter((item: { id: string }) => item.id !== entryId),
+        entries: existingEntries.filter(item => item.id !== entryId),
       };
       revision += 1;
       settleCount += 1;
