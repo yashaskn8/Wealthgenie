@@ -33,7 +33,7 @@ describe('local-only Indian bank statement review', () => {
   });
   it('finds candidate weekly payments from four exact previous occurrences', () => {
     const csv = 'Transaction Date,Particulars,Withdrawal,Deposit\n'
-      + [8, 15, 22, 29].map(day => '2026-09-' + day + ',School lunch,120.50,').join('\n');
+      + [8, 15, 22, 29].map(day => '2026-09-' + String(day).padStart(2, '0') + ',School lunch,120.50,').join('\n');
     const r = inspectCashStatementCsv(csv, { today: '2026-10-01' });
     expect(r.proposals).toEqual([expect.objectContaining({
       amountPaise: 12050, recurrence: 'WEEKLY', firstDueDate: '2026-10-06',
