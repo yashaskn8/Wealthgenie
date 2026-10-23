@@ -34,7 +34,15 @@ function activeKid(env) {
 }
 export function assertRunwayEvidenceEncryptionReady(env = process.env) {
   const kid = activeKid(env);
-  getKey(env, kid);
+  const active = getKey(env, kid);
+  if (kid === 'V2') {
+    // Two-phase rotation: old V1 data remains readable until a separately
+    // audited rewrap and backup-retention decision. Never silently drop V1.
+    const old = getKey(env, 'V1');
+    if (crypto.timingSafeEqual(active, old)) {
+      unavailable('Runway V2 must not reuse the V1 data-encryption key.');
+    }
+  }
   return true;
 }
 function aad(record) {

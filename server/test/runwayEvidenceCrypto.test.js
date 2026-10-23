@@ -52,3 +52,14 @@ test('invalid, reused or missing keys fail closed, never decrypt with the signin
   ]) assert.throws(() => assertRunwayEvidenceEncryptionReady(changed),
     e => e.code === 'RUNWAY_EVIDENCE_KEY_UNAVAILABLE');
 });
+
+test('V2 activation requires a different V1 key to retain historical decryptability', () => {
+  const v2 = { ...env, RUNWAY_EVIDENCE_ACTIVE_KID: 'V2' };
+  assert.equal(assertRunwayEvidenceEncryptionReady(v2), true);
+  assert.throws(() => assertRunwayEvidenceEncryptionReady({
+    ...v2, RUNWAY_EVIDENCE_KEY_V1: '',
+  }), e => e.code === 'RUNWAY_EVIDENCE_KEY_UNAVAILABLE');
+  assert.throws(() => assertRunwayEvidenceEncryptionReady({
+    ...v2, RUNWAY_EVIDENCE_KEY_V2: env.RUNWAY_EVIDENCE_KEY_V1,
+  }), e => e.code === 'RUNWAY_EVIDENCE_KEY_UNAVAILABLE');
+});
