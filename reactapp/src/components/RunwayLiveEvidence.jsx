@@ -16,7 +16,7 @@ const money = value => {
     + String(abs % 100n).padStart(2, '0');
 };
 
-export default function RunwayLiveEvidence({ canImport, onChooseCash }) {
+export default function RunwayLiveEvidence({ canImport, canSettle = false, onChooseCash, onSettlementApplied }) {
   const [overview, setOverview] = useState(null);
   const [imports, setImports] = useState([]);
   const [accountLabel, setAccountLabel] = useState('');
@@ -25,6 +25,11 @@ export default function RunwayLiveEvidence({ canImport, onChooseCash }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [pendingDelete, setPendingDelete] = useState('');
+  const [matches, setMatches] = useState(null);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [confirmedCash, setConfirmedCash] = useState('');
+  const [settlementChecked, setSettlementChecked] = useState(false);
+  const settlementRetry = useRef(null);
   const cursor = useRef(null);
   const polling = useRef(false);
 
@@ -95,6 +100,57 @@ export default function RunwayLiveEvidence({ canImport, onChooseCash }) {
     } catch (e) { setError(e.message || 'Could not delete imported evidence.'); }
     finally { setBusy(false); }
   };
+  const loadMatches = async () => {
+    setBusy(true); setError('');
+    try {
+      const result = await api.getRunwayReconciliationMatches();
+      setMatches(result);
+      if (selectedMatch && result.revision !== matches?.revision) {
+        setSelectedMatch(null); setConfirmedCash(''); setSettlementChecked(false);
+        settlementRetry.current = null;
+      }
+    } catch (e) { setError(e.message || 'Unable to load possible matches.'); }
+    finally { setBusy(false); }
+  };
+  const settle = async () => {
+    if (!selectedMatch || !canSettle || !settlementChecked) {
+      setError('Select an exact unique match and explicitly confirm accessible household cash.');
+      return;
+    }
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const cash = confirmedCash.trim();
+      if (!/^(0|[1-9][0-9]{0,12})(?:\.[0-9]{1,2})?$/.test(cash)) {
+        throw new Error('Enter total household cash in rupees, with up to two decimal places.');
+      }
+      const [whole, fraction = ''] = cash.split('.');
+      const amountPaise = (BigInt(whole) * 100n + BigInt((fraction + '00').slice(0, 2))).toString();
+      const input = {
+        ledgerRevision: matches.revision,
+        statementId: selectedMatch.statementId, rowIndex: selectedMatch.rowIndex,
+        entryId: selectedMatch.entryId, openingCashPaise: amountPaise,
+        confirmation: 'I_RECONFIRM_HOUSEHOLD_CASH_AFTER_TRANSACTION',
+      };
+      const fingerprint = JSON.stringify(input);
+      if (settlementRetry.current?.fingerprint !== fingerprint) {
+        const key = window.crypto?.randomUUID?.();
+        if (!key) throw new Error('Secure request identity unavailable in this browser.');
+        settlementRetry.current = { fingerprint, key };
+      }
+      const saved = await api.confirmRunwaySettlement(input, {
+        headers: { 'Idempotency-Key': settlementRetry.current.key },
+      });
+      settlementRetry.current = null;
+      setSelectedMatch(null); setConfirmedCash(''); setSettlementChecked(false);
+      setMessage('Settlement recorded in revision ' + saved.revision + '.'
+        + ' This was your confirmation, not bank verification.');
+      await onSettlementApplied?.(saved);
+      await reload();
+      const refreshed = await api.getRunwayReconciliationMatches();
+      setMatches(refreshed);
+    } catch (e) { setError(e.message || 'Could not confirm posted payment. Retry with the same inputs.'); }
+    finally { setBusy(false); }
+  };
   const observed = overview?.observedStatement;
   const track = overview?.modeled?.baseline?.cashAlreadyAvailable;
   const conditional = overview?.modeled?.baseline?.ifExpectedIncomeArrives;
@@ -137,6 +193,51 @@ export default function RunwayLiveEvidence({ canImport, onChooseCash }) {
       {track?.firstCertainShortfall && <p role="status">Listed cash shortfall:
         {' '}{track.firstCertainShortfall.date} · {money(track.firstCertainShortfall.deficitPaise)} deficit,
         based only on previously confirmed cash and listed payments.</p>}
+      <details>
+        <summary>Review possible posted payments or received salary</summary>
+        <p>Only exact, same-day, one-time amount matches can be reviewed. Uploaded CSVs
+          are not verified bank records; multiple possible matches are blocked. A settlement
+          removes exactly one future modeled item and requires a new, independently confirmed
+          total household cash balance after that transaction.</p>
+        <button type="button" className="runway-minor" disabled={busy || !canSettle}
+          onClick={loadMatches}>Find possible matches</button>
+        {!canSettle && <p>Save today's confirmed ledger and discard unsaved edits first.</p>}
+        {matches?.items?.length === 0 && <p>No eligible same-day one-time matches found.</p>}
+        {matches?.items?.length > 0 && <ul>
+          {matches.items.map(match => (
+            <li key={match.statementId + '/' + match.rowIndex + '/' + match.entryId}>
+              <strong>{match.entryLabel}</strong> · {match.date} · {money(match.amountPaise)}
+              {' '}· {match.status === 'UNIQUE_POSSIBLE_MATCH'
+                ? 'Potential match — owner review required' : 'Ambiguous — edit ledger manually'}
+              {' '}{match.status === 'UNIQUE_POSSIBLE_MATCH' && (
+                <button type="button" className="runway-minor" disabled={busy || !canSettle}
+                  onClick={() => {
+                    setSelectedMatch(match); setConfirmedCash(''); setSettlementChecked(false);
+                    settlementRetry.current = null;
+                  }}>Review this match</button>
+              )}
+            </li>
+          ))}
+        </ul>}
+        {selectedMatch && <div className="runway-live-statement">
+          <p>Review {selectedMatch.entryLabel} ({money(selectedMatch.amountPaise)}).
+            Verify the transaction was posted and that your new total household cash
+            already includes it. This cannot be established from the upload.</p>
+          <label>Total available household cash after posting (₹)
+            <input value={confirmedCash} disabled={busy}
+              onChange={e => { setConfirmedCash(e.target.value); settlementRetry.current = null; }}
+              placeholder="e.g. 35000.00" /></label>
+          <label><input type="checkbox" checked={settlementChecked} disabled={busy}
+            onChange={e => setSettlementChecked(e.target.checked)} />
+            I verified this transaction and independently reconfirmed the accessible
+            cash across my household after it posted.</label>
+          <button type="button" disabled={busy || !canSettle || !settlementChecked || !confirmedCash.trim()}
+            onClick={settle}>Confirm and update ledger</button>
+          <button type="button" className="runway-minor" disabled={busy}
+            onClick={() => { setSelectedMatch(null); settlementRetry.current = null; }}>
+            Cancel review</button>
+        </div>}
+      </details>
       <details>
         <summary>Import a bank statement CSV (free, no account connection)</summary>
         <p>Use exactly these columns in order: <code>date,description,debit,credit,balance,reference</code>.

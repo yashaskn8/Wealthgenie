@@ -1175,6 +1175,16 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
 
 // Household Runway only uses declared cash and events; no profile cash estimate.
 // User-uploaded statement evidence is never a verified live bank connection.
+export function getRunwayReconciliationMatches(options = {}) {
+  return request('GET', '/runway/live/matches', null, { retries: 0, ...options });
+}
+export function listRunwaySettlements(page = 0, options = {}) {
+  return request('GET', '/runway/live/settlements?page=' + encodeURIComponent(page),
+    null, { retries: 0, ...options });
+}
+export function confirmRunwaySettlement(input, options = {}) {
+  return request('POST', '/runway/live/settlements', input, { retries: 0, ...options });
+}
 export function getRunwayLiveOverview(horizonDays = 90, options = {}) {
   return request('GET', '/runway/live/overview?horizonDays=' + encodeURIComponent(horizonDays), null, { retries: 0, ...options });
 }
@@ -1233,7 +1243,8 @@ export function deleteRunwayData(options = {}) {
 // Default export for convenience
 const api = {
   register, login, logout, restoreSession,
-  getRunwayCurrent, getRunwayLiveOverview, getRunwayLiveEvents, listRunwayStatements,
+  getRunwayCurrent, getRunwayLiveOverview, getRunwayLiveEvents,
+  getRunwayReconciliationMatches, listRunwaySettlements, confirmRunwaySettlement, listRunwayStatements,
   getRunwayStatement, importRunwayStatement, deleteRunwayStatement,
   getRunwayLedgerHistoryPage, getRunwaySnapshotHistoryPage, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, listRunwaySnapshots, getRunwaySnapshot, deleteRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,

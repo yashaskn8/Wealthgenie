@@ -136,6 +136,31 @@ export default function HouseholdRunway() {
     });
     return () => { active = false; };
   }, []);
+  const settlementApplied = async (committed) => {
+    // A posted-bill settlement writes a NEW server ledger revision. Never keep
+    // an old draft or previous projection and pretend it still reflects cash.
+    const before = editVersion.current;
+    try {
+      const saved = await api.getRunwayCurrent();
+      if (editVersion.current !== before || dirty) {
+        setError('Settlement saved, but you have unsaved edits. Reload the page before using the new ledger.');
+        return;
+      }
+      if (saved.revision !== committed.revision) {
+        setError('The ledger has changed since settlement. Reload before making more changes.');
+        return;
+      }
+      editVersion.current += 1;
+      ledgerRetry.current = null; snapshotRetry.current = null;
+      setRevision(saved.revision); setEntries(saved.ledger.entries.map(fromStored));
+      setOpening(toRupees(saved.ledger.openingCashPaise));
+      setConfirmedDate(saved.ledger.asOfDate); setCashConfirmed(true); setDirty(false);
+      setResult(null); setLastRequest(null); setSnapshot(''); setExplanation(null);
+      setMessage('A posted item was removed from future projections in ledger revision '
+        + saved.revision + '. Cash remains user-confirmed, not bank verified.');
+      setError('');
+    } catch (e) { setError(e.message || 'Settlement committed. Reload your current ledger.'); }
+  };
   const edited = callback => {
     editVersion.current += 1;
     ledgerRetry.current = null;
@@ -369,6 +394,8 @@ export default function HouseholdRunway() {
       </div>
       <RunwayLiveEvidence key={revision ? 'runway-saved' : 'runway-empty'}
         canImport={revision > 0}
+        canSettle={revision > 0 && !dirty && !busy && confirmedDate === todayIndia()}
+        onSettlementApplied={settlementApplied}
         onChooseCash={amount => edited(() => { setOpening(toRupees(amount)); setCashConfirmed(false); })} />
       <div className="runway-panel">
         <h2>2. List the payments and expected income you know</h2>

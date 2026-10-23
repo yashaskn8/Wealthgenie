@@ -130,3 +130,7 @@ A green unit test is **not** a production certificate. Do not promote or enable 
 **Rollback:** retain disabled backend and frontend feature flags until all gates pass. Never remove the signing key to roll back because existing signed ledgers would become unreadable. Migrations must use scoped credentials against the intended Mongo database.
 
 - Latest statement ordering uses the signed `importedAt` timestamp, **not** unsigned Mongo `createdAt` metadata, to prevent a database-only timestamp edit from silently changing which observation appears newest.
+
+## User-controlled settlement reconciliation
+
+Owner-only GET /api/runway/live/matches displays unique exact same-day one-time matching proposals. Ambiguous matches are rejected (including duplicated CSV rows, same-amount ledger entries and matching rows from multiple uploaded sources). POST /api/runway/live/settlements, with a recent session and an Idempotency-Key, requires explicit cash reconfirmation and writes a new signed immutable ledger revision, a signed audit receipt and an event atomically. It never derives the household balance from a single uploaded account. Recurring bills and future-dated entries cannot be auto-settled. GET /api/runway/live/settlements returns HMAC-verified, cross-checked, owner-scoped audit receipts. Full Runway data erasure also deletes settlement receipts. These records remain user-reported, not bank-verified, and require real bank consent/authorization for any future bank connector.
