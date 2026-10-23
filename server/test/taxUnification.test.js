@@ -44,6 +44,32 @@ test('model projection never returns false-precision rupee proceeds on extreme i
   assert.deepEqual(projection.unavailableReasons, ['PROJECTION_WEALTH_PRECISION_EXCEEDED']);
 });
 
+test('date-derived horizon cannot bypass the cash-flow rupee precision guard', () => {
+  const assumed = {
+    nominalRate: 0.95, monthlySIP: 100_000_000,
+    holdingYears: 1,
+  };
+  const context = {
+    annualGrossIncome: 3_000_000, regime: 'new',
+    incomeSource: 'salary', userAge: 35,
+    fiscalYear: FY, deductions: {},
+    acquisitionDate: '1926-10-23', redemptionDate: '2026-10-23',
+  };
+  assert.equal(isSafelyRepresentableModelSip(assumed), true);
+  assert.equal(isSafelyRepresentableModelSip({ ...assumed, holdingYears: 100 }), false);
+  const tax = calculatePostTaxReturn('FD', assumed.nominalRate,
+    context.annualGrossIncome, assumed.holdingYears, 'new',
+    assumed.monthlySIP, context.userAge, context.incomeSource,
+    undefined, FY, { deductions: {} });
+  assert.equal(tax.status, 'CALCULATED');
+  const projection = calculatePostTaxProjection(tax, assumed, 0.05, context);
+  assert.equal(projection.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.deepEqual(projection.unavailableReasons, ['PROJECTION_WEALTH_PRECISION_EXCEEDED']);
+  for (const key of ['nominalFutureValue', 'postTaxFutureValue', 'realFutureValue', 'taxDragWealth']) {
+    assert.equal(projection[key], null, key);
+  }
+});
+
 test('holding-period classification uses exact calendar dates at the boundary', () => {
   const before = classifyHoldingPeriodByDates({
     acquisitionDate: '2024-04-01', redemptionDate: '2025-03-31', thresholdMonths: 12,
