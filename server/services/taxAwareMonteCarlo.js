@@ -67,10 +67,22 @@ export function runTaxAwareEquityLumpSumScenario({
   // thirty years of compounding. Refuse the scenario before spawning paths.
   if(principal*Math.pow(1+annualExpectedReturn,years)>Number.MAX_SAFE_INTEGER-1)
     return unavailable(['SIMULATION_WEALTH_PRECISION_EXCEEDED']);
-  const gross=runMonteCarlo({
-    monthlyInvestment:0,currentSavings:principal,annualExpectedReturn,
-    annualVolatility,years,simulations,inflationRate,seed,
-  });
+  // A deterministic-value bound cannot rule out extreme stochastic tails.
+  // If ANY sampled path leaves safe monetary precision, abstain for the whole
+  // scenario; never emit partial percentile bands or an HTTP worker error.
+  let gross;
+  try {
+    gross=runMonteCarlo({
+      monthlyInvestment:0,currentSavings:principal,annualExpectedReturn,
+      annualVolatility,years,simulations,inflationRate,seed,
+    });
+  } catch (error) {
+    if (error instanceof RangeError
+      && String(error.message).includes('SIMULATION_WEALTH_PRECISION_EXCEEDED')) {
+      return unavailable(['SIMULATION_WEALTH_PRECISION_EXCEEDED']);
+    }
+    throw error;
+  }
   const values=gross.finalValues;
   const grossSummary={p10:gross.p10.at(-1),p50:gross.p50.at(-1),p90:gross.p90.at(-1)};
   const afterTax=[];
