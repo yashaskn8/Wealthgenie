@@ -8,6 +8,9 @@ import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelp
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { createDecisionsRouter } from '../routes/decisionScenarios.js';
+import { createDecisionEventsRouter } from '../routes/decisionEvents.js';
+import DecisionEvent from '../models/DecisionEvent.js';
+import DecisionEventState from '../models/DecisionEventState.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
 import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
@@ -31,6 +34,7 @@ function app() {
   const instance = express();
   instance.use(express.json());
   instance.use('/api/decisions', createDecisionsRouter());
+  instance.use('/api/decisions', createDecisionEventsRouter());
   instance.use(errorHandler);
   return instance;
 }
@@ -57,7 +61,8 @@ const scenarioInput = () => ({
 });
 test.before(async () => {
   await setupTestDatabase({ requireReplicaSet: true });
-  for (const model of [DecisionScenario, DecisionScenarioRevision, DecisionRun]) {
+  for (const model of [DecisionScenario, DecisionScenarioRevision, DecisionRun,
+    DecisionEvent, DecisionEventState]) {
     await model.createIndexes();
   }
   await User.create([
@@ -85,11 +90,24 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(creation.response.headers.get('pragma'), 'no-cache');
     const id = creation.body.scenario.id;
     assert.equal(creation.body.scenario.revision, 1);
+    const ownerEvents = await call(base, userOne, '/events?after=0');
+    assert.equal(ownerEvents.response.status, 200);
+    assert.equal(ownerEvents.body.resetRequired, false);
+    assert.deepEqual(ownerEvents.body.events.map(event => event.type), ['SCENARIO_CREATED']);
+    assert.deepEqual(Object.keys(ownerEvents.body.events[0]).sort(),
+      ['createdAt', 'scenarioId', 'scenarioRevision', 'sequence', 'type']);
+    const otherEvents = await call(base, userTwo, '/events?after=0');
+    assert.equal(otherEvents.response.status, 200);
+    assert.deepEqual(otherEvents.body.events, []);
+    assert.equal(otherEvents.body.latestSequence, 0);
+    assert.equal(otherEvents.response.headers.get('cache-control'), 'no-store, no-transform');
 
     const replay = await call(base, userOne, '/scenarios', 'POST', payload, 'decision-create-0001');
     assert.equal(replay.response.status, 200);
     assert.equal(replay.body.replayed, true);
     assert.equal(replay.body.scenario.id, id);
+    assert.equal(await DecisionEvent.countDocuments({ userId: userOne }), 1,
+      'idempotency replay must not write another notification');
 
     const collision = await call(base, userOne, '/scenarios', 'POST',
       { ...payload, title: 'Different decision input' }, 'decision-create-0001');
@@ -137,6 +155,8 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     });
     assert.equal(staleEdit.response.status, 409);
     assert.equal(staleEdit.body.code, 'DECISION_REVISION_CONFLICT');
+    assert.equal(await DecisionEvent.countDocuments({ userId: userOne }), 2,
+      'failed edit must not publish an event');
 
     const evaluated = await call(base, userOne, `/scenarios/${id}/evaluate`, 'POST',
       { expectedRevision: 2 }, 'decision-evaluate-0001');
@@ -151,6 +171,8 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(evalReplay.response.status, 200);
     assert.equal(evalReplay.body.run.id, reportId);
     assert.equal(evalReplay.body.replayed, true);
+    assert.equal(await DecisionEvent.countDocuments({ userId: userOne }), 3,
+      'replayed evaluation must publish no duplicate event');
 
     const beforePointerAttack = await DecisionScenario.findById(id).lean();
     assert.equal(String(beforePointerAttack.lastRunId), reportId);
@@ -180,6 +202,11 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     });
     assert.equal(third.response.status, 200);
     assert.equal(third.body.scenario.revision, 3);
+    const eventsAfterFirst = await call(base, userOne, '/events?after=1');
+    assert.equal(eventsAfterFirst.response.status, 200);
+    assert.deepEqual(eventsAfterFirst.body.events.map(item => item.type),
+      ['SCENARIO_UPDATED', 'RUN_PUBLISHED', 'SCENARIO_UPDATED']);
+    assert.deepEqual(eventsAfterFirst.body.events.map(item => item.sequence), [2, 3, 4]);
     const postEditReplay = await call(base, userOne, `/scenarios/${id}/evaluate`, 'POST',
       { expectedRevision: 2 }, 'decision-evaluate-0001');
     assert.equal(postEditReplay.response.status, 200, JSON.stringify(postEditReplay.body));
@@ -308,6 +335,11 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
       { expectedRevision: 3 });
     assert.equal(deleting.response.status, 200);
     assert.equal(deleting.body.deleted, true);
+    const deletionEvents = await call(base, userOne, '/events?after=4');
+    assert.equal(deletionEvents.response.status, 200);
+    assert.deepEqual(deletionEvents.body.events.map(item => item.type), ['SCENARIO_DELETED']);
+    assert.deepEqual(deletionEvents.body.events.map(item => item.sequence), [5]);
+    assert.equal(await DecisionEventState.findOne({ userId: userOne }).then(x => x.sequence), 5);
 
     assert.equal(await DecisionScenario.exists({ _id: id }), null);
     assert.equal(await DecisionScenarioRevision.countDocuments({ scenarioId: id }), 0);
@@ -329,5 +361,11 @@ test('malformed and unauthenticated requests fail before persistence', async () 
     assert.equal(invalid.response.status, 400);
     const missingKey = await call(base, userOne, '/scenarios', 'POST', scenarioInput());
     assert.equal(missingKey.response.status, 400);
+    const invalidCursor = await call(base, userOne, '/events?after=-1');
+    assert.equal(invalidCursor.response.status, 400);
+    const invalidCursorArray = await call(base, userOne, '/events?after=1&after=2');
+    assert.equal(invalidCursorArray.response.status, 400);
+    const noAuthEvents = await jsonRequest(`${base}/api/decisions/events?after=0`);
+    assert.equal(noAuthEvents.response.status, 401);
   });
 });
