@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ReadableStream } from 'node:stream/web';
-import { subscribeDecisionEvents } from '../api';
+import { subscribeDecisionEvents, setUserInfo } from '../api';
 
 const response = data => ({
   ok: true, status: 200,
@@ -58,6 +58,25 @@ describe('GenieDecision authenticated browser live update stream', () => {
     });
     expect(events.map(event => event.type)).toEqual(['SCENARIO_UPDATED', 'reset']);
     expect(events[1].latestSequence).toBe(3);
+  });
+
+  it('aborts the old user stream immediately when the browser account changes', async () => {
+    const controller = new AbortController();
+    let serverSignal = null;
+    const mockFetch = vi.fn().mockImplementation((_url, request) => new Promise((_resolve, reject) => {
+      serverSignal = request.signal;
+      request.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')),
+        { once: true });
+    }));
+    vi.stubGlobal('fetch', mockFetch);
+    const task = subscribeDecisionEvents({ signal: controller.signal, onEvent: () => {} });
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    expect(serverSignal.aborted).toBe(false);
+    setUserInfo({ id: 'different-account' }, { broadcast: false });
+    await task;
+    expect(serverSignal.aborted).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    setUserInfo(null, { broadcast: false });
   });
 
   it('fails closed on unauthorized sessions and does not retry with cached credentials', async () => {
