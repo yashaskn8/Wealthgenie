@@ -287,7 +287,7 @@ export default function HouseholdRunway() {
         <p>Do not add locked FDs, mutual funds, future salary, or money already counted elsewhere.</p>
         <label>Available cash (₹)
           <input inputMode="decimal" value={opening} placeholder="e.g. 25000.00" disabled={busy}
-            onChange={e => edited(() => { setOpening(e.target.value); setCashConfirmed(false); }))} />
+            onChange={e => edited(() => { setOpening(e.target.value); setCashConfirmed(false); })} />
         </label>
         <label className="runway-check"><input type="checkbox" checked={cashConfirmed} disabled={busy}
           onChange={e => edited(() => setCashConfirmed(e.target.checked))} />
