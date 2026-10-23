@@ -524,7 +524,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
         >
           <Menu size={20} strokeWidth={1.8} />
           <span className="tab-label">More</span>
-          {[NAV_PAGES.GENIEPROOF, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
+          {[NAV_PAGES.GENIEPROOF, NAV_PAGES.GENIEDECISION, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
             <span className="tab-active-dot" />
           )}
         </button>
@@ -575,6 +575,15 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
                   </button>
                 </>
               )}
+
+              <div className="mobile-drawer-section-title" style={{ marginTop: 12 }}>FINANCIAL DECISIONS</div>
+              <button type="button"
+                data-testid="mobile-nav-geniedecision"
+                className={`mobile-drawer-btn ${activePage === NAV_PAGES.GENIEDECISION ? 'mobile-drawer-btn--active' : ''}`}
+                onClick={() => handleItemClick(NAV_PAGES.GENIEDECISION)}>
+                <Scale size={18} />
+                <span>Decision Lab</span>
+              </button>
 
               <div className="mobile-drawer-section-title" style={{ marginTop: 12 }}>ACCOUNT & SUPPORT</div>
               <button

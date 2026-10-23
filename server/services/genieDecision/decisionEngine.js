@@ -33,8 +33,10 @@ function debtTrajectory({ principal, annualBps, termMonths, monthlyPayment, extr
     const interest = roundInterest(balance, annualBps);
     const due = balance + interest;
     const payment = monthlyPayment + extraPayment < due ? monthlyPayment + extraPayment : due;
-    ensure(payment > interest || payment === due, 'NEGATIVE_AMORTIZATION',
+    ensure(payment >= interest || payment === due, 'NEGATIVE_AMORTIZATION',
       'Provided repayment does not cover monthly interest.');
+    ensure(payment !== interest || payment === due, 'NON_AMORTIZING_LOAN',
+      'Provided repayment covers interest but cannot amortize the principal.');
     balance = due - payment;
     paid += payment;
     interestTotal += interest;

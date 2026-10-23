@@ -110,3 +110,14 @@ test('Strict typed decision validation blocks unsupported fields and repayment a
     housingCostAlreadyInExpenses: '60000.00',
   }));
 });
+
+test('Interest-only instalments are rejected as non-amortizing, below-interest instalments as negative amortization', () => {
+  const input = { loanPrincipal: '120000.00', loanAprBps: 1000, loanTermMonths: 12,
+    extraMonthlyBudget: '5000.00' };
+  fail('NON_AMORTIZING_LOAN', () => run('DEBT_VS_INVEST', {
+    ...input, existingLoanPayment: '1000.00',
+  }));
+  fail('NEGATIVE_AMORTIZATION', () => run('DEBT_VS_INVEST', {
+    ...input, existingLoanPayment: '999.99',
+  }));
+});

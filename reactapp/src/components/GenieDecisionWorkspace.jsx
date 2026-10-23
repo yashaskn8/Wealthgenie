@@ -114,10 +114,14 @@ export default function GenieDecisionWorkspace() {
   const [details, setDetails] = useState({});
   const [goalReservations, setGoalReservations] = useState([]);
   const [report, setReport] = useState(null);
+  const [savedFingerprint, setSavedFingerprint] = useState(null);
   const [pending, setPending] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const visibleFingerprint = JSON.stringify({ title, type, horizon, baseline, details, goalReservations });
+  const hasUnsavedChanges = Boolean(active && savedFingerprint !== visibleFingerprint);
 
   const refresh = useCallback(async ({ signal } = {}) => {
     const [availabilityResponse, historyResponse] = await Promise.all([
@@ -144,6 +148,7 @@ export default function GenieDecisionWorkspace() {
     setDetails({});
     setGoalReservations([]);
     setReport(null);
+    setSavedFingerprint(null);
     setError('');
     setSuccess('');
   };
@@ -159,6 +164,12 @@ export default function GenieDecisionWorkspace() {
       setBaseline(saved.payload.baseline);
       setGoalReservations(saved.payload.goalReservations);
       setDetails(saved.payload.details);
+      setSavedFingerprint(JSON.stringify({
+        title: saved.payload.title, type: saved.scenario.scenarioType,
+        horizon: String(saved.payload.horizonMonths),
+        baseline: saved.payload.baseline, details: saved.payload.details,
+        goalReservations: saved.payload.goalReservations,
+      }));
       if (saved.scenario.lastRunId) setReport(await getDecisionRun(saved.scenario.lastRunId));
     } catch (err) { setError(errorMessage(err)); }
     finally { setPending(false); }
@@ -214,6 +225,11 @@ export default function GenieDecisionWorkspace() {
         });
       }
       setActive(result.scenario);
+      setSavedFingerprint(JSON.stringify({
+        title: values.title, type: values.scenarioType,
+        horizon: String(values.horizonMonths), baseline: values.baseline,
+        details: values.details, goalReservations: values.goalReservations,
+      }));
       setReport(null);
       setSuccess('Scenario saved. Choose Evaluate to calculate an immutable decision report.');
       await refresh();
@@ -223,6 +239,10 @@ export default function GenieDecisionWorkspace() {
 
   const evaluate = async () => {
     if (!active) return;
+    if (hasUnsavedChanges) {
+      setError('Save your latest changes before evaluating this revision.');
+      return;
+    }
     setPending(true); setError(''); setSuccess('');
     try {
       const result = await evaluateDecisionScenario(active.id, active.revision);
@@ -315,9 +335,13 @@ export default function GenieDecisionWorkspace() {
             <Field key={key} name={key} labelText={name} value={details[key] ?? ''} integer={kind === 'integer'}
               help={key.toLowerCase().includes('bps') ? '100 basis points = 1% annually. Enter an actual contract rate, not a guessed market quote.' : undefined}
               onChange={value => setDetails(old => ({ ...old, [key]: value }))}/>)}</div>
+          {hasUnsavedChanges && <p className="gd-warning" role="status">
+            Unsaved changes detected. Save this revision before evaluating.
+          </p>}
           <div className="gd-actions"><button type="submit" disabled={pending || !availability?.available}>
             {pending ? 'Working…' : active ? 'Save revision' : 'Save draft'}</button>
-            {active && <button type="button" onClick={() => void evaluate()} disabled={pending}>Evaluate saved revision</button>}
+            {active && <button type="button" onClick={() => void evaluate()}
+              disabled={pending || hasUnsavedChanges}>Evaluate saved revision</button>}
             {active && <button type="button" className="gd-danger" onClick={() => void remove()} disabled={pending}>Delete scenario</button>}
           </div>
         </form>
