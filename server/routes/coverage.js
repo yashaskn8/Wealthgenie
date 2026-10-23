@@ -11,6 +11,8 @@ import { canonicalSha256 } from '../utils/canonicalJson.js';
 import CoverageLedger from '../models/CoverageLedger.js';
 import CoverageResult from '../models/CoverageResult.js';
 import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
+import CoverageRiskAlert from '../models/CoverageRiskAlert.js';
+import { evaluateCashRiskEvent } from '../services/coverageRiskPolicy.js';
 import {
   validateCoverageLedger, calculateCoverage, previewVoluntaryExclusions,
   COVERAGE_POLICY_VERSION, CoverageInputError, parseCalendarDate,
@@ -82,7 +84,7 @@ function publicSnapshot(snapshot) {
   };
 }
 async function ready() {
-  await verifyPersistenceIndexes({ models: [CoverageLedger, CoverageResult, CoverageDeletionReceipt], scope: 'persistence' });
+  await verifyPersistenceIndexes({ models: [CoverageLedger, CoverageResult, CoverageDeletionReceipt, CoverageRiskAlert], scope: 'persistence' });
 }
 async function resolveCoverageReplay(req, record) {
   const snapshot = await CoverageResult.findOne({ _id: record.resourceId, userId: req.user.userId }).lean();
@@ -162,6 +164,13 @@ router.put(
         const current = await CoverageLedger.findOne({ userId }).session(session).lean();
         if (current ? current.revision !== expectedRevision : expectedRevision !== 0) throw conflict();
         const storedCount = await CoverageResult.countDocuments({ userId }).session(session);
+        const previous = current && !current.deletedAt ? await CoverageResult.findOne({
+          userId, ledgerRevision: expectedRevision,
+        }).session(session).lean() : null;
+        if (current && !current.deletedAt && !previous) {
+          throw createError(503, 'Prior cash snapshot missing; refusing ungrounded risk transition.',
+            'Cash calculation history unavailable.', { code: 'COVERAGE_RESULT_UNAVAILABLE' });
+        }
         if (storedCount >= MAX_SAVED_REVISIONS) {
           throw createError(409,
             'The saved history limit is reached; export and delete the old cash plan before creating a new one.',
@@ -183,6 +192,12 @@ router.put(
           userId, ledgerRevision: revision, policyVersion: COVERAGE_POLICY_VERSION,
           inputHash, input, calculation,
         }], { session });
+        await CoverageRiskAlert.updateMany({ userId, state: 'UNREAD' },
+          { $set: { state: 'SUPERSEDED' } }, { session });
+        const event = evaluateCashRiskEvent({
+          userId, revision, input, result: calculation, priorResult: previous?.calculation || null,
+        });
+        if (event) await CoverageRiskAlert.create([event], { session });
         await completeMutationIdempotency(session, req.idempotencyClaim, {
           resourceType: 'CoverageResult', resourceId: snapshot._id, status: 200,
         });
@@ -242,6 +257,59 @@ router.post('/scenarios/preview', verifyJWT, asyncHandler(async (req, res) => {
   });
   if (!stillCurrent) throw conflict();
   return res.json({ revision: body.revision, hypothetical: true, result });
+}));
+
+
+router.get('/alerts', verifyJWT, asyncHandler(async (req, res) => {
+  if (Object.keys(req.query).some(key => key !== 'limit')
+      || (req.query.limit !== undefined && (typeof req.query.limit !== 'string'
+        || !/^(?:[1-9]|1\d|20)$/.test(req.query.limit)))) {
+    throw createError(400, 'Invalid alerts request.', 'Invalid alerts request.',
+      { code: 'COVERAGE_ALERT_QUERY_INVALID' });
+  }
+  const owner = req.user.userId;
+  const limit = Number(req.query.limit || '20');
+  const ledger = await CoverageLedger.findOne({ userId: owner }).select('revision deletedAt').lean();
+  if (!ledger || ledger.deletedAt) return res.json({ revision: ledger?.revision || 0, alerts: [] });
+  const rows = await CoverageRiskAlert.find({
+    userId: owner, ledgerRevision: ledger.revision, state: { $ne: 'SUPERSEDED' },
+  }).sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
+  if (!await CoverageLedger.exists({
+    _id: ledger._id, userId: owner, revision: ledger.revision, deletedAt: null,
+  })) throw conflict();
+  return res.json({ revision: ledger.revision, alerts: rows.map(row => ({
+    id: String(row._id), kind: row.kind, dueDate: row.dueDate,
+    sourceAsOfDate: row.sourceAsOfDate, createdAt: row.createdAt,
+    acknowledged: row.state === 'ACKNOWLEDGED',
+  })) });
+}));
+router.patch('/alerts/:id/ack', verifyJWT, asyncHandler(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)
+      || !req.body || typeof req.body !== 'object'
+      || Array.isArray(req.body) || Object.keys(req.body).length !== 0) {
+    throw createError(400, 'Invalid alert acknowledgement.', 'Invalid alert acknowledgement.',
+      { code: 'COVERAGE_ACK_INVALID' });
+  }
+  const owner = req.user.userId;
+  const ledger = await CoverageLedger.findOne({ userId: owner }).select('revision deletedAt').lean();
+  if (!ledger || ledger.deletedAt) throw conflict();
+  // User-visible acknowledgement is idempotent and only scoped to the
+  // current owner's current revision.
+  const changed = await CoverageRiskAlert.findOneAndUpdate({
+    _id: req.params.id, userId: owner, ledgerRevision: ledger.revision, state: 'UNREAD',
+  }, { $set: { state: 'ACKNOWLEDGED', acknowledgedAt: new Date() } },
+  { new: true, runValidators: true }).lean();
+  const saved = changed || await CoverageRiskAlert.findOne({
+    _id: req.params.id, userId: owner, ledgerRevision: ledger.revision, state: 'ACKNOWLEDGED',
+  }).lean();
+  if (!saved) {
+    throw createError(404, 'Current alert not found.', 'Alert not found.',
+      { code: 'COVERAGE_ALERT_NOT_FOUND' });
+  }
+  if (!await CoverageLedger.exists({
+    _id: ledger._id, userId: owner, revision: ledger.revision, deletedAt: null,
+  })) throw conflict();
+  return res.json({ id: String(saved._id), acknowledged: true, revision: ledger.revision });
 }));
 
 // Privacy export: bounded, cursor-paginated owned data, never an unbounded query.
@@ -331,6 +399,7 @@ router.delete('/ledger',
         { session, runValidators: true });
         if (removed.modifiedCount !== 1) throw conflict();
         await CoverageResult.deleteMany({ userId }, { session });
+        await CoverageRiskAlert.deleteMany({ userId }, { session });
         const [receipt] = await CoverageDeletionReceipt.create([{
           userId, idempotencyOperationId: req.idempotencyClaim.operationId,
           deletedRevision: ledger.revision, nextRevision: ledger.revision + 1, deletedAt: new Date(),

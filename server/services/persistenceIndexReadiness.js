@@ -6,6 +6,7 @@ import Goal from '../models/Goal.js';
 import CoverageLedger from '../models/CoverageLedger.js';
 import CoverageResult from '../models/CoverageResult.js';
 import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
+import CoverageRiskAlert from '../models/CoverageRiskAlert.js';
 import IdempotencyKey from '../models/IdempotencyKey.js';
 import InvestmentProduct from '../models/InvestmentProduct.js';
 import MarketObservation from '../models/MarketObservation.js';
@@ -81,6 +82,7 @@ export const MIGRATION_INDEX_MODELS = Object.freeze([
   CoverageLedger,
   CoverageResult,
   CoverageDeletionReceipt,
+  CoverageRiskAlert,
 ]);
 
 // These schema-declared unique indexes fence every durable market-data upsert.
