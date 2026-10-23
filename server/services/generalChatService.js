@@ -50,6 +50,19 @@ const SYSTEM_PROMPT = [
 ].join(' ');
 
 
+// The presence of words such as "not guaranteed" is itself a necessary
+// investor-risk disclosure, not a dangerous promise. Restrict rejection to
+// affirmative guarantees and preserve risk warnings without fabricating facts.
+function advertisesGuaranteedFinancialReturns(reply) {
+  const value = String(reply || '');
+  if (!/\b(?:stocks?|shares?|investments?|portfolio|funds?|crypto|bitcoin|bonds?|sips?)\b/i.test(value)) return false;
+  for (const claim of value.matchAll(/\b(?:guaranteed?|assured|risk[- ]free|certain\s+(?:profit|return)|sure\s+(?:profit|return))\b/gi)) {
+    const before = value.slice(Math.max(0, claim.index - 48), claim.index);
+    if (!/\b(?:not|no|never|cannot|can't|isn't|aren't|without|non[- ])(?:\s+\w+){0,3}\s*$/i.test(before)) return true;
+  }
+  return false;
+}
+
 // Model output is untrusted even when the INPUT was a general question.
 // Prevent a general LLM from turning a greeting or a programming question
 // into made-up portfolio facts, unsolicited investment advice or INR returns.
@@ -62,7 +75,7 @@ function violatesGeneralFinancialBoundary(reply, educationOnly = false) {
       : /\b(?:invest|buy|sell|allocate|switch|move|put|contribute)\b[^.!?\n]{0,140}\b(?:shares?|stocks?|crypto(?:currency)?|bitcoin|mutual\s*funds?|index\s*funds?|bonds?|savings?|portfolio|sips?|equity|fixed\s*deposits?|gold\s*etfs?)\b/i.test(value))
     // Explaining that stocks have *uncertain returns* is ordinary education.
     // Reject certainty/guarantee claims; do not treat the word 'returns' as a guarantee.
-    || /\b(?:shares?|stocks?|investments?|portfolio|savings?|crypto(?:currency)?|bitcoin|mutual\s*funds?)\b[^.!?\n]{0,120}\b(?:guaranteed?|assured|risk[- ]free|certain\s+(?:profit|return)|sure\s+(?:profit|return))\b/i.test(value)
+    || advertisesGuaranteedFinancialReturns(value)
     || /\b\d{1,3}(?:\.\d+)?\s*%\s*(?:per\s+annum|p\.?a\.?|annual(?:ly)?|monthly|cagr|returns?|interest|profits?)\b/i.test(value);
 }
 
