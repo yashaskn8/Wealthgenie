@@ -17,7 +17,7 @@ function getTaxInfo() {
     maxDeduction: 'UNAVAILABLE',
     ltcg: 'TAX_CLASSIFICATION_UNAVAILABLE. A source-qualified product tax classification and explicit holding period are required.',
     stcg: 'TAX_CLASSIFICATION_UNAVAILABLE. A source-qualified product tax classification and explicit holding period are required.',
-    specialNote: 'Legacy catalog tax tags are reference metadata only. Use the server what-if below with an explicit fiscal year, regime, income source and income.',
+    specialNote: 'Legacy catalog tax tags are reference metadata only. Use the server what-if below with an explicit fiscal year, new-regime context, income source and income.',
   };
 }
 
@@ -128,7 +128,7 @@ const formatTaxAmount = value => '₹' + new Intl.NumberFormat('en-IN', { maximu
 
 const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, profileStateKey, recommendationMeta }) => {
   const [annualIncome, setAnnualIncome] = React.useState('');
-  const [regime, setRegime] = React.useState('');
+  const regime = 'new';
   const [incomeSource, setIncomeSource] = React.useState('');
   const [fiscalYear, setFiscalYear] = React.useState('');
   const [taxAge, setTaxAge] = React.useState('');
@@ -320,27 +320,7 @@ const InteractiveTaxSimulator = ({ inv, calcAmount, calcYears, profileStateKey, 
           </h4>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>Tax Regime:</span>
-          {['new', 'old'].map(option => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setRegime(option)}
-              aria-pressed={regime === option}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: regime === option ? '1px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
-                background: regime === option ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.04)',
-                color: regime === option ? '#e9d5ff' : '#94a3b8',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              {option === 'new' ? 'New' : 'Old'}
-            </button>
-          ))}
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>New tax regime only</span>
         </div>
       </div>
 

@@ -64,7 +64,7 @@ async function explicitInputs() {
   await waitFor(() => expect(screen.getByLabelText(/Fiscal year/i).value).toBe('FY2026-27'));
   fireEvent.change(screen.getByLabelText(/Gross annual income before allowed deductions/i), { target: { value: '1000000' } });
   fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
-  fireEvent.change(screen.getByLabelText(/Tax regime/i), { target: { value: 'new' } });
+  expect(screen.getByRole('status', { name: 'Tax regime' })).toHaveTextContent('New regime only');
   fireEvent.change(screen.getByLabelText('Your age on March 31'), { target: { value: '30' } });
   fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
 }
@@ -401,7 +401,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     await waitFor(() => expect(screen.getByLabelText(/Fiscal year/i).value).toBe('FY2026-27'));
     fireEvent.change(screen.getByLabelText(/Gross annual income before allowed deductions/i), { target: { value: '1000000' } });
     fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
-    fireEvent.change(screen.getByLabelText(/Tax regime/i), { target: { value: 'new' } });
+    expect(screen.getByRole('status', { name: 'Tax regime' })).toHaveTextContent('New regime only');
     fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
     submit();
 
@@ -461,7 +461,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     await waitFor(() => expect(screen.getByLabelText(/Fiscal year/i).value).toBe('FY2026-27'));
     fireEvent.change(screen.getByLabelText(/Gross annual income before allowed deductions/i), { target: { value: '1000000' } });
     fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
-    fireEvent.change(screen.getByLabelText(/Tax regime/i), { target: { value: 'new' } });
+    expect(screen.getByRole('status', { name: 'Tax regime' })).toHaveTextContent('New regime only');
     fireEvent.change(screen.getByLabelText(/Fiscal year/i), { target: { value: 'FY2026-27' } });
   fireEvent.change(screen.getByLabelText('Your age on March 31'), { target: { value: '30' } });
     fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });
@@ -527,7 +527,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     await waitFor(() => expect(screen.getByLabelText(/Fiscal year/i).value).toBe('FY2026-27'));
     fireEvent.change(screen.getByLabelText(/Gross annual income before allowed deductions/i), { target: { value: '1000000' } });
     fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
-    fireEvent.change(screen.getByLabelText(/Tax regime/i), { target: { value: 'new' } });
+    expect(screen.getByRole('status', { name: 'Tax regime' })).toHaveTextContent('New regime only');
     fireEvent.change(screen.getByLabelText(/Fiscal year/i), { target: { value: 'FY2026-27' } });
   fireEvent.change(screen.getByLabelText('Your age on March 31'), { target: { value: '30' } });
     fireEvent.change(screen.getByLabelText(/Inflation assumption/i), { target: { value: '6' } });

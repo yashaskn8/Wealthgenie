@@ -88,37 +88,35 @@ test('instruments route validates public query inputs', async () => {
   });
 });
 
-test('tax route computes and compares regimes without authentication', async () => {
-  await withServer(buildApp(), async (baseUrl) => {
-    const compute = await jsonFetch(`${baseUrl}/api/tax/compute`, {
+test('tax route permanently retires compare and compute without silently relabeling old inputs', async () => {
+  await withServer(buildApp(), async baseUrl => {
+    for (const endpoint of ['/api/tax/compute', '/api/tax/compare']) {
+      for (const regime of ['old', 'new']) {
+        const { response, body } = await jsonFetch(baseUrl + endpoint, {
+          method: 'POST',
+          body: JSON.stringify({ income: 1200000, incomeSource: 'salary', age: 35,
+            fiscalYear: 'FY2026-27', regime }),
+        });
+        assert.equal(response.status, 410, endpoint + regime);
+        assert.equal(body.code, 'TAX_LEGACY_ENDPOINT_RETIRED');
+        assert.equal(response.headers.get('cache-control'), 'no-store');
+        assert.equal(Object.hasOwn(body, 'recommended_regime'), false);
+        assert.equal(Object.hasOwn(body, 'old_regime'), false);
+      }
+    }
+    const validNew = await jsonFetch(baseUrl + '/api/tax/new-regime-verified', {
       method: 'POST',
-      body: JSON.stringify({ income: 1200000, regime: 'new', incomeSource: 'salary', age: 35, fiscalYear: 'FY2026-27' }),
+      body: JSON.stringify({
+        taxYear: '2026-27', incomeType: 'salary', primaryIncome: '1275000.00',
+        otherOrdinaryIncome: '0', residency: 'resident', specialRateIncome: 'no',
+        confirmedOrdinaryOnly: true,
+      }),
     });
-    const compare = await jsonFetch(`${baseUrl}/api/tax/compare`, {
-      method: 'POST',
-      body: JSON.stringify({ income: 1200000, incomeSource: 'salary', age: 35, fiscalYear: 'FY2026-27' }),
-    });
-    const maximumIncome = await jsonFetch(`${baseUrl}/api/tax/compute`, {
-      method: 'POST',
-      body: JSON.stringify({ income: 1000000000, regime: 'new', incomeSource: 'salary', age: 35, fiscalYear: 'FY2026-27' }),
-    });
-    const aboveMaximumIncome = await jsonFetch(`${baseUrl}/api/tax/compute`, {
-      method: 'POST',
-      body: JSON.stringify({ income: 1000000001, regime: 'new', incomeSource: 'salary', age: 35, fiscalYear: 'FY2026-27' }),
-    });
-    const legacyQuery = await rawRequest(`${baseUrl}/api/tax/compare`);
-
-    assert.equal(compute.response.status, 200);
-    assert.ok(Number.isFinite(compute.body.taxAmount));
-    assert.equal(maximumIncome.response.status, 200);
-    assert.equal(aboveMaximumIncome.response.status, 400);
-    assert.equal(compare.response.status, 200);
-    assert.ok(['new', 'old'].includes(compare.body.recommended_regime));
-    assert.equal(compare.body.calculation_classification, 'SEPARATE_TAX_WHAT_IF');
-    assert.ok(Array.isArray(compare.body.new_regime.slab_breakdown));
-    assert.ok(Array.isArray(compare.body.old_regime.slab_breakdown));
-    assert.equal(compare.body.deduction_limits.section80C, 150000);
-    assert.ok(Number.isFinite(compare.body.optimized_old_regime_tax));
-    assert.equal(legacyQuery.status, 404);
+    assert.equal(validNew.response.status, 200, JSON.stringify(validNew.body));
+    assert.equal(validNew.body.status, 'CALCULATED');
+    assert.equal(validNew.body.finalTax, '0');
+    assert.equal(validNew.body.taxableIncome, '1200000');
+    const query = await rawRequest(baseUrl + '/api/tax/compare');
+    assert.equal(query.status, 404, 'retired POST must not become a sensitive GET endpoint');
   });
 });

@@ -4,7 +4,6 @@ import JargonTooltip from './JargonTooltip';
 import './GenieChat.css';
 import * as api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
-import { assertTaxComparisonResponse } from '../utils/taxResponseIntegrity';
 import {
   formatFullINR,
   getSuggestedQuestions,
@@ -224,7 +223,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   }, []);
 
   // ── 2026 Agentic Workspace State ────────────────────────────────
-  const [activeWorkspace, setActiveWorkspace] = useState(null); // null | 'rebalancer' | 'sip-planner' | 'tax-optimizer'
+  const [activeWorkspace, setActiveWorkspace] = useState(null); // null | 'rebalancer' | 'sip-planner'
 
   // Rebalancer Workspace parameters
   const [targetEquity, setTargetEquity] = useState(50);
@@ -239,83 +238,6 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   const [sipReturnRate, setSipReturnRate] = useState(12);
   const [sipProjection, setSipProjection] = useState(null);
   const [sipProjectionError, setSipProjectionError] = useState(null);
-
-  // Tax Optimizer parameters
-  const [taxGrossIncome, setTaxGrossIncome] = useState(300000);
-  const [taxIncomeSource, setTaxIncomeSource] = useState('');
-  const [taxFiscalYear, setTaxFiscalYear] = useState('');
-  const [taxAge, setTaxAge] = useState('');
-  const [tax80C, setTax80C] = useState(0);
-  const [taxNPS, setTaxNPS] = useState(0);
-  const [taxInputsConfirmed, setTaxInputsConfirmed] = useState(false);
-  const [taxComparison, setTaxComparison] = useState(null);
-  const [taxComparisonError, setTaxComparisonError] = useState(null);
-  const [taxPolicyMetadata, setTaxPolicyMetadata] = useState(null);
-  const [taxPolicyMetadataStatus, setTaxPolicyMetadataStatus] = useState('loading');
-  const [taxPolicyRetryVersion, setTaxPolicyRetryVersion] = useState(0);
-  const taxProfileIdentity = JSON.stringify([
-    profile?.profileId ?? profile?._id ?? null,
-    recommendationMeta?.profile_version ?? profile?.version ?? null,
-    recommendationMeta?.profile_input_hash ?? null,
-    profile?.age ?? null,
-  ]);
-  const taxInputIdentity = JSON.stringify([
-    activeWorkspace,
-    taxProfileIdentity,
-    taxFiscalYear,
-    taxGrossIncome,
-    taxIncomeSource,
-    taxAge,
-    tax80C,
-    taxNPS,
-    taxInputsConfirmed,
-  ]);
-  const taxInputIdentityRef = useRef(taxInputIdentity);
-  taxInputIdentityRef.current = taxInputIdentity;
-  const currentTaxComparison = taxComparison?.inputIdentity === taxInputIdentity ? taxComparison.data : null;
-  const currentTaxComparisonError = taxComparisonError?.inputIdentity === taxInputIdentity
-    ? taxComparisonError.message
-    : null;
-
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    setTaxPolicyMetadata(null);
-    setTaxPolicyMetadataStatus('loading');
-    setTaxFiscalYear('');
-    setTaxAge('');
-    if (typeof api.getTaxPolicyMetadata !== 'function') {
-      setTaxPolicyMetadataStatus('error');
-      return () => { cancelled = true; };
-    }
-    api.getTaxPolicyMetadata({ signal: controller.signal })
-      .then(metadata => {
-        if (cancelled) return;
-        const years = metadata?.verifiedFiscalYears;
-        if (!Array.isArray(years) || years.length === 0
-            || years.some(year => typeof year !== 'string' || !/^FY\d{4}-\d{2}$/.test(year))) {
-          throw new Error('Verified fiscal-year metadata is unavailable.');
-        }
-        setTaxPolicyMetadata(metadata);
-        setTaxPolicyMetadataStatus('ready');
-        if (metadata.currentFiscalYearVerified === true
-            && years.includes(metadata.currentFiscalYear)) {
-          setTaxFiscalYear(current => current || metadata.currentFiscalYear);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setTaxPolicyMetadata(null);
-          setTaxFiscalYear('');
-          setTaxAge('');
-          setTaxPolicyMetadataStatus('error');
-        }
-      });
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [taxPolicyRetryVersion]);
 
   useEffect(() => {
     if (profile) {
@@ -384,72 +306,6 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     };
   }, [activeWorkspace, sipMonthlyAmount, sipReturnRate, sipHorizon, sipStepUpPercent]);
 
-  useEffect(() => {
-    setTaxAge('');
-    setTaxComparison(null);
-    setTaxComparisonError(null);
-    setTaxInputsConfirmed(false);
-  }, [taxProfileIdentity]);
-
-  useEffect(() => {
-    const enteredAge = taxAge.trim() === '' ? NaN : Number(taxAge);
-    const validTaxAge = Number.isInteger(enteredAge) && enteredAge >= 18 && enteredAge <= 120;
-    if (activeWorkspace !== 'tax-optimizer' || !taxIncomeSource || !taxFiscalYear || !validTaxAge || !taxInputsConfirmed) {
-      setTaxComparison(null);
-      setTaxComparisonError(null);
-      return undefined;
-    }
-
-    let cancelled = false;
-    const controller = new AbortController();
-    const requestIdentity = taxInputIdentity;
-    setTaxComparison(null);
-    setTaxComparisonError(null);
-    const timer = setTimeout(() => {
-      api.compareTax(taxGrossIncome, {
-        section80C: tax80C,
-        nps80CCD1B: taxNPS,
-        age: enteredAge,
-        incomeSource: taxIncomeSource,
-        fiscalYear: taxFiscalYear,
-      }, { signal: controller.signal })
-        .then(result => {
-          if (cancelled || controller.signal.aborted || taxInputIdentityRef.current !== requestIdentity) return;
-          assertTaxComparisonResponse(result, {
-            annualIncome: taxGrossIncome,
-            incomeSource: taxIncomeSource,
-            fiscalYear: taxFiscalYear,
-            deductions: { age: enteredAge, section80C: tax80C, nps80CCD1B: taxNPS },
-          });
-          setTaxComparison({
-            inputIdentity: requestIdentity,
-            data: {
-              taxNew: result.new_regime.tax,
-              taxOld: result.old_regime.tax,
-              difference: result.saving,
-              betterRegime: result.recommended_regime,
-              standardDeductionNew: result.new_regime.standard_deduction,
-              standardDeductionOld: result.old_regime.standard_deduction,
-              oldRegimeDeductions: result.old_regime.old_regime_deductions,
-              deductionLimits: result.deduction_limits,
-              policyVersion: result.policyVersion,
-              fiscalYear: result.fiscal_year,
-            },
-          });
-        })
-        .catch(error => {
-          if (cancelled || controller.signal.aborted || error?.code === 'REQUEST_ABORTED' || taxInputIdentityRef.current !== requestIdentity) return;
-          setTaxComparison(null);
-          setTaxComparisonError({ inputIdentity: requestIdentity, message: error.message });
-        });
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [activeWorkspace, taxProfileIdentity, taxInputIdentity, taxAge, taxFiscalYear, taxGrossIncome, taxIncomeSource, tax80C, taxNPS, taxInputsConfirmed]);
-
   const visibleMessages = sessionMatchesProfile ? messages : [];
   const lastUserMessage = visibleMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
   const lastAssistantMsg = visibleMessages.filter(m => m.role === 'assistant').slice(-1)[0];
@@ -483,8 +339,6 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     setAllocationSplitError(null);
     setSipProjection(null);
     setSipProjectionError(null);
-    setTaxComparison(null);
-    setTaxComparisonError(null);
     void (knownFingerprint
       ? Promise.resolve(knownFingerprint)
       : fingerprintChatFinancialBinding(nextFinancialBinding))
@@ -680,8 +534,8 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         '/rebalancer': 'rebalancer',
         '/portfolio-rebalance': 'rebalancer',
         '/stepup': 'sip-planner',
-        '/tax': 'tax-optimizer',
-        '/tax-optimizer': 'tax-optimizer',
+        '/tax': 'taxes',
+        '/tax-optimizer': 'taxes',
         '/goals': 'goals',
         '/comparison': 'compare',
         '/compare': 'compare',
@@ -698,7 +552,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
       if (!page && target) {
         const lower = target.toLowerCase();
         if (lower.includes('rebal')) page = 'rebalancer';
-        else if (lower.includes('tax')) page = 'tax-optimizer';
+        else if (lower.includes('tax')) page = 'taxes';
         else if (lower.includes('step') || lower.includes('sip') || lower.includes('calc')) page = 'sip-planner';
         else if (lower.includes('goal')) page = 'goals';
         else if (lower.includes('comp') || lower.includes('invest')) page = 'compare';
@@ -709,7 +563,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
       if (!page) page = 'dashboard';
 
-      if (['rebalancer', 'sip-planner', 'tax-optimizer'].includes(page)) {
+      if (['rebalancer', 'sip-planner'].includes(page)) {
         setActiveWorkspace(page);
       } else {
         onNavigate(page);
@@ -1086,7 +940,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                     <div className="workspace-title">
                       {activeWorkspace === 'rebalancer' && <span>Investment Mix Planner</span>}
                       {activeWorkspace === 'sip-planner' && <span>SIP Growth Calculator</span>}
-                      {activeWorkspace === 'tax-optimizer' && 'Tax What-If Helper'}
+                      {activeWorkspace === 'taxes' && 'New-Regime Taxes'}
                     </div>
                     <div className="workspace-subtitle">Try it out — play with the numbers below!</div>
                   </div>
@@ -1269,189 +1123,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                   );
                 })()}
 
-                {activeWorkspace === 'tax-optimizer' && (() => {
-                  const taxes = currentTaxComparison;
-                  const selectedPolicy = taxPolicyMetadata?.policies?.find(policy => (
-                    policy?.verified === true && policy.fiscalYear === taxFiscalYear
-                  ));
-                  const section80CLimit = Number(
-                    selectedPolicy?.rules?.deductionLimits?.section80C ?? taxes?.deductionLimits?.section80C,
-                  );
-                  const npsLimit = Number(
-                    selectedPolicy?.rules?.deductionLimits?.section80CCD1B ?? taxes?.deductionLimits?.section80CCD1B,
-                  );
-
-                  return (
-                    <div className="workspace-sandbox">
-                      <div className="sandbox-intro">
-                        <Sparkles size={14} className="text-orange" style={{ flexShrink: 0, marginTop: 2 }} />
-                        <span>Compare the tax systems for a scenario you enter. Starting amounts are examples and are not taken from your saved profile.</span>
-                      </div>
-
-                      <div className="sandbox-group">
-                        <div className="sandbox-label-row">
-                          <span className="sandbox-label"><Coins size={14} /> Income Source</span>
-                        </div>
-                        <select value={taxIncomeSource} onChange={e => { setTaxIncomeSource(e.target.value); setTaxInputsConfirmed(false); }} className="genie-input" aria-label="Tax income source">
-                          <option value="">Choose explicitly</option>
-                          <option value="salary">Salary</option>
-                          <option value="pension">Pension</option>
-                          <option value="family_pension">Family pension</option>
-                          <option value="business">Business</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-
-                      <div className="sandbox-group">
-                        <div className="sandbox-label-row">
-                          <span className="sandbox-label"><Coins size={14} /> Fiscal Year</span>
-                        </div>
-                        <select value={taxFiscalYear} onChange={e => { setTaxFiscalYear(e.target.value); setTaxAge(''); setTaxInputsConfirmed(false); }} className="genie-input" aria-label="Tax fiscal year">
-                          <option value="">Choose explicitly</option>
-                          {(taxPolicyMetadata?.verifiedFiscalYears || []).map(year => (
-                            <option key={year} value={year}>{year}</option>
-                          ))}
-                        </select>
-                        {taxPolicyMetadataStatus === 'loading' && (
-                          <p role="status" className="slider-limits">Loading verified tax years…</p>
-                        )}
-                        {taxPolicyMetadataStatus === 'error' && (
-                          <div role="alert" className="sandbox-intro">
-                            <span>Verified tax years are unavailable. Retry to load the server tax policy.</span>
-                            <button
-                              type="button"
-                              className="workspace-fullscreen-btn"
-                              onClick={() => setTaxPolicyRetryVersion(version => version + 1)}
-                            >
-                              <RefreshCw size={14} aria-hidden="true" /> Retry
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="sandbox-group">
-                        <div className="sandbox-label-row">
-                          <label className="sandbox-label" htmlFor="genie-tax-age">Age on March 31 of selected fiscal year</label>
-                        </div>
-                        <input
-                          id="genie-tax-age"
-                          type="number"
-                          inputMode="numeric"
-                          min="18"
-                          max="120"
-                          step="1"
-                          value={taxAge}
-                          onChange={e => { setTaxAge(e.target.value); setTaxInputsConfirmed(false); }}
-                          className="genie-input"
-                          aria-describedby="genie-tax-age-help"
-                          aria-required="true"
-                          aria-invalid={taxAge !== '' && !(Number.isInteger(Number(taxAge)) && Number(taxAge) >= 18 && Number(taxAge) <= 120)}
-                          disabled={!taxFiscalYear}
-                        />
-                        <p id="genie-tax-age-help" className="slider-limits">Enter your age on March 31 for this tax year. Your saved profile age is not used for tax comparisons.</p>
-                      </div>
-
-                      {!taxes && (
-                        <div role="status" aria-live="polite" className="sandbox-intro">
-                          {!taxIncomeSource || !taxFiscalYear
-                            ? 'Choose an income source and fiscal year to calculate without assumptions.'
-                            : !(Number.isInteger(Number(taxAge)) && taxAge.trim() !== '' && Number(taxAge) >= 18 && Number(taxAge) <= 120)
-                              ? 'Enter a whole-number age from 18 to 120 for March 31 of the selected fiscal year to calculate.'
-                              : !taxInputsConfirmed
-                                ? 'Review the income and deduction amounts, including any ₹0 values, then confirm this scenario to calculate.'
-                                : (currentTaxComparisonError ? `Tax service unavailable: ${currentTaxComparisonError}` : 'Calculating with the authoritative tax service...')}
-                        </div>
-                      )}
-
-                      <div className="sandbox-group">
-                        <div className="sandbox-label-row">
-                          <span className="sandbox-label"><Coins size={14} /> Annual Gross Income</span>
-                          <span className="sandbox-val text-orange">{formatFullINR(taxGrossIncome)}</span>
-                        </div>
-                        <input type="range" min="300000" max="3000000" step="50000" value={taxGrossIncome} onChange={e => { setTaxGrossIncome(Number(e.target.value)); setTaxInputsConfirmed(false); }} className="sandbox-slider" aria-label="Annual gross income" />
-                        <div className="slider-limits"><span>₹3L</span><span>₹30L</span></div>
-                      </div>
-
-                      <div className="sandbox-group">
-                        <div className="sandbox-label-row">
-                          <span className="sandbox-label"><Percent size={14} /> <JargonTooltip term="Eligible investment deductions">Enter eligible investment deductions already counted</JargonTooltip></span>
-                          <span className="sandbox-val text-orange">{formatFullINR(tax80C)}</span>
-                        </div>
-                        <input type="range" min="0" max={Number.isFinite(section80CLimit) ? section80CLimit : 0} step="5000" value={tax80C} onChange={e => { setTax80C(Number(e.target.value)); setTaxInputsConfirmed(false); }} className="sandbox-slider" disabled={!Number.isFinite(section80CLimit)} aria-label="Section 80C deduction" />
-                        <div className="slider-limits"><span>₹0</span><span>{Number.isFinite(section80CLimit) ? `${formatFullINR(section80CLimit)} server-policy limit` : 'Awaiting server policy'}</span></div>
-                      </div>
-
-                      <div className="sandbox-group">
-                        <div className="sandbox-label-row">
-                          <span className="sandbox-label"><Coins size={14} /> <JargonTooltip term="NPS">NPS</JargonTooltip> Deduction Input</span>
-                          <span className="sandbox-val text-orange">{formatFullINR(taxNPS)}</span>
-                        </div>
-                        <input type="range" min="0" max={Number.isFinite(npsLimit) ? npsLimit : 0} step="5000" value={taxNPS} onChange={e => { setTaxNPS(Number(e.target.value)); setTaxInputsConfirmed(false); }} className="sandbox-slider" disabled={!Number.isFinite(npsLimit)} aria-label="NPS deduction" />
-                        <div className="slider-limits"><span>₹0</span><span>{Number.isFinite(npsLimit) ? `${formatFullINR(npsLimit)} server-policy limit` : 'Awaiting server policy'}</span></div>
-                      </div>
-
-                      <p className="slider-limits">Review the example income and deduction amounts. A ₹0 deduction means you confirm that no eligible amount is included.</p>
-
-                      <label className="sandbox-intro" htmlFor="genie-tax-inputs-confirmed">
-                        <input
-                          id="genie-tax-inputs-confirmed"
-                          type="checkbox"
-                          checked={taxInputsConfirmed}
-                          onChange={event => setTaxInputsConfirmed(event.target.checked)}
-                          disabled={!taxIncomeSource || !taxFiscalYear || !(Number.isInteger(Number(taxAge)) && taxAge.trim() !== '' && Number(taxAge) >= 18 && Number(taxAge) <= 120)}
-                        />
-                        I confirm these income and deduction amounts for this comparison, including ₹0 where I have no eligible deduction.
-                      </label>
-
-                      {/* Side-by-side Comparative Table */}
-                      {taxes && <div className="tax-comparison-table">
-                        <div className="tax-table-header">
-                          <div className="tax-th">What's Compared</div>
-                          <div className="tax-th text-center">New Tax System</div>
-                          <div className="tax-th text-center">Old Tax System</div>
-                        </div>
-                        <div className="tax-table-row">
-                          <div className="tax-td">Gross Income</div>
-                          <div className="tax-td text-center">{formatFullINR(taxGrossIncome)}</div>
-                          <div className="tax-td text-center">{formatFullINR(taxGrossIncome)}</div>
-                        </div>
-                        <div className="tax-table-row">
-                          <div className="tax-td">Standard Deduction (auto)</div>
-                          <div className="tax-td text-center text-green">-{formatFullINR(taxes.standardDeductionNew)}</div>
-                          <div className="tax-td text-center text-green">-{formatFullINR(taxes.standardDeductionOld)}</div>
-                        </div>
-                        <div className="tax-table-row">
-                          <div className="tax-td">Eligible deductions in this scenario</div>
-                          <div className="tax-td text-center text-grey">Nil</div>
-                          <div className="tax-td text-center text-green">-{formatFullINR(taxes.oldRegimeDeductions)}</div>
-                        </div>
-                        <div className="tax-table-row font-bold border-t border-b">
-                          <div className="tax-td">Tax You Pay</div>
-                          <div className="tax-td text-center text-sky">{formatFullINR(taxes.taxNew)}</div>
-                          <div className="tax-td text-center text-purple">{formatFullINR(taxes.taxOld)}</div>
-                        </div>
-                        <div className="tax-table-row">
-                          <div className="tax-td">Policy evidence</div>
-                          <div className="tax-td text-center" style={{ gridColumn: 'span 2' }}>{taxes.fiscalYear} · {taxes.policyVersion}</div>
-                        </div>
-                      </div>}
-
-                      {/* Verdict Banner */}
-                      {taxes && <div className={`tax-verdict-card ${taxes.betterRegime === 'new' ? 'verdict-new' : 'verdict-old'}`}>
-                        <div className="verdict-title">
-                          Result: {taxes.betterRegime === 'new' ? 'NEW TAX SYSTEM SAVES MORE!' : 'OLD TAX SYSTEM SAVES MORE!'}
-                        </div>
-                        <div className="verdict-desc">
-                          {taxes.difference === 0 ? (
-                            <span>Both systems charge the same tax! We recommend the New System since it's simpler — no need to collect receipts or proofs.</span>
-                          ) : (
-                            <span>For this scenario, the <strong className="font-bold">{taxes.betterRegime === 'new' ? 'New' : 'Old'} Tax System</strong> has lower calculated tax by <strong className="font-bold">{formatFullINR(taxes.difference)}</strong> for this fiscal year.</span>
-                          )}
-                        </div>
-                      </div>}
-                    </div>
-                  );
-                })()}
+                {/* Income tax is calculated only through the verified Taxes hub. */}
               </div>
             </div>
           )}

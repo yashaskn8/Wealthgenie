@@ -1961,7 +1961,7 @@ const RecommendationDashboard = ({ userProfile, recommendations: propRecommendat
                   <span style={{fontSize: '1.2rem', lineHeight: 1}}>&#x1F4A1;</span>
                   <div>
                     <div style={{fontWeight: 700, color: '#e2e8f0', fontSize: '0.82rem', marginBottom: 2}}>Dashboard returns are pre-tax model assumptions</div>
-                    <div style={{fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.5}}>Use Real Returns or Save on Taxes with explicit income, regime, income source, and fiscal year to obtain a separate server-calculated tax result.</div>
+                    <div style={{fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.5}}>Use Real Returns or Taxes with explicit new-regime, income source, and fiscal-year facts; unsupported outcomes stay unavailable.</div>
                   </div>
                 </div>
                 <div style={{display: 'flex', gap: 12, alignItems: 'flex-start'}}>

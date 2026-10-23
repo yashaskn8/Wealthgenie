@@ -93,7 +93,7 @@ function prepareSbiInterestScenario(age = '35') {
   fireEvent.change(screen.getByLabelText(/Gross interest received in this fiscal year/i), { target: { value: '2500' } });
   fireEvent.change(screen.getByLabelText(/Annual tax income before this scenario/i), { target: { value: '1000000' } });
   fireEvent.change(screen.getByLabelText('Income source'), { target: { value: 'salary' } });
-  fireEvent.change(screen.getByLabelText('Tax regime'), { target: { value: 'new' } });
+  expect(screen.getByText('New regime only')).toBeVisible();
   fireEvent.click(screen.getByLabelText(/I confirm these entered tax facts cover my scenario/i));
   return screen.getByRole('button', { name: /Calculate my scenario/i }).closest('form');
 }
@@ -146,7 +146,7 @@ function prepareNiftyBeesScenario({ costBasis = '100000', proceeds = '125000', s
   if (sttConfirmed) fireEvent.click(screen.getByLabelText(/I assume the applicable STT condition/i));
   fireEvent.change(screen.getByLabelText(/Annual tax income before this scenario/i), { target: { value: '1000000' } });
   fireEvent.change(screen.getByLabelText('Income source'), { target: { value: 'salary' } });
-  fireEvent.change(screen.getByLabelText('Tax regime'), { target: { value: 'new' } });
+  expect(screen.getByText('New regime only')).toBeVisible();
   fireEvent.change(screen.getByLabelText('Fiscal year'), { target: { value: 'FY2025-26' } });
   fireEvent.change(screen.getByLabelText(/Your age on March 31/i), { target: { value: '35' } });
   fireEvent.click(screen.getByLabelText(/I confirm these entered tax facts cover my scenario/i));
@@ -947,7 +947,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
     const income = screen.getByLabelText(/Annual Gross Income/i);
     expect(income).toHaveValue(null);
     expect(screen.getByLabelText(/Income source/i)).toBeVisible();
-    expect(screen.getByLabelText(/Tax Regime/i)).toBeVisible();
+    expect(screen.getByText('New tax regime only')).toBeVisible();
     const fiscalYear = screen.getByLabelText('Fiscal Year');
     const age = screen.getByLabelText(/Your age on March 31/i);
     expect(age).toHaveValue(null);
@@ -959,7 +959,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
     fireEvent.change(age, { target: { value: '31' } });
     fireEvent.change(screen.getByLabelText(/Annual Gross Income/i), { target: { value: '1000000' } });
     fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
-    fireEvent.change(screen.getByLabelText(/Tax Regime/i), { target: { value: 'new' } });
+    expect(screen.getByText('New tax regime only')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: /Apply & Calculate/i }));
     await waitFor(() => expect(api.rankInvestmentCandidates).toHaveBeenCalledTimes(2));
     expect(api.rankInvestmentCandidates.mock.calls[1][2]).toMatchObject({
@@ -1009,7 +1009,7 @@ describe('Beginner-First Where-To-Invest UX', () => {
 
     fireEvent.change(screen.getByLabelText(/Annual Gross Income/i), { target: { value: '7500000' } });
     fireEvent.change(screen.getByLabelText(/Income source/i), { target: { value: 'salary' } });
-    fireEvent.change(screen.getByLabelText(/Tax Regime/i), { target: { value: 'new' } });
+    expect(screen.getByText('New tax regime only')).toBeVisible();
     fireEvent.change(screen.getByLabelText('Fiscal Year'), { target: { value: 'FY2026-27' } });
     fireEvent.change(screen.getByLabelText(/Your age/i), { target: { value: '31' } });
     fireEvent.change(screen.getByLabelText(/Your holding period/i), { target: { value: '18' } });

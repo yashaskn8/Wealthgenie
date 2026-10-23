@@ -81,7 +81,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
   const [showBreakdown, setShowBreakdown] = useState(true);
   const [grossAnnualIncome, setGrossAnnualIncome] = useState('');
   const [incomeSource, setIncomeSource] = useState('');
-  const [regime, setRegime] = useState('');
+  const regime = 'new';
   const [fiscalYear, setFiscalYear] = useState('');
   const [taxYearAge, setTaxYearAge] = useState('');
   const [inflationRate, setInflationRate] = useState('');
@@ -421,11 +421,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
         </label>
         <label style={{ display: 'grid', gap: 7, color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700 }}>
           Tax regime
-          <select aria-label="Tax regime" value={regime} onChange={event => setRegime(event.target.value)} className="tax-input">
-            <option value="">Choose explicitly</option>
-            <option value="new">New regime</option>
-            <option value="old">Old regime</option>
-          </select>
+          <span role="status" aria-label="Tax regime">New regime only</span>
         </label>
         <label style={{ display: 'grid', gap: 7, color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700 }}>
           Fiscal year
@@ -613,7 +609,7 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
           </div>
           <div className="pta-kpi-content">
             <span className="pta-kpi-label">Tax Regime</span>
-            <span className="pta-kpi-value">{regime ? (regime === 'new' ? 'New System' : 'Old System') : 'Not selected'}</span>
+            <span className="pta-kpi-value">New System (only supported regime)</span>
           </div>
         </div>
 

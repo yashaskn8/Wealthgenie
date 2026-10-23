@@ -114,7 +114,7 @@ export function calculateTaxedContractLedger({
      ||!Number.isFinite(context.annualGrossIncome)||context.annualGrossIncome<0
      ||!Number.isInteger(context.userAge)||context.userAge<18||context.userAge>120
      ||!['salary','pension','family_pension','business','other'].includes(context.incomeSource)
-     ||!['new','old'].includes(context.regime)
+     ||context.regime !== 'new'
      ||context.baselineExcludesTheseInterestEvents!==true
      ||!context.deductions||typeof context.deductions!=='object')return unavailable('INCOMPLETE_INVESTOR_TAX_YEAR:'+year);
   try {

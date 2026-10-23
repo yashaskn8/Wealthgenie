@@ -2,20 +2,14 @@
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import {
   validate,
-  taxComputeSchema,
-  taxCompareSchema,
   postTaxReturnSchema,
   postTaxReturnBatchSchema,
   userDeclaredPostTaxScenarioSchema,
 } from '../validation/schemas.js';
 import {
-  computeTax,
-  compareTaxRegimes,
   isFYVerified,
   getTaxPolicyCatalog,
   getTaxPolicyMetadata,
-  buildTaxSlabBreakdown,
-  analyzeTaxOptimization,
 } from '../services/taxEngine.js';
 import { calculateVerifiedNewRegime } from '../services/verifiedNewRegimeCalculator.js';
 import { calculateAdvancedNewRegime } from '../services/advancedNewRegimeCalculator.js';
@@ -128,102 +122,18 @@ function _parseTaxDeductions(input) {
 }
 
 /**
- * POST /api/tax/compute
- * Compute tax for a specific income and regime.
+ * This app supports only the new income tax regime. Never interpret an old
+ * format submission as new-regime input. Historical data is retained.
+ * Explicitly return Gone for both retired public comparison endpoints.
  */
-router.post('/compute', validate(taxComputeSchema), asyncHandler(async (req, res) => {
-  const income = Number(req.body.income);
-  const regime = req.body.regime;
-  const { fiscalYear } = req.body;
-
-  if (!Number.isFinite(income) || income < 0) {
-    return sendError(req, res, 400, 'Income must be a valid positive number.', 'INCOME_INVALID');
-  }
-
-  if (!isFYVerified(fiscalYear)) {
-    return sendError(req, res, 422, `Verified tax slabs are unavailable for ${fiscalYear}.`, 'FISCAL_YEAR_UNSUPPORTED');
-  }
-
-  const deductions = _parseTaxDeductions(req.body);
-  const result = computeTax(income, regime, deductions, req.body.incomeSource, fiscalYear, deductions.age);
-  res.json({ ...result, fiscal_year: fiscalYear, ...getTaxPolicyMetadata(fiscalYear) });
-}));
-
-/**
- * POST /api/tax/compare
- * Compare both tax regimes and return the recommended one.
- */
-router.post('/compare', validate(taxCompareSchema), asyncHandler(async (req, res) => {
-  const income = Number(req.body.income);
-  const { fiscalYear } = req.body;
-
-  if (!Number.isFinite(income) || income < 0) {
-    return sendError(req, res, 400, 'Income must be a valid positive number.', 'INCOME_INVALID');
-  }
-
-  if (!isFYVerified(fiscalYear)) {
-    return sendError(req, res, 422, `Verified tax slabs are unavailable for ${fiscalYear}.`, 'FISCAL_YEAR_UNSUPPORTED');
-  }
-
-  const deductions = _parseTaxDeductions(req.body);
-  const { newRegime, oldRegime, recommended } = compareTaxRegimes(income, deductions, req.body.incomeSource, fiscalYear, deductions.age);
-  const optimization = analyzeTaxOptimization(income, deductions, req.body.incomeSource, fiscalYear, deductions.age);
-  const saving = Math.abs(newRegime.taxAmount - oldRegime.taxAmount);
-
-  const response = {
-    income,
-    fiscal_year: fiscalYear,
-    verified: true,
-    ...getTaxPolicyMetadata(fiscalYear),
-    inputsUsed: {
-      annualIncome: income,
-      incomeSource: req.body.incomeSource,
-      fiscalYear,
-      deductions,
-    },
-    rulesApplied: ['COMPARE_VERIFIED_NEW_AND_OLD_REGIMES'],
-    assumptions: [],
-    unavailableReasons: [],
-    new_regime: {
-      tax: newRegime.taxAmount,
-      effective_rate: newRegime.effectiveRate,
-      rebate_applied: newRegime.rebateApplied,
-      taxable_income: newRegime.taxableIncome,
-      standard_deduction: newRegime.standardDeduction,
-      marginal_relief_applied: newRegime.marginalReliefApplied || false,
-      marginal_relief_amount: newRegime.marginalReliefAmount || 0,
-      cess: newRegime.cess,
-      nps80CCD2: newRegime.nps80CCD2 || 0,
-      allowed80D: newRegime.allowed80D || 0,
-      slab_breakdown: buildTaxSlabBreakdown(newRegime, fiscalYear),
-    },
-    old_regime: {
-      tax: oldRegime.taxAmount,
-      effective_rate: oldRegime.effectiveRate,
-      rebate_applied: oldRegime.rebateApplied,
-      taxable_income: oldRegime.taxableIncome,
-      standard_deduction: oldRegime.standardDeduction,
-      old_regime_deductions: oldRegime.oldRegimeDeductions,
-      marginal_relief_applied: oldRegime.marginalReliefApplied || false,
-      marginal_relief_amount: oldRegime.marginalReliefAmount || 0,
-      cess: oldRegime.cess,
-      nps80CCD2: oldRegime.nps80CCD2 || 0,
-      allowed80D: oldRegime.allowed80D || 0,
-      slab_breakdown: buildTaxSlabBreakdown(oldRegime, fiscalYear),
-    },
-    recommended_regime: recommended,
-    saving,
-    saving_pct: income > 0 ? parseFloat(((saving / income) * 100).toFixed(2)) : 0,
-    saving_with: recommended,
-    calculation_classification: 'SEPARATE_TAX_WHAT_IF',
-    deduction_limits: optimization.deductionLimits,
-    remaining_deductions: optimization.remaining,
-    optimized_old_regime_tax: optimization.optimizedOld.taxAmount,
-    potential_tax_saving: optimization.potentialSaving,
-    crossover_breakpoint: optimization.crossoverBreakpoint,
-  };
-  res.json(response);
-}));
+for (const retiredRoute of ['/compute', '/compare']) {
+  router.post(retiredRoute, (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    return sendError(req, res, 410,
+      'Legacy tax computation and regime comparison are retired. Submit qualified TY2026-27 facts to /api/tax/new-regime-verified.',
+      'TAX_LEGACY_ENDPOINT_RETIRED');
+  });
+}
 
 /**
  * POST /api/tax/post-tax-return

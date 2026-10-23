@@ -15,7 +15,7 @@ const requestSchema = Joi.object({
   expectedProfileVersion:Joi.number().integer().min(1).required(),
   annualGrossIncome:Joi.number().min(0).max(1_000_000_000).required(),
   incomeSource:Joi.string().valid('salary','pension','family_pension','business','other').required(),
-  regime:Joi.string().valid('new','old').required(),
+  regime:Joi.string().valid('new').required(),
   fiscalYear:Joi.string().pattern(/^FY[0-9]{4}-[0-9]{2}$/).required(),
   userAge:Joi.number().integer().min(18).max(120).required(),
   // Empty {} means explicitly declaring no eligible deductions, not unknown.
@@ -41,9 +41,15 @@ router.get('/',verifyJWT,validateQuery(querySchema),asyncHandler(async(req,res)=
   const row=await InvestorTaxContext.findOne({userId:req.user.userId,profileId:profile._id})
     .sort({version:-1}).lean();
   res.set('Cache-Control','private, no-store');
-  return res.json({status:row?'AVAILABLE':'NOT_SAVED',context:present(row),
-    currentProfileVersion:profile.version,
-    isCurrent:row ? row.profileVersion===profile.version : false});
+  // Historical old-regime records remain readable for audit and migration,
+  // but are never labelled as current input to a new calculation.
+  const legacyRegime = row?.regime === 'old';
+  return res.json({
+    status: legacyRegime ? 'HISTORICAL_REGIME_UNSUPPORTED' : row ? 'AVAILABLE' : 'NOT_SAVED',
+    context: present(row),
+    currentProfileVersion: profile.version,
+    isCurrent: row ? row.profileVersion === profile.version && row.regime === 'new' : false,
+  });
 }));
 router.post('/',verifyJWT,validate(requestSchema),asyncHandler(async(req,res)=>{
   const profile=await ownedProfile(req.user.userId,req.body.profileId);

@@ -167,7 +167,7 @@ it('asks for explicit Section 112A prior use and sends entered zero, while unava
   render(<TaxTab {...taxProps} />);
   fireEvent.change(screen.getByLabelText(/gross annual income/i), { target: { value: '0' } });
   fireEvent.change(screen.getByLabelText(/income source/i), { target: { value: 'salary' } });
-  fireEvent.click(screen.getByRole('button', { name: 'New' }));
+  expect(screen.getByText('New tax regime only')).toBeVisible();
   fireEvent.change(screen.getByLabelText(/Your age on March 31/i), { target: { value: '35' } });
 
   await screen.findByText(/Enter how much of the Section 112A exemption you used earlier/i);
@@ -192,7 +192,7 @@ it('requires an explicitly entered age for the selected fiscal year and clears i
 
   fireEvent.change(income, { target: { value: '1000000' } });
   fireEvent.change(screen.getByLabelText(/income source/i), { target: { value: 'salary' } });
-  fireEvent.click(screen.getByRole('button', { name: 'New' }));
+  expect(screen.getByText('New tax regime only')).toBeVisible();
   expect(api.computePostTaxReturn).not.toHaveBeenCalled();
 
   fireEvent.change(age, { target: { value: '65' } });
@@ -214,7 +214,7 @@ it('hides a prior result immediately when the selected tax income changes', asyn
   const income = screen.getByLabelText(/gross annual income/i);
   fireEvent.change(income, { target: { value: '1000000' } });
   fireEvent.change(screen.getByLabelText(/income source/i), { target: { value: 'salary' } });
-  fireEvent.click(screen.getByRole('button', { name: 'New' }));
+  expect(screen.getByText('New tax regime only')).toBeVisible();
   fireEvent.change(screen.getByLabelText(/Your age on March 31/i), { target: { value: '35' } });
 
   await waitFor(() => expect(screen.getByText('₹5,000 (5.00% modelled net)')).toBeVisible());

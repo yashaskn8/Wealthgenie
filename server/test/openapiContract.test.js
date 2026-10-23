@@ -303,8 +303,8 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'POST /api/tax/new-regime-verified', method: 'POST', path: '/api/tax/new-regime-verified', url: '/api/tax/new-regime-verified', expectedStatus: 200, body: { taxYear: '2026-27', incomeType: 'salary', primaryIncome: '1275000.00', otherOrdinaryIncome: '0', residency: 'unknown', specialRateIncome: 'no', confirmedOrdinaryOnly: true } },
   { operation: 'POST /api/tax/new-regime-verified', method: 'POST', path: '/api/tax/new-regime-verified', url: '/api/tax/new-regime-verified', expectedStatus: 400, body: { taxYear: '2026-27', incomeType: 'salary', primaryIncome: '1275000.001', otherOrdinaryIncome: '0', residency: 'resident', specialRateIncome: 'no', confirmedOrdinaryOnly: true } },
   { operation: 'POST /api/tax/new-regime-verified', method: 'POST', path: '/api/tax/new-regime-verified', url: '/api/tax/new-regime-verified', expectedStatus: 422, body: { taxYear: '2027-28', incomeType: 'salary', primaryIncome: '1275000.00', otherOrdinaryIncome: '0', residency: 'resident', specialRateIncome: 'no', confirmedOrdinaryOnly: true } },
-  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30 }, expectedStatus: 200 },
-  { operation: 'POST /api/tax/compute', method: 'POST', path: '/api/tax/compute', url: '/api/tax/compute', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30, regime: 'new' }, expectedStatus: 200 },
+  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30 }, expectedStatus: 410 },
+  { operation: 'POST /api/tax/compute', method: 'POST', path: '/api/tax/compute', url: '/api/tax/compute', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30, regime: 'new' }, expectedStatus: 410 },
   { operation: 'GET /api/tax/policies', method: 'GET', path: '/api/tax/policies', url: '/api/tax/policies', expectedStatus: 200 },
   { operation: 'POST /api/tax/post-tax-scenario', method: 'POST', path: '/api/tax/post-tax-scenario', url: '/api/tax/post-tax-scenario', expectedStatus: 200, body: { canonicalInstrumentId: 'sbi_fd', scenarioType: 'INTEREST_INCOME', interestReceived: 2500, annualGrossIncome: 1000000, incomeSource: 'salary', regime: 'new', fiscalYear: 'FY2026-27', userAge: 35 } },
   { operation: 'GET /api/instruments', method: 'GET', path: '/api/instruments', url: '/api/instruments?page=1&limit=10', expectedStatus: 200 },
@@ -326,8 +326,8 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'POST /api/portfolio/rebalance', method: 'POST', path: '/api/portfolio/rebalance', url: '/api/portfolio/rebalance', expectedStatus: 200, body: { profileId: '65b000000000000000000002', current_allocation: { FD: 50, Debt_MF: 50 }, target_allocation: { FD: 50, Debt_MF: 50 }, threshold: 5, partial_ratio: 0.5, holding_months: 12 } },
   { operation: 'POST /api/montecarlo/montecarlo', method: 'POST', path: '/api/montecarlo/montecarlo', url: '/api/montecarlo/montecarlo', expectedStatus: 422, body: { profileId: '65b000000000000000000002', instrument: 'FD', monthly_investment: 5000, years: 2 } },
   { operation: 'POST /api/montecarlo/portfolio', method: 'POST', path: '/api/montecarlo/portfolio', url: '/api/montecarlo/portfolio', expectedStatus: 422, body: { profileId: '65b000000000000000000002', allocations: { FD: 1 }, years: 2 } },
-  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 'bad', incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30 }, expectedStatus: 400 },
-  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2099-00', age: 30 }, expectedStatus: 422 },
+  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 'bad', incomeSource: 'salary', fiscalYear: 'FY2026-27', age: 30 }, expectedStatus: 410 },
+  { operation: 'POST /api/tax/compare', method: 'POST', path: '/api/tax/compare', url: '/api/tax/compare', body: { income: 1200000, incomeSource: 'salary', fiscalYear: 'FY2099-00', age: 30 }, expectedStatus: 410 },
   { operation: 'GET /api/chat/history', method: 'GET', path: '/api/chat/history', url: '/api/chat/history', expectedStatus: 401 },
   { operation: 'GET /api/instruments', method: 'GET', path: '/api/instruments', url: '/api/instruments?notAFilter=x', expectedStatus: 400 },
   { operation: 'GET /api/recommend/audit', method: 'GET', path: '/api/recommend/audit', url: '/api/recommend/audit?profileId=garbage', expectedStatus: 400, authenticated: true },
@@ -846,7 +846,7 @@ test('tax OpenAPI mirrors Joi conditional age requirements and compare compatibi
   const validateCompute = validateSchema('TaxComputeRequest');
   assert.equal(validateCompute({ ...taxInputs, regime: 'new' }), true);
   assert.equal(validateCompute({ ...taxInputs, regime: 'old' }), false);
-  assert.equal(validateCompute({ ...taxInputs, regime: 'old', age: 45 }), true);
+  assert.equal(validateCompute({ ...taxInputs, regime: 'old', age: 45 }), false, 'retired old regime must not validate for new requests');
   assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D: 1 }), false);
   assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D: 1, age: 45 }), true);
   assert.equal(validateCompute({ ...taxInputs, regime: 'new', section80D_self: 1 }), false);

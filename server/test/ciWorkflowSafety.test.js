@@ -127,14 +127,14 @@ test('standalone Mongo partition owns and stops a disposable 7.0.5 loopback _tes
   assert.match(testPartitionSource, /expectedStandalone\) !== JSON\.stringify\(standaloneMongoTests\)/);
 });
 
-test('deployment smoke checks the tax comparison using the privacy-safe POST contract', () => {
+test('deployment smoke checks the verified new-only tax calculator using POST', () => {
   const taxSmoke = cdWorkflow.jobs['deploy-and-verify-kind'].steps.find(step =>
-    step.run?.includes('Testing Business Endpoint /api/tax/compare'));
+    step.run?.includes('Testing Verified New-Regime Endpoint /api/tax/new-regime-verified'));
   assert.ok(taxSmoke, 'Expected the deployment tax API smoke check');
   assert.match(taxSmoke.run, /--request POST/);
   assert.match(taxSmoke.run, /--header 'Content-Type: application\/json'/);
   assert.match(taxSmoke.run, /--data "\$TAX_BODY"/);
-  assert.doesNotMatch(taxSmoke.run, /\/api\/tax\/compare\?income=/);
+  assert.doesNotMatch(taxSmoke.run, /\/api\/tax\/new-regime-verified\?income=/);
 });
 
 test('deployment load probe runs lockfile-installed autocannon from the server workspace', () => {
