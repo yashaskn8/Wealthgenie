@@ -4,7 +4,7 @@
  * Neither MFapi nor mfnav grants upstream AMFI production redistribution rights.
  */
 const BASE='https://api.mfapi.in';
-const MAX_RESPONSE_BYTES=90000;
+const MAX_RESPONSE_BYTES=250000;
 const MIN_DATE='2000-01-01';
 function unknown(code) {
  return {status:'NOT_VERIFIED',reasonCode:code,provider:'MFapi.in',
@@ -70,6 +70,56 @@ async function getBoundedJson(url,{fetchImpl=globalThis.fetch}={}){
  }
  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
+/**
+ * Fallback history if the primary free NAV mirror is offline. It is NOT an
+ * authoritative financial-market provider or a substitute for source rights.
+ * Only one year of recent scheme-level history is requested to avoid a bulk
+ * AMFI extraction. Parsed with the same strict NAV risk normalizer.
+ */
+export async function getMfapiHistoryResearch(schemeCode,options={}){
+ if(typeof schemeCode!=='string'||!/^[1-9]\\d{4,6}$/.test(schemeCode))
+  throw new RangeError('INVALID_FUND_SCHEME_CODE');
+ const now=options.now instanceof Date?options.now:new Date();
+ if(!Number.isFinite(+now))return unknown('INVALID_AS_OF_DATE');
+ const end=now.toISOString().slice(0,10);
+ const start=new Date(+now-400*86400000).toISOString().slice(0,10);
+ let raw;
+ try{
+  raw=await getBoundedJson(BASE+'/mf/'+schemeCode+
+   '?startDate='+start+'&endDate='+end,options);
+ }catch{return unknown('MFAPI_HISTORY_SOURCE_UNAVAILABLE');}
+ if(raw?.status!=='SUCCESS'||!raw.meta||!Array.isArray(raw.data)
+  ||raw.data.length>600||String(raw.meta.scheme_code)!==schemeCode)
+  return unknown('MFAPI_HISTORY_IDENTITY_OR_SCHEMA_INVALID');
+ const history=[];
+ for(const item of raw.data){
+  const date=utcIsoFromIndianDate(item?.date);
+  const nav=positiveNav(item?.nav);
+  if(!date||nav===null)return unknown('MFAPI_HISTORY_DATE_OR_VALUE_INVALID');
+  history.push({nav_date:date,nav});
+ }
+ // A second upstream transport does not make an AMFI-derived NAV publication
+ // independent. Retain this provenance in the response and never persist.
+ const {normalizeFreeNavHistory}=await import('./freeMutualFundNav.js');
+ const normalized=normalizeFreeNavHistory({
+  fund_details:{
+   scheme_code:raw.meta.scheme_code,scheme_name:raw.meta.scheme_name,
+   fund_house:raw.meta.fund_house,
+   isin:raw.meta.isin_growth||raw.meta.isin_div_reinvestment||null,
+   category:raw.meta.scheme_category||null,
+  },data:history,
+ },schemeCode,{now});
+ if(normalized.status!=='AVAILABLE')return unknown(
+  normalized.reasonCode||'MFAPI_HISTORY_NOT_QUALIFIED');
+ return {...normalized,dataClass:'RESEARCH_ONLY_MFAPI_AMFI_DERIVED_NAV',
+  source:{provider:'MFapi.in',url:BASE+'/mf/'+schemeCode,
+   termsUrl:'https://www.mfapi.in/docs/'},
+  sourceRightsStatus:'RESEARCH_ONLY_UPSTREAM_AMFI_RIGHTS_NOT_QUALIFIED',
+  primarySourceUnavailable:true,
+  productionInvestmentQualification:false,
+ };
+}
+
 export async function getMfapiLatest(schemeCode,options={}){
  if(typeof schemeCode!=='string'||!/^[1-9]\d{4,6}$/.test(schemeCode))
   throw new RangeError('INVALID_FUND_SCHEME_CODE');
