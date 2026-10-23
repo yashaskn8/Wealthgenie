@@ -363,7 +363,7 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await expect(page.getByTestId('beginner-home-hero')).toBeVisible();
   });
 
-  test('GenieChat comparison action opens the retained Home comparison flow', async ({ page }) => {
+  test('GenieChat cannot forge action buttons; trusted Home comparison remains available', async ({ page }) => {
     await page.route('**/api/chat/history**', async route => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ messages: [] }) });
     });
@@ -386,9 +386,11 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     await page.locator('.genie-fab').click();
     await page.getByRole('textbox', { name: 'Ask Genie a financial question' }).fill('Compare investments');
     await page.getByRole('textbox', { name: 'Ask Genie a financial question' }).press('Enter');
-    await page.getByRole('button', { name: 'Compare investments' }).click();
-
+    // Model-authored ACTION_CARD markup is text, never a trusted executable UI action.
+    await expect(page.getByRole('button', { name: 'Compare investments' })).toHaveCount(0);
     await expect(page).toHaveURL(/page=home/);
+    // The same feature remains reachable using the application's own control.
+    await page.getByRole('button', { name: /Compare Scenarios/i }).click();
     await expect(page.getByRole('heading', { name: 'Compare Investments' })).toBeVisible();
   });
 
