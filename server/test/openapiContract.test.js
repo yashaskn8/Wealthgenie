@@ -167,6 +167,7 @@ const publicMounts = [
   ['projection.js', '/api/projection'],
   ['montecarlo.js', '/api/montecarlo'],
   ['goals.js', '/api/goals'],
+  ['coverage.js', '/api/coverage'],
   ['market.js', '/api/market'],
   ['marketQuotes.js', '/api/market-data'],
   ['marketDataAdmin.js', '/api/market-data'],
