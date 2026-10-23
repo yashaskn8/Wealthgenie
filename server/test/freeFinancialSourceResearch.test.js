@@ -32,6 +32,19 @@ test('keyless search preserves unique exact scheme identities and does not infer
  assert.equal(out.postTaxAvailable,false);
  assert.equal(out.productionInvestmentQualification,false);
 });
+test('blank or trivial provider fund identities can never qualify market risk',()=>{
+ for(const patch of [
+  {scheme_name:'  '},{fund_house:' \t '},
+  {scheme_name:'X'},{fund_house:'Y'},
+ ]){
+  const raw=observedNav();
+  raw.fund_details={...raw.fund_details,...patch};
+  assert.equal(normalizeFreeNavHistory(raw,'100641',{now}).status,'UNAVAILABLE',
+    JSON.stringify(patch));
+  const search=normalizeFreeFundSearch({results:[raw.fund_details]});
+  assert.deepEqual(search.results,[]);
+ }
+});
 test('no-key NAV history calculates observed risk without using historical returns as forecasts',()=>{
  const out=normalizeFreeNavHistory(observedNav(),'100641',{now});
  assert.equal(out.status,'AVAILABLE',out.reasonCode);
