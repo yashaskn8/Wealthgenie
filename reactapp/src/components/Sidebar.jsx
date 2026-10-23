@@ -7,6 +7,7 @@ import {
   TrendingUp,
   ArrowLeftRight,
   FileSearch,
+  Wallet,
   User,
   BookOpen,
   LogOut,
@@ -26,6 +27,7 @@ const PRIMARY_NAV_ITEMS = [
   { id: NAV_PAGES.INVESTMENTS, label: 'Where to Invest', icon: Target, testId: 'nav-investments', legacyTestIds: ['nav-where-to-invest'] },
   { id: NAV_PAGES.TAXES, label: 'Taxes', icon: ShieldCheck, testId: 'nav-taxes', legacyTestIds: ['nav-tax-optimizer', 'nav-post-tax'] },
   { id: NAV_PAGES.PROGRESS, label: 'Progress', icon: TrendingUp, testId: 'nav-progress', legacyTestIds: [] },
+  { id: NAV_PAGES.CASH_CHECK, label: '90-day Cash Check', icon: Wallet, testId: 'nav-cash-check', legacyTestIds: [] },
 ];
 
 const DESKTOP_PRIMARY_NAV_ITEMS = PRIMARY_NAV_ITEMS.filter(item => item.id !== NAV_PAGES.PROGRESS);
