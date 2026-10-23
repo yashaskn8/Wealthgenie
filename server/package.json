@@ -47,7 +47,8 @@
     "finance:top3:audit": "node scripts/auditFinancialTopThreeCoverage.js",
     "finance:top3:qualify": "node scripts/qualifyFinancialFamily.js",
     "finance:top3:review-queue": "node scripts/generateFinancialTopThreeEvidenceQueue.js",
-    "goals:migrate-budget-indexes": "node scripts/migrateGoalBudgetIndexes.js"
+    "goals:migrate-budget-indexes": "node scripts/migrateGoalBudgetIndexes.js",
+    "runway:migrate-indexes": "node scripts/migrateRunwayIndexes.js"
   },
   "dependencies": {
     "@a2a-js/sdk": "1.2.0",

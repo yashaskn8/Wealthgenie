@@ -85,6 +85,18 @@ function rethrowTransaction(error) {
   }
   throw error;
 }
+async function requireRunwayIndexes() {
+  try {
+    const indexes = await RunwayLedgerRevision.collection.indexes();
+    if (!indexes.some(index => index.name === 'uniq_runway_ledger_revision'
+      && index.unique === true && index.key?.userId === 1 && index.key?.revision === 1)) {
+      throw new Error('RUNWAY_REVISION_INDEX_MISSING');
+    }
+  } catch {
+    throw failure(503, 'RUNWAY_INDEXES_UNAVAILABLE',
+      'Runway writes are unavailable until the explicit Mongo index migration is verified.');
+  }
+}
 function serializeLedger(found) {
   return { revision: found.state.revision, ledger: found.revision.ledger, inputHash: found.revision.inputHash,
     confirmedAt: found.revision.confirmedAt };
@@ -101,6 +113,7 @@ router.get('/current', asyncHandler(async (req, res) => {
 
 router.put('/ledger', asyncHandler(async (req, res) => {
   const userId = owner(req);
+  await requireRunwayIndexes();
   const key = idempotency(req);
   const expected = matchRevision(req);
   validateLedger(req.body);
@@ -152,6 +165,7 @@ router.post('/simulations', asyncHandler(async (req, res) => {
 
 router.post('/snapshots', asyncHandler(async (req, res) => {
   const userId = owner(req);
+  await requireRunwayIndexes();
   const key = idempotency(req);
   assertShape(req.body, ['ledgerRevision', 'horizonDays', 'scenarios']);
   const snapshotId = canonicalSha256({ operation: 'SNAPSHOT', userId: String(userId), key });

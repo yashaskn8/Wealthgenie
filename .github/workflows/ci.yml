@@ -56,6 +56,11 @@ jobs:
           MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
         run: npm run goals:migrate-budget-indexes --prefix server
 
+      - name: Migrate Household Runway indexes
+        env:
+          MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
+        run: npm run runway:migrate-indexes --prefix server
+
       - name: Run Backend ESLint Check
         run: |
           cd server
