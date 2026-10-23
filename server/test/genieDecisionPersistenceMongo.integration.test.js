@@ -596,3 +596,66 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
     assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 0);
   });
 });
+
+test('monitor reassesses signed outdated policy and revised user-approved scenario without invented source updates', async () => {
+  await withServer(app(), async base => {
+    const input = { ...scenarioInput(), expectedProfileStateRevision: 2,
+      title: 'Policy and scenario drift monitor' };
+    const creation = await call(base, userOne, '/scenarios', 'POST',
+      input, 'decision-policy-monitor-create-0001');
+    assert.equal(creation.response.status, 201, JSON.stringify(creation.body));
+    const id = creation.body.scenario.id;
+    const evaluated = await call(base, userOne, `/scenarios/${id}/evaluate`, 'POST',
+      { expectedRevision: 1 }, 'decision-policy-monitor-evaluate-0001');
+    assert.equal(evaluated.response.status, 201, JSON.stringify(evaluated.body));
+    const report = await DecisionRun.findById(evaluated.body.run.id).lean();
+    const oldResult = { ...report.result, modelVersion: 'geniedecision-ledger-0.0.1' };
+    const resultHash = crypto.createHash('sha256')
+      .update(JSON.stringify(oldResult)).digest('hex');
+    // Model a legitimate earlier release: the historical report stays
+    // cryptographically authentic but no longer uses the deployed policy.
+    const receipt = signDecisionReceipt('decision_run', {
+      userId: String(report.userId), scenarioId: String(report.scenarioId),
+      revision: report.revision, profileId: String(report.profileId),
+      profileFactsHash: report.profileFactsHash, inputHash: report.inputHash,
+      runKeyHash: report.runKeyHash,
+      profileStateRevision: report.profileStateRevision, profileVersion: report.profileVersion,
+      profileFinancialFence: report.profileFinancialFence, issuedAt: report.issuedAt,
+    }, { resultHash });
+    await DecisionRun.collection.updateOne({ _id: report._id },
+      { $set: { result: oldResult, resultHash, ...receipt } });
+    const enabled = await call(base, userOne, `/scenarios/${id}/monitor`, 'PUT',
+      { enabled: true, expectedRevision: 1 });
+    assert.equal(enabled.response.status, 200, JSON.stringify(enabled.body));
+    const policy = await scanDecisionMonitors();
+    assert.equal(policy.created, 1, JSON.stringify(policy));
+    const monitorPath = `/scenarios/${id}/monitor`;
+    const beforeRevision = await call(base, userOne, monitorPath);
+    assert.equal(beforeRevision.response.status, 200, JSON.stringify(beforeRevision.body));
+    assert.equal(beforeRevision.body.assessments[0].reasonCode, 'CALCULATION_POLICY_CHANGED');
+    assert.equal(beforeRevision.body.assessments[0].originalStatus, 'RECALCULATED');
+    assert.equal(beforeRevision.body.assessments[0].result.alternatives.length, 2);
+    const duplicate = await scanDecisionMonitors();
+    assert.equal(duplicate.created, 0);
+    assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 1);
+
+    const edited = await call(base, userOne, `/scenarios/${id}`, 'PATCH', {
+      expectedRevision: 1, title: 'Revised decision assumptions',
+      baseline: input.baseline, horizonMonths: input.horizonMonths,
+      goalReservations: input.goalReservations, details: input.details,
+    });
+    assert.equal(edited.response.status, 200, JSON.stringify(edited.body));
+    assert.equal(edited.body.scenario.revision, 2);
+    const revisionRecheck = await scanDecisionMonitors();
+    assert.equal(revisionRecheck.created, 1, JSON.stringify(revisionRecheck));
+    const afterRevision = await call(base, userOne, monitorPath);
+    assert.equal(afterRevision.response.status, 200);
+    assert.equal(afterRevision.body.assessments[0].reasonCode, 'SCENARIO_REVISION_CHANGED');
+    assert.equal(afterRevision.body.assessments[0].scenarioRevision, 2);
+    assert.equal(afterRevision.body.assessments[1].status, 'HISTORICAL');
+    assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 2);
+    const removed = await call(base, userOne, `/scenarios/${id}`, 'DELETE',
+      { expectedRevision: 2 });
+    assert.equal(removed.response.status, 200);
+  });
+});
