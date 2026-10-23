@@ -13,6 +13,7 @@ import profileRoutes from '../routes/profile.js';
 import taxRoutes from '../routes/tax.js';
 import instrumentRoutes from '../routes/instruments.js';
 import financialUniverseRoutes from '../routes/financialUniverse.js';
+import freeFinancialSourcesRoutes from '../routes/freeFinancialSources.js';
 import chatRoutes from '../routes/chatRoutes.js';
 import recommendRoutes from '../routes/recommend.js';
 import goalsRoutes from '../routes/goals.js';
@@ -162,6 +163,7 @@ const publicMounts = [
   ['genieProofRoutes.js', '/api/genieproof'],
   ['instruments.js', '/api/instruments'],
   ['financialUniverse.js', '/api/financial-universe'],
+  ['freeFinancialSources.js', '/api/free-financial-sources'],
   ['projection.js', '/api/projection'],
   ['montecarlo.js', '/api/montecarlo'],
   ['goals.js', '/api/goals'],
@@ -279,6 +281,7 @@ function buildContractTestApp() {
   app.use('/api/tax', taxRoutes);
   app.use('/api/instruments', instrumentRoutes);
   app.use('/api/financial-universe', financialUniverseRoutes);
+  app.use('/api/free-financial-sources', freeFinancialSourcesRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/recommend', recommendRoutes);
   app.use('/api/market', marketRoutes);
