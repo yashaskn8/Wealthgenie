@@ -80,6 +80,8 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     const payload = scenarioInput();
     const creation = await call(base, userOne, '/scenarios', 'POST', payload, 'decision-create-0001');
     assert.equal(creation.response.status, 201, JSON.stringify(creation.body));
+    assert.equal(creation.response.headers.get('cache-control'), 'private, no-store, max-age=0');
+    assert.equal(creation.response.headers.get('pragma'), 'no-cache');
     const id = creation.body.scenario.id;
     assert.equal(creation.body.scenario.revision, 1);
 
@@ -95,6 +97,7 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
 
     const forbidden = await call(base, userTwo, `/scenarios/${id}`);
     assert.equal(forbidden.response.status, 404);
+    assert.equal(forbidden.response.headers.get('cache-control'), 'private, no-store, max-age=0');
 
     // A database-side mutation which forgets to advance the financial state
     // revision must still make the pinned scenario unusable for new writes.
