@@ -349,3 +349,26 @@ test('paisa safety ceiling rejects huge otherwise-finite projected corpus', () =
     }), /SIP_PLAN_LIMIT_EXCEEDED/);
   }
 });
+
+test('screenshot-scale corpus is reproducible from explicitly declared inputs, not random market numbers', () => {
+  const outcome = buildSipPlan({
+    monthlyInvestment: 11998,
+    annualReturnRate: 0.08,
+    returnRateConvention: 'EFFECTIVE_ANNUAL_CAGR',
+    annualStepUpRate: 0.10,
+    years: 20,
+    inflationRate: 0.06,
+    downsideAnnualReturnRate: 0,
+  });
+  assert.equal(outcome.flatInvested, 2879520);
+  assert.equal(outcome.stepUpInvested, 8246225.4);
+  assert.equal(outcome.flatFinal, 6870775);
+  assert.equal(outcome.stepUpFinal, 15513703);
+  assert.equal(outcome.additionalCorpus, 8642928);
+  assert.equal(outcome.additionalContributions, 5366705.4);
+  assert.equal(outcome.additionalProjectedGrowth, 3276222.6);
+  assert.equal(outcome.finalMonthlySip, 73378.68);
+  assert.equal(outcome.affordability.status, 'NOT_ASSESSED');
+  assert.equal(outcome.emergency_buffer.status, 'NOT_ASSESSED');
+  assert.ok(outcome.warnings.includes('ASSUMED_RETURNS_NOT_GUARANTEED'));
+});

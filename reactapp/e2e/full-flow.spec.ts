@@ -309,6 +309,8 @@ test.describe('real WealthGenie dependency lifecycle', () => {
       }
     }, { timeout: 30000 });
     await page.getByLabel('Monthly EMI / debt payments (₹; enter 0 if none)').fill('0');
+    await expect(page.getByRole('button', { name: 'Calculate SIP projection' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Calculate SIP projection' }).click();
     const sipResponse = await sipPromise;
     expect(sipResponse.status()).toBe(200);
     const sipResult = await sipResponse.json();

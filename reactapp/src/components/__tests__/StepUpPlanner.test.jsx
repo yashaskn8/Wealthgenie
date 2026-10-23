@@ -139,8 +139,9 @@ it('labels the step-up difference as extra projected corpus, not investment gain
   vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse());
 
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
-
-  expect(screen.getByText('Extra projected corpus (nearest ₹1)')).toBeInTheDocument();
+  expect(screen.queryByText('Extra projected corpus (nearest ₹1)')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
+  expect(await screen.findByText('Extra projected corpus (nearest ₹1)')).toBeInTheDocument();
   expect(screen.queryByText('Extra Wealth Gained')).not.toBeInTheDocument();
 });
 
@@ -157,15 +158,20 @@ it('hides a prior projection when inputs change and ignores late results from ol
   const middle = sipResponse({}, { monthlyInvestment: 2000 });
   const after = sipResponse({}, { monthlyInvestment: 2000, annualStepUpRate: 0.15 });
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  expect(calculate).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(1));
   await act(async () => initial.resolve(before));
   expect(await screen.findByText(formattedINR(before.stepUpFinal))).toBeInTheDocument();
 
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Starting monthly SIP amount (INR)' }), { target: { value: '2000' } });
   expect(screen.queryByText(formattedINR(before.stepUpFinal))).not.toBeInTheDocument();
+  expect(calculate).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(2));
 
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Annual SIP increase percentage' }), { target: { value: '15' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(3));
   await act(async () => latest.resolve(after));
   expect(await screen.findByText(formattedINR(after.stepUpFinal))).toBeInTheDocument();
@@ -201,6 +207,7 @@ it('sends explicit affordability inputs and zero EMI without provider keys or ma
   fireEvent.change(screen.getByLabelText('Monthly living expenses excluding EMI (₹)'), { target: { value: '18000' } });
   fireEvent.change(screen.getByLabelText('Monthly EMI / debt payments (₹; enter 0 if none)'), { target: { value: '3000' } });
   fireEvent.change(screen.getByLabelText('Liquid emergency savings (₹)'), { target: { value: '200000' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   await waitFor(() => {
     const last = calculate.mock.lastCall;
     expect(last).toBeDefined();
@@ -223,6 +230,7 @@ it('sends explicit affordability inputs and zero EMI without provider keys or ma
 it('shows a safe backend failure rather than inventing numerical results', async () => {
   vi.spyOn(api, 'calculateStepUpProjection').mockRejectedValue(new Error('Backend is temporarily unavailable'));
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   expect(await screen.findByText('Backend is temporarily unavailable')).toBeInTheDocument();
   expect(screen.queryByText('Calculating with your inputs…')).not.toBeInTheDocument();
   expect(screen.getByText(/No amounts are shown until a verified calculation succeeds/)).toBeInTheDocument();
@@ -242,6 +250,7 @@ it('renders exact rupee and paise deposits without abbreviating the values', asy
   const actual = sipResponse({}, { monthlyInvestment: 1000.37, years: 1 });
   vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(actual);
   render(<StepUpPlanner profile={{ monthly_savings: 1000.37, investment_horizon_years: 1 }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   expect((await screen.findAllByText(formattedINR(actual.flatFinal))).length).toBe(2);
   expect(screen.getAllByText(/₹12,004\.44/).length).toBeGreaterThan(0);
   expect(screen.queryByText('₹12.3 Cr')).not.toBeInTheDocument();
@@ -260,6 +269,7 @@ it('rejects a nominal-APR or legacy response instead of displaying it as CAGR', 
     sipResponse({ monthly_rate_convention: 'NOMINAL_APR_DIVIDED_BY_12' }),
   );
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   expect(await screen.findByText(/invalid or incompatible financial projection/)).toBeInTheDocument();
   expect(screen.queryByText('₹90,000')).not.toBeInTheDocument();
   expect(calculate).toHaveBeenCalled();
@@ -270,6 +280,7 @@ it('rejects malformed affordability data and refuses to show a false affordable 
     sipResponse({ affordability: { status: 'UNKNOWN' } }),
   );
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   expect(await screen.findByText(/invalid or incompatible financial projection/)).toBeInTheDocument();
   expect(screen.queryByText(/Every planned instalment fits/)).not.toBeInTheDocument();
 });
@@ -297,10 +308,67 @@ it('recovers from an aborted in-flight request using the visible retry action', 
     .mockRejectedValueOnce(rejected)
     .mockResolvedValueOnce(sipResponse());
   render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
   expect(await screen.findByText(/projection request was interrupted/)).toBeInTheDocument();
   expect(screen.queryByText(/Every planned instalment fits/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Retry projection' }));
   await waitFor(() => expect(calculate).toHaveBeenCalledTimes(2));
   expect(await screen.findAllByText(formattedINR(sipResponse().stepUpFinal))).not.toHaveLength(0);
   expect(screen.queryByText(/projection request was interrupted/)).not.toBeInTheDocument();
+});
+
+it('does not make an investment forecast or display random looking rupee amounts on initial profile load', async () => {
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse());
+  render(<StepUpPlanner profile={{ monthly_savings: 11998, investment_horizon_years: 20 }} />);
+  expect(screen.getByText(/No projection calculated yet/)).toBeInTheDocument();
+  expect(screen.getByText(/₹11,998 per month, increasing 10% each year for 20 years/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Calculate SIP projection' })).toBeEnabled();
+  expect(screen.queryByText('Projected step-up corpus (nearest ₹1)')).not.toBeInTheDocument();
+  await new Promise(resolve => setTimeout(resolve, 350));
+  expect(calculate).not.toHaveBeenCalled();
+});
+
+it('does not invent a starting SIP or horizon when financial profile is missing', async () => {
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse());
+  render(<StepUpPlanner profile={{}} />);
+  expect(screen.getByRole('button', { name: 'Calculate SIP projection' })).toBeDisabled();
+  expect(screen.getByRole('spinbutton', { name: 'Starting monthly SIP amount (INR)' })).toHaveValue(null);
+  expect(screen.getByRole('spinbutton', { name: 'Investment horizon in years' })).toHaveValue(null);
+  await new Promise(resolve => setTimeout(resolve, 300));
+  expect(calculate).not.toHaveBeenCalled();
+});
+
+it('makes clear that an omitted EMI means budget unassessed, even when a user explicitly calculates', async () => {
+  const response = sipResponse();
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(response);
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  expect(screen.getByText(/Budget NOT ASSESSED/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
+  expect(await screen.findByText(/Not assessed — provide take-home income/)).toBeInTheDocument();
+  expect(screen.getByText(/in extra deposits/)).toBeInTheDocument();
+  expect(calculate).toHaveBeenCalledTimes(1);
+});
+
+it('requires another explicit calculation after editing a previously calculated assumption', async () => {
+  const actual = sipResponse();
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(actual);
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
+  expect(await screen.findByText('Projected step-up corpus (nearest ₹1)')).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Investment horizon in years' }), { target: { value: '7' } });
+  expect(screen.queryByText('Projected step-up corpus (nearest ₹1)')).not.toBeInTheDocument();
+  expect(screen.getByText(/Inputs changed. The previous projection is hidden/)).toBeInTheDocument();
+  await new Promise(resolve => setTimeout(resolve, 350));
+  expect(calculate).toHaveBeenCalledTimes(1);
+});
+
+it('does not leave old results visible when a user replaces valid inputs with invalid ones', async () => {
+  const calculate = vi.spyOn(api, 'calculateStepUpProjection').mockResolvedValue(sipResponse());
+  render(<StepUpPlanner profile={{ monthly_savings: 1000, investment_horizon_years: 5 }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Calculate SIP projection' }));
+  expect(await screen.findByText('Projected step-up corpus (nearest ₹1)')).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Assumed annualised return CAGR percentage' }), { target: { value: '' } });
+  expect(screen.getByRole('button', { name: 'Calculate SIP projection' })).toBeDisabled();
+  expect(screen.queryByText('Projected step-up corpus (nearest ₹1)')).not.toBeInTheDocument();
+  expect(calculate).toHaveBeenCalledTimes(1);
 });
