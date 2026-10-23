@@ -124,6 +124,22 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
     // Grow My SIP issues this request when its tab mounts. Retain the
     // unexpected-API guard for every other endpoint.
     await mockUnavailableSimulation(page, 'projection/step-up');
+    // Goals now fetches scoped monthly budgets and the shared funding envelope.
+    // The navigation-only fixture intentionally has no qualified financial
+    // evidence. Never invent zero budgets or funded goals. Preserve the strict
+    // unexpected-API guard for every other endpoint.
+    for (const endpoint of ['budget', 'funding']) {
+      await page.route('**/api/goals/finance/' + endpoint + '/*', async route => {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'TEST_MONTHLY_GOAL_FINANCE_UNAVAILABLE',
+            message: 'No verified month-specific financial data in navigation fixture.',
+          }),
+        });
+      });
+    }
     // 0. Disable onboarding modal so it does not intercept clicks
     await page.addInitScript(() => {
       try {

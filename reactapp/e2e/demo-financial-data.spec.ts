@@ -538,7 +538,8 @@ test('real backend financial facts match the dashboard, qualified products, and 
     await expect(panel).toBeVisible();
     await panel.getByLabel('Gross annual income before allowed deductions', { exact: true }).fill('1800000');
     await panel.getByLabel('Income source', { exact: true }).selectOption('salary');
-    await panel.getByLabel('Tax regime', { exact: true }).selectOption('new');
+    await expect(panel.getByRole('status', { name: 'Tax regime' })).toHaveText('New regime only');
+    await expect(panel.getByRole('option', { name: 'Old regime' })).toHaveCount(0);
     await panel.getByLabel('Fiscal year', { exact: true }).selectOption('FY2026-27');
     // Tax calculations require an explicit age for the selected fiscal year;
     // the saved profile age is intentionally not substituted by the UI.
