@@ -17,6 +17,7 @@ import {
 } from '../services/coverageEngine.js';
 
 const router = Router();
+const MAX_SAVED_REVISIONS = 256;
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
 router.use(noStore);
 
@@ -137,6 +138,13 @@ router.put(
       await session.withTransaction(async () => {
         const current = await CoverageLedger.findOne({ userId }).session(session).lean();
         if (current ? current.revision !== expectedRevision : expectedRevision !== 0) throw conflict();
+        const storedCount = await CoverageResult.countDocuments({ userId }).session(session);
+        if (storedCount >= MAX_SAVED_REVISIONS) {
+          throw createError(409,
+            'The saved history limit is reached; export and delete the old cash plan before creating a new one.',
+            'Saved cash history has reached its 256-revision limit.',
+            { code: 'COVERAGE_HISTORY_LIMIT_REACHED' });
+        }
         const revision = expectedRevision + 1;
         if (current) {
           const mutation = await CoverageLedger.updateOne(
@@ -201,6 +209,34 @@ router.post('/scenarios/preview', verifyJWT, asyncHandler(async (req, res) => {
   });
   if (!stillCurrent) throw conflict();
   return res.json({ revision: body.revision, hypothetical: true, result });
+}));
+
+// Privacy export: bounded, cursor-paginated owned data, never an unbounded query.
+router.get('/export', verifyJWT, asyncHandler(async (req, res) => {
+  if (Object.keys(req.query).some(key => !['afterRevision', 'limit'].includes(key))) {
+    throw createError(400, 'Unknown export parameters.', 'Invalid export parameters.', { code: 'COVERAGE_EXPORT_INVALID' });
+  }
+  const rawAfter = req.query.afterRevision ?? '0';
+  const rawLimit = req.query.limit ?? '20';
+  if (typeof rawAfter !== 'string' || !/^(0|[1-9]\\d{0,12})$/.test(rawAfter)
+      || typeof rawLimit !== 'string' || !/^[1-9]\\d?$|^20$/.test(rawLimit)) {
+    throw createError(400, 'Invalid export cursor or limit.', 'Invalid export request.', { code: 'COVERAGE_EXPORT_INVALID' });
+  }
+  const afterRevision = Number(rawAfter);
+  const limit = Number(rawLimit);
+  if (!Number.isSafeInteger(afterRevision) || !Number.isSafeInteger(limit) || limit > 20) {
+    throw createError(400, 'Invalid export cursor or limit.', 'Invalid export request.', { code: 'COVERAGE_EXPORT_INVALID' });
+  }
+  const owner = req.user.userId;
+  const snapshots = await CoverageResult.find({
+    userId: owner, ledgerRevision: { $gt: afterRevision }, policyVersion: COVERAGE_POLICY_VERSION,
+  }).sort({ ledgerRevision: 1 }).limit(limit + 1).lean();
+  const page = snapshots.slice(0, limit);
+  return res.json({
+    records: page.map(row => ({ ...publicSnapshot(row), input: row.input })),
+    nextAfterRevision: snapshots.length > limit ? page[page.length - 1].ledgerRevision : null,
+    userDeclaredOnly: true,
+  });
 }));
 
 router.get('/revisions/:revision', verifyJWT, asyncHandler(async (req, res) => {

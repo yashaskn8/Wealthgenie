@@ -1199,9 +1199,14 @@ export function deleteCoverageLedger(revision, options = {}) {
   });
 }
 
+export function exportCoverageHistoryPage(afterRevision = 0, options = {}) {
+  if (!Number.isSafeInteger(afterRevision) || afterRevision < 0) throw new TypeError('Invalid coverage export cursor.');
+  return request('GET', '/coverage/export?limit=20&afterRevision=' + afterRevision, null, options);
+}
+
 // Default export for convenience
 const api = {
-  getCoverageLedger, saveCoverageLedger, previewCoverageScenario, getCoverageRevision, deleteCoverageLedger,
+  getCoverageLedger, saveCoverageLedger, previewCoverageScenario, getCoverageRevision, deleteCoverageLedger, exportCoverageHistoryPage,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,

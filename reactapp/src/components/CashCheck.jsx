@@ -135,12 +135,14 @@ export default function CashCheck() {
   const [stale, setStale] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [hasStoredLedger, setHasStoredLedger] = useState(false);
 
   useEffect(() => {
     let active = true;
     api.getCoverageLedger().then(response => {
       if (!active) return;
       if (response.ledger) setDraft(toDraft(response.ledger));
+      setHasStoredLedger(Boolean(response.ledger));
       setRevision(response.revision);
       setSaved(response.latestResult?.result || null);
       setStale(Boolean(response.requiresCashReconfirmation));
@@ -175,6 +177,7 @@ export default function CashCheck() {
       const response = await api.saveCoverageLedger(payload, revision);
       setRevision(response.revision);
       setSaved(response.result);
+      setHasStoredLedger(true);
       setDirty(false);
       setStale(draft.asOfDate !== INDIA_DATE());
       setNotice('Entries saved and recalculated. Revision ' + response.revision + '.');
@@ -194,6 +197,38 @@ export default function CashCheck() {
     } catch (err) { setError(err.message || 'Preview unavailable. Save and reload your entries first.'); }
     finally { setBusy(false); }
   };
+  const downloadSavedHistory = async () => {
+    if (busy || !hasStoredLedger) return;
+    setBusy(true); setError('');
+    try {
+      let afterRevision = 0;
+      const records = [];
+      let completed = false;
+      for (let pageNumber = 0; pageNumber < 16; pageNumber += 1) {
+        const page = await api.exportCoverageHistoryPage(afterRevision);
+        if (!Array.isArray(page.records)) throw new Error('Invalid export response.');
+        records.push(...page.records);
+        if (page.nextAfterRevision === null) { completed = true; break; }
+        if (!Number.isSafeInteger(page.nextAfterRevision)
+            || page.nextAfterRevision <= afterRevision) throw new Error('Non-advancing export cursor.');
+        afterRevision = page.nextAfterRevision;
+      }
+      if (!completed) throw new Error('Export page limit exceeded.');
+      const serialized = JSON.stringify({
+        format: 'wealthgenie-cash-history-v1',
+        provenance: 'USER_DECLARED_NOT_BANK_VERIFIED',
+        exportedAt: new Date().toISOString(), records,
+      }, null, 2);
+      const file = new Blob([serialized], { type: 'application/json' });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url; link.download = 'wealthgenie-cash-history.json';
+      document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice('Saved cash-history export prepared. Store the file securely; it contains private household data.');
+    } catch (error) { setError(error.message || 'History export failed.'); }
+    finally { setBusy(false); }
+  };
   const deleteSavedPlan = async () => {
     if (busy || !confirmDelete || revision < 1) return;
     setBusy(true); setError(''); setNotice('');
@@ -203,6 +238,7 @@ export default function CashCheck() {
       setRevision(response.nextRevision);
       setDraft(EMPTY());
       setSaved(null);
+      setHasStoredLedger(false);
       setPreview(null);
       setDirty(false);
       setStale(false);
@@ -286,7 +322,14 @@ export default function CashCheck() {
           <button type="button" disabled={busy} onClick={previewPause}>Preview excluding voluntary contributions</button>
           {preview && <ResultView data={preview} hypothetical />}
         </section>}
-      {revision > 0 && (
+      {hasStoredLedger && (
+        <section className="cash-check-panel" aria-label="Export saved cash history">
+          <h2>Download saved cash records</h2>
+          <p>The JSON export contains your saved cash entries and dated results (not unsaved edits). Store it privately.</p>
+          <button type="button" disabled={busy} onClick={downloadSavedHistory}>Download saved history</button>
+        </section>
+      )}
+      {hasStoredLedger && (
         <section className="cash-check-panel" aria-label="Delete cash records">
           <h2>Remove saved cash records</h2>
           <p>Delete all saved ledgers and results. This action cannot be undone. A minimal non-financial deletion receipt and operation hashes are retained to block unsafe replay.</p>

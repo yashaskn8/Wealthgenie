@@ -22,3 +22,7 @@ The sole authoritative calculation is arithmetic on bounded, self-declared finan
 ## Release gates
 
 Verify independent balance/date oracle, Mongo replica-set concurrency and transaction rollback, complete idempotency replay, cross-user isolation, cookie CSRF, mobile/browser usability, performance, retention/backup expiry, authorized data export/erasure, and the applicable Indian regulatory and privacy requirements. Do not claim a 95+ score, professional financial advice or production availability without external verification. Keep the launch flags off until all checks and legal/product review are complete.
+
+## Bounded history and private export
+
+At most 256 full saved coverage snapshots per owner are retained until intentional deletion. After the limit, a new save fails closed and users must download their history and explicitly delete/restart their plan; deletion does not reset the monotonic revision fence. GET /api/coverage/export supports owned JSON pages of at most 20 records with an afterRevision cursor. The workspace offers a full saved-history JSON download. This is a bounded storage policy, **not** a verified backup expiry or final jurisdiction-specific retention assessment.

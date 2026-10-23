@@ -116,6 +116,20 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(preview.status, 200);
     assert.equal(preview.body.result.status, 'NO_SHORTFALL_IN_ENTERED_PLAN');
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 2);
+    const exportFirst = await call(owner, 'GET', '/export?limit=1');
+    assert.equal(exportFirst.status, 200);
+    assert.equal(exportFirst.body.records.length, 1);
+    assert.equal(exportFirst.body.nextAfterRevision, 1);
+    assert.equal(exportFirst.body.records[0].revision, 1);
+    const exportSecond = await call(owner, 'GET', '/export?limit=1&afterRevision=1');
+    assert.equal(exportSecond.status, 200);
+    assert.equal(exportSecond.body.records.length, 1);
+    assert.equal(exportSecond.body.nextAfterRevision, null);
+    assert.equal(exportSecond.body.records[0].revision, 2);
+    const foreignExport = await call(other, 'GET', '/export');
+    assert.equal(foreignExport.status, 200);
+    assert.deepEqual(foreignExport.body.records, []);
+    assert.equal((await call(owner, 'GET', '/export?limit=21')).status, 400);
 
     const deletionKey = randomUUID();
     const deleted = await call(owner, 'DELETE', '/ledger', undefined, 2, deletionKey);
@@ -131,6 +145,7 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(deleted.body.nextRevision, 3);
     assert.equal(await CoverageLedger.countDocuments({ userId: owner }), 1);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 0);
+    assert.deepEqual((await call(owner, 'GET', '/export')).body.records, []);
     assert.equal(await CoverageDeletionReceipt.countDocuments({ userId: owner }), 1);
     assert.equal((await call(owner, 'GET', '/revisions/1')).status, 404);
     const deletedRead = await call(owner, 'GET', '/ledger');
