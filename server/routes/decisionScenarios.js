@@ -4,7 +4,7 @@ import { Router } from 'express';
 import { verifyJWT, isValidObjectId } from '../middleware/authMiddleware.js';
 import { asyncHandler, createError, sendError } from '../middleware/errorHandler.js';
 import { resolveCurrentFinancialProfile } from '../services/currentFinancialProfile.js';
-import { DecisionInputError, fromPaise } from '../services/genieDecision/ledger.js';
+import { DecisionInputError, fromPaise, DECISION_LEDGER_VERSION } from '../services/genieDecision/ledger.js';
 import { calculateDecision, DECISION_TYPES } from '../services/genieDecision/decisionEngine.js';
 import DecisionScenario from '../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
@@ -135,13 +135,32 @@ function reportDto(run, current, scenario = null) {
   }
   const staleProfile = !sameProfile(current, run);
   const staleScenario = !scenario || scenario.revision !== run.revision;
-  const historical = staleProfile || staleScenario;
+  const staleCalculationPolicy = run.result.modelVersion !== DECISION_LEDGER_VERSION;
+  // An out-of-band mutation of the financial source can otherwise bypass the
+  // application-level version contract. Compare the exact canonical facts
+  // captured in the immutable report, rather than trusting just revision IDs.
+  const sourceFacts = run.result.profileFacts;
+  const expected = [
+    ['openingLiquidCash', 'liquidSavings'],
+    ['monthlyTakeHome', 'monthlyTakeHome'],
+    ['declaredMonthlySavings', 'monthlySavings'],
+  ];
+  const staleInputs = !sourceFacts || expected.some(([key, field]) => {
+    try {
+      return sourceFacts[key] !== profileMoney(current?.profile?.[field], field);
+    } catch {
+      return true;
+    }
+  });
+  const historical = staleProfile || staleScenario || staleCalculationPolicy || staleInputs;
   return {
     id: identity(run._id), scenarioId: identity(run.scenarioId), scenarioRevision: run.revision,
     status: historical ? 'HISTORICAL' : run.result.status,
     reasonCodes: [
       ...(staleProfile ? ['DECISION_SOURCE_PROFILE_SUPERSEDED'] : []),
       ...(staleScenario ? ['DECISION_SCENARIO_REVISION_SUPERSEDED'] : []),
+      ...(staleCalculationPolicy ? ['DECISION_CALCULATION_POLICY_SUPERSEDED'] : []),
+      ...(staleInputs ? ['DECISION_CANONICAL_FACTS_CHANGED'] : []),
     ],
     asOf: run.createdAt, originalStatus: run.result.status, result: run.result,
   };
