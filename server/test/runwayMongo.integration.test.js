@@ -117,6 +117,15 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(projected.body.status, 'DONE');
       assert.equal(projected.body.revision, 1);
       assert.equal(projected.body.verified, 'SERVER_SEALED_DETERMINISTIC_SOURCE');
+      const projectionId = (await RunwayProjectionJob.findOne({ userId: userA, revision: 1 }).lean())._id;
+      const validProjection = await RunwayProjectionResult.findById(projectionId).lean();
+      await RunwayProjectionResult.collection.updateOne({ _id: projectionId },
+        { $set: { resultHash: 'f'.repeat(64) } });
+      const corruptedProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
+      assert.equal(corruptedProjection.response.status, 503);
+      assert.equal(corruptedProjection.body.code, 'RUNWAY_PROJECTION_INTEGRITY_INVALID');
+      await RunwayProjectionResult.collection.updateOne({ _id: projectionId },
+        { $set: { resultHash: validProjection.resultHash } });
       // A separate query for the same result must not produce a second job.
       assert.equal((await processOneRunwayProjection()).status, 'IDLE');
 
@@ -151,6 +160,13 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(foreignEvidence.response.status, 200);
       assert.equal(foreignEvidence.body.items.length, 0);
       const userEvidence = await jsonRequest(ownedBase + 'live/statements', { headers: authA });
+      const accountView = await jsonRequest(ownedBase + 'live/accounts', { headers: authA });
+      assert.equal(accountView.response.status, 200);
+      assert.equal(accountView.body.householdTotalPaise, null);
+      assert.equal(accountView.body.independentlyVerified, false);
+      assert.equal(accountView.body.items[0].closingBalancePaise, '12500');
+      const foreignAccounts = await jsonRequest(ownedBase + 'live/accounts', { headers: authB });
+      assert.deepEqual(foreignAccounts.body.items, []);
       assert.equal(userEvidence.body.items[0].statementId, imported.body.statementId);
       const evidenceDetails = await jsonRequest(ownedBase + 'live/statements/' + imported.body.statementId,
         { headers: authA });
@@ -519,7 +535,13 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       const projectionBefore = await jsonRequest(root + 'live/projection', { headers: authA });
       assert.equal(projectionBefore.body.revision, 2);
       assert.equal(projectionBefore.body.status, 'PENDING');
+      const dueJob = await RunwayProjectionJob.findOne({ userId: userA, revision: 2 }).lean();
+      await RunwayProjectionJob.collection.updateOne({ _id: dueJob._id },
+        { $set: { status: 'LEASED', leaseToken: 'orphaned-worker',
+          leaseUntil: new Date(Date.now() - 60_000) } });
       assert.equal((await processOneRunwayProjection()).status, 'DONE');
+      assert.equal((await RunwayProjectionJob.findById(dueJob._id).lean()).attempts, 1,
+        'Expired worker claim should be recovered without duplicate revision');
       const projectionAfter = await jsonRequest(root + 'live/projection', { headers: authA });
       assert.equal(projectionAfter.body.status, 'DONE');
       assert.equal(projectionAfter.body.revision, 2);
