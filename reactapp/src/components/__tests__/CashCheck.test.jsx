@@ -317,6 +317,8 @@ describe('90-day cash check', () => {
       });
     render(<CashCheck />);
     await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    await screen.findByPlaceholderText('50000.00');
+    await act(async () => {});
     fireEvent(document, new Event('visibilitychange'));
     await waitFor(() => expect(api.getCoverageLedger).toHaveBeenCalledTimes(2));
     await screen.findByText(/New saved revision shows a shortfall/i);
@@ -334,6 +336,7 @@ describe('90-day cash check', () => {
     render(<CashCheck />);
     await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
     await screen.findByText(/No shortfall in the entries supplied for these dates/);
+    await act(async () => {});
     fireEvent(document, new Event('visibilitychange'));
     await screen.findByRole('button', { name: 'Retry loading saved records' });
     expect(screen.queryByPlaceholderText('50000.00')).toBeNull();
@@ -349,6 +352,7 @@ describe('90-day cash check', () => {
     render(<CashCheck />);
     await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
     await screen.findByText(/No shortfall in the entries supplied for these dates/);
+    await act(async () => {});
     fireEvent(document, new Event('visibilitychange'));
     await screen.findByText(/latest cash revision could not be verified/i);
     expect(screen.queryByText(/No shortfall in the entries supplied for these dates/)).toBeNull();
@@ -371,6 +375,7 @@ describe('90-day cash check', () => {
     render(<CashCheck />);
     await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
     await screen.findByDisplayValue('100.00');
+    await act(async () => {});
     fireEvent(document, new Event('visibilitychange'));
     await screen.findByDisplayValue('9000.00');
     expect(api.getCoverageLedger).toHaveBeenCalledTimes(2);
@@ -391,6 +396,7 @@ describe('90-day cash check', () => {
       .mockResolvedValueOnce({ revision: 0, ledger: null, latestResult: null });
     render(<CashCheck />);
     await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    await screen.findByLabelText('Choose bank statement CSV');
     fireEvent.change(screen.getByLabelText('Choose bank statement CSV'), {
       target: { files: [file] },
     });
@@ -454,7 +460,7 @@ describe('90-day cash check', () => {
     });
     render(<CashCheck />);
     await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm this one-time payment is settled' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm this one-time payment is settled' }));
     expect(api.settleCoverageOneOff).not.toHaveBeenCalled();
     fireEvent.change(screen.getByPlaceholderText('Enter current post-payment cash'), {
       target: { value: '10.00' },
