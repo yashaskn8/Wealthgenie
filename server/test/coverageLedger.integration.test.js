@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import express from 'express';
 import coverageRoutes from '../routes/coverage.js';
 import { errorHandler } from '../middleware/errorHandler.js';
+import { createCsrfProtection } from '../middleware/csrf.js';
 import CoverageLedger from '../models/CoverageLedger.js';
 import User from '../models/User.js';
 import CoverageResult from '../models/CoverageResult.js';
@@ -53,6 +54,9 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     await User.create([makeUser(owner), makeUser(other)]);
     const app = express();
     app.use(express.json());
+    app.use('/api', createCsrfProtection({
+      isProduction: true, allowedOrigins: ['https://coverage.example.test'],
+    }));
     app.use('/api/coverage', coverageRoutes);
     app.use(errorHandler);
     await new Promise(resolve => {
@@ -110,6 +114,29 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(replay.body.replayed, true);
     assert.equal(replay.body.superseded, false);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 1);
+
+    // Real browser cookie-session mutations require double-submit CSRF AND
+    // a production-allowlisted Origin. Bearer clients are tested separately.
+    const cookie = 'wg_session=' + ownerToken(owner) + '; wg_csrf=csrf-test-token';
+    const cookiePreview = async extra => {
+      const response = await fetch(baseUrl + '/scenarios/preview', {
+        method: 'POST',
+        headers: {
+          Cookie: cookie, 'Content-Type': 'application/json', ...extra,
+        },
+        body: JSON.stringify({ revision: 1, excludedVoluntaryEntryIds: [] }),
+      });
+      return { status: response.status, body: await response.json() };
+    };
+    assert.equal((await cookiePreview({ Origin: 'https://coverage.example.test' })).status, 403);
+    assert.equal((await cookiePreview({
+      Origin: 'https://attacker.example.test', 'X-CSRF-Token': 'csrf-test-token',
+    })).status, 403);
+    const csrfAccepted = await cookiePreview({
+      Origin: 'https://coverage.example.test', 'X-CSRF-Token': 'csrf-test-token',
+    });
+    assert.equal(csrfAccepted.status, 200);
+    assert.equal(csrfAccepted.body.revision, 1);
     // An idempotent replay of the current revision is not a fresh-policy
     // calculation if its stored model policy has since been retired.
     const firstSnapshot = await CoverageResult.findOne({ userId: owner, ledgerRevision: 1 });
