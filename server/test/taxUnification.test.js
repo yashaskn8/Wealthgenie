@@ -332,7 +332,11 @@ test('interest TDS remains an informational credit and is not subtracted again i
     'TDS_REMAINS_INFORMATIONAL_CREDIT_NOT_AN_EXTRA_PROJECTED_TAX_SUBTRACTION',
   ));
   const projectedTaxes = projection.taxEvents.reduce((sum, event) => sum + event.tax, 0);
-  assert.ok(Math.abs(projection.postTaxFutureValue - (projection.nominalFutureValue - projectedTaxes)) <= 2);
+  // Taxes leave the corpus on event dates. The gross-minus-tax shortcut
+  // understates the cost because tax deducted in year one no longer compounds.
+  assert.ok(projectedTaxes > 0);
+  assert.ok(projection.nominalFutureValue - projection.postTaxFutureValue > projectedTaxes);
+  assert.ok(projection.assumptions.includes('PROJECTED_TAX_DEDUCTED_FROM_BALANCE_AND_REDUCES_FUTURE_INTEREST'));
 });
 test('ordinary-interest projection applies annual tax events after gross cash flows', () => {
   const context = {
