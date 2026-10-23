@@ -34,7 +34,7 @@ describe('GenieChat grounded explanation metadata', () => {
     />);
 
     expect(screen.getByText('Existing answer body [1].')).toBeTruthy();
-    expect(screen.getByText(/Genie used a source-backed (?:fallback|answer)/)).toBeTruthy();
+    expect(screen.queryByText(/Genie used a source-backed (?:fallback|answer)/)).toBeNull();
     expect(screen.queryByText(/\[E_PROFILE_RISK\]/)).toBeNull();
     const summary = screen.getByText('Answer evidence and provenance');
     expect(summary).toBeTruthy();
@@ -42,6 +42,39 @@ describe('GenieChat grounded explanation metadata', () => {
     expect(screen.getByText(/Provider: DETERMINISTIC_TEMPLATE/)).toBeTruthy();
     expect(screen.getByText(/POST_TAX_RETURN_UNAVAILABLE/)).toBeTruthy();
     expect(screen.getByText(/Fallback diagnostics: LLM_GROUNDING_VALIDATION_FAILED, UNSUPPORTED_FINANCIAL_NUMBER/)).toBeTruthy();
+  });
+
+  it('does not mislabel a financial abstention as an unverified general AI answer', () => {
+    render(<MessageBubble
+      msg={{
+        role: 'assistant',
+        content: 'A personal post-tax return cannot be calculated without the tax inputs.',
+        timestamp: '2026-10-23T00:00:00.000Z',
+        _streamed: true,
+        grounded: false,
+        fallback: true,
+        provider: 'DETERMINISTIC_TEMPLATE',
+        validation_status: 'PASS',
+        citations: [],
+      }}
+      isLatest={false}
+    />);
+    expect(screen.queryByText(/General AI answer/)).toBeNull();
+    expect(screen.queryByText(/Genie used a source-backed fallback/)).toBeNull();
+    expect(screen.getByText(/personal post-tax return cannot be calculated/)).toBeTruthy();
+  });
+
+  it('labels only truly unverified general-model responses', () => {
+    render(<MessageBubble
+      msg={{
+        role: 'assistant', content: 'Python generators are lazy.',
+        timestamp: '2026-10-23T00:00:00.000Z', _streamed: true,
+        grounded: false, fallback: false, provider: 'GROQ',
+        validation_status: 'UNVERIFIED_GENERAL_CHAT', citations: [],
+      }}
+      isLatest={false}
+    />);
+    expect(screen.getByText(/General AI answer/)).toBeTruthy();
   });
 
   it('renders only backend-supplied source URLs as links', () => {
