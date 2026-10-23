@@ -70,6 +70,27 @@ function round4(value) {
   return Number(value.toFixed(4));
 }
 
+/**
+ * Guard monetary precision before a long-horizon scenario is evaluated.
+ * Input-schema limits on individual contributions are insufficient: an
+ * otherwise valid 100-year 100% APR projection can exceed safe INR integers.
+ * This is a mathematical bound, NOT an observed or promised product return.
+ */
+export function isSafelyRepresentableModelSip({ monthlySIP, nominalRate, holdingYears }) {
+  if (!Number.isFinite(monthlySIP) || monthlySIP < 0
+      || !Number.isFinite(nominalRate) || nominalRate < 0 || nominalRate > 1
+      || !Number.isFinite(holdingYears) || holdingYears <= 0 || holdingYears > 100) return false;
+  const totalMonths = Math.max(1, Math.round(holdingYears * 12));
+  const monthlyRate = toMonthlyRate(nominalRate);
+  const multiplier = Math.pow(1 + monthlyRate, totalMonths);
+  const nominalFutureValue = monthlyRate === 0
+    ? monthlySIP * totalMonths
+    : monthlySIP * (multiplier - 1) * (1 + monthlyRate) / monthlyRate;
+  return Number.isFinite(nominalFutureValue)
+    && nominalFutureValue <= Number.MAX_SAFE_INTEGER - 1
+    && Number.isSafeInteger(Math.round(monthlySIP * totalMonths));
+}
+
 function combineTaxRuleMetadata(policy, metadataEntries = []) {
   if (!policy?.statuteMetadata) return null;
   const entries = metadataEntries.filter(Boolean);
@@ -398,6 +419,12 @@ export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, 
   requireNumber(annualIncome, 'annualIncome');
   requireNumber(holdingYears, 'holdingYears', { min: 0.01, max: 100 });
   requireNumber(monthlySIP, 'monthlySIP');
+  if (!isSafelyRepresentableModelSip({ monthlySIP, nominalRate, holdingYears })) {
+    return unavailableResult({
+      instrumentType, modelTaxClass, status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE,
+      reasons: ['PROJECTION_WEALTH_PRECISION_EXCEEDED'], fiscalYear, policy,
+    });
+  }
   if (!Number.isInteger(userAge) || userAge < 18 || userAge > 120) throw new TypeError('userAge must be an integer from 18 to 120');
   if (!['salary', 'pension', 'family_pension', 'business', 'other'].includes(incomeSource)) throw new TypeError('incomeSource must be explicitly provided');
   const context = { annualGrossIncome: annualIncome, regime, incomeSource, fiscalYear, userAge, deductions, holdingPeriodMonths: options.holdingPeriodMonths, acquisitionDate: options.acquisitionDate, redemptionDate: options.redemptionDate, section112AExemptionUsed: options.section112AExemptionUsed, section112AExemptionAppliedOverride: options.section112AExemptionAppliedOverride };
@@ -681,6 +708,23 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
   requireNumber(instrument.nominalRate, 'nominalRate', { min: 0, max: 1 });
   requireNumber(instrument.holdingYears, 'holdingYears', { min: 0.01, max: 100 });
   requireNumber(inflationRate, 'inflationRate', { min: 0, max: 1 });
+  if (!isSafelyRepresentableModelSip(instrument)) {
+    // A projection with unsafe rupee precision is not an available number.
+    // Never round it and present a scientifically-notated fiction.
+    return {
+      status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE,
+      totalInvested: Math.round(instrument.monthlySIP * Math.max(1, Math.round(instrument.holdingYears * 12))),
+      nominalFutureValue: null, postTaxFutureValue: null, realFutureValue: null,
+      postTaxGain: null, taxDragWealth: null, taxDragCAGR: null,
+      nominalReturnPercent: round4(instrument.nominalRate * 100),
+      postTaxReturnPercent: null, realReturnPercent: null, effectiveTaxPercent: null,
+      postTaxCAGR: null, nominalCAGR: null,
+      sipReturnMetrics: unavailableSipReturnMetrics('PROJECTION_UNAVAILABLE'),
+      taxEvents: [], taxEventModel: 'UNAVAILABLE',
+      assumptions: ['MODELLED_PROJECTION_PRECISION_NOT_QUALIFIED'],
+      unavailableReasons: ['PROJECTION_WEALTH_PRECISION_EXCEEDED'],
+    };
+  }
   const exactAcquisitionDate = context.acquisitionDate ?? instrument.acquisitionDate;
   const exactRedemptionDate = context.redemptionDate ?? instrument.redemptionDate;
   const exactDatesSupplied = Boolean(exactAcquisitionDate || exactRedemptionDate);
