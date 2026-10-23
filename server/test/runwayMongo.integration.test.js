@@ -600,6 +600,28 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       });
       assert.equal(reset.response.status, 201, JSON.stringify(reset.body));
       assert.equal(reset.body.revision, 3);
+      // A worker repeatedly killed while holding a lease must produce an
+      // operator-visible BLOCKED result, not a sixth unbounded claim.
+      const exhaustedJob = await RunwayProjectionJob.findOne({
+        userId: userA, revision: 3,
+      }).lean();
+      assert.ok(exhaustedJob);
+      await RunwayProjectionJob.collection.updateOne({ _id: exhaustedJob._id }, {
+        $set: {
+          status: 'LEASED', leaseToken: 'crashed-fifth-worker',
+          leaseUntil: new Date(Date.now() - 60_000), attempts: 5,
+        },
+      });
+      const exhausted = await processOneRunwayProjection();
+      assert.equal(exhausted.status, 'BLOCKED');
+      assert.equal(exhausted.code, 'RUNWAY_PROJECTION_LEASE_EXHAUSTED');
+      const blockedProjection = await jsonRequest(root + 'live/projection', { headers: authA });
+      assert.equal(blockedProjection.response.status, 200);
+      assert.equal(blockedProjection.body.status, 'BLOCKED');
+      assert.equal(blockedProjection.body.errorCode, 'RUNWAY_PROJECTION_LEASE_EXHAUSTED');
+      assert.equal(await RunwayProjectionResult.countDocuments({
+        userId: userA, revision: 3,
+      }), 0, 'Exhausted lease must never publish a forged projection');
       const filtered = await jsonRequest(root + 'live/matches', { headers: authA });
       assert.equal(filtered.response.status, 200);
       assert.ok(!filtered.body.items.some(x => x.rowIndex === 0),
@@ -633,6 +655,40 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       assert.equal(history.body.items[0].resultRevision, 2);
       const foreignHistory = await jsonRequest(root + 'live/settlements?page=0', { headers: authB });
       assert.equal(foreignHistory.body.total, 0);
+      // An old but correctly signed financial snapshot must not reappear as
+      // CURRENT when the owner opens the dashboard on a later India date.
+      const oldInstant = new Date(Date.now() - 48 * 3600 * 1000);
+      const oldParts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).formatToParts(oldInstant);
+      const oldPart = type => oldParts.find(x => x.type === type)?.value;
+      const oldDay = oldPart('year') + '-' + oldPart('month') + '-' + oldPart('day');
+      assert.notEqual(oldDay, now);
+      const historicalLedger = {
+        asOfDate: oldDay, confirmationDate: oldDay, openingCashPaise: '5000000',
+        entries: [{
+          id: 'historic-rent', label: 'Previous rent', kind: 'OBLIGATION',
+          amountPaise: '1500000', date: oldDay, recurrence: 'NONE',
+        }],
+      };
+      const historicalRevision = {
+        userId: userB, revision: 1, ledger: historicalLedger,
+        inputHash: canonicalSha256(historicalLedger), confirmedAt: oldInstant,
+        sealVersion: RUNWAY_SEAL_VERSION,
+      };
+      historicalRevision.sealHmac = createRunwayLedgerSeal(historicalRevision);
+      await RunwayLedgerRevision.create([historicalRevision]);
+      await RunwayLedgerState.create([{
+        _id: userB, revision: 1, snapshotGeneration: 0,
+      }]);
+      const oldProjection = await jsonRequest(root + 'live/projection', { headers: authB });
+      assert.equal(oldProjection.response.status, 200);
+      assert.equal(oldProjection.body.status, 'CASH_CONFIRMATION_STALE');
+      assert.equal(oldProjection.body.result, undefined);
+      const oldAlert = await jsonRequest(root + 'live/alerts', { headers: authB });
+      assert.equal(oldAlert.response.status, 200);
+      assert.equal(oldAlert.body.status, 'CASH_CONFIRMATION_STALE');
+      assert.equal(oldAlert.body.items.length, 0);
       const events = await jsonRequest(root + 'live/events', { headers: authA });
       assert.ok(events.body.items.some(x => x.eventType === 'SETTLEMENT_CONFIRMED'));
       // Database-only writers can tamper with amounts and recompute ordinary
