@@ -292,7 +292,10 @@ router.patch('/alerts/:id/ack', verifyJWT, asyncHandler(async (req, res) => {
   }
   const owner = req.user.userId;
   const ledger = await CoverageLedger.findOne({ userId: owner }).select('revision deletedAt').lean();
-  if (!ledger || ledger.deletedAt) throw conflict();
+  if (!ledger || ledger.deletedAt) {
+    throw createError(404, 'Current alert not found.', 'Alert not found.',
+      { code: 'COVERAGE_ALERT_NOT_FOUND' });
+  }
   // User-visible acknowledgement is idempotent and only scoped to the
   // current owner's current revision.
   const changed = await CoverageRiskAlert.findOneAndUpdate({
