@@ -434,7 +434,10 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
       await expect(page).toHaveURL(new RegExp(`page=progress&tab=${tab}`));
       await expect(page.getByTestId(`panel-${tab}`)).toBeVisible();
       if (tab === 'grow-sip') {
-        await expect(page.getByRole('heading', { name: 'Projection unavailable' })).toBeVisible();
+        // This is a navigation/viewport contract, not an assertion that the
+        // backend projection must fail. The mounted planner can either show
+        // a qualified scenario or a truthful unavailable state.
+        await expect(page.getByTestId('step-up-view')).toBeVisible();
       }
     }
 
