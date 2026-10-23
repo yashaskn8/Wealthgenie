@@ -61,7 +61,7 @@ function closeHttpServer(httpServer) {
 
 async function closeInfrastructure({ stopAgentWorker = false } = {}) {
   stopMarketDataRefreshJobs();
-  stopCoverageRiskWorker();
+  await stopCoverageRiskWorker();
   if (stopAgentWorker) await stopPlanReviewWorker();
   await stopProductionEvaluationReconciliation();
   if (authorizedRecoveryTimer) clearInterval(authorizedRecoveryTimer);

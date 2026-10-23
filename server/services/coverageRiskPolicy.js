@@ -17,9 +17,12 @@ export function evaluateCashRiskEvent({ userId, revision, input, result, priorRe
   const priorShortfall = priorResult?.status === 'SHORTFALL_IN_ENTERED_PLAN';
   const dueDate = shortfall ? result.baseline.earliestShortfall?.date : null;
   const previousDue = priorShortfall ? priorResult.baseline?.earliestShortfall?.date : null;
+  const previousLow = priorShortfall ? priorResult.baseline?.minWithinDayPaise : null;
+  const currentLow = shortfall ? result.baseline.minWithinDayPaise : null;
   let kind;
   if (shortfall && !priorShortfall) kind = 'SHORTFALL_DETECTED';
-  else if (shortfall && priorShortfall && dueDate !== previousDue) kind = 'SHORTFALL_CHANGED';
+  else if (shortfall && priorShortfall
+      && (dueDate !== previousDue || currentLow !== previousLow)) kind = 'SHORTFALL_CHANGED';
   else if (!shortfall && priorShortfall) kind = 'SHORTFALL_RESOLVED';
   else return null;
   if (shortfall && (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate || ''))) return null;

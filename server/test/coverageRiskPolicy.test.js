@@ -46,3 +46,18 @@ test('stale cash generates a stable, deduplicatable reconfirmation identity', ()
   assert.notEqual(cashEventKey({ userId, revision: 7, kind: a.kind, sourceAsOfDate: a.sourceAsOfDate }),
     cashEventKey({ userId, revision: 8, kind: a.kind, sourceAsOfDate: a.sourceAsOfDate }));
 });
+
+
+test('a changed minimum cash deficit on the same date also generates an in-app risk change', () => {
+  const previous = { ...short, baseline: {
+    ...short.baseline, minWithinDayPaise: -100_00,
+  } };
+  const worsened = { ...short, baseline: {
+    ...short.baseline, minWithinDayPaise: -200_00,
+  } };
+  const e = evaluateCashRiskEvent({ userId, revision: 3, input,
+    result: worsened, priorResult: previous });
+  assert.equal(e.kind, 'SHORTFALL_CHANGED');
+  assert.equal(e.dueDate, '2026-10-30');
+  assert.equal('amountPaise' in e, false);
+});

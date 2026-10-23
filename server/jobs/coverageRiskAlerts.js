@@ -7,7 +7,7 @@ import logger from '../utils/logger.js';
 
 const BATCH_LIMIT = 100;
 let timer = null;
-let inFlight = false;
+let activeTick = null;
 let cursor = null;
 function indiaToday(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -47,8 +47,12 @@ export async function sweepStaleCashDeclarations({
     if (!event) continue;
     if (await Alert.exists({ userId: row.userId, eventKey: event.eventKey })) continue;
     const session = await mongoose.startSession();
+    let createdInTransaction = false;
     try {
       await session.withTransaction(async () => {
+        // The driver may retry a transient callback. Do not count tentative
+        // inserts until after a successful commit.
+        createdInTransaction = false;
         // Touch the same ledger record as a competing save/delete. A worker
         // cannot commit a stale alert if a concurrent delete changes it.
         const fence = await Ledger.updateOne({
@@ -59,9 +63,10 @@ export async function sweepStaleCashDeclarations({
         const old = await Alert.findOne({ userId: row.userId, eventKey: event.eventKey }).session(session).lean();
         if (!old) {
           await Alert.create([event], { session });
-          inserted += 1;
+          createdInTransaction = true;
         }
       }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+      if (createdInTransaction) inserted += 1;
     } catch (error) {
       if (error?.code !== 11000 && error?.code !== 112
           && error?.codeName !== 'WriteConflict') throw error;
@@ -83,25 +88,30 @@ export function startCoverageRiskWorker({ env = process.env, intervalMs = 60_000
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 5_000) {
     throw new Error('Coverage worker interval must be at least 5 seconds');
   }
-  const tick = async () => {
-    if (inFlight) return;
-    inFlight = true;
-    try {
-      const page = await sweepStaleCashDeclarations({ afterId: cursor });
-      cursor = page.nextAfterId;
-      // Do not log user identifiers or financial details.
-    } catch (error) {
-      logger.warn('Cash risk sweep failed', { code: error.code || 'CASH_RISK_SWEEP_FAILED' });
-    } finally { inFlight = false; }
+  const tick = () => {
+    if (activeTick) return activeTick;
+    activeTick = (async () => {
+      try {
+        const page = await sweepStaleCashDeclarations({ afterId: cursor });
+        cursor = page.nextAfterId;
+        // Never log financial data or user identifiers.
+      } catch (error) {
+        logger.warn('Cash risk sweep failed', { code: error.code || 'CASH_RISK_SWEEP_FAILED' });
+      }
+    })();
+    const running = activeTick;
+    void running.finally(() => { if (activeTick === running) activeTick = null; });
+    return running;
   };
   timer = setInterval(() => { void tick(); }, intervalMs);
   timer.unref?.();
   void tick();
   return { enabled: true };
 }
-export function stopCoverageRiskWorker() {
+export async function stopCoverageRiskWorker() {
   if (timer) clearInterval(timer);
   timer = null;
+  // Wait for any in-flight Mongo transaction to settle before close.
+  if (activeTick) await activeTick;
   cursor = null;
-  // A running tick owns its DB session and must drain with shutdown.
 }
