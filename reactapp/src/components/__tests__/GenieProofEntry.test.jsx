@@ -32,6 +32,25 @@ describe('GenieProof beginner-facing claim checking', () => {
   beforeEach(() => vi.resetAllMocks());
   afterEach(() => cleanup());
 
+
+  it('blocks PAN, labelled Aadhaar and bank account identifiers before the API request', () => {
+    render(<GenieProofEntry />);
+    const field = screen.getByLabelText('Financial statement to check');
+    for (const claim of [
+      'My PAN ABCDE1234F earned 20%.',
+      'Aadhaar 1234-5678-9012 receives guaranteed profits.',
+      'Bank account number 123456789012 offers 10% income.',
+    ]) {
+      fireEvent.change(field, { target: { value: claim } });
+      expect(screen.getByRole('button', { name: 'Check claim' })).toBeDisabled();
+      expect(screen.getByRole('alert')).toHaveTextContent(/personal identifier/i);
+    }
+    expect(checkGenieProofClaims).not.toHaveBeenCalled();
+    fireEvent.change(field, { target: { value: 'The PPF rate is claimed to be 8%.' } });
+    expect(screen.getByRole('button', { name: 'Check claim' })).toBeEnabled();
+    expect(screen.getByText(/only a precisely worded current PPF/i)).toBeInTheDocument();
+  });
+
   it('checks an existing statement without passport, consent, signing or saving steps', async () => {
     checkGenieProofClaims.mockResolvedValue(status([unverified]));
     render(<GenieProofEntry />);
