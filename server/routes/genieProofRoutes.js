@@ -202,7 +202,7 @@ const genieProofNvidiaLimiter = createEndpointRateLimiter({
 });
 router.post('/nvidia-review', verifyJWT, genieProofNvidiaLimiter, validateStrict(genieProofNvidiaReviewSchema), asyncHandler(async (req, res) => {
   const result = await reviewGenieProofWithNvidia({
-    offerText: req.body.offerText,
+    statement: req.body.statement,
     claimId: req.body.claimId,
     consent: req.body.consent,
     verifier: req.app.locals.genieProofClaimVerifier || null,
