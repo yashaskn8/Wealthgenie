@@ -152,6 +152,23 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(evalReplay.body.run.id, reportId);
     assert.equal(evalReplay.body.replayed, true);
 
+    const beforePointerAttack = await DecisionScenario.findById(id).lean();
+    assert.equal(String(beforePointerAttack.lastRunId), reportId);
+    await DecisionScenario.collection.updateOne({ _id: beforePointerAttack._id }, {
+      $set: { lastRunId: new mongoose.Types.ObjectId() },
+    });
+    const misbound = await call(base, userOne, `/scenarios/${id}`);
+    assert.equal(misbound.response.status, 503);
+    assert.equal(misbound.body.code, 'DECISION_RUN_POINTER_INTEGRITY_FAILURE');
+    const misboundList = await call(base, userOne, '/scenarios');
+    assert.equal(misboundList.response.status, 503);
+    assert.equal(misboundList.body.code, 'DECISION_RUN_POINTER_INTEGRITY_FAILURE');
+    await DecisionScenario.collection.updateOne({ _id: beforePointerAttack._id }, {
+      $set: { lastRunId: beforePointerAttack.lastRunId },
+    });
+    const restoredPointer = await call(base, userOne, `/scenarios/${id}`);
+    assert.equal(restoredPointer.response.status, 200);
+
     const slot = await DecisionScenario.findById(id).lean();
     assert.ok(Number.isInteger(slot.quotaSlot) && slot.quotaSlot >= 0 && slot.quotaSlot < 50);
     // The same evaluation key is a durable receipt for revision 2 even after
