@@ -37,7 +37,8 @@ export function normalizeMfapiLatest(raw,requestedSchemeCode){
  if(!date||date<MIN_DATE||nav===null)return unknown('MFAPI_NAV_VALUE_OR_DATE_INVALID');
  return {
   status:'AVAILABLE',provider:'MFapi.in',schemeCode:code,
-  fundName:name,navDate:date,nav,
+  fundName:name,fundHouse:typeof raw.meta.fund_house==='string'?raw.meta.fund_house:null,
+  navDate:date,nav,
   isin:typeof raw.meta.isin_growth==='string'?raw.meta.isin_growth:null,
   sourceUrl:BASE+'/mf/'+code+'/latest',
   productionUseAllowed:false,independentUnderlyingFeed:false,
@@ -209,6 +210,10 @@ export function reconcileFreeNavSources(primary,secondary,{now=new Date()}={}){
  // Scheme code alone is not enough if a mirror mislabels its fund name or
  // plan. A valid ISIN can be missing for older schemes, so preserve a second
  // scheme-identity fence before publishing simulated financial values.
+ const primaryHouse=canonicalSchemeName(primary.fund?.fundHouse);
+ const secondaryHouse=canonicalSchemeName(secondary.fundHouse);
+ if(primaryHouse&&secondaryHouse&&primaryHouse!==secondaryHouse)
+  return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_FUND_HOUSE_CONFLICT'};
  const primaryName=canonicalSchemeName(primary.fund?.name);
  const secondaryName=canonicalSchemeName(secondary.fundName);
  if(primaryName&&secondaryName&&primaryName!==secondaryName)
