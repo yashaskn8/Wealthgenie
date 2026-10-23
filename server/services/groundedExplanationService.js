@@ -1004,12 +1004,16 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
 
   if (/\b(?:tax\s+regime|post[ -]?tax|deductions?|tax\s+slabs?|tax\s+liabilit(?:y|ies)|tax\s+(?:assumptions?|calculation|comparison))\b/i.test(question)) {
     unavailableFacts.push('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS');
+    if (/\b(?:old\s+(?:income\s+)?tax\s+(?:regime|system)|compare\s+(?:the\s+)?(?:old|new)\s+(?:and|with|versus|vs\.?)[\s\S]{0,30}(?:old|new)\s+(?:tax\s+)?(?:regime|system))\b/i.test(question)) {
+      unavailableFacts.push('UNSUPPORTED_TAX_REGIME_NEW_ONLY');
+    }
     entries.push(makeEvidenceEntry('E_TAX_INPUT_BOUNDARY', 'TAX', {
-      requiredInputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
+      requiredInputs: ['taxYear', 'incomeType', 'primaryIncome', 'otherOrdinaryIncome', 'residency', 'specialRateIncome', 'confirmedOrdinaryOnly'],
+      supportedRegime: 'new',
       inferenceAllowed: false,
     }, {
       dataClass: 'UNAVAILABLE',
-      displayValue: 'GenieChat has not calculated a personal tax result here. A tax result requires explicit fiscal year, annual income, regime, and income source in the Tax Optimizer; these inputs cannot be inferred from your investing profile',
+      displayValue: 'WealthGenie supports new-regime income-tax calculations only. GenieChat has not calculated any tax here and cannot calculate or recommend the old regime. Use Taxes to enter explicit qualifying tax-year, income, residency and ordinary-income-only facts. This is a WealthGenie product restriction; the old tax regime has not been abolished by law.',
     }));
   }
 
