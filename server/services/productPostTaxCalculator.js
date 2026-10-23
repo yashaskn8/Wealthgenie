@@ -606,6 +606,20 @@ export function calculateProductPostTaxOutcome({ product, profile: _profile = {}
   const assumptions = taxCalculationContext?.illustrativePrincipal
     ? []
     : ['ILLUSTRATIVE_PRINCIPAL_DEFAULT_10000'];
+  // A saved legacy tax context is historical evidence, never authority for a
+  // fresh product-tax calculation, even if the supplied product is qualified.
+  if (taxCalculationContext?.regime === 'old') {
+    return createAnalysis({
+      status: PRODUCT_TAX_STATUSES.UNAVAILABLE,
+      taxMetadata,
+      principal,
+      calculationClass: 'UNAVAILABLE',
+      dataClass: 'UNAVAILABLE',
+      assumptions: [],
+      unavailableReasons: ['UNSUPPORTED_TAX_REGIME_NEW_ONLY'],
+      disclosure: 'WealthGenie supports new-regime-only calculations. Reconfirm eligible new-regime facts; historical old-regime inputs cannot be automatically converted.',
+    });
+  }
   if (taxCalculationContext && taxCalculationContext.deductions === undefined && taxType) {
     assumptions.push('DEDUCTIONS_NOT_SUPPLIED; NO_DEDUCTION_ASSUMPTION_USED');
   }
