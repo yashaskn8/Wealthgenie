@@ -6,7 +6,7 @@ import GenieDecisionWorkspace from '../GenieDecisionWorkspace';
 import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
-  getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
+  getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID, subscribeDecisionEvents,
 } from '../../services/api';
 
 vi.mock('../../services/api', () => ({
@@ -14,7 +14,7 @@ vi.mock('../../services/api', () => ({
   getDecisionScenario: vi.fn(), createDecisionScenario: vi.fn(),
   updateDecisionScenario: vi.fn(), evaluateDecisionScenario: vi.fn(),
   getDecisionRun: vi.fn(), listDecisionRuns: vi.fn(), deleteDecisionScenario: vi.fn(),
-  generateUUID: vi.fn(),
+  generateUUID: vi.fn(), subscribeDecisionEvents: vi.fn(),
 }));
 
 const profileId = '64a000000000000000000001';
@@ -55,9 +55,10 @@ describe('GenieDecision workspace red-team integration', () => {
     for (const stub of [
       getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
       createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
-      getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
+      getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID, subscribeDecisionEvents,
     ]) stub.mockReset();
     generateUUID.mockReturnValue('test-decision-idempotency-key-0001');
+    subscribeDecisionEvents.mockResolvedValue(undefined);
     getDecisionAvailability.mockResolvedValue({
       available: true, profileId, profileStateRevision: 3,
       openingLiquidCashAvailable: true,
