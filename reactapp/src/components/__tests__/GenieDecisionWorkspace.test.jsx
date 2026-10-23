@@ -1,13 +1,14 @@
 /** @vitest-environment jsdom */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import GenieDecisionWorkspace from '../GenieDecisionWorkspace';
 import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
   getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID, subscribeDecisionEvents,
-  simulateDecisionScenario, subscribeAuth, getAuthSnapshot, getDecisionMonitor, setDecisionMonitor,
+  simulateDecisionScenario, subscribeAuth, getAuthSnapshot, getUserInfo,
+  getDecisionMonitor, setDecisionMonitor,
 } from '../../services/api';
 
 vi.mock('../../services/api', () => ({
@@ -17,6 +18,7 @@ vi.mock('../../services/api', () => ({
   getDecisionRun: vi.fn(), listDecisionRuns: vi.fn(), deleteDecisionScenario: vi.fn(),
   generateUUID: vi.fn(), subscribeDecisionEvents: vi.fn(),
   simulateDecisionScenario: vi.fn(), subscribeAuth: vi.fn(), getAuthSnapshot: vi.fn(),
+  getUserInfo: vi.fn(),
   getDecisionMonitor: vi.fn(), setDecisionMonitor: vi.fn(),
 }));
 
@@ -59,12 +61,14 @@ describe('GenieDecision workspace red-team integration', () => {
       getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
       createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
       getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID, subscribeDecisionEvents,
-      simulateDecisionScenario, subscribeAuth, getAuthSnapshot, getDecisionMonitor, setDecisionMonitor,
+      simulateDecisionScenario, subscribeAuth, getAuthSnapshot, getUserInfo,
+      getDecisionMonitor, setDecisionMonitor,
     ]) stub.mockReset();
     generateUUID.mockReturnValue('test-decision-idempotency-key-0001');
     subscribeDecisionEvents.mockResolvedValue(undefined);
     subscribeAuth.mockReturnValue(() => {});
     getAuthSnapshot.mockReturnValue(0);
+    getUserInfo.mockReturnValue({ id: 'initial-account' });
     simulateDecisionScenario.mockResolvedValue({ previewOnly: true, status: 'PARTIAL',
       result: report.run.result });
     getDecisionAvailability.mockResolvedValue({
@@ -214,5 +218,31 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(screen.getByText(/Your newer financial facts no longer reconcile/)).toBeTruthy();
     expect(setDecisionMonitor).not.toHaveBeenCalled();
   });
+
+  it('clears all private scenario data on account switch, including in-flight reports', async () => {
+    let notifyAuth = null;
+    subscribeAuth.mockImplementation(listener => {
+      notifyAuth = listener;
+      return () => {};
+    });
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    expect(await screen.findByText('Decision comparison')).toBeTruthy();
+    expect(screen.getByText('My saved decision')).toBeTruthy();
+
+    const pendingOldReport = Promise.withResolvers();
+    getDecisionRun.mockImplementationOnce(() => pendingOldReport.promise);
+    fireEvent.click(screen.getByRole('button', { name: /Report from /i }));
+    getAuthSnapshot.mockReturnValue(1);
+    getUserInfo.mockReturnValue({ id: 'new-account' });
+    listDecisionScenarios.mockResolvedValue({ scenarios: [] });
+    await act(async () => notifyAuth());
+    expect(screen.queryByText('My saved decision')).toBeNull();
+    expect(screen.queryByText('Decision comparison')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Enable monitoring' })).toBeNull();
+    await act(async () => pendingOldReport.resolve(report));
+    expect(screen.queryByText('Decision comparison')).toBeNull();
+  });
+
 
 });
