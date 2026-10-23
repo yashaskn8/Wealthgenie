@@ -84,3 +84,10 @@ test('no declared receipts means both tracks are identical', () => {
   const r = run(l).scenarios[0];
   assert.deepEqual(r.cashAlreadyAvailable, r.ifExpectedIncomeArrives);
 });
+
+
+test('rejects invalid revision numbers, protecting snapshot provenance', () => {
+  for (const revision of [undefined, 0, -1, '1', 1.5, 2049, Number.MAX_SAFE_INTEGER]) {
+    assert.throws(() => simulateRunway(base(), { ledgerRevision: revision, horizonDays: 30, scenarios: [] }));
+  }
+});

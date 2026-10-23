@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
+import { canonicalSha256 } from '../utils/canonicalJson.js';
 import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
@@ -133,8 +134,23 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const forgedExplanation = await mutation(base, 'explanations', { snapshotId: snapshot.body.snapshotId });
       assert.equal(forgedExplanation.response.status, 503);
       assert.equal(forgedExplanation.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      const forgedReplay = await mutation(base, 'snapshots', request, authA, 'runway-snapshot-001');
+      assert.equal(forgedReplay.response.status, 503);
+      assert.equal(forgedReplay.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
       await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
         { $set: { 'result.disclaimer': original.result.disclaimer } });
+      const historicalResult = { ...original.result, engineVersion: 'runway-cashflow-0.9.0' };
+      await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
+        { $set: { result: historicalResult, resultHash: canonicalSha256(historicalResult) } });
+      const oldEngineRead = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
+      assert.equal(oldEngineRead.response.status, 200);
+      assert.equal(oldEngineRead.body.engineStatus, 'HISTORICAL_ENGINE');
+      assert.equal(oldEngineRead.body.verification, 'STORED_HASH_ONLY');
+      const historicalExplanation = await mutation(base, 'explanations', { snapshotId: snapshot.body.snapshotId });
+      assert.equal(historicalExplanation.response.status, 200);
+      assert.equal(historicalExplanation.body.engineStatus, 'HISTORICAL_ENGINE');
+      await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
+        { $set: { result: original.result, resultHash: original.resultHash } });
 
       const updatedLedger = { ...ledger, openingCashPaise: '9000' };
       const raced = await Promise.all([

@@ -4,7 +4,7 @@ import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { verifyJWTWithRevocationAvailability as requireSession } from '../middleware/authMiddleware.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
-import { RunwayInputError, simulateRunway, validateLedger, validateRequest } from '../services/runwayEngine.js';
+import { RUNWAY_ENGINE_VERSION, simulateRunway, validateLedger, validateRequest } from '../services/runwayEngine.js';
 import {
   RunwayLedgerState, RunwayLedgerRevision, RunwayMutationReceipt, RunwaySnapshot,
 } from '../models/Runway.js';
@@ -14,6 +14,10 @@ const KEY = /^[A-Za-z0-9._:-]{8,128}$/;
 const SNAPSHOT_ID = /^[a-f0-9]{64}$/;
 const USER_ID = /^[a-f0-9]{24}$/i;
 const MAX_SNAPSHOTS = 100;
+// Never let a single user create unlimited sensitive immutable financial records.
+// Existing snapshots depend on historical revisions; reject at the cap rather than
+// silently prune evidence that might still be needed.
+const MAX_LEDGER_REVISIONS = 2048;
 
 const limiter = createEndpointRateLimiter({
   windowMs: 15 * 60 * 1000,
@@ -89,11 +93,15 @@ function rethrowTransaction(error) {
 }
 async function requireRunwayIndexes() {
   try {
-    const indexes = await RunwayLedgerRevision.collection.indexes();
-    if (!indexes.some(index => index.name === 'uniq_runway_ledger_revision'
-      && index.unique === true && index.key?.userId === 1 && index.key?.revision === 1)) {
-      throw new Error('RUNWAY_REVISION_INDEX_MISSING');
-    }
+    const [ledgerIndexes, snapshotIndexes] = await Promise.all([
+      RunwayLedgerRevision.collection.indexes(),
+      RunwaySnapshot.collection.indexes(),
+    ]);
+    const revisionIndexReady = ledgerIndexes.some(index => index.name === 'uniq_runway_ledger_revision'
+      && index.unique === true && index.key?.userId === 1 && index.key?.revision === 1);
+    const snapshotIndexReady = snapshotIndexes.some(index => index.name === 'runway_snapshots_by_owner'
+      && index.key?.userId === 1 && index.key?.createdAt === -1);
+    if (!revisionIndexReady || !snapshotIndexReady) throw new Error('RUNWAY_INDEX_MISSING');
   } catch {
     throw failure(503, 'RUNWAY_INDEXES_UNAVAILABLE',
       'Runway writes are unavailable until the explicit Mongo index migration is verified.');
@@ -146,7 +154,10 @@ router.put('/ledger', asyncHandler(async (req, res) => {
   }
   // A committed retry remains retrievable after midnight; only new writes need a fresh confirmation.
   if (req.body.asOfDate !== indiaCivilToday()) throw failure(400, 'RUNWAY_CASH_CONFIRMATION_STALE', 'Confirm accessible cash for today in India before saving.');
-  if (expected >= Number.MAX_SAFE_INTEGER) throw failure(400, 'RUNWAY_REVISION_LIMIT', 'Revision counter is exhausted.');
+  if (expected >= MAX_LEDGER_REVISIONS) {
+    throw failure(409, 'RUNWAY_REVISION_LIMIT',
+      'Household Runway has reached its safe revision cap. Export or delete your Runway records before continuing.');
+  }
   let created;
   try {
     created = await inTransaction(async session => {
@@ -165,6 +176,9 @@ router.put('/ledger', asyncHandler(async (req, res) => {
     });
   } catch (error) { rethrowTransaction(error); }
   const found = await RunwayLedgerRevision.findOne({ userId, revision: created }).lean();
+  if (!found || canonicalSha256(found.ledger) !== found.inputHash) {
+    throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Committed ledger could not be verified.');
+  }
   return res.status(201).json({ revision: created, ledger: found.ledger, inputHash: found.inputHash, confirmedAt: found.confirmedAt, replayed: false });
 }));
 
@@ -214,6 +228,7 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
   const existing = await RunwaySnapshot.findOne({ _id: snapshotId, userId }).lean();
   if (existing) {
     if (existing.requestHash !== requestHash) throw failure(409, 'RUNWAY_IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different input.');
+    await verifiedSnapshot(userId, snapshotId);
     return res.json({ snapshotId, ledgerRevision: existing.ledgerRevision, replayed: true });
   }
   let saved;
@@ -244,6 +259,7 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
       const committed = await RunwaySnapshot.findOne({ _id: snapshotId, userId }).lean();
       if (committed) {
         if (committed.requestHash !== requestHash) throw failure(409, 'RUNWAY_IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different input.');
+        await verifiedSnapshot(userId, snapshotId);
         return res.json({ snapshotId, ledgerRevision: committed.ledgerRevision, replayed: true });
       }
     }
@@ -259,18 +275,33 @@ async function verifiedSnapshot(userId, id) {
   const source = await RunwayLedgerRevision.findOne({ userId, revision: snapshot.ledgerRevision }).lean();
   if (!source || canonicalSha256(source.ledger) !== source.inputHash
       || source.inputHash !== snapshot.inputHash
-      || canonicalSha256(snapshot.result) !== snapshot.resultHash
-      || canonicalSha256(simulateRunway(source.ledger, snapshot.request)) !== snapshot.resultHash) {
+      || canonicalSha256(snapshot.result) !== snapshot.resultHash) {
     throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved snapshot verification failed.');
   }
-  return snapshot;
+  // A snapshot from an older engine must remain viewable as historical data.
+  // Never silently recompute it with a different algorithm or pass it off as
+  // newly verified. Only the same version can be independently recalculated.
+  const currentEngine = snapshot.result?.engineVersion === RUNWAY_ENGINE_VERSION;
+  if (currentEngine) {
+    try {
+      if (canonicalSha256(simulateRunway(source.ledger, snapshot.request)) !== snapshot.resultHash) {
+        throw new Error('RUNWAY_RESULT_RECOMPUTE_MISMATCH');
+      }
+    } catch {
+      throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved snapshot could not be recomputed.');
+    }
+  }
+  return { ...snapshot, verification: currentEngine ? 'RECOMPUTED_CURRENT_ENGINE' : 'STORED_HASH_ONLY',
+    engineStatus: currentEngine ? 'CURRENT_ENGINE' : 'HISTORICAL_ENGINE' };
 }
 router.get('/snapshots/:id', asyncHandler(async (req, res) => {
   const userId = owner(req);
   const snapshot = await verifiedSnapshot(userId, req.params.id);
   const state = await RunwayLedgerState.findById(userId).lean();
   return res.json({ snapshotId: snapshot._id, ledgerRevision: snapshot.ledgerRevision, inputHash: snapshot.inputHash,
-    status: state?.revision === snapshot.ledgerRevision ? 'CURRENT' : 'HISTORICAL',
+    status: state?.revision === snapshot.ledgerRevision && snapshot.engineStatus === 'CURRENT_ENGINE'
+      ? 'CURRENT' : 'HISTORICAL',
+    engineStatus: snapshot.engineStatus, verification: snapshot.verification,
     createdAt: snapshot.createdAt, request: snapshot.request, result: snapshot.result });
 }));
 
@@ -295,7 +326,10 @@ router.post('/explanations', asyncHandler(async (req, res) => {
         : 'No shortfall was found among listed payments under the declared income schedule. Unlisted costs remain unknown.',
   }));
   return res.json({ source: 'LOCAL_DETERMINISTIC_TEMPLATE', modelUsed: false, messages,
-    disclosure: 'Explanations do not replace source data, bank settlement evidence, or a financial adviser.' });
+    engineStatus: snapshot.engineStatus, verification: snapshot.verification,
+    disclosure: snapshot.engineStatus === 'CURRENT_ENGINE'
+      ? 'Explanations do not replace source data, bank settlement evidence, or a financial adviser.'
+      : 'Historical engine result, stored-hash checked only; not recalculated with the current engine or verified against bank records.' });
 }));
 
 router.delete('/data', asyncHandler(async (req, res) => {

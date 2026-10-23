@@ -80,6 +80,8 @@ export function validateLedger(ledger) {
 export function validateRequest(request, ledger) {
   object(request, ['ledgerRevision', 'horizonDays', 'scenarios'], 'simulation request');
   if (!Number.isSafeInteger(request.horizonDays) || request.horizonDays < 1 || request.horizonDays > DAY_LIMIT) reject('Horizon must be 1-395 days.');
+  if (!Number.isSafeInteger(request.ledgerRevision) || request.ledgerRevision < 1
+      || request.ledgerRevision > 2048) reject('Ledger revision must be an integer from 1 to 2048.');
   if (!Array.isArray(request.scenarios) || request.scenarios.length > SCENARIO_LIMIT) reject('At most 3 scenarios are supported.');
   const asOf = civilDate(ledger.asOfDate);
   const end = asOf.ordinal + request.horizonDays;

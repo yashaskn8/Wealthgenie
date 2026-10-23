@@ -233,9 +233,11 @@ export default function HouseholdRunway() {
       setSnapshot(id);
       setLastRequest(null);
       setExplanation(null);
-      setMessage(saved.status === 'HISTORICAL'
-        ? 'Viewing a historical saved result. Reconfirm today’s cash for new calculations.'
-        : 'Viewing a stored, server-verified result.');
+      setMessage(saved.engineStatus === 'HISTORICAL_ENGINE'
+        ? 'Viewing an older engine result checked against its saved hash, NOT independently recalculated with the current engine.'
+        : saved.status === 'HISTORICAL'
+          ? 'Viewing a historical saved result. Reconfirm today’s cash for new calculations.'
+          : 'Viewing a server-recalculated result for the current ledger.');
     } catch (err) { setError(err.message || 'Could not open saved result.'); }
     finally { setBusy(false); }
   };
