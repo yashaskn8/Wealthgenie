@@ -3,7 +3,7 @@ import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
   getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
-  subscribeDecisionEvents,
+  subscribeDecisionEvents, simulateDecisionScenario,
 } from '../services/api';
 import './GenieDecisionWorkspace.css';
 
@@ -83,8 +83,9 @@ function Report({ report }) {
   const result = record.result;
   if (!result) return null;
   return <section className="gd-panel gd-report" aria-label="Decision results">
-    <div className="gd-heading"><div><h3>Decision comparison</h3><p>As of {shortDate(record.asOf)} · {label(result.scenarioType)}</p></div>
+    <div className="gd-heading"><div><h3>{record.previewOnly ? 'Unsaved live estimate' : 'Decision comparison'}</h3><p>{record.previewOnly ? 'Based on current declared inputs · ' : `As of ${shortDate(record.asOf)} · `}{label(result.scenarioType)}</p></div>
       <span className="gd-status">{record.status}</span></div>
+    {record.previewOnly && <p className="gd-muted">This draft is not saved or signed. Save and explicitly evaluate a revision to publish an immutable report.</p>}
     {record.status === 'HISTORICAL' && <p className="gd-warning" role="alert">
       The financial profile, saved scenario, or calculation rules have changed. This report is historical; re-evaluate a current scenario before using its figures.
     </p>}
@@ -130,6 +131,8 @@ export default function GenieDecisionWorkspace() {
   const [details, setDetails] = useState({});
   const [goalReservations, setGoalReservations] = useState([]);
   const [report, setReport] = useState(null);
+  const [draftPreview, setDraftPreview] = useState(null);
+  const [previewState, setPreviewState] = useState('waiting');
   const [runs, setRuns] = useState([]);
   const loadGeneration = useRef(0);
   const createRequestRef = useRef(null);
@@ -285,6 +288,46 @@ export default function GenieDecisionWorkspace() {
       scenarioType: type, goalReservations: [...goalReservations], details: typedDetails,
     };
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const dataReady = Boolean(availability?.available && availability?.profileId);
+    if (!dataReady) {
+      setDraftPreview(null);
+      setPreviewState('waiting');
+      return () => controller.abort();
+    }
+    let hypothetical;
+    try {
+      hypothetical = payload();
+    } catch {
+      // An incomplete or unreconciled form is not an invitation to invent
+      // defaults or submit continuous invalid financial queries.
+      setDraftPreview(null);
+      setPreviewState('waiting');
+      return () => controller.abort();
+    }
+    setDraftPreview(null);
+    setPreviewState('calculating');
+    const timer = setTimeout(() => {
+      simulateDecisionScenario({
+        ...hypothetical, profileId: availability.profileId,
+        expectedProfileStateRevision: availability.profileStateRevision,
+      }, { signal: controller.signal }).then(result => {
+        if (controller.signal.aborted) return;
+        setDraftPreview(result);
+        setPreviewState('ready');
+      }).catch(error => {
+        if (controller.signal.aborted) return;
+        setDraftPreview(null);
+        setPreviewState(errorMessage(error));
+      });
+    }, 650);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // Input objects are React state, and profile fields are the only
+    // authoritative numbers: never loop on locally-derived preview results.
+  }, [availability?.available, availability?.profileId, availability?.profileStateRevision,
+    title, type, horizon, baseline, details, goalReservations]);
 
   const save = async event => {
     event.preventDefault();
@@ -462,7 +505,12 @@ export default function GenieDecisionWorkspace() {
             }}>Report from {shortDate(item.asOf)} · Revision {item.scenarioRevision} · {item.status}</button>
           </li>)}</ul>
         </section>}
-        <Report report={report}/>
+        {(hasUnsavedChanges || !report) && previewState === 'calculating'
+          && <p className="gd-muted" role="status">Recalculating an unsaved decision estimate…</p>}
+        {(hasUnsavedChanges || !report) && previewState !== 'waiting'
+          && previewState !== 'calculating' && previewState !== 'ready'
+          && <p className="gd-muted" role="status">Live estimate unavailable: {previewState}</p>}
+        <Report report={hasUnsavedChanges ? draftPreview : (report || draftPreview)}/>
       </div>
     </div>
   </div>;
