@@ -1173,8 +1173,38 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
   }, requestOptions);
 }
 
+// ─── GENIEDECISION V3: deterministic and owner-scoped decision workspace ───
+export async function getDecisionAvailability(options = {}) {
+  return request('GET', '/decisions/data-availability', null, { retries: 0, ...options });
+}
+export async function listDecisionScenarios(options = {}) {
+  return request('GET', '/decisions/scenarios', null, { retries: 0, ...options });
+}
+export async function getDecisionScenario(id, options = {}) {
+  return request('GET', `/decisions/scenarios/${encodeURIComponent(id)}`, null, { retries: 0, ...options });
+}
+export async function createDecisionScenario(payload, options = {}) {
+  return request('POST', '/decisions/scenarios', payload, { retries: 0, ...options });
+}
+export async function updateDecisionScenario(id, payload, options = {}) {
+  return request('PATCH', `/decisions/scenarios/${encodeURIComponent(id)}`, payload, { retries: 0, ...options });
+}
+export async function evaluateDecisionScenario(id, expectedRevision, options = {}) {
+  return request('POST', `/decisions/scenarios/${encodeURIComponent(id)}/evaluate`,
+    { expectedRevision }, { retries: 0, ...options });
+}
+export async function getDecisionRun(id, options = {}) {
+  return request('GET', `/decisions/runs/${encodeURIComponent(id)}`, null, { retries: 0, ...options });
+}
+export async function deleteDecisionScenario(id, expectedRevision, options = {}) {
+  return request('DELETE', `/decisions/scenarios/${encodeURIComponent(id)}`,
+    { expectedRevision }, { retries: 0, ...options });
+}
+
 // Default export for convenience
 const api = {
+  getDecisionAvailability, listDecisionScenarios, getDecisionScenario, createDecisionScenario,
+  updateDecisionScenario, evaluateDecisionScenario, getDecisionRun, deleteDecisionScenario,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
