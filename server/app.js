@@ -31,6 +31,7 @@ import goalFinanceRoutes from './routes/goalFinance.js';
 import genieDecisionRoutes from './routes/genieDecision.js';
 import decisionScenariosRoutes from './routes/decisionScenarios.js';
 import decisionEventsRoutes from './routes/decisionEvents.js';
+import decisionMonitorRoutes from './routes/decisionMonitor.js';
 import marketRoutes from './routes/market.js';
 import marketQuotesRoutes from './routes/marketQuotes.js';
 import marketDataAdminRoutes from './routes/marketDataAdmin.js';
@@ -240,6 +241,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/decisions', genieDecisionRoutes);
   app.use('/api/decisions', decisionScenariosRoutes);
   app.use('/api/decisions', decisionEventsRoutes);
+  app.use('/api/decisions', decisionMonitorRoutes);
   app.use('/api/goals', goalRoutes);
   app.use('/api/market', marketRoutes);
   app.use('/api/market-data', marketQuotesRoutes);
