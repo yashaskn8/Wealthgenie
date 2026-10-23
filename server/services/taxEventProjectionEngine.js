@@ -742,6 +742,29 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       projectionHoldingYears = Math.max(1, horizonMonths) / 12;
     }
   }
+  // Exact transaction dates take precedence over the supplied illustrative
+  // duration. Re-run the money-precision guard on the ACTUAL modeled horizon;
+  // otherwise a one-year input paired with much longer dates could silently
+  // bypass the guard and publish unsafe rupee amounts.
+  if (!exactDateError && !isSafelyRepresentableModelSip({
+    monthlySIP: instrument.monthlySIP,
+    nominalRate: instrument.nominalRate,
+    holdingYears: projectionHoldingYears,
+  })) {
+    return {
+      status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE,
+      totalInvested: Math.round(instrument.monthlySIP * Math.max(1, Math.round(projectionHoldingYears * 12))),
+      nominalFutureValue: null, postTaxFutureValue: null, realFutureValue: null,
+      postTaxGain: null, taxDragWealth: null, taxDragCAGR: null,
+      nominalReturnPercent: round4(instrument.nominalRate * 100),
+      postTaxReturnPercent: null, realReturnPercent: null, effectiveTaxPercent: null,
+      postTaxCAGR: null, nominalCAGR: null,
+      sipReturnMetrics: unavailableSipReturnMetrics('PROJECTION_UNAVAILABLE'),
+      taxEvents: [], taxEventModel: 'UNAVAILABLE',
+      assumptions: ['MODELLED_PROJECTION_PRECISION_NOT_QUALIFIED'],
+      unavailableReasons: ['PROJECTION_WEALTH_PRECISION_EXCEEDED'],
+    };
+  }
   const gross = projectGrossCashFlows({
     monthlySIP: instrument.monthlySIP,
     annualRate: instrument.nominalRate,
