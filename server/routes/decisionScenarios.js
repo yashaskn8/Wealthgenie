@@ -143,6 +143,8 @@ function revisionReceiptContext(scenario, revision, inputHash) {
     userId: identity(scenario.userId), scenarioId: identity(scenario._id),
     revision, inputHash, scenarioType: scenario.scenarioType,
     profileId: identity(scenario.profileId), profileFactsHash: scenario.profileFactsHash,
+    profileStateRevision: scenario.profileStateRevision, profileVersion: scenario.profileVersion,
+    profileFinancialFence: scenario.profileFinancialFence,
   };
 }
 function reportReceiptContext(run) {
@@ -150,7 +152,8 @@ function reportReceiptContext(run) {
     userId: identity(run.userId), scenarioId: identity(run.scenarioId),
     revision: run.revision, profileId: identity(run.profileId),
     profileFactsHash: run.profileFactsHash, inputHash: run.inputHash, runKeyHash: run.runKeyHash,
-    issuedAt: run.issuedAt,
+    profileStateRevision: run.profileStateRevision, profileVersion: run.profileVersion,
+    profileFinancialFence: run.profileFinancialFence, issuedAt: run.issuedAt,
   };
 }
 function checkRevision(revision, scenario) {
