@@ -1257,6 +1257,9 @@ export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}
 }
 
 // ─── GENIEDECISION V3: deterministic and owner-scoped decision workspace ───
+export async function simulateDecisionScenario(payload, options = {}) {
+  return request('POST', '/decisions/simulate', payload, { retries: 0, ...options });
+}
 export async function getDecisionAvailability(options = {}) {
   return request('GET', '/decisions/data-availability', null, { retries: 0, ...options });
 }
@@ -1292,7 +1295,7 @@ export async function deleteDecisionScenario(id, expectedRevision, options = {})
 const api = {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario, createDecisionScenario,
   updateDecisionScenario, evaluateDecisionScenario, getDecisionRun, listDecisionRuns, deleteDecisionScenario,
-  subscribeDecisionEvents,
+  subscribeDecisionEvents, simulateDecisionScenario,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
