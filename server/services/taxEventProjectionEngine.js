@@ -779,12 +779,18 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
   }
 
   if (modelTaxClass === MODEL_TAX_CLASSES.ORDINARY_INTEREST) {
+    // Taxes are deducted from invested wealth at each tax event. Recompute
+    // subsequent interest on that reduced balance; gross.monthly.interest was
+    // computed on a separate never-taxed path and must not be reused here.
+    const monthlyRate = toMonthlyRate(instrument.nominalRate);
     let balance = 0;
     let pendingInterest = 0;
     taxEvents = [];
     for (const row of gross.monthly) {
-      balance += row.contribution + row.interest;
-      pendingInterest += row.interest;
+      balance += row.contribution;
+      const interest = balance * monthlyRate;
+      balance += interest;
+      pendingInterest += interest;
       if (row.month % 12 === 0 || row.month === gross.totalMonths) {
         if (!Number.isInteger(context.userAge) || context.userAge < 18 || context.userAge > 120) {
           throw new TypeError('userAge must be explicitly provided as an integer from 18 to 120 for projected annual tax events');
@@ -906,6 +912,7 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
         ? [
           'SELECTED_FISCAL_YEAR_TAXPAYER_AGE_HELD_CONSTANT_FOR_PROJECTED_TAX_EVENTS',
           'TDS_REMAINS_INFORMATIONAL_CREDIT_NOT_AN_EXTRA_PROJECTED_TAX_SUBTRACTION',
+          'PROJECTED_TAX_DEDUCTED_FROM_BALANCE_AND_REDUCES_FUTURE_INTEREST',
         ]
         : []),
       ...(exactDatesSupplied ? ['EXACT_TRANSACTION_DATES_OWN_PROJECTION_HORIZON'] : ['MODELLED_MONTHLY_LOTS']),
