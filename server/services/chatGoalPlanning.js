@@ -29,7 +29,11 @@ export function isFinancialGoalPlanningQuestion(question) {
     || /\b(?:will|would|may)\s+cost\b/i.test(text)
     || /^\s*(?:₹|inr|rs\.?)\s*\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|crs?|cr|lakhs?|lacs?|lac|l)\b.*\b(?:daughter|son|my|our|wedding|marriage)\b/i.test(text))
     && (explicitAmount || fundingIntent);
-  return namedGoal || (explicitAmount && genericGoalIntent);
+  // A user-stated recurring saving capacity is not a new goal target. In an
+  // authenticated conversation it must attach to the previous goal instead
+  // of resetting its target/deadline and discarding trusted user inputs.
+  return namedGoal || (explicitAmount && genericGoalIntent
+    && moneyIn(text).some(item => item.role === 'TARGET'));
 }
 
 
