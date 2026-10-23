@@ -144,3 +144,16 @@ Settlement history is capped at 500 signed records per owner and exported in at 
 - A successful settlement is acknowledged before optional UI refresh. Failed secondary reads must never cause the browser to claim that the financial write failed or generate a different idempotency key.
 
 Every match preview and settlement write authenticates ALL retained owner settlement row identifiers before determining which imported transactions remain available. A database-only row-index or source-ID forgery now fails closed rather than allowing a previously consumed row to be reused. This is not proof against a privileged writer deleting all audit records; production immutable external audit/backups remain mandatory for that threat model.
+
+
+## Encrypted user-imported evidence and migration (release blocker)
+
+CSV-derived descriptions, amounts, source labels, balances, references and dates are encrypted as **one authenticated AES-256-GCM statement envelope**, with a fresh cryptographically random nonce for every import, and authenticated additional data binding the owner, statement ID and immutable original evidence hash. MongoDB retains the ciphertext envelope, the non-reversible SHA-256 evidence hash, encrypted import timestamp metadata and existing server-key HMAC over the ciphertext. HMAC signing secret and AES key **must be independent**. Import and read paths do not serve unencrypted records, and readiness fails when the active key is unavailable or a legacy plaintext record remains.
+
+- Set `RUNWAY_EVIDENCE_KEY_V1` to a unique `openssl rand -hex 32` secret outside Mongo. `RUNWAY_EVIDENCE_ACTIVE_KID=V1` is the first active write key. `RUNWAY_EVIDENCE_KEY_V2` is optional for planned key rotation. Deploy V1 and V2 to **all readers** before switching active writes to V2. Retain older decryption keys while encrypted records or backup snapshots still rely on them.
+
+- With Runway writes paused and an independently verified backup, run read-only `MONGODB_MIGRATION_URI=<reviewed-URI> npm run runway:migrate-evidence --prefix server`. To re-encrypt signed plaintext imports, explicitly run `RUNWAY_EVIDENCE_MIGRATION_MODE=apply RUNWAY_EVIDENCE_MIGRATION_ACK=ENCRYPT_USER_IMPORTED_FINANCIAL_EVIDENCE MONGODB_MIGRATION_URI=<reviewed-URI> npm run runway:migrate-evidence --prefix server`. The migration verifies original HMAC + evidence hash, computes and verifies the AES envelope, uses a compare-and-swap update, re-reads and verifies every converted record, stops on errors and is safely restartable. The migration prints counts only, never private evidence.
+
+- Re-run read-only check until remaining = 0; then validate application readiness. Never automatically accept legacy plaintext in API endpoints. The migration does **not** guarantee removal of plaintext copies from database snapshots/backups, storage-engine historical pages, application logs or downstream exports; those require a separately governed retention and sanitization procedure.
+
+- This still does not provide independently authenticated bank data. Other financial collections outside imported statements are not covered by this AES envelope and require their own privacy review.
