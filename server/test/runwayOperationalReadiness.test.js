@@ -37,10 +37,12 @@ test('feature enabled: all unique, owner-lookup and expiration indexes must matc
   assert.deepEqual(await verifyRunwayOperationalReadiness({
     env: configured, loadIndexes: async () => valid,
   }), { enabled: true, ready: true });
-  for (const [group, field] of [[0, 'unique'], [1, 'name'], [2, 'expireAfterSeconds'],
-    [3, 'name'], [4, 'name'], [5, 'name'], [5, 'unique']]) {
+  for (const [group, index, field] of [[0, 0, 'unique'], [1, 0, 'name'],
+    [2, 0, 'expireAfterSeconds'], [3, 0, 'name'], [4, 0, 'name'],
+    [5, 0, 'name'], [5, 1, 'unique']]) {
     const mutated = structuredClone(valid);
-    mutated[group][0][field] = group === 2 ? 7200 : group === 0 ? false : 'wrong';
+    mutated[group][index][field] = field === 'expireAfterSeconds'
+      ? 7200 : field === 'unique' ? false : 'wrong';
     await assert.rejects(verifyRunwayOperationalReadiness({
       env: configured, loadIndexes: async () => mutated,
     }), error => error.code === 'RUNWAY_INDEXES_UNAVAILABLE');
