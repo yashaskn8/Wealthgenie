@@ -1189,13 +1189,23 @@ export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}
     function done() { clearTimeout(timer); signal?.removeEventListener('abort', done); resolve(); }
     signal?.addEventListener('abort', done, { once: true });
   });
-  while (!signal?.aborted) {
+  while (!signal.aborted) {
+    const streamAbort = new AbortController();
+    const cancelStream = () => streamAbort.abort();
+    signal.addEventListener('abort', cancelStream, { once: true });
+    let watchdog = null;
+    const keepAlive = () => {
+      if (watchdog) clearTimeout(watchdog);
+      watchdog = setTimeout(() => streamAbort.abort(), 15000);
+    };
     try {
+      keepAlive();
       const params = cursor === null ? '' : `?after=${cursor}`;
       const headers = { Accept: 'text/event-stream' };
       if (authToken) headers.Authorization = `Bearer ${authToken}`;
       const response = await fetch(`${API_BASE}/decisions/events/stream${params}`, {
-        method: 'GET', credentials: 'include', cache: 'no-store', headers, signal,
+        method: 'GET', credentials: 'include', cache: 'no-store', headers,
+        signal: streamAbort.signal,
       });
       if (response.status === 401 || response.status === 403) {
         onStatus?.('unauthorized');
@@ -1214,7 +1224,9 @@ export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}
         while (!signal?.aborted) {
           const { done, value } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+          keepAlive();
+          buffer += decoder.decode(value, { stream: true });
+          buffer = buffer.replace(/\r\n/g, '\n');
           if (buffer.length > 65536) throw new Error('Live event frame exceeds allowed size.');
           let boundary;
           while ((boundary = buffer.indexOf('\n\n')) >= 0) {
@@ -1248,10 +1260,14 @@ export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}
         await pause(350);
       }
     } catch (error) {
-      if (signal?.aborted || error?.name === 'AbortError') return;
+      if (signal.aborted) return;
       failures += 1;
       onStatus?.('reconnecting');
       await pause(Math.min(12000, 1000 * 2 ** Math.min(failures, 4)));
+    } finally {
+      if (watchdog) clearTimeout(watchdog);
+      signal.removeEventListener('abort', cancelStream);
+      streamAbort.abort();
     }
   }
 }
