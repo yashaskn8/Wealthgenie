@@ -12,6 +12,7 @@ import User from '../models/User.js';
 import CoverageResult from '../models/CoverageResult.js';
 import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
 import CoverageRiskAlert from '../models/CoverageRiskAlert.js';
+import CoverageSettlement from '../models/CoverageSettlement.js';
 import { sweepStaleCashDeclarations } from '../jobs/coverageRiskAlerts.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 
@@ -211,6 +212,53 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(otherRead.body.revision, 0);
     assert.equal((await call(other, 'GET', '/revisions/1')).status, 404);
     assert.equal((await call(other, 'DELETE', '/ledger', undefined, 1, randomUUID())).status, 409);
+
+    // Never infer bank settlement: explicit one-off user confirmation plus
+    // a fresh cash balance are mandatory. Commit cash, immutable history and
+    // the settlement record under the same If-Match/idempotency identity.
+    const settledOwner = new mongoose.Types.ObjectId();
+    await User.create(makeUser(settledOwner));
+    const originalBill = await call(settledOwner, 'PUT', '/ledger', payload(), 0, randomUUID());
+    assert.equal(originalBill.status, 200);
+    const unconfirmedPayment = await call(settledOwner, 'POST', '/commitments/rent/settle', {
+      asOfDate: indiaToday(), openingCashPaise: 1000,
+      completenessConfirmed: true, settlementConfirmed: false,
+    }, 1, randomUUID());
+    assert.equal(unconfirmedPayment.status, 400);
+    const settlementBody = {
+      asOfDate: indiaToday(), openingCashPaise: 1000,
+      completenessConfirmed: true, settlementConfirmed: true,
+    };
+    const settlementKey = randomUUID();
+    const paid = await call(settledOwner, 'POST', '/commitments/rent/settle',
+      settlementBody, 1, settlementKey);
+    assert.equal(paid.status, 200);
+    assert.equal(paid.body.revision, 2);
+    assert.equal(paid.body.result.status, 'NO_SHORTFALL_IN_ENTERED_PLAN');
+    assert.equal(paid.body.bankVerified, false);
+    const paymentReplay = await call(settledOwner, 'POST', '/commitments/rent/settle',
+      settlementBody, 1, settlementKey);
+    assert.equal(paymentReplay.status, 200);
+    assert.equal(paymentReplay.body.revision, 2);
+    assert.equal(paymentReplay.body.replayed, true);
+    const paidLedger = await call(settledOwner, 'GET', '/ledger');
+    assert.equal(paidLedger.body.revision, 2);
+    assert.equal(paidLedger.body.ledger.openingCashPaise, 1000);
+    assert.deepEqual(paidLedger.body.ledger.entries, []);
+    assert.equal((await call(settledOwner, 'POST', '/commitments/rent/settle',
+      settlementBody, 1, randomUUID())).status, 409);
+    assert.equal((await call(other, 'GET', '/settlements')).body.settlements.length, 0);
+    const settlementHistory = await call(settledOwner, 'GET', '/settlements');
+    assert.equal(settlementHistory.status, 200);
+    assert.equal(settlementHistory.body.settlements.length, 1);
+    assert.equal(settlementHistory.body.settlements[0].entryId, 'rent');
+    assert.equal(settlementHistory.body.settlements[0].amountPaise, 19000);
+    assert.equal(settlementHistory.body.settlements[0].provenance, 'USER_CONFIRMED_NOT_BANK_VERIFIED');
+    assert.equal(await CoverageSettlement.countDocuments({ userId: settledOwner }), 1);
+    const settleDeleted = await call(settledOwner, 'DELETE', '/ledger', undefined, 2, randomUUID());
+    assert.equal(settleDeleted.status, 200);
+    assert.equal(await CoverageSettlement.countDocuments({ userId: settledOwner }), 0);
+    assert.deepEqual((await call(settledOwner, 'GET', '/settlements')).body.settlements, []);
 
     const second = await call(owner, 'PUT', '/ledger', {
       ...submitted,

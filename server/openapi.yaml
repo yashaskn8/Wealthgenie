@@ -1555,6 +1555,48 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '428': { $ref: '#/components/responses/PreconditionRequired' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /api/coverage/commitments/{entryId}/settle:
+    post:
+      operationId: attestOneOffCashPayment
+      tags: [CashCoverage]
+      description: User-attested ONE-OFF cash payment. Requires the current revision, explicit settlement confirmation and the accessible cash balance AFTER payment. Never bank-verified; recurring or future income entries cannot be settled automatically.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      x-idempotency-key: required
+      parameters:
+        - { $ref: '#/components/parameters/CoverageIfMatch' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { name: entryId, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [asOfDate, openingCashPaise, completenessConfirmed, settlementConfirmed]
+              properties:
+                asOfDate: { type: string, format: date }
+                openingCashPaise: { type: integer, minimum: 0, maximum: 1000000000000 }
+                completenessConfirmed: { type: boolean, enum: [true] }
+                settlementConfirmed: { type: boolean, enum: [true] }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/coverage/settlements:
+    get:
+      operationId: listOwnedCashSettlements
+      tags: [CashCoverage]
+      description: Owner-only latest 20 immutable user-attested one-off settlements, not bank-verified. Deleted with saved cash records.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/coverage/scenarios/preview:
     post:
       operationId: previewVoluntaryCashExclusion
