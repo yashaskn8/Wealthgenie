@@ -223,8 +223,8 @@ it('sends explicit affordability inputs and zero EMI without provider keys or ma
     expect(last[4].body).not.toHaveProperty('provider');
   });
   expect(await screen.findByText(/Every planned instalment fits the declared monthly cash surplus/)).toBeInTheDocument();
-  expect(screen.getByText(/Extra money contributed:/)).toBeInTheDocument();
-  expect(screen.getByText(/Extra projected investment growth:/)).toBeInTheDocument();
+  expect(screen.getByText(/Extra money you contribute:/)).toBeInTheDocument();
+  expect(screen.getByText(/Extra hypothetical return component:/)).toBeInTheDocument();
 });
 
 it('shows a safe backend failure rather than inventing numerical results', async () => {
