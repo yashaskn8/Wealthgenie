@@ -11,6 +11,8 @@ on:
       - 'server/test/coverage*.test.js'
       - 'server/scripts/*required-tests.json'
       - 'server/services/persistenceIndexReadiness.js'
+      - 'reactapp/src/utils/cashStatementImport.js'
+      - 'reactapp/src/utils/cashStatementImport.test.js'
       - 'reactapp/src/components/CashCheck.jsx'
       - 'reactapp/src/components/CashCheck.css'
       - 'reactapp/src/components/__tests__/CashCheck.test.jsx'
@@ -71,7 +73,7 @@ jobs:
       - name: Check all TypeScript contracts
         run: npm run typecheck --prefix reactapp
       - name: Exercise cash-workspace UI, retry, privacy and conflicts
-        run: npm test --prefix reactapp -- src/components/__tests__/CashCheck.test.jsx
+        run: npm test --prefix reactapp -- src/components/__tests__/CashCheck.test.jsx src/utils/cashStatementImport.test.js
 
   cash-browser:
     name: Cash Check Real-Browser Desktop/Mobile Smoke
