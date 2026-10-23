@@ -14,6 +14,7 @@ import { scanDecisionMonitors } from '../services/genieDecision/monitor.js';
 import DecisionMonitor from '../models/DecisionMonitor.js';
 import DecisionAssessment from '../models/DecisionAssessment.js';
 import DecisionWorkerHeartbeat from '../models/DecisionWorkerHeartbeat.js';
+import { createDecisionWorkerHeartbeat } from '../services/genieDecision/workerHeartbeat.js';
 import DecisionEvent from '../models/DecisionEvent.js';
 import DecisionEventState from '../models/DecisionEventState.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
@@ -457,10 +458,19 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
     assert.equal(refusedWithoutWorker.response.status, 503);
     assert.equal(await DecisionMonitor.countDocuments({ userId: userOne, scenarioId: id }), 0);
 
-    await DecisionWorkerHeartbeat.create({
+    // A recent database timestamp is not authenticated proof of a worker.
+    await DecisionWorkerHeartbeat.collection.insertOne({
       _id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       heartbeatAt: new Date(), expiresAt: new Date(Date.now() + 60000),
     });
+    const spoofedWorker = await call(base, userOne, monitorPath, 'PUT',
+      { enabled: true, expectedRevision: 1 });
+    assert.equal(spoofedWorker.response.status, 503);
+    await DecisionWorkerHeartbeat.collection.deleteOne({
+      _id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    });
+    const heartbeat = createDecisionWorkerHeartbeat();
+    await heartbeat.beat();
     const enabled = await call(base, userOne, monitorPath, 'PUT',
       { enabled: true, expectedRevision: 1 });
     assert.equal(enabled.response.status, 200, JSON.stringify(enabled.body));
