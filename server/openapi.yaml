@@ -2904,6 +2904,7 @@ components:
       type: object
       required: [instrumentType, nominalRate, holdingYears, monthlySIP]
       properties:
+        instrumentId: { type: string, minLength: 1, maxLength: 128, description: Optional canonical catalog identity used for response correlation; it never authenticates exact issuer-product market or tax data. }
         instrumentType: { type: string, minLength: 1, pattern: '^\s*\S(?:[\s\S]{0,48}\S)?\s*$', description: The server trims whitespace before enforcing a 1 to 50 character limit; the pattern applies that limit to the trimmed value and rejects whitespace-only input. }
         nominalRate: { type: number, minimum: 0, maximum: 1 }
         holdingYears: { type: number, minimum: 0.01, maximum: 100 }
@@ -2997,6 +2998,8 @@ components:
             properties:
               instrumentIndex: { type: integer, minimum: 0, description: Zero-based index assigned during that instrument's calculation and retained through any Section 112A recalculation. }
               instrumentInput: { $ref: '#/components/schemas/PostTaxInstrument', description: 'Exact normalized per-row input used for this result and preserved through any Section 112A recalculation; clients must compare it with the original request row before displaying the result.' }
+              instrumentId: { type: [string, 'null'], description: Catalog identity echoed for a given projection result; null when no identity was supplied. }
+              exactProductReturnVerified: { type: boolean, const: false, description: Generic category model assumptions cannot establish an exact product-specific post-tax return. }
               instrumentType: { type: string }
               status: { type: string, enum: [CALCULATED, REQUIRES_TAX_INPUTS, TAX_CLASSIFICATION_REQUIRES_ACQUISITION_FACTS, MODEL_TAX_CLASS_UNAVAILABLE, MODELLED_POST_TAX_PROJECTION_UNAVAILABLE] }
               modelTaxClass: { type: [string, 'null'] }
