@@ -218,8 +218,8 @@ router.get('/export', verifyJWT, asyncHandler(async (req, res) => {
   }
   const rawAfter = req.query.afterRevision ?? '0';
   const rawLimit = req.query.limit ?? '20';
-  if (typeof rawAfter !== 'string' || !/^(0|[1-9]\\d{0,12})$/.test(rawAfter)
-      || typeof rawLimit !== 'string' || !/^[1-9]\\d?$|^20$/.test(rawLimit)) {
+  if (typeof rawAfter !== 'string' || !/^(0|[1-9]\d{0,12})$/.test(rawAfter)
+      || typeof rawLimit !== 'string' || !/^[1-9]\d?$|^20$/.test(rawLimit)) {
     throw createError(400, 'Invalid export cursor or limit.', 'Invalid export request.', { code: 'COVERAGE_EXPORT_INVALID' });
   }
   const afterRevision = Number(rawAfter);
