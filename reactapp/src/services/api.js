@@ -578,6 +578,9 @@ export async function simulateFreeMutualFundNavResearch(input,options={}) {
   return request('POST','/free-financial-sources/mutual-funds/simulate',
     input,{retries:0,...options});
 }
+export async function getFreeFinancialSourceCoverage(options={}) {
+  return request('GET','/free-financial-sources/coverage',null,{retries:0,...options});
+}
 export async function getFreeSmallSavingsRates(options={}) {
   return request('GET','/free-financial-sources/small-savings',null,{retries:0,...options});
 }
