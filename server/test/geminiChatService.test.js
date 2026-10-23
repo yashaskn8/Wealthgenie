@@ -833,6 +833,34 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     }
   });
 
+  it('end-to-end: Explain tax assumptions uses verified new-regime policy, not a provider fallback banner', async () => {
+    let calls = 0;
+    axios.post = async () => {
+      calls += 1;
+      throw new Error('An external LLM must not be used for policy explanations');
+    };
+    const result = await processChat({
+      userId: mockUserId,
+      user: mockUser,
+      message: 'Explain tax assumptions',
+      sessionId: mockSessionId,
+      idempotencyKey: 'new-regime-tax-policy-20261023',
+    }, { groundedExplanationDependencies: {
+      providers: [], getCache: async () => null, setCache: async () => false,
+    } });
+    assert.equal(calls, 0);
+    assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
+    assert.equal(result.grounded, true);
+    assert.equal(result.fallback, false);
+    assert.equal(result.validation_status, 'PASS');
+    assert.match(result.response, /only the new income-tax regime/i);
+    assert.match(result.response, /annual income, tax regime.*income-source breakdown/i);
+    assert.doesNotMatch(result.response, /source-backed fallback|model answer was unavailable/i);
+    assert.ok(result.citations.some(c => c.source === 'WealthGenie backend policy'));
+    assert.ok(result.citations.every(c => c.source_url === null));
+    assert.ok(!result.unavailable_facts.includes('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS'));
+  });
+
   it('Phase 6: provider failure returns a deterministic evidence-backed fallback', async () => {
     axios.post = async () => {
       throw Object.assign(new Error('provider unavailable'), { code: 'ECONNRESET' });
