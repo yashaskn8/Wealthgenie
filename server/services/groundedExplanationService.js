@@ -63,11 +63,10 @@ Include only relevant supported numbers; bind each once to one typed record with
 unavailableFacts=packet-declared IDs only. Omit E_REGULATORY_NOTICE; app appends exact notice+claim. JSON only; no markdown/extra keys.`;
   if (!includeJsonShape) return base;
 
-  const schema = getProviderOutputContract('GROUNDED_EXPLANATION_V1').schema;
-  const financialClaimSchema = schema.properties.financialClaims.items.properties;
-  const claimTypes = financialClaimSchema.type.enum.join(', ');
-  const claimUnits = financialClaimSchema.unit.enum.join(', ');
-  return `${base}\nJSON keys (all required): text:s, evidenceIdsUsed:s[], claims:[{text:s,evidenceIds:s[]}], financialClaims:[{type:s,value:n,unit:s,timePeriod:s,source:s,evidenceId:s,jurisdiction:s|null,effectivePeriod:null|{from:s,to:s|null},statement:s}], unavailableFacts:s[]. s=string, n=number. type ∈ {${claimTypes}}; unit ∈ {${claimUnits}}. financialClaims and unavailableFacts may be empty.`;
+  // The provider receives GROUNDED_EXPLANATION_V1 as its output contract;
+  // duplicating all typed enum members here wastes scarce output tokens.
+  getProviderOutputContract('GROUNDED_EXPLANATION_V1');
+  return `${base}\nJSON keys (all required): text:s, evidenceIdsUsed:s[], claims:[{text:s,evidenceIds:s[]}], financialClaims:[{type:s,value:n,unit:s,timePeriod:s,source:s,evidenceId:s,jurisdiction:s|null,effectivePeriod:null|{from:s,to:s|null},statement:s}], unavailableFacts:s[]. s=string, n=number. Typed fields must conform to GROUNDED_EXPLANATION_V1; financialClaims and unavailableFacts may be empty.`;
 }
 
 function providerOrder(dependencies = {}) {
