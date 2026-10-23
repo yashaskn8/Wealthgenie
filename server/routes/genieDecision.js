@@ -6,6 +6,10 @@ import {
   DecisionInputError, compareIncomeInterruption, fromPaise, simulateHouseholdLedger,
 } from '../services/genieDecision/ledger.js';
 
+export function createGenieDecisionRouter({
+  authenticate = verifyJWT,
+  resolveProfile = resolveCurrentFinancialProfile,
+} = {}) {
 const router = Router();
 const ALLOWED_INPUTS = new Set([
   'profileId', 'expectedProfileStateRevision', 'horizonMonths',
@@ -54,11 +58,11 @@ function assertCurrent({ current, input }) {
   }
 }
 
-router.post('/preview', verifyJWT, asyncHandler(async (req, res) => {
+router.post('/preview', authenticate, asyncHandler(async (req, res) => {
   validateRequest(req.body);
   const input = req.body;
   const userId = req.user.userId;
-  const initial = await resolveCurrentFinancialProfile({ userId, requireRecommendation: false });
+  const initial = await resolveProfile({ userId, requireRecommendation: false });
   assertCurrent({ current: initial, input });
 
   // Never replace absent liquid savings with zero. All financial facts used
@@ -90,7 +94,7 @@ router.post('/preview', verifyJWT, asyncHandler(async (req, res) => {
 
   // Re-read the canonical pointer before responding, so results computed
   // against a profile changed during evaluation are not silently called current.
-  const final = await resolveCurrentFinancialProfile({ userId, requireRecommendation: false });
+  const final = await resolveProfile({ userId, requireRecommendation: false });
   assertCurrent({ current: final, input });
   if (Number(final.profile.version) !== Number(profile.version)
     || Number(final.profile.financialStateFence) !== Number(profile.financialStateFence)) {
@@ -121,4 +125,7 @@ router.post('/preview', verifyJWT, asyncHandler(async (req, res) => {
   });
 }));
 
-export default router;
+return router;
+}
+
+export default createGenieDecisionRouter();
