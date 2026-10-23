@@ -142,9 +142,9 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
         method: 'POST',
         body: JSON.stringify({
           instruments: [
-            { instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
-            { instrumentType: 'PPF', nominalRate: 0.071, holdingYears: 15, monthlySIP: 10000 },
-            { instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 5, monthlySIP: 10000 },
+            { instrumentId: 'fd', instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
+            { instrumentId: 'ppf', instrumentType: 'PPF', nominalRate: 0.071, holdingYears: 15, monthlySIP: 10000 },
+            { instrumentId: 'equity', instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 5, monthlySIP: 10000 },
           ],
           annualIncome: 1000000,
           regime: 'new',
@@ -163,10 +163,12 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
       });
       assert.equal(body.results.length, 3);
       assert.deepEqual(body.results.map(result => result.instrumentIndex), [0, 1, 2]);
+      assert.deepEqual(body.results.map(result => result.instrumentId), ['fd', 'ppf', 'equity']);
+      assert.ok(body.results.every(result => result.exactProductReturnVerified === false));
       assert.deepEqual(body.results.map(result => result.instrumentInput), [
-        { instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
-        { instrumentType: 'PPF', nominalRate: 0.071, holdingYears: 15, monthlySIP: 10000 },
-        { instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 5, monthlySIP: 10000 },
+        { instrumentId: 'fd', instrumentType: 'FD', nominalRate: 0.07, holdingYears: 3, monthlySIP: 10000 },
+        { instrumentId: 'ppf', instrumentType: 'PPF', nominalRate: 0.071, holdingYears: 15, monthlySIP: 10000 },
+        { instrumentId: 'equity', instrumentType: 'Equity_MF', nominalRate: 0.12, holdingYears: 5, monthlySIP: 10000 },
       ]);
       assert.deepEqual(body.inputsUsed.deductions, {});
       assert.deepEqual(body.assumptions.deductions, {});
