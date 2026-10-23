@@ -7,6 +7,7 @@ import express from 'express';
 import coverageRoutes from '../routes/coverage.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import CoverageLedger from '../models/CoverageLedger.js';
+import User from '../models/User.js';
 import CoverageResult from '../models/CoverageResult.js';
 import CoverageDeletionReceipt from '../models/CoverageDeletionReceipt.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
@@ -41,6 +42,15 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     await setupTestDatabase({ requireReplicaSet: true });
     const owner = new mongoose.Types.ObjectId();
     const other = new mongoose.Types.ObjectId();
+    // Authentication validates current account existence, not just JWT syntax.
+    // Create actual accounts rather than bypassing verification in the test.
+    const makeUser = id => ({
+      _id: id, name: 'Coverage Test Account',
+      email: 'coverage-' + String(id) + '@example.invalid',
+      passwordHash: 'not-a-usable-login-hash',
+      role: 'user',
+    });
+    await User.create([makeUser(owner), makeUser(other)]);
     const app = express();
     app.use(express.json());
     app.use('/api/coverage', coverageRoutes);
@@ -122,6 +132,7 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(sameKeyOtherRevision.body.code, 'IDEMPOTENCY_PAYLOAD_CONFLICT');
     // Independent owner: two clients race on the same confirmed revision.
     const racer = new mongoose.Types.ObjectId();
+    await User.create(makeUser(racer));
     const racerBase = payload();
     assert.equal((await call(racer, 'PUT', '/ledger', racerBase, 0, randomUUID())).status, 200);
     const race = await Promise.all([
@@ -134,6 +145,7 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     // Crash injection: a failing snapshot insert must roll back the ledger CAS,
     // leaving no apparently-current calculation without an immutable result.
     const crashOwner = new mongoose.Types.ObjectId();
+    await User.create(makeUser(crashOwner));
     const beforeCrash = payload();
     assert.equal((await call(crashOwner, 'PUT', '/ledger', beforeCrash, 0, randomUUID())).status, 200);
     const originalCreate = CoverageResult.create;
@@ -258,6 +270,11 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     const newPlan = await call(owner, 'PUT', '/ledger', submitted, 3, randomUUID());
     assert.equal(newPlan.status, 200);
     assert.equal(newPlan.body.revision, 4);
+    // A cryptographically valid token for a deleted account cannot read
+    // sensitive saved cash plans or their historical revisions.
+    await User.deleteOne({ _id: owner });
+    assert.equal((await call(owner, 'GET', '/ledger')).status, 401);
+    assert.equal((await call(owner, 'GET', '/export')).status, 401);
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));
     await teardownTestDatabase();
