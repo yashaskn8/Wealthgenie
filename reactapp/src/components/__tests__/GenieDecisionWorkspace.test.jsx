@@ -7,7 +7,7 @@ import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
   getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID, subscribeDecisionEvents,
-  simulateDecisionScenario, subscribeAuth, getAuthSnapshot,
+  simulateDecisionScenario, subscribeAuth, getAuthSnapshot, getDecisionMonitor, setDecisionMonitor,
 } from '../../services/api';
 
 vi.mock('../../services/api', () => ({
@@ -17,6 +17,7 @@ vi.mock('../../services/api', () => ({
   getDecisionRun: vi.fn(), listDecisionRuns: vi.fn(), deleteDecisionScenario: vi.fn(),
   generateUUID: vi.fn(), subscribeDecisionEvents: vi.fn(),
   simulateDecisionScenario: vi.fn(), subscribeAuth: vi.fn(), getAuthSnapshot: vi.fn(),
+  getDecisionMonitor: vi.fn(), setDecisionMonitor: vi.fn(),
 }));
 
 const profileId = '64a000000000000000000001';
@@ -58,7 +59,7 @@ describe('GenieDecision workspace red-team integration', () => {
       getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
       createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
       getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID, subscribeDecisionEvents,
-      simulateDecisionScenario, subscribeAuth, getAuthSnapshot,
+      simulateDecisionScenario, subscribeAuth, getAuthSnapshot, getDecisionMonitor, setDecisionMonitor,
     ]) stub.mockReset();
     generateUUID.mockReturnValue('test-decision-idempotency-key-0001');
     subscribeDecisionEvents.mockResolvedValue(undefined);
@@ -72,6 +73,12 @@ describe('GenieDecision workspace red-team integration', () => {
     });
     listDecisionScenarios.mockResolvedValue({ scenarios: [saved] });
     getDecisionScenario.mockResolvedValue({ scenario: saved, payload });
+    getDecisionMonitor.mockResolvedValue({
+      monitor: { enabled: false, generation: 0, workerConfigured: true }, assessments: [],
+    });
+    setDecisionMonitor.mockResolvedValue({
+      monitor: { enabled: true, generation: 1, workerConfigured: true },
+    });
     getDecisionRun.mockResolvedValue(report);
     listDecisionRuns.mockResolvedValue({ runs: [{ id: report.run.id, status: 'PARTIAL', scenarioRevision: 1, asOf: report.run.asOf }] });
     createDecisionScenario.mockResolvedValue({ scenario: { ...saved, lastRunId: null } });
