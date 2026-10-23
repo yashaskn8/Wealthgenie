@@ -194,12 +194,22 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
 
   router.get('/data-availability', handleInput(async (req, res) => {
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+    const currentProfile = Boolean(current.profile && current.state.resolutionStatus === 'CURRENT');
+    const optionalFact = (value, field) => {
+      try { return profileMoney(value, field); } catch { return null; }
+    };
+    const facts = currentProfile ? {
+      openingLiquidCash: optionalFact(current.profile.liquidSavings, 'liquidSavings'),
+      monthlyTakeHome: optionalFact(current.profile.monthlyTakeHome, 'monthlyTakeHome'),
+      declaredMonthlySavings: optionalFact(current.profile.monthlySavings, 'monthlySavings'),
+    } : { openingLiquidCash: null, monthlyTakeHome: null, declaredMonthlySavings: null };
+    const complete = Object.values(facts).every(value => value !== null);
     res.json({
-      available: Boolean(current.profile && current.state.resolutionStatus === 'CURRENT'),
-      profileId: current.profile ? identity(current.profile._id) : null,
-      profileStateRevision: current.profile ? current.state.revision : null,
-      openingLiquidCashAvailable: current.profile?.liquidSavings !== null
-        && current.profile?.liquidSavings !== undefined,
+      available: currentProfile && complete,
+      profileId: currentProfile ? identity(current.profile._id) : null,
+      profileStateRevision: currentProfile ? current.state.revision : null,
+      openingLiquidCashAvailable: facts.openingLiquidCash !== null,
+      profileFacts: facts, requiredInputsComplete: complete,
       externalFinancialEvidence: 'UNAVAILABLE',
       llmRequired: false, providerForecastAvailable: false,
     });
