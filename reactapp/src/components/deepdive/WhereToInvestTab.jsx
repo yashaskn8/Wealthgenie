@@ -189,7 +189,7 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
   const [showTaxDrawer, setShowTaxDrawer] = useState(false);
   const [taxAnnualIncome, setTaxAnnualIncome] = useState('');
   const [taxIncomeSource, setTaxIncomeSource] = useState('');
-  const [taxRegime, setTaxRegime] = useState('');
+  const taxRegime = 'new';
   const [taxFiscalYear, setTaxFiscalYear] = useState('');
   const [taxUserAge, setTaxUserAge] = useState('');
   const [holdingPeriodMonths, setHoldingPeriodMonths] = useState('');
@@ -531,17 +531,7 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
 
           {requiredTaxInputs.includes('regime') && <div className="wti-tax-input-group">
             <label htmlFor="wti-tax-regime">Tax Regime</label>
-            <select
-              id="wti-tax-regime"
-              className="wti-tax-input"
-              value={taxRegime}
-              onChange={(e) => setTaxRegime(e.target.value)}
-              required
-            >
-              <option value="">Select regime</option>
-              <option value="new">New Tax Regime</option>
-              <option value="old">Old Tax Regime</option>
-            </select>
+            <span id="wti-tax-regime" role="status">New tax regime only</span>
           </div>}
 
           {requiredTaxInputs.includes('fiscalYear') && <div className="wti-tax-input-group">
