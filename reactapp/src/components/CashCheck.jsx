@@ -198,8 +198,9 @@ export default function CashCheck() {
     if (busy || !confirmDelete || revision < 1) return;
     setBusy(true); setError(''); setNotice('');
     try {
-      await api.deleteCoverageLedger(revision);
-      setRevision(0);
+      const response = await api.deleteCoverageLedger(revision);
+      // The anonymous tombstone revision prevents a stale tab from resurrecting data.
+      setRevision(response.nextRevision);
       setDraft(EMPTY());
       setSaved(null);
       setPreview(null);
@@ -275,7 +276,8 @@ export default function CashCheck() {
           </div>
         </section>
       </form>
-      {saved && !dirty && <ResultView data={saved} />}
+      {saved && !dirty && !stale && <ResultView data={saved} />}
+      {saved && stale && !dirty && <p role="alert">Saved cash entries are out of date. Reconfirm today's accessible cash and save again before viewing a result.</p>}
       {saved && dirty && <p role="status">Unsaved edits: the previous result is hidden until you save and recalculate.</p>}
       {saved && !dirty && !stale && draft.entries.some(e => e.type === 'VOLUNTARY_CONTRIBUTION') &&
         <section className="cash-check-panel">

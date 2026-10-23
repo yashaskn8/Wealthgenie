@@ -84,6 +84,9 @@ async function resolveCoverageReplay(req, record) {
 router.get('/ledger', verifyJWT, asyncHandler(async (req, res) => {
   const ledger = await CoverageLedger.findOne({ userId: req.user.userId }).lean();
   if (!ledger) return res.json({ revision: 0, ledger: null, latestResult: null });
+  if (ledger.deletedAt || ledger.input === null) {
+    return res.json({ revision: ledger.revision, ledger: null, latestResult: null, deleted: true });
+  }
   const snapshot = await CoverageResult.findOne({
     userId: req.user.userId, ledgerRevision: ledger.revision, policyVersion: COVERAGE_POLICY_VERSION,
   }).lean();
@@ -134,7 +137,7 @@ router.put(
         if (current) {
           const mutation = await CoverageLedger.updateOne(
             { _id: current._id, userId, revision: expectedRevision },
-            { $set: { input }, $inc: { revision: 1 } },
+            { $set: { input, deletedAt: null }, $inc: { revision: 1 } },
             { session, runValidators: true },
           );
           if (mutation.modifiedCount !== 1) throw conflict();
@@ -220,7 +223,8 @@ async function resolveDeletionReplay(req, record) {
       code: 'COVERAGE_DELETION_STATE_UNAVAILABLE',
     });
   }
-  return { deleted: true, deletedRevision: receipt.deletedRevision, deletedAt: receipt.deletedAt };
+  return { deleted: true, deletedRevision: receipt.deletedRevision,
+    nextRevision: receipt.nextRevision, deletedAt: receipt.deletedAt };
 }
 
 /**
@@ -245,15 +249,18 @@ router.delete('/ledger',
         const ledger = await CoverageLedger.findOne({
           userId, revision: req.coverageExpectedRevision,
         }).session(session).lean();
-        if (!ledger) throw conflict();
-        const removed = await CoverageLedger.deleteOne({
+        if (!ledger || ledger.deletedAt || !ledger.input) throw conflict();
+        // A tombstone fences stale PUTs with If-Match:0 after deletion.
+        // Retain the anonymous revision number, never the financial payload.
+        const removed = await CoverageLedger.updateOne({
           _id: ledger._id, userId, revision: req.coverageExpectedRevision,
-        }).session(session);
-        if (removed.deletedCount !== 1) throw conflict();
+        }, { $set: { input: null, deletedAt: new Date() }, $inc: { revision: 1 } },
+        { session, runValidators: true });
+        if (removed.modifiedCount !== 1) throw conflict();
         await CoverageResult.deleteMany({ userId }, { session });
         const [receipt] = await CoverageDeletionReceipt.create([{
           userId, idempotencyOperationId: req.idempotencyClaim.operationId,
-          deletedRevision: ledger.revision, deletedAt: new Date(),
+          deletedRevision: ledger.revision, nextRevision: ledger.revision + 1, deletedAt: new Date(),
         }], { session });
         await completeMutationIdempotency(session, req.idempotencyClaim, {
           resourceType: 'CoverageDeletionReceipt', resourceId: receipt._id, status: 200,
@@ -276,6 +283,7 @@ router.delete('/ledger',
     }
     return res.json({
       deleted: true, deletedRevision: deletedReceipt.deletedRevision,
+      nextRevision: deletedReceipt.nextRevision,
       deletedAt: deletedReceipt.deletedAt,
     });
   }),

@@ -9,6 +9,7 @@
   "test/chaos.test.js",
   "test/chatSessionStore.integration.test.js",
   "test/concurrency.test.js",
+  "test/coverageLedger.integration.test.js",
   "test/deferredAdvisory.test.js",
   "test/genieProofMongo.integration.test.js",
   "test/goalFinanceRoutes.test.js",

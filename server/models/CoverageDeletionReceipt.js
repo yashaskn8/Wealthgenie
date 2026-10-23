@@ -6,6 +6,7 @@ const schema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, immutable: true },
   idempotencyOperationId: { type: String, required: true, immutable: true },
   deletedRevision: { type: Number, required: true, min: 1, immutable: true },
+  nextRevision: { type: Number, required: true, min: 2, immutable: true },
   deletedAt: { type: Date, required: true, immutable: true },
 }, { strict: 'throw', timestamps: false });
 schema.index({ userId: 1, idempotencyOperationId: 1 }, {

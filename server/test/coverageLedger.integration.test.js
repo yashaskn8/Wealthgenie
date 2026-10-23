@@ -108,10 +108,24 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     const deleteReplay = await call(owner, 'DELETE', '/ledger', undefined, 2, deletionKey);
     assert.equal(deleteReplay.status, 200);
     assert.equal(deleteReplay.body.deletedRevision, 2);
-    assert.equal(await CoverageLedger.countDocuments({ userId: owner }), 0);
+    const fenced = await CoverageLedger.findOne({ userId: owner }).lean();
+    assert.equal(fenced.revision, 3);
+    assert.equal(fenced.input, null);
+    assert.ok(fenced.deletedAt);
+    assert.equal(deleted.body.nextRevision, 3);
+    assert.equal(await CoverageLedger.countDocuments({ userId: owner }), 1);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 0);
     assert.equal(await CoverageDeletionReceipt.countDocuments({ userId: owner }), 1);
     assert.equal((await call(owner, 'GET', '/revisions/1')).status, 404);
+    const deletedRead = await call(owner, 'GET', '/ledger');
+    assert.equal(deletedRead.body.revision, 3);
+    assert.equal(deletedRead.body.ledger, null);
+    assert.equal(deletedRead.body.deleted, true);
+    assert.equal((await call(owner, 'PUT', '/ledger', submitted, 0, randomUUID())).status, 409);
+    assert.equal((await call(owner, 'PUT', '/ledger', submitted, 2, randomUUID())).status, 409);
+    const newPlan = await call(owner, 'PUT', '/ledger', submitted, 3, randomUUID());
+    assert.equal(newPlan.status, 200);
+    assert.equal(newPlan.body.revision, 4);
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));
     await teardownTestDatabase();
