@@ -38,11 +38,11 @@ try {
   if (!indexes.some(index => index.name === 'uniq_runway_ledger_revision'
       && index.unique === true && index.key.userId === 1 && index.key.revision === 1)
       || !snapshots.some(index => index.name === 'runway_snapshots_by_owner'
-        && index.key.userId === 1 && index.key.importedAt === -1)
+        && index.key.userId === 1 && index.key.createdAt === -1)
       || !deletions.some(index => index.name === 'runway_deleted_snapshot_ttl'
         && index.key.expiresAt === 1 && index.expireAfterSeconds === 0)
       || !statements.some(index => index.name === 'runway_statement_owner_newest'
-        && index.key.userId === 1 && index.key.createdAt === -1)
+        && index.key.userId === 1 && index.key.importedAt === -1)
       || !signals.some(index => index.name === 'runway_signal_owner_cursor'
         && index.key.userId === 1 && index.key._id === 1)
       || !signals.some(index => index.name === 'runway_signal_ttl'

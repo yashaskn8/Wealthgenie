@@ -29,11 +29,11 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
     && ledger.some(i => i.name === 'uniq_runway_ledger_revision'
       && i.unique === true && i.key?.userId === 1 && i.key?.revision === 1)
     && snapshot.some(i => i.name === 'runway_snapshots_by_owner'
-      && i.key?.userId === 1 && i.key?.importedAt === -1)
+      && i.key?.userId === 1 && i.key?.createdAt === -1)
     && deletion.some(i => i.name === 'runway_deleted_snapshot_ttl'
       && i.key?.expiresAt === 1 && i.expireAfterSeconds === 0)
     && statement.some(i => i.name === 'runway_statement_owner_newest'
-      && i.key?.userId === 1 && i.key?.createdAt === -1)
+      && i.key?.userId === 1 && i.key?.importedAt === -1)
     && signal.some(i => i.name === 'runway_signal_owner_cursor'
       && i.key?.userId === 1 && i.key?._id === 1)
     && signal.some(i => i.name === 'runway_signal_ttl'
