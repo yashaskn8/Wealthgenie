@@ -12,7 +12,7 @@ const schema = new mongoose.Schema({
   profileFactsHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   runKeyHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   issuedAt: { type: String, required: true, immutable: true,
-    match: /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/ },
+    match: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/ },
   inputHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   integrityKeyId: { type: String, required: true, immutable: true, match: /^[A-Za-z0-9_-]{1,32}$/ },
   integrityTag: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
