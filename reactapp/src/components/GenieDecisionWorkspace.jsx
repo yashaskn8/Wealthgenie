@@ -219,6 +219,9 @@ export default function GenieDecisionWorkspace() {
       },
       onEvent: event => {
         if (controller.signal.aborted) return;
+        // Source snapshots must be re-fetched after events, not served from
+        // a locally cached assessment that may have become historical.
+        setSelectedAssessment(null);
         // Never rewrite a form being edited. Notify the user to re-open a
         // changed scenario rather than silently destroying uncommitted input.
         if (event.type === 'profile-changed') {
@@ -573,6 +576,15 @@ export default function GenieDecisionWorkspace() {
               </button>
             </li>)}</ul>}
             {selectedAssessment && <div>
+              <h4>Source facts used in this reassessment</h4>
+              <p className="gd-muted">An authenticated calculation is not independent verification of the data. User-declared facts have not been checked against a bank, broker or employer.</p>
+              {selectedAssessment.source?.facts?.length > 0 && <ul aria-label="Financial source evidence">
+                {selectedAssessment.source.facts.map(fact => <li key={fact.field}>
+                  <strong>{fact.field}</strong>: ₹{fact.value} · {fact.verificationStatus}
+                  {' · '}{fact.sourceType === 'USER_DECLARED' ? 'Entered by user' : fact.sourceType}
+                  {' · '}{fact.rightsDecision === 'FIRST_PARTY_USER_INPUT' ? 'First-party data' : fact.rightsDecision}
+                </li>)}
+              </ul>}
               {selectedAssessment.originalStatus === 'NEEDS_REVIEW' && <p role="alert" className="gd-warning">
                 Your newer financial facts no longer reconcile with this scenario's saved assumptions. Open a new decision scenario using your current budget.
               </p>}

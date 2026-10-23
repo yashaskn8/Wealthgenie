@@ -81,6 +81,7 @@ jobs:
             server/test/genieDecisionScenarios.test.js \
             server/test/genieDecisionIntegrity.test.js \
             server/test/genieDecisionMonitor.test.js \
+            server/test/genieDecisionIndependentOracle.test.js \
             server/test/genieDecisionLiveEvents.test.js \
             server/test/genieDecisionProperty.test.js \
             server/test/genieDecisionPreview.test.js \

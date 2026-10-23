@@ -25,7 +25,7 @@ const schema = new mongoose.Schema({
 }, { strict: 'throw', timestamps: { createdAt: true, updatedAt: false } });
 schema.index({ userId: 1, scenarioId: 1, scenarioRevision: 1, monitorGeneration: 1,
   profileId: 1, profileFactsHash: 1, profileStateRevision: 1, profileVersion: 1, profileFinancialFence: 1, modelVersion: 1 },
-{ unique: true, name: 'uniq_decision_assessment_source_policy' });
+{ unique: true, name: 'uniq_decision_assessment_source_policy_v2' });
 schema.index({ userId: 1, scenarioId: 1, createdAt: -1 }, { name: 'decision_assessment_owner_history' });
 protectImmutableIdentity(schema, [
   'userId', 'scenarioId', 'scenarioRevision', 'monitorGeneration', 'profileId', 'profileStateRevision',

@@ -33,7 +33,7 @@ const expected = [
     userId: 1, scenarioId: 1, scenarioRevision: 1, monitorGeneration: 1,
     profileId: 1, profileFactsHash: 1, profileStateRevision: 1, profileVersion: 1,
     profileFinancialFence: 1, modelVersion: 1,
-  }, 'uniq_decision_assessment_source_policy', true],
+  }, 'uniq_decision_assessment_source_policy_v2', true],
   [DecisionAssessment, { userId: 1, scenarioId: 1, createdAt: -1 },
     'decision_assessment_owner_history', false],
 ];
@@ -56,6 +56,18 @@ try {
         || index.expireAfterSeconds === 0))) {
       throw new Error(`Required GenieDecision index ${name} did not verify.`);
     }
+  }
+  // The former unique index lacks profileId. Retaining it would reject two
+  // independently created profiles with coincidentally identical facts.
+  // Create and verify v2 FIRST; remove legacy only in operator-controlled
+  // write-fenced maintenance to avoid a window with no uniqueness protection.
+  const legacy = (await DecisionAssessment.collection.indexes())
+    .some(index => index.name === 'uniq_decision_assessment_source_policy');
+  if (legacy) {
+    if (process.env.GENIEDECISION_INDEX_MAINTENANCE !== 'true') {
+      throw new Error('Legacy source-policy index requires write-fenced maintenance.');
+    }
+    await DecisionAssessment.collection.dropIndex('uniq_decision_assessment_source_policy');
   }
   process.stdout.write('GenieDecision owner, revision and idempotency indexes verified.\n');
 } catch (error) {
