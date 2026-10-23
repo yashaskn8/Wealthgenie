@@ -59,6 +59,19 @@ export function verifyDecisionAssessment(item) {
     throw error;
   }
   verifyDecisionSourceSnapshot(item.sourceSnapshot, item);
+  // Two independently signed blobs are insufficient unless they agree on
+  // the *same* canonical input amounts. Block internally inconsistent reports
+  // even if a signer bug produced a valid receipt for both blobs.
+  if (item.status === 'RECALCULATED') {
+    const expected = Object.fromEntries(item.sourceSnapshot.facts.map(fact => [fact.field, fact.value]));
+    const actual = item.result.profileFacts;
+    if (!actual || Object.keys(expected).some(key => actual[key] !== expected[key])
+        || item.result.modelVersion !== item.modelVersion) {
+      const error = new Error('Reassessment report disagrees with its financial evidence.');
+      error.code = 'DECISION_ASSESSMENT_INTEGRITY_FAILURE';
+      throw error;
+    }
+  }
 }
 
 export function assessmentDto(assessment, current, scenario, monitor) {
