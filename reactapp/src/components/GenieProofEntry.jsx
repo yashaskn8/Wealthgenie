@@ -221,7 +221,7 @@ export default function GenieProofEntry() {
                   <ul>{claim.warningSignals.map(signal => <li key={signal}>{signal}</li>)}</ul>
                 </div>
               )}
-              <GenieProofNvidiaReview offerText={statement} claim={claim} />
+              <GenieProofNvidiaReview claim={claim} />
             </article>
           ))}
           <p style={{ fontSize: '.85rem', color: '#94a3b8', marginBottom: 0 }}>
