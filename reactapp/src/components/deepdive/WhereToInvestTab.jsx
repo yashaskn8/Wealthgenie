@@ -426,6 +426,7 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
   const products = rankingStatus === 'ready' && hasQualifiedRanking ? rankingResult.products : [];
   const isEvidenceRanked = rankingResult.ranking?.status === 'EVIDENCE_RANKED';
   const isComparableSet = rankingResult.ranking?.status === 'VERIFIED_COMPARABLE_OPTIONS';
+  const sourceUseRestricted = rankingResult.comparisonUniverse?.productionSourceUseAllowed === false;
 
   const rankingError = missingRankingInput
     ? 'A saved Financial Profile and complete current recommendation binding are required. Refresh the current plan before comparing products.'
@@ -478,8 +479,8 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
         <div role="status" className="wti-status-banner wti-status-banner--unavailable">
           <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
-            {rankingResult.comparisonUniverse?.productionSourceUseAllowed === false
-              ? 'This source is not cleared for WealthGenie production display. Product data and post-tax amounts remain unavailable until its reuse permissions are verified.'
+            {sourceUseRestricted
+              ? 'Verified products unavailable: this source is not cleared for WealthGenie production display. Product data and post-tax amounts are not shown.'
               : 'No current source-qualified products are available for this category. No static fallback values were inserted.'}
           </div>
         </div>
@@ -808,14 +809,14 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
         </div>}
       </div>
 
-      {wtiData.note && (
+      {!sourceUseRestricted && wtiData.note && (
         <div className="wti-note-banner">
           <Info size={14} style={{ flexShrink: 0, marginTop: 2 }} />
           <p><strong>REFERENCE METADATA:</strong> {wtiData.note}</p>
         </div>
       )}
 
-      {rankingResult.comparisonUniverse && (
+      {!sourceUseRestricted && rankingResult.comparisonUniverse && (
         <div className="wti-note-banner" data-testid="wti-comparison-universe">
           <TrendingUp size={14} style={{ flexShrink: 0, marginTop: 2 }} />
           <p>
@@ -828,7 +829,7 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
         </div>
       )}
 
-      {rankingResult.ranking?.warning && (
+      {!sourceUseRestricted && rankingResult.ranking?.warning && (
         <div className="wti-note-banner">
           <Info size={14} style={{ flexShrink: 0, marginTop: 2 }} />
           <p>{rankingResult.ranking.warning}</p>
