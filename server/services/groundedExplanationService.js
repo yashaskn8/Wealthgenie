@@ -38,6 +38,13 @@ export const GROUNDED_PROVIDER_CHAIN_DEADLINE_MS = 60000;
 // Explain WealthGenie's input assumptions without fabricating a tax result.
 const TAX_ASSUMPTIONS_EXPLANATION_QUESTION = /^(?:(?:please\s+)?(?:explain|show|list|describe|outline|clarify|what(?:\s+are)?|tell\s+me\s+about)\s+)?(?:(?:the|my|your|wealthgenie's|current|app's)\s+)?(?:tax|income[ -]?tax)\s+(?:assumptions?|policy)(?:\s+(?:(?:is\s+)?used|here|in\s+(?:wealthgenie|the\s+app)|for\s+(?:my|the)\s+(?:plan|portfolio)))?[?.!\s]*$/i;
 const TAX_REGIME_POLICY_QUESTION = /^(?:(?:which|what)\s+(?:income[ -]?)?tax\s+regime\s+(?:does\s+(?:wealthgenie|the\s+app|genie)\s+use|is\s+(?:used|supported|assumed)(?:\s+(?:in|by)\s+(?:wealthgenie|the\s+app))?)|does\s+(?:wealthgenie|the\s+app|genie)\s+use\s+(?:the\s+)?(?:new|old|new\s+or\s+old)\s+(?:income[ -]?)?tax\s+regime)[?.!\s]*$/i;
+// A portfolio review must describe the SAVED model recommendation, not invent
+// brokerage positions, transactions, balances, market prices, or performance.
+export function isPortfolioReviewQuestion(question) {
+  return /\b(?:review|analy[sz]e|assess|evaluate|check|summari[sz]e|inspect)\s+(?:(?:my|the|current|saved|recommended)\s+)?(?:portfolio|allocation|investment\s+plan|investments|recommendation)\b/i
+    .test(String(question || '').trim());
+}
+
 function isTaxPolicyExplanationQuestion(question) {
   const text = String(question || '').trim();
   return TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(text) || TAX_REGIME_POLICY_QUESTION.test(text);
@@ -326,6 +333,61 @@ function deterministicCandidate(packet, question = '') {
       evidenceIdsUsed: claims.flatMap(claim => claim.evidenceIds),
       claims, financialClaims, unavailableFacts: packet.unavailableFacts,
     };
+  }
+  const portfolioScope = packet.entries.find(item => item.id === 'E_PORTFOLIO_REVIEW_SCOPE');
+  if (portfolioScope && isPortfolioReviewQuestion(question)) {
+    const claims = [];
+    const financialClaims = [];
+    const savedRisk = packet.entries.find(item => item.id === 'E_PROFILE_RISK' && item.kind === 'SUITABILITY');
+    const riskValue = savedRisk?.value;
+    const validRisk = label => typeof label === 'string'
+      && label.length <= 40 && /^[A-Za-z]+(?:[ -][A-Za-z]+)*$/.test(label) ? label : null;
+    const finalRisk = validRisk(riskValue?.finalSuitabilityRisk);
+    const statedRisk = validRisk(riskValue?.statedRiskTolerance);
+    if (savedRisk && (finalRisk || statedRisk)) {
+      const summary = finalRisk && statedRisk
+        ? 'Your stated risk preference is ' + statedRisk + '; the saved suitability assessment caps it at ' + finalRisk
+        : finalRisk ? 'Your saved suitability ceiling is ' + finalRisk
+          : 'Your stated risk preference is ' + statedRisk;
+      claims.push({ text: summary + ' [' + savedRisk.id + '].', evidenceIds: [savedRisk.id] });
+    }
+    const allocationEntries = packet.entries.filter(item => item.kind === 'RECOMMENDATION'
+      && /^E_REC_\d{3}$/.test(item.id)
+      && item.dataClass === 'AUTHORITATIVE_BACKEND_RESULT'
+      && item.authority === 'WEALTHGENIE_BACKEND'
+      && typeof item.value?.allocationPct === 'number'
+      && Number.isFinite(item.value.allocationPct)
+      && item.value.allocationPct > 0 && item.value.allocationPct <= 100);
+    for (const item of allocationEntries.slice(0, 8)) {
+      const candidateName = String(item.value?.name || '').replace(/\s+/g, ' ').trim();
+      const candidateType = String(item.value?.type || '').replace(/[_-]+/g, ' ').trim();
+      const safeLabel = text => text.length > 1 && text.length <= 90
+        && /^[\p{L}\s&()/.,-]+$/u.test(text);
+      const label = safeLabel(candidateName) ? candidateName
+        : safeLabel(candidateType) ? candidateType : 'a saved recommendation category';
+      const statement = 'Saved recommendation allocation: '
+        + String(item.value.allocationPct) + '% to ' + label
+        + ' [' + item.id + '].';
+      claims.push({ text: statement, evidenceIds: [item.id] });
+      financialClaims.push({
+        type: 'ALLOCATION_WEIGHT', value: item.value.allocationPct,
+        unit: 'PERCENT', timePeriod: 'CURRENT_PLAN',
+        source: 'WEALTHGENIE_BACKEND', evidenceId: item.id,
+        jurisdiction: null, effectivePeriod: null, statement,
+      });
+    }
+    if (allocationEntries.length === 0) {
+      const unavailable = packet.entries.find(item => item.id === 'E_PORTFOLIO_REVIEW_UNAVAILABLE');
+      if (unavailable) claims.push({
+        text: unavailable.displayValue + ' [' + unavailable.id + '].',
+        evidenceIds: [unavailable.id],
+      });
+    }
+    claims.push({ text: portfolioScope.displayValue + ' [' + portfolioScope.id + '].',
+      evidenceIds: [portfolioScope.id] });
+    return { text: claims.map(claim => claim.text).join(' '),
+      evidenceIdsUsed: claims.flatMap(claim => claim.evidenceIds),
+      claims, financialClaims, unavailableFacts: packet.unavailableFacts };
   }
   const personalizedRiskQuestion = /\b(?:risk|suitability|tolerance|capacity)\b/i.test(question)
     && /\b(?:my|me|plan|profile|portfolio|recommendation)\b/i.test(question);
@@ -619,6 +681,18 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
     // Goal amounts and monthly arithmetic are deterministic USER_INPUT /
     // backend-calculation facts, not permission for an LLM to guess a SIP.
     // Answer these scoped planning questions without any model calls.
+    if (evidencePacket.entries.some(item => item.id === 'E_PORTFOLIO_REVIEW_SCOPE')
+        && isPortfolioReviewQuestion(question)) {
+      const result = outputResult({
+        candidate: deterministicCandidate(evidencePacket, question),
+        packet: evidencePacket, provider: 'deterministic_template',
+        model: null, latencyMs: 0, tokensUsed: 0,
+        fallback: false, reasonCodes: [],
+      });
+      result.providerAttemptCount = 0;
+      result.providerAttemptFailureCount = 0;
+      return result;
+    }
     if (evidencePacket.entries.some(item => item.id === 'E_TAX_ASSUMPTIONS_INPUTS')
         && isTaxPolicyExplanationQuestion(question)) {
       const result = outputResult({
@@ -1003,6 +1077,25 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
   });
   const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(question);
   const entries = [...goalEvidence, ...taxAssumptionEvidence, ...retrieveChatEducationalEvidence(question)];
+  if (isPortfolioReviewQuestion(question)) {
+    entries.push(makeEvidenceEntry('E_PORTFOLIO_REVIEW_SCOPE', 'ANSWER_BOUNDARY',
+      { sourceType: 'SAVED_MODEL_RECOMMENDATION', verifiedBrokerageHoldings: false }, {
+        dataClass: 'DETERMINISTIC_POLICY_EXPLANATION',
+        displayValue: 'This review covers your saved WealthGenie recommended allocation and risk suitability, not verified investments you currently hold. It does not establish live value, realized returns, fees, or tax outcomes',
+        source: { provider: 'WEALTHGENIE_BACKEND', title: 'Saved recommendation review scope', url: null },
+      }));
+    if (!Array.isArray(recommendation?.instruments)
+        || !recommendation.instruments.some(item => Number.isFinite(Number(item?.allocation_pct))
+          ? Number(item.allocation_pct) > 0
+          : Number.isFinite(Number(item?.allocationWeight)) && Number(item.allocationWeight) > 0)) {
+      entries.push(makeEvidenceEntry('E_PORTFOLIO_REVIEW_UNAVAILABLE', 'ANSWER_BOUNDARY',
+        { currentSavedRecommendationAvailable: false }, {
+          dataClass: 'SYSTEM_AVAILABILITY_STATUS',
+          displayValue: 'There is no current saved recommendation allocation available to review. Complete or refresh the Financial Profile and generate a fresh recommendation before drawing investment conclusions',
+          source: { provider: 'WEALTHGENIE_BACKEND', title: 'Current recommendation availability', url: null },
+        }));
+    }
+  }
   const unavailableFacts = [];
   const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
   const regulatoryLookup = dependencies.queryRegulatoryRag
