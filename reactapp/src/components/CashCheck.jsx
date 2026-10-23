@@ -133,6 +133,7 @@ export default function CashCheck() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [stale, setStale] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -147,13 +148,19 @@ export default function CashCheck() {
     return () => { active = false; };
   }, []);
 
+  const editDraft = updater => {
+    setDraft(updater);
+    setDirty(true);
+    setPreview(null);
+    setNotice('');
+  };
   const updateEntry = (id, patch) => {
-    setDraft(d => ({ ...d, entries: d.entries.map(e => e.id === id ? { ...e, ...patch } : e) }));
+    editDraft(d => ({ ...d, entries: d.entries.map(e => e.id === id ? { ...e, ...patch } : e) }));
     setPreview(null);
     setNotice('');
   };
   const addEntry = () => {
-    setDraft(d => ({ ...d, entries: d.entries.length >= 100 ? d.entries : [...d.entries, newEntry()] }));
+    editDraft(d => ({ ...d, entries: d.entries.length >= 100 ? d.entries : [...d.entries, newEntry()] }));
     setPreview(null);
   };
   const save = async (event) => {
@@ -165,7 +172,8 @@ export default function CashCheck() {
       const response = await api.saveCoverageLedger(payload, revision);
       setRevision(response.revision);
       setSaved(response.result);
-      setStale(false);
+      setDirty(false);
+      setStale(draft.asOfDate !== INDIA_DATE());
       setNotice('Entries saved and recalculated. Revision ' + response.revision + '.');
     } catch (err) {
       setError(err.status === 409
@@ -200,13 +208,13 @@ export default function CashCheck() {
           <p>Use money available for scheduled payments—not FD principal, mutual funds, locked balances or future salary.</p>
           <div className="cash-check-grid">
             <label>Cash as-of date <input type="date" required value={draft.asOfDate}
-              onChange={e => setDraft(d => ({ ...d, asOfDate: e.target.value }))} /></label>
+              onChange={e => editDraft(d => ({ ...d, asOfDate: e.target.value }))} /></label>
             <label>Accessible cash (₹, blank if unknown)
               <input inputMode="decimal" value={draft.openingCash} placeholder="50000.00"
-                onChange={e => setDraft(d => ({ ...d, openingCash: e.target.value }))} />
+                onChange={e => editDraft(d => ({ ...d, openingCash: e.target.value }))} />
             </label>
             <label>Self-reported cash source <select value={draft.cashSource}
-              onChange={e => setDraft(d => ({ ...d, cashSource: e.target.value }))}>
+              onChange={e => editDraft(d => ({ ...d, cashSource: e.target.value }))}>
               {SOURCES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select></label>
           </div>
@@ -229,7 +237,7 @@ export default function CashCheck() {
                   <option value="ONCE">Once</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly (date clamped at month-end)</option>
                 </select></label>
               </div>
-              <button type="button" className="cash-check-remove" onClick={() => { setDraft(d => ({ ...d, entries: d.entries.filter(e => e.id !== entry.id) })); setPreview(null); }}>Remove entry</button>
+              <button type="button" className="cash-check-remove" onClick={() => { editDraft(d => ({ ...d, entries: d.entries.filter(e => e.id !== entry.id) })); setPreview(null); }}>Remove entry</button>
             </fieldset>
           ))}
           {draft.entries.length === 0 && <p>No entries yet. Add each known obligation and uncertain future income separately.</p>}
@@ -237,7 +245,7 @@ export default function CashCheck() {
         <section className="cash-check-panel">
           <h2>3. Confirm entries</h2>
           <label className="cash-check-confirm"><input type="checkbox" checked={draft.completenessConfirmed}
-            onChange={e => setDraft(d => ({ ...d, completenessConfirmed: e.target.checked }))} />
+            onChange={e => editDraft(d => ({ ...d, completenessConfirmed: e.target.checked }))} />
             I have entered the commitments I currently know about. I understand this does not verify that all bills are included.</label>
           <div className="cash-check-actions">
             <button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save and calculate 90 days'}</button>
@@ -245,8 +253,9 @@ export default function CashCheck() {
           </div>
         </section>
       </form>
-      {saved && <ResultView data={saved} />}
-      {saved && !stale && draft.entries.some(e => e.type === 'VOLUNTARY_CONTRIBUTION') &&
+      {saved && !dirty && <ResultView data={saved} />}
+      {saved && dirty && <p role="status">Unsaved edits: the previous result is hidden until you save and recalculate.</p>}
+      {saved && !dirty && !stale && draft.entries.some(e => e.type === 'VOLUNTARY_CONTRIBUTION') &&
         <section className="cash-check-panel">
           <h2>Optional hypothetical comparison</h2>
           <p>Compare removing all listed voluntary contributions from the saved ledger. This changes no saved entry and does not suggest skipping contractual bills.</p>
