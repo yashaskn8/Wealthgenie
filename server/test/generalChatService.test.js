@@ -498,3 +498,32 @@ test('conversational follow-up keeps only safe prior educational turns', async (
   assert.match(history[0].parts[0].text, /XIRR/);
   assert.match(history[1].parts[0].text, /annualized/);
 });
+
+
+test('financial education permits risk warnings and declines fictional investment guarantees', async () => {
+  const provider = response => ({
+    name: 'groq', isConfigured: () => true,
+    async generate() { return { text: response, wasCompleted: true, tokensUsed: 12 }; },
+  });
+  for (const response of [
+    'REIT investments may have variable returns. They are not guaranteed.',
+    'Mutual fund investments are not guaranteed to increase in value.',
+    'Stock returns are uncertain; investing carries risks.',
+  ]) {
+    const answer = await generateGeneralChatAnswer({
+      question: 'Tell me about REITs', educationOnly: true,
+    }, { providers: [provider(response)] });
+    assert.equal(answer.provider, 'GROQ', response);
+    assert.deepEqual(answer.citations, []);
+  }
+  for (const response of [
+    'REIT investments deliver guaranteed returns.',
+    'Mutual fund investments produce assured profit.',
+  ]) {
+    const answer = await generateGeneralChatAnswer({
+      question: 'Tell me about REITs', educationOnly: true,
+    }, { providers: [provider(response)] });
+    assert.equal(answer.provider, 'SYSTEM', response);
+    assert.ok(answer.validation.reasonCodes.includes('GENERAL_FINANCIAL_BOUNDARY_VIOLATION'));
+  }
+});
