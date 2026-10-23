@@ -7,6 +7,7 @@ import {
   verifyDecisionAssessment, assessmentContext,
 } from '../services/genieDecision/monitor.js';
 import { signDecisionReceipt } from '../services/genieDecision/integrity.js';
+import { makeDecisionSourceSnapshot, hashDecisionSourceSnapshot } from '../services/genieDecision/sourceSnapshot.js';
 
 test('signed monitoring opt-in cannot be forged or replayed for other users or generations', () => {
   const restore = {
@@ -54,6 +55,14 @@ test('automatically reassessed financial results are authenticated to source and
       result: null, resultHash: requireHashNull(),
       status: 'NEEDS_REVIEW', reasonCode: 'ASSUMPTIONS_REQUIRE_REVIEW',
     };
+    item.sourceSnapshot = makeDecisionSourceSnapshot({
+      profile: {
+        _id: item.profileId, version: item.profileVersion,
+        financialStateFence: item.profileFinancialFence,
+        liquidSavings: 120000, monthlyTakeHome: 100000, monthlySavings: 30000,
+      }, state: { resolutionStatus: 'CURRENT', revision: item.profileStateRevision },
+    }, item.issuedAt);
+    item.sourceSnapshotHash = hashDecisionSourceSnapshot(item.sourceSnapshot);
     const receipt = signDecisionReceipt('decision_reassessment', assessmentContext(item), {
       status: item.status, reasonCode: item.reasonCode, resultHash: item.resultHash,
     });
@@ -61,7 +70,11 @@ test('automatically reassessed financial results are authenticated to source and
     for (const tampering of [
       { status: 'RECALCULATED' }, { monitorGeneration: 3 },
       { reasonCode: 'FINANCIAL_FACTS_CHANGED' },
-      { profileFactsHash: '0'.repeat(64) },
+      { profileFactsHash: '0'.repeat(64) }, { profileId: new mongoose.Types.ObjectId() },
+      { sourceSnapshotHash: '0'.repeat(64) }, { sourceSnapshot: {
+        ...item.sourceSnapshot, facts: [{ ...item.sourceSnapshot.facts[0], value: '999999.00' },
+          ...item.sourceSnapshot.facts.slice(1)],
+      } },
     ]) {
       assert.throws(() => verifyDecisionAssessment({ ...item, ...receipt, ...tampering }),
         error => error.code === 'DECISION_ASSESSMENT_INTEGRITY_FAILURE');

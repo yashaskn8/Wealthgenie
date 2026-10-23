@@ -508,6 +508,20 @@ test('monitored decisions create signed candidate assessments, fail closed on ch
       userId: userOne, scenarioId: id, status: 'RECALCULATED',
     }).lean();
     assert.ok(latest.integrityTag);
+    assert.equal(latest.sourceSnapshot.facts.length, 3);
+    assert.ok(latest.sourceSnapshot.facts.every(fact =>
+      fact.verificationStatus === 'DECLARED' && fact.sourceType === 'USER_DECLARED'
+      && fact.consentReference === null && fact.observedAt === null));
+    assert.equal(history.body.assessments[0].source.sourceSnapshotHash, latest.sourceSnapshotHash);
+    assert.equal(history.body.assessments[0].source.facts[1].value, '110000.00');
+ 
+    await DecisionAssessment.collection.updateOne({ _id: latest._id },
+      { $set: { 'sourceSnapshot.facts.1.value': '999999.00' } });
+    const spoofedSource = await call(base, userOne, monitorPath);
+    assert.equal(spoofedSource.response.status, 503);
+    assert.equal(spoofedSource.body.code, 'DECISION_ASSESSMENT_INTEGRITY_FAILURE');
+    await DecisionAssessment.collection.updateOne({ _id: latest._id },
+      { $set: { sourceSnapshot: latest.sourceSnapshot } });
     const modified = await DecisionAssessment.collection.updateOne({ _id: latest._id },
       { $set: { 'result.alternatives.0.endingProjectedLiquidCash': '999999999.00' } });
     assert.equal(modified.modifiedCount, 1);

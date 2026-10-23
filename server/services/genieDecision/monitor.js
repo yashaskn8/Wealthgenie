@@ -9,6 +9,9 @@ import { signDecisionReceipt, verifyDecisionReceipt } from './integrity.js';
 import { DecisionInputError, DECISION_LEDGER_VERSION } from './ledger.js';
 import { resolveCurrentFinancialProfile } from '../currentFinancialProfile.js';
 import {
+  makeDecisionSourceSnapshot, hashDecisionSourceSnapshot, verifyDecisionSourceSnapshot,
+} from './sourceSnapshot.js';
+import {
   computeDecisionScenario, fingerprintCurrentFacts, verifyDecisionRevision,
 } from '../../routes/decisionScenarios.js';
 
@@ -36,7 +39,7 @@ export function assessmentContext(item) {
     profileId: id(item.profileId), profileStateRevision: item.profileStateRevision,
     profileVersion: item.profileVersion, profileFinancialFence: item.profileFinancialFence,
     profileFactsHash: item.profileFactsHash, modelVersion: item.modelVersion,
-    inputHash: item.inputHash, issuedAt: item.issuedAt,
+    inputHash: item.inputHash, issuedAt: item.issuedAt, sourceSnapshotHash: item.sourceSnapshotHash,
   };
 }
 
@@ -53,6 +56,7 @@ export function verifyDecisionAssessment(item) {
     error.code = 'DECISION_ASSESSMENT_INTEGRITY_FAILURE';
     throw error;
   }
+  verifyDecisionSourceSnapshot(item.sourceSnapshot, item);
 }
 
 export function assessmentDto(assessment, current, scenario, monitor) {
@@ -80,6 +84,8 @@ export function assessmentDto(assessment, current, scenario, monitor) {
     source: {
       profileStateRevision: assessment.profileStateRevision,
       profileFactsHash: assessment.profileFactsHash, modelVersion: assessment.modelVersion,
+      sourceSnapshotHash: assessment.sourceSnapshotHash,
+      facts: assessment.sourceSnapshot.facts,
     },
     requiresUserReview: assessment.status === 'NEEDS_REVIEW' || !currentStatus,
     isCurrent: currentStatus,
@@ -115,6 +121,7 @@ export async function assessMonitoredDecision(monitor, {
   const filter = {
     userId: monitor.userId, scenarioId: scenario._id,
     scenarioRevision: scenario.revision, monitorGeneration: monitor.generation,
+    profileId: current.profile._id,
     profileFactsHash: sourceHash, profileStateRevision: current.state.revision,
     profileVersion: current.profile.version,
     profileFinancialFence: Number(current.profile.financialStateFence ?? 0),
@@ -137,8 +144,11 @@ export async function assessMonitoredDecision(monitor, {
   }
   const resultHash = hash(result);
   const issuedAt = new Date().toISOString();
+  const sourceSnapshot = makeDecisionSourceSnapshot(current, issuedAt);
+  const sourceSnapshotHash = hashDecisionSourceSnapshot(sourceSnapshot);
   const candidate = {
-    ...filter, profileId: current.profile._id, inputHash: revision.inputHash,
+    ...filter, inputHash: revision.inputHash,
+    sourceSnapshot, sourceSnapshotHash,
     status, reasonCode, result, resultHash, issuedAt,
   };
   const receipt = signDecisionReceipt('decision_reassessment', assessmentContext(candidate), {

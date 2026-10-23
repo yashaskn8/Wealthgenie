@@ -27,7 +27,7 @@ const expected = [
   [DecisionMonitor, { enabled: 1, lastCheckedAt: 1 }, 'decision_monitor_scan', false],
   [DecisionAssessment, {
     userId: 1, scenarioId: 1, scenarioRevision: 1, monitorGeneration: 1,
-    profileFactsHash: 1, profileStateRevision: 1, profileVersion: 1,
+    profileId: 1, profileFactsHash: 1, profileStateRevision: 1, profileVersion: 1,
     profileFinancialFence: 1, modelVersion: 1,
   }, 'uniq_decision_assessment_source_policy', true],
   [DecisionAssessment, { userId: 1, scenarioId: 1, createdAt: -1 },
