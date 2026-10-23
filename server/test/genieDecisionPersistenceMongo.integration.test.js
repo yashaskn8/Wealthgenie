@@ -132,6 +132,16 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(otherEvents.body.latestSequence, 0);
     assert.equal(otherEvents.response.headers.get('cache-control'), 'no-store, no-transform');
 
+    const simulation = await call(base, userOne, '/simulate', 'POST', payload);
+    assert.equal(simulation.response.status, 200, JSON.stringify(simulation.body));
+    assert.equal(simulation.body.previewOnly, true);
+    assert.equal(simulation.body.status, 'PARTIAL');
+    assert.equal(simulation.body.result.alternatives.length, 2);
+    assert.equal(await DecisionRun.countDocuments({ userId: userOne }), 0,
+      'Live simulation must not persist a report or mutate a portfolio');
+    assert.equal(await DecisionEvent.countDocuments({ userId: userOne }), 1,
+      'Live simulation must not publish a decision event');
+
     const replay = await call(base, userOne, '/scenarios', 'POST', payload, 'decision-create-0001');
     assert.equal(replay.response.status, 200);
     assert.equal(replay.body.replayed, true);
@@ -391,6 +401,11 @@ test('malformed and unauthenticated requests fail before persistence', async () 
     assert.equal(invalid.response.status, 400);
     const missingKey = await call(base, userOne, '/scenarios', 'POST', scenarioInput());
     assert.equal(missingKey.response.status, 400);
+    const badSimulation = await call(base, userOne, '/simulate', 'POST', {
+      ...scenarioInput(), expectedProfileStateRevision: 999,
+    });
+    assert.equal(badSimulation.response.status, 409);
+    assert.equal(await DecisionRun.countDocuments({ userId: userOne }), 0);
     const invalidCursor = await call(base, userOne, '/events?after=-1');
     assert.equal(invalidCursor.response.status, 400);
     const invalidCursorArray = await call(base, userOne, '/events?after=1&after=2');
