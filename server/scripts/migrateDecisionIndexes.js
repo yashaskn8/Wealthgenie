@@ -9,6 +9,7 @@ if (!uri) throw new Error('MONGODB_MIGRATION_URI is required for GenieDecision m
 
 const expected = [
   [DecisionScenario, { userId: 1, createKeyHash: 1 }, 'uniq_decision_create_key', true],
+  [DecisionScenario, { userId: 1, quotaSlot: 1 }, 'uniq_decision_owner_quota_slot', true],
   [DecisionScenario, { userId: 1, createdAt: -1 }, 'decision_owner_history', false],
   [DecisionScenarioRevision, { userId: 1, scenarioId: 1, revision: 1 },
     'uniq_decision_revision_owner_sequence', true],
