@@ -42,6 +42,21 @@ export function makeDecisionSourceSnapshot(current, ingestedAt = new Date().toIS
 export function hashDecisionSourceSnapshot(snapshot) {
   return crypto.createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
 }
+export function fingerprintDecisionSnapshotFacts(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.facts) || snapshot.facts.length !== fields.length) {
+    throw new Error('DECISION_SNAPSHOT_FACTS_INCOMPLETE');
+  }
+  const canonical = {};
+  for (let i = 0; i < fields.length; i += 1) {
+    const fact = snapshot.facts[i];
+    if (!fact || fact.field !== fields[i][0] || typeof fact.value !== 'string') {
+      throw new Error('DECISION_SNAPSHOT_FACTS_INCOMPLETE');
+    }
+    canonical[fact.field] = fact.value;
+  }
+  return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
+
 export function verifyDecisionSourceSnapshot(snapshot, candidate) {
   if (!snapshot || snapshot.schemaVersion !== 'decision-source-snapshot-1.0.0'
       || !Array.isArray(snapshot.facts) || snapshot.facts.length !== fields.length
@@ -49,6 +64,8 @@ export function verifyDecisionSourceSnapshot(snapshot, candidate) {
       || snapshot.profileStateRevision !== candidate.profileStateRevision
       || snapshot.profileVersion !== candidate.profileVersion
       || snapshot.profileFinancialFence !== candidate.profileFinancialFence
+      || snapshot.ingestedAt !== candidate.issuedAt
+      || fingerprintDecisionSnapshotFacts(snapshot) !== candidate.profileFactsHash
       || snapshot.facts.some((fact, index) => fact.field !== fields[index][0]
         || typeof fact.value !== 'string'
         || !/^(?:0|[1-9]\d{0,11})\.\d{2}$/.test(fact.value)
