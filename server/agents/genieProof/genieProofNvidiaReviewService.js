@@ -90,6 +90,8 @@ export async function reviewGenieProofWithNvidia({
     ? checked.claims[0] : null;
   if (!claim) return unavailable(claimId, 'CLAIM_NOT_IN_SUBMISSION');
 
+  // DB/source checks can outlive a disconnected caller; stop before inference.
+  if (signal?.aborted) return unavailable(claimId, 'REQUEST_CANCELLED');
   if (!nvidia?.isConfigured?.()) return unavailable(claimId, 'NVIDIA_NOT_CONFIGURED');
   // The general adapter accepts custom endpoints for other tools. GenieProof
   // requires the known NVIDIA API origin so user text and credentials cannot be
