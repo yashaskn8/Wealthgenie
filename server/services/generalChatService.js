@@ -60,7 +60,9 @@ function violatesGeneralFinancialBoundary(reply, educationOnly = false) {
     || (educationOnly
       ? /\b(?:you\s+should|i\s+recommend|you\s+must|we\s+recommend|guaranteed?\s+profit|risk[- ]free\s+return)\b[^.!?\n]{0,120}\b(?:invest|buy|sell|stocks?|mutual\s*funds?|bonds?|crypto|funds?|portfolio)\b/i.test(value)
       : /\b(?:invest|buy|sell|allocate|switch|move|put|contribute)\b[^.!?\n]{0,140}\b(?:shares?|stocks?|crypto(?:currency)?|bitcoin|mutual\s*funds?|index\s*funds?|bonds?|savings?|portfolio|sips?|equity|fixed\s*deposits?|gold\s*etfs?)\b/i.test(value))
-    || /\b(?:shares?|stocks?|investments?|portfolio|savings?|crypto(?:currency)?|bitcoin|mutual\s*funds?)\b[^.!?\n]{0,120}\b(?:guaranteed?|assured|risk[- ]free|returns?|profits?)\b/i.test(value)
+    // Explaining that stocks have *uncertain returns* is ordinary education.
+    // Reject certainty/guarantee claims; do not treat the word 'returns' as a guarantee.
+    || /\b(?:shares?|stocks?|investments?|portfolio|savings?|crypto(?:currency)?|bitcoin|mutual\s*funds?)\b[^.!?\n]{0,120}\b(?:guaranteed?|assured|risk[- ]free|certain\s+(?:profit|return)|sure\s+(?:profit|return))\b/i.test(value)
     || /\b\d{1,3}(?:\.\d+)?\s*%\s*(?:per\s+annum|p\.?a\.?|annual(?:ly)?|monthly|cagr|returns?|interest|profits?)\b/i.test(value);
 }
 
