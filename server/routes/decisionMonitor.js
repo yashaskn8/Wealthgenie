@@ -5,7 +5,7 @@ import { asyncHandler, createError, sendError } from '../middleware/errorHandler
 import { resolveCurrentFinancialProfile } from '../services/currentFinancialProfile.js';
 import { verifyPersistenceIndexes } from '../services/persistenceIndexReadiness.js';
 import { verifyDecisionRevision } from './decisionScenarios.js';
-import { assessmentDto } from '../services/genieDecision/monitor.js';
+import { assessmentDto, signMonitorConsent, verifyMonitorConsent } from '../services/genieDecision/monitor.js';
 import { appendDecisionEvent } from '../services/genieDecision/liveEvents.js';
 import DecisionMonitor from '../models/DecisionMonitor.js';
 import DecisionAssessment from '../models/DecisionAssessment.js';
@@ -17,6 +17,9 @@ import DecisionEventState from '../models/DecisionEventState.js';
 const fail = (status, code, message) => { throw createError(status, message, message, { code }); };
 const handle = fn => asyncHandler(async (req, res) => {
   try { await fn(req, res); } catch (error) {
+    if (error?.code === 'DECISION_MONITOR_CONSENT_INTEGRITY_FAILURE') {
+      return sendError(req, res, 503, 'Monitoring consent integrity could not be verified.', error.code);
+    }
     if (error?.code === 'DECISION_ASSESSMENT_INTEGRITY_FAILURE') {
       return sendError(req, res, 503, 'Saved reassessment integrity could not be verified.', error.code);
     }
@@ -58,6 +61,7 @@ export function createDecisionMonitorRoutes({ resolveProfile = resolveCurrentFin
     const monitor = await DecisionMonitor.findOne({
       userId: req.user.userId, scenarioId: scenario._id,
     }).lean();
+    if (monitor) verifyMonitorConsent(monitor);
     const assessments = await DecisionAssessment.find({
       userId: req.user.userId, scenarioId: scenario._id,
     }).sort({ createdAt: -1, _id: -1 }).limit(15).lean();
@@ -95,17 +99,31 @@ export function createDecisionMonitorRoutes({ resolveProfile = resolveCurrentFin
         const existing = await DecisionMonitor.findOne({
           userId: req.user.userId, scenarioId: scenario._id,
         }).session(session).lean();
+        if (existing) verifyMonitorConsent(existing);
         if ((existing?.enabled ?? false) === req.body.enabled) {
           result = existing || projection(null);
           return;
         }
-        result = await DecisionMonitor.findOneAndUpdate({
+        const nextGeneration = (existing?.generation ?? 0) + 1;
+        const receipt = signMonitorConsent({
           userId: req.user.userId, scenarioId: scenario._id,
-        }, {
-          $set: { enabled: req.body.enabled, lastCheckedAt: null },
-          $inc: { generation: 1 },
-          $setOnInsert: { userId: req.user.userId, scenarioId: scenario._id },
-        }, { session, new: true, upsert: true, setDefaultsOnInsert: false }).lean();
+          generation: nextGeneration, enabled: req.body.enabled,
+        });
+        if (existing) {
+          result = await DecisionMonitor.findOneAndUpdate({
+            _id: existing._id, userId: req.user.userId, generation: existing.generation,
+          }, { $set: {
+            enabled: req.body.enabled, generation: nextGeneration, lastCheckedAt: null,
+            ...receipt,
+          } }, { session, new: true }).lean();
+          if (!result) fail(409, 'DECISION_MONITOR_CONFLICT', 'Monitoring changed concurrently.');
+        } else {
+          const [created] = await DecisionMonitor.create([{
+            userId: req.user.userId, scenarioId: scenario._id,
+            enabled: req.body.enabled, generation: nextGeneration, ...receipt,
+          }], { session });
+          result = created.toObject();
+        }
         await appendDecisionEvent(session, {
           userId: req.user.userId, scenarioId: scenario._id,
           revision: scenario.revision, type: 'MONITOR_UPDATED',
