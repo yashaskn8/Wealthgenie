@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  runwayProjectionId, calculateRunwayProjection,
+  runwayProjectionId, calculateRunwayProjection, MAX_ATTEMPTS,
+  quarantineExhaustedRunwayProjectionJobs,
 } from '../services/runwayProjectionOutbox.js';
 import { createRunwayLedgerSeal, RUNWAY_SEAL_VERSION } from '../services/runwaySeal.js';
 import { canonicalSha256 } from '../utils/canonicalJson.js';

@@ -1,14 +1,21 @@
 /** Standalone opt-in Runway worker, independent from the AI agent worker. */
 import 'dotenv/config';
 import mongoose from 'mongoose';
-import { processOneRunwayProjection } from '../services/runwayProjectionOutbox.js';
+import {
+  processOneRunwayProjection, quarantineExhaustedRunwayProjectionJobs,
+} from '../services/runwayProjectionOutbox.js';
+import connectDB from '../config/db.js';
 import { verifyRunwayOperationalReadiness } from '../services/runwayOperationalReadiness.js';
 const env = process.env;
 if (env.RUNWAY_PROJECTION_WORKER_ENABLED !== 'true' || env.RUNWAY_ENABLED !== 'true') {
   throw new Error('Runway worker must be explicitly enabled together with Runway.');
 }
 if (!env.MONGODB_URI) throw new Error('MONGODB_URI required.');
-await mongoose.connect(env.MONGODB_URI, { autoIndex: false });
+await connectDB({
+  uri: env.MONGODB_URI, env, retries: 1,
+  options: { autoIndex: false, serverSelectionTimeoutMS: 10_000 },
+  requireTransactions: true,
+});
 let stopping = false;
 const stop = () => { stopping = true; };
 process.on('SIGTERM', stop);
@@ -16,6 +23,10 @@ process.on('SIGINT', stop);
 try {
   await verifyRunwayOperationalReadiness();
   while (!stopping) {
+    const exhausted = await quarantineExhaustedRunwayProjectionJobs();
+    if (exhausted) {
+      process.stderr.write('Runway: exhausted projection leases quarantined: ' + exhausted + '\n');
+    }
     const done = await processOneRunwayProjection();
     if (done.status === 'IDLE') {
       await new Promise(resolve => setTimeout(resolve, 2000));

@@ -15,7 +15,7 @@ import {
 } from './runwayEvidenceCrypto.js';
 
 const LEASE_MS = 45_000;
-const MAX_ATTEMPTS = 5;
+export const MAX_ATTEMPTS = 5;
 const HORIZON_DAYS = 90;
 const RE = /^[a-f0-9]{64}$/;
 const SIGN_DOMAIN = 'wealthgenie:runway:projection-result:v1:';
@@ -66,6 +66,30 @@ export function calculateRunwayProjection(revision) {
     ledgerRevision: revision.revision, horizonDays: HORIZON_DAYS, scenarios: [],
   });
 }
+/**
+ * Terminal recovery for a worker killed repeatedly while holding a lease.
+ * Without this transition expired LEASED jobs can be reclaimed forever,
+ * overflow the schema attempt counter, and make the queue appear healthy.
+ * Metadata only; does not touch financial evidence or already stored results.
+ */
+export async function quarantineExhaustedRunwayProjectionJobs({
+  at = new Date(), jobModel = RunwayProjectionJob,
+} = {}) {
+  const filter = {
+    attempts: { $gte: MAX_ATTEMPTS },
+    $or: [
+      { status: 'LEASED', leaseUntil: { $lte: at } },
+      { status: 'PENDING', availableAt: { $lte: at } },
+    ],
+  };
+  const result = await jobModel.updateMany(filter, {
+    $set: {
+      status: 'BLOCKED', leaseToken: null, leaseUntil: null,
+      lastErrorCode: 'RUNWAY_PROJECTION_LEASE_EXHAUSTED',
+    },
+  });
+  return result.modifiedCount || 0;
+}
 export async function processOneRunwayProjection({
   now = () => new Date(), randomUUID = () => crypto.randomUUID(),
   jobModel = RunwayProjectionJob, resultModel = RunwayProjectionResult,
@@ -74,9 +98,11 @@ export async function processOneRunwayProjection({
 } = {}) {
   const at = now();
   const token = randomUUID();
+  await quarantineExhaustedRunwayProjectionJobs({ at, jobModel });
   // Due states include expired leases. DB compare-and-swap guarantees
   // one live owner per token; stolen claims cannot publish financial results.
   const job = await jobModel.findOneAndUpdate({
+    attempts: { $lt: MAX_ATTEMPTS },
     $or: [
       { status: 'PENDING', availableAt: { $lte: at } },
       { status: 'LEASED', leaseUntil: { $lte: at } },
@@ -159,7 +185,9 @@ export async function processOneRunwayProjection({
     code = typeof error?.code === 'string' && /^RUNWAY_[A-Z_]+$/.test(error.code)
       ? error.code : 'RUNWAY_PROJECTION_PROCESSING_FAILED';
     const final = job.attempts >= MAX_ATTEMPTS || code === 'RUNWAY_PROJECTION_SOURCE_INTEGRITY'
-      || code === 'RUNWAY_PROJECTION_REPLAY_CONFLICT';
+      || code === 'RUNWAY_PROJECTION_REPLAY_CONFLICT'
+      || code === 'RUNWAY_PROJECTION_SOURCE_MISSING'
+      || code === 'RUNWAY_PROJECTION_ALERT_CONFLICT';
     await jobModel.updateOne({ _id: job._id, status: 'LEASED', leaseToken: token },
       { $set: { status: final ? 'BLOCKED' : 'PENDING', leaseToken: null, leaseUntil: null,
         availableAt: new Date(now().getTime() + Math.min(job.attempts * 5_000, 60_000)),
