@@ -194,7 +194,7 @@ const StepUpPlanner = ({ profile }) => {
   const isOverBudget = affordability?.status === 'OVER_DECLARED_BUDGET';
 
   return (
-    <div className="stepup-page">
+    <div className="stepup-page" data-testid="step-up-view">
       {/* Floating Ambient Orbs */}
       <div className="sup-bg-orb sup-bg-orb--1"></div>
       <div className="sup-bg-orb sup-bg-orb--2"></div>
