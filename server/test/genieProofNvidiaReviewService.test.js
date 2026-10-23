@@ -54,7 +54,7 @@ test('NVIDIA only chooses vetted next steps after the independent claim check', 
   assert.equal(result.onlineSearchPerformedByNvidia, false);
   assert.deepEqual(result.nextSteps.map(step => step.id), ['VERIFY_GUARANTEE', 'GET_WRITTEN_QUOTE']);
   assert.equal(model.calls.length, 1);
-  assert.equal(model.calls[0].jsonMode, true);
+  assert.equal(model.calls[0].jsonMode, false);
   assert.equal(model.calls[0].maxTokens, 192);
   assert.equal(model.calls[0].recentHistory[0].role, 'user');
   const prompt = JSON.parse(model.calls[0].recentHistory[0].content);
