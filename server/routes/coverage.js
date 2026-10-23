@@ -104,6 +104,19 @@ async function resolveCoverageReplay(req, record) {
   };
 }
 
+async function resolveSettlementReplay(req, record) {
+  const replay = await resolveCoverageReplay(req, record);
+  const receipt = await CoverageSettlement.findOne({
+    userId: req.user.userId, ledgerRevision: replay.revision,
+    entryId: req.params.entryId,
+  }).select('entryId').lean();
+  if (!receipt) {
+    throw createError(503, 'Committed settlement audit unavailable.',
+      'Settlement confirmation unavailable.', { code: 'COVERAGE_SETTLEMENT_AUDIT_UNAVAILABLE' });
+  }
+  return { ...replay, userConfirmedSettlement: true,
+    settledEntryId: receipt.entryId, bankVerified: false };
+}
 router.get('/ledger', verifyJWT, asyncHandler(async (req, res) => {
   const ledger = await CoverageLedger.findOne({ userId: req.user.userId }).lean();
   if (!ledger) return res.json({ revision: 0, ledger: null, latestResult: null });
@@ -203,7 +216,7 @@ router.put(
           resourceType: 'CoverageResult', resourceId: snapshot._id, status: 200,
         });
         saved = snapshot;
-      });
+      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
       req.idempotencyCommitted = true;
     } catch (error) {
       if (isRevisionRace(error)) {
@@ -244,12 +257,22 @@ router.post('/commitments/:entryId/settle',
       throw createError(400, 'Reconfirm cash AFTER the payment and explicitly attest settlement.',
         'Cash and settlement confirmation required.', { code: 'COVERAGE_SETTLEMENT_INVALID' });
     }
-    assertRecentDeclaredCash({ asOfDate: body.asOfDate });
+    // Only syntactic validation runs before idempotency. A previously
+    // committed settlement must still replay correctly after India midnight.
+    try {
+      parseCalendarDate(body.asOfDate);
+    } catch (error) {
+      if (error instanceof CoverageInputError) {
+        throw createError(400, error.message, error.message, { code: error.code });
+      }
+      throw error;
+    }
     await ready();
     next();
   }),
-  idempotency({ operation: 'coverage.commitment.settle', resolveReplay: resolveCoverageReplay }),
+  idempotency({ operation: 'coverage.commitment.settle', resolveReplay: resolveSettlementReplay }),
   asyncHandler(async (req, res) => {
+    assertRecentDeclaredCash({ asOfDate: req.body.asOfDate });
     const userId = req.user.userId;
     const expectedRevision = req.coverageExpectedRevision;
     let resultSnapshot;
@@ -336,8 +359,7 @@ router.post('/commitments/:entryId/settle',
 router.get('/settlements', verifyJWT, asyncHandler(async (req, res) => {
   const queryKeys = Object.keys(req.query);
   const exportMode = queryKeys.includes('afterRevision');
-  if (queryKeys.some(key => !['afterRevision', 'limit'].includes(key))
-      || (!exportMode && queryKeys.includes('limit'))) {
+  if (queryKeys.some(key => !['afterRevision', 'limit'].includes(key))) {
     throw createError(400, 'Invalid settlements query.', 'Invalid settlements query.',
       { code: 'COVERAGE_SETTLEMENT_QUERY_INVALID' });
   }
@@ -429,15 +451,19 @@ router.get('/alerts', verifyJWT, asyncHandler(async (req, res) => {
   }
   const owner = req.user.userId;
   const limit = Number(req.query.limit || '20');
-  const ledger = await CoverageLedger.findOne({ userId: owner }).select('revision deletedAt').lean();
+  const ledger = await CoverageLedger.findOne({ userId: owner }).select('revision deletedAt input.asOfDate').lean();
   if (!ledger || ledger.deletedAt) return res.json({ revision: ledger?.revision || 0, alerts: [] });
+  const requiresCashReconfirmation = ledger.input?.asOfDate !== todayInIndia();
+  // Never claim a stale cash forecast is a current risk prediction.
   const rows = await CoverageRiskAlert.find({
     userId: owner, ledgerRevision: ledger.revision, state: { $ne: 'SUPERSEDED' },
+    ...(requiresCashReconfirmation ? { kind: 'CASH_RECONFIRMATION_REQUIRED' } : {}),
   }).sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
   if (!await CoverageLedger.exists({
     _id: ledger._id, userId: owner, revision: ledger.revision, deletedAt: null,
   })) throw conflict();
-  return res.json({ revision: ledger.revision, alerts: rows.map(row => ({
+  return res.json({ revision: ledger.revision, requiresCashReconfirmation,
+    alerts: rows.map(row => ({
     id: String(row._id), kind: row.kind, dueDate: row.dueDate,
     sourceAsOfDate: row.sourceAsOfDate, createdAt: row.createdAt,
     acknowledged: row.state === 'ACKNOWLEDGED',
@@ -451,19 +477,22 @@ router.patch('/alerts/:id/ack', verifyJWT, asyncHandler(async (req, res) => {
       { code: 'COVERAGE_ACK_INVALID' });
   }
   const owner = req.user.userId;
-  const ledger = await CoverageLedger.findOne({ userId: owner }).select('revision deletedAt').lean();
+  const ledger = await CoverageLedger.findOne({ userId: owner }).select('revision deletedAt input.asOfDate').lean();
   if (!ledger || ledger.deletedAt) {
     throw createError(404, 'Current alert not found.', 'Alert not found.',
       { code: 'COVERAGE_ALERT_NOT_FOUND' });
   }
+  const requiresCashReconfirmation = ledger.input?.asOfDate !== todayInIndia();
   // User-visible acknowledgement is idempotent and only scoped to the
   // current owner's current revision.
   const changed = await CoverageRiskAlert.findOneAndUpdate({
     _id: req.params.id, userId: owner, ledgerRevision: ledger.revision, state: 'UNREAD',
+    ...(requiresCashReconfirmation ? { kind: 'CASH_RECONFIRMATION_REQUIRED' } : {}),
   }, { $set: { state: 'ACKNOWLEDGED', acknowledgedAt: new Date() } },
   { new: true, runValidators: true }).lean();
   const saved = changed || await CoverageRiskAlert.findOne({
     _id: req.params.id, userId: owner, ledgerRevision: ledger.revision, state: 'ACKNOWLEDGED',
+    ...(requiresCashReconfirmation ? { kind: 'CASH_RECONFIRMATION_REQUIRED' } : {}),
   }).lean();
   if (!saved) {
     throw createError(404, 'Current alert not found.', 'Alert not found.',
@@ -572,7 +601,7 @@ router.delete('/ledger',
           resourceType: 'CoverageDeletionReceipt', resourceId: receipt._id, status: 200,
         });
         deletedReceipt = receipt;
-      });
+      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
       req.idempotencyCommitted = true;
     } catch (error) {
       if (isRevisionRace(error)) {

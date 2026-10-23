@@ -225,6 +225,11 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
       completenessConfirmed: true, settlementConfirmed: false,
     }, 1, randomUUID());
     assert.equal(unconfirmedPayment.status, 400);
+    const malformedSettlement = await call(settledOwner, 'POST', '/commitments/rent/settle', {
+      asOfDate: '2026-02-30', openingCashPaise: 1000,
+      completenessConfirmed: true, settlementConfirmed: true,
+    }, 1, randomUUID());
+    assert.equal(malformedSettlement.status, 400);
     const settlementBody = {
       asOfDate: indiaToday(), openingCashPaise: 1000,
       completenessConfirmed: true, settlementConfirmed: true,
@@ -257,6 +262,9 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(paymentReplay.status, 200);
     assert.equal(paymentReplay.body.revision, 2);
     assert.equal(paymentReplay.body.replayed, true);
+    assert.equal(paymentReplay.body.userConfirmedSettlement, true);
+    assert.equal(paymentReplay.body.settledEntryId, 'rent');
+    assert.equal(paymentReplay.body.bankVerified, false);
     const paidLedger = await call(settledOwner, 'GET', '/ledger');
     assert.equal(paidLedger.body.revision, 2);
     assert.equal(paidLedger.body.ledger.openingCashPaise, 1000);
@@ -329,6 +337,18 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal((await call(owner, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 200);
     assert.equal((await call(owner, 'GET', '/alerts')).body.alerts[0].acknowledged, true);
     assert.equal((await call(owner, 'GET', '/alerts?limit=21')).status, 400);
+    const oldAsOf = new Date(Date.parse(indiaToday() + 'T00:00:00Z') - 86400000)
+      .toISOString().slice(0, 10);
+    await CoverageLedger.collection.updateOne({ userId: owner },
+      { $set: { 'input.asOfDate': oldAsOf } });
+    const staleInbox = await call(owner, 'GET', '/alerts');
+    assert.equal(staleInbox.status, 200);
+    assert.equal(staleInbox.body.requiresCashReconfirmation, true);
+    assert.deepEqual(staleInbox.body.alerts, []);
+    assert.equal((await call(owner, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 404);
+    await CoverageLedger.collection.updateOne({ userId: owner },
+      { $set: { 'input.asOfDate': indiaToday() } });
+    assert.equal((await call(owner, 'GET', '/alerts')).body.requiresCashReconfirmation, false);
     // Worker never calculates risk from yesterday's money; it generates a
     // durable once-per-revision reconfirmation warning instead.
     const tomorrow = new Date(Date.parse(indiaToday() + 'T00:00:00Z') + 2 * 86400000);

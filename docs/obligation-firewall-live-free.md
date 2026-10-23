@@ -93,3 +93,7 @@ The browser-independent implementation adds \`CoverageRiskAlert\`, \`CoverageSet
 - There is no production AA/FIU banking integration, externally verified transactions, UPI payments, credit-card/BBPS bill retrieval, push notifications or investment execution. Making claims about these features without authorised providers would be misleading.
 - A browser-only CSV comparison cannot establish that a payment actually settled; the attestation is user-provided, and the updated balance must be reconfirmed.
 - "Production grade" additionally requires measured deployment, security, backup and regulator-dependent evidence—not solely passing source-code tests.
+
+## Red-team refinement: midnight, stale alerts and committed safety
+
+Committed one-off settlement retries retain their bank-unverified settlement semantics and owner-scoped immutable attestation; date freshness is enforced only for new mutations *after* idempotent replay. Risk alerts based on a cash declaration older than the current India date are withheld, leaving only reconfirmation messages. Cash revision and deletion transactions explicitly use snapshot reads and majority writes. The live OpenAPI contract harness must mount the protected coverage routes so that authentication coverage is actually exercised.
