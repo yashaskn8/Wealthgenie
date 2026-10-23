@@ -6,6 +6,7 @@ import DecisionEvent from '../models/DecisionEvent.js';
 import DecisionEventState from '../models/DecisionEventState.js';
 import DecisionMonitor from '../models/DecisionMonitor.js';
 import DecisionAssessment from '../models/DecisionAssessment.js';
+import DecisionWorkerHeartbeat from '../models/DecisionWorkerHeartbeat.js';
 
 // Index work belongs in an explicit migration, never request-time execution.
 const uri = String(process.env.MONGODB_MIGRATION_URI || '').trim();
@@ -25,6 +26,9 @@ const expected = [
   [DecisionEvent, { expiresAt: 1 }, 'decision_event_expiration', false],
   [DecisionMonitor, { userId: 1, scenarioId: 1 }, 'uniq_decision_monitor_owner_scenario', true],
   [DecisionMonitor, { enabled: 1, lastCheckedAt: 1 }, 'decision_monitor_scan', false],
+  [DecisionMonitor, { enabled: 1, leaseUntil: 1, lastCheckedAt: 1 }, 'decision_monitor_lease_claim', false],
+  [DecisionWorkerHeartbeat, { heartbeatAt: -1 }, 'decision_worker_last_heartbeat', false],
+  [DecisionWorkerHeartbeat, { expiresAt: 1 }, 'decision_worker_heartbeat_ttl', false],
   [DecisionAssessment, {
     userId: 1, scenarioId: 1, scenarioRevision: 1, monitorGeneration: 1,
     profileId: 1, profileFactsHash: 1, profileStateRevision: 1, profileVersion: 1,
@@ -42,12 +46,14 @@ try {
   await mongoose.connect(uri, { autoIndex: false });
   for (const [model, keys, name, unique] of expected) {
     await model.collection.createIndex(keys, {
-      name, unique, ...(name === 'decision_event_expiration' ? { expireAfterSeconds: 0 } : {}),
+      name, unique, ...(['decision_event_expiration', 'decision_worker_heartbeat_ttl'].includes(name)
+        ? { expireAfterSeconds: 0 } : {}),
     });
     const indexes = await model.collection.indexes();
     if (!indexes.some(index => index.name === name && Boolean(index.unique) === unique
       && sameKeys(index.key, keys)
-      && (name !== 'decision_event_expiration' || index.expireAfterSeconds === 0))) {
+      && (!['decision_event_expiration', 'decision_worker_heartbeat_ttl'].includes(name)
+        || index.expireAfterSeconds === 0))) {
       throw new Error(`Required GenieDecision index ${name} did not verify.`);
     }
   }

@@ -8,6 +8,7 @@ import { appendDecisionEvent } from './liveEvents.js';
 import { signDecisionReceipt, verifyDecisionReceipt } from './integrity.js';
 import { DecisionInputError, DECISION_LEDGER_VERSION } from './ledger.js';
 import { resolveCurrentFinancialProfile } from '../currentFinancialProfile.js';
+import { createDecisionWorkerHeartbeat } from './workerHeartbeat.js';
 import {
   makeDecisionSourceSnapshot, hashDecisionSourceSnapshot, verifyDecisionSourceSnapshot,
 } from './sourceSnapshot.js';
@@ -189,6 +190,7 @@ export async function assessMonitoredDecision(monitor, {
       // scan transaction; only a still-enabled generation may publish alerts.
       const touched = await DecisionMonitor.updateOne({
         _id: monitor._id, enabled: true, generation: monitor.generation,
+        ...(monitor.leaseToken ? { leaseToken: monitor.leaseToken } : {}),
       }, { $set: { lastCheckedAt: new Date() } }, { session });
       if (touched.matchedCount !== 1) { outcome = 'WATCH_DISABLED'; return; }
       await DecisionAssessment.create([{ ...candidate, ...receipt }], { session });
@@ -210,45 +212,66 @@ export async function assessMonitoredDecision(monitor, {
   }
 }
 
-export async function scanDecisionMonitors({ limit = 25, resolveProfile } = {}) {
-  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) throw new RangeError('Invalid monitoring scan limit');
-  const monitors = await DecisionMonitor.find({ enabled: true })
-    .sort({ lastCheckedAt: 1, _id: 1 }).limit(limit).lean();
+export async function scanDecisionMonitors({
+  limit = 25, resolveProfile, minCheckIntervalMs = 0, leaseMs = 75000,
+  now = () => new Date(),
+} = {}) {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50
+      || !Number.isSafeInteger(minCheckIntervalMs) || minCheckIntervalMs < 0
+      || !Number.isSafeInteger(leaseMs) || leaseMs < 10000) {
+    throw new RangeError('Invalid monitoring scan limit or lease');
+  }
   const summary = { inspected: 0, created: 0, failed: 0, statuses: {} };
-  for (const monitor of monitors) {
+  for (let index = 0; index < limit; index += 1) {
+    const claimedAt = now();
+    const token = crypto.randomUUID();
+    const monitor = await DecisionMonitor.findOneAndUpdate({
+      enabled: true,
+      $and: [
+        { $or: [{ leaseUntil: null }, { leaseUntil: { $lte: claimedAt } }] },
+        { $or: [{ lastCheckedAt: null },
+          { lastCheckedAt: { $lte: new Date(claimedAt.getTime() - minCheckIntervalMs) } }] },
+      ],
+    }, { $set: {
+      leaseToken: token, leaseUntil: new Date(claimedAt.getTime() + leaseMs),
+    } }, { sort: { lastCheckedAt: 1, _id: 1 }, new: true }).lean();
+    if (!monitor) break;
     summary.inspected += 1;
     try {
       const outcome = await assessMonitoredDecision(monitor, { resolveProfile });
       summary.statuses[outcome] = (summary.statuses[outcome] || 0) + 1;
       if (outcome === 'CREATED') summary.created += 1;
-    } catch {
-      // Owner financial information and Mongo exception messages must not be
-      // copied into monitoring/logging channels.
-      summary.failed += 1;
-    } finally {
+    } catch { summary.failed += 1; }
+    finally {
       try {
-        // Every attempt, including an already-current result or an unavailable
-        // source, must advance the scheduling cursor. Otherwise a fixed first
-        // page of 25 watches can permanently starve all later users.
         await DecisionMonitor.updateOne({
-          _id: monitor._id, enabled: true, generation: monitor.generation,
-        }, { $set: { lastCheckedAt: new Date() } });
-      } catch {
-        summary.failed += 1;
-      }
+          _id: monitor._id, generation: monitor.generation, leaseToken: token,
+        }, { $set: { lastCheckedAt: now(), leaseToken: null, leaseUntil: null } });
+      } catch { summary.failed += 1; }
     }
   }
   return summary;
 }
 
-export function createDecisionMonitorWorker({ pollMs = 60000, scan = scanDecisionMonitors } = {}) {
+export function createDecisionMonitorWorker({
+  pollMs = 60000, scan = scanDecisionMonitors,
+  heartbeat = createDecisionWorkerHeartbeat(),
+} = {}) {
   if (!Number.isSafeInteger(pollMs) || pollMs < 10000) throw new RangeError('Poll must be >=10 seconds');
   let timer = null;
   let active = null;
   let lastResult = null;
+  let heartTimer = null;
+  let heartbeatHealthy = false;
+  let lastHeartbeatAt = null;
+  const beat = async () => {
+    await heartbeat.beat();
+    heartbeatHealthy = true;
+    lastHeartbeatAt = new Date().toISOString();
+  };
   const tick = async () => {
     if (active) return active;
-    active = Promise.resolve().then(() => scan({ limit: 25 }));
+    active = Promise.resolve().then(() => scan({ limit: 25, minCheckIntervalMs: pollMs }));
     try { lastResult = await active; return lastResult; }
     finally { active = null; }
   };
@@ -256,16 +279,26 @@ export function createDecisionMonitorWorker({ pollMs = 60000, scan = scanDecisio
     start() {
       if (timer) return;
       timer = setInterval(() => { void tick().catch(() => { lastResult = { failed: 1 }; }); }, pollMs);
+      heartTimer = setInterval(() => {
+        void beat().catch(() => { heartbeatHealthy = false; });
+      }, 15000);
+      heartTimer.unref?.();
+      void beat().catch(() => { heartbeatHealthy = false; });
       timer.unref?.();
       void tick().catch(() => { lastResult = { failed: 1 }; });
     },
     async stop() {
       if (timer) clearInterval(timer);
+      if (heartTimer) clearInterval(heartTimer);
       timer = null;
+      heartTimer = null;
       if (active) await active;
+      heartbeatHealthy = false;
+      await heartbeat.stop();
       return { drained: true };
     },
-    state: () => ({ enabled: Boolean(timer), activeJobs: active ? 1 : 0, lastResult }),
+    state: () => ({ enabled: Boolean(timer), activeJobs: active ? 1 : 0,
+      heartbeatHealthy, lastHeartbeatAt, lastResult }),
     runOnce: tick,
   };
 }
