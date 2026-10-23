@@ -337,7 +337,8 @@ export default function HouseholdRunway() {
         ))}
         <button type="button" className="runway-minor" disabled={busy || entries.length >= 256}
           onClick={() => edited(() => setEntries(current => [...current, newEntry()]))}>+ Add event</button>
-        <button type="button" disabled={busy || !cashConfirmed} onClick={save}>Save confirmed ledger</button>
+        <button type="button" disabled={busy || !cashConfirmed || (!dirty && confirmedDate === todayIndia())}
+          onClick={save}>Save confirmed ledger</button>
       </div>
       <fieldset className="runway-panel runway-options" disabled={busy}>
         <legend><strong>3. Rehearse a change</strong></legend>
