@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
-  getDecisionRun, deleteDecisionScenario,
+  getDecisionRun, listDecisionRuns, deleteDecisionScenario,
 } from '../services/api';
 import './GenieDecisionWorkspace.css';
 
@@ -70,7 +70,7 @@ function Report({ report }) {
     <div className="gd-heading"><div><h3>Decision comparison</h3><p>As of {shortDate(record.asOf)} · {label(result.scenarioType)}</p></div>
       <span className="gd-status">{record.status}</span></div>
     {record.status === 'HISTORICAL' && <p className="gd-warning" role="alert">
-      Your financial profile has changed. This report is historical. Create a fresh scenario to compare current finances.
+      The financial profile or saved scenario revision has changed. This report is historical and must not be treated as a current financial assessment.
     </p>}
     <div className="gd-alternatives">
       {(result.alternatives || []).map(alt => <article key={alt.name} className="gd-alternative">
@@ -114,6 +114,8 @@ export default function GenieDecisionWorkspace() {
   const [details, setDetails] = useState({});
   const [goalReservations, setGoalReservations] = useState([]);
   const [report, setReport] = useState(null);
+  const [runs, setRuns] = useState([]);
+  const loadGeneration = useRef(0);
   const [savedFingerprint, setSavedFingerprint] = useState(null);
   const [pending, setPending] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -149,10 +151,11 @@ export default function GenieDecisionWorkspace() {
     refresh({ signal: controller.signal })
       .catch(err => { if (!controller.signal.aborted) setError(errorMessage(err)); })
       .finally(() => { if (!controller.signal.aborted) setInitialLoading(false); });
-    return () => controller.abort();
+    return () => { controller.abort(); loadGeneration.current += 1; };
   }, [refresh]);
 
   const newScenario = () => {
+    loadGeneration.current += 1;
     setActive(null);
     setType('INCOME_INTERRUPTION');
     setTitle('My income interruption plan');
@@ -161,15 +164,21 @@ export default function GenieDecisionWorkspace() {
     setDetails({});
     setGoalReservations([]);
     setReport(null);
+    setRuns([]);
     setSavedFingerprint(null);
     setError('');
     setSuccess('');
   };
 
   const openScenario = async scenario => {
-    setPending(true); setError(''); setSuccess(''); setReport(null);
+    const generation = ++loadGeneration.current;
+    setPending(true); setError(''); setSuccess(''); setReport(null); setRuns([]);
     try {
-      const saved = await getDecisionScenario(scenario.id);
+      const [saved, reportHistory] = await Promise.all([
+        getDecisionScenario(scenario.id), listDecisionRuns(scenario.id),
+      ]);
+      if (generation !== loadGeneration.current) return;
+      setRuns(reportHistory.runs || []);
       setActive(saved.scenario);
       setType(saved.scenario.scenarioType);
       setTitle(saved.payload.title);
@@ -183,9 +192,12 @@ export default function GenieDecisionWorkspace() {
         baseline: saved.payload.baseline, details: saved.payload.details,
         goalReservations: saved.payload.goalReservations,
       }));
-      if (saved.scenario.lastRunId) setReport(await getDecisionRun(saved.scenario.lastRunId));
-    } catch (err) { setError(errorMessage(err)); }
-    finally { setPending(false); }
+      if (saved.scenario.lastRunId) {
+        const loaded = await getDecisionRun(saved.scenario.lastRunId);
+        if (generation === loadGeneration.current) setReport(loaded);
+      }
+    } catch (err) { if (generation === loadGeneration.current) setError(errorMessage(err)); }
+    finally { if (generation === loadGeneration.current) setPending(false); }
   };
 
   const payload = () => {
@@ -244,6 +256,7 @@ export default function GenieDecisionWorkspace() {
         details: values.details, goalReservations: values.goalReservations,
       }));
       setReport(null);
+      setRuns([]);
       setSuccess('Scenario saved. Choose Evaluate to calculate an immutable decision report.');
       await refresh();
     } catch (err) { setError(errorMessage(err)); }
@@ -260,6 +273,7 @@ export default function GenieDecisionWorkspace() {
     try {
       const result = await evaluateDecisionScenario(active.id, active.revision);
       setReport(result);
+      setRuns((await listDecisionRuns(active.id)).runs || []);
       setSuccess('A versioned report was published without changing your investments or profile.');
       await refresh();
     } catch (err) { setError(errorMessage(err)); }
@@ -358,6 +372,17 @@ export default function GenieDecisionWorkspace() {
             {active && <button type="button" className="gd-danger" onClick={() => void remove()} disabled={pending}>Delete scenario</button>}
           </div>
         </form>
+        {active && runs.length > 0 && <section className="gd-panel" aria-label="Past reports">
+          <h3>Saved decision reports</h3>
+          <p className="gd-muted">Select a report to review its immutable calculation snapshot. Older scenarios are labeled historical.</p>
+          <ul>{runs.map(item => <li key={item.id}>
+            <button type="button" disabled={pending} onClick={() => {
+              setPending(true);
+              getDecisionRun(item.id).then(result => setReport(result))
+                .catch(err => setError(errorMessage(err))).finally(() => setPending(false));
+            }}>Report from {shortDate(item.asOf)} · Revision {item.scenarioRevision} · {item.status}</button>
+          </li>)}</ul>
+        </section>}
         <Report report={report}/>
       </div>
     </div>
