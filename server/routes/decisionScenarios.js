@@ -155,7 +155,10 @@ function reportReceiptContext(run) {
 function checkRevision(revision, scenario) {
   if (!revision || revision.inputHash !== hash(revision.payload)
       || !verifyDecisionReceipt(revision, 'scenario_revision',
-        revisionReceiptContext(scenario, revision.revision, revision.inputHash), revision.payload)) {
+        revisionReceiptContext(scenario, revision.revision, revision.inputHash), revision.payload)
+      || (scenario.revision === revision.revision
+        && (scenario.title !== revision.payload.title
+          || scenario.scenarioType !== revision.payload.scenarioType))) {
     fail(503, 'DECISION_REVISION_INTEGRITY_FAILURE',
       'Stored scenario revision failed authenticated integrity verification.');
   }
@@ -364,6 +367,18 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
   router.get('/scenarios', handleInput(async (req, res) => {
     const scenarios = await DecisionScenario.find({ userId: req.user.userId })
       .sort({ createdAt: -1 }).limit(50).lean();
+    if (scenarios.length) {
+      // Do not display attacker-edited scenario titles without checking the
+      // signed current revision; bound this request to 50 revision records.
+      const revisions = await DecisionScenarioRevision.find({
+        userId: req.user.userId,
+        $or: scenarios.map(row => ({ scenarioId: row._id, revision: row.revision })),
+      }).lean();
+      const byIdentity = new Map(revisions.map(row => [`${row.scenarioId}:${row.revision}`, row]));
+      for (const scenario of scenarios) {
+        checkRevision(byIdentity.get(`${scenario._id}:${scenario.revision}`), scenario);
+      }
+    }
     res.json({ scenarios: scenarios.map(scenarioDto), maxReturned: 50 });
   }));
 
