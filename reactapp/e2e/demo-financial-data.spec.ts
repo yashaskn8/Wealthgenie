@@ -552,6 +552,10 @@ test('real backend financial facts match the dashboard, qualified products, and 
     const explicitInputs = { annualIncome: 1800000, incomeSource: 'salary', regime: 'new', userAge: 34, fiscalYear: 'FY2026-27', inflationRate: 0.06 };
     const allocations = object(object(recommendation.dashboard_projection, 'dashboard_projection').instrument_monthly_allocations, 'allocations');
     const expectedInputs = instruments.map(instrument => ({
+      // Preserve the identity of every recommended investment in the
+      // browser-to-API contract; checking only generic model types can hide
+      // swapped or duplicated per-product tax results.
+      instrumentId: string(instrument.id, 'id'),
       instrumentType: instrument.type, nominalRate: number(instrument.nominalReturn, 'nominalReturn') / 100,
       holdingYears: 15, monthlySIP: number(allocations[string(instrument.id, 'id')], 'monthlySIP'),
     }));
