@@ -42,7 +42,8 @@ export function assessmentContext(item) {
 
 export function verifyDecisionAssessment(item) {
   if (!item || !['RECALCULATED', 'NEEDS_REVIEW'].includes(item.status)
-      || (item.status === 'RECALCULATED' && !item.result)
+      || !Object.hasOwn(item, 'result') || !/^[a-f0-9]{64}$/.test(item.resultHash || '')
+      || (item.status === 'RECALCULATED' && (!item.result || typeof item.result !== 'object'))
       || (item.status === 'NEEDS_REVIEW' && item.result !== null)
       || hash(item.result) !== item.resultHash
       || !verifyDecisionReceipt(item, 'decision_reassessment', assessmentContext(item), {
