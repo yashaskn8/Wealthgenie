@@ -71,4 +71,46 @@ describe('GenieProof math-only illustration', () => {
     fireEvent.change(screen.getByLabelText('Duration in months'), { target: { value: '13' } });
     expect(screen.queryByText('₹1,200.00')).not.toBeInTheDocument();
   });
+  it('rejects a forged arithmetic match when the claimed figure differs', async () => {
+    calculateGenieProofScenario.mockResolvedValue({
+      ...mockResult,
+      claimedResultRupees: '9999.00',
+      absoluteDifferenceRupees: '0.00',
+      arithmeticFinding: 'MATCHES_ASSUMPTIONS_WITHIN_ONE_PAISE',
+    });
+    render(<GenieProofCalculator />);
+    enterSip();
+    fireEvent.change(screen.getByLabelText(/Claimed future value/), { target: { value: '9999' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate and compare' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No result was accepted/);
+    expect(screen.queryByText(/Claimed arithmetic matches/)).not.toBeInTheDocument();
+  });
+
+  it('rejects a mathematically inconsistent contribution or interest total', async () => {
+    calculateGenieProofScenario.mockResolvedValue({
+      ...mockResult,
+      totalPaidOrContributedRupees: '1199.99',
+    });
+    render(<GenieProofCalculator />);
+    enterSip();
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate and compare' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No result was accepted/);
+    expect(screen.queryByText('₹1,200.00')).not.toBeInTheDocument();
+  });
+
+  it('accepts a genuinely consistent claimed-result comparison', async () => {
+    calculateGenieProofScenario.mockResolvedValue({
+      ...mockResult,
+      claimedResultRupees: '1200.00',
+      absoluteDifferenceRupees: '0.00',
+      arithmeticFinding: 'MATCHES_ASSUMPTIONS_WITHIN_ONE_PAISE',
+    });
+    render(<GenieProofCalculator />);
+    enterSip();
+    fireEvent.change(screen.getByLabelText(/Claimed future value/), { target: { value: '1200' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate and compare' }));
+    expect(await screen.findByText(/Claimed arithmetic matches/)).toBeInTheDocument();
+    expect(screen.getByText('₹1,200.00')).toBeInTheDocument();
+  });
+
 });
