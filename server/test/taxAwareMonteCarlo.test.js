@@ -4,6 +4,7 @@ import {runTaxAwareEquityLumpSumScenario} from '../services/taxAwareMonteCarlo.j
 const tax={
  annualGrossIncome:2000000,userAge:35,incomeSource:'salary',regime:'new',
  fiscalYear:'FY2026-27',deductions:{},section112AExemptionUsed:0,
+ sttConditionAssumedSatisfied:true,
 };
 const input={
  principal:100000,annualExpectedReturn:0.08,annualVolatility:0.15,
@@ -16,6 +17,7 @@ test('tax-aware Monte Carlo uses canonical tax policy on bounded hypothetical lu
  assert.equal(a.status,'CALCULATED');
  assert.equal(a.dataClass,'USER_DECLARED_MODEL_SCENARIO');
  assert.equal(a.notLiveMarketData,true);
+ assert.equal(a.sttConditionBasis,'USER_DECLARED_ASSUMED_SATISFIED_NOT_VERIFIED');
  assert.ok(a.netPercentiles.p10<=a.netPercentiles.p50);
  assert.ok(a.netPercentiles.p50<=a.netPercentiles.p90);
  assert.ok(a.netPercentiles.p50<=a.grossPercentiles.p50);
@@ -30,4 +32,32 @@ test('missing investor income, age, allowance, or mismatched realization FY fail
  }
  assert.equal(runTaxAwareEquityLumpSumScenario({...input,redemptionDate:'2027-06-01'}).status,'UNAVAILABLE');
  assert.equal(runTaxAwareEquityLumpSumScenario({...input,years:2}).status,'UNAVAILABLE');
+});
+
+test('tax-aware equity paths fail closed without explicit STT treatment and valid 112A usage',()=>{
+ for(const stt of [undefined,false,null]){
+  const out=runTaxAwareEquityLumpSumScenario({
+   ...input,taxContext:{...tax,sttConditionAssumedSatisfied:stt},
+  });
+  assert.equal(out.status,'UNAVAILABLE');
+  assert.equal(out.afterTaxAvailable,false);
+  assert.deepEqual(out.unavailableReasons,['EQUITY_STT_CONDITION_NOT_ESTABLISHED']);
+  assert.equal(out.netPercentiles,null);
+ }
+ const excessiveExemption=runTaxAwareEquityLumpSumScenario({
+  ...input,taxContext:{...tax,section112AExemptionUsed:125001},
+ });
+ assert.equal(excessiveExemption.status,'UNAVAILABLE');
+ assert.deepEqual(excessiveExemption.unavailableReasons,
+  ['SECTION_112A_USAGE_EXCEEDS_VERIFIED_ANNUAL_LIMIT']);
+});
+
+test('tax-aware 30-year gross paths reject rupee precision overflow before simulation',()=>{
+ const out=runTaxAwareEquityLumpSumScenario({
+  ...input,principal:1e10,annualExpectedReturn:1,years:30,
+  acquisitionDate:'1996-06-01',redemptionDate:'2026-06-01',
+ });
+ assert.equal(out.status,'UNAVAILABLE');
+ assert.equal(out.afterTaxAvailable,false);
+ assert.deepEqual(out.unavailableReasons,['SIMULATION_WEALTH_PRECISION_EXCEEDED']);
 });
