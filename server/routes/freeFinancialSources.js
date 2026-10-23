@@ -9,6 +9,7 @@ import {
  getPublicSmallSavingsRates,calculatePublicSmallSavingsGrossResearch,
 } from '../services/publicSmallSavingsResearch.js';
 import {executeMonteCarlo} from '../services/monteCarloExecutor.js';
+import {getFreeFinancialSourceDirectory} from '../services/freeFinancialSourceDirectory.js';
 
 const router=Router();
 const schemeCode=Joi.string().pattern(/^[1-9][0-9]{4,6}$/);
@@ -95,6 +96,8 @@ router.post('/mutual-funds/simulate',verifyJWT,validate(simulateSchema),asyncHan
   exclusions:nav.exclusions,
  });
 }));
+router.get('/coverage',verifyJWT,asyncHandler(async(req,res)=>
+ res.json(getFreeFinancialSourceDirectory())));
 router.get('/small-savings',verifyJWT,asyncHandler(async(req,res)=>
  res.json(getPublicSmallSavingsRates())));
 router.post('/small-savings/calculate',verifyJWT,validate(smallCashflowSchema),
