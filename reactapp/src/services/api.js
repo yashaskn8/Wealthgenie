@@ -1311,6 +1311,14 @@ export async function evaluateDecisionScenario(id, expectedRevision, options = {
   return request('POST', `/decisions/scenarios/${encodeURIComponent(id)}/evaluate`,
     { expectedRevision }, { retries: 0, ...options });
 }
+export async function getDecisionMonitor(scenarioId, options = {}) {
+  return request('GET', `/decisions/scenarios/${encodeURIComponent(scenarioId)}/monitor`,
+    null, { retries: 0, ...options });
+}
+export async function setDecisionMonitor(scenarioId, enabled, expectedRevision, options = {}) {
+  return request('PUT', `/decisions/scenarios/${encodeURIComponent(scenarioId)}/monitor`,
+    { enabled, expectedRevision }, { retries: 0, ...options });
+}
 export async function listDecisionRuns(scenarioId, options = {}) {
   return request('GET', `/decisions/scenarios/${encodeURIComponent(scenarioId)}/runs`, null,
     { retries: 0, ...options });
@@ -1327,7 +1335,7 @@ export async function deleteDecisionScenario(id, expectedRevision, options = {})
 const api = {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario, createDecisionScenario,
   updateDecisionScenario, evaluateDecisionScenario, getDecisionRun, listDecisionRuns, deleteDecisionScenario,
-  subscribeDecisionEvents, simulateDecisionScenario,
+  subscribeDecisionEvents, simulateDecisionScenario, getDecisionMonitor, setDecisionMonitor,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
