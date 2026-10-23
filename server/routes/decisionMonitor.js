@@ -70,9 +70,21 @@ export function createDecisionMonitorRoutes({ resolveProfile = resolveCurrentFin
     const assessments = await DecisionAssessment.find({
       userId: req.user.userId, scenarioId: scenario._id,
     }).sort({ createdAt: -1, _id: -1 }).limit(15).lean();
-    const current = await resolveProfile({
-      userId: req.user.userId, requireRecommendation: false,
-    });
+    let current = null;
+    try {
+      current = await resolveProfile({
+        userId: req.user.userId, requireRecommendation: false,
+      });
+    } catch (error) {
+      // Loss of canonical profile currentness must not destroy access to
+      // independently signed historical results. Only known unresolved-state
+      // errors may degrade; connectivity/security/integrity failures still 503.
+      if (!['FINANCIAL_PROFILE_STATE_UNAVAILABLE',
+        'FINANCIAL_PROFILE_STATE_INCOMPLETE',
+        'FINANCIAL_PROFILE_STATE_MIGRATION_REQUIRED'].includes(error?.code)) {
+        throw error;
+      }
+    }
     res.json({
       monitor: { ...projection(monitor), workerConfigured: await hasActiveDecisionWorker() },
       assessments: assessments.map(item => assessmentDto(item, current, scenario, monitor)),
