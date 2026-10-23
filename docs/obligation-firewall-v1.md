@@ -32,3 +32,6 @@ Frontend rupee formatting must separate whole rupees and integer paise, never co
 
 ### Multi-device revision conflicts
 A stale update never silently overwrites concurrent changes. The UI fetches the latest saved ledger and shows both the local and saved commitments. The user may discard local changes or must explicitly attest that they reviewed both versions before moving their unsaved draft onto the new revision. A ledger deleted on another device cannot be automatically resurrected; restarting requires loading the deletion tombstone and entering new cash data.
+
+### Model version transitions
+If a stored ledger's current revision was calculated under a retired cash policy, the API returns the owned historical snapshot with `requiresPolicyReconfirmation: true` rather than a permanent 503. The UI suppresses obsolete positive/negative results and asks the user to confirm today's cash and commitments before recalculating under the active policy. Historical revision reads and privacy exports remain available across policy versions; read paths never mutate or silently reinterpret the old calculation.

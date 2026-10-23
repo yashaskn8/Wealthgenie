@@ -98,9 +98,14 @@ router.get('/ledger', verifyJWT, asyncHandler(async (req, res) => {
   if (ledger.deletedAt || ledger.input === null) {
     return res.json({ revision: ledger.revision, ledger: null, latestResult: null, deleted: true });
   }
+  // Model upgrades must not brick all existing plans: load the exact current
+  // policy when present, otherwise disclose the retained historical policy
+  // and require an explicit new declaration. Never silently reuse old results.
   const snapshot = await CoverageResult.findOne({
     userId: req.user.userId, ledgerRevision: ledger.revision, policyVersion: COVERAGE_POLICY_VERSION,
-  }).lean();
+  }).lean() || await CoverageResult.findOne({
+    userId: req.user.userId, ledgerRevision: ledger.revision,
+  }).sort({ createdAt: -1 }).lean();
   if (!snapshot) {
     throw createError(503, 'Ledger result missing for the current revision.', 'Coverage temporarily unavailable.', {
       code: 'COVERAGE_RESULT_UNAVAILABLE',
@@ -110,6 +115,7 @@ router.get('/ledger', verifyJWT, asyncHandler(async (req, res) => {
     revision: ledger.revision,
     ledger: ledger.input,
     latestResult: publicSnapshot(snapshot),
+    requiresPolicyReconfirmation: snapshot.policyVersion !== COVERAGE_POLICY_VERSION,
     requiresCashReconfirmation: (parseCalendarDate(todayInIndia()) - parseCalendarDate(ledger.input.asOfDate)) >= 86_400_000,
   });
 }));
@@ -201,7 +207,7 @@ router.post('/scenarios/preview', verifyJWT, asyncHandler(async (req, res) => {
     });
   }
   const ledger = await CoverageLedger.findOne({ userId: req.user.userId, revision: body.revision }).lean();
-  if (!ledger) throw conflict();
+  if (!ledger || ledger.deletedAt || ledger.input === null) throw conflict();
   let result;
   try {
     result = previewVoluntaryExclusions(ledger.input, body.excludedVoluntaryEntryIds);
@@ -236,7 +242,7 @@ router.get('/export', verifyJWT, asyncHandler(async (req, res) => {
   }
   const owner = req.user.userId;
   const snapshots = await CoverageResult.find({
-    userId: owner, ledgerRevision: { $gt: afterRevision }, policyVersion: COVERAGE_POLICY_VERSION,
+    userId: owner, ledgerRevision: { $gt: afterRevision },
   }).sort({ ledgerRevision: 1 }).limit(limit + 1).lean();
   const page = snapshots.slice(0, limit);
   return res.json({
@@ -249,8 +255,8 @@ router.get('/export', verifyJWT, asyncHandler(async (req, res) => {
 router.get('/revisions/:revision', verifyJWT, asyncHandler(async (req, res) => {
   const revision = parseRevision(req.params.revision);
   const snapshot = await CoverageResult.findOne({
-    userId: req.user.userId, ledgerRevision: revision, policyVersion: COVERAGE_POLICY_VERSION,
-  }).lean();
+    userId: req.user.userId, ledgerRevision: revision,
+  }).sort({ createdAt: -1 }).lean();
   if (!snapshot) {
     throw createError(404, 'Coverage revision not found.', 'Coverage revision not found.', {
       code: 'COVERAGE_REVISION_NOT_FOUND',

@@ -167,6 +167,24 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(preview.status, 200);
     assert.equal(preview.body.result.status, 'NO_SHORTFALL_IN_ENTERED_PLAN');
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 2);
+    // Simulated policy rollout: old user-owned history stays readable/exportable
+    // but the current plan requires explicit reconfirmation before presentation.
+    const currentSnapshot = await CoverageResult.findOne({ userId: owner, ledgerRevision: 2 });
+    await CoverageResult.collection.updateOne({ _id: currentSnapshot._id }, {
+      $set: { policyVersion: 'retired-cash-policy-v0' },
+    });
+    const policyRead = await call(owner, 'GET', '/ledger');
+    assert.equal(policyRead.status, 200);
+    assert.equal(policyRead.body.requiresPolicyReconfirmation, true);
+    assert.equal(policyRead.body.latestResult.policyVersion, 'retired-cash-policy-v0');
+    const policyRevision = await call(owner, 'GET', '/revisions/2');
+    assert.equal(policyRevision.status, 200);
+    assert.equal(policyRevision.body.policyVersion, 'retired-cash-policy-v0');
+    await CoverageResult.collection.updateOne({ _id: currentSnapshot._id }, {
+      $set: { policyVersion: currentSnapshot.policyVersion },
+    });
+    const policyCurrent = await call(owner, 'GET', '/ledger');
+    assert.equal(policyCurrent.body.requiresPolicyReconfirmation, false);
     const exportFirst = await call(owner, 'GET', '/export?limit=1');
     assert.equal(exportFirst.status, 200);
     assert.equal(exportFirst.body.records.length, 1);
@@ -206,7 +224,7 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal((await call(owner, 'PUT', '/ledger', submitted, 0, randomUUID())).status, 409);
     assert.equal((await call(owner, 'PUT', '/ledger', submitted, 2, randomUUID())).status, 409);
     assert.equal((await call(owner, 'POST', '/scenarios/preview',
-      { revision: 3, excludedVoluntaryEntryIds: [] })).status, 400);
+      { revision: 3, excludedVoluntaryEntryIds: [] })).status, 409);
     const newPlan = await call(owner, 'PUT', '/ledger', submitted, 3, randomUUID());
     assert.equal(newPlan.status, 200);
     assert.equal(newPlan.body.revision, 4);

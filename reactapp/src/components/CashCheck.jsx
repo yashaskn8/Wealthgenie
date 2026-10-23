@@ -168,7 +168,7 @@ export default function CashCheck() {
       setHasStoredLedger(Boolean(response.ledger));
       setRevision(response.revision);
       setSaved(response.latestResult?.result || null);
-      setStale(Boolean(response.requiresCashReconfirmation));
+      setStale(Boolean(response.requiresCashReconfirmation || response.requiresPolicyReconfirmation));
       setLoaded(true);
     }).catch(err => { if (active) { setLoadFailed(true); setError(err.message || 'Unable to fetch cash entries.'); setLoaded(true); } });
     return () => { active = false; };
@@ -324,7 +324,7 @@ export default function CashCheck() {
     setDraft(conflictState.ledger ? toDraft(conflictState.ledger) : EMPTY());
     setSaved(conflictState.latestResult?.result || null);
     setHasStoredLedger(Boolean(conflictState.ledger));
-    setStale(Boolean(conflictState.requiresCashReconfirmation));
+    setStale(Boolean(conflictState.requiresCashReconfirmation || conflictState.requiresPolicyReconfirmation));
     setDirty(false);
     setPreview(null);
     pendingSave.current = null;
@@ -392,7 +392,7 @@ export default function CashCheck() {
           <button type="button" disabled={busy} onClick={acceptLatestConflict}>Discard local edits and load current server state</button>
         </section>
       )}
-      {needsReconfirmation && <p className="cash-check-error" role="alert">Your cash declaration may be stale. Check the accessible balance and update the date before saving again.</p>}
+      {needsReconfirmation && <p className="cash-check-error" role="alert">This saved calculation is no longer current. Reconfirm today's accessible balance, review the commitments and save a new calculation. Earlier model-policy results must not be treated as current.</p>}
       <form onSubmit={save} aria-busy={busy}>
         <fieldset className="cash-check-form-fields" disabled={busy}>
           <legend className="cash-check-hidden-legend">Cash amounts and commitments</legend>
