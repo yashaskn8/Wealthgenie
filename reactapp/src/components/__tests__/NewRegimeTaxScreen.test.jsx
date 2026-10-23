@@ -17,6 +17,26 @@ function populate({ primaryIncome = '1275000.00', residency = 'resident', specia
   fireEvent.click(screen.getByRole('checkbox', { name: /I confirm this is a single-individual/i }));
 }
 
+function calculatedResponse(request, overrides = {}) {
+  return {
+    taxYear: request.taxYear,
+    policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
+    status: 'CALCULATED', calculationClass: 'SIMPLE_ORDINARY_INCOME_ONLY',
+    unavailableReasons: [], inputsUsed: { ...request },
+    finalTax: '0', taxableIncome: '1200000',
+    grossPrimaryIncome: '1275000.0000', otherOrdinaryIncome: '0.0000',
+    standardDeduction: '75000.0000', taxableIncomeBeforeRounding: '1200000.0000',
+    taxBeforeRebate: '60000.0000', rebate: '60000.0000', taxAfterRebate: '0.0000',
+    surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '0.0000',
+    taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [
+      { from: '0', to: '400000', percent: 0, taxableInSlab: '400000', tax: '0.0000' },
+      { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000.0000' },
+      { from: '800000', to: '1200000', percent: 10, taxableInSlab: '400000', tax: '40000.0000' },
+    ],
+    ...overrides,
+  };
+}
+
 describe('new-regime calculator visible entry point', () => {
   it('contains no old-regime choice and does not calculate on initial render', () => {
     const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockResolvedValue({});
@@ -27,21 +47,8 @@ describe('new-regime calculator visible entry point', () => {
   });
 
   it('sends exact decimal strings to the authoritative backend, not client tax arithmetic', async () => {
-    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => ({
-      taxYear: request.taxYear, policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
-      status: 'CALCULATED', calculationClass: 'SIMPLE_ORDINARY_INCOME_ONLY',
-      unavailableReasons: [],
-      inputsUsed: { ...request }, finalTax: '0', taxableIncome: '1200000',
-      grossPrimaryIncome: '1275000.0000', otherOrdinaryIncome: '0.0000',
-      standardDeduction: '75000.0000', taxableIncomeBeforeRounding: '1200000.0000',
-      taxBeforeRebate: '60000.0000', rebate: '60000.0000', taxAfterRebate: '0.0000',
-      surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '0.0000',
-      taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [
-        { from: '0', to: '400000', percent: 0, taxableInSlab: '400000', tax: '0.0000' },
-        { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000.0000' },
-        { from: '800000', to: '1200000', percent: 10, taxableInSlab: '400000', tax: '40000.0000' },
-      ],
-    }));
+    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax')
+      .mockImplementation(async request => calculatedResponse(request));
     render(<NewRegimeTaxScreen />);
     populate();
     fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
@@ -55,24 +62,13 @@ describe('new-regime calculator visible entry point', () => {
     await waitFor(() => expect(screen.getByText(/Estimated tax liability under the new regime/i)).toBeInTheDocument());
   });
 
-  it('rejects internally balanced figures that do not match entered income or salary deduction', async () => {
-    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => ({
-      taxYear: request.taxYear,
-      policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
-      status: 'CALCULATED', calculationClass: 'SIMPLE_ORDINARY_INCOME_ONLY',
-      inputsUsed: { ...request }, finalTax: '0', taxableIncome: '1200000',
-      // Forged but internally balanced: the real request contains ₹12.75 lakh
-      // salary, yet these numbers silently pretend the salary was ₹12 lakh.
-      grossPrimaryIncome: '1200000.0000', otherOrdinaryIncome: '0.0000',
-      standardDeduction: '0.0000', taxableIncomeBeforeRounding: '1200000.0000',
-      taxBeforeRebate: '60000.0000', rebate: '60000.0000', taxAfterRebate: '0.0000',
-      surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '0.0000',
-      taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [
-        { from: '0', to: '400000', percent: 0, taxableInSlab: '400000', tax: '0.0000' },
-        { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000.0000' },
-        { from: '800000', to: '1200000', percent: 10, taxableInSlab: '400000', tax: '40000.0000' },
-      ],
-    }));
+  it('rejects mismatched input echo and policy binding', async () => {
+    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => (
+      calculatedResponse(request, {
+        policyVersion: 'unrecognized-policy',
+        inputsUsed: { ...request, primaryIncome: '1200000.00' },
+      })
+    ));
     render(<NewRegimeTaxScreen />);
     populate();
     fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
@@ -81,28 +77,23 @@ describe('new-regime calculator visible entry point', () => {
     expect(screen.queryByText(/Estimated tax liability under the new regime/i)).not.toBeInTheDocument();
   });
 
-  it('rejects a balanced but legally false ₹62,400 tax when the resident rebate makes it ₹0', async () => {
-    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => ({
-      taxYear: request.taxYear,
-      policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
-      status: 'CALCULATED', calculationClass: 'SIMPLE_ORDINARY_INCOME_ONLY',
-      inputsUsed: { ...request }, finalTax: '62400', taxableIncome: '1200000',
-      grossPrimaryIncome: '1275000.0000', otherOrdinaryIncome: '0.0000',
-      standardDeduction: '75000.0000', taxableIncomeBeforeRounding: '1200000.0000',
-      taxBeforeRebate: '60000.0000', rebate: '0.0000', taxAfterRebate: '60000.0000',
-      surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '2400.0000',
-      taxBeforeStatutoryRounding: '62400.0000', slabBreakdown: [
-        { from: '0', to: '400000', percent: 0, taxableInSlab: '400000', tax: '0.0000' },
-        { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000.0000' },
-        { from: '800000', to: '1200000', percent: 10, taxableInSlab: '400000', tax: '40000.0000' },
-      ],
-    }));
+  it('shows the bound server amount without recomputing inconsistent tax fields in the browser', async () => {
+    const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => (
+      calculatedResponse(request, {
+        finalTax: '123456', taxableIncome: '987654',
+        grossPrimaryIncome: '1.0000', standardDeduction: '999.0000',
+        taxBeforeRebate: '800.0000', rebate: '700.0000', taxAfterRebate: '12.0000',
+        surcharge: '900.0000', surchargeMarginalRelief: '3.0000',
+        cess: '4.0000', taxBeforeStatutoryRounding: '5.0000',
+      })
+    ));
     render(<NewRegimeTaxScreen />);
     populate();
     fireEvent.click(screen.getByRole('button', { name: /Calculate income tax/i }));
     await waitFor(() => expect(call).toHaveBeenCalledOnce());
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/unverified or mismatched calculation/i));
-    expect(screen.queryByText(/Estimated tax liability under the new regime/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Estimated tax liability under the new regime/i)).toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent('₹1,23,456');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('discards an in-flight tax response when the submitted amount changes', async () => {
@@ -151,7 +142,7 @@ describe('new-regime calculator visible entry point', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/No income figures were submitted/i);
   });
 
-  it('refuses to show a numeric result from an invalid or unbound backend response', async () => {
+  it('refuses to show a numeric result from an incomplete backend response', async () => {
     const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockResolvedValue({
       taxYear: '2026-27', policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
       status: 'CALCULATED', finalTax: '0',
@@ -165,7 +156,7 @@ describe('new-regime calculator visible entry point', () => {
     expect(screen.queryByText(/Estimated tax liability under the new regime/i)).not.toBeInTheDocument();
   });
 
-  it('rejects a forged or incomplete slab breakdown instead of displaying false details', async () => {
+  it('rejects a malformed slab row without applying tax calculations to it', async () => {
     const call = vi.spyOn(api, 'computeVerifiedNewRegimeTax').mockImplementation(async request => ({
       taxYear: request.taxYear,
       policyVersion: 'verified-simple-new-regime-TY2026-27-v1',
@@ -177,7 +168,7 @@ describe('new-regime calculator visible entry point', () => {
       surcharge: '0.0000', surchargeMarginalRelief: '0.0000', cess: '0.0000',
       taxBeforeStatutoryRounding: '0.0000', slabBreakdown: [
         { from: '0', to: '400000', percent: 0, taxableInSlab: '400000', tax: '0.0000' },
-        { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000.0000' },
+        { from: '400000', to: '800000', percent: 5, taxableInSlab: '400000', tax: '20000' },
       ],
     }));
     render(<NewRegimeTaxScreen />);

@@ -42,6 +42,19 @@ describe('GenieProof math-only illustration', () => {
     );
   });
 
+  it('allows the optional SIP step-up to be cleared and sends zero', async () => {
+    calculateGenieProofScenario.mockResolvedValue(mockResult);
+    render(<GenieProofCalculator />);
+    enterSip();
+    fireEvent.change(screen.getByLabelText('Annual SIP step-up (%) (optional)'), { target: { value: '' } });
+    expect(screen.getByRole('button', { name: 'Calculate and compare' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate and compare' }));
+    expect(await screen.findByText('₹1,200.00')).toBeInTheDocument();
+    expect(calculateGenieProofScenario).toHaveBeenCalledWith(
+      { type: 'SIP', amountRupees: '100', annualRatePercent: '0', months: 12, stepUpPercent: '0' },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
   it('rejects fabricated positive responses that change the source or result scenario', async () => {
     calculateGenieProofScenario.mockResolvedValue({ ...mockResult, assumptionRatePercent: '25' });
     render(<GenieProofCalculator />);

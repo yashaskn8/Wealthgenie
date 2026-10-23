@@ -19,66 +19,65 @@ const DECIMAL = /^(?:0|[1-9][0-9]{0,9})(?:\.[0-9]{1,2})?$/;
 const AMOUNT = /^\d+$/;
 const THREE = /^\d+\.\d{3}$/;
 const MAX_PAISE = 100000000000n;
-const min = (a, b) => a < b ? a : b;
+const INTEGER_FIELDS = [
+  'ordinaryTaxableIncome', 'shortTermGains', 'longTermGains', 'grossTotalIncome',
+  'standardDeduction', 'section198ExemptLongTermGain',
+];
+const DECIMAL_FIELDS = [
+  'ordinarySlabTax', 'section196Tax', 'section198Tax', 'rebate',
+  'surcharge', 'cess', 'taxBeforeStatutoryRounding',
+];
+const UNAVAILABLE_COPY = Object.freeze({
+  RESIDENT_INDIVIDUAL_ONLY: 'This limited calculation supports resident individuals only.',
+  YEAR_WIDE_NET_GAINS_UNVERIFIED: 'Confirm all gains and eligible loss netting for the full tax year.',
+  SPECIAL_RATE_ELIGIBILITY_UNVERIFIED: 'Confirm the capital-gains classifications and required tax conditions.',
+  OTHER_TAX_FACTS_UNCONFIRMED: 'Other tax facts need review before a supported calculation is available.',
+  NO_SPECIAL_RATE_GAINS: 'Enter positive qualifying equity capital gains for this calculation.',
+  BASIC_EXEMPTION_OR_87A_REBATE_REQUIRES_FULL_RETURN: 'This income range requires a full tax return calculation.',
+  SURCHARGE_REQUIRES_FULL_RETURN: 'This income range requires surcharge handling in a full tax return calculation.',
+  INCOME_OVER_SUPPORTED_LIMIT: 'This income is outside the calculator’s supported range.',
+});
+
 function parsePaise(s) {
   if (typeof s !== 'string' || !DECIMAL.test(s)) return null;
   const [whole, fractional = ''] = s.split('.');
   const value = BigInt(whole) * 100n + BigInt(fractional.padEnd(2, '0') || '0');
   return value <= MAX_PAISE ? value : null;
 }
-function toRupees(paise) {
-  return paise === null || paise % 100n !== 0n ? null : paise / 100n;
+
+function inputsMatch(responseInputs, request) {
+  if (!responseInputs || typeof responseInputs !== 'object' || Array.isArray(responseInputs)) return false;
+  const keys = Object.keys(request);
+  return Object.keys(responseInputs).length === keys.length
+    && keys.every(key => Object.hasOwn(responseInputs, key) && responseInputs[key] === request[key]);
 }
-function slabTax(income) {
-  let from = 0n;
-  let tax = 0n;
-  for (const [to, rate] of [[400000n, 0n], [800000n, 5n], [1200000n, 10n],
-    [1600000n, 15n], [2000000n, 20n], [2400000n, 25n], [income, 30n]]) {
-    tax += (min(income, to) > from ? min(income, to) - from : 0n) * rate * 10n;
-    from = to;
-  }
-  return tax;
-}
+
 function bound(response, request) {
-  if (!response || response.taxYear !== YEAR || response.policyVersion !== POLICY
-    || !response.inputsUsed || Object.keys(response.inputsUsed).length !== Object.keys(request).length
-    || Object.keys(request).some(key => response.inputsUsed[key] !== request[key])) return false;
+  if (!response || typeof response !== 'object' || Array.isArray(response)
+    || request.taxYear !== YEAR
+    || response.taxYear !== YEAR || response.taxYear !== request.taxYear
+    || response.policyVersion !== POLICY
+    || !inputsMatch(response.inputsUsed, request)) return false;
   if (response.status === 'UNAVAILABLE') {
     return response.finalTax === null && Array.isArray(response.unavailableReasons)
-      && response.unavailableReasons.length > 0;
+      && response.unavailableReasons.length > 0
+      && response.unavailableReasons.every(reason => typeof reason === 'string' && reason.length > 0);
   }
   if (response.status !== 'CALCULATED' || response.calculationClass !== 'VERIFIED_RESIDENT_EQUITY_GAINS_ABOVE_REBATE_BELOW_SURCHARGE'
     || !Array.isArray(response.unavailableReasons) || response.unavailableReasons.length !== 0
-    || request.residency !== 'resident' || !request.completeYearGainsConfirmed
-    || !request.sttAndClassificationConfirmed || !request.noOtherTaxSituationsConfirmed
-    || !AMOUNT.test(response.finalTax) || BigInt(response.finalTax) % 10n !== 0n) return false;
-  const p = ['primaryIncome', 'otherOrdinaryIncome', 'stcg196', 'ltcg198'].map(k => parsePaise(request[k]));
-  if (p.some(x => x === null || x % 1000n !== 0n)) return false;
-  const [primary, other, stcg, ltcg] = p.map(toRupees);
-  const deduction = request.incomeType === 'already_taxable' ? 0n : min(primary, 75000n);
-  const ordinary = primary + other - deduction;
-  const total = ordinary + stcg + ltcg;
-  if (ordinary < 1300000n || total > 5000000n || stcg + ltcg === 0n) return false;
-  for (const [key, expected] of [
-    ['ordinaryTaxableIncome', ordinary], ['shortTermGains', stcg], ['longTermGains', ltcg],
-    ['grossTotalIncome', total], ['standardDeduction', deduction],
-    ['section198ExemptLongTermGain', min(ltcg, 125000n)],
-  ]) if (!AMOUNT.test(response[key] || '') || BigInt(response[key]) !== expected) return false;
-  for (const key of ['ordinarySlabTax', 'section196Tax', 'section198Tax', 'rebate',
-    'surcharge', 'cess', 'taxBeforeStatutoryRounding']) if (!THREE.test(response[key] || '')) return false;
-  const u = key => BigInt(response[key].replace('.', ''));
-  const ordinaryTax = slabTax(ordinary);
-  const shortTax = stcg * 200n;
-  const longTax = (ltcg - min(ltcg, 125000n)) * 125n;
-  const cess = (ordinaryTax + shortTax + longTax) * 4n / 100n;
-  const beforeRounding = ordinaryTax + shortTax + longTax + cess;
-  return u('ordinarySlabTax') === ordinaryTax && u('section196Tax') === shortTax
-    && u('section198Tax') === longTax && u('rebate') === 0n && u('surcharge') === 0n
-    && u('cess') === cess && u('taxBeforeStatutoryRounding') === beforeRounding
-    && BigInt(response.finalTax) === ((beforeRounding / 1000n + 5n) / 10n) * 10n;
+    || !AMOUNT.test(response.finalTax || '')
+    || INTEGER_FIELDS.some(key => !AMOUNT.test(response[key] || ''))
+    || DECIMAL_FIELDS.some(key => !THREE.test(response[key] || ''))) return false;
+  return true;
+}
+
+function unavailableReasonText(code) {
+  return Object.hasOwn(UNAVAILABLE_COPY, code)
+    ? UNAVAILABLE_COPY[code]
+    : 'This scenario is outside the calculator’s supported scope. No tax amount is shown.';
 }
 const money = s => /^\d+(?:\.\d{1,3})?$/.test(String(s))
-  ? '₹' + Number(String(s).split('.')[0]).toLocaleString('en-IN') + (String(s).includes('.') ? '.' + s.split('.')[1] : '')
+  ? '₹' + BigInt(String(s).split('.')[0]).toLocaleString('en-IN') + (String(s).includes('.') ? '.' + s.split('.')[1] : '')
   : 'Unavailable';
 
 export default function VerifiedEquityGainsPanel() {
@@ -108,12 +107,6 @@ export default function VerifiedEquityGainsPanel() {
     if (form.residency !== 'resident' || !form.completeYearGainsConfirmed
       || !form.sttAndClassificationConfirmed || !form.noOtherTaxSituationsConfirmed) {
       setError('Resident status, annual gains, STT eligibility, and all confirmations are required. No financial amounts were submitted.');
-      return;
-    }
-    const [primary, other, stcg, ltcg] = parts.map(toRupees);
-    const ordinary = primary + other - (form.incomeType === 'already_taxable' ? 0n : min(primary, 75000n));
-    if (ordinary < 1300000n || ordinary + stcg + ltcg > 5000000n || stcg + ltcg === 0n) {
-      setError('This narrow verified path requires ordinary taxable income of at least ₹13 lakh, total income up to ₹50 lakh, and positive qualified equity gains. Complex rebate, basic-exemption, and surcharge cases require a full return.');
       return;
     }
     ++sequence.current;
@@ -188,7 +181,12 @@ export default function VerifiedEquityGainsPanel() {
       </form>
       {error && <p role="alert" className="wg-new-tax__alert">{error}</p>}
       {result?.status === 'UNAVAILABLE' && (
-        <p role="alert">No tax figure can be verified for these circumstances: {result.unavailableReasons.join(', ')}</p>
+        <div role="alert">
+          <p>No tax figure can be verified for these circumstances.</p>
+          <ul>{result.unavailableReasons.map((reason, index) => (
+            <li key={`${reason}-${index}`}>{unavailableReasonText(reason)}</li>
+          ))}</ul>
+        </div>
       )}
       {result?.status === 'CALCULATED' && (
         <div className="wg-new-tax__result" role="status">
@@ -198,13 +196,17 @@ export default function VerifiedEquityGainsPanel() {
             <summary>Reconciliation and special-rate tax</summary>
             <table><tbody>
               {[
+                ['Gross total income', 'grossTotalIncome'],
                 ['Ordinary taxable income', 'ordinaryTaxableIncome'],
+                ['Standard deduction', 'standardDeduction'],
                 ['Qualified STCG', 'shortTermGains'],
                 ['Qualified LTCG before annual threshold', 'longTermGains'],
                 ['LTCG threshold applied once per year', 'section198ExemptLongTermGain'],
                 ['New-regime ordinary slab tax', 'ordinarySlabTax'],
                 ['Section 196 tax (20%)', 'section196Tax'],
                 ['Section 198 tax (12.5%)', 'section198Tax'],
+                ['Rebate', 'rebate'],
+                ['Surcharge', 'surcharge'],
                 ['Cess (4%)', 'cess'],
                 ['Tax before rounding', 'taxBeforeStatutoryRounding'],
                 ['Final liability rounded to ₹10', 'finalTax'],

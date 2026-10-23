@@ -185,4 +185,58 @@ describe('Goal financial workspace — keyless budget and purchase flows', () =>
     expect(api.createGoalSpecification.mock.calls[0][0].targetAmount).toBe(450000);
     expect(api.createGoalSpecification.mock.calls[0][0].kind).toBe('vehicle');
   });
+
+  it('rejects one-character goal names before sending the request', async () => {
+    render(<GoalFinanceWorkspace />);
+    await screen.findByText('Monthly income and expense tracking');
+    fireEvent.click(screen.getByRole('button', { name: 'Goal specifications' }));
+    await screen.findByText('New goal specification');
+    fireEvent.change(screen.getByLabelText('Your goal name'), { target: { value: 'A' } });
+    fireEvent.change(screen.getByLabelText('Target cost (₹)'), { target: { value: '1000' } });
+    fireEvent.change(screen.getByLabelText('Desired date'), { target: { value: '2028-10-23' } });
+    fireEvent.change(screen.getByLabelText('Annual price rise assumption (%)'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save goal specification' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('at least 2 characters');
+    expect(api.createGoalSpecification).not.toHaveBeenCalled();
+  });
+
+  it('shows readable validation for missing savings forecast inputs', async () => {
+    render(<GoalFinanceWorkspace />);
+    await screen.findByText('Monthly income and expense tracking');
+    fireEvent.click(screen.getByRole('button', { name: 'Savings forecast' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate savings scenario' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter monthly contribution.');
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'monthly Contribution' }), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate savings scenario' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Enter an annual return assumption.'));
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'annual Return Assumption' }), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate savings scenario' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Enter an annual inflation assumption.'));
+    expect(api.projectGoalSavings).not.toHaveBeenCalled();
+  });
+
+  it('sends explicit zero return and inflation assumptions to the server projection', async () => {
+    api.projectGoalSavings.mockResolvedValue({ projection: {
+      futureNominal: 190000, futurePurchasingPower: 190000, totalContributed: 190000,
+    } });
+    render(<GoalFinanceWorkspace />);
+    await screen.findByText('Monthly income and expense tracking');
+    fireEvent.click(screen.getByRole('button', { name: 'Savings forecast' }));
+    const inputs = [
+      ['current Savings', '10000'], ['monthly Contribution', '5000'], ['years', '3'],
+      ['annual Return Assumption', '0'], ['annual Inflation Assumption', '0'],
+    ];
+    for (const [name, value] of inputs) {
+      fireEvent.change(screen.getByRole('spinbutton', { name }), { target: { value } });
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate savings scenario' }));
+    await waitFor(() => expect(api.projectGoalSavings).toHaveBeenCalledOnce());
+    expect(api.projectGoalSavings).toHaveBeenCalledWith({
+      currentSavings: 10000, monthlyContribution: 5000, years: 3,
+      annualReturnAssumption: 0, annualInflationAssumption: 0,
+    });
+    expect(await screen.findByText('Nominal future value')).toBeTruthy();
+  });
 });

@@ -11,10 +11,6 @@ const INITIAL={
   completeYearGainsConfirmed:false,sttAndClassificationConfirmed:false,
   noOtherTaxSituationsConfirmed:false,
 };
-const slabBounds=[[0n,400000n,0n],[400000n,800000n,5n],
-  [800000n,1200000n,10n],[1200000n,1600000n,15n],
-  [1600000n,2000000n,20n],[2000000n,2400000n,25n],
-  [2400000n,null,30n]];
 function rupees(v){
   if(typeof v!=='string' || !AMOUNT.test(v))return null;
   const [whole,fraction='']=v.split('.');
@@ -29,44 +25,22 @@ function display(v){
 }
 function assertBound(result,request){
   if(!result||result.policyVersion!==VERSION||result.taxYear!==YEAR||
-     !result.inputsUsed||Object.keys(result.inputsUsed).length!==Object.keys(request).length||
+     !result.inputsUsed||typeof result.inputsUsed!=='object'||Array.isArray(result.inputsUsed)||
+     Object.keys(result.inputsUsed).length!==Object.keys(request).length||
      Object.keys(request).some(k=>request[k]!==result.inputsUsed[k]))return false;
   if(result.status==='UNAVAILABLE')return result.finalTax===null
-    && Array.isArray(result.unavailableReasons)&&result.unavailableReasons.length>0;
+    && Array.isArray(result.unavailableReasons)&&result.unavailableReasons.length>0
+    && result.unavailableReasons.every(reason=>typeof reason==='string');
   if(result.status!=='CALCULATED' || result.calculationClass!=='VERIFIED_RESIDENT_EQUITY_GAINS_ABOVE_REBATE_BELOW_SURCHARGE'
     || result.unavailableReasons?.length!==0 || request.residency!=='resident'
     || !request.completeYearGainsConfirmed || !request.sttAndClassificationConfirmed
     || !request.noOtherTaxSituationsConfirmed)return false;
-  const main=rupees(request.primaryIncome),other=rupees(request.otherOrdinaryIncome);
-  const short=rupees(request.stcg196),long=rupees(request.ltcg198);
-  if([main,other,short,long].some(v=>v===null))return false;
-  const deduction=request.incomeType==='already_taxable'?0n:(main<75000n?main:75000n);
-  const ordinary=main+other-deduction,total=ordinary+short+long;
-  if(ordinary<1300000n||total>5000000n||short+long===0n)return false;
-  const exempt=long<125000n?long:125000n;
-  let tax=0n;
-  for(const [from,to,rate] of slabBounds){
-    if(ordinary>from)tax+=((to===null||ordinary<to?ordinary:to)-from)*rate*10n;
-  }
-  const expectedShort=short*200n,expectedLong=(long-exempt)*125n;
-  const preCess=tax+expectedShort+expectedLong;
-  const cess=preCess*4n/100n,unrounded=preCess+cess;
-  const exact=k=>/^\d+\.\d{3}$/.test(result[k]||'')?BigInt(result[k].replace('.','')):null;
-  const expectedRounding=((unrounded/1000n+5n)/10n)*10n;
-  return result.ordinaryTaxableIncome===String(ordinary)
-    && result.grossTotalIncome===String(total)
-    && result.shortTermGains===String(short)
-    && result.longTermGains===String(long)
-    && result.standardDeduction===String(deduction)
-    && result.section198ExemptLongTermGain===String(exempt)
-    && exact('ordinarySlabTax')===tax
-    && exact('section196Tax')===expectedShort
-    && exact('section198Tax')===expectedLong
-    && exact('cess')===cess
-    && exact('rebate')===0n
-    && exact('surcharge')===0n
-    && exact('taxBeforeStatutoryRounding')===unrounded
-    && result.finalTax===String(expectedRounding);
+  const integerFields=['ordinaryTaxableIncome','grossTotalIncome','shortTermGains','longTermGains',
+    'standardDeduction','section198ExemptLongTermGain','finalTax'];
+  const decimalFields=['ordinarySlabTax','section196Tax','section198Tax','rebate','surcharge','cess',
+    'taxBeforeStatutoryRounding'];
+  return integerFields.every(key=>typeof result[key]==='string'&&/^\d+$/.test(result[key]))
+    && decimalFields.every(key=>typeof result[key]==='string'&&/^\d+\.\d{3}$/.test(result[key]));
 }
 const BREAKDOWN=[
   ['Ordinary taxable income','ordinaryTaxableIncome'],
@@ -77,9 +51,26 @@ const BREAKDOWN=[
   ['Ordinary income slab tax','ordinarySlabTax'],
   ['Short-term equity gain tax at 20%','section196Tax'],
   ['Long-term equity gain tax at 12.5%','section198Tax'],
+  ['Rebate','rebate'],
+  ['Surcharge','surcharge'],
   ['Health and education cess (4%)','cess'],
   ['Tax before statutory rounding','taxBeforeStatutoryRounding'],
 ];
+const UNAVAILABLE_REASON_MESSAGES=Object.freeze({
+  RESIDENT_INDIVIDUAL_ONLY:'This calculation supports resident individuals only.',
+  YEAR_WIDE_NET_GAINS_UNVERIFIED:'Confirm that the amounts cover all annual net gains from every account.',
+  SPECIAL_RATE_ELIGIBILITY_UNVERIFIED:'Confirm the gains meet the required tax classification and eligibility conditions.',
+  OTHER_TAX_FACTS_UNCONFIRMED:'Confirm that no other tax situations apply before using this restricted calculation.',
+  NO_SPECIAL_RATE_GAINS:'Enter at least one eligible capital-gain amount for this calculation.',
+  BASIC_EXEMPTION_OR_87A_REBATE_REQUIRES_FULL_RETURN:'Basic-exemption or rebate rules for this case need a full tax calculation.',
+  SURCHARGE_REQUIRES_FULL_RETURN:'This case needs surcharge rules outside the calculator’s supported scope.',
+  INCOME_OVER_SUPPORTED_LIMIT:'This income is above the calculator’s supported range.',
+});
+function describeUnavailableReason(reason){
+  return Object.hasOwn(UNAVAILABLE_REASON_MESSAGES,reason)
+    ? UNAVAILABLE_REASON_MESSAGES[reason]
+    : 'This case is outside the calculator’s verified scope. A full tax computation is required.';
+}
 export default function VerifiedCapitalGainsTaxScreen(){
   const [form,setForm]=useState(INITIAL);
   const [result,setResult]=useState(null);
@@ -96,8 +87,12 @@ export default function VerifiedCapitalGainsTaxScreen(){
   async function submit(event){
     event.preventDefault();
     const request={...form};
-    if(!['salary','pension','already_taxable'].includes(request.incomeType)
-      || ['primaryIncome','otherOrdinaryIncome','stcg196','ltcg198'].some(k=>rupees(request[k])===null)){
+    if(!['salary','pension','already_taxable'].includes(request.incomeType)){
+      setResult(null);
+      setError('Choose an ordinary income category before calculating. No financial amounts were submitted.');
+      return;
+    }
+    if(['primaryIncome','otherOrdinaryIncome','stcg196','ltcg198'].some(k=>rupees(request[k])===null)){
       setResult(null);
       setError('Choose an income category and enter all amounts as non-negative whole multiples of ₹10 (enter 0 where none).');
       return;
@@ -175,10 +170,13 @@ export default function VerifiedCapitalGainsTaxScreen(){
       <button type="submit" disabled={pending}>{pending?'Verifying…':'Calculate verified equity-gains tax'}</button>
     </form>
     {error&&<p className="wg-new-tax__alert" role="alert">{error}</p>}
-    {result?.status==='UNAVAILABLE'&&<p className="wg-new-tax__alert" role="status">
-      Calculation not available for this case: {result.unavailableReasons.join(', ')}.
-      A full tax computation is required; no speculative figure is displayed.
-    </p>}
+    {result?.status==='UNAVAILABLE'&&<div className="wg-new-tax__alert" role="status">
+      <p>No tax figure is available for this case. A full tax computation may be required.</p>
+      <ul>{result.unavailableReasons.map((reason,index)=><li key={`${reason}-${index}`}>
+        {describeUnavailableReason(reason)}
+      </li>)}</ul>
+      <p>No speculative figure is displayed.</p>
+    </div>}
     {result?.status==='CALCULATED'&&<section className="wg-new-tax__result" aria-label="Verified capital gains tax result">
       <p>Estimated liability on the exact declared and qualified tax heads</p>
       <strong className="wg-new-tax__amount">{display(result.finalTax)}</strong>

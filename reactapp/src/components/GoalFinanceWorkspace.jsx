@@ -30,6 +30,13 @@ const projectionDefaults = {
   currentSavings: '0', monthlyContribution: '', years: '5',
   annualReturnAssumption: '', annualInflationAssumption: '',
 };
+const projectionFieldLabels = {
+  currentSavings: 'current savings',
+  monthlyContribution: 'monthly contribution',
+  years: 'years',
+  annualReturnAssumption: 'annual return assumption',
+  annualInflationAssumption: 'annual inflation assumption',
+};
 function amount(value, field, { optional = false } = {}) {
   if ((value === '' || value === null || value === undefined) && optional) return null;
   if (value === '' || value === null || value === undefined) throw new Error(`Enter ${field}.`);
@@ -230,15 +237,24 @@ function SavingsProjection() {
     setError(null); setLoading(true); setResult(null);
     try {
       const payload = Object.fromEntries(Object.entries(values).map(([k, v]) => {
+        const label = projectionFieldLabels[k];
         if (['annualReturnAssumption', 'annualInflationAssumption'].includes(k)) {
-          if (v === '') throw new Error(`Enter ${k}.`);
+          if (v === '') throw new Error(`Enter an ${label}.`);
           const rate = Number(v);
-          if (!Number.isFinite(rate) || rate <= -100 || rate > 100) throw new Error(`Invalid ${k}.`);
+          if (!Number.isFinite(rate) || rate <= -100 || rate > 100) {
+            throw new Error(`${label[0].toUpperCase()}${label.slice(1)} must be greater than -100% and no more than 100%.`);
+          }
           return [k, rate];
         }
-        return [k, amount(v, k)];
+        if (k === 'years') {
+          const years = Number(v);
+          if (v === '' || !Number.isInteger(years) || years < 1 || years > 50) {
+            throw new Error('Enter a whole number of years between 1 and 50.');
+          }
+          return [k, years];
+        }
+        return [k, amount(v, label)];
       }));
-      if (!Number.isInteger(payload.years)) throw new Error('Years must be whole numbers');
       const projection = (await api.projectGoalSavings(payload)).projection;
       if (projectionRevisionRef.current === revision) setResult(projection);
     } catch (e) {

@@ -206,6 +206,14 @@ describe('GoalPlanner financial freshness boundary', () => {
     expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(950000);
   });
 
+  it('marks the goal form grid for its narrow-screen single-column layout', async () => {
+    render(<GoalPlanner profile={profile} financialState={currentFinancialState} />);
+    fireEvent.click(screen.getByRole('button', { name: /Create Target Goal/i }));
+
+    const goalForm = await screen.findByTestId('goal-form');
+    expect(goalForm.closest('.goal-planner-layout')).toBeInTheDocument();
+  });
+
   it('keeps an in-progress goal edit when equivalent goal data is refreshed', () => {
     const paneProps = {
       selectedGoal: freshGoal,

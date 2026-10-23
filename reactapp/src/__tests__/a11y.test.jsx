@@ -11,6 +11,8 @@ import NewRegimeTaxScreen from '../components/NewRegimeTaxScreen';
 import AllocationPlanner from '../components/AllocationPlanner';
 import RebalancerScreen from '../components/RebalancerScreen';
 import GenieChat from '../components/GenieChat';
+import GenieProofEntry from '../components/GenieProofEntry';
+import GenieProofCalculator from '../components/GenieProofCalculator';
 import DeepDiveModal from '../components/DeepDiveModal';
 
 afterEach(() => {
@@ -106,6 +108,26 @@ describe('Automated Accessibility (a11y) Verification Suite with axe-core', () =
       console.warn(JSON.stringify(results.violations.map(v => ({ id: v.id, impact: v.impact, description: v.description, help: v.help })), null, 2));
     }
     expect(results.violations).toEqual([]);
+  });
+
+  it('checks GenieProof claim checking for accessibility violations', async () => {
+    const { container } = render(<GenieProofEntry />);
+    const results = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(results.violations.map(violation => ({
+      id: violation.id, description: violation.description,
+    }))).toEqual([]);
+  });
+
+  it('checks the GenieProof calculator for accessibility violations', async () => {
+    const { container } = render(<GenieProofCalculator />);
+    const results = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(results.violations.map(violation => ({
+      id: violation.id, description: violation.description,
+    }))).toEqual([]);
   });
 
   it('checks DeepDiveModal for accessibility violations', async () => {

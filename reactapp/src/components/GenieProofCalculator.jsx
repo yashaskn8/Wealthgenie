@@ -106,14 +106,14 @@ export default function GenieProofCalculator() {
   const valid = amountPattern.test(amountRupees) && Number(amountRupees) > 0 && Number(amountRupees) <= 1_000_000_000
     && percentPattern.test(annualRatePercent) && Number(annualRatePercent) <= 100
     && /^\d{1,3}$/.test(months) && Number(months) >= 1 && Number(months) <= 600
-    && (type !== 'SIP' || (percentPattern.test(stepUpPercent) && Number(stepUpPercent) <= 25))
+    && (type !== 'SIP' || stepUpPercent.trim() === '' || (percentPattern.test(stepUpPercent) && Number(stepUpPercent) <= 25))
     && (!claimedResultRupees || claimPattern.test(claimedResultRupees));
 
   async function submit(event) {
     event.preventDefault();
     if (!valid || working) return;
     const inputs = { type, amountRupees, annualRatePercent, months: Number(months) };
-    if (type === 'SIP') inputs.stepUpPercent = stepUpPercent;
+    if (type === 'SIP') inputs.stepUpPercent = stepUpPercent.trim() === '' ? '0' : stepUpPercent;
     if (claimedResultRupees) inputs.claimedResultRupees = claimedResultRupees;
     controller.current?.abort();
     const active = new AbortController();
@@ -145,7 +145,7 @@ export default function GenieProofCalculator() {
       style={{ background: 'rgba(15,23,42,.7)', border: '1px solid rgba(148,163,184,.25)', borderRadius: 16, padding: 22 }}>
       <h2 id="genieproof-calc-title" style={{ marginTop: 0 }}>Check a calculation</h2>
       <p>Enter the assumptions from a claim or offer. This checks the mathematics only—not whether the quoted rate, scheme, or promised returns are genuine.</p>
-      <form onSubmit={submit} aria-label="Financial calculation">
+      <form onSubmit={submit} aria-label="Financial calculation" aria-busy={working || undefined}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14 }}>
           <label>Calculation type
             <select style={fieldStyle} value={type} onChange={e => change(setType, e.target.value)}>
@@ -180,6 +180,7 @@ export default function GenieProofCalculator() {
           style={{ padding: '11px 18px', borderRadius: 10, color: '#fff', background: '#0369a1', border: '1px solid #38bdf8', opacity: !valid || working ? .55 : 1, cursor: 'pointer' }}>
           {working ? 'Calculating…' : 'Calculate and compare'}
         </button>
+        {working && <p role="status">Calculation in progress. No result is available yet.</p>}
         {error && <p role="alert" style={{ color: '#fca5a5' }}>{error}</p>}
       </form>
       {result && <div aria-live="polite" style={{ borderTop: '1px solid #64748b', marginTop: 22, paddingTop: 14 }}>

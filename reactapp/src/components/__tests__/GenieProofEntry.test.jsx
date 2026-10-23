@@ -128,6 +128,8 @@ describe('GenieProof beginner-facing claim checking', () => {
     fireEvent.change(field, { target: { value: 'First claim' } });
     fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
     expect(screen.getByRole('button', { name: 'Checking…' })).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent(/No verdict is available yet/i);
+    expect(screen.getByRole('form', { name: 'Financial claim check' })).toHaveAttribute('aria-busy', 'true');
     fireEvent.change(field, { target: { value: 'Different claim' } });
     resolveRequest(status([unverified]));
     await waitFor(() => expect(screen.queryByText('Not verified')).not.toBeInTheDocument());

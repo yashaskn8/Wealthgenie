@@ -79,15 +79,17 @@ export default function GoalSpecificationsPanel({ onChanged }) {
   const submit = async event => {
     event.preventDefault(); setError(null); setNotice(null); setBusy(true);
     try {
+      const name = draft.name.trim();
+      if (!name) throw new Error('Name this goal.');
+      if (name.length < 2) throw new Error('Enter a goal name with at least 2 characters.');
       const payload = {
         ...draft,
-        name: draft.name.trim(), targetAmount: parseAmount(draft.targetAmount, 'target cost'),
+        name, targetAmount: parseAmount(draft.targetAmount, 'target cost'),
         currentSavings: parseAmount(draft.currentSavings, 'current savings'),
         annualPriceInflationPct: parseAmount(draft.annualPriceInflationPct, 'annual price rise'),
       };
       if (payload.targetAmount < 1000 || payload.annualPriceInflationPct > 30) throw new Error('Target must be at least ₹1,000 and annual price rise must be 0–30%.');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.targetDate)) throw new Error('Choose a valid target date.');
-      if (!draft.name.trim()) throw new Error('Name this goal.');
       if (editing) await api.updateGoalSpecification(editing.id, { ...payload, expectedVersion: editing.version });
       else {
         const fingerprint = JSON.stringify(payload);

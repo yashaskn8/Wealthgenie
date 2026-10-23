@@ -28,128 +28,55 @@ function money(value) {
   const cleanFraction = fraction.replace(/0+$/, '');
   return '₹' + BigInt(integer).toLocaleString('en-IN') + (cleanFraction ? '.' + cleanFraction : '');
 }
-// Defense in depth: do not show a detailed slab table that contradicts the returned
-// taxable income or base tax. The server remains the authority for tax policy.
-function slabsReconcile(rows, taxableString, baseTaxString) {
-  if (!Array.isArray(rows) || !/^\d+$/.test(taxableString)
-      || !/^\d+\.\d{4}$/.test(baseTaxString)) return false;
-  const taxable = BigInt(taxableString);
-  const bounds = [
-    [0n, 400000n, 0], [400000n, 800000n, 5],
-    [800000n, 1200000n, 10], [1200000n, 1600000n, 15],
-    [1600000n, 2000000n, 20], [2000000n, 2400000n, 25],
-    [2400000n, null, 30],
+const FOUR_DECIMAL_AMOUNT = /^\d+\.\d{4}$/;
+
+function inputsMatch(resultInputs, request) {
+  if (!resultInputs || typeof resultInputs !== 'object' || Array.isArray(resultInputs)) return false;
+  const keys = Object.keys(request);
+  return Object.keys(resultInputs).length === keys.length
+    && keys.every(key => Object.hasOwn(resultInputs, key) && resultInputs[key] === request[key]);
+}
+
+function hasCalculationShape(result) {
+  const amounts = [
+    'grossPrimaryIncome', 'otherOrdinaryIncome', 'standardDeduction',
+    'taxableIncomeBeforeRounding', 'taxBeforeRebate', 'rebate',
+    'taxAfterRebate', 'surcharge', 'surchargeMarginalRelief',
+    'cess', 'taxBeforeStatutoryRounding',
   ];
-  let rowIndex = 0;
-  let sumTaxUnits = 0n;
-  let sumIncome = 0n;
-  for (const [lower, upper, percent] of bounds) {
-    if (taxable <= lower) break;
-    const span = (upper === null || taxable < upper ? taxable : upper) - lower;
-    const row = rows[rowIndex++];
-    if (!row || typeof row !== 'object'
-        || row.from !== lower.toString()
-        || row.to !== (upper === null ? null : upper.toString())
-        || row.percent !== percent
-        || row.taxableInSlab !== span.toString()
-        || !/^\d+\.\d{4}$/.test(row.tax || '')) return false;
-    const rowTaxUnits = BigInt(row.tax.replace('.', ''));
-    if (rowTaxUnits !== span * BigInt(percent) * 100n) return false;
-    sumTaxUnits += rowTaxUnits;
-    sumIncome += span;
-  }
-  return rows.length === rowIndex && sumIncome === taxable
-    && sumTaxUnits === BigInt(baseTaxString.replace('.', ''));
+  return result.calculationClass === 'SIMPLE_ORDINARY_INCOME_ONLY'
+    && /^\d+$/.test(result.finalTax)
+    && /^\d+$/.test(result.taxableIncome)
+    && amounts.every(key => typeof result[key] === 'string' && FOUR_DECIMAL_AMOUNT.test(result[key]))
+    && Array.isArray(result.slabBreakdown)
+    && result.slabBreakdown.every(row => row && typeof row === 'object' && !Array.isArray(row)
+      && /^\d+$/.test(row.from)
+      && (row.to === null || /^\d+$/.test(row.to))
+      && Number.isInteger(row.percent) && row.percent >= 0 && row.percent <= 100
+      && /^\d+$/.test(row.taxableInSlab)
+      && typeof row.tax === 'string' && FOUR_DECIMAL_AMOUNT.test(row.tax));
 }
 
 function responseIsBound(result, request) {
-  if (!result || result.taxYear !== TAX_YEAR || result.policyVersion !== POLICY_VERSION
+  if (!result || typeof result !== 'object' || Array.isArray(result)
+      || request.taxYear !== TAX_YEAR
+      || result.taxYear !== TAX_YEAR || result.policyVersion !== POLICY_VERSION
       || !['CALCULATED', 'UNAVAILABLE'].includes(result.status)
-      || !result.inputsUsed || typeof result.inputsUsed !== 'object') return false;
-  const keys = Object.keys(request);
-  if (Object.keys(result.inputsUsed).length !== keys.length
-      || keys.some(key => result.inputsUsed[key] !== request[key])) return false;
+      || !inputsMatch(result.inputsUsed, request)) return false;
   if (result.status === 'CALCULATED') {
-    // Eligibility is a hard gate, not just a value that the backend echoes.
-    // A backend regression must not turn a declared special-rate case or
-    // unconfirmed return into a plausible-looking numeric answer.
+    // Keep unsupported contexts closed if the backend ever returns a numeric
+    // result contrary to the request contract. Tax calculations stay server-side.
     if (!request.confirmedOrdinaryOnly || request.specialRateIncome !== 'no'
         || !['resident', 'non_resident'].includes(request.residency)
         || !['salary', 'pension', 'already_taxable'].includes(request.incomeType)
         || !Array.isArray(result.unavailableReasons)
-        || result.unavailableReasons.length !== 0) return false;
-    const amounts = [
-      'grossPrimaryIncome', 'otherOrdinaryIncome', 'standardDeduction',
-      'taxableIncomeBeforeRounding', 'taxBeforeRebate', 'rebate',
-      'taxAfterRebate', 'surcharge', 'surchargeMarginalRelief',
-      'cess', 'taxBeforeStatutoryRounding',
-    ];
-    if (result.calculationClass !== 'SIMPLE_ORDINARY_INCOME_ONLY'
-        || !/^\d+$/.test(result.finalTax) || !/^\d+$/.test(result.taxableIncome)
-        || !slabsReconcile(result.slabBreakdown, result.taxableIncome, result.taxBeforeRebate)
-        || !amounts.every(key => /^\d+\.\d{4}$/.test(result[key]))) return false;
-    const units = key => BigInt(result[key].replace('.', ''));
-    // Echoed input IDs alone are insufficient: reconcile every entered rupee
-    // and the permitted standard deduction with the actual returned amounts.
-    const primaryPaise = asPaise(request.primaryIncome);
-    const additionalPaise = asPaise(request.otherOrdinaryIncome);
-    if (primaryPaise === null || additionalPaise === null) return false;
-    const permittedDeductionPaise = ['salary', 'pension'].includes(request.incomeType)
-      ? (primaryPaise < 7500000n ? primaryPaise : 7500000n) : 0n;
-    if (units('grossPrimaryIncome') !== primaryPaise * 100n
-        || units('otherOrdinaryIncome') !== additionalPaise * 100n
-        || units('standardDeduction') !== permittedDeductionPaise * 100n) return false;
-    const beforeRounding = units('taxBeforeRebate') - units('rebate')
-      + units('surcharge') - units('surchargeMarginalRelief') + units('cess');
-    const roundedPayable = ((beforeRounding / 10000n + 5n) / 10n) * 10n;
-    const unroundedRupees = units('taxableIncomeBeforeRounding') / 10000n;
-    const roundedIncome = ((unroundedRupees + 5n) / 10n) * 10n;
-    // A financially balanced payload can still contain a false rebate or
-    // surcharge. Independently CHECK policy without calculating the displayed
-    // amount client-side; the deterministic server remains the only authority.
-    const taxOnSlabs = units('taxBeforeRebate');
-    const maximumRebate = 60000n * 10000n;
-    const expectedRebate = request.residency !== 'resident' ? 0n
-      : roundedIncome <= 1200000n
-        ? (taxOnSlabs < maximumRebate ? taxOnSlabs : maximumRebate)
-        : (() => {
-          const reduced = taxOnSlabs - (roundedIncome - 1200000n) * 10000n;
-          return reduced > 0n ? reduced : 0n;
-        })();
-    if (units('rebate') !== expectedRebate) return false;
-    const actualAfterRebate = units('taxAfterRebate');
-    const surchargeRate = roundedIncome > 20000000n ? 25n
-      : roundedIncome > 10000000n ? 15n
-        : roundedIncome > 5000000n ? 10n : 0n;
-    const expectedSurcharge = actualAfterRebate * surchargeRate / 100n;
-    if (units('surcharge') !== expectedSurcharge) return false;
-    let expectedSurchargeRelief = 0n;
-    if (roundedIncome > 5000000n) {
-      const threshold = roundedIncome > 20000000n ? 20000000n
-        : roundedIncome > 10000000n ? 10000000n : 5000000n;
-      // Ordinary-income slab tax at each surcharge threshold, in rupees.
-      const baseAtThreshold = threshold === 20000000n ? 5580000n
-        : threshold === 10000000n ? 2580000n : 1080000n;
-      const rateAtThreshold = threshold === 20000000n ? 15n
-        : threshold === 10000000n ? 10n : 0n;
-      const permitted = baseAtThreshold * 10000n * (100n + rateAtThreshold) / 100n
-        + (roundedIncome - threshold) * 10000n;
-      const excess = actualAfterRebate + expectedSurcharge - permitted;
-      expectedSurchargeRelief = excess > 0n ? excess : 0n;
-    }
-    if (units('surchargeMarginalRelief') !== expectedSurchargeRelief
-        || units('cess') !== (actualAfterRebate + expectedSurcharge - expectedSurchargeRelief) * 4n / 100n) return false;
-    return units('grossPrimaryIncome') + units('otherOrdinaryIncome')
-          - units('standardDeduction') === units('taxableIncomeBeforeRounding')
-      && units('taxAfterRebate') === units('taxBeforeRebate') - units('rebate')
-      && beforeRounding >= 0n
-      && beforeRounding === units('taxBeforeStatutoryRounding')
-      && BigInt(result.finalTax) === roundedPayable
-      && BigInt(result.taxableIncome) === roundedIncome;
+        || result.unavailableReasons.length !== 0 || !hasCalculationShape(result)) return false;
+    return true;
   }
   return result.finalTax === null
     && Array.isArray(result.unavailableReasons)
-    && result.unavailableReasons.length > 0;
+    && result.unavailableReasons.length > 0
+    && result.unavailableReasons.every(reason => typeof reason === 'string' && reason.length > 0);
 }
 
 const ROWS = [

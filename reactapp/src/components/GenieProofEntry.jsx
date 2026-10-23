@@ -154,7 +154,7 @@ export default function GenieProofEntry() {
           will be marked Not verified; this is not a fraud or investment safety check.
           If we cannot verify it, we'll say so rather than guess.
         </p>
-        <form onSubmit={check}>
+        <form onSubmit={check} aria-label="Financial claim check" aria-busy={checking || undefined}>
           <label htmlFor="genieproof-claim" style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
             Financial statement to check
           </label>
@@ -188,6 +188,7 @@ export default function GenieProofEntry() {
             disabled={checking || !statement.trim() || tooLarge || sensitiveIdentifier}>
             {checking ? 'Checking…' : 'Check claim'}
           </button>
+          {checking && <p role="status">Checking the statement against approved evidence. No verdict is available yet.</p>}
         </form>
         {error && <p role="alert" style={{ color: '#fca5a5' }}>{error}</p>}
       </section>

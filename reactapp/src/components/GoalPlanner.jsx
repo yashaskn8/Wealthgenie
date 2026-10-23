@@ -6,6 +6,7 @@ import api from '../services/api';
 import GoalForm from './GoalForm';
 import GoalDetailPane from './GoalDetailPane';
 import GoalFinanceWorkspace from './GoalFinanceWorkspace';
+import './GoalPlannerResponsive.css';
 import { submitGoal } from '../utils/goalSubmission';
 import { isFinancialCalculationFresh } from '../utils/financialFreshness';
 import { isPresentFiniteNumber } from '../utils/financialValues';
@@ -747,7 +748,7 @@ const GoalPlanner = ({ profile, financialState: suppliedFinancialState = null })
       </AnimatePresence>
 
       {/* Two-panel Responsive Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: showForm || displayedSelectedGoal ? '1fr 1.2fr' : '1fr', gap: 28, transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+      <div className="goal-planner-layout" style={{ display: 'grid', gridTemplateColumns: showForm || displayedSelectedGoal ? '1fr 1.2fr' : '1fr', gap: 28, transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
         {/* Left Panel — Goal List */}
         <div>
           <AnimatePresence>
