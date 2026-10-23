@@ -49,13 +49,13 @@ export function retrieveTaxAssumptionEvidence(question) {
     source: { provider: 'WealthGenie backend policy', title: 'WealthGenie tax input and limitation policy', url: null } };
   return [
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_INPUTS', 'TAX', {
-      inputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
+      inputs: ['taxYear', 'incomeType', 'primaryIncome', 'otherOrdinaryIncome', 'residency', 'specialRateIncome', 'confirmedOrdinaryOnly'],
       inferredFromInvestmentProfile: false,
-    }, { ...policy, displayValue: 'WealthGenie supports only the new income-tax regime, not an old-versus-new comparison. Before a personal calculation, its Tax Optimizer needs an explicit financial year, annual income, tax regime (new only) and income-source breakdown; none is inferred from your investing profile' }),
+    }, { ...policy, displayValue: 'WealthGenie supports only the new income-tax regime, not an old-versus-new comparison. Before a personal calculation, its Taxes screen requires a declared tax year, income type, primary income, other ordinary income, residency and special-rate income status; none is inferred from your investing profile' }),
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_TREATMENT', 'TAX', {
       requirement: 'VERIFIED_RULES_AND_APPLICABLE_INPUTS',
       unsupportedTreatment: 'UNAVAILABLE',
-    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge follow the backend's fiscal-year-versioned new-regime rules only where the declared income type qualifies. Special-rate income and investment-specific tax treatment need supported evidence and inputs; unavailable treatment is not guessed' }),
+    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge follow the backend fiscal-year-versioned new-regime rules only where the declared income type qualifies. Special-rate income and investment-specific tax treatment need supported evidence and inputs; unavailable treatment is not guessed' }),
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_LIMITS', 'TAX', {
       personalTaxCalculatedInChat: false,
       projectedReturnsAreAfterTax: false,
@@ -1060,12 +1060,16 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
 
   if (taxAssumptionEvidence.length === 0 && /\b(?:tax\s+regime|post[ -]?tax|deductions?|tax\s+slabs?|tax\s+liabilit(?:y|ies)|tax\s+(?:assumptions?|calculation|comparison))\b/i.test(question)) {
     unavailableFacts.push('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS');
+    if (/\b(?:old\s+(?:income\s+)?tax\s+(?:regime|system)|compare\s+(?:the\s+)?(?:old|new)\s+(?:and|with|versus|vs\.?)\s+(?:old|new)\s+(?:tax\s+)?(?:regime|system))\b/i.test(question)) {
+      unavailableFacts.push('UNSUPPORTED_TAX_REGIME_NEW_ONLY');
+    }
     entries.push(makeEvidenceEntry('E_TAX_INPUT_BOUNDARY', 'TAX', {
-      requiredInputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
+      requiredInputs: ['taxYear', 'incomeType', 'primaryIncome', 'otherOrdinaryIncome', 'residency', 'specialRateIncome', 'confirmedOrdinaryOnly'],
+      supportedRegime: 'new',
       inferenceAllowed: false,
     }, {
       dataClass: 'UNAVAILABLE',
-      displayValue: 'GenieChat has not calculated a personal tax result here. A tax result requires explicit fiscal year, annual income, regime, and income source in the Tax Optimizer; these inputs cannot be inferred from your investing profile',
+      displayValue: 'GenieChat has not calculated a personal tax result here. WealthGenie supports new-regime calculations only. Enter declared tax-year, income type, primary income, other ordinary income, residency, special-rate income status and ordinary-income-only confirmation in Taxes. The old regime is unsupported in this app, not abolished under law. Inputs cannot be inferred from your investing profile',
     }));
   }
 
