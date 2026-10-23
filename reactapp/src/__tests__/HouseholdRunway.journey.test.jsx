@@ -86,7 +86,7 @@ describe('Household Runway browser security, money and persistence journey', () 
     fireEvent.click(screen.getByRole('button', { name: 'View result' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: /Conditional results/ })).toBeInTheDocument());
     expect(screen.getAllByText(/₹500\.00/)).toHaveLength(2);
-    expect(screen.getByText(/Listed shortfall even if same-day income arrives/)).toBeInTheDocument();
+    expect(screen.getByText(/Listed shortfall even if expected income arrives/)).toBeInTheDocument();
     expect(screen.getByText(/Debit-first shortfall possible/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete result' }));
     expect(api.deleteRunwaySnapshot).not.toHaveBeenCalled();
@@ -94,6 +94,18 @@ describe('Household Runway browser security, money and persistence journey', () 
     await waitFor(() => expect(api.deleteRunwaySnapshot).toHaveBeenCalledWith(historyItem.snapshotId));
     await waitFor(() => expect(screen.getByText('No saved results on this page.')).toBeInTheDocument());
     expect(screen.queryByRole('heading', { name: /Conditional results/ })).not.toBeInTheDocument();
+  });
+  it('rejects a late server ledger load without overwriting active unsaved input', async () => {
+    let resolveLoad;
+    vi.spyOn(api, 'getRunwayCurrent').mockImplementation(() => new Promise(resolve => { resolveLoad = resolve; }));
+    vi.spyOn(api, 'listRunwaySnapshots').mockResolvedValue(emptyHistory);
+    render(<HouseholdRunway />);
+    const cashInput = screen.getByLabelText('Available cash (₹)');
+    fireEvent.change(cashInput, { target: { value: '1234.56' } });
+    resolveLoad({ revision: 9, ledger: savedLedger() });
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Reload the page before saving/));
+    expect(cashInput).toHaveValue('1234.56');
+    expect(screen.getByText(/Current revision:/)).toHaveTextContent('Not saved');
   });
   it('renders without automated axe violations other than jsdom-unreliable contrast', async () => {
     absentLedger();

@@ -51,3 +51,8 @@
 - Database integration red-team case seeds 99 owner-scoped saved results, races two independent creators and asserts exactly one success and 100 total records. A separate owner-state fixture verifies new immutable revisions cannot exceed the 2,048 cap.
 
 - \`SKIP_RECEIPTS\` cannot quietly do nothing: the chosen income ID and time window must remove at least one actually expanded receipt inside the requested horizon, or the API returns a validation error instead of a misleadingly unchanged stress-test comparison.
+
+## Adversarial client-load invariants
+
+- A delayed authenticated ledger response must never overwrite active unsaved input. If a user starts editing before loading completes, preserve their typed figures and fail closed with an explicit refresh request instead of silently replacing them.
+- The no-future-income track must not claim any hypothetical same-day income credit. Conditional receipt timing warnings and their exact labels belong only to the income-including track.

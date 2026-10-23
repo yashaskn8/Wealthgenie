@@ -50,7 +50,7 @@ function fromStored(e) {
     date: e.date, recurrence: e.recurrence, untilDate: e.untilDate || e.date,
     monthEndRule: e.monthEndRule || 'CLAMP' };
 }
-function Track({ title, data }) {
+function Track({ title, data, includesExpected }) {
   const definite = data?.firstCertainShortfall;
   const possible = data?.firstPossibleShortfall;
   return (
@@ -58,9 +58,11 @@ function Track({ title, data }) {
       <h4>{title}</h4>
       <div className="runway-amount">{displayPaise(data?.endBalancePaise)}</div>
       <p>Modeled balance after listed events; not a bank balance.</p>
-      {definite && <p role="status"><strong>Listed shortfall even if same-day income arrives:</strong>
+      {definite && <p role="status"><strong>{includesExpected
+        ? 'Listed shortfall even if expected income arrives:'
+        : 'Listed shortfall without future income:'}</strong>
         {' '}{definite.label} on {definite.date}, deficit {displayPaise(definite.deficitPaise)}.</p>}
-      {possible && (!definite || possible.date !== definite.date
+      {includesExpected && possible && (!definite || possible.date !== definite.date
         || possible.deficitPaise !== definite.deficitPaise) && <p role="status">
         <strong>Debit-first shortfall possible:</strong> {possible.label} on {possible.date},
         deficit {displayPaise(possible.deficitPaise)} if listed same-day payments settle before income.</p>}
@@ -102,6 +104,7 @@ export default function HouseholdRunway() {
 
   useEffect(() => {
     let active = true;
+    const editVersionBeforeLoad = editVersion.current;
     api.listRunwaySnapshots(0).then(data => {
       if (!active) return;
       setHistory(data.items || []); setHistoryHasMore(data.hasMore); setHistoryPage(0);
@@ -110,6 +113,10 @@ export default function HouseholdRunway() {
     });
     api.getRunwayCurrent().then(saved => {
       if (!active) return;
+      if (editVersion.current !== editVersionBeforeLoad) {
+        setError('Your saved ledger was loaded while you were editing. Reload the page before saving to avoid overwriting another revision.');
+        return;
+      }
       setRevision(saved.revision);
       setEntries(saved.ledger.entries.map(fromStored));
       if (saved.ledger.asOfDate === todayIndia()) {
@@ -384,8 +391,8 @@ export default function HouseholdRunway() {
         {result.scenarios.map(s => <section key={s.scenarioId}>
           <h3>{s.scenarioId === 'baseline' ? 'Your original schedule' : 'With your chosen shock'}</h3>
           <div className="runway-tracks">
-            <Track title="Cash already available (no future income)" data={s.cashAlreadyAvailable} />
-            <Track title="If expected income arrives" data={s.ifExpectedIncomeArrives} />
+            <Track title="Cash already available (no future income)" data={s.cashAlreadyAvailable} includesExpected={false} />
+            <Track title="If expected income arrives" data={s.ifExpectedIncomeArrives} includesExpected />
           </div>
         </section>)}
         <button type="button" disabled={busy || !lastRequest} onClick={saveSnapshot}>Save this versioned result</button>
