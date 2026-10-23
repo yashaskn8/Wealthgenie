@@ -117,6 +117,42 @@ function suggestDueDate(latest, anchorDay, recurrence, today) {
   }
   return next >= today && daysBetween(next, today) <= 90 ? next : null;
 }
+// Bank statement files may be oldest-first, newest-first, or neither. A
+// balance is displayable only if all rows are present and their arithmetic
+// reconciles in a single unambiguous chronological ordering.
+function statementClosingBalance(rows) {
+  if (rows.some(row => row.balancePaise === null)) {
+    return { balancePaise: null, balanceDate: null, status: 'MISSING_BALANCE_DATA' };
+  }
+  if (rows.length === 1) {
+    return { balancePaise: rows[0].balancePaise, balanceDate: rows[0].date,
+      status: 'FILE_REPORTED_UNVERIFIED' };
+  }
+  function validChronology(sequence) {
+    return sequence.every((item, index) => {
+      if (index === 0) return true;
+      const previous = sequence[index - 1];
+      if (item.date < previous.date) return false;
+      const delta = item.direction === 'DEBIT' ? -item.amountPaise : item.amountPaise;
+      return item.balancePaise - previous.balancePaise === delta;
+    });
+  }
+  const ascending = validChronology(rows);
+  const descending = validChronology([...rows].reverse());
+  if (ascending === descending) {
+    return { balancePaise: null, balanceDate: null,
+      status: 'AMBIGUOUS_OR_INCONSISTENT_BALANCES' };
+  }
+  const latest = ascending ? rows.at(-1) : rows[0];
+  return { balancePaise: latest.balancePaise, balanceDate: latest.date,
+    status: 'FILE_ARITHMETIC_RECONCILED_UNVERIFIED' };
+}
+function redactCandidateLabel(description) {
+  return description
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email redacted]')
+    .replace(/\d{6,}/g, '[reference redacted]')
+    .slice(0, 80).trim();
+}
 function proposalCandidates(transactions, today) {
   const groups = new Map();
   for (const item of transactions) {
@@ -129,7 +165,9 @@ function proposalCandidates(transactions, today) {
   const proposals = [];
   for (const group of groups.values()) {
     group.sort((a, b) => a.date.localeCompare(b.date));
-    if (group.length < 3) continue;
+    // Same-day duplicates can come from merged accounts or repeated exports;
+    // they are not independent recurrence evidence.
+    if (group.length < 3 || new Set(group.map(item => item.date)).size !== group.length) continue;
     const last = group[group.length - 1];
     if (daysBetween(today, last.date) > 45) continue;
     const months = group.map(item => monthId(item.date));
@@ -157,15 +195,14 @@ function proposalCandidates(transactions, today) {
     if (!due) continue;
     proposals.push({
       id: 'suggestion-' + proposals.length,
-      label: last.description.slice(0, 80),
+      label: redactCandidateLabel(last.description),
       amountPaise: last.amountPaise,
       recurrence, firstDueDate: due,
       supportingDates: group.slice(-(recurrence === 'WEEKLY' ? 4 : 3)).map(x => x.date),
       status: 'REQUIRES_USER_CONFIRMATION',
     });
-    if (proposals.length >= 20) break;
   }
-  return proposals.sort((a, b) => a.firstDueDate.localeCompare(b.firstDueDate));
+  return proposals.sort((a, b) => a.firstDueDate.localeCompare(b.firstDueDate)).slice(0, 20);
 }
 export function inspectCashStatementCsv(text, { today } = {}) {
   const rows = parseCashCsvTable(text);
@@ -191,8 +228,15 @@ export function inspectCashStatementCsv(text, { today } = {}) {
     const get = key => cells[headings.indexOf(key)];
     const date = statementDate(get('date'));
     if (date > confirmedToday) fail('Future-dated bank transactions cannot be presented as completed.');
-    const description = get('description').replace(/\s+/g, ' ').trim();
-    if (!description || description.length > 160 || Array.from(description).some(char => {
+    const originalDescription = get('description');
+    // Reject suspicious control bytes BEFORE normalizing whitespace, which
+    // otherwise conceals tabs/newlines in payee narrations.
+    const invalidControl = Array.from(originalDescription).some(char => {
+      const code = char.charCodeAt(0);
+      return code < 32 || code === 127;
+    });
+    const description = originalDescription.replace(/\s+/g, ' ').trim();
+    if (invalidControl || !description || description.length > 160 || Array.from(description).some(char => {
       const code = char.charCodeAt(0);
       return code < 32 || code === 127;
     })) {
@@ -211,16 +255,17 @@ export function inspectCashStatementCsv(text, { today } = {}) {
       direction: debit > 0 ? 'DEBIT' : 'CREDIT', balancePaise: balance });
   }
   if (!transactions.length) fail('No completed transactions found.');
+  const balanceEvidence = statementClosingBalance(transactions);
   transactions.sort((a, b) => a.date.localeCompare(b.date));
   const last = transactions[transactions.length - 1];
-  const lastBalance = last.balancePaise;
   return {
     provenance: 'USER_UPLOADED_CSV_NOT_BANK_VERIFIED',
     rowsInspected: transactions.length,
     firstTransactionDate: transactions[0].date,
     lastTransactionDate: last.date,
-    lastReportedBalancePaise: lastBalance,
-    lastReportedBalanceDate: lastBalance === null ? null : last.date,
+    lastReportedBalancePaise: balanceEvidence.balancePaise,
+    lastReportedBalanceDate: balanceEvidence.balanceDate,
+    balanceEvidenceStatus: balanceEvidence.status,
     // Only show a bounded list of settled debits dated TODAY to help the
     // user identify potential double-counting; no auto-matching or subtraction.
     settledToday: transactions.filter(item =>

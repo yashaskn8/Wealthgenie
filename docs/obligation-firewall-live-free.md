@@ -49,3 +49,7 @@ An on-date debit may already be reflected in the opening cash. The UI warns the 
 ## Later qualified live data (not included)
 
 Future permitted AA/FIU integration requires a separate verified onboarding, purpose-specific consent and revocation, refresh-frequency contract, evidence timestamps, signed callbacks, deduplication, source reconciliation, rights qualification and retention controls. Do not substitute an LLM or a scraped banking website for regulated access.
+
+## Red-team safety rules for statement balances and session expiry
+
+The unverified file-reported balance may only be displayed when all rows include numeric balances and chronological row-to-row debit/credit deltas reconcile (or there is only one row). Both ascending and descending date order are supported, but ambiguous or inconsistent files suppress any balance number. Duplicated same-signature debits on the same date cannot establish recurrence. Possible bank references (runs of six or more digits) and email addresses are redacted from candidate labels before they can be saved. The 20 earliest prospective due dates are selected after globally ranking all proposals, rather than from statement row order. Session loss (401/403) during refresh clears private saved values, imported review, and calculated outcomes. Other network errors hide positive cash results until revalidation.

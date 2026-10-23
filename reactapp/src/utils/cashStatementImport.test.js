@@ -100,4 +100,60 @@ describe('local-only Indian bank statement review', () => {
     expect(r).not.toHaveProperty('openingCashPaise');
   });
 
+  it('supports descending bank order only when debit/credit balance arithmetic reconciles', () => {
+    const csv = headers + '2026-09-03,Salary,,500,1500\n'
+      + '2026-09-02,Rent,200,,1000\n'
+      + '2026-09-01,Salary,,700,1200\n';
+    const report = inspectCashStatementCsv(csv, { today: '2026-10-01' });
+    expect(report.lastReportedBalancePaise).toBe(150000);
+    expect(report.lastReportedBalanceDate).toBe('2026-09-03');
+    expect(report.balanceEvidenceStatus).toBe('FILE_ARITHMETIC_RECONCILED_UNVERIFIED');
+  });
+  it('suppresses a bank balance for missing, inconsistent or shuffled entries', () => {
+    const samples = [
+      headers + '2026-09-03,Salary,,500,1500\n2026-09-01,Rent,200,,1200\n2026-09-02,Shop,10,,1000\n',
+      headers + '2026-09-01,Rent,200,,1000\n2026-09-02,Shop,10,,800\n',
+      headers + '2026-09-01,Rent,200,,1000\n2026-09-02,Shop,10,,\n',
+    ];
+    for (const csv of samples) {
+      const report = inspectCashStatementCsv(csv, { today: '2026-10-01' });
+      expect(report.lastReportedBalancePaise).toBeNull();
+      expect(report.lastReportedBalanceDate).toBeNull();
+    }
+  });
+  it('ignores duplicate same-date receipts as independent recurring-payment evidence', () => {
+    const csv = headers + '2026-07-05,Rent,15000,,60000\n'
+      + '2026-08-05,Rent,15000,,45000\n'
+      + '2026-08-05,Rent,15000,,30000\n'
+      + '2026-09-05,Rent,15000,,15000\n';
+    expect(inspectCashStatementCsv(csv, { today: '2026-10-01' }).proposals).toEqual([]);
+  });
+  it('redacts personal bank references and emails from recurring labels', () => {
+    const csv = 'Date,Description,Debit,Credit\n'
+      + [7, 8, 9].map(m => '2026-0' + m + '-05,Rent ref 123456789012 payee@example.com,15000,').join('\n');
+    const label = inspectCashStatementCsv(csv, { today: '2026-10-01' }).proposals[0].label;
+    expect(label).not.toContain('123456789012');
+    expect(label).not.toContain('payee@example.com');
+    expect(label).toContain('[reference redacted]');
+    expect(label).toContain('[email redacted]');
+  });
+  it('sorts the 20 earliest upcoming candidates before truncation', () => {
+    const lines = [];
+    for (let i = 0; i < 25; i += 1) {
+      const day = String(i + 1).padStart(2, '0');
+      for (const month of ['07', '08', '09']) {
+        lines.push('2026-' + month + '-' + day + ',Bill ' + i + ',100,');
+      }
+    }
+    const report = inspectCashStatementCsv('Date,Description,Debit,Credit\n' + lines.join('\n'),
+      { today: '2026-10-01' });
+    expect(report.proposals).toHaveLength(20);
+    expect(report.proposals[0].firstDueDate).toBe('2026-10-01');
+    expect(report.proposals.at(-1).firstDueDate).toBe('2026-10-20');
+  });
+  it('rejects hidden control characters before normalizing narration whitespace', () => {
+    const csv = 'Date,Description,Debit,Credit\n2026-09-01,"Bill\twith tab",500,\n';
+    expect(() => inspectCashStatementCsv(csv, { today: '2026-10-01' })).toThrow(CashCsvError);
+  });
+
 });

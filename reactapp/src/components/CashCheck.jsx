@@ -220,8 +220,23 @@ export default function CashCheck() {
             ? 'New saved revision shows a shortfall in your entered cash plan. Review the dated payments.'
             : 'Cash plan refreshed from a newer saved revision. Bank balances are not streamed.');
         }
-      } catch {
-        if (active) setNotice('Automatic revision check unavailable. Confirm the latest saved state before relying on these results.');
+      } catch (err) {
+        if (!active) return;
+        if (err.status === 401 || err.status === 403) {
+          // An expired session must not leave sensitive prior-account data on screen.
+          setDraft(EMPTY());
+          setSaved(null);
+          setLastCalculatedAt(null);
+          setCsvReview(null);
+          setCandidateTypes({});
+          setPreview(null);
+          setHasStoredLedger(false);
+          setLoadFailed(true);
+          setError('Your session is no longer authorised. Sign in and retry loading your own cash plan.');
+        } else {
+          setStale(true);
+          setNotice('The latest cash revision could not be verified. Saved results are hidden until data can be reconfirmed.');
+        }
       } finally { inFlight = false; }
     };
     const interval = setInterval(checkForChanges, 45_000);
@@ -575,7 +590,11 @@ export default function CashCheck() {
           {csvReview && (
             <div className="cash-check-statement-review" role="region" aria-label="Statement review">
               <p><strong>Unverified local statement:</strong> {csvReview.rowsInspected} completed transactions, {csvReview.firstTransactionDate} to {csvReview.lastTransactionDate}. {csvReview.freshness === 'DATED_TODAY_NOT_VERIFIED' ? 'File contains a transaction dated today; balance is not bank-verified.' : 'Historical file; it is not a live bank feed.'}</p>
-              {csvReview.lastReportedBalancePaise !== null && <p>File-reported closing balance: <strong>{formatMoney(csvReview.lastReportedBalancePaise)}</strong> on {csvReview.lastReportedBalanceDate}. Do not copy this automatically into accessible cash; reconfirm today's actual balance yourself.</p>}
+              {csvReview.lastReportedBalancePaise !== null ? (
+                <p>File-reported balance (unverified): <strong>{formatMoney(csvReview.lastReportedBalancePaise)}</strong> on {csvReview.lastReportedBalanceDate}. This number is shown only after internal CSV transaction arithmetic reconciles, or for a single row. Reconfirm today's accessible cash yourself.</p>
+              ) : (
+                <p role="status">File balance unavailable: missing balance data, inconsistent arithmetic, or ambiguous row order. No bank balance was inferred.</p>
+              )}
               <p>Possible recurring debits require your confirmation. Past settled debits are never added as future bills, and transfers may resemble recurring payments.</p>
               {csvReview.settledToday.length > 0 && (
                 <div role="region" aria-label="Review transactions already settled today">

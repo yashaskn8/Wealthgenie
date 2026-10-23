@@ -317,4 +317,34 @@ describe('90-day cash check', () => {
       .toMatch(/does not stream actual bank transactions/i);
   });
 
+  it('removes all saved values after an unauthorized background refresh', async () => {
+    api.getCoverageLedger.mockResolvedValueOnce({
+      revision: 1,
+      ledger: { asOfDate: indiaToday(), openingCashPaise: 820050,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+      latestResult: { result: baseline() }, requiresCashReconfirmation: false,
+    }).mockRejectedValueOnce(Object.assign(new Error('Token expired'), { status: 401 }));
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    await screen.findByText(/No shortfall in the entries supplied for these dates/);
+    fireEvent(document, new Event('visibilitychange'));
+    await screen.findByRole('button', { name: 'Retry loading saved records' });
+    expect(screen.queryByPlaceholderText('50000.00')).toBeNull();
+    expect(screen.queryByRole('button', { name: /delete my saved cash records/i })).toBeNull();
+  });
+  it('hides a positive shortfall status when an automatic current-revision check fails', async () => {
+    api.getCoverageLedger.mockResolvedValueOnce({
+      revision: 1,
+      ledger: { asOfDate: indiaToday(), openingCashPaise: 820050,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+      latestResult: { result: baseline() }, requiresCashReconfirmation: false,
+    }).mockRejectedValueOnce(new Error('Database unavailable'));
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    await screen.findByText(/No shortfall in the entries supplied for these dates/);
+    fireEvent(document, new Event('visibilitychange'));
+    await screen.findByText(/latest cash revision could not be verified/i);
+    expect(screen.queryByText(/No shortfall in the entries supplied for these dates/)).toBeNull();
+  });
+
 });
