@@ -20,6 +20,7 @@ export function assessmentContext(item) {
     userId: id(item.userId), scenarioId: id(item.scenarioId),
     scenarioRevision: item.scenarioRevision, monitorGeneration: item.monitorGeneration,
     profileId: id(item.profileId), profileStateRevision: item.profileStateRevision,
+    profileVersion: item.profileVersion, profileFinancialFence: item.profileFinancialFence,
     profileFactsHash: item.profileFactsHash, modelVersion: item.modelVersion,
     inputHash: item.inputHash, issuedAt: item.issuedAt,
   };
@@ -52,6 +53,8 @@ export function assessmentDto(assessment, current, scenario, monitor) {
     && scenario?.revision === assessment.scenarioRevision
     && current?.profile && id(current.profile._id) === id(assessment.profileId)
     && current.state.revision === assessment.profileStateRevision
+    && current.profile.version === assessment.profileVersion
+    && Number(current.profile.financialStateFence ?? 0) === assessment.profileFinancialFence
     && currentHash === assessment.profileFactsHash
     && assessment.modelVersion === DECISION_LEDGER_VERSION);
   return {
@@ -96,6 +99,8 @@ export async function assessMonitoredDecision(monitor, {
     userId: monitor.userId, scenarioId: scenario._id,
     scenarioRevision: scenario.revision, monitorGeneration: monitor.generation,
     profileFactsHash: sourceHash, profileStateRevision: current.state.revision,
+    profileVersion: current.profile.version,
+    profileFinancialFence: Number(current.profile.financialStateFence ?? 0),
     modelVersion: DECISION_LEDGER_VERSION,
   };
   const already = await DecisionAssessment.findOne(filter).lean();
@@ -145,6 +150,8 @@ export async function assessMonitoredDecision(monitor, {
       if (!freshProfile.profile || freshProfile.state.resolutionStatus !== 'CURRENT'
         || id(freshProfile.profile._id) !== id(candidate.profileId)
         || freshProfile.state.revision !== candidate.profileStateRevision
+        || freshProfile.profile.version !== candidate.profileVersion
+        || Number(freshProfile.profile.financialStateFence ?? 0) !== candidate.profileFinancialFence
         || fingerprintCurrentFacts(freshProfile.profile) !== sourceHash) {
         outcome = 'SOURCE_CHANGED'; return;
       }
