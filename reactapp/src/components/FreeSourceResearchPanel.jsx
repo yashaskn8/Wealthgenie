@@ -170,7 +170,9 @@ export default function FreeSourceResearchPanel(){
           status: {rates.status}. Rates outside this period are not current.</p>
          <div style={{maxHeight:160,overflow:'auto',fontSize:12}}>
           {rates.rates?.map(r=><div key={r.id}>{r.name}: {r.annualRatePercent}% p.a.
-           {' '}({r.compoundingBasis}){r.grossCashflowSupported?' — gross cash flows supported':''}</div>)}
+           {' '}({r.compoundingBasis}){r.grossCashflowSupported?' — gross cash flows supported':''}
+           {' · '}<a href={r.rateSourceUrl} target="_blank" rel="noopener noreferrer">
+             Publisher reference</a></div>)}
          </div>
          <label style={{display:'block',fontSize:12,marginTop:10}}>Gross contractual example
           <select style={{...style.field,display:'block'}} aria-label="Choose savings cashflow product"
