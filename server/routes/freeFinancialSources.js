@@ -1,6 +1,7 @@
 import {Router} from 'express';
 import Joi from 'joi';
 import {verifyJWT} from '../middleware/authMiddleware.js';
+import {createEndpointRateLimiter} from '../middleware/rateLimiter.js';
 import {validate,validateQuery} from '../validation/schemas.js';
 import {asyncHandler,sendError} from '../middleware/errorHandler.js';
 import {searchFreeFunds,getFreeFundNavResearch} from '../services/freeMutualFundNav.js';
@@ -12,6 +13,13 @@ import {executeMonteCarlo} from '../services/monteCarloExecutor.js';
 import {getFreeFinancialSourceDirectory} from '../services/freeFinancialSourceDirectory.js';
 
 const router=Router();
+// No-key providers still have finite capacity. This per-client quota is
+// shared via Redis on production replicas; failures refuse work rather than
+// flooding AMFI-derived free APIs or spawning excess CPU-heavy workers.
+const freeProviderLimiter=createEndpointRateLimiter({
+ windowMs:60_000,max:30,prefix:'rl:ep:free-financial-research:',
+ message:'Free financial research requests are temporarily rate limited.',
+});
 const schemeCode=Joi.string().pattern(/^[1-9][0-9]{4,6}$/);
 const searchSchema=Joi.object({
  q:Joi.string().trim().min(2).max(80).pattern(/^[a-zA-Z0-9 .()&_-]+$/).required(),
@@ -70,6 +78,7 @@ router.use((req,res,next)=>{
  res.set('Cache-Control','private, no-store');
  next();
 });
+router.use(freeProviderLimiter);
 router.get('/mutual-funds/search',verifyJWT,validateQuery(searchSchema),asyncHandler(async(req,res)=>{
  try{return res.json(await searchFreeFunds(req.query.q));}
  catch{return sendError(req,res,503,'Free mutual-fund research source is unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
