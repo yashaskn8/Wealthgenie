@@ -2920,6 +2920,7 @@ components:
       x-runtime-validation:
         transactionDates: acquisitionDate and redemptionDate must be supplied together; both must be real calendar dates; redemptionDate must be on or after acquisitionDate.
         trimmedText: instrumentType and retirementTiming are trimmed before the server enforces their length constraints; the OpenAPI patterns allow surrounding whitespace while bounding the post-trim value.
+        monetaryPrecision: The server rejects contribution/rate/horizon combinations whose nominal SIP maturity value would exceed safe INR integer precision.
       allOf:
         - if:
             required: [acquisitionDate]
@@ -3018,7 +3019,7 @@ components:
               cess: { type: [number, 'null'] }
               surcharge: { type: [number, 'null'] }
               totalInvested: { type: number, minimum: 0 }
-              nominalFutureValue: { type: number, minimum: 0 }
+              nominalFutureValue: { type: [number, 'null'], minimum: 0, description: Null when the modeled future value would exceed safe INR numeric precision. }
               postTaxFutureValue: { type: [number, 'null'] }
               realFutureValue: { type: [number, 'null'] }
               postTaxGain: { type: [number, 'null'] }
