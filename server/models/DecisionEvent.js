@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const TYPES = ['SCENARIO_CREATED', 'SCENARIO_UPDATED', 'RUN_PUBLISHED', 'SCENARIO_DELETED'];
+const TYPES = ['SCENARIO_CREATED', 'SCENARIO_UPDATED', 'RUN_PUBLISHED', 'SCENARIO_DELETED', 'MONITOR_UPDATED', 'ASSESSMENT_AVAILABLE'];
 
 // Never store profile facts, monetary amounts, titles, access credentials or
 // raw provider observations in the notification envelope.
