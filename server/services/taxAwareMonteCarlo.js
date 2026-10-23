@@ -14,6 +14,10 @@ function requireFacts(tax) {
   const fields=['annualGrossIncome','userAge','incomeSource','regime','fiscalYear','section112AExemptionUsed'];
   const missing=fields.filter(k=>tax?.[k]===null||tax?.[k]===undefined||tax?.[k]==='');
   if(missing.length) return missing;
+  // The favorable listed-equity special-rate scenario is conditional on
+  // transaction-specific STT requirements; product type alone proves nothing.
+  if(tax.sttConditionAssumedSatisfied !== true)
+    return ['EQUITY_STT_CONDITION_NOT_ESTABLISHED'];
   if(!Number.isFinite(tax.annualGrossIncome)||tax.annualGrossIncome<0
     ||!Number.isInteger(tax.userAge)||tax.userAge<18||tax.userAge>120
     ||!Number.isFinite(tax.section112AExemptionUsed)||tax.section112AExemptionUsed<0
@@ -50,6 +54,8 @@ export function runTaxAwareEquityLumpSumScenario({
   let policy, holding;
   try {
     policy=getTaxPolicyMetadata(taxContext.fiscalYear);
+    if(taxContext.section112AExemptionUsed>policy.rules.capitalGains112AExemption)
+      return unavailable(['SECTION_112A_USAGE_EXCEEDS_VERIFIED_ANNUAL_LIMIT']);
     const threshold=getCapitalGainsHoldingPeriodMonths(taxContext.fiscalYear,'listed');
     holding=classifyHoldingPeriodByDates({acquisitionDate,redemptionDate,thresholdMonths:threshold});
   }catch{return unavailable(['TAX_POLICY_OR_DATES_UNAVAILABLE']);}
@@ -57,6 +63,10 @@ export function runTaxAwareEquityLumpSumScenario({
   if(!Number.isFinite(observedYears)||Math.abs(observedYears-years)>0.09){
     return unavailable(['SIMULATION_HORIZON_TRANSACTION_DATES_CONFLICT']);
   }
+  // A valid input magnitude can still overflow safe rupee precision after
+  // thirty years of compounding. Refuse the scenario before spawning paths.
+  if(principal*Math.pow(1+annualExpectedReturn,years)>Number.MAX_SAFE_INTEGER-1)
+    return unavailable(['SIMULATION_WEALTH_PRECISION_EXCEEDED']);
   const gross=runMonteCarlo({
     monthlyInvestment:0,currentSavings:principal,annualExpectedReturn,
     annualVolatility,years,simulations,inflationRate,seed,
@@ -87,7 +97,8 @@ export function runTaxAwareEquityLumpSumScenario({
     notLiveMarketData:true,suitabilityApproved:false,
     futureMarketReturnsGuaranteed:false,
     taxCalculationScope:'ONE_HYPOTHETICAL_LISTED_EQUITY_LUMP_SUM_REALIZATION',
-    excludes:['PREEXISTING_CAPITAL_LOSSES','FUTURE_TAX_LAW','COSTS_AND_TRANSACTION_FEES','MULTI_PRODUCT_TAX_NETTING'],
+    excludes:['PREEXISTING_CAPITAL_LOSSES','FUTURE_TAX_LAW','COSTS_AND_TRANSACTION_FEES','MULTI_PRODUCT_TAX_NETTING','STT_CONDITION_NOT_INDEPENDENTLY_VERIFIED'],
+    sttConditionBasis:'USER_DECLARED_ASSUMED_SATISFIED_NOT_VERIFIED',
     fiscalYear:taxContext.fiscalYear,taxPolicyVersion:policy.policyVersion,
     modelVersion:TAX_AWARE_SCENARIO_VERSION,seedUsed:seed,simulationsRun:gross.simulations_run,
     principal,holdingPeriodBasis:holding.holdingPeriodBasis,
