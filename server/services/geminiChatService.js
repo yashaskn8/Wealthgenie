@@ -209,7 +209,7 @@ function isContextDependentFollowUp(question) {
 // otherwise “Why?” is treated as an unsupported topic despite the profile evidence.
 function resolveFinancialEllipsis(question, trustedTurns) {
   const text = String(question || '').trim();
-  if (!/^(?:why|how so|how come|tell me more|explain (?:it|that)(?: simply)?|can you explain (?:that|it)(?: simply)?)\\s*[?.!]*$/i.test(text)) return question;
+  if (!/^(?:why|how so|how come|tell me more|explain (?:it|that)(?: simply)?|can you explain (?:that|it)(?: simply)?)\s*[?.!]*$/i.test(text)) return question;
   const priorUser = [...(Array.isArray(trustedTurns) ? trustedTurns : [])]
     .reverse().find(turn => turn.role === 'user' && typeof turn.content === 'string');
   if (!priorUser || !priorUser.content.trim()) return question;
