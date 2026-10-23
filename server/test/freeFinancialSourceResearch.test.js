@@ -93,6 +93,9 @@ test('real mfnav date and decimal schemas survive parsing without unsafe coercio
   assert.equal(normalizeFreeNavHistory(input,'100641',{now}).status,'UNAVAILABLE',
     JSON.stringify(poisoned));
  }
+ assert.equal(normalizeFreeNavHistory(observedNav(),'100641',{
+  now:new Date(Number.NaN),
+ }).reasonCode,'INVALID_NAV_AS_OF_DATE');
  const malformed=observedNav();
  malformed.data[3].nav_date='2026-02-30';
  assert.equal(normalizeFreeNavHistory(malformed,'100641',{now}).status,'UNAVAILABLE');
