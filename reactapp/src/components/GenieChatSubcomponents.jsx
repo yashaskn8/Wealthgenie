@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ChevronRight, TrendingUp, TrendingDown, Shield, Target, BarChart3, Zap, AlertTriangle, DollarSign, Copy, ThumbsUp, ThumbsDown, Info, BookOpen, ChevronDown } from 'lucide-react';
 import chatGenie from '../assets/chat_genie.png';
-import { parseActionCards, useStreamedText, streamedMessages } from '../utils/genieChatHelpers.js';
+import { useStreamedText, streamedMessages } from '../utils/genieChatHelpers.js';
 
 // ── Citations List Component ──────────────────────────────────────
 export function CitationsList({ citations }) {
@@ -202,10 +202,17 @@ function formatEvidenceMarkers(text, citations, hideDisclosure = false) {
     sourceNumbers.has(id) ? `[${sourceNumbers.get(id)}]` : marker);
 }
 
+export function stripUntrustedActionMarkup(value) {
+  return String(value || '').replace(/<<<ACTION_CARD>>>[\s\S]*?(?:<<<END_ACTION_CARD>>>|$)/g,
+    '[Unverified action omitted]');
+}
+
 // ── Message Content with Action Cards ─────────────────────────────
 export function MessageContent({ content, citations, onAction, hideDisclosure = false }) {
   if (!content) return null;
-  const { cleanText, cards } = parseActionCards(content);
+  // Model text is never an authorized command channel. Action cards must come
+  // from a separately validated backend field, not hidden markers in prose.
+  const cleanText = stripUntrustedActionMarkup(content);
   const lines = formatEvidenceMarkers(cleanText, citations, hideDisclosure).split('\n');
   return (
     <span className="genie-message-content">
@@ -213,7 +220,7 @@ export function MessageContent({ content, citations, onAction, hideDisclosure = 
         if (!line.trim() && li === lines.length - 1) return null;
         return <span key={li}>{renderInline(line)}{li < lines.length - 1 && <br />}</span>;
       })}
-      {cards.map((card, i) => <ActionCard key={i} card={card} onAction={onAction} />)}
+
     </span>
   );
 }
@@ -236,7 +243,7 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
   }, [done, shouldStream, msg]);
 
   const handleCopy = () => {
-    const { cleanText } = parseActionCards(msg.content);
+    const cleanText = stripUntrustedActionMarkup(msg.content);
     navigator.clipboard.writeText(formatEvidenceMarkers(cleanText, displayCitations, isAssistant));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
