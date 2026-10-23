@@ -45,12 +45,27 @@ function profileMoney(value, field) {
   }
   return fromPaise(BigInt(Math.round(value * 100)));
 }
+function canonicalProfileFacts(profile) {
+  return {
+    openingLiquidCash: profileMoney(profile?.liquidSavings, 'liquidSavings'),
+    monthlyTakeHome: profileMoney(profile?.monthlyTakeHome, 'monthlyTakeHome'),
+    declaredMonthlySavings: profileMoney(profile?.monthlySavings, 'monthlySavings'),
+  };
+}
+function fingerprintCurrentFacts(profile) {
+  return hash(canonicalProfileFacts(profile));
+}
 function sameProfile(current, scenario) {
   return Boolean(current?.profile && current?.state?.resolutionStatus === 'CURRENT'
     && identity(current.profile._id) === identity(scenario.profileId)
     && current.state.revision === scenario.profileStateRevision
     && current.profile.version === scenario.profileVersion
-    && Number(current.profile.financialStateFence ?? 0) === scenario.profileFinancialFence);
+    && Number(current.profile.financialStateFence ?? 0) === scenario.profileFinancialFence
+    && (typeof scenario.profileFactsHash === 'string')
+    && (() => {
+      try { return scenario.profileFactsHash === fingerprintCurrentFacts(current.profile); }
+      catch { return false; }
+    })());
 }
 function assertProfile(current, scenario) {
   if (!sameProfile(current, scenario)) {
@@ -66,6 +81,7 @@ function sourceProfile(current) {
     profileStateRevision: Number(current.state.revision),
     profileVersion: Number(current.profile.version),
     profileFinancialFence: Number(current.profile.financialStateFence ?? 0),
+    profileFactsHash: fingerprintCurrentFacts(current.profile),
   };
 }
 function normalizeScenario(body, scenarioType, expected = false) {
@@ -93,12 +109,7 @@ function normalizeScenario(body, scenarioType, expected = false) {
 }
 function compute(current, payload) {
   const profile = current.profile;
-  const baseline = {
-    openingLiquidCash: profileMoney(profile.liquidSavings, 'liquidSavings'),
-    monthlyTakeHome: profileMoney(profile.monthlyTakeHome, 'monthlyTakeHome'),
-    declaredMonthlySavings: profileMoney(profile.monthlySavings, 'monthlySavings'),
-    ...payload.baseline,
-  };
+  const baseline = { ...canonicalProfileFacts(profile), ...payload.baseline };
   const report = calculateDecision({
     scenarioType: payload.scenarioType,
     baseline, horizonMonths: payload.horizonMonths,
@@ -401,7 +412,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         userId: req.user.userId, scenarioId: first._id, revision: first.revision,
         profileId: first.profileId, profileStateRevision: first.profileStateRevision,
         profileVersion: first.profileVersion, profileFinancialFence: first.profileFinancialFence,
-        runKeyHash: key, inputHash: revision.inputHash, result, resultHash: hash(result),
+        profileFactsHash: first.profileFactsHash, runKeyHash: key, inputHash: revision.inputHash, result, resultHash: hash(result),
       }], { session });
       const head = await DecisionScenario.findOneAndUpdate({
         ...own(req, first._id), revision: first.revision, runGeneration: first.runGeneration,
