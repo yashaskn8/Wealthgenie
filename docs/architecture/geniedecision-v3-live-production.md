@@ -45,3 +45,34 @@ Clients must not trust these notifications as financial evidence. On receiving o
 - AMFI published NAV download: https://www.amfiindia.com/net-asset-value/nav-download
 
 The implemented version deliberately avoids a Redis dependency for event durability. Mongo's transactionally stored events and periodic indexed queries are simpler to audit for modest event volumes. If traffic grows enough to make polling expensive, migrate delivery to one **resumable, leased, checkpointed change-stream consumer per service pool** or to Redis Streams with the durable Mongo outbox as the authority; never use ephemeral Redis Pub/Sub as the only ledger of decision changes.
+
+
+## Opt-in continuous decision reassessment (subsequent implementation)
+
+A real monitoring loop is now available in the **separate agent-worker runtime**. It is OFF unless explicitly enabled by operator configuration, and OFF for every individual user/scenario until the user opts in. This is a bounded polling service, not a continuously open provider-data feed.
+
+**Explicit deployment prerequisites**
+
+1. Set `GENIEDECISION_MONITOR_ENABLED=true` in both the Express API and the independently deployed `server/worker.js` agent worker. If the variable is unset, the UI never offers a false promise that the server is monitoring scenarios.
+2. Provision dedicated `GENIEDECISION_INTEGRITY_KEYS` and `GENIEDECISION_ACTIVE_KEY_ID` for production; see the authenticated-receipt section. The monitoring consent receipt and every automatic assessment require these keys.
+3. Migrate new collections **before** turning monitoring on: `npm run decision:migrate-indexes --prefix server` using `MONGODB_MIGRATION_URI` for the authorized replica set. This adds unique owner/scenario consent state, scanning, unique owner/scenario/revision/source/model candidate keys and owner history indexes.
+4. Worker defaults to a 60-second interval (`GENIEDECISION_MONITOR_POLL_MS`) and inspects up to 25 opted-in monitors per pass. Minimum permitted interval is ten seconds. Production notifications remain subject to worker capacity and Mongo/SSE latency; do not advertise a guaranteed instant alert without observed latency measurements.
+5. The worker health snapshot includes decision-monitor running state, active jobs and the last outcome summary. On shutdown the worker drains the in-flight scan before disconnecting Mongo.
+
+**New owner-scoped operations**
+
+- `GET /api/decisions/scenarios/:id/monitor`: Verify scenario/revision, authenticated monitoring consent, and every signed stored assessment before returning a maximum of 15 recent assessments. Reassessments of superseded source facts, monitor generations, or scenario revisions are labeled `HISTORICAL`.
+- `PUT /api/decisions/scenarios/:id/monitor` with `{ "enabled": true|false, "expectedRevision": 1 }`: Explicit opt-in or opt-out. Changes commit an HMAC-authenticated consent generation and a minimal owner event inside the same MongoDB transaction. Repeating an unchanged choice has no side effects. A conflicting revision fails closed.
+- The background worker produces one immutable signed assessment per unique owner/scenario/monitor generation/scenario revision/current profile version/profile facts/model version. A candidate never overwrites a signed `DecisionRun` or executes any portfolio transaction.
+- When the saved income/expense/debt assumptions cannot be reconciled against a newer current financial profile, the only permitted outcome is `NEEDS_REVIEW` with a null numeric result and `ASSUMPTIONS_REQUIRE_REVIEW`. Do not invent balancing expenses, wealth, salaries, interest or market returns. A reconcilable case produces `RECALCULATED` and an exact deterministic output.
+- Notifications contain `ASSESSMENT_AVAILABLE` and the scenario identifier; the UI fetches the signed assessment through the normal authenticated endpoint. Financial amounts never enter the live event payload.
+- Deleting a scenario also deletes its watch consent and all automatic reassessments in the same transaction.
+
+**Threat model and residual release blockers**
+
+- User consent is NOT a plain unprotected DB Boolean: it has a separate HMAC receipt binding owner, scenario, enabled state and generation. A database attacker cannot enable monitoring without the out-of-database signing key, and replays from an older generation cannot authorize current monitoring.
+- One worker may race with another; each candidate has an independently unique source-policy index. The worker writes the candidate and owner event atomically, and checks the monitor generation and canonical profile state again in the transaction. A report fetched after source changes is marked historical.
+- The underlying canonical `FinancialProfile` contains **user-supplied facts**. An authenticated signing receipt proves the application's calculation history, not that a bank, broker, employer or investment issuer has independently verified the underlying numbers.
+- A consent toggle immediately prevents *new* background assessments, but previously created assessments remain readable until scenario deletion. Retention policies, legal holds, auditability, and user-data export/deletion need a jurisdiction-specific policy review.
+- Do not claim a real customer bank/broker connector until provider-approved OAuth account linking, per-user encrypted tokens, production permission/licensing and provider failure recovery have been implemented and staged with real authorization.
+- Do not enable monitoring in a deployment that has no compatible, healthy agent worker. Still required before production sign-off: clean final CI, targeted load/failover testing, external numerical oracle tests, release-gated key rotation and backup/restore verification, and the applicable financial-regulation/privacy review.
