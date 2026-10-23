@@ -59,6 +59,9 @@ export async function verifyRunwayOperationalReadiness({
   legacyCount = () => RunwayStatement.countDocuments({
     'statement.encryptionVersion': { $ne: 'RUNWAY_AES256GCM_V1' },
   }),
+  legacySettlements = () => RunwaySettlement.countDocuments({
+    transactionIdentity: { $exists: false },
+  }),
 } = {}) {
   if (env.RUNWAY_ENABLED !== 'true') return { enabled: false, ready: true };
   assertRunwaySigningKey(env);
@@ -66,6 +69,11 @@ export async function verifyRunwayOperationalReadiness({
   await verifyRunwayIndexes({ loadIndexes });
   // Never report ready while older unencrypted statements remain in MongoDB.
   // They must be verified and re-sealed by the explicit one-time migration.
+  if (await legacySettlements() !== 0) {
+    const error = new Error('Old settlement receipts need identity migration before release.');
+    error.code = 'RUNWAY_SETTLEMENT_MIGRATION_REQUIRED';
+    throw error;
+  }
   if (await legacyCount() !== 0) {
     const error = new Error('Legacy unencrypted Runway imports require migration.');
     error.code = 'RUNWAY_EVIDENCE_MIGRATION_REQUIRED';

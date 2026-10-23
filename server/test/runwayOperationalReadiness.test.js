@@ -40,7 +40,7 @@ test('feature enabled: startup and readiness fail closed for missing signing key
 });
 test('feature enabled: all unique, owner-lookup and expiration indexes must match', async () => {
   assert.deepEqual(await verifyRunwayOperationalReadiness({
-    env: configured, loadIndexes: async () => valid, legacyCount: async () => 0,
+    env: configured, loadIndexes: async () => valid, legacyCount: async () => 0, legacySettlements: async () => 0,
   }), { enabled: true, ready: true });
   for (const [group, index, field] of [[0, 0, 'unique'], [1, 0, 'name'],
     [2, 0, 'expireAfterSeconds'], [3, 0, 'name'], [4, 0, 'name'],
@@ -49,7 +49,7 @@ test('feature enabled: all unique, owner-lookup and expiration indexes must matc
     mutated[group][index][field] = field === 'expireAfterSeconds'
       ? 7200 : field === 'unique' ? false : 'wrong';
     await assert.rejects(verifyRunwayOperationalReadiness({
-      env: configured, loadIndexes: async () => mutated, legacyCount: async () => 0,
+      env: configured, loadIndexes: async () => mutated, legacyCount: async () => 0, legacySettlements: async () => 0,
     }), error => error.code === 'RUNWAY_INDEXES_UNAVAILABLE');
   }
   await assert.rejects(verifyRunwayIndexes({ loadIndexes: async () => {
@@ -62,9 +62,16 @@ test('feature enabled: all unique, owner-lookup and expiration indexes must matc
 test('encrypted financial evidence is mandatory for enabled readiness', async () => {
   await assert.rejects(verifyRunwayOperationalReadiness({
     env: { ...configured, RUNWAY_EVIDENCE_KEY_V1: '' },
-    loadIndexes: async () => valid, legacyCount: async () => 0,
+    loadIndexes: async () => valid, legacyCount: async () => 0, legacySettlements: async () => 0,
   }), e => e.code === 'RUNWAY_EVIDENCE_KEY_UNAVAILABLE');
   await assert.rejects(verifyRunwayOperationalReadiness({
-    env: configured, loadIndexes: async () => valid, legacyCount: async () => 1,
+    env: configured, loadIndexes: async () => valid, legacyCount: async () => 1, legacySettlements: async () => 0,
   }), e => e.code === 'RUNWAY_EVIDENCE_MIGRATION_REQUIRED');
+});
+
+test('old identity-less signed settlement receipts block readiness', async () => {
+  await assert.rejects(verifyRunwayOperationalReadiness({
+    env: configured, loadIndexes: async () => valid,
+    legacyCount: async () => 0, legacySettlements: async () => 1,
+  }), e => e.code === 'RUNWAY_SETTLEMENT_MIGRATION_REQUIRED');
 });

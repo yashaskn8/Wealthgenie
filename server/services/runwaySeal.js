@@ -114,6 +114,9 @@ export function createRunwaySettlementSeal(record, env = process.env) {
     .digest('hex');
 }
 export function verifyRunwaySettlementSeal(record, env = process.env) {
+  // Previously signed receipts without the cross-import discriminator must
+  // be migrated explicitly; never silently accept weaker legacy provenance.
+  if (!/^[a-f0-9]{64}$/.test(record?.transactionIdentity || '')) return false;
   const expected = createRunwaySettlementSeal(record, env);
   return record.sealVersion === RUNWAY_SEAL_VERSION
     && typeof record.sealHmac === 'string' && /^[a-f0-9]{64}$/.test(record.sealHmac)

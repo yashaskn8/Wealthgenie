@@ -19,10 +19,10 @@ function invalid(code, message) { throw new RunwayReconciliationError(code, mess
 const MAX_SOURCES = 30;
 const MAX_MATCHES = 100;
 /**
- * Exact cross-import identity for the SAME user-labeled account and stated
- * transaction reference/date/direction/amount. A heuristic, NOT a verified
- * bank transaction ID. Does not use CSV filenames, row order, descriptions
- * or changing running balances.
+ * Conservative, account-label-independent overlap identity: reference/date,
+ * direction and amount. User-editable nicknames cannot override detection.
+ * May block genuinely different transfers sharing a reference. In that case
+ * require explicit manual review rather than risk duplicating spendable cash.
  */
 export function runwayTransactionIdentity(source, row) {
   const label = source?.statement?.accountLabel;
@@ -32,7 +32,6 @@ export function runwayTransactionIdentity(source, row) {
   }
   return canonicalSha256({
     purpose: 'RUNWAY_IMPORT_TRANSACTION_ID_V1',
-    accountLabel: label.trim().toLowerCase().normalize('NFC'),
     date: row.date, debitPaise: row.debitPaise,
     creditPaise: row.creditPaise, referenceHash: row.referenceHash,
   });
