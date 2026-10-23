@@ -47,9 +47,9 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const StepUpPlanner = ({ profile }) => {
-  const [baseSIP, setBaseSIP] = useState(profile?.monthly_savings ?? 1000);
+  const [baseSIP, setBaseSIP] = useState(profile?.monthly_savings ?? '');
   const [stepUpPercent, setStepUpPercent] = useState(10);
-  const [years, setYears] = useState(profile?.investment_horizon_years ?? 1);
+  const [years, setYears] = useState(profile?.investment_horizon_years ?? '');
   const [returnRate, setReturnRate] = useState(8);
   const [inflationRate, setInflationRate] = useState(6);
   const [downsideRate, setDownsideRate] = useState(0);
@@ -60,14 +60,17 @@ const StepUpPlanner = ({ profile }) => {
   const [incomeGrowth, setIncomeGrowth] = useState(0);
   const [expenseGrowth, setExpenseGrowth] = useState(6);
   const [showDetails, setShowDetails] = useState(false);
-  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [submission, setSubmission] = useState({ binding: null, nonce: 0 });
   const projectionBinding = JSON.stringify([
     baseSIP, stepUpPercent, years, returnRate, inflationRate, downsideRate,
     monthlyIncome, monthlyExpenses, monthlyEmi, emergencySavings, incomeGrowth, expenseGrowth,
-    retryAttempt,
   ]);
-  const [projectionState, setProjectionState] = useState({ binding: null, status: 'idle', data: null, error: null });
-  const projectionIsCurrent = projectionState.binding === projectionBinding;
+  const [projectionState, setProjectionState] = useState({ binding: null, nonce: 0, status: 'idle', data: null, error: null });
+  // A profile or preset is not consent to forecast. Each distinct scenario
+  // requires a deliberate Calculate action and is bound to that exact snapshot.
+  const submissionIsCurrent = submission.nonce > 0 && submission.binding === projectionBinding;
+  const projectionIsCurrent = submissionIsCurrent && projectionState.binding === projectionBinding
+    && projectionState.nonce === submission.nonce;
 
   // Distinguish an explicit zero from an empty or malformed value. Invalid
   // inputs must not silently become a flat SIP or a zero-return assumption.
@@ -93,7 +96,12 @@ const StepUpPlanner = ({ profile }) => {
     && validOptionalMoney(emergencySavings, 100000000);
   const projection = projectionIsCurrent && projectionState.status === 'ready' ? projectionState.data : null;
   const projectionError = projectionIsCurrent && projectionState.status === 'error' ? projectionState.error : null;
-  const isCalculating = projectionInputsValid && !projectionIsCurrent;
+  const isCalculating = projectionInputsValid && submissionIsCurrent
+    && (!projectionIsCurrent || projectionState.status === 'loading');
+  const requestProjection = () => {
+    if (!projectionInputsValid) return;
+    setSubmission(previous => ({ binding: projectionBinding, nonce: previous.nonce + 1 }));
+  };
 
   // Compute dynamic percentage fills for track bars
   const baseSipPct = Number.isFinite(safeBaseSIP) ? Math.min(100, Math.max(0, ((Math.min(100000, Math.max(1000, safeBaseSIP)) - 1000) / 99000) * 100)) : 0;
@@ -102,8 +110,10 @@ const StepUpPlanner = ({ profile }) => {
   const cagrPct = Number.isFinite(safeReturnRate) ? Math.min(100, Math.max(0, ((Math.min(30, Math.max(1, safeReturnRate)) - 1) / 29) * 100)) : 0;
 
   useEffect(() => {
-    if (!projectionInputsValid) return undefined;
+    if (!projectionInputsValid || !submissionIsCurrent) return undefined;
     const controller = new AbortController();
+    setProjectionState({ binding: projectionBinding, nonce: submission.nonce,
+      status: 'loading', data: null, error: null });
     let cancelled = false;
     const timer = setTimeout(() => {
       // One immutable request snapshot validates both the backend calculation
@@ -134,11 +144,12 @@ const StepUpPlanner = ({ profile }) => {
           years: safeYears,
           ...financialInputs,
         });
-        setProjectionState({ binding: projectionBinding, status: 'ready', data: verified, error: null });
+        setProjectionState({ binding: projectionBinding, nonce: submission.nonce, status: 'ready', data: verified, error: null });
       }).catch(error => {
         if (!cancelled) {
           setProjectionState({
             binding: projectionBinding,
+            nonce: submission.nonce,
             status: 'error',
             data: null,
             error: error?.code === 'REQUEST_ABORTED'
@@ -165,7 +176,7 @@ const StepUpPlanner = ({ profile }) => {
     projectionBinding,
     projectionInputsValid,
     inflationRate, downsideRate, monthlyIncome, monthlyExpenses, monthlyEmi,
-    emergencySavings, incomeGrowth, expenseGrowth, retryAttempt,
+    emergencySavings, incomeGrowth, expenseGrowth, submission.nonce, submissionIsCurrent,
   ]);
 
   const flatFinal = projection?.flatFinal ?? null;
@@ -231,7 +242,7 @@ const StepUpPlanner = ({ profile }) => {
             <h4>{projectionError ? 'Projection unavailable' : 'Updating projection'}</h4>
             <p>{projectionError || 'The authoritative backend is recalculating the chart and result cards.'}</p>
             {projectionError && (
-              <button type="button" onClick={() => setRetryAttempt(current => current + 1)}>
+              <button type="button" onClick={requestProjection}>
                 Retry projection
               </button>
             )}
@@ -477,15 +488,47 @@ const StepUpPlanner = ({ profile }) => {
         <p className="sup-planning-note">The assumed annual return is an effective CAGR, not nominal APR. All percentage defaults are illustrative inputs, not observed market facts. Leave a required rate blank to stop calculation. The downside return cannot exceed the base return. This is a constant-return what-if, not a probability forecast. EMI is held fixed. Income and expenses change once each year. The model assumes start-of-month SIPs; contributions retain paise, projected corpuses are rounded to the nearest rupee, and returns are before taxes and fees.</p>
       </section>
 
+      <section className="sup-calculate-panel" aria-label="Calculate SIP scenario">
+        <h3>Check your assumptions before calculating</h3>
+        <p>
+          {projectionInputsValid
+            ? `${formatSipINR(safeBaseSIP)} per month, increasing ${safeStepUpPercent}% each year for ${safeYears} years,
+              assuming ${safeReturnRate}% annual CAGR and ${Number(inflationRate)}% inflation.`
+            : 'Enter a positive monthly amount, a whole-year horizon, and valid percentage assumptions.'}
+        </p>
+        <p>
+          {monthlyIncome === '' || monthlyExpenses === '' || monthlyEmi === ''
+            ? 'Budget NOT ASSESSED: enter take-home income, living expenses and EMI (including ₹0 if none) before relying on affordability. You can still inspect an illustrative projection.'
+            : 'Budget inputs provided: the calculation will separately check future SIP payments against your declared monthly surplus.'}
+        </p>
+        <p>Example rates are not observed returns. Your projection is pre-tax, excludes fees, and is not a promise or a personal investment recommendation.</p>
+        <button type="button" className="sup-calculate-btn"
+          disabled={!projectionInputsValid || isCalculating}
+          onClick={requestProjection}>
+          {isCalculating ? 'Calculating…' : projection ? 'Recalculate this scenario' : 'Calculate SIP projection'}
+        </button>
+        {projectionInputsValid && !submissionIsCurrent && submission.nonce > 0 && (
+          <p role="status">Inputs changed. The previous projection is hidden. Calculate again to use the new assumptions.</p>
+        )}
+      </section>
+
       <section className="sup-safety-panel" aria-live="polite">
         <h3>Financial reality checks</h3>
         {!projection && <p>{!projectionInputsValid
           ? 'Enter valid numbers; the downside return must not exceed the base return.'
           : projectionError
             ? 'Projection unavailable. No amounts are shown until a verified calculation succeeds.'
-            : 'Calculating with your inputs…'}</p>}
+            : submissionIsCurrent
+              ? 'Calculating with your inputs…'
+              : 'No projection calculated yet. Review the inputs and select Calculate SIP projection.'}</p>}
         {projection && (
           <>
+            <p className="sup-assumption-proof"><strong>Calculated from:</strong> {formatSipINR(projection.assumptions.monthlyInvestment)} per month,
+              { ' '}{(projection.assumptions.annualStepUpRate * 100).toFixed(2)}% annual step-up,
+              { ' '}{projection.assumptions.years} years,
+              { ' '}{(projection.assumptions.annualReturnRate * 100).toFixed(2)}% assumed effective annual CAGR,
+              { ' '}{(projection.assumptions.inflationRate * 100).toFixed(2)}% inflation.
+              These are hypothetical inputs, not verified market returns.</p>
             <p className={isOverBudget ? 'sup-warning' : ''}>
               <strong>Budget:</strong> {affordability?.status === 'WITHIN_DECLARED_BUDGET'
                 ? 'Every planned instalment fits the declared monthly cash surplus across the selected horizon (not a guarantee).'
@@ -498,13 +541,15 @@ const StepUpPlanner = ({ profile }) => {
               : emergency?.status === 'DECLARED_BUFFER_MET'
                 ? `Your declared savings meet the illustrative six-month expense-plus-EMI buffer of ${formatSipINR(emergency.requiredAmount)}.`
                 : 'Not assessed — enter living expenses, EMI and emergency savings.'}</p>
-            <p><strong>Final-year monthly SIP:</strong> {formatSipINR(projection.finalMonthlySip)}. <strong>Extra money contributed:</strong> {formatSipINR(projection.additionalContributions)}. <strong>Extra projected investment growth:</strong> {formatSipINR(projection.additionalProjectedGrowth)}.</p>
+            <p><strong>Final-year monthly SIP:</strong> {formatSipINR(projection.finalMonthlySip)} (not the starting monthly amount). <strong>Extra money you contribute:</strong> {formatSipINR(projection.additionalContributions)}. <strong>Extra hypothetical return component:</strong> {formatSipINR(projection.additionalProjectedGrowth)}.</p>
+            <p><strong>Where the extra corpus comes from:</strong> {formatSipINR(projection.additionalCorpus)} = {formatSipINR(projection.additionalContributions)} in extra deposits + {formatSipINR(projection.additionalProjectedGrowth)} in extra projected returns. Increasing SIP payments requires more money from you.</p>
             <p><strong>Downside scenario corpus:</strong> {formatSipINR(projection.downsideFinal)}. <strong>Step-up corpus in today’s purchasing power:</strong> {formatSipINR(projection.inflationAdjustedStepUpFinal)}.</p>
           </>
         )}
       </section>
 
-      {/* KEY COMPOUNDING RESULT CARDS */}
+      {/* Show no financial result card without a user-requested, verified calculation. */}
+      {projection && (
       <div className="sup-results-grid">
         <motion.div 
           className="result-card" 
@@ -545,12 +590,16 @@ const StepUpPlanner = ({ profile }) => {
           </div>
           <span className="result-label">Extra projected corpus (nearest ₹1)</span>
           <span className="result-value text-green">+ {formatSipINR(additionalCorpus)}</span>
-          <span className="result-sub text-green-bold">{additionalPercent === null ? 'Percentage comparison unavailable at ₹1 precision' : `≈ ${additionalPercent}% more projected corpus (includes extra contributions)`}</span>
+          <span className="result-sub text-green-bold">{additionalPercent === null
+            ? 'Percentage comparison unavailable at ₹1 precision'
+            : `≈ ${additionalPercent}% more projected corpus, mostly from extra deposits and assumed growth`}</span>
         </motion.div>
       </div>
 
+      )}
+
       {/* Details Toggle Button */}
-      <div className="chart-toggle-wrap">
+      {projection && <div className="chart-toggle-wrap">
         <button
           onClick={() => setShowDetails(!showDetails)}
           className="chart-toggle-btn"
@@ -558,9 +607,9 @@ const StepUpPlanner = ({ profile }) => {
           <span>{showDetails ? 'Hide Growth Chart' : 'Show Growth Chart'}</span>
           {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-      </div>
+      </div>}
 
-      {showDetails && (
+      {projection && showDetails && (
         <motion.div
           className="sup-chart-wrapper"
           initial={{ opacity: 0, scale: 0.98 }}
