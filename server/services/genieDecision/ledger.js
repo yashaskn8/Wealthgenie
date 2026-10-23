@@ -2,7 +2,7 @@
  * GenieDecision V3: bounded, return-free household cash-flow truth foundation.
  * Analysis only: no portfolio writes, rates, tax facts or investment advice.
  */
-export const DECISION_LEDGER_VERSION = 'geniedecision-ledger-1.0.0';
+export const DECISION_LEDGER_VERSION = 'geniedecision-ledger-1.1.0';
 const MAX_MONTHS = 360;
 const MAX_MONEY_PAISE = 1_000_000_000_000n;
 const MONEY_PATTERN = /^(?:0|[1-9]\d{0,10})(?:\.\d{1,2})?$/;
