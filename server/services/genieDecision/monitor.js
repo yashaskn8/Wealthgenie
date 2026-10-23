@@ -4,6 +4,7 @@ import DecisionMonitor from '../../models/DecisionMonitor.js';
 import DecisionAssessment from '../../models/DecisionAssessment.js';
 import DecisionScenario from '../../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../../models/DecisionScenarioRevision.js';
+import DecisionRun from '../../models/DecisionRun.js';
 import { appendDecisionEvent } from './liveEvents.js';
 import { signDecisionReceipt, verifyDecisionReceipt } from './integrity.js';
 import { DecisionInputError, DECISION_LEDGER_VERSION } from './ledger.js';
@@ -13,7 +14,7 @@ import {
   makeDecisionSourceSnapshot, hashDecisionSourceSnapshot, verifyDecisionSourceSnapshot,
 } from './sourceSnapshot.js';
 import {
-  computeDecisionScenario, fingerprintCurrentFacts, verifyDecisionRevision,
+  computeDecisionScenario, fingerprintCurrentFacts, verifyDecisionRevision, verifyDecisionRun,
 } from '../../routes/decisionScenarios.js';
 
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -110,14 +111,41 @@ export async function assessMonitoredDecision(monitor, {
   const current = await resolveProfile({ userId: monitor.userId, requireRecommendation: false });
   if (!current.profile || current.state.resolutionStatus !== 'CURRENT') return 'SOURCE_UNAVAILABLE';
   const sourceHash = fingerprintCurrentFacts(current.profile);
-  if (sourceHash === scenario.profileFactsHash
-      && id(current.profile._id) === id(scenario.profileId)
-      && current.state.revision === scenario.profileStateRevision
-      && current.profile.version === scenario.profileVersion
-      && Number(current.profile.financialStateFence ?? 0) === scenario.profileFinancialFence) {
-    await DecisionMonitor.updateOne({ _id: monitor._id, enabled: true, generation: monitor.generation },
-      { $set: { lastCheckedAt: new Date() } });
-    return 'UNCHANGED';
+  const sameSource = sourceHash === scenario.profileFactsHash
+    && id(current.profile._id) === id(scenario.profileId)
+    && current.state.revision === scenario.profileStateRevision
+    && current.profile.version === scenario.profileVersion
+    && Number(current.profile.financialStateFence ?? 0) === scenario.profileFinancialFence;
+  let changedPolicy = false;
+  let changedRevision = false;
+  if (sameSource) {
+    // A new financial engine version can invalidate the last signed report
+    // even when household inputs have not changed. Do not leave a monitored
+    // decision silently stale after deployment.
+    if (scenario.lastRunId) {
+      const priorRun = await DecisionRun.findOne({
+        _id: scenario.lastRunId, userId: monitor.userId, scenarioId: scenario._id,
+      }).lean();
+      if (!priorRun) throw new Error('DECISION_MONITOR_REPORT_POINTER_MISSING');
+      verifyDecisionRun(priorRun);
+      changedPolicy = priorRun.revision === scenario.revision
+        && priorRun.result.modelVersion !== DECISION_LEDGER_VERSION;
+    }
+    const latestAssessment = await DecisionAssessment.findOne({
+      userId: monitor.userId, scenarioId: scenario._id, monitorGeneration: monitor.generation,
+    }).sort({ createdAt: -1, _id: -1 }).lean();
+    if (latestAssessment) {
+      verifyDecisionAssessment(latestAssessment);
+      changedPolicy ||= latestAssessment.modelVersion !== DECISION_LEDGER_VERSION;
+      changedRevision = latestAssessment.scenarioRevision !== scenario.revision;
+    }
+    if (!changedPolicy && !changedRevision) {
+      await DecisionMonitor.updateOne({
+        _id: monitor._id, enabled: true, generation: monitor.generation,
+        ...(monitor.leaseToken ? { leaseToken: monitor.leaseToken } : {}),
+      }, { $set: { lastCheckedAt: new Date() } });
+      return 'UNCHANGED';
+    }
   }
   const filter = {
     userId: monitor.userId, scenarioId: scenario._id,
@@ -132,7 +160,8 @@ export async function assessMonitoredDecision(monitor, {
   if (already) { verifyDecisionAssessment(already); return 'DUPLICATE'; }
 
   let status = 'RECALCULATED';
-  let reasonCode = 'FINANCIAL_FACTS_CHANGED';
+  let reasonCode = changedPolicy ? 'CALCULATION_POLICY_CHANGED'
+    : changedRevision ? 'SCENARIO_REVISION_CHANGED' : 'FINANCIAL_FACTS_CHANGED';
   let result = null;
   try {
     result = computeDecisionScenario(current, revision.payload);
