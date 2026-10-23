@@ -97,7 +97,7 @@ router.post('/preview', authenticate, asyncHandler(async (req, res) => {
   const final = await resolveProfile({ userId, requireRecommendation: false });
   assertCurrent({ current: final, input });
   if (Number(final.profile.version) !== Number(profile.version)
-    || Number(final.profile.financialStateFence) !== Number(profile.financialStateFence)) {
+    || Number(final.profile.financialStateFence ?? 0) !== Number(profile.financialStateFence ?? 0)) {
     throw createError(409, 'Financial inputs changed during the decision preview.',
       'Refresh your financial profile and repeat the preview.',
       { code: 'DECISION_STALE_PROFILE' });
