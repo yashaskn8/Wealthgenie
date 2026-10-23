@@ -1069,7 +1069,7 @@ paths:
       x-csrf-protection: cookie-session
       parameters:
         - { name: familyId, in: path, required: true, schema: { type: string, pattern: '^[a-zA-Z0-9:_-]{1,160}$' } }
-      description: Profile-bound deterministic comparison of zero to three independently reviewed actual products. No data or advice is issued without provider rights, current investor state, supported tax class, live observation and separately verified authority to give personal investment advice.
+      description: Profile-bound deterministic comparison of zero to three independently reviewed actual products. After suitability gates, products are ordered by lower verified risk, annual charges, lock-in, then stable product ID; no weighted match score, forecast return or yield comparison is implied. No data or advice is issued without provider rights, current investor state, supported tax class, current observation and separately verified authority to give personal investment advice.
       requestBody:
         required: true
         content:

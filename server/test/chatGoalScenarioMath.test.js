@@ -195,8 +195,7 @@ test('net-of-tax or fee-adjusted future goals cannot borrow an unsupported gross
 });
 
 test('end-to-end grounded explanation publishes both independently validated gross SIP and inflated corpus', async () => {
-  // ₹20 lakh must be genuinely user-declared; otherwise the backend must not
-  // invent it to match an illustration's expected monthly payment.
+  // INR 20 lakh must be user-declared to enter the monthly payment.
   const question = "Need 2 crore for daughter's wedding at today's prices in 10 years. I have already saved 20 lakh, with 12% annual return and 6% annual inflation";
   const packet = await buildChatEvidencePacket({
     question, profile: { age: 38, monthlySavings: 25_000, investmentHorizonYears: 10,
@@ -222,6 +221,23 @@ test('end-to-end grounded explanation publishes both independently validated gro
     && c.source_url === null));
   assert.ok(result.citations.some(c => c.citation_id === 'E_GOAL_INFLATED_TARGET'
     && c.source_url === null));
+});
+
+test('end-to-end goal scenario does not invent an earmarked balance', async () => {
+  const question = "Need 2 crore for daughter's wedding at today's prices in 10 years with 12% annual return and 6% annual inflation";
+  const packet = await buildChatEvidencePacket({
+    question, profile: { age: 38, monthlySavings: 25_000, investmentHorizonYears: 10,
+      riskTolerance: 'Moderate', suitabilityRisk: 'Moderate' }, recommendation: null,
+  }, { queryRegulatoryRag: async () => null });
+  const scenario = packet.entries.find(entry => entry.id === 'E_GOAL_RETURN_SCENARIO');
+  assert.equal(scenario.value.earmarkedSavingsAmount, 0);
+  assert.equal(scenario.value.scenario, 'ZERO_START_CONDITIONAL');
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => false,
+  });
+  assert.equal(answer.validation.status, 'PASS');
+  assert.ok(answer.financialClaims.some(claim => claim.type === 'GOAL_RETURN_SCENARIO_PAYMENT'
+    && claim.value === 161_388.49));
 });
 
 test('end-to-end projected return rate never flows to the model when the user did not specify it', async () => {

@@ -134,12 +134,13 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
          AND p.record_kind='ACTUAL_PRODUCT'
          AND p.qualified_tax_class='LISTED_EQUITY_STT_QUALIFIED'
          AND p.tax_class_evidence_url LIKE 'https://%'
-         AND p.tax_class_reviewed_at IS NOT NULL
+         AND p.tax_class_reviewed_at IS NOT NULL AND p.tax_class_reviewed_at<=$4
          AND p.availability IN ('AVAILABLE','RESTRICTED')
          AND r.access_allowed AND r.extraction_allowed AND r.storage_allowed
          AND r.derivation_allowed AND r.public_display_allowed
          AND r.commercial_use_allowed AND r.redistribution_allowed
-         AND r.reviewed_at IS NOT NULL AND r.revoked_at IS NULL
+         AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL
+         AND r.reviewed_at<=$4 AND r.revoked_at IS NULL
          AND (r.expires_at IS NULL OR r.expires_at>$4)
          AND o.retain_until IS NOT NULL AND o.retain_until>$4
          AND o.observed_at<=$4 AND o.fetched_at<=$4

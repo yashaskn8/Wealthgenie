@@ -2,7 +2,7 @@ import { buildRecommendationProfile } from './recommendationProfile.js';
 import { assessSuitabilityRisk } from './riskProfiler.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
 
-export const FAMILY_TOP_THREE_VERSION = 'family-product-comparison-1.0.0';
+export const FAMILY_TOP_THREE_VERSION = 'family-product-comparison-1.1.0';
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9:_-]{1,160}$/.test(value);
 const numeric = value => value !== null && value !== undefined && value !== ''
   && Number.isFinite(Number(value)) ? Number(value) : null;
@@ -24,12 +24,13 @@ export async function compareQualifiedFamilyProducts({
   const profile = buildRecommendationProfile(profileInput);
   const suitability = assessSuitabilityRisk(profile);
   const family = await pool.query([
-    'SELECT p.id,p.name,c.label AS category',
+    'SELECT p.id,p.name,p.category_id,c.label AS category',
     'FROM finance.products p JOIN finance.categories c ON c.id=p.category_id',
     "WHERE p.id=$1 AND p.record_kind='ARCHETYPE'",
   ].join(' '), [familyId]);
   if (family.rows.length !== 1) return unavailable(familyId, 'FAMILY_NOT_FOUND');
   const familyName = family.rows[0].name;
+  const familyCategoryId = family.rows[0].category_id;
   if (!adviceAuthorized) return unavailable(familyId, 'PERSONALIZED_ADVICE_AUTHORIZATION_REQUIRED', { familyName });
 
   const response = await pool.query([
@@ -38,8 +39,10 @@ export async function compareQualifiedFamilyProducts({
     'q.lock_in_months,q.annual_fee_bps,q.min_age,q.max_age,q.retail_access,',
     'q.requires_demat,q.requires_accreditation,q.requires_nps_account,q.requires_child_eligibility,',
     'q.evidence_url,q.terms_evidence_url,q.risk_evidence_url,q.review_version,',
-    'p.name AS product_name,p.source_identity,p.availability,p.record_kind,p.recommendation_eligible,',
-    'p.qualified_tax_class,p.tax_class_reviewed_at,r.source_id AS right_source_id',
+    'p.name AS product_name,p.category_id,p.verification_scope,p.source_identity,',
+    'p.availability,p.record_kind,p.recommendation_eligible,',
+    'p.qualified_tax_class,p.tax_class_evidence_url,p.tax_class_reviewed_at,',
+    'r.source_id AS right_source_id',
     'FROM finance.family_product_qualifications q',
     'JOIN finance.products p ON p.id=q.product_id',
     'LEFT JOIN finance.provider_rights r ON r.source_id=q.source_id',
@@ -62,9 +65,12 @@ export async function compareQualifiedFamilyProducts({
     let reason = null;
     if (q.status !== 'ACTIVE' || new Date(q.valid_until) <= now
       || new Date(q.reviewed_at) > now) reason = 'REVIEW_EXPIRED_OR_SUSPENDED';
-    else if (q.record_kind !== 'ACTUAL_PRODUCT' || q.availability !== 'AVAILABLE'
+    else if (q.record_kind !== 'ACTUAL_PRODUCT' || q.category_id !== familyCategoryId
+      || q.verification_scope !== 'VERIFIED_ACTUAL_PRODUCT' || q.availability !== 'AVAILABLE'
       || q.recommendation_eligible !== true
       || !q.qualified_tax_class || ['UNVERIFIED', 'OTHER_UNSUPPORTED'].includes(q.qualified_tax_class)
+      || typeof q.tax_class_evidence_url !== 'string'
+      || !q.tax_class_evidence_url.startsWith('https://')
       || !q.tax_class_reviewed_at || new Date(q.tax_class_reviewed_at) > now) {
       reason = 'PRODUCT_NOT_FINANCIALLY_QUALIFIED';
     } else if (typeof q.source_identity !== 'string' || !q.source_identity.trim()
@@ -92,15 +98,13 @@ export async function compareQualifiedFamilyProducts({
     }
     const fee = Number(q.annual_fee_bps);
     if (!Number.isInteger(fee) || fee < 0 || fee > 10000) { exclude('PRODUCT_FEES_UNVERIFIED'); continue; }
-    // Return/nominal yield cannot safely be compared across product families.
-    // Rank within-family on fit, explicit fees and liquidity, never forecast profit.
-    const fit = Math.max(0, 100 - 12 * Math.abs(riskLimit - q.risk_level)
-      - Math.min(30, fee / 15)
-      - 12 * q.lock_in_months / Math.max(12, profile.investmentHorizonYears * 12));
+    // A headline rate, NAV or yield is not a comparable future return. After
+    // hard suitability gates, order conservatively by verified risk, charges,
+    // then lock-in; no uncalibrated weighted "match" percentage is issued.
     qualifiedIdentities.add(q.source_identity);
     eligible.push({
       id: q.product_id, name: q.product_name, familyId,
-      matchScore: Number(fit.toFixed(2)), reviewVersion: q.review_version,
+      reviewVersion: q.review_version,
       riskLevel: q.risk_level, minimumInvestmentInr: numeric(q.min_investment_inr),
       minimumHorizonYears: q.min_horizon_years, lockInMonths: q.lock_in_months,
       annualFeeBps: fee, verifiedTaxClass: q.qualified_tax_class,
@@ -113,7 +117,7 @@ export async function compareQualifiedFamilyProducts({
         'PUBLISHABLE_SOURCE_BOUND_MARKET_FACT'],
     });
   }
-  eligible.sort((a, b) => b.matchScore - a.matchScore || a.annualFeeBps - b.annualFeeBps
+  eligible.sort((a, b) => a.riskLevel - b.riskLevel || a.annualFeeBps - b.annualFeeBps
     || a.lockInMonths - b.lockInMonths || a.id.localeCompare(b.id));
   // The permission or current observation can change while other products are
   // evaluated. Re-read the winning evidence before publishing each of at most 3.
@@ -125,7 +129,11 @@ export async function compareQualifiedFamilyProducts({
     );
     if (!current || current.source_id !== product.marketFact.sourceId
       || String(current.id) !== product.marketFact.observationId
-      || numeric(current.value) !== product.marketFact.value) {
+      || numeric(current.value) !== product.marketFact.value
+      || current.unit !== product.marketFact.unit
+      || current.data_class !== product.marketFact.dataClass
+      || new Date(current.observed_at).getTime()
+        !== new Date(product.marketFact.asOf).getTime()) {
       exclude('MARKET_SOURCE_CHANGED_DURING_COMPARISON');
       continue;
     }
@@ -136,6 +144,7 @@ export async function compareQualifiedFamilyProducts({
     status: hasThree ? 'AVAILABLE' : 'INSUFFICIENT_VERIFIED_PRODUCTS',
     reasonCode: hasThree ? null : 'FEWER_THAN_THREE_SUITABLE_VERIFIED_PRODUCTS',
     version: FAMILY_TOP_THREE_VERSION, familyId, familyName, maxResults: 3,
+    rankingPolicy: 'LOWER_VERIFIED_RISK_THEN_FEES_THEN_LOCK_IN_THEN_ID',
     qualifyingCount: eligible.length, examinedCount: response.rows.length,
     requiredProductCount:3,verifiedProductCount:selected.length,
     exclusionCounts: exclusions, products: hasThree ? selected : [],

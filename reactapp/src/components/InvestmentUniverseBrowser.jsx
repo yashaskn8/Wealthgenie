@@ -289,12 +289,12 @@ export default function InvestmentUniverseBrowser() {
                     <>
                       <p role="status">
                         3 suitably qualified products,
-                        ordered by risk fit, verified charges and lock-in—not promised returns.
+                        ordered by lower verified risk, then charges and lock-in—not promised returns.
                       </p>
                       <ol>{compareResult.products.map(product => <li key={product.id}
                         style={{ padding: '8px 0', borderBottom: '1px solid rgba(148,163,184,.2)' }}>
-                        <strong>{product.name}</strong> — fit {product.matchScore}/100,
-                        risk {product.riskLevel}/5, min ₹{Number(product.minimumInvestmentInr).toLocaleString('en-IN')},
+                        <strong>{product.name}</strong> — risk {product.riskLevel}/5,
+                        min ₹{Number(product.minimumInvestmentInr).toLocaleString('en-IN')},
                         charges {product.annualFeeBps} bps/year, lock-in {product.lockInMonths} months.
                         <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
                           {product.marketFact?.type}: {product.marketFact?.value} ({product.marketFact?.dataClass})
