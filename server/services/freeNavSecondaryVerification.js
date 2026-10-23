@@ -132,13 +132,13 @@ export function normalizeMfapiSearch(raw) {
  for(const item of raw.slice(0,60)){
   const code=String(item?.schemeCode??'');
   const name=item?.schemeName;
-  if(!/^[1-9]\\d{4,6}$/.test(code)||seen.has(code)
+  if(!/^[1-9]\d{4,6}$/.test(code)||seen.has(code)
    ||typeof name!=='string'||name.trim().length<5||name.length>250)
     continue;
   seen.add(code);
-  const normalized=name.trim().replace(/\\s+/g,' ');
-  const growth=/\\bGROWTH\\b/i.test(normalized)
-    && !/\\b(?:IDCW|DIVIDEND|DISTRIBUTION)\\b/i.test(normalized);
+  const normalized=name.trim().replace(/\s+/g,' ');
+  const growth=/\bGROWTH\b/i.test(normalized)
+    && !/\b(?:IDCW|DIVIDEND|DISTRIBUTION)\b/i.test(normalized);
   results.push({
    schemeCode:Number(code),name:normalized,
    fundHouse:null,isin:null,category:null,subcategory:null,
