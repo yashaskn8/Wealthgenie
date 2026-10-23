@@ -203,6 +203,36 @@ describe('WG-038: POST /api/tax/post-tax-return & /batch Endpoints', () => {
     });
   });
 
+  test('zero-contribution tax what-if has no fabricated percentage and keeps portfolio summary consistent', async () => {
+    await withServer(app, async (baseUrl) => {
+      const { response, body } = await jsonRequest(`${baseUrl}/api/tax/post-tax-return/batch`, {
+        method: 'POST',
+        body: JSON.stringify({
+          instruments: [{
+            instrumentId: 'fd', instrumentType: 'FD',
+            nominalRate: 0.07, holdingYears: 3, monthlySIP: 0,
+          }],
+          annualIncome: 1_000_000, regime: 'new', incomeSource: 'salary',
+          userAge: 35, fiscalYear: 'FY2026-27', inflationRate: 0.05,
+        }),
+      });
+      assert.equal(response.status, 200);
+      assertRuntimeResponseMatchesContract({
+        method: 'POST', path: '/api/tax/post-tax-return/batch', status: response.status,
+        contentType: response.headers.get('content-type'), body,
+      });
+      assert.equal(body.results[0].status, 'CALCULATED');
+      assert.equal(body.results[0].totalInvested, 0);
+      assert.equal(body.results[0].postTaxReturnPercent, null);
+      assert.equal(body.results[0].realReturnPercent, null);
+      assert.equal(body.results[0].sipReturnMetrics.unavailableReason, 'NO_MONTHLY_CONTRIBUTIONS');
+      assert.equal(body.portfolioStatus, 'COMPLETE');
+      assert.equal(body.summary.status, 'COMPLETE');
+      assert.equal(body.summary.totalTaxDrag, 0);
+      assert.equal(body.excludedInstruments.length, 0);
+    });
+  });
+
   test('Validation - Bad input returns 400', async () => {
     await withServer(app, async (baseUrl) => {
       const { response, body } = await jsonRequest(`${baseUrl}/api/tax/post-tax-return`, {
