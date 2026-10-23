@@ -22,7 +22,10 @@ function safeGeneralHistory(priorTurns) {
   return (Array.isArray(priorTurns) ? priorTurns : []).slice(-4)
     .filter(turn => ['user', 'model'].includes(turn?.role)
       && typeof turn.content === 'string'
-      && isGeneralChatQuestion(turn.content))
+      && (turn.role === 'model' || isGeneralChatQuestion(turn.content)
+        || isPublicFinancialEducationQuestion(turn.content))
+      && !GROUNDED_FINANCIAL_CONTEXT.test(turn.content)
+      && !FINANCIAL_MONEY.test(turn.content))
     .map(turn => ({
       role: turn.role,
       parts: [{ text: sanitizeExternalQuestion(turn.content).slice(0, 1000) }],
@@ -34,7 +37,7 @@ const PROVIDER_FAILURES = new Set([
   'PROVIDER_CIRCUIT_OPEN', 'PROVIDER_NOT_CONFIGURED',
   'PROVIDER_RATE_LIMITED', 'PROVIDER_AUTHENTICATION_FAILED',
   'PROVIDER_INCOMPLETE_OUTPUT', 'EMPTY_COMPLETION', 'GENERAL_UNVERIFIED_SOURCE_MARKER',
-  'GENERAL_FINANCIAL_BOUNDARY_VIOLATION',
+  'GENERAL_FINANCIAL_BOUNDARY_VIOLATION', 'GENERAL_UNEXPECTED_TOOL_CALL',
 ]);
 const SYSTEM_PROMPT = [
   'You are Genie, a helpful general-purpose assistant in an Indian personal-finance app.',
