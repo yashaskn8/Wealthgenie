@@ -1183,14 +1183,25 @@ export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}
   if (!signal || typeof onEvent !== 'function') throw new Error('An abortable live-event subscriber is required.');
   let cursor = 0; // start with a durable replay rather than a racy bare handshake
   let failures = 0;
+  const authAtStart = authRevision;
+  let sessionInvalidated = false;
+  let currentStream = null;
+  const unsubscribeAuth = subscribeAuth(() => {
+    if (authRevision !== authAtStart) {
+      sessionInvalidated = true;
+      currentStream?.abort();
+    }
+  });
   const pause = delay => new Promise(resolve => {
     if (signal?.aborted) return resolve();
     const timer = setTimeout(done, delay);
     function done() { clearTimeout(timer); signal?.removeEventListener('abort', done); resolve(); }
     signal?.addEventListener('abort', done, { once: true });
   });
-  while (!signal.aborted) {
+  try {
+  while (!signal.aborted && !sessionInvalidated) {
     const streamAbort = new AbortController();
+    currentStream = streamAbort;
     const cancelStream = () => streamAbort.abort();
     signal.addEventListener('abort', cancelStream, { once: true });
     let watchdog = null;
@@ -1260,7 +1271,7 @@ export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}
         await pause(350);
       }
     } catch (error) {
-      if (signal.aborted) return;
+      if (signal.aborted || sessionInvalidated) return;
       failures += 1;
       onStatus?.('reconnecting');
       await pause(Math.min(12000, 1000 * 2 ** Math.min(failures, 4)));
@@ -1268,7 +1279,12 @@ export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}
       if (watchdog) clearTimeout(watchdog);
       signal.removeEventListener('abort', cancelStream);
       streamAbort.abort();
+      if (currentStream === streamAbort) currentStream = null;
     }
+  }
+  } finally {
+    unsubscribeAuth();
+    currentStream?.abort();
   }
 }
 
