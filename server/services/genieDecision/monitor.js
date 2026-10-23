@@ -222,11 +222,12 @@ export async function scanDecisionMonitors({
     throw new RangeError('Invalid monitoring scan limit or lease');
   }
   const summary = { inspected: 0, created: 0, failed: 0, statuses: {} };
+  const visited = [];
   for (let index = 0; index < limit; index += 1) {
     const claimedAt = now();
     const token = crypto.randomUUID();
     const monitor = await DecisionMonitor.findOneAndUpdate({
-      enabled: true,
+      enabled: true, _id: { $nin: visited },
       $and: [
         { $or: [{ leaseUntil: null }, { leaseUntil: { $lte: claimedAt } }] },
         { $or: [{ lastCheckedAt: null },
@@ -236,6 +237,7 @@ export async function scanDecisionMonitors({
       leaseToken: token, leaseUntil: new Date(claimedAt.getTime() + leaseMs),
     } }, { sort: { lastCheckedAt: 1, _id: 1 }, new: true }).lean();
     if (!monitor) break;
+    visited.push(monitor._id);
     summary.inspected += 1;
     try {
       const outcome = await assessMonitoredDecision(monitor, { resolveProfile });
