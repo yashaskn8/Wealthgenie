@@ -63,6 +63,26 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     }
     assert.deepEqual((await call(owner, 'GET', '/ledger')).body,
       { revision: 0, ledger: null, latestResult: null });
+    // Every cash surface must authenticate before touching sensitive data.
+    for (const [method, target, body] of [
+      ['GET', '/ledger'],
+      ['GET', '/revisions/1'],
+      ['GET', '/export'],
+      ['POST', '/scenarios/preview', { revision: 1, excludedVoluntaryEntryIds: [] }],
+      ['PUT', '/ledger', payload()],
+      ['DELETE', '/ledger'],
+    ]) {
+      const response = await fetch(baseUrl + target, {
+        method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      assert.equal(response.status, 401, method + ' ' + target + ' must authenticate');
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+    }
+    // Mutation preconditions are mandatory even for an authenticated owner.
+    assert.equal((await call(owner, 'PUT', '/ledger', payload(), undefined, randomUUID())).status, 428);
+    assert.equal((await call(owner, 'DELETE', '/ledger', undefined, undefined, randomUUID())).status, 428);
+
     const yesterday = new Date(Date.parse(indiaToday() + 'T00:00:00Z') - 86_400_000).toISOString().slice(0, 10);
     const staleDeclaration = await call(owner, 'PUT', '/ledger', {
       ...payload(), asOfDate: yesterday,
