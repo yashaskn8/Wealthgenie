@@ -556,6 +556,8 @@ describe('PostTaxAnalysis separate tax what-if', () => {
         totalInvested: 0,
         taxDragWealth: 0,
         taxRate: 0,
+        postTaxReturnPercent: null,
+        realReturnPercent: null,
         nominalFutureValue: 0,
         postTaxFutureValue: 0,
         sipReturnMetrics: unavailableSipReturnMetrics('NO_MONTHLY_CONTRIBUTIONS'),
@@ -577,6 +579,7 @@ describe('PostTaxAnalysis separate tax what-if', () => {
     expect(row.getByTestId('post-tax-return')).toHaveTextContent('—');
     expect(row.getByTestId('pre-tax-sip-return')).toHaveTextContent('—');
     expect(row.getByTestId('real-return')).toHaveTextContent('—');
+    expect(screen.queryByRole('alert')).toBeNull();
     expect(row.getByTestId('sip-return-unavailable-explanation'))
       .toHaveTextContent(/No monthly contributions were supplied/i);
     expect(row.getByTestId('effective-tax')).toHaveTextContent('0.0%');
