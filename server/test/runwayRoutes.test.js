@@ -31,3 +31,20 @@ test('enabled Runway routes require authenticated session before reading or modi
     }
   });
 });
+
+test('health readiness is release-blocking only when Runway is enabled', async () => {
+  for (const enabled of [false, true]) {
+    const app = createApp({ env: {
+      ...process.env, RUNWAY_ENABLED: enabled ? 'true' : 'false',
+      RUNWAY_INTEGRITY_SECRET: '',
+    } });
+    await withServer(app, async base => {
+      const { response, body } = await jsonRequest(base + '/health/ready');
+      assert.equal(response.status, 503);
+      assert.equal(body.status, 'NOT_READY');
+      const runwayReason = (body.reasons || []).some(reason => reason.includes('Enabled Household Runway'));
+      assert.equal(runwayReason, enabled, 'Runway readiness must only apply to enabled builds');
+      assert.ok((body.reasons || []).some(reason => reason.includes('Database not connected')));
+    });
+  }
+});

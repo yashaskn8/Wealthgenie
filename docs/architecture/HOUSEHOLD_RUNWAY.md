@@ -114,3 +114,17 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 - When `RUNWAY_ENABLED=true`, server startup verifies the server-side HMAC secret and the exact persisted revision-uniqueness, snapshot-query and deletion-TTL Mongo indexes **before binding the HTTP port**. It does not create indexes or substitute a signing key automatically.
 - `/health/ready` repeats this independent check while Runway remains enabled; loss of a key or required index yields HTTP 503 instead of a falsely healthy deployment. Feature-disabled replicas bypass the Runway-specific gate without changing the rest of WealthGenie.
 - CI has negative and positive readiness tests; operators must independently test rollout, key placement, automated rollback and database migration ordering under their real deployment environment.
+
+## Final release acceptance matrix (independent evidence required)
+
+A green unit test is **not** a production certificate. Do not promote or enable this feature until the responsible operator has recorded evidence for the exact release commit:
+
+1. **Deterministic truth:** independent arithmetic oracle, leap/month-end, bounds, same-day uncertainty; never fabricate live bank balances
+2. **Auth and privacy:** owner isolation, CSRF, Redis revocation, no-store, recent-session exports and deletion/replay tests against real Mongo and HTTPS
+3. **Integrity and durability:** signing key in a dedicated secrets manager, encryption, secure backup/restore rehearsal, TTL migration, retention and key rotation compatibility
+4. **Concurrency:** CAS, snapshot create/delete races, idempotency replay and tampering/rollback attack tests against a real replica set
+5. **UX:** feature-enabled desktop/mobile browser E2E, accessibility, network failures, India midnight, large exports and clear financial uncertainty labels
+6. **Operations:** feature-enabled health readiness, alerts, metrics, incident rollback/kill switch, load/soak tests and operational ownership
+7. **Governance:** self-declared data, privacy/erasure/legal retention and financial-advice scope reviewed for target users
+
+**Rollback:** retain disabled backend and frontend feature flags until all gates pass. Never remove the signing key to roll back because existing signed ledgers would become unreadable. Migrations must use scoped credentials against the intended Mongo database.
