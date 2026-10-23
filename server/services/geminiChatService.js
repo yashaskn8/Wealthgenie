@@ -203,6 +203,19 @@ function isContextDependentFollowUp(question) {
     .test(text);
 }
 
+// A one-word follow-up must use only an account-bound preceding USER question
+// to identify its subject. Never promote a model reply into financial evidence.
+// Re-resolve the query before retrieval as well as deterministic fallback;
+// otherwise “Why?” is treated as an unsupported topic despite the profile evidence.
+function resolveFinancialEllipsis(question, trustedTurns) {
+  const text = String(question || '').trim();
+  if (!/^(?:why|how so|how come|tell me more|explain (?:it|that)(?: simply)?|can you explain (?:that|it)(?: simply)?)\\s*[?.!]*$/i.test(text)) return question;
+  const priorUser = [...(Array.isArray(trustedTurns) ? trustedTurns : [])]
+    .reverse().find(turn => turn.role === 'user' && typeof turn.content === 'string');
+  if (!priorUser || !priorUser.content.trim()) return question;
+  return 'Explain the evidence for: ' + priorUser.content.slice(0, 500);
+}
+
 function lastChatAnswerWasFinancial(conversation) {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const latest = [...messages].reverse().find(item => item.role === 'model');
@@ -419,8 +432,11 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       && !(isContextDependentFollowUp(securityContext.sanitizedMessage)
         && lastChatAnswerWasFinancial(claim.conversation));
     const trustedFinancialTurns = generalMode ? [] : recentFinancialTurns;
+    const answerQuestion = !generalMode && !financialGoalFollowUp
+      ? resolveFinancialEllipsis(securityContext.sanitizedMessage, trustedFinancialTurns)
+      : securityContext.sanitizedMessage;
     const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
-      question: securityContext.sanitizedMessage,
+      question: answerQuestion,
       profile: llmProfile,
       recommendation,
       userId,
@@ -435,7 +451,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const providerBudgetUpperBound = generalMode
       ? generalChatTokenUpperBound(securityContext.sanitizedMessage, priorTurns)
       : getGroundedExplanationTokenUpperBound({
-        question: securityContext.sanitizedMessage,
+        question: answerQuestion,
         evidencePacket,
         priorTurns,
       });
@@ -449,7 +465,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const explanation = await (generalMode ? generateGeneralChatAnswer : generateGroundedExplanation)(
       generalMode
         ? { question: securityContext.sanitizedMessage, priorTurns, educationOnly: publicEducationOnly }
-        : { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
+        : { question: answerQuestion, evidencePacket, priorTurns },
       {
         ...groundedExplanationDependencies,
         ...(canReserveProvider ? {
