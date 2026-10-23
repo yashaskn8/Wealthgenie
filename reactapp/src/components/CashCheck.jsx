@@ -150,6 +150,8 @@ export default function CashCheck() {
   }, []);
 
   const editDraft = updater => {
+    // A response must never publish an old calculation over a later local edit.
+    if (busy) return;
     setDraft(updater);
     setDirty(true);
     setPreview(null);
