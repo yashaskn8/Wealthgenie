@@ -38,6 +38,10 @@ const sqlRiskSchema=schema.fork(['annualVolatility'],field=>field.forbidden()).k
  observationKind:Joi.string().valid('PRICE','NAV').required(),
 });
 
+// Exact route validators exported for contract regression tests.
+export const taxAwareScenarioInputSchema=schema;
+export const taxAwareHistoryRiskInputSchema=sqlRiskSchema;
+
 /**
  * Historical risk and hypothetical expected return are independent inputs:
  * the volatility comes ONLY from source-qualified, current EOD PostgreSQL
