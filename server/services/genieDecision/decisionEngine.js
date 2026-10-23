@@ -6,7 +6,6 @@ import {
 
 const error = (code, message) => { throw new DecisionInputError(code, message); };
 const money = (v, name) => toPaise(v, name);
-const nonnegative = (v, name) => { const n = money(v, name); return n; };
 const whole = (v, low, high, name) => {
   if (!Number.isSafeInteger(v) || v < low || v > high) error('INVALID_RANGE', `${name} must be an integer between ${low} and ${high}.`);
   return v;
@@ -21,7 +20,6 @@ const fields = (value, required, optional = []) => {
 const SHA = obj => createHash('sha256').update(JSON.stringify(obj)).digest('hex');
 
 const roundInterest = (balance, annualBps) => (balance * BigInt(annualBps) + 60000n) / 120000n;
-const maxPaise = 1_000_000_000_000n;
 
 function debtTrajectory({ principal, annualBps, termMonths, monthlyPayment, extraPayment = 0n, horizonMonths }) {
   let balance = principal;
@@ -86,7 +84,8 @@ function modelAlternative({ baseline, horizonMonths, goalReservations, name,
     ensure(investments >= money(unmodified.monthlyGoalFundsReservedWithinInvestments, 'goalFunds'),
       'DOUBLE_ALLOCATED_GOAL_FUNDS', 'Scenario leaves too little investment budget to fund existing goal reservations.');
     liquid += income - expenses - debts - investments;
-    spent += expenses + debts;
+    // Spending, financing and investment transfers all leave liquid cash.
+    spent += expenses + debts + investments;
     transferred += investments;
     if (firstShortfallMonth === null && liquid < 0n) firstShortfallMonth = index + 1;
     rows.push({ month: index + 1, income: fromPaise(income), livingExpenses: fromPaise(expenses),
@@ -158,8 +157,6 @@ export function calculateDecision({ scenarioType, baseline, horizonMonths, goalR
       loanAprBps: details.loanAprBps,
       loanTermMonths: details.loanTermMonths,
     });
-    ensure(horizon <= loan.months || loan.principal === 0n, 'INVALID_RANGE',
-      'For comparable loans, horizon cannot exceed the declared loan term.');
     const loanSchedule = debtTrajectory({
       principal: loan.principal, annualBps: loan.rate, termMonths: loan.months,
       monthlyPayment: loan.instalment, horizonMonths: horizon,
@@ -190,8 +187,6 @@ export function calculateDecision({ scenarioType, baseline, horizonMonths, goalR
       loanPrincipal: fromPaise(financed), loanAprBps: details.financeAprBps,
       loanTermMonths: details.financeTermMonths,
     });
-    ensure(horizon <= loan.months || loan.principal === 0n, 'INVALID_RANGE',
-      'Comparison horizon must not exceed declared loan term.');
     const loanSchedule = debtTrajectory({
       principal: loan.principal, annualBps: loan.rate, termMonths: loan.months,
       monthlyPayment: loan.instalment, horizonMonths: horizon,
@@ -222,7 +217,6 @@ export function calculateDecision({ scenarioType, baseline, horizonMonths, goalR
     const reserved = goalReservations.reduce((sum, goal) => sum + money(goal.monthlyAllocation, 'goalAllocation'), 0n);
     ensure(extra <= investment - reserved,
       'DOUBLE_ALLOCATED_GOAL_FUNDS', 'Extra budget must be unreserved money already within monthly investments.');
-    ensure(horizon <= loan.months, 'INVALID_RANGE', 'Horizon must not exceed declared loan term.');
     const onRegular = debtTrajectory({
       principal: loan.principal, annualBps: loan.rate, termMonths: loan.months,
       monthlyPayment: regular, horizonMonths: horizon,
