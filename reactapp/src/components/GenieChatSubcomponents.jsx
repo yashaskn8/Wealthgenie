@@ -10,7 +10,8 @@ import { parseActionCards, useStreamedText, streamedMessages } from '../utils/ge
 
 // ── Citations List Component ──────────────────────────────────────
 export function CitationsList({ citations }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => Array.isArray(citations)
+    && citations.some(item => item?.evidence_class === 'DETERMINISTIC_POLICY_EXPLANATION'));
   if (!Array.isArray(citations) || citations.length === 0) return null;
 
   return (
@@ -36,9 +37,11 @@ export function CitationsList({ citations }) {
               && /^https:\/\/[^\s"'<>]+$/i.test(c.source_url) ? c.source_url : null;
             const originLabel = c.evidence_class === 'USER_INPUT'
               ? 'Your stated input'
-              : String(c.evidence_class || '').startsWith('DETERMINISTIC_')
-                ? 'WealthGenie calculation — not an external source'
-                : (c.source || 'Knowledge Base');
+              : c.evidence_class === 'DETERMINISTIC_POLICY_EXPLANATION'
+                ? 'WealthGenie app policy — not an external source'
+                : String(c.evidence_class || '').startsWith('DETERMINISTIC_')
+                  ? 'WealthGenie calculation — not an external source'
+                  : (c.source || 'Knowledge Base');
             return (
               <div key={i} className="citation-item" style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '0.8rem' }}>
                 <div className="citation-title" style={{ fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
