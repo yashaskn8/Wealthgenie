@@ -26,6 +26,10 @@ import projectionRoutes from '../routes/projection.js';
 import montecarloRoutes from '../routes/montecarlo.js';
 import portfolioRoutes from '../routes/portfolio.js';
 import regimeRoutes from '../routes/regime.js';
+import genieDecisionRoutes from '../routes/genieDecision.js';
+import decisionScenariosRoutes from '../routes/decisionScenarios.js';
+import decisionEventsRoutes from '../routes/decisionEvents.js';
+import decisionMonitorRoutes from '../routes/decisionMonitor.js';
 import { errorHandler, sendError } from '../middleware/errorHandler.js';
 import Instrument from '../models/Instrument.js';
 import FinancialProfile from '../models/FinancialProfile.js';
@@ -174,6 +178,10 @@ const publicMounts = [
   ['chatRoutes.js', '/api/chat'],
   ['portfolio.js', '/api/portfolio'],
   ['regime.js', '/api/regime'],
+  ['genieDecision.js', '/api/decisions'],
+  ['decisionScenarios.js', '/api/decisions'],
+  ['decisionEvents.js', '/api/decisions'],
+  ['decisionMonitor.js', '/api/decisions'],
   ['health.js', '/health'],
 ];
 
@@ -294,6 +302,10 @@ function buildContractTestApp() {
   app.use('/api/portfolio', portfolioRoutes);
   app.use('/api/goals', goalsRoutes);
   app.use('/api/regime', regimeRoutes);
+  app.use('/api/decisions', genieDecisionRoutes);
+  app.use('/api/decisions', decisionScenariosRoutes);
+  app.use('/api/decisions', decisionEventsRoutes);
+  app.use('/api/decisions', decisionMonitorRoutes);
   app.use((req, res) => sendError(req, res, 404, 'Route not found.', 'ROUTE_NOT_FOUND'));
   app.use(errorHandler);
   return app;
@@ -445,7 +457,24 @@ function requestSchema(operation) {
 
 const sourceOperations = publicMounts.flatMap(([filename, prefix]) => {
   const moduleSource = fs.readFileSync(path.join(serverRoot, 'routes', filename), 'utf8');
-  return extractRoutes(moduleSource, 'router', prefix);
+  const decisionModule = prefix === '/api/decisions';
+  // These routers authenticate once with router.use(verifyJWT), or use the
+  // injected "authenticate" argument defaulting to verifyJWT for /preview.
+  // Confirm actual source enforcement rather than inferring security
+  // from a path prefix or copying it from OpenAPI.
+  const routerGate = decisionModule && /router\\.use\\([\\s\\S]{0,300}?verifyJWT\\s*\\)/.test(moduleSource);
+  const previewGate = filename === 'genieDecision.js'
+    && /authenticate\\s*=\\s*verifyJWT/.test(moduleSource)
+    && /router\\.post\\('\/preview',\\s*authenticate/.test(moduleSource);
+  const operations = extractRoutes(moduleSource, 'router', prefix);
+  if (decisionModule) {
+    assert.ok(routerGate || previewGate, `${filename} lost the authenticated router gate`);
+    assert.ok(operations.length > 0, `${filename} declares no public decision endpoints`);
+  }
+  return operations.map(operation => ({
+    ...operation,
+    authenticated: operation.authenticated || Boolean(routerGate || previewGate),
+  }));
 }).concat(extractRoutes(appSource, 'app').filter((route) => {
   // This app-level PUT registration installs only a provider gate and calls
   // through to the authenticated profile router. It is middleware, not a
