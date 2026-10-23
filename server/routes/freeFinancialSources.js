@@ -134,6 +134,20 @@ router.post('/mutual-funds/simulate',verifyJWT,freeProviderLimiter,validate(simu
    basis:nav.volatilityBasis,
   },
   expectedReturnBasis:'EXPLICIT_USER_ASSUMPTION_NOT_PREDICTED_FROM_NAV',
+  // The Monte Carlo core credits each monthly deposit BEFORE that month's
+  // return. Expose this financial timing assumption instead of silently
+  // overstating SIP outcomes relative to a month-end contribution model.
+  scenarioAssumptions:{
+    monthlyContributionTiming:'BEGINNING_OF_MONTH',
+    contributionTimingDescription:'Each monthly SIP is invested before that month\'s simulated return.',
+    annualExpectedReturn:scenario.annualExpectedReturn,
+    annualInflationRate:scenario.inflationRate,
+    investmentYears:scenario.years,
+    simulationCount:result.simulations_run,
+    reproducibleSeed:scenario.seed,
+    feesMode:'NOT_SEPARATELY_MODELED',
+    taxesMode:'NOT_QUALIFIED',
+  },
   grossScenario:result,
   postTaxAvailable:false,postTaxFutureValue:null,
   postTaxReasonCode:'NO_PRODUCT_SPECIFIC_VERIFIED_TAX_AND_TRANSACTION_FACTS',
