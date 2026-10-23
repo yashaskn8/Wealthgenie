@@ -806,9 +806,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
         generalCalls += 1;
         return { provider: 'groq', text: 'I would invent a financial reason.' };
       };
-      // Complete a real bound financial turn. Hand-inserting messages without
-      // binding provenance is not trusted history and must not authorize a
-      // personalized follow-up.
+      // A personalized follow-up requires a real profile-bound financial turn.
       const prior = await processChat({
         userId: mockUserId, user: mockUser,
         message: 'Explain my suitability.', sessionId: mockSessionId,
@@ -864,7 +862,7 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
     assert.equal(result.fallback, false);
     assert.equal(result.validation_status, 'PASS');
     assert.match(result.response, /only the new income-tax regime/i);
-    assert.match(result.response, /annual income, tax regime.*income-source breakdown/i);
+    assert.match(result.response, /declared tax year, income type, primary income, other ordinary income/i);
     assert.doesNotMatch(result.response, /source-backed fallback|model answer was unavailable/i);
     assert.ok(result.citations.some(c => c.source === 'WealthGenie backend policy'));
     assert.ok(result.citations.every(c => c.source_url === null));

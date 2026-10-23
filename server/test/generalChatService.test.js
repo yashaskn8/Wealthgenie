@@ -402,3 +402,54 @@ test('red-team: general output filter retains ordinary explanations and code wit
     assert.deepEqual(answer.citations, []);
   }
 });
+
+test('general chat ends at the shared deadline even when a provider ignores abort', async () => {
+  let secondaryCalls = 0;
+  let primarySignal;
+  const started = Date.now();
+  const answer = await generateGeneralChatAnswer({ question: 'Explain a JavaScript closure.' }, {
+    providerDeadlineMs: 25,
+    providers: [
+      { name: 'groq', isConfigured: () => true, async generate(request) {
+        primarySignal = request.signal;
+        return new Promise(() => {});
+      } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+        secondaryCalls += 1;
+        return { text: 'Should not run.', tokensUsed: 1 };
+      } },
+    ],
+  });
+  assert.equal(answer.provider, 'SYSTEM');
+  assert.deepEqual(answer.validation.reasonCodes, ['PROVIDER_CHAIN_DEADLINE_EXCEEDED']);
+  assert.equal(answer.providerAttemptCount, 1);
+  assert.equal(answer.providerUsageComplete, false);
+  assert.equal(secondaryCalls, 0);
+  assert.equal(primarySignal.aborted, true);
+  assert.ok(Date.now() - started < 3000);
+});
+
+test('general chat parent cancellation never starts the secondary provider', async () => {
+  const controller = new AbortController();
+  let secondaryCalls = 0;
+  let notifyStarted;
+  const started = new Promise(resolve => { notifyStarted = resolve; });
+  const pending = generateGeneralChatAnswer({ question: 'Explain a Python loop.' }, {
+    signal: controller.signal,
+    providerDeadlineMs: 2000,
+    providers: [
+      { name: 'groq', isConfigured: () => true, async generate() {
+        notifyStarted();
+        return new Promise(() => {});
+      } },
+      { name: 'nvidia_nim', isConfigured: () => true, async generate() {
+        secondaryCalls += 1;
+        return { text: 'Should not run.' };
+      } },
+    ],
+  });
+  await started;
+  controller.abort(Object.assign(new Error('Client disconnected'), { name: 'AbortError' }));
+  await assert.rejects(pending, /Client disconnected/);
+  assert.equal(secondaryCalls, 0);
+});

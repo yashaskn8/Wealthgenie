@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ChevronRight, TrendingUp, TrendingDown, Shield, Target, BarChart3, Zap, AlertTriangle, DollarSign, Copy, ThumbsUp, ThumbsDown, Info, BookOpen, ChevronDown } from 'lucide-react';
 import chatGenie from '../assets/chat_genie.png';
-import { parseActionCards, useStreamedText, streamedMessages } from '../utils/genieChatHelpers.js';
+import { useStreamedText, streamedMessages } from '../utils/genieChatHelpers.js';
 
 // ── Citations List Component ──────────────────────────────────────
 export function CitationsList({ citations }) {
@@ -202,10 +202,19 @@ function formatEvidenceMarkers(text, citations, hideDisclosure = false) {
     sourceNumbers.has(id) ? `[${sourceNumbers.get(id)}]` : marker);
 }
 
-// ── Message Content with Action Cards ─────────────────────────────
-export function MessageContent({ content, citations, onAction, hideDisclosure = false }) {
+function stripUntrustedActionMarkup(value) {
+  return String(value || '').replace(
+    /<<<ACTION_CARD>>>[\s\S]*?(?:<<<END_ACTION_CARD>>>|$)/g,
+    '[Unverified action omitted]',
+  );
+}
+
+// ── Message Content ──────────────────────────────────────────────
+export function MessageContent({ content, citations, hideDisclosure = false }) {
   if (!content) return null;
-  const { cleanText, cards } = parseActionCards(content);
+  // Assistant prose is not an authorized action channel, including when
+  // restored from chat history or streamed before the closing marker arrives.
+  const cleanText = stripUntrustedActionMarkup(content);
   const lines = formatEvidenceMarkers(cleanText, citations, hideDisclosure).split('\n');
   return (
     <span className="genie-message-content">
@@ -213,13 +222,12 @@ export function MessageContent({ content, citations, onAction, hideDisclosure = 
         if (!line.trim() && li === lines.length - 1) return null;
         return <span key={li}>{renderInline(line)}{li < lines.length - 1 && <br />}</span>;
       })}
-      {cards.map((card, i) => <ActionCard key={i} card={card} onAction={onAction} />)}
     </span>
   );
 }
 
 // ── Message Bubble ────────────────────────────────────────────────
-export const MessageBubble = ({ msg, onAction, isLatest }) => {
+export const MessageBubble = ({ msg, isLatest }) => {
   const [copied, setCopied] = useState(false);
   const isAssistant = msg.role === 'assistant';
   const displayCitations = isAssistant
@@ -236,7 +244,7 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
   }, [done, shouldStream, msg]);
 
   const handleCopy = () => {
-    const { cleanText } = parseActionCards(msg.content);
+    const cleanText = stripUntrustedActionMarkup(msg.content);
     navigator.clipboard.writeText(formatEvidenceMarkers(cleanText, displayCitations, isAssistant));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
@@ -252,7 +260,7 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
           </div>
         )}
         <div className="bubble-text">
-          <MessageContent content={content} citations={displayCitations} onAction={onAction} hideDisclosure={isAssistant} />
+          <MessageContent content={content} citations={displayCitations} hideDisclosure={isAssistant} />
           {shouldStream && !done && <span className="stream-cursor">|</span>}
         </div>
         {isAssistant && displayCitations?.length > 0 && (

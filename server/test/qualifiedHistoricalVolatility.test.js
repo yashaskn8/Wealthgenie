@@ -51,7 +51,8 @@ test('Postgres history is exact-source, tax-class and rights gated, parameterize
  assert.deepEqual(calls[0].args,['eq:verified','NAV','licensed-source',now]);
  for(const part of ['qualified_tax_class','tax_class_evidence_url','storage_allowed',
   'derivation_allowed','public_display_allowed','commercial_use_allowed',
-  'redistribution_allowed','revoked_at IS NULL','retain_until','END_OF_DAY',
+  'redistribution_allowed','r.retention_seconds>0','r.reviewed_at<=$4',
+  'p.tax_class_reviewed_at<=$4','revoked_at IS NULL','retain_until','END_OF_DAY',
   'observation_corrections','LIMIT 1000']){
   assert.ok(calls[0].sql.includes(part),part);
  }

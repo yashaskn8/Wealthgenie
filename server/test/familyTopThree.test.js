@@ -15,7 +15,9 @@ const product=(id='fd:bank:one',overrides={})=>({
  terms_evidence_url:'https://issuer.example/terms',
  risk_evidence_url:'https://issuer.example/risk',
  review_version:1,product_name:id,availability:'AVAILABLE',record_kind:'ACTUAL_PRODUCT',
+ category_id:'bank_deposits',verification_scope:'VERIFIED_ACTUAL_PRODUCT',
  source_identity:'issuer:'+id,recommendation_eligible:true,qualified_tax_class:'ORDINARY_INTEREST',
+ tax_class_evidence_url:'https://issuer.example/tax',
  tax_class_reviewed_at:'2026-10-01T00:00:00Z',right_source_id:'verified-bank',
  ...overrides,
 });
@@ -23,7 +25,7 @@ function harness(rows=[],facts={}){
  const calls=[];
  const pool={query:async (sql,args)=>{
   calls.push({sql,args});
-  if(sql.includes("p.record_kind='ARCHETYPE'"))return {rows:[{id:familyId,name:'Bank Recurring Deposit',category:'Bank Deposits'}]};
+  if(sql.includes("p.record_kind='ARCHETYPE'"))return {rows:[{id:familyId,name:'Bank Recurring Deposit',category_id:'bank_deposits',category:'Bank Deposits'}]};
   if(sql.includes('family_product_qualifications'))return {rows};
   throw Error('UNKNOWN_SQL');
  }};
@@ -60,6 +62,21 @@ test('top three returns at most three distinct suitable, publishable products',a
  assert.ok(r.products.every(p=>p.verifiedTaxClass==='ORDINARY_INTEREST'));
  assert.equal(h.calls.filter(c=>c.observationFor).length,7);
 });
+
+test('ranking is deterministic and uses risk, fees, lock-in and ID without a pseudo match score',async()=>{
+ const h=harness([
+  product('risk-two',{risk_level:2,annual_fee_bps:0}),
+  product('higher-fee',{risk_level:1,annual_fee_bps:80}),
+  product('longer-lock',{risk_level:1,annual_fee_bps:20,lock_in_months:6}),
+  product('a-tie',{risk_level:1,annual_fee_bps:20,lock_in_months:0}),
+  product('b-tie',{risk_level:1,annual_fee_bps:20,lock_in_months:0}),
+ ]);
+ const result=await compare(h);
+ assert.equal(result.status,'AVAILABLE');
+ assert.equal(result.rankingPolicy,'LOWER_VERIFIED_RISK_THEN_FEES_THEN_LOCK_IN_THEN_ID');
+ assert.deepEqual(result.products.map(item=>item.id),['a-tie','b-tie','longer-lock']);
+ assert.ok(result.products.every(item=>!Object.hasOwn(item,'matchScore')));
+});
 test('missing fact, revoked rights, invalid tax, restricted eligibility and stale review fail closed',async()=>{
  const h=harness([
   product('bad-rights',{right_source_id:null}),
@@ -77,6 +94,20 @@ test('missing fact, revoked rights, invalid tax, restricted eligibility and stal
  assert.ok(r.exclusionCounts.DATA_RIGHTS_REVOKED_OR_EXPIRED>0);
  assert.ok(r.exclusionCounts.VERIFIED_MARKET_FACT_UNAVAILABLE>0);
  assert.equal(h.calls.filter(c=>c.observationFor).length,1);
+});
+
+test('changed product category, verification scope or tax evidence cannot reuse an old qualification',async()=>{
+ const h=harness([
+  product('wrong-category',{category_id:'mutual_funds'}),
+  product('unverified-product',{verification_scope:'DISCOVERY_ONLY'}),
+  product('missing-tax-source',{tax_class_evidence_url:null}),
+  product('insecure-tax-source',{tax_class_evidence_url:'http://issuer.example/tax'}),
+ ]);
+ const result=await compare(h);
+ assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.deepEqual(result.products,[]);
+ assert.equal(result.exclusionCounts.PRODUCT_NOT_FINANCIALLY_QUALIFIED,4);
+ assert.equal(h.calls.filter(call=>call.observationFor).length,0);
 });
 test('source mismatch and non-positive market price cannot enter top three',async()=>{
  const h=harness([
@@ -131,6 +162,21 @@ test('revocation between preliminary screening and final publication drops the w
  assert.equal(r.verifiedProductCount,1);
  assert.deepEqual(r.products,[]);
  assert.equal(r.exclusionCounts.MARKET_SOURCE_CHANGED_DURING_COMPARISON,1);
+});
+
+test('a changed observation unit or classification cannot reuse the earlier market fact',async()=>{
+ const h=harness([product('p1'),product('p2'),product('p3')]);
+ let reads=0;
+ h.store.latestPublishableObservation=async id=>{
+  reads+=1;
+  return {id,source_id:'verified-bank',value:'6.5',
+    unit:reads===4?'UNVERIFIED_UNIT':'PCT_PER_ANNUM',
+    data_class:'PUBLISHED_RATE',observed_at:now};
+ };
+ const result=await compare(h);
+ assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.deepEqual(result.products,[]);
+ assert.equal(result.exclusionCounts.MARKET_SOURCE_CHANGED_DURING_COMPARISON,1);
 });
 
 test('the comparison fetches only the reviewed provider identity, not a newer unrelated quote',async()=>{

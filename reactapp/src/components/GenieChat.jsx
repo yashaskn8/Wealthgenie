@@ -526,52 +526,6 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     }
   };
 
-  const handleAction = useCallback((action) => {
-    if (!action) return;
-    const target = action.target || action.url || '';
-    if (onNavigate) {
-      const TARGET_MAPPING = {
-        '/rebalancer': 'rebalancer',
-        '/portfolio-rebalance': 'rebalancer',
-        '/stepup': 'sip-planner',
-        '/tax': 'taxes',
-        '/tax-optimizer': 'taxes',
-        '/goals': 'goals',
-        '/comparison': 'compare',
-        '/compare': 'compare',
-        '/investments': 'compare',
-        '/invest': 'compare',
-        '/recommendations': 'dashboard',
-        '/dashboard': 'dashboard',
-        '/profile': 'profile',
-        '/calculators': 'sip-planner',
-        '/allocation': 'allocation',
-      };
-
-      let page = TARGET_MAPPING[target];
-      if (!page && target) {
-        const lower = target.toLowerCase();
-        if (lower.includes('rebal')) page = 'rebalancer';
-        else if (lower.includes('tax')) page = 'taxes';
-        else if (lower.includes('step') || lower.includes('sip') || lower.includes('calc')) page = 'sip-planner';
-        else if (lower.includes('goal')) page = 'goals';
-        else if (lower.includes('comp') || lower.includes('invest')) page = 'compare';
-        else if (lower.includes('prof')) page = 'profile';
-        else if (lower.includes('alloc')) page = 'allocation';
-        else page = 'dashboard';
-      }
-
-      if (!page) page = 'dashboard';
-
-      if (['rebalancer', 'sip-planner'].includes(page)) {
-        setActiveWorkspace(page);
-      } else {
-        onNavigate(page);
-        setIsOpen(false); // Close chatbot panel on successful navigation
-      }
-    }
-  }, [onNavigate]);
-
   const sendMessage = useCallback(async (text) => {
     const messageText = (text || input).trim();
     if (!messageText || isLoading || sendInFlightRef.current || isClearing || clearingRef.current) return;
@@ -891,7 +845,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
               <ProactiveNudge profile={profile} onAsk={sendMessage} />
 
-              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg} onAction={handleAction} isLatest={i === visibleMessages.length - 1} />)}
+              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg} isLatest={i === visibleMessages.length - 1} />)}
 
               {sessionMatchesProfile && isLoading && (
                 <div className="chat-bubble chat-bubble--genie">

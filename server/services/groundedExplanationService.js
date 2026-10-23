@@ -38,6 +38,11 @@ export const GROUNDED_PROVIDER_CHAIN_DEADLINE_MS = 60000;
 // Explain WealthGenie's input assumptions without fabricating a tax result.
 const TAX_ASSUMPTIONS_EXPLANATION_QUESTION = /^(?:(?:please\s+)?(?:explain|show|list|describe|outline|clarify|what(?:\s+are)?|tell\s+me\s+about)\s+)?(?:(?:the|my|your|wealthgenie's|current|app's)\s+)?(?:tax|income[ -]?tax)\s+(?:assumptions?|policy)(?:\s+(?:(?:is\s+)?used|here|in\s+(?:wealthgenie|the\s+app)|for\s+(?:my|the)\s+(?:plan|portfolio)))?[?.!\s]*$/i;
 const TAX_REGIME_POLICY_QUESTION = /^(?:(?:which|what)\s+(?:income[ -]?)?tax\s+regime\s+(?:does\s+(?:wealthgenie|the\s+app|genie)\s+use|is\s+(?:used|supported|assumed)(?:\s+(?:in|by)\s+(?:wealthgenie|the\s+app))?)|does\s+(?:wealthgenie|the\s+app|genie)\s+use\s+(?:the\s+)?(?:new|old|new\s+or\s+old)\s+(?:income[ -]?)?tax\s+regime)[?.!\s]*$/i;
+export function isPortfolioReviewQuestion(question) {
+  return /\b(?:review|analy[sz]e|assess|evaluate|check|summari[sz]e|inspect)\s+(?:(?:my|the|current|saved|recommended)\s+)?(?:portfolio|allocation|investment\s+plan|investments|recommendation)\b/i
+    .test(String(question || '').trim());
+}
+
 function isTaxPolicyExplanationQuestion(question) {
   const text = String(question || '').trim();
   return TAX_ASSUMPTIONS_EXPLANATION_QUESTION.test(text) || TAX_REGIME_POLICY_QUESTION.test(text);
@@ -49,13 +54,13 @@ export function retrieveTaxAssumptionEvidence(question) {
     source: { provider: 'WealthGenie backend policy', title: 'WealthGenie tax input and limitation policy', url: null } };
   return [
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_INPUTS', 'TAX', {
-      inputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
+      inputs: ['taxYear', 'incomeType', 'primaryIncome', 'otherOrdinaryIncome', 'residency', 'specialRateIncome', 'confirmedOrdinaryOnly'],
       inferredFromInvestmentProfile: false,
-    }, { ...policy, displayValue: 'WealthGenie supports only the new income-tax regime, not an old-versus-new comparison. Before a personal calculation, its Tax Optimizer needs an explicit financial year, annual income, tax regime (new only) and income-source breakdown; none is inferred from your investing profile' }),
+    }, { ...policy, displayValue: 'WealthGenie supports only the new income-tax regime, not an old-versus-new comparison. Before a personal calculation, its Taxes screen requires a declared tax year, income type, primary income, other ordinary income, residency and special-rate income status; none is inferred from your investing profile' }),
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_TREATMENT', 'TAX', {
       requirement: 'VERIFIED_RULES_AND_APPLICABLE_INPUTS',
       unsupportedTreatment: 'UNAVAILABLE',
-    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge follow the backend\'s fiscal-year-versioned new-regime rules only where the declared income type qualifies. Special-rate income and investment-specific tax treatment need supported evidence and inputs; unavailable treatment is not guessed' }),
+    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge follow the backend fiscal-year-versioned new-regime rules only where the declared income type qualifies. Special-rate income and investment-specific tax treatment need supported evidence and inputs; unavailable treatment is not guessed' }),
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_LIMITS', 'TAX', {
       personalTaxCalculatedInChat: false,
       projectedReturnsAreAfterTax: false,
@@ -326,6 +331,57 @@ function deterministicCandidate(packet, question = '') {
       evidenceIdsUsed: claims.flatMap(claim => claim.evidenceIds),
       claims, financialClaims, unavailableFacts: packet.unavailableFacts,
     };
+  }
+  const portfolioScope = packet.entries.find(item => item.id === 'E_PORTFOLIO_REVIEW_SCOPE');
+  if (portfolioScope && isPortfolioReviewQuestion(question)) {
+    const claims = [];
+    const financialClaims = [];
+    const risk = packet.entries.find(item => item.id === 'E_PROFILE_RISK' && item.kind === 'SUITABILITY');
+    const safeRiskLabel = value => typeof value === 'string' && value.length <= 40
+      && /^[A-Za-z]+(?:[ -][A-Za-z]+)*$/.test(value) ? value : null;
+    const finalRisk = safeRiskLabel(risk?.value?.finalSuitabilityRisk);
+    const statedRisk = safeRiskLabel(risk?.value?.statedRiskTolerance);
+    if (finalRisk || statedRisk) {
+      const riskText = finalRisk && statedRisk
+        ? `Your stated risk preference is ${statedRisk}; the saved suitability assessment caps it at ${finalRisk}`
+        : finalRisk ? `Your saved suitability ceiling is ${finalRisk}`
+          : `Your stated risk preference is ${statedRisk}`;
+      claims.push({ text: `${riskText} [${risk.id}].`, evidenceIds: [risk.id] });
+    }
+    const allocations = packet.entries.filter(item => item.kind === 'RECOMMENDATION'
+      && /^E_REC_\d{3}$/.test(item.id)
+      && item.dataClass === 'AUTHORITATIVE_BACKEND_RESULT'
+      && item.authority === 'WEALTHGENIE_BACKEND'
+      && typeof item.value?.allocationPct === 'number'
+      && Number.isFinite(item.value.allocationPct)
+      && item.value.allocationPct > 0 && item.value.allocationPct <= 100);
+    for (const item of allocations.slice(0, 8)) {
+      const name = String(item.value?.name || '').replace(/\s+/g, ' ').trim();
+      const type = String(item.value?.type || '').replace(/[_-]+/g, ' ').trim();
+      const safeLabel = value => value.length > 1 && value.length <= 90
+        && /^[\p{L}\s&()/.,-]+$/u.test(value);
+      const label = safeLabel(name) ? name
+        : safeLabel(type) ? type : 'a saved recommendation category';
+      const statement = `Saved recommendation allocation: ${item.value.allocationPct}% to ${label} [${item.id}].`;
+      claims.push({ text: statement, evidenceIds: [item.id] });
+      financialClaims.push({
+        type: 'ALLOCATION_WEIGHT', value: item.value.allocationPct,
+        unit: 'PERCENT', timePeriod: 'CURRENT_PLAN', source: 'WEALTHGENIE_BACKEND',
+        evidenceId: item.id, jurisdiction: null, effectivePeriod: null, statement,
+      });
+    }
+    if (allocations.length === 0) {
+      const unavailable = packet.entries.find(item => item.id === 'E_PORTFOLIO_REVIEW_UNAVAILABLE');
+      if (unavailable) claims.push({
+        text: `${unavailable.displayValue} [${unavailable.id}].`,
+        evidenceIds: [unavailable.id],
+      });
+    }
+    claims.push({ text: `${portfolioScope.displayValue} [${portfolioScope.id}].`,
+      evidenceIds: [portfolioScope.id] });
+    return { text: claims.map(claim => claim.text).join(' '),
+      evidenceIdsUsed: claims.flatMap(claim => claim.evidenceIds),
+      claims, financialClaims, unavailableFacts: packet.unavailableFacts };
   }
   const personalizedRiskQuestion = /\b(?:risk|suitability|tolerance|capacity)\b/i.test(question)
     && /\b(?:my|me|plan|profile|portfolio|recommendation)\b/i.test(question);
@@ -616,6 +672,18 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
   const runProviderChain = async () => {
     let failedProviderTokensUsed = 0;
     let failedProviderUsageUnknown = false;
+    if (evidencePacket.entries.some(item => item.id === 'E_PORTFOLIO_REVIEW_SCOPE')
+        && isPortfolioReviewQuestion(question)) {
+      const result = outputResult({
+        candidate: deterministicCandidate(evidencePacket, question),
+        packet: evidencePacket, provider: 'deterministic_template',
+        model: null, latencyMs: 0, tokensUsed: 0,
+        fallback: false, reasonCodes: [],
+      });
+      result.providerAttemptCount = 0;
+      result.providerAttemptFailureCount = 0;
+      return result;
+    }
     // Goal amounts and monthly arithmetic are deterministic USER_INPUT /
     // backend-calculation facts, not permission for an LLM to guess a SIP.
     // Answer these scoped planning questions without any model calls.
@@ -1003,15 +1071,43 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
   });
   const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(question);
   const entries = [...goalEvidence, ...taxAssumptionEvidence, ...retrieveChatEducationalEvidence(question)];
+  if (isPortfolioReviewQuestion(question)) {
+    entries.push(makeEvidenceEntry('E_PORTFOLIO_REVIEW_SCOPE', 'ANSWER_BOUNDARY',
+      { sourceType: 'SAVED_MODEL_RECOMMENDATION', verifiedBrokerageHoldings: false }, {
+        dataClass: 'DETERMINISTIC_POLICY_EXPLANATION',
+        displayValue: 'This review covers your saved WealthGenie recommended allocation and risk suitability, not verified investments you currently hold. It does not establish live value, realized returns, fees, or tax outcomes',
+        source: { provider: 'WEALTHGENIE_BACKEND', title: 'Saved recommendation review scope', url: null },
+      }));
+    const hasAllocation = Array.isArray(recommendation?.instruments)
+      && recommendation.instruments.some(item => {
+        const primary = item?.allocation_pct;
+        const legacy = item?.allocationWeight;
+        const presentFinite = value => (typeof value === 'number' && Number.isFinite(value))
+          || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
+        return presentFinite(primary) ? Number(primary) > 0
+          : presentFinite(legacy) && Number(legacy) > 0;
+      });
+    if (!hasAllocation) {
+      entries.push(makeEvidenceEntry('E_PORTFOLIO_REVIEW_UNAVAILABLE', 'ANSWER_BOUNDARY',
+        { currentSavedRecommendationAvailable: false }, {
+          dataClass: 'SYSTEM_AVAILABILITY_STATUS',
+          displayValue: 'There is no current saved recommendation allocation available to review. Complete or refresh the Financial Profile and generate a fresh recommendation before drawing investment conclusions',
+          source: { provider: 'WEALTHGENIE_BACKEND', title: 'Current recommendation availability', url: null },
+        }));
+    }
+  }
   const unavailableFacts = [];
-  const recommendationRelevant = isPersonalizedRecommendationQuestion(question);
+  const recommendationRelevant = isPersonalizedRecommendationQuestion(question)
+    || isPortfolioReviewQuestion(question);
   const regulatoryLookup = dependencies.queryRegulatoryRag
     || (process.env.ML_SERVICE_API_KEY ? queryRAG : null);
-  const regulatory = await retrieveQualifiedRegulatoryChatEvidence({
-    question,
-    userId,
-    queryRag: regulatoryLookup,
-  });
+  const regulatory = isPortfolioReviewQuestion(question) || isTaxPolicyExplanationQuestion(question)
+    ? { entries: [], unavailableFacts: [] }
+    : await retrieveQualifiedRegulatoryChatEvidence({
+      question,
+      userId,
+      queryRag: regulatoryLookup,
+    });
   entries.push(...regulatory.entries);
   unavailableFacts.push(...regulatory.unavailableFacts);
   if (/market context|cautious|risk.off|high.volatility|nifty|india vix/i.test(question)) {
@@ -1058,14 +1154,18 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     if (!entries.some(item => item.kind === 'PROJECTION')) unavailableFacts.push('PROJECTION_ASSUMPTION_UNAVAILABLE');
   }
 
-  if (taxAssumptionEvidence.length === 0 && /\b(?:tax\s+regime|post[ -]?tax|deductions?|tax\s+slabs?|tax\s+liabilit(?:y|ies)|tax\s+(?:assumptions?|calculation|comparison))\b/i.test(question)) {
+  if (taxAssumptionEvidence.length === 0 && /\b(?:tax\s+regimes?|post[ -]?tax|deductions?|tax\s+slabs?|tax\s+liabilit(?:y|ies)|tax\s+(?:assumptions?|calculation|comparison))\b/i.test(question)) {
     unavailableFacts.push('POST_TAX_RETURN_UNAVAILABLE_MISSING_TAX_INPUTS');
+    if (/\bold\s+(?:income\s+)?tax\s+(?:regime|system)\b|\bcompare\b(?=[^.!?]{0,80}\bold\b)(?=[^.!?]{0,80}\bnew\b)[^.!?]{0,80}\btax\s+regimes?\b/i.test(question)) {
+      unavailableFacts.push('UNSUPPORTED_TAX_REGIME_NEW_ONLY');
+    }
     entries.push(makeEvidenceEntry('E_TAX_INPUT_BOUNDARY', 'TAX', {
-      requiredInputs: ['fiscalYear', 'annualIncome', 'regime', 'incomeSource'],
+      requiredInputs: ['taxYear', 'incomeType', 'primaryIncome', 'otherOrdinaryIncome', 'residency', 'specialRateIncome', 'confirmedOrdinaryOnly'],
+      supportedRegime: 'new',
       inferenceAllowed: false,
     }, {
       dataClass: 'UNAVAILABLE',
-      displayValue: 'GenieChat has not calculated a personal tax result here. A tax result requires explicit fiscal year, annual income, regime, and income source in the Tax Optimizer; these inputs cannot be inferred from your investing profile',
+      displayValue: 'GenieChat has not calculated a personal tax result here. WealthGenie supports new-regime calculations only. Enter declared tax-year, income type, primary income, other ordinary income, residency, special-rate income status and ordinary-income-only confirmation in Taxes. The old regime is unsupported in this app, not abolished under law. Inputs cannot be inferred from your investing profile',
     }));
   }
 
@@ -1082,6 +1182,7 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     recommendation: recommendationRelevant ? recommendation : null,
     additionalEntries: entries,
     unavailableFacts,
+    ...(isPortfolioReviewQuestion(question) ? { purpose: 'RECOMMENDATION_EXPLANATION' } : {}),
   };
   const packet = buildGroundedEvidencePacket(financialEvidence);
   if (packet.entries.some(item => item.id !== 'E_REGULATORY_NOTICE')) return packet;

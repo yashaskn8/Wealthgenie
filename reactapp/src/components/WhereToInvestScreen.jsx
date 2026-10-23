@@ -45,6 +45,7 @@ const WhereToInvestScreen = ({
   const [shortlistSaved, setShortlistSaved] = useState(false);
   const profileId = userProfile?.profileId || userProfile?._id || null;
   const profileVersion = userProfile?.version || null;
+  const catalogProfileKey = `${profileId || 'none'}:${profileVersion || 'none'}`;
   const recommendationIds = recommendedParents.map(entry => entry?.id).join('|');
 
   useEffect(() => {
@@ -135,7 +136,7 @@ const WhereToInvestScreen = ({
   if (!recommendedParents || recommendedParents.length === 0) {
     return (
       <div className="wti-screen-container">
-        <InvestmentUniverseExplorer />
+        <InvestmentUniverseExplorer key={catalogProfileKey} />
         <div className="wti-loading-card">
           <AlertCircle size={24} className="wti-loading-icon" aria-hidden="true" />
           <div>
@@ -219,7 +220,7 @@ const WhereToInvestScreen = ({
         </section>
       )}
 
-      <InvestmentUniverseExplorer />
+      <InvestmentUniverseExplorer key={catalogProfileKey} />
 
       {/* ─── Recommended Category Segmented Rail (Strictly in exact backend recommendation order) ─── */}
       <nav className="wti-category-nav" aria-label="Investment category selector">
