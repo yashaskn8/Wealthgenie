@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
-  getDecisionRun, listDecisionRuns, deleteDecisionScenario,
+  getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
 } from '../services/api';
 import './GenieDecisionWorkspace.css';
 
@@ -53,6 +53,15 @@ const prettyMoney = value => typeof value === 'string' && /^-?\d+\.\d{2}$/.test(
   ? `${value.startsWith('-') ? '-' : ''}₹${Number(value.replace('-', '')).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   : 'Not available';
 const shortDate = text => text ? new Date(text).toLocaleDateString('en-IN') : '';
+// Never create a fresh idempotency key for an identical retry after a lost
+// response: the server may already have committed the first submission.
+const retryKey = (reference, operation, payload) => {
+  const signature = JSON.stringify({ operation, payload });
+  if (reference.current?.signature !== signature) {
+    reference.current = { signature, key: generateUUID() };
+  }
+  return reference.current.key;
+};
 
 function Field({ name, labelText, value, onChange, integer = false, help }) {
   return <label className="gd-field"><span>{labelText}</span>
@@ -116,6 +125,8 @@ export default function GenieDecisionWorkspace() {
   const [report, setReport] = useState(null);
   const [runs, setRuns] = useState([]);
   const loadGeneration = useRef(0);
+  const createRequestRef = useRef(null);
+  const evaluationRequestRef = useRef(null);
   const [savedFingerprint, setSavedFingerprint] = useState(null);
   const [pending, setPending] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -156,6 +167,9 @@ export default function GenieDecisionWorkspace() {
 
   const newScenario = () => {
     loadGeneration.current += 1;
+    createRequestRef.current = null;
+    evaluationRequestRef.current = null;
+    setPending(false);
     setActive(null);
     setType('INCOME_INTERRUPTION');
     setTitle('My income interruption plan');
@@ -186,6 +200,8 @@ export default function GenieDecisionWorkspace() {
       setBaseline(saved.payload.baseline);
       setGoalReservations(saved.payload.goalReservations);
       setDetails(saved.payload.details);
+      createRequestRef.current = null;
+      evaluationRequestRef.current = null;
       setSavedFingerprint(JSON.stringify({
         title: saved.payload.title, type: saved.scenario.scenarioType,
         horizon: String(saved.payload.horizonMonths),
@@ -244,11 +260,15 @@ export default function GenieDecisionWorkspace() {
           goalReservations: values.goalReservations, details: values.details,
         });
       } else {
-        result = await createDecisionScenario({
+        const createInput = {
           ...values, profileId: availability.profileId,
           expectedProfileStateRevision: availability.profileStateRevision,
-        });
+        };
+        const key = retryKey(createRequestRef, 'decision.create', createInput);
+        result = await createDecisionScenario(createInput, { headers: { 'Idempotency-Key': key } });
       }
+      createRequestRef.current = null;
+      evaluationRequestRef.current = null;
       setActive(result.scenario);
       setSavedFingerprint(JSON.stringify({
         title: values.title, type: values.scenarioType,
@@ -271,7 +291,11 @@ export default function GenieDecisionWorkspace() {
     }
     setPending(true); setError(''); setSuccess('');
     try {
-      const result = await evaluateDecisionScenario(active.id, active.revision);
+      const key = retryKey(evaluationRequestRef,
+        `decision.evaluate:${active.id}`, { expectedRevision: active.revision });
+      const result = await evaluateDecisionScenario(active.id, active.revision,
+        { headers: { 'Idempotency-Key': key } });
+      evaluationRequestRef.current = null;
       setReport(result);
       setRuns((await listDecisionRuns(active.id)).runs || []);
       setSuccess('A versioned report was published without changing your investments or profile.');
