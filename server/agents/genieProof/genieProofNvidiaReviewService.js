@@ -51,7 +51,7 @@ function unavailable(claimId, reasonCode) {
 }
 
 export async function reviewGenieProofWithNvidia({
-  offerText,
+  statement,
   claimId,
   consent,
   verifier = null,
@@ -59,17 +59,21 @@ export async function reviewGenieProofWithNvidia({
   evidenceResolver,
   signal,
 } = {}) {
-  if (consent !== true || typeof claimId !== 'string' || !/^[a-f0-9]{32}$/.test(claimId)) {
+  if (consent !== true || typeof claimId !== 'string' || !/^[a-f0-9]{32}$/.test(claimId)
+      || typeof statement !== 'string' || statement.length > 500 || Buffer.byteLength(statement, 'utf8') > 1600) {
     return unavailable(null, 'EXPLICIT_CONSENT_AND_CLAIM_REQUIRED');
   }
   if (signal?.aborted) return unavailable(claimId, 'REQUEST_CANCELLED');
 
   const checked = await checkGenieProofClaims({
-    offerText, verifier,
+    offerText: statement, verifier,
     ...(evidenceResolver ? { evidenceResolver } : {}),
   });
   if (!checked.ok) return unavailable(claimId, checked.code);
-  const claim = checked.claims.find(c => c.claimId === claimId);
+  // The original excerpt is all that may leave this endpoint for NVIDIA.
+  // Its UI identifier is a correlation key, not input to the financial decision.
+  const claim = checked.claims.length === 1 && checked.claims[0].statement === statement
+    ? checked.claims[0] : null;
   if (!claim) return unavailable(claimId, 'CLAIM_NOT_IN_SUBMISSION');
 
   if (!nvidia?.isConfigured?.()) return unavailable(claimId, 'NVIDIA_NOT_CONFIGURED');
