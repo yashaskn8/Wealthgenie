@@ -14,6 +14,20 @@ import {
 
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const id = value => String(value);
+export function signMonitorConsent({ userId, scenarioId, generation, enabled }) {
+  return signDecisionReceipt('decision_monitor_consent',
+    { userId: id(userId), scenarioId: id(scenarioId), generation }, { enabled });
+}
+export function verifyMonitorConsent(monitor) {
+  if (!monitor || !verifyDecisionReceipt(monitor, 'decision_monitor_consent', {
+    userId: id(monitor.userId), scenarioId: id(monitor.scenarioId),
+    generation: monitor.generation,
+  }, { enabled: monitor.enabled })) {
+    const error = new Error('Monitoring consent could not be authenticated.');
+    error.code = 'DECISION_MONITOR_CONSENT_INTEGRITY_FAILURE';
+    throw error;
+  }
+}
 
 export function assessmentContext(item) {
   return {
@@ -74,7 +88,9 @@ export function assessmentDto(assessment, current, scenario, monitor) {
 export async function assessMonitoredDecision(monitor, {
   resolveProfile = resolveCurrentFinancialProfile,
 } = {}) {
-  if (!monitor?.enabled) return 'DISABLED';
+  if (!monitor) return 'DISABLED';
+  verifyMonitorConsent(monitor);
+  if (!monitor.enabled) return 'DISABLED';
   const scenario = await DecisionScenario.findOne({
     _id: monitor.scenarioId, userId: monitor.userId,
   }).lean();
@@ -135,6 +151,7 @@ export async function assessMonitoredDecision(monitor, {
         _id: monitor._id, enabled: true, generation: monitor.generation,
       }).session(session).lean();
       if (!freshMonitor) { outcome = 'WATCH_DISABLED'; return; }
+      verifyMonitorConsent(freshMonitor);
       const freshScenario = await DecisionScenario.findOne({
         _id: scenario._id, userId: monitor.userId, revision: scenario.revision,
       }).session(session).lean();
