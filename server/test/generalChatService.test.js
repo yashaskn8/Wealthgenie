@@ -470,3 +470,23 @@ test('upstream AbortError can fall back, but cancellation from the user is propa
     signal: controller.signal, providers: [],
   }), /Client cancelled/);
 });
+
+test('conversational follow-up keeps only safe prior educational turns', async () => {
+  let history;
+  const answer = await generateGeneralChatAnswer({
+    question: 'Explain that more simply',
+    priorTurns: [
+      { role: 'user', content: 'What is XIRR?' },
+      { role: 'model', content: 'XIRR summarizes annualized cash-flow returns.' },
+    ],
+  }, { providers: [{
+    name: 'groq', isConfigured: () => true, async generate({ recentHistory }) {
+      history = recentHistory;
+      return { text: 'It compares money flows on different dates.', tokensUsed: 10, wasCompleted: true };
+    },
+  }] });
+  assert.equal(answer.provider, 'GROQ');
+  assert.equal(history.length, 3);
+  assert.match(history[0].parts[0].text, /XIRR/);
+  assert.match(history[1].parts[0].text, /annualized/);
+});
