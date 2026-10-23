@@ -77,7 +77,7 @@ async function getBoundedJson(url,{fetchImpl=globalThis.fetch}={}){
  * AMFI extraction. Parsed with the same strict NAV risk normalizer.
  */
 export async function getMfapiHistoryResearch(schemeCode,options={}){
- if(typeof schemeCode!=='string'||!/^[1-9]\\d{4,6}$/.test(schemeCode))
+ if(typeof schemeCode!=='string'||!/^[1-9]\d{4,6}$/.test(schemeCode))
   throw new RangeError('INVALID_FUND_SCHEME_CODE');
  const now=options.now instanceof Date?options.now:new Date();
  if(!Number.isFinite(+now))return unknown('INVALID_AS_OF_DATE');
