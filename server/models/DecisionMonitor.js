@@ -8,6 +8,8 @@ const schema = new mongoose.Schema({
   enabled: { type: Boolean, required: true, default: false },
   generation: { type: Number, required: true, default: 1, min: 1, validate: Number.isSafeInteger },
   lastCheckedAt: { type: Date, default: null },
+  integrityKeyId: { type: String, required: true, match: /^[A-Za-z0-9_-]{1,32}$/ },
+  integrityTag: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
 }, { strict: 'throw', timestamps: true });
 schema.index({ userId: 1, scenarioId: 1 }, { unique: true, name: 'uniq_decision_monitor_owner_scenario' });
 schema.index({ enabled: 1, lastCheckedAt: 1 }, { name: 'decision_monitor_scan' });
