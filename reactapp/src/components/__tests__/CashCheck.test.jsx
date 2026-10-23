@@ -153,5 +153,25 @@ describe('90-day cash check', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download saved history' }));
     await screen.findByText(/Export cancelled to prevent a mixed history/i);
   });
+  it('formats near-maximum exact paise and negative shortfalls without floating-point rounding', async () => {
+    const nearMax = 9007199254740991;
+    api.getCoverageLedger.mockResolvedValue({
+      revision: 1, ledger: {
+        asOfDate: indiaToday(), openingCashPaise: 10000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [],
+      },
+      latestResult: { result: {
+        ...baseline(),
+        baseline: { ...baseline().baseline, minWithinDayPaise: -987, closingBalancePaise: nearMax },
+      } },
+      requiresCashReconfirmation: false,
+    });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    expect(screen.getByText('-₹9.87')).toBeTruthy();
+    expect(screen.getByText(/409\.91$/)).toBeTruthy();
+    expect(screen.queryByText(/409\.90$/)).toBeNull();
+  });
+
 
 });

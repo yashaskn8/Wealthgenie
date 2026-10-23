@@ -26,3 +26,6 @@ Verify independent balance/date oracle, Mongo replica-set concurrency and transa
 ## Bounded history and private export
 
 At most 256 full saved coverage snapshots per owner are retained until intentional deletion. After the limit, a new save fails closed and users must download their history and explicitly delete/restart their plan; deletion does not reset the monotonic revision fence. GET /api/coverage/export supports owned JSON pages of at most 20 records with an afterRevision cursor. The workspace offers a full saved-history JSON download. This is a bounded storage policy, **not** a verified backup expiry or final jurisdiction-specific retention assessment.
+
+### Exact currency rendering red-team check
+Frontend rupee formatting must separate whole rupees and integer paise, never convert a potentially large exact-paise aggregate to floating-point rupees before rendering. For example, 9007199254740991 paise must display a `.91` suffix rather than `.90`; negative dated deficits must preserve their sign.

@@ -21,9 +21,16 @@ const INDIA_DATE = () => {
   const dict = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
   return dict.year + '-' + dict.month + '-' + dict.day;
 };
-const formatMoney = paise => Number.isSafeInteger(paise)
-  ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(paise / 100)
-  : 'Not available';
+// Never divide exact paise into a floating rupee value: at large but safe
+// aggregate balances, binary floats can display the WRONG final paisa.
+const rupeeIntegerFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+function formatMoney(paise) {
+  if (!Number.isSafeInteger(paise)) return 'Not available';
+  const integerPaise = Math.abs(paise);
+  const whole = Math.floor(integerPaise / 100);
+  const cents = String(integerPaise % 100).padStart(2, '0');
+  return (paise < 0 ? '-' : '') + '₹' + rupeeIntegerFormatter.format(whole) + '.' + cents;
+}
 function parseRupeeInput(value, { allowEmpty = false } = {}) {
   if (allowEmpty && value.trim() === '') return null;
   const match = /^(0|[1-9]\d{0,9})(?:\.(\d{1,2}))?$/.exec(value.trim());
@@ -35,7 +42,9 @@ function parseRupeeInput(value, { allowEmpty = false } = {}) {
   return amount;
 }
 function rupees(paise) {
-  return paise === null || paise === undefined ? '' : (paise / 100).toFixed(2);
+  if (paise === null || paise === undefined) return '';
+  if (!Number.isSafeInteger(paise) || paise < 0) return '';
+  return String(Math.floor(paise / 100)) + '.' + String(paise % 100).padStart(2, '0');
 }
 let localCounter = 0;
 const newEntry = () => ({
