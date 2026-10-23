@@ -12,7 +12,7 @@ const idempotencyKeySchema = new mongoose.Schema({
   requestHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
   lockOwnerId: { type: String, default: null },
   leaseExpiresAt: { type: Date, default: null },
-  resourceType: { type: String, enum: ['FinancialProfile', 'Goal', 'CoverageResult', null], default: null },
+  resourceType: { type: String, enum: ['FinancialProfile', 'Goal', 'CoverageResult', 'CoverageDeletionReceipt', null], default: null },
   resourceId: { type: mongoose.Schema.Types.ObjectId, default: null },
   response: { type: mongoose.Schema.Types.Mixed, default: null },
   responseStatus: { type: Number, min: 200, max: 299, default: null },
