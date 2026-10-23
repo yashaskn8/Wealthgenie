@@ -55,7 +55,7 @@ export function retrieveTaxAssumptionEvidence(question) {
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_TREATMENT', 'TAX', {
       requirement: 'VERIFIED_RULES_AND_APPLICABLE_INPUTS',
       unsupportedTreatment: 'UNAVAILABLE',
-    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge follow the backend's fiscal-year-versioned new-regime rules only where the declared income type qualifies. Special-rate income and investment-specific tax treatment need supported evidence and inputs; unavailable treatment is not guessed' }),
+    }, { ...policy, displayValue: 'Deductions, rebates, cess or surcharge follow the backend\'s fiscal-year-versioned new-regime rules only where the declared income type qualifies. Special-rate income and investment-specific tax treatment need supported evidence and inputs; unavailable treatment is not guessed' }),
     makeEvidenceEntry('E_TAX_ASSUMPTIONS_LIMITS', 'TAX', {
       personalTaxCalculatedInChat: false,
       projectedReturnsAreAfterTax: false,
