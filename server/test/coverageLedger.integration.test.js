@@ -95,6 +95,37 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.deepEqual(race.map(r => r.status).sort(), [200, 409]);
     assert.equal((await call(racer, 'GET', '/ledger')).body.revision, 2);
     assert.equal(await CoverageResult.countDocuments({ userId: racer }), 2);
+    // Crash injection: a failing snapshot insert must roll back the ledger CAS,
+    // leaving no apparently-current calculation without an immutable result.
+    const crashOwner = new mongoose.Types.ObjectId();
+    const beforeCrash = payload();
+    assert.equal((await call(crashOwner, 'PUT', '/ledger', beforeCrash, 0, randomUUID())).status, 200);
+    const originalCreate = CoverageResult.create;
+    CoverageResult.create = async function injectedSnapshotFailure(documents, options) {
+      if (String(documents?.[0]?.userId) === String(crashOwner)
+          && documents?.[0]?.ledgerRevision === 2) {
+        throw new Error('INJECTED_SNAPSHOT_WRITE_FAILURE');
+      }
+      return originalCreate.call(this, documents, options);
+    };
+    try {
+      const crashed = await call(crashOwner, 'PUT', '/ledger', {
+        ...beforeCrash, openingCashPaise: 30_000,
+      }, 1, randomUUID());
+      assert.equal(crashed.status, 500);
+    } finally {
+      CoverageResult.create = originalCreate;
+    }
+    const retainedAfterCrash = await CoverageLedger.findOne({ userId: crashOwner }).lean();
+    assert.equal(retainedAfterCrash.revision, 1);
+    assert.equal(retainedAfterCrash.input.openingCashPaise, 20_000);
+    assert.equal(await CoverageResult.countDocuments({ userId: crashOwner }), 1);
+    const recoveredAfterCrash = await call(crashOwner, 'PUT', '/ledger', {
+      ...beforeCrash, openingCashPaise: 30_000,
+    }, 1, randomUUID());
+    assert.equal(recoveredAfterCrash.status, 200);
+    assert.equal(recoveredAfterCrash.body.revision, 2);
+
     const otherRead = await call(other, 'GET', '/ledger');
     assert.equal(otherRead.status, 200);
     assert.equal(otherRead.body.revision, 0);
