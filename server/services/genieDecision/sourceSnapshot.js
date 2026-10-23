@@ -44,13 +44,13 @@ export function hashDecisionSourceSnapshot(snapshot) {
 }
 export function fingerprintDecisionSnapshotFacts(snapshot) {
   if (!snapshot || !Array.isArray(snapshot.facts) || snapshot.facts.length !== fields.length) {
-    throw new Error('DECISION_SNAPSHOT_FACTS_INCOMPLETE');
+    return null;
   }
   const canonical = {};
   for (let i = 0; i < fields.length; i += 1) {
     const fact = snapshot.facts[i];
     if (!fact || fact.field !== fields[i][0] || typeof fact.value !== 'string') {
-      throw new Error('DECISION_SNAPSHOT_FACTS_INCOMPLETE');
+      return null;
     }
     canonical[fact.field] = fact.value;
   }
