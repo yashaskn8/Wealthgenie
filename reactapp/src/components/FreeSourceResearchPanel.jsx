@@ -51,7 +51,7 @@ export default function FreeSourceResearchPanel(){
   finally{if(!c.signal.aborted)setBusy(false);}
  }
  const search=()=>{
-  setFunds([]);setSelected(null);
+  setFunds([]);setSelected(null);setSearchSource(null);
   request(signal=>searchFreeMutualFunds(query,{signal}),value=>{
   if(value?.status!=='AVAILABLE'||!Array.isArray(value.results))
    throw new Error('Source returned no qualified research list');
@@ -122,7 +122,7 @@ export default function FreeSourceResearchPanel(){
        </p>
        <label style={{fontSize:12}}>Scheme search{' '}
         <input style={style.field} aria-label="Search mutual fund scheme" value={query}
-         maxLength={80} onChange={e=>{invalidateFinancialResult();setQuery(e.target.value);setSelected(null);setFunds([]);}}/></label>{' '}
+         maxLength={80} onChange={e=>{invalidateFinancialResult();setQuery(e.target.value);setSelected(null);setFunds([]);setSearchSource(null);}}/></label>{' '}
        <button type="button" style={style.action} disabled={busy} onClick={search}>Search online NAV</button>
        {searchSource&&<p style={{fontSize:12,color:'#cbd5e1'}}>
         Source: <strong>{searchSource}</strong>.
