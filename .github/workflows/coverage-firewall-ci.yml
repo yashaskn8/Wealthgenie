@@ -1,0 +1,71 @@
+name: Coverage Firewall - Targeted Safety Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/routes/coverage.js'
+      - 'server/services/coverageEngine.js'
+      - 'server/models/Coverage*.js'
+      - 'server/middleware/idempotency.js'
+      - 'server/test/coverage*.test.js'
+      - 'server/scripts/*required-tests.json'
+      - 'server/services/persistenceIndexReadiness.js'
+      - 'reactapp/src/components/CashCheck.jsx'
+      - 'reactapp/src/components/CashCheck.css'
+      - 'reactapp/src/components/__tests__/CashCheck.test.jsx'
+      - 'reactapp/src/services/api.js'
+      - '.github/workflows/coverage-firewall-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cash-engine:
+    name: Exact-Paise Engine & Real Mongo Transactions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: supercharge/mongodb-github-action@b0a1493307c4e9b82ed61f3858d606c5ff190c64 # 1.10.0
+        with:
+          mongodb-version: '7.0'
+          mongodb-replica-set: rs0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Reproduce locked backend dependencies
+        run: npm ci --prefix server
+      - name: Verify and exercise exact money arithmetic
+        run: node --test server/test/coverageEngine.test.js
+      - name: Exercise authenticated Mongo replica-set transactions and fault injection
+        env:
+          NODE_ENV: test
+          MONGODB_URI: mongodb://127.0.0.1:27017/wealthgenie_coverage_test?replicaSet=rs0
+          JWT_SECRET: coverage-ci-test-only-never-use-in-production-0123456789
+        run: node --test --test-concurrency=1 server/test/coverageLedger.integration.test.js
+
+  cash-ui:
+    name: Private Cash UI & Revision-Retry Behavior
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: reactapp/package-lock.json
+      - name: Reproduce locked frontend dependencies
+        run: npm ci --prefix reactapp
+      - name: Check all TypeScript contracts
+        run: npm run typecheck --prefix reactapp
+      - name: Exercise cash-workspace UI, retry, privacy and conflicts
+        run: npm test --prefix reactapp -- src/components/__tests__/CashCheck.test.jsx
