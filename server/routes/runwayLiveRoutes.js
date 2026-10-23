@@ -22,7 +22,7 @@ import {
 import { RunwayLedgerState, RunwayLedgerRevision } from '../models/Runway.js';
 import { buildRunwayObservedAccounts } from '../services/runwayAccountObservations.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
-import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
+import { RunwayProjectionJob, RunwayProjectionResult, RunwayAlert } from '../models/RunwayProjection.js';
 import {
   queueRunwayProjection, runwayProjectionId, verifyRunwayProjectionResult,
 } from '../services/runwayProjectionOutbox.js';
@@ -139,6 +139,37 @@ export function createRunwayLiveRouter({
         ? (observed.periodEnd === indiaCivilToday() ? 'UPLOADED_TODAY_UNVERIFIED' : 'HISTORICAL_USER_UPLOAD')
         : 'NO_IMPORTED_EVIDENCE',
       notice: 'Statements are user-uploaded, not a real-time bank feed. Imported transactions never silently change your confirmed cash or settle planned bills.',
+    });
+  }));
+  router.get('/alerts', asyncHandler(async (req, res) => {
+    const userId = owner(req);
+    const current = await currentRevision(userId);
+    if (!current) return res.json({ status: 'NO_CONFIRMED_LEDGER', items: [] });
+    const alert = await RunwayAlert.findOne({
+      userId, revision: current.state.revision, kind: 'LISTED_CASH_SHORTFALL',
+    }).lean();
+    if (!alert) return res.json({ status: 'NO_ALERT_FOR_CURRENT_REVISION', items: [] });
+    const projection = await RunwayProjectionResult.findOne({
+      _id: alert.projectionId, userId, revision: current.state.revision,
+    }).lean();
+    if (!projection || projection.inputHash !== current.revision.inputHash
+      || projection.resultHash !== alert.resultHash
+      || !verifyRunwayProjectionResult(projection)) {
+      throw fail(503, 'RUNWAY_ALERT_INTEGRITY_INVALID',
+        'A persisted risk alert cannot be verified against the current signed ledger.');
+    }
+    const plain = decryptRunwayProjectionResult(projection);
+    const shortfall = plain.scenarios?.[0]?.cashAlreadyAvailable?.firstCertainShortfall;
+    if (!shortfall || !shortfall.date || !shortfall.deficitPaise) {
+      throw fail(503, 'RUNWAY_ALERT_INTEGRITY_INVALID', 'Alert does not match the projection.');
+    }
+    return res.json({
+      status: 'CURRENT_USER_DECLARED_RISK',
+      items: [{ alertId: alert._id, kind: alert.kind, revision: alert.revision,
+        date: shortfall.date, deficitPaise: shortfall.deficitPaise,
+        computedAt: projection.computedAt,
+        verification: 'DETERMINISTIC_USER_DECLARED_NOT_BANK_VERIFIED' }],
+      warning: 'Listed commitments might exceed declared cash. This does not include unlisted spending or verified bank balances.',
     });
   }));
   router.get('/accounts', asyncHandler(async (req, res) => {

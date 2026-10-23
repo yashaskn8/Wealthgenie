@@ -5,7 +5,7 @@
 import mongoose from 'mongoose';
 import { RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
-import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
+import { RunwayProjectionJob, RunwayProjectionResult, RunwayAlert } from '../models/RunwayProjection.js';
 
 const uri = String(process.env.MONGODB_MIGRATION_URI || '').trim();
 if (!uri) throw new Error('MONGODB_MIGRATION_URI is required for Household Runway index migration.');
@@ -44,7 +44,9 @@ try {
     { unique: true, name: 'uniq_runway_projection_job_revision' });
   await RunwayProjectionResult.collection.createIndex({ userId: 1, revision: -1 },
     { name: 'runway_projection_owner_revision' });
-  const [indexes, snapshots, deletions, statements, signals, settlements, jobs, projections] = await Promise.all([
+  await RunwayAlert.collection.createIndex({ userId: 1, revision: -1 },
+    { name: 'runway_alert_owner_revision' });
+  const [indexes, snapshots, deletions, statements, signals, settlements, jobs, projections, alerts] = await Promise.all([
     RunwayLedgerRevision.collection.indexes(),
     RunwaySnapshot.collection.indexes(),
     RunwaySnapshotDeletion.collection.indexes(),
@@ -53,6 +55,7 @@ try {
     RunwaySettlement.collection.indexes(),
     RunwayProjectionJob.collection.indexes(),
     RunwayProjectionResult.collection.indexes(),
+    RunwayAlert.collection.indexes(),
   ]);
   if (!indexes.some(index => index.name === 'uniq_runway_ledger_revision'
       && index.unique === true && index.key.userId === 1 && index.key.revision === 1)
@@ -79,6 +82,8 @@ try {
       || !jobs.some(index => index.name === 'uniq_runway_projection_job_revision'
         && index.unique === true && index.key.userId === 1 && index.key.revision === 1)
       || !projections.some(index => index.name === 'runway_projection_owner_revision'
+        && index.key.userId === 1 && index.key.revision === -1)
+      || !alerts.some(index => index.name === 'runway_alert_owner_revision'
         && index.key.userId === 1 && index.key.revision === -1)) {
     throw new Error('RUNWAY_INDEX_MISSING');
   }

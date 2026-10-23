@@ -11,7 +11,7 @@ import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
 import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
-import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
+import { RunwayProjectionJob, RunwayProjectionResult, RunwayAlert } from '../models/RunwayProjection.js';
 import { processOneRunwayProjection } from '../services/runwayProjectionOutbox.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
@@ -67,6 +67,8 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       { name: 'uniq_runway_projection_job_revision', unique: true });
     await RunwayProjectionResult.collection.createIndex({ userId: 1, revision: -1 },
       { name: 'runway_projection_owner_revision' });
+    await RunwayAlert.collection.createIndex({ userId: 1, revision: -1 },
+      { name: 'runway_alert_owner_revision' });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
     await User.create([
       { _id: userA, name: 'Runway A', email: 'runway-a-' + crypto.randomUUID() + '@example.test', passwordHash: 'test-hash' },
@@ -117,6 +119,14 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(projected.body.status, 'DONE');
       assert.equal(projected.body.revision, 1);
       assert.equal(projected.body.verified, 'SERVER_SEALED_DETERMINISTIC_SOURCE');
+      const alerts = await jsonRequest(ownedBase + 'live/alerts', { headers: authA });
+      assert.equal(alerts.response.status, 200);
+      assert.equal(alerts.body.status, 'CURRENT_USER_DECLARED_RISK');
+      assert.equal(alerts.body.items.length, 1);
+      assert.equal(alerts.body.items[0].deficitPaise, '2000');
+      assert.equal(await RunwayAlert.countDocuments({ userId: userA }), 1);
+      const otherAlerts = await jsonRequest(ownedBase + 'live/alerts', { headers: authB });
+      assert.equal(otherAlerts.body.items.length, 0);
       const projectionId = (await RunwayProjectionJob.findOne({ userId: userA, revision: 1 }).lean())._id;
       const validProjection = await RunwayProjectionResult.findById(projectionId).lean();
       assert.equal(validProjection.result.encryptionVersion, 'RUNWAY_PROJECTION_AES256GCM_V1');
@@ -435,6 +445,7 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(await RunwaySettlement.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwayProjectionJob.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwayProjectionResult.countDocuments({ userId: userA }), 0);
+      assert.equal(await RunwayAlert.countDocuments({ userId: userA }), 0);
       const missing = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(missing.response.status, 404);
       assert.equal(await FinancialProfile.countDocuments({ userId: userA }), 0);
@@ -473,6 +484,8 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       { name: 'uniq_runway_projection_job_revision', unique: true });
     await RunwayProjectionResult.collection.createIndex({ userId: 1, revision: -1 },
       { name: 'runway_projection_owner_revision' });
+    await RunwayAlert.collection.createIndex({ userId: 1, revision: -1 },
+      { name: 'runway_alert_owner_revision' });
     await RunwaySettlement.collection.createIndex({ userId: 1, transactionIdentity: 1 },
       { name: 'uniq_runway_settled_transaction_identity', unique: true });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];

@@ -5,7 +5,8 @@
 import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import { RunwayLedgerRevision } from '../models/Runway.js';
-import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
+import { RunwayProjectionJob, RunwayProjectionResult, RunwayAlert } from '../models/RunwayProjection.js';
+import { RunwaySignal } from '../models/RunwayEvidence.js';
 import { canonicalSha256, canonicalJson } from '../utils/canonicalJson.js';
 import { verifyRunwayLedgerSeal, assertRunwaySigningKey } from './runwaySeal.js';
 import { simulateRunway } from './runwayEngine.js';
@@ -68,7 +69,8 @@ export function calculateRunwayProjection(revision) {
 export async function processOneRunwayProjection({
   now = () => new Date(), randomUUID = () => crypto.randomUUID(),
   jobModel = RunwayProjectionJob, resultModel = RunwayProjectionResult,
-  revisionModel = RunwayLedgerRevision, sessionFactory = () => mongoose.startSession(),
+  revisionModel = RunwayLedgerRevision, alertModel = RunwayAlert,
+  signalModel = RunwaySignal, sessionFactory = () => mongoose.startSession(),
 } = {}) {
   const at = now();
   const token = randomUUID();
@@ -117,11 +119,39 @@ export async function processOneRunwayProjection({
         } else {
           await resultModel.create([record], { session });
         }
+        // A warning is persisted in the SAME transaction as the completed
+        // projection; neither duplicated warnings nor phantom warning rows
+        // can survive crash recovery.
+        const risk = computed.scenarios?.[0]?.cashAlreadyAvailable?.firstCertainShortfall;
+        if (risk) {
+          const alertId = canonicalSha256({
+            purpose: 'RUNWAY_ALERT_V1', userId: String(job.userId),
+            revision: job.revision, kind: 'LISTED_CASH_SHORTFALL',
+          });
+          const presentAlert = await alertModel.findById(alertId).session(session).lean();
+          if (presentAlert) {
+            if (presentAlert.resultHash !== record.resultHash
+              || presentAlert.projectionId !== job._id) {
+              throw failed('RUNWAY_PROJECTION_ALERT_CONFLICT');
+            }
+          } else {
+            await alertModel.create([{
+              _id: alertId, userId: job.userId, revision: job.revision,
+              projectionId: job._id, resultHash: record.resultHash,
+              kind: 'LISTED_CASH_SHORTFALL', createdAt: now(),
+            }], { session });
+          }
+        }
         const applied = await jobModel.updateOne({
           _id: job._id, status: 'LEASED', leaseToken: token,
         }, { $set: { status: 'DONE', leaseToken: null, leaseUntil: null, lastErrorCode: null } },
         { session });
         if (applied.matchedCount !== 1) throw failed('RUNWAY_PROJECTION_LEASE_LOST');
+        const createdAt = now();
+        await signalModel.create([{
+          userId: job.userId, eventType: 'PROJECTION_READY', occurredAt: createdAt,
+          expiresAt: new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000),
+        }], { session });
       });
     } finally { await session.endSession(); }
     return { status: 'DONE', revision: job.revision };

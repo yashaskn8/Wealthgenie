@@ -4,7 +4,7 @@ import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { verifyRunwayIndexes } from '../services/runwayOperationalReadiness.js';
 import { createRunwayLiveRouter, createRunwaySignal } from './runwayLiveRoutes.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
-import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
+import { RunwayProjectionJob, RunwayProjectionResult, RunwayAlert } from '../models/RunwayProjection.js';
 import { queueRunwayProjection } from '../services/runwayProjectionOutbox.js';
 import {
   createRunwaySeal, verifyRunwaySeal, createRunwayLedgerSeal, verifyRunwayLedgerSeal, RUNWAY_SEAL_VERSION,
@@ -520,6 +520,7 @@ router.delete('/data', asyncHandler(async (req, res) => {
     await RunwaySettlement.deleteMany({ userId }, { session });
     await RunwayProjectionResult.deleteMany({ userId }, { session });
     await RunwayProjectionJob.deleteMany({ userId }, { session });
+    await RunwayAlert.deleteMany({ userId }, { session });
     await RunwayLedgerRevision.deleteMany({ userId }, { session });
     await RunwayLedgerState.deleteOne({ _id: userId }, { session });
   });

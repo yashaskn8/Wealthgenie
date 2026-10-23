@@ -40,3 +40,20 @@ export const RunwayProjectionJob = mongoose.models.RunwayProjectionJob
   || mongoose.model('RunwayProjectionJob', projectionJobSchema);
 export const RunwayProjectionResult = mongoose.models.RunwayProjectionResult
   || mongoose.model('RunwayProjectionResult', resultSchema);
+
+
+/**
+ * Metadata-only, durable in-app warning. The sensitive shortfall amount and
+ * financial source remain in the separately encrypted projection result.
+ */
+const alertSchema = new Schema({
+  _id: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  userId: { type: Schema.Types.ObjectId, required: true, immutable: true },
+  revision: { type: Number, required: true, immutable: true, min: 1 },
+  projectionId: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  resultHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  kind: { type: String, required: true, immutable: true, enum: ['LISTED_CASH_SHORTFALL'] },
+  createdAt: { type: Date, required: true, immutable: true },
+}, { strict: 'throw', versionKey: false });
+alertSchema.index({ userId: 1, revision: -1 }, { name: 'runway_alert_owner_revision' });
+export const RunwayAlert = mongoose.models.RunwayAlert || mongoose.model('RunwayAlert', alertSchema);

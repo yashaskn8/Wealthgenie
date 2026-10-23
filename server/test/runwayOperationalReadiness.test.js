@@ -23,6 +23,7 @@ const valid = [
     { name: 'uniq_runway_projection_job_revision', unique: true, key: { userId: 1, revision: 1 } },
   ],
   [{ name: 'runway_projection_owner_revision', key: { userId: 1, revision: -1 } }],
+  [{ name: 'runway_alert_owner_revision', key: { userId: 1, revision: -1 } }],
 ];
 const configured = {
   RUNWAY_ENABLED: 'true', RUNWAY_INTEGRITY_SECRET: 'a6'.repeat(32),
@@ -50,7 +51,7 @@ test('feature enabled: all unique, owner-lookup and expiration indexes must matc
   for (const [group, index, field] of [[0, 0, 'unique'], [1, 0, 'name'],
     [2, 0, 'expireAfterSeconds'], [3, 0, 'name'], [4, 0, 'name'],
     [5, 0, 'name'], [5, 1, 'unique'], [5, 2, 'unique'],
-    [6, 0, 'name'], [6, 1, 'unique'], [7, 0, 'name']]) {
+    [6, 0, 'name'], [6, 1, 'unique'], [7, 0, 'name'], [8, 0, 'name']]) {
     const mutated = structuredClone(valid);
     mutated[group][index][field] = field === 'expireAfterSeconds'
       ? 7200 : field === 'unique' ? false : 'wrong';
