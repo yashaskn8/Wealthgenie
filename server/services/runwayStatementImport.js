@@ -115,7 +115,10 @@ export function parseRunwayStatement({ accountLabel, csvText, today } = {}) {
     const credit = rupees(creditText);
     const balance = rupees(balanceText, { negative: true });
     if ((debit > 0n) === (credit > 0n)) reject('Exactly one of debit and credit must be positive.');
-    if (openingBalance === null) openingBalance = balance + debit - credit;
+    if (openingBalance === null) {
+      openingBalance = balance + debit - credit;
+      if (openingBalance > MAX_PAISE || openingBalance < -MAX_PAISE) reject('Statement opening balance exceeds supported bounds.');
+    }
     if (lastBalance !== null && lastBalance + credit - debit !== balance) {
       reject('Running balance mismatch on row ' + (idx + 2) + '. Verify order and missing transactions.');
     }

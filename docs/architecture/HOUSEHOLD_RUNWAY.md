@@ -128,3 +128,5 @@ A green unit test is **not** a production certificate. Do not promote or enable 
 7. **Governance:** self-declared data, privacy/erasure/legal retention and financial-advice scope reviewed for target users
 
 **Rollback:** retain disabled backend and frontend feature flags until all gates pass. Never remove the signing key to roll back because existing signed ledgers would become unreadable. Migrations must use scoped credentials against the intended Mongo database.
+
+- Latest statement ordering uses the signed `importedAt` timestamp, **not** unsigned Mongo `createdAt` metadata, to prevent a database-only timestamp edit from silently changing which observation appears newest.

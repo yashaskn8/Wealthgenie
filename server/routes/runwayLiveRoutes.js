@@ -82,7 +82,7 @@ export function createRunwayLiveRouter({
       ? 90 : queryNumber(req.query.horizonDays, 1, 395);
     const current = await currentRevision(userId);
     const source = await RunwayStatement.findOne({ userId })
-      .sort({ createdAt: -1, _id: -1 }).lean();
+      .sort({ importedAt: -1, _id: -1 }).lean();
     const observed = source ? summary(verified(source)) : null;
     let modeled = { status: 'NO_CONFIRMED_LEDGER' };
     if (current) {
@@ -124,7 +124,7 @@ export function createRunwayLiveRouter({
   }));
   router.get('/statements', asyncHandler(async (req, res) => {
     const items = await RunwayStatement.find({ userId: owner(req) })
-      .sort({ createdAt: -1, _id: -1 }).limit(MAX_IMPORTS).lean();
+      .sort({ importedAt: -1, _id: -1 }).limit(MAX_IMPORTS).lean();
     return res.json({ items: items.map(x => summary(verified(x))), maxImports: MAX_IMPORTS });
   }));
   router.get('/statements/:id', asyncHandler(async (req, res) => {

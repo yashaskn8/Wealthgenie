@@ -11,7 +11,7 @@ const statementSchema = new Schema({
   sealVersion: { type: String, required: true, immutable: true, enum: ['HMAC_SHA256_V1'] },
   sealHmac: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
 }, opts);
-statementSchema.index({ userId: 1, createdAt: -1 }, { name: 'runway_statement_owner_newest' });
+statementSchema.index({ userId: 1, importedAt: -1 }, { name: 'runway_statement_owner_newest' });
 
 const signalSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, required: true, immutable: true },

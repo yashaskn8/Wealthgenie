@@ -6,7 +6,7 @@ const valid = [
   [{ name: 'uniq_runway_ledger_revision', unique: true, key: { userId: 1, revision: 1 } }],
   [{ name: 'runway_snapshots_by_owner', key: { userId: 1, createdAt: -1 } }],
   [{ name: 'runway_deleted_snapshot_ttl', key: { expiresAt: 1 }, expireAfterSeconds: 0 }],
-  [{ name: 'runway_statement_owner_newest', key: { userId: 1, createdAt: -1 } }],
+  [{ name: 'runway_statement_owner_newest', key: { userId: 1, importedAt: -1 } }],
   [
     { name: 'runway_signal_owner_cursor', key: { userId: 1, _id: 1 } },
     { name: 'runway_signal_ttl', key: { expiresAt: 1 }, expireAfterSeconds: 0 },

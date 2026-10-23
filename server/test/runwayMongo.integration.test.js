@@ -43,7 +43,7 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
     await RunwaySnapshotDeletion.collection.createIndex({ expiresAt: 1 }, {
       name: 'runway_deleted_snapshot_ttl', expireAfterSeconds: 0,
     });
-    await RunwayStatement.collection.createIndex({ userId: 1, createdAt: -1 }, {
+    await RunwayStatement.collection.createIndex({ userId: 1, importedAt: -1 }, {
       name: 'runway_statement_owner_newest',
     });
     await RunwaySignal.collection.createIndex({ userId: 1, _id: 1 }, {
