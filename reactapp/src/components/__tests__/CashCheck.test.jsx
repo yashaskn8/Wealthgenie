@@ -238,4 +238,57 @@ describe('90-day cash check', () => {
     expect(screen.queryByText(/No shortfall in the entries supplied for these dates/i)).toBeNull();
   });
 
+  it('parses CSV only in the browser and adds historical recurrence as an unsaved opt-in commitment', async () => {
+    const today = indiaToday();
+    const d = new Date(today + 'T00:00:00Z');
+    const anchor = Math.min(15, d.getUTCDate());
+    const dates = [2, 1, 0].map(offset =>
+      new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - offset, anchor))
+        .toISOString().slice(0, 10));
+    const csv = 'Date,Description,Debit,Credit,Balance\n'
+      + dates.map((day, i) => day + ',Rent for flat,12000.01,,' + (50000 - i * 12000)).join('\n');
+    const file = new File([csv], 'statement.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', { value: vi.fn().mockResolvedValue(csv) });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByLabelText('Choose bank statement CSV'), { target: { files: [file] } });
+    const report = await screen.findByRole('region', { name: 'Statement review' });
+    expect(report.textContent).toMatch(/Unverified local statement/);
+    expect(report.textContent).toContain('Rent for flat');
+    expect(report.textContent).toContain('12,000.01');
+    expect(api.saveCoverageLedger).not.toHaveBeenCalled();
+    const add = screen.getByRole('button', { name: 'Add reviewed payment to unsaved draft' });
+    expect(add.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Confirm payment type'), {
+      target: { value: 'CONTRACTUAL_PAYMENT' },
+    });
+    fireEvent.click(add);
+    expect(screen.getByLabelText('Description').value).toBe('Rent for flat');
+    expect(screen.getByLabelText('Amount (₹)').value).toBe('12000.01');
+    expect(screen.getByLabelText(/I have entered the commitments/i).checked).toBe(false);
+    expect(api.saveCoverageLedger).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByPlaceholderText('50000.00'), {
+      target: { value: '50000.00' },
+    });
+    fireEvent.click(screen.getByLabelText(/I have entered the commitments/i));
+    fireEvent.click(screen.getByRole('button', { name: /save and calculate/i }));
+    await waitFor(() => expect(api.saveCoverageLedger).toHaveBeenCalled());
+    expect(api.saveCoverageLedger.mock.calls[0][0]).toEqual(expect.objectContaining({
+      openingCashPaise: 5000000, completenessConfirmed: true,
+      entries: [expect.objectContaining({
+        label: 'Rent for flat', amountPaise: 1200001,
+        type: 'CONTRACTUAL_PAYMENT', recurrence: 'MONTHLY',
+      })],
+    }));
+  });
+  it('blocks unsupported files and does not upload their contents', async () => {
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    const file = new File(['PDF content'], 'statement.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Choose bank statement CSV'), { target: { files: [file] } });
+    await screen.findByText(/Choose a nonempty \.csv statement of at most 512 KB/i);
+    expect(api.saveCoverageLedger).not.toHaveBeenCalled();
+    expect(screen.queryByRole('region', { name: 'Statement review' })).toBeNull();
+  });
+
 });

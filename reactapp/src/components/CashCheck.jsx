@@ -55,9 +55,14 @@ const newEntry = () => ({
 function signalCashRevisionChanged() {
   // No balances, identities, narration, or other financial data cross tabs.
   if (typeof BroadcastChannel === 'undefined') return;
-  const channel = new BroadcastChannel('wealthgenie-cash-revision');
-  channel.postMessage({ type: 'revision-updated' });
-  channel.close();
+  try {
+    const channel = new BroadcastChannel('wealthgenie-cash-revision');
+    channel.postMessage({ type: 'revision-updated' });
+    channel.close();
+  } catch {
+    // A browser messaging failure must never turn an already committed save
+    // into an apparent transaction failure.
+  }
 }
 const EMPTY = () => ({
   asOfDate: INDIA_DATE(), cashSource: 'USER_DECLARED_BANK_CASH',
