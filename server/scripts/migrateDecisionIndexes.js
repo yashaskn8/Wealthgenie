@@ -4,6 +4,8 @@ import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionRun from '../models/DecisionRun.js';
 import DecisionEvent from '../models/DecisionEvent.js';
 import DecisionEventState from '../models/DecisionEventState.js';
+import DecisionMonitor from '../models/DecisionMonitor.js';
+import DecisionAssessment from '../models/DecisionAssessment.js';
 
 // Index work belongs in an explicit migration, never request-time execution.
 const uri = String(process.env.MONGODB_MIGRATION_URI || '').trim();
@@ -21,6 +23,15 @@ const expected = [
   [DecisionEventState, { userId: 1 }, 'uniq_decision_event_owner_sequence', true],
   [DecisionEvent, { userId: 1, sequence: 1 }, 'uniq_decision_event_owner_order', true],
   [DecisionEvent, { expiresAt: 1 }, 'decision_event_expiration', false],
+  [DecisionMonitor, { userId: 1, scenarioId: 1 }, 'uniq_decision_monitor_owner_scenario', true],
+  [DecisionMonitor, { enabled: 1, lastCheckedAt: 1 }, 'decision_monitor_scan', false],
+  [DecisionAssessment, {
+    userId: 1, scenarioId: 1, scenarioRevision: 1, monitorGeneration: 1,
+    profileFactsHash: 1, profileStateRevision: 1, profileVersion: 1,
+    profileFinancialFence: 1, modelVersion: 1,
+  }, 'uniq_decision_assessment_source_policy', true],
+  [DecisionAssessment, { userId: 1, scenarioId: 1, createdAt: -1 },
+    'decision_assessment_owner_history', false],
 ];
 
 function sameKeys(left, right) {
