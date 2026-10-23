@@ -58,11 +58,13 @@ function Track({ title, data }) {
       <h4>{title}</h4>
       <div className="runway-amount">{displayPaise(data?.endBalancePaise)}</div>
       <p>Modeled balance after listed events; not a bank balance.</p>
-      {definite ? <p role="status"><strong>Listed shortfall:</strong> {definite.label} on {definite.date},
-        deficit {displayPaise(definite.deficitPaise)}.</p>
-        : possible ? <p role="status"><strong>Same-day timing unknown:</strong> {possible.label} on {possible.date}.
-          This payment may become uncovered if debits occur first.</p>
-          : <p>No listed payment becomes uncovered under this track. Unlisted costs are unknown.</p>}
+      {definite && <p role="status"><strong>Listed shortfall even if same-day income arrives:</strong>
+        {' '}{definite.label} on {definite.date}, deficit {displayPaise(definite.deficitPaise)}.</p>}
+      {possible && (!definite || possible.date !== definite.date
+        || possible.deficitPaise !== definite.deficitPaise) && <p role="status">
+        <strong>Debit-first shortfall possible:</strong> {possible.label} on {possible.date},
+        deficit {displayPaise(possible.deficitPaise)} if listed same-day payments settle before income.</p>}
+      {!definite && !possible && <p>No listed payment becomes uncovered under this track. Unlisted costs are unknown.</p>}
       {data?.timingAmbiguities?.length > 0 && <p>Same-day receipt/payment timing, including the size of any deficit, is unverified on:
         {' '}{data.timingAmbiguities.map(x => x.date).join(', ')}.</p>}
     </article>

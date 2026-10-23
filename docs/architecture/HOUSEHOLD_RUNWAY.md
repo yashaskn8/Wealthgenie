@@ -33,3 +33,5 @@
 - Snapshot creation increments a shared owner-state generation under the same Mongo transaction as its insert, serializing concurrent creators so the 100-item cap cannot suffer concurrent read/write skew.
 
 - The same persisted-result verification runs before serving **either** snapshot details or natural-language explanation. A corrupted result must never be interpreted as valid by bypassing the detail endpoint.
+
+- The UI must display both possible debit-first and definite shortfalls whenever their dates or deficit bounds differ, rather than concealing earlier conditional risk behind a later certain deficit.

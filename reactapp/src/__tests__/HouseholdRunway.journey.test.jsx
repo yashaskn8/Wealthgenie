@@ -30,7 +30,11 @@ const sampleResult = {
   status: 'READY', asOfDate: today(), scenarios: [{
     scenarioId: 'baseline',
     cashAlreadyAvailable: { status: 'NO_LISTED_SHORTFALL', endBalancePaise: '50000', timingAmbiguities: [] },
-    ifExpectedIncomeArrives: { status: 'NO_LISTED_SHORTFALL', endBalancePaise: '50000', timingAmbiguities: [] },
+    ifExpectedIncomeArrives: {
+      status: 'LISTED_SHORTFALL', endBalancePaise: '50000', timingAmbiguities: [],
+      firstPossibleShortfall: { date: today(), label: 'Rent', deficitPaise: '30000' },
+      firstCertainShortfall: { date: today(), label: 'Rent', deficitPaise: '10000' },
+    },
   }],
 };
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -82,6 +86,8 @@ describe('Household Runway browser security, money and persistence journey', () 
     fireEvent.click(screen.getByRole('button', { name: 'View result' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: /Conditional results/ })).toBeInTheDocument());
     expect(screen.getAllByText(/₹500\.00/)).toHaveLength(2);
+    expect(screen.getByText(/Listed shortfall even if same-day income arrives/)).toBeInTheDocument();
+    expect(screen.getByText(/Debit-first shortfall possible/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete result' }));
     expect(api.deleteRunwaySnapshot).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }));
