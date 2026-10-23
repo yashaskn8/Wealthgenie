@@ -1173,9 +1173,87 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
   }, requestOptions);
 }
 
+// Household Runway only uses declared cash and events; no profile cash estimate.
+// User-uploaded statement evidence is never a verified live bank connection.
+export function getRunwayReconciliationMatches(options = {}) {
+  return request('GET', '/runway/live/matches', null, { retries: 0, ...options });
+}
+export function listRunwaySettlements(page = 0, options = {}) {
+  return request('GET', '/runway/live/settlements?page=' + encodeURIComponent(page),
+    null, { retries: 0, ...options });
+}
+export function confirmRunwaySettlement(input, options = {}) {
+  return request('POST', '/runway/live/settlements', input, { retries: 0, ...options });
+}
+export function getRunwayAlerts(options = {}) {
+  return request('GET', '/runway/live/alerts', null, { retries: 0, ...options });
+}
+export function getRunwayAccountObservations(options = {}) {
+  return request('GET', '/runway/live/accounts', null, { retries: 0, ...options });
+}
+export function getRunwayLiveOverview(horizonDays = 90, options = {}) {
+  return request('GET', '/runway/live/overview?horizonDays=' + encodeURIComponent(horizonDays), null, { retries: 0, ...options });
+}
+export function getRunwayLiveEvents(after = '', options = {}) {
+  const query = after ? '?after=' + encodeURIComponent(after) : '';
+  return request('GET', '/runway/live/events' + query, null, { retries: 0, ...options });
+}
+export function listRunwayStatements(options = {}) {
+  return request('GET', '/runway/live/statements', null, { retries: 0, ...options });
+}
+export function getRunwayStatement(id, options = {}) {
+  return request('GET', '/runway/live/statements/' + encodeURIComponent(id), null, { retries: 0, ...options });
+}
+export function importRunwayStatement(accountLabel, csvText, options = {}) {
+  return request('POST', '/runway/live/statements', { accountLabel, csvText }, { retries: 0, ...options });
+}
+export function deleteRunwayStatement(id, options = {}) {
+  return request('DELETE', '/runway/live/statements/' + encodeURIComponent(id), null, { retries: 0, ...options });
+}
+export function getRunwaySnapshotHistoryPage(page = 0, options = {}) {
+  return request('GET', '/runway/export/snapshots?page=' + encodeURIComponent(page), null, { retries: 0, ...options });
+}
+export function getRunwayLedgerHistoryPage(page = 0, options = {}) {
+  return request('GET', '/runway/ledger/revisions?page=' + encodeURIComponent(page), null, { retries: 0, ...options });
+}
+export function getRunwayCurrent(options = {}) {
+  return request('GET', '/runway/current', null, { retries: 0, ...options });
+}
+export function saveRunwayLedger(ledger, revision, options = {}) {
+  return request('PUT', '/runway/ledger', ledger, {
+    ...options, retries: 0, headers: { ...(options.headers || {}), 'If-Match': '"' + revision + '"' },
+  });
+}
+export function simulateHouseholdRunway(input, options = {}) {
+  return request('POST', '/runway/simulations', input, { retries: 0, ...options });
+}
+export function listRunwaySnapshots(page = 0, options = {}) {
+  return request('GET', '/runway/snapshots?page=' + encodeURIComponent(page), null, { retries: 0, ...options });
+}
+export function deleteRunwaySnapshot(id, options = {}) {
+  return request('DELETE', '/runway/snapshots/' + encodeURIComponent(id), null, { retries: 0, ...options });
+}
+export function saveRunwaySnapshot(input, options = {}) {
+  return request('POST', '/runway/snapshots', input, { retries: 0, ...options });
+}
+export function getRunwaySnapshot(id, options = {}) {
+  return request('GET', '/runway/snapshots/' + encodeURIComponent(id), null, { retries: 0, ...options });
+}
+export function explainRunwaySnapshot(snapshotId, options = {}) {
+  return request('POST', '/runway/explanations', { snapshotId }, { retries: 0, ...options });
+}
+export function deleteRunwayData(options = {}) {
+  return request('DELETE', '/runway/data', { confirmation: 'DELETE_RUNWAY_DATA' }, { retries: 0, ...options });
+}
+
 // Default export for convenience
 const api = {
   register, login, logout, restoreSession,
+  getRunwayCurrent, getRunwayLiveOverview, getRunwayLiveEvents,
+  getRunwayAccountObservations, getRunwayAlerts,
+  getRunwayReconciliationMatches, listRunwaySettlements, confirmRunwaySettlement, listRunwayStatements,
+  getRunwayStatement, importRunwayStatement, deleteRunwayStatement,
+  getRunwayLedgerHistoryPage, getRunwaySnapshotHistoryPage, saveRunwayLedger, simulateHouseholdRunway, saveRunwaySnapshot, listRunwaySnapshots, getRunwaySnapshot, deleteRunwaySnapshot, explainRunwaySnapshot, deleteRunwayData,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
   setUserInfo, getUserInfo,

@@ -13,6 +13,7 @@ export const NAV_PAGES = {
   GROW_MY_SIP: 'grow-my-sip',
   KEEP_ON_TRACK: 'keep-on-track',
   GENIEPROOF: 'genieproof',
+  RUNWAY: 'runway',
   ACCOUNT: 'account',
   HELP: 'help',
 };
@@ -27,6 +28,7 @@ export const PAGE_ALLOWLIST = [
   NAV_PAGES.GROW_MY_SIP,
   NAV_PAGES.KEEP_ON_TRACK,
   NAV_PAGES.GENIEPROOF,
+  NAV_PAGES.RUNWAY,
   NAV_PAGES.ACCOUNT,
   NAV_PAGES.HELP,
 ];
@@ -69,6 +71,7 @@ export const LEGACY_NAV_MAP = {
   'insights':        { page: NAV_PAGES.HOME,        tab: null },
   'diagnostics':     { page: NAV_PAGES.HOME,        tab: null },
   'genieproof':      { page: NAV_PAGES.GENIEPROOF,  tab: null },
+  'runway':          { page: NAV_PAGES.RUNWAY,      tab: null },
   'profile':         { page: NAV_PAGES.ACCOUNT,     tab: null },
   'account':         { page: NAV_PAGES.ACCOUNT,     tab: null },
   'help':            { page: NAV_PAGES.HELP,        tab: null },
@@ -78,7 +81,7 @@ export const LEGACY_NAV_MAP = {
  * Normalizes a page and tab to safe, allowlisted values.
  * Returns { page, tab, isNormalized: boolean }
  */
-export function normalizeNavigation(rawPage, rawTab, { allowGenieProof = false } = {}) {
+export function normalizeNavigation(rawPage, rawTab, { allowGenieProof = false, allowRunway = false } = {}) {
   let page = rawPage;
   let tab = rawTab;
 
@@ -99,6 +102,11 @@ export function normalizeNavigation(rawPage, rawTab, { allowGenieProof = false }
   }
 
   if (page === NAV_PAGES.GENIEPROOF && !allowGenieProof) {
+    page = NAV_PAGES.HOME;
+    tab = null;
+  }
+
+  if (page === NAV_PAGES.RUNWAY && !allowRunway) {
     page = NAV_PAGES.HOME;
     tab = null;
   }
