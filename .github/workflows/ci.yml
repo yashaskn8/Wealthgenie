@@ -42,7 +42,7 @@ jobs:
       - name: Red-team deterministic amounts, same-day timing and independent numerical oracle
         run: |
           export JWT_SECRET="$(openssl rand -hex 32)"
-          node --test server/test/runwayEngine.test.js server/test/runwayOracle.test.js server/test/runwayRoutes.test.js server/test/runwaySeal.test.js
+          node --test server/test/runwayEngine.test.js server/test/runwayOracle.test.js server/test/runwayRoutes.test.js server/test/runwaySeal.test.js server/test/runwayOperationalReadiness.test.js
       - name: Red-team real Mongo transactions, account boundaries, tampering and concurrency
         env:
           MONGODB_URI: mongodb://127.0.0.1:27017/wealthgenie_runway_test?replicaSet=rs0

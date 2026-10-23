@@ -194,6 +194,8 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
     requireRedis: config.requireRedis,
     requireAgentRuntimePersistence: config.agenticPlanReviewEnabled,
     requireMcp: config.isProduction && config.mcp.enabled && config.mcp.remoteEnabled,
+    requireRunway: env.RUNWAY_ENABLED === 'true',
+    runwayEnv: env,
     mcpRuntime: mcpLifecycle,
     mcpCapacity,
     timeoutMs: config.deepHealthTimeoutMs,

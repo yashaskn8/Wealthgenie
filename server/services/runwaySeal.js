@@ -70,3 +70,9 @@ export function verifyRunwayLedgerSeal(record, env = process.env) {
       || !/^[a-f0-9]{64}$/.test(record.sealHmac)) return false;
   return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(record.sealHmac, 'hex'));
 }
+
+/** Validate startup readiness without exporting or logging the signing key. */
+export function assertRunwaySigningKey(env = process.env) {
+  keyFromEnv(env);
+  return true;
+}

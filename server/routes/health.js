@@ -12,6 +12,7 @@ import { verifyAgentRuntimePersistence } from '../services/planHealthPersistence
 import { normalizeBuildSha } from '../../shared/buildIdentity.js';
 import { REDIS_PROBE_TIMEOUT_MS } from '../../shared/demoPreflightContracts.js';
 import { loadBuildProvenance } from '../services/buildProvenance.js';
+import { verifyRunwayOperationalReadiness } from '../services/runwayOperationalReadiness.js';
 import { hasUpstoxAccessToken } from '../services/marketData/upstoxCredentials.js';
 import { isUpstoxOnlyMarketDataMode } from '../services/marketDataService.js';
 import {
@@ -36,6 +37,9 @@ export function createHealthRouter({
   requireRedis = false,
   requireAgentRuntimePersistence = false,
   requireMcp = false,
+  requireRunway = false,
+  runwayEnv = process.env,
+  verifyRunway = verifyRunwayOperationalReadiness,
   mcpRuntime = null,
   mcpCapacity = null,
   timeoutMs = 3000,
@@ -197,6 +201,17 @@ export function createHealthRouter({
       }
     }
     if (requireRedis && (!redisAvailable || !redisClient?.isReady)) reasons.push('Redis not connected');
+    if (requireRunway) {
+      // Health is not allowed to report READY when Runway is enabled but its
+      // independently managed HMAC secret or Mongo indexes have regressed.
+      const ready = mongoConnected
+        ? await withTimeout(Promise.resolve().then(() => verifyRunway({ env: runwayEnv })),
+          timeoutMs, 'Runway financial readiness').catch(() => null)
+        : null;
+      if (ready?.ready !== true || ready?.enabled !== true) {
+        reasons.push('Enabled Household Runway signing key or persistence indexes are not ready');
+      }
+    }
     if (requireMcp) {
       let capacityReady = false;
       try { capacityReady = await withTimeout(mcpCapacity?.probe?.() || Promise.resolve(false), timeoutMs, 'MCP capacity probe'); } catch { capacityReady = false; }

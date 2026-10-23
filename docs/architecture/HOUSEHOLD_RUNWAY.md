@@ -108,3 +108,9 @@ The pull request runs the fast-failing `Household Runway Adversarial Gate` indep
 
 - Ledger idempotency receipts are untrusted database pointers. A replay must verify the signed revision's input hash equals the **exact original request ledger**, and that its number is the expected predecessor plus one. Retargeting a receipt to a different valid signed revision fails with `RUNWAY_RECEIPT_INTEGRITY_INVALID`.
 - The saved-result listing now invokes full result-source verification, including source-ledger seal and current-engine recomputation, before designating a snapshot `CURRENT`. A signed snapshot with a corrupted source ledger fails closed even on the metadata-only list.
+
+## Fail-closed feature startup and health
+
+- When `RUNWAY_ENABLED=true`, server startup verifies the server-side HMAC secret and the exact persisted revision-uniqueness, snapshot-query and deletion-TTL Mongo indexes **before binding the HTTP port**. It does not create indexes or substitute a signing key automatically.
+- `/health/ready` repeats this independent check while Runway remains enabled; loss of a key or required index yields HTTP 503 instead of a falsely healthy deployment. Feature-disabled replicas bypass the Runway-specific gate without changing the rest of WealthGenie.
+- CI has negative and positive readiness tests; operators must independently test rollout, key placement, automated rollback and database migration ordering under their real deployment environment.

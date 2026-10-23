@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
+import { verifyRunwayIndexes } from '../services/runwayOperationalReadiness.js';
 import {
   createRunwaySeal, verifyRunwaySeal, createRunwayLedgerSeal, verifyRunwayLedgerSeal, RUNWAY_SEAL_VERSION,
 } from '../services/runwaySeal.js';
@@ -106,22 +107,7 @@ function rethrowTransaction(error) {
   throw error;
 }
 async function requireRunwayIndexes() {
-  try {
-    const [ledgerIndexes, snapshotIndexes, deletionIndexes] = await Promise.all([
-      RunwayLedgerRevision.collection.indexes(),
-      RunwaySnapshot.collection.indexes(),
-      RunwaySnapshotDeletion.collection.indexes(),
-    ]);
-    const revisionIndexReady = ledgerIndexes.some(index => index.name === 'uniq_runway_ledger_revision'
-      && index.unique === true && index.key?.userId === 1 && index.key?.revision === 1);
-    const snapshotIndexReady = snapshotIndexes.some(index => index.name === 'runway_snapshots_by_owner'
-      && index.key?.userId === 1 && index.key?.createdAt === -1);
-    const deletionIndexReady = deletionIndexes.some(index => index.name === 'runway_deleted_snapshot_ttl'
-      && index.key?.expiresAt === 1 && index.expireAfterSeconds === 0);
-    if (!revisionIndexReady || !snapshotIndexReady || !deletionIndexReady) {
-      throw new Error('RUNWAY_INDEX_MISSING');
-    }
-  } catch {
+  try { await verifyRunwayIndexes(); } catch {
     throw failure(503, 'RUNWAY_INDEXES_UNAVAILABLE',
       'Runway writes are unavailable until the explicit Mongo index migration is verified.');
   }
