@@ -205,7 +205,7 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
   }
   const [items, total, state] = await Promise.all([
     RunwaySnapshot.find({ userId }).sort({ createdAt: -1, _id: -1 })
-      .skip(page * 20).limit(20).select('_id ledgerRevision createdAt inputHash').lean(),
+      .skip(page * 20).limit(20).select('_id ledgerRevision createdAt inputHash result.engineVersion').lean(),
     RunwaySnapshot.countDocuments({ userId }),
     RunwayLedgerState.findById(userId).select('revision').lean(),
   ]);
@@ -213,7 +213,10 @@ router.get('/snapshots', asyncHandler(async (req, res) => {
     page, total, hasMore: (page + 1) * 20 < total,
     items: items.map(item => ({
       snapshotId: item._id, ledgerRevision: item.ledgerRevision, createdAt: item.createdAt,
-      inputHash: item.inputHash, status: state?.revision === item.ledgerRevision ? 'CURRENT' : 'HISTORICAL',
+      inputHash: item.inputHash,
+      engineStatus: item.result?.engineVersion === RUNWAY_ENGINE_VERSION ? 'CURRENT_ENGINE' : 'HISTORICAL_ENGINE',
+      status: state?.revision === item.ledgerRevision
+        && item.result?.engineVersion === RUNWAY_ENGINE_VERSION ? 'CURRENT' : 'HISTORICAL',
     })),
   });
 }));
@@ -321,6 +324,10 @@ router.post('/explanations', asyncHandler(async (req, res) => {
   assertShape(req.body, ['snapshotId']);
   const userId = owner(req);
   const snapshot = await verifiedSnapshot(userId, req.body.snapshotId);
+  if (snapshot.engineStatus !== 'CURRENT_ENGINE') {
+    throw failure(409, 'RUNWAY_HISTORICAL_ENGINE_UNSUPPORTED',
+      'This saved result belongs to an older engine. Review the historical snapshot directly; current explanations cannot be generated.');
+  }
   const messages = snapshot.result.scenarios.map(s => ({
     scenarioId: s.scenarioId,
     text: s.ifExpectedIncomeArrives.status === 'LISTED_SHORTFALL'

@@ -3,7 +3,9 @@
  * No LLM, market feed, investment portfolio or profile balance enters this engine.
  * Dates are proleptic Gregorian civil dates; money is bounded BigInt paise.
  */
-export const RUNWAY_ENGINE_VERSION = 'runway-cashflow-1.0.0';
+// A financial-result semantics change must change this version. Historical
+// results are never quietly reinterpreted using a different algorithm.
+export const RUNWAY_ENGINE_VERSION = 'runway-cashflow-1.1.0';
 export const MAX_PAISE = 1000000000000000n;
 const DAY_LIMIT = 395;
 const ENTRY_LIMIT = 256;

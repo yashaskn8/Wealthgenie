@@ -44,3 +44,5 @@
 - Runtime migration readiness now verifies the snapshot-owner query index as well as the unique ledger revision index.
 
 - A ledger that contains payments only **after** the selected horizon returns \`INSUFFICIENT_INPUT\` (not \`NO_LISTED_SHORTFALL\`) for that period. Saving a misleading snapshot is rejected. This is tested at both numerical-engine and authenticated Mongo API levels.
+
+- Financial-result algorithm version was bumped to \`runway-cashflow-1.1.0\`. An older snapshot can be viewed as archival data after hash verification, but generating a current explanation from an unrecomputed historical version returns \`RUNWAY_HISTORICAL_ENGINE_UNSUPPORTED\`. The saved-results list also labels engine-obsolete rows historical.

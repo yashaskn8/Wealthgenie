@@ -146,9 +146,12 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(oldEngineRead.response.status, 200);
       assert.equal(oldEngineRead.body.engineStatus, 'HISTORICAL_ENGINE');
       assert.equal(oldEngineRead.body.verification, 'STORED_HASH_ONLY');
+      const oldEngineList = await jsonRequest(ownedBase + 'snapshots?page=0', { headers: authA });
+      assert.equal(oldEngineList.body.items[0].status, 'HISTORICAL');
+      assert.equal(oldEngineList.body.items[0].engineStatus, 'HISTORICAL_ENGINE');
       const historicalExplanation = await mutation(base, 'explanations', { snapshotId: snapshot.body.snapshotId });
-      assert.equal(historicalExplanation.response.status, 200);
-      assert.equal(historicalExplanation.body.engineStatus, 'HISTORICAL_ENGINE');
+      assert.equal(historicalExplanation.response.status, 409);
+      assert.equal(historicalExplanation.body.code, 'RUNWAY_HISTORICAL_ENGINE_UNSUPPORTED');
       await RunwaySnapshot.collection.updateOne({ _id: snapshot.body.snapshotId },
         { $set: { result: original.result, resultHash: original.resultHash } });
 
