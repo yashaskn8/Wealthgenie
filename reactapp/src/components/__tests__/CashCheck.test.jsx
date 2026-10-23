@@ -9,6 +9,7 @@ vi.mock('../../services/api', () => ({
   getCoverageLedger: vi.fn(), saveCoverageLedger: vi.fn(),
   previewCoverageScenario: vi.fn(), deleteCoverageLedger: vi.fn(),
   exportCoverageHistoryPage: vi.fn(),
+  getCoverageAlerts: vi.fn(), acknowledgeCoverageAlert: vi.fn(),
 }));
 
 const baseline = () => ({
@@ -27,6 +28,8 @@ const indiaToday = () => {
 beforeEach(() => {
   vi.clearAllMocks();
   api.getCoverageLedger.mockResolvedValue({ revision: 0, ledger: null, latestResult: null });
+  api.getCoverageAlerts.mockResolvedValue({ revision: 1, alerts: [] });
+  api.acknowledgeCoverageAlert.mockResolvedValue({ revision: 1, acknowledged: true });
   api.saveCoverageLedger.mockResolvedValue({ revision: 1, result: baseline() });
   api.deleteCoverageLedger.mockResolvedValue({ deleted: true, deletedRevision: 1, nextRevision: 2 });
 });
@@ -396,6 +399,39 @@ describe('90-day cash check', () => {
     await screen.findByPlaceholderText('50000.00');
     expect(screen.queryByRole('region', { name: 'Statement review' })).toBeNull();
     expect(screen.queryByText(/Private old account rent/)).toBeNull();
+  });
+
+  it('shows durable risk notifications only for the current revision and acknowledges once', async () => {
+    const id = '507f191e810c19729de860ea';
+    api.getCoverageLedger.mockResolvedValue({
+      revision: 1, ledger: {
+        asOfDate: indiaToday(), openingCashPaise: 10000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [],
+      }, latestResult: { result: baseline() }, requiresCashReconfirmation: false,
+    });
+    api.getCoverageAlerts.mockResolvedValue({
+      revision: 1, alerts: [{ id, kind: 'SHORTFALL_DETECTED', dueDate: indiaToday(),
+        sourceAsOfDate: indiaToday(), acknowledged: false }],
+    });
+    render(<CashCheck />);
+    await screen.findByText('Possible cash shortfall detected');
+    const button = screen.getByRole('button', { name: 'Mark alert as reviewed' });
+    fireEvent.click(button);
+    await waitFor(() => expect(api.acknowledgeCoverageAlert).toHaveBeenCalledWith(id));
+    await screen.findByText('Reviewed');
+    expect(screen.queryByRole('button', { name: 'Mark alert as reviewed' })).toBeNull();
+  });
+  it('hides unverifiable alerts rather than displaying stale risk events', async () => {
+    api.getCoverageLedger.mockResolvedValue({
+      revision: 1, ledger: {
+        asOfDate: indiaToday(), openingCashPaise: 10000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [],
+      }, latestResult: { result: baseline() }, requiresCashReconfirmation: false,
+    });
+    api.getCoverageAlerts.mockRejectedValue(new Error('Backend unavailable'));
+    render(<CashCheck />);
+    await screen.findByText(/Risk alerts could not be verified/i);
+    expect(screen.queryByText('Possible cash shortfall detected')).toBeNull();
   });
 
 });

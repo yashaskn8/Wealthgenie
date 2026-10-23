@@ -154,6 +154,9 @@ export default function CashCheck() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [indiaDate, setIndiaDate] = useState(INDIA_DATE);
   const [revision, setRevision] = useState(0);
+  const [alerts, setAlerts] = useState([]);
+  const [alertsError, setAlertsError] = useState('');
+  const [acknowledgingAlert, setAcknowledgingAlert] = useState(null);
   const [saved, setSaved] = useState(null);
   const [lastCalculatedAt, setLastCalculatedAt] = useState(null);
   const [serverInputHash, setServerInputHash] = useState(null);
@@ -204,6 +207,28 @@ export default function CashCheck() {
   }, [loadAttempt]);
 
   useEffect(() => {
+    if (!loaded || loadFailed || !hasStoredLedger || revision < 1) {
+      setAlerts([]);
+      setAlertsError('');
+      return undefined;
+    }
+    let active = true;
+    api.getCoverageAlerts().then(response => {
+      if (!active) return;
+      if (response.revision === revision) {
+        setAlerts(Array.isArray(response.alerts) ? response.alerts : []);
+        setAlertsError('');
+      }
+    }).catch(() => {
+      if (active) {
+        setAlerts([]);
+        setAlertsError('Risk alerts could not be verified. Reload before relying on alerts.');
+      }
+    });
+    return () => { active = false; };
+  }, [loaded, loadFailed, hasStoredLedger, revision]);
+
+  useEffect(() => {
     if (!loaded || loadFailed) return undefined;
     let active = true;
     let inFlight = false;
@@ -219,7 +244,14 @@ export default function CashCheck() {
         const differentSnapshot = latestHash !== serverInputHash;
         const policyChanged = Boolean(latest.requiresPolicyReconfirmation) !== serverPolicyStale;
         if (latest.revision === revision && !differentSnapshot && !policyChanged
-            && !verificationFailed) return;
+            && !verificationFailed) {
+          const freshAlerts = await api.getCoverageAlerts();
+          if (active && freshAlerts.revision === revision) {
+            setAlerts(Array.isArray(freshAlerts.alerts) ? freshAlerts.alerts : []);
+            setAlertsError('');
+          }
+          return;
+        }
         // Never overwrite local unsaved amounts with a poll or a tab signal.
         if (dirty) {
           setConflictState(latest);
@@ -262,6 +294,8 @@ export default function CashCheck() {
           setCsvReading(false);
           setCsvReview(null);
           setCandidateTypes({});
+          setAlerts([]);
+          setAlertsError('');
           setPreview(null);
           setHasStoredLedger(false);
           setLoadFailed(true);
@@ -518,6 +552,8 @@ export default function CashCheck() {
       setServerPolicyStale(false);
       setVerificationFailed(false);
       setHasStoredLedger(false);
+      setAlerts([]);
+      setAlertsError('');
       setConflictState(null);
       setConfirmOverwrite(false);
       setPreview(null);
@@ -534,6 +570,21 @@ export default function CashCheck() {
         ? 'Deletion blocked: the saved revision changed. Reload and reconcile first.'
         : err.message || 'Could not delete cash entries.');
     } finally { setBusy(false); }
+  };
+  const acknowledgeAlert = async id => {
+    if (busy || acknowledgingAlert) return;
+    setAcknowledgingAlert(id);
+    setAlertsError('');
+    try {
+      const acknowledgement = await api.acknowledgeCoverageAlert(id);
+      if (acknowledgement.revision !== revision) {
+        throw new Error('Cash plan changed while acknowledging. Reload saved alerts.');
+      }
+      setAlerts(current => current.map(item => item.id === id
+        ? { ...item, acknowledged: true } : item));
+    } catch (err) {
+      setAlertsError(err.message || 'Alert acknowledgement was not saved.');
+    } finally { setAcknowledgingAlert(null); }
   };
   const acceptLatestConflict = () => {
     if (!conflictState || busy) return;
@@ -584,6 +635,29 @@ export default function CashCheck() {
       </header>
       {error && <p className="cash-check-error" role="alert">{error}</p>}
       {notice && <p className="cash-check-notice" role="status">{notice}</p>}
+      <section className="cash-check-panel" role="region" aria-label="Cash risk alerts">
+        <h2>Cash-risk notifications</h2>
+        <p>These are saved in-app warnings from your own confirmed plan, not verified bank transactions or external push notifications.</p>
+        {alertsError && <p role="alert" className="cash-check-error">{alertsError}</p>}
+        {!alertsError && alerts.length === 0 && <p>No current saved cash-risk alerts. This does not guarantee you have enough cash.</p>}
+        {alerts.map(item => (
+          <article className="cash-check-entry" key={item.id}>
+            <strong>{item.kind === 'CASH_RECONFIRMATION_REQUIRED'
+              ? 'Reconfirm your accessible cash'
+              : item.kind === 'SHORTFALL_RESOLVED'
+                ? 'Earlier shortfall resolved in this saved plan'
+                : item.kind === 'SHORTFALL_CHANGED'
+                  ? 'The projected shortfall date changed'
+                  : 'Possible cash shortfall detected'}</strong>
+            <p>Based on your declaration dated {item.sourceAsOfDate}.
+              {item.dueDate ? ' Entered-plan risk date: ' + item.dueDate + '.' : ' Refresh your current balance and commitments.'}</p>
+            <p>{item.acknowledged ? 'Reviewed' : 'Not reviewed'}</p>
+            {!item.acknowledged && <button type="button"
+              disabled={busy || Boolean(acknowledgingAlert)}
+              onClick={() => { void acknowledgeAlert(item.id); }}>Mark alert as reviewed</button>}
+          </article>
+        ))}
+      </section>
       <section className="cash-check-panel" aria-label="Cash data freshness">
         <h2>Data freshness and saved state</h2>
         <p>Saved revision: <strong>{revision}</strong>. Source: <strong>user-declared cash and commitments</strong>; this feature does not stream actual bank transactions.</p>

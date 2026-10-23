@@ -1173,6 +1173,13 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
   }, requestOptions);
 }
 
+export function getCoverageAlerts(options = {}) {
+  return request('GET', '/coverage/alerts?limit=20', null, options);
+}
+export function acknowledgeCoverageAlert(id, options = {}) {
+  if (typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id)) throw new TypeError('Invalid cash alert identity.');
+  return request('PATCH', '/coverage/alerts/' + encodeURIComponent(id) + '/ack', {}, options);
+}
 export function getCoverageLedger(options = {}) {
   return request('GET', '/coverage/ledger', null, options);
 }
@@ -1206,7 +1213,8 @@ export function exportCoverageHistoryPage(afterRevision = 0, options = {}) {
 
 // Default export for convenience
 const api = {
-  getCoverageLedger, saveCoverageLedger, previewCoverageScenario, getCoverageRevision, deleteCoverageLedger, exportCoverageHistoryPage,
+  getCoverageLedger, getCoverageAlerts, acknowledgeCoverageAlert,
+  saveCoverageLedger, previewCoverageScenario, getCoverageRevision, deleteCoverageLedger, exportCoverageHistoryPage,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
