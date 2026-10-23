@@ -345,7 +345,11 @@ export function createDecisionMonitorWorker({
       heartTimer = null;
       heartbeatHealthy = false;
       if (active) await active;
-      if (heartbeatInFlight) await heartbeatInFlight;
+      if (heartbeatInFlight) {
+        // A failed heartbeat should not prevent revoking the previous worker
+        // identity. The deleted record must never be silently resurrected.
+        try { await heartbeatInFlight; } catch { heartbeatHealthy = false; }
+      }
       heartbeatHealthy = false;
       await heartbeat.stop();
       return { drained: true };
