@@ -10,6 +10,8 @@ export const SMALL_SAVINGS_Q3_FY27_SOURCE=
  'https://indianbank.bank.in/en/interest-rates-for-small-savings-schemes';
 const from='2026-10-01',to='2026-12-31';
 const table=Object.freeze([
+ ['government:india-post:post-office-savings','Post Office Savings Account',4.0,'Simple interest',null],
+ ['government:india-post:post-office-rd-5y','Post Office Recurring Deposit (5 years)',6.7,'Quarterly',60],
  ['government:india-post:ppf','Public Provident Fund',7.1,'Annually',null],
  ['government:india-post:sukanya','Sukanya Samriddhi',8.2,'Annually',null],
  ['government:india-post:scss','Senior Citizens Savings Scheme',8.2,'Quarterly',null],
@@ -35,6 +37,14 @@ export function getPublicSmallSavingsRates({now=new Date()}={}){
   effectiveFrom:from,effectiveTo:to,
   source:{publisher:'Indian Bank quoting Government of India memorandum dated 2026-09-30',
     url:SMALL_SAVINGS_Q3_FY27_SOURCE},
+  // These official references agree for the publication quarter; this is
+  // manually reviewed evidence, NOT three new dynamically fetched feeds.
+  corroboratingOfficialSources:[
+   {publisher:'National Savings Institute',url:'https://www.nsiindia.gov.in/InternalPage.aspx?Id_Pk=132'},
+   {publisher:'Department of Posts',url:'https://www.indiapost.gov.in/banking-services/savings'},
+   {publisher:'Department of Economic Affairs (quarterly notification)',
+    url:'https://dea.gov.in/budget-division/475'},
+  ],
   permittedAsProductionProductFact:false,postTaxAvailable:false,
   sourceRightsStatus:'REFERENCE_RESEARCH_ONLY_COMMERCIAL_REUSE_NOT_QUALIFIED',
   rates:table.map(([id,name,annualRatePercent,compoundingBasis,tenureMonths])=>({
