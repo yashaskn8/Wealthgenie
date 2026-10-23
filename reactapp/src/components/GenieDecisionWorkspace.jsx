@@ -3,7 +3,7 @@ import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
   getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
-  subscribeDecisionEvents, simulateDecisionScenario, subscribeAuth, getAuthSnapshot,
+  subscribeDecisionEvents, simulateDecisionScenario, subscribeAuth, getAuthSnapshot, getUserInfo,
   getDecisionMonitor, setDecisionMonitor,
 } from '../services/api';
 import './GenieDecisionWorkspace.css';
@@ -148,6 +148,11 @@ export default function GenieDecisionWorkspace() {
   const [success, setSuccess] = useState('');
   const [liveState, setLiveState] = useState('connecting');
   const [authGeneration, setAuthGeneration] = useState(getAuthSnapshot);
+  const ownerKey = () => {
+    const user = getUserInfo();
+    return user?.id ?? user?._id ?? user?.userId ?? user?.email ?? user ?? null;
+  };
+  const ownerAtLastSignal = useRef(ownerKey());
   const [liveNotice, setLiveNotice] = useState('');
   const activeRef = useRef(null);
   const currentReportRef = useRef(null);
@@ -158,12 +163,13 @@ export default function GenieDecisionWorkspace() {
   const hasUnsavedChanges = Boolean(active && savedFingerprint !== visibleFingerprint);
 
   const refresh = useCallback(async ({ signal } = {}) => {
+    const startedAtAuthRevision = getAuthSnapshot();
     // Historical reports remain browsable even if the canonical profile
     // pointer is unavailable. Never infer a usable profile from that failure.
     const [availabilityResult, historyResult] = await Promise.allSettled([
       getDecisionAvailability({ signal }), listDecisionScenarios({ signal }),
     ]);
-    if (signal?.aborted) return;
+    if (signal?.aborted || startedAtAuthRevision !== getAuthSnapshot()) return;
     if (historyResult.status === 'fulfilled') {
       setHistory(historyResult.value.scenarios || []);
     }
@@ -186,7 +192,45 @@ export default function GenieDecisionWorkspace() {
     return () => { controller.abort(); loadGeneration.current += 1; };
   }, [refresh]);
 
-  useEffect(() => subscribeAuth(() => setAuthGeneration(getAuthSnapshot())), []);
+  useEffect(() => subscribeAuth(() => {
+    const nextOwner = ownerKey();
+    if (nextOwner !== ownerAtLastSignal.current || nextOwner === null) {
+      // A reused tab must never expose the previous customer's saved
+      // scenarios, private financial assumptions, or pending report responses.
+      ownerAtLastSignal.current = nextOwner;
+      loadGeneration.current += 1;
+      activeRef.current = null;
+      currentReportRef.current = null;
+      createRequestRef.current = null;
+      evaluationRequestRef.current = null;
+      setAvailability(null);
+      setHistory([]);
+      setActive(null);
+      setReport(null);
+      setMonitor(null);
+      setAssessments([]);
+      setSelectedAssessment(null);
+      setDraftPreview(null);
+      setPreviewState('waiting');
+      setRuns([]);
+      setType('INCOME_INTERRUPTION');
+      setTitle('My income interruption plan');
+      setHorizon('12');
+      setBaseline(DEFAULT_BASE);
+      setDetails({});
+      setGoalReservations([]);
+      setSavedFingerprint(null);
+      setError('');
+      setSuccess('');
+      setLiveNotice('');
+      setPending(false);
+      setInitialLoading(true);
+    }
+    setAuthGeneration(getAuthSnapshot());
+    refresh().catch(() => {
+      // Logged-out sessions have no private financial state to rehydrate.
+    }).finally(() => setInitialLoading(false));
+  }), [refresh]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -382,6 +426,7 @@ export default function GenieDecisionWorkspace() {
 
   const save = async event => {
     event.preventDefault();
+    const operationAuthRevision = getAuthSnapshot();
     setPending(true); setError(''); setSuccess('');
     try {
       if (!availability?.available || !availability?.profileId) throw new Error('Complete and refresh your financial profile first.');
@@ -401,6 +446,7 @@ export default function GenieDecisionWorkspace() {
         const key = retryKey(createRequestRef, 'decision.create', createInput);
         result = await createDecisionScenario(createInput, { headers: { 'Idempotency-Key': key } });
       }
+      if (operationAuthRevision !== getAuthSnapshot()) return;
       createRequestRef.current = null;
       evaluationRequestRef.current = null;
       setActive(result.scenario);
@@ -413,12 +459,16 @@ export default function GenieDecisionWorkspace() {
       setRuns([]);
       setSuccess('Scenario saved. Choose Evaluate to calculate an immutable decision report.');
       await refresh();
-    } catch (err) { setError(errorMessage(err)); }
-    finally { setPending(false); }
+    } catch (err) {
+      if (operationAuthRevision === getAuthSnapshot()) setError(errorMessage(err));
+    } finally {
+      if (operationAuthRevision === getAuthSnapshot()) setPending(false);
+    }
   };
 
   const evaluate = async () => {
     if (!active) return;
+    const operationAuthRevision = getAuthSnapshot();
     if (hasUnsavedChanges) {
       setError('Save your latest changes before evaluating this revision.');
       return;
@@ -429,44 +479,60 @@ export default function GenieDecisionWorkspace() {
         `decision.evaluate:${active.id}`, { expectedRevision: active.revision });
       const result = await evaluateDecisionScenario(active.id, active.revision,
         { headers: { 'Idempotency-Key': key } });
+      if (operationAuthRevision !== getAuthSnapshot()) return;
       setReport(result);
       evaluationRequestRef.current = null;
       // Evaluation already committed: a secondary history failure must not
       // invite an accidental second publication.
       try {
-        setRuns((await listDecisionRuns(active.id)).runs || []);
+        const history = await listDecisionRuns(active.id);
+        if (operationAuthRevision !== getAuthSnapshot()) return;
+        setRuns(history.runs || []);
       } catch {
         setError('Report saved, but history could not be refreshed. Open this scenario again to retry loading history.');
       }
       setSuccess('A versioned report was published without changing your investments or profile.');
       await refresh();
-    } catch (err) { setError(errorMessage(err)); }
-    finally { setPending(false); }
+    } catch (err) {
+      if (operationAuthRevision === getAuthSnapshot()) setError(errorMessage(err));
+    } finally {
+      if (operationAuthRevision === getAuthSnapshot()) setPending(false);
+    }
   };
 
   const toggleMonitoring = async () => {
     if (!active || !monitor || pending || hasUnsavedChanges) return;
+    const operationAuthRevision = getAuthSnapshot();
     setPending(true); setError(''); setSuccess('');
     try {
       const response = await setDecisionMonitor(active.id, !monitor.enabled, active.revision);
+      if (operationAuthRevision !== getAuthSnapshot()) return;
       setMonitor(response.monitor);
       setSuccess(response.monitor.enabled
         ? 'Continuous monitoring enabled. Revised financial facts will generate a signed candidate assessment, never an automatic trade.'
         : 'Continuous monitoring disabled. Existing assessments remain available for review.');
-    } catch (err) { setError(errorMessage(err)); }
-    finally { setPending(false); }
+    } catch (err) {
+      if (operationAuthRevision === getAuthSnapshot()) setError(errorMessage(err));
+    } finally {
+      if (operationAuthRevision === getAuthSnapshot()) setPending(false);
+    }
   };
 
   const remove = async () => {
     if (!active || !window.confirm('Permanently delete this scenario and all of its decision reports?')) return;
+    const operationAuthRevision = getAuthSnapshot();
     setPending(true); setError('');
     try {
       await deleteDecisionScenario(active.id, active.revision);
+      if (operationAuthRevision !== getAuthSnapshot()) return;
       newScenario();
       await refresh();
       setSuccess('Scenario and associated reports deleted.');
-    } catch (err) { setError(errorMessage(err)); }
-    finally { setPending(false); }
+    } catch (err) {
+      if (operationAuthRevision === getAuthSnapshot()) setError(errorMessage(err));
+    } finally {
+      if (operationAuthRevision === getAuthSnapshot()) setPending(false);
+    }
   };
 
   return <div className="gd-workspace">
