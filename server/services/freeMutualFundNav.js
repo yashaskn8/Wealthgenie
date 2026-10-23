@@ -81,12 +81,12 @@ export function normalizeFreeNavHistory(raw,schemeCode,{now=new Date()}={}){
  }
  daily.sort((a,b)=>a.date.localeCompare(b.date));
  if(daily.length<90)return unavailable('INSUFFICIENT_NAV_HISTORY');
- const days=(+isoDate(daily.at(-1).date)-(+isoDate(daily[0].date)))/86400000;
- const lastAge=(+now-(+isoDate(daily.at(-1).date)))/86400000;
+ const days=(Date.parse(daily.at(-1).date)-(Date.parse(daily[0].date)))/86400000;
+ const lastAge=(+now-(Date.parse(daily.at(-1).date)))/86400000;
  if(days<180||lastAge<0||lastAge>10)return unavailable('NAV_HISTORY_STALE_OR_TOO_SHORT');
  let n=0,sum=0,sumSquared=0;
  for(let i=1;i<daily.length;i++){
-  const gap=(+isoDate(daily[i].date)-(+isoDate(daily[i-1].date)))/86400000;
+  const gap=(Date.parse(daily[i].date)-(Date.parse(daily[i-1].date)))/86400000;
   if(gap>20||gap<=0)return unavailable('NAV_HISTORY_GAP');
   const r=Math.log(daily[i].nav/daily[i-1].nav);
   if(!Number.isFinite(r)||Math.abs(r)>Math.log(1.5))
