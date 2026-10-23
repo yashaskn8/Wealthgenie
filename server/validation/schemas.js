@@ -69,6 +69,9 @@ function validatePostTaxTransactionDates(value, helpers) {
 }
 
 const postTaxInstrumentSchema = Joi.object({
+  // An instrument's canonical catalog ID is an identity/correlation token,
+  // never evidence that its generic category return is an exact product quote.
+  instrumentId: Joi.string().trim().min(1).max(128).optional(),
   instrumentType: Joi.string().trim().min(1).max(50).required(),
   nominalRate: Joi.number().min(0).max(1).required(),
   holdingYears: Joi.number().min(0.01).max(100).required(),
