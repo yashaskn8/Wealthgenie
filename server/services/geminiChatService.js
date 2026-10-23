@@ -19,6 +19,7 @@ import {
   generateGroundedExplanation,
   getGroundedExplanationTokenUpperBound,
   isGroundingBoundaryAttack,
+  retrieveTaxAssumptionEvidence,
   sanitizeExternalQuestion,
 } from './groundedExplanationService.js';
 import { resolveCurrentRecommendationState } from './recommendationState.js';
@@ -285,14 +286,16 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const unboundGoal = isFinancialGoalPlanningQuestion(sanitizedQuestion);
     const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
       ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
+    const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(sanitizedQuestion);
     if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
-        && (unboundGoal || reviewedPublicEducation.length > 0)) {
+        && (unboundGoal || reviewedPublicEducation.length > 0 || taxAssumptionEvidence.length > 0)) {
       // No account-bound state is created or reused by this stateless answer.
       const packet = buildGroundedEvidencePacket({
         question: sanitizedQuestion,
         profile: null,
         additionalEntries: unboundGoal
-          ? retrieveChatGoalPlanningEvidence(sanitizedQuestion) : reviewedPublicEducation,
+          ? retrieveChatGoalPlanningEvidence(sanitizedQuestion)
+          : taxAssumptionEvidence.length ? taxAssumptionEvidence : reviewedPublicEducation,
       });
       const answer = await generateGroundedExplanation({
         question: sanitizeExternalQuestion(message), evidencePacket: packet,
