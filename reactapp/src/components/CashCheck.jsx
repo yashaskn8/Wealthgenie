@@ -127,6 +127,10 @@ function ResultView({ data, entries = [], hypothetical = false }) {
 export default function CashCheck() {
   const [draft, setDraft] = useState(EMPTY);
   const pendingSave = useRef(null);
+  const pendingDelete = useRef(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [indiaDate, setIndiaDate] = useState(INDIA_DATE);
   const [revision, setRevision] = useState(0);
   const [saved, setSaved] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -140,7 +144,13 @@ export default function CashCheck() {
   const [hasStoredLedger, setHasStoredLedger] = useState(false);
 
   useEffect(() => {
+    const timer = setInterval(() => setIndiaDate(INDIA_DATE()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
     let active = true;
+    setLoaded(false);
+    setLoadFailed(false);
     api.getCoverageLedger().then(response => {
       if (!active) return;
       if (response.ledger) setDraft(toDraft(response.ledger));
@@ -149,9 +159,9 @@ export default function CashCheck() {
       setSaved(response.latestResult?.result || null);
       setStale(Boolean(response.requiresCashReconfirmation));
       setLoaded(true);
-    }).catch(err => { if (active) { setError(err.message || 'Unable to fetch cash entries.'); setLoaded(true); } });
+    }).catch(err => { if (active) { setLoadFailed(true); setError(err.message || 'Unable to fetch cash entries.'); setLoaded(true); } });
     return () => { active = false; };
-  }, []);
+  }, [loadAttempt]);
 
   const editDraft = updater => {
     // A response must never publish an old calculation over a later local edit.
@@ -212,6 +222,11 @@ export default function CashCheck() {
     if (busy || !hasStoredLedger) return;
     setBusy(true); setError('');
     try {
+      const expectedRevision = revision;
+      const initial = await api.getCoverageLedger();
+      if (!initial.ledger || initial.revision !== expectedRevision) {
+        throw new Error('Cash plan changed in another session. Reload before exporting.');
+      }
       let afterRevision = 0;
       const records = [];
       let completed = false;
@@ -225,6 +240,10 @@ export default function CashCheck() {
         afterRevision = page.nextAfterRevision;
       }
       if (!completed) throw new Error('Export page limit exceeded.');
+      const final = await api.getCoverageLedger();
+      if (!final.ledger || final.revision !== expectedRevision) {
+        throw new Error('Cash plan changed while exporting. Export cancelled to prevent a mixed history.');
+      }
       const serialized = JSON.stringify({
         format: 'wealthgenie-cash-history-v1',
         provenance: 'USER_DECLARED_NOT_BANK_VERIFIED',
@@ -244,10 +263,17 @@ export default function CashCheck() {
     if (busy || !confirmDelete || revision < 1) return;
     setBusy(true); setError(''); setNotice('');
     try {
-      const response = await api.deleteCoverageLedger(revision);
+      if (pendingDelete.current?.revision !== revision) {
+        pendingDelete.current = { revision, key: api.generateUUID() };
+      }
+      const response = await api.deleteCoverageLedger(revision, {
+        headers: { 'Idempotency-Key': pendingDelete.current.key },
+      });
+      pendingDelete.current = null;
       // The anonymous tombstone revision prevents a stale tab from resurrecting data.
       setRevision(response.nextRevision);
       pendingSave.current = null;
+      pendingDelete.current = null;
       setDraft(EMPTY());
       setSaved(null);
       setHasStoredLedger(false);
@@ -262,7 +288,15 @@ export default function CashCheck() {
         : err.message || 'Could not delete cash entries.');
     } finally { setBusy(false); }
   };
+  const needsReconfirmation = stale || (hasStoredLedger && draft.asOfDate !== indiaDate);
   if (!loaded) return <section className="cash-check-workspace" role="status">Loading your cash entries…</section>;
+  if (loadFailed) return (
+    <section className="cash-check-workspace">
+      <h1>90-day cash check</h1>
+      <p role="alert">Your saved cash records could not be loaded. Editing is blocked to protect existing data. {error}</p>
+      <button type="button" onClick={() => { setError(''); setLoadAttempt(n => n + 1); }}>Retry loading saved records</button>
+    </section>
+  );
   return (
     <section className="cash-check-workspace">
       <header>
@@ -272,7 +306,7 @@ export default function CashCheck() {
       </header>
       {error && <p className="cash-check-error" role="alert">{error}</p>}
       {notice && <p className="cash-check-notice" role="status">{notice}</p>}
-      {stale && <p className="cash-check-error" role="alert">Your cash declaration may be stale. Check the accessible balance and update the date before saving again.</p>}
+      {needsReconfirmation && <p className="cash-check-error" role="alert">Your cash declaration may be stale. Check the accessible balance and update the date before saving again.</p>}
       <form onSubmit={save} aria-busy={busy}>
         <fieldset className="cash-check-form-fields" disabled={busy}>
           <legend className="cash-check-hidden-legend">Cash amounts and commitments</legend>
@@ -327,10 +361,10 @@ export default function CashCheck() {
         </section>
         </fieldset>
       </form>
-      {saved && !dirty && !stale && <ResultView data={saved} entries={draft.entries} />}
-      {saved && stale && !dirty && <p role="alert">Saved cash entries are out of date. Reconfirm today's accessible cash and save again before viewing a result.</p>}
+      {saved && !dirty && !needsReconfirmation && <ResultView data={saved} entries={draft.entries} />}
+      {saved && needsReconfirmation && !dirty && <p role="alert">Saved cash entries are out of date. Reconfirm today's accessible cash and save again before viewing a result.</p>}
       {saved && dirty && <p role="status">Unsaved edits: the previous result is hidden until you save and recalculate.</p>}
-      {saved && !dirty && !stale && draft.entries.some(e => e.type === 'VOLUNTARY_CONTRIBUTION') &&
+      {saved && !dirty && !needsReconfirmation && draft.entries.some(e => e.type === 'VOLUNTARY_CONTRIBUTION') &&
         <section className="cash-check-panel">
           <h2>Optional hypothetical comparison</h2>
           <p>Compare removing all listed voluntary contributions from the saved ledger. This changes no saved entry and does not suggest skipping contractual bills.</p>

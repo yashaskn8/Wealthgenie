@@ -185,6 +185,8 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(deletedRead.body.deleted, true);
     assert.equal((await call(owner, 'PUT', '/ledger', submitted, 0, randomUUID())).status, 409);
     assert.equal((await call(owner, 'PUT', '/ledger', submitted, 2, randomUUID())).status, 409);
+    assert.equal((await call(owner, 'POST', '/scenarios/preview',
+      { revision: 3, excludedVoluntaryEntryIds: [] })).status, 400);
     const newPlan = await call(owner, 'PUT', '/ledger', submitted, 3, randomUUID());
     assert.equal(newPlan.status, 200);
     assert.equal(newPlan.body.revision, 4);

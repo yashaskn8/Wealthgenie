@@ -21,6 +21,14 @@ const MAX_SAVED_REVISIONS = 256;
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
 router.use(noStore);
 
+// Mongo write conflicts can surface as code 112 after two owners race to
+// update the same revision. This is a stale revision, not an internal error.
+function isRevisionRace(error) {
+  return error?.code === 11000
+    || error?.code === 112
+    || error?.codeName === 'WriteConflict'
+    || error?.code === 'COVERAGE_REVISION_CONFLICT';
+}
 function conflict() {
   return createError(409, 'Cash entries changed. Reload and reconcile before saving.', 'Cash entries changed.', {
     code: 'COVERAGE_REVISION_CONFLICT',
@@ -167,8 +175,7 @@ router.put(
       });
       req.idempotencyCommitted = true;
     } catch (error) {
-      if (error?.code === 11000 || error?.code === 'COVERAGE_REVISION_CONFLICT'
-          || error?.status === 409) {
+      if (isRevisionRace(error)) {
         const completed = await resolveCommittedMutationForClaim(req, req.idempotencyClaim);
         if (completed) {
           req.idempotencyCommitted = true;
@@ -309,7 +316,7 @@ router.delete('/ledger',
       });
       req.idempotencyCommitted = true;
     } catch (error) {
-      if (error?.status === 409 || error?.code === 11000) {
+      if (isRevisionRace(error)) {
         const completed = await resolveCommittedMutationForClaim(req, req.idempotencyClaim);
         if (completed) {
           req.idempotencyCommitted = true;

@@ -8,6 +8,7 @@ vi.mock('../../services/api', () => ({
   generateUUID: vi.fn(() => 'coverage-test-client-uuid-000001'),
   getCoverageLedger: vi.fn(), saveCoverageLedger: vi.fn(),
   previewCoverageScenario: vi.fn(), deleteCoverageLedger: vi.fn(),
+  exportCoverageHistoryPage: vi.fn(),
 }));
 
 const baseline = () => ({
@@ -99,6 +100,58 @@ describe('90-day cash check', () => {
       api.saveCoverageLedger.mock.calls[0][2].headers['Idempotency-Key'],
     );
     await screen.findByText(/Entries saved and recalculated/i);
+  });
+
+  it('blocks all edits when the initial private ledger fetch fails, then offers retry', async () => {
+    api.getCoverageLedger.mockRejectedValueOnce(new Error('Mongo unavailable'))
+      .mockResolvedValueOnce({ revision: 0, ledger: null, latestResult: null });
+    render(<CashCheck />);
+    await screen.findByRole('button', { name: 'Retry loading saved records' });
+    expect(screen.queryByRole('button', { name: /save and calculate/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading saved records' }));
+    await screen.findByRole('button', { name: /save and calculate/i });
+  });
+
+  it('reuses one deletion operation key on response loss and clears the plan after replay', async () => {
+    api.getCoverageLedger.mockResolvedValue({
+      revision: 1, ledger: {
+        asOfDate: indiaToday(), openingCashPaise: 10000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [],
+      }, latestResult: { result: baseline() }, requiresCashReconfirmation: false,
+    });
+    api.deleteCoverageLedger.mockRejectedValueOnce(new Error('Network response lost'))
+      .mockResolvedValueOnce({ deleted: true, deletedRevision: 1, nextRevision: 2 });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.click(screen.getByLabelText(/I understand this permanently removes/i));
+    fireEvent.click(screen.getByRole('button', { name: /delete my saved cash records/i }));
+    await screen.findByText(/Network response lost/i);
+    fireEvent.click(screen.getByRole('button', { name: /delete my saved cash records/i }));
+    await waitFor(() => expect(api.deleteCoverageLedger).toHaveBeenCalledTimes(2));
+    expect(api.deleteCoverageLedger.mock.calls[1][1].headers['Idempotency-Key']).toBe(
+      api.deleteCoverageLedger.mock.calls[0][1].headers['Idempotency-Key'],
+    );
+    await screen.findByText(/saved cash entries and calculations deleted/i);
+    expect(screen.queryByRole('button', { name: /delete my saved cash records/i })).toBeNull();
+  });
+
+  it('fails export closed when another tab changes the ledger mid-download', async () => {
+    const currentLedger = {
+      asOfDate: indiaToday(), openingCashPaise: 10000,
+      cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [],
+    };
+    api.getCoverageLedger.mockResolvedValueOnce({
+      revision: 1, ledger: currentLedger, latestResult: { result: baseline() },
+      requiresCashReconfirmation: false,
+    }).mockResolvedValueOnce({ revision: 1, ledger: currentLedger })
+      .mockResolvedValueOnce({ revision: 2, ledger: currentLedger });
+    api.exportCoverageHistoryPage.mockResolvedValue({
+      records: [{ revision: 1, input: currentLedger }], nextAfterRevision: null,
+    });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Download saved history' }));
+    await screen.findByText(/Export cancelled to prevent a mixed history/i);
   });
 
 });
