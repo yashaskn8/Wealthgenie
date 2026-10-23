@@ -150,6 +150,7 @@ function reportReceiptContext(run) {
     userId: identity(run.userId), scenarioId: identity(run.scenarioId),
     revision: run.revision, profileId: identity(run.profileId),
     profileFactsHash: run.profileFactsHash, inputHash: run.inputHash, runKeyHash: run.runKeyHash,
+    issuedAt: run.issuedAt,
   };
 }
 function checkRevision(revision, scenario) {
@@ -212,7 +213,7 @@ function reportDto(run, current, scenario = null) {
       ...(staleCalculationPolicy ? ['DECISION_CALCULATION_POLICY_SUPERSEDED'] : []),
       ...(staleInputs ? ['DECISION_CANONICAL_FACTS_CHANGED'] : []),
     ],
-    asOf: run.createdAt, originalStatus: run.result.status, result: run.result,
+    asOf: run.issuedAt, originalStatus: run.result.status, result: run.result,
   };
 }
 async function transaction(work) {
@@ -478,7 +479,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         profileId: first.profileId, profileStateRevision: first.profileStateRevision,
         profileVersion: first.profileVersion, profileFinancialFence: first.profileFinancialFence,
         profileFactsHash: first.profileFactsHash, runKeyHash: key, inputHash: revision.inputHash,
-        result, resultHash: hash(result),
+        result, resultHash: hash(result), issuedAt: new Date().toISOString(),
       };
       const [created] = await DecisionRun.create([{
         ...storedRun,
