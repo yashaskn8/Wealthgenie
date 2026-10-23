@@ -36,7 +36,7 @@ export const GROUNDED_LLM_TOOL_ALLOWLIST = Object.freeze([]);
 export const GROUNDED_PROVIDER_CHAIN_DEADLINE_MS = 60000;
 
 // Explain WealthGenie's input assumptions without fabricating a tax result.
-const TAX_ASSUMPTIONS_EXPLANATION_QUESTION = /^(?:(?:please\s+)?(?:explain|show|list|describe|outline|clarify|what\s+are|tell\s+me\s+about)\s+)?(?:(?:the|my|your|wealthgenie's|current|app's)\s+)?(?:tax|income[ -]?tax)\s+(?:assumptions?|policy)(?:\s+(?:used|here|in\s+(?:wealthgenie|the\s+app)|for\s+(?:my|the)\s+(?:plan|portfolio)))?[?.!\s]*$/i;
+const TAX_ASSUMPTIONS_EXPLANATION_QUESTION = /^(?:(?:please\s+)?(?:explain|show|list|describe|outline|clarify|what(?:\s+are)?|tell\s+me\s+about)\s+)?(?:(?:the|my|your|wealthgenie's|current|app's)\s+)?(?:tax|income[ -]?tax)\s+(?:assumptions?|policy)(?:\s+(?:(?:is\s+)?used|here|in\s+(?:wealthgenie|the\s+app)|for\s+(?:my|the)\s+(?:plan|portfolio)))?[?.!\s]*$/i;
 const TAX_REGIME_POLICY_QUESTION = /^(?:(?:which|what)\s+(?:income[ -]?)?tax\s+regime\s+(?:does\s+(?:wealthgenie|the\s+app|genie)\s+use|is\s+(?:used|supported|assumed)(?:\s+(?:in|by)\s+(?:wealthgenie|the\s+app))?)|does\s+(?:wealthgenie|the\s+app|genie)\s+use\s+(?:the\s+)?(?:new|old|new\s+or\s+old)\s+(?:income[ -]?)?tax\s+regime)[?.!\s]*$/i;
 function isTaxPolicyExplanationQuestion(question) {
   const text = String(question || '').trim();
