@@ -123,8 +123,13 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
       setMessage(imported.replayed ? 'That evidence was already imported; no duplicate was created.'
         : 'Statement imported and every running balance reconciled. This is not bank-verified data.');
       setCsvFile(null);
-      await reload();
-    } catch (e) { setError(e.message || 'Statement import was rejected.'); }
+      try { await reload(); } catch {
+        setOverview(null); setObservations(null); setRiskAlerts(null); setImports([]);
+        setError('Statement import committed, but the financial screen could not refresh. Reload before using figures.');
+      }
+    } catch (e) {
+      setError(e.message || 'Import result could not be confirmed. Review existing evidence before retrying.');
+    }
     finally { setBusy(false); }
   };
   const remove = async id => {
@@ -134,8 +139,13 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
       await api.deleteRunwayStatement(id);
       setPendingDelete('');
       setMessage('Imported evidence deleted from the primary database. Backups have separate retention.');
-      await reload();
-    } catch (e) { setError(e.message || 'Could not delete imported evidence.'); }
+      try { await reload(); } catch {
+        setOverview(null); setObservations(null); setRiskAlerts(null); setImports([]);
+        setError('Evidence deletion committed, but refresh failed. Reload before trusting displayed figures.');
+      }
+    } catch (e) {
+      setError(e.message || 'Deletion result could not be confirmed. Review evidence history before retrying.');
+    }
     finally { setBusy(false); }
   };
   const loadMatches = async () => {
@@ -190,7 +200,9 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
         await reload();
         setMatches(await api.getRunwayReconciliationMatches());
       } catch {
-        setMessage('Settlement was committed to revision ' + saved.revision
+        setOverview(null); setObservations(null); setRiskAlerts(null); setImports([]);
+        setMatches(null);
+        setMessage('Settlement committed to revision ' + saved.revision
           + ', but refreshing the screen failed. Reload the page before further edits.');
       }
     } catch (e) { setError(e.message || 'Could not confirm posted payment. Retry with the same inputs.'); }
