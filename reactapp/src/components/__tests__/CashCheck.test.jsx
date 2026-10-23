@@ -477,4 +477,61 @@ describe('90-day cash check', () => {
     expect(screen.getByPlaceholderText('50000.00').value).toBe('10.00');
   });
 
+  it('offers a safe cash reconciliation review only for a unique confirmed one-off candidate', async () => {
+    const day = indiaToday();
+    const ledger = {
+      asOfDate: day, openingCashPaise: 5000000,
+      cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true,
+      entries: [{ id: 'paid-today', label: 'Rent', type: 'ESSENTIAL_PAYMENT',
+        amountPaise: 1200001, startDate: day, recurrence: 'ONCE' }],
+    };
+    api.getCoverageLedger.mockResolvedValue({
+      revision: 1, ledger,
+      latestResult: { result: baseline(), inputHash: 'a'.repeat(64) },
+      requiresCashReconfirmation: false,
+    });
+    const csv = 'Date,Description,Debit,Credit,Balance\n'
+      + day + ',Rent,12000.01,,37999.99\n';
+    const file = new File([csv], 'statement.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', { value: vi.fn().mockResolvedValue(csv) });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByLabelText('Choose bank statement CSV'), {
+      target: { files: [file] },
+    });
+    await screen.findByRole('region', { name: 'Statement review' });
+    const review = await screen.findByRole('button', { name: 'Review possible settlement for Rent' });
+    fireEvent.click(review);
+    expect(screen.getByRole('region', { name: 'Confirm one-time payment settlement' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Record payment and recalculate' }).disabled).toBe(true);
+    expect(api.settleCoverageOneOff).not.toHaveBeenCalled();
+  });
+  it('does not guess a one-off match when multiple bills have identical dates and amounts', async () => {
+    const day = indiaToday();
+    api.getCoverageLedger.mockResolvedValue({
+      revision: 1,
+      ledger: {
+        asOfDate: day, openingCashPaise: 5000000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true,
+        entries: ['one', 'two'].map(id => ({
+          id, label: 'Bill ' + id, type: 'ESSENTIAL_PAYMENT',
+          amountPaise: 1200001, startDate: day, recurrence: 'ONCE',
+        })),
+      },
+      latestResult: { result: baseline(), inputHash: 'a'.repeat(64) },
+      requiresCashReconfirmation: false,
+    });
+    const csv = 'Date,Description,Debit,Credit\n' + day + ',Bill,12000.01,\n';
+    const file = new File([csv], 'statement.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'text', { value: vi.fn().mockResolvedValue(csv) });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByLabelText('Choose bank statement CSV'), {
+      target: { files: [file] },
+    });
+    await screen.findByRole('region', { name: 'Statement review' });
+    expect(screen.queryByRole('button', { name: /Review possible settlement for/i })).toBeNull();
+    expect(api.settleCoverageOneOff).not.toHaveBeenCalled();
+  });
+
 });

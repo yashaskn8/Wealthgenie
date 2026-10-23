@@ -104,3 +104,6 @@ When the active 90-day calculation policy changes, the in-app alert endpoint no 
 
 ### Stale notices and model upgrades: alert matrix
 A dated cash-reconfirmation event remains durable after its original creation, but the inbox must not present it after today's opening cash has been explicitly reconfirmed. The inbox mutually excludes unverified-risk warnings while cash is stale, suppresses *all* policy-derived events while a current-day plan's policy is retired, and allows only current risk transitions for a fresh current-policy plan. Alert acknowledgements must use exactly the same eligibility predicates, so a hidden stale warning cannot be acknowledged through a guessed URL.
+
+### User-reviewed reconciliation from a statement
+When a browser-local debit dated today has exactly one match among already saved one-off cash obligations by exact date and paise amount, the interface offers to open the existing settlement confirmation form. It does not assert this bank line is verified, does not mark a recurring obligation paid, does not auto-select when there are duplicate matches, and never posts a settlement until the user separately attests the payment and enters current accessible cash after it. This is a workflow aid, not automatic reconciliation with a bank.

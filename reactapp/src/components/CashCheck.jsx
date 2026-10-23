@@ -597,6 +597,17 @@ export default function CashCheck() {
         : err.message || 'Could not delete cash entries.');
     } finally { setBusy(false); }
   };
+  const findOneOffSettlementCandidate = debit => {
+    if (!debit || !hasStoredLedger || dirty || conflictState || stale || !saved) return null;
+    // Amount and calendar day are candidate evidence, NOT proof of settlement.
+    // Never infer a recurring contract was paid or choose among two equal bills.
+    const matches = draft.entries.filter(entry =>
+      entry.recurrence === 'ONCE'
+      && entry.type !== 'EXPECTED_INCOME'
+      && entry.startDate === debit.date
+      && entry.amount === rupees(debit.amountPaise));
+    return matches.length === 1 ? matches[0] : null;
+  };
   const openSettlement = entry => {
     if (busy || dirty || conflictState || !hasStoredLedger || settling || stale) return;
     setSettling({ id: entry.id, label: entry.label });
@@ -863,13 +874,22 @@ export default function CashCheck() {
                 <div role="region" aria-label="Review transactions already settled today">
                   <h3>Check for today's payments already included in your opening cash</h3>
                   <p>These debits appear as settled in the uploaded file dated today. If your declared opening cash already reflects them, do not also include them as due today. Check the actual balance/timing manually.</p>
-                  <ul>{csvReview.settledToday.map((item, i) => (
-                    <li key={i}>{item.description}: {formatMoney(item.amountPaise)}
-                      {draft.entries.some(entry => entry.startDate === item.date && entry.amount === rupees(item.amountPaise))
-                        ? ' — possible match to an existing scheduled entry; review for double counting.'
-                        : ' — review whether already included in accessible cash.'}
-                    </li>
-                  ))}</ul>
+                  <ul>{csvReview.settledToday.map((item, i) => {
+                    const candidate = findOneOffSettlementCandidate(item);
+                    return (
+                      <li key={i}>{item.description}: {formatMoney(item.amountPaise)}
+                        {candidate
+                          ? ' — possible match to one scheduled one-time commitment; not bank verified.'
+                          : ' — review whether already included in accessible cash. No unique one-time match.'}
+                        {candidate && (
+                          <button type="button" disabled={busy || Boolean(settling)}
+                            onClick={() => openSettlement(candidate)}>
+                            Review possible settlement for {candidate.label}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}</ul>
                   {csvReview.settledTodayTruncated && <p>More than 20 same-day debits. Review the full statement before confirming cash.</p>}
                 </div>
               )}
