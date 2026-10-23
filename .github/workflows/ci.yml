@@ -86,6 +86,14 @@ jobs:
             server/test/genieDecisionPreview.test.js \
             server/test/genieDecisionPersistenceMongo.integration.test.js
 
+      - name: Verify canonical OpenAPI and public route ownership
+        env:
+          JWT_SECRET: openapi-ci-contract-verification-secret-2026
+        run: |
+          node --test --test-concurrency=1 \
+            server/test/openapiContract.test.js \
+            server/test/openapiSingleDocumentRegression.test.js
+
       - name: Run Backend Tests & Coverage
         env:
           MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0'
