@@ -159,6 +159,12 @@ export default function FreeSourceResearchPanel(){
          <strong>{result.asset?.name}</strong>
          <p>Latest NAV: ₹{Number(result.asset?.latestNav).toFixed(4)} ({result.asset?.navDate});
           observed annualized NAV volatility: {(result.calibration?.observedAnnualVolatility*100).toFixed(2)}%</p>
+         <p>Risk-observation window: {result.calibration?.firstNavDate||'Unavailable'} to{' '}
+          {result.calibration?.lastNavDate||'Unavailable'} ({Number.isInteger(result.calibration?.historicalNavCount)
+           ? result.calibration.historicalNavCount+' NAV observations'
+           : 'sample size unavailable'}).
+          {' '}Annualization: irregular calendar-day intervals under the GBM research model;
+          this is an estimate, not an investment-return guarantee.</p>
          <p>MFapi.in cross-check: <strong>{result.sourceChecks?.status||'NOT_VERIFIED'}</strong>.
           {result.sourceChecks?.status==='MATCHED_SAME_AMFI_SOURCE'
            ? ' NAV date and value match a second API serving the same AMFI publication.'
