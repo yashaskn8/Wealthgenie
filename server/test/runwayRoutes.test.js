@@ -20,7 +20,10 @@ test('enabled Runway routes require authenticated session before reading or modi
     for (const [method, route] of [
       ['GET', 'current'], ['PUT', 'ledger'], ['POST', 'simulations'],
       ['POST', 'snapshots'], ['GET', 'snapshots/' + 'a'.repeat(64)],
-      ['POST', 'explanations'], ['DELETE', 'data'],
+      ['POST', 'explanations'], ['GET', 'live/overview'], ['GET', 'live/events'],
+      ['GET', 'live/statements'], ['POST', 'live/statements'],
+      ['GET', 'live/statements/' + 'a'.repeat(64)],
+      ['DELETE', 'live/statements/' + 'a'.repeat(64)], ['DELETE', 'data'],
     ]) {
       const r = await fetch(base + '/api/runway/' + route, {
         method, headers: { 'Content-Type': 'application/json' },

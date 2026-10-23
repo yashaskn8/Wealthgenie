@@ -10,6 +10,7 @@ import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
 import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt } from '../models/Runway.js';
+import { RunwayStatement, RunwaySignal } from '../models/RunwayEvidence.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 
@@ -41,6 +42,15 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
     });
     await RunwaySnapshotDeletion.collection.createIndex({ expiresAt: 1 }, {
       name: 'runway_deleted_snapshot_ttl', expireAfterSeconds: 0,
+    });
+    await RunwayStatement.collection.createIndex({ userId: 1, createdAt: -1 }, {
+      name: 'runway_statement_owner_newest',
+    });
+    await RunwaySignal.collection.createIndex({ userId: 1, _id: 1 }, {
+      name: 'runway_signal_owner_cursor',
+    });
+    await RunwaySignal.collection.createIndex({ expiresAt: 1 }, {
+      name: 'runway_signal_ttl', expireAfterSeconds: 0,
     });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
     await User.create([
@@ -85,6 +95,60 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(reused.response.status, 409);
       assert.equal(reused.body.code, 'RUNWAY_IDEMPOTENCY_CONFLICT');
 
+      // Free statement ingestion never silently redefines the verified opening
+      // ledger or counts posted transfers as brand-new expected income.
+      const csv = [
+        'date,description,debit,credit,balance,reference',
+        now + ',Salary credit,0,125.00,125.00,salary-001',
+      ].join('\n');
+      const imported = await mutation(base, 'live/statements', {
+        accountLabel: 'Salary account', csvText: csv,
+      });
+      assert.equal(imported.response.status, 201, JSON.stringify(imported.body));
+      assert.equal(imported.body.verification, 'USER_IMPORTED_UNVERIFIED');
+      assert.equal(imported.body.closingBalancePaise, '12500');
+      const replayImport = await mutation(base, 'live/statements', {
+        accountLabel: 'Salary account', csvText: csv,
+      });
+      assert.equal(replayImport.response.status, 200);
+      assert.equal(replayImport.body.replayed, true);
+      assert.equal(await RunwayStatement.countDocuments({ userId: userA }), 1);
+      const foreignEvidence = await jsonRequest(ownedBase + 'live/statements', { headers: authB });
+      assert.equal(foreignEvidence.response.status, 200);
+      assert.equal(foreignEvidence.body.items.length, 0);
+      const userEvidence = await jsonRequest(ownedBase + 'live/statements', { headers: authA });
+      assert.equal(userEvidence.body.items[0].statementId, imported.body.statementId);
+      const evidenceDetails = await jsonRequest(ownedBase + 'live/statements/' + imported.body.statementId,
+        { headers: authA });
+      assert.equal(evidenceDetails.body.records[0].creditPaise, '12500');
+      const wrongOwnerEvidence = await jsonRequest(ownedBase + 'live/statements/' + imported.body.statementId,
+        { headers: authB });
+      assert.equal(wrongOwnerEvidence.response.status, 404);
+      const live = await jsonRequest(ownedBase + 'live/overview?horizonDays=1', { headers: authA });
+      assert.equal(live.response.status, 200, JSON.stringify(live.body));
+      assert.equal(live.body.bankConnected, false);
+      assert.equal(live.body.modeled.baseline.cashAlreadyAvailable.endBalancePaise, '-2000');
+      assert.equal(live.body.observedStatement.closingBalancePaise, '12500');
+      const changes = await jsonRequest(ownedBase + 'live/events', { headers: authA });
+      assert.ok(changes.body.items.some(item => item.eventType === 'LEDGER_UPDATED'));
+      assert.ok(changes.body.items.some(item => item.eventType === 'STATEMENT_IMPORTED'));
+      const eventCursor = changes.body.nextCursor;
+      const again = await jsonRequest(ownedBase + 'live/events?after=' + eventCursor, { headers: authA });
+      assert.equal(again.body.items.length, 0);
+      const otherEvents = await jsonRequest(ownedBase + 'live/events', { headers: authB });
+      assert.equal(otherEvents.body.items.length, 0);
+      const badStatement = await mutation(base, 'live/statements', {
+        accountLabel: 'Salary account', csvText: csv.replace('125.00', '125.01'),
+      });
+      assert.equal(badStatement.response.status, 400);
+      const savedEvidence = await RunwayStatement.collection.findOne({ _id: imported.body.statementId });
+      await RunwayStatement.collection.updateOne({ _id: imported.body.statementId },
+        { $set: { 'statement.closingBalancePaise': '99999999' } });
+      const tampered = await jsonRequest(ownedBase + 'live/overview', { headers: authA });
+      assert.equal(tampered.response.status, 503);
+      assert.equal(tampered.body.code, 'RUNWAY_EVIDENCE_INVALID');
+      await RunwayStatement.collection.updateOne({ _id: imported.body.statementId },
+        { $set: { 'statement.closingBalancePaise': savedEvidence.statement.closingBalancePaise } });
       const ownExport = await jsonRequest(ownedBase + 'ledger/revisions?page=0', { headers: authA });
       assert.equal(ownExport.response.status, 200);
       assert.equal(ownExport.body.format, 'WEALTHGENIE_RUNWAY_LEDGER_HISTORY_V1');
@@ -310,6 +374,8 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(await RunwayLedgerRevision.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySnapshotDeletion.countDocuments({ userId: userA }), 0);
+      assert.equal(await RunwayStatement.countDocuments({ userId: userA }), 0);
+      assert.equal(await RunwaySignal.countDocuments({ userId: userA }), 0);
       const missing = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(missing.response.status, 404);
       assert.equal(await FinancialProfile.countDocuments({ userId: userA }), 0);
