@@ -81,7 +81,9 @@ describe('90-day cash check', () => {
     await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
     fireEvent.click(screen.getByLabelText(/I understand this permanently removes/i));
     fireEvent.click(screen.getByRole('button', { name: /delete my saved cash records/i }));
-    await waitFor(() => expect(api.deleteCoverageLedger).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(api.deleteCoverageLedger).toHaveBeenCalledWith(1, {
+      headers: { 'Idempotency-Key': 'coverage-test-client-uuid-000001' },
+    }));
     expect(screen.getByText(/Revision 2/)).toBeTruthy();
     expect(screen.queryByText(/No shortfall in the entries supplied for these dates/i)).toBeNull();
   });
