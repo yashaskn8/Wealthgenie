@@ -229,6 +229,22 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
       asOfDate: indiaToday(), openingCashPaise: 1000,
       completenessConfirmed: true, settlementConfirmed: true,
     };
+    // The settlement record is inseparable from the new cash revision.
+    const originalSettlementCreate = CoverageSettlement.create;
+    CoverageSettlement.create = async function injectedSettlementOutage(rows, options) {
+      if (String(rows?.[0]?.userId) === String(settledOwner)) {
+        throw new Error('INJECTED_SETTLEMENT_AUDIT_FAILURE');
+      }
+      return originalSettlementCreate.call(this, rows, options);
+    };
+    try {
+      const missingAudit = await call(settledOwner, 'POST', '/commitments/rent/settle',
+        settlementBody, 1, randomUUID());
+      assert.equal(missingAudit.status, 500);
+    } finally { CoverageSettlement.create = originalSettlementCreate; }
+    assert.equal((await CoverageLedger.findOne({ userId: settledOwner }).lean()).revision, 1);
+    assert.equal(await CoverageResult.countDocuments({ userId: settledOwner }), 1);
+    assert.equal(await CoverageSettlement.countDocuments({ userId: settledOwner }), 0);
     const settlementKey = randomUUID();
     const paid = await call(settledOwner, 'POST', '/commitments/rent/settle',
       settlementBody, 1, settlementKey);
@@ -259,6 +275,30 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(settleDeleted.status, 200);
     assert.equal(await CoverageSettlement.countDocuments({ userId: settledOwner }), 0);
     assert.deepEqual((await call(settledOwner, 'GET', '/settlements')).body.settlements, []);
+
+    // A risk-event persistence outage must roll back the ledger and immutable
+    // snapshot, not leave a cash forecast without its necessary notification.
+    const originalAlertCreate = CoverageRiskAlert.create;
+    CoverageRiskAlert.create = async function injectedAlertOutage(rows, options) {
+      if (String(rows?.[0]?.userId) === String(owner)
+          && rows?.[0]?.kind === 'SHORTFALL_DETECTED') {
+        throw new Error('INJECTED_RISK_ALERT_OUTBOX_FAILURE');
+      }
+      return originalAlertCreate.call(this, rows, options);
+    };
+    try {
+      const failedRisk = await call(owner, 'PUT', '/ledger', {
+        ...submitted,
+        entries: [...submitted.entries, {
+          id: 'sip_confirmed', label: 'Chosen SIP', type: 'VOLUNTARY_CONTRIBUTION',
+          amountPaise: 8_000, startDate: indiaToday(), recurrence: 'ONCE',
+        }],
+      }, 1, randomUUID());
+      assert.equal(failedRisk.status, 500);
+    } finally { CoverageRiskAlert.create = originalAlertCreate; }
+    assert.equal((await CoverageLedger.findOne({ userId: owner }).lean()).revision, 1);
+    assert.equal(await CoverageResult.countDocuments({ userId: owner }), 1);
+    assert.equal(await CoverageRiskAlert.countDocuments({ userId: owner }), 0);
 
     const second = await call(owner, 'PUT', '/ledger', {
       ...submitted,
@@ -362,6 +402,9 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(await CoverageLedger.countDocuments({ userId: owner }), 1);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 0);
     assert.equal(await CoverageRiskAlert.countDocuments({ userId: owner }), 0);
+    await sweepStaleCashDeclarations({ now: tomorrow, limit: 100 });
+    assert.equal(await CoverageRiskAlert.countDocuments({ userId: owner }), 0,
+      'background stale-cash sweep must never resurrect deleted financial alerts');
     assert.deepEqual((await call(owner, 'GET', '/alerts')).body.alerts, []);
     assert.deepEqual((await call(owner, 'GET', '/export')).body.records, []);
     assert.equal(await CoverageDeletionReceipt.countDocuments({ userId: owner }), 1);
