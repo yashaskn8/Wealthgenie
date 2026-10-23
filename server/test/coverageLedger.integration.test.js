@@ -361,6 +361,10 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     }).lean();
     assert.equal(staleEvents.length, 1);
     assert.equal(staleEvents[0].ledgerRevision, 2);
+    const refreshedInbox = await call(owner, 'GET', '/alerts');
+    assert.equal(refreshedInbox.body.requiresCashReconfirmation, false);
+    assert.equal(refreshedInbox.body.alerts.length, 1);
+    assert.equal(refreshedInbox.body.alerts[0].kind, 'SHORTFALL_DETECTED');
     const lateReplay = await call(owner, 'PUT', '/ledger', submitted, 0, firstKey);
     assert.equal(lateReplay.status, 200);
     assert.equal(lateReplay.body.revision, 1);

@@ -458,12 +458,20 @@ router.get('/alerts', verifyJWT, asyncHandler(async (req, res) => {
     userId: owner, ledgerRevision: ledger.revision, policyVersion: COVERAGE_POLICY_VERSION,
   });
   const requiresPolicyReconfirmation = !currentPolicy;
-  // Retired financial policies are not valid present-day warnings. A stale
-  // cash reconfirmation request is still safe even if its old model retired.
+  // Invalidation rules are mutually exclusive:
+  // - stale cash: ONLY dated cash reconfirmation notices
+  // - current cash but retired policy: NO stale financial predictions
+  // - current cash/current policy: ONLY current financial risk transitions
+  // This also fences old reconfirmation messages generated before fresh cash
+  // was attested, even when tests or clocks advance independently.
+  const eligibleAlertKinds = requiresCashReconfirmation
+    ? { kind: 'CASH_RECONFIRMATION_REQUIRED' }
+    : requiresPolicyReconfirmation
+      ? { kind: { $in: [] } }
+      : { kind: { $ne: 'CASH_RECONFIRMATION_REQUIRED' } };
   const rows = await CoverageRiskAlert.find({
     userId: owner, ledgerRevision: ledger.revision, state: { $ne: 'SUPERSEDED' },
-    ...(requiresCashReconfirmation || requiresPolicyReconfirmation
-      ? { kind: 'CASH_RECONFIRMATION_REQUIRED' } : {}),
+    ...eligibleAlertKinds,
   }).sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
   if (!await CoverageLedger.exists({
     _id: ledger._id, userId: owner, revision: ledger.revision, deletedAt: null,
@@ -494,18 +502,21 @@ router.patch('/alerts/:id/ack', verifyJWT, asyncHandler(async (req, res) => {
     userId: owner, ledgerRevision: ledger.revision, policyVersion: COVERAGE_POLICY_VERSION,
   });
   const requiresPolicyReconfirmation = !currentPolicy;
+  const eligibleAlertKinds = requiresCashReconfirmation
+    ? { kind: 'CASH_RECONFIRMATION_REQUIRED' }
+    : requiresPolicyReconfirmation
+      ? { kind: { $in: [] } }
+      : { kind: { $ne: 'CASH_RECONFIRMATION_REQUIRED' } };
   // User-visible acknowledgement is idempotent and only scoped to the
   // current owner's current revision.
   const changed = await CoverageRiskAlert.findOneAndUpdate({
     _id: req.params.id, userId: owner, ledgerRevision: ledger.revision, state: 'UNREAD',
-    ...(requiresCashReconfirmation || requiresPolicyReconfirmation
-      ? { kind: 'CASH_RECONFIRMATION_REQUIRED' } : {}),
+    ...eligibleAlertKinds,
   }, { $set: { state: 'ACKNOWLEDGED', acknowledgedAt: new Date() } },
   { new: true, runValidators: true }).lean();
   const saved = changed || await CoverageRiskAlert.findOne({
     _id: req.params.id, userId: owner, ledgerRevision: ledger.revision, state: 'ACKNOWLEDGED',
-    ...(requiresCashReconfirmation || requiresPolicyReconfirmation
-      ? { kind: 'CASH_RECONFIRMATION_REQUIRED' } : {}),
+    ...eligibleAlertKinds,
   }).lean();
   if (!saved) {
     throw createError(404, 'Current alert not found.', 'Alert not found.',

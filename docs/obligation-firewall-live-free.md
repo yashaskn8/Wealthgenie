@@ -101,3 +101,6 @@ Committed one-off settlement retries retain their bank-unverified settlement sem
 ## Policy upgrades and persistent alerts
 
 When the active 90-day calculation policy changes, the in-app alert endpoint no longer presents shortfall warnings generated under a retired policy as if they were current. It signals `requiresPolicyReconfirmation` and only permits dated cash-reconfirmation notifications. Attempts to acknowledge historical shortfall warnings while their underlying model is retired are rejected; the signed-in user must reconfirm cash and save a new active-policy result first. Historical result exports remain available without silently rewriting financial conclusions.
+
+### Stale notices and model upgrades: alert matrix
+A dated cash-reconfirmation event remains durable after its original creation, but the inbox must not present it after today's opening cash has been explicitly reconfirmed. The inbox mutually excludes unverified-risk warnings while cash is stale, suppresses *all* policy-derived events while a current-day plan's policy is retired, and allows only current risk transitions for a fresh current-policy plan. Alert acknowledgements must use exactly the same eligibility predicates, so a hidden stale warning cannot be acknowledged through a guessed URL.
