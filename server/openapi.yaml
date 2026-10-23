@@ -179,6 +179,32 @@ paths:
         '422': { $ref: '#/components/responses/Unprocessable' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /api/decisions/scenarios/{id}/monitor:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }]
+    get:
+      tags: [GenieDecision]
+      operationId: getDecisionScenarioMonitoring
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      description: Verify owner, signed user consent and bounded authenticated reassessment history.
+      responses:
+        '200': { description: Authenticated monitor state and up to 15 source-fenced reassessments }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    put:
+      tags: [GenieDecision]
+      operationId: setDecisionScenarioMonitoring
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      description: Explicit opt-in/out with HMAC consent generation and expected scenario revision. No trading authorization.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [enabled, expectedRevision], additionalProperties: false, properties: { enabled: { type: boolean }, expectedRevision: { type: integer, minimum: 1 } } } } } }
+      responses:
+        '200': { description: Signed monitor consent state }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/decisions/scenarios/{id}/runs:
     parameters: [{ name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }]
     get:
