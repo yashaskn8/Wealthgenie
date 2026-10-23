@@ -19,6 +19,7 @@ import profileRoutes from './routes/profile.js';
 import recommendRoutes from './routes/recommend.js';
 import instrumentRoutes from './routes/instruments.js';
 import financialUniverseRoutes from './routes/financialUniverse.js';
+import freeFinancialSourcesRoutes from './routes/freeFinancialSources.js';
 import investorTaxContextRoutes from './routes/investorTaxContext.js';
 import investorHoldingRoutes from './routes/investorHoldings.js';
 import recommendationShortlistRoutes from './routes/recommendationShortlist.js';
@@ -217,6 +218,8 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/recommend', recommendRoutes);
   app.use('/api/instruments', instrumentRoutes);
   app.use('/api/financial-universe', financialUniverseRoutes);
+  // User-triggered free-source research is ephemeral and never implies PostgreSQL qualification.
+  app.use('/api/free-financial-sources', freeFinancialSourcesRoutes);
   // Private finance extensions require independently migrated Mongo indexes and
   // an initialized financial reference-data authority. Old product flows stay active.
   const financePrivateGate = (req,res,next) => env.FINANCIAL_ARCHITECTURE_ENABLED === 'true'
