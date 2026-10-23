@@ -23,6 +23,14 @@ function canonicalMoney(value) {
   return String(BigInt(parts[0])) + '.' + (parts[1] || '').padEnd(2, '0');
 }
 
+// Verify response identities with exact paise arithmetic before presenting a
+// match. A corrupt/mismatched API payload must never certify advertised math.
+function moneyPaise(value) {
+  if (!moneyPattern.test(value || '')) return null;
+  const [rupees, paisa] = value.split('.');
+  return BigInt(rupees) * 100n + BigInt(paisa);
+}
+
 function validResult(result, values) {
   if (!result || result.ok !== true || result.mode !== 'USER_INPUT_MATH_CHECK'
       || result.saved !== false || result.type !== values.type
@@ -40,7 +48,32 @@ function validResult(result, values) {
       || !Array.isArray(result.exclusions)
       || !['CALCULATED_ONLY', 'MATCHES_ASSUMPTIONS_WITHIN_ONE_PAISE', 'DIFFERS_FROM_ASSUMPTIONS'].includes(result.arithmeticFinding)
       || typeof result.convention !== 'string' || typeof result.caveat !== 'string') return false;
-  return true;
+  const computed = moneyPaise(result.resultRupees);
+  const contributed = moneyPaise(result.totalPaidOrContributedRupees);
+  const interest = moneyPaise(result.totalInterestRupees);
+  const principal = moneyPaise(canonicalMoney(values.amountRupees));
+  if (computed === null || contributed === null || interest === null || principal === null) return false;
+  // For a loan the result is an instalment, not its total repayment.
+  if (values.type === 'EMI') {
+    const last = moneyPaise(result.lastInstallmentRupees);
+    if (last === null || last <= 0n || last > computed
+        || computed <= 0n || contributed !== principal + interest) return false;
+  } else if (result.lastInstallmentRupees !== null
+      || contributed < principal || computed !== contributed + interest
+      || (values.type === 'LUMPSUM' && contributed !== principal)) return false;
+
+  const claimed = result.claimedResultRupees === null
+    ? null : moneyPaise(result.claimedResultRupees);
+  const difference = result.absoluteDifferenceRupees === null
+    ? null : moneyPaise(result.absoluteDifferenceRupees);
+  if (result.claimedResultRupees !== null && claimed === null) return false;
+  if (result.claimedResultRupees === null) {
+    return difference === null && result.arithmeticFinding === 'CALCULATED_ONLY';
+  }
+  const actualDifference = claimed > computed ? claimed - computed : computed - claimed;
+  return difference === actualDifference
+    && result.arithmeticFinding === (actualDifference <= 1n
+      ? 'MATCHES_ASSUMPTIONS_WITHIN_ONE_PAISE' : 'DIFFERS_FROM_ASSUMPTIONS');
 }
 
 const fieldStyle = {
