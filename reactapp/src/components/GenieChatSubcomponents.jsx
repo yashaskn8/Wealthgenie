@@ -243,10 +243,7 @@ export const MessageBubble = ({ msg, onAction, isLatest }) => {
     <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble--user' : 'chat-bubble--genie'}`}>
       {isAssistant && <div className="bubble-avatar"><span className="ba-letter">G</span></div>}
       <div className="bubble-body">
-        {isAssistant && msg.fallback && msg.provider === 'DETERMINISTIC_TEMPLATE' && (
-          <div className="chat-fallback-note">{msg.fallback_reason_codes?.length ? 'Genie used a source-backed fallback because a model answer was unavailable or did not pass verification.' : 'Genie used a deterministic, evidence-based explanation without a model forecast.'}</div>
-        )}
-        {isAssistant && msg.grounded === false && msg.provider !== 'SYSTEM' && (
+        {isAssistant && msg.validation_status === 'UNVERIFIED_GENERAL_CHAT' && msg.grounded === false && msg.provider !== 'SYSTEM' && (
           <div className="chat-fallback-note">
             General AI answer · not checked against external sources or live information.
           </div>
