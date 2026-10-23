@@ -85,7 +85,7 @@ function Report({ report }) {
     <div className="gd-heading"><div><h3>Decision comparison</h3><p>As of {shortDate(record.asOf)} · {label(result.scenarioType)}</p></div>
       <span className="gd-status">{record.status}</span></div>
     {record.status === 'HISTORICAL' && <p className="gd-warning" role="alert">
-      The financial profile or saved scenario revision has changed. This report is historical and must not be treated as a current financial assessment.
+      The financial profile, saved scenario, or calculation rules have changed. This report is historical; re-evaluate a current scenario before using its figures.
     </p>}
     <div className="gd-alternatives">
       {(result.alternatives || []).map(alt => <article key={alt.name} className="gd-alternative">
