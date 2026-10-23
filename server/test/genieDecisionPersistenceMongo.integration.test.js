@@ -223,6 +223,16 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     // A recalculation-policy upgrade does not rewrite history or present an
     // outdated numerical report as if it came from today's code.
     const originalRun = await DecisionRun.findById(reportId).lean();
+    // Forging just the revision pointer must not turn a HISTORICAL report
+    // into a CURRENT one, even if the underlying input values are equal.
+    await DecisionRun.collection.updateOne({ _id: originalRun._id },
+      { $set: { profileStateRevision: 2 } });
+    const forgedStateRevision = await call(base, userOne, `/runs/${reportId}`);
+    assert.equal(forgedStateRevision.response.status, 503);
+    assert.equal(forgedStateRevision.body.code, 'DECISION_REPORT_INTEGRITY_FAILURE');
+    await DecisionRun.collection.updateOne({ _id: originalRun._id },
+      { $set: { profileStateRevision: originalRun.profileStateRevision } });
+
     assert.equal((await call(base, userOne, `/runs/${reportId}`)).body.run.asOf, originalRun.issuedAt);
     await DecisionRun.collection.updateOne({ _id: originalRun._id },
       { $set: { issuedAt: '2099-01-01T00:00:00.000Z' } });
@@ -241,7 +251,9 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
       userId: String(originalRun.userId), scenarioId: String(originalRun.scenarioId),
       revision: originalRun.revision, profileId: String(originalRun.profileId),
       profileFactsHash: originalRun.profileFactsHash, inputHash: originalRun.inputHash,
-      runKeyHash: originalRun.runKeyHash, issuedAt: originalRun.issuedAt,
+      runKeyHash: originalRun.runKeyHash,
+      profileStateRevision: originalRun.profileStateRevision, profileVersion: originalRun.profileVersion,
+      profileFinancialFence: originalRun.profileFinancialFence, issuedAt: originalRun.issuedAt,
     }, { resultHash: oldResultHash });
     await DecisionRun.collection.updateOne({ _id: originalRun._id },
       { $set: { result: previousModelResult, resultHash: oldResultHash, ...oldReceipt } });
