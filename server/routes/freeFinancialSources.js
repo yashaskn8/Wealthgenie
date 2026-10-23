@@ -4,7 +4,7 @@ import {verifyJWT} from '../middleware/authMiddleware.js';
 import {validate,validateQuery} from '../validation/schemas.js';
 import {asyncHandler,sendError} from '../middleware/errorHandler.js';
 import {searchFreeFunds,getFreeFundNavResearch} from '../services/freeMutualFundNav.js';
-import {getMfapiLatest,reconcileFreeNavSources} from '../services/freeNavSecondaryVerification.js';
+import {getMfapiLatest,getMfapiHistoryResearch,reconcileFreeNavSources} from '../services/freeNavSecondaryVerification.js';
 import {
  getPublicSmallSavingsRates,calculatePublicSmallSavingsGrossResearch,
 } from '../services/publicSmallSavingsResearch.js';
@@ -31,8 +31,24 @@ const simulateSchema=Joi.object({
 // Two no-key mirrors are compared by exact scheme/date/NAV. Both derive from
 // AMFI, so this is a consistency check rather than independent licensing.
 async function loadResearchWithMirror(code){
- const primary=await getFreeFundNavResearch(code);
- if(primary.status!=='AVAILABLE')return primary;
+ let primary;
+ try{primary=await getFreeFundNavResearch(code);}
+ catch{primary={status:'UNAVAILABLE',reasonCode:'MFNAV_PRIMARY_SOURCE_UNAVAILABLE'};}
+ if(primary.status!=='AVAILABLE'){
+  const secondaryHistory=await getMfapiHistoryResearch(code);
+  if(secondaryHistory.status!=='AVAILABLE')return {
+   status:'UNAVAILABLE',postTaxAvailable:false,postTaxFutureValue:null,
+   reasonCode:'BOTH_FREE_NAV_HISTORY_SOURCES_UNAVAILABLE',
+   sourceChecks:{status:'UNAVAILABLE',primaryReason:primary.reasonCode,
+    secondaryReason:secondaryHistory.reasonCode,independentUnderlyingFeed:false},
+  };
+  return {...secondaryHistory,sourceChecks:{
+   status:'SINGLE_SOURCE',primaryProvider:'mfnav.in',
+   primaryReason:primary.reasonCode,secondaryProvider:'MFapi.in',
+   independentUnderlyingFeed:false,productionUseAllowed:false,
+   reasonCode:'MFNAV_PRIMARY_SOURCE_UNAVAILABLE',
+  }};
+ }
  const secondary=await getMfapiLatest(code);
  const crossCheck=reconcileFreeNavSources(primary,secondary);
  if(crossCheck.status==='CONFLICT')return {
