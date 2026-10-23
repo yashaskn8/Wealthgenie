@@ -201,13 +201,26 @@ const genieProofNvidiaLimiter = createEndpointRateLimiter({
     : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
 });
 router.post('/nvidia-review', verifyJWT, genieProofNvidiaLimiter, validateStrict(genieProofNvidiaReviewSchema), asyncHandler(async (req, res) => {
-  const result = await reviewGenieProofWithNvidia({
-    statement: req.body.statement,
-    claimId: req.body.claimId,
-    consent: req.body.consent,
-    verifier: req.app.locals.genieProofClaimVerifier || null,
-  });
-  return res.json(result);
+  const controller = new AbortController();
+  // An abandoned browser request must not keep incurring third-party inference.
+  // 'close' on the response indicates a disconnected caller when not yet ended.
+  const disconnect = () => {
+    if (!res.writableEnded) controller.abort();
+  };
+  res.once('close', disconnect);
+  try {
+    const result = await reviewGenieProofWithNvidia({
+      statement: req.body.statement,
+      claimId: req.body.claimId,
+      consent: req.body.consent,
+      verifier: req.app.locals.genieProofClaimVerifier || null,
+      signal: controller.signal,
+    });
+    if (controller.signal.aborted || res.destroyed) return;
+    return res.json(result);
+  } finally {
+    res.off('close', disconnect);
+  }
 }));
 
 router.post('/extract-preview', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
