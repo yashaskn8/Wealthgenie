@@ -221,8 +221,19 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
       });
       const requiredResultFields = [
         'effectiveTaxPercent', 'postTaxGain', 'taxDragWealth', 'taxDragCAGR',
-        'totalInvested', 'nominalReturnPercent', 'postTaxReturnPercent', 'realReturnPercent',
+        'totalInvested', 'nominalReturnPercent',
       ];
+      const legacyProjectionRateFields = ['postTaxReturnPercent', 'realReturnPercent'];
+      const validLegacyProjectionRates = result => (
+        // A zero investment has no money-weighted return. Null is required
+        // rather than recycling an unrelated scalar model-policy rate.
+        result.sipReturnMetrics.status === 'UNAVAILABLE'
+          && result.sipReturnMetrics.unavailableReason === 'NO_MONTHLY_CONTRIBUTIONS'
+          && result.totalInvested === 0
+          && instruments[result.instrumentIndex].monthlySIP === 0
+          ? legacyProjectionRateFields.every(field => result[field] === null)
+          : legacyProjectionRateFields.every(field => Number.isFinite(result[field]))
+      );
       const unavailableResultFields = ['effectiveTaxPercent', 'postTaxGain', 'taxDragWealth', 'taxDragCAGR', 'postTaxReturnPercent', 'realReturnPercent'];
       if (!Array.isArray(data?.results) || data.results.length !== recommendations.length
           || data.results.some((result, index) => !result?.status || result.instrumentIndex !== index
@@ -230,9 +241,9 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
             || !hasValidSipReturnMetrics(result.sipReturnMetrics)
             || (result.status !== 'CALCULATED' && result.sipReturnMetrics.status !== 'UNAVAILABLE')
             || (result.status !== 'CALCULATED' && unavailableResultFields.some(field => result[field] != null))
-            || (result.status === 'CALCULATED' && (!result.taxType || requiredResultFields.some(
-              field => !Number.isFinite(result[field]),
-            ))))) {
+            || (result.status === 'CALCULATED' && (!result.taxType
+              || requiredResultFields.some(field => !Number.isFinite(result[field]))
+              || !validLegacyProjectionRates(result))))) {
         throw new TypeError('The tax service returned an incomplete instrument analysis.');
       }
       const requiredSummaryFields = [
