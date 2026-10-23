@@ -1,0 +1,121 @@
+/**
+ * Independent transport/normalization for a SECOND free AMFI-derived mirror.
+ * It helps detect accidental scheme swaps, stale mirror data, and NAV typos.
+ * Neither MFapi nor mfnav grants upstream AMFI production redistribution rights.
+ */
+const BASE='https://api.mfapi.in';
+const MAX_RESPONSE_BYTES=90000;
+const MIN_DATE='2000-01-01';
+function unknown(code) {
+ return {status:'NOT_VERIFIED',reasonCode:code,provider:'MFapi.in',
+  productionUseAllowed:false,independentUnderlyingFeed:false};
+}
+function utcIsoFromIndianDate(value){
+ if(typeof value!=='string')return null;
+ const m=/^(\d{2})-(\d{2})-(\d{4})$/.exec(value);
+ if(!m)return null;
+ const iso=m[3]+'-'+m[2]+'-'+m[1];
+ const dt=new Date(iso+'T00:00:00.000Z');
+ return Number.isFinite(+dt)&&dt.toISOString().slice(0,10)===iso?iso:null;
+}
+function positiveNav(value){
+ if(typeof value!=='string'&&typeof value!=='number')return null;
+ if(!/^\d+(?:\.\d{1,8})?$/.test(String(value)))return null;
+ const n=Number(value);
+ return Number.isFinite(n)&&n>0&&n<1e9?n:null;
+}
+export function normalizeMfapiLatest(raw,requestedSchemeCode){
+ const code=String(requestedSchemeCode);
+ if(!/^[1-9]\d{4,6}$/.test(code))return unknown('INVALID_SCHEME_CODE');
+ if(raw?.status!=='SUCCESS'||!raw.meta||!Array.isArray(raw.data)
+     ||raw.data.length!==1)return unknown('MFAPI_SCHEMA_UNAVAILABLE');
+ if(String(raw.meta.scheme_code)!==code)return unknown('MFAPI_SCHEME_CODE_MISMATCH');
+ const name=raw.meta.scheme_name;
+ if(typeof name!=='string'||!name.trim()||name.length>250)
+   return unknown('MFAPI_FUND_NAME_INVALID');
+ const first=raw.data[0],date=utcIsoFromIndianDate(first?.date),nav=positiveNav(first?.nav);
+ if(!date||date<MIN_DATE||nav===null)return unknown('MFAPI_NAV_VALUE_OR_DATE_INVALID');
+ return {
+  status:'AVAILABLE',provider:'MFapi.in',schemeCode:code,
+  fundName:name,navDate:date,nav,
+  isin:typeof raw.meta.isin_growth==='string'?raw.meta.isin_growth:null,
+  sourceUrl:BASE+'/mf/'+code+'/latest',
+  productionUseAllowed:false,independentUnderlyingFeed:false,
+ };
+}
+async function getBoundedJson(url,{fetchImpl=globalThis.fetch}={}){
+ const response=await fetchImpl(url,{
+  method:'GET',redirect:'error',headers:{Accept:'application/json'},
+  signal:AbortSignal.timeout(5500),
+ });
+ if(response?.status!==200)throw new Error('MFAPI_SOURCE_UNAVAILABLE');
+ const size=Number(response.headers?.get?.('content-length')||0);
+ if(size>MAX_RESPONSE_BYTES)throw new Error('MFAPI_RESPONSE_TOO_LARGE');
+ const stream=response.body?.getReader?.();
+ if(!stream){
+  const t=await response.text();
+  if(Buffer.byteLength(t,'utf8')>MAX_RESPONSE_BYTES)throw new Error('MFAPI_RESPONSE_TOO_LARGE');
+  return JSON.parse(t);
+ }
+ let bytes=0;const chunks=[];
+ while(true){
+  const {done,value}=await stream.read();
+  if(done)break;
+  bytes+=value.byteLength;
+  if(bytes>MAX_RESPONSE_BYTES){
+   await stream.cancel().catch(()=>{});
+   throw new Error('MFAPI_RESPONSE_TOO_LARGE');
+  }
+  chunks.push(Buffer.from(value));
+ }
+ return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+export async function getMfapiLatest(schemeCode,options={}){
+ if(typeof schemeCode!=='string'||!/^[1-9]\d{4,6}$/.test(schemeCode))
+  throw new RangeError('INVALID_FUND_SCHEME_CODE');
+ try{
+  const result=await getBoundedJson(BASE+'/mf/'+schemeCode+'/latest',options);
+  return normalizeMfapiLatest(result,schemeCode);
+ }catch{
+  return unknown('MFAPI_SOURCE_UNAVAILABLE');
+ }
+}
+/**
+ * Both sites derive NAV from AMFI; a match is a consistency check, NOT
+ * independent validation of the underlying AMFI publication or its license.
+ */
+export function reconcileFreeNavSources(primary,secondary,{now=new Date()}={}){
+ const summary={
+  primaryProvider:'mfnav.in',secondaryProvider:'MFapi.in',
+  independentUnderlyingFeed:false,productionUseAllowed:false,
+  status:'SINGLE_SOURCE',reasonCode:'SECONDARY_NOT_AVAILABLE',
+  asOf:primary?.latestNavDate||null,
+ };
+ if(!primary||primary.status!=='AVAILABLE')return {
+  ...summary,status:'UNAVAILABLE',reasonCode:'PRIMARY_NAV_NOT_QUALIFIED',
+ };
+ if(secondary?.status!=='AVAILABLE')return {...summary,
+  reasonCode:secondary?.reasonCode||summary.reasonCode};
+ if(String(primary.fund?.schemeCode)!==String(secondary.schemeCode))
+  return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_SCHEME_ID_CONFLICT'};
+ if(primary.fund?.isin&&secondary.isin
+   &&primary.fund.isin.toUpperCase()!==secondary.isin.toUpperCase())
+  return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_ISIN_CONFLICT'};
+ const primaryDate=Date.parse(primary.latestNavDate),secondaryDate=Date.parse(secondary.navDate);
+ if(!Number.isFinite(primaryDate)||!Number.isFinite(secondaryDate)||!Number.isFinite(+now))
+  return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_INVALID_DATE'};
+ const dateGap=Math.abs(primaryDate-secondaryDate)/86400000;
+ if(dateGap>3)return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_NAV_DATE_CONFLICT',
+  secondaryNavDate:secondary.navDate};
+ if(dateGap>0)return {...summary,
+  reasonCode:'FREE_NAV_MIRRORS_ON_DIFFERENT_RECENT_DATES',
+  secondaryNavDate:secondary.navDate};
+ const difference=Math.abs(primary.latestNav-secondary.nav);
+ const maxDifference=Math.max(0.0001,primary.latestNav*0.000001);
+ if(difference>maxDifference)
+  return {...summary,status:'CONFLICT',reasonCode:'CROSS_SOURCE_NAV_VALUE_CONFLICT',
+   secondaryNavDate:secondary.navDate,absoluteDifference:difference};
+ return {...summary,status:'MATCHED_SAME_AMFI_SOURCE',
+  reasonCode:null,secondaryNavDate:secondary.navDate,
+  maxAcceptedNavDifference:maxDifference,absoluteDifference:difference};
+}
