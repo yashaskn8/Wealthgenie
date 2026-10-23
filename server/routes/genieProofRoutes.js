@@ -5,12 +5,14 @@ import { verifyJWT } from '../middleware/authMiddleware.js';
 import { validateStrict } from '../validation/financialSchemas.js';
 import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLimiter.js';
 import { extractGenieProofClaims } from '../agents/genieProof/genieProofCore.js';
+import { reviewGenieProofWithNvidia } from '../agents/genieProof/genieProofNvidiaReviewService.js';
 import { checkGenieProofClaims } from '../agents/genieProof/genieProofCheckService.js';
 import { calculateGenieProofScenario } from '../agents/genieProof/genieProofMathService.js';
 import {
   genieProofConsentWithdrawalSchema,
   genieProofCreateCaseSchema,
   genieProofExtractSchema,
+  genieProofNvidiaReviewSchema,
   genieProofMathSchema,
   genieProofReassessSchema,
   proofBreakAcknowledgeSchema,
@@ -184,6 +186,27 @@ router.post('/check', verifyJWT, genieProofCheckLimiter, validateStrict(geniePro
   if (!result.ok) {
     throw createError(400, result.code, 'The statement could not be checked. Please shorten or correct it.', { code: result.code });
   }
+  return res.json(result);
+}));
+
+// Explicit second action only: client consents to sending this single claim to NVIDIA.
+// This has a stricter quota than deterministic claim checks and cannot change verdicts.
+const genieProofNvidiaLimiter = createEndpointRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'GenieProof AI review limit reached. Try again later.',
+  prefix: 'rl:ep:genieproof:nvidia:',
+  keyGenerator: req => req.user?.userId
+    ? String(req.user.userId)
+    : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
+});
+router.post('/nvidia-review', verifyJWT, genieProofNvidiaLimiter, validateStrict(genieProofNvidiaReviewSchema), asyncHandler(async (req, res) => {
+  const result = await reviewGenieProofWithNvidia({
+    offerText: req.body.offerText,
+    claimId: req.body.claimId,
+    consent: req.body.consent,
+    verifier: req.app.locals.genieProofClaimVerifier || null,
+  });
   return res.json(result);
 }));
 
