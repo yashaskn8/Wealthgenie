@@ -202,13 +202,13 @@ function formatEvidenceMarkers(text, citations, hideDisclosure = false) {
     sourceNumbers.has(id) ? `[${sourceNumbers.get(id)}]` : marker);
 }
 
-export function stripUntrustedActionMarkup(value) {
+function stripUntrustedActionMarkup(value) {
   return String(value || '').replace(/<<<ACTION_CARD>>>[\s\S]*?(?:<<<END_ACTION_CARD>>>|$)/g,
     '[Unverified action omitted]');
 }
 
 // ── Message Content with Action Cards ─────────────────────────────
-export function MessageContent({ content, citations, onAction, hideDisclosure = false }) {
+export function MessageContent({ content, citations, hideDisclosure = false }) {
   if (!content) return null;
   // Model text is never an authorized command channel. Action cards must come
   // from a separately validated backend field, not hidden markers in prose.
