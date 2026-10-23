@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
 import './CashCheck.css';
 
@@ -69,9 +69,10 @@ function toPayload(draft) {
     })),
   };
 }
-function ResultView({ data, hypothetical = false }) {
+function ResultView({ data, entries = [], hypothetical = false }) {
   if (!data) return null;
   const baseline = data.baseline;
+  const entryLabels = new Map(entries.map(entry => [entry.id, entry.label]));
   return (
     <section className="cash-check-results" aria-label={hypothetical ? 'Hypothetical scenario' : 'Saved result'}>
       <h2>{hypothetical ? 'Hypothetical result (not saved)' : '90-day cash check'}</h2>
@@ -91,7 +92,7 @@ function ResultView({ data, hypothetical = false }) {
             <div><span>Earliest listed shortfall</span><strong>{baseline.earliestShortfall?.date || 'None in listed entries'}</strong></div>
           </div>
           {baseline.earliestShortfall && (
-            <p>On {baseline.earliestShortfall.date}, payments entered with IDs {baseline.earliestShortfall.dueOutflowEntryIds.join(', ')} contribute to a lowest balance of {formatMoney(baseline.earliestShortfall.lowestBalancePaise)}.</p>
+            <p>On {baseline.earliestShortfall.date}, listed payments {baseline.earliestShortfall.dueOutflowEntryIds.map(id => entryLabels.get(id) || id).join(', ')} contribute to a lowest balance of {formatMoney(baseline.earliestShortfall.lowestBalancePaise)}.</p>
           )}
           {data.noExpectedIncome && (
             <p>
@@ -125,6 +126,7 @@ function ResultView({ data, hypothetical = false }) {
 
 export default function CashCheck() {
   const [draft, setDraft] = useState(EMPTY);
+  const pendingSave = useRef(null);
   const [revision, setRevision] = useState(0);
   const [saved, setSaved] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -155,6 +157,7 @@ export default function CashCheck() {
     // A response must never publish an old calculation over a later local edit.
     if (busy) return;
     setDraft(updater);
+    pendingSave.current = null;
     setDirty(true);
     setPreview(null);
     setNotice('');
@@ -174,7 +177,15 @@ export default function CashCheck() {
     setBusy(true); setError(''); setNotice(''); setPreview(null);
     try {
       const payload = toPayload(draft);
-      const response = await api.saveCoverageLedger(payload, revision);
+      const requestIdentity = JSON.stringify({ revision, payload });
+      if (pendingSave.current?.requestIdentity !== requestIdentity) {
+        pendingSave.current = { requestIdentity, key: api.generateUUID() };
+      }
+      // A network timeout must not turn the same mutation into a second revision.
+      const response = await api.saveCoverageLedger(payload, revision, {
+        headers: { 'Idempotency-Key': pendingSave.current.key },
+      });
+      pendingSave.current = null;
       setRevision(response.revision);
       setSaved(response.result);
       setHasStoredLedger(true);
@@ -236,6 +247,7 @@ export default function CashCheck() {
       const response = await api.deleteCoverageLedger(revision);
       // The anonymous tombstone revision prevents a stale tab from resurrecting data.
       setRevision(response.nextRevision);
+      pendingSave.current = null;
       setDraft(EMPTY());
       setSaved(null);
       setHasStoredLedger(false);
@@ -261,7 +273,8 @@ export default function CashCheck() {
       {error && <p className="cash-check-error" role="alert">{error}</p>}
       {notice && <p className="cash-check-notice" role="status">{notice}</p>}
       {stale && <p className="cash-check-error" role="alert">Your cash declaration may be stale. Check the accessible balance and update the date before saving again.</p>}
-      <form onSubmit={save}>
+      <form onSubmit={save} aria-busy={busy}>
+        <fieldset className="cash-check-form-fields" disabled={busy}>
         <section className="cash-check-panel">
           <h2>1. Declare accessible cash</h2>
           <p>Enter cash available immediately <strong>before</strong> any payments scheduled for the as-of date. Exclude FD principal, mutual funds, locked balances and future salary. Do not list bills already deducted from this opening balance.</p>
@@ -311,8 +324,9 @@ export default function CashCheck() {
             <span>Revision {revision} · Numbers are calculated on the server.</span>
           </div>
         </section>
+        </fieldset>
       </form>
-      {saved && !dirty && !stale && <ResultView data={saved} />}
+      {saved && !dirty && !stale && <ResultView data={saved} entries={draft.entries} />}
       {saved && stale && !dirty && <p role="alert">Saved cash entries are out of date. Reconfirm today's accessible cash and save again before viewing a result.</p>}
       {saved && dirty && <p role="status">Unsaved edits: the previous result is hidden until you save and recalculate.</p>}
       {saved && !dirty && !stale && draft.entries.some(e => e.type === 'VOLUNTARY_CONTRIBUTION') &&
@@ -320,7 +334,7 @@ export default function CashCheck() {
           <h2>Optional hypothetical comparison</h2>
           <p>Compare removing all listed voluntary contributions from the saved ledger. This changes no saved entry and does not suggest skipping contractual bills.</p>
           <button type="button" disabled={busy} onClick={previewPause}>Preview excluding voluntary contributions</button>
-          {preview && <ResultView data={preview} hypothetical />}
+          {preview && <ResultView data={preview} entries={draft.entries} hypothetical />}
         </section>}
       {hasStoredLedger && (
         <section className="cash-check-panel" aria-label="Export saved cash history">
