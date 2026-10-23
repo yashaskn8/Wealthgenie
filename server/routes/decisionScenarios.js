@@ -258,8 +258,20 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         revision: 1, payload, inputHash: hash(payload),
       }], { session });
       return created.toObject();
+    }).catch(async error => {
+      // Two replicas may commit the same key concurrently. A unique-index
+      // collision must converge on the durable receipt, not become a false
+      // failed create. A quota-slot collision with a DIFFERENT key stays a 409.
+      const saved = await DecisionScenario.findOne({ userId: req.user.userId, createKeyHash }).lean();
+      if (!saved) throw error;
+      if (saved.createPayloadHash !== createPayloadHash) {
+        fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Idempotency key already belongs to another scenario.');
+      }
+      return { ...saved, replayedAfterRace: true };
     });
-    res.status(201).json({ scenario: scenarioDto(doc), replayed: false });
+    res.status(doc.replayedAfterRace ? 200 : 201).json({
+      scenario: scenarioDto(doc), replayed: Boolean(doc.replayedAfterRace),
+    });
   }));
 
   router.get('/scenarios', handleInput(async (req, res) => {
@@ -378,12 +390,27 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       { session, new: true }).lean();
       if (!head) fail(409, 'DECISION_REVISION_CONFLICT', 'Concurrent scenario evaluation detected.');
       return created.toObject();
+    }).catch(async error => {
+      // Retry convergence for a concurrently committed evaluation keyed
+      // to the same scenario revision and exact persisted input fingerprint.
+      const saved = await DecisionRun.findOne({
+        userId: req.user.userId, runKeyHash: key,
+      }).lean();
+      if (!saved) throw error;
+      if (identity(saved.scenarioId) !== identity(first._id)
+        || saved.revision !== first.revision || saved.inputHash !== revision.inputHash) {
+        fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Evaluation key does not belong to the same scenario inputs.');
+      }
+      return { ...saved, replayedAfterRace: true };
     });
     // Re-resolve after commit: a parallel profile update must never yield a
     // newly published report falsely labeled CURRENT.
     const afterCommit = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
     const headAfterCommit = await DecisionScenario.findOne(own(req, first._id)).lean();
-    res.status(201).json({ run: reportDto(run, afterCommit, headAfterCommit), replayed: false });
+    res.status(run.replayedAfterRace ? 200 : 201).json({
+      run: reportDto(run, afterCommit, headAfterCommit),
+      replayed: Boolean(run.replayedAfterRace),
+    });
   }));
 
   router.get('/runs/:id', handleInput(async (req, res) => {
