@@ -50,11 +50,13 @@ const SYSTEM_PROMPT = [
 // Model output is untrusted even when the INPUT was a general question.
 // Prevent a general LLM from turning a greeting or a programming question
 // into made-up portfolio facts, unsolicited investment advice or INR returns.
-function violatesGeneralFinancialBoundary(reply) {
+function violatesGeneralFinancialBoundary(reply, educationOnly = false) {
   const value = String(reply || '');
   return /(?:₹\s*[-+]?\d|\b(?:inr|rs\.?)\s*[-+]?\d|\b\d[\d,]*(?:\.\d+)?\s*(?:crores?|crors?|lakhs?|lacs?)\b)/i.test(value)
     || /\b(?:your|our)\s+(?:account\s+balance|income|salary|portfolio|holdings?|investments?|financial\s+profile|savings?)\s+(?:is|are|was|were|stands?\s+at|totals?)\b/i.test(value)
-    || /\b(?:invest|buy|sell|allocate|switch|move|put|contribute)\b[^.!?\n]{0,140}\b(?:shares?|stocks?|crypto(?:currency)?|bitcoin|mutual\s*funds?|index\s*funds?|bonds?|savings?|portfolio|sips?|equity|fixed\s*deposits?|gold\s*etfs?)\b/i.test(value)
+    || (educationOnly
+      ? /\b(?:you\s+should|i\s+recommend|you\s+must|we\s+recommend|guaranteed?\s+profit|risk[- ]free\s+return)\b[^.!?\n]{0,120}\b(?:invest|buy|sell|stocks?|mutual\s*funds?|bonds?|crypto|funds?|portfolio)\b/i.test(value)
+      : /\b(?:invest|buy|sell|allocate|switch|move|put|contribute)\b[^.!?\n]{0,140}\b(?:shares?|stocks?|crypto(?:currency)?|bitcoin|mutual\s*funds?|index\s*funds?|bonds?|savings?|portfolio|sips?|equity|fixed\s*deposits?|gold\s*etfs?)\b/i.test(value))
     || /\b(?:shares?|stocks?|investments?|portfolio|savings?|crypto(?:currency)?|bitcoin|mutual\s*funds?)\b[^.!?\n]{0,120}\b(?:guaranteed?|assured|risk[- ]free|returns?|profits?)\b/i.test(value)
     || /\b\d{1,3}(?:\.\d+)?\s*%\s*(?:per\s+annum|p\.?a\.?|annual(?:ly)?|monthly|cagr|returns?|interest|profits?)\b/i.test(value);
 }
@@ -64,6 +66,22 @@ export function isGeneralChatQuestion(question) {
   return text.length > 0 && !FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
     && !FINANCIAL_SAVING_INTENT.test(text) && !FINANCIAL_PRODUCTS.test(text)
     && !GROUNDED_FINANCIAL_CONTEXT.test(text)
+    && !isFinancialGoalPlanningQuestion(text);
+}
+
+// Educational finance questions that need no account evidence should still
+// receive a useful explanation when the curated source corpus has no entry.
+// This lane is explicitly unsourced: it cannot quote current laws/rates,
+// calculate personal returns, inspect accounts or recommend products.
+const PUBLIC_EDUCATION_INTENT = /^(?:(?:please|could you|can you)\s+)?(?:what\s+(?:is|are|does)\b|how\s+(?:does|do|is)\b|explain\b|define\b|describe\b|teach\s+me\b|difference\s+between\b|compare\b|why\s+(?:does|do|is)\b)/i;
+const PUBLIC_EDUCATION_TOPIC = /\b(?:finance|financial|money|banking|banks?|invest(?:ing|ment|ments)|mutual\s+funds?|sips?|nav|etfs?|stocks?|shares?|equity|bonds?|insurance|credit|loans?|emi|debt|mortgage|compound(?:ing)?|interest|inflation|returns?|cagr|xirr|irr|dividend|risk|liquidity|portfolio|index\s+funds?|fixed\s+deposits?|ppf|nps|sebi|rbi|demat|asset\s+allocation|tax(?:es|ation)?|budgeting|savings?|rebalancing|retirement)\b/i;
+const CURRENT_OR_PERSONAL_FINANCE = /\b(?:my|our|mine|i\s+(?:have|hold|own|earn|invest|save|should|need|want|can)|should\s+i|should\s+we|for\s+me|for\s+us|recommend|best\s+(?:stock|fund|sip|scheme|investment)|buy\s+now|sell\s+now|today|tomorrow|latest|current(?:ly)?|this\s+(?:month|year)|20[2-9]\d|tax\s+slabs?|tax\s+rates?|tax\s+liability)\b/i;
+
+export function isPublicFinancialEducationQuestion(question) {
+  const text = String(question || '').slice(0, 1000).trim();
+  return PUBLIC_EDUCATION_INTENT.test(text) && PUBLIC_EDUCATION_TOPIC.test(text)
+    && !CURRENT_OR_PERSONAL_FINANCE.test(text)
+    && !FINANCIAL_MONEY.test(text) && !/\b\d+(?:\.\d+)?\s*%/.test(text)
     && !isFinancialGoalPlanningQuestion(text);
 }
 
@@ -84,10 +102,10 @@ function result({ text, provider = 'SYSTEM', model = null, tokensUsed = 0, fallb
   };
 }
 
-export async function generateGeneralChatAnswer({ question, priorTurns = [] }, dependencies = {}) {
+export async function generateGeneralChatAnswer({ question, priorTurns = [], educationOnly = false }, dependencies = {}) {
   // Defense in depth: direct callers may never turn a finance request into
   // an uncited model assertion by bypassing the HTTP route classifier.
-  if (!isGeneralChatQuestion(question)) {
+  if (!isGeneralChatQuestion(question) && !(educationOnly && isPublicFinancialEducationQuestion(question))) {
     throw Object.assign(new Error('Financial question requires grounded evidence.'), {
       code: 'GENERAL_CHAT_FINANCIAL_ROUTE_DENIED',
     });
@@ -151,7 +169,7 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
     let failure = null;
     try {
       response = await waitForProvider(() => provider.generate({
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt: educationOnly ? SYSTEM_PROMPT + ' Explain the finance concept educationally, with examples only if purely hypothetical. No specific current tax rules, products, personalized directions, claimed live data, or numbers without verified inputs.' : SYSTEM_PROMPT,
         recentHistory: [
           ...safeGeneralHistory(priorTurns),
           { role: 'user', parts: [{ text: sanitizeExternalQuestion(question) }] },
@@ -198,7 +216,7 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
       // such as list[0] or arr[1]. General replies never attach citations.
       failure = 'GENERAL_UNVERIFIED_SOURCE_MARKER';
     }
-    if (!failure && violatesGeneralFinancialBoundary(response.text)) {
+    if (!failure && violatesGeneralFinancialBoundary(response.text, educationOnly)) {
       failure = 'GENERAL_FINANCIAL_BOUNDARY_VIOLATION';
     }
     if (!failure) {
@@ -208,7 +226,8 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
         provider: String(response.provider || provider.name || 'UNKNOWN').toUpperCase(),
         model: response.model || provider.configuredModel?.() || null,
         tokensUsed: consumed, fallback: providerIndex > 0 || failures > 0,
-        reasons: providerIndex > 0 || failures > 0 ? ['PRIMARY_PROVIDER_UNAVAILABLE'] : [],
+        reasons: [...(educationOnly ? ['PUBLIC_EDUCATION_NOT_SOURCE_VERIFIED'] : []),
+          ...(providerIndex > 0 || failures > 0 ? ['PRIMARY_PROVIDER_UNAVAILABLE'] : [])],
         attempted, failures, providerUsageComplete: usageComplete,
       });
     }
