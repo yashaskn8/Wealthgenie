@@ -382,6 +382,12 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(policyRead.status, 200);
     assert.equal(policyRead.body.requiresPolicyReconfirmation, true);
     assert.equal(policyRead.body.latestResult.policyVersion, 'retired-cash-policy-v0');
+    const retiredPolicyInbox = await call(owner, 'GET', '/alerts');
+    assert.equal(retiredPolicyInbox.status, 200);
+    assert.equal(retiredPolicyInbox.body.requiresPolicyReconfirmation, true);
+    assert.equal(retiredPolicyInbox.body.requiresCashReconfirmation, false);
+    assert.deepEqual(retiredPolicyInbox.body.alerts, []);
+    assert.equal((await call(owner, 'PATCH', '/alerts/' + riskId + '/ack', {})).status, 404);
     const blockedOldPreview = await call(owner, 'POST', '/scenarios/preview',
       { revision: 2, excludedVoluntaryEntryIds: ['sip_confirmed'] });
     assert.equal(blockedOldPreview.status, 409);
@@ -398,6 +404,9 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     });
     const policyCurrent = await call(owner, 'GET', '/ledger');
     assert.equal(policyCurrent.body.requiresPolicyReconfirmation, false);
+    const restoredInbox = await call(owner, 'GET', '/alerts');
+    assert.equal(restoredInbox.body.requiresPolicyReconfirmation, false);
+    assert.equal(restoredInbox.body.alerts.length, 1);
     const exportFirst = await call(owner, 'GET', '/export?limit=1');
     assert.equal(exportFirst.status, 200);
     assert.equal(exportFirst.body.records.length, 1);

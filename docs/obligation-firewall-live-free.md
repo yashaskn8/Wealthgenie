@@ -97,3 +97,7 @@ The browser-independent implementation adds \`CoverageRiskAlert\`, \`CoverageSet
 ## Red-team refinement: midnight, stale alerts and committed safety
 
 Committed one-off settlement retries retain their bank-unverified settlement semantics and owner-scoped immutable attestation; date freshness is enforced only for new mutations *after* idempotent replay. Risk alerts based on a cash declaration older than the current India date are withheld, leaving only reconfirmation messages. Cash revision and deletion transactions explicitly use snapshot reads and majority writes. The live OpenAPI contract harness must mount the protected coverage routes so that authentication coverage is actually exercised.
+
+## Policy upgrades and persistent alerts
+
+When the active 90-day calculation policy changes, the in-app alert endpoint no longer presents shortfall warnings generated under a retired policy as if they were current. It signals `requiresPolicyReconfirmation` and only permits dated cash-reconfirmation notifications. Attempts to acknowledge historical shortfall warnings while their underlying model is retired are rejected; the signed-in user must reconfirm cash and save a new active-policy result first. Historical result exports remain available without silently rewriting financial conclusions.

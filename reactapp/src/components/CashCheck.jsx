@@ -222,7 +222,9 @@ export default function CashCheck() {
       if (!active) return;
       if (response.revision === revision) {
         setAlerts(Array.isArray(response.alerts) ? response.alerts : []);
-        setAlertsError('');
+        setAlertsError(response.requiresPolicyReconfirmation
+          ? 'Stored alerts from a retired financial calculation policy are hidden. Reconfirm cash and save a new plan.'
+          : '');
       }
     }).catch(() => {
       if (active) {
@@ -253,7 +255,9 @@ export default function CashCheck() {
           const freshAlerts = await api.getCoverageAlerts();
           if (active && freshAlerts.revision === revision) {
             setAlerts(Array.isArray(freshAlerts.alerts) ? freshAlerts.alerts : []);
-            setAlertsError('');
+            setAlertsError(freshAlerts.requiresPolicyReconfirmation
+              ? 'Stored alerts from a retired financial calculation policy are hidden. Reconfirm cash and save a new plan.'
+              : '');
           }
           return;
         }
