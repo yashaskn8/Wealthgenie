@@ -133,8 +133,11 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
       };
       const fingerprint = JSON.stringify(input);
       if (settlementRetry.current?.fingerprint !== fingerprint) {
-        const key = window.crypto?.randomUUID?.();
-        if (!key) throw new Error('Secure request identity unavailable in this browser.');
+        const generator = globalThis.crypto;
+        if (!generator?.getRandomValues) throw new Error('Secure request identity unavailable in this browser.');
+        const key = 'rs_' + (generator.randomUUID?.() ||
+          Array.from(generator.getRandomValues(new Uint8Array(16)),
+            x => x.toString(16).padStart(2, '0')).join(''));
         settlementRetry.current = { fingerprint, key };
       }
       const saved = await api.confirmRunwaySettlement(input, {

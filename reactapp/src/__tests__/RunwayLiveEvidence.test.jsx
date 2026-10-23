@@ -72,3 +72,57 @@ it('stale statements cannot be offered as current available cash', async () => {
   await waitFor(() => expect(screen.getAllByText(/2026-01-01/).length).toBeGreaterThan(0));
   expect(screen.queryByRole('button', { name: /Copy today's observed balance/ })).not.toBeInTheDocument();
 });
+
+it('requires explicit cash reconfirmation and retries an uncertain settlement with one key', async () => {
+  common({ imported: statement() });
+  const match = { statementId: 'a'.repeat(64), rowIndex: 0, entryId: 'rent',
+    entryLabel: 'Rent', date: today(), amountPaise: '1500000',
+    status: 'UNIQUE_POSSIBLE_MATCH' };
+  vi.spyOn(api, 'getRunwayReconciliationMatches').mockResolvedValue({
+    revision: 1, status: 'REVIEW_REQUIRED', items: [match],
+  });
+  vi.spyOn(api, 'confirmRunwaySettlement')
+    .mockRejectedValueOnce(new Error('Response lost after financial commit'))
+    .mockResolvedValueOnce({ revision: 2, replayed: true });
+  const applied = vi.fn();
+  render(<RunwayLiveEvidence canImport canSettle onSettlementApplied={applied}
+    onChooseCash={vi.fn()} />);
+  fireEvent.click(screen.getByText('Review possible posted payments or received salary'));
+  fireEvent.click(screen.getByRole('button', { name: 'Find possible matches' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Review this match' })).toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'Review this match' }));
+  const confirm = screen.getByRole('button', { name: 'Confirm and update ledger' });
+  expect(confirm).toBeDisabled();
+  fireEvent.change(screen.getByLabelText(/Total available household cash after posting/),
+    { target: { value: '35000.00' } });
+  expect(confirm).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: /independently reconfirmed the accessible/ }));
+  fireEvent.click(confirm);
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Response lost/));
+  expect(api.confirmRunwaySettlement).toHaveBeenCalledTimes(1);
+  const first = api.confirmRunwaySettlement.mock.calls[0];
+  expect(first[0]).toEqual({
+    ledgerRevision: 1, statementId: match.statementId, rowIndex: 0, entryId: 'rent',
+    openingCashPaise: '3500000',
+    confirmation: 'I_RECONFIRM_HOUSEHOLD_CASH_AFTER_TRANSACTION',
+  });
+  fireEvent.click(confirm);
+  await waitFor(() => expect(api.confirmRunwaySettlement).toHaveBeenCalledTimes(2));
+  const second = api.confirmRunwaySettlement.mock.calls[1];
+  expect(second[1].headers['Idempotency-Key']).toBe(first[1].headers['Idempotency-Key']);
+  await waitFor(() => expect(applied).toHaveBeenCalledWith({ revision: 2, replayed: true }));
+});
+it('blocks ambiguous matches rather than presenting a confirm action', async () => {
+  common({ imported: statement() });
+  vi.spyOn(api, 'getRunwayReconciliationMatches').mockResolvedValue({
+    revision: 1, status: 'REVIEW_REQUIRED',
+    items: [{ statementId: 'a'.repeat(64), rowIndex: 0, entryId: 'rent',
+      entryLabel: 'Rent', amountPaise: '1500000', date: today(),
+      status: 'AMBIGUOUS_REQUIRES_MANUAL_EDIT' }],
+  });
+  render(<RunwayLiveEvidence canImport canSettle onChooseCash={vi.fn()} />);
+  fireEvent.click(screen.getByText('Review possible posted payments or received salary'));
+  fireEvent.click(screen.getByRole('button', { name: 'Find possible matches' }));
+  await waitFor(() => expect(screen.getByText(/Ambiguous — edit ledger manually/)).toBeInTheDocument());
+  expect(screen.queryByRole('button', { name: 'Review this match' })).not.toBeInTheDocument();
+});

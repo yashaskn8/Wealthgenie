@@ -22,6 +22,7 @@ test('enabled Runway routes require authenticated session before reading or modi
       ['POST', 'snapshots'], ['GET', 'snapshots/' + 'a'.repeat(64)],
       ['POST', 'explanations'], ['GET', 'live/overview'], ['GET', 'live/events'],
       ['GET', 'live/statements'], ['POST', 'live/statements'],
+      ['GET', 'live/matches'], ['GET', 'live/settlements'], ['POST', 'live/settlements'],
       ['GET', 'live/statements/' + 'a'.repeat(64)],
       ['DELETE', 'live/statements/' + 'a'.repeat(64)], ['DELETE', 'data'],
     ]) {

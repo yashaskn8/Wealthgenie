@@ -18,6 +18,7 @@ import { RunwayLedgerState, RunwayLedgerRevision } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 
 const MAX_IMPORTS = 30;
+const MAX_SETTLEMENTS = 500;
 const SIGNAL_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const fail = (status, code, message) => createError(status, message, message, { code });
 
@@ -187,7 +188,7 @@ export function createRunwayLiveRouter({
   router.get('/settlements', asyncHandler(async (req, res) => {
     const userId = owner(req);
     requireRecentSession(req);
-    const page = req.query.page === undefined ? 0 : queryNumber(req.query.page, 0, 20);
+    const page = req.query.page === undefined ? 0 : queryNumber(req.query.page, 0, 19);
     const [items, total] = await Promise.all([
       RunwaySettlement.find({ userId }).sort({ decidedAt: -1, _id: -1 })
         .skip(page * 25).limit(25).lean(),
@@ -239,6 +240,11 @@ export function createRunwayLiveRouter({
         }
         if (found.revision.ledger.asOfDate !== indiaCivilToday()) {
           throw fail(409, 'RUNWAY_CASH_CONFIRMATION_STALE', 'Reconfirm household cash for today.');
+        }
+        const settlementCount = await RunwaySettlement.countDocuments({ userId }).session(session);
+        if (settlementCount >= MAX_SETTLEMENTS) {
+          throw fail(409, 'RUNWAY_SETTLEMENT_LIMIT',
+            'Export settled-item history and manage older ledger records before continuing.');
         }
         const sources = await verifiedSources(userId, session);
         const { nextLedger, match } = prepareRunwaySettlement(

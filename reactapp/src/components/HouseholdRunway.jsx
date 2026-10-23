@@ -334,12 +334,28 @@ export default function HouseholdRunway() {
       if (!Array.isArray(sources.items) || sources.items.length > 30) throw new Error('Imported evidence list invalid. No file was saved.');
       const statementEvidence = [];
       for (const item of sources.items) statementEvidence.push(await api.getRunwayStatement(item.statementId));
+      const settlements = [];
+      let totalSettlements = null;
+      for (let page = 0; page < 20; page++) {
+        const response = await api.listRunwaySettlements(page);
+        if (totalSettlements === null) totalSettlements = response.total;
+        if (totalSettlements !== response.total || !Array.isArray(response.items)) {
+          throw new Error('Settlement audit changed during export. No file was saved.');
+        }
+        settlements.push(...response.items);
+        if (!response.hasMore) break;
+        if (page === 19) throw new Error('Settlement audit export exceeded its limit. No file was saved.');
+      }
+      if (settlements.length !== totalSettlements) {
+        throw new Error('Settlement audit changed during export. No file was saved.');
+      }
       const json = JSON.stringify({
         format: 'WEALTHGENIE_RUNWAY_PRIVATE_EXPORT_V1',
         exportedAt: new Date().toISOString(), ledgerRevisionCount: pages.length,
         snapshotCount: snapshots.length, financialEvidence: 'USER_DECLARED_ONLY',
         ledgerRevisions: pages, savedScenarioSnapshots: snapshots,
         importedStatementEvidence: statementEvidence,
+        userConfirmedSettlements: settlements,
         disclosure: 'Contains private user-entered financial facts. Historical-engine snapshots may be HMAC/hash-checked only and do not establish live bank balances.',
       }, null, 2);
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
@@ -520,7 +536,7 @@ export default function HouseholdRunway() {
       </div>
       <div className="runway-panel">
         <h2>6. Export your Household Runway records</h2>
-        <p>Download your saved ledger revisions, scenario snapshots, and uploaded statement evidence as private JSON before deletion.
+        <p>Download your saved ledger revisions, scenario snapshots, user-confirmed settlement audit and uploaded statement evidence as private JSON before deletion.
           These contain sensitive financial declarations. Sign in again if your session is older than five minutes.</p>
         <button type="button" className="runway-minor" disabled={busy}
           onClick={exportLedgerHistory}>Export all Runway records (private JSON)</button>
