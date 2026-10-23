@@ -164,12 +164,13 @@ const PostTaxAnalysis = ({ profile, recommendations, recommendationMeta }) => {
       return;
     }
     const instruments = recommendations.map(instrument => ({
+      instrumentId: instrument.id,
       instrumentType: instrument.type,
       nominalRate: Number(instrument.nominalReturn) / 100,
       holdingYears: horizon,
       monthlySIP: Number(instrument.monthly_allocation),
     }));
-    if (instruments.some(item => !item.instrumentType || !Number.isFinite(item.nominalRate)
+    if (instruments.some(item => !item.instrumentId || !item.instrumentType || !Number.isFinite(item.nominalRate)
         || !Number.isFinite(item.monthlySIP) || item.monthlySIP < 0)) {
       setError('The backend recommendation is missing required return or allocation facts.');
       return;
