@@ -219,7 +219,7 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(forgedLedgerSnapshot.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
       const forgedSourceList = await jsonRequest(ownedBase + 'snapshots?page=0', { headers: authA });
       assert.equal(forgedSourceList.response.status, 503);
-      assert.equal(forgedSourceList.body.code, 'RUNWAY_INTEGRITY_UNAVAILABLE');
+      assert.equal(forgedSourceList.body.code, 'RUNWAY_LEDGER_SEAL_INVALID');
       await RunwayLedgerRevision.collection.updateOne({ userId: userA, revision: 1 },
         { $set: { ledger: sourceRevision.ledger, inputHash: sourceRevision.inputHash } });
 
