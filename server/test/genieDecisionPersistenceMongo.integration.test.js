@@ -147,6 +147,17 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(postEditReplay.response.status, 200, JSON.stringify(postEditReplay.body));
     assert.equal(postEditReplay.body.run.id, reportId);
     assert.equal(postEditReplay.body.replayed, true);
+    assert.equal(postEditReplay.body.run.status, 'HISTORICAL');
+    assert.deepEqual(postEditReplay.body.run.reasonCodes, ['DECISION_SCENARIO_REVISION_SUPERSEDED']);
+
+    const runList = await call(base, userOne, `/scenarios/${id}/runs`);
+    assert.equal(runList.response.status, 200, JSON.stringify(runList.body));
+    assert.equal(runList.body.runs.length, 1);
+    assert.equal(runList.body.runs[0].id, reportId);
+    assert.equal(runList.body.runs[0].status, 'HISTORICAL');
+    assert.equal(Object.hasOwn(runList.body.runs[0], 'result'), false);
+    const otherUserRunList = await call(base, userTwo, `/scenarios/${id}/runs`);
+    assert.equal(otherUserRunList.response.status, 404);
     const changedKey = await call(base, userOne, `/scenarios/${id}/evaluate`, 'POST',
       { expectedRevision: 3 }, 'decision-evaluate-0001');
     assert.equal(changedKey.response.status, 409);
@@ -160,6 +171,13 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(history.response.status, 200);
     assert.equal(history.body.run.status, 'HISTORICAL');
     assert.equal(history.body.run.originalStatus, 'PARTIAL');
+
+    // Simulate an out-of-band Mongo corruption. The report must fail closed.
+    await DecisionRun.collection.updateOne({ _id: new mongoose.Types.ObjectId(reportId) },
+      { $set: { 'result.alternatives.0.endingProjectedLiquidCash': '999999999.00' } });
+    const tampered = await call(base, userOne, `/runs/${reportId}`);
+    assert.equal(tampered.response.status, 503);
+    assert.equal(tampered.body.code, 'DECISION_REPORT_INTEGRITY_FAILURE');
 
     const deleting = await call(base, userOne, `/scenarios/${id}`, 'DELETE',
       { expectedRevision: 3 });
