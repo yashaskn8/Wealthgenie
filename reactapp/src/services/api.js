@@ -1173,8 +1173,28 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
   }, requestOptions);
 }
 
+export function getCoverageLedger(options = {}) {
+  return request('GET', '/coverage/ledger', null, options);
+}
+
+export function saveCoverageLedger(ledger, revision, options = {}) {
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new TypeError('Coverage revision must be nonnegative integer.');
+  return request('PUT', '/coverage/ledger', ledger, {
+    ...options, headers: { ...options.headers, 'If-Match': String.fromCharCode(34) + revision + String.fromCharCode(34) },
+  });
+}
+
+export function previewCoverageScenario(revision, excludedVoluntaryEntryIds = [], options = {}) {
+  return request('POST', '/coverage/scenarios/preview', { revision, excludedVoluntaryEntryIds }, options);
+}
+
+export function getCoverageRevision(revision, options = {}) {
+  return request('GET', '/coverage/revisions/' + encodeURIComponent(String(revision)), null, options);
+}
+
 // Default export for convenience
 const api = {
+  getCoverageLedger, saveCoverageLedger, previewCoverageScenario, getCoverageRevision,
   register, login, logout, restoreSession,
   setAuthToken, getAuthToken, clearAuthToken, clearUserSession,
   subscribeAuth, getAuthSnapshot,
