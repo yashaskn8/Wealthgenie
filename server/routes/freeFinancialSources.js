@@ -19,6 +19,9 @@ const router=Router();
 const freeProviderLimiter=createEndpointRateLimiter({
  windowMs:60_000,max:30,prefix:'rl:ep:free-financial-research:',
  message:'Free financial research requests are temporarily rate limited.',
+ // Auth is evaluated before this limiter on every route, so a bystander
+ // sharing a demo Wi-Fi IP cannot consume another visitor's entire quota.
+ keyGenerator:req=>req.user?.userId||'unauthenticated-rejected-by-jwt',
 });
 const schemeCode=Joi.string().pattern(/^[1-9][0-9]{4,6}$/);
 const searchSchema=Joi.object({
