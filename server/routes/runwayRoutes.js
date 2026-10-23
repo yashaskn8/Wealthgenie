@@ -4,6 +4,8 @@ import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { verifyRunwayIndexes } from '../services/runwayOperationalReadiness.js';
 import { createRunwayLiveRouter, createRunwaySignal } from './runwayLiveRoutes.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
+import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
+import { queueRunwayProjection } from '../services/runwayProjectionOutbox.js';
 import {
   createRunwaySeal, verifyRunwaySeal, createRunwayLedgerSeal, verifyRunwayLedgerSeal, RUNWAY_SEAL_VERSION,
 } from '../services/runwaySeal.js';
@@ -269,6 +271,7 @@ router.put('/ledger', asyncHandler(async (req, res) => {
         if (cas.matchedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Ledger was edited elsewhere.');
       }
       await RunwayMutationReceipt.create([{ _id: receiptId, userId, operation: 'LEDGER', requestHash, revision: next }], { session });
+      await queueRunwayProjection(userId, next, inputHash, session);
       await createRunwaySignal(userId, 'LEDGER_UPDATED', session);
       return next;
     });
@@ -515,6 +518,8 @@ router.delete('/data', asyncHandler(async (req, res) => {
     await RunwayStatement.deleteMany({ userId }, { session });
     await RunwaySignal.deleteMany({ userId }, { session });
     await RunwaySettlement.deleteMany({ userId }, { session });
+    await RunwayProjectionResult.deleteMany({ userId }, { session });
+    await RunwayProjectionJob.deleteMany({ userId }, { session });
     await RunwayLedgerRevision.deleteMany({ userId }, { session });
     await RunwayLedgerState.deleteOne({ _id: userId }, { session });
   });

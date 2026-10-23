@@ -11,6 +11,8 @@ import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
 import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
+import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
+import { processOneRunwayProjection } from '../services/runwayProjectionOutbox.js';
 import { setupTestDatabase, teardownTestDatabase } from './helpers/mongoTestHelper.js';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 
@@ -59,6 +61,12 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
     await RunwaySettlement.collection.createIndex({ userId: 1, statementId: 1, rowIndex: 1 }, {
       name: 'uniq_runway_settled_source_row', unique: true,
     });
+    await RunwayProjectionJob.collection.createIndex({ status: 1, availableAt: 1, _id: 1 },
+      { name: 'runway_projection_queue_claim' });
+    await RunwayProjectionJob.collection.createIndex({ userId: 1, revision: 1 },
+      { name: 'uniq_runway_projection_job_revision', unique: true });
+    await RunwayProjectionResult.collection.createIndex({ userId: 1, revision: -1 },
+      { name: 'runway_projection_owner_revision' });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
     await User.create([
       { _id: userA, name: 'Runway A', email: 'runway-a-' + crypto.randomUUID() + '@example.test', passwordHash: 'test-hash' },
@@ -387,6 +395,8 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(await RunwayStatement.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySignal.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySettlement.countDocuments({ userId: userA }), 0);
+      assert.equal(await RunwayProjectionJob.countDocuments({ userId: userA }), 0);
+      assert.equal(await RunwayProjectionResult.countDocuments({ userId: userA }), 0);
       const missing = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
       assert.equal(missing.response.status, 404);
       assert.equal(await FinancialProfile.countDocuments({ userId: userA }), 0);
@@ -419,6 +429,12 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       { name: 'runway_settlement_owner_audit' });
     await RunwaySettlement.collection.createIndex({ userId: 1, statementId: 1, rowIndex: 1 },
       { name: 'uniq_runway_settled_source_row', unique: true });
+    await RunwayProjectionJob.collection.createIndex({ status: 1, availableAt: 1, _id: 1 },
+      { name: 'runway_projection_queue_claim' });
+    await RunwayProjectionJob.collection.createIndex({ userId: 1, revision: 1 },
+      { name: 'uniq_runway_projection_job_revision', unique: true });
+    await RunwayProjectionResult.collection.createIndex({ userId: 1, revision: -1 },
+      { name: 'runway_projection_owner_revision' });
     await RunwaySettlement.collection.createIndex({ userId: 1, transactionIdentity: 1 },
       { name: 'uniq_runway_settled_transaction_identity', unique: true });
     const [userA, userB] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];

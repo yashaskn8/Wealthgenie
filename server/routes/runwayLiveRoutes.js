@@ -21,6 +21,10 @@ import {
 } from '../services/runwayReconciliation.js';
 import { RunwayLedgerState, RunwayLedgerRevision } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
+import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
+import {
+  queueRunwayProjection, runwayProjectionId, verifyRunwayProjectionResult,
+} from '../services/runwayProjectionOutbox.js';
 
 const MAX_IMPORTS = 30;
 const MAX_SETTLEMENTS = 500;
@@ -135,6 +139,34 @@ export function createRunwayLiveRouter({
       notice: 'Statements are user-uploaded, not a real-time bank feed. Imported transactions never silently change your confirmed cash or settle planned bills.',
     });
   }));
+  router.get('/projection', asyncHandler(async (req, res) => {
+    const userId = owner(req);
+    const current = await currentRevision(userId);
+    if (!current) return res.json({ status: 'NO_CONFIRMED_LEDGER', revision: null });
+    const id = runwayProjectionId(userId, current.state.revision);
+    const [job, result] = await Promise.all([
+      RunwayProjectionJob.findOne({ _id: id, userId }).lean(),
+      RunwayProjectionResult.findOne({ _id: id, userId }).lean(),
+    ]);
+    if (!job) return res.json({ status: 'LEGACY_PROJECTION_NOT_QUEUED',
+      revision: current.state.revision, source: 'CURRENT_VERIFIED_LEDGER' });
+    if (job.inputHash !== current.revision.inputHash || job.revision !== current.state.revision) {
+      throw fail(503, 'RUNWAY_PROJECTION_SOURCE_INVALID', 'Projection job mismatches signed current ledger.');
+    }
+    if (job.status !== 'DONE') {
+      return res.json({ status: job.status, revision: current.state.revision,
+        attempts: job.attempts, errorCode: job.status === 'BLOCKED' ? job.lastErrorCode : null });
+    }
+    if (!result || result.revision !== current.state.revision
+      || result.inputHash !== current.revision.inputHash
+      || !verifyRunwayProjectionResult(result)) {
+      throw fail(503, 'RUNWAY_PROJECTION_INTEGRITY_INVALID', 'Projection result integrity failed.');
+    }
+    return res.json({ status: 'DONE', revision: result.revision,
+      engineVersion: result.engineVersion, computedAt: result.computedAt,
+      result: result.result, verified: 'SERVER_SEALED_DETERMINISTIC_SOURCE' });
+  }));
+
   router.get('/events', asyncHandler(async (req, res) => {
     const userId = owner(req), after = req.query.after;
     if (after !== undefined && (typeof after !== 'string' || !/^[a-f0-9]{24}$/.test(after))) {
@@ -330,6 +362,7 @@ export function createRunwayLiveRouter({
         };
         receipt.sealHmac = createRunwaySettlementSeal(receipt);
         await RunwaySettlement.create([receipt], { session });
+        await queueRunwayProjection(userId, next, nextInputHash, session);
         await createRunwaySignal(userId, 'SETTLEMENT_CONFIRMED', session);
         return { revision: next, receiptId };
       });

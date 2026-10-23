@@ -49,7 +49,8 @@
     "finance:top3:review-queue": "node scripts/generateFinancialTopThreeEvidenceQueue.js",
     "goals:migrate-budget-indexes": "node scripts/migrateGoalBudgetIndexes.js",
     "runway:migrate-indexes": "node scripts/migrateRunwayIndexes.js",
-    "runway:migrate-evidence": "node scripts/migrateRunwayEvidenceEncryption.js"
+    "runway:migrate-evidence": "node scripts/migrateRunwayEvidenceEncryption.js",
+    "runway:projection-worker": "node scripts/runwayProjectionWorker.js"
   },
   "dependencies": {
     "@a2a-js/sdk": "1.2.0",

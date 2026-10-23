@@ -7,6 +7,7 @@ import { RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '..
 import { assertRunwaySigningKey } from './runwaySeal.js';
 import { assertRunwayEvidenceEncryptionReady } from './runwayEvidenceCrypto.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
+import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
 
 async function readIndexes() {
   return Promise.all([
@@ -16,6 +17,8 @@ async function readIndexes() {
     RunwayStatement.collection.indexes(),
     RunwaySignal.collection.indexes(),
     RunwaySettlement.collection.indexes(),
+    RunwayProjectionJob.collection.indexes(),
+    RunwayProjectionResult.collection.indexes(),
   ]);
 }
 export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
@@ -25,9 +28,11 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
     error.code = 'RUNWAY_INDEXES_UNAVAILABLE';
     throw error;
   }
-  const [ledger, snapshot, deletion, statement, signal, settlement] = Array.isArray(indexes) ? indexes : [];
+  const [ledger, snapshot, deletion, statement, signal, settlement, jobs, projections] =
+    Array.isArray(indexes) ? indexes : [];
   const ready = Array.isArray(ledger) && Array.isArray(snapshot) && Array.isArray(deletion)
     && Array.isArray(statement) && Array.isArray(signal) && Array.isArray(settlement)
+    && Array.isArray(jobs) && Array.isArray(projections)
     && ledger.some(i => i.name === 'uniq_runway_ledger_revision'
       && i.unique === true && i.key?.userId === 1 && i.key?.revision === 1)
     && snapshot.some(i => i.name === 'runway_snapshots_by_owner'
@@ -46,7 +51,13 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
       && i.unique === true && i.key?.userId === 1
       && i.key?.statementId === 1 && i.key?.rowIndex === 1)
     && settlement.some(i => i.name === 'uniq_runway_settled_transaction_identity'
-      && i.unique === true && i.key?.userId === 1 && i.key?.transactionIdentity === 1);
+      && i.unique === true && i.key?.userId === 1 && i.key?.transactionIdentity === 1)
+    && jobs.some(i => i.name === 'runway_projection_queue_claim'
+      && i.key?.status === 1 && i.key?.availableAt === 1 && i.key?._id === 1)
+    && jobs.some(i => i.name === 'uniq_runway_projection_job_revision'
+      && i.unique === true && i.key?.userId === 1 && i.key?.revision === 1)
+    && projections.some(i => i.name === 'runway_projection_owner_revision'
+      && i.key?.userId === 1 && i.key?.revision === -1);
   if (!ready) {
     const error = new Error('Required Runway unique and TTL indexes are missing or incorrect.');
     error.code = 'RUNWAY_INDEXES_UNAVAILABLE';

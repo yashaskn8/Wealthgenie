@@ -5,6 +5,7 @@
 import mongoose from 'mongoose';
 import { RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
+import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayProjection.js';
 
 const uri = String(process.env.MONGODB_MIGRATION_URI || '').trim();
 if (!uri) throw new Error('MONGODB_MIGRATION_URI is required for Household Runway index migration.');
@@ -37,13 +38,21 @@ try {
   await RunwaySettlement.collection.createIndex({ userId: 1, transactionIdentity: 1 }, {
     name: 'uniq_runway_settled_transaction_identity', unique: true,
   });
-  const [indexes, snapshots, deletions, statements, signals, settlements] = await Promise.all([
+  await RunwayProjectionJob.collection.createIndex({ status: 1, availableAt: 1, _id: 1 },
+    { name: 'runway_projection_queue_claim' });
+  await RunwayProjectionJob.collection.createIndex({ userId: 1, revision: 1 },
+    { unique: true, name: 'uniq_runway_projection_job_revision' });
+  await RunwayProjectionResult.collection.createIndex({ userId: 1, revision: -1 },
+    { name: 'runway_projection_owner_revision' });
+  const [indexes, snapshots, deletions, statements, signals, settlements, jobs, projections] = await Promise.all([
     RunwayLedgerRevision.collection.indexes(),
     RunwaySnapshot.collection.indexes(),
     RunwaySnapshotDeletion.collection.indexes(),
     RunwayStatement.collection.indexes(),
     RunwaySignal.collection.indexes(),
     RunwaySettlement.collection.indexes(),
+    RunwayProjectionJob.collection.indexes(),
+    RunwayProjectionResult.collection.indexes(),
   ]);
   if (!indexes.some(index => index.name === 'uniq_runway_ledger_revision'
       && index.unique === true && index.key.userId === 1 && index.key.revision === 1)
@@ -64,7 +73,13 @@ try {
         && index.key.statementId === 1 && index.key.rowIndex === 1)
       || !settlements.some(index => index.name === 'uniq_runway_settled_transaction_identity'
         && index.unique === true && index.key.userId === 1
-        && index.key.transactionIdentity === 1)) {
+        && index.key.transactionIdentity === 1)
+      || !jobs.some(index => index.name === 'runway_projection_queue_claim'
+        && index.key.status === 1 && index.key.availableAt === 1 && index.key._id === 1)
+      || !jobs.some(index => index.name === 'uniq_runway_projection_job_revision'
+        && index.unique === true && index.key.userId === 1 && index.key.revision === 1)
+      || !projections.some(index => index.name === 'runway_projection_owner_revision'
+        && index.key.userId === 1 && index.key.revision === -1)) {
     throw new Error('RUNWAY_INDEX_MISSING');
   }
   process.stdout.write('Runway revisions, evidence and notification indexes verified.\n');
