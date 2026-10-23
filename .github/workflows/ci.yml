@@ -71,6 +71,17 @@ jobs:
           cd server
           npm run typecheck
 
+      - name: Red-team GenieDecision numeric and Mongo persistence contracts
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0
+        run: |
+          export JWT_SECRET="$(openssl rand -hex 32)"
+          node --test --test-concurrency=1 \
+            server/test/genieDecisionLedger.test.js \
+            server/test/genieDecisionScenarios.test.js \
+            server/test/genieDecisionPreview.test.js \
+            server/test/genieDecisionPersistenceMongo.integration.test.js
+
       - name: Run Backend Tests & Coverage
         env:
           MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0'

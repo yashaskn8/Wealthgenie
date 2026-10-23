@@ -131,6 +131,27 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(evalReplay.body.run.id, reportId);
     assert.equal(evalReplay.body.replayed, true);
 
+    const slot = await DecisionScenario.findById(id).lean();
+    assert.ok(Number.isInteger(slot.quotaSlot) && slot.quotaSlot >= 0 && slot.quotaSlot < 50);
+    // The same evaluation key is a durable receipt for revision 2 even after
+    // the scenario advances to revision 3. It must not be recomputed.
+    const third = await call(base, userOne, `/scenarios/${id}`, 'PATCH', {
+      expectedRevision: 2, title: 'Edited after published report', horizonMonths: payload.horizonMonths,
+      baseline: payload.baseline, goalReservations: payload.goalReservations,
+      details: payload.details,
+    });
+    assert.equal(third.response.status, 200);
+    assert.equal(third.body.scenario.revision, 3);
+    const postEditReplay = await call(base, userOne, `/scenarios/${id}/evaluate`, 'POST',
+      { expectedRevision: 2 }, 'decision-evaluate-0001');
+    assert.equal(postEditReplay.response.status, 200, JSON.stringify(postEditReplay.body));
+    assert.equal(postEditReplay.body.run.id, reportId);
+    assert.equal(postEditReplay.body.replayed, true);
+    const changedKey = await call(base, userOne, `/scenarios/${id}/evaluate`, 'POST',
+      { expectedRevision: 3 }, 'decision-evaluate-0001');
+    assert.equal(changedKey.response.status, 409);
+    assert.equal(changedKey.body.code, 'IDEMPOTENCY_PAYLOAD_CONFLICT');
+
     const secret = await call(base, userTwo, `/runs/${reportId}`);
     assert.equal(secret.response.status, 404);
 
@@ -141,7 +162,7 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(history.body.run.originalStatus, 'PARTIAL');
 
     const deleting = await call(base, userOne, `/scenarios/${id}`, 'DELETE',
-      { expectedRevision: 2 });
+      { expectedRevision: 3 });
     assert.equal(deleting.response.status, 200);
     assert.equal(deleting.body.deleted, true);
 

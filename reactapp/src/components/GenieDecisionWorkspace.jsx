@@ -124,11 +124,24 @@ export default function GenieDecisionWorkspace() {
   const hasUnsavedChanges = Boolean(active && savedFingerprint !== visibleFingerprint);
 
   const refresh = useCallback(async ({ signal } = {}) => {
-    const [availabilityResponse, historyResponse] = await Promise.all([
+    // Historical reports remain browsable even if the canonical profile
+    // pointer is unavailable. Never infer a usable profile from that failure.
+    const [availabilityResult, historyResult] = await Promise.allSettled([
       getDecisionAvailability({ signal }), listDecisionScenarios({ signal }),
     ]);
-    setAvailability(availabilityResponse);
-    setHistory(historyResponse.scenarios || []);
+    if (signal?.aborted) return;
+    if (historyResult.status === 'fulfilled') {
+      setHistory(historyResult.value.scenarios || []);
+    }
+    if (availabilityResult.status === 'fulfilled') {
+      setAvailability(availabilityResult.value);
+    } else {
+      setAvailability(null);
+    }
+    if (historyResult.status === 'rejected') throw historyResult.reason;
+    if (availabilityResult.status === 'rejected') {
+      setError('Current financial profile readiness is unavailable. You may inspect saved scenarios, but creating or evaluating decisions is blocked.');
+    }
   }, []);
 
   useEffect(() => {
