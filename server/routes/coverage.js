@@ -545,10 +545,22 @@ router.get('/export', verifyJWT, asyncHandler(async (req, res) => {
     throw createError(400, 'Invalid export cursor or limit.', 'Invalid export request.', { code: 'COVERAGE_EXPORT_INVALID' });
   }
   const owner = req.user.userId;
+  // Never export orphaned or explicitly erased financial snapshots. A deleted
+  // ledger must not be resurrected through a lagging history read.
+  const ledger = await CoverageLedger.findOne({ userId: owner })
+    .select('_id revision deletedAt').lean();
+  if (!ledger || ledger.deletedAt) {
+    return res.json({ records: [], nextAfterRevision: null, userDeclaredOnly: true });
+  }
   const snapshots = await CoverageResult.find({
-    userId: owner, ledgerRevision: { $gt: afterRevision },
+    userId: owner, ledgerRevision: { $gt: afterRevision, $lte: ledger.revision },
   }).sort({ ledgerRevision: 1 }).limit(limit + 1).lean();
   const page = snapshots.slice(0, limit);
+  // A save or delete could commit while a page is being assembled. Refuse an
+  // inconsistent export instead of returning a pre-delete snapshot as current.
+  if (!await CoverageLedger.exists({
+    _id: ledger._id, userId: owner, revision: ledger.revision, deletedAt: null,
+  })) throw conflict();
   return res.json({
     records: page.map(row => ({ ...publicSnapshot(row), input: row.input })),
     nextAfterRevision: snapshots.length > limit ? page[page.length - 1].ledgerRevision : null,
@@ -558,14 +570,26 @@ router.get('/export', verifyJWT, asyncHandler(async (req, res) => {
 
 router.get('/revisions/:revision', verifyJWT, asyncHandler(async (req, res) => {
   const revision = parseRevision(req.params.revision);
+  const owner = req.user.userId;
+  const ledger = await CoverageLedger.findOne({ userId: owner })
+    .select('_id revision deletedAt').lean();
+  // A deleted plan cannot be read using an orphaned retained snapshot.
+  if (!ledger || ledger.deletedAt || revision > ledger.revision) {
+    throw createError(404, 'Coverage revision not found.', 'Coverage revision not found.', {
+      code: 'COVERAGE_REVISION_NOT_FOUND',
+    });
+  }
   const snapshot = await CoverageResult.findOne({
-    userId: req.user.userId, ledgerRevision: revision,
+    userId: owner, ledgerRevision: revision,
   }).sort({ createdAt: -1 }).lean();
   if (!snapshot) {
     throw createError(404, 'Coverage revision not found.', 'Coverage revision not found.', {
       code: 'COVERAGE_REVISION_NOT_FOUND',
     });
   }
+  if (!await CoverageLedger.exists({
+    _id: ledger._id, userId: owner, revision: ledger.revision, deletedAt: null,
+  })) throw conflict();
   res.json({ ...publicSnapshot(snapshot), input: snapshot.input });
 }));
 

@@ -107,3 +107,7 @@ A dated cash-reconfirmation event remains durable after its original creation, b
 
 ### User-reviewed reconciliation from a statement
 When a browser-local debit dated today has exactly one match among already saved one-off cash obligations by exact date and paise amount, the interface offers to open the existing settlement confirmation form. It does not assert this bank line is verified, does not mark a recurring obligation paid, does not auto-select when there are duplicate matches, and never posts a settlement until the user separately attests the payment and enters current accessible cash after it. This is a workflow aid, not automatic reconciliation with a bank.
+
+### Historical data deletion/revision race fencing
+
+Owner-scoped export and individual historical revision reads first verify an existing, non-deleted current cash ledger; they cannot disclose orphaned financial snapshots after a deleted/nonexistent ledger. Pagination only includes revisions at or below the initially observed current revision. A second exact owner/revision/deleted-state check prevents returning a mixed result after a concurrent save or deletion. A stale request fails as a conflict rather than presenting possibly erased records as current. This does not replace encrypted backup-retention and production privacy validation.

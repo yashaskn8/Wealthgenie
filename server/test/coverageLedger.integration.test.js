@@ -424,6 +424,17 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     const foreignExport = await call(other, 'GET', '/export');
     assert.equal(foreignExport.status, 200);
     assert.deepEqual(foreignExport.body.records, []);
+    // A stray financial snapshot must not bypass an erased/nonexistent ledger.
+    const originalSnapshot = await CoverageResult.findOne({ userId: owner, ledgerRevision: 1 }).lean();
+    await CoverageResult.create({
+      userId: other, ledgerRevision: 1,
+      policyVersion: originalSnapshot.policyVersion,
+      inputHash: originalSnapshot.inputHash,
+      input: originalSnapshot.input, calculation: originalSnapshot.calculation,
+    });
+    assert.deepEqual((await call(other, 'GET', '/export')).body.records, []);
+    assert.equal((await call(other, 'GET', '/revisions/1')).status, 404);
+    await CoverageResult.deleteMany({ userId: other });
     assert.equal((await call(owner, 'GET', '/export?limit=21')).status, 400);
 
     const deletionKey = randomUUID();
@@ -446,6 +457,7 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
       'background stale-cash sweep must never resurrect deleted financial alerts');
     assert.deepEqual((await call(owner, 'GET', '/alerts')).body.alerts, []);
     assert.deepEqual((await call(owner, 'GET', '/export')).body.records, []);
+    assert.equal((await call(owner, 'GET', '/revisions/1')).status, 404);
     assert.equal(await CoverageDeletionReceipt.countDocuments({ userId: owner }), 1);
     assert.equal((await call(owner, 'GET', '/revisions/1')).status, 404);
     const deletedRead = await call(owner, 'GET', '/ledger');
