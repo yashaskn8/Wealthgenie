@@ -39,6 +39,15 @@ async function requestJson(path,{fetchImpl=globalThis.fetch}={}){
  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 function text(v,max=150){return typeof v==='string'?v.slice(0,max):null;}
+function validNavValue(value){
+  // JSON booleans and whitespace are not fund prices. A generic Number()
+  // cast silently changes true to 1 and '' to 0, distorting volatility.
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  if (typeof value === 'string'
+    && !/^(?:0|[1-9]\\d*)(?:\\.\\d{1,8})?$/.test(value)) return null;
+  const nav = Number(value);
+  return Number.isFinite(nav) && nav > 0 && nav < 1e9 ? nav : null;
+}
 function normalizedFund(data,requestedCode){
  const code=Number(data?.scheme_code);
  if(!Number.isSafeInteger(code)||String(code)!==String(requestedCode))return null;
@@ -72,10 +81,11 @@ export async function searchFreeFunds(q,options={}){
 export function normalizeFreeNavHistory(raw,schemeCode,{now=new Date()}={}){
  const fund=normalizedFund(raw?.fund_details,schemeCode);
  if(!fund||!Array.isArray(raw?.data))return unavailable('FREE_NAV_IDENTITY_OR_SCHEMA_INVALID');
+ if(raw.data.length>1000)return unavailable('FREE_NAV_HISTORY_TOO_LARGE');
  const daily=[];const seen=new Set();
  for(const row of raw.data){
-  const date=isoDate(row?.nav_date);const nav=Number(row?.nav);
-  if(!date||!Number.isFinite(nav)||nav<=0||nav>1e9||seen.has(date))
+  const date=isoDate(row?.nav_date);const nav=validNavValue(row?.nav);
+  if(!date||nav===null||seen.has(date))
    return unavailable('FREE_NAV_DATE_OR_VALUE_INVALID');
   seen.add(date);daily.push({date,nav});
  }
