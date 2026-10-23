@@ -209,6 +209,32 @@ function lastChatAnswerWasFinancial(conversation) {
     || latest.metadata?.validation_status !== 'UNVERIFIED_GENERAL_CHAT'));
 }
 
+// Resolve only a short explanatory follow-up to the preceding authenticated
+// suitability question. The previous answer must be qualified, profile-bound
+// and actually cite profile-risk evidence. Never reuse a generic, unavailable,
+// stale, or unverified answer to manufacture financial context.
+function resolveBoundSuitabilityFollowUp(question, trustedTurns, conversation) {
+  const text = String(question || '').trim();
+  if (!/^(?:why|why is that|how come|tell me more|explain (?:it|that|the previous answer))\s*[?.!]*$/i.test(text)) return text;
+  if (!Array.isArray(trustedTurns) || trustedTurns.length < 2) return text;
+  const previousUser = trustedTurns.at(-2);
+  const previousAnswer = trustedTurns.at(-1);
+  const savedAnswer = Array.isArray(conversation?.messages) ? conversation.messages.at(-1) : null;
+  const evidenceIds = savedAnswer?.metadata?.evidence_ids_used;
+  if (previousUser?.role !== 'user' || previousAnswer?.role !== 'model'
+      || savedAnswer?.role !== 'model'
+      || savedAnswer.metadata?.grounded_on_profile !== true
+      || savedAnswer.metadata?.validation_status !== 'PASS'
+      || !Array.isArray(evidenceIds) || !evidenceIds.includes('E_PROFILE_RISK')
+      || evidenceIds.includes('E_CHAT_ANSWER_UNAVAILABLE')) return text;
+  const sourceQuestion = String(previousUser.content || '').trim();
+  if (!sourceQuestion || sourceQuestion.length > 240
+      || isContextDependentFollowUp(sourceQuestion)
+      || isGroundingBoundaryAttack(sourceQuestion)
+      || !/\b(?:my suitability|my risk profile|my risk tolerance|my portfolio|my recommendation|my allocation|my plan|fit my profile|suitable for me)\b/i.test(sourceQuestion)) return text;
+  return sourceQuestion + ' ' + text;
+}
+
 function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   const newestPairs = [];
@@ -411,8 +437,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       && !(isContextDependentFollowUp(securityContext.sanitizedMessage)
         && lastChatAnswerWasFinancial(claim.conversation));
     const trustedFinancialTurns = generalMode ? [] : recentFinancialTurns;
+    const groundedQuestion = generalMode ? securityContext.sanitizedMessage
+      : resolveBoundSuitabilityFollowUp(securityContext.sanitizedMessage, trustedFinancialTurns, claim.conversation);
     const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
-      question: securityContext.sanitizedMessage,
+      question: groundedQuestion,
       profile: llmProfile,
       recommendation,
       userId,
@@ -427,7 +455,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const providerBudgetUpperBound = generalMode
       ? generalChatTokenUpperBound(securityContext.sanitizedMessage, priorTurns)
       : getGroundedExplanationTokenUpperBound({
-        question: securityContext.sanitizedMessage,
+        question: groundedQuestion,
         evidencePacket,
         priorTurns,
       });
@@ -441,7 +469,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const explanation = await (generalMode ? generateGeneralChatAnswer : generateGroundedExplanation)(
       generalMode
         ? { question: securityContext.sanitizedMessage, priorTurns }
-        : { question: securityContext.sanitizedMessage, evidencePacket, priorTurns },
+        : { question: groundedQuestion, evidencePacket, priorTurns },
       {
         ...groundedExplanationDependencies,
         ...(canReserveProvider ? {

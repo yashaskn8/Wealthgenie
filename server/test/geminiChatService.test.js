@@ -832,7 +832,9 @@ describe('GenieChat V3 Enterprise Architecture Tests', () => {
       assert.equal(generalCalls, 0);
       assert.equal(answer.grounded, true);
       assert.equal(answer.validation_status, 'PASS');
+      assert.ok(answer.evidence_ids_used.includes('E_PROFILE_RISK'));
       assert.ok(answer.citations.length > 0);
+      assert.match(answer.response, /suitability|risk/i);
       assert.doesNotMatch(answer.response, /invent a financial reason/i);
     } finally {
       ProviderManager.groq.generate = originalGroqGenerate;
