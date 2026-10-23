@@ -64,7 +64,9 @@ async function currentRevision(userId, session = null) {
   const state = await RunwayLedgerState.findById(userId).session(session).lean();
   if (!state) return null;
   const revision = await RunwayLedgerRevision.findOne({ userId, revision: state.revision }).session(session).lean();
-  if (!revision) throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved ledger could not be reconciled.');
+  if (!revision || canonicalSha256(revision.ledger) !== revision.inputHash) {
+    throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved ledger could not be reconciled.');
+  }
   return { state, revision };
 }
 async function inTransaction(action) {
@@ -99,7 +101,18 @@ async function requireRunwayIndexes() {
 }
 function serializeLedger(found) {
   return { revision: found.state.revision, ledger: found.revision.ledger, inputHash: found.revision.inputHash,
-    confirmedAt: found.revision.confirmedAt };
+    confirmedAt: found.revision.confirmedAt, cashConfirmedForToday: found.revision.ledger.asOfDate === indiaCivilToday() };
+}
+function requireFreshCash(ledger) {
+  if (ledger.asOfDate !== indiaCivilToday()) {
+    throw failure(409, 'RUNWAY_CASH_CONFIRMATION_STALE',
+      'Accessible cash was confirmed on an earlier date. Reconfirm for today before calculating.');
+  }
+}
+function requireListedPayments(ledger) {
+  if (!ledger.entries.some(entry => entry.kind === 'OBLIGATION')) {
+    throw failure(400, 'RUNWAY_INSUFFICIENT_INPUT', 'List at least one dated payment before calculating.');
+  }
 }
 
 router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -158,8 +171,11 @@ router.post('/simulations', asyncHandler(async (req, res) => {
   const found = await currentRevision(userId);
   if (!found) throw failure(404, 'RUNWAY_LEDGER_NOT_FOUND', 'Confirm accessible cash before simulating.');
   if (req.body?.ledgerRevision !== found.state.revision) throw failure(409, 'RUNWAY_STALE_INPUT', 'Ledger changed. Refresh before simulating.');
+  requireFreshCash(found.revision.ledger);
   validateRequest(req.body, found.revision.ledger);
-  if (found.revision.ledger.entries.length === 0) return res.json({ status: 'INSUFFICIENT_INPUT', unknowns: ['NO_LISTED_OBLIGATIONS'] });
+  if (!found.revision.ledger.entries.some(entry => entry.kind === 'OBLIGATION')) {
+    return res.json({ status: 'INSUFFICIENT_INPUT', unknowns: ['NO_LISTED_OBLIGATIONS'] });
+  }
   return res.json({ ledgerRevision: found.state.revision, inputHash: found.revision.inputHash,
     ...simulateRunway(found.revision.ledger, req.body) });
 }));
@@ -181,14 +197,16 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
     saved = await inTransaction(async session => {
       const found = await currentRevision(userId, session);
       if (!found || found.state.revision !== req.body.ledgerRevision) throw failure(409, 'RUNWAY_STALE_INPUT', 'Ledger changed. Refresh before saving.');
+      requireFreshCash(found.revision.ledger);
       validateRequest(req.body, found.revision.ledger);
-      if (!found.revision.ledger.entries.length) throw failure(400, 'RUNWAY_INSUFFICIENT_INPUT', 'Add at least one dated obligation.');
+      requireListedPayments(found.revision.ledger);
       const count = await RunwaySnapshot.countDocuments({ userId }).session(session);
       if (count >= MAX_SNAPSHOTS) throw failure(409, 'RUNWAY_SNAPSHOT_LIMIT', 'Delete old Runway data before saving additional results.');
       const result = simulateRunway(found.revision.ledger, req.body);
       await RunwaySnapshot.create([{
         _id: snapshotId, userId, ledgerRevision: found.state.revision,
         inputHash: found.revision.inputHash, requestHash, request: req.body, result,
+        resultHash: canonicalSha256(result),
       }], { session });
       return { snapshotId, ledgerRevision: found.state.revision };
     });
@@ -210,6 +228,13 @@ router.get('/snapshots/:id', asyncHandler(async (req, res) => {
   if (!SNAPSHOT_ID.test(req.params.id)) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
   const snapshot = await RunwaySnapshot.findOne({ _id: req.params.id, userId }).lean();
   if (!snapshot) throw failure(404, 'RUNWAY_SNAPSHOT_NOT_FOUND', 'Snapshot not found.');
+  const source = await RunwayLedgerRevision.findOne({ userId, revision: snapshot.ledgerRevision }).lean();
+  if (!source || canonicalSha256(source.ledger) !== source.inputHash
+      || source.inputHash !== snapshot.inputHash
+      || canonicalSha256(snapshot.result) !== snapshot.resultHash
+      || canonicalSha256(simulateRunway(source.ledger, snapshot.request)) !== snapshot.resultHash) {
+    throw failure(503, 'RUNWAY_INTEGRITY_UNAVAILABLE', 'Saved snapshot verification failed.');
+  }
   const state = await RunwayLedgerState.findById(userId).lean();
   return res.json({ snapshotId: snapshot._id, ledgerRevision: snapshot.ledgerRevision, inputHash: snapshot.inputHash,
     status: state?.revision === snapshot.ledgerRevision ? 'CURRENT' : 'HISTORICAL',

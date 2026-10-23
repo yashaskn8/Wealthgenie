@@ -33,6 +33,7 @@ const snapshotSchema = new Schema({
   requestHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   request: { type: Schema.Types.Mixed, required: true, immutable: true },
   result: { type: Schema.Types.Mixed, required: true, immutable: true },
+  resultHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
 }, options);
 snapshotSchema.index({ userId: 1, createdAt: -1 }, { name: 'runway_snapshots_by_owner' });
 

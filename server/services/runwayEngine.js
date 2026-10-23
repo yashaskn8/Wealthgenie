@@ -153,19 +153,23 @@ function track(events, openingCash, includeExpected) {
     const credits = includeExpected ? today.filter(e => e.kind === 'EXPECTED_INCOME') : [];
     const credited = credits.reduce((sum, e) => sum + e.amount, 0n);
     const prior = balance;
-    let afterDebits = prior;
-    let afterCreditsFirst = prior + credited;
-    let possible = null;
-    let certain = null;
-    for (const e of debits) {
-      afterDebits -= e.amount;
-      afterCreditsFirst -= e.amount;
-      if (afterDebits < 0n && !possible) possible = { date: e.date, entryId: e.id, label: e.label, deficitPaise: String(-afterDebits) };
-      if (afterCreditsFirst < 0n && !certain) certain = { date: e.date, entryId: e.id, label: e.label, deficitPaise: String(-afterCreditsFirst) };
-    }
+    // Same-day debit ordering is unknown: never arbitrarily blame the alphabetically
+    // first payment or present an order-dependent partial deficit as exact.
+    const totalDebits = debits.reduce((sum, e) => sum + e.amount, 0n);
+    const afterDebits = prior - totalDebits;
+    const afterCreditsFirst = prior + credited - totalDebits;
+    const shortage = amount => ({
+      date: today[0].date,
+      entryId: debits.length === 1 ? debits[0].id : null,
+      label: debits.length === 1 ? debits[0].label : 'Multiple payments due',
+      obligationIds: debits.map(e => e.id),
+      deficitPaise: String(-amount),
+    });
+    const possible = debits.length && afterDebits < 0n ? shortage(afterDebits) : null;
+    const certain = debits.length && afterCreditsFirst < 0n ? shortage(afterCreditsFirst) : null;
     if (possible && !firstPossibleShortfall) firstPossibleShortfall = possible;
     if (certain && !firstCertainShortfall) firstCertainShortfall = certain;
-    if (includeExpected && Boolean(possible) !== Boolean(certain)) {
+    if (includeExpected && credited > 0n && debits.length > 0 && afterDebits < 0n) {
       timingAmbiguities.push({ date: today[0].date, obligationIds: debits.map(e => e.id), receiptIds: credits.map(e => e.id), code: 'SAME_DAY_TIMING_UNKNOWN' });
     }
     if (afterDebits < lowWatermark) lowWatermark = afterDebits;
@@ -193,6 +197,7 @@ export function simulateRunway(ledger, request) {
       const to = civilDate(scenario.throughDate).ordinal;
       return { id: scenario.id, events: events.filter(e => !(e.kind === 'EXPECTED_INCOME' && ids.has(e.id) && e.day >= from && e.day <= to)) };
     }
+    if (events.length >= EVENT_LIMIT) reject('Expanded event limit exceeded with added expense.');
     return { id: scenario.id, events: [...events, {
       id: 'shock_' + scenario.id,
       label: scenario.label, kind: 'OBLIGATION', amount: paise(scenario.amountPaise),
