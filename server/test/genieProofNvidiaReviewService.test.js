@@ -121,6 +121,25 @@ test('prompt-injection text is inert; model cannot invent an independent result'
   }
 });
 
+test('aborts inference when a client disconnects during a source lookup', async () => {
+  const controller = new AbortController();
+  const model = nvidia();
+  const officialStatement = 'The current official PPF interest rate is 7.1% p.a.';
+  const result = await review(model, {
+    statement: officialStatement,
+    claimId: 'd'.repeat(32),
+    signal: controller.signal,
+    verifier: { verifySignedManifest: () => ({ valid: false }) },
+    evidenceResolver: async () => {
+      controller.abort();
+      return { byClaimId: {} };
+    },
+  });
+  assert.equal(result.status, 'UNAVAILABLE');
+  assert.equal(result.reasonCode, 'REQUEST_CANCELLED');
+  assert.equal(model.calls.length, 0);
+});
+
 test('incomplete output, wrong model identity, thrown errors and cancellation fail closed', async () => {
   const wrong = nvidia();
   wrong.generate = async () => ({ text: '{"nextStepIds":["VERIFY_ISSUER"]}', provider: 'nvidia_nim', model: 'different', wasCompleted: true });
