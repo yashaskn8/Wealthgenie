@@ -100,6 +100,25 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(initial.response.status, 201, JSON.stringify(initial.body));
       assert.equal(initial.body.revision, 1);
       assert.equal(initial.body.ledger.openingCashPaise, '10000');
+      // A financial ledger commit MUST enqueue the projection in the same
+      // transaction, without waiting for the optional background worker.
+      assert.equal(await RunwayProjectionJob.countDocuments({ userId: userA }), 1);
+      const beforeWorker = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
+      assert.equal(beforeWorker.body.status, 'PENDING');
+      const otherProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authB });
+      assert.equal(otherProjection.body.status, 'NO_CONFIRMED_LEDGER');
+      const processed = await Promise.all([
+        processOneRunwayProjection(), processOneRunwayProjection(),
+      ]);
+      assert.equal(processed.filter(x => x.status === 'DONE').length, 1);
+      assert.equal(await RunwayProjectionResult.countDocuments({ userId: userA }), 1);
+      const projected = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
+      assert.equal(projected.response.status, 200, JSON.stringify(projected.body));
+      assert.equal(projected.body.status, 'DONE');
+      assert.equal(projected.body.revision, 1);
+      assert.equal(projected.body.verified, 'SERVER_SEALED_DETERMINISTIC_SOURCE');
+      // A separate query for the same result must not produce a second job.
+      assert.equal((await processOneRunwayProjection()).status, 'IDLE');
 
       const replay = await write(base, ledger, 0, 'runway-initial-001');
       assert.equal(replay.response.status, 200);
@@ -496,6 +515,14 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       const posted = await send(base, 'live/settlements', request, authA, 'rent-posting-unique-1');
       assert.equal(posted.response.status, 201, JSON.stringify(posted.body));
       assert.equal(posted.body.revision, 2);
+      assert.equal(await RunwayProjectionJob.countDocuments({ userId: userA }), 2);
+      const projectionBefore = await jsonRequest(root + 'live/projection', { headers: authA });
+      assert.equal(projectionBefore.body.revision, 2);
+      assert.equal(projectionBefore.body.status, 'PENDING');
+      assert.equal((await processOneRunwayProjection()).status, 'DONE');
+      const projectionAfter = await jsonRequest(root + 'live/projection', { headers: authA });
+      assert.equal(projectionAfter.body.status, 'DONE');
+      assert.equal(projectionAfter.body.revision, 2);
       assert.equal(posted.body.evidenceStatus, 'USER_CONFIRMED_NOT_BANK_VERIFIED');
       const after = await jsonRequest(root + 'current', { headers: authA });
       assert.equal(after.body.revision, 2);
