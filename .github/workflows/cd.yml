@@ -670,19 +670,20 @@ jobs:
           echo "Verification Response: $VERIFY_RES"
           node -e 'const result=JSON.parse(process.argv[1]); if (result.status !== "DEMO_DATABASE_VERIFIED" || result.mongo?.transactionCapable !== true || result.mongo?.databaseIdentityVerified !== true || result.mongo?.environmentSentinelVerified !== true || result.redis?.required !== true || result.redis?.connected !== true) process.exit(1)' "$VERIFY_RES"
 
-          echo "5. Testing Business Endpoint /api/tax/compare..."
-          TAX_URL="http://127.0.0.1:5000/api/tax/compare"
-          TAX_BODY='{"income":1200000,"incomeSource":"salary","fiscalYear":"FY2026-27","age":30}'
+          echo "5. Testing Verified New-Regime Endpoint /api/tax/new-regime-verified..."
+          TAX_URL="http://127.0.0.1:5000/api/tax/new-regime-verified"
+          TAX_BODY='{"taxYear":"2026-27","incomeType":"salary","primaryIncome":"1275000.00","otherOrdinaryIncome":"0","residency":"resident","specialRateIncome":"no","confirmedOrdinaryOnly":true}'
           if ! TAX_RES=$(curl --silent --show-error --fail --connect-timeout 5 --max-time 10 \
             --request POST --header 'Content-Type: application/json' --data "$TAX_BODY" "$TAX_URL"); then
-            echo "ERROR: tax compare smoke request failed: $TAX_URL"
+            echo "ERROR: new-regime tax smoke request failed: $TAX_URL"
             curl --silent --show-error --connect-timeout 5 --max-time 10 \
               --request POST --header 'Content-Type: application/json' --data "$TAX_BODY" "$TAX_URL" || true
             print_server_diagnostics
             exit 1
           fi
-          echo "Tax Compare Response: $TAX_RES"
-          echo "- **Business Tax Endpoint (/api/tax/compare)**: \`$TAX_RES\`" >> $GITHUB_STEP_SUMMARY
+          echo "Verified New-Regime Response: $TAX_RES"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.status!=="CALCULATED"||x.finalTax!=="0"||x.taxableIncome!=="1200000") process.exit(1)' "$TAX_RES"
+          echo "- **Verified New-Regime Tax Endpoint (/api/tax/new-regime-verified)**: \`$TAX_RES\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Install frontend verification dependencies
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_live_market_preflight }}
@@ -798,8 +799,8 @@ jobs:
           done
           echo "Initial server metrics: $SERVER_METRICS"
 
-          LOAD_URL="http://127.0.0.1:5000/api/tax/compare"
-          TAX_BODY='{"income":1200000,"incomeSource":"salary","fiscalYear":"FY2026-27","age":30}'
+          LOAD_URL="http://127.0.0.1:5000/api/tax/new-regime-verified"
+          TAX_BODY='{"taxYear":"2026-27","incomeType":"salary","primaryIncome":"1275000.00","otherOrdinaryIncome":"0","residency":"resident","specialRateIncome":"no","confirmedOrdinaryOnly":true}'
           if ! curl --fail --silent --connect-timeout 5 --max-time 10 \
             --request POST --header 'Content-Type: application/json' --data "$TAX_BODY" "$LOAD_URL" > /dev/null; then
             echo "ERROR: valid HPA load probe failed: $LOAD_URL"
