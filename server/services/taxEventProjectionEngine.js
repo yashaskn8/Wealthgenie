@@ -425,6 +425,27 @@ export function calculateCanonicalPostTaxOutcome({ instrumentType, nominalRate, 
       reasons: ['PROJECTION_WEALTH_PRECISION_EXCEEDED'], fiscalYear, policy,
     });
   }
+  // Dates may override the caller's model duration when reconstructing FIFO
+  // lots and cash flows. Validate that actual horizon BEFORE giving even a
+  // headline tax result a CALCULATED status.
+  if (options.acquisitionDate && options.redemptionDate) {
+    const acquired = parseDate(options.acquisitionDate, 'acquisitionDate');
+    const redeemed = parseDate(options.redemptionDate, 'redemptionDate');
+    if (redeemed < acquired) throw new RangeError('redemptionDate cannot precede acquisitionDate');
+    let exactMonths = 0;
+    while (exactMonths < 1200 && addMonths(acquired, exactMonths + 1) <= redeemed) exactMonths += 1;
+    if (exactMonths === 1200 && addMonths(acquired, 1201) <= redeemed) {
+      return unavailableResult({ instrumentType, modelTaxClass,
+        status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE,
+        reasons: ['EXACT_TRANSACTION_HORIZON_EXCEEDS_SUPPORTED_LIMIT'], fiscalYear, policy });
+    }
+    if (!isSafelyRepresentableModelSip({ monthlySIP, nominalRate,
+      holdingYears: Math.max(1, exactMonths) / 12 })) {
+      return unavailableResult({ instrumentType, modelTaxClass,
+        status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE,
+        reasons: ['PROJECTION_WEALTH_PRECISION_EXCEEDED'], fiscalYear, policy });
+    }
+  }
   if (!Number.isInteger(userAge) || userAge < 18 || userAge > 120) throw new TypeError('userAge must be an integer from 18 to 120');
   if (!['salary', 'pension', 'family_pension', 'business', 'other'].includes(incomeSource)) throw new TypeError('incomeSource must be explicitly provided');
   const context = { annualGrossIncome: annualIncome, regime, incomeSource, fiscalYear, userAge, deductions, holdingPeriodMonths: options.holdingPeriodMonths, acquisitionDate: options.acquisitionDate, redemptionDate: options.redemptionDate, section112AExemptionUsed: options.section112AExemptionUsed, section112AExemptionAppliedOverride: options.section112AExemptionAppliedOverride };
