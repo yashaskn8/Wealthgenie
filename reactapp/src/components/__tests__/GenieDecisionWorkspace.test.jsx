@@ -6,7 +6,7 @@ import GenieDecisionWorkspace from '../GenieDecisionWorkspace';
 import {
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
   createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
-  getDecisionRun, listDecisionRuns, deleteDecisionScenario,
+  getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
 } from '../../services/api';
 
 vi.mock('../../services/api', () => ({
@@ -14,6 +14,7 @@ vi.mock('../../services/api', () => ({
   getDecisionScenario: vi.fn(), createDecisionScenario: vi.fn(),
   updateDecisionScenario: vi.fn(), evaluateDecisionScenario: vi.fn(),
   getDecisionRun: vi.fn(), listDecisionRuns: vi.fn(), deleteDecisionScenario: vi.fn(),
+  generateUUID: vi.fn(),
 }));
 
 const profileId = '64a000000000000000000001';
@@ -54,8 +55,9 @@ describe('GenieDecision workspace red-team integration', () => {
     for (const stub of [
       getDecisionAvailability, listDecisionScenarios, getDecisionScenario,
       createDecisionScenario, updateDecisionScenario, evaluateDecisionScenario,
-      getDecisionRun, listDecisionRuns, deleteDecisionScenario,
+      getDecisionRun, listDecisionRuns, deleteDecisionScenario, generateUUID,
     ]) stub.mockReset();
+    generateUUID.mockReturnValue('test-decision-idempotency-key-0001');
     getDecisionAvailability.mockResolvedValue({
       available: true, profileId, profileStateRevision: 3,
       openingLiquidCashAvailable: true,
@@ -87,7 +89,7 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(evaluate.disabled).toBe(false);
     fireEvent.click(evaluate);
     await waitFor(() => expect(evaluateDecisionScenario).toHaveBeenCalledWith(
-      saved.id, 1,
+      saved.id, 1, { headers: { 'Idempotency-Key': 'test-decision-idempotency-key-0001' } },
     ));
   });
 
@@ -129,4 +131,43 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(deleteDecisionScenario).not.toHaveBeenCalled();
   });
+  it('retries a lost create response using the same durable idempotency receipt', async () => {
+    listDecisionScenarios.mockResolvedValue({ scenarios: [] });
+    createDecisionScenario.mockRejectedValueOnce(new Error('response unavailable'))
+      .mockResolvedValueOnce({ scenario: { ...saved, lastRunId: null } });
+    render(<GenieDecisionWorkspace />);
+    await screen.findByText('Your saved decisions will appear here.');
+    fireEvent.change(screen.getByLabelText('Monthly living expenses (₹)'), { target: { value: '50000' } });
+    fireEvent.change(screen.getByLabelText('Existing total monthly EMI (₹)'), { target: { value: '20000' } });
+    fireEvent.change(screen.getByLabelText('Total monthly investments (₹)'), { target: { value: '20000' } });
+    fireEvent.change(screen.getByLabelText('Interruption starts in month'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Duration in months'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Monthly income lost (₹)'), { target: { value: '10000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    expect(await screen.findByText('response unavailable')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    await waitFor(() => expect(createDecisionScenario).toHaveBeenCalledTimes(2));
+    const first = createDecisionScenario.mock.calls[0];
+    const second = createDecisionScenario.mock.calls[1];
+    expect(second[0]).toEqual(first[0]);
+    expect(second[1].headers['Idempotency-Key']).toBe(first[1].headers['Idempotency-Key']);
+    expect(generateUUID).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries evaluation with its original receipt after network failure', async () => {
+    evaluateDecisionScenario.mockRejectedValueOnce(new Error('evaluation response lost'))
+      .mockResolvedValueOnce(report);
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Evaluate saved revision' }).disabled).toBe(false));
+    fireEvent.click(screen.getByRole('button', { name: 'Evaluate saved revision' }));
+    expect(await screen.findByText('evaluation response lost')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Evaluate saved revision' }));
+    await waitFor(() => expect(evaluateDecisionScenario).toHaveBeenCalledTimes(2));
+    const first = evaluateDecisionScenario.mock.calls[0];
+    const second = evaluateDecisionScenario.mock.calls[1];
+    expect(first[2].headers['Idempotency-Key']).toBe(second[2].headers['Idempotency-Key']);
+    expect(generateUUID).toHaveBeenCalledTimes(1);
+  });
+
 });
