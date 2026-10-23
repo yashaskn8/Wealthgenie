@@ -157,6 +157,8 @@ export default function CashCheck() {
   const [saved, setSaved] = useState(null);
   const [lastCalculatedAt, setLastCalculatedAt] = useState(null);
   const [serverInputHash, setServerInputHash] = useState(null);
+  const [serverPolicyStale, setServerPolicyStale] = useState(false);
+  const [verificationFailed, setVerificationFailed] = useState(false);
   const [preview, setPreview] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -189,6 +191,8 @@ export default function CashCheck() {
       setSaved(response.latestResult?.result || null);
       setLastCalculatedAt(response.latestResult?.calculatedAt || null);
       setServerInputHash(response.latestResult?.inputHash || null);
+      setServerPolicyStale(Boolean(response.requiresPolicyReconfirmation));
+      setVerificationFailed(false);
       setStale(Boolean(response.requiresCashReconfirmation || response.requiresPolicyReconfirmation));
       setLoaded(true);
     }).catch(err => { if (active) { setLoadFailed(true); setError(err.message || 'Unable to fetch cash entries.'); setLoaded(true); } });
@@ -209,9 +213,9 @@ export default function CashCheck() {
         // A different authenticated account may have the SAME revision
         // number. Also detect an in-place policy change without a new save.
         const differentSnapshot = latestHash !== serverInputHash;
-        const policyChanged = Boolean(latest.requiresPolicyReconfirmation) !==
-          Boolean(stale && latest.ledger?.asOfDate === INDIA_DATE());
-        if (latest.revision === revision && !differentSnapshot && !policyChanged) return;
+        const policyChanged = Boolean(latest.requiresPolicyReconfirmation) !== serverPolicyStale;
+        if (latest.revision === revision && !differentSnapshot && !policyChanged
+            && !verificationFailed) return;
         // Never overwrite local unsaved amounts with a poll or a tab signal.
         if (dirty) {
           setConflictState(latest);
@@ -223,6 +227,8 @@ export default function CashCheck() {
           setSaved(latest.latestResult?.result || null);
           setLastCalculatedAt(latest.latestResult?.calculatedAt || null);
           setServerInputHash(latestHash);
+          setServerPolicyStale(Boolean(latest.requiresPolicyReconfirmation));
+          setVerificationFailed(false);
           if (differentSnapshot) {
             // Imported statements are not owner-bound. On an unseen source
             // identity change, discard any unsaved import-review material.
@@ -244,6 +250,8 @@ export default function CashCheck() {
           setSaved(null);
           setLastCalculatedAt(null);
           setServerInputHash(null);
+          setServerPolicyStale(false);
+          setVerificationFailed(false);
           setCsvReview(null);
           setCandidateTypes({});
           setPreview(null);
@@ -251,6 +259,7 @@ export default function CashCheck() {
           setLoadFailed(true);
           setError('Your session is no longer authorised. Sign in and retry loading your own cash plan.');
         } else {
+          setVerificationFailed(true);
           setStale(true);
           setNotice('The latest cash revision could not be verified. Saved results are hidden until data can be reconfirmed.');
         }
@@ -259,17 +268,27 @@ export default function CashCheck() {
     const interval = setInterval(checkForChanges, 45_000);
     const onVisibilityChange = () => { if (document.visibilityState === 'visible') void checkForChanges(); };
     document.addEventListener('visibilitychange', onVisibilityChange);
-    const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('wealthgenie-cash-revision');
-    if (channel) channel.onmessage = event => {
-      if (event.data?.type === 'revision-updated') void checkForChanges();
-    };
+    let channel = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('wealthgenie-cash-revision');
+        channel.onmessage = event => {
+          if (event.data?.type === 'revision-updated') void checkForChanges();
+        };
+      }
+    } catch {
+      // Browser policy or private mode may block BroadcastChannel. The
+      // authenticated visibility/interval refresh remains authoritative.
+      channel = null;
+    }
     return () => {
       active = false;
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       if (channel) channel.close();
     };
-  }, [loaded, loadFailed, busy, dirty, conflictState, revision, serverInputHash, stale]);
+  }, [loaded, loadFailed, busy, dirty, conflictState, revision,
+    serverInputHash, serverPolicyStale, verificationFailed]);
 
   const importStatement = async event => {
     const file = event.target.files?.[0];
@@ -385,6 +404,8 @@ export default function CashCheck() {
       setSaved(response.result);
       setLastCalculatedAt(response.calculatedAt || null);
       setServerInputHash(response.inputHash || null);
+      setServerPolicyStale(false);
+      setVerificationFailed(false);
       setConflictState(null);
       setHasStoredLedger(true);
       setDirty(false);
@@ -478,6 +499,8 @@ export default function CashCheck() {
       setSaved(null);
       setLastCalculatedAt(null);
       setServerInputHash(null);
+      setServerPolicyStale(false);
+      setVerificationFailed(false);
       setHasStoredLedger(false);
       setConflictState(null);
       setConfirmOverwrite(false);
@@ -501,6 +524,8 @@ export default function CashCheck() {
     setSaved(conflictState.latestResult?.result || null);
     setLastCalculatedAt(conflictState.latestResult?.calculatedAt || null);
     setServerInputHash(conflictState.latestResult?.inputHash || null);
+    setServerPolicyStale(Boolean(conflictState.requiresPolicyReconfirmation));
+    setVerificationFailed(false);
     setHasStoredLedger(Boolean(conflictState.ledger));
     setStale(Boolean(conflictState.requiresCashReconfirmation || conflictState.requiresPolicyReconfirmation));
     setDirty(false);
