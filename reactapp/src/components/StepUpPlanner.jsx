@@ -100,7 +100,10 @@ const StepUpPlanner = ({ profile }) => {
     && (!projectionIsCurrent || projectionState.status === 'loading');
   const requestProjection = () => {
     if (!projectionInputsValid) return;
-    setSubmission(previous => ({ binding: projectionBinding, nonce: previous.nonce + 1 }));
+    const nonce = submission.nonce + 1;
+    // User-initiated state changes, never state changes synchronously in an effect.
+    setProjectionState({ binding: projectionBinding, nonce, status: 'loading', data: null, error: null });
+    setSubmission({ binding: projectionBinding, nonce });
   };
 
   // Compute dynamic percentage fills for track bars
@@ -112,8 +115,6 @@ const StepUpPlanner = ({ profile }) => {
   useEffect(() => {
     if (!projectionInputsValid || !submissionIsCurrent) return undefined;
     const controller = new AbortController();
-    setProjectionState({ binding: projectionBinding, nonce: submission.nonce,
-      status: 'loading', data: null, error: null });
     let cancelled = false;
     const timer = setTimeout(() => {
       // One immutable request snapshot validates both the backend calculation
