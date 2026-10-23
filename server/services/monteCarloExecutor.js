@@ -61,7 +61,12 @@ export function executeMonteCarlo(params, { signal, timeoutMs = MONTE_CARLO_WORK
       if (message?.ok === true && message.result && typeof message.result === 'object') {
         settle(null, message.result);
       } else {
-        settle(executionError('MONTE_CARLO_SIMULATION_FAILED', 'Simulation failed safely'));
+        if (message?.code === 'SIMULATION_WEALTH_PRECISION_EXCEEDED') {
+          settle(executionError('SIMULATION_WEALTH_PRECISION_EXCEEDED',
+            'Simulated wealth exceeded safe monetary precision', 422));
+        } else {
+          settle(executionError('MONTE_CARLO_SIMULATION_FAILED', 'Simulation failed safely'));
+        }
       }
       // Workers should exit naturally; termination guarantees prompt slot
       // reclamation if future dependencies keep an event loop handle open.
