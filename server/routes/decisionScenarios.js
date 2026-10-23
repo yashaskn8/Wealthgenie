@@ -11,6 +11,8 @@ import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionRun from '../models/DecisionRun.js';
 import DecisionEvent from '../models/DecisionEvent.js';
 import DecisionEventState from '../models/DecisionEventState.js';
+import DecisionMonitor from '../models/DecisionMonitor.js';
+import DecisionAssessment from '../models/DecisionAssessment.js';
 import { appendDecisionEvent } from '../services/genieDecision/liveEvents.js';
 import { verifyPersistenceIndexes } from '../services/persistenceIndexReadiness.js';
 import {
@@ -283,7 +285,8 @@ const requireDecisionIndexes = asyncHandler(async (_req, _res, next) => {
   // create indexes in request processing: missing unique keys break quotas
   // and exactly-once guarantees under concurrent writers.
   await verifyPersistenceIndexes({
-    models: [DecisionScenario, DecisionScenarioRevision, DecisionRun, DecisionEvent, DecisionEventState],
+    models: [DecisionScenario, DecisionScenarioRevision, DecisionRun, DecisionEvent,
+      DecisionEventState, DecisionMonitor, DecisionAssessment],
     scope: 'persistence',
   });
   next();
@@ -627,6 +630,8 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       if (removed.deletedCount !== 1) fail(409, 'DECISION_REVISION_CONFLICT', 'Scenario changed during deletion.');
       await DecisionScenarioRevision.deleteMany({ userId: req.user.userId, scenarioId: scenario._id }, { session });
       await DecisionRun.deleteMany({ userId: req.user.userId, scenarioId: scenario._id }, { session });
+      await DecisionMonitor.deleteMany({ userId: req.user.userId, scenarioId: scenario._id }, { session });
+      await DecisionAssessment.deleteMany({ userId: req.user.userId, scenarioId: scenario._id }, { session });
       await appendDecisionEvent(session, {
         userId: req.user.userId, type: 'SCENARIO_DELETED',
         scenarioId: scenario._id, revision: scenario.revision,
