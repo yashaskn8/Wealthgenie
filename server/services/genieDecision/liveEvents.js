@@ -26,7 +26,7 @@ export async function appendDecisionEvent(session, { userId, type, scenarioId, r
   // The event is inserted in the SAME Mongo transaction as the mutation.
   const head = await DecisionEventState.findOneAndUpdate(
     { userId }, { $inc: { sequence: 1 }, $setOnInsert: { userId } },
-    { upsert: true, new: true, session },
+    { upsert: true, new: true, session, setDefaultsOnInsert: false },
   );
   if (!Number.isSafeInteger(head.sequence) || head.sequence < 1) {
     throw new Error('DECISION_EVENT_SEQUENCE_OUT_OF_RANGE');
