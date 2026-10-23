@@ -330,6 +330,26 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     });
   }));
 
+  // Ephemeral, deterministic recomputation for all four scenario types.
+  // Never create a scenario, transaction, recommendation, or market-data claim.
+  router.post('/simulate', handleInput(async (req, res) => {
+    const payload = normalizeScenario(req.body);
+    const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+    const source = sourceProfile(current);
+    if (identity(source.profileId) !== req.body.profileId
+        || source.profileStateRevision !== req.body.expectedProfileStateRevision) {
+      fail(409, 'DECISION_STALE_PROFILE', 'Refresh the current financial profile before simulating.');
+    }
+    const result = compute(current, payload);
+    const final = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+    assertProfile(final, source);
+    return res.json({
+      previewOnly: true, status: 'PARTIAL', result,
+      profileStateRevision: source.profileStateRevision,
+      sourceStatus: 'CURRENT_CANONICAL_PROFILE_WITH_UNVERIFIED_HYPOTHETICAL_INPUTS',
+    });
+  }));
+
   router.post('/scenarios', requireDecisionIndexes, handleInput(async (req, res) => {
     const payload = normalizeScenario(req.body);
     if (!decisionIntegrityReady()) {
