@@ -760,6 +760,22 @@ export function projectPostTaxCashFlows({ postTaxResult, instrument, context = {
       if (redeemed < acquired) throw new RangeError('redemptionDate cannot precede acquisitionDate');
       let horizonMonths = 0;
       while (horizonMonths < 1200 && addMonths(acquired, horizonMonths + 1) <= redeemed) horizonMonths += 1;
+      if (horizonMonths === 1200 && addMonths(acquired, 1201) <= redeemed) {
+        // The old cap silently pretended an over-100-year holding period was
+        // exactly 100 years, allowing a plausible but factually wrong corpus.
+        return {
+          status: MODEL_POST_TAX_STATUSES.PROJECTION_MODEL_UNAVAILABLE,
+          totalInvested: null, nominalFutureValue: null, postTaxFutureValue: null,
+          realFutureValue: null, postTaxGain: null, taxDragWealth: null,
+          taxDragCAGR: null, nominalReturnPercent: round4(instrument.nominalRate * 100),
+          postTaxReturnPercent: null, realReturnPercent: null, effectiveTaxPercent: null,
+          postTaxCAGR: null, nominalCAGR: null,
+          sipReturnMetrics: unavailableSipReturnMetrics('PROJECTION_UNAVAILABLE'),
+          taxEvents: [], taxEventModel: 'UNAVAILABLE',
+          assumptions: ['EXACT_TRANSACTION_HORIZON_NOT_QUALIFIED'],
+          unavailableReasons: ['EXACT_TRANSACTION_HORIZON_EXCEEDS_SUPPORTED_LIMIT'],
+        };
+      }
       projectionHoldingYears = Math.max(1, horizonMonths) / 12;
     }
   }
