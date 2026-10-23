@@ -494,6 +494,28 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       assert.equal(stale.body.code, 'RUNWAY_STALE_INPUT');
       const foreign = await send(base, 'live/settlements', request, authB, 'foreign-settlement-1');
       assert.notEqual(foreign.response.status, 201);
+      // Reintroduce an equivalent expense on a later revision. The SAME
+      // posted bank row must not be used to settle a second planned item.
+      const nextLedger = { ...after.body.ledger, entries: [...after.body.ledger.entries, {
+        id: 'rent_again', label: 'Duplicate rent claim', kind: 'OBLIGATION',
+        amountPaise: '1500000', date: now, recurrence: 'NONE',
+      }] };
+      const reset = await jsonRequest(root + 'ledger', {
+        method: 'PUT', headers: { ...authA, 'Content-Type': 'application/json',
+          'If-Match': '"2"', 'Idempotency-Key': 'settlement-reset-ledger-3' },
+        body: JSON.stringify(nextLedger),
+      });
+      assert.equal(reset.response.status, 201, JSON.stringify(reset.body));
+      assert.equal(reset.body.revision, 3);
+      const filtered = await jsonRequest(root + 'live/matches', { headers: authA });
+      assert.equal(filtered.response.status, 200);
+      assert.ok(!filtered.body.items.some(x => x.rowIndex === 0),
+        'Already-used statement rows must never appear as available matches');
+      const reused = await send(base, 'live/settlements', {
+        ...request, ledgerRevision: 3, entryId: 'rent_again',
+      }, authA, 'settlement-reused-different-key');
+      assert.equal(reused.response.status, 409);
+      assert.equal(reused.body.code, 'RUNWAY_POSTED_ROW_REUSED');
       const history = await jsonRequest(root + 'live/settlements?page=0', { headers: authA });
       assert.equal(history.response.status, 200);
       assert.equal(history.body.total, 1);
@@ -504,6 +526,16 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
       assert.ok(events.body.items.some(x => x.eventType === 'SETTLEMENT_CONFIRMED'));
       // Database-only writers can tamper with amounts and recompute ordinary
       // SHA digests. They cannot forge the server-owned HMAC of a receipt.
+      // Retention of a user-approved minimal receipt is independent from
+      // an imported CSV: deleting the upload must not erase the financial
+      // explanation for a persisted ledger revision.
+      const removedEvidence = await jsonRequest(root + 'live/statements/' + imported.body.statementId, {
+        method: 'DELETE', headers: authA,
+      });
+      assert.equal(removedEvidence.response.status, 200);
+      const retainedHistory = await jsonRequest(root + 'live/settlements?page=0', { headers: authA });
+      assert.equal(retainedHistory.response.status, 200);
+      assert.equal(retainedHistory.body.total, 1);
       await RunwaySettlement.collection.updateOne({ _id: posted.body.receiptId },
         { $set: { confirmedCashPaise: '9900000' } });
       const forged = await jsonRequest(root + 'live/settlements?page=0', { headers: authA });
