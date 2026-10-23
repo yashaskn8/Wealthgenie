@@ -124,12 +124,25 @@ function scenarioDto(row) {
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
 }
-function reportDto(run, current) {
-  const historical = !sameProfile(current, run);
+function reportDto(run, current, scenario = null) {
+  // Both financial-profile and scenario-revision pointers must remain current.
+  // Independently verify the immutable result snapshot before presenting it.
+  if (!run.result || typeof run.result !== 'object'
+      || !/^[a-f0-9]{64}$/.test(run.resultHash || '')
+      || hash(run.result) !== run.resultHash) {
+    fail(503, 'DECISION_REPORT_INTEGRITY_FAILURE',
+      'The saved decision report failed integrity verification.');
+  }
+  const staleProfile = !sameProfile(current, run);
+  const staleScenario = !scenario || scenario.revision !== run.revision;
+  const historical = staleProfile || staleScenario;
   return {
     id: identity(run._id), scenarioId: identity(run.scenarioId), scenarioRevision: run.revision,
     status: historical ? 'HISTORICAL' : run.result.status,
-    reasonCodes: historical ? ['DECISION_SOURCE_PROFILE_SUPERSEDED'] : [],
+    reasonCodes: [
+      ...(staleProfile ? ['DECISION_SOURCE_PROFILE_SUPERSEDED'] : []),
+      ...(staleScenario ? ['DECISION_SCENARIO_REVISION_SUPERSEDED'] : []),
+    ],
     asOf: run.createdAt, originalStatus: run.result.status, result: run.result,
   };
 }
@@ -310,7 +323,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Stored report input does not match the requested revision.');
       }
       const fresh = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
-      return res.status(200).json({ run: reportDto(prior, fresh), replayed: true });
+      return res.status(200).json({ run: reportDto(prior, fresh, first), replayed: true });
     }
     if (first.revision !== req.body.expectedRevision) {
       fail(409, 'DECISION_REVISION_CONFLICT', 'Scenario revision changed. Refresh before evaluating.');
@@ -343,7 +356,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
         userId: req.user.userId, scenarioId: first._id, revision: first.revision,
         profileId: first.profileId, profileStateRevision: first.profileStateRevision,
         profileVersion: first.profileVersion, profileFinancialFence: first.profileFinancialFence,
-        runKeyHash: key, inputHash: revision.inputHash, result,
+        runKeyHash: key, inputHash: revision.inputHash, result, resultHash: hash(result),
       }], { session });
       const head = await DecisionScenario.findOneAndUpdate({
         ...own(req, first._id), revision: first.revision, runGeneration: first.runGeneration,
@@ -355,14 +368,29 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     // Re-resolve after commit: a parallel profile update must never yield a
     // newly published report falsely labeled CURRENT.
     const afterCommit = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
-    res.status(201).json({ run: reportDto(run, afterCommit), replayed: false });
+    const headAfterCommit = await DecisionScenario.findOne(own(req, first._id)).lean();
+    res.status(201).json({ run: reportDto(run, afterCommit, headAfterCommit), replayed: false });
   }));
 
   router.get('/runs/:id', handleInput(async (req, res) => {
     const run = await DecisionRun.findOne(own(req, ensureId(req.params.id))).lean();
     if (!run) fail(404, 'DECISION_RUN_NOT_FOUND', 'Decision report not found.');
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
-    res.json({ run: reportDto(run, current) });
+    const scenario = await DecisionScenario.findOne(own(req, run.scenarioId)).lean();
+    if (!scenario) fail(404, 'DECISION_RUN_NOT_FOUND', 'Decision report not found.');
+    res.json({ run: reportDto(run, current, scenario) });
+  }));
+
+  router.get('/scenarios/:id/runs', handleInput(async (req, res) => {
+    const scenario = await ownedScenario(req);
+    const records = await DecisionRun.find({
+      userId: req.user.userId, scenarioId: scenario._id,
+    }).sort({ createdAt: -1 }).limit(20).lean();
+    const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+    res.json({
+      runs: records.map(record => reportDto(record, current, scenario)),
+      maxReturned: 20,
+    });
   }));
 
   router.delete('/scenarios/:id', requireDecisionIndexes, handleInput(async (req, res) => {
