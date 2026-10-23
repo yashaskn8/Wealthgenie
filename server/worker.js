@@ -21,10 +21,17 @@ import { getPlanHealthSchedulerState, startPlanHealthScheduler, stopPlanHealthSc
 import { verifyAgentRuntimePersistence, verifyPlanHealthPersistence } from './services/planHealthPersistence.js';
 import { verifyGenieProofPersistenceIndexes } from './services/persistenceIndexReadiness.js';
 import logger from './utils/logger.js';
+import { createDecisionMonitorWorker } from './services/genieDecision/monitor.js';
+import { verifyPersistenceIndexes } from './services/persistenceIndexReadiness.js';
+import DecisionMonitor from './models/DecisionMonitor.js';
+import DecisionAssessment from './models/DecisionAssessment.js';
+import DecisionEvent from './models/DecisionEvent.js';
+import DecisionEventState from './models/DecisionEventState.js';
 
 let healthServer = null;
 let worker = null;
 let proofBreakWorker = null;
+let decisionMonitorWorker = null;
 let shutdownPromise = null;
 
 function shutdownDeadlineError(label) {
@@ -56,6 +63,8 @@ export async function closeWorkerInfrastructure(config, overrides = {}) {
   const deadlineAt = clock() + config.agentPlanReview.shutdownGraceMs;
   const activeWorker = Object.hasOwn(overrides, 'worker') ? overrides.worker : worker;
   const activeProofBreakWorker = Object.hasOwn(overrides, 'proofBreakWorker') ? overrides.proofBreakWorker : proofBreakWorker;
+  const activeDecisionMonitor = Object.hasOwn(overrides, 'decisionMonitorWorker')
+    ? overrides.decisionMonitorWorker : decisionMonitorWorker;
   const activeHealthServer = Object.hasOwn(overrides, 'healthServer') ? overrides.healthServer : healthServer;
   const stopPlanHealth = overrides.stopPlanHealthScheduler || stopPlanHealthScheduler;
   const stopWorkerRuntime = overrides.stopWorker || (activeWorker ? activeWorker.stop.bind(activeWorker) : () => Promise.resolve({ drained: true }));
@@ -65,18 +74,21 @@ export async function closeWorkerInfrastructure(config, overrides = {}) {
     setTimer: overrides.setTimer || setTimeout,
     clearTimer: overrides.clearTimer || clearTimeout,
   });
-  const [planHealthStop, workerStop, proofBreakStop] = await awaitDeadline(Promise.all([
+  const [planHealthStop, workerStop, proofBreakStop, decisionMonitorStop] = await awaitDeadline(Promise.all([
     stopPlanHealth({ graceMs: Math.max(0, deadlineAt - clock()) }),
     stopWorkerRuntime({ graceMs: Math.max(0, deadlineAt - clock()) }),
     stopProofBreakRuntime({ graceMs: Math.max(0, deadlineAt - clock()) }),
+    activeDecisionMonitor?.stop() || Promise.resolve({ drained: true }),
   ]), 'agent drain');
-  if (!planHealthStop.drained || workerStop?.drained === false || proofBreakStop?.drained === false) {
+  if (!planHealthStop.drained || workerStop?.drained === false || proofBreakStop?.drained === false
+      || decisionMonitorStop?.drained === false) {
     const error = new Error('Agent worker shutdown deadline expired before durable work drained.');
     error.code = 'AGENT_WORKER_DRAIN_TIMEOUT';
     throw error;
   }
   if (activeWorker === worker) worker = null;
   if (activeProofBreakWorker === proofBreakWorker) proofBreakWorker = null;
+  if (activeDecisionMonitor === decisionMonitorWorker) decisionMonitorWorker = null;
   await awaitDeadline(stopProductionEvaluationReconciliation(), 'evaluation reconciliation drain');
   await awaitDeadline(activeHealthServer?.close().catch(error => {
     logger.warn('Agent worker health server close failed', { code: error?.code || 'HEALTH_SERVER_CLOSE_FAILED' });
@@ -135,6 +147,16 @@ export async function startWorker({ env = process.env } = {}) {
     });
   }
   if (config.planHealth.enabled) startPlanHealthScheduler({ config: config.planHealth });
+  if (env.GENIEDECISION_MONITOR_ENABLED === 'true') {
+    await verifyPersistenceIndexes({
+      models: [DecisionMonitor, DecisionAssessment, DecisionEvent, DecisionEventState],
+      scope: 'persistence',
+    });
+    decisionMonitorWorker = createDecisionMonitorWorker({
+      pollMs: Number(env.GENIEDECISION_MONITOR_POLL_MS) || 60000,
+    });
+    decisionMonitorWorker.start();
+  }
   if (proofBreakEnabled) {
     proofBreakWorker = createProofBreakWorker({
       signer: genieProofRuntime.signer,
@@ -144,7 +166,8 @@ export async function startWorker({ env = process.env } = {}) {
   }
   healthServer = createWorkerHealthServer({
     port: config.agentPlanReview.healthPort,
-    stateProvider: () => ({ ...worker?.state(), planHealth: getPlanHealthSchedulerState(), proofBreak: proofBreakWorker?.state() || { running: false, ready: false, activeJobs: 0 } }),
+    stateProvider: () => ({ ...worker?.state(), planHealth: getPlanHealthSchedulerState(), proofBreak: proofBreakWorker?.state() || { running: false, ready: false, activeJobs: 0 },
+      decisionMonitor: decisionMonitorWorker?.state() || { enabled: false, activeJobs: 0 } }),
     requireRedis: config.requireRedis,
     requirePlanReviewIndexes: config.agenticPlanReviewEnabled,
     requirePlanHealthPersistence: config.planHealth.enabled,
