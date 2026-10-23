@@ -63,3 +63,30 @@ test('V2 activation requires a different V1 key to retain historical decryptabil
     ...v2, RUNWAY_EVIDENCE_KEY_V2: env.RUNWAY_EVIDENCE_KEY_V1,
   }), e => e.code === 'RUNWAY_EVIDENCE_KEY_UNAVAILABLE');
 });
+
+test('derived projection results also encrypt labels and balances with separate domain AAD', async () => {
+  const { encryptRunwayProjectionResult, decryptRunwayProjectionResult } =
+    await import('../services/runwayEvidenceCrypto.js');
+  const body = { engineVersion: 'runway-cashflow-1.2.0',
+    scenarios: [{ scenarioId: 'baseline', label: 'Private rent obligation',
+      balancePaise: '2500000' }] };
+  const cryptoRecord = {
+    _id: 'a'.repeat(64), userId: 'b'.repeat(24), revision: 2,
+    inputHash: 'c'.repeat(64),
+    resultHash: (await import('../utils/canonicalJson.js')).canonicalSha256(body),
+    result: body,
+  };
+  const encrypted = encryptRunwayProjectionResult(cryptoRecord, env);
+  assert.equal(JSON.stringify(encrypted).includes('Private rent obligation'), false);
+  assert.equal(JSON.stringify(encrypted).includes('2500000'), false);
+  assert.deepEqual(decryptRunwayProjectionResult({
+    ...cryptoRecord, result: encrypted,
+  }, env), body);
+  for (const changed of [
+    { ...cryptoRecord, userId: 'f'.repeat(24), result: encrypted },
+    { ...cryptoRecord, inputHash: 'f'.repeat(64), result: encrypted },
+    { ...cryptoRecord, revision: 3, result: encrypted },
+    { ...cryptoRecord, result: { ...encrypted, tag: 'f'.repeat(32) } },
+    { ...cryptoRecord, result: body },
+  ]) assert.throws(() => decryptRunwayProjectionResult(changed, env));
+});

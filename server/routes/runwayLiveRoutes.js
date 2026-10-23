@@ -26,6 +26,7 @@ import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayPro
 import {
   queueRunwayProjection, runwayProjectionId, verifyRunwayProjectionResult,
 } from '../services/runwayProjectionOutbox.js';
+import { decryptRunwayProjectionResult } from '../services/runwayEvidenceCrypto.js';
 
 const MAX_IMPORTS = 30;
 const MAX_SETTLEMENTS = 500;
@@ -171,7 +172,8 @@ export function createRunwayLiveRouter({
     }
     return res.json({ status: 'DONE', revision: result.revision,
       engineVersion: result.engineVersion, computedAt: result.computedAt,
-      result: result.result, verified: 'SERVER_SEALED_DETERMINISTIC_SOURCE' });
+      result: decryptRunwayProjectionResult(result),
+      verified: 'SERVER_SEALED_DETERMINISTIC_SOURCE' });
   }));
 
   router.get('/events', asyncHandler(async (req, res) => {

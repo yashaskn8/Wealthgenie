@@ -119,6 +119,9 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(projected.body.verified, 'SERVER_SEALED_DETERMINISTIC_SOURCE');
       const projectionId = (await RunwayProjectionJob.findOne({ userId: userA, revision: 1 }).lean())._id;
       const validProjection = await RunwayProjectionResult.findById(projectionId).lean();
+      assert.equal(validProjection.result.encryptionVersion, 'RUNWAY_PROJECTION_AES256GCM_V1');
+      assert.equal(JSON.stringify(validProjection.result).includes('Rent'), false);
+      assert.equal(JSON.stringify(validProjection.result).includes('12000'), false);
       await RunwayProjectionResult.collection.updateOne({ _id: projectionId },
         { $set: { resultHash: 'f'.repeat(64) } });
       const corruptedProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authA });

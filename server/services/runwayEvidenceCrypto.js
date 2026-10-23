@@ -102,3 +102,66 @@ export function decryptRunwayStatement(record, env = process.env) {
     return parsed;
   } catch { integrity(); }
 }
+
+
+// Projection ciphertext uses HKDF key separation from CSV statement ciphertext;
+// equal root key configuration never permits switching ciphertext types.
+const PROJECTION_VERSION = 'RUNWAY_PROJECTION_AES256GCM_V1';
+function projectionAad(record) {
+  if (!/^[a-f0-9]{64}$/.test(record?._id || '')
+    || !/^[a-f0-9]{64}$/.test(record?.inputHash || '')
+    || !/^[a-f0-9]{64}$/.test(record?.resultHash || '')
+    || !/^[a-f0-9]{24}$/.test(String(record?.userId || ''))
+    || !Number.isSafeInteger(record?.revision) || record.revision < 1) integrity();
+  return Buffer.from(canonicalJson({
+    purpose: PROJECTION_VERSION, userId: String(record.userId),
+    projectionId: record._id, revision: record.revision,
+    inputHash: record.inputHash, resultHash: record.resultHash,
+  }), 'utf8');
+}
+function projectionKey(env, kid) {
+  return Buffer.from(crypto.hkdfSync('sha256', getKey(env, kid),
+    Buffer.from('wealthgenie:runway:projection:v1'),
+    Buffer.from('projection-aes-256-gcm-key'), 32));
+}
+export function encryptRunwayProjectionResult(record, env = process.env) {
+  const kid = activeKid(env);
+  if (!record?.result || record.result?.encryptionVersion) integrity();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', projectionKey(env, kid), iv,
+    { authTagLength: 16 });
+  cipher.setAAD(projectionAad(record));
+  const ciphertext = Buffer.concat([
+    cipher.update(Buffer.from(canonicalJson(record.result), 'utf8')), cipher.final(),
+  ]);
+  return {
+    encryptionVersion: PROJECTION_VERSION, kid, iv: iv.toString('hex'),
+    tag: cipher.getAuthTag().toString('hex'), ciphertext: ciphertext.toString('base64'),
+  };
+}
+export function decryptRunwayProjectionResult(record, env = process.env) {
+  const envelope = record?.result;
+  if (!envelope || envelope.encryptionVersion !== PROJECTION_VERSION
+    || !KIDS.has(envelope.kid)
+    || typeof envelope.iv !== 'string' || !/^[a-f0-9]{24}$/.test(envelope.iv)
+    || typeof envelope.tag !== 'string' || !/^[a-f0-9]{32}$/.test(envelope.tag)
+    || typeof envelope.ciphertext !== 'string' || envelope.ciphertext.length < 4
+    || envelope.ciphertext.length > 150_000
+    || !/^[A-Za-z0-9+/]+={0,2}$/.test(envelope.ciphertext)
+    || Object.keys(envelope).sort().join(',') !== 'ciphertext,encryptionVersion,iv,kid,tag') {
+    integrity('Unencrypted or malformed Runway projection is not served.');
+  }
+  try {
+    const decipher = crypto.createDecipheriv('aes-256-gcm',
+      projectionKey(env, envelope.kid), Buffer.from(envelope.iv, 'hex'),
+      { authTagLength: 16 });
+    decipher.setAAD(projectionAad(record));
+    decipher.setAuthTag(Buffer.from(envelope.tag, 'hex'));
+    const data = Buffer.concat([
+      decipher.update(Buffer.from(envelope.ciphertext, 'base64')), decipher.final(),
+    ]);
+    const projection = JSON.parse(data.toString('utf8'));
+    if (!projection || Array.isArray(projection) || typeof projection !== 'object') integrity();
+    return projection;
+  } catch { integrity(); }
+}

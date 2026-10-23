@@ -9,6 +9,9 @@ import { RunwayProjectionJob, RunwayProjectionResult } from '../models/RunwayPro
 import { canonicalSha256, canonicalJson } from '../utils/canonicalJson.js';
 import { verifyRunwayLedgerSeal, assertRunwaySigningKey } from './runwaySeal.js';
 import { simulateRunway } from './runwayEngine.js';
+import {
+  encryptRunwayProjectionResult, decryptRunwayProjectionResult,
+} from './runwayEvidenceCrypto.js';
 
 const LEASE_MS = 45_000;
 const MAX_ATTEMPTS = 5;
@@ -36,8 +39,10 @@ function seal(record, env = process.env) {
   })).digest('hex');
 }
 export function verifyRunwayProjectionResult(record, env = process.env) {
-  if (!record || !RE.test(record.resultHash || '') || !RE.test(record.sealHmac || '')
-    || canonicalSha256(record.result) !== record.resultHash) return false;
+  if (!record || !RE.test(record.resultHash || '') || !RE.test(record.sealHmac || '')) return false;
+  let plaintext;
+  try { plaintext = decryptRunwayProjectionResult(record, env); } catch { return false; }
+  if (canonicalSha256(plaintext) !== record.resultHash) return false;
   const expected = seal(record, env);
   return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(record.sealHmac, 'hex'));
 }
@@ -86,12 +91,13 @@ export async function processOneRunwayProjection({
       userId: job.userId, revision: job.revision,
     }).lean();
     if (!source || source.inputHash !== job.inputHash) throw failed('RUNWAY_PROJECTION_SOURCE_MISSING');
-    const result = calculateRunwayProjection(source);
+    const computed = calculateRunwayProjection(source);
     const record = {
       _id: job._id, userId: job.userId, revision: job.revision,
-      inputHash: job.inputHash, result, resultHash: canonicalSha256(result),
-      engineVersion: result.engineVersion, computedAt: now(),
+      inputHash: job.inputHash, resultHash: canonicalSha256(computed),
+      engineVersion: computed.engineVersion, computedAt: now(),
     };
+    record.result = encryptRunwayProjectionResult({ ...record, result: computed });
     record.sealHmac = seal(record);
     const session = await sessionFactory();
     try {
@@ -105,7 +111,7 @@ export async function processOneRunwayProjection({
         if (prior) {
           if (!verifyRunwayProjectionResult(prior)
             || prior.inputHash !== job.inputHash || prior.revision !== job.revision
-            || canonicalSha256(prior.result) !== record.resultHash) {
+            || prior.resultHash !== record.resultHash) {
             throw failed('RUNWAY_PROJECTION_REPLAY_CONFLICT');
           }
         } else {
