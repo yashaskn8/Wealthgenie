@@ -78,7 +78,15 @@ test('no-key adapter uses fixed source, no redirects, and never accepts arbitrar
 test('cashflow free reference lists published rates but refuses unsupported product contracts',()=>{
  const reference=getPublicSmallSavingsRates({now});
  assert.equal(reference.status,'DATED_REFERENCE_AVAILABLE');
- assert.ok(reference.rates.length>=9);
+ assert.equal(reference.rates.length,12);
+ assert.equal(reference.rates.find(x=>x.id==='government:india-post:post-office-savings').annualRatePercent,4);
+ assert.equal(reference.rates.find(x=>x.id==='government:india-post:post-office-rd-5y').annualRatePercent,6.7);
+ assert.equal(reference.corroboratingOfficialSources.length,3);
+ for(const entry of reference.rates.filter(x=>
+  ['government:india-post:post-office-savings','government:india-post:post-office-rd-5y'].includes(x.id))){
+  assert.equal(entry.grossCashflowSupported,false,
+    'A rate alone is insufficient to invent account contribution terms');
+ }
  assert.equal(reference.postTaxAvailable,false);
  const unavailable=calculatePublicSmallSavingsGrossResearch({
   productId:'government:india-post:ppf',principal:10000,now,
