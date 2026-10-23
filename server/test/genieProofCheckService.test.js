@@ -69,6 +69,25 @@ function withFixture(offerText, fixture, overrides = {}) {
   });
 }
 
+
+test('read-only claim check refuses common personal identifiers without echoing them', async () => {
+  const identifiers = [
+    'My PAN ABCDE1234F promises 12% interest.',
+    'Aadhaar number 1234-5678-9012 for 8% guaranteed returns.',
+    'Bank account number 123456789012 receives 20% profit.',
+  ];
+  for (const offerText of identifiers) {
+    const result = await checkGenieProofClaims({ offerText, now: () => NOW });
+    assert.deepEqual(result, { ok: false, code: 'GENIEPROOF_SENSITIVE_IDENTIFIERS' });
+    assert.ok(!JSON.stringify(result).includes(offerText));
+  }
+  const ordinaryClaim = await checkGenieProofClaims({
+    offerText: 'An investment of ₹1000000000 claims 10% returns.', now: () => NOW,
+  });
+  assert.equal(ordinaryClaim.ok, true);
+  assert.ok(ordinaryClaim.claims.every(claim => claim.verdict === 'NOT_VERIFIED'));
+});
+
 test('read-only checking requires no signer or saved case and abstains without a configured public trust', async () => {
   const result = await checkGenieProofClaims({
     offerText: PPF,
