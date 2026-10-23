@@ -20,7 +20,7 @@ test('OpenAPI is a single parseable document with one declared history route per
   assert.equal((source.match(/^openapi:/gm) || []).length, 1, 'OpenAPI header duplicated');
   assert.equal((source.match(/^paths:/gm) || []).length, 1, 'OpenAPI paths block duplicated');
   assert.equal((source.match(/^components:/gm) || []).length, 1, 'OpenAPI components block duplicated');
-  assert.equal((source.match(/^  \\/api\\//gm) || []).length,
+  assert.equal((source.match(/^  \/api\//gm) || []).length,
     Object.keys(doc.paths).filter(route => route.startsWith('/api/')).length,
     'Path declarations are missing or duplicated');
   assert.ok(source.length < 320_000, 'API specification unexpectedly multiplied');
