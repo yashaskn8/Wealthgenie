@@ -151,6 +151,8 @@ export default function CashCheck() {
   const [dirty, setDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hasStoredLedger, setHasStoredLedger] = useState(false);
+  const [conflictState, setConflictState] = useState(null);
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setIndiaDate(INDIA_DATE()), 60_000);
@@ -178,6 +180,7 @@ export default function CashCheck() {
     setDraft(updater);
     pendingSave.current = null;
     setDirty(true);
+    setConfirmOverwrite(false);
     setPreview(null);
     setNotice('');
   };
@@ -193,6 +196,10 @@ export default function CashCheck() {
   const save = async (event) => {
     event.preventDefault();
     if (busy) return;
+    if (conflictState) {
+      setError('Review the saved plan and resolve the revision conflict before another save.');
+      return;
+    }
     setBusy(true); setError(''); setNotice(''); setPreview(null);
     try {
       const payload = toPayload(draft);
@@ -207,14 +214,26 @@ export default function CashCheck() {
       pendingSave.current = null;
       setRevision(response.revision);
       setSaved(response.result);
+      setConflictState(null);
       setHasStoredLedger(true);
       setDirty(false);
       setStale(draft.asOfDate !== INDIA_DATE());
       setNotice('Entries saved and recalculated. Revision ' + response.revision + '.');
     } catch (err) {
-      setError(err.status === 409
-        ? 'Your entries changed in another session. Your local edits remain here; reload and reconcile before saving.'
-        : err.message || 'Could not save your entries.');
+      if (err.status === 409) {
+        // This lookup is read-only; never silently overwrite another device's
+        // changes or resurrect a plan that was deliberately deleted.
+        try {
+          const latest = await api.getCoverageLedger();
+          setConflictState(latest);
+          setConfirmOverwrite(false);
+          setError('Your saved plan changed in another session. Review both versions below.');
+        } catch {
+          setError('Saved plan changed, but its latest revision could not be loaded. Your local edits remain here; retry after service recovery.');
+        }
+      } else {
+        setError(err.message || 'Could not save your entries.');
+      }
     } finally { setBusy(false); }
   };
   const previewPause = async () => {
@@ -286,6 +305,8 @@ export default function CashCheck() {
       setDraft(EMPTY());
       setSaved(null);
       setHasStoredLedger(false);
+      setConflictState(null);
+      setConfirmOverwrite(false);
       setPreview(null);
       setDirty(false);
       setStale(false);
@@ -296,6 +317,33 @@ export default function CashCheck() {
         ? 'Deletion blocked: the saved revision changed. Reload and reconcile first.'
         : err.message || 'Could not delete cash entries.');
     } finally { setBusy(false); }
+  };
+  const acceptLatestConflict = () => {
+    if (!conflictState || busy) return;
+    setRevision(conflictState.revision);
+    setDraft(conflictState.ledger ? toDraft(conflictState.ledger) : EMPTY());
+    setSaved(conflictState.latestResult?.result || null);
+    setHasStoredLedger(Boolean(conflictState.ledger));
+    setStale(Boolean(conflictState.requiresCashReconfirmation));
+    setDirty(false);
+    setPreview(null);
+    pendingSave.current = null;
+    setConflictState(null);
+    setConfirmOverwrite(false);
+    setError('');
+    setNotice('Current saved revision loaded. Earlier unsaved edits were discarded by your choice.');
+  };
+  const keepReviewedLocalEdits = () => {
+    if (!conflictState?.ledger || !confirmOverwrite || busy) return;
+    setRevision(conflictState.revision);
+    setSaved(null);
+    setPreview(null);
+    pendingSave.current = null;
+    setConflictState(null);
+    setConfirmOverwrite(false);
+    setDirty(true);
+    setError('');
+    setNotice('Your local draft is ready for a new revision. Review the amounts and save explicitly.');
   };
   const needsReconfirmation = stale || (hasStoredLedger && draft.asOfDate !== indiaDate);
   if (!loaded) return <section className="cash-check-workspace" role="status">Loading your cash entries…</section>;
@@ -315,6 +363,35 @@ export default function CashCheck() {
       </header>
       {error && <p className="cash-check-error" role="alert">{error}</p>}
       {notice && <p className="cash-check-notice" role="status">{notice}</p>}
+      {conflictState && (
+        <section className="cash-check-panel" role="region" aria-label="Resolve cash plan conflict">
+          <h2>Review cash-plan conflict</h2>
+          <p>Your unsaved draft was based on revision {revision}. The server is at revision {conflictState.revision}. No entries were overwritten.</p>
+          {conflictState.ledger ? (
+            <>
+              <p>Latest saved opening cash: {formatMoney(conflictState.ledger.openingCashPaise)} ({conflictState.ledger.asOfDate}). Your local draft: {draft.openingCash || 'unknown'} rupees ({draft.asOfDate}).</p>
+              <details>
+                <summary>Compare saved obligations ({conflictState.ledger.entries.length}) with local edits ({draft.entries.length})</summary>
+                <ul>{conflictState.ledger.entries.map(item => (
+                  <li key={item.id}>{item.label}: {formatMoney(item.amountPaise)} — {item.startDate} ({item.recurrence})</li>
+                ))}</ul>
+                <p>Unsaved local entries:</p>
+                <ul>{draft.entries.map(item => (
+                  <li key={item.id}>{item.label || 'Unlabelled'}: ₹{item.amount || 'unknown'} — {item.startDate} ({item.recurrence})</li>
+                ))}</ul>
+              </details>
+              <label className="cash-check-confirm">
+                <input type="checkbox" checked={confirmOverwrite} onChange={e => setConfirmOverwrite(e.target.checked)} />
+                I reviewed both versions. I want to save my local cash entries as a new revision, replacing the currently saved entries.
+              </label>
+              <button type="button" disabled={!confirmOverwrite || busy} onClick={keepReviewedLocalEdits}>Use reviewed local draft for next save</button>
+            </>
+          ) : (
+            <p role="alert">The saved plan was deleted on another device. Overwrite is blocked. Loading the deleted state lets you start a new declaration explicitly.</p>
+          )}
+          <button type="button" disabled={busy} onClick={acceptLatestConflict}>Discard local edits and load current server state</button>
+        </section>
+      )}
       {needsReconfirmation && <p className="cash-check-error" role="alert">Your cash declaration may be stale. Check the accessible balance and update the date before saving again.</p>}
       <form onSubmit={save} aria-busy={busy}>
         <fieldset className="cash-check-form-fields" disabled={busy}>

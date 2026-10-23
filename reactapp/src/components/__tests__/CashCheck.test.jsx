@@ -174,4 +174,32 @@ describe('90-day cash check', () => {
   });
 
 
+  it('never auto-overwrites another tab and requires explicit conflict reconciliation', async () => {
+    api.saveCoverageLedger.mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }));
+    api.getCoverageLedger.mockResolvedValueOnce({ revision: 0, ledger: null, latestResult: null })
+      .mockResolvedValueOnce({
+        revision: 2,
+        ledger: { asOfDate: indiaToday(), openingCashPaise: 70000,
+          cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+        latestResult: { result: baseline() }, requiresCashReconfirmation: false,
+      });
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByPlaceholderText('50000.00'), { target: { value: '200.00' } });
+    fireEvent.click(screen.getByLabelText(/I have entered the commitments/i));
+    fireEvent.click(screen.getByRole('button', { name: /save and calculate/i }));
+    await screen.findByRole('region', { name: 'Resolve cash plan conflict' });
+    expect(screen.getByText(/Your unsaved draft was based on revision 0/)).toBeTruthy();
+    const useLocal = screen.getByRole('button', { name: /Use reviewed local draft for next save/i });
+    expect(useLocal.disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText(/I reviewed both versions/));
+    fireEvent.click(useLocal);
+    expect(screen.queryByRole('region', { name: 'Resolve cash plan conflict' })).toBeNull();
+    expect(screen.getByPlaceholderText('50000.00').value).toBe('200.00');
+    api.saveCoverageLedger.mockResolvedValue({ revision: 3, result: baseline() });
+    fireEvent.click(screen.getByRole('button', { name: /save and calculate/i }));
+    await waitFor(() => expect(api.saveCoverageLedger).toHaveBeenCalledTimes(2));
+    expect(api.saveCoverageLedger.mock.calls[1][1]).toBe(2);
+  });
+
 });

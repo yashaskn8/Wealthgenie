@@ -29,3 +29,6 @@ At most 256 full saved coverage snapshots per owner are retained until intention
 
 ### Exact currency rendering red-team check
 Frontend rupee formatting must separate whole rupees and integer paise, never convert a potentially large exact-paise aggregate to floating-point rupees before rendering. For example, 9007199254740991 paise must display a `.91` suffix rather than `.90`; negative dated deficits must preserve their sign.
+
+### Multi-device revision conflicts
+A stale update never silently overwrites concurrent changes. The UI fetches the latest saved ledger and shows both the local and saved commitments. The user may discard local changes or must explicitly attest that they reviewed both versions before moving their unsaved draft onto the new revision. A ledger deleted on another device cannot be automatically resurrected; restarting requires loading the deletion tombstone and entering new cash data.
