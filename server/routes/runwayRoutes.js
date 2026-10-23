@@ -35,6 +35,15 @@ const limiter = createEndpointRateLimiter({
     : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
 });
 
+const readLimiter = createEndpointRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 480,
+  message: 'Household Runway read capacity exceeded. Retry later.',
+  prefix: 'rl:ep:runway-read:',
+  keyGenerator: req => req.user?.userId
+    ? String(req.user.userId)
+    : ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown'),
+});
 function failure(status, code, message) {
   return createError(status, message, message, { code });
 }
@@ -169,7 +178,8 @@ function requireListedPayments(ledger) {
 }
 
 router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
-router.use(requireSession, enable, limiter);
+router.use(requireSession, enable, (req, res, next) =>
+  (req.method === 'GET' ? readLimiter : limiter)(req, res, next));
 router.use('/live', createRunwayLiveRouter({
   owner, currentRevision, inTransaction, rethrowTransaction, requireRecentSession,
   indiaCivilToday, requireRunwayIndexes,

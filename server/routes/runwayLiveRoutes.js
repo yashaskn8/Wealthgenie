@@ -81,9 +81,16 @@ export function createRunwayLiveRouter({
     const horizonDays = req.query.horizonDays === undefined
       ? 90 : queryNumber(req.query.horizonDays, 1, 395);
     const current = await currentRevision(userId);
-    const source = await RunwayStatement.findOne({ userId })
-      .sort({ importedAt: -1, _id: -1 }).lean();
-    const observed = source ? summary(verified(source)) : null;
+    // Imported-file time is not the underlying bank observation date.
+    // Pick the newest available transaction date across retained imports.
+    // Every candidate is authenticated before it can affect the view.
+    const candidates = await RunwayStatement.find({ userId })
+      .sort({ importedAt: -1, _id: -1 }).limit(MAX_IMPORTS).lean();
+    candidates.forEach(verified);
+    const source = candidates.sort((a, b) =>
+      b.statement.periodEnd.localeCompare(a.statement.periodEnd)
+      || b.importedAt.getTime() - a.importedAt.getTime())[0] || null;
+    const observed = source ? summary(source) : null;
     let modeled = { status: 'NO_CONFIRMED_LEDGER' };
     if (current) {
       if (current.revision.ledger.asOfDate !== indiaCivilToday()) {
