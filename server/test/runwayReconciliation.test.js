@@ -20,7 +20,8 @@ const row = (amount, direction='debit') => ({
   balancePaise: '3500000', description: 'User-imported',
   referenceHash: 'f'.repeat(64),
 });
-const sources = [{ statementId: id('a'), statement: { records: [
+const sources = [{ statementId: id('a'), statement: {
+  accountLabel: 'Salary account', records: [
   row('1500000'), row('3000000', 'credit'), row('999999'),
 ] } }];
 const request = {
@@ -52,6 +53,7 @@ test('one posted credit settles expected income only with explicit cash reconfir
 });
 test('refuses ambiguous duplicate imported transactions and duplicate planned bills', () => {
   const duplicate = [{ ...sources[0], statement: {
+    accountLabel: 'Salary account',
     records: [sources[0].statement.records[0], sources[0].statement.records[0]],
   } }];
   assert.equal(buildRunwayMatchCandidates(ledger, duplicate, today)[0].status,
@@ -63,7 +65,8 @@ test('refuses ambiguous duplicate imported transactions and duplicate planned bi
   assert.throws(() => prepareRunwaySettlement(twoBills, sources, request, today),
     e => e.code === 'RUNWAY_RECONCILIATION_AMBIGUOUS');
   const twoImports = [{ ...sources[0] }, {
-    statementId: id('b'), statement: { records: [sources[0].statement.records[0]] },
+    statementId: id('b'), statement: {
+      accountLabel: 'Salary account', records: [sources[0].statement.records[0]] },
   }];
   assert.throws(() => prepareRunwaySettlement(ledger, twoImports, request, today),
     e => e.code === 'RUNWAY_RECONCILIATION_AMBIGUOUS');

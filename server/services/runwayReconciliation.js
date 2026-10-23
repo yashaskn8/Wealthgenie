@@ -18,6 +18,25 @@ export class RunwayReconciliationError extends Error {
 function invalid(code, message) { throw new RunwayReconciliationError(code, message); }
 const MAX_SOURCES = 30;
 const MAX_MATCHES = 100;
+/**
+ * Exact cross-import identity for the SAME user-labeled account and stated
+ * transaction reference/date/direction/amount. A heuristic, NOT a verified
+ * bank transaction ID. Does not use CSV filenames, row order, descriptions
+ * or changing running balances.
+ */
+export function runwayTransactionIdentity(source, row) {
+  const label = source?.statement?.accountLabel;
+  if (typeof label !== 'string' || !label.trim() || !row
+    || !/^[a-f0-9]{64}$/.test(row.referenceHash || '')) {
+    invalid('RUNWAY_RECONCILIATION_INVALID', 'Invalid transaction identity input.');
+  }
+  return canonicalSha256({
+    purpose: 'RUNWAY_IMPORT_TRANSACTION_ID_V1',
+    accountLabel: label.trim().toLowerCase().normalize('NFC'),
+    date: row.date, debitPaise: row.debitPaise,
+    creditPaise: row.creditPaise, referenceHash: row.referenceHash,
+  });
+}
 function matchInfo(entry, row) {
   return row.date === entry.date
     && row[entry.kind === 'OBLIGATION' ? 'debitPaise' : 'creditPaise'] === entry.amountPaise;
@@ -50,6 +69,7 @@ export function buildRunwayMatchCandidates(ledger, sources, today) {
           statementId: source.statementId, rowIndex, entryId: entry.id,
           entryLabel: entry.label, kind: entry.kind, amountPaise: entry.amountPaise,
           date: entry.date, rowHash: canonicalSha256(row),
+          transactionIdentity: runwayTransactionIdentity(source, row),
           verification: 'USER_IMPORTED_UNVERIFIED',
           status: 'REVIEW_REQUIRED',
         });
@@ -59,16 +79,18 @@ export function buildRunwayMatchCandidates(ledger, sources, today) {
       }
     });
   }
-  const byEntry = new Map(), byRow = new Map();
+  const byEntry = new Map(), byRow = new Map(), byIdentity = new Map();
   for (const item of candidates) {
     byEntry.set(item.entryId, (byEntry.get(item.entryId) || 0) + 1);
     const key = item.statementId + '/' + item.rowIndex;
     byRow.set(key, (byRow.get(key) || 0) + 1);
+    byIdentity.set(item.transactionIdentity, (byIdentity.get(item.transactionIdentity) || 0) + 1);
   }
   return candidates.map(item => ({
     ...item,
     status: byEntry.get(item.entryId) === 1
       && byRow.get(item.statementId + '/' + item.rowIndex) === 1
+      && byIdentity.get(item.transactionIdentity) === 1
       ? 'UNIQUE_POSSIBLE_MATCH' : 'AMBIGUOUS_REQUIRES_MANUAL_EDIT',
   })).sort(sortCandidates);
 }

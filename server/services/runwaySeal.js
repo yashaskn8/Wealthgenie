@@ -103,6 +103,7 @@ function settlementPayload(record) {
     nextInputHash: record.nextInputHash,
     statementId: record.statementId, rowIndex: record.rowIndex,
     entryId: record.entryId, rowHash: record.rowHash,
+    transactionIdentity: record.transactionIdentity,
     confirmedCashPaise: record.confirmedCashPaise, decidedAt: record.decidedAt,
   };
 }

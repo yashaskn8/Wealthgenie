@@ -41,6 +41,7 @@ const settlementSchema = new Schema({
   rowIndex: { type: Number, required: true, immutable: true, min: 0 },
   entryId: { type: String, required: true, immutable: true },
   rowHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  transactionIdentity: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
   confirmedCashPaise: { type: String, required: true, immutable: true },
   decidedAt: { type: Date, required: true, immutable: true },
   sealVersion: { type: String, required: true, immutable: true, enum: ['HMAC_SHA256_V1'] },
@@ -50,5 +51,8 @@ settlementSchema.index({ userId: 1, decidedAt: -1 }, { name: 'runway_settlement_
 // Exactly one approved forecast adjustment per imported posted transaction row.
 settlementSchema.index({ userId: 1, statementId: 1, rowIndex: 1 }, {
   name: 'uniq_runway_settled_source_row', unique: true,
+});
+settlementSchema.index({ userId: 1, transactionIdentity: 1 }, {
+  name: 'uniq_runway_settled_transaction_identity', unique: true,
 });
 export const RunwaySettlement = mongoose.models.RunwaySettlement || mongoose.model('RunwaySettlement', settlementSchema);

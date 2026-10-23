@@ -34,6 +34,9 @@ try {
   await RunwaySettlement.collection.createIndex({ userId: 1, statementId: 1, rowIndex: 1 }, {
     name: 'uniq_runway_settled_source_row', unique: true,
   });
+  await RunwaySettlement.collection.createIndex({ userId: 1, transactionIdentity: 1 }, {
+    name: 'uniq_runway_settled_transaction_identity', unique: true,
+  });
   const [indexes, snapshots, deletions, statements, signals, settlements] = await Promise.all([
     RunwayLedgerRevision.collection.indexes(),
     RunwaySnapshot.collection.indexes(),
@@ -58,7 +61,10 @@ try {
         && index.key.userId === 1 && index.key.decidedAt === -1)
       || !settlements.some(index => index.name === 'uniq_runway_settled_source_row'
         && index.unique === true && index.key.userId === 1
-        && index.key.statementId === 1 && index.key.rowIndex === 1)) {
+        && index.key.statementId === 1 && index.key.rowIndex === 1)
+      || !settlements.some(index => index.name === 'uniq_runway_settled_transaction_identity'
+        && index.unique === true && index.key.userId === 1
+        && index.key.transactionIdentity === 1)) {
     throw new Error('RUNWAY_INDEX_MISSING');
   }
   process.stdout.write('Runway revisions, evidence and notification indexes verified.\n');

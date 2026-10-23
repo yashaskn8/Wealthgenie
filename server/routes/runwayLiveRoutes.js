@@ -13,7 +13,9 @@ import {
   createRunwaySettlementSeal, verifyRunwaySettlementSeal,
 } from '../services/runwaySeal.js';
 import { simulateRunway } from '../services/runwayEngine.js';
-import { buildRunwayMatchCandidates, prepareRunwaySettlement } from '../services/runwayReconciliation.js';
+import {
+  buildRunwayMatchCandidates, prepareRunwaySettlement, runwayTransactionIdentity,
+} from '../services/runwayReconciliation.js';
 import { RunwayLedgerState, RunwayLedgerRevision } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 
@@ -195,10 +197,12 @@ export function createRunwayLiveRouter({
     const sources = await verifiedSources(userId);
     const used = await verifiedSettledRows(userId);
     const consumed = new Set(used.map(x => x.statementId + '/' + x.rowIndex));
+    const consumedIdentity = new Set(used.map(x => x.transactionIdentity));
     return res.json({
       revision: found.state.revision,
       items: buildRunwayMatchCandidates(found.revision.ledger, sources, indiaCivilToday())
-        .filter(x => !consumed.has(x.statementId + '/' + x.rowIndex)),
+        .filter(x => !consumed.has(x.statementId + '/' + x.rowIndex)
+          && !consumedIdentity.has(x.transactionIdentity)),
       status: 'REVIEW_REQUIRED',
       notice: 'Amount/date matches are suggestions only, not independently bank-verified posting.',
     });
@@ -275,6 +279,10 @@ export function createRunwayLiveRouter({
         const { nextLedger, match } = prepareRunwaySettlement(
           found.revision.ledger, sources, requested, indiaCivilToday(),
         );
+        if (usedRows.some(x => x.transactionIdentity === match.transactionIdentity)) {
+          throw fail(409, 'RUNWAY_POSTED_TRANSACTION_REUSED',
+            'The same apparent bank transaction has already changed a forecast.');
+        }
         const next = found.state.revision + 1;
         const nextInputHash = canonicalSha256(nextLedger);
         const revisionRecord = {
@@ -294,7 +302,8 @@ export function createRunwayLiveRouter({
           ledgerRevision: found.state.revision, resultRevision: next,
           priorInputHash: found.revision.inputHash, nextInputHash,
           statementId: match.statementId, rowIndex: match.rowIndex, entryId: match.entryId,
-          rowHash: match.rowHash, confirmedCashPaise: requested.openingCashPaise,
+          rowHash: match.rowHash, transactionIdentity: match.transactionIdentity,
+          confirmedCashPaise: requested.openingCashPaise,
           decidedAt: new Date(), sealVersion: RUNWAY_SEAL_VERSION,
         };
         receipt.sealHmac = createRunwaySettlementSeal(receipt);
@@ -304,9 +313,17 @@ export function createRunwayLiveRouter({
       });
     } catch (error) {
       if (error?.code === 11000) {
+        const sources = await verifiedSources(userId);
+        const source = sources.find(x => x.statementId === requested.statementId);
+        const originalRow = source?.statement?.records?.[requested.rowIndex];
+        const identity = originalRow
+          ? runwayTransactionIdentity(source, originalRow) : null;
         const rowAlreadyUsed = await RunwaySettlement.findOne({
-          userId, statementId: requested.statementId, rowIndex: requested.rowIndex,
-          _id: { $ne: receiptId },
+          userId, _id: { $ne: receiptId },
+          $or: [
+            { statementId: requested.statementId, rowIndex: requested.rowIndex },
+            ...(identity ? [{ transactionIdentity: identity }] : []),
+          ],
         }).lean();
         if (rowAlreadyUsed) {
           if (!verifyRunwaySettlementSeal(rowAlreadyUsed)) {
