@@ -44,6 +44,19 @@ test('both no-key AMFI mirrors must agree on identity, NAV date and price',()=>{
  assert.equal(reconcileFreeNavSources(primary,{status:'NOT_VERIFIED'}).status,'SINGLE_SOURCE');
 });
 
+test('same scheme code but conflicting plan identity cannot silently pass NAV verification',()=>{
+ const namedPrimary={
+  ...primary,
+  fund:{...primary.fund,name:'SBI Ultra Short Term Fund - Regular Plan - Growth'},
+ };
+ const same=normalizeMfapiLatest(latest,code);
+ assert.equal(reconcileFreeNavSources(namedPrimary,same).status,'MATCHED_SAME_AMFI_SOURCE');
+ const swapped={...same,fundName:'SBI Ultra Short Term Fund - Direct Plan - Growth'};
+ const conflict=reconcileFreeNavSources(namedPrimary,swapped);
+ assert.equal(conflict.status,'CONFLICT');
+ assert.equal(conflict.reasonCode,'CROSS_SOURCE_FUND_NAME_CONFLICT');
+});
+
 test('MFapi is pinned to a fixed HTTPS host and does not accept redirects',async()=>{
  const calls=[];
  const fetchImpl=async(url,params)=>{
