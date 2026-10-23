@@ -8,6 +8,7 @@ import {
 import {
   buildMonthlySipLots,
   calculateCanonicalPostTaxOutcome,
+  isSafelyRepresentableModelSip,
 } from '../services/taxEventProjectionEngine.js';
 import {
   calculatePostTaxProjection,
@@ -15,6 +16,33 @@ import {
 } from '../services/postTaxCalculator.js';
 
 const FY = 'FY2026-27';
+
+test('model projection never returns false-precision rupee proceeds on extreme inputs', () => {
+  const huge = { monthlySIP: 100_000_000, nominalRate: 1, holdingYears: 100 };
+  const safe = { monthlySIP: 10_000, nominalRate: 0.08, holdingYears: 3 };
+  assert.equal(isSafelyRepresentableModelSip(huge), false);
+  assert.equal(isSafelyRepresentableModelSip(safe), true);
+  const context = {
+    instrumentType: 'FD', annualIncome: 1_000_000, regime: 'new',
+    userAge: 35, incomeSource: 'salary', fiscalYear: FY, deductions: {},
+  };
+  const result = calculateCanonicalPostTaxOutcome({ ...context,
+    nominalRate: huge.nominalRate, monthlySIP: huge.monthlySIP,
+    holdingYears: huge.holdingYears,
+  });
+  assert.equal(result.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.deepEqual(result.unavailableReasons, ['PROJECTION_WEALTH_PRECISION_EXCEEDED']);
+  const projection = calculatePostTaxProjection(result, huge, 0.05, {
+    annualGrossIncome: context.annualIncome, regime: context.regime,
+    incomeSource: context.incomeSource, fiscalYear: FY,
+    userAge: context.userAge, deductions: {},
+  });
+  assert.equal(projection.status, 'MODELLED_POST_TAX_PROJECTION_UNAVAILABLE');
+  assert.equal(projection.nominalFutureValue, null);
+  assert.equal(projection.postTaxFutureValue, null);
+  assert.equal(projection.sipReturnMetrics.status, 'UNAVAILABLE');
+  assert.deepEqual(projection.unavailableReasons, ['PROJECTION_WEALTH_PRECISION_EXCEEDED']);
+});
 
 test('holding-period classification uses exact calendar dates at the boundary', () => {
   const before = classifyHoldingPeriodByDates({
