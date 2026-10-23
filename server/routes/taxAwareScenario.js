@@ -35,7 +35,9 @@ const schema=Joi.object({
 const sqlRiskSchema=schema.fork(['annualVolatility'],field=>field.forbidden()).keys({
  canonicalProductId:Joi.string().pattern(/^[a-zA-Z0-9:_-]{1,160}$/).required(),
  sourceId:Joi.string().pattern(/^[a-zA-Z0-9:_-]{1,160}$/).required(),
- observationKind:Joi.string().valid('PRICE','NAV').required(),
+ // This route applies listed-equity capital-gains treatment. A mutual-fund
+ // NAV is not evidence for the same instrument or tax classification.
+ observationKind:Joi.string().valid('PRICE').required(),
 });
 
 // Exact route validators exported for contract regression tests.

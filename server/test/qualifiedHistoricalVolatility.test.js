@@ -47,20 +47,24 @@ test('Postgres history is exact-source, tax-class and rights gated, parameterize
  const pool={query:async(sql,args)=>{calls.push({sql,args});return {rows:[]};},
    connect:async()=>({release(){}})};
  const store=createFinancialStore(pool);
- assert.deepEqual(await store.qualifiedHistoricalPrices('eq:verified','NAV','licensed-source',now),[]);
- assert.deepEqual(calls[0].args,['eq:verified','NAV','licensed-source',now]);
+ assert.deepEqual(await store.qualifiedHistoricalPrices('eq:verified','PRICE','licensed-source',now),[]);
+ assert.deepEqual(calls[0].args,['eq:verified','PRICE','licensed-source',now]);
  for(const part of ['qualified_tax_class','tax_class_evidence_url','storage_allowed',
   'derivation_allowed','public_display_allowed','commercial_use_allowed',
   'redistribution_allowed','r.retention_seconds>0','r.reviewed_at<=$4',
   'p.tax_class_reviewed_at<=$4','revoked_at IS NULL','retain_until','END_OF_DAY',
-  'observation_corrections','LIMIT 1000']){
+  'observation_corrections','LIMIT 1000','product_external_ids ext',
+  "p.verification_scope='VERIFIED_ACTUAL_PRODUCT'",
+  "p.source_identity=o.source_id || ':' || o.source_instrument_id"]){
   assert.ok(calls[0].sql.includes(part),part);
  }
  await assert.rejects(store.qualifiedHistoricalPrices('bad;DROP','PRICE','licensed-source'),
    /Canonical financial product ID/);
- await assert.rejects(store.qualifiedHistoricalPrices('eq:verified','YIELD','licensed-source'),
-   /Historical metric/);
- await assert.rejects(store.qualifiedHistoricalPrices('eq:verified','NAV','bad\nsource'),
+ for (const disallowed of ['NAV','YIELD']) {
+   await assert.rejects(store.qualifiedHistoricalPrices('eq:verified',disallowed,'licensed-source'),
+     /Listed-equity historical metric must be PRICE/);
+ }
+ await assert.rejects(store.qualifiedHistoricalPrices('eq:verified','PRICE','bad\nsource'),
    /Exact market source ID/);
  assert.equal(calls.length,1);
 });

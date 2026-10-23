@@ -21,11 +21,19 @@ const product=(id='fd:bank:one',overrides={})=>({
  tax_class_reviewed_at:'2026-10-01T00:00:00Z',right_source_id:'verified-bank',
  ...overrides,
 });
-function harness(rows=[],facts={}){
+function harness(rows=[],facts={},reviewOverrides={}){
  const calls=[];
  const pool={query:async (sql,args)=>{
   calls.push({sql,args});
   if(sql.includes("p.record_kind='ARCHETYPE'"))return {rows:[{id:familyId,name:'Bank Recurring Deposit',category_id:'bank_deposits',category:'Bank Deposits'}]};
+  if(sql.startsWith('SELECT q.review_version,')){
+   const reviewed=rows.find(row=>row.product_id===args[1]
+     && row.source_id===args[2] && row.observation_type===args[3]
+     && row.review_version===args[4]);
+   const override=reviewOverrides[args[1]];
+   return {rows:reviewed && reviewOverrides[args[1]]!==false
+     ? [{...reviewed,...(override && typeof override==='object'?override:{})}]:[]};
+  }
   if(sql.includes('family_product_qualifications'))return {rows};
   throw Error('UNKNOWN_SQL');
  }};
@@ -162,6 +170,40 @@ test('revocation between preliminary screening and final publication drops the w
  assert.equal(r.verifiedProductCount,1);
  assert.deepEqual(r.products,[]);
  assert.equal(r.exclusionCounts.MARKET_SOURCE_CHANGED_DURING_COMPARISON,1);
+});
+
+test('suspending a reviewed product during comparison cannot publish a stale top three',async()=>{
+ const h=harness([product('p1'),product('p2'),product('p3')],{}, {p1:false});
+ const result=await compare(h);
+ assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.deepEqual(result.products,[]);
+ assert.equal(result.verifiedProductCount,2);
+ assert.equal(result.exclusionCounts.PRODUCT_REVIEW_CHANGED_DURING_COMPARISON,1);
+});
+
+test('a product restricted after initial screening cannot retain an approved top-three card',async()=>{
+ const h=harness([product('p1'),product('p2'),product('p3')],{},
+   {p1:{availability:'RESTRICTED'}});
+ const result=await compare(h);
+ assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.deepEqual(result.products,[]);
+ assert.equal(result.verifiedProductCount,2);
+ assert.equal(result.exclusionCounts.PRODUCT_REVIEW_CHANGED_DURING_COMPARISON,1);
+});
+
+test('changed risk, fee or reviewed terms cannot reuse an earlier top-three qualification',async()=>{
+ for(const change of [
+  {risk_level:5},
+  {annual_fee_bps:90},
+  {terms_evidence_url:'https://issuer.example/new-terms'},
+  {valid_until:'2026-12-01T00:00:00Z'},
+ ]){
+  const h=harness([product('p1'),product('p2'),product('p3')],{}, {p1:change});
+  const result=await compare(h);
+  assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+  assert.deepEqual(result.products,[]);
+  assert.equal(result.exclusionCounts.PRODUCT_REVIEW_CHANGED_DURING_COMPARISON,1);
+ }
 });
 
 test('a changed observation unit or classification cannot reuse the earlier market fact',async()=>{

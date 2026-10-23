@@ -40,6 +40,9 @@ test('qualified-history route validates STT but does not permit a supplied volat
   };
   assert.equal(taxAwareHistoryRiskInputSchema.validate(qualified).error, undefined);
   assert.ok(taxAwareHistoryRiskInputSchema.validate({
+    ...qualified, observationKind: 'NAV',
+  }).error, 'Mutual-fund NAV cannot establish listed-equity price risk');
+  assert.ok(taxAwareHistoryRiskInputSchema.validate({
     ...qualified, annualVolatility: 0.60,
   }).error, 'Volatility must come from qualified historical observations');
   assert.ok(taxAwareHistoryRiskInputSchema.validate({

@@ -58,6 +58,7 @@ export async function compareQualifiedFamilyProducts({
   const exclusions = {};
   const exclude = reason => { exclusions[reason] = (exclusions[reason] || 0) + 1; };
   const eligible = [];
+  const initialProducts = new Map();
   const qualifiedIdentities = new Set();
   const observations = store || createFinancialStore(pool);
   const riskLimit = suitability.finalLevel;
@@ -102,6 +103,7 @@ export async function compareQualifiedFamilyProducts({
     // hard suitability gates, order conservatively by verified risk, charges,
     // then lock-in; no uncalibrated weighted "match" percentage is issued.
     qualifiedIdentities.add(q.source_identity);
+    initialProducts.set(q.product_id, q);
     eligible.push({
       id: q.product_id, name: q.product_name, familyId,
       reviewVersion: q.review_version,
@@ -135,6 +137,45 @@ export async function compareQualifiedFamilyProducts({
       || new Date(current.observed_at).getTime()
         !== new Date(product.marketFact.asOf).getTime()) {
       exclude('MARKET_SOURCE_CHANGED_DURING_COMPARISON');
+      continue;
+    }
+    // A reviewer can suspend an offer while other candidates are screened.
+    // A still-publishable quote does not keep that offer approved.
+    const currentReview = await pool.query([
+      'SELECT q.review_version,q.risk_level,q.min_investment_inr::text AS min_investment_inr,',
+      'q.min_horizon_years,q.lock_in_months,q.annual_fee_bps,q.min_age,q.max_age,',
+      'q.retail_access,q.requires_demat,q.requires_accreditation,q.requires_nps_account,',
+      'q.requires_child_eligibility,q.evidence_url,q.terms_evidence_url,q.risk_evidence_url,',
+      'q.reviewed_at,q.valid_until,p.name AS product_name,p.category_id,p.verification_scope,',
+      'p.availability,p.record_kind,p.recommendation_eligible,p.source_identity,',
+      'p.qualified_tax_class,p.tax_class_evidence_url,p.tax_class_reviewed_at',
+      'FROM finance.family_product_qualifications q JOIN finance.products p ON p.id=q.product_id',
+      "WHERE q.family_id=$1 AND q.product_id=$2 AND q.source_id=$3",
+      "AND q.observation_type=$4 AND q.status='ACTIVE'",
+      'AND q.review_version=$5 AND q.reviewed_at<=$6 AND q.valid_until>$6',
+      'LIMIT 1',
+    ].join(' '), [familyId, product.id, product.marketFact.sourceId,
+      product.marketFact.type, product.reviewVersion, now]);
+    const initial = initialProducts.get(product.id);
+    const latest = currentReview.rows[0];
+    const stableFields = [
+      'risk_level', 'min_investment_inr', 'min_horizon_years', 'lock_in_months',
+      'annual_fee_bps', 'min_age', 'max_age', 'retail_access', 'requires_demat',
+      'requires_accreditation', 'requires_nps_account', 'requires_child_eligibility',
+      'evidence_url', 'terms_evidence_url', 'risk_evidence_url', 'product_name',
+      'category_id', 'verification_scope', 'availability', 'record_kind',
+      'recommendation_eligible', 'source_identity', 'qualified_tax_class',
+      'tax_class_evidence_url',
+    ];
+    if (currentReview.rows.length !== 1 || !initial
+      || stableFields.some(field => latest[field] !== initial[field])
+      || new Date(latest.reviewed_at).getTime()
+        !== new Date(initial.reviewed_at).getTime()
+      || new Date(latest.valid_until).getTime()
+        !== new Date(initial.valid_until).getTime()
+      || new Date(latest.tax_class_reviewed_at).getTime()
+        !== new Date(initial.tax_class_reviewed_at).getTime()) {
+      exclude('PRODUCT_REVIEW_CHANGED_DURING_COMPARISON');
       continue;
     }
     selected.push(product);
