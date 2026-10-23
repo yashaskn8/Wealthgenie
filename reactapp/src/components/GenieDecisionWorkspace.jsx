@@ -669,9 +669,19 @@ export default function GenieDecisionWorkspace() {
           <p className="gd-muted">Select a report to review its immutable calculation snapshot. Older scenarios are labeled historical.</p>
           <ul>{runs.map(item => <li key={item.id}>
             <button type="button" disabled={pending} onClick={() => {
+              const authAtRequest = getAuthSnapshot();
+              const scenarioAtRequest = activeRef.current?.id;
               setPending(true);
-              getDecisionRun(item.id).then(result => setReport(result))
-                .catch(err => setError(errorMessage(err))).finally(() => setPending(false));
+              getDecisionRun(item.id).then(result => {
+                if (getAuthSnapshot() === authAtRequest
+                  && activeRef.current?.id === scenarioAtRequest) setReport(result);
+              }).catch(err => {
+                if (getAuthSnapshot() === authAtRequest
+                  && activeRef.current?.id === scenarioAtRequest) setError(errorMessage(err));
+              }).finally(() => {
+                if (getAuthSnapshot() === authAtRequest
+                  && activeRef.current?.id === scenarioAtRequest) setPending(false);
+              });
             }}>Report from {shortDate(item.asOf)} · Revision {item.scenarioRevision} · {item.status}</button>
           </li>)}</ul>
         </section>}
