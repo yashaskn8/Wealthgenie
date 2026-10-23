@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
 import './HouseholdRunway.css';
 
@@ -63,13 +63,17 @@ function Track({ title, data }) {
         : possible ? <p role="status"><strong>Same-day timing unknown:</strong> {possible.label} on {possible.date}.
           This payment may become uncovered if debits occur first.</p>
           : <p>No listed payment becomes uncovered under this track. Unlisted costs are unknown.</p>}
-      {data?.timingAmbiguities?.length > 0 && <p>Same-day receipt/payment timing is unverified on:
+      {data?.timingAmbiguities?.length > 0 && <p>Same-day receipt/payment timing, including the size of any deficit, is unverified on:
         {' '}{data.timingAmbiguities.map(x => x.date).join(', ')}.</p>}
     </article>
   );
 }
 export default function HouseholdRunway() {
   const [opening, setOpening] = useState('');
+  const [cashConfirmed, setCashConfirmed] = useState(false);
+  const ledgerRetry = useRef(null);
+  const snapshotRetry = useRef(null);
+  const editVersion = useRef(0);
   const [entries, setEntries] = useState([newEntry()]);
   const [revision, setRevision] = useState(0);
   const [confirmedDate, setConfirmedDate] = useState(todayIndia());
@@ -98,10 +102,12 @@ export default function HouseholdRunway() {
       setEntries(saved.ledger.entries.map(fromStored));
       if (saved.ledger.asOfDate === todayIndia()) {
         setOpening(toRupees(saved.ledger.openingCashPaise));
+        setCashConfirmed(true);
         setConfirmedDate(saved.ledger.asOfDate);
         setDirty(false);
       } else {
         setOpening('');
+        setCashConfirmed(false);
         setConfirmedDate(todayIndia());
         setMessage('Your saved ledger is historical. Confirm today’s accessible cash and update past event dates.');
       }
@@ -111,6 +117,9 @@ export default function HouseholdRunway() {
     return () => { active = false; };
   }, []);
   const edited = callback => {
+    editVersion.current += 1;
+    ledgerRetry.current = null;
+    snapshotRetry.current = null;
     callback();
     setDirty(true);
     setResult(null);
@@ -125,16 +134,25 @@ export default function HouseholdRunway() {
   const save = async () => {
     setBusy(true); setError('');
     try {
-      if (opening === '') throw new Error('Confirm today’s accessible cash before saving.');
+      if (opening === '' || !cashConfirmed) throw new Error('Confirm that today’s cash is accessible and not double counted.');
+      const beforeSave = editVersion.current;
       const ledger = {
         asOfDate: todayIndia(), confirmationDate: todayIndia(),
         openingCashPaise: toPaise(opening, { allowZero: true }),
         entries: entries.map(translateEntry),
       };
-      const saved = await api.saveRunwayLedger(ledger, revision);
+      const fingerprint = JSON.stringify({ revision, ledger });
+      if (ledgerRetry.current?.fingerprint !== fingerprint) {
+        ledgerRetry.current = { fingerprint, key: newId() };
+      }
+      const saved = await api.saveRunwayLedger(ledger, revision, {
+        headers: { 'Idempotency-Key': ledgerRetry.current.key },
+      });
+      ledgerRetry.current = null;
       setRevision(saved.revision);
       setConfirmedDate(saved.ledger.asOfDate);
-      setDirty(false); setResult(null); setLastRequest(null);
+      setDirty(editVersion.current !== beforeSave);
+      setResult(null); setLastRequest(null);
       setMessage('Ledger revision ' + saved.revision + ' saved. Amounts are self-reported, not verified balances.');
     } catch (err) { setError(err.message || 'Could not save.'); }
     finally { setBusy(false); }
@@ -155,10 +173,15 @@ export default function HouseholdRunway() {
   };
   const simulate = async () => {
     setBusy(true); setError(''); setResult(null); setLastRequest(null); setExplanation(null);
+    const atStart = editVersion.current;
     try {
-      if (dirty || !revision) throw new Error('Save the latest ledger before calculating.');
+      if (dirty || !revision || confirmedDate !== todayIndia()) {
+        throw new Error('Confirm today’s accessible cash and save the latest ledger before calculating.');
+      }
       const request = makeRequest();
       const outcome = await api.simulateHouseholdRunway(request);
+      if (editVersion.current !== atStart) return;
+      snapshotRetry.current = null;
       setResult(outcome); setLastRequest(request); setSnapshot('');
       if (outcome.status === 'INSUFFICIENT_INPUT') setMessage('Add at least one dated payment to calculate a runway.');
       else setMessage('Conditional results calculated from your listed entries.');
@@ -168,11 +191,23 @@ export default function HouseholdRunway() {
   const saveSnapshot = async () => {
     setBusy(true); setError('');
     try {
-      const saved = await api.saveRunwaySnapshot(lastRequest);
+      if (!lastRequest || dirty) throw new Error('Simulate the current saved ledger before storing a snapshot.');
+      const fingerprint = JSON.stringify(lastRequest);
+      if (snapshotRetry.current?.fingerprint !== fingerprint) {
+        snapshotRetry.current = { fingerprint, key: newId() };
+      }
+      const saved = await api.saveRunwaySnapshot(lastRequest, {
+        headers: { 'Idempotency-Key': snapshotRetry.current.key },
+      });
       setSnapshot(saved.snapshotId);
-      const text = await api.explainRunwaySnapshot(saved.snapshotId);
-      setExplanation(text);
       setMessage('Snapshot saved against ledger revision ' + saved.ledgerRevision + '.');
+      try {
+        const text = await api.explainRunwaySnapshot(saved.snapshotId);
+        setExplanation(text);
+      } catch {
+        setExplanation(null);
+        setMessage('Snapshot saved. Its optional explanation is temporarily unavailable.');
+      }
     } catch (err) { setError(err.message || 'Could not save the snapshot.'); }
     finally { setBusy(false); }
   };
@@ -181,7 +216,8 @@ export default function HouseholdRunway() {
     setBusy(true); setError('');
     try {
       await api.deleteRunwayData();
-      setRevision(0); setOpening(''); setEntries([newEntry()]); setDirty(true);
+      ledgerRetry.current = null; snapshotRetry.current = null;
+      setRevision(0); setOpening(''); setCashConfirmed(false); setEntries([newEntry()]); setDirty(true);
       setResult(null); setLastRequest(null); setExplanation(null); setSnapshot('');
       setDeleteConfirmation('');
       setMessage('Runway data removed from the primary database. Backup expiry is not verified.');
@@ -202,8 +238,12 @@ export default function HouseholdRunway() {
         <h2>1. Confirm cash you can access now</h2>
         <p>Do not add locked FDs, mutual funds, future salary, or money already counted elsewhere.</p>
         <label>Available cash (₹)
-          <input inputMode="decimal" value={opening} placeholder="e.g. 25000.00"
-            onChange={e => edited(() => setOpening(e.target.value))} />
+          <input inputMode="decimal" value={opening} placeholder="e.g. 25000.00" disabled={busy}
+            onChange={e => edited(() => { setOpening(e.target.value); setCashConfirmed(false); }))} />
+        </label>
+        <label className="runway-check"><input type="checkbox" checked={cashConfirmed} disabled={busy}
+          onChange={e => edited(() => setCashConfirmed(e.target.checked))} />
+          I confirmed this amount is accessible today, is not future income, and has not been double counted.
         </label>
         <p>Confirmation date (India): <strong>{confirmedDate}</strong> · Current revision: <strong>{revision || 'Not saved'}</strong></p>
       </div>
@@ -211,7 +251,7 @@ export default function HouseholdRunway() {
         <h2>2. List the payments and expected income you know</h2>
         <p>Expected income is never treated as cash already received. Leave unconfirmed future amounts out rather than guessing.</p>
         {entries.map((entry, index) => (
-          <fieldset key={entry.id} className="runway-entry">
+          <fieldset key={entry.id} className="runway-entry" disabled={busy}>
             <legend>Event {index + 1}</legend>
             <label>Payment or income
               <select value={entry.kind} onChange={e => changeEntry(entry.id, 'kind', e.target.value)}>
@@ -247,12 +287,12 @@ export default function HouseholdRunway() {
               setEntries(current => current.filter(e => e.id !== entry.id)))}>Remove event</button>
           </fieldset>
         ))}
-        <button type="button" className="runway-minor" disabled={entries.length >= 256}
+        <button type="button" className="runway-minor" disabled={busy || entries.length >= 256}
           onClick={() => edited(() => setEntries(current => [...current, newEntry()]))}>+ Add event</button>
-        <button type="button" disabled={busy} onClick={save}>Save confirmed ledger</button>
+        <button type="button" disabled={busy || !cashConfirmed} onClick={save}>Save confirmed ledger</button>
       </div>
-      <div className="runway-panel">
-        <h2>3. Rehearse a change</h2>
+      <fieldset className="runway-panel runway-options" disabled={busy}>
+        <legend><strong>3. Rehearse a change</strong></legend>
         <label>Horizon (days, 1–395)
           <input type="number" min={1} max={395} value={horizon} onChange={e => { setHorizon(e.target.value); setResult(null); setLastRequest(null); }} />
         </label>
@@ -281,7 +321,7 @@ export default function HouseholdRunway() {
         </>}
         <button type="button" disabled={busy || dirty || !revision} onClick={simulate}>Compare cash-flow views</button>
         {dirty && <p>Save your changed ledger before simulating.</p>}
-      </div>
+      </fieldset>
       {result?.status === 'READY' && <div className="runway-panel">
         <h2>4. Conditional results — not verified affordability</h2>
         <p>Figures are based on cash confirmed {result.asOfDate} and your listed transactions. They exclude unlisted spending,

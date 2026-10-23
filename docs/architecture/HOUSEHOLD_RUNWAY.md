@@ -2,16 +2,26 @@
 
 **Authority:** deterministic user-declared dated cash-flow only. The engine does not fetch bank balances, holdings, investments, tax information or LLM replies. It cannot establish solvency.
 
-**Flags:** Backend \`RUNWAY_ENABLED=true\`; frontend build \`VITE_RUNWAY_ENABLED=true\`. Both default to off. Keep them off in production until the release blockers are closed.
+**Flags:** Backend `RUNWAY_ENABLED=true`; frontend build `VITE_RUNWAY_ENABLED=true`. Both default to off. Keep them off in production until the release blockers are closed.
 
-**Preflight:** Run \`MONGODB_MIGRATION_URI=<replica-set-uri> npm run runway:migrate-indexes --prefix server\` against the target database. Never run it against an unknown or production database without reviewing the URI and deployment plan. The backend rejects ledger and snapshot writes if the unique revision index is missing.
+**Preflight:** Run `MONGODB_MIGRATION_URI=<replica-set-uri> npm run runway:migrate-indexes --prefix server` against the target database. Never run it against an unknown or production database without reviewing the URI and deployment plan. The backend rejects ledger and snapshot writes if the unique revision index is missing.
 
-**Input:** User explicitly confirms accessible cash for today's Asia/Kolkata civil date. Money is canonical integer paise in API/DB. Never implicitly import profile \`liquidSavings\`. A declared future receipt is expected only. Calendar months require explicit CLAMP or SKIP behavior for nonexistent dates.
+**Input:** User explicitly confirms accessible cash for today's Asia/Kolkata civil date. Money is canonical integer paise in API/DB. Never implicitly import profile `liquidSavings`. A declared future receipt is expected only. Calendar months require explicit CLAMP or SKIP behavior for nonexistent dates.
 
-**Ledger:** \`PUT /api/runway/ledger\` requires \`If-Match: "0"\` for initial creation or the current revision, plus \`Idempotency-Key\`. Revisions are immutable. \`GET /current\` is owner-scoped. \`POST /simulations\` does not persist results and requires the current revision. \`POST /snapshots\` recomputes the engine in a Mongo transaction and saves owner-scoped results. An owned \`GET /snapshots/:id\` reports HISTORICAL when the current ledger differs. \`POST /explanations\` is local-only. \`DELETE /data\` needs a token issued within five minutes and typed confirmation.
+**Ledger:** `PUT /api/runway/ledger` requires `If-Match: "0"` for initial creation or the current revision, plus `Idempotency-Key`. Revisions are immutable. `GET /current` is owner-scoped. `POST /simulations` does not persist results and requires the current revision. `POST /snapshots` recomputes the engine in a Mongo transaction and saves owner-scoped results. An owned `GET /snapshots/:id` reports HISTORICAL when the current ledger differs. `POST /explanations` is local-only. `DELETE /data` needs a token issued within five minutes and typed confirmation.
 
 **Limits:** 395-day horizon, 256 source entries, at most three shocks, 512 expanded baseline events, up to 100 saved snapshots per user. Incompatible or unknown inputs fail closed.
 
 **Release NO-GO:** Independent arithmetic oracle, Mongo replica-set concurrency/idempotency/recovery tests, privacy tracing and backup-retention approval, staging latency measurements, user-comprehension testing, Indian legal review, and security verification remain **NOT VERIFIED**. The UI must never imply a 95% probability or guaranteed ability to pay.
 
-**Test commands:** \`node --test server/test/runwayEngine.test.js\`, \`node --test server/test/runwayRoutes.test.js\` (with dependencies installed), \`npm test --prefix reactapp -- --run\`, and the normal full CI. Repository tests have not been verified as passing merely because this branch was committed.
+**Test commands:** `node --test server/test/runwayEngine.test.js`, `node --test server/test/runwayRoutes.test.js` (with dependencies installed), `npm test --prefix reactapp -- --run`, and the normal full CI. Repository tests have not been verified as passing merely because this branch was committed.
+
+## Integrity, retry and roll-out requirements
+
+- Browser writes carry a stable idempotency key while a request is uncertain; an edit creates a fresh key. Mutating the ledger requires a quoted revision precondition. Read-your-own-write replay does not increment revisions.
+- Only ledger cash **confirmed for the current India civil date** may be simulated or snapshotted. Historical revisions and snapshots remain owner-readable; recent cash is never inferred from them.
+- Opening cash is self-reported and must be explicitly acknowledged as accessible and not double-counted. If there are no listed obligations, simulation is INSUFFICIENT_INPUT; zero listed shortfalls is **not** proof that there are no real expenses.
+- Daily debits are grouped: within-day order is unknown. The engine reports total same-day deficits rather than attributing them to an arbitrarily sorted bill. Future credits and their settlement time are not confirmed.
+- Every stored snapshot has an independent canonical result hash. On retrieval, input and result hashes are checked, and the result is recomputed against its original immutable revision. An engine upgrade changing calculations requires a versioned historical engine or an explicit migration; do not silently rewrite older results.
+- The test suite includes a seeded arithmetic oracle independent from the production engine, plus a transaction-capable Mongo isolation/CAS/idempotency suite. Run these against isolated fixtures, and retain CI evidence for each release.
+- Prior to enabling flags in production, independently verify point-in-time backup/restore, retention and erasure policy, edge security, incident rollback, and performance under realistic traffic. Do not claim these are validated by unit tests or by GitHub Actions alone.

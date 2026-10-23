@@ -15,3 +15,9 @@
 .runway-amount{font-weight:760;font-size:1.7rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .runway-message,.runway-error{padding:12px;border-radius:8px}.runway-message{border:1px solid #0891b2}.runway-error{border:1px solid #ef4444;color:#fecaca}
 .runway code{overflow-wrap:anywhere} .runway details summary{cursor:pointer;font-weight:700}
+
+.runway .runway-check{display:flex;flex-direction:row;align-items:flex-start;gap:10px;max-width:72ch}
+.runway .runway-check input{width:20px;min-width:20px;height:20px;margin:3px 0 0}
+.runway fieldset.runway-options{min-width:0}
+.runway fieldset.runway-options legend{padding:0 8px;font-size:1.25rem}
+.runway fieldset:disabled{opacity:.85}
