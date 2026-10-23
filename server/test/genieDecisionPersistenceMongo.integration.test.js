@@ -15,6 +15,7 @@ import FinancialProfileState from '../models/FinancialProfileState.js';
 import DecisionScenario from '../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionRun from '../models/DecisionRun.js';
+import { signDecisionReceipt } from '../services/genieDecision/integrity.js';
 
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'geniedecision-test-secret-only-2026';
@@ -207,20 +208,51 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     const originalRun = await DecisionRun.findById(reportId).lean();
     const previousModelResult = { ...originalRun.result, modelVersion: 'geniedecision-ledger-0.0.1' };
     const oldResultHash = crypto.createHash('sha256').update(JSON.stringify(previousModelResult)).digest('hex');
+    // A *legitimately signed* historical report must remain readable but
+    // historical. A database attacker without the active signing key cannot
+    // construct this signature.
+    const oldReceipt = signDecisionReceipt('decision_run', {
+      userId: String(originalRun.userId), scenarioId: String(originalRun.scenarioId),
+      revision: originalRun.revision, profileId: String(originalRun.profileId),
+      profileFactsHash: originalRun.profileFactsHash, inputHash: originalRun.inputHash,
+      runKeyHash: originalRun.runKeyHash,
+    }, { resultHash: oldResultHash });
     await DecisionRun.collection.updateOne({ _id: originalRun._id },
-      { $set: { result: previousModelResult, resultHash: oldResultHash } });
+      { $set: { result: previousModelResult, resultHash: oldResultHash, ...oldReceipt } });
     const previousPolicy = await call(base, userOne, `/runs/${reportId}`);
     assert.equal(previousPolicy.response.status, 200);
     assert.ok(previousPolicy.body.run.reasonCodes.includes('DECISION_CALCULATION_POLICY_SUPERSEDED'));
     await DecisionRun.collection.updateOne({ _id: originalRun._id },
-      { $set: { result: originalRun.result, resultHash: originalRun.resultHash } });
+      { $set: {
+        result: originalRun.result, resultHash: originalRun.resultHash,
+        integrityKeyId: originalRun.integrityKeyId, integrityTag: originalRun.integrityTag,
+      } });
 
-    // Simulate an out-of-band Mongo corruption. The report must fail closed.
+    // Even if a database attacker recomputes the plain SHA-256 hash after
+    // changing money, they cannot forge the HMAC receipt with a key not in DB.
+    const forgedResult = structuredClone(originalRun.result);
+    forgedResult.alternatives[0].endingProjectedLiquidCash = '999999999.00';
+    const forgedHash = crypto.createHash('sha256')
+      .update(JSON.stringify(forgedResult)).digest('hex');
     await DecisionRun.collection.updateOne({ _id: new mongoose.Types.ObjectId(reportId) },
-      { $set: { 'result.alternatives.0.endingProjectedLiquidCash': '999999999.00' } });
+      { $set: { result: forgedResult, resultHash: forgedHash } });
     const tampered = await call(base, userOne, `/runs/${reportId}`);
     assert.equal(tampered.response.status, 503);
     assert.equal(tampered.body.code, 'DECISION_REPORT_INTEGRITY_FAILURE');
+
+    const revisionRecord = await DecisionScenarioRevision.findOne({
+      userId: userOne, scenarioId: id, revision: 3,
+    }).lean();
+    const forgedRevision = structuredClone(revisionRecord.payload);
+    forgedRevision.title = 'Forger changed decision inputs';
+    const forgedRevisionHash = crypto.createHash('sha256')
+      .update(JSON.stringify(forgedRevision)).digest('hex');
+    await DecisionScenarioRevision.collection.updateOne({ _id: revisionRecord._id }, {
+      $set: { payload: forgedRevision, inputHash: forgedRevisionHash },
+    });
+    const tamperedRevision = await call(base, userOne, `/scenarios/${id}`);
+    assert.equal(tamperedRevision.response.status, 503);
+    assert.equal(tamperedRevision.body.code, 'DECISION_REVISION_INTEGRITY_FAILURE');
 
     const deleting = await call(base, userOne, `/scenarios/${id}`, 'DELETE',
       { expectedRevision: 3 });
