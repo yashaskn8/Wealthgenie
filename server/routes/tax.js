@@ -277,6 +277,9 @@ router.post('/post-tax-return/batch', validate(postTaxReturnBatchSchema), asyncH
     const projection = calculatePostTaxProjection(taxResult, inv, inflationRate, projectionContext);
     return {
       instrumentType: inv.instrumentType,
+      instrumentId: inv.instrumentId ?? null,
+      // Category-policy projections are never exact issuer/product quotes.
+      exactProductReturnVerified: false,
       ...taxResult,
       calculationClass: 'MODELLED_POST_TAX_PROJECTION',
       dataClass: 'MODEL_ASSUMPTION',
