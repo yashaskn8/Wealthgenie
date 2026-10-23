@@ -31,21 +31,21 @@ const smallCashflowSchema=Joi.object({
  principal:Joi.number().integer().min(1000).max(1e10).required(),
 }).unknown(false);
 
-router.use(verifyJWT,(req,res,next)=>{
+router.use((req,res,next)=>{
  res.set('Cache-Control','private, no-store');
  next();
 });
-router.get('/mutual-funds/search',validateQuery(searchSchema),asyncHandler(async(req,res)=>{
+router.get('/mutual-funds/search',verifyJWT,validateQuery(searchSchema),asyncHandler(async(req,res)=>{
  try{return res.json(await searchFreeFunds(req.query.q));}
  catch{return sendError(req,res,503,'Free mutual-fund research source is unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
 }));
-router.get('/mutual-funds/:schemeCode',asyncHandler(async(req,res)=>{
+router.get('/mutual-funds/:schemeCode',verifyJWT,asyncHandler(async(req,res)=>{
  const {error}=schemeCode.validate(req.params.schemeCode);
  if(error)return sendError(req,res,400,'Invalid scheme code.','SCHEME_CODE_INVALID');
  try{return res.json(await getFreeFundNavResearch(req.params.schemeCode));}
  catch{return sendError(req,res,503,'Free mutual-fund research source is unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
 }));
-router.post('/mutual-funds/simulate',validate(simulateSchema),asyncHandler(async(req,res)=>{
+router.post('/mutual-funds/simulate',verifyJWT,validate(simulateSchema),asyncHandler(async(req,res)=>{
  let nav;
  try{nav=await getFreeFundNavResearch(req.body.schemeCode);}
  catch{return sendError(req,res,503,'Free NAV source unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
@@ -79,8 +79,8 @@ router.post('/mutual-funds/simulate',validate(simulateSchema),asyncHandler(async
   exclusions:nav.exclusions,
  });
 }));
-router.get('/small-savings',asyncHandler(async(req,res)=>
+router.get('/small-savings',verifyJWT,asyncHandler(async(req,res)=>
  res.json(getPublicSmallSavingsRates())));
-router.post('/small-savings/calculate',validate(smallCashflowSchema),
+router.post('/small-savings/calculate',verifyJWT,validate(smallCashflowSchema),
  asyncHandler(async(req,res)=>res.json(calculatePublicSmallSavingsGrossResearch(req.body))));
 export default router;
