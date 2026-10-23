@@ -47,6 +47,11 @@ function echoesExpectedResultRows(actual, expected) {
     const row = actual[index];
     return isRecord(row)
       && row.instrumentIndex === index
+      && (instrument.instrumentId === undefined || (
+        row.instrumentId === instrument.instrumentId
+        && row.exactProductReturnVerified === false
+      ))
+      && row.exactProductReturnVerified !== true
       && echoesExactExpectedFields(row.instrumentInput, instrument);
   });
 }
