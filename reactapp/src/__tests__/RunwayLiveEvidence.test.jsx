@@ -169,3 +169,27 @@ it('red-team: unavailable core financial response cannot preserve apparently cur
     .toHaveTextContent(/Values were cleared/));
   expect(screen.queryByText(/UPLOADED_TODAY_UNVERIFIED/)).not.toBeInTheDocument();
 });
+
+it('red-team: committed import followed by failed refresh is never misreported as rejected', async () => {
+  common();
+  const onChooseCash = vi.fn();
+  vi.spyOn(api, 'importRunwayStatement').mockResolvedValue({ ...statement(), replayed: false });
+  render(<RunwayLiveEvidence canImport onChooseCash={onChooseCash} />);
+  await waitFor(() => expect(screen.getByText(/No statement imported/)).toBeInTheDocument());
+  api.listRunwayStatements.mockRejectedValueOnce(new Error('Temporary read outage'));
+  fireEvent.click(screen.getByText(/Import a bank statement CSV/));
+  fireEvent.change(screen.getByLabelText(/Account nickname/),
+    { target: { value: 'Salary account' } });
+  const csv = 'date,description,debit,credit,balance,reference\n'
+    + today() + ',Salary,0,125.00,125.00,abc';
+  const file = new File([csv], 'statement.csv', { type: 'text/csv' });
+  Object.defineProperty(file, 'text', { value: async () => csv });
+  fireEvent.change(screen.getByLabelText('Statement CSV'), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: 'Import and validate statement' }));
+  await waitFor(() => expect(api.importRunwayStatement).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(screen.getByRole('alert'))
+    .toHaveTextContent(/Statement import committed, but the financial screen could not refresh/));
+  expect(screen.getByText(/Statement imported and every running balance reconciled/))
+    .toBeInTheDocument();
+  expect(onChooseCash).not.toHaveBeenCalled();
+});
