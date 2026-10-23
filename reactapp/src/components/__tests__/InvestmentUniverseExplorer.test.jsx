@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 const api = vi.hoisted(() => ({
   getCurrentProfile: vi.fn(),
@@ -68,6 +68,9 @@ describe('250-family Where to Invest directory', () => {
     expect(screen.getByText(/Three distinct, current, suitable products cannot yet be verified/)).toBeTruthy();
     expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
     expect(api.getCurrentProfile).not.toHaveBeenCalled();
+    const familyRow = screen.getByText('Investment family 2').closest('li');
+    expect(within(familyRow).getByRole('region', { name: 'Tailored top three for Investment family 2' })).toBeTruthy();
+    expect(within(familyRow).getByRole('button', { name: 'Check tailored top 3 for Investment family 2' }).getAttribute('aria-expanded')).toBe('true');
   });
 
   it('loads exactly three individually source-qualified products for the current profile', async () => {
@@ -93,6 +96,9 @@ describe('250-family Where to Invest directory', () => {
     expect(api.getQualifiedFamilyTopProducts).toHaveBeenCalledWith(
       'family_001', '0123456789abcdef01234567', expect.any(Object),
     );
+    const familyRow = screen.getByText('Investment family 1').closest('li');
+    const comparisonPanel = within(familyRow).getByRole('region', { name: 'Tailored top three for Investment family 1' });
+    expect(within(comparisonPanel).getAllByRole('link', { name: 'Issuer evidence' })).toHaveLength(3);
     expect(screen.getAllByRole('link', { name: 'Issuer evidence' })).toHaveLength(3);
     expect(screen.getAllByText(/Personalized post-tax return: not calculated by this comparison/)).toHaveLength(3);
   });
