@@ -109,17 +109,30 @@ export function normalizeFreeNavHistory(raw,schemeCode,{now=new Date()}={}){
  const days=(Date.parse(daily.at(-1).date)-(Date.parse(daily[0].date)))/86400000;
  const lastAge=(+now-(Date.parse(daily.at(-1).date)))/86400000;
  if(days<180||lastAge<0||lastAge>10)return unavailable('NAV_HISTORY_STALE_OR_TOO_SHORT');
- let n=0,sum=0,sumSquared=0;
+ // NAV observations span unequal calendar intervals (weekends, holidays,
+ // missing valuation days). Multiplying unadjusted interval returns by
+ // sqrt(252) exaggerates risk for sparse series. Fit calendar-time GBM with
+ // drift proportional to elapsed days and scale residual variance by 365.2425.
+ let n=0,sumLogReturn=0,sumDays=0;
+ const intervals=[];
  for(let i=1;i<daily.length;i++){
-  const gap=(Date.parse(daily[i].date)-(Date.parse(daily[i-1].date)))/86400000;
+  const gap=(Date.parse(daily[i].date)-Date.parse(daily[i-1].date))/86400000;
   if(gap>20||gap<=0)return unavailable('NAV_HISTORY_GAP');
   const r=Math.log(daily[i].nav/daily[i-1].nav);
   if(!Number.isFinite(r)||Math.abs(r)>Math.log(1.5))
    return unavailable('NAV_JUMP_REQUIRES_ADJUSTMENT_REVIEW');
-  n++;sum+=r;sumSquared+=r*r;
+  n++;sumDays+=gap;sumLogReturn+=r;
+  intervals.push({gap,r});
  }
- const variance=(sumSquared-sum*sum/n)/(n-1);
- const volatility=Math.sqrt(Math.max(0,variance)*252);
+ if(n<2||sumDays<180)return unavailable('INSUFFICIENT_NAV_HISTORY');
+ const dailyDrift=sumLogReturn/sumDays;
+ let squaredResiduals=0;
+ for(const item of intervals){
+  const deviation=item.r-dailyDrift*item.gap;
+  squaredResiduals+=deviation*deviation;
+ }
+ const unbiasedCalendarVariance=squaredResiduals*(n/(n-1))/sumDays;
+ const volatility=Math.sqrt(Math.max(0,unbiasedCalendarVariance)*365.2425);
  if(!Number.isFinite(volatility)||volatility<=0||volatility>0.6)
    return unavailable('NAV_VOLATILITY_OUTSIDE_MODEL_RANGE');
  return {status:'AVAILABLE',dataClass:'RESEARCH_ONLY_AMFI_DERIVED_NAV',
@@ -128,7 +141,7 @@ export function normalizeFreeNavHistory(raw,schemeCode,{now=new Date()}={}){
   observedAnnualVolatility:volatility,
   source:{provider:'mfnav.in',url:SOURCE+'/api/nav/'+schemeCode,termsUrl:SOURCE+'/terms'},
   sourceRightsStatus:'RESEARCH_ONLY_UPSTREAM_AMFI_RIGHTS_NOT_QUALIFIED',
-  volatilityBasis:'HISTORICAL_NAV_CHANGE_NOT_FORWARD_EXPECTED_RETURN',
+  volatilityBasis:'CALENDAR_TIME_GBM_IRREGULAR_NAV_INTERVALS_NOT_FORWARD_EXPECTED_RETURN',
   forwardReturn:null,postTaxAvailable:false,postTaxFutureValue:null,
   productionInvestmentQualification:false,
   exclusions:['DIVIDENDS_AND_DISTRIBUTIONS','SCHEME_CORPORATE_ACTIONS','FEES_NOT_EXPLICITLY_MODELED',
