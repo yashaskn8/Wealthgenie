@@ -181,7 +181,7 @@ function makeRevision({ scenario, revision, payload }) {
       revisionReceiptContext(scenario, revision, inputHash), payload),
   };
 }
-function checkRunRecord(run) {
+export function verifyDecisionRun(run) {
   if (!run || !run.result || typeof run.result !== 'object'
       || !/^[a-f0-9]{64}$/.test(run.resultHash || '')
       || hash(run.result) !== run.resultHash
@@ -205,13 +205,13 @@ async function checkCurrentRunPointers(userId, scenarios) {
       fail(503, 'DECISION_RUN_POINTER_INTEGRITY_FAILURE',
         'The current scenario report pointer could not be verified.');
     }
-    checkRunRecord(run);
+    verifyDecisionRun(run);
   }
 }
 function reportDto(run, current, scenario = null) {
   // Both financial-profile and scenario-revision pointers must remain current.
   // Independently verify the immutable result snapshot before presenting it.
-  checkRunRecord(run);
+  verifyDecisionRun(run);
   const staleProfile = !sameProfile(current, run);
   const staleScenario = !scenario || scenario.revision !== run.revision;
   const staleCalculationPolicy = run.result.modelVersion !== DECISION_LEDGER_VERSION;
