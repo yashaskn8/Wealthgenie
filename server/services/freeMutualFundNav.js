@@ -90,6 +90,8 @@ export async function searchFreeFunds(q,options={}){
  return normalizeFreeFundSearch(data);
 }
 export function normalizeFreeNavHistory(raw,schemeCode,{now=new Date()}={}){
+ if(!(now instanceof Date)||!Number.isFinite(+now))
+  return unavailable('INVALID_NAV_AS_OF_DATE');
  const fund=normalizedFund(raw?.fund_details,schemeCode);
  if(!fund||!Array.isArray(raw?.data))return unavailable('FREE_NAV_IDENTITY_OR_SCHEMA_INVALID');
  if(!fund.navOnlyRiskEligible)
