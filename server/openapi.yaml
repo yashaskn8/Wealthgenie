@@ -8,6 +8,145 @@ servers:
   - { url: '/', description: Same-origin production gateway }
 
 paths:
+  /api/decisions/data-availability:
+    get:
+      tags: [GenieDecision]
+      operationId: decisionDataAvailability
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/decisions/preview:
+    post:
+      tags: [GenieDecision]
+      operationId: decisionPreview
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '201': { description: Durable versioned scenario or report, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/decisions/scenarios:
+    get:
+      tags: [GenieDecision]
+      operationId: listDecisionScenarios
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [GenieDecision]
+      operationId: createDecisionScenario
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '201': { description: Durable versioned scenario or report, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/decisions/scenarios/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }]
+    get:
+      tags: [GenieDecision]
+      operationId: getDecisionScenario
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    patch:
+      tags: [GenieDecision]
+      operationId: reviseDecisionScenario
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [GenieDecision]
+      operationId: deleteDecisionScenario
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/decisions/scenarios/{id}/evaluate:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }]
+    post:
+      tags: [GenieDecision]
+      operationId: evaluateDecisionScenario
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '201': { description: Durable versioned scenario or report, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/decisions/runs/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }]
+    get:
+      tags: [GenieDecision]
+      operationId: getDecisionRun
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200': { description: Verified owner-scoped API result or idempotent replay, content: { application/json: { schema: { type: object } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/auth/register:
     post:
       operationId: registerUser
