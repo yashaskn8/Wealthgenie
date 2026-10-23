@@ -629,6 +629,15 @@ export async function checkGenieProofClaims(offerText, options = {}) {
   return request('POST', '/genieproof/check', { offerText }, { retries: 0, ...options });
 }
 
+export async function reviewGenieProofWithNvidia(offerText, claimId, options = {}) {
+  if (typeof offerText !== 'string' || !offerText.trim()
+    || typeof claimId !== 'string' || !/^[a-f0-9]{32}$/.test(claimId)) {
+    throw new TypeError('A checked financial statement and claim ID are required.');
+  }
+  return request('POST', '/genieproof/nvidia-review',
+    { offerText, claimId, consent: true }, { retries: 0, ...options });
+}
+
 export async function calculateGenieProofScenario(scenario, options = {}) {
   return request('POST', '/genieproof/calculate', scenario, { retries: 0, ...options });
 }
