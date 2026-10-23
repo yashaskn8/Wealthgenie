@@ -43,11 +43,14 @@ export default function FreeSourceResearchPanel(){
   catch(err){if(!c.signal.aborted)setError(err?.message||'Source unavailable');}
   finally{if(!c.signal.aborted)setBusy(false);}
  }
- const search=()=>request(signal=>searchFreeMutualFunds(query,{signal}),value=>{
+ const search=()=>{
+  setFunds([]);setSelected(null);
+  request(signal=>searchFreeMutualFunds(query,{signal}),value=>{
   if(value?.status!=='AVAILABLE'||!Array.isArray(value.results))
    throw new Error('Source returned no qualified research list');
   setFunds(value.results);setSelected(null);
- });
+  });
+ };
  const loadRates=()=>request(signal=>getFreeSmallSavingsRates({signal}),setRates);
  const loadSources=()=>{
   if(showSources){setShowSources(false);return;}
@@ -111,7 +114,7 @@ export default function FreeSourceResearchPanel(){
        </p>
        <label style={{fontSize:12}}>Scheme search{' '}
         <input style={style.field} aria-label="Search mutual fund scheme" value={query}
-         maxLength={80} onChange={e=>setQuery(e.target.value)}/></label>{' '}
+         maxLength={80} onChange={e=>{controller.current?.abort();setBusy(false);setQuery(e.target.value);setSelected(null);setFunds([]);setResult(null);}}/></label>{' '}
        <button type="button" style={style.action} disabled={busy} onClick={search}>Search online NAV</button>
        {funds.length>0&&(
         <label style={{display:'block',marginTop:10,fontSize:12}}>Exact scheme and plan
@@ -128,11 +131,11 @@ export default function FreeSourceResearchPanel(){
        {selected&&(
         <div style={{display:'flex',gap:12,flexWrap:'wrap',marginTop:12,alignItems:'end'}}>
          <label style={{fontSize:12}}>Monthly SIP (₹)<input aria-label="Free NAV monthly SIP" style={{...style.field,display:'block',width:120}}
-          inputMode="numeric" value={monthly} onChange={e=>setMonthly(e.target.value)}/></label>
+          inputMode="numeric" value={monthly} onChange={e=>{setMonthly(e.target.value);setResult(null);}}/></label>
          <label style={{fontSize:12}}>Assumed annual return (%)<input aria-label="Free NAV assumed annual return" style={{...style.field,display:'block',width:120}}
-          inputMode="decimal" value={expectedReturn} onChange={e=>setExpectedReturn(e.target.value)}/></label>
+          inputMode="decimal" value={expectedReturn} onChange={e=>{setExpectedReturn(e.target.value);setResult(null);}}/></label>
          <label style={{fontSize:12}}>Years<input aria-label="Free NAV horizon years" style={{...style.field,display:'block',width:80}}
-          inputMode="numeric" value={horizon} onChange={e=>setHorizon(e.target.value)}/></label>
+          inputMode="numeric" value={horizon} onChange={e=>{setHorizon(e.target.value);setResult(null);}}/></label>
          <button type="button" style={style.action} disabled={busy} onClick={simulate}>
           Simulate with observed NAV volatility</button>
         </div>
@@ -186,7 +189,7 @@ export default function FreeSourceResearchPanel(){
          </label>
          <label style={{fontSize:12}}>Investment principal (₹){' '}
           <input style={style.field} aria-label="Small savings principal" inputMode="numeric"
-           value={principal} onChange={e=>setPrincipal(e.target.value)}/></label>{' '}
+           value={principal} onChange={e=>{setPrincipal(e.target.value);setResult(null);}}/></label>{' '}
          <button type="button" style={style.action} disabled={busy} onClick={calculate}>
           Calculate gross cash flows</button>
         </div>
