@@ -26,6 +26,7 @@ const TaxesHub = lazy(() => import('./components/TaxesHub'));
 const ProgressHub = lazy(() => import('./components/ProgressHub'));
 const JourneyPage = lazy(() => import('./components/JourneyPage'));
 const GenieProofEntry = lazy(() => import('./components/GenieProofEntry'));
+const CashCheck = lazy(() => import('./components/CashCheck'));
 const AllocationPlanner = lazy(() => import('./components/AllocationPlanner'));
 const ProfileEditor = lazy(() => import('./ProfileEditor'));
 const HelpTourScreen = lazy(() => import('./HelpTourScreen'));
@@ -890,6 +891,8 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
             />
           </ErrorBoundary>
         );
+      case NAV_PAGES.CASH_CHECK:
+        return <ErrorBoundary><CashCheck /></ErrorBoundary>;
       case NAV_PAGES.GENIEPROOF:
         return (
           <ErrorBoundary>
