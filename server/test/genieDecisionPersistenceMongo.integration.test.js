@@ -433,3 +433,96 @@ test('malformed and unauthenticated requests fail before persistence', async () 
     assert.equal(noAuthEvents.response.status, 401);
   });
 });
+
+
+test('monitored decisions create signed candidate assessments, fail closed on changed assumptions and obey opt-out', async () => {
+  await withServer(app(), async base => {
+    const input = { ...scenarioInput(), expectedProfileStateRevision: 2,
+      title: 'Monitor my changing budget' };
+    const created = await call(base, userOne, '/scenarios', 'POST', input, 'monitor-test-create-0001');
+    assert.equal(created.response.status, 201, JSON.stringify(created.body));
+    const id = created.body.scenario.id;
+    const monitorPath = `/scenarios/${id}/monitor`;
+    const unauthWatch = await call(base, userTwo, monitorPath);
+    assert.equal(unauthWatch.response.status, 404);
+
+    const initial = await call(base, userOne, monitorPath);
+    assert.equal(initial.response.status, 200);
+    assert.equal(initial.body.monitor.enabled, false);
+    assert.deepEqual(initial.body.assessments, []);
+
+    const enabled = await call(base, userOne, monitorPath, 'PUT',
+      { enabled: true, expectedRevision: 1 });
+    assert.equal(enabled.response.status, 200, JSON.stringify(enabled.body));
+    assert.equal(enabled.body.monitor.enabled, true);
+    const gen = enabled.body.monitor.generation;
+    const repeated = await call(base, userOne, monitorPath, 'PUT',
+      { enabled: true, expectedRevision: 1 });
+    assert.equal(repeated.response.status, 200);
+    assert.equal(repeated.body.monitor.generation, gen);
+    const unchanged = await scanDecisionMonitors();
+    assert.ok(unchanged.statuses.UNCHANGED >= 1);
+    assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 0);
+
+    // Income changed but previous expense/debt/savings assumptions no longer
+    // reconcile. Publishing a made-up balancing expense would be unacceptable.
+    await FinancialProfile.collection.updateOne({ _id: profile._id },
+      { $set: { monthlyTakeHome: 90000 } });
+    const invalidCandidate = await scanDecisionMonitors();
+    assert.equal(invalidCandidate.created, 1, JSON.stringify(invalidCandidate));
+    const review = await call(base, userOne, monitorPath);
+    assert.equal(review.response.status, 200, JSON.stringify(review.body));
+    assert.equal(review.body.assessments[0].originalStatus, 'NEEDS_REVIEW');
+    assert.equal(review.body.assessments[0].result, null);
+    assert.equal(review.body.assessments[0].requiresUserReview, true);
+    const repeatedInvalid = await scanDecisionMonitors();
+    assert.equal(repeatedInvalid.created, 0);
+    assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 1);
+    const otherRead = await call(base, userTwo, monitorPath);
+    assert.equal(otherRead.response.status, 404);
+
+    // Reconciliation restored under *new* source facts: deterministic engine
+    // produces a candidate report without updating the old signed run.
+    await FinancialProfile.collection.updateOne({ _id: profile._id },
+      { $set: { monthlyTakeHome: 110000, monthlySavings: 40000 } });
+    const validCandidate = await scanDecisionMonitors();
+    assert.equal(validCandidate.created, 1, JSON.stringify(validCandidate));
+    const history = await call(base, userOne, monitorPath);
+    assert.equal(history.response.status, 200, JSON.stringify(history.body));
+    assert.equal(history.body.assessments.length, 2);
+    assert.equal(history.body.assessments[0].originalStatus, 'RECALCULATED');
+    assert.equal(history.body.assessments[0].result.alternatives.length, 2);
+    assert.equal(history.body.assessments[1].status, 'HISTORICAL');
+    assert.equal(await DecisionRun.countDocuments({ userId: userOne, scenarioId: id }), 0);
+    const latest = await DecisionAssessment.findOne({
+      userId: userOne, scenarioId: id, status: 'RECALCULATED',
+    }).lean();
+    assert.ok(latest.integrityTag);
+    const modified = await DecisionAssessment.collection.updateOne({ _id: latest._id },
+      { $set: { 'result.alternatives.0.endingProjectedLiquidCash': '999999999.00' } });
+    assert.equal(modified.modifiedCount, 1);
+    const forged = await call(base, userOne, monitorPath);
+    assert.equal(forged.response.status, 503);
+    assert.equal(forged.body.code, 'DECISION_ASSESSMENT_INTEGRITY_FAILURE');
+    await DecisionAssessment.collection.updateOne({ _id: latest._id },
+      { $set: { result: latest.result } });
+
+    const off = await call(base, userOne, monitorPath, 'PUT',
+      { enabled: false, expectedRevision: 1 });
+    assert.equal(off.response.status, 200);
+    assert.equal(off.body.monitor.enabled, false);
+    await FinancialProfile.collection.updateOne({ _id: profile._id },
+      { $set: { monthlyTakeHome: 120000, monthlySavings: 50000 } });
+    const afterOff = await scanDecisionMonitors();
+    assert.equal(afterOff.created, 0);
+    assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 2);
+
+    await FinancialProfile.collection.updateOne({ _id: profile._id },
+      { $set: { monthlyTakeHome: 100000, monthlySavings: 30000 } });
+    const deleted = await call(base, userOne, `/scenarios/${id}`, 'DELETE',
+      { expectedRevision: 1 });
+    assert.equal(deleted.response.status, 200);
+    assert.equal(await DecisionMonitor.countDocuments({ userId: userOne, scenarioId: id }), 0);
+    assert.equal(await DecisionAssessment.countDocuments({ userId: userOne, scenarioId: id }), 0);
+  });
+});
