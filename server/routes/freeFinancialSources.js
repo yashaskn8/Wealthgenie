@@ -78,18 +78,18 @@ router.use((req,res,next)=>{
  res.set('Cache-Control','private, no-store');
  next();
 });
-router.use(freeProviderLimiter);
-router.get('/mutual-funds/search',verifyJWT,validateQuery(searchSchema),asyncHandler(async(req,res)=>{
+// Apply per-user/provider quota AFTER JWT verification, never to anonymous traffic.
+router.get('/mutual-funds/search',verifyJWT,freeProviderLimiter,validateQuery(searchSchema),asyncHandler(async(req,res)=>{
  try{return res.json(await searchFreeFunds(req.query.q));}
  catch{return sendError(req,res,503,'Free mutual-fund research source is unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
 }));
-router.get('/mutual-funds/:schemeCode',verifyJWT,asyncHandler(async(req,res)=>{
+router.get('/mutual-funds/:schemeCode',verifyJWT,freeProviderLimiter,asyncHandler(async(req,res)=>{
  const {error}=schemeCode.validate(req.params.schemeCode);
  if(error)return sendError(req,res,400,'Invalid scheme code.','SCHEME_CODE_INVALID');
  try{return res.json(await loadResearchWithMirror(req.params.schemeCode));}
  catch{return sendError(req,res,503,'Free mutual-fund research source is unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
 }));
-router.post('/mutual-funds/simulate',verifyJWT,validate(simulateSchema),asyncHandler(async(req,res)=>{
+router.post('/mutual-funds/simulate',verifyJWT,freeProviderLimiter,validate(simulateSchema),asyncHandler(async(req,res)=>{
  let nav;
  try{nav=await loadResearchWithMirror(req.body.schemeCode);}
  catch{return sendError(req,res,503,'Free NAV source unavailable.','FREE_NAV_SOURCE_UNAVAILABLE');}
@@ -125,10 +125,10 @@ router.post('/mutual-funds/simulate',verifyJWT,validate(simulateSchema),asyncHan
   exclusions:nav.exclusions,
  });
 }));
-router.get('/coverage',verifyJWT,asyncHandler(async(req,res)=>
+router.get('/coverage',verifyJWT,freeProviderLimiter,asyncHandler(async(req,res)=>
  res.json(getFreeFinancialSourceDirectory())));
-router.get('/small-savings',verifyJWT,asyncHandler(async(req,res)=>
+router.get('/small-savings',verifyJWT,freeProviderLimiter,asyncHandler(async(req,res)=>
  res.json(getPublicSmallSavingsRates())));
-router.post('/small-savings/calculate',verifyJWT,validate(smallCashflowSchema),
+router.post('/small-savings/calculate',verifyJWT,freeProviderLimiter,validate(smallCashflowSchema),
  asyncHandler(async(req,res)=>res.json(calculatePublicSmallSavingsGrossResearch(req.body))));
 export default router;
