@@ -1180,7 +1180,8 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
  * provider tokens are exposed to the browser.
  */
 export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}) {
-  let cursor = null;
+  if (!signal || typeof onEvent !== 'function') throw new Error('An abortable live-event subscriber is required.');
+  let cursor = 0; // start with a durable replay rather than a racy bare handshake
   let failures = 0;
   const pause = delay => new Promise(resolve => {
     if (signal?.aborted) return resolve();
