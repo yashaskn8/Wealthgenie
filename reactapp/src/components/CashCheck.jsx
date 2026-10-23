@@ -134,6 +134,7 @@ export default function CashCheck() {
   const [notice, setNotice] = useState('');
   const [stale, setStale] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -190,6 +191,25 @@ export default function CashCheck() {
       setPreview(response.result);
     } catch (err) { setError(err.message || 'Preview unavailable. Save and reload your entries first.'); }
     finally { setBusy(false); }
+  };
+  const deleteSavedPlan = async () => {
+    if (busy || !confirmDelete || revision < 1) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api.deleteCoverageLedger(revision);
+      setRevision(0);
+      setDraft(EMPTY());
+      setSaved(null);
+      setPreview(null);
+      setDirty(false);
+      setStale(false);
+      setConfirmDelete(false);
+      setNotice('Saved cash entries and calculations deleted. A minimal deletion receipt remains for retry safety.');
+    } catch (err) {
+      setError(err.status === 409
+        ? 'Deletion blocked: the saved revision changed. Reload and reconcile first.'
+        : err.message || 'Could not delete cash entries.');
+    } finally { setBusy(false); }
   };
   if (!loaded) return <main className="cash-check-workspace" role="status">Loading your cash entries…</main>;
   return (
@@ -262,6 +282,19 @@ export default function CashCheck() {
           <button type="button" disabled={busy} onClick={previewPause}>Preview excluding voluntary contributions</button>
           {preview && <ResultView data={preview} hypothetical />}
         </section>}
+      {revision > 0 && (
+        <section className="cash-check-panel" aria-label="Delete cash records">
+          <h2>Remove saved cash records</h2>
+          <p>Delete all saved ledgers and results. This action cannot be undone. A minimal non-financial deletion receipt and operation hashes are retained to block unsafe replay.</p>
+          <label className="cash-check-confirm">
+            <input type="checkbox" checked={confirmDelete} onChange={e => setConfirmDelete(e.target.checked)} />
+            I understand this permanently removes my saved cash entries and calculations.
+          </label>
+          <button type="button" disabled={!confirmDelete || busy || dirty}
+            className="cash-check-remove" onClick={deleteSavedPlan}>Delete my saved cash records</button>
+          {dirty && <p>Save or reload and reconcile unsaved changes before deletion.</p>}
+        </section>
+      )}
     </main>
   );
 }
