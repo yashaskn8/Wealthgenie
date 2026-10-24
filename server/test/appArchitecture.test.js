@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
+import { gzipSync } from 'node:zlib';
 import { getRuntimeConfig, assertValidHttpTimeouts, assertValidRuntimeConfig } from '../config/runtime.js';
 import { createRuntimeState } from '../services/runtimeState.js';
 
@@ -27,6 +28,23 @@ test('app factory creates isolated Express instances with production security de
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://wealth.example');
     assert.equal(response.headers.get('x-powered-by'), null);
+  });
+});
+
+test('rejects compressed JSON before vulnerable body inflation and leaves ordinary JSON supported', async () => {
+  const app=createApp({ env:{...process.env,NODE_ENV:'test'} });
+  await withServer(app,async(baseUrl)=>{
+    const body=Buffer.from(JSON.stringify({transcript:'open goals'}));
+    const compressed=await fetch(baseUrl+'/api/voice/interpret',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Content-Encoding':'gzip'},
+      body:gzipSync(body)
+    });
+    assert.equal(compressed.status,415);
+    const plain=await fetch(baseUrl+'/api/voice/interpret',{
+      method:'POST',headers:{'Content-Type':'application/json'},body
+    });
+    assert.notEqual(plain.status,415);
   });
 });
 

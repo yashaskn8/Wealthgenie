@@ -33,6 +33,7 @@ import marketQuotesRoutes from './routes/marketQuotes.js';
 import marketDataAdminRoutes from './routes/marketDataAdmin.js';
 import taxRoutes from './routes/tax.js';
 import chatRoutes from './routes/chatRoutes.js';
+import { createVoiceRouter } from './routes/voiceRoutes.js';
 import portfolioRoutes from './routes/portfolio.js';
 import regimeRoutes from './routes/regime.js';
 import metricsRoutes from './routes/metricsRoutes.js';
@@ -132,7 +133,9 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   // its own distributed quotas, not cookie CSRF or the general API limiter.
   app.use('/api/mcp', createMcpRouter({ config, runtime: mcpLifecycle, capacity: mcpCapacity, env }));
   app.use(enforceJsonContentType);
-  app.use(express.json({ limit: config.bodyLimit, strict: true }));
+  // Compressed JSON is unsupported. Until every body-parser dependency is patched,
+  // reject gzip/br/deflate before inflation (GHSA-27r3-jxmh-p828).
+  app.use(express.json({ limit: config.bodyLimit, strict: true, inflate: false }));
   app.use(mongoSanitize());
   app.use('/api', createCsrfProtection(config));
 
@@ -239,6 +242,10 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/market-data', marketDataAdminRoutes);
   app.use('/api/tax', taxRoutes);
   app.use('/api/chat', chatRoutes);
+  app.use('/api/voice', createVoiceRouter({
+    enabled: env.GENIEVOICE_TASKS_ENABLED === 'true',
+    receiptsEnabled: env.GENIEVOICE_RECEIPTS_ENABLED === 'true'
+  }));
   app.use('/api/portfolio', portfolioRoutes);
   app.use('/api/regime', regimeRoutes);
   app.use('/api/metrics', metricsRoutes);
