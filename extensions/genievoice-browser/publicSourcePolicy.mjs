@@ -12,6 +12,9 @@ export function isApprovedPublicResearchUrl(raw) {
     return u.protocol==='https:' && !u.username && !u.password &&
       (u.port===''||u.port==='443') &&
       PUBLIC_RESEARCH_HOSTS.includes(u.hostname.toLowerCase()) &&
-      !RESTRICTED_PATH_SEGMENT.test(decodeURIComponent(u.pathname));
+      // Reject query/fragment URLs and encoded paths until a source-specific
+      // reviewed routing policy exists (double-decoding and private-page risk).
+      u.search==='' && u.hash==='' && !u.pathname.includes('%') &&
+      !RESTRICTED_PATH_SEGMENT.test(u.pathname);
   } catch {return false;}
 }

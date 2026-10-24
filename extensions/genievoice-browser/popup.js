@@ -22,7 +22,10 @@ btn.addEventListener('click',async()=>{
           'www.sebi.gov.in','indiapost.gov.in','www.indiapost.gov.in'];
         const blocked=/(?:^|\/)(?:login|signin|sign-in|auth|account|accounts|myaccount|profile|dashboard|payment|payments|kyc|transaction|transactions|portfolio|admin)(?:\/|$)/i;
         if(location.protocol!=='https:'||!allowed.includes(host) ||
-           blocked.test(decodeURIComponent(location.pathname)))return null;
+           location.search || location.hash || location.pathname.includes('%') ||
+           blocked.test(location.pathname) ||
+           document.querySelector('input[type="password"], input[autocomplete="current-password"]'))
+          return null;
         const text=String(document.body?.innerText||'').slice(0,3000);
         return {url:location.origin+location.pathname,title:document.title.slice(0,160),text};
       }

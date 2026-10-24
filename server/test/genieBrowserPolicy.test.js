@@ -14,6 +14,11 @@ describe('GenieVoice browser inspector URL policy',()=>{
       'chrome://settings','javascript:alert(1)','https://127.0.0.1',
       'https://example.com?to=https://sebi.gov.in',
       'https://sebi.gov.in@evil.test','https://foo.sebi.gov.in',
+      'https://rbi.org.in/public?account=private',
+      'https://rbi.org.in/public#login',
+      'https://rbi.org.in/%2561ccount',
+      'https://rbi.org.in/auth%2Fsettings',
+      'https://rbi.org.in/public%20docs',
       'https://sebi.gov.in/login','https://rbi.org.in/account/',
       'https://www.indiapost.gov.in/transactions','not a url',
       null, 'x'.repeat(2050)
