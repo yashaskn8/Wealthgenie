@@ -15,7 +15,7 @@ import {
   createRunwayLedgerSeal, verifyRunwayLedgerSeal,
   createRunwaySettlementSeal, verifyRunwaySettlementSeal,
 } from '../services/runwaySeal.js';
-import { simulateRunway } from '../services/runwayEngine.js';
+import { simulateRunway, RUNWAY_ENGINE_VERSION } from '../services/runwayEngine.js';
 import {
   buildRunwayMatchCandidates, prepareRunwaySettlement, runwayTransactionIdentity,
 } from '../services/runwayReconciliation.js';
@@ -164,6 +164,13 @@ export function createRunwayLiveRouter({
       throw fail(503, 'RUNWAY_ALERT_INTEGRITY_INVALID',
         'A persisted risk alert cannot be verified against the current signed ledger.');
     }
+    if (projection.engineVersion !== RUNWAY_ENGINE_VERSION) {
+      return res.json({
+        status: 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED', items: [],
+        engineVersion: projection.engineVersion,
+        warning: 'This saved warning was calculated with an older engine. Reconfirm today\'s cash in a new ledger revision to regenerate it.',
+      });
+    }
     const plain = decryptRunwayProjectionResult(projection);
     const shortfall = plain.scenarios?.[0]?.cashAlreadyAvailable?.firstCertainShortfall;
     if (!shortfall || !shortfall.date || !shortfall.deficitPaise) {
@@ -212,6 +219,13 @@ export function createRunwayLiveRouter({
       || result.inputHash !== current.revision.inputHash
       || !verifyRunwayProjectionResult(result)) {
       throw fail(503, 'RUNWAY_PROJECTION_INTEGRITY_INVALID', 'Projection result integrity failed.');
+    }
+    if (result.engineVersion !== RUNWAY_ENGINE_VERSION) {
+      return res.json({
+        status: 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED', revision: result.revision,
+        engineVersion: result.engineVersion,
+        warning: 'Saved projection is from an older calculation engine. Reconfirm cash in a new ledger revision before using a current forecast.',
+      });
     }
     return res.json({ status: 'DONE', revision: result.revision,
       engineVersion: result.engineVersion, computedAt: result.computedAt,
