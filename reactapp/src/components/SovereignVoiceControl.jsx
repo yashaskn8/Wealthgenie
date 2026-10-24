@@ -13,12 +13,12 @@ export default function SovereignVoiceControl({
   onNavigate, onTranscript, lastAnswer, sessionKey, disabled = false,
 }) {
   const [state, setState] = useState('idle');
+  const [spokenAnswer, setSpokenAnswer] = useState(null);
   const [status, setStatus] = useState('');
   const [showComparison, setShowComparison] = useState(false);
   const listeningRef = useRef(null);
   const requestRef = useRef(null);
   const utteranceRef = useRef(null);
-  const spokenAnswerRef = useRef(null);
   const generationRef = useRef(0);
   const callbacksRef = useRef({ onNavigate, onTranscript });
   const enabledRef = useRef(!disabled);
@@ -41,7 +41,6 @@ export default function SovereignVoiceControl({
     requestRef.current = null;
     if (utteranceRef.current) window.speechSynthesis?.cancel?.();
     utteranceRef.current = null;
-    spokenAnswerRef.current = null;
   }, []);
 
   useLayoutEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
@@ -54,6 +53,7 @@ export default function SovereignVoiceControl({
   const stop = () => {
     cancelAll();
     setState('idle');
+    setSpokenAnswer(null);
     setStatus('Voice operation stopped.');
   };
 
@@ -165,30 +165,35 @@ export default function SovereignVoiceControl({
     const utterance = new window.SpeechSynthesisUtterance(words);
     utterance.lang = 'en-IN';
     utterance.onend = () => {
-      if (generationRef.current === current) { utteranceRef.current = null; setState('idle'); }
+      if (generationRef.current === current) {
+        utteranceRef.current = null;
+        setSpokenAnswer(null);
+        setState('idle');
+      }
     };
     utterance.onerror = () => {
       if (generationRef.current === current) {
         utteranceRef.current = null;
+        setSpokenAnswer(null);
         setState('idle');
         setStatus('Spoken playback failed. Read the answer in chat.');
       }
     };
     utteranceRef.current = utterance;
-    spokenAnswerRef.current = lastAnswer;
+    setSpokenAnswer(lastAnswer);
     try {
       synth.speak(utterance);
       setState('speaking');
       setStatus('Reading the grounded answer shown in chat.');
     } catch {
       utteranceRef.current = null;
+      setSpokenAnswer(null);
       setState('idle');
       setStatus('Speech playback could not start.');
     }
   };
 
-  const activelySpeaking = state === 'speaking' && utteranceRef.current !== null &&
-    spokenAnswerRef.current === lastAnswer;
+  const activelySpeaking = state === 'speaking' && spokenAnswer === lastAnswer;
   return (
     <div className="sovereign-voice-control" aria-label="GenieVoice controls">
       <button type="button" disabled={disabled}
