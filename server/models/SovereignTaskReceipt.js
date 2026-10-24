@@ -10,8 +10,9 @@ const sovereignTaskReceiptSchema=new mongoose.Schema({
   _id:{type:String,required:true,immutable:true,match:/^[a-f0-9]{64}$/},
   userId:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,immutable:true},
   requestHash:{type:String,required:true,immutable:true,match:/^[a-f0-9]{64}$/},
-  status:{type:String,required:true,enum:['RUNNING','SUCCEEDED','FAILED','CANCELLED']},
+  status:{type:String,required:true,enum:['RUNNING','SUCCEEDED','FAILED','CANCELLED','OUTCOME_UNKNOWN']},
   resultHash:{type:String,default:null,match:/^[a-f0-9]{64}$/},
+  leaseExpiresAt:{type:Date,required:true},
   createdAt:{type:Date,default:Date.now,required:true},
   completedAt:{type:Date,default:null},
   expiresAt:{type:Date,required:true}
