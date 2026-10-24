@@ -53,8 +53,8 @@ describe('Sovereign opt-in durable preview receipts',()=>{
     assert.match(out.receipt.resultHash,/^[a-f0-9]{64}$/);
     const saved=repository.rows.get(out.receipt.id);
     assert.deepEqual(Object.keys(saved).sort(),[
-      '_id','completedAt','createdAt','expiresAt','requestHash',
-      'leaseExpiresAt','resultHash','status','userId'
+      '_id','completedAt','createdAt','expiresAt','leaseExpiresAt',
+      'requestHash','resultHash','status','userId'
     ]);
     assert.equal(JSON.stringify(saved).includes('monthlyInvestment'),false);
   });
