@@ -26,7 +26,9 @@ const comparisonLimiter=()=>createEndpointRateLimiter({
 const compareSchema=Joi.object({
   monthlyInvestment: Joi.number().integer().min(100).max(10000000).required(),
   years: Joi.number().integer().min(1).max(30).required(),
-  annualReturnAssumptionsPct: Joi.array().items(Joi.number().min(0.1).max(30).precision(3))
+  // Strict numeric validation prevents Joi's default conversion/rounding of
+  // user-approved percentages (e.g. 7.12345 must not become 7.123).
+  annualReturnAssumptionsPct: Joi.array().items(Joi.number().strict().min(0.1).max(30).precision(3))
     .length(2).unique().required(),
 }).unknown(false);
 

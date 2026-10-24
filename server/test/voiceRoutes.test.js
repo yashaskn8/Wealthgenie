@@ -133,6 +133,8 @@ describe('GenieVoice protected route',()=>{
         {...body,operation:'buyMutualFund'}, {...body,annualReturnAssumptionsPct:[7,7]},
         {...body,annualReturnAssumptionsPct:[-1,10]},{...body,years:50},
         {...body,monthlyInvestment:5000.25},
+        {...body,annualReturnAssumptionsPct:[7.12345,10]},
+        {...body,annualReturnAssumptionsPct:['7',10]},
       ]) {
         const r=await rawRequest(base+'/api/voice/sip-compare',{
           method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token()},
