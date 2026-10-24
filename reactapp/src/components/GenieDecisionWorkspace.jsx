@@ -142,6 +142,8 @@ export default function GenieDecisionWorkspace() {
   const createRequestRef = useRef(null);
   const evaluationRequestRef = useRef(null);
   const [savedFingerprint, setSavedFingerprint] = useState(null);
+  // Another tab may supersede the revision while this editor stays mounted.
+  const [remoteRevisionStale, setRemoteRevisionStale] = useState(false);
   const [pending, setPending] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
@@ -171,7 +173,21 @@ export default function GenieDecisionWorkspace() {
     ]);
     if (signal?.aborted || startedAtAuthRevision !== getAuthSnapshot()) return;
     if (historyResult.status === 'fulfilled') {
-      setHistory(historyResult.value.scenarios || []);
+      const scenarios = historyResult.value.scenarios || [];
+      setHistory(scenarios);
+      const selected = activeRef.current;
+      const latest = selected && scenarios.find(item => item.id === selected.id);
+      if (selected && (!latest || latest.revision !== selected.revision)) {
+        // Recovery after missed SSE events must not leave a stale editable
+        // revision or unsaved calculation masquerading as current.
+        setRemoteRevisionStale(true);
+        setDraftPreview(null);
+        setPreviewState('waiting');
+        setReport(previous => previous?.run
+          ? { ...previous, run: { ...previous.run, status: 'HISTORICAL' } }
+          : previous);
+        setLiveNotice('This scenario was changed or removed in another session. Reopen it before editing or evaluating.');
+      }
     }
     if (availabilityResult.status === 'fulfilled') {
       setAvailability(availabilityResult.value);
@@ -220,6 +236,7 @@ export default function GenieDecisionWorkspace() {
       setDetails({});
       setGoalReservations([]);
       setSavedFingerprint(null);
+      setRemoteRevisionStale(false);
       setError('');
       setSuccess('');
       setLiveNotice('');
@@ -269,13 +286,31 @@ export default function GenieDecisionWorkspace() {
         // Never rewrite a form being edited. Notify the user to re-open a
         // changed scenario rather than silently destroying uncommitted input.
         if (event.type === 'profile-changed') {
+          // Fail closed immediately, even when the subsequent refresh fails.
+          setAvailability(null);
+          setDraftPreview(null);
+          setPreviewState('waiting');
           setLiveNotice('Your financial profile changed. Review current inputs before evaluating again.');
           setReport(previous => previous
             ? { ...previous, run: { ...previous.run, status: 'HISTORICAL' } }
             : previous);
         } else if (event.type === 'reset') {
-          setLiveNotice('Updates were missed while disconnected. Financial state has been refreshed; reopen any active scenario.');
+          if (activeRef.current) setRemoteRevisionStale(true);
+          setDraftPreview(null);
+          setPreviewState('waiting');
+          setReport(previous => previous?.run
+            ? { ...previous, run: { ...previous.run, status: 'HISTORICAL' } }
+            : previous);
+          setLiveNotice('Updates were missed while disconnected. Reopen any active scenario before editing or evaluating.');
         } else if (event.scenarioId === activeRef.current?.id) {
+          if (event.type === 'SCENARIO_UPDATED' || event.type === 'SCENARIO_DELETED') {
+            setRemoteRevisionStale(true);
+            setDraftPreview(null);
+            setPreviewState('waiting');
+            setReport(previous => previous?.run
+              ? { ...previous, run: { ...previous.run, status: 'HISTORICAL' } }
+              : previous);
+          }
           setLiveNotice('A committed change is available for this scenario. Review the latest monitoring status or reopen the revision.');
           getDecisionMonitor(event.scenarioId, { signal: controller.signal })
             .then(result => {
@@ -315,6 +350,7 @@ export default function GenieDecisionWorkspace() {
     setSelectedAssessment(null);
     setRuns([]);
     setSavedFingerprint(null);
+    setRemoteRevisionStale(false);
     setError('');
     setSuccess('');
   };
@@ -332,6 +368,7 @@ export default function GenieDecisionWorkspace() {
       setMonitor(watching.monitor);
       setAssessments(watching.assessments || []);
       setActive(saved.scenario);
+      setRemoteRevisionStale(false);
       setType(saved.scenario.scenarioType);
       setTitle(saved.payload.title);
       setHorizon(String(saved.payload.horizonMonths));
@@ -430,6 +467,7 @@ export default function GenieDecisionWorkspace() {
     setPending(true); setError(''); setSuccess('');
     try {
       if (!availability?.available || !availability?.profileId) throw new Error('Complete and refresh your financial profile first.');
+      if (active && remoteRevisionStale) throw new Error('Reopen this scenario to load its latest revision before saving.');
       const values = payload();
       let result;
       if (active) {
@@ -450,6 +488,7 @@ export default function GenieDecisionWorkspace() {
       createRequestRef.current = null;
       evaluationRequestRef.current = null;
       setActive(result.scenario);
+      setRemoteRevisionStale(false);
       setSavedFingerprint(JSON.stringify({
         title: values.title, type: values.scenarioType,
         horizon: String(values.horizonMonths), baseline: values.baseline,
@@ -469,8 +508,8 @@ export default function GenieDecisionWorkspace() {
   const evaluate = async () => {
     if (!active) return;
     const operationAuthRevision = getAuthSnapshot();
-    if (hasUnsavedChanges) {
-      setError('Save your latest changes before evaluating this revision.');
+    if (hasUnsavedChanges || remoteRevisionStale || !availability?.available) {
+      setError('Refresh the current profile and reopen the latest saved revision before evaluating.');
       return;
     }
     setPending(true); setError(''); setSuccess('');
@@ -501,7 +540,7 @@ export default function GenieDecisionWorkspace() {
   };
 
   const toggleMonitoring = async () => {
-    if (!active || !monitor || pending || hasUnsavedChanges) return;
+    if (!active || !monitor || pending || hasUnsavedChanges || remoteRevisionStale) return;
     const operationAuthRevision = getAuthSnapshot();
     setPending(true); setError(''); setSuccess('');
     try {
@@ -519,7 +558,7 @@ export default function GenieDecisionWorkspace() {
   };
 
   const remove = async () => {
-    if (!active || !window.confirm('Permanently delete this scenario and all of its decision reports?')) return;
+    if (!active || remoteRevisionStale || !window.confirm('Permanently delete this scenario and all of its decision reports?')) return;
     const operationAuthRevision = getAuthSnapshot();
     setPending(true); setError('');
     try {
@@ -545,6 +584,7 @@ export default function GenieDecisionWorkspace() {
     {error && <p className="gd-warning" role="alert">{error}</p>}
     {success && <p className="gd-success" role="status">{success}</p>}
     {liveNotice && <p className="gd-warning" role="status">{liveNotice}</p>}
+    {remoteRevisionStale && <p className="gd-warning" role="alert">This saved scenario is not the latest known revision. Reopen it before changing or evaluating financial assumptions.</p>}
     {availability && !availability.available && <p className="gd-warning" role="alert">
       A current financial profile is required. Complete your profile before saving a decision.
     </p>}
@@ -617,11 +657,11 @@ export default function GenieDecisionWorkspace() {
           {hasUnsavedChanges && <p className="gd-warning" role="status">
             Unsaved changes detected. Save this revision before evaluating.
           </p>}
-          <div className="gd-actions"><button type="submit" disabled={pending || !availability?.available}>
+          <div className="gd-actions"><button type="submit" disabled={pending || !availability?.available || remoteRevisionStale}>
             {pending ? 'Working…' : active ? 'Save revision' : 'Save draft'}</button>
             {active && <button type="button" onClick={() => void evaluate()}
-              disabled={pending || hasUnsavedChanges}>Evaluate saved revision</button>}
-            {active && <button type="button" className="gd-danger" onClick={() => void remove()} disabled={pending}>Delete scenario</button>}
+              disabled={pending || hasUnsavedChanges || remoteRevisionStale || !availability?.available}>Evaluate saved revision</button>}
+            {active && <button type="button" className="gd-danger" onClick={() => void remove()} disabled={pending || remoteRevisionStale}>Delete scenario</button>}
           </div>
         </form>
         {active && <section className="gd-panel" aria-label="Continuous decision monitoring">
@@ -630,7 +670,7 @@ export default function GenieDecisionWorkspace() {
           {monitor ? <>
             <p role="status">Monitor: {monitor.enabled ? 'Enabled' : 'Disabled'}
               {monitor.workerConfigured ? '' : ' · Background worker not configured on this deployment'}</p>
-            <button type="button" disabled={pending || hasUnsavedChanges || (!monitor.workerConfigured && !monitor.enabled)}
+            <button type="button" disabled={pending || hasUnsavedChanges || remoteRevisionStale || (!monitor.workerConfigured && !monitor.enabled)}
               onClick={() => void toggleMonitoring()}>
               {monitor.enabled ? 'Disable monitoring' : 'Enable monitoring'}
             </button>
