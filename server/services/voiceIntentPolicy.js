@@ -22,8 +22,12 @@ const EXTERNAL_RE=/\b(?:browser|chrome|firefox|tab|website|google|youtube|gmail|
 const ROUTES=new Map(Object.entries(TARGETS).flatMap(([page,aliases])=>aliases.map(alias=>[alias,page])));
 export function classifyVoiceIntent(raw) {
   if(typeof raw!=='string'||raw.length===0||raw.length>1000)return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
+  // Validate raw ASR bytes BEFORE whitespace normalization: otherwise LF,
+  // CR and TAB can disappear and smuggle a multiline transcript into an
+  // authorized single navigation instruction.
+  if(/\p{Cc}/u.test(raw))return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
   const input=raw.trim().replace(/\s+/g,' ');
-  if(!input||/[\u0000-\u001f\u007f]/.test(input))return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
+  if(!input)return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
   if(UNSAFE_RE.test(input))return {action:'REJECTED',reason:'ACTION_NOT_ALLOWED'};
   if(OPEN_COMPARISON_RE.test(input))return {action:'OPEN_SIP_COMPARISON',version:VOICE_INTENT_VERSION};
   const matched=NAV_RE.exec(input);
