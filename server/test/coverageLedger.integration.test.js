@@ -159,6 +159,28 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
       }
     }
 
+    // A retired calculation policy must not manufacture a "shortfall resolved"
+    // event simply because its historical definition differed from this one.
+    const policyOwner = new mongoose.Types.ObjectId();
+    await User.create(makeUser(policyOwner));
+    const priorPolicyWrite = await call(policyOwner, 'PUT', '/ledger', payload(), 0, randomUUID());
+    assert.equal(priorPolicyWrite.status, 200);
+    await CoverageResult.collection.updateOne({
+      userId: policyOwner, ledgerRevision: 1,
+    }, { $set: {
+      policyVersion: 'retired-cash-policy-v0',
+      'calculation.status': 'SHORTFALL_IN_ENTERED_PLAN',
+      'calculation.baseline.minWithinDayPaise': -10,
+      'calculation.baseline.earliestShortfall': {
+        date: indiaToday(), lowestBalancePaise: -10, dueOutflowEntryIds: ['rent'],
+      },
+    } });
+    const newPolicyWrite = await call(policyOwner, 'PUT', '/ledger', payload(), 1, randomUUID());
+    assert.equal(newPolicyWrite.status, 200);
+    assert.equal(newPolicyWrite.body.result.status, 'NO_SHORTFALL_IN_ENTERED_PLAN');
+    assert.equal(await CoverageRiskAlert.countDocuments({ userId: policyOwner }), 0,
+      'a retired-policy shortfall cannot trigger a false resolution event');
+
     // Real browser cookie-session mutations require double-submit CSRF AND
     // a production-allowlisted Origin. Bearer clients are tested separately.
     const cookie = 'wg_session=' + ownerToken(owner) + '; wg_csrf=csrf-test-token';

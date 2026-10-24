@@ -218,7 +218,10 @@ router.put(
         await CoverageRiskAlert.updateMany({ userId, state: 'UNREAD' },
           { $set: { state: 'SUPERSEDED' } }, { session });
         const event = evaluateCashRiskEvent({
-          userId, revision, input, result: calculation, priorResult: previous?.calculation || null,
+          userId, revision, input, result: calculation,
+          // Retired calculation policies are not comparable risk baselines.
+          priorResult: previous?.policyVersion === COVERAGE_POLICY_VERSION
+            ? previous.calculation : null,
         });
         if (event) await CoverageRiskAlert.create([event], { session });
         await completeMutationIdempotency(session, req.idempotencyClaim, {
@@ -337,7 +340,9 @@ router.post('/commitments/:entryId/settle',
         await CoverageRiskAlert.updateMany({ userId, state: 'UNREAD' },
           { $set: { state: 'SUPERSEDED' } }, { session });
         const nextEvent = evaluateCashRiskEvent({
-          userId, revision, input, result: calculation, priorResult: prior.calculation,
+          userId, revision, input, result: calculation,
+          priorResult: prior.policyVersion === COVERAGE_POLICY_VERSION
+            ? prior.calculation : null,
         });
         if (nextEvent) await CoverageRiskAlert.create([nextEvent], { session });
         await completeMutationIdempotency(session, req.idempotencyClaim, {
