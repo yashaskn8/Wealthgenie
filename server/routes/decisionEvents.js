@@ -34,6 +34,12 @@ function invalidCursor(err) {
   return err?.code === 'INVALID_DECISION_EVENT_CURSOR';
 }
 
+export function shouldRecheckDecisionStreamAuthorization(page, nowMs, nextCheckMs) {
+  // A newly revoked session must not receive queued financial event metadata
+  // simply because the ten-second idle heartbeat check has not fired yet.
+  return nowMs >= nextCheckMs || Boolean(page.resetRequired || page.events.length);
+}
+
 export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFinancialProfile } = {}) {
   const router = Router();
   router.use(noStore, verifyJWT);
@@ -118,6 +124,21 @@ export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFina
     let nextAuthenticationCheck = Date.now() + 10000;
     try {
       while (!closed && Date.now() < deadline) {
+        // Authorize BEFORE replay/reset frames, not after. A revoked account
+        // may otherwise receive up to a full polling interval of private
+        // scenario identifiers and event types.
+        const clockNow = Date.now();
+        const recheck = shouldRecheckDecisionStreamAuthorization(
+          page, clockNow, nextAuthenticationCheck,
+        );
+        if ((req.user.exp && clockNow / 1000 >= req.user.exp)
+            || (recheck && (
+              !await User.exists({ _id: req.user.userId })
+              || (req.user.jti && await isTokenBlacklisted(req.user.jti))))) {
+          send('unavailable', { retry: false, reason: 'SESSION_NO_LONGER_VALID' });
+          break;
+        }
+        if (recheck) nextAuthenticationCheck = Date.now() + 10000;
         if (page.resetRequired) {
           cursor = page.latestSequence;
           if (!send('reset', { reason: 'CURSOR_EXPIRED_OR_INVALID', latestSequence: cursor })) break;
@@ -129,16 +150,6 @@ export function createDecisionEventsRouter({ resolveProfile = resolveCurrentFina
           }
         }
         if (closed) break;
-        if ((req.user.exp && Date.now() / 1000 >= req.user.exp)
-            || (Date.now() >= nextAuthenticationCheck && (
-              !await User.exists({ _id: req.user.userId })
-              || (req.user.jti && await isTokenBlacklisted(req.user.jti))))) {
-          send('unavailable', { retry: false, reason: 'SESSION_NO_LONGER_VALID' });
-          break;
-        }
-        if (Date.now() >= nextAuthenticationCheck) {
-          nextAuthenticationCheck = Date.now() + 10000;
-        }
         if (Date.now() >= nextProfileCheck) {
           const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
           const next = sourceStateFingerprint(current);
