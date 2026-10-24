@@ -121,7 +121,7 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
       const text = await csvFile.text();
       const imported = await api.importRunwayStatement(accountLabel, text);
       setMessage(imported.replayed ? 'That evidence was already imported; no duplicate was created.'
-        : 'Statement imported. Transaction balances passed arithmetic checks; the opening balance was inferred, not independently bank-verified.');
+        : 'Statement imported. Running balances passed arithmetic checks; the opening balance was inferred, not bank-verified.');
       setCsvFile(null);
       try { await reload(); } catch {
         setOverview(null); setObservations(null); setRiskAlerts(null); setImports([]);
