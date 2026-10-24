@@ -78,6 +78,42 @@ describe('Sovereign SIP comparison',()=>{
     expect(screen.getByRole('alert')).toHaveTextContent(/Unverified comparison/);
     expect(screen.queryByText(/₹8,50,000/)).not.toBeInTheDocument();
   });
+  it('previews a user-reviewed Goals + SIP workflow without automatic navigation',async()=>{
+    const comparison=verifiedResponse();
+    const preview= {
+      version:'sovereign-task-preview-v1',
+      classification:'READ_ONLY_USER_REVIEWED_PREVIEW',
+      persisted:false,navigationApplied:false,financialStateModified:false,
+      steps:[
+        {id:'goals',kind:'NAVIGATION_PROPOSAL',status:'PREVIEWED',
+          page:'goals',tab:null,applied:false},
+        {id:'compare',kind:'FINANCIAL_COMPARISON',status:'VERIFIED',comparison}
+      ]
+    };
+    const call=vi.spyOn(api,'previewSovereignTask').mockResolvedValue(preview);
+    render(<SovereignSipComparison/>);fill();
+    fireEvent.click(screen.getByRole('checkbox',{name:'Include Goals navigation proposal'}));
+    await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Run SIP comparison'}));});
+    expect(call).toHaveBeenCalledWith(expect.objectContaining({
+      version:'sovereign-task-plan-v1',steps:expect.arrayContaining([
+        expect.objectContaining({id:'goals',operation:'APP_NAVIGATE'}),
+        expect.objectContaining({id:'compare',operation:'SIP_COMPARE_DRAFT'})
+      ])
+    }),expect.objectContaining({signal:expect.anything()}));
+    expect(screen.getByText(/proposed, not opened/)).toBeInTheDocument();
+    expect(screen.getByText(/₹9,50,000/)).toBeInTheDocument();
+  });
+  it('refuses a forged multi-step preview or a claimed applied navigation',async()=>{
+    vi.spyOn(api,'previewSovereignTask').mockResolvedValue({
+      version:'sovereign-task-preview-v1',classification:'READ_ONLY_USER_REVIEWED_PREVIEW',
+      persisted:false,navigationApplied:true,financialStateModified:false,steps:[]
+    });
+    render(<SovereignSipComparison/>);fill();
+    fireEvent.click(screen.getByRole('checkbox',{name:'Include Goals navigation proposal'}));
+    await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Run SIP comparison'}));});
+    expect(screen.getByRole('alert')).toHaveTextContent(/Unverified task preview/);
+    expect(screen.queryByText(/₹9,50,000/)).not.toBeInTheDocument();
+  });
   it('aborts the in-flight comparison immediately on teardown',async()=>{
     let resolveRequest;
     const request=vi.spyOn(api,'compareVoiceSipScenarios').mockImplementation(

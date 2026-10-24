@@ -8,6 +8,8 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
   const [years,setYears]=useState('');
   const [first,setFirst]=useState('');
   const [second,setSecond]=useState('');
+  const [includeGoals,setIncludeGoals]=useState(false);
+  const [previewedGoals,setPreviewedGoals]=useState(false);
   const [loading,setLoading]=useState(false);
   const [result,setResult]=useState(null);
   const [error,setError]=useState('');
@@ -20,6 +22,7 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
     active.current=null;
     setLoading(false);
     setResult(null);
+    setPreviewedGoals(false);
     setError('');
   };
   useLayoutEffect(()=>()=>{generation.current+=1;active.current?.abort();},[]);
@@ -45,22 +48,51 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
     const controller=new AbortController();
     const id=++generation.current;
     active.current=controller;
-    setLoading(true);setError('');setResult(null);
+    setLoading(true);setError('');setResult(null);setPreviewedGoals(false);
+    const scenarioInput={
+      monthlyInvestment:Number(monthly),
+      years:Number(years),
+      annualReturnAssumptionsPct:[Number(first),Number(second)]
+    };
     try {
-      const response=await api.compareVoiceSipScenarios({
-        monthlyInvestment:Number(monthly),
-        years:Number(years),
-        annualReturnAssumptionsPct:[Number(first),Number(second)]
-      },{signal:controller.signal});
+      const response=includeGoals
+        ? await api.previewSovereignTask({
+          version:'sovereign-task-plan-v1',
+          steps:[
+            {id:'goals',operation:'APP_NAVIGATE',arguments:{page:'goals',tab:null},dependsOn:[]},
+            {id:'compare',operation:'SIP_COMPARE_DRAFT',arguments:scenarioInput,dependsOn:['goals']}
+          ]
+        },{signal:controller.signal})
+        : await api.compareVoiceSipScenarios(scenarioInput,{signal:controller.signal});
       if(id!==generation.current||controller.signal.aborted||disabled)return;
+      let comparison=response;
+      if(includeGoals) {
+        const steps=response?.steps;
+        const proposed=steps?.[0];
+        const calculated=steps?.[1];
+        if(response?.version!=='sovereign-task-preview-v1' ||
+           response.classification!=='READ_ONLY_USER_REVIEWED_PREVIEW' ||
+           response.persisted!==false ||
+           response.navigationApplied!==false || response.financialStateModified!==false ||
+           !Array.isArray(steps) || steps.length!==2 ||
+           proposed?.id!=='goals' || proposed.kind!=='NAVIGATION_PROPOSAL' ||
+           proposed.status!=='PREVIEWED' || proposed.page!=='goals' ||
+           proposed.tab!==null || proposed.applied!==false ||
+           calculated?.id!=='compare' || calculated.kind!=='FINANCIAL_COMPARISON' ||
+           calculated.status!=='VERIFIED') {
+          setError('Unverified task preview; no results were displayed.');
+          return;
+        }
+        comparison=calculated.comparison;
+      }
       const expectedInvested=Number(monthly)*Number(years)*12;
       const expectedRates=[Number(first),Number(second)];
-      if(response?.version!=='sovereign-voice-sip-compare-v1' ||
-         response.classification!=='UNSAVED_WHAT_IF_SIMULATION' ||
-         response.persisted!==false ||
-         typeof response.note!=='string' || !response.note.includes('hypothetical') ||
-         !Array.isArray(response.scenarios) || response.scenarios.length!==2 ||
-         response.scenarios.some((s,i)=>s?.returnBasis!=='USER_SUPPLIED_NOMINAL_ASSUMPTION' ||
+      if(comparison?.version!=='sovereign-voice-sip-compare-v1' ||
+         comparison.classification!=='UNSAVED_WHAT_IF_SIMULATION' ||
+         comparison.persisted!==false ||
+         typeof comparison.note!=='string' || !comparison.note.includes('hypothetical') ||
+         !Array.isArray(comparison.scenarios) || comparison.scenarios.length!==2 ||
+         comparison.scenarios.some((s,i)=>s?.returnBasis!=='USER_SUPPLIED_NOMINAL_ASSUMPTION' ||
            s.classification!=='NON_RECOMMENDATION_PROFILE_CONSTRAINED_WHAT_IF' ||
            s.monthlyInvestment!==Number(monthly) || s.years!==Number(years) ||
            !Number.isFinite(s.assumedAnnualReturnPct) ||
@@ -69,13 +101,14 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
            !Number.isSafeInteger(s.totalReturns) || s.futureValue<0 ||
            s.totalInvested!==expectedInvested ||
            s.totalReturns!==s.futureValue-s.totalInvested) ||
-         !Number.isSafeInteger(response.differences?.futureValue) ||
-         response.differences.futureValue!==response.scenarios[1].futureValue-response.scenarios[0].futureValue ||
-         response.differences.invested!==0) {
+         !Number.isSafeInteger(comparison.differences?.futureValue) ||
+         comparison.differences.futureValue!==comparison.scenarios[1].futureValue-comparison.scenarios[0].futureValue ||
+         comparison.differences.invested!==0) {
         setError('Unverified comparison response; results were not displayed.');
         return;
       }
-      setResult(response);
+      setResult(comparison);
+      setPreviewedGoals(includeGoals);
     } catch {
       if(id===generation.current&&!controller.signal.aborted)
         setError('Comparison unavailable. Check your profile and inputs, then retry.');
@@ -105,6 +138,12 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
           <input aria-label="Second annual return assumption" type="number" min="0.1" max="30" step="0.001"
             value={second} onChange={e=>{invalidateDraft();setSecond(e.target.value);}} disabled={disabled||loading} />
         </label>
+        <label className="sovereign-task-preview-option">
+          <input type="checkbox" checked={includeGoals} disabled={disabled||loading}
+            onChange={e=>{invalidateDraft();setIncludeGoals(e.target.checked);}}
+            aria-label="Include Goals navigation proposal" />
+          Also preview opening Goals (no navigation, no changes)
+        </label>
         <button type="submit" disabled={disabled||loading||!hasInputs} aria-label="Run SIP comparison">
           {loading?'Comparing…':'Run SIP comparison'}
         </button>
@@ -113,6 +152,7 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
       {error&&<p role="alert">{error}</p>}
       {!disabled&&result&&(
         <div role="status">
+          {previewedGoals&&<p>Goals page: proposed, not opened. The task did not save or modify anything.</p>}
           <p>{result.note}</p>
           <table>
             <caption>Verified deterministic, nominal, hypothetical SIP projections</caption>

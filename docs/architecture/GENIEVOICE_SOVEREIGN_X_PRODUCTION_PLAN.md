@@ -80,3 +80,12 @@ bounded to 12 seconds with cancellation fencing, and controlled by the
 existing GENIEVOICE_TASKS_ENABLED kill switch. No model or browser executor is
 connected; no financial state is modified, and no persistent ledger exists.
 This remains a preview foundation, not production-ready automation.
+
+## Reviewed Goals + SIP UI preview
+The SIP comparison component offers an optional, unchecked-by-default
+`Include Goals navigation proposal` control. When selected, the user reviews
+the numeric inputs and submits a two-step bounded task plan to
+`/api/voice/task-preview`. The UI checks typed receipts, verifies returned
+monetary fields against the submitted assumptions, and clearly labels the
+Goals action **proposed, not opened**. No autonomous navigation, browser
+control or financial writes are enabled.

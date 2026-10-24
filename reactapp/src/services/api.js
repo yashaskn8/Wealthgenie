@@ -812,6 +812,11 @@ export async function compareVoiceSipScenarios(input, options = {}) {
   return request('POST', '/voice/sip-compare', input, { retries: 0, ...options });
 }
 
+/** Preview only: returns navigation proposals, never executes any app/browser action. */
+export async function previewSovereignTask(plan, options = {}) {
+  return request('POST', '/voice/task-preview', { plan }, { retries: 0, ...options });
+}
+
 export async function getPlanHealth(profileId, options = {}) {
   if (!profileId) throw new TypeError('A profile ID is required.');
   return request('GET', `/agent/plan-health?profileId=${encodeURIComponent(profileId)}`, null, options);
