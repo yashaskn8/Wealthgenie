@@ -1260,7 +1260,15 @@ export async function subscribeDecisionEvents({ signal, onEvent, onStatus } = {}
             if (['decision', 'reset', 'profile-changed'].includes(fields.event)) {
               onEvent?.({ type: fields.event, ...payload });
             }
-            if (fields.event === 'unavailable') throw new Error('Live decision stream disconnected.');
+            if (fields.event === 'unavailable') {
+              if (payload?.retry === false) {
+                // Revoked/expired sessions are terminal: never reconnect using
+                // cached credentials or continue exposing owner event data.
+                onStatus?.('unauthorized');
+                return;
+              }
+              throw new Error('Live decision stream disconnected.');
+            }
           }
         }
       } finally {
