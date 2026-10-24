@@ -1,24 +1,29 @@
 import {describe,it} from 'node:test';
 import assert from 'node:assert/strict';
 import {compareVoiceSipScenarios} from '../services/voiceSipComparison.js';
+import {sipFV} from '../services/projectionEngine.js';
 const input={monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:[7,10]};
 const profile={_id:'64b000000000000000000001',version:1,financialStateFence:4};
 const state={currentProfileId:profile._id,revision:5,promotionFence:3,resolutionStatus:'CURRENT'};
 const authority=()=>({profile:{...profile},state:{...state}});
-const financialRegistry={executeTool:async(name,args)=>({
-  success:true,result:{
+const financialRegistry={executeTool:async(name,args)=>{
+  const totalInvested=args.monthlyInvestment*args.years*12;
+  const futureValue=Math.round(sipFV(args.monthlyInvestment,args.annualRate,args.years));
+  return {success:true,result:{
     monthlyInvestment:args.monthlyInvestment,years:args.years,
-    annualRatePct:args.annualRate*100,totalInvested:600000,
-    futureValue:args.annualRate<.08?850000:950000,totalReturns:args.annualRate<.08?250000:350000,
+    annualRatePct:args.annualRate*100,totalInvested,futureValue,
+    totalReturns:futureValue-totalInvested,
     classification:'NON_RECOMMENDATION_PROFILE_CONSTRAINED_WHAT_IF',
     returnBasis:'USER_SUPPLIED_NOMINAL_ASSUMPTION'
-  }})};
+  }};
+}};
 describe('Sovereign voice SIP comparison integrity',()=>{
   it('creates read-only attributable scenarios and rechecks profile',async()=>{
     const x=await compareVoiceSipScenarios({userId:'u',input,resolveProfile:async()=>authority(),financialRegistry});
     assert.equal(x.persisted,false);
     assert.equal(x.scenarios.length,2);
-    assert.equal(x.differences.futureValue,100000);
+    assert.equal(x.differences.futureValue,
+      Math.round(sipFV(5000,.10,10))-Math.round(sipFV(5000,.07,10)));
     assert.equal(x.scenarios[0].returnBasis,'USER_SUPPLIED_NOMINAL_ASSUMPTION');
   });
   it('fails closed on direct-service bypass of HTTP numeric schemas',async()=>{
@@ -72,6 +77,18 @@ describe('Sovereign voice SIP comparison integrity',()=>{
         const x=authority(); x.profile.monthlySavings=calls===1?15000:2000;return x;
       },financialRegistry
     }),{code:'VOICE_FINANCIAL_SNAPSHOT_CHANGED'});
+  });
+  it('blocks fabricated but self-consistent projection values',async()=>{
+    const fake={executeTool:async(name,args)=>{
+      const canonical=(await financialRegistry.executeTool(name,args)).result;
+      return {success:true,result:{
+        ...canonical,futureValue:canonical.futureValue+100000,
+        totalReturns:canonical.totalReturns+100000
+      }};
+    }};
+    await assert.rejects(()=>compareVoiceSipScenarios({
+      userId:'u',input,resolveProfile:async()=>authority(),financialRegistry:fake
+    }),{code:'VOICE_SIP_ENGINE_MISMATCH'});
   });
   it('refuses denied engine calls and profile constraints',async()=>{
     await assert.rejects(()=>compareVoiceSipScenarios({

@@ -1,5 +1,24 @@
 import { createError } from '../middleware/errorHandler.js';
 
+ /**
+  * Independent iterative annuity-due reference implementation.
+  * Deliberately does not import the canonical SIP engine or trust its output.
+  * Each contribution is made at the start of the month.
+  */
+function independentlyProjectedSipValue(monthlyInvestment, annualRate, years) {
+  const monthlyRate=annualRate / 12;
+  let balance=0;
+  for(let month=0;month<years*12;month++) {
+    balance=(balance+monthlyInvestment)*(1+monthlyRate);
+    if(!Number.isFinite(balance)||balance>Number.MAX_SAFE_INTEGER/100) {
+      throw createError(422,'The projection exceeds supported monetary precision.',
+        'This scenario is outside the supported calculation range.',
+        {code:'VOICE_SIP_PRECISION_EXCEEDED'});
+    }
+  }
+  return Math.round(balance);
+}
+
 /**
  * Read-only SIP scenario comparison. No LLM / browser / persistence access.
  * All projected results are the existing deterministic financial engine output.
@@ -63,7 +82,10 @@ export async function compareVoiceSipScenarios({
       monthlyInvestment!==args.monthlyInvestment || years!==args.years ||
       totalInvested!==args.monthlyInvestment*args.years*12 ||
       Math.abs(annualRatePct-pct)>1e-7 ||
-      totalReturns!==futureValue-totalInvested) {
+      totalReturns!==futureValue-totalInvested ||
+      Math.abs(futureValue-independentlyProjectedSipValue(
+        args.monthlyInvestment,pct/100,args.years
+      ))>Math.max(2,Math.round(futureValue*1e-10))) {
       throw createError(503,'The financial tool returned an inconsistent result.',
         'The comparison could not be verified. No result was published.',
         {code:'VOICE_SIP_ENGINE_MISMATCH'});

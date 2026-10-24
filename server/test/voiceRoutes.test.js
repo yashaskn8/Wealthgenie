@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import { createVoiceRouter } from '../routes/voiceRoutes.js';
+import {sipFV} from '../services/projectionEngine.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
 
@@ -20,16 +21,17 @@ function fakeResolver() {
   }});
 }
 function fakeRegistry() {
-  return {executeTool:async(_name,args)=>({
-    success:true,result:{
+  return {executeTool:async(_name,args)=>{
+    const totalInvested=args.monthlyInvestment*args.years*12;
+    const futureValue=Math.round(sipFV(args.monthlyInvestment,args.annualRate,args.years));
+    return {success:true,result:{
       monthlyInvestment:args.monthlyInvestment,years:args.years,
-      annualRatePct:args.annualRate*100,
-      totalInvested:600000,futureValue:args.annualRate<0.08?850000:950000,
-      totalReturns:args.annualRate<0.08?250000:350000,
+      annualRatePct:args.annualRate*100,totalInvested,futureValue,
+      totalReturns:futureValue-totalInvested,
       classification:'NON_RECOMMENDATION_PROFILE_CONSTRAINED_WHAT_IF',
       returnBasis:'USER_SUPPLIED_NOMINAL_ASSUMPTION'
-    }
-  })};
+    }};
+  }};
 }
 function buildApp(enabled=true, options={}) {
   const app=express();
@@ -115,7 +117,8 @@ describe('GenieVoice protected route',()=>{
       assert.equal(result.persisted,false);
       assert.equal(result.classification,'UNSAVED_WHAT_IF_SIMULATION');
       assert.equal(result.scenarios.length,2);
-      assert.equal(result.differences.futureValue,100000);
+      assert.equal(result.differences.futureValue,
+        Math.round(sipFV(5000,.10,10))-Math.round(sipFV(5000,.07,10)));
       assert.match(result.note,/hypothetical annual returns/i);
     });
   });
