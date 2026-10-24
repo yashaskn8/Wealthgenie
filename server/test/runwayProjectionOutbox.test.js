@@ -33,7 +33,7 @@ test('projection jobs have deterministic owner-scoped identity', () => {
 test('worker projection uses only the sealed deterministic financial ledger', () => {
   const source = signedLedger();
   const result = calculateRunwayProjection(source);
-  assert.equal(result.engineVersion, 'runway-cashflow-1.2.0');
+  assert.equal(result.engineVersion, 'runway-cashflow-1.2.1');
   assert.equal(result.scenarios[0].cashAlreadyAvailable.endBalancePaise, '2000000');
   assert.deepEqual(result, calculateRunwayProjection(source));
 });
