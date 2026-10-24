@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Trash2, Sparkles, RefreshCw, Scale, Coins, Percent, Target, ArrowLeft, ExternalLink, Mic, MicOff, ChevronRight, TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
+import SovereignVoiceControl from './SovereignVoiceControl';
 import './GenieChat.css';
 import * as api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
@@ -153,6 +154,7 @@ function mapStoredChatMessages(messages) {
     timestamp: message.timestamp || new Date().toISOString(),
     latency_ms: message.metadata?.latency_ms,
     grounded: message.metadata?.grounded_on_profile,
+    validation_status: message.metadata?.validation_status || null,
     provider: message.metadata?.provider,
     model: message.metadata?.model,
     grounding_version: message.metadata?.grounding_version,
@@ -594,6 +596,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         latency_ms: data.latency_ms,
         citations: data.citations || [],
         grounded: data.grounded,
+        validation_status: data.validation_status || null,
         provider: data.provider,
         model: data.model,
         grounding_version: data.grounding_version,
@@ -880,6 +883,16 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
               </button>
             </div>
             {voiceError && <div role="status" className="chat-error-banner">{voiceError}</div>}
+            {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED === 'true' && (
+              <SovereignVoiceControl
+                key={sessionId + ':' + (sessionMatchesProfile && !isClearing && !isLoading ? 'ready' : 'disabled')}
+                sessionKey={sessionId}
+                disabled={!sessionMatchesProfile || isClearing || isLoading}
+                onNavigate={onNavigate}
+                onTranscript={text => setInput(prev => prev ? prev + ' ' + text : text)}
+                lastAnswer={lastAssistantMsg}
+              />
+            )}
             <div className="genie-disclaimer">For informational purposes only. Not registered investment advice under SEBI (IA) Regulations, 2013. Consult a SEBI-registered adviser before investing. Mutual fund investments are subject to market risks.</div>
           </div>
 

@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "WealthGenie Public Research Inspector",
+  "version": "0.1.0",
+  "description": "Explicitly invoked, read-only inspector for public financial-authority websites. No autonomous browser actions.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

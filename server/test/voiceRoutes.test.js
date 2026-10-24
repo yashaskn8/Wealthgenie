@@ -1,0 +1,153 @@
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
+import User from '../models/User.js';
+import { createVoiceRouter } from '../routes/voiceRoutes.js';
+import { errorHandler } from '../middleware/errorHandler.js';
+import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
+
+const originalSecret=process.env.JWT_SECRET;
+const secret=originalSecret || 'voice-route-test-secret-2026';
+const mockUserId='60d5ecb8b3b3a72d9c8e4a11';
+const token=()=>jwt.sign({userId:mockUserId,email:'voice@example.com'},secret,{expiresIn:'1h'});
+
+const financialProfile={_id:'64b000000000000000000101',version:1,financialStateFence:0,monthlySavings:10000,investmentHorizonYears:20};
+function fakeResolver() {
+  return Promise.resolve({profile:{...financialProfile},state:{
+    resolutionStatus:'CURRENT',currentProfileId:financialProfile._id,revision:1,promotionFence:1
+  }});
+}
+function fakeRegistry() {
+  return {executeTool:async(_name,args)=>({
+    success:true,result:{
+      monthlyInvestment:args.monthlyInvestment,years:args.years,
+      annualRatePct:args.annualRate*100,
+      totalInvested:600000,futureValue:args.annualRate<0.08?850000:950000,
+      totalReturns:args.annualRate<0.08?250000:350000,
+      classification:'NON_RECOMMENDATION_PROFILE_CONSTRAINED_WHAT_IF',
+      returnBasis:'USER_SUPPLIED_NOMINAL_ASSUMPTION'
+    }
+  })};
+}
+function buildApp(enabled=true, options={}) {
+  const app=express();
+  app.use(express.json());
+  app.use('/api/voice',createVoiceRouter({enabled,...options}));
+  app.use(errorHandler);
+  return app;
+}
+function request(url,transcript,withAuth=true) {
+  return rawRequest(url,{
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      ...(withAuth?{authorization:'Bearer '+token()}:{})
+    },
+    body:JSON.stringify({transcript})
+  });
+}
+let originalFindById,originalReadyState;
+
+beforeEach(()=>{
+  process.env.JWT_SECRET=secret;
+  originalFindById=User.findById;
+  originalReadyState=mongoose.connection.readyState;
+  mongoose.connection.readyState=1;
+  User.findById=()=>({select(){return this;},lean:async()=>({role:'user'})});
+});
+afterEach(()=>{
+  User.findById=originalFindById;
+  mongoose.connection.readyState=originalReadyState;
+  if(originalSecret===undefined)delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET=originalSecret;
+});
+describe('GenieVoice protected route',()=>{
+  it('rejects unauthenticated navigation',async()=>{
+    await withServer(buildApp(),async(base)=>{
+      const r=await request(base+'/api/voice/interpret','open goals',false);
+      assert.equal(r.status,401);
+    });
+  });
+  it('feature flag denies authenticated requests by default',async()=>{
+    await withServer(buildApp(false),async(base)=>{
+      const r=await request(base+'/api/voice/interpret','open goals');
+      assert.equal(r.status,404);
+      assert.equal(r.headers.get('cache-control'),'no-store');
+    });
+  });
+  it('issues only bounded read-only page commands',async()=>{
+    await withServer(buildApp(),async(base)=>{
+      const r=await request(base+'/api/voice/interpret','open goals');
+      assert.equal(r.status,200);
+      assert.equal(r.headers.get('cache-control'),'no-store');
+      const body=await r.json();
+      assert.deepEqual(body,{action:'APP_NAVIGATE',page:'goals',tab:null,version:'sovereign-voice-intent-v1'});
+    });
+  });
+  it('rejects schema smuggling, long transcripts and unexpected fields',async()=>{
+    await withServer(buildApp(),async(base)=>{
+      for(const body of [{transcript:'open goals',tool:'deleteProfile'}, {transcript:'x'.repeat(1001)}, {transcript:123}]){
+        const r=await rawRequest(base+'/api/voice/interpret',{
+          method:'POST',
+          headers:{'content-type':'application/json',authorization:'Bearer '+token()},
+          body:JSON.stringify(body)
+        });
+        assert.equal(r.status,400,JSON.stringify(body).slice(0,80));
+      }
+    });
+  });
+  it('compares two explicit user-supplied SIP assumptions under authenticated profile binding',async()=>{
+    let actor=null;
+    await withServer(buildApp(true,{resolveProfile:async query=>{
+      actor=query.userId;
+      return fakeResolver();
+    },financialRegistry:fakeRegistry()}),async(base)=>{
+      const r=await rawRequest(base+'/api/voice/sip-compare',{
+        method:'POST',
+        headers:{'content-type':'application/json',authorization:'Bearer '+token()},
+        body:JSON.stringify({monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:[7,10]})
+      });
+      assert.equal(r.status,200);
+      const result=await r.json();
+      assert.equal(actor,mockUserId);
+      assert.equal(result.persisted,false);
+      assert.equal(result.classification,'UNSAVED_WHAT_IF_SIMULATION');
+      assert.equal(result.scenarios.length,2);
+      assert.equal(result.differences.futureValue,100000);
+      assert.match(result.note,/hypothetical annual returns/i);
+    });
+  });
+  it('rejects missing auth, extra tools, forbidden rates and malformed SIP comparisons',async()=>{
+    const body={monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:[7,10]};
+    await withServer(buildApp(true,{resolveProfile:fakeResolver,financialRegistry:fakeRegistry()}),async(base)=>{
+      const noAuth=await rawRequest(base+'/api/voice/sip-compare',{
+        method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)
+      });
+      assert.equal(noAuth.status,401);
+      for(const mutation of [
+        {...body,operation:'buyMutualFund'}, {...body,annualReturnAssumptionsPct:[7,7]},
+        {...body,annualReturnAssumptionsPct:[-1,10]},{...body,years:50},
+        {...body,monthlyInvestment:5000.25},
+      ]) {
+        const r=await rawRequest(base+'/api/voice/sip-compare',{
+          method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token()},
+          body:JSON.stringify(mutation)
+        });
+        assert.equal(r.status,400,JSON.stringify(mutation));
+      }
+    });
+  });
+  it('does not execute or transform external and mutating requests into navigation',async()=>{
+    await withServer(buildApp(),async(base)=>{
+      for(const text of ['open https://evil.example','open google','open goals and delete them','open my account and transfer funds']){
+        const r=await request(base+'/api/voice/interpret',text);
+        assert.equal(r.status,200);
+        const body=await r.json();
+        assert.equal(body.action,'REJECTED',text);
+        assert.equal(body.page,undefined);
+      }
+    });
+  });
+});
