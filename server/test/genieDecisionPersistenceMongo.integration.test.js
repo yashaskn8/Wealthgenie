@@ -25,6 +25,7 @@ import DecisionScenario from '../models/DecisionScenario.js';
 import DecisionScenarioRevision from '../models/DecisionScenarioRevision.js';
 import DecisionRun from '../models/DecisionRun.js';
 import { signDecisionReceipt } from '../services/genieDecision/integrity.js';
+import { appendDecisionEvent } from '../services/genieDecision/liveEvents.js';
 
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'geniedecision-test-secret-only-2026';
@@ -720,5 +721,73 @@ test('signed historical decisions remain owner-readable when canonical profile c
     const removed = await call(base, userOne, `/scenarios/${scenarioId}`,
       'DELETE', { expectedRevision: 1 });
     assert.equal(removed.response.status, 200, JSON.stringify(removed.body));
+  });
+});
+
+
+test('revocation prevents queued owner SSE events before the periodic idle auth check', async () => {
+  const revokedUser = new mongoose.Types.ObjectId();
+  await User.create({
+    _id: revokedUser, name: 'Revoked Decision Subscriber',
+    email: `revoked-decision-${revokedUser}@example.test`,
+    passwordHash: 'test-password-hash',
+  });
+  const revokedProfile = await FinancialProfile.create({
+    userId: revokedUser, ...canonicalProfile({
+      monthlyTakeHome: 90000, monthlySavings: 30000, liquidSavings: 50000,
+    }), recommendationProfileVersion: 'financial-profile-1.0.0',
+  });
+  await FinancialProfileState.create({
+    userId: revokedUser, currentProfileId: revokedProfile._id,
+    resolutionStatus: 'CURRENT', revision: 1, promotionFence: 0,
+  });
+
+  await withServer(app(), async base => {
+    const aborter = new AbortController();
+    const timer = setTimeout(() => aborter.abort(), 12000);
+    try {
+      const response = await fetch(`${base}/api/decisions/events/stream?after=0`, {
+        headers: {
+          authorization: `Bearer ${token(revokedUser)}`,
+          accept: 'text/event-stream',
+        }, signal: aborter.signal,
+      });
+      assert.equal(response.status, 200);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let frames = '';
+      while (!frames.includes('event: connected')) {
+        const packet = await reader.read();
+        assert.equal(packet.done, false, 'SSE must establish a session before revocation');
+        frames += decoder.decode(packet.value);
+      }
+      // Revoke the account after successful authentication, then publish
+      // a committed owner event while the stream is still active. It must
+      // NEVER be replayed using a cached authorization decision.
+      await User.deleteOne({ _id: revokedUser });
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(async () => {
+          await appendDecisionEvent(session, {
+            userId: revokedUser, type: 'SCENARIO_CREATED',
+            scenarioId: new mongoose.Types.ObjectId(), revision: 1,
+          });
+        }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+      } finally {
+        await session.endSession();
+      }
+      while (!frames.includes('event: unavailable')) {
+        const packet = await reader.read();
+        if (packet.done) break;
+        frames += decoder.decode(packet.value);
+      }
+      assert.ok(frames.includes('event: unavailable'),
+        'Revoked sessions must terminate the live event stream');
+      assert.ok(!frames.includes('event: decision'),
+        'Queued owner scenario identifiers must not leak after revocation');
+    } finally {
+      clearTimeout(timer);
+      aborter.abort();
+    }
   });
 });
