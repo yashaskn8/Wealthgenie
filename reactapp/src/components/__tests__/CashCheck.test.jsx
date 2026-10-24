@@ -431,6 +431,53 @@ describe('90-day cash check', () => {
     await screen.findByText('Reviewed');
     expect(screen.queryByRole('button', { name: 'Mark alert as reviewed' })).toBeNull();
   });
+  it('clears previously shown alerts when background ledger verification fails', async () => {
+    const cash = {
+      revision: 1,
+      ledger: { asOfDate: indiaToday(), openingCashPaise: 10000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+      latestResult: { inputHash: 'a'.repeat(64), result: baseline() },
+      requiresCashReconfirmation: false,
+    };
+    api.getCoverageLedger.mockResolvedValueOnce(cash)
+      .mockRejectedValueOnce(new Error('Database unavailable'));
+    api.getCoverageAlerts.mockResolvedValue({
+      revision: 1, alerts: [{ id: '507f191e810c19729de860ea',
+        kind: 'SHORTFALL_DETECTED', dueDate: indiaToday(),
+        sourceAsOfDate: indiaToday(), acknowledged: false }],
+    });
+    render(<CashCheck />);
+    await screen.findByText('Possible cash shortfall detected');
+    fireEvent(document, new Event('visibilitychange'));
+    await screen.findByText(/latest cash revision could not be verified/i);
+    expect(screen.queryByText('Possible cash shortfall detected')).toBeNull();
+    expect(screen.getByText(/Risk alerts could not be verified/i)).toBeTruthy();
+  });
+
+  it('re-verifies alerts when the authenticated cash snapshot changes at the same revision', async () => {
+    const cash = hash => ({
+      revision: 1,
+      ledger: { asOfDate: indiaToday(), openingCashPaise: 10000,
+        cashSource: 'USER_DECLARED_BANK_CASH', completenessConfirmed: true, entries: [] },
+      latestResult: { inputHash: hash, result: baseline() },
+      requiresCashReconfirmation: false,
+    });
+    api.getCoverageLedger.mockResolvedValueOnce(cash('a'.repeat(64)))
+      .mockResolvedValueOnce(cash('b'.repeat(64)));
+    api.getCoverageAlerts.mockResolvedValueOnce({
+      revision: 1, alerts: [{ id: '507f191e810c19729de860ea',
+        kind: 'SHORTFALL_DETECTED', dueDate: indiaToday(),
+        sourceAsOfDate: indiaToday(), acknowledged: false }],
+    }).mockResolvedValue({ revision: 1, alerts: [] });
+    render(<CashCheck />);
+    await screen.findByText('Possible cash shortfall detected');
+    fireEvent(document, new Event('visibilitychange'));
+    await waitFor(() => expect(api.getCoverageLedger).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(api.getCoverageAlerts).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText('Possible cash shortfall detected')).toBeNull());
+    expect(screen.getByText(/No current saved cash-risk alerts/i)).toBeTruthy();
+  });
+
   it('hides unverifiable alerts rather than displaying stale risk events', async () => {
     api.getCoverageLedger.mockResolvedValue({
       revision: 1, ledger: {

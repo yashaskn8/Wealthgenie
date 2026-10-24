@@ -212,20 +212,27 @@ export default function CashCheck() {
   }, [loadAttempt]);
 
   useEffect(() => {
-    if (!loaded || loadFailed || !hasStoredLedger || revision < 1) {
+    if (!loaded || loadFailed || verificationFailed || !hasStoredLedger || revision < 1) {
       setAlerts([]);
-      setAlertsError('');
+      setAlertsError(verificationFailed
+        ? 'Risk alerts could not be verified. Reload before relying on alerts.' : '');
       return undefined;
     }
+    // Never retain alerts from an earlier ledger, policy or authenticated
+    // snapshot while the new revision's alert query is still in flight.
     let active = true;
+    setAlerts([]);
+    setAlertsError('Verifying alerts against your current saved cash revision.');
     api.getCoverageAlerts().then(response => {
       if (!active) return;
-      if (response.revision === revision) {
-        setAlerts(Array.isArray(response.alerts) ? response.alerts : []);
-        setAlertsError(response.requiresPolicyReconfirmation
-          ? 'Stored alerts from a retired financial calculation policy are hidden. Reconfirm cash and save a new plan.'
-          : '');
+      if (response.revision !== revision) {
+        setAlertsError('Risk alerts returned for a different revision. Reload to verify.');
+        return;
       }
+      setAlerts(Array.isArray(response.alerts) ? response.alerts : []);
+      setAlertsError(response.requiresPolicyReconfirmation
+        ? 'Stored alerts from a retired financial calculation policy are hidden. Reconfirm cash and save a new plan.'
+        : '');
     }).catch(() => {
       if (active) {
         setAlerts([]);
@@ -233,7 +240,8 @@ export default function CashCheck() {
       }
     });
     return () => { active = false; };
-  }, [loaded, loadFailed, hasStoredLedger, revision]);
+  }, [loaded, loadFailed, verificationFailed, hasStoredLedger, revision,
+    serverInputHash, serverPolicyStale]);
 
   useEffect(() => {
     if (!loaded || loadFailed) return undefined;
@@ -253,16 +261,25 @@ export default function CashCheck() {
         if (latest.revision === revision && !differentSnapshot && !policyChanged
             && !verificationFailed) {
           const freshAlerts = await api.getCoverageAlerts();
-          if (active && freshAlerts.revision === revision) {
-            setAlerts(Array.isArray(freshAlerts.alerts) ? freshAlerts.alerts : []);
-            setAlertsError(freshAlerts.requiresPolicyReconfirmation
-              ? 'Stored alerts from a retired financial calculation policy are hidden. Reconfirm cash and save a new plan.'
-              : '');
+          if (active) {
+            if (freshAlerts.revision !== revision) {
+              setAlerts([]);
+              setAlertsError('Risk alerts returned for a different revision. Reload to verify.');
+            } else {
+              setAlerts(Array.isArray(freshAlerts.alerts) ? freshAlerts.alerts : []);
+              setAlertsError(freshAlerts.requiresPolicyReconfirmation
+                ? 'Stored alerts from a retired financial calculation policy are hidden. Reconfirm cash and save a new plan.'
+                : '');
+            }
           }
           return;
         }
         // Never overwrite local unsaved amounts with a poll or a tab signal.
         if (dirty) {
+          // The previous plan's alerts are not evidence about this conflicted
+          // draft or a newer authenticated account.
+          setAlerts([]);
+          setAlertsError('Cash plan changed. Reconcile revisions before relying on risk alerts.');
           setConflictState(latest);
           setConfirmOverwrite(false);
           setError('Another session changed your cash plan. Review both versions before saving.');
@@ -284,6 +301,9 @@ export default function CashCheck() {
           }
           setHasStoredLedger(Boolean(latest.ledger));
           setStale(Boolean(latest.requiresCashReconfirmation || latest.requiresPolicyReconfirmation));
+          setAlerts([]);
+          setAlertsError('Verifying alerts against your current saved cash revision.');
+          setSettlementHistory(null);
           setPreview(null);
           setNotice(latest.latestResult?.result?.status === 'SHORTFALL_IN_ENTERED_PLAN'
             ? 'New saved revision shows a shortfall in your entered cash plan. Review the dated payments.'
@@ -314,6 +334,9 @@ export default function CashCheck() {
         } else {
           setVerificationFailed(true);
           setStale(true);
+          setAlerts([]);
+          setAlertsError('Risk alerts could not be verified. Reload before relying on alerts.');
+          setSettlementHistory(null);
           setNotice('The latest cash revision could not be verified. Saved results are hidden until data can be reconfirmed.');
         }
       } finally { inFlight = false; }
