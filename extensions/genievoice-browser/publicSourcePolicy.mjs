@@ -18,3 +18,11 @@ export function isApprovedPublicResearchUrl(raw) {
       !RESTRICTED_PATH_SEGMENT.test(u.pathname);
   } catch {return false;}
 }
+
+/** Page identity must stay fixed between permission grant and publication. */
+export function isSameApprovedPublicResearchPage(initialUrl, observedUrl) {
+  if (!isApprovedPublicResearchUrl(initialUrl) || !isApprovedPublicResearchUrl(observedUrl)) return false;
+  try {
+    return new URL(initialUrl).href === new URL(observedUrl).href;
+  } catch { return false; }
+}
