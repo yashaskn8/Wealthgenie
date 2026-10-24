@@ -19,20 +19,32 @@ const isPlainDataObject=(obj)=>{
     descriptor=>'value' in descriptor && descriptor.enumerable
   );
 };
+// Array holes, accessor indices, custom properties and symbols must never be
+// interpreted as missing dependencies or silently omitted scenario inputs.
+const isDenseDataArray=(array)=>{
+  if(!Array.isArray(array)||Object.getPrototypeOf(array)!==Array.prototype)return false;
+  const keys=Reflect.ownKeys(array);
+  if(keys.length!==array.length+1)return false;
+  for(let index=0;index<array.length;index++){
+    const entry=Object.getOwnPropertyDescriptor(array,String(index));
+    if(!entry||!Object.hasOwn(entry,'value')||entry.enumerable!==true)return false;
+  }
+  return true;
+};
 const hasExactly=(obj,fields)=>isPlainDataObject(obj) &&
   Reflect.ownKeys(obj).length===fields.length &&
   fields.every(field=>Object.hasOwn(obj,field));
 export function validateSovereignTaskPlan(plan) {
   if(!hasExactly(plan,['version','steps']) ||
      plan.version!==SOVEREIGN_TASK_PLAN_VERSION ||
-     !Array.isArray(plan.steps) || plan.steps.length<1 || plan.steps.length>6) {
+     !isDenseDataArray(plan.steps) || plan.steps.length<1 || plan.steps.length>6) {
     return {ok:false,reason:'PLAN_SCHEMA_INVALID'};
   }
   const ids=new Set();
   for(const step of plan.steps) {
     if(!hasExactly(step,['id','operation','arguments','dependsOn']) ||
       typeof step.id!=='string'||!ID.test(step.id)||ids.has(step.id)||
-      !ALLOWED.has(step.operation)||!Array.isArray(step.dependsOn)||
+      !ALLOWED.has(step.operation)||!isDenseDataArray(step.dependsOn)||
       step.dependsOn.length>5 ||new Set(step.dependsOn).size!==step.dependsOn.length||
       !isPlainDataObject(step.arguments))return {ok:false,reason:'STEP_SCHEMA_INVALID'};
     ids.add(step.id);
@@ -46,7 +58,7 @@ export function validateSovereignTaskPlan(plan) {
         !Number.isSafeInteger(a.monthlyInvestment)||a.monthlyInvestment<100||
         a.monthlyInvestment>10000000||
         !Number.isSafeInteger(a.years)||a.years<1||a.years>30||
-        !Array.isArray(a.annualReturnAssumptionsPct)||
+        !isDenseDataArray(a.annualReturnAssumptionsPct)||
         a.annualReturnAssumptionsPct.length!==2||
         a.annualReturnAssumptionsPct.some(v=>!Number.isFinite(v)||v<0.1||v>30)||
         a.annualReturnAssumptionsPct[0]===a.annualReturnAssumptionsPct[1]) {

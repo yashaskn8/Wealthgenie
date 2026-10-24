@@ -49,6 +49,26 @@ describe('Sovereign task plan validation',()=>{
     assert.equal(normal.ok,true);
     assert.deepEqual(normal.steps[0].arguments,{page:'goals',tab:null});
   });
+  it('rejects sparse dependency arrays and accessor-based or sparse financial rates',()=>{
+    const missingDependencySlot=Array(1);
+    const sparseRates=[7,,];
+    const accessorRates=[7,10];
+    Object.defineProperty(accessorRates,'1',{enumerable:true,configurable:true,
+      get(){return 10;}
+    });
+    const sparseSteps=Array(1);
+    for(const malformed of [
+      plan(sparseSteps),
+      plan([{...step('a','goals'),dependsOn:missingDependencySlot}]),
+      plan([{id:'a',operation:'SIP_COMPARE_DRAFT',
+        arguments:{monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:sparseRates},
+        dependsOn:[]}]),
+      plan([{id:'a',operation:'SIP_COMPARE_DRAFT',
+        arguments:{monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:accessorRates},
+        dependsOn:[]}])
+    ])assert.equal(validateSovereignTaskPlan(malformed).ok,false);
+    assert.equal(validateSovereignTaskPlan(plan([step('a','goals')])).ok,true);
+  });
   it('rejects invalid financial units and prototype/hidden fields',()=>{
     const a={operation:'SIP_COMPARE_DRAFT',id:'sip',dependsOn:[],
       arguments:{monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:[7,10]}};
