@@ -3,6 +3,7 @@ import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import * as api from '../services/api';
 import { PAGE_ALLOWLIST } from '../utils/navigationMap';
 import SovereignSipComparison from './SovereignSipComparison';
+import './SovereignVoiceControl.css';
 
 /**
  * An opt-in, bounded voice experience. The model is never an action executor.
