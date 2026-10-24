@@ -244,6 +244,19 @@ function reportDto(run, current, scenario = null) {
     asOf: run.issuedAt, originalStatus: run.result.status, result: run.result,
   };
 }
+// Signed historical reports remain inspectable when the canonical financial
+// pointer is explicitly unresolved. Do not suppress Mongo connectivity,
+// authorization or integrity errors, and NEVER call these reads current.
+export async function resolveHistoricalDecisionSource(resolveProfile, userId) {
+  try {
+    return await resolveProfile({ userId, requireRecommendation: false });
+  } catch (error) {
+    if (['FINANCIAL_PROFILE_STATE_UNAVAILABLE', 'FINANCIAL_PROFILE_STATE_INCOMPLETE',
+      'FINANCIAL_PROFILE_STATE_MIGRATION_REQUIRED'].includes(error?.code)) return null;
+    throw error;
+  }
+}
+
 async function transaction(work) {
   const session = await mongoose.startSession();
   try {
@@ -519,7 +532,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       if (prior.inputHash !== originalRevision.inputHash) {
         fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Stored report input does not match the requested revision.');
       }
-      const fresh = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+      const fresh = await resolveHistoricalDecisionSource(resolveProfile, req.user.userId);
       return res.status(200).json({ run: reportDto(prior, fresh, first), replayed: true });
     }
     if (first.revision !== req.body.expectedRevision) {
@@ -595,7 +608,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
   router.get('/runs/:id', handleInput(async (req, res) => {
     const run = await DecisionRun.findOne(own(req, ensureId(req.params.id))).lean();
     if (!run) fail(404, 'DECISION_RUN_NOT_FOUND', 'Decision report not found.');
-    const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+    const current = await resolveHistoricalDecisionSource(resolveProfile, req.user.userId);
     const scenario = await DecisionScenario.findOne(own(req, run.scenarioId)).lean();
     if (!scenario) fail(404, 'DECISION_RUN_NOT_FOUND', 'Decision report not found.');
     res.json({ run: reportDto(run, current, scenario) });
@@ -606,7 +619,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const records = await DecisionRun.find({
       userId: req.user.userId, scenarioId: scenario._id,
     }).sort({ createdAt: -1 }).limit(20).lean();
-    const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
+    const current = await resolveHistoricalDecisionSource(resolveProfile, req.user.userId);
     // A navigation list must not echo 20 full 360-month financial ledgers.
     // Verify each snapshot but return minimal owner-scoped metadata.
     const runs = records.map(record => {
