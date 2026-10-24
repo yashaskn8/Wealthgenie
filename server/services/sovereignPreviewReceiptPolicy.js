@@ -5,9 +5,24 @@
  */
 const isRecord=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&
   Object.getPrototypeOf(value)===Object.prototype;
-const exactly=(value,fields)=>isRecord(value)&&
-  Reflect.ownKeys(value).length===fields.length&&
-  fields.every(key=>Object.hasOwn(value,key));
+const exactly=(value,fields)=>{
+  if(!isRecord(value))return false;
+  const keys=Reflect.ownKeys(value);
+  if(keys.length!==fields.length)return false;
+  const descriptors=Object.getOwnPropertyDescriptors(value);
+  return fields.every(key=>Object.hasOwn(descriptors,key)&&
+    Object.hasOwn(descriptors[key],'value')&&descriptors[key].enumerable===true);
+};
+const isDenseArray=value=>{
+  if(!Array.isArray(value)||Object.getPrototypeOf(value)!==Array.prototype)return false;
+  const keys=Reflect.ownKeys(value);
+  if(keys.length!==value.length+1)return false;
+  for(let i=0;i<value.length;i++){
+    const entry=Object.getOwnPropertyDescriptor(value,String(i));
+    if(!entry||!Object.hasOwn(entry,'value')||entry.enumerable!==true)return false;
+  }
+  return true;
+};
 const safeMoney=value=>Number.isSafeInteger(value)&&value>=0;
 const safeRate=value=>typeof value==='number'&&Number.isFinite(value);
 const PLAN_RESULT_FIELDS=['version','classification','persisted',
@@ -33,7 +48,7 @@ function validComparison(output,expected) {
     output.note!==ANNUAL_NOTE||
     !Number.isSafeInteger(output.profileStateRevision)||
     output.profileStateRevision<1||
-    !Array.isArray(output.scenarios)||output.scenarios.length!==2||
+    !isDenseArray(output.scenarios)||output.scenarios.length!==2||
     !exactly(output.differences,['futureValue','invested']))return false;
   const args=expected.arguments;
   const invested=args.monthlyInvestment*args.years*12;
@@ -70,7 +85,7 @@ export function isVerifiedSovereignReadOnlyPreview(output,validatedPlan) {
     output.persisted!==false||
     output.navigationApplied!==false||
     output.financialStateModified!==false||
-    !Array.isArray(output.steps))return false;
+    !isDenseArray(output.steps))return false;
   const order=validatedPlan.waves.flat();
   if(output.steps.length!==order.length)return false;
   const byId=new Map(validatedPlan.steps.map(step=>[step.id,step]));

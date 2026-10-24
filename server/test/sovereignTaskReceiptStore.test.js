@@ -145,6 +145,24 @@ describe('Sovereign opt-in durable preview receipts',()=>{
     assert.equal(row.status,'FAILED');
     assert.equal(row.resultHash,null);
   });
+  it('rejects getter and sparse receipt result arrays before success',async()=>{
+    const cases=[];
+    const getterStep={...preview.steps[0]};
+    Object.defineProperty(getterStep,'page',{enumerable:true,get(){return 'goals';}});
+    cases.push({...preview,steps:[getterStep]});
+    const sparse=Array(1);
+    cases.push({...preview,steps:sparse});
+    const getterArray=[...preview.steps];
+    Object.defineProperty(getterArray,'0',{enumerable:true,get(){return preview.steps[0];}});
+    cases.push({...preview,steps:getterArray});
+    for(const forged of cases){
+      const repository=memoryRepository();
+      await assert.rejects(()=>recordSovereignTaskPreview({
+        ...args(repository),executePreview:async()=>forged
+      }),{code:'SOVEREIGN_RECEIPT_UNSAFE_RESULT'});
+      assert.equal([...repository.rows.values()][0].status,'FAILED');
+    }
+  });
   it('returns metadata and never repeats a completed operation with the same key',async()=>{
     const repository=memoryRepository();
     let executions=0;
