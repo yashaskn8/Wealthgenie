@@ -189,3 +189,32 @@ test('Major expense scenarios represent lender maturity followed by zero payment
   assert.equal(report.alternatives[1].rows[12].debtPayments, '10000.00');
   assert.equal(report.alternatives[1].loanInterestPaid, '0.00');
 });
+
+
+test('contractual debt maturity is enforced even when the comparison horizon is shorter or longer', () => {
+  const details = {
+    loanPrincipal: '12000.00', loanAprBps: 0, loanTermMonths: 12,
+    existingLoanPayment: '500.00', extraMonthlyBudget: '500.00',
+  };
+  for (const horizonMonths of [6, 12, 24, 36]) {
+    fail('NON_AMORTIZING_LOAN', () => run('DEBT_VS_INVEST', details, { horizonMonths }));
+  }
+});
+
+test('short-horizon debt reports keep only in-horizon interest and the actual outstanding principal', () => {
+  const report = run('DEBT_VS_INVEST', {
+    loanPrincipal: '12000.00', loanAprBps: 0, loanTermMonths: 12,
+    existingLoanPayment: '1000.00', extraMonthlyBudget: '500.00',
+  }, { horizonMonths: 6 });
+  const [regular, prepaid] = report.alternatives;
+  // Oracle independent of the production debt schedule: six payments of
+  // 1,000 or 1,500 rupees against a 12,000 rupee, 0% principal.
+  assert.equal(regular.remainingLoanBalance, '6000.00');
+  assert.equal(prepaid.remainingLoanBalance, '3000.00');
+  assert.equal(regular.loanInterestPaid, '0.00');
+  assert.equal(prepaid.loanInterestPaid, '0.00');
+  assert.equal(regular.rows.length, 6);
+  assert.equal(prepaid.rows.length, 6);
+  assert.equal(regular.rows[5].debtPayments, '20000.00');
+  assert.equal(prepaid.rows[5].debtPayments, '20500.00');
+});
