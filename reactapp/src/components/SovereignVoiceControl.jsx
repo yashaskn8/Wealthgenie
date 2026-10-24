@@ -44,21 +44,21 @@ export default function SovereignVoiceControl({
   }, []);
 
   useLayoutEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
-  // A new verified answer or identity invalidates both in-flight commands and
-  // their visible busy state. Aborted callbacks deliberately cannot reset it:
-  // generation fencing suppresses stale asynchronous writes.
+  // Any new answer/identity invalidates pending work, including spoken audio.
   useLayoutEffect(() => () => cancelAll(), [cancelAll, lastAnswer]);
-  useLayoutEffect(() => {
+  useEffect(() => {
+    if (disabled) cancelAll();
+  }, [disabled, cancelAll]);
+  // Reset derived control state during the render that receives the new props,
+  // not synchronously inside an effect (which causes cascading renders).
+  // This also prevents an old 'checking' latch surviving disable/re-enable.
+  const [boundContext, setBoundContext] = useState({ sessionKey, lastAnswer, disabled });
+  if (boundContext.sessionKey !== sessionKey ||
+      boundContext.lastAnswer !== lastAnswer || boundContext.disabled !== disabled) {
+    setBoundContext({ sessionKey, lastAnswer, disabled });
     setState('idle');
     setSpokenAnswer(null);
-  }, [sessionKey, lastAnswer]);
-  useEffect(() => {
-    if (disabled) {
-      cancelAll();
-      setState('idle');
-      setSpokenAnswer(null);
-    }
-  }, [disabled, cancelAll]);
+  }
 
   const stop = () => {
     cancelAll();
@@ -90,7 +90,7 @@ export default function SovereignVoiceControl({
       const transcript = String(event.results?.[0]?.[0]?.transcript || '').trim();
       // ASR output is untrusted input; keep it within the same hard boundary as
       // server interpretation rather than forwarding oversized text to chat.
-      if (transcript.length > 1000 || /[\u0000-\u001f\u007f]/.test(transcript)) {
+      if (transcript.length > 1000 || /\p{Cc}/u.test(transcript)) {
         setState('idle');
         setStatus('Voice transcript exceeded safety limits. Use text chat instead.');
         return;
