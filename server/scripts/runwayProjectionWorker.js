@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { processOneRunwayProjection } from '../services/runwayProjectionOutbox.js';
+import { runRunwayWorkerLoop } from '../services/runwayWorkerLoop.js';
 import connectDB from '../config/db.js';
 import { verifyRunwayOperationalReadiness } from '../services/runwayOperationalReadiness.js';
 const env = process.env;
@@ -20,17 +21,12 @@ process.on('SIGTERM', stop);
 process.on('SIGINT', stop);
 try {
   await verifyRunwayOperationalReadiness();
-  while (!stopping) {
-    const done = await processOneRunwayProjection();
-    if (done.status === 'IDLE') {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } else if (done.status === 'BLOCKED') {
-      // Terminally quarantined jobs are logged, but cannot stop projections for other owners.
-      process.stderr.write('Runway projection blocked: ' + done.code + '\n');
-      // Slow down on failures so an unhealthy queue cannot create a tight loop.
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  }
+  await runRunwayWorkerLoop({
+    processOne: () => processOneRunwayProjection(),
+    shouldStop: () => stopping,
+    sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+    reportBlocked: code => { process.stderr.write('Runway projection blocked: ' + code + '\\n'); },
+  });
 } finally {
   await mongoose.disconnect();
 }
