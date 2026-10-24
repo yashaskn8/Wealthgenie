@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Trash2, Sparkles, RefreshCw, Scale, Coins, Percent, Target, ArrowLeft, ExternalLink, Mic, MicOff, ChevronRight, TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
+import SovereignVoiceControl from './SovereignVoiceControl';
 import './GenieChat.css';
 import * as api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
@@ -880,6 +881,15 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
               </button>
             </div>
             {voiceError && <div role="status" className="chat-error-banner">{voiceError}</div>}
+            {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED === 'true' && (
+              <SovereignVoiceControl
+                sessionKey={sessionId}
+                disabled={!sessionMatchesProfile || isClearing || isLoading}
+                onNavigate={onNavigate}
+                onTranscript={text => setInput(prev => prev ? prev + ' ' + text : text)}
+                lastAnswer={lastAssistantMsg}
+              />
+            )}
             <div className="genie-disclaimer">For informational purposes only. Not registered investment advice under SEBI (IA) Regulations, 2013. Consult a SEBI-registered adviser before investing. Mutual fund investments are subject to market risks.</div>
           </div>
 
