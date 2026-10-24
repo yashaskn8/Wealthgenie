@@ -25,9 +25,10 @@ try {
     if (done.status === 'IDLE') {
       await new Promise(resolve => setTimeout(resolve, 2000));
     } else if (done.status === 'BLOCKED') {
-      // Never silently continue after a financial integrity error.
+      // Terminally quarantined jobs are logged, but cannot stop projections for other owners.
       process.stderr.write('Runway projection blocked: ' + done.code + '\n');
-      process.exitCode = 1; break;
+      // Slow down on failures so an unhealthy queue cannot create a tight loop.
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 } finally {
