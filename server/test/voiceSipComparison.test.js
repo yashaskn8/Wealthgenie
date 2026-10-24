@@ -69,6 +69,15 @@ describe('Sovereign voice SIP comparison integrity',()=>{
       userId:'u',input,resolveProfile:async()=>authority(),financialRegistry:fake
     }),{code:'VOICE_SIP_ENGINE_MISMATCH'});
   });
+  it('rejects changes to any stored profile fact, even if its revision is unchanged',async()=>{
+    let calls=0;
+    await assert.rejects(()=>compareVoiceSipScenarios({
+      userId:'u',input,resolveProfile:async()=>{
+        calls++;
+        const x=authority(); x.profile.outstandingLiabilities=calls===1?20000:10000;return x;
+      },financialRegistry
+    }),{code:'VOICE_FINANCIAL_SNAPSHOT_CHANGED'});
+  });
   it('rejects relevant financial profile changes even if the state revision is unchanged',async()=>{
     let calls=0;
     await assert.rejects(()=>compareVoiceSipScenarios({

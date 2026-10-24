@@ -23,18 +23,19 @@ function independentlyProjectedSipValue(monthlyInvestment, annualRate, years) {
  * Read-only SIP scenario comparison. No LLM / browser / persistence access.
  * All projected results are the existing deterministic financial engine output.
  */
-// Include fields that affect investment capacity even if a caller accidentally
-// changes a profile document without advancing its canonical state pointer.
-const SNAPSHOT_KEYS=['_id','version','financialStateFence','monthlySavings',
-  'monthly_savings','investmentHorizonYears','investment_horizon_years',
-  'riskTolerance','riskCategory','riskCapacity','riskScore'];
+// Canonicalize all financial profile and pointer fields, not an incomplete list
+// of capacity keys. Never log or return this potentially sensitive digest.
+function canonicalize(value) {
+  if(value===null || typeof value!=='object')return value;
+  if(typeof value.toJSON==='function')return canonicalize(value.toJSON());
+  if(Array.isArray(value))return value.map(canonicalize);
+  return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonicalize(value[key])]));
+}
 function fingerprint(snapshot) {
-  return JSON.stringify({
-    profile: SNAPSHOT_KEYS.map(key=>String(snapshot?.profile?.[key]??'')),
-    currentId:String(snapshot?.state?.currentProfileId??''),
-    revision:String(snapshot?.state?.revision??''),
-    promotionFence:String(snapshot?.state?.promotionFence??''),
-  });
+  return JSON.stringify(canonicalize({
+    profile:snapshot?.profile??null,
+    state:snapshot?.state??null
+  }));
 }
 function invalidState() {
   return createError(409,'The financial profile changed during comparison.',
