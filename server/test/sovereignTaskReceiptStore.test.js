@@ -307,4 +307,42 @@ describe('Sovereign opt-in durable preview receipts',()=>{
     }),{code:'SOVEREIGN_RECEIPT_ID_INVALID'});
     assert.equal(repository.rows.size,0);
   });
+  it('fails closed within a bounded interval when receipt index readiness stalls',async()=>{
+    const repository=memoryRepository();
+    await assert.rejects(()=>recordSovereignTaskPreview({
+      ...args(repository),ensureReady:()=>new Promise(()=>{}),storeTimeoutMs:15
+    }),{code:'SOVEREIGN_RECEIPT_STORE_UNAVAILABLE'});
+    assert.equal(repository.rows.size,0);
+  });
+  it('never executes a preview if Mongo claim reservation never settles',async()=>{
+    let executions=0;
+    const repository=memoryRepository();
+    repository.create=()=>new Promise(()=>{});
+    await assert.rejects(()=>recordSovereignTaskPreview({
+      ...args(repository),storeTimeoutMs:15,
+      executePreview:async()=>{executions++;return preview;}
+    }),{code:'SOVEREIGN_RECEIPT_STORE_UNAVAILABLE'});
+    assert.equal(executions,0);
+  });
+  it('bounds receipt readback if Mongo stalls and never presents guessed metadata',async()=>{
+    const repository=memoryRepository();
+    const id=sovereignReceiptId({userId,key});
+    repository.findOne=()=>({lean:()=>new Promise(()=>{})});
+    await assert.rejects(()=>getSovereignTaskReceipt({
+      userId,id,repository,ensureReady:ready,storeTimeoutMs:15
+    }),{code:'SOVEREIGN_RECEIPT_STORE_UNAVAILABLE'});
+  });
+  it('stops waiting on an aborted receipt lookup despite an unresolved Mongo read',async()=>{
+    const repository=memoryRepository();
+    const id=sovereignReceiptId({userId,key});
+    repository.findOne=()=>({lean:()=>new Promise(()=>{})});
+    const controller=new AbortController();
+    const read=getSovereignTaskReceipt({
+      userId,id,repository,ensureReady:ready,signal:controller.signal
+    });
+    for(let n=0;n<5;n++)await Promise.resolve();
+    controller.abort();
+    await assert.rejects(read,{code:'SOVEREIGN_RECEIPT_STORE_UNAVAILABLE'});
+  });
+
 });
