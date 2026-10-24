@@ -8,31 +8,41 @@ const ALLOWED=new Set(['APP_NAVIGATE','SIP_COMPARE_DRAFT']);
 const NAV_PAGES=new Set(['home','plan','investments','taxes','progress','goals',
   'grow-my-sip','keep-on-track','account','help']);
 const ID=/^[a-z][a-z0-9_-]{0,31}$/;
-const hasOnly=(obj,allowed)=>Object.keys(obj).every(x=>allowed.includes(x));
+// Only own, ordinary data properties have authority. Inherited properties,
+// accessors and symbols must never cross the planner-to-executor boundary.
+const isPlainDataObject=(obj)=>{
+  if(!obj||typeof obj!=='object'||Array.isArray(obj))return false;
+  const proto=Object.getPrototypeOf(obj);
+  if(proto!==Object.prototype&&proto!==null)return false;
+  if(Object.getOwnPropertySymbols(obj).length)return false;
+  return Object.values(Object.getOwnPropertyDescriptors(obj)).every(
+    descriptor=>'value' in descriptor && descriptor.enumerable
+  );
+};
+const hasExactly=(obj,fields)=>isPlainDataObject(obj) &&
+  Reflect.ownKeys(obj).length===fields.length &&
+  fields.every(field=>Object.hasOwn(obj,field));
 export function validateSovereignTaskPlan(plan) {
-  if(!plan || typeof plan!=='object' || Array.isArray(plan) ||
-     !hasOnly(plan,['version','steps']) ||
+  if(!hasExactly(plan,['version','steps']) ||
      plan.version!==SOVEREIGN_TASK_PLAN_VERSION ||
      !Array.isArray(plan.steps) || plan.steps.length<1 || plan.steps.length>6) {
     return {ok:false,reason:'PLAN_SCHEMA_INVALID'};
   }
   const ids=new Set();
   for(const step of plan.steps) {
-    if(!step || typeof step!=='object'||Array.isArray(step) ||
-      !hasOnly(step,['id','operation','arguments','dependsOn']) ||
+    if(!hasExactly(step,['id','operation','arguments','dependsOn']) ||
       typeof step.id!=='string'||!ID.test(step.id)||ids.has(step.id)||
       !ALLOWED.has(step.operation)||!Array.isArray(step.dependsOn)||
       step.dependsOn.length>5 ||new Set(step.dependsOn).size!==step.dependsOn.length||
-      !step.arguments ||typeof step.arguments!=='object' ||
-      Array.isArray(step.arguments))return {ok:false,reason:'STEP_SCHEMA_INVALID'};
+      !isPlainDataObject(step.arguments))return {ok:false,reason:'STEP_SCHEMA_INVALID'};
     ids.add(step.id);
     if(step.operation==='APP_NAVIGATE') {
-      if(!hasOnly(step.arguments,['page','tab']) ||
+      if(!hasExactly(step.arguments,['page','tab']) ||
         !NAV_PAGES.has(step.arguments.page) ||
         step.arguments.tab!==null)return {ok:false,reason:'TARGET_NOT_ALLOWED'};
     } else {
       const a=step.arguments;
-      if(!hasOnly(a,['monthlyInvestment','years','annualReturnAssumptionsPct']) ||
+      if(!hasExactly(a,['monthlyInvestment','years','annualReturnAssumptionsPct']) ||
         !Number.isSafeInteger(a.monthlyInvestment)||a.monthlyInvestment<100||
         a.monthlyInvestment>10000000||
         !Number.isSafeInteger(a.years)||a.years<1||a.years>30||

@@ -25,6 +25,30 @@ describe('Sovereign task plan validation',()=>{
       plan(Array.from({length:7},(_,i)=>step('n'+i,'goals'))),
     ]) assert.equal(validateSovereignTaskPlan(x).ok,false,JSON.stringify(x).slice(0,150));
   });
+  it('does not grant planner authority to inherited, accessor or hidden properties',()=>{
+    const inheritedArgs=Object.create({page:'goals',tab:null});
+    const accessorArgs={tab:null};Object.defineProperty(accessorArgs,'page',{
+      enumerable:true,get(){return 'goals';}
+    });
+    const hiddenArgs={page:'goals'};Object.defineProperty(hiddenArgs,'tab',{
+      value:null,enumerable:false
+    });
+    const symbolArgs={page:'goals',tab:null};symbolArgs[Symbol('secret')]='x';
+    const hiddenStep={...step('a','goals')};
+    Object.defineProperty(hiddenStep,'forbidden',{
+      value:'DELETE_PROFILE',enumerable:false
+    });
+    for(const candidate of [
+      plan([{...step('a','goals'),arguments:inheritedArgs}]),
+      plan([{...step('a','goals'),arguments:accessorArgs}]),
+      plan([{...step('a','goals'),arguments:hiddenArgs}]),
+      plan([{...step('a','goals'),arguments:symbolArgs}]),
+      plan([hiddenStep])
+    ])assert.equal(validateSovereignTaskPlan(candidate).ok,false);
+    const normal=validateSovereignTaskPlan(plan([step('a','goals')]));
+    assert.equal(normal.ok,true);
+    assert.deepEqual(normal.steps[0].arguments,{page:'goals',tab:null});
+  });
   it('rejects invalid financial units and prototype/hidden fields',()=>{
     const a={operation:'SIP_COMPARE_DRAFT',id:'sip',dependsOn:[],
       arguments:{monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:[7,10]}};
