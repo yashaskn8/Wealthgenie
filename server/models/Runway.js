@@ -64,6 +64,11 @@ const erasureFenceSchema = new Schema({
   generation: { type: Number, min: 1, required: true, validate: Number.isSafeInteger },
   erasedAt: { type: Date, default: null },
 }, options);
+// Old sessions expire, and a deleted ledger's as-of date becomes stale.
+// Seven days is therefore a conservative bounded fence-retention window.
+erasureFenceSchema.index({ erasedAt: 1 }, {
+  name: 'runway_erasure_fence_retention', expireAfterSeconds: 7 * 24 * 60 * 60,
+});
 
 export const RunwayErasureFence = mongoose.models.RunwayErasureFence
   || mongoose.model('RunwayErasureFence', erasureFenceSchema);
