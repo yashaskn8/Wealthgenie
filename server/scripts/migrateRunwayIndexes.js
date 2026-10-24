@@ -89,8 +89,7 @@ try {
         && index.key.userId === 1 && index.key.revision === -1)
       || !alerts.some(index => index.name === 'runway_alert_owner_revision'
         && index.key.userId === 1 && index.key.revision === -1)
-      || !fences.some(index => index.name === '_id_' && index.unique === true
-        && index.key._id === 1)) {
+      || !fences.some(index => index.name === '_id_' && index.key._id === 1)) {
     throw new Error('RUNWAY_INDEX_MISSING');
   }
   process.stdout.write('Runway revisions, evidence and notification indexes verified.\n');
