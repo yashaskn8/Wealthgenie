@@ -13,7 +13,9 @@ describe('GenieVoice browser inspector URL policy',()=>{
       'https://sebi.gov.in:444/','file:///etc/passwd',
       'chrome://settings','javascript:alert(1)','https://127.0.0.1',
       'https://example.com?to=https://sebi.gov.in',
-      'https://sebi.gov.in@evil.test','https://foo.sebi.gov.in','not a url',
+      'https://sebi.gov.in@evil.test','https://foo.sebi.gov.in',
+      'https://sebi.gov.in/login','https://rbi.org.in/account/',
+      'https://www.indiapost.gov.in/transactions','not a url',
       null, 'x'.repeat(2050)
     ])assert.equal(isApprovedPublicResearchUrl(url),false,String(url).slice(0,120));
   });

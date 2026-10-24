@@ -26,8 +26,13 @@ function unavailable() {
 export async function compareVoiceSipScenarios({
   userId, input, resolveProfile, financialRegistry
 }) {
-  if(!userId || !input || !Array.isArray(input.annualReturnAssumptionsPct) ||
-     input.annualReturnAssumptionsPct.length!==2) throw new TypeError('Invalid SIP scenario');
+  const amount=input?.monthlyInvestment,years=input?.years;
+  const assumptions=input?.annualReturnAssumptionsPct;
+  if(!userId || !Number.isSafeInteger(amount) || amount<100 || amount>10000000 ||
+     !Number.isSafeInteger(years)||years<1||years>30 ||
+     !Array.isArray(assumptions)||assumptions.length!==2 ||
+     assumptions.some(pct=>!Number.isFinite(pct)||pct<0.1||pct>30) ||
+     assumptions[0]===assumptions[1]) throw new TypeError('Invalid SIP scenario');
   const before=await resolveProfile({userId,requireRecommendation:false});
   if(!before?.profile || before?.state?.resolutionStatus!=='CURRENT') throw unavailable();
   const signature=fingerprint(before);

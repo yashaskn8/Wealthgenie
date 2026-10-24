@@ -20,7 +20,9 @@ btn.addEventListener('click',async()=>{
         const host=location.hostname.toLowerCase();
         const allowed=['rbi.org.in','www.rbi.org.in','sebi.gov.in',
           'www.sebi.gov.in','indiapost.gov.in','www.indiapost.gov.in'];
-        if(location.protocol!=='https:'||!allowed.includes(host))return null;
+        const blocked=/(?:^|\/)(?:login|signin|sign-in|auth|account|accounts|myaccount|profile|dashboard|payment|payments|kyc|transaction|transactions|portfolio|admin)(?:\/|$)/i;
+        if(location.protocol!=='https:'||!allowed.includes(host) ||
+           blocked.test(decodeURIComponent(location.pathname)))return null;
         const text=String(document.body?.innerText||'').slice(0,3000);
         return {url:location.origin+location.pathname,title:document.title.slice(0,160),text};
       }

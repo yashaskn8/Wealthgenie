@@ -21,6 +21,16 @@ describe('Sovereign voice SIP comparison integrity',()=>{
     assert.equal(x.differences.futureValue,100000);
     assert.equal(x.scenarios[0].returnBasis,'USER_SUPPLIED_NOMINAL_ASSUMPTION');
   });
+  it('fails closed on direct-service bypass of HTTP numeric schemas',async()=>{
+    for(const patch of [{monthlyInvestment:1},{years:99},
+      {annualReturnAssumptionsPct:[7,7]},{annualReturnAssumptionsPct:[7,50]},
+      {annualReturnAssumptionsPct:[7,Number.NaN]}]) {
+      await assert.rejects(()=>compareVoiceSipScenarios({
+        userId:'u',input:{...input,...patch},
+        resolveProfile:async()=>authority(),financialRegistry
+      }),TypeError);
+    }
+  });
   it('rejects missing canonical profiles',async()=>{
     await assert.rejects(()=>compareVoiceSipScenarios({
       userId:'u',input,resolveProfile:async()=>({profile:null,state:{resolutionStatus:'NO_CURRENT'}}),financialRegistry
