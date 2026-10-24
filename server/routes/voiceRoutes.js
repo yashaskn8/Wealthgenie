@@ -131,6 +131,7 @@ export function createVoiceRouter({
           userId:req.user.userId,
           key:req.headers['idempotency-key'],
           plan:req.body.plan,signal,resolveProfile,financialRegistry,
+          authorizeCurrent:()=>assertSessionCurrent(req.user,{signal}),
           ...(receiptRepository?{repository:receiptRepository}:{}),
           ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{}),
           ...(receiptHashSecret?{secret:receiptHashSecret}:{})

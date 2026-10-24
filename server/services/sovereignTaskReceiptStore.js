@@ -95,6 +95,7 @@ export async function recordSovereignTaskPreview({
   userId,key,plan,signal,resolveProfile,financialRegistry,
   repository=SovereignTaskReceipt,ensureReady=ready,
   executePreview=previewSovereignReadOnlyTask,
+  authorizeCurrent=async()=>{},
   secret=process.env.GENIEVOICE_RECEIPT_HASH_KEY
 }) {
   const id=sovereignReceiptId({userId,key});
@@ -106,6 +107,10 @@ export async function recordSovereignTaskPreview({
   const normalizedPlan={version:valid.version,steps:valid.steps};
   const requestHash=receiptDigest({domain:SOVEREIGN_RECEIPT_VERSION,
     userId:String(userId),plan:normalizedPlan},secret);
+  // Session may have been revoked after the JWT middleware ran.
+  await authorizeCurrent(signal);
+  if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+    'Task preview was interrupted before receipt reservation.');
   try{await ensureReady();}catch{throw storeUnavailable();}
   if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
     'Task preview was interrupted before receipt reservation.');
@@ -147,6 +152,10 @@ export async function recordSovereignTaskPreview({
       throw error(503,'SOVEREIGN_RECEIPT_UNSAFE_RESULT',
         'Task executor did not return a verifiable read-only result.');
     }
+    // Never commit a successful result for an account/session revoked mid-task.
+    await authorizeCurrent(signal);
+    if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+      'Task preview was interrupted before success publication.');
     const resultHash=receiptDigest({domain:SOVEREIGN_RECEIPT_VERSION,
       userId:String(userId),preview},secret);
     const completedAt=new Date();

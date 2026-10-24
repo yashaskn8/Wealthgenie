@@ -194,6 +194,31 @@ describe('Sovereign opt-in durable preview receipts',()=>{
     assert.equal(saved.status,'CANCELLED');
     assert.equal(saved.resultHash,null);
   });
+  it('rejects a revoked session before creating any durable receipt',async()=>{
+    const repository=memoryRepository();
+    await assert.rejects(()=>recordSovereignTaskPreview({
+      ...args(repository),
+      authorizeCurrent:async()=>{const e=new Error('Session revoked');e.code='VOICE_SESSION_REVOKED';throw e;}
+    }),{code:'VOICE_SESSION_REVOKED'});
+    assert.equal(repository.rows.size,0);
+  });
+  it('never marks a receipt successful if session authorization is lost mid-task',async()=>{
+    const repository=memoryRepository();
+    let checks=0,executions=0;
+    await assert.rejects(()=>recordSovereignTaskPreview({
+      ...args(repository),
+      authorizeCurrent:async()=>{
+        checks++;
+        if(checks===2){const e=new Error('Session revoked');e.code='VOICE_SESSION_REVOKED';throw e;}
+      },
+      executePreview:async()=>{executions++;return preview;}
+    }),{code:'VOICE_SESSION_REVOKED'});
+    assert.equal(checks,2);
+    assert.equal(executions,1);
+    const saved=[...repository.rows.values()][0];
+    assert.equal(saved.status,'FAILED');
+    assert.equal(saved.resultHash,null);
+  });
   it('rejects cross-plan key reuse, even when the first plan succeeded',async()=>{
     const repository=memoryRepository();
     await recordSovereignTaskPreview(args(repository));
