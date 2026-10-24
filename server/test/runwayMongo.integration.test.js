@@ -10,7 +10,7 @@ import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
-import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt } from '../models/Runway.js';
+import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt, RunwayErasureFence } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 import { RunwayProjectionJob, RunwayProjectionResult, RunwayAlert } from '../models/RunwayProjection.js';
 import { processOneRunwayProjection } from '../services/runwayProjectionOutbox.js';
@@ -38,6 +38,7 @@ const token = id => jwt.sign({
 test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recompute and deletion', async () => {
   await setupTestDatabase({ requireReplicaSet: true });
   try {
+    await RunwayErasureFence.createCollection();
     await RunwayLedgerRevision.collection.createIndex({ userId: 1, revision: 1 }, {
       unique: true, name: 'uniq_runway_ledger_revision',
     });
@@ -475,6 +476,14 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       });
       assert.equal(deleted.response.status, 200);
       assert.equal(deleted.body.status, 'DELETED');
+      assert.equal(deleted.body.minimalErasureFenceRetained, true);
+      const fence = await RunwayErasureFence.findById(userA).lean();
+      assert.ok(fence?.erasedAt instanceof Date);
+      const replayAfterErasure = await write(base, ledger, 0, 'runway-initial-001');
+      assert.equal(replayAfterErasure.response.status, 403,
+        'An old valid same-day token and original key must not recreate deleted cash data.');
+      assert.equal(replayAfterErasure.body.code, 'RUNWAY_REAUTH_AFTER_ERASURE_REQUIRED');
+      assert.equal(await RunwayLedgerState.countDocuments({ _id: userA }), 0);
       assert.equal(await RunwayLedgerRevision.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySnapshotDeletion.countDocuments({ userId: userA }), 0);
