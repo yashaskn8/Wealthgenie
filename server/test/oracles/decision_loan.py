@@ -20,11 +20,11 @@ def reference(source):
             return int((Decimal(balance) * Decimal(annual_bps) / Decimal(120000))
                        .quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
-    def repay(payment):
+    def repay(payment, count):
         outstanding = principal
         interest_sum = 0
         payments = []
-        for _ in range(horizon):
+        for _ in range(count):
             if not outstanding:
                 payments.append(0)
                 continue
@@ -48,11 +48,13 @@ def reference(source):
             annuity = Decimal(principal) * rate * growth / (growth - 1)
             guess = int(annuity.to_integral_value(rounding=ROUND_CEILING))
 
-    while repay(guess)[0] != 0:
+    # The contractual monthly instalment is determined by the loan term,
+    # never by the shorter display horizon of a what-if comparison.
+    while repay(guess, months)[0] != 0:
         guess += 1
-    while guess > 0 and repay(guess - 1)[0] == 0:
+    while guess > 0 and repay(guess - 1, months)[0] == 0:
         guess -= 1
-    balance, interest, payments = repay(guess)
+    balance, interest, payments = repay(guess, horizon)
     return {"monthlyPaymentPaise": guess, "remainingPaise": balance,
             "interestPaise": interest, "paymentsPaise": payments}
 
