@@ -212,7 +212,10 @@ describe('GenieVoice protected route',()=>{
       },
       async updateOne(query,update){
         const rec=saved.get(query._id);
-        if(!rec||rec.status!==query.status||rec.requestHash!==query.requestHash)return {matchedCount:0};
+        if(!rec||rec.status!==query.status||rec.requestHash!==query.requestHash||
+          (query.leaseExpiresAt?.$gt &&
+            rec.leaseExpiresAt.getTime()<=query.leaseExpiresAt.$gt.getTime()))
+          return {matchedCount:0};
         Object.assign(rec,update.$set);return {matchedCount:1};
       }
     };
@@ -220,7 +223,9 @@ describe('GenieVoice protected route',()=>{
       id:'navigate',operation:'APP_NAVIGATE',arguments:{page:'goals',tab:null},dependsOn:[]
     }]};
     await withServer(buildApp(true,{
-      receiptsEnabled:true,receiptRepository,ensureReceiptReady:async()=>{}
+      receiptsEnabled:true,receiptRepository,
+      receiptHashSecret:'test-only-independent-secret-key-with-more-than-32-bytes',
+      ensureReceiptReady:async()=>{}
     }),async(base)=>{
       const url=base+'/api/voice/task-preview/recorded';
       const headers={'content-type':'application/json','authorization':'Bearer '+token(),

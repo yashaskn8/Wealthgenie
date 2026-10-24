@@ -115,3 +115,6 @@ writes, browser mutations, or any irreversible tool. Those require a separate
 permanent idempotency record, transactional reconciliation and approvals.
 This foundation is not yet connected to the frontend and requires database
 integration tests and privacy review before activation.
+
+## Red-team receipt safeguards
+Recording requires an independent `GENIEVOICE_RECEIPT_HASH_KEY` secret (minimum 32 bytes) for HMAC-SHA256 digests, preventing low-entropy financial assumptions from being recovered by guessing. Index checks verify both unique ownership and the exact TTL index; missing indexes fail closed. A 30-second execution lease fences completion. If a previously running operation loses its lease, status reads return OUTCOME_UNKNOWN, never falsely implying success. Receipts past their seven-day expiry are rejected even before MongoDB completes its asynchronous TTL cleanup. No external browser or mutation execution is authorized.

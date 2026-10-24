@@ -60,7 +60,7 @@ export function createVoiceRouter({
   enabled=false,receiptsEnabled=false,
   resolveProfile=resolveCurrentFinancialProfile,
   financialRegistry=FinancialToolRegistry,
-  receiptRepository,ensureReceiptReady,
+  receiptRepository,ensureReceiptReady,receiptHashSecret,
 }={}) {
   const router=Router();
   router.use(verifyJWT);
@@ -124,7 +124,8 @@ export function createVoiceRouter({
           key:req.headers['idempotency-key'],
           plan:req.body.plan,signal,resolveProfile,financialRegistry,
           ...(receiptRepository?{repository:receiptRepository}:{}),
-          ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{})
+          ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{}),
+          ...(receiptHashSecret?{secret:receiptHashSecret}:{})
         });
         if(!signal.aborted&&!res.destroyed)
           res.status(output.outcome==='COMPLETED'?201:200).json(output);
