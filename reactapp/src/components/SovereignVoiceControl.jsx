@@ -44,10 +44,20 @@ export default function SovereignVoiceControl({
   }, []);
 
   useLayoutEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
-  // A new chat result invalidates speech and in-flight commands from the old answer.
+  // A new verified answer or identity invalidates both in-flight commands and
+  // their visible busy state. Aborted callbacks deliberately cannot reset it:
+  // generation fencing suppresses stale asynchronous writes.
   useLayoutEffect(() => () => cancelAll(), [cancelAll, lastAnswer]);
+  useLayoutEffect(() => {
+    setState('idle');
+    setSpokenAnswer(null);
+  }, [sessionKey, lastAnswer]);
   useEffect(() => {
-    if (disabled) cancelAll();
+    if (disabled) {
+      cancelAll();
+      setState('idle');
+      setSpokenAnswer(null);
+    }
   }, [disabled, cancelAll]);
 
   const stop = () => {
