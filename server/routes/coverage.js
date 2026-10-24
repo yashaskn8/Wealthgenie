@@ -137,6 +137,14 @@ router.get('/ledger', verifyJWT, asyncHandler(async (req, res) => {
       code: 'COVERAGE_RESULT_UNAVAILABLE',
     });
   }
+  // A concurrent save/delete can commit while the historical snapshot is
+  // loading. As in the export endpoints, never label that snapshot as current
+  // once its owning ledger revision has changed or been tombstoned.
+  const stillCurrent = await CoverageLedger.exists({
+    _id: ledger._id, userId: req.user.userId,
+    revision: ledger.revision, deletedAt: null,
+  });
+  if (!stillCurrent) throw conflict();
   return res.json({
     revision: ledger.revision,
     ledger: ledger.input,
