@@ -245,6 +245,14 @@ describe('Sovereign opt-in durable preview receipts',()=>{
       name:'ttl_sovereign_task_receipt',key:{expiresAt:1},expireAfterSeconds:60
     }]),false);
     assert.equal(hasSovereignReceiptTtlIndex([{
+      name:'ttl_sovereign_task_receipt',key:{expiresAt:1},expireAfterSeconds:0,
+      partialFilterExpression:{status:'SUCCEEDED'}
+    }]),false);
+    assert.equal(hasSovereignReceiptTtlIndex([{
+      name:'ttl_sovereign_task_receipt',key:{expiresAt:1},expireAfterSeconds:0,
+      sparse:true
+    }]),false);
+    assert.equal(hasSovereignReceiptTtlIndex([{
       name:'ttl_sovereign_task_receipt',key:{expiresAt:1},expireAfterSeconds:0
     }]),true);
   });

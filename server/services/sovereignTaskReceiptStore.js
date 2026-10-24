@@ -17,7 +17,9 @@ const error=(status,code,message)=>createError(status,message,message,{code});
 export function hasSovereignReceiptTtlIndex(indexes) {
   return Array.isArray(indexes)&&indexes.some(i=>
     i.name==='ttl_sovereign_task_receipt' && i.key?.expiresAt===1 &&
-    Object.keys(i.key).length===1 && i.expireAfterSeconds===0);
+    Object.keys(i.key).length===1 && i.expireAfterSeconds===0 &&
+    // A partial/sparse TTL index could silently retain financial task metadata.
+    i.partialFilterExpression===undefined && i.sparse!==true);
 }
 const ready=async()=>{
   await verifyPersistenceIndexes({models:[SovereignTaskReceipt],scope:'persistence'});
