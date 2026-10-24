@@ -196,6 +196,22 @@ function requireListedPayments(ledger) {
 router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 router.use(requireSession, enable, (req, res, next) =>
   (req.method === 'GET' ? readLimiter : limiter)(req, res, next));
+router.use(asyncHandler(async (req, _res, next) => {
+  // An erasure revokes the authority of all Runway sessions issued before
+  // that erasure, including when a newer session intentionally creates a
+  // replacement ledger. Guard every read, export, import and mutation, not
+  // only initial ledger creation.
+  const userId = owner(req);
+  let fence;
+  try {
+    fence = await RunwayErasureFence.findById(userId).lean();
+  } catch {
+    throw failure(503, 'RUNWAY_ERASURE_FENCE_UNAVAILABLE',
+      'Financial-data deletion status could not be checked. Retry later.');
+  }
+  requirePostErasureAuthentication(req, fence);
+  next();
+}));
 router.use('/live', createRunwayLiveRouter({
   owner, currentRevision, inTransaction, rethrowTransaction, requireRecentSession,
   indiaCivilToday, requireRunwayIndexes, idempotency,
