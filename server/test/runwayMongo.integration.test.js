@@ -157,6 +157,8 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
           result: historical.result, computedAt: historical.computedAt,
         })).digest('hex');
       await RunwayProjectionResult.collection.replaceOne({ _id: projectionId }, historical);
+      await RunwayAlert.collection.updateOne({ userId: userA, projectionId },
+        { $set: { resultHash: historical.resultHash } });
       const historicalProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
       assert.equal(historicalProjection.response.status, 200, JSON.stringify(historicalProjection.body));
       assert.equal(historicalProjection.body.status, 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED');
@@ -166,6 +168,8 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(historicalAlerts.body.status, 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED');
       assert.deepEqual(historicalAlerts.body.items, []);
       await RunwayProjectionResult.collection.replaceOne({ _id: projectionId }, validProjection);
+      await RunwayAlert.collection.updateOne({ userId: userA, projectionId },
+        { $set: { resultHash: validProjection.resultHash } });
       await RunwayProjectionResult.collection.updateOne({ _id: projectionId },
         { $set: { resultHash: 'f'.repeat(64) } });
       const corruptedProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
