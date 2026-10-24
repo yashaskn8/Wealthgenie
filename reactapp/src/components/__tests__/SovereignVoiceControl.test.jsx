@@ -42,6 +42,13 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(x.transcript).toHaveBeenCalledWith('Explain my SIP');
     expect(x.nav).not.toHaveBeenCalled();
   });
+  it('opens a review-required SIP comparison without executing calculator tools',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',action:'OPEN_SIP_COMPARISON'});
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    await act(async()=>{x.getRecognition().onresult({results:[[{transcript:'open sip comparison'}]]});});
+    expect(screen.getByRole('button',{name:'Run SIP comparison'})).toBeDisabled();
+    expect(x.nav).not.toHaveBeenCalled();
+  });
   it('does not expose unavailable financial evidence as verified speech',()=>{
     const x=setup({action:'CHAT'});
     x.ui.rerender(<SovereignVoiceControl sessionKey="a" lastAnswer={{

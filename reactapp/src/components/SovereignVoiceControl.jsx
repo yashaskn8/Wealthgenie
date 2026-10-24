@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import * as api from '../services/api';
 import { PAGE_ALLOWLIST } from '../utils/navigationMap';
+import SovereignSipComparison from './SovereignSipComparison';
 
 /**
  * An opt-in, bounded voice experience. The model is never an action executor.
@@ -12,6 +13,7 @@ export default function SovereignVoiceControl({
 }) {
   const [state, setState] = useState('idle');
   const [status, setStatus] = useState('');
+  const [showComparison, setShowComparison] = useState(false);
   const listeningRef = useRef(null);
   const requestRef = useRef(null);
   const utteranceRef = useRef(null);
@@ -89,6 +91,9 @@ export default function SovereignVoiceControl({
             } catch {
               setStatus('Navigation outcome could not be confirmed. No further tasks will run.');
             }
+          } else if (result.action === 'OPEN_SIP_COMPARISON') {
+            setShowComparison(true);
+            setStatus('SIP comparison ready. Enter and review two hypothetical return assumptions before calculating.');
           } else if (result.action === 'CHAT') {
             callbacksRef.current.onTranscript?.(transcript);
             setStatus('Transcript added to chat. Review it before sending.');
@@ -193,6 +198,13 @@ export default function SovereignVoiceControl({
           {state === 'speaking' ? 'Stop speaking' : 'Speak verified answer'}
         </button>
       )}
+      <button type="button" disabled={disabled || state === 'checking'}
+        onClick={() => { cancelAll(); setState('idle'); setShowComparison(v => !v); }}
+        aria-label={showComparison ? 'Close SIP comparison' : 'Open SIP comparison'}>
+        {showComparison ? 'Close SIP comparison' : 'Compare SIP scenarios'}
+      </button>
+      {showComparison && <SovereignSipComparison disabled={disabled}
+        onClose={() => setShowComparison(false)} />}
       {state === 'checking' && <span role="status">Checking voice command…</span>}
       <small>Browser speech recognition may process audio through its provider. No background listening.</small>
       {status && <div role="status">{status}</div>}

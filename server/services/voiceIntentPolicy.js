@@ -15,6 +15,7 @@ const TARGETS=Object.freeze({
   account:['account','profile'],
   help:['help','help center']
 });
+const OPEN_COMPARISON_RE=/^(?:please\s+)?(?:open|show|start|prepare)\s+(?:(?:the|my)\s+)?(?:sip comparison|sip scenario comparison|sip what if|sip what-if)(?:\s+(?:tool|screen|panel))?[.!?]*$/i;
 const NAV_RE=/^(?:please\s+)?(?:open|show|visit|go to|navigate to|take me to)\s+(?:(?:the|my)\s+)?(.+?)(?:\s+(?:page|screen|tab))?[.!?]*$/i;
 const UNSAFE_RE=/\b(?:buy|sell|trade|transfer|withdraw|pay|purchase|delete|erase|remove|submit|send|save|change|modify|update|rebalance|approve|authorize|confirm|execute|install|download|upload|log\s*in|sign\s*in)\b|(?:https?:\/\/|www\.)/i;
 const EXTERNAL_RE=/\b(?:browser|chrome|firefox|tab|website|google|youtube|gmail|email|external|internet|webpage)\b/i;
@@ -24,6 +25,7 @@ export function classifyVoiceIntent(raw) {
   const input=raw.trim().replace(/\s+/g,' ');
   if(!input||/[\u0000-\u001f\u007f]/.test(input))return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
   if(UNSAFE_RE.test(input))return {action:'REJECTED',reason:'ACTION_NOT_ALLOWED'};
+  if(OPEN_COMPARISON_RE.test(input))return {action:'OPEN_SIP_COMPARISON',version:VOICE_INTENT_VERSION};
   const matched=NAV_RE.exec(input);
   if(!matched)return {action:'CHAT',reason:'NO_APPROVED_COMMAND'};
   const noun=matched[1].toLowerCase().trim().replace(/[.!?]+$/,'').trim();

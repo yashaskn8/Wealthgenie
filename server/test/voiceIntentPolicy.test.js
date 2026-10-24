@@ -17,6 +17,12 @@ describe('Sovereign X fail-closed voice policy',()=>{
       assert.ok(PAGE_ALLOWLIST.includes(result.page),input);
     }
   });
+  it('can open the explicitly reviewed SIP comparison panel, never execute a projection from audio',()=>{
+    assert.deepEqual(classifyVoiceIntent('open sip comparison'),{
+      action:'OPEN_SIP_COMPARISON',version:VOICE_INTENT_VERSION
+    });
+    assert.notEqual(classifyVoiceIntent('open sip comparison and assume 15%').action,'OPEN_SIP_COMPARISON');
+  });
   it('does not recognize compound commands',()=>{
     for(const input of ['open goals and investments','open /admin','open my account and update it','open genieproof','goals','explain SIP']){
       assert.notEqual(classifyVoiceIntent(input).action,'APP_NAVIGATE',input);
