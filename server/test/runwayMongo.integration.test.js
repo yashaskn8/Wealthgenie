@@ -497,7 +497,8 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(await RunwayProjectionResult.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwayAlert.countDocuments({ userId: userA }), 0);
       const missing = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
-      assert.equal(missing.response.status, 404);
+      assert.equal(missing.response.status, 403);
+      assert.equal(missing.body.code, 'RUNWAY_REAUTH_AFTER_ERASURE_REQUIRED');
       assert.equal(await FinancialProfile.countDocuments({ userId: userA }), 0);
       assert.equal(await Goal.countDocuments({ userId: userA }), 0);
       assert.equal(await Recommendation.countDocuments({ userId: userA }), 0);
