@@ -54,6 +54,36 @@ function unavailable() {
     'Complete and confirm your financial profile before comparing SIP scenarios.',
     {code:'VOICE_FINANCIAL_PROFILE_REQUIRED'});
 }
+/**
+ * Release a request when its cancellation/deadline fires, including when an
+ * upstream read-only provider never settles. Outstanding work is NOT claimed
+ * to have stopped: side-effectful operations must never use this helper.
+ */
+function awaitCancellableRead(read,signal) {
+  assertActive(signal);
+  if(!signal)return Promise.resolve().then(read);
+  return new Promise((resolve,reject)=>{
+    let settled=false;
+    const finish=(callback,value)=>{
+      if(settled)return;
+      settled=true;
+      signal.removeEventListener('abort',onAbort);
+      callback(value);
+    };
+    const onAbort=()=>finish(reject,createError(409,'The voice comparison was cancelled.',
+      'The comparison was interrupted. No financial action was performed.',
+      {code:'VOICE_SIP_CANCELLED'}));
+    signal.addEventListener('abort',onAbort,{once:true});
+    if(signal.aborted){onAbort();return;}
+    Promise.resolve().then(()=>{
+      assertActive(signal);
+      return read();
+    }).then(
+      value=>finish(resolve,value),
+      error=>finish(reject,error)
+    );
+  });
+}
 export async function compareVoiceSipScenarios({
   userId, input, resolveProfile, financialRegistry, signal
 }) {
@@ -65,7 +95,8 @@ export async function compareVoiceSipScenarios({
      assumptions.some(pct=>!Number.isFinite(pct)||pct<0.1||pct>30) ||
      assumptions[0]===assumptions[1]) throw new TypeError('Invalid SIP scenario');
   assertActive(signal);
-  const before=await resolveProfile({userId,requireRecommendation:false});
+  const before=await awaitCancellableRead(
+    ()=>resolveProfile({userId,requireRecommendation:false,signal}),signal);
   assertActive(signal);
   if(!before?.profile || before?.state?.resolutionStatus!=='CURRENT') throw unavailable();
   const signature=fingerprint(before);
@@ -74,9 +105,10 @@ export async function compareVoiceSipScenarios({
   const projections=[];
   for(const pct of rates) {
     assertActive(signal);
-    const run=await financialRegistry.executeTool('sip_projection',{
-      ...args,annualRate:pct/100
-    },{profile:before.profile});
+    const run=await awaitCancellableRead(
+      ()=>financialRegistry.executeTool('sip_projection',{
+        ...args,annualRate:pct/100
+      },{profile:before.profile,signal}),signal);
     assertActive(signal);
     if(!run?.success || !run.result ||
        run.result.returnBasis!=='USER_SUPPLIED_NOMINAL_ASSUMPTION' ||
@@ -110,7 +142,8 @@ export async function compareVoiceSipScenarios({
     });
   }
   assertActive(signal);
-  const after=await resolveProfile({userId,requireRecommendation:false});
+  const after=await awaitCancellableRead(
+    ()=>resolveProfile({userId,requireRecommendation:false,signal}),signal);
   assertActive(signal);
   if(fingerprint(after)!==signature) throw invalidState();
   return {

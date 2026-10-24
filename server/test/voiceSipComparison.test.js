@@ -36,6 +36,22 @@ describe('Sovereign voice SIP comparison integrity',()=>{
       }),TypeError);
     }
   });
+  it('rejects cancellation promptly even if the read-only financial tool never settles',async()=>{
+    const cancellation=new AbortController();
+    let requested=false;
+    const pending=compareVoiceSipScenarios({
+      userId:'u',input,signal:cancellation.signal,
+      resolveProfile:async()=>authority(),
+      financialRegistry:{executeTool:()=>{
+        requested=true;
+        return new Promise(()=>{});
+      }}
+    });
+    for(let i=0;i<10&&!requested;i++)await Promise.resolve();
+    assert.equal(requested,true);
+    cancellation.abort();
+    await assert.rejects(pending,{code:'VOICE_SIP_CANCELLED'});
+  });
   it('aborts between engine calls and never publishes a partially computed comparison',async()=>{
     const cancellation=new AbortController();
     let executions=0;
