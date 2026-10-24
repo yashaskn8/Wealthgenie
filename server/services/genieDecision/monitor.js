@@ -19,6 +19,25 @@ import {
 
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const id = value => String(value);
+// Bounded failure taxonomy is safe to publish in worker health output.
+// Never emit attacker-supplied exception messages or unbounded error codes.
+const MONITOR_FAILURE_CODES = new Set([
+  'DECISION_MONITOR_CONSENT_INTEGRITY_FAILURE',
+  'DECISION_ASSESSMENT_INTEGRITY_FAILURE',
+  'DECISION_REVISION_INTEGRITY_FAILURE',
+  'DECISION_REPORT_INTEGRITY_FAILURE',
+  'DECISION_MONITOR_REPORT_POINTER_MISSING',
+  'DECISION_SNAPSHOT_SOURCE_UNAVAILABLE',
+  'DECISION_INTEGRITY_UNAVAILABLE',
+  'DECISION_EVENT_SEQUENCE_OUT_OF_RANGE',
+]);
+export function classifyDecisionMonitorFailure(error) {
+  if (MONITOR_FAILURE_CODES.has(error?.code)) return error.code;
+  if (error?.code === 11000 || error?.hasErrorLabel?.('TransientTransactionError')) {
+    return 'DECISION_MONITOR_CONCURRENT_WRITE';
+  }
+  return 'DECISION_MONITOR_UNEXPECTED_FAILURE';
+}
 export function signMonitorConsent({ userId, scenarioId, generation, enabled }) {
   return signDecisionReceipt('decision_monitor_consent',
     { userId: id(userId), scenarioId: id(scenarioId), generation }, { enabled });
@@ -263,7 +282,11 @@ export async function scanDecisionMonitors({
       || !Number.isSafeInteger(leaseMs) || leaseMs < 10000) {
     throw new RangeError('Invalid monitoring scan limit or lease');
   }
-  const summary = { inspected: 0, created: 0, failed: 0, statuses: {} };
+  const summary = { inspected: 0, created: 0, failed: 0, statuses: {}, failureCodes: {} };
+  const recordFailure = code => {
+    summary.failed += 1;
+    summary.failureCodes[code] = (summary.failureCodes[code] || 0) + 1;
+  };
   const visited = [];
   for (let index = 0; index < limit; index += 1) {
     const claimedAt = now();
@@ -285,13 +308,13 @@ export async function scanDecisionMonitors({
       const outcome = await assessMonitoredDecision(monitor, { resolveProfile });
       summary.statuses[outcome] = (summary.statuses[outcome] || 0) + 1;
       if (outcome === 'CREATED') summary.created += 1;
-    } catch { summary.failed += 1; }
+    } catch (error) { recordFailure(classifyDecisionMonitorFailure(error)); }
     finally {
       try {
         await DecisionMonitor.updateOne({
           _id: monitor._id, generation: monitor.generation, leaseToken: token,
         }, { $set: { lastCheckedAt: now(), leaseToken: null, leaseUntil: null } });
-      } catch { summary.failed += 1; }
+      } catch { recordFailure('DECISION_MONITOR_LEASE_RELEASE_FAILED'); }
     }
   }
   return summary;
@@ -329,14 +352,20 @@ export function createDecisionMonitorWorker({
   return {
     start() {
       if (timer) return;
-      timer = setInterval(() => { void tick().catch(() => { lastResult = { failed: 1 }; }); }, pollMs);
+      timer = setInterval(() => { void tick().catch(error => {
+        lastResult = { inspected: 0, created: 0, failed: 1, statuses: {},
+          failureCodes: { [classifyDecisionMonitorFailure(error)]: 1 } };
+      }); }, pollMs);
       heartTimer = setInterval(() => {
         void beat().catch(() => { heartbeatHealthy = false; });
       }, 15000);
       heartTimer.unref?.();
       void beat().catch(() => { heartbeatHealthy = false; });
       timer.unref?.();
-      void tick().catch(() => { lastResult = { failed: 1 }; });
+      void tick().catch(error => {
+        lastResult = { inspected: 0, created: 0, failed: 1, statuses: {},
+          failureCodes: { [classifyDecisionMonitorFailure(error)]: 1 } };
+      });
     },
     async stop() {
       if (timer) clearInterval(timer);
