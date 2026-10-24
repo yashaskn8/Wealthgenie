@@ -172,4 +172,29 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(x.nav).not.toHaveBeenCalled();
   });
 
+  it('unmounts private SIP draft inputs on disable and clears them for another account',()=>{
+    const x=setup({action:'CHAT'});
+    fireEvent.click(screen.getByRole('button',{name:'Open SIP comparison'}));
+    fireEvent.change(screen.getByRole('spinbutton',{name:'Monthly SIP amount'}),{
+      target:{value:'987654'}
+    });
+    expect(screen.getByRole('spinbutton',{name:'Monthly SIP amount'})).toHaveValue(987654);
+    x.ui.rerender(<SovereignVoiceControl disabled sessionKey="a"
+      onNavigate={x.nav} onTranscript={x.transcript}/>);
+    expect(screen.queryByRole('spinbutton',{name:'Monthly SIP amount'})).not.toBeInTheDocument();
+    x.ui.rerender(<SovereignVoiceControl disabled={false} sessionKey="b"
+      onNavigate={x.nav} onTranscript={x.transcript}/>);
+    expect(screen.getByRole('spinbutton',{name:'Monthly SIP amount'})).toHaveValue(null);
+  });
+  it('resets SIP draft on account change even without a disabled intermediate render',()=>{
+    const x=setup({action:'CHAT'});
+    fireEvent.click(screen.getByRole('button',{name:'Open SIP comparison'}));
+    fireEvent.change(screen.getByRole('spinbutton',{name:'Monthly SIP amount'}),{
+      target:{value:'250000'}
+    });
+    x.ui.rerender(<SovereignVoiceControl sessionKey="b"
+      onNavigate={x.nav} onTranscript={x.transcript}/>);
+    expect(screen.getByRole('spinbutton',{name:'Monthly SIP amount'})).toHaveValue(null);
+  });
+
 });
