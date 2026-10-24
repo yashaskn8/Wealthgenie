@@ -676,3 +676,49 @@ test('monitor reassesses signed outdated policy and revised user-approved scenar
     assert.equal(removed.response.status, 200);
   });
 });
+
+
+test('signed historical decisions remain owner-readable when canonical profile currentness is unavailable', async () => {
+  await withServer(app(), async base => {
+    const input = { ...scenarioInput(), expectedProfileStateRevision: 2,
+      title: 'Historical report when profile currentness is unavailable' };
+    const created = await call(base, userOne, '/scenarios', 'POST',
+      input, 'decision-history-unavailable-create-0001');
+    assert.equal(created.response.status, 201, JSON.stringify(created.body));
+    const scenarioId = created.body.scenario.id;
+    const key = 'decision-history-unavailable-eval-0001';
+    const evaluated = await call(base, userOne, `/scenarios/${scenarioId}/evaluate`,
+      'POST', { expectedRevision: 1 }, key);
+    assert.equal(evaluated.response.status, 201, JSON.stringify(evaluated.body));
+    const runId = evaluated.body.run.id;
+    const stranger = await call(base, userTwo, `/runs/${runId}`);
+    assert.equal(stranger.response.status, 404);
+    await FinancialProfileState.collection.updateOne({ userId: userOne },
+      { $set: { resolutionStatus: 'LEGACY_AMBIGUOUS' } });
+    try {
+      const historical = await call(base, userOne, `/runs/${runId}`);
+      assert.equal(historical.response.status, 200, JSON.stringify(historical.body));
+      assert.equal(historical.body.run.status, 'HISTORICAL');
+      assert.equal(historical.body.run.id, runId);
+      assert.ok(historical.body.run.reasonCodes.includes('DECISION_SOURCE_PROFILE_SUPERSEDED'));
+      const history = await call(base, userOne, `/scenarios/${scenarioId}/runs`);
+      assert.equal(history.response.status, 200, JSON.stringify(history.body));
+      assert.ok(history.body.runs.some(item => item.id === runId && item.status === 'HISTORICAL'));
+      const replay = await call(base, userOne, `/scenarios/${scenarioId}/evaluate`,
+        'POST', { expectedRevision: 1 }, key);
+      assert.equal(replay.response.status, 200, JSON.stringify(replay.body));
+      assert.equal(replay.body.replayed, true);
+      assert.equal(replay.body.run.status, 'HISTORICAL');
+      const fresh = await call(base, userOne, `/scenarios/${scenarioId}/evaluate`,
+        'POST', { expectedRevision: 1 }, 'decision-history-unavailable-eval-0002');
+      assert.equal(fresh.response.status, 503,
+        'A new assessment must still fail closed until the profile pointer is restored');
+    } finally {
+      await FinancialProfileState.collection.updateOne({ userId: userOne },
+        { $set: { resolutionStatus: 'CURRENT' } });
+    }
+    const removed = await call(base, userOne, `/scenarios/${scenarioId}`,
+      'DELETE', { expectedRevision: 1 });
+    assert.equal(removed.response.status, 200, JSON.stringify(removed.body));
+  });
+});
