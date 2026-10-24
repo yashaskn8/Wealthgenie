@@ -41,10 +41,7 @@ export default function SovereignVoiceControl({
 
   useEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
   useEffect(() => {
-    if (disabled) {
-      cancelAll();
-      setState('idle');
-    }
+    if (disabled) cancelAll();
   }, [disabled, cancelAll]);
 
   const stop = () => {

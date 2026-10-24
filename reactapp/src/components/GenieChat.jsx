@@ -885,6 +885,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             {voiceError && <div role="status" className="chat-error-banner">{voiceError}</div>}
             {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED === 'true' && (
               <SovereignVoiceControl
+                key={sessionId + ':' + (sessionMatchesProfile && !isClearing && !isLoading ? 'ready' : 'disabled')}
                 sessionKey={sessionId}
                 disabled={!sessionMatchesProfile || isClearing || isLoading}
                 onNavigate={onNavigate}
