@@ -122,6 +122,43 @@ test('coverage: atomic revisions, replay fencing, ownership, preview and deletio
     assert.equal(replay.body.superseded, false);
     assert.equal(await CoverageResult.countDocuments({ userId: owner }), 1);
 
+    // A financial GET must not return a snapshot if a second session changes
+    // the owning ledger after its snapshot was read. Use the real replica-set
+    // database to inject that interleaving rather than mocking the read fence.
+    const originalSnapshotLookup = CoverageResult.findOne;
+    let readRaceInjected = false;
+    CoverageResult.findOne = function interceptCurrentSnapshot(filter, ...args) {
+      const query = originalSnapshotLookup.call(this, filter, ...args);
+      if (!readRaceInjected && String(filter?.userId) === String(owner)
+          && filter?.ledgerRevision === 1 && filter?.policyVersion) {
+        const originalLean = query.lean.bind(query);
+        query.lean = (...leanArgs) => originalLean(...leanArgs).exec().then(async snapshot => {
+          const changed = await CoverageLedger.updateOne({
+            userId: owner, revision: 1, deletedAt: null,
+          }, { $inc: { revision: 1 } });
+          assert.equal(changed.modifiedCount, 1, 'fault injection must move the live revision');
+          readRaceInjected = true;
+          return snapshot;
+        });
+      }
+      return query;
+    };
+    try {
+      const racedRead = await call(owner, 'GET', '/ledger');
+      assert.equal(readRaceInjected, true, 'the test must exercise a real competing revision');
+      assert.equal(racedRead.status, 409, 'a superseded financial read must fail closed');
+      assert.equal(JSON.stringify(racedRead.body).includes('openingCashPaise'), false,
+        'a conflicted read must not expose the superseded cash payload');
+    } finally {
+      CoverageResult.findOne = originalSnapshotLookup;
+      if (readRaceInjected) {
+        const restored = await CoverageLedger.updateOne({
+          userId: owner, revision: 2,
+        }, { $inc: { revision: -1 } });
+        assert.equal(restored.modifiedCount, 1, 'restore isolated interleaving before other cases');
+      }
+    }
+
     // Real browser cookie-session mutations require double-submit CSRF AND
     // a production-allowlisted Origin. Bearer clients are tested separately.
     const cookie = 'wg_session=' + ownerToken(owner) + '; wg_csrf=csrf-test-token';
