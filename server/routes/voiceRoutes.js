@@ -8,6 +8,7 @@ import { classifyVoiceIntent, VOICE_INTENT_VERSION } from '../services/voiceInte
 import { resolveCurrentFinancialProfile } from '../services/currentFinancialProfile.js';
 import { FinancialToolRegistry } from '../services/financialToolRegistry.js';
 import { compareVoiceSipScenarios } from '../services/voiceSipComparison.js';
+import { previewSovereignReadOnlyTask } from '../services/sovereignReadOnlyTaskPreview.js';
 
 
 const transcriptSchema=Joi.object({ transcript:Joi.string().trim().min(1).max(1000).required() }).unknown(false);
@@ -20,6 +21,19 @@ const interpretLimiter=()=>createEndpointRateLimiter({
 });
 const comparisonLimiter=()=>createEndpointRateLimiter({
   windowMs:60_000,max:12,prefix:'rl:ep:genievoice:sip:',
+  keyGenerator:req=>String(req.user.userId)
+});
+
+const taskPreviewSchema=Joi.object({
+  plan:Joi.object({
+    version:Joi.string().valid('sovereign-task-plan-v1').required(),
+    // Pure task validator checks the complete structural and action allowlists.
+    steps:Joi.array().min(1).max(6).required()
+  }).unknown(false).required()
+}).unknown(false);
+
+const taskPreviewLimiter=()=>createEndpointRateLimiter({
+  windowMs:60_000,max:6,prefix:'rl:ep:genievoice:preview:',
   keyGenerator:req=>String(req.user.userId)
 });
 
@@ -56,6 +70,23 @@ export function createVoiceRouter({
       financialRegistry,
     });
     res.json(comparison);
+  }));
+  // No planner autonomy: client supplies a reviewable plan and receives
+  // independently validated proposals/calculations, never executed navigation.
+  router.post('/task-preview',taskPreviewLimiter(),validate(taskPreviewSchema),asyncHandler(async(req,res)=>{
+    const cancel=new AbortController();
+    const onDisconnect=()=>cancel.abort();
+    res.once('close',onDisconnect);
+    try {
+      const signal=AbortSignal.any([cancel.signal,AbortSignal.timeout(12_000)]);
+      const preview=await previewSovereignReadOnlyTask({
+        userId:req.user.userId,
+        plan:req.body.plan,resolveProfile,financialRegistry,signal
+      });
+      if(!signal.aborted && !res.destroyed)res.json(preview);
+    } finally {
+      res.off('close',onDisconnect);
+    }
   }));
   return router;
 }

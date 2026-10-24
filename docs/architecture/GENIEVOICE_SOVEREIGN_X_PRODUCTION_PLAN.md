@@ -69,3 +69,14 @@ This is an interim defense, **not** an npm audit resolution. Transitive parsers,
 MCP transports, other middleware and external packages require independent inventory.
 Update dependency versions and lockfiles through a reproducible npm install, rerun
 npm audit, unit and full E2E/security checks before signing off.
+
+## Read-only task preview integration
+`POST /api/voice/task-preview` now accepts a **user-submitted** bounded DAG of
+APP_NAVIGATE and at most one SIP_COMPARE_DRAFT. The endpoint validates all steps
+with SovereignTaskPlanPolicy, runs verified read-only SIP calculations in
+dependency order and returns navigation *proposals*, not applied actions.
+It is JWT-authenticated, separately rate-limited to 6 requests per minute,
+bounded to 12 seconds with cancellation fencing, and controlled by the
+existing GENIEVOICE_TASKS_ENABLED kill switch. No model or browser executor is
+connected; no financial state is modified, and no persistent ledger exists.
+This remains a preview foundation, not production-ready automation.

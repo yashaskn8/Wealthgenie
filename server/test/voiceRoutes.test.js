@@ -144,6 +144,38 @@ describe('GenieVoice protected route',()=>{
       }
     });
   });
+  it('authenticates and previews a bounded read-only dependent plan',async()=>{
+    const plan={version:'sovereign-task-plan-v1',steps:[
+      {id:'navigate',operation:'APP_NAVIGATE',arguments:{page:'goals',tab:null},dependsOn:[]},
+      {id:'compare',operation:'SIP_COMPARE_DRAFT',
+        arguments:{monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:[7,10]},
+        dependsOn:['navigate']}
+    ]};
+    await withServer(buildApp(true,{resolveProfile:fakeResolver,financialRegistry:fakeRegistry()}),async(base)=>{
+      const url=base+'/api/voice/task-preview';
+      const response=await rawRequest(url,{
+        method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token()},
+        body:JSON.stringify({plan})
+      });
+      assert.equal(response.status,200);
+      const preview=await response.json();
+      assert.equal(preview.navigationApplied,false);
+      assert.equal(preview.financialStateModified,false);
+      assert.equal(preview.persisted,false);
+      assert.deepEqual(preview.steps.map(s=>s.id),['navigate','compare']);
+      assert.equal(preview.steps[0].applied,false);
+      const noAuth=await rawRequest(url,{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({plan})
+      });
+      assert.equal(noAuth.status,401);
+      const denied=await rawRequest(url,{
+        method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token()},
+        body:JSON.stringify({plan:{...plan,steps:[{...plan.steps[0],operation:'BROWSER_EXECUTE'}]}})
+      });
+      assert.equal(denied.status,422);
+    });
+  });
   it('does not execute or transform external and mutating requests into navigation',async()=>{
     await withServer(buildApp(),async(base)=>{
       for(const text of ['open https://evil.example','open google','open goals and delete them','open my account and transfer funds']){
