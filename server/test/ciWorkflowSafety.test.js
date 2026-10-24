@@ -107,6 +107,15 @@ test('six Linux CI jobs retain Mongo-backed integrity and isolated financial Pos
   assert.equal(findStep('integration-security', 'Audit Python dependencies').if, '${{ !cancelled() }}');
   assert.ok(integration.steps.some(step => step.name === 'Audit frontend npm dependencies'));
   assert.ok(integration.steps.some(step => step.name === 'Audit backend npm dependencies'));
+  // Browser regression evidence cannot disappear merely because an npm
+  // advisory is published. Keep all three security scans mandatory and
+  // independently runnable after real-dependency integration exercises.
+  const integrationNames = integration.steps.map(step => step.name);
+  const lifecycle = integrationNames.indexOf('Run real-dependency Playwright lifecycle');
+  for (const name of ['Audit backend npm dependencies', 'Audit frontend npm dependencies']) {
+    assert.ok(integrationNames.indexOf(name) > lifecycle, name + ' must not mask E2E evidence');
+    assert.equal(findStep('integration-security', name).if, '${{ !cancelled() }}');
+  }
 });
 
 test('Kind deployment runs only on successful main CI or explicit manual dispatch, with strict live preflight opt-in', () => {
