@@ -14,6 +14,9 @@ try {
   // Pre-create the deletion fence collection before a transactional first write.
   // Its mandatory unique owner identity is MongoDB's built-in _id index.
   await RunwayErasureFence.createCollection();
+  await RunwayErasureFence.collection.createIndex({ erasedAt: 1 }, {
+    name: 'runway_erasure_fence_retention', expireAfterSeconds: 7 * 24 * 60 * 60,
+  });
   await RunwayLedgerRevision.collection.createIndex({ userId: 1, revision: 1 }, {
     unique: true, name: 'uniq_runway_ledger_revision',
   });
@@ -89,7 +92,9 @@ try {
         && index.key.userId === 1 && index.key.revision === -1)
       || !alerts.some(index => index.name === 'runway_alert_owner_revision'
         && index.key.userId === 1 && index.key.revision === -1)
-      || !fences.some(index => index.name === '_id_' && index.key._id === 1)) {
+      || !fences.some(index => index.name === '_id_' && index.key._id === 1)
+      || !fences.some(index => index.name === 'runway_erasure_fence_retention'
+        && index.key.erasedAt === 1 && index.expireAfterSeconds === 7 * 24 * 60 * 60)) {
     throw new Error('RUNWAY_INDEX_MISSING');
   }
   process.stdout.write('Runway revisions, evidence and notification indexes verified.\n');
