@@ -25,7 +25,7 @@ export function classifyVoiceIntent(raw) {
   // Validate raw ASR bytes BEFORE whitespace normalization: otherwise LF,
   // CR and TAB can disappear and smuggle a multiline transcript into an
   // authorized single navigation instruction.
-  if(/\p{Cc}/u.test(raw))return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
+  if(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(raw))return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
   const input=raw.trim().replace(/\s+/g,' ');
   if(!input)return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
   if(UNSAFE_RE.test(input))return {action:'REJECTED',reason:'ACTION_NOT_ALLOWED'};
