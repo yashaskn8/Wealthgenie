@@ -78,6 +78,13 @@ export default function SovereignVoiceControl({
       if (current !== generationRef.current || listeningRef.current !== recognition) return;
       listeningRef.current = null;
       const transcript = String(event.results?.[0]?.[0]?.transcript || '').trim();
+      // ASR output is untrusted input; keep it within the same hard boundary as
+      // server interpretation rather than forwarding oversized text to chat.
+      if (transcript.length > 1000 || /[\\u0000-\\u001f\\u007f]/.test(transcript)) {
+        setState('idle');
+        setStatus('Voice transcript exceeded safety limits. Use text chat instead.');
+        return;
+      }
       if (!transcript) {
         setState('idle'); setStatus('No voice command was captured.'); return;
       }
