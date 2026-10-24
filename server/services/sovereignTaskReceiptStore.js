@@ -50,6 +50,29 @@ function receiptDigest(value,secret){
       'Task receipts require an independent server secret.');
   return createHmac('sha256',secret).update(canonicalJson(value)).digest('hex');
 }
+function cancellableReadOnlyPreview(run,signal) {
+  if(!signal)return Promise.resolve().then(run);
+  if(signal.aborted)return Promise.reject(error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+    'Task preview was interrupted before execution.'));
+  return new Promise((resolve,reject)=>{
+    let finished=false;
+    const settle=(fn,value)=>{
+      if(finished)return;
+      finished=true;
+      signal.removeEventListener('abort',onAbort);
+      fn(value);
+    };
+    const onAbort=()=>settle(reject,error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+      'Task preview was interrupted. Upstream read-only work may still be finishing.'));
+    signal.addEventListener('abort',onAbort,{once:true});
+    if(signal.aborted){onAbort();return;}
+    Promise.resolve().then(()=>{
+      if(signal.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+        'Task preview was interrupted.');
+      return run();
+    }).then(value=>settle(resolve,value),cause=>settle(reject,cause));
+  });
+}
 const storeUnavailable=()=>error(503,'SOVEREIGN_RECEIPT_STORE_UNAVAILABLE',
   'Task receipt storage is unavailable. No task preview was published.');
 export function sovereignReceiptId({userId,key}) {
@@ -81,6 +104,8 @@ export async function recordSovereignTaskPreview({
   const requestHash=receiptDigest({domain:SOVEREIGN_RECEIPT_VERSION,
     userId:String(userId),plan:normalizedPlan},secret);
   try{await ensureReady();}catch{throw storeUnavailable();}
+  if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+    'Task preview was interrupted before receipt reservation.');
   const now=new Date();
   const record={
     _id:id,userId,requestHash,status:'RUNNING',resultHash:null,
@@ -110,9 +135,9 @@ export async function recordSovereignTaskPreview({
   try{
     if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
       'This task was cancelled before execution.');
-    const preview=await executePreview({
+    const preview=await cancellableReadOnlyPreview(()=>executePreview({
       userId,plan:normalizedPlan,resolveProfile,financialRegistry,signal
-    });
+    }),signal);
     if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
       'This task was cancelled before publication.');
     if(preview?.persisted!==false || preview.navigationApplied!==false ||
@@ -136,8 +161,10 @@ export async function recordSovereignTaskPreview({
     // A late/failed persistence response is never classified as success.
     try{
       const timedOut=signal?.aborted&&signal.reason?.name==='TimeoutError';
+      const expired=Date.now()>=record.leaseExpiresAt.getTime();
       await repository.updateOne({_id:id,userId,requestHash,status:'RUNNING'},
-        {$set:{status:timedOut?'OUTCOME_UNKNOWN':signal?.aborted?'CANCELLED':'FAILED',completedAt:new Date()}},
+        {$set:{status:expired||timedOut?'OUTCOME_UNKNOWN':signal?.aborted?'CANCELLED':'FAILED',
+          completedAt:new Date()}},
         {runValidators:true});
     }catch{throw storeUnavailable();}
     throw cause;

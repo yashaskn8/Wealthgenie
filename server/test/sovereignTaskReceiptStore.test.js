@@ -70,6 +70,25 @@ describe('Sovereign opt-in durable preview receipts',()=>{
     assert.equal(b.preview,null);
     assert.equal(a.receipt.resultHash,b.receipt.resultHash);
   });
+  it('settles a cancelled receipt even when a read-only provider never responds',async()=>{
+    const repository=memoryRepository();
+    const controller=new AbortController();
+    let entered=false;
+    const request=recordSovereignTaskPreview({
+      ...args(repository),signal:controller.signal,
+      executePreview:async()=>{
+        entered=true;
+        return new Promise(()=>{});
+      }
+    });
+    for(let n=0;n<30&&!entered;n++)await Promise.resolve();
+    assert.equal(entered,true);
+    controller.abort();
+    await assert.rejects(request,{code:'SOVEREIGN_RECEIPT_CANCELLED'});
+    const saved=[...repository.rows.values()][0];
+    assert.equal(saved.status,'CANCELLED');
+    assert.equal(saved.resultHash,null);
+  });
   it('rejects cross-plan key reuse, even when the first plan succeeded',async()=>{
     const repository=memoryRepository();
     await recordSovereignTaskPreview(args(repository));
