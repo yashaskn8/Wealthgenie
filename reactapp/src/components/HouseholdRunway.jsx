@@ -381,7 +381,7 @@ export default function HouseholdRunway() {
       setResult(null); setLastRequest(null); setExplanation(null); setSnapshot('');
       setHistory([]); setHistoryPage(0); setHistoryHasMore(false); setHistoryDeleteId('');
       setDeleteConfirmation('');
-      setMessage('Runway data removed from the primary database. Backup expiry is not verified.');
+      setMessage('Runway financial data removed from the primary database. A minimal deletion fence is retained to prevent old requests from restoring it. Sign in again before creating a new ledger. Backup expiry is not verified.');
     } catch (err) { setError(err.message || 'Deletion unavailable. Sign in again if required.'); }
     finally { setBusy(false); }
   };
