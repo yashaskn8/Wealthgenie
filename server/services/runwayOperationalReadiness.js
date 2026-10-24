@@ -3,7 +3,7 @@
  * A feature-enabled replica must refuse traffic when its signing key or
  * required MongoDB unique/TTL indexes are missing or incorrect.
  */
-import { RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion } from '../models/Runway.js';
+import { RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayErasureFence } from '../models/Runway.js';
 import { assertRunwaySigningKey } from './runwaySeal.js';
 import { assertRunwayEvidenceEncryptionReady } from './runwayEvidenceCrypto.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
@@ -20,6 +20,7 @@ async function readIndexes() {
     RunwayProjectionJob.collection.indexes(),
     RunwayProjectionResult.collection.indexes(),
     RunwayAlert.collection.indexes(),
+    RunwayErasureFence.collection.indexes(),
   ]);
 }
 export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
@@ -29,11 +30,12 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
     error.code = 'RUNWAY_INDEXES_UNAVAILABLE';
     throw error;
   }
-  const [ledger, snapshot, deletion, statement, signal, settlement, jobs, projections, alerts] =
+  const [ledger, snapshot, deletion, statement, signal, settlement, jobs, projections, alerts, erasureFences] =
     Array.isArray(indexes) ? indexes : [];
   const ready = Array.isArray(ledger) && Array.isArray(snapshot) && Array.isArray(deletion)
     && Array.isArray(statement) && Array.isArray(signal) && Array.isArray(settlement)
     && Array.isArray(jobs) && Array.isArray(projections) && Array.isArray(alerts)
+    && Array.isArray(erasureFences)
     && ledger.some(i => i.name === 'uniq_runway_ledger_revision'
       && i.unique === true && i.key?.userId === 1 && i.key?.revision === 1)
     && snapshot.some(i => i.name === 'runway_snapshots_by_owner'
@@ -60,7 +62,8 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
     && projections.some(i => i.name === 'runway_projection_owner_revision'
       && i.key?.userId === 1 && i.key?.revision === -1)
     && alerts.some(i => i.name === 'runway_alert_owner_revision'
-      && i.key?.userId === 1 && i.key?.revision === -1);
+      && i.key?.userId === 1 && i.key?.revision === -1)
+    && erasureFences.some(i => i.name === '_id_' && i.key?._id === 1);
   if (!ready) {
     const error = new Error('Required Runway unique and TTL indexes are missing or incorrect.');
     error.code = 'RUNWAY_INDEXES_UNAVAILABLE';
