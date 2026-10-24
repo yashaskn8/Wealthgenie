@@ -117,3 +117,34 @@ test('independent Python Decimal oracle verifies cent-level loan schedule and AP
       loan.paymentsPaise.map(amount => String(100000 + amount)));
   }
 });
+
+
+test('independent Decimal oracle validates contractual EMI and partial-term balances at six months', () => {
+  const executable = fileURLToPath(new URL('./oracles/decision_loan.py', import.meta.url));
+  const reference = spawnSync('python3', [executable], {
+    input: JSON.stringify({
+      principalPaise: 600000, aprBps: 900, termMonths: 12, horizonMonths: 6,
+    }),
+    encoding: 'utf8', timeout: 10000,
+  });
+  assert.equal(reference.status, 0, reference.stderr || 'Python oracle unavailable');
+  const loan = JSON.parse(reference.stdout);
+  assert.equal(loan.paymentsPaise.length, 6);
+  assert.notEqual(loan.remainingPaise, 0,
+    'A correct contract still has outstanding principal halfway through its term');
+  const scenario = run('HOUSE_VS_RENT', {
+    purchasePrice: '12000.00', downPayment: '6000.00', upfrontFees: '100.00',
+    loanAprBps: 900, loanTermMonths: 12, monthlyOwnerCosts: '500.00',
+    monthlyRent: '700.00', rentalUpfrontCash: '500.00',
+    housingCostAlreadyInExpenses: '0.00',
+  }, 6);
+  const buying = scenario.alternatives[0];
+  const independent = independentCash(610000, 6, month => [
+    1000000, 650000, 100000 + Number(loan.paymentsPaise[month - 1]), 200000,
+  ]);
+  assert.equal(buying.endingProjectedLiquidCash, display(independent.cash));
+  assert.equal(buying.remainingLoanBalance, display(BigInt(loan.remainingPaise)));
+  assert.equal(buying.loanInterestPaid, display(BigInt(loan.interestPaise)));
+  assert.deepEqual(buying.rows.map(row => cents(row.debtPayments).toString()),
+    loan.paymentsPaise.map(amount => String(100000 + amount)));
+});
