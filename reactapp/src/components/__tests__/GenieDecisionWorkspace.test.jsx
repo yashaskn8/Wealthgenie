@@ -289,4 +289,42 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(screen.getByText(/The financial profile, saved scenario, or calculation rules have changed/)).toBeTruthy();
   });
 
+  it('fails closed when revision history fails to refresh despite successful profile readiness', async () => {
+    let sendStatus;
+    subscribeDecisionEvents.mockImplementation(async ({ onStatus }) => { sendStatus = onStatus; });
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    await screen.findByText('Decision comparison');
+    listDecisionScenarios.mockRejectedValueOnce(new Error('history unavailable'));
+    await act(async () => sendStatus('connected'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save revision' }).disabled).toBe(true));
+    expect(screen.getByRole('button', { name: 'Evaluate saved revision' }).disabled).toBe(true);
+    expect(screen.getByText(/This saved scenario is not the latest known revision/)).toBeTruthy();
+    expect(screen.getByText(/The financial profile, saved scenario, or calculation rules have changed/)).toBeTruthy();
+    expect(evaluateDecisionScenario).not.toHaveBeenCalled();
+  });
+
+  it('never revives a stale unsaved preview after an in-flight simulation resolves', async () => {
+    let emitEvent;
+    subscribeDecisionEvents.mockImplementation(async ({ onEvent }) => { emitEvent = onEvent; });
+    const pendingPreview = Promise.withResolvers();
+    simulateDecisionScenario.mockReturnValue(pendingPreview.promise);
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    await screen.findByText('Decision comparison');
+    fireEvent.change(screen.getByDisplayValue('My saved decision'), {
+      target: { value: 'Uncommitted revision' },
+    });
+    await waitFor(() => expect(simulateDecisionScenario).toHaveBeenCalled(), { timeout: 3000 });
+    await act(async () => emitEvent({
+      type: 'SCENARIO_UPDATED', scenarioId: saved.id, scenarioRevision: 2, sequence: 4,
+    }));
+    await act(async () => pendingPreview.resolve({
+      previewOnly: true, status: 'PARTIAL', result: report.run.result,
+    }));
+    expect(screen.queryByText('Unsaved live estimate')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save revision' }).disabled).toBe(true);
+    expect(screen.getByText(/The financial profile, saved scenario, or calculation rules have changed/)).toBeTruthy();
+  });
+
 });
