@@ -18,6 +18,7 @@ export default function SovereignVoiceControl({
   const listeningRef = useRef(null);
   const requestRef = useRef(null);
   const utteranceRef = useRef(null);
+  const spokenAnswerRef = useRef(null);
   const generationRef = useRef(0);
   const callbacksRef = useRef({ onNavigate, onTranscript });
   const enabledRef = useRef(!disabled);
@@ -40,9 +41,12 @@ export default function SovereignVoiceControl({
     requestRef.current = null;
     if (utteranceRef.current) window.speechSynthesis?.cancel?.();
     utteranceRef.current = null;
+    spokenAnswerRef.current = null;
   }, []);
 
   useLayoutEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
+  // A new chat result invalidates speech and in-flight commands from the old answer.
+  useLayoutEffect(() => () => cancelAll(), [cancelAll, lastAnswer]);
   useEffect(() => {
     if (disabled) cancelAll();
   }, [disabled, cancelAll]);
@@ -171,6 +175,7 @@ export default function SovereignVoiceControl({
       }
     };
     utteranceRef.current = utterance;
+    spokenAnswerRef.current = lastAnswer;
     try {
       synth.speak(utterance);
       setState('speaking');
@@ -182,6 +187,8 @@ export default function SovereignVoiceControl({
     }
   };
 
+  const activelySpeaking = state === 'speaking' && utteranceRef.current !== null &&
+    spokenAnswerRef.current === lastAnswer;
   return (
     <div className="sovereign-voice-control" aria-label="GenieVoice controls">
       <button type="button" disabled={disabled}
@@ -194,10 +201,10 @@ export default function SovereignVoiceControl({
       </button>
       {canSpeak && (
         <button type="button" disabled={disabled}
-          aria-label={state === 'speaking' ? 'Stop verified answer playback' : 'Speak verified answer'}
-          onClick={state === 'speaking' ? stop : speak}>
-          {state === 'speaking' ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          {state === 'speaking' ? 'Stop speaking' : 'Speak verified answer'}
+          aria-label={activelySpeaking ? 'Stop verified answer playback' : 'Speak verified answer'}
+          onClick={activelySpeaking ? stop : speak}>
+          {activelySpeaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          {activelySpeaking ? 'Stop speaking' : 'Speak verified answer'}
         </button>
       )}
       <button type="button" disabled={disabled || state === 'checking'}

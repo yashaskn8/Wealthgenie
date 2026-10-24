@@ -96,6 +96,28 @@ describe('GenieVoice opt-in navigation',()=>{
     await act(async()=>{resolveCommand({version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'goals',tab:null});});
     expect(x.nav).not.toHaveBeenCalled();
   });
+  it('cancels an old spoken answer when the grounded result changes',()=>{
+    const say=vi.fn();
+    const cancel=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak:say,cancel});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance{
+      constructor(content){this.text=content;}
+    });
+    const first={grounded:true,validation_status:'PASS',evidence_ids_used:['E_PROFILE_RISK'],
+      content:'Savings comparison as of this request.'};
+    const second={...first,content:'New corrected financial comparison.'};
+    const nav=vi.fn(),transcript=vi.fn();
+    const view=render(<SovereignVoiceControl onNavigate={nav} onTranscript={transcript}
+      sessionKey="session-a" lastAnswer={first}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Speak verified answer'}));
+    expect(say).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button',{name:'Stop verified answer playback'})).toBeInTheDocument();
+    view.rerender(<SovereignVoiceControl onNavigate={nav} onTranscript={transcript}
+      sessionKey="session-a" lastAnswer={second}/>);
+    expect(cancel).toHaveBeenCalled();
+    expect(screen.getByRole('button',{name:'Speak verified answer'})).toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'Stop verified answer playback'})).not.toBeInTheDocument();
+  });
   it('does not display speech playback for ungrounded model responses',()=>{
     setup({action:'CHAT'});
     expect(screen.queryByRole('button',{name:'Speak verified answer'})).not.toBeInTheDocument();
