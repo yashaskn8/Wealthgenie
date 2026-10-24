@@ -55,6 +55,24 @@ describe('Sovereign voice SIP comparison integrity',()=>{
       }));
     }
   });
+  it('rejects fabricated total invested even if the rest of the output is self-consistent',async()=>{
+    const fake={executeTool:async(name,args)=>({
+      success:true,result:{...(await financialRegistry.executeTool(name,args)).result,
+        totalInvested:500000,totalReturns:args.annualRate<.08?350000:450000}
+    })};
+    await assert.rejects(()=>compareVoiceSipScenarios({
+      userId:'u',input,resolveProfile:async()=>authority(),financialRegistry:fake
+    }),{code:'VOICE_SIP_ENGINE_MISMATCH'});
+  });
+  it('rejects relevant financial profile changes even if the state revision is unchanged',async()=>{
+    let calls=0;
+    await assert.rejects(()=>compareVoiceSipScenarios({
+      userId:'u',input,resolveProfile:async()=>{
+        calls++;
+        const x=authority(); x.profile.monthlySavings=calls===1?15000:2000;return x;
+      },financialRegistry
+    }),{code:'VOICE_FINANCIAL_SNAPSHOT_CHANGED'});
+  });
   it('refuses denied engine calls and profile constraints',async()=>{
     await assert.rejects(()=>compareVoiceSipScenarios({
       userId:'u',input,resolveProfile:async()=>authority(),

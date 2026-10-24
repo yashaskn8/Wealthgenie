@@ -4,7 +4,11 @@ import { createError } from '../middleware/errorHandler.js';
  * Read-only SIP scenario comparison. No LLM / browser / persistence access.
  * All projected results are the existing deterministic financial engine output.
  */
-const SNAPSHOT_KEYS=['_id','version','financialStateFence'];
+// Include fields that affect investment capacity even if a caller accidentally
+// changes a profile document without advancing its canonical state pointer.
+const SNAPSHOT_KEYS=['_id','version','financialStateFence','monthlySavings',
+  'monthly_savings','investmentHorizonYears','investment_horizon_years',
+  'riskTolerance','riskCategory','riskCapacity','riskScore'];
 function fingerprint(snapshot) {
   return JSON.stringify({
     profile: SNAPSHOT_KEYS.map(key=>String(snapshot?.profile?.[key]??'')),
@@ -51,11 +55,15 @@ export async function compareVoiceSipScenarios({
         {code:'VOICE_SIP_SCENARIO_REJECTED'});
     }
     const {monthlyInvestment,annualRatePct,years,totalInvested,futureValue,totalReturns}=run.result;
-    if(![monthlyInvestment,annualRatePct,years,totalInvested,futureValue,totalReturns]
-      .every(n=>Number.isFinite(n) && n>=0) ||
+    if(!Number.isSafeInteger(monthlyInvestment) || monthlyInvestment<0 ||
+      !Number.isSafeInteger(years) || years<0 ||
+      !Number.isSafeInteger(totalInvested) || !Number.isSafeInteger(futureValue) ||
+      !Number.isSafeInteger(totalReturns) || totalReturns<0 ||
+      !Number.isFinite(annualRatePct) || annualRatePct<0 ||
       monthlyInvestment!==args.monthlyInvestment || years!==args.years ||
+      totalInvested!==args.monthlyInvestment*args.years*12 ||
       Math.abs(annualRatePct-pct)>1e-7 ||
-      Math.abs(totalReturns-(futureValue-totalInvested))>0) {
+      totalReturns!==futureValue-totalInvested) {
       throw createError(503,'The financial tool returned an inconsistent result.',
         'The comparison could not be verified. No result was published.',
         {code:'VOICE_SIP_ENGINE_MISMATCH'});
