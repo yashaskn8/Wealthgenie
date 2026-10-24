@@ -158,7 +158,11 @@ export async function assessMonitoredDecision(monitor, {
       const priorRun = await DecisionRun.findOne({
         _id: scenario.lastRunId, userId: monitor.userId, scenarioId: scenario._id,
       }).lean();
-      if (!priorRun) throw new Error('DECISION_MONITOR_REPORT_POINTER_MISSING');
+      if (!priorRun) {
+        const error = new Error('Monitored decision report pointer is missing.');
+        error.code = 'DECISION_MONITOR_REPORT_POINTER_MISSING';
+        throw error;
+      }
       verifyDecisionRun(priorRun);
       changedPolicy = priorRun.revision === scenario.revision
         && priorRun.result.modelVersion !== DECISION_LEDGER_VERSION;
