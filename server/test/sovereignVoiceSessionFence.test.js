@@ -28,6 +28,19 @@ describe('GenieVoice final session publication fence',()=>{
       ...options,loadAccount:async()=>{throw new Error('Mongo down');}
     }),{code:'VOICE_SESSION_STATE_UNAVAILABLE'});
   });
+  it('fails closed within a bounded deadline if account or revocation lookups stall',async()=>{
+    await assert.rejects(()=>assertSovereignVoiceSessionCurrent(token(),{
+      ...options,timeoutMs:15,checkRevocation:()=>new Promise(()=>{})
+    }),{code:'VOICE_SESSION_STATE_UNAVAILABLE'});
+  });
+  it('rejects an aborted request while revocation validation is pending',async()=>{
+    const controller=new AbortController();
+    const work=assertSovereignVoiceSessionCurrent(token(),{
+      ...options,signal:controller.signal,loadAccount:()=>new Promise(()=>{})
+    });
+    controller.abort();
+    await assert.rejects(work,{code:'VOICE_SESSION_REVOKED'});
+  });
   it('rejects tokens that expire while lookups run',async()=>{
     const expiring=token();
     expiring.exp=Math.floor(Date.now()/1000)+1;

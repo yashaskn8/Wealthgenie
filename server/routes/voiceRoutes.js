@@ -89,7 +89,7 @@ export function createVoiceRouter({
         signal
       });
       if(!signal.aborted && !res.destroyed){
-        await assertSessionCurrent(req.user);
+        await assertSessionCurrent(req.user,{signal});
         if(!signal.aborted && !res.destroyed)res.json(comparison);
       }
     } finally {
@@ -109,7 +109,7 @@ export function createVoiceRouter({
         plan:req.body.plan,resolveProfile,financialRegistry,signal
       });
       if(!signal.aborted && !res.destroyed){
-        await assertSessionCurrent(req.user);
+        await assertSessionCurrent(req.user,{signal});
         if(!signal.aborted && !res.destroyed)res.json(preview);
       }
     } finally {
@@ -136,7 +136,7 @@ export function createVoiceRouter({
           ...(receiptHashSecret?{secret:receiptHashSecret}:{})
         });
         if(!signal.aborted&&!res.destroyed){
-          await assertSessionCurrent(req.user);
+          await assertSessionCurrent(req.user,{signal});
           if(!signal.aborted&&!res.destroyed)
             res.status(output.outcome==='COMPLETED'?201:200).json(output);
         }
