@@ -36,6 +36,12 @@ export default function SovereignVoiceControl({
   }, []);
 
   useEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
+  useEffect(() => {
+    if (disabled) {
+      cancelAll();
+      setState('idle');
+    }
+  }, [disabled, cancelAll]);
 
   const stop = () => {
     cancelAll();
@@ -105,7 +111,8 @@ export default function SovereignVoiceControl({
     recognition.onend = () => {
       if (current !== generationRef.current) return;
       listeningRef.current = null;
-      setState(current === generationRef.current ? 'idle' : 'stopped');
+      // onend commonly fires after onresult, while classification remains pending.
+      if (!requestRef.current) setState('idle');
     };
     try {
       recognition.start();
@@ -120,6 +127,8 @@ export default function SovereignVoiceControl({
   const canSpeak = lastAnswer?.grounded === true &&
     Array.isArray(lastAnswer.evidence_ids_used) &&
     lastAnswer.evidence_ids_used.length > 0 &&
+    lastAnswer.evidence_ids_used.every(id => typeof id === 'string' && id.startsWith('E_') &&
+      id !== 'E_CHAT_ANSWER_UNAVAILABLE') &&
     typeof lastAnswer.content === 'string';
 
   const speak = () => {
@@ -162,11 +171,13 @@ export default function SovereignVoiceControl({
 
   return (
     <div className="sovereign-voice-control" aria-label="GenieVoice controls">
-      <button type="button" disabled={disabled || state === 'checking'}
-        aria-label={state === 'listening' ? 'Stop GenieVoice listening' : 'Start GenieVoice navigation'}
-        onClick={state === 'listening' ? stop : listen}>
-        {state === 'listening' ? <MicOff size={16} /> : <Mic size={16} />}
-        {state === 'listening' ? 'Stop listening' : 'GenieVoice navigation'}
+      <button type="button" disabled={disabled}
+        aria-label={state === 'listening' ? 'Stop GenieVoice listening' :
+          state === 'checking' ? 'Stop GenieVoice task' : 'Start GenieVoice navigation'}
+        onClick={state === 'listening' || state === 'checking' ? stop : listen}>
+        {state === 'listening' || state === 'checking' ? <MicOff size={16} /> : <Mic size={16} />}
+        {state === 'listening' ? 'Stop listening' :
+          state === 'checking' ? 'Stop task' : 'GenieVoice navigation'}
       </button>
       {canSpeak && (
         <button type="button" disabled={disabled}
@@ -177,6 +188,7 @@ export default function SovereignVoiceControl({
         </button>
       )}
       {state === 'checking' && <span role="status">Checking voice command…</span>}
+      <small>Browser speech recognition may process audio through its provider. No background listening.</small>
       {status && <div role="status">{status}</div>}
     </div>
   );
