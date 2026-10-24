@@ -78,6 +78,37 @@ function cancellableReadOnlyPreview(run,signal) {
 }
 const storeUnavailable=()=>error(503,'SOVEREIGN_RECEIPT_STORE_UNAVAILABLE',
   'Task receipt storage is unavailable. No task preview was published.');
+const storeCancelled=()=>error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+  'Receipt lookup was cancelled. No task result was published.');
+
+/**
+ * Mongo operations and index-readiness checks may never settle during a
+ * partition. A route-level AbortSignal alone does not stop an awaited query.
+ * Bound the HTTP wait; an already-issued DB operation may still commit later,
+ * so claim conflicts are deliberately treated as unknown, never retried.
+ */
+function awaitReceiptStore(run,signal,timeoutMs=5_000) {
+  if(signal?.aborted)return Promise.reject(storeCancelled());
+  return new Promise((resolve,reject)=>{
+    let settled=false;
+    const finish=(fn,value)=>{
+      if(settled)return;
+      settled=true;
+      clearTimeout(timeout);
+      signal?.removeEventListener('abort',onAbort);
+      fn(value);
+    };
+    const onAbort=()=>finish(reject,storeCancelled());
+    const timeout=setTimeout(()=>finish(reject,storeUnavailable()),timeoutMs);
+    signal?.addEventListener('abort',onAbort,{once:true});
+    if(signal?.aborted){onAbort();return;}
+    Promise.resolve().then(run).then(
+      value=>finish(resolve,value),
+      cause=>finish(reject,cause)
+    );
+  });
+}
+
 export function sovereignReceiptId({userId,key}) {
   if(!mongoose.isValidObjectId(userId)||!KEY.test(key||'')){
     throw error(400,'SOVEREIGN_RECEIPT_ID_INVALID','An authenticated account and a UUIDv4 Idempotency-Key are required.');
@@ -96,7 +127,8 @@ export async function recordSovereignTaskPreview({
   repository=SovereignTaskReceipt,ensureReady=ready,
   executePreview=previewSovereignReadOnlyTask,
   authorizeCurrent=async()=>{},
-  secret=process.env.GENIEVOICE_RECEIPT_HASH_KEY
+  secret=process.env.GENIEVOICE_RECEIPT_HASH_KEY,
+  storeTimeoutMs=5_000
 }) {
   const id=sovereignReceiptId({userId,key});
   const valid=validateSovereignTaskPlan(plan);
@@ -111,7 +143,7 @@ export async function recordSovereignTaskPreview({
   await authorizeCurrent(signal);
   if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
     'Task preview was interrupted before receipt reservation.');
-  try{await ensureReady();}catch{throw storeUnavailable();}
+  try{await awaitReceiptStore(ensureReady,signal,storeTimeoutMs);}catch{throw storeUnavailable();}
   if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
     'Task preview was interrupted before receipt reservation.');
   const now=new Date();
@@ -122,11 +154,11 @@ export async function recordSovereignTaskPreview({
     expiresAt:new Date(now.getTime()+SOVEREIGN_RECEIPT_RETENTION_MS)
   };
   try{
-    await repository.create(record);
+    await awaitReceiptStore(()=>repository.create(record),signal,storeTimeoutMs);
   }catch(cause){
     if(cause?.code!==11000)throw storeUnavailable();
     let existing;
-    try{existing=await repository.findOne({_id:id,userId}).lean();}catch{throw storeUnavailable();}
+    try{existing=await awaitReceiptStore(()=>repository.findOne({_id:id,userId}).lean(),signal,storeTimeoutMs);}catch{throw storeUnavailable();}
     if(!existing)throw storeUnavailable();
     if(new Date(existing.expiresAt).getTime()<=Date.now())
       throw error(410,'SOVEREIGN_RECEIPT_EXPIRED','This task receipt has expired.');
@@ -159,11 +191,11 @@ export async function recordSovereignTaskPreview({
     const resultHash=receiptDigest({domain:SOVEREIGN_RECEIPT_VERSION,
       userId:String(userId),preview},secret);
     const completedAt=new Date();
-    const result=await repository.updateOne(
+    const result=await awaitReceiptStore(()=>repository.updateOne(
       {_id:id,userId,requestHash,status:'RUNNING',leaseExpiresAt:{$gt:completedAt}},
       {$set:{status:'SUCCEEDED',resultHash,completedAt}},
       {runValidators:true}
-    );
+    ),signal,storeTimeoutMs);
     if(result?.matchedCount!==1)throw storeUnavailable();
     return {outcome:'COMPLETED',receipt:publicReceipt({
       ...record,status:'SUCCEEDED',resultHash,completedAt
@@ -173,23 +205,24 @@ export async function recordSovereignTaskPreview({
     try{
       const timedOut=signal?.aborted&&signal.reason?.name==='TimeoutError';
       const expired=Date.now()>=record.leaseExpiresAt.getTime();
-      await repository.updateOne({_id:id,userId,requestHash,status:'RUNNING'},
+      await awaitReceiptStore(()=>repository.updateOne({_id:id,userId,requestHash,status:'RUNNING'},
         {$set:{status:expired||timedOut?'OUTCOME_UNKNOWN':signal?.aborted?'CANCELLED':'FAILED',
           completedAt:new Date()}},
-        {runValidators:true});
+        {runValidators:true}),undefined,storeTimeoutMs);
     }catch{throw storeUnavailable();}
     throw cause;
   }
 }
 export async function getSovereignTaskReceipt({
-  userId,id,repository=SovereignTaskReceipt,ensureReady=ready
+  userId,id,repository=SovereignTaskReceipt,ensureReady=ready,
+  signal,storeTimeoutMs=5_000
 }) {
   if(!mongoose.isValidObjectId(userId)||typeof id!=='string'||!IDENTIFIER.test(id)){
     throw error(400,'SOVEREIGN_RECEIPT_ID_INVALID','Invalid task receipt identifier.');
   }
-  try{await ensureReady();}catch{throw storeUnavailable();}
+  try{await awaitReceiptStore(ensureReady,signal,storeTimeoutMs);}catch{throw storeUnavailable();}
   let record;
-  try{record=await repository.findOne({_id:id,userId}).lean();}catch{throw storeUnavailable();}
+  try{record=await awaitReceiptStore(()=>repository.findOne({_id:id,userId}).lean(),signal,storeTimeoutMs);}catch{throw storeUnavailable();}
   if(!record)throw error(404,'SOVEREIGN_RECEIPT_NOT_FOUND','Task receipt not found.');
   return observedReceipt(record);
 }
