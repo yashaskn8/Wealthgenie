@@ -6,6 +6,7 @@ import {
 } from '../services/runwayProjectionOutbox.js';
 import { createRunwayLedgerSeal, RUNWAY_SEAL_VERSION } from '../services/runwaySeal.js';
 import { canonicalSha256 } from '../utils/canonicalJson.js';
+import { runRunwayWorkerLoop } from '../services/runwayWorkerLoop.js';
 
 const original = process.env.RUNWAY_INTEGRITY_SECRET;
 const envKey = 'a7'.repeat(32);
@@ -90,4 +91,45 @@ test('database-only forged projection job owner/revision cannot publish financia
   assert.equal(state.code, 'RUNWAY_PROJECTION_JOB_IDENTITY_INVALID');
   assert.equal(ledgerReads, 0);
   assert.equal(changed.update.$set.status, 'BLOCKED');
+});
+
+test('terminally blocked job does not starve subsequent healthy owner projections', async () => {
+  const outcomes = [
+    { status: 'BLOCKED', code: 'RUNWAY_PROJECTION_LEASE_EXHAUSTED' },
+    { status: 'DONE', revision: 3 },
+    { status: 'IDLE' },
+  ];
+  let calls = 0;
+  const delays = [];
+  const blocked = [];
+  await runRunwayWorkerLoop({
+    processOne: async () => outcomes[calls++],
+    shouldStop: () => calls === outcomes.length,
+    sleep: async ms => { delays.push(ms); },
+    reportBlocked: code => { blocked.push(code); },
+  });
+  assert.equal(calls, 3, 'Healthy queued work must run after a terminal poison job.');
+  assert.deepEqual(blocked, ['RUNWAY_PROJECTION_LEASE_EXHAUSTED']);
+  assert.deepEqual(delays, [2000, 2000]);
+});
+
+test('worker rejects invalid outcomes and redacts attacker-controlled error detail', async () => {
+  const logged = [];
+  let calls = 0;
+  await runRunwayWorkerLoop({
+    processOne: async () => {
+      calls++;
+      return { status: 'BLOCKED', code: 'private account balance: 900000' };
+    },
+    shouldStop: () => calls >= 1,
+    sleep: async () => {},
+    reportBlocked: code => logged.push(code),
+  });
+  assert.deepEqual(logged, ['RUNWAY_PROJECTION_PROCESSING_FAILED']);
+  await assert.rejects(runRunwayWorkerLoop({
+    processOne: async () => ({ status: 'SUCCESS_NOT_VERIFIED' }),
+    shouldStop: () => false,
+    sleep: async () => {},
+    reportBlocked: () => {},
+  }), /RUNWAY_WORKER_UNEXPECTED_OUTCOME/);
 });
