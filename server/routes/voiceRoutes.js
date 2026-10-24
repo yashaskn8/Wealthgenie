@@ -9,6 +9,7 @@ import { resolveCurrentFinancialProfile } from '../services/currentFinancialProf
 import { FinancialToolRegistry } from '../services/financialToolRegistry.js';
 import { compareVoiceSipScenarios } from '../services/voiceSipComparison.js';
 import { previewSovereignReadOnlyTask } from '../services/sovereignReadOnlyTaskPreview.js';
+import { assertSovereignVoiceSessionCurrent } from '../services/sovereignVoiceSessionFence.js';
 import {
   getSovereignTaskReceipt,recordSovereignTaskPreview
 } from '../services/sovereignTaskReceiptStore.js';
@@ -61,6 +62,7 @@ export function createVoiceRouter({
   resolveProfile=resolveCurrentFinancialProfile,
   financialRegistry=FinancialToolRegistry,
   receiptRepository,ensureReceiptReady,receiptHashSecret,
+  assertSessionCurrent=assertSovereignVoiceSessionCurrent,
 }={}) {
   const router=Router();
   router.use(verifyJWT);
@@ -86,7 +88,10 @@ export function createVoiceRouter({
         financialRegistry,
         signal
       });
-      if(!signal.aborted && !res.destroyed)res.json(comparison);
+      if(!signal.aborted && !res.destroyed){
+        await assertSessionCurrent(req.user);
+        if(!signal.aborted && !res.destroyed)res.json(comparison);
+      }
     } finally {
       res.off('close',onDisconnect);
     }
@@ -103,7 +108,10 @@ export function createVoiceRouter({
         userId:req.user.userId,
         plan:req.body.plan,resolveProfile,financialRegistry,signal
       });
-      if(!signal.aborted && !res.destroyed)res.json(preview);
+      if(!signal.aborted && !res.destroyed){
+        await assertSessionCurrent(req.user);
+        if(!signal.aborted && !res.destroyed)res.json(preview);
+      }
     } finally {
       res.off('close',onDisconnect);
     }
@@ -127,8 +135,11 @@ export function createVoiceRouter({
           ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{}),
           ...(receiptHashSecret?{secret:receiptHashSecret}:{})
         });
-        if(!signal.aborted&&!res.destroyed)
-          res.status(output.outcome==='COMPLETED'?201:200).json(output);
+        if(!signal.aborted&&!res.destroyed){
+          await assertSessionCurrent(req.user);
+          if(!signal.aborted&&!res.destroyed)
+            res.status(output.outcome==='COMPLETED'?201:200).json(output);
+        }
       }finally{res.off('close',onDisconnect);}
     }));
   router.get('/task-preview/receipts/:id',taskReceiptReadLimiter(),
@@ -140,6 +151,7 @@ export function createVoiceRouter({
         ...(receiptRepository?{repository:receiptRepository}:{}),
         ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{})
       });
+      await assertSessionCurrent(req.user);
       res.json({receipt});
     }));
   return router;

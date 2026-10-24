@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import { createVoiceRouter } from '../routes/voiceRoutes.js';
 import {sipFV} from '../services/projectionEngine.js';
-import { errorHandler } from '../middleware/errorHandler.js';
+import { errorHandler, createError } from '../middleware/errorHandler.js';
 import { withServer, rawRequest } from '../test-utils/httpTestUtils.js';
 
 const originalSecret=process.env.JWT_SECRET;
@@ -254,6 +254,52 @@ describe('GenieVoice protected route',()=>{
       assert.equal(readback.status,200);
       assert.equal((await readback.json()).receipt.status,'SUCCEEDED');
       assert.equal(saved.size,1);
+    });
+  });
+  it('withholds SIP data if session access is revoked before output publication',async()=>{
+    let checked=0;
+    await withServer(buildApp(true,{
+      resolveProfile:fakeResolver,
+      financialRegistry:fakeRegistry(),
+      assertSessionCurrent:async()=>{
+        checked++;
+        throw createError(401,'Session revoked','Sign in again.',
+          {code:'VOICE_SESSION_REVOKED'});
+      }
+    }),async(base)=>{
+      const r=await rawRequest(base+'/api/voice/sip-compare',{
+        method:'POST',
+        headers:{'content-type':'application/json',authorization:'Bearer '+token()},
+        body:JSON.stringify({monthlyInvestment:5000,years:10,
+          annualReturnAssumptionsPct:[7,10]})
+      });
+      assert.equal(r.status,401);
+      assert.equal(checked,1);
+      const body=await r.text();
+      assert.equal(body.includes('futureValue'),false);
+      assert.equal(body.includes('totalInvested'),false);
+    });
+  });
+  it('withholds task proposals when the session expires during processing',async()=>{
+    const plan={version:'sovereign-task-plan-v1',steps:[{
+      id:'navigate',operation:'APP_NAVIGATE',
+      arguments:{page:'goals',tab:null},dependsOn:[]
+    }]};
+    let checks=0;
+    await withServer(buildApp(true,{
+      assertSessionCurrent:async()=>{
+        checks++;
+        throw createError(401,'Revoked','Authentication expired',{code:'VOICE_SESSION_REVOKED'});
+      }
+    }),async(base)=>{
+      const r=await rawRequest(base+'/api/voice/task-preview',{
+        method:'POST',
+        headers:{'content-type':'application/json',authorization:'Bearer '+token()},
+        body:JSON.stringify({plan})
+      });
+      assert.equal(r.status,401);
+      assert.equal(checks,1);
+      assert.equal((await r.text()).includes('NAVIGATION_PROPOSAL'),false);
     });
   });
   it('does not execute or transform external and mutating requests into navigation',async()=>{
