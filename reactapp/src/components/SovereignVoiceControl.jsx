@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import * as api from '../services/api';
 import { PAGE_ALLOWLIST } from '../utils/navigationMap';
@@ -18,8 +18,10 @@ export default function SovereignVoiceControl({
   const generationRef = useRef(0);
   const callbacksRef = useRef({ onNavigate, onTranscript });
   const enabledRef = useRef(!disabled);
-  enabledRef.current = !disabled;
-  callbacksRef.current = { onNavigate, onTranscript };
+  useLayoutEffect(() => {
+    enabledRef.current = !disabled;
+    callbacksRef.current = { onNavigate, onTranscript };
+  }, [disabled, onNavigate, onTranscript]);
 
   const cancelAll = useCallback(() => {
     generationRef.current += 1;
