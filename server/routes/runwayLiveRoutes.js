@@ -431,7 +431,7 @@ export function createRunwayLiveRouter({
         await queueRunwayProjection(userId, next, nextInputHash, session);
         await createRunwaySignal(userId, 'SETTLEMENT_CONFIRMED', session);
         return { revision: next, receiptId };
-      });
+      }, req);
     } catch (error) {
       if (error?.code === 11000) {
         const sources = await verifiedSources(userId);
@@ -518,7 +518,7 @@ export function createRunwayLiveRouter({
         await RunwayStatement.create([item], { session });
         await createRunwaySignal(userId, 'STATEMENT_IMPORTED', session);
         return { item, replayed: false };
-      });
+      }, req);
     } catch (error) {
       if (error?.code === 11000) {
         const other = await RunwayStatement.findOne({ _id: id, userId }).lean();
@@ -544,7 +544,7 @@ export function createRunwayLiveRouter({
         if (fence.matchedCount !== 1) throw fail(409, 'RUNWAY_LEDGER_CHANGED', 'Ledger changed concurrently.');
         await RunwayStatement.deleteOne({ _id: req.params.id, userId }).session(session);
         await createRunwaySignal(userId, 'STATEMENT_DELETED', session);
-      });
+      }, req);
     } catch (error) { rethrowTransaction(error); }
     return res.json({ status: 'DELETED', scope: 'ONE_USER_IMPORTED_STATEMENT' });
   }));
