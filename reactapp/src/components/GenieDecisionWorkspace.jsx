@@ -593,6 +593,14 @@ export default function GenieDecisionWorkspace() {
     }
   };
 
+  // A revoked session must not keep sensitive saved financial projections
+  // visible while waiting for navigation or a fresh authenticated login.
+  if (liveState === 'unauthorized') {
+    return <div className="gd-workspace" role="alert">
+      Session authorization is no longer valid. Sign in again to access private decision scenarios.
+    </div>;
+  }
+
   return <div className="gd-workspace">
     <header className="gd-intro"><span className="gd-eyebrow">GENIEDECISION · FINANCIAL DIGITAL TWIN</span>
       <h1>Understand what a big decision changes.</h1>
