@@ -133,7 +133,9 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   // its own distributed quotas, not cookie CSRF or the general API limiter.
   app.use('/api/mcp', createMcpRouter({ config, runtime: mcpLifecycle, capacity: mcpCapacity, env }));
   app.use(enforceJsonContentType);
-  app.use(express.json({ limit: config.bodyLimit, strict: true }));
+  // Compressed JSON is unsupported. Until every body-parser dependency is patched,
+  // reject gzip/br/deflate before inflation (GHSA-27r3-jxmh-p828).
+  app.use(express.json({ limit: config.bodyLimit, strict: true, inflate: false }));
   app.use(mongoSanitize());
   app.use('/api', createCsrfProtection(config));
 

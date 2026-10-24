@@ -60,3 +60,12 @@ Do not call this branch production-ready even if ordinary CI becomes green.
 - SIP backend: cross-check monthly contribution * years * 12, integer result parity, and additional capacity-affecting profile fields even when revision does not change.
 - Voice routes: separate authenticated per-user quotas, production distributed-store fail-closed behavior; financial comparison 12/min, interpretation 40/min.
 - This is a bounded, read-only slice. Full browser task execution, native streaming, independent speech evaluation, privacy/legal review and supply-chain audit are still release blockers.
+
+## Compressed body parser mitigation
+GHSA-27r3-jxmh-p828 affects vulnerable body-parser versions used by Express.
+WealthGenie's main JSON parser now rejects compressed request bodies with HTTP 415
+(`inflate:false`), removing that vulnerable decompression path at this entry point.
+This is an interim defense, **not** an npm audit resolution. Transitive parsers,
+MCP transports, other middleware and external packages require independent inventory.
+Update dependency versions and lockfiles through a reproducible npm install, rerun
+npm audit, unit and full E2E/security checks before signing off.
