@@ -147,13 +147,21 @@ export function createVoiceRouter({
     asyncHandler(async(req,res)=>{
       if(!receiptsEnabled)throw createError(404,'Task receipts are disabled.',
         'Task receipts are not enabled.',{code:'SOVEREIGN_RECEIPTS_DISABLED'});
-      const receipt=await getSovereignTaskReceipt({
-        userId:req.user.userId,id:req.params.id,
-        ...(receiptRepository?{repository:receiptRepository}:{}),
-        ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{})
-      });
-      await assertSessionCurrent(req.user);
-      res.json({receipt});
+      const cancel=new AbortController();
+      const onDisconnect=()=>cancel.abort();
+      res.once('close',onDisconnect);
+      try {
+        const signal=AbortSignal.any([cancel.signal,AbortSignal.timeout(12_000)]);
+        const receipt=await getSovereignTaskReceipt({
+          userId:req.user.userId,id:req.params.id,signal,
+          ...(receiptRepository?{repository:receiptRepository}:{}),
+          ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{})
+        });
+        if(!signal.aborted&&!res.destroyed) {
+          await assertSessionCurrent(req.user,{signal});
+          if(!signal.aborted&&!res.destroyed)res.json({receipt});
+        }
+      }finally{res.off('close',onDisconnect);}
     }));
   return router;
 }
