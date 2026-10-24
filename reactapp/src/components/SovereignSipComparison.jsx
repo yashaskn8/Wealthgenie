@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
 
 const money=new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0});
@@ -13,7 +13,7 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
   const [error,setError]=useState('');
   const active=useRef(null);
   const generation=useRef(0);
-  useEffect(()=>()=>{generation.current+=1;active.current?.abort();},[]);
+  useLayoutEffect(()=>()=>{generation.current+=1;active.current?.abort();},[]);
   const hasInputs=monthly!=='' && years!=='' && first!=='' && second!=='' &&
     Number.isSafeInteger(Number(monthly)) && Number(monthly)>=100 &&
     Number.isSafeInteger(Number(years)) && Number(years)>=1 && Number(years)<=30 &&

@@ -26,6 +26,7 @@ describe('GenieVoice opt-in navigation',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
     await act(async()=>{x.getRecognition().onresult({results:[[{transcript:'open goals'}]]});});
     expect(x.nav).toHaveBeenCalledWith({page:'goals',tab:null});
+    expect(screen.getByText(/Navigation requested/i)).toBeInTheDocument();
     expect(x.transcript).not.toHaveBeenCalled();
   });
   it('rejects fake pages and unsupported elevated actions',async()=>{

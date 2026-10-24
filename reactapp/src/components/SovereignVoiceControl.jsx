@@ -42,7 +42,7 @@ export default function SovereignVoiceControl({
     utteranceRef.current = null;
   }, []);
 
-  useEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
+  useLayoutEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
   useEffect(() => {
     if (disabled) cancelAll();
   }, [disabled, cancelAll]);
@@ -88,7 +88,7 @@ export default function SovereignVoiceControl({
             PAGE_ALLOWLIST.includes(result.page) && result.page !== 'genieproof') {
             try {
               callbacksRef.current.onNavigate?.({ page: result.page, tab: null });
-              setStatus('Opened ' + result.page.replace(/-/g, ' ') + '.');
+              setStatus('Navigation requested: ' + result.page.replace(/-/g, ' ') + '.');
             } catch {
               setStatus('Navigation outcome could not be confirmed. No further tasks will run.');
             }

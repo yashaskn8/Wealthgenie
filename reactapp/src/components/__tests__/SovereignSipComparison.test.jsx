@@ -36,6 +36,20 @@ describe('Sovereign SIP comparison',()=>{
     expect(screen.getByText('Hypothetical returns.')).toBeInTheDocument();
     expect(screen.getByText(/₹9,50,000/)).toBeInTheDocument();
   });
+  it('aborts the in-flight comparison immediately on teardown',async()=>{
+    let resolveRequest;
+    const request=vi.spyOn(api,'compareVoiceSipScenarios').mockImplementation(
+      () => new Promise(resolve=>{resolveRequest=resolve;})
+    );
+    const view=render(<SovereignSipComparison/>);fill();
+    fireEvent.click(screen.getByRole('button',{name:'Run SIP comparison'}));
+    expect(request).toHaveBeenCalledTimes(1);
+    const signal=request.mock.calls[0][1].signal;
+    expect(signal.aborted).toBe(false);
+    view.unmount();
+    expect(signal.aborted).toBe(true);
+    await act(async()=>{resolveRequest({});});
+  });
   it('rejects unqualified server responses instead of displaying numbers',async()=>{
     vi.spyOn(api,'compareVoiceSipScenarios').mockResolvedValue({
       version:'sovereign-voice-sip-compare-v1',classification:'PERSONAL_ADVICE',
