@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
-import { canonicalSha256 } from '../utils/canonicalJson.js';
+import { canonicalSha256, canonicalJson } from '../utils/canonicalJson.js';
+import { encryptRunwayProjectionResult, decryptRunwayProjectionResult } from '../services/runwayEvidenceCrypto.js';
 import { createRunwaySeal, createRunwayLedgerSeal, RUNWAY_SEAL_VERSION } from '../services/runwaySeal.js';
 import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
@@ -132,6 +133,39 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(validProjection.result.encryptionVersion, 'RUNWAY_PROJECTION_AES256GCM_V1');
       assert.equal(JSON.stringify(validProjection.result).includes('Rent'), false);
       assert.equal(JSON.stringify(validProjection.result).includes('12000'), false);
+      // Recreate a cryptographically valid projection signed by the prior
+      // calculation engine. Historical signed data must remain authentic,
+      // but cannot be served as a current financial forecast or risk alert.
+      const historicalPlaintext = {
+        ...decryptRunwayProjectionResult(validProjection),
+        engineVersion: 'runway-cashflow-1.2.0',
+      };
+      const historical = {
+        ...validProjection, engineVersion: 'runway-cashflow-1.2.0',
+        resultHash: canonicalSha256(historicalPlaintext),
+      };
+      historical.result = encryptRunwayProjectionResult({
+        ...historical, result: historicalPlaintext,
+      });
+      historical.sealHmac = crypto.createHmac('sha256',
+        Buffer.from(process.env.RUNWAY_INTEGRITY_SECRET, 'hex'))
+        .update('wealthgenie:runway:projection-result:v1:')
+        .update(canonicalJson({
+          id: String(historical._id), userId: String(historical.userId),
+          revision: historical.revision, inputHash: historical.inputHash,
+          engineVersion: historical.engineVersion, resultHash: historical.resultHash,
+          result: historical.result, computedAt: historical.computedAt,
+        })).digest('hex');
+      await RunwayProjectionResult.collection.replaceOne({ _id: projectionId }, historical);
+      const historicalProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
+      assert.equal(historicalProjection.response.status, 200, JSON.stringify(historicalProjection.body));
+      assert.equal(historicalProjection.body.status, 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED');
+      assert.equal(historicalProjection.body.result, undefined);
+      const historicalAlerts = await jsonRequest(ownedBase + 'live/alerts', { headers: authA });
+      assert.equal(historicalAlerts.response.status, 200, JSON.stringify(historicalAlerts.body));
+      assert.equal(historicalAlerts.body.status, 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED');
+      assert.deepEqual(historicalAlerts.body.items, []);
+      await RunwayProjectionResult.collection.replaceOne({ _id: projectionId }, validProjection);
       await RunwayProjectionResult.collection.updateOne({ _id: projectionId },
         { $set: { resultHash: 'f'.repeat(64) } });
       const corruptedProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
