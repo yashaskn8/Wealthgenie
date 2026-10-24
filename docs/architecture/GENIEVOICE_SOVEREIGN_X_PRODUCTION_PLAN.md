@@ -53,3 +53,10 @@ explicitly hypothetical deterministic calculations. Browser TTS may speak only v
 The existing general aiToolOrchestrator still needs a separate hardening patch before exposure.
 The current browser integration is **not** ChatGPT desktop-style computer use.
 Do not call this branch production-ready even if ordinary CI becomes green.
+
+## Hardening iteration — October 24, 2026
+- SIP UI: editing any assumption aborts/invalidate the pending request and prevents stale results.
+- SIP response: check every submitted amount, horizon, rate, total invested, difference, and nominal classification before display.
+- SIP backend: cross-check monthly contribution * years * 12, integer result parity, and additional capacity-affecting profile fields even when revision does not change.
+- Voice routes: separate authenticated per-user quotas, production distributed-store fail-closed behavior; financial comparison 12/min, interpretation 40/min.
+- This is a bounded, read-only slice. Full browser task execution, native streaming, independent speech evaluation, privacy/legal review and supply-chain audit are still release blockers.
