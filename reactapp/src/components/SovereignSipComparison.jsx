@@ -31,6 +31,13 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
       generation.current+=1;
       active.current?.abort();
       active.current=null;
+      // Revoking access must discard private financial results AND release the
+      // loading latch, otherwise re-enabling can expose stale account data or
+      // leave the comparison permanently blocked by a cancelled request.
+      setLoading(false);
+      setResult(null);
+      setPreviewedGoals(false);
+      setError('');
     }
   },[disabled]);
   const hasInputs=monthly!=='' && years!=='' && first!=='' && second!=='' &&
