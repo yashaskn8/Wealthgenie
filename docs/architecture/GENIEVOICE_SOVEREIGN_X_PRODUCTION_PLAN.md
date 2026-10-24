@@ -89,3 +89,29 @@ the numeric inputs and submits a two-step bounded task plan to
 monetary fields against the submitted assumptions, and clearly labels the
 Goals action **proposed, not opened**. No autonomous navigation, browser
 control or financial writes are enabled.
+
+## Opt-in durable read-only task receipt foundation
+The separately gated POST /api/voice/task-preview/recorded route requires:
+- Existing authenticated user and the normal voice feature flag
+- GENIEVOICE_RECEIPTS_ENABLED=true (defaults OFF)
+- Explicit JSON persistReceipt:true and UUIDv4 Idempotency-Key
+- A valid bounded read-only task plan
+
+A MongoDB record stores only a keyed task ID, owner, canonical request/result
+hashes, execution state, and timestamps, with seven-day TTL. **No profile,
+transcript, assumed rate, scenario values or browser content is stored.**
+Same-owner/key retries cannot re-execute within TTL: completed attempts only
+return receipt metadata; in-progress/failed attempts respond 409. The receipt
+read endpoint is ownership-filtered. An expired key can be reused only for
+another read-only preview, not any financial mutation.
+
+Run the explicit one-time migration with:
+MONGODB_MIGRATION_URI=... node server/scripts/migrateSovereignTaskReceiptIndexes.js
+The API verifies its unique index before processing and fails closed if the
+index is missing. The feature does not enable itself via migrations.
+
+Do not reuse this finite-retention receipt path for purchases, payments, goal
+writes, browser mutations, or any irreversible tool. Those require a separate
+permanent idempotency record, transactional reconciliation and approvals.
+This foundation is not yet connected to the frontend and requires database
+integration tests and privacy review before activation.

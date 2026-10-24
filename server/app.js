@@ -242,7 +242,10 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/market-data', marketDataAdminRoutes);
   app.use('/api/tax', taxRoutes);
   app.use('/api/chat', chatRoutes);
-  app.use('/api/voice', createVoiceRouter({ enabled: env.GENIEVOICE_TASKS_ENABLED === 'true' }));
+  app.use('/api/voice', createVoiceRouter({
+    enabled: env.GENIEVOICE_TASKS_ENABLED === 'true',
+    receiptsEnabled: env.GENIEVOICE_RECEIPTS_ENABLED === 'true'
+  }));
   app.use('/api/portfolio', portfolioRoutes);
   app.use('/api/regime', regimeRoutes);
   app.use('/api/metrics', metricsRoutes);

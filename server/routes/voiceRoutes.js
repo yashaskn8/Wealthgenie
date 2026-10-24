@@ -9,6 +9,9 @@ import { resolveCurrentFinancialProfile } from '../services/currentFinancialProf
 import { FinancialToolRegistry } from '../services/financialToolRegistry.js';
 import { compareVoiceSipScenarios } from '../services/voiceSipComparison.js';
 import { previewSovereignReadOnlyTask } from '../services/sovereignReadOnlyTaskPreview.js';
+import {
+  getSovereignTaskReceipt,recordSovereignTaskPreview
+} from '../services/sovereignTaskReceiptStore.js';
 
 
 const transcriptSchema=Joi.object({ transcript:Joi.string().trim().min(1).max(1000).required() }).unknown(false);
@@ -32,6 +35,13 @@ const taskPreviewSchema=Joi.object({
   }).unknown(false).required()
 }).unknown(false);
 
+const recordedPreviewSchema=taskPreviewSchema.keys({
+  persistReceipt:Joi.boolean().valid(true).required()
+});
+const taskReceiptReadLimiter=()=>createEndpointRateLimiter({
+  windowMs:60_000,max:30,prefix:'rl:ep:genievoice:receipt-read:',
+  keyGenerator:req=>String(req.user.userId)
+});
 const taskPreviewLimiter=()=>createEndpointRateLimiter({
   windowMs:60_000,max:6,prefix:'rl:ep:genievoice:preview:',
   keyGenerator:req=>String(req.user.userId)
@@ -47,9 +57,10 @@ const compareSchema=Joi.object({
 }).unknown(false);
 
 export function createVoiceRouter({
-  enabled=false,
+  enabled=false,receiptsEnabled=false,
   resolveProfile=resolveCurrentFinancialProfile,
   financialRegistry=FinancialToolRegistry,
+  receiptRepository,ensureReceiptReady,
 }={}) {
   const router=Router();
   router.use(verifyJWT);
@@ -97,5 +108,38 @@ export function createVoiceRouter({
       res.off('close',onDisconnect);
     }
   }));
+  // Explicit opt-in persistence is restricted to NON-MUTATING receipt metadata.
+  // The original /task-preview path remains completely unsaved.
+  router.post('/task-preview/recorded',taskPreviewLimiter(),
+    validate(recordedPreviewSchema),asyncHandler(async(req,res)=>{
+      if(!receiptsEnabled)throw createError(404,'Task receipts are disabled.',
+        'Task receipts are not enabled.',{code:'SOVEREIGN_RECEIPTS_DISABLED'});
+      const cancel=new AbortController();
+      const onDisconnect=()=>cancel.abort();
+      res.once('close',onDisconnect);
+      try {
+        const signal=AbortSignal.any([cancel.signal,AbortSignal.timeout(12_000)]);
+        const output=await recordSovereignTaskPreview({
+          userId:req.user.userId,
+          key:req.headers['idempotency-key'],
+          plan:req.body.plan,signal,resolveProfile,financialRegistry,
+          ...(receiptRepository?{repository:receiptRepository}:{}),
+          ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{})
+        });
+        if(!signal.aborted&&!res.destroyed)
+          res.status(output.outcome==='COMPLETED'?201:200).json(output);
+      }finally{res.off('close',onDisconnect);}
+    }));
+  router.get('/task-preview/receipts/:id',taskReceiptReadLimiter(),
+    asyncHandler(async(req,res)=>{
+      if(!receiptsEnabled)throw createError(404,'Task receipts are disabled.',
+        'Task receipts are not enabled.',{code:'SOVEREIGN_RECEIPTS_DISABLED'});
+      const receipt=await getSovereignTaskReceipt({
+        userId:req.user.userId,id:req.params.id,
+        ...(receiptRepository?{repository:receiptRepository}:{}),
+        ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{})
+      });
+      res.json({receipt});
+    }));
   return router;
 }

@@ -176,6 +176,81 @@ describe('GenieVoice protected route',()=>{
       assert.equal(denied.status,422);
     });
   });
+  it('keeps durable receipts disabled and refuses recording without explicit opt-in',async()=>{
+    const plan={version:'sovereign-task-plan-v1',steps:[{
+      id:'navigate',operation:'APP_NAVIGATE',arguments:{page:'goals',tab:null},dependsOn:[]
+    }]};
+    await withServer(buildApp(true,{receiptsEnabled:false}),async(base)=>{
+      const r=await rawRequest(base+'/api/voice/task-preview/recorded',{
+        method:'POST',
+        headers:{'content-type':'application/json','authorization':'Bearer '+token(),
+          'idempotency-key':'123e4567-e89b-42d3-a456-426614174000'},
+        body:JSON.stringify({plan,persistReceipt:true})
+      });
+      assert.equal(r.status,404);
+    });
+    await withServer(buildApp(true,{receiptsEnabled:true}),async(base)=>{
+      const r=await rawRequest(base+'/api/voice/task-preview/recorded',{
+        method:'POST',
+        headers:{'content-type':'application/json','authorization':'Bearer '+token(),
+          'idempotency-key':'123e4567-e89b-42d3-a456-426614174000'},
+        body:JSON.stringify({plan,persistReceipt:false})
+      });
+      assert.equal(r.status,400);
+    });
+  });
+  it('stores metadata-only receipts and refuses reuse with a different plan',async()=>{
+    const saved=new Map();
+    const receiptRepository={
+      async create(doc){
+        if(saved.has(doc._id)){const e=new Error('duplicate');e.code=11000;throw e;}
+        saved.set(doc._id,{...doc});
+      },
+      findOne(query){
+        return {lean:async()=>{const found=saved.get(query._id);
+          return String(found?.userId)===String(query.userId)?{...found}:null;}};
+      },
+      async updateOne(query,update){
+        const rec=saved.get(query._id);
+        if(!rec||rec.status!==query.status||rec.requestHash!==query.requestHash)return {matchedCount:0};
+        Object.assign(rec,update.$set);return {matchedCount:1};
+      }
+    };
+    const plan={version:'sovereign-task-plan-v1',steps:[{
+      id:'navigate',operation:'APP_NAVIGATE',arguments:{page:'goals',tab:null},dependsOn:[]
+    }]};
+    await withServer(buildApp(true,{
+      receiptsEnabled:true,receiptRepository,ensureReceiptReady:async()=>{}
+    }),async(base)=>{
+      const url=base+'/api/voice/task-preview/recorded';
+      const headers={'content-type':'application/json','authorization':'Bearer '+token(),
+        'idempotency-key':'123e4567-e89b-42d3-a456-426614174000'};
+      const send=body=>rawRequest(url,{method:'POST',headers,body:JSON.stringify(body)});
+      const first=await send({plan,persistReceipt:true});
+      assert.equal(first.status,201);
+      const data=await first.json();
+      assert.equal(data.outcome,'COMPLETED');
+      assert.equal(data.receipt.financialDataStored,false);
+      assert.equal(data.preview.navigationApplied,false);
+      const duplicate=await send({plan,persistReceipt:true});
+      assert.equal(duplicate.status,200);
+      const again=await duplicate.json();
+      assert.equal(again.outcome,'ALREADY_COMPLETED');
+      assert.equal(again.preview,null);
+      assert.equal(again.receipt.resultHash,data.receipt.resultHash);
+      const collision=await send({
+        plan:{...plan,steps:[{...plan.steps[0],arguments:{page:'taxes',tab:null}}]},
+        persistReceipt:true
+      });
+      assert.equal(collision.status,409);
+      const readback=await rawRequest(base+'/api/voice/task-preview/receipts/'+data.receipt.id,{
+        headers:{authorization:'Bearer '+token()}
+      });
+      assert.equal(readback.status,200);
+      assert.equal((await readback.json()).receipt.status,'SUCCEEDED');
+      assert.equal(saved.size,1);
+    });
+  });
   it('does not execute or transform external and mutating requests into navigation',async()=>{
     await withServer(buildApp(),async(base)=>{
       for(const text of ['open https://evil.example','open google','open goals and delete them','open my account and transfer funds']){
