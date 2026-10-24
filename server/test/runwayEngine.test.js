@@ -48,6 +48,37 @@ test('monthly 31st recurrence requires explicit clamp/skip and respects leap yea
   assert.doesNotThrow(() => civilDate('2028-02-29'));
 });
 
+test('recurrences never inspect months beyond a valid declared end date at the 2100 boundary', () => {
+  const ledger = {
+    asOfDate: '2100-11-30', confirmationDate: '2100-11-30',
+    openingCashPaise: '1000', entries: [{
+      id: 'bill', label: 'Final-year monthly obligation', kind: 'OBLIGATION',
+      amountPaise: '100', date: '2100-11-30', recurrence: 'MONTHLY',
+      untilDate: '2100-12-31', monthEndRule: 'CLAMP',
+    }],
+  };
+  const result = simulateRunway(ledger, {
+    ledgerRevision: 1, horizonDays: 90, scenarios: [],
+  });
+  assert.equal(result.engineVersion, 'runway-cashflow-1.2.1');
+  assert.equal(result.scenarios[0].eventCount, 2);
+  assert.equal(result.scenarios[0].cashAlreadyAvailable.endBalancePaise, '800');
+});
+
+test('monthly recurrence does not add an event beyond its end month', () => {
+  const ledger = {
+    asOfDate: '2028-01-31', confirmationDate: '2028-01-31',
+    openingCashPaise: '1000', entries: [{
+      id: 'bill', label: 'January-only bill', kind: 'OBLIGATION',
+      amountPaise: '100', date: '2028-01-31', recurrence: 'MONTHLY',
+      untilDate: '2028-01-31', monthEndRule: 'CLAMP',
+    }],
+  };
+  const r = simulateRunway(ledger, { ledgerRevision: 1, horizonDays: 90, scenarios: [] });
+  assert.equal(r.scenarios[0].eventCount, 1);
+  assert.equal(r.scenarios[0].cashAlreadyAvailable.endBalancePaise, '900');
+});
+
 test('rejects unsafe money, omitted facts, duplicates, or invented fields', () => {
   for (const bad of [0, null, '', '01', '1.0', '1e3', '-1', '1000000000000001', 'NaN']) {
     assert.throws(() => paise(bad));
