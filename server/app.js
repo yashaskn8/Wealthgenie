@@ -134,7 +134,11 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   // its own distributed quotas, not cookie CSRF or the general API limiter.
   app.use('/api/mcp', createMcpRouter({ config, runtime: mcpLifecycle, capacity: mcpCapacity, env }));
   app.use(enforceJsonContentType);
-  app.use(express.json({ limit: config.bodyLimit, strict: true }));
+  // Security boundary: no compressed JSON requests. body-parser releases
+  // affected by GHSA-27r3-jxmh-p828 can crash on trailing compressed bytes;
+  // rejecting compression also avoids ambiguity around inflated size limits.
+  // Keep the mandatory dependency audit until patched versions are installed.
+  app.use(express.json({ limit: config.bodyLimit, strict: true, inflate: false }));
   app.use(mongoSanitize());
   app.use('/api', createCsrfProtection(config));
 
