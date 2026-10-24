@@ -56,6 +56,27 @@ describe('GenieVoice opt-in navigation',()=>{
     }} />);
     expect(screen.queryByRole('button',{name:'Speak verified answer'})).not.toBeInTheDocument();
   });
+  it('suppresses a late command result after the user stops an in-flight task',async()=>{
+    const x=setup({action:'CHAT'});
+    let resolveCommand;
+    vi.mocked(api.interpretVoiceCommand).mockImplementation(() => new Promise(resolve => { resolveCommand=resolve; }));
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    act(()=>{x.getRecognition().onresult({results:[[{transcript:'open goals'}]]});});
+    fireEvent.click(screen.getByRole('button',{name:'Stop GenieVoice task'}));
+    await act(async()=>{resolveCommand({version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'goals',tab:null});});
+    expect(x.nav).not.toHaveBeenCalled();
+    expect(x.transcript).not.toHaveBeenCalled();
+  });
+  it('suppresses a late command result when the financial session is invalidated',async()=>{
+    const x=setup({action:'CHAT'});
+    let resolveCommand;
+    vi.mocked(api.interpretVoiceCommand).mockImplementation(() => new Promise(resolve => { resolveCommand=resolve; }));
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    act(()=>{x.getRecognition().onresult({results:[[{transcript:'open goals'}]]});});
+    x.ui.rerender(<SovereignVoiceControl onNavigate={x.nav} onTranscript={x.transcript} disabled sessionKey="b" />);
+    await act(async()=>{resolveCommand({version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'goals',tab:null});});
+    expect(x.nav).not.toHaveBeenCalled();
+  });
   it('does not display speech playback for ungrounded model responses',()=>{
     setup({action:'CHAT'});
     expect(screen.queryByRole('button',{name:'Speak verified answer'})).not.toBeInTheDocument();

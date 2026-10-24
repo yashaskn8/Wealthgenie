@@ -1,6 +1,7 @@
 import { describe,it } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyVoiceIntent,VOICE_INTENT_VERSION } from '../services/voiceIntentPolicy.js';
+import { PAGE_ALLOWLIST } from '../../reactapp/src/utils/navigationMap.js';
 
 describe('Sovereign X fail-closed voice policy',()=>{
   it('navigates only canonical pages',()=>{
@@ -8,6 +9,13 @@ describe('Sovereign X fail-closed voice policy',()=>{
     assert.equal(classifyVoiceIntent('navigate to tax analysis screen').page,'taxes');
     assert.equal(classifyVoiceIntent('take me to grow my sip page').page,'grow-my-sip');
     assert.equal(classifyVoiceIntent('show where to invest').page,'investments');
+  });
+  it('keeps every proposed destination inside the real React page allowlist',()=>{
+    for(const input of ['open goals','open taxes','show investments','open profile','go to progress','show help','open rebalancer']) {
+      const result=classifyVoiceIntent(input);
+      assert.equal(result.action,'APP_NAVIGATE',input);
+      assert.ok(PAGE_ALLOWLIST.includes(result.page),input);
+    }
   });
   it('does not recognize compound commands',()=>{
     for(const input of ['open goals and investments','open /admin','open my account and update it','open genieproof','goals','explain SIP']){
