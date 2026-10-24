@@ -42,13 +42,20 @@ function invalidState() {
     'Your financial profile changed. Refresh it and recalculate.',
     {code:'VOICE_FINANCIAL_SNAPSHOT_CHANGED'});
 }
+function assertActive(signal) {
+  if(signal?.aborted) {
+    throw createError(409, 'The voice comparison was cancelled.',
+      'The comparison was interrupted. No financial action was performed.',
+      {code:'VOICE_SIP_CANCELLED'});
+  }
+}
 function unavailable() {
   return createError(409,'A current financial profile is required for voice scenarios.',
     'Complete and confirm your financial profile before comparing SIP scenarios.',
     {code:'VOICE_FINANCIAL_PROFILE_REQUIRED'});
 }
 export async function compareVoiceSipScenarios({
-  userId, input, resolveProfile, financialRegistry
+  userId, input, resolveProfile, financialRegistry, signal
 }) {
   const amount=input?.monthlyInvestment,years=input?.years;
   const assumptions=input?.annualReturnAssumptionsPct;
@@ -57,16 +64,20 @@ export async function compareVoiceSipScenarios({
      !Array.isArray(assumptions)||assumptions.length!==2 ||
      assumptions.some(pct=>!Number.isFinite(pct)||pct<0.1||pct>30) ||
      assumptions[0]===assumptions[1]) throw new TypeError('Invalid SIP scenario');
+  assertActive(signal);
   const before=await resolveProfile({userId,requireRecommendation:false});
+  assertActive(signal);
   if(!before?.profile || before?.state?.resolutionStatus!=='CURRENT') throw unavailable();
   const signature=fingerprint(before);
   const args={monthlyInvestment:input.monthlyInvestment,years:input.years};
   const rates=input.annualReturnAssumptionsPct;
   const projections=[];
   for(const pct of rates) {
+    assertActive(signal);
     const run=await financialRegistry.executeTool('sip_projection',{
       ...args,annualRate:pct/100
     },{profile:before.profile});
+    assertActive(signal);
     if(!run?.success || !run.result ||
        run.result.returnBasis!=='USER_SUPPLIED_NOMINAL_ASSUMPTION' ||
        run.result.classification!=='NON_RECOMMENDATION_PROFILE_CONSTRAINED_WHAT_IF') {
@@ -98,7 +109,9 @@ export async function compareVoiceSipScenarios({
       returnBasis:'USER_SUPPLIED_NOMINAL_ASSUMPTION'
     });
   }
+  assertActive(signal);
   const after=await resolveProfile({userId,requireRecommendation:false});
+  assertActive(signal);
   if(fingerprint(after)!==signature) throw invalidState();
   return {
     version:'sovereign-voice-sip-compare-v1',

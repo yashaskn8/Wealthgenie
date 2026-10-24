@@ -36,6 +36,21 @@ describe('Sovereign voice SIP comparison integrity',()=>{
       }),TypeError);
     }
   });
+  it('aborts between engine calls and never publishes a partially computed comparison',async()=>{
+    const cancellation=new AbortController();
+    let executions=0;
+    const aborting={executeTool:async(name,args)=>{
+      executions++;
+      const result=await financialRegistry.executeTool(name,args);
+      cancellation.abort();
+      return result;
+    }};
+    await assert.rejects(()=>compareVoiceSipScenarios({
+      userId:'u',input,signal:cancellation.signal,resolveProfile:async()=>authority(),
+      financialRegistry:aborting
+    }),{code:'VOICE_SIP_CANCELLED'});
+    assert.equal(executions,1);
+  });
   it('rejects missing canonical profiles',async()=>{
     await assert.rejects(()=>compareVoiceSipScenarios({
       userId:'u',input,resolveProfile:async()=>({profile:null,state:{resolutionStatus:'NO_CURRENT'}}),financialRegistry

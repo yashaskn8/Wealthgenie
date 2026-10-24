@@ -63,13 +63,22 @@ export function createVoiceRouter({
   }));
   // Explicit user-reviewed inputs only; not parsed or executed from raw ASR.
   router.post('/sip-compare',comparisonLimiter(),validate(compareSchema),asyncHandler(async(req,res)=>{
-    const comparison=await compareVoiceSipScenarios({
-      userId:req.user.userId,
-      input:req.body,
-      resolveProfile,
-      financialRegistry,
-    });
-    res.json(comparison);
+    const cancel=new AbortController();
+    const onDisconnect=()=>cancel.abort();
+    res.once('close',onDisconnect);
+    try {
+      const signal=AbortSignal.any([cancel.signal,AbortSignal.timeout(12_000)]);
+      const comparison=await compareVoiceSipScenarios({
+        userId:req.user.userId,
+        input:req.body,
+        resolveProfile,
+        financialRegistry,
+        signal
+      });
+      if(!signal.aborted && !res.destroyed)res.json(comparison);
+    } finally {
+      res.off('close',onDisconnect);
+    }
   }));
   // No planner autonomy: client supplies a reviewable plan and receives
   // independently validated proposals/calculations, never executed navigation.

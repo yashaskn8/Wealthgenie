@@ -53,7 +53,7 @@ export async function previewSovereignReadOnlyTask({
         });
       } else if(step.operation==='SIP_COMPARE_DRAFT') {
         const comparison=await compareVoiceSipScenarios({
-          userId,input:step.arguments,resolveProfile,financialRegistry
+          userId,input:step.arguments,resolveProfile,financialRegistry,signal
         });
         active(signal);
         receipts.push({
