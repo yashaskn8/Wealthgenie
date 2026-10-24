@@ -37,8 +37,11 @@ test('Mongo-required suites are partitioned exhaustively between standalone and 
   const replicaSetSet = new Set(replicaSetRequiredTests);
   const standalone = mongoRequiredTests.filter(file => !replicaSetSet.has(file)).sort();
 
-  assert.equal(mongoRequiredTests.length, 32);
-  assert.equal(replicaSetRequiredTests.length, 28);
+  assert.equal(mongoRequiredTests.length, 33);
+  assert.equal(replicaSetRequiredTests.length, 29);
+  assert.ok(mongoSet.has('test/runwayMongo.integration.test.js'));
+  assert.ok(replicaSetSet.has('test/runwayMongo.integration.test.js'),
+    'Runway tampering, CAS and owner isolation require real MongoDB transactions');
   assert.ok(replicaSetSet.has('test/qualifiedEquityHistoryMongo.integration.test.js'));
   assert.ok(replicaSetSet.has('test/goalFinanceRoutes.test.js'), 'Goals integration must run under MongoDB replica set');
   assert.equal(mongoSet.size, mongoRequiredTests.length, 'Mongo manifest must not contain duplicates');
@@ -49,11 +52,27 @@ test('Mongo-required suites are partitioned exhaustively between standalone and 
   assert.deepEqual([...new Set([...replicaSetRequiredTests, ...standalone])].sort(), [...mongoRequiredTests].sort());
 });
 
-test('five Linux CI jobs retain Mongo-backed integrity and isolated financial PostgreSQL coverage', () => {
+test('six Linux CI jobs retain Mongo-backed integrity and isolated financial PostgreSQL coverage', () => {
   assert.deepEqual(Object.keys(workflow.jobs), [
+    'household-runway-adversarial',
     'backend-financial-integrity', 'finance-postgres-integration',
     'frontend-quality', 'ai-ml-rag-safety', 'integration-security',
   ]);
+  const runway = workflow.jobs['household-runway-adversarial'];
+  assert.equal(runway['runs-on'], 'ubuntu-latest');
+  assert.equal(runway['timeout-minutes'], 15);
+  assert.equal(runway.steps.find(step => step.name === 'Start isolated transaction-capable MongoDB 7')?.with?.['mongodb-replica-set'], 'rs0');
+  const oracleStep = runway.steps.find(step => step.name === 'Red-team deterministic amounts, same-day timing and independent numerical oracle');
+  assert.ok(oracleStep?.run?.includes('server/test/runwayOracle.test.js'));
+  assert.ok(oracleStep?.run?.includes('server/test/runwaySeal.test.js'));
+  const integrationStep = runway.steps.find(step => step.name === 'Red-team real Mongo transactions, account boundaries, tampering and concurrency');
+  assert.equal(integrationStep?.env?.MONGODB_URI, 'mongodb://127.0.0.1:27017/wealthgenie_runway_test?replicaSet=rs0');
+  assert.match(integrationStep.run, /export RUNWAY_INTEGRITY_SECRET="\$\(openssl rand -hex 32\)"/);
+  assert.match(integrationStep.run, /server\/test\/runwayMongo\.integration\.test\.js/);
+  assert.ok(!runway.steps.some(step => JSON.stringify(step).includes('secrets.')),
+    'Untrusted PRs must never receive live HMAC secrets');
+  assert.ok(runway.steps.some(step => step.run === 'npm ci --prefix server'),
+    'Dedicated financial gate must install from reviewed lockfile');
   const financialSql = workflow.jobs['finance-postgres-integration'];
   assert.match(financialSql.services?.postgres?.image || '', /^postgres:16@sha256:[a-f0-9]{64}$/);
   assert.equal(financialSql.services.postgres.env.POSTGRES_DB, 'wealthgenie_financial_test');

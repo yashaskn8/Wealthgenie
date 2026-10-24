@@ -19,6 +19,41 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  household-runway-adversarial:
+    name: Household Runway Adversarial Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Start isolated transaction-capable MongoDB 7
+        uses: supercharge/mongodb-github-action@b0a1493307c4e9b82ed61f3858d606c5ff190c64 # 1.10.0
+        with:
+          mongodb-version: '7.0'
+          mongodb-replica-set: rs0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install audited application dependencies
+        run: npm ci --prefix server
+      - name: Red-team deterministic amounts, same-day timing and independent numerical oracle
+        run: |
+          export JWT_SECRET="$(openssl rand -hex 32)"
+          node --test server/test/runwayEngine.test.js server/test/runwayOracle.test.js server/test/runwayRoutes.test.js server/test/runwaySeal.test.js server/test/runwayOperationalReadiness.test.js server/test/runwayStatementImport.test.js server/test/runwayReconciliation.test.js server/test/runwayEvidenceCrypto.test.js server/test/runwayEvidenceMigration.test.js server/test/runwayAccountObservations.test.js server/test/runwayProjectionOutbox.test.js
+      - name: Red-team real Mongo transactions, account boundaries, tampering and concurrency
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/wealthgenie_runway_test?replicaSet=rs0
+          NODE_ENV: test
+          DISABLE_RATE_LIMIT: 'true'
+        run: |
+          export JWT_SECRET="$(openssl rand -hex 32)"
+          export RUNWAY_INTEGRITY_SECRET="$(openssl rand -hex 32)"
+          export RUNWAY_EVIDENCE_KEY_V1="$(openssl rand -hex 32)"
+          node --test server/test/runwayMongo.integration.test.js
+
   backend-financial-integrity:
     name: Backend & Financial Integrity
     runs-on: ubuntu-latest
@@ -55,6 +90,11 @@ jobs:
         env:
           MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
         run: npm run goals:migrate-budget-indexes --prefix server
+
+      - name: Migrate Household Runway indexes
+        env:
+          MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
+        run: npm run runway:migrate-indexes --prefix server
 
       - name: Run Backend ESLint Check
         run: |
