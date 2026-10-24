@@ -4,6 +4,7 @@ import test from 'node:test';
 import mongoose from 'mongoose';
 import {
   createDecisionMonitorWorker, signMonitorConsent, verifyMonitorConsent,
+  classifyDecisionMonitorFailure,
   verifyDecisionAssessment, assessmentContext,
 } from '../services/genieDecision/monitor.js';
 import { signDecisionReceipt } from '../services/genieDecision/integrity.js';
@@ -258,4 +259,19 @@ test('monitor worker health requires an authenticated identity, timestamp and ex
       else process.env[key] = value;
     }
   }
+});
+
+
+test('monitor failures use bounded health categories without leaking arbitrary error codes', () => {
+  assert.equal(classifyDecisionMonitorFailure({ code: 'DECISION_ASSESSMENT_INTEGRITY_FAILURE' }),
+    'DECISION_ASSESSMENT_INTEGRITY_FAILURE');
+  assert.equal(classifyDecisionMonitorFailure({ code: 11000 }),
+    'DECISION_MONITOR_CONCURRENT_WRITE');
+  assert.equal(classifyDecisionMonitorFailure({
+    hasErrorLabel: label => label === 'TransientTransactionError',
+  }), 'DECISION_MONITOR_CONCURRENT_WRITE');
+  assert.equal(classifyDecisionMonitorFailure({
+    code: 'USER_12345_PRIVATE_TRANSACTION', message: 'private monthly income',
+  }), 'DECISION_MONITOR_UNEXPECTED_FAILURE');
+  assert.equal(classifyDecisionMonitorFailure(null), 'DECISION_MONITOR_UNEXPECTED_FAILURE');
 });
