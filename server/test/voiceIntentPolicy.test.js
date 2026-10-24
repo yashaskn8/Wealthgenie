@@ -34,7 +34,9 @@ describe('Sovereign X fail-closed voice policy',()=>{
     }
   });
   it('rejects control characters, long payloads and invalid types',()=>{
-    for(const input of ['', ' ', 'open\u0000goals','x'.repeat(1001),null,{},[]]){
+    for(const input of ['', ' ', 'open\u0000goals','open\ngoals',
+      'open\rgoals','open\tgoals','open goals\n',
+      'open\nsip comparison','x'.repeat(1001),null,{},[]]){
       assert.equal(classifyVoiceIntent(input).action,'REJECTED');
     }
   });
