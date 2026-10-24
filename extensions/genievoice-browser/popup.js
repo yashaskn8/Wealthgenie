@@ -1,4 +1,4 @@
-import {isApprovedPublicResearchUrl} from './publicSourcePolicy.mjs';
+import {isApprovedPublicResearchUrl,isSameApprovedPublicResearchPage} from './publicSourcePolicy.mjs';
 const status=document.querySelector('#status');
 const content=document.querySelector('#content');
 const btn=document.querySelector('#inspect');
@@ -30,8 +30,14 @@ btn.addEventListener('click',async()=>{
         return {url:location.origin+location.pathname,title:document.title.slice(0,160),text};
       }
     });
-    if(!result||!isApprovedPublicResearchUrl(result.url)){
-      setStatus('Page changed or is not approved. No content was inspected.');
+    // The activeTab grant is tied to the user's explicit selection. If the
+    // selected tab or its URL changed while injection was pending, never show
+    // text from a different document, even another approved public source.
+    const [activeTab]=await chrome.tabs.query({active:true,currentWindow:true});
+    if(!result || activeTab?.id!==tab.id ||
+       !isSameApprovedPublicResearchPage(tab.url,result.url) ||
+       !isSameApprovedPublicResearchPage(tab.url,activeTab.url)) {
+      setStatus('Selected page changed during inspection. Inspect it again explicitly.');
       return;
     }
     setStatus('Local read-only preview; verify source dates and usage rights.');
