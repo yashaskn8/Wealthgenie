@@ -327,4 +327,18 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(screen.getByText(/The financial profile, saved scenario, or calculation rules have changed/)).toBeTruthy();
   });
 
+  it('hides all private financial results when the live stream reports session revocation', async () => {
+    let emitStatus;
+    subscribeDecisionEvents.mockImplementation(async ({ onStatus }) => { emitStatus = onStatus; });
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    await screen.findByText('Decision comparison');
+    await act(async () => emitStatus('unauthorized'));
+    expect(screen.getByText(/Session authorization is no longer valid/)).toBeTruthy();
+    expect(screen.queryByText('Decision comparison')).toBeNull();
+    expect(screen.queryByText('My saved decision')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Evaluate saved revision' })).toBeNull();
+  });
+
+
 });
