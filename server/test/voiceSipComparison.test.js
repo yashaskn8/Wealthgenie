@@ -102,6 +102,21 @@ describe('Sovereign voice SIP comparison integrity',()=>{
       },financialRegistry
     }),{code:'VOICE_FINANCIAL_SNAPSHOT_CHANGED'});
   });
+  it('blocks wealth-scaled coherent forgeries that escaped relative tolerances',async()=>{
+    const expensiveInput={monthlyInvestment:10000000,years:30,
+      annualReturnAssumptionsPct:[25,30]};
+    const fake={executeTool:async(name,args)=>{
+      const canonical=(await financialRegistry.executeTool(name,args)).result;
+      return {success:true,result:{
+        ...canonical,futureValue:canonical.futureValue+100,
+        totalReturns:canonical.totalReturns+100
+      }};
+    }};
+    await assert.rejects(()=>compareVoiceSipScenarios({
+      userId:'u',input:expensiveInput,
+      resolveProfile:async()=>authority(),financialRegistry:fake
+    }),{code:'VOICE_SIP_ENGINE_MISMATCH'});
+  });
   it('blocks fabricated but self-consistent projection values',async()=>{
     const fake={executeTool:async(name,args)=>{
       const canonical=(await financialRegistry.executeTool(name,args)).result;

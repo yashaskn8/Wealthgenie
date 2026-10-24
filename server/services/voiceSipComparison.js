@@ -97,7 +97,7 @@ export async function compareVoiceSipScenarios({
       totalReturns!==futureValue-totalInvested ||
       Math.abs(futureValue-independentlyProjectedSipValue(
         args.monthlyInvestment,pct/100,args.years
-      ))>Math.max(2,Math.round(futureValue*1e-10))) {
+      ))>2) {
       throw createError(503,'The financial tool returned an inconsistent result.',
         'The comparison could not be verified. No result was published.',
         {code:'VOICE_SIP_ENGINE_MISMATCH'});
