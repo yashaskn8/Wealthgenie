@@ -501,6 +501,13 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(await FinancialProfile.countDocuments({ userId: userA }), 0);
       assert.equal(await Goal.countDocuments({ userId: userA }), 0);
       assert.equal(await Recommendation.countDocuments({ userId: userA }), 0);
+      // A deliberate new sign-in can start a new self-managed ledger;
+      // old pre-erasure sessions cannot silently replay the deleted one.
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      const newAuth = { Authorization: 'Bearer ' + token(userA) };
+      const intentionalRestart = await write(base, ledger, 0, 'runway-restart-001', newAuth);
+      assert.equal(intentionalRestart.response.status, 201, JSON.stringify(intentionalRestart.body));
+      assert.equal(intentionalRestart.body.revision, 1);
     });
   } finally {
     await teardownTestDatabase();
