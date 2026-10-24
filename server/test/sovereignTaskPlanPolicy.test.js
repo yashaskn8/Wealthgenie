@@ -19,6 +19,9 @@ describe('Sovereign task plan validation',()=>{
       plan([{...step('a','goals'),arguments:{page:'admin',tab:null}}]),
       plan([{...step('a','goals'),arguments:{page:'goals',tab:null,url:'https://evil.test'}}]),
       plan([step('__proto__','goals')]),
+      plan([{...step('a','goals'),dependsOn:['b','b']}]),
+      plan([{...step('a','goals'),dependsOn:['a']}]),
+      plan([{...step('a','goals'),dependsOn:['not_exist']}]),
       plan(Array.from({length:7},(_,i)=>step('n'+i,'goals'))),
     ]) assert.equal(validateSovereignTaskPlan(x).ok,false,JSON.stringify(x).slice(0,150));
   });

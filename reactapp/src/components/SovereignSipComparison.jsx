@@ -67,11 +67,11 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
             value={years} onChange={e=>{setYears(e.target.value);setResult(null);}} disabled={disabled||loading} />
         </label>
         <label>First assumed annual return (%)
-          <input aria-label="First annual return assumption" type="number" min="0.1" max="30" step="0.1"
+          <input aria-label="First annual return assumption" type="number" min="0.1" max="30" step="0.001"
             value={first} onChange={e=>{setFirst(e.target.value);setResult(null);}} disabled={disabled||loading} />
         </label>
         <label>Second assumed annual return (%)
-          <input aria-label="Second annual return assumption" type="number" min="0.1" max="30" step="0.1"
+          <input aria-label="Second annual return assumption" type="number" min="0.1" max="30" step="0.001"
             value={second} onChange={e=>{setSecond(e.target.value);setResult(null);}} disabled={disabled||loading} />
         </label>
         <button type="submit" disabled={disabled||loading||!hasInputs} aria-label="Run SIP comparison">

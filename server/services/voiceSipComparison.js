@@ -50,7 +50,7 @@ export async function compareVoiceSipScenarios({
       .every(n=>Number.isFinite(n) && n>=0) ||
       monthlyInvestment!==args.monthlyInvestment || years!==args.years ||
       Math.abs(annualRatePct-pct)>1e-7 ||
-      Math.abs(totalReturns-(futureValue-totalInvested))>1) {
+      Math.abs(totalReturns-(futureValue-totalInvested))>0) {
       throw createError(503,'The financial tool returned an inconsistent result.',
         'The comparison could not be verified. No result was published.',
         {code:'VOICE_SIP_ENGINE_MISMATCH'});
