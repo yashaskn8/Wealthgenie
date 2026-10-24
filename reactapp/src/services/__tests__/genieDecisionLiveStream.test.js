@@ -96,8 +96,8 @@ describe('GenieDecision authenticated browser live update stream', () => {
     const controller = new AbortController();
     const status = [];
     const mockFetch = vi.fn().mockResolvedValue(response(
-      'event: connected\\ndata: {"latestSequence":0}\\n\\n'
-      + 'event: unavailable\\ndata: {"retry":false,"reason":"SESSION_NO_LONGER_VALID"}\\n\\n',
+      'event: connected\ndata: {"latestSequence":0}\n\n'
+      + 'event: unavailable\ndata: {"retry":false,"reason":"SESSION_NO_LONGER_VALID"}\n\n',
     ));
     vi.stubGlobal('fetch', mockFetch);
     await subscribeDecisionEvents({
