@@ -17,6 +17,8 @@ export default function SovereignVoiceControl({
   const utteranceRef = useRef(null);
   const generationRef = useRef(0);
   const callbacksRef = useRef({ onNavigate, onTranscript });
+  const enabledRef = useRef(!disabled);
+  enabledRef.current = !disabled;
   callbacksRef.current = { onNavigate, onTranscript };
 
   const cancelAll = useCallback(() => {
@@ -77,13 +79,17 @@ export default function SovereignVoiceControl({
       setState('checking');
       void api.interpretVoiceCommand(transcript, { signal: controller.signal })
         .then(result => {
-          if (current !== generationRef.current || controller.signal.aborted) return;
+          if (current !== generationRef.current || controller.signal.aborted || !enabledRef.current) return;
           if (result?.version !== 'sovereign-voice-intent-v1') {
             setStatus('Unrecognized voice response. No action executed.');
           } else if (result.action === 'APP_NAVIGATE' && result.tab === null &&
             PAGE_ALLOWLIST.includes(result.page) && result.page !== 'genieproof') {
-            callbacksRef.current.onNavigate?.({ page: result.page, tab: null });
-            setStatus('Opened ' + result.page.replace(/-/g, ' ') + '.');
+            try {
+              callbacksRef.current.onNavigate?.({ page: result.page, tab: null });
+              setStatus('Opened ' + result.page.replace(/-/g, ' ') + '.');
+            } catch {
+              setStatus('Navigation outcome could not be confirmed. No further tasks will run.');
+            }
           } else if (result.action === 'CHAT') {
             callbacksRef.current.onTranscript?.(transcript);
             setStatus('Transcript added to chat. Review it before sending.');
@@ -92,7 +98,7 @@ export default function SovereignVoiceControl({
           }
         })
         .catch(() => {
-          if (current !== generationRef.current || controller.signal.aborted) return;
+          if (current !== generationRef.current || controller.signal.aborted || !enabledRef.current) return;
           callbacksRef.current.onTranscript?.(transcript);
           setStatus('Voice tasks unavailable. Review the transcript before sending.');
         })
@@ -125,6 +131,7 @@ export default function SovereignVoiceControl({
   };
 
   const canSpeak = lastAnswer?.grounded === true &&
+    lastAnswer.validation_status === 'PASS' &&
     Array.isArray(lastAnswer.evidence_ids_used) &&
     lastAnswer.evidence_ids_used.length > 0 &&
     lastAnswer.evidence_ids_used.every(id => typeof id === 'string' && id.startsWith('E_') &&

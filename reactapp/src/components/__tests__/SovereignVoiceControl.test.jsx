@@ -49,6 +49,13 @@ describe('GenieVoice opt-in navigation',()=>{
     }} />);
     expect(screen.queryByRole('button',{name:'Speak verified answer'})).not.toBeInTheDocument();
   });
+  it('requires server grounding validation PASS to speak',()=>{
+    const x=setup({action:'CHAT'});
+    x.ui.rerender(<SovereignVoiceControl sessionKey="a" lastAnswer={{
+      grounded:true,content:'Example',evidence_ids_used:['E_PROFILE_RISK'],validation_status:null
+    }} />);
+    expect(screen.queryByRole('button',{name:'Speak verified answer'})).not.toBeInTheDocument();
+  });
   it('does not display speech playback for ungrounded model responses',()=>{
     setup({action:'CHAT'});
     expect(screen.queryByRole('button',{name:'Speak verified answer'})).not.toBeInTheDocument();
