@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseEventCursor, sourceStateFingerprint, LIVE_POLL_MS } from '../services/genieDecision/liveEvents.js';
+import { shouldRecheckDecisionStreamAuthorization } from '../routes/decisionEvents.js';
 
 test('live event cursors reject malicious and ambiguous values', () => {
   assert.equal(parseEventCursor(undefined), null);
@@ -38,4 +39,18 @@ test('currentness fingerprint changes on owner financial-state and out-of-band p
   assert.notEqual(baseline, sourceStateFingerprint({ state: { resolutionStatus: 'NO_CURRENT', revision: 4 } }));
   // Private profile values never leave the server via this fingerprint helper.
   assert.equal(sourceStateFingerprint(current).includes('100000'), false);
+});
+
+
+test('SSE rechecks owner authorization before queued events or replay resets', () => {
+  const idle = { events: [], resetRequired: false };
+  assert.equal(shouldRecheckDecisionStreamAuthorization(idle, 100, 10000), false);
+  assert.equal(shouldRecheckDecisionStreamAuthorization(idle, 10000, 10000), true);
+  assert.equal(shouldRecheckDecisionStreamAuthorization({
+    events: [{ type: 'SCENARIO_UPDATED', scenarioId: 'private-scenario' }],
+    resetRequired: false,
+  }, 100, 10000), true);
+  assert.equal(shouldRecheckDecisionStreamAuthorization({
+    events: [], resetRequired: true,
+  }, 100, 10000), true);
 });
