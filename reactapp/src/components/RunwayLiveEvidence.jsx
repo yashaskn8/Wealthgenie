@@ -228,6 +228,10 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
       {observations?.status === 'ACCOUNT_OBSERVATIONS_UNAVAILABLE' && <p role="status">
         Separate account observations are temporarily unavailable; no bank balances were verified.
       </p>}
+      {riskAlerts?.status === 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED' && <p role="alert">
+        Saved risk alerts used an older calculation engine and are not presented as current.
+        Reconfirm accessible household cash in a new ledger revision to refresh alerts.
+      </p>}
       {riskAlerts?.status === 'CURRENT_USER_DECLARED_RISK'
         && riskAlerts.items?.map(alert => (
           <div className="runway-live-statement" role="status" key={alert.alertId}>
