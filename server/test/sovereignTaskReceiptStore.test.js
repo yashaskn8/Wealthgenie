@@ -92,6 +92,59 @@ describe('Sovereign opt-in durable preview receipts',()=>{
     }),{code:'SOVEREIGN_RECEIPT_UNSAFE_RESULT'});
     assert.equal([...repository.rows.values()][0].status,'FAILED');
   });
+  it('accepts a real-shaped financial preview and denies coherent forged figures',async()=>{
+    const {sipFV}=await import('../services/projectionEngine.js');
+    const multiPlan={version:'sovereign-task-plan-v1',steps:[
+      {id:'nav',operation:'APP_NAVIGATE',arguments:{page:'goals',tab:null},dependsOn:[]},
+      {id:'compare',operation:'SIP_COMPARE_DRAFT',arguments:{
+        monthlyInvestment:5000,years:10,annualReturnAssumptionsPct:[7,10]
+      },dependsOn:['nav']}
+    ]};
+    const scenarios=[7,10].map(rate=>{
+      const futureValue=Math.round(sipFV(5000,rate/100,10));
+      return {
+        assumedAnnualReturnPct:rate,monthlyInvestment:5000,years:10,
+        totalInvested:600000,futureValue,totalReturns:futureValue-600000,
+        classification:'NON_RECOMMENDATION_PROFILE_CONSTRAINED_WHAT_IF',
+        returnBasis:'USER_SUPPLIED_NOMINAL_ASSUMPTION'
+      };
+    });
+    const trusted={
+      version:'sovereign-task-preview-v1',
+      classification:'READ_ONLY_USER_REVIEWED_PREVIEW',
+      persisted:false,navigationApplied:false,financialStateModified:false,
+      steps:[
+        preview.steps[0],
+        {id:'compare',kind:'FINANCIAL_COMPARISON',status:'VERIFIED',
+          comparison:{
+            version:'sovereign-voice-sip-compare-v1',
+            classification:'UNSAVED_WHAT_IF_SIMULATION',
+            profileStateRevision:1,
+            note:'These are nominal projections using user-supplied hypothetical annual returns, not quotes, guarantees, investment recommendations or post-tax results.',
+            scenarios,
+            differences:{futureValue:scenarios[1].futureValue-scenarios[0].futureValue,invested:0},
+            persisted:false
+          }}
+      ]
+    };
+    const repository=memoryRepository();
+    const accepted=await recordSovereignTaskPreview({
+      ...args(repository),plan:multiPlan,executePreview:async()=>trusted
+    });
+    assert.equal(accepted.outcome,'COMPLETED');
+    assert.equal(accepted.receipt.status,'SUCCEEDED');
+    const forged=structuredClone(trusted);
+    forged.steps[1].comparison.scenarios[0].futureValue+=100;
+    forged.steps[1].comparison.scenarios[0].totalReturns+=100;
+    forged.steps[1].comparison.differences.futureValue-=100;
+    const badRepo=memoryRepository();
+    await assert.rejects(()=>recordSovereignTaskPreview({
+      ...args(badRepo),plan:multiPlan,executePreview:async()=>forged
+    }),{code:'SOVEREIGN_RECEIPT_UNSAFE_RESULT'});
+    const row=[...badRepo.rows.values()][0];
+    assert.equal(row.status,'FAILED');
+    assert.equal(row.resultHash,null);
+  });
   it('returns metadata and never repeats a completed operation with the same key',async()=>{
     const repository=memoryRepository();
     let executions=0;
