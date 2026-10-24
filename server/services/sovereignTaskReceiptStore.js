@@ -6,6 +6,7 @@ import { verifyPersistenceIndexes } from './persistenceIndexReadiness.js';
 import SovereignTaskReceipt from '../models/SovereignTaskReceipt.js';
 import { validateSovereignTaskPlan } from './sovereignTaskPlanPolicy.js';
 import { previewSovereignReadOnlyTask } from './sovereignReadOnlyTaskPreview.js';
+import { isVerifiedSovereignReadOnlyPreview } from './sovereignPreviewReceiptPolicy.js';
 
 export const SOVEREIGN_RECEIPT_VERSION='sovereign-task-receipt-v1';
 export const SOVEREIGN_RECEIPT_RETENTION_MS=7*24*60*60*1000;
@@ -140,8 +141,7 @@ export async function recordSovereignTaskPreview({
     }),signal);
     if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
       'This task was cancelled before publication.');
-    if(preview?.persisted!==false || preview.navigationApplied!==false ||
-      preview.financialStateModified!==false){
+    if(!isVerifiedSovereignReadOnlyPreview(preview,valid)){
       throw error(503,'SOVEREIGN_RECEIPT_UNSAFE_RESULT',
         'Task executor did not return a verifiable read-only result.');
     }

@@ -10,8 +10,12 @@ const secret='test-only-independent-secret-key-with-more-than-32-bytes';
 const plan={version:'sovereign-task-plan-v1',steps:[{
   id:'nav',operation:'APP_NAVIGATE',arguments:{page:'goals',tab:null},dependsOn:[]
 }]};
-const preview={version:'sovereign-task-preview-v1',persisted:false,
-  navigationApplied:false,financialStateModified:false,steps:[]
+const preview={version:'sovereign-task-preview-v1',
+  classification:'READ_ONLY_USER_REVIEWED_PREVIEW',persisted:false,
+  navigationApplied:false,financialStateModified:false,steps:[
+    {id:'nav',kind:'NAVIGATION_PROPOSAL',status:'PREVIEWED',page:'goals',
+      tab:null,applied:false}
+  ]
 };
 function memoryRepository(){
   const rows=new Map();
@@ -57,6 +61,36 @@ describe('Sovereign opt-in durable preview receipts',()=>{
       'requestHash','resultHash','status','userId'
     ]);
     assert.equal(JSON.stringify(saved).includes('monthlyInvestment'),false);
+  });
+  it('rejects forged success output and does not persist a success receipt',async()=>{
+    const mutations=[
+      {...preview,version:'sovereign-task-preview-v0'},
+      {...preview,steps:[]},
+      {...preview,steps:[{...preview.steps[0],page:'account'}]},
+      {...preview,steps:[{...preview.steps[0],applied:true}]},
+      {...preview,steps:[{...preview.steps[0],secret:'financialData'}]},
+      {...preview,classification:'EXECUTED'},
+      {...preview,financialStateModified:true},
+      {...preview,steps:[{...preview.steps[0],status:'VERIFIED'}]}
+    ];
+    for(const forged of mutations){
+      const repository=memoryRepository();
+      await assert.rejects(()=>recordSovereignTaskPreview({
+        ...args(repository),executePreview:async()=>forged
+      }),{code:'SOVEREIGN_RECEIPT_UNSAFE_RESULT'});
+      const row=[...repository.rows.values()][0];
+      assert.equal(row.status,'FAILED');
+      assert.equal(row.resultHash,null);
+    }
+  });
+  it('rejects an accessor smuggled into the executor result',async()=>{
+    const forged={...preview};
+    Object.defineProperty(forged,'steps',{enumerable:true,get(){return preview.steps;}});
+    const repository=memoryRepository();
+    await assert.rejects(()=>recordSovereignTaskPreview({
+      ...args(repository),executePreview:async()=>forged
+    }),{code:'SOVEREIGN_RECEIPT_UNSAFE_RESULT'});
+    assert.equal([...repository.rows.values()][0].status,'FAILED');
   });
   it('returns metadata and never repeats a completed operation with the same key',async()=>{
     const repository=memoryRepository();
