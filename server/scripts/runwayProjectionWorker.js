@@ -25,7 +25,7 @@ try {
     processOne: () => processOneRunwayProjection(),
     shouldStop: () => stopping,
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
-    reportBlocked: code => { process.stderr.write('Runway projection blocked: ' + code + '\\n'); },
+    reportBlocked: code => { process.stderr.write('Runway projection blocked: ' + code + '\n'); },
   });
 } finally {
   await mongoose.disconnect();
