@@ -101,11 +101,17 @@ async function currentRevision(userId, session = null) {
   requireValidLedgerSeal(revision);
   return { state, revision };
 }
-async function inTransaction(action) {
+async function inTransaction(action, req) {
   const session = await mongoose.startSession();
   try {
     let output;
-    await session.withTransaction(async () => { output = await action(session); }, {
+    await session.withTransaction(async () => {
+      // The HTTP middleware fence can be checked before an erasure commits.
+      // Recheck within the database snapshot used for this financial write.
+      const fence = await RunwayErasureFence.findById(owner(req)).session(session).lean();
+      requirePostErasureAuthentication(req, fence);
+      output = await action(session);
+    }, {
       readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' },
     });
     return output;
@@ -318,7 +324,7 @@ router.put('/ledger', asyncHandler(async (req, res) => {
       await queueRunwayProjection(userId, next, inputHash, session);
       await createRunwaySignal(userId, 'LEDGER_UPDATED', session);
       return next;
-    });
+    }, req);
   } catch (error) { rethrowTransaction(error); }
   const found = await RunwayLedgerRevision.findOne({ userId, revision: created }).lean();
   if (!found || canonicalSha256(found.ledger) !== found.inputHash) {
@@ -446,7 +452,7 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
       newSnapshot.sealHmac = makeSnapshotSeal(newSnapshot);
       await RunwaySnapshot.create([newSnapshot], { session });
       return { snapshotId, ledgerRevision: found.state.revision };
-    });
+    }, req);
   } catch (error) {
     if (error?.code === 11000) {
       const committed = await RunwaySnapshot.findOne({ _id: snapshotId, userId }).lean();
@@ -522,7 +528,7 @@ router.delete('/snapshots/:id', asyncHandler(async (req, res) => {
       }], { session });
       const deleted = await RunwaySnapshot.deleteOne({ _id: req.params.id, userId }).session(session);
       if (deleted.deletedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Saved result changed concurrently.');
-    });
+    }, req);
   } catch (error) { rethrowTransaction(error); }
   return res.json({ status: 'DELETED', scope: 'ONE_RUNWAY_SNAPSHOT' });
 }));
@@ -581,7 +587,7 @@ router.delete('/data', asyncHandler(async (req, res) => {
     await RunwayAlert.deleteMany({ userId }, { session });
     await RunwayLedgerRevision.deleteMany({ userId }, { session });
     await RunwayLedgerState.deleteOne({ _id: userId }, { session });
-  });
+  }, req);
   return res.json({ status: 'DELETED', scope: 'RUNWAY_PRIMARY_FINANCIAL_RECORDS',
     minimalErasureFenceRetained: true, backupExpiryVerified: false });
 }));
