@@ -508,6 +508,24 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const intentionalRestart = await write(base, ledger, 0, 'runway-restart-001', newAuth);
       assert.equal(intentionalRestart.response.status, 201, JSON.stringify(intentionalRestart.body));
       assert.equal(intentionalRestart.body.revision, 1);
+      // The original still-valid session must not read or modify a deliberate
+      // post-erasure replacement, even when it knows current revision numbers.
+      const staleCurrent = await jsonRequest(ownedBase + 'current', { headers: authA });
+      assert.equal(staleCurrent.response.status, 403);
+      assert.equal(staleCurrent.body.code, 'RUNWAY_REAUTH_AFTER_ERASURE_REQUIRED');
+      const staleOverview = await jsonRequest(ownedBase + 'live/overview', { headers: authA });
+      assert.equal(staleOverview.response.status, 403);
+      const staleImport = await jsonRequest(ownedBase + 'live/statements', {
+        method: 'POST', headers: { ...authA, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountLabel: 'stale', csvText: 'invalid' }),
+      });
+      assert.equal(staleImport.response.status, 403);
+      const staleUpdate = await write(base, ledger, 1, 'runway-stale-after-erasure');
+      assert.equal(staleUpdate.response.status, 403);
+      assert.equal((await RunwayLedgerState.findById(userA).lean()).revision, 1);
+      const validReplacement = await jsonRequest(ownedBase + 'current', { headers: newAuth });
+      assert.equal(validReplacement.response.status, 200);
+      assert.equal(validReplacement.body.revision, 1);
       // The test re-created an outbox job. Do not leave its pending work in
       // the shared external CI replica set: subsequent worker tests must
       // observe only the jobs they create.
