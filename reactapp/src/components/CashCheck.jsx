@@ -34,7 +34,7 @@ function formatMoney(paise) {
 }
 function parseRupeeInput(value, { allowEmpty = false } = {}) {
   if (allowEmpty && value.trim() === '') return null;
-  const match = /^(0|[1-9]\d{0,9})(?:\.(\d{1,2}))?$/.exec(value.trim());
+  const match = /^(0|[1-9]\d{0,10})(?:\.(\d{1,2}))?$/.exec(value.trim());
   if (!match) throw new Error('Enter rupees with at most two decimal places (no commas).');
   const amount = Number(match[1]) * 100 + Number((match[2] || '').padEnd(2, '0'));
   if (!Number.isSafeInteger(amount) || amount > 1_000_000_000_000) {

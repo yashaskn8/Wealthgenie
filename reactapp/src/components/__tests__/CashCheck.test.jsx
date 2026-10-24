@@ -62,6 +62,30 @@ describe('90-day cash check', () => {
     expect(screen.queryByText(/No shortfall in the entries supplied for these dates/i)).toBeNull();
   });
 
+  it('round-trips the maximum supported backend opening cash without paise loss', async () => {
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByPlaceholderText('50000.00'), {
+      target: { value: '10000000000.00' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and calculate 90 days' }));
+    await waitFor(() => expect(api.saveCoverageLedger).toHaveBeenCalledWith(
+      expect.objectContaining({ openingCashPaise: 1_000_000_000_000 }), 0, expect.anything(),
+    ));
+    expect(screen.queryByText(/Amount exceeds the supported exact paise limit/i)).toBeNull();
+  });
+
+  it('rejects even one paisa beyond the supported exact backend limit', async () => {
+    render(<CashCheck />);
+    await screen.findByRole('heading', { name: '90-day cash check', level: 1 });
+    fireEvent.change(screen.getByPlaceholderText('50000.00'), {
+      target: { value: '10000000000.01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and calculate 90 days' }));
+    await screen.findByText(/Amount exceeds the supported exact paise limit/i);
+    expect(api.saveCoverageLedger).not.toHaveBeenCalled();
+  });
+
   it('suppresses an old positive result until cash is reconfirmed', async () => {
     api.getCoverageLedger.mockResolvedValue({
       revision: 4, ledger: {
