@@ -508,6 +508,15 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       const intentionalRestart = await write(base, ledger, 0, 'runway-restart-001', newAuth);
       assert.equal(intentionalRestart.response.status, 201, JSON.stringify(intentionalRestart.body));
       assert.equal(intentionalRestart.body.revision, 1);
+      // The test re-created an outbox job. Do not leave its pending work in
+      // the shared external CI replica set: subsequent worker tests must
+      // observe only the jobs they create.
+      const cleanup = await jsonRequest(ownedBase + 'data', {
+        method: 'DELETE', headers: { ...newAuth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE_RUNWAY_DATA' }),
+      });
+      assert.equal(cleanup.response.status, 200, JSON.stringify(cleanup.body));
+      assert.equal(await RunwayProjectionJob.countDocuments({ userId: userA }), 0);
     });
   } finally {
     await teardownTestDatabase();
