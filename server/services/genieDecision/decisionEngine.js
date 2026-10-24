@@ -23,27 +23,41 @@ const roundInterest = (balance, annualBps) => (balance * BigInt(annualBps) + 600
 
 function debtTrajectory({ principal, annualBps, termMonths, monthlyPayment, extraPayment = 0n, horizonMonths }) {
   let balance = principal;
+  let endingBalance = principal;
   let paid = 0n;
   let interestTotal = 0n;
   const payments = [];
-  for (let month = 1; month <= horizonMonths; month += 1) {
-    if (balance <= 0n) { payments.push({ debt: 0n, interest: 0n, balance: 0n }); continue; }
-    const interest = roundInterest(balance, annualBps);
-    const due = balance + interest;
-    const payment = monthlyPayment + extraPayment < due ? monthlyPayment + extraPayment : due;
-    ensure(payment >= interest || payment === due, 'NEGATIVE_AMORTIZATION',
-      'Provided repayment does not cover monthly interest.');
-    ensure(payment !== interest || payment === due, 'NON_AMORTIZING_LOAN',
-      'Provided repayment covers interest but cannot amortize the principal.');
-    balance = due - payment;
-    paid += payment;
-    interestTotal += interest;
-    payments.push({ debt: payment, interest, balance });
+  // A short display horizon must not conceal a repayment plan that violates
+  // its declared maturity. Conversely, periods AFTER maturity must not be
+  // allowed to rescue an underfunded contract.
+  const simulationMonths = Math.max(horizonMonths, termMonths);
+  for (let month = 1; month <= simulationMonths; month += 1) {
+    let interest = 0n;
+    let payment = 0n;
+    if (balance > 0n) {
+      interest = roundInterest(balance, annualBps);
+      const due = balance + interest;
+      payment = monthlyPayment + extraPayment < due ? monthlyPayment + extraPayment : due;
+      ensure(payment >= interest || payment === due, 'NEGATIVE_AMORTIZATION',
+        'Provided repayment does not cover monthly interest.');
+      ensure(payment !== interest || payment === due, 'NON_AMORTIZING_LOAN',
+        'Provided repayment covers interest but cannot amortize the principal.');
+      balance = due - payment;
+    }
+    // Do not include off-horizon interest, cash flows, or terminal principal
+    // in the published snapshot. These later checks validate the contract only.
+    if (month <= horizonMonths) {
+      paid += payment;
+      interestTotal += interest;
+      payments.push({ debt: payment, interest, balance });
+      endingBalance = balance;
+    }
+    if (month === termMonths) {
+      ensure(balance === 0n, 'NON_AMORTIZING_LOAN',
+        'Loan is not repaid within its declared term.');
+    }
   }
-  if (horizonMonths >= termMonths) {
-    ensure(balance === 0n, 'NON_AMORTIZING_LOAN', 'Loan is not repaid within its declared term.');
-  }
-  return { payments, endingBalance: balance, totalPaid: paid, interestTotal };
+  return { payments, endingBalance, totalPaid: paid, interestTotal };
 }
 
 function loanPayment(principal, annualBps, termMonths) {
