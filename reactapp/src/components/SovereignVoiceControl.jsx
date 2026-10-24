@@ -91,7 +91,7 @@ export default function SovereignVoiceControl({
       const transcript = String(event.results?.[0]?.[0]?.transcript || '').trim();
       // ASR output is untrusted input; keep it within the same hard boundary as
       // server interpretation rather than forwarding oversized text to chat.
-      if (transcript.length > 1000 || /\p{Cc}/u.test(transcript)) {
+      if (transcript.length > 1000 || /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(transcript)) {
         setState('idle');
         setStatus('Voice transcript exceeded safety limits. Use text chat instead.');
         return;
