@@ -135,4 +135,41 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(x.nav).not.toHaveBeenCalled();
   });
 
+  it('restores idle controls after a new answer cancels an unresolved voice command',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',action:'CHAT'});
+    let complete;
+    vi.mocked(api.interpretVoiceCommand).mockImplementation(
+      ()=>new Promise(resolve=>{complete=resolve;})
+    );
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    act(()=>{x.getRecognition().onresult({results:[[{transcript:'open goals'}]]});});
+    expect(screen.getByRole('button',{name:'Stop GenieVoice task'})).toBeInTheDocument();
+    x.ui.rerender(<SovereignVoiceControl sessionKey="a" onNavigate={x.nav}
+      onTranscript={x.transcript} lastAnswer={{content:'new answer'}}/>);
+    expect(screen.getByRole('button',{name:'Start GenieVoice navigation'})).toBeInTheDocument();
+    expect(screen.queryByText(/Checking voice command/)).not.toBeInTheDocument();
+    await act(async()=>{complete({
+      version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'goals',tab:null
+    });});
+    expect(x.nav).not.toHaveBeenCalled();
+  });
+  it('restores idle controls and suppresses late navigation on disable without a remount',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',action:'CHAT'});
+    let complete;
+    vi.mocked(api.interpretVoiceCommand).mockImplementation(
+      ()=>new Promise(resolve=>{complete=resolve;})
+    );
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    act(()=>{x.getRecognition().onresult({results:[[{transcript:'open goals'}]]});});
+    x.ui.rerender(<SovereignVoiceControl sessionKey="a" onNavigate={x.nav}
+      onTranscript={x.transcript} disabled/>);
+    x.ui.rerender(<SovereignVoiceControl sessionKey="a" onNavigate={x.nav}
+      onTranscript={x.transcript} disabled={false}/>);
+    expect(screen.getByRole('button',{name:'Start GenieVoice navigation'})).toBeEnabled();
+    await act(async()=>{complete({
+      version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'goals',tab:null
+    });});
+    expect(x.nav).not.toHaveBeenCalled();
+  });
+
 });
