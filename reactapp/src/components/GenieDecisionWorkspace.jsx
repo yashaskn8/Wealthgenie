@@ -267,7 +267,14 @@ export default function GenieDecisionWorkspace() {
           getDecisionRun(openReportId, { signal: controller.signal })
             .then(updated => {
               if (controller.signal.aborted) return;
-              setReport(previous => previous?.run?.id === updated?.run?.id ? updated : previous);
+              // Historical classification is sticky until the user explicitly
+              // reopens a revision. An in-flight reconnect response must not
+              // resurrect a superseded report as current.
+              setReport(previous => previous?.run?.id === updated?.run?.id
+                ? (previous.run.status === 'HISTORICAL'
+                  ? { ...updated, run: { ...updated.run, status: 'HISTORICAL' } }
+                  : updated)
+                : previous);
             }).catch(() => {
               if (!controller.signal.aborted) {
                 setLiveNotice('Could not verify the saved report after reconnecting. Reopen the scenario before relying on it.');
