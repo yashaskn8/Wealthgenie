@@ -29,6 +29,17 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(screen.getByText(/Navigation requested/i)).toBeInTheDocument();
     expect(x.transcript).not.toHaveBeenCalled();
   });
+  it('ignores duplicate final speech events without making extra requests',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'goals',tab:null});
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    const handler=x.getRecognition().onresult;
+    await act(async()=>{
+      handler({results:[[{transcript:'open goals'}]]});
+      handler({results:[[{transcript:'open goals'}]]});
+    });
+    expect(api.interpretVoiceCommand).toHaveBeenCalledTimes(1);
+    expect(x.nav).toHaveBeenCalledTimes(1);
+  });
   it('rejects fake pages and unsupported elevated actions',async()=>{
     const x=setup({version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'admin',tab:null});
     fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));

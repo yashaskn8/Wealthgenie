@@ -63,6 +63,7 @@ export default function SovereignSipComparison({ disabled=false,onClose }) {
          response.scenarios.some((s,i)=>s?.returnBasis!=='USER_SUPPLIED_NOMINAL_ASSUMPTION' ||
            s.classification!=='NON_RECOMMENDATION_PROFILE_CONSTRAINED_WHAT_IF' ||
            s.monthlyInvestment!==Number(monthly) || s.years!==Number(years) ||
+           !Number.isFinite(s.assumedAnnualReturnPct) ||
            Math.abs(s.assumedAnnualReturnPct-expectedRates[i])>1e-7 ||
            !Number.isSafeInteger(s.futureValue) || !Number.isSafeInteger(s.totalInvested) ||
            !Number.isSafeInteger(s.totalReturns) || s.futureValue<0 ||

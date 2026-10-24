@@ -69,6 +69,15 @@ describe('Sovereign SIP comparison',()=>{
     expect(screen.getByRole('alert')).toHaveTextContent(/Unverified comparison/);
     expect(screen.queryByText(/₹8,50,000/)).not.toBeInTheDocument();
   });
+  it('refuses a missing scenario rate even if the other values look consistent',async()=>{
+    const response=verifiedResponse();
+    delete response.scenarios[0].assumedAnnualReturnPct;
+    vi.spyOn(api,'compareVoiceSipScenarios').mockResolvedValue(response);
+    render(<SovereignSipComparison/>);fill();
+    await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Run SIP comparison'}));});
+    expect(screen.getByRole('alert')).toHaveTextContent(/Unverified comparison/);
+    expect(screen.queryByText(/₹8,50,000/)).not.toBeInTheDocument();
+  });
   it('aborts the in-flight comparison immediately on teardown',async()=>{
     let resolveRequest;
     const request=vi.spyOn(api,'compareVoiceSipScenarios').mockImplementation(

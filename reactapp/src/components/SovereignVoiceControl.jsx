@@ -70,7 +70,8 @@ export default function SovereignVoiceControl({
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.onresult = event => {
-      if (current !== generationRef.current) return;
+      // Browsers may emit duplicate final events. Only the first may create a task.
+      if (current !== generationRef.current || listeningRef.current !== recognition) return;
       listeningRef.current = null;
       const transcript = String(event.results?.[0]?.[0]?.transcript || '').trim();
       if (!transcript) {
