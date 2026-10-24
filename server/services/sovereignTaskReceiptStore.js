@@ -1,0 +1,127 @@
+import mongoose from 'mongoose';
+import { canonicalSha256 } from '../utils/canonicalJson.js';
+import { createError } from '../middleware/errorHandler.js';
+import { verifyPersistenceIndexes } from './persistenceIndexReadiness.js';
+import SovereignTaskReceipt from '../models/SovereignTaskReceipt.js';
+import { validateSovereignTaskPlan } from './sovereignTaskPlanPolicy.js';
+import { previewSovereignReadOnlyTask } from './sovereignReadOnlyTaskPreview.js';
+
+export const SOVEREIGN_RECEIPT_VERSION='sovereign-task-receipt-v1';
+export const SOVEREIGN_RECEIPT_RETENTION_MS=7*24*60*60*1000;
+const KEY=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+const IDENTIFIER=/^[a-f0-9]{64}$/;
+const error=(status,code,message)=>createError(status,message,message,{code});
+const ready=()=>verifyPersistenceIndexes({
+  models:[SovereignTaskReceipt],scope:'persistence'
+});
+const publicReceipt=record=>({
+  version:SOVEREIGN_RECEIPT_VERSION,
+  id:String(record._id),
+  status:record.status,
+  requestHash:record.requestHash,
+  resultHash:record.resultHash||null,
+  createdAt:new Date(record.createdAt).toISOString(),
+  completedAt:record.completedAt?new Date(record.completedAt).toISOString():null,
+  expiresAt:new Date(record.expiresAt).toISOString(),
+  financialStateModified:false,
+  navigationApplied:false,
+  financialDataStored:false
+});
+const storeUnavailable=()=>error(503,'SOVEREIGN_RECEIPT_STORE_UNAVAILABLE',
+  'Task receipt storage is unavailable. No task preview was published.');
+export function sovereignReceiptId({userId,key}) {
+  if(!mongoose.isValidObjectId(userId)||!KEY.test(key||'')){
+    throw error(400,'SOVEREIGN_RECEIPT_ID_INVALID','An authenticated account and a UUIDv4 Idempotency-Key are required.');
+  }
+  return canonicalSha256({domain:'genievoice.readonly.receipt.v1',userId:String(userId),key:key.toLowerCase()});
+}
+
+/**
+ * Executes the already-authorized read-only preview exactly once within the
+ * seven-day receipt window. A same-key retry returns metadata, not stale
+ * financial values. A lost original response MUST be explicitly recalculated
+ * with a fresh key and current profile state; no mutation tool is supported.
+ */
+export async function recordSovereignTaskPreview({
+  userId,key,plan,signal,resolveProfile,financialRegistry,
+  repository=SovereignTaskReceipt,ensureReady=ready,
+  executePreview=previewSovereignReadOnlyTask
+}) {
+  const id=sovereignReceiptId({userId,key});
+  const valid=validateSovereignTaskPlan(plan);
+  if(!valid.ok)throw error(422,'SOVEREIGN_RECEIPT_PLAN_REJECTED',
+    'Invalid task plan. No task receipt was stored.');
+  if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+    'This task was cancelled before it started.');
+  const normalizedPlan={version:valid.version,steps:valid.steps};
+  const requestHash=canonicalSha256({domain:SOVEREIGN_RECEIPT_VERSION,
+    userId:String(userId),plan:normalizedPlan});
+  try{await ensureReady();}catch{throw storeUnavailable();}
+  const now=new Date();
+  const record={
+    _id:id,userId,requestHash,status:'RUNNING',resultHash:null,
+    createdAt:now,completedAt:null,
+    expiresAt:new Date(now.getTime()+SOVEREIGN_RECEIPT_RETENTION_MS)
+  };
+  try{
+    await repository.create(record);
+  }catch(cause){
+    if(cause?.code!==11000)throw storeUnavailable();
+    let existing;
+    try{existing=await repository.findOne({_id:id,userId}).lean();}catch{throw storeUnavailable();}
+    if(!existing)throw storeUnavailable();
+    if(existing.requestHash!==requestHash)throw error(409,
+      'SOVEREIGN_RECEIPT_KEY_REUSED','This operation ID was used for a different task plan.');
+    if(existing.status==='SUCCEEDED'){
+      return {outcome:'ALREADY_COMPLETED',receipt:publicReceipt(existing),preview:null};
+    }
+    throw error(409,'SOVEREIGN_RECEIPT_ALREADY_CLAIMED',
+      'This task operation was already attempted. Check its receipt before starting another.');
+  }
+  try{
+    if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+      'This task was cancelled before execution.');
+    const preview=await executePreview({
+      userId,plan:normalizedPlan,resolveProfile,financialRegistry,signal
+    });
+    if(signal?.aborted)throw error(409,'SOVEREIGN_RECEIPT_CANCELLED',
+      'This task was cancelled before publication.');
+    if(preview?.persisted!==false || preview.navigationApplied!==false ||
+      preview.financialStateModified!==false){
+      throw error(503,'SOVEREIGN_RECEIPT_UNSAFE_RESULT',
+        'Task executor did not return a verifiable read-only result.');
+    }
+    const resultHash=canonicalSha256({domain:SOVEREIGN_RECEIPT_VERSION,
+      userId:String(userId),preview});
+    const completedAt=new Date();
+    const result=await repository.updateOne(
+      {_id:id,userId,requestHash,status:'RUNNING'},
+      {$set:{status:'SUCCEEDED',resultHash,completedAt}},
+      {runValidators:true}
+    );
+    if(result?.matchedCount!==1)throw storeUnavailable();
+    return {outcome:'COMPLETED',receipt:publicReceipt({
+      ...record,status:'SUCCEEDED',resultHash,completedAt
+    }),preview};
+  }catch(cause){
+    // A late/failed persistence response is never classified as success.
+    try{
+      await repository.updateOne({_id:id,userId,requestHash,status:'RUNNING'},
+        {$set:{status:signal?.aborted?'CANCELLED':'FAILED',completedAt:new Date()}},
+        {runValidators:true});
+    }catch{throw storeUnavailable();}
+    throw cause;
+  }
+}
+export async function getSovereignTaskReceipt({
+  userId,id,repository=SovereignTaskReceipt,ensureReady=ready
+}) {
+  if(!mongoose.isValidObjectId(userId)||typeof id!=='string'||!IDENTIFIER.test(id)){
+    throw error(400,'SOVEREIGN_RECEIPT_ID_INVALID','Invalid task receipt identifier.');
+  }
+  try{await ensureReady();}catch{throw storeUnavailable();}
+  let record;
+  try{record=await repository.findOne({_id:id,userId}).lean();}catch{throw storeUnavailable();}
+  if(!record)throw error(404,'SOVEREIGN_RECEIPT_NOT_FOUND','Task receipt not found.');
+  return publicReceipt(record);
+}
