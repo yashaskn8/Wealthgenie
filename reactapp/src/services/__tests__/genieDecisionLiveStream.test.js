@@ -91,4 +91,21 @@ describe('GenieDecision authenticated browser live update stream', () => {
     expect(status).toEqual(['unauthorized']);
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
+
+  it('treats explicit server-side account revocation as terminal without retrying the SSE stream', async () => {
+    const controller = new AbortController();
+    const status = [];
+    const mockFetch = vi.fn().mockResolvedValue(response(
+      'event: connected\\ndata: {"latestSequence":0}\\n\\n'
+      + 'event: unavailable\\ndata: {"retry":false,"reason":"SESSION_NO_LONGER_VALID"}\\n\\n',
+    ));
+    vi.stubGlobal('fetch', mockFetch);
+    await subscribeDecisionEvents({
+      signal: controller.signal, onEvent: () => {},
+      onStatus: state => status.push(state),
+    });
+    expect(status).toEqual(['connected', 'unauthorized']);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
 });
