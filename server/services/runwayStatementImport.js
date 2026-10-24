@@ -12,6 +12,10 @@ const MAX_ROWS = 250;
 const AMOUNT = /^(0|[1-9][0-9]{0,12})(?:\.([0-9]{1,2}))?$/;
 const SIGNED = /^-?(?:0|[1-9][0-9]{0,12})(?:\.([0-9]{1,2}))?$/;
 const RISKY_FORMULA = /^[\s\uFEFF]*[=+@\t\r]/u;
+// Direction overrides can visually impersonate payees, accounts and references
+// even though React safely escapes HTML. Reject formatting controls; ordinary
+// non-Latin script characters remain supported.
+const BIDI_FORMAT_CONTROLS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
 
 export class RunwayStatementError extends Error {
   constructor(message, code = 'RUNWAY_STATEMENT_INVALID') {
@@ -89,7 +93,8 @@ function csvRows(text) {
 }
 function safeText(value, name, maxLength) {
   if (typeof value !== 'string' || value.trim().length < 1 || value.length > maxLength
-      || RISKY_FORMULA.test(value) || /[\u0000-\u001f\u007f]/u.test(value)) {
+      || RISKY_FORMULA.test(value) || BIDI_FORMAT_CONTROLS.test(value)
+      || /[\u0000-\u001f\u007f]/u.test(value)) {
     reject(name + ' contains unsafe or invalid text.');
   }
   return value.trim();
