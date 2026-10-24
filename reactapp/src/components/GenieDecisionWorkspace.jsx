@@ -188,6 +188,15 @@ export default function GenieDecisionWorkspace() {
           : previous);
         setLiveNotice('This scenario was changed or removed in another session. Reopen it before editing or evaluating.');
       }
+    } else if (activeRef.current) {
+      // History outage makes the saved revision unverifiable. An unrelated
+      // successful profile lookup cannot authorize mutations of that revision.
+      setRemoteRevisionStale(true);
+      setDraftPreview(null);
+      setPreviewState('waiting');
+      setReport(previous => previous?.run
+        ? { ...previous, run: { ...previous.run, status: 'HISTORICAL' } }
+        : previous);
     }
     if (availabilityResult.status === 'fulfilled') {
       setAvailability(availabilityResult.value);
@@ -293,7 +302,10 @@ export default function GenieDecisionWorkspace() {
         // Never rewrite a form being edited. Notify the user to re-open a
         // changed scenario rather than silently destroying uncommitted input.
         if (event.type === 'profile-changed') {
-          // Fail closed immediately, even when the subsequent refresh fails.
+          // A saved scenario is bound to a specific canonical profile state.
+          // The changed pointer must be reviewed even if its eventual source
+          // value happens to be identical or the refresh fails.
+          if (activeRef.current) setRemoteRevisionStale(true);
           setAvailability(null);
           setDraftPreview(null);
           setPreviewState('waiting');
@@ -430,7 +442,7 @@ export default function GenieDecisionWorkspace() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const dataReady = Boolean(availability?.available && availability?.profileId);
+    const dataReady = Boolean(!remoteRevisionStale && availability?.available && availability?.profileId);
     if (!dataReady) {
       setDraftPreview(null);
       setPreviewState('waiting');
@@ -466,7 +478,7 @@ export default function GenieDecisionWorkspace() {
     // Input objects are React state, and profile fields are the only
     // authoritative numbers: never loop on locally-derived preview results.
   }, [availability?.available, availability?.profileId, availability?.profileStateRevision,
-    title, type, horizon, baseline, details, goalReservations]);
+    remoteRevisionStale, title, type, horizon, baseline, details, goalReservations]);
 
   const save = async event => {
     event.preventDefault();
@@ -732,12 +744,12 @@ export default function GenieDecisionWorkspace() {
             }}>Report from {shortDate(item.asOf)} · Revision {item.scenarioRevision} · {item.status}</button>
           </li>)}</ul>
         </section>}
-        {(hasUnsavedChanges || !report) && previewState === 'calculating'
+        {!remoteRevisionStale && (hasUnsavedChanges || !report) && previewState === 'calculating'
           && <p className="gd-muted" role="status">Recalculating an unsaved decision estimate…</p>}
-        {(hasUnsavedChanges || !report) && previewState !== 'waiting'
+        {!remoteRevisionStale && (hasUnsavedChanges || !report) && previewState !== 'waiting'
           && previewState !== 'calculating' && previewState !== 'ready'
           && <p className="gd-muted" role="status">Live estimate unavailable: {previewState}</p>}
-        <Report report={hasUnsavedChanges ? draftPreview : (report || draftPreview)}/>
+        <Report report={remoteRevisionStale ? report : (hasUnsavedChanges ? draftPreview : (report || draftPreview))}/>
       </div>
     </div>
   </div>;
