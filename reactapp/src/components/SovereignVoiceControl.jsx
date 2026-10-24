@@ -58,6 +58,7 @@ export default function SovereignVoiceControl({
     setBoundContext({ sessionKey, lastAnswer, disabled });
     setState('idle');
     setSpokenAnswer(null);
+    setStatus('');
   }
 
   const stop = () => {
@@ -234,7 +235,8 @@ export default function SovereignVoiceControl({
         aria-label={showComparison ? 'Close SIP comparison' : 'Open SIP comparison'}>
         {showComparison ? 'Close SIP comparison' : 'Compare SIP scenarios'}
       </button>
-      {showComparison && <SovereignSipComparison disabled={disabled}
+      {!disabled && showComparison && <SovereignSipComparison
+        key={String(sessionKey ?? '')} disabled={disabled}
         onClose={() => setShowComparison(false)} />}
       {state === 'checking' && <span role="status">Checking voice command…</span>}
       <small>Browser speech recognition may process audio through its provider. No background listening.</small>
