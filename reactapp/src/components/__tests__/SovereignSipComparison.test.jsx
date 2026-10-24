@@ -138,4 +138,33 @@ describe('Sovereign SIP comparison',()=>{
     expect(screen.getByRole('alert')).toHaveTextContent(/Unverified comparison/);
     expect(screen.queryByText('99999999')).not.toBeInTheDocument();
   });
+  it('clears completed financial results when access is disabled, including after re-enable',async()=>{
+    vi.spyOn(api,'compareVoiceSipScenarios').mockResolvedValue(verifiedResponse());
+    const view=render(<SovereignSipComparison disabled={false}/>);
+    fill();
+    await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Run SIP comparison'}));});
+    expect(screen.getByText(/₹9,50,000/)).toBeInTheDocument();
+    view.rerender(<SovereignSipComparison disabled/>);
+    expect(screen.queryByText(/₹9,50,000/)).not.toBeInTheDocument();
+    view.rerender(<SovereignSipComparison disabled={false}/>);
+    expect(screen.queryByText(/₹9,50,000/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Run SIP comparison'})).toBeEnabled();
+  });
+  it('cancels in-flight comparison and restores the submit control after disabling',async()=>{
+    let resolveRequest;
+    vi.spyOn(api,'compareVoiceSipScenarios').mockImplementation(
+      ()=>new Promise(resolve=>{resolveRequest=resolve;})
+    );
+    const view=render(<SovereignSipComparison disabled={false}/>);
+    fill();
+    fireEvent.click(screen.getByRole('button',{name:'Run SIP comparison'}));
+    const signal=vi.mocked(api.compareVoiceSipScenarios).mock.calls[0][1].signal;
+    view.rerender(<SovereignSipComparison disabled/>);
+    expect(signal.aborted).toBe(true);
+    view.rerender(<SovereignSipComparison disabled={false}/>);
+    await act(async()=>{resolveRequest(verifiedResponse());});
+    expect(screen.queryByText(/₹9,50,000/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Run SIP comparison'})).toBeEnabled();
+  });
+
 });
