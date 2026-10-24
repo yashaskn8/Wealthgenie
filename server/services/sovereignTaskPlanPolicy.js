@@ -3,6 +3,7 @@
  * Deliberately does not execute a plan, access external domains or grant rights.
  * Future planners must pass their output through this policy before any tool call.
  */
+import { validSovereignAnnualAssumptionPct } from './sovereignRatePolicy.js';
 export const SOVEREIGN_TASK_PLAN_VERSION='sovereign-task-plan-v1';
 const ALLOWED=new Set(['APP_NAVIGATE','SIP_COMPARE_DRAFT']);
 const NAV_PAGES=new Set(['home','plan','investments','taxes','progress','goals',
@@ -60,7 +61,7 @@ export function validateSovereignTaskPlan(plan) {
         !Number.isSafeInteger(a.years)||a.years<1||a.years>30||
         !isDenseDataArray(a.annualReturnAssumptionsPct)||
         a.annualReturnAssumptionsPct.length!==2||
-        a.annualReturnAssumptionsPct.some(v=>!Number.isFinite(v)||v<0.1||v>30)||
+        a.annualReturnAssumptionsPct.some(v=>!validSovereignAnnualAssumptionPct(v))||
         a.annualReturnAssumptionsPct[0]===a.annualReturnAssumptionsPct[1]) {
         return {ok:false,reason:'SCENARIO_SCHEMA_INVALID'};
       }

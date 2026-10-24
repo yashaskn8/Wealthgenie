@@ -29,7 +29,8 @@ describe('Sovereign voice SIP comparison integrity',()=>{
   it('fails closed on direct-service bypass of HTTP numeric schemas',async()=>{
     for(const patch of [{monthlyInvestment:1},{years:99},
       {annualReturnAssumptionsPct:[7,7]},{annualReturnAssumptionsPct:[7,50]},
-      {annualReturnAssumptionsPct:[7,Number.NaN]}]) {
+      {annualReturnAssumptionsPct:[7,Number.NaN]},
+      {annualReturnAssumptionsPct:[7.12345,10]}]) {
       await assert.rejects(()=>compareVoiceSipScenarios({
         userId:'u',input:{...input,...patch},
         resolveProfile:async()=>authority(),financialRegistry

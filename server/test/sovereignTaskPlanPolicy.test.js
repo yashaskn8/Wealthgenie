@@ -76,6 +76,7 @@ describe('Sovereign task plan validation',()=>{
     for(const bad of [
       {...a,arguments:{...a.arguments,monthlyInvestment:Infinity}},
       {...a,arguments:{...a.arguments,annualReturnAssumptionsPct:[7,7]}},
+      {...a,arguments:{...a.arguments,annualReturnAssumptionsPct:[7.12345,10]}},
       {...a,arguments:{...a.arguments,years:100}},
       {...a,arguments:{...a.arguments,tool:'deleteGoal'}},
     ])assert.equal(validateSovereignTaskPlan(plan([bad])).ok,false);

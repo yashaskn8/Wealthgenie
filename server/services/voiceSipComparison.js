@@ -1,4 +1,5 @@
 import { createError } from '../middleware/errorHandler.js';
+import { validSovereignAnnualAssumptionPct } from './sovereignRatePolicy.js';
 
  /**
   * Independent iterative annuity-due reference implementation.
@@ -92,7 +93,7 @@ export async function compareVoiceSipScenarios({
   if(!userId || !Number.isSafeInteger(amount) || amount<100 || amount>10000000 ||
      !Number.isSafeInteger(years)||years<1||years>30 ||
      !Array.isArray(assumptions)||assumptions.length!==2 ||
-     assumptions.some(pct=>!Number.isFinite(pct)||pct<0.1||pct>30) ||
+     assumptions.some(pct=>!validSovereignAnnualAssumptionPct(pct)) ||
      assumptions[0]===assumptions[1]) throw new TypeError('Invalid SIP scenario');
   assertActive(signal);
   const before=await awaitCancellableRead(
