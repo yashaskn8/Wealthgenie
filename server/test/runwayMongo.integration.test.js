@@ -39,6 +39,9 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
   await setupTestDatabase({ requireReplicaSet: true });
   try {
     await RunwayErasureFence.createCollection();
+    await RunwayErasureFence.collection.createIndex({ erasedAt: 1 }, {
+      name: 'runway_erasure_fence_retention', expireAfterSeconds: 7 * 24 * 60 * 60,
+    });
     await RunwayLedgerRevision.collection.createIndex({ userId: 1, revision: 1 }, {
       unique: true, name: 'uniq_runway_ledger_revision',
     });
@@ -509,6 +512,10 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
   await setupTestDatabase({ requireReplicaSet: true });
   try {
     // These are the same explicitly migrated indexes checked by readiness.
+    await RunwayErasureFence.createCollection();
+    await RunwayErasureFence.collection.createIndex({ erasedAt: 1 }, {
+      name: 'runway_erasure_fence_retention', expireAfterSeconds: 7 * 24 * 60 * 60,
+    });
     await RunwayLedgerRevision.collection.createIndex({ userId: 1, revision: 1 },
       { name: 'uniq_runway_ledger_revision', unique: true });
     await RunwaySnapshot.collection.createIndex({ userId: 1, createdAt: -1 },
