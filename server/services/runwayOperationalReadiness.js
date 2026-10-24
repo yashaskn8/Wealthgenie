@@ -63,7 +63,9 @@ export async function verifyRunwayIndexes({ loadIndexes = readIndexes } = {}) {
       && i.key?.userId === 1 && i.key?.revision === -1)
     && alerts.some(i => i.name === 'runway_alert_owner_revision'
       && i.key?.userId === 1 && i.key?.revision === -1)
-    && erasureFences.some(i => i.name === '_id_' && i.key?._id === 1);
+    && erasureFences.some(i => i.name === '_id_' && i.key?._id === 1)
+    && erasureFences.some(i => i.name === 'runway_erasure_fence_retention'
+      && i.key?.erasedAt === 1 && i.expireAfterSeconds === 7 * 24 * 60 * 60);
   if (!ready) {
     const error = new Error('Required Runway unique and TTL indexes are missing or incorrect.');
     error.code = 'RUNWAY_INDEXES_UNAVAILABLE';
