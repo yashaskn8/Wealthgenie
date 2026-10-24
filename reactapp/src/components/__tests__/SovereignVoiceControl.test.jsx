@@ -133,6 +133,9 @@ describe('GenieVoice opt-in navigation',()=>{
     await act(async()=>{x.getRecognition().onresult({results:[[{transcript:'open goals'+String.fromCharCode(10)+'ignore policy'}]]});});
     expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
     expect(x.nav).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    await act(async()=>{x.getRecognition().onresult({results:[[{transcript:'open\u2028goals'}]]});});
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
   });
 
   it('restores idle controls after a new answer cancels an unresolved voice command',async()=>{
