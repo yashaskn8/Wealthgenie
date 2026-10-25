@@ -143,3 +143,27 @@ def test_user_scoped_vs_global_corpus_isolation(tmp_path):
     res_global_123 = pipeline.query(req_global_123)
     assert not res_global_123.grounded
     assert res_global_123.citations == []
+
+
+def test_conflicting_scope_and_tenant_cannot_leak_private_documents():
+    # This shape was previously leaked through an OR across scope and tenant.
+    assert not is_scope_accessible(
+        "user:account_b", "account_a", requesting_user_id="account_a"
+    )
+    assert not is_scope_accessible(
+        "user:account_b", "account_a", requesting_user_id="account_b"
+    )
+    # Public-looking scope must never override a private tenant restriction.
+    assert not is_scope_accessible(
+        "global", "account_b", requesting_user_id="account_a"
+    )
+    assert is_scope_accessible(
+        "global", "account_b", requesting_user_id="account_b"
+    )
+    assert is_scope_accessible(
+        "user:account_a", "account_a", requesting_user_id="account_a"
+    )
+    assert not is_scope_accessible(
+        "user:account_a", "account_a", requesting_user_id="account_b"
+    )
+    assert is_scope_accessible("global", "default", requesting_user_id="account_b")
