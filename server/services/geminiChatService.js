@@ -521,9 +521,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     // Feature hints describe existing app screens, NOT personal investment
     // recommendations. Derive them only from the user's original question.
     // Neither retrieved evidence nor the external LLM can choose a route.
-    const actionCards = !generalMode && !promptInjectionDetected &&
-      explanation.validation.status === 'PASS' &&
-      !explanation.evidenceIdsUsed.includes('E_CHAT_ANSWER_UNAVAILABLE')
+    // Feature discovery is not a factual assertion or a calculator result.
+    // It may help users even when the financial answer correctly abstains.
+    // Keep suggestions separate from evidence and never auto-navigate.
+    const actionCards = !generalMode && !promptInjectionDetected
       ? suggestWealthGenieFeature(securityContext.sanitizedMessage)
       : [];
     const auditMetadata = {
