@@ -16,7 +16,7 @@
 - Requires explicit monthly INR amount, 1–30-year horizon, user-supplied 0–30% effective annual gross growth, 0–20% annual inflation. One-time market fall also requires a 0–90% assumption and explicit year in horizon. Ambiguity returns an input-needed receipt instead of a guessed projection.
 - Monthly contributions arrive at month-end; modeled constant annual growth is translated to equivalent monthly growth; shock is applied once to modeled balance at the specified end of year, not treated as an empirical forecast. Compare nominal amount and purchasing power in today's rupees. Before fees, taxes and irregular markets. Does not assess profile affordability/suitability or recommend an investment.
 - Verified account-bound financial chat also has this evidence. Users without a saved profile can ask a self-contained hypothetical in authenticated chat. Prior turns never silently supply rates.
-- Expanded reviewed Indian-language public investing education for the concepts **SIP, compounding, diversification, inflation**. These translations are WealthGenie-authored interpretations, not quotations from the linked public source and not a claim of comprehensive tax/product coverage.
+- Expanded hand-authored, not independently language-certified Indian-language investing education for the concepts **SIP, compounding, diversification, inflation**. These translations are WealthGenie-authored interpretations, not quotations from the linked public source and not a claim of comprehensive tax/product coverage.
 - Hindi and Kannada financial topics must not route to the uncited general-chat LLM.
 
 ### Adversarial coverage
