@@ -245,8 +245,10 @@ export default function SovereignVoiceControl({
     setPhase('speaking');
     try {
       synth.speak(speech);
+      const answerLanguage = VOICE_LANGUAGES.find(item=>item.code===outputLocale)?.label || 'its original language';
       setStatus(language !== outputLocale
-        ? 'The verified response is in English. Reading in English; no unverified translation was made.'
+        ? 'The answer is in a different language. Reading in ' + answerLanguage +
+          '; no unverified translation was made.'
         : 'Reading the verified answer. Press Speak now to interrupt.');
     } catch {
       endConversation('Browser speech could not start. Read the answer in chat.');
