@@ -438,14 +438,14 @@ export default function SovereignVoiceControl({
           const text = results[i]?.[0]?.transcript;
           if (typeof text !== 'string') continue;
           if (results[i].isFinal === false) interimText += ' ' + text;
-          else finalParts.push(text.trim());
+          else finalParts.push(text); // Retain controls for downstream raw validation.
         }
-        const assembled = finalParts.join(' ').trim();
+        const assembled = finalParts.join(' ');
         if (interimText.trim()) {
           setCaption((assembled + ' ' + interimText.trim()).trim().slice(0, 1000));
           return;
         }
-        if (!assembled) return;
+        if (!assembled.trim()) return;
         stopRecognition();
         void interpret(assembled, token);
       };
