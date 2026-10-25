@@ -116,6 +116,9 @@ def test_tenant_isolation_with_faiss_and_numpy():
         chunks = create_sample_chunks(10, 384)
         for i, c in enumerate(chunks):
             c.tenant_id = "tenant_A" if i % 2 == 0 else "tenant_B"
+            # Keep both ownership layers aligned; conflicting metadata must
+            # now be rejected rather than silently interpreted as public.
+            c.metadata.tenant_id = c.tenant_id
 
         store = PersistentVectorStore(index_path=index_file, force_numpy=False)
         store.add_chunks(chunks)

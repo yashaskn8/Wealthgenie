@@ -35,6 +35,7 @@ import {
 } from './chatGoalPlanning.js';
 import { buildGroundedEvidencePacket } from './groundedEvidence.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveInvestmentScenarioEducation } from './chatInvestmentScenarioEducation.js';
 import { retrieveInvestmentUniverseEducation, retrieveGoalHorizonEducation } from './chatInvestmentUniverseEducation.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
@@ -311,8 +312,15 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     // personalized explanation, live rate or unqualified RAG content.
     const sanitizedQuestion = sanitizeExternalQuestion(message);
     const unboundGoal = isFinancialGoalPlanningQuestion(sanitizedQuestion);
+    // General, source-reviewed scenario principles are public even when
+    // phrased as "I" or "my"; they never inspect an unbound account or claim
+    // personal suitability. Profile-specific requests still stay restricted.
+    const publicScenarioEducation = !unboundGoal
+      ? retrieveInvestmentScenarioEducation(sanitizedQuestion) : [];
     const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
-      ? [...retrieveChatEducationalEvidence(sanitizedQuestion), ...retrieveInvestmentUniverseEducation(sanitizedQuestion)] : [];
+      ? [...retrieveChatEducationalEvidence(sanitizedQuestion), ...retrieveInvestmentUniverseEducation(sanitizedQuestion),
+        ...publicScenarioEducation]
+      : publicScenarioEducation;
     const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(sanitizedQuestion);
     if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
         && (unboundGoal || reviewedPublicEducation.length > 0 || taxAssumptionEvidence.length > 0)) {

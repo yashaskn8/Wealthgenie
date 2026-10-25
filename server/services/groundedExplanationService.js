@@ -24,6 +24,7 @@ import {
 import { compareVerifiedFixedIncomeProducts } from './fixedIncomeProductRanking.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
 import { retrieveInvestmentUniverseEducation, retrieveGoalHorizonEducation } from './chatInvestmentUniverseEducation.js';
+import { retrieveInvestmentScenarioEducation } from './chatInvestmentScenarioEducation.js';
 import { retrieveChatGoalPlanningEvidence } from './chatGoalPlanning.js';
 import { retrieveQualifiedRegulatoryChatEvidence } from './chatRegulatoryRetrieval.js';
 import { queryRAG } from './ragClient.js';
@@ -732,6 +733,20 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
       result.providerAttemptFailureCount = 0;
       return result;
     }
+    // Scenario education is verified static material. Never call an
+    // open-ended model to improvise a fund, yield, allocation, or tax fact.
+    if (evidencePacket.entries.some(item => /^E_SCENARIO_[A-Z_]+$/.test(item.id)
+        && item.kind === 'EDUCATION')) {
+      const result = outputResult({
+        candidate: deterministicCandidate(evidencePacket, question),
+        packet: evidencePacket, provider: 'deterministic_template',
+        model: null, latencyMs: 0, tokensUsed: 0,
+        fallback: false, reasonCodes: [],
+      });
+      result.providerAttemptCount = 0;
+      result.providerAttemptFailureCount = 0;
+      return result;
+    }
     for (let providerIndex = 0; providerIndex < providers.length; providerIndex += 1) {
       const provider = providers[providerIndex];
       const nextProvider = providers[providerIndex + 1];
@@ -1083,6 +1098,7 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     ...taxAssumptionEvidence,
     ...retrieveChatEducationalEvidence(question),
     ...retrieveInvestmentUniverseEducation(question),
+    ...retrieveInvestmentScenarioEducation(question),
   ];
   if (isPortfolioReviewQuestion(question)) {
     entries.push(makeEvidenceEntry('E_PORTFOLIO_REVIEW_SCOPE', 'ANSWER_BOUNDARY',
