@@ -16,12 +16,14 @@ import {
 import { assessSuitabilityRisk } from './riskProfiler.js';
 import {
   buildChatEvidencePacket,
+  buildChatInjectionBoundaryPacket,
   generateGroundedExplanation,
   getGroundedExplanationTokenUpperBound,
   isGroundingBoundaryAttack,
   retrieveTaxAssumptionEvidence,
   sanitizeExternalQuestion,
 } from './groundedExplanationService.js';
+import { SECURITY_BOUNDARY_MESSAGE } from './chatInjectionFirewall.js';
 import { resolveCurrentRecommendationState } from './recommendationState.js';
 import {
   generateGeneralChatAnswer,
@@ -250,8 +252,6 @@ function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
       && userMessage?.metadata?.grounded_on_profile === false
       && modelMessage?.metadata?.grounded_on_profile === false;
     if ((mode === 'GENERAL') !== isGeneralTurn) break;
-    // Poisoned historical user/model turns cannot be replayed as context
-    // even if a stale persisted turn claims to have passed validation.
     if (isGroundingBoundaryAttack(userMessage.content)
         || isGroundingBoundaryAttack(modelMessage.content)) break;
     const pair = [
@@ -292,6 +292,17 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       throw createError(429, 'Chat user rate limit exceeded.', 'The hourly chat message limit has been reached.', {
         code: 'CHAT_RATE_LIMIT_EXCEEDED',
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
+      });
+    }
+    if (isGroundingBoundaryAttack(message)) {
+      return buildClientResponseDTO({
+        response: SECURITY_BOUNDARY_MESSAGE,
+        session_id: sessionId, grounded: false,
+        provider: 'SYSTEM', validation_status: 'PROMPT_INJECTION_BLOCKED',
+        evidence_ids_used: [], citations: [],
+        messages_this_hour: rateCheck.count,
+        rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+        rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
       });
     }
     if (isUnboundGoalFollowUp(message)) {
@@ -456,7 +467,8 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const trustedFinancialTurns = generalMode ? [] : recentFinancialTurns;
     const groundedQuestion = generalMode ? securityContext.sanitizedMessage
       : resolveBoundSuitabilityFollowUp(securityContext.sanitizedMessage, trustedFinancialTurns, claim.conversation);
-    const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
+    const evidencePacket = generalMode ? null : promptInjectionDetected
+      ? buildChatInjectionBoundaryPacket() : await buildChatEvidencePacket({
       question: groundedQuestion,
       profile: llmProfile,
       recommendation,

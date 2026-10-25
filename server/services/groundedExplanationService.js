@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { isChatInjection, SECURITY_BOUNDARY_MESSAGE } from './chatInjectionFirewall.js';
 import { getCache, setCache } from '../config/redis.js';
 import { ProviderManager } from './providerAbstraction.js';
 import {
@@ -88,6 +89,7 @@ export function sanitizeExternalQuestion(question) {
 }
 
 export function isGroundingBoundaryAttack(question) {
+  if (isChatInjection(question)) return true;
   const value = String(question || '');
   return /ignore\s+(?:wealthgenie|the profile|the evidence|previous)|set\s+(?:me|my\s+risk).*(?:aggressive|conservative|moderate)|(?:reveal|show|print|return).*(?:api[_ -]?key|secret|token|system prompt)|(?:call|fetch|open|use)\s+https?:\/\/|treat\s+state_[01]\s+as|(?:use|assume|claim|tell me).*(?:\d+(?:\.\d+)?\s*%|expected return)|pretend\s+(?:i am|the profile)|(?:recommend|predict|buy|allocate|invest).*(?:crypto|bitcoin|specific stock)/i.test(value);
 }
@@ -631,6 +633,23 @@ function outputResult({ candidate, packet, provider, providerAdapter = null, mod
   };
 }
 
+export function buildChatInjectionBoundaryPacket() {
+  // Do not even serialize private user information to a provider when an
+  // attack has been detected; a fixed server-owned answer is sufficient.
+  return buildGroundedEvidencePacket({
+    question: 'Untrusted instruction request blocked',
+    profile: null,
+    recommendation: null,
+    additionalEntries: [makeEvidenceEntry('E_CHAT_SECURITY_BOUNDARY', 'ANSWER_BOUNDARY',
+      { promptInjectionBlocked: true, profileRead: false, externalToolsCalled: false }, {
+        dataClass: 'SYSTEM_AVAILABILITY_STATUS',
+        authority: 'WEALTHGENIE_BACKEND',
+        displayValue: SECURITY_BOUNDARY_MESSAGE,
+        source: { provider: 'WEALTHGENIE_BACKEND', title: 'Chat security boundary', url: null },
+      })],
+  });
+}
+
 export async function generateGroundedExplanation({ question, evidencePacket, priorTurns = [] }, dependencies = {}) {
   const getCached = dependencies.getCache || getCache;
   const setCached = dependencies.setCache || setCache;
@@ -682,6 +701,22 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
   const runProviderChain = async () => {
     let failedProviderTokensUsed = 0;
     let failedProviderUsageUnknown = false;
+    // Security preflight must run BEFORE goal arithmetic, portfolio facts,
+    // cache/provider access or any other deterministic answer branch.
+    if (isGroundingBoundaryAttack(question)
+        || evidencePacket.entries.some(item => item.id === 'E_CHAT_SECURITY_BOUNDARY')) {
+      const safePacket = buildChatInjectionBoundaryPacket();
+      const result = outputResult({
+        candidate: deterministicCandidate(safePacket, ''),
+        packet: safePacket,
+        provider: 'deterministic_template', model: null,
+        latencyMs: 0, tokensUsed: 0,
+        fallback: true, reasonCodes: ['PROMPT_INJECTION_BLOCKED'],
+      });
+      result.providerAttemptCount = 0;
+      result.providerAttemptFailureCount = 0;
+      return result;
+    }
     if (evidencePacket.entries.some(item => item.id === 'E_PORTFOLIO_REVIEW_SCOPE')
         && isPortfolioReviewQuestion(question)) {
       const result = outputResult({
@@ -715,35 +750,6 @@ export async function generateGroundedExplanation({ question, evidencePacket, pr
         packet: evidencePacket, provider: 'deterministic_template',
         model: null, latencyMs: 0, tokensUsed: 0,
         fallback: true, reasonCodes: [],
-      });
-      result.providerAttemptCount = 0;
-      result.providerAttemptFailureCount = 0;
-      return result;
-    }
-    if (isGroundingBoundaryAttack(question)) {
-      const result = outputResult({
-        candidate: deterministicCandidate(evidencePacket),
-        packet: evidencePacket,
-        provider: 'deterministic_template',
-        model: null,
-        latencyMs: 0,
-        tokensUsed: 0,
-        fallback: true,
-        reasonCodes: ['PROMPT_INJECTION_BLOCKED'],
-      });
-      result.providerAttemptCount = 0;
-      result.providerAttemptFailureCount = 0;
-      return result;
-    }
-    // Scenario education is verified static material. Never call an
-    // open-ended model to improvise a fund, yield, allocation, or tax fact.
-    if (evidencePacket.entries.some(item => /^E_SCENARIO_[A-Z_]+$/.test(item.id)
-        && item.kind === 'EDUCATION')) {
-      const result = outputResult({
-        candidate: deterministicCandidate(evidencePacket, question),
-        packet: evidencePacket, provider: 'deterministic_template',
-        model: null, latencyMs: 0, tokensUsed: 0,
-        fallback: false, reasonCodes: [],
       });
       result.providerAttemptCount = 0;
       result.providerAttemptFailureCount = 0;
@@ -1086,6 +1092,7 @@ const GOVERNMENT_QUERY_TO_PARENT = Object.freeze([
 ]);
 
 export async function buildChatEvidencePacket({ question, profile, recommendation, userId = null, priorTurns = [] }, dependencies = {}) {
+  if (isGroundingBoundaryAttack(question)) return buildChatInjectionBoundaryPacket();
   // General education comes from an allowlisted, reviewed reference corpus.
   // It never supplies user-specific allocations, tax rules or product rates.
   const goalEvidence = retrieveChatGoalPlanningEvidence(question, {
