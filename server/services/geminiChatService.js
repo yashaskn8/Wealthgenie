@@ -35,6 +35,7 @@ import {
 } from './chatGoalPlanning.js';
 import { buildGroundedEvidencePacket } from './groundedEvidence.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { suggestWealthGenieFeature } from './featureSuggestionPolicy.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -517,7 +518,16 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const attemptedProviderFailure = Number(explanation.providerAttemptFailureCount || 0) > 0
       || (explanation.fallback
         && (explanation.reasonCodes || []).some(reason => /REQUEST_FAILED|EMPTY_COMPLETION|GROUNDING_VALIDATION_FAILED/.test(reason)));
+    // Feature hints describe existing app screens, NOT personal investment
+    // recommendations. Derive them only from the user's original question.
+    // Neither retrieved evidence nor the external LLM can choose a route.
+    const actionCards = !generalMode && !promptInjectionDetected &&
+      explanation.validation.status === 'PASS' &&
+      !explanation.evidenceIdsUsed.includes('E_CHAT_ANSWER_UNAVAILABLE')
+      ? suggestWealthGenieFeature(securityContext.sanitizedMessage)
+      : [];
     const auditMetadata = {
+      action_cards: actionCards,
       provider: explanation.provider,
       model: explanation.model,
       grounded_on_profile: !generalMode,
@@ -570,7 +580,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
       rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
       citations: explanation.citations,
-      action_cards: [],
+      action_cards: actionCards,
     });
     await requireCurrentBinding(binding, userId);
     await sessionStore.complete({
