@@ -41,4 +41,14 @@ describe('Sovereign X fail-closed voice policy',()=>{
       assert.equal(classifyVoiceIntent(input).action,'REJECTED');
     }
   });
+  it('accepts conversational invocations without extending the action allowlist',()=>{
+    for (const input of ['Hey Genie, open my goals','Genie, bring up my profile',
+      'could you please show investment options','can you navigate to the taxes page']) {
+      assert.equal(classifyVoiceIntent(input).action,'APP_NAVIGATE',input);
+    }
+    assert.equal(classifyVoiceIntent('Hey Genie, what is SIP?').action,'CHAT');
+    assert.equal(classifyVoiceIntent('Genie, open a random route').reason,'UNSUPPORTED_NAVIGATION');
+    assert.equal(classifyVoiceIntent('Hey Genie, open my account and transfer money').action,'REJECTED');
+  });
+
 });
