@@ -26,8 +26,8 @@ function moneyAmount(text) {
   return Number.isSafeInteger(number) && number>=100 && number<=MAX_AMOUNT ? number : null;
 }
 function valueNear(text,label,after) {
-  const a=numberMatches(text,new RegExp(label+'\\s*(?:of|at|is|by|दर|दर से|ನಲ್ಲಿ|ಅಂದಾಜು)?\\s*('+RATE+')\\s*%', 'gi'));
-  const b=numberMatches(text,new RegExp('('+RATE+')\\s*%\\s*'+after,'gi'));
+  const a=numberMatches(text,new RegExp('(?:'+label+')\\s*(?:of|at|is|by|दर|दर से|ನಲ್ಲಿ|ಅಂದಾಜು)?\\s*('+RATE+')\\s*%', 'gi'));
+  const b=numberMatches(text,new RegExp('('+RATE+')\\s*%\\s*(?:'+after+')','gi'));
   if(a!==null && b!==null && a!==b)return null;
   return a!==null?a:b;
 }
