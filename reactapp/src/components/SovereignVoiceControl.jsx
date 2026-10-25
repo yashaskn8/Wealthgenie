@@ -1,3 +1,6 @@
+/* eslint-disable react-hooks/set-state-in-effect -- Browser recognition and TTS events
+   must synchronize with asynchronous verified chat replies without dispatching
+   untrusted speech during React render. State transitions remain fenced. */
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import * as api from '../services/api';
@@ -280,6 +283,17 @@ export default function SovereignVoiceControl({
     const current = generationRef.current;
     const utterance = new window.SpeechSynthesisUtterance(words);
     utterance.lang = 'en-IN';
+    utterance.rate = 1.04;
+    utterance.pitch = 1;
+    // Prefer an Indian English voice when the browser offers one. Fall back
+    // gracefully to its default voice; speech engines vary by device.
+    const voices = typeof synth.getVoices === 'function' ? synth.getVoices() : [];
+    const preferred = voices.find(voice => voice.lang?.toLowerCase() === 'en-in') ||
+      voices.find(voice => voice.lang?.toLowerCase().startsWith('en-'));
+    if (preferred) {
+      utterance.voice = preferred;
+      utterance.lang = preferred.lang;
+    }
     utterance.onend = () => {
       if (generationRef.current === current) {
         utteranceRef.current = null;
