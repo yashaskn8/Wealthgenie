@@ -1,3 +1,5 @@
+const normalizeIndicJoiners=text=>text.replace(/([\u0900-\u097F\u0C80-\u0CFF])[\u200C\u200D](?=[\u0900-\u097F\u0C80-\u0CFF])/gu,'$1');
+
 /**
  * Conservative question-to-feature routing.
  *
@@ -88,9 +90,9 @@ const UNSAFE_INSTRUCTION = /\b(?:ignore\s+(?:all|previous|system)|developer\s+in
  * independently check the page and render only local, canonical labels.
  */
 export function suggestWealthGenieFeature(rawQuestion) {
-  if (typeof rawQuestion !== 'string' || !rawQuestion || rawQuestion.length > 1000 ||
-      INVALID.test(rawQuestion) || UNSAFE_INSTRUCTION.test(rawQuestion)) return [];
-  const question = rawQuestion.trim();
+  if (typeof rawQuestion !== 'string' || !rawQuestion || rawQuestion.length > 1000) return [];
+  const question = normalizeIndicJoiners(rawQuestion).trim();
+  if (INVALID.test(question) || UNSAFE_INSTRUCTION.test(question)) return [];
   if (!question) return [];
   const matches = DEFINITIONS
     .filter(feature => feature.patterns.some(pattern => pattern.test(question)));
