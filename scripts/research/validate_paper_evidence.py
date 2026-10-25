@@ -182,13 +182,13 @@ def audit(root: Path = ROOT, candidate_file: Path | None = None) -> dict[str, An
     block = []
     if candidate_file is None:
         replay = {"status": "NOT_PROVIDED"}
-        block.append("No replay of the current five-question, manifest-verified RAG corpus is attached.")
+        block.append("No replay of the current manifest-verified RAG corpus is attached.")
     else:
         replay = verify_candidate(root, candidate_file, current)
     if current["count"] < 30:
         block.append("Current verified RAG set is too small for broad generalization (only %s queries)." % current["count"])
     if current["documents"] < 5:
-        block.append("Current verified RAG corpus has only %s document; external/topic coverage is narrow." % current["documents"])
+        block.append("Current verified RAG corpus has only %s documents; external/topic coverage is narrow." % current["documents"])
 
     old_llm = load_json(root, "ml-service/reports/llm_eval_report.json")
     llm_faithfulness = old_llm["aggregate_metrics"]["mean_faithfulness_score"]
