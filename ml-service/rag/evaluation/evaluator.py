@@ -161,7 +161,11 @@ def _has_postposed_contradiction(answer: str, phrase: str) -> bool:
         # adjacent-sentence walk-backs. Unknown paraphrases remain outside the
         # lexical evaluator's claimed coverage.
         following = (answer or "")[match.end():match.end() + 180]
-        if denial.search(following):
+        # A later, unrelated scope disclaimer must not count as a retraction.
+        # Check the rest of the current clause or immediate correction only.
+        following = following.lstrip(" \n\t.!?;:")
+        adjacent_clause = re.split(r"[.!?](?:\s|$)", following, maxsplit=1)[0]
+        if denial.search(adjacent_clause):
             return True
     return False
 
