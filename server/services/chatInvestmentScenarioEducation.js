@@ -73,19 +73,19 @@ function evidence(scenario) {
   };
 }
 
-export function isInvestmentScenarioQuestion(question) {
+export function isInvestmentScenarioQuestion(question, { allowAccountContext = false } = {}) {
   const text = String(question || '').slice(0, 1000);
   // A goal with a dated horizon may be financial even without the word
   // "investment". Keep ordinary wedding/event chatter on the general route.
   const datedGoal = /\b(?:wedding|marriage|education|college|retirement|home|house)\b.{0,75}\b(?:\d{1,3}\s+(?:years?|months?)|save|invest|fund|money|budget)\b/i.test(text);
   if (!text.trim() || (!FINANCE_SUBJECT.test(text) && !datedGoal)
-      || ACCOUNT_SPECIFIC.test(text) || TAX_SPECIFIC.test(text)) return false;
+      || (!allowAccountContext && ACCOUNT_SPECIFIC.test(text)) || TAX_SPECIFIC.test(text)) return false;
   return QUESTION_STYLE.test(text) || SCENARIOS.some(x => x.match.test(text));
 }
 
-export function retrieveInvestmentScenarioEducation(question) {
+export function retrieveInvestmentScenarioEducation(question, { allowAccountContext = false } = {}) {
   const text = String(question || '').slice(0, 1000);
-  if (!isInvestmentScenarioQuestion(text)) return [];
+  if (!isInvestmentScenarioQuestion(text, { allowAccountContext })) return [];
   const selected = SCENARIOS.find(item => item.match.test(text));
   if (selected) return [evidence(selected)];
   // Broad investment questions still deserve a concrete decision framework.

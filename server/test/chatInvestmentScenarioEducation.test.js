@@ -81,3 +81,15 @@ test('dated goal prompts are supported without routing normal events as finance'
     'What flowers should I order for a wedding?'
   ), false);
 });
+
+test('account-specific scenario education stays blocked without an authenticated profile', () => {
+  const question = 'How should I rebalance my current portfolio during a market crash?';
+  assert.equal(isInvestmentScenarioQuestion(question), false);
+  assert.deepEqual(retrieveInvestmentScenarioEducation(question), []);
+  assert.equal(isInvestmentScenarioQuestion(question, { allowAccountContext: true }), true);
+  const education = retrieveInvestmentScenarioEducation(question, { allowAccountContext: true });
+  assert.equal(education.length, 1);
+  assert.equal(education[0].id, 'E_SCENARIO_MARKET_DECLINE');
+  assert.equal(education[0].value.personalizedAdvice, false);
+  assert.ok(!('holdings' in education[0].value));
+});

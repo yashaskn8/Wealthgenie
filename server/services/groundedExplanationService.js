@@ -1098,7 +1098,7 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     ...taxAssumptionEvidence,
     ...retrieveChatEducationalEvidence(question),
     ...retrieveInvestmentUniverseEducation(question),
-    ...retrieveInvestmentScenarioEducation(question),
+    ...retrieveInvestmentScenarioEducation(question, { allowAccountContext: Boolean(userId && profile) }),
   ];
   if (isPortfolioReviewQuestion(question)) {
     entries.push(makeEvidenceEntry('E_PORTFOLIO_REVIEW_SCOPE', 'ANSWER_BOUNDARY',
