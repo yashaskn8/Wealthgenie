@@ -94,7 +94,7 @@ class PaperEvidenceContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "fabricated_chunk_metrics.json"
             source.write_text(json.dumps(forged), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "unlabeled chunk ranking"):
+            with self.assertRaisesRegex(ValueError, "chunk-level gold count"):
                 verify_candidate(ROOT, source, contract)
 
 

@@ -14,6 +14,9 @@
       "unsupported tax slab",
       "unsupported deduction",
       "investment recommendation"
+    ],
+    "relevant_passages": [
+      "Rules take effect on 1 April 2026"
     ]
   },
   {
@@ -29,6 +32,9 @@
     ],
     "forbidden_claims": [
       "Income-tax Act, 1961 governs Tax Year 2026-27"
+    ],
+    "relevant_passages": [
+      "Tax Year 2026-27"
     ]
   },
   {
@@ -82,6 +88,9 @@
     "forbidden_claims": [
       "guaranteed mutual fund return",
       "personalized recommendation"
+    ],
+    "relevant_passages": [
+      "Regulations, 2026 took effect on 1 April 2026"
     ]
   },
   {
@@ -97,6 +106,9 @@
     ],
     "forbidden_claims": [
       "guaranteed mutual fund return"
+    ],
+    "relevant_passages": [
+      "published in the Gazette of India on 15 January 2026"
     ]
   },
   {
@@ -112,6 +124,9 @@
     ],
     "forbidden_claims": [
       "guaranteed compensation"
+    ],
+    "relevant_passages": [
+      "Ombudsman Scheme, 2026 became effective on 1 July 2026"
     ]
   },
   {
@@ -127,6 +142,9 @@
     ],
     "forbidden_claims": [
       "all complaints qualify"
+    ],
+    "relevant_passages": [
+      "replaced the 2021 scheme"
     ]
   },
   {
