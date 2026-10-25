@@ -16,6 +16,7 @@ const DEFINITIONS = Object.freeze([
     patterns: [
       /\b(?:retirement|college|university|wedding|marriage|education\s+fund|down\s*payment|financial\s+goal|goal\s+corpus|goal\s+planner)\b/i,
       /\b(?:save|saving|fund|afford|plan)\b.{0,35}\b(?:home|house|child|education|retirement|wedding|college)\b/i,
+      /(?:लक्ष्य|बच्चे की पढ़ाई|शिक्षा का लक्ष्य|सेवानिवृत्ति|गृह लक्ष्य|ಗುರಿ|ಮಕ್ಕಳ ಶಿಕ್ಷಣ|ನಿವೃತ್ತಿ|ಮನೆ ಖರೀದಿ)/iu,
     ],
   }),
   Object.freeze({
@@ -26,6 +27,7 @@ const DEFINITIONS = Object.freeze([
     patterns: [
       /\b(?:sips?|systematic\s+investment\s+plan|step[- ]?up\s+(?:sip|contribution)|monthly\s+investment|monthly\s+contribution)\b/i,
       /\b(?:increase|decrease|change)\b.{0,30}\b(?:monthly\s+savings|monthly\s+contribution)\b/i,
+      /(?:एसआईपी|मासिक निवेश|सिप|ಎಸ್.?ಐ.?ಪಿ|ಸಿಪ್|ತಿಂಗಳ ಹೂಡಿಕೆ)/iu,
     ],
   }),
   Object.freeze({
@@ -35,6 +37,7 @@ const DEFINITIONS = Object.freeze([
     description: 'Review tax-related calculations and their assumptions.',
     patterns: [
       /\b(?:income[- ]?tax|tax(?:es|ation|able)?|capital\s+gains?|ltcg|stcg|tax\s+regime|post[- ]?tax|after[- ]?tax|tax[- ]?saving)\b/i,
+      /(?:आयकर|टैक्स|कर गणना|कर विश्लेषण|ತೆರಿಗೆ|ಆದಾಯ ತೆರಿಗೆ)/iu,
     ],
   }),
   Object.freeze({
@@ -44,6 +47,7 @@ const DEFINITIONS = Object.freeze([
     description: 'Review allocation drift and risk exposure; no trades are placed.',
     patterns: [
       /\b(?:rebalanc(?:e|ing)|allocation\s+drift|portfolio\s+drift|portfolio\s+risk|asset\s+allocation|investment\s+mix|market\s+(?:crash|correction)|stock\s+market\s+falls?|portfolio\s+(?:falls?|crash(?:es)?)|drawdown)\b/i,
+      /(?:पोर्टफोलियो|जोखिम|बाजार गिरावट|पुनर्संतुलन|ಪೋರ್ಟ್.?ಫೋಲಿಯೋ|ಅಪಾಯ|ಮಾರುಕಟ್ಟೆ ಕುಸಿತ|ಮರುಸಮತೋಲನ)/iu,
     ],
   }),
   Object.freeze({
@@ -53,6 +57,7 @@ const DEFINITIONS = Object.freeze([
     description: 'Learn about available investment categories and product evidence.',
     patterns: [
       /\b(?:where\s+to\s+invest|investment\s+options?|compare\s+(?:funds?|etfs?|bonds?|investments?)|mutual\s+funds?|index\s+funds?|exchange[- ]?traded\s+funds?|etfs?|fixed\s+deposits?|government\s+bonds?)\b/i,
+      /(?:निवेश विकल्प|म्यूचुअल फंड|इंडेक्स फंड|हूಡಿಕೆ ಆಯ್ಕೆಗಳು|ಹೂಡಿಕೆ ಆಯ್ಕೆಗಳು|ಮ್ಯೂಚುವಲ್ ಫಂಡ್)/iu,
     ],
   }),
   Object.freeze({
