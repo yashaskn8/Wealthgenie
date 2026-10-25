@@ -198,3 +198,15 @@ test('emergency-expense goal classification works without investment advice', ()
   assert.match(explanation.displayValue, /emergency reserve/);
   assert.equal(facts.some(x => x.id === 'E_GOAL_RETURN_SCENARIO'), false);
 });
+
+test('third-person real-life goal statements are recognized without a first-person pronoun', () => {
+  for (const query of [
+    "A father needs ₹2 crore for his daughter's marriage in 10 years",
+    "A family needs ₹40 lakh for a home down payment in 4 years",
+    "A business goal needs ₹25 lakh in 36 months",
+    "A parent wants ₹12 lakh for education in 6 years",
+  ]) {
+    assert.equal(isFinancialGoalPlanningQuestion(query), true, query);
+    assert.ok(retrieveChatGoalPlanningEvidence(query).some(x => x.id === 'E_GOAL_PLANNING_GUIDANCE'));
+  }
+});
