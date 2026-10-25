@@ -36,13 +36,20 @@ const INFLATION = '(?:inflation|महंगाई|मुद्रास्फ�
 const SHOCK = '(?:market\\s+)?(?:crash|fall|drop|drawdown|decline)|गिरावट|बाजार\\s+गिरावट|ಕುಸಿತ|ಇಳಿಕೆ';
 function scan(text) {
   const amount=moneyAmount(text);
-  const duration=numberMatches(text,/(\d{1,2})\s*(?:years?|yrs?|साल|वर्ष|ವರ್ಷ(?:ಗಳು|ಗಳ)?)/gi);
+  const yearNumbers=[...text.matchAll(/(\d{1,2})\s*(?:years?|yrs?|साल|वर्ष|ವರ್ಷ(?:ಗಳು|ಗಳ)?)/gi)]
+    .map(match=>Number(match[1]));
   const returnPct=valueNear(text,GROWTH,GROWTH);
   const inflation=valueNear(text,INFLATION,INFLATION);
   const shockPct=valueNear(text,SHOCK,SHOCK);
   const shockMentions=new RegExp(SHOCK,'i').test(text);
-  const atYear=numberMatches(text,/(?:in|at|after|during)\s+(?:year\s+)?(\d{1,2})(?:st|nd|rd|th)?\s*(?:year)?\b/gi)
+  const afterShock = new RegExp('(?:'+SHOCK+')[^.!?]{0,35}?(\\d{1,2})\\s*(?:years?|साल|वर्ष|ವರ್ಷ)', 'i').exec(text);
+  const atYear=numberMatches(text,/(?:in|at|after|during)\s+(?:year\s+)?(\d{1,2})(?:st|nd|rd|th)?(?:\s+years?)?\b/gi)
+    ?? (afterShock ? Number(afterShock[1]) : null)
     ?? numberMatches(text,/(\d{1,2})(?:st|nd|rd|th)?\s+(?:year|साल|वर्ष|ವರ್ಷ)(?:\s+(?:में|की|ನಲ್ಲಿ|ನಂತರ))?/gi);
+  const candidates=shockMentions && atYear!==null && yearNumbers.length>1
+    ? yearNumbers.filter(year=>year!==atYear) : yearNumbers;
+  const distinct=[...new Set(candidates.length ? candidates : yearNumbers)];
+  const duration=distinct.length===1 ? distinct[0] : null;
   return {amount,duration,returnPct,inflation,shockPct,shockMentions,shockYear:atYear};
 }
 
