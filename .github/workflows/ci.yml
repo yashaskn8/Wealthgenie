@@ -70,6 +70,7 @@ jobs:
         run: >-
           node --test
           server/test/chatInvestmentUniverseEducation.test.js
+          server/test/chatAdversarialBoundary.test.js
           server/test/chatGoalPlanning.test.js
           server/test/mlServiceContract.test.js
           server/test/ragResponseBoundary.test.js

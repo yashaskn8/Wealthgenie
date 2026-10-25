@@ -7,15 +7,19 @@ content inspection is not a replacement for authorization or corpus integrity.
 from __future__ import annotations
 
 import base64
+import html
 import re
 import unicodedata
+from urllib.parse import unquote
 
 _ROLE_MARKER = re.compile(
     r"(?im)^\s*(?:#{1,6}\s*)?(?:system|developer|assistant)\s*:"
     r"|^\s*(?:\[(?:system|developer|assistant)(?:\s+instruction)?\]"
     r"|<\s*(?:system|developer|assistant)\s*>"
     r"|===\s*(?:system|developer|assistant)\b"
-    r"|\[im_start\]\s*(?:system|developer))",
+    r"|\[im_start\]\s*(?:system|developer|assistant)"
+    r"|<\|im_start\|>\s*(?:system|developer|assistant)"
+    r"|<<\s*SYS\s*>>",
 )
 _INSTRUCTION_PATTERNS = (
     re.compile(
@@ -34,7 +38,17 @@ _INSTRUCTION_PATTERNS = (
     ),
 )
 _BASE64_CANDIDATE = re.compile(r"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{20,}={0,2}(?![A-Za-z0-9+/])")
-_ZERO_WIDTH = re.compile("[\u200b-\u200f\u2060\ufeff]")
+_ZERO_WIDTH = re.compile("[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]")
+
+
+def _normalize_untrusted(text: str) -> str:
+    value = _ZERO_WIDTH.sub("", unicodedata.normalize("NFKC", text[:8_192]))
+    # HTML entities and URL percent escapes are common indirect-payload wrappers.
+    value = html.unescape(value)
+    if re.search(r"%[0-9a-f]{2}", value, re.I):
+        value = unquote(value, errors="replace")
+    return value
+
 
 
 def _contains_directive(text: str) -> bool:
@@ -50,7 +64,7 @@ def contains_retrieval_instruction_attack(content: str) -> bool:
     """
     if not isinstance(content, str):
         return True
-    normalized = _ZERO_WIDTH.sub("", unicodedata.normalize("NFKC", content))
+    normalized = _normalize_untrusted(content)
     if _contains_directive(normalized):
         return True
     # This catches common indirect-injection encoding without requiring an
@@ -64,6 +78,6 @@ def contains_retrieval_instruction_attack(content: str) -> bool:
             decoded = base64.b64decode(padded, validate=True).decode("utf-8", errors="ignore")
         except (ValueError, UnicodeError):
             continue
-        if _contains_directive(_ZERO_WIDTH.sub("", unicodedata.normalize("NFKC", decoded))):
+        if _contains_directive(_normalize_untrusted(decoded)):
             return True
     return False

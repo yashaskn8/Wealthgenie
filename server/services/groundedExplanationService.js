@@ -205,7 +205,9 @@ function compactModelEvidencePacket(evidencePacket) {
 }
 
 function sanitizePriorTurns(priorTurns = []) {
-  return (Array.isArray(priorTurns) ? priorTurns : []).slice(-4).map(turn => ({
+  return (Array.isArray(priorTurns) ? priorTurns : []).slice(-4)
+    .filter(turn => !isGroundingBoundaryAttack(turn?.content))
+    .map(turn => ({
     role: turn?.role === 'model' ? 'model' : 'user',
     content: sanitizeExternalQuestion(turn?.content).slice(0, 1000),
   }));

@@ -68,9 +68,15 @@ export function isCoveredRegulatoryChatQuestion(question) {
 function matchesCorpus(chunk, citation, corpus) {
   const metadata = chunk?.metadata;
   const custom = metadata?.custom_metadata;
+  const excerpt = typeof citation?.excerpt === 'string' ? citation.excerpt.trim() : '';
+  const literal = excerpt.endsWith('...') ? excerpt.slice(0, -3) : excerpt;
+  // Both ownership layers must agree; neither top-level defaults nor
+  // metadata alone may make another user's material appear public.
   return chunk?.lifecycle_state === 'ACTIVE'
-    && ['global', 'public', 'default'].includes(String(chunk?.scope || metadata?.scope || '').toLowerCase())
-    && ['global', 'default', ''].includes(String(chunk?.tenant_id || metadata?.tenant_id || '').toLowerCase())
+    && ['global', 'public', 'default'].includes(String(chunk?.scope || '').toLowerCase())
+    && ['global', 'default'].includes(String(chunk?.tenant_id || '').toLowerCase())
+    && String(chunk?.scope || '').toLowerCase() === String(metadata?.scope || '').toLowerCase()
+    && String(chunk?.tenant_id || '').toLowerCase() === String(metadata?.tenant_id || '').toLowerCase()
     && metadata?.source_trust_tier === 'government_official'
     && corpus.documentTitles.includes(metadata?.title)
     && metadata?.source === corpus.sourceUrl
@@ -83,9 +89,8 @@ function matchesCorpus(chunk, citation, corpus) {
     && citation?.chunk_id === chunk.chunk_id
     && citation?.source === metadata.source
     && citation?.document_title === metadata.title
-    && typeof citation?.excerpt === 'string'
-    && chunk.content.startsWith(citation.excerpt.endsWith('...')
-      ? citation.excerpt.slice(0, -3) : citation.excerpt);
+    && literal.length >= 12 && excerpt.length <= 4096
+    && typeof chunk.content === 'string' && chunk.content.startsWith(literal);
 }
 
 export async function retrieveQualifiedRegulatoryChatEvidence({ question, userId, queryRag } = {}) {

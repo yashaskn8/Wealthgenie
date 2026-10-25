@@ -250,6 +250,10 @@ function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
       && userMessage?.metadata?.grounded_on_profile === false
       && modelMessage?.metadata?.grounded_on_profile === false;
     if ((mode === 'GENERAL') !== isGeneralTurn) break;
+    // Poisoned historical user/model turns cannot be replayed as context
+    // even if a stale persisted turn claims to have passed validation.
+    if (isGroundingBoundaryAttack(userMessage.content)
+        || isGroundingBoundaryAttack(modelMessage.content)) break;
     const pair = [
       { role: 'user', content: truncateUtf8(sanitizeExternalQuestion(userMessage.content), 1000) },
       { role: 'model', content: truncateUtf8(sanitizeExternalQuestion(modelMessage.content), 1000) },
@@ -398,6 +402,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
   const llmProfile = buildLlmFinancialContext(profile, suitability);
   const securityContext = ImmutableSecurityPipeline.processInput(message, profile);
   const promptInjectionDetected = securityContext.isInjection
+    || isGroundingBoundaryAttack(message)
     || isGroundingBoundaryAttack(securityContext.sanitizedMessage);
   if (promptInjectionDetected) PrometheusMetrics.inc('prompt_injection_attempts_total');
 

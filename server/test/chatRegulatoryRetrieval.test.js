@@ -31,6 +31,7 @@ function approvedResponse() {
           publication_date: '2026-03-20',
           effective_date: '2026-04-01',
           source_trust_tier: 'government_official',
+          scope: 'global', tenant_id: 'default',
           custom_metadata: {
             document_key: 'income-tax-rules-2026-commencement',
             corpus_manifest_sha256: '12f685ff27d432dc793afc4b1d9d1646cd920a1af237466ae96776757c3d2906',
@@ -176,6 +177,7 @@ test('new SEBI and RBI sources only answer source-backed commencement questions'
         metadata: { title: item.title, source: item.url, author: item.authority,
           publication_date: item.publicationDate, effective_date: item.date,
           source_trust_tier: 'government_official',
+          scope: 'global', tenant_id: 'default',
           custom_metadata: { document_key: item.key,
             corpus_manifest_sha256: '12f685ff27d432dc793afc4b1d9d1646cd920a1af237466ae96776757c3d2906',
             content_sha256: item.hash } },
@@ -199,4 +201,24 @@ test('new SEBI and RBI sources only answer source-backed commencement questions'
     'Which mutual fund regulated by SEBI should I buy?',
     'How much compensation will the RBI Integrated Ombudsman Scheme 2026 pay me?',
   ]) assert.equal(isCoveredRegulatoryChatQuestion(q), false);
+});
+
+test('malformed official chunk ownership and meaningless citations are rejected', async () => {
+  const mutations = [
+    x => { x.retrieved_chunks[0].chunk.scope = 'global'; x.retrieved_chunks[0].chunk.metadata.scope = 'user:someone-else'; },
+    x => { x.retrieved_chunks[0].chunk.tenant_id = 'default'; x.retrieved_chunks[0].chunk.metadata.tenant_id = 'user:someone-else'; },
+    x => { x.retrieved_chunks[0].chunk.metadata.scope = 'global'; x.retrieved_chunks[0].chunk.metadata.tenant_id = 'someone-else'; },
+    x => { x.citations[0].excerpt = '...'; },
+    x => { x.citations[0].excerpt = 'A...'; },
+    x => { x.citations[0].excerpt = 'Text not in official corpus'; },
+  ];
+  for (const mutate of mutations) {
+    const response = approvedResponse();
+    mutate(response);
+    const out = await retrieveQualifiedRegulatoryChatEvidence({
+      question, userId: 'user-verified-123', queryRag: async () => response,
+    });
+    assert.deepEqual(out.entries, []);
+    assert.ok(out.unavailableFacts.length >= 1);
+  }
 });
