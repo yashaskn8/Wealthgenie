@@ -26,6 +26,23 @@ const EXTERNAL_RE=/\b(?:browser|chrome|firefox|tab|website|google|youtube|gmail|
 const EDUCATIONAL_RE=/^(?:what\s+(?:is|are|does|happens|if|would)|how\s+(?:do|does|can|could|would|is|are)|why\s+(?:do|does|is|are)|explain\b|tell\s+me\s+about\b|could\s+you\s+explain\b|should\s+i\b)/i;
 const DIRECT_ACTION_QUESTION_RE=/^(?:(?:can|could|would|will)\s+you\s+(?:please\s+)?)(?:buy|sell|trade|transfer|withdraw|pay|purchase|delete|erase|remove|submit|send|save|change|modify|update|rebalance|approve|authorize|confirm|execute|install|download|upload|log\s*in|sign\s*in)\b/i;
 const URL_RE=/(?:https?:\/\/|www\.)/i;
+// Exact, reviewed navigation phrases only; these are commands, not a natural
+// language model, so the user cannot trick a translation layer into executing.
+const INDIC_NAV = new Map([
+  ['लक्ष्य खोलो','goals'], ['गोल प्लानर खोलो','goals'],
+  ['सिप प्लानर खोलो','grow-my-sip'], ['एसआईपी प्लानर खोलो','grow-my-sip'],
+  ['टैक्स खोलो','taxes'], ['कर विश्लेषण खोलो','taxes'],
+  ['निवेश विकल्प खोलो','investments'], ['निवेश योजना खोलो','plan'],
+  ['पोर्टफोलियो समीक्षा खोलो','keep-on-track'], ['होम खोलो','home'],
+  ['गुरಿಗಳನ್ನು ತೆರೆ','goals'], ['ಗುರಿ ಯೋಜನೆ ತೆರೆ','goals'],
+  ['ಸಿಪ್ ಪ್ಲಾನರ್ ತೆರೆ','grow-my-sip'], ['ಎಸ್‌ಐಪಿ ಪ್ಲಾನರ್ ತೆರೆ','grow-my-sip'],
+  ['ತೆರಿಗೆ ವಿಶ್ಲೇಷಣೆ ತೆರೆ','taxes'], ['ಹೂಡಿಕೆ ಆಯ್ಕೆಗಳು ತೆರೆ','investments'],
+  ['ಹೂಡಿಕೆ ಯೋಜನೆ ತೆರೆ','plan'], ['ಪೋರ್ಟ್‌ಫೋಲಿಯೋ ಪರಿಶೀಲನೆ ತೆರೆ','keep-on-track'],
+  ['ಮುಖಪುಟ ತೆರೆ','home'],
+]);
+const INDIC_UNSAFE = /(?:पैसे\s*भेजो|पैसे\s*ट्रांसफर|पैसे\s*निकालो|शेयर\s*खरीदो|शेयर\s*बेचो|ट्रेड\s*करो|भुगतान\s*करो|ಖರೀದಿಸಿ|ಮಾರಾಟ\s*ಮಾಡಿ|ಹಣ\s*ವರ್ಗಾಯಿಸಿ|ಹಣ\s*ಕಳುಹಿಸಿ|ಹಣ\s*ಹಿಂಪಡೆಯಿರಿ|ವ್ಯಾಪಾರ\s*ಮಾಡಿ)/iu;
+const INDIC_COMMAND = /(?:खोलो|दिखाओ|नेविगेट\s*करो|तेರೆ|ತೆರೆ|ತೋರಿಸು|ತೋರಿಸಿ)/iu;
+const INDIC_COMPARE = new Set(['सिप तुलना खोलो','एसआईपी तुलना खोलो','ಸಿಪ್ ಹೋಲಿಕೆ ತೆರೆ']);
 const ROUTES=new Map(Object.entries(TARGETS).flatMap(([page,aliases])=>aliases.map(alias=>[alias,page])));
 export function classifyVoiceIntent(raw) {
   if(typeof raw!=='string'||raw.length===0||raw.length>1000)return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
@@ -37,6 +54,12 @@ export function classifyVoiceIntent(raw) {
   const input=raw.trim().replace(/\s+/g,' ')
     .replace(/^(?:(?:hey|okay|ok)\s+)?genie[,!:\s-]+/i,'');
   if(!input)return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
+  const indicCommand=input.replace(/[.!?।]+$/u,'').trim();
+  if(INDIC_UNSAFE.test(input))return {action:'REJECTED',reason:'ACTION_NOT_ALLOWED'};
+  if(INDIC_COMPARE.has(indicCommand))return {action:'OPEN_SIP_COMPARISON',version:VOICE_INTENT_VERSION};
+  if(INDIC_NAV.has(indicCommand))
+    return {action:'APP_NAVIGATE',page:INDIC_NAV.get(indicCommand),tab:null,version:VOICE_INTENT_VERSION};
+  if(INDIC_COMMAND.test(input))return {action:'REJECTED',reason:'UNSUPPORTED_NAVIGATION'};
   if(UNSAFE_RE.test(input)) {
     if(EDUCATIONAL_RE.test(input) && !DIRECT_ACTION_QUESTION_RE.test(input) &&
       !URL_RE.test(input) && !/[;{}<>]/.test(input))
