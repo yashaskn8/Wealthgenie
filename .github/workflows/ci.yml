@@ -370,8 +370,12 @@ jobs:
       - name: Validate deployment and security configuration
         run: node server/scripts/validate-deployment-config.js
       - name: Audit backend npm dependencies
+        id: backend_npm_audit
+        continue-on-error: true
         run: npm audit --prefix server --omit=dev --audit-level=low
       - name: Audit frontend npm dependencies
+        id: frontend_npm_audit
+        continue-on-error: true
         run: npm audit --prefix reactapp --audit-level=high
       - name: Start MongoDB for the explicit ML/RAG state migration
         run: docker compose up -d mongodb
@@ -670,7 +674,9 @@ jobs:
         run: npm run test:e2e --prefix reactapp -- --grep-invert @production-edge
 
       - name: Audit Python dependencies
+        id: python_dependency_audit
         if: ${{ !cancelled() }}
+        continue-on-error: true
         run: |
           python -m pip install --require-hashes -r ml-service/requirements-ci-audit.txt
           python -m pip check
@@ -683,6 +689,20 @@ jobs:
           # Remove each exception only after an upstream fix and verification.
           pip-audit --ignore-vuln PYSEC-2026-2447 --ignore-vuln CVE-2026-69112
 
+      - name: Enforce dependency audit release gate
+        # Audit findings remain blocking even though all service tests run.
+        if: ${{ !cancelled() }}
+        env:
+          BACKEND_AUDIT: ${{ steps.backend_npm_audit.outcome }}
+          FRONTEND_AUDIT: ${{ steps.frontend_npm_audit.outcome }}
+          PYTHON_AUDIT: ${{ steps.python_dependency_audit.outcome }}
+        run: |
+          if [ "$BACKEND_AUDIT" != "success" ] ||
+             [ "$FRONTEND_AUDIT" != "success" ] ||
+             [ "$PYTHON_AUDIT" != "success" ]; then
+            echo "::error::Dependency audit failed: backend=$BACKEND_AUDIT frontend=$FRONTEND_AUDIT python=$PYTHON_AUDIT"
+            exit 1
+          fi
       - name: Upload browser failure evidence
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
