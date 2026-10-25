@@ -28,10 +28,13 @@ function moneyAmount(text) {
   return Number.isSafeInteger(number) && number>=100 && number<=MAX_AMOUNT ? number : null;
 }
 function valueNear(text,label,after) {
-  const a=numberMatches(text,new RegExp('(?:'+label+')\\s*(?:of|at|is|by|दर|दर से|ನಲ್ಲಿ|ಅಂದಾಜು)?\\s*('+RATE+')\\s*%', 'gi'));
-  const b=numberMatches(text,new RegExp('('+RATE+')\\s*%\\s*(?:'+after+')','gi'));
-  if(a!==null && b!==null && a!==b)return null;
-  return a!==null?a:b;
+  const first=[...text.matchAll(new RegExp('(?:'+label+')\\s*(?:of|at|is|by|दर|दर से|ನಲ್ಲಿ|ಅಂದಾಜು)?\\s*('+RATE+')\\s*%', 'gi'))]
+    .map(match=>Number(match[1]));
+  const second=[...text.matchAll(new RegExp('('+RATE+')\\s*%\\s*(?:'+after+')','gi'))]
+    .map(match=>Number(match[1]));
+  const unique=[...new Set([...first,...second])];
+  // Contradictory rates must NEVER be silently reduced to the first match.
+  return unique.length===1 && Number.isFinite(unique[0]) ? unique[0] : null;
 }
 const GROWTH = '(?:annual\\s+(?:investment\\s+)?return|yearly\\s+return|annual\\s+cagr|cagr|investment\\s+return|वार्षिक\\s+रिटर्न|सालाना\\s+रिटर्न|ವಾರ್ಷಿಕ\\s+ರಿಟರ್ನ್|ವರ್ಷದ\\s+ರಿಟರ್ನ್)';
 const INFLATION = '(?:inflation|महंगाई|मुद्रास्फीति|महँगाई|ಹಣದುಬ್ಬರ)';
