@@ -43,7 +43,7 @@ Authoritative references:
 
 ## 3. Changes in V8 branch
 
-- **Implemented**: numeric-financial hands-free transcript confirmation gate. A recognized SIP amount, return, currency or duration must be shown and explicitly approved before a chat question is sent. Cancellation, language switching, new microphone capture, session rebind and unmount clear pending review. Ordinary educational questions continue without the extra step. Existing read-only intent authorization and verified TTS remain mandatory.
+- **Implemented**: multi-chunk browser ASR integrity (wait until every segment is final; retain all text before policy classification), plus numeric-financial hands-free transcript confirmation gate. A recognized SIP amount, return, currency or duration must be shown and explicitly approved before a chat question is sent. Cancellation, language switching, new microphone capture, session rebind and unmount clear pending review. Ordinary educational questions continue without the extra step. Existing read-only intent authorization and verified TTS remain mandatory.
 - **Not implemented**: streaming WebRTC provider connection, remote ASR selection, provider paid keys, acoustic barge-in, cross-vendor fallback, vendor-side session tracing, realtime audio segment buffering/verification. This document specifies those as future gated integrations.
 
 ## 4. Engineering acceptance criteria for a streaming migration
