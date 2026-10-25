@@ -121,8 +121,8 @@ test('short and long marriage deadlines produce different conservative horizon e
   const l = retrieveGoalHorizonEducation(qLong, long)[0];
   assert.match(s.displayValue, /within three years/);
   assert.match(l.displayValue, /more than seven years/);
-  assert.match(s.displayValue, /not individual product recommendations/);
-  assert.match(l.displayValue, /not individual product recommendations/);
+  assert.match(s.displayValue, /not (?:an? )?individual product recommendations|None of these are individual product recommendations/i);
+  assert.match(l.displayValue, /not (?:an? )?individual product recommendations|None of these are individual product recommendations/i);
 });
 
 test('authenticated evidence packet includes 250-entry educational scope, never product recommendation', async () => {
@@ -149,4 +149,20 @@ test('deterministic grounded response to difficult wedding prompt explains the p
   assert.match(answer.text, /goal|wedding|marriage/i);
   assert.match(answer.text, /within three years/);
   assert.doesNotMatch(answer.text, /guaranteed return|buy a specific/i);
+});
+
+test('index product names containing 250 never collide with catalog-wide count requests', () => {
+  const query = 'Explain Nifty Smallcap 250 as an investment option';
+  const entries = retrieveInvestmentUniverseEducation(query);
+  assert.ok(entries.every(entry => entry.id !== 'E_EDU_UNIVERSE_SCOPE'));
+  assert.ok(entries.length > 0);
+});
+
+test('wedding investment question does not turn a named existing principal into an investment return forecast', () => {
+  const question = 'Suppose a man has to invest 2 crores for his daughters marriage; what should he do?';
+  const goal = retrieveChatGoalPlanningEvidence(question);
+  const guidance = goal.find(entry => entry.id === 'E_GOAL_PLANNING_GUIDANCE');
+  assert.ok(guidance);
+  assert.equal(goal.some(entry => entry.id === 'E_GOAL_RETURN_SCENARIO'), false);
+  assert.match(guidance.displayValue, /already available to invest or is the amount the goal must reach/);
 });

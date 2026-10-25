@@ -16,7 +16,9 @@ export const INVESTMENT_UNIVERSE_EDUCATION_VERSION = 'universe-education-1.0.0';
 const ADVICE_URL = 'https://investor.sebi.gov.in/investment-thingsbeforeinv.html';
 const RISK_URL = 'https://www.nism.ac.in/how-to-manage-investment-risks-2/';
 const TOPIC = /\b(?:invest(?:ing|ment|ments)?|product|instrument|option|fund|scheme|portfolio|risk|liquid(?:ity)?|lock.?in|return|compare|versus|vs|explain|meaning|about|what\s+is|how\s+does|should\s+i|category|catalog(?:ue)?)\b/i;
-const CATALOG_SCOPE = /\b(?:all|list|catalog(?:ue)?|universe|250|how\s+many)\b.{0,65}\b(?:investment|instrument|option|product|categor(?:y|ies)|universe)\b/i;
+// Require an actual catalog overview request. Merely naming the "Smallcap 250"
+// index must never resolve to the generic list of 250 archetypes.
+const CATALOG_SCOPE = /(?:\b(?:list|show|browse|explore)\s+(?:me\s+)?(?:all\s+)?(?:the\s+)?(?:250|all)\s+(?:indian\s+)?investment\s+(?:options?|products?|instruments?)\b|\bhow\s+many\s+investment\s+(?:options?|products?|instruments?)\b|\b(?:wealthgenie\s+)?investment\s+(?:catalog(?:ue)?|universe)\b|\b250\s+investment\s+(?:options?|entries|products?|instruments?)\b)/i;
 const ADVICE_CONSTRAINTS = /\b(?:guarantee(?:d)?|best|top|highest|recommend|buy|sell|allocate|split|percentage|%|interest|tax|nav|yield|expense\s+ratio|price|returns?|maturity|lock.?in|payout|risk(?:\s+score)?)\b/i;
 
 function norm(value) {
