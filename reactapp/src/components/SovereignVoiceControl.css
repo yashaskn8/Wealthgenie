@@ -113,3 +113,23 @@
 @media (prefers-reduced-motion: reduce) {
   .sovereign-voice-control .genie-voice-status-light { animation: none; }
 }
+
+.sovereign-voice-control .genie-voice-locale-label {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+.sovereign-voice-control #genievoice-language {
+  max-width: 170px;
+  background: rgba(15, 23, 42, .96);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, .5);
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+.sovereign-voice-control #genievoice-language:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
