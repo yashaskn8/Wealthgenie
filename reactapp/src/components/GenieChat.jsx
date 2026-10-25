@@ -621,6 +621,10 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             : 'You used the last message reported by the server. Genie will check availability on your next message.');
         }
       }
+      // Return the *exact* authenticated response for the originating spoken
+      // turn. Voice playback must never infer turn identity from the newest
+      // visible chat message, which may change before speech synthesis starts.
+      return data;
     } catch (err) {
       if (isCurrent() && err?.code !== 'REQUEST_ABORTED') {
         if (err?.code === 'CHAT_RATE_LIMIT_EXCEEDED') {
