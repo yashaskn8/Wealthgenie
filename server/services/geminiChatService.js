@@ -35,6 +35,7 @@ import {
 } from './chatGoalPlanning.js';
 import { buildGroundedEvidencePacket } from './groundedEvidence.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveIndicSipScenarioEvidence } from './indicSipScenarioEvidence.js';
 import { suggestWealthGenieFeature } from './featureSuggestionPolicy.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
@@ -314,15 +315,18 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
       ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
     const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(sanitizedQuestion);
+    const sipScenarioEvidence = retrieveIndicSipScenarioEvidence(sanitizedQuestion);
     if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
-        && (unboundGoal || reviewedPublicEducation.length > 0 || taxAssumptionEvidence.length > 0)) {
+        && (unboundGoal || reviewedPublicEducation.length > 0 || taxAssumptionEvidence.length > 0
+          || sipScenarioEvidence.length > 0)) {
       // No account-bound state is created or reused by this stateless answer.
       const packet = buildGroundedEvidencePacket({
         question: sanitizedQuestion,
         profile: null,
         additionalEntries: unboundGoal
           ? retrieveChatGoalPlanningEvidence(sanitizedQuestion)
-          : taxAssumptionEvidence.length ? taxAssumptionEvidence : reviewedPublicEducation,
+          : sipScenarioEvidence.length ? sipScenarioEvidence
+            : taxAssumptionEvidence.length ? taxAssumptionEvidence : reviewedPublicEducation,
       });
       const answer = await generateGroundedExplanation({
         question: sanitizeExternalQuestion(message), evidencePacket: packet,
