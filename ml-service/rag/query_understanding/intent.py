@@ -21,6 +21,7 @@ class QueryIntentClassifier:
         "fixed deposit", "deposit", "nps", "retirement", "pension", "savings", "debt",
         "insurance", "risk", "sip", "return", "wealth", "financial", "money", "balance",
         "sebi", "rbi", "dicgc", "cbdt", "capital gain", "inflation", "emergency fund",
+        "ombudsman", "grievance", "mutual funds regulations",
     }
 
     def classify(self, query: str) -> Dict[str, Any]:

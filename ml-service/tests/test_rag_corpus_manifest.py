@@ -93,7 +93,7 @@ def test_manifest_rejects_changed_corpus_bytes(tmp_path):
 
 def test_evaluation_corpus_uses_explicit_answerability_and_abstention_controls():
     questions = load_questions(Path(__file__).parents[1] / "rag" / "evaluation" / "eval_questions_v2.json")
-    assert len(questions) == 5
+    assert len(questions) >= 13
     assert all("expected_source" not in item for item in questions)
     assert all(item["expected_abstention"] == (not item["answerability"]) for item in questions)
     assert all(not item["relevant_document_keys"] for item in questions if item["expected_abstention"])

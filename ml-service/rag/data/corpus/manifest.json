@@ -33,7 +33,66 @@
       ],
       "supersedes": [],
       "corpus_schema_version": "wealthgenie-rag-corpus-1.0.0"
+    },
+    {
+      "jurisdiction": "IN",
+      "trust_tier": "government_official",
+      "effective_to": null,
+      "retrieved_at": "2026-10-25T20:41:48+05:30",
+      "supersedes": [],
+      "corpus_schema_version": "wealthgenie-rag-corpus-1.0.0",
+      "document_key": "sebi-mf-regulations-2026-commencement",
+      "local_filename": "sebi_mutual_fund_regulations_2026_commencement.md",
+      "content_sha256": "2d8e4d5c5d2176ebac1aa8c167c383623e2170f7f0318f979ed6b42170dfa5c8",
+      "official_source_url": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792659909505.pdf",
+      "supporting_official_sources": [],
+      "publishing_authority": "Securities and Exchange Board of India",
+      "publication_date": "2026-01-15",
+      "effective_from": "2026-04-01",
+      "document_version": "amended-2026-10-10",
+      "supported_topics": [
+        "SEBI Mutual Funds Regulations 2026 commencement",
+        "mutual funds regulatory framework effective date"
+      ],
+      "excluded_topics": [
+        "returns",
+        "NAV",
+        "fees",
+        "tax",
+        "suitability",
+        "recommendation",
+        "profit",
+        "specific scheme"
+      ]
+    },
+    {
+      "jurisdiction": "IN",
+      "trust_tier": "government_official",
+      "effective_to": null,
+      "retrieved_at": "2026-10-25T20:41:48+05:30",
+      "supersedes": [],
+      "corpus_schema_version": "wealthgenie-rag-corpus-1.0.0",
+      "document_key": "rbi-ombudsman-2026-commencement",
+      "local_filename": "rbi_ombudsman_2026_commencement.md",
+      "content_sha256": "650751ab0f478eeccdaffa32ef63ecc3d2b878c576c6f903697c1068d0121224",
+      "official_source_url": "https://old.rbi.org.in/commonman/english/scripts/faqs.aspx?id=3407",
+      "supporting_official_sources": [],
+      "publishing_authority": "Reserve Bank of India",
+      "publication_date": "2026-07-01",
+      "effective_from": "2026-07-01",
+      "document_version": "2026-07-01",
+      "supported_topics": [
+        "RBI Integrated Ombudsman Scheme 2026 commencement",
+        "banking ombudsman 2026 effective date"
+      ],
+      "excluded_topics": [
+        "eligibility",
+        "compensation",
+        "refund",
+        "personalized legal advice",
+        "claim amount"
+      ]
     }
   ],
-  "manifest_sha256": "248ad8a8418f3e763b625625cc6746c93dc74783299f710bfcf58f08917bb1bf"
+  "manifest_sha256": "12f685ff27d432dc793afc4b1d9d1646cd920a1af237466ae96776757c3d2906"
 }

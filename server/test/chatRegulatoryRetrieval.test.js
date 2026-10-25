@@ -33,7 +33,7 @@ function approvedResponse() {
           source_trust_tier: 'government_official',
           custom_metadata: {
             document_key: 'income-tax-rules-2026-commencement',
-            corpus_manifest_sha256: '248ad8a8418f3e763b625625cc6746c93dc74783299f710bfcf58f08917bb1bf',
+            corpus_manifest_sha256: '12f685ff27d432dc793afc4b1d9d1646cd920a1af237466ae96776757c3d2906',
             content_sha256: '026b9c068c11f89bebd8451cbe7c6568cc2937b0ec19b4b18d327f70c7b78ab2',
           },
         },

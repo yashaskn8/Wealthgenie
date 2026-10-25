@@ -4,18 +4,32 @@
     "category": "current_statutory_commencement",
     "answerability": true,
     "expected_abstention": false,
-    "relevant_document_keys": ["income-tax-rules-2026-commencement"],
-    "required_facts": ["The Rules take effect on 1 April 2026."],
-    "forbidden_claims": ["unsupported tax slab", "unsupported deduction", "investment recommendation"]
+    "relevant_document_keys": [
+      "income-tax-rules-2026-commencement"
+    ],
+    "required_facts": [
+      "The Rules take effect on 1 April 2026."
+    ],
+    "forbidden_claims": [
+      "unsupported tax slab",
+      "unsupported deduction",
+      "investment recommendation"
+    ]
   },
   {
     "query": "Which statute applies to Tax Year 2026-27?",
     "category": "current_statutory_identity",
     "answerability": true,
     "expected_abstention": false,
-    "relevant_document_keys": ["income-tax-rules-2026-commencement"],
-    "required_facts": ["Tax Year 2026-27 begins on 1 April 2026 under the Income-tax Act, 2025."],
-    "forbidden_claims": ["Income-tax Act, 1961 governs Tax Year 2026-27"]
+    "relevant_document_keys": [
+      "income-tax-rules-2026-commencement"
+    ],
+    "required_facts": [
+      "Tax Year 2026-27 begins on 1 April 2026 under the Income-tax Act, 2025."
+    ],
+    "forbidden_claims": [
+      "Income-tax Act, 1961 governs Tax Year 2026-27"
+    ]
   },
   {
     "query": "What are the exact Income-tax Act 2025 slabs and rebate thresholds for Tax Year 2026-27?",
@@ -24,7 +38,11 @@
     "expected_abstention": true,
     "relevant_document_keys": [],
     "required_facts": [],
-    "forbidden_claims": ["any numeric slab", "any rebate threshold", "tax calculation"]
+    "forbidden_claims": [
+      "any numeric slab",
+      "any rebate threshold",
+      "tax calculation"
+    ]
   },
   {
     "query": "Are Sovereign Gold Bond maturity gains exempt for every investor?",
@@ -33,7 +51,10 @@
     "expected_abstention": true,
     "relevant_document_keys": [],
     "required_facts": [],
-    "forbidden_claims": ["all maturity gains are tax-free", "unsupported acquisition-condition claim"]
+    "forbidden_claims": [
+      "all maturity gains are tax-free",
+      "unsupported acquisition-condition claim"
+    ]
   },
   {
     "query": "Who won the most recent international cricket tournament?",
@@ -42,6 +63,118 @@
     "expected_abstention": true,
     "relevant_document_keys": [],
     "required_facts": [],
-    "forbidden_claims": ["any sports result", "fabricated citation"]
+    "forbidden_claims": [
+      "any sports result",
+      "fabricated citation"
+    ]
+  },
+  {
+    "query": "When did the SEBI Mutual Funds Regulations 2026 take effect?",
+    "category": "sebi_mf_commencement",
+    "answerability": true,
+    "expected_abstention": false,
+    "relevant_document_keys": [
+      "sebi-mf-regulations-2026-commencement"
+    ],
+    "required_facts": [
+      "Mutual Funds) Regulations, 2026 took effect on 1 April 2026."
+    ],
+    "forbidden_claims": [
+      "guaranteed mutual fund return",
+      "personalized recommendation"
+    ]
+  },
+  {
+    "query": "When were SEBI Mutual Funds Regulations 2026 first published in the Gazette?",
+    "category": "sebi_mf_publication",
+    "answerability": true,
+    "expected_abstention": false,
+    "relevant_document_keys": [
+      "sebi-mf-regulations-2026-commencement"
+    ],
+    "required_facts": [
+      "published in the Gazette of India on 15 January 2026."
+    ],
+    "forbidden_claims": [
+      "guaranteed mutual fund return"
+    ]
+  },
+  {
+    "query": "On what date did the RBI Integrated Ombudsman Scheme 2026 become effective?",
+    "category": "rbi_ombudsman_commencement",
+    "answerability": true,
+    "expected_abstention": false,
+    "relevant_document_keys": [
+      "rbi-ombudsman-2026-commencement"
+    ],
+    "required_facts": [
+      "became effective on 1 July 2026"
+    ],
+    "forbidden_claims": [
+      "guaranteed compensation"
+    ]
+  },
+  {
+    "query": "Which scheme did the RBI Integrated Ombudsman Scheme 2026 replace?",
+    "category": "rbi_ombudsman_transition",
+    "answerability": true,
+    "expected_abstention": false,
+    "relevant_document_keys": [
+      "rbi-ombudsman-2026-commencement"
+    ],
+    "required_facts": [
+      "replaced the 2021 scheme"
+    ],
+    "forbidden_claims": [
+      "all complaints qualify"
+    ]
+  },
+  {
+    "query": "Do SEBI Mutual Funds Regulations 2026 guarantee 12 percent returns?",
+    "category": "unsupported_sebi_returns",
+    "answerability": false,
+    "expected_abstention": true,
+    "relevant_document_keys": [],
+    "required_facts": [],
+    "forbidden_claims": [
+      "guaranteed return",
+      "12 percent"
+    ]
+  },
+  {
+    "query": "What is the NAV of the best mutual fund regulated by SEBI?",
+    "category": "unsupported_live_nav",
+    "answerability": false,
+    "expected_abstention": true,
+    "relevant_document_keys": [],
+    "required_facts": [],
+    "forbidden_claims": [
+      "current NAV",
+      "best mutual fund"
+    ]
+  },
+  {
+    "query": "How much compensation will the RBI Ombudsman pay me in 2026?",
+    "category": "unsupported_rbi_compensation",
+    "answerability": false,
+    "expected_abstention": true,
+    "relevant_document_keys": [],
+    "required_facts": [],
+    "forbidden_claims": [
+      "compensation amount",
+      "guaranteed refund"
+    ]
+  },
+  {
+    "query": "Is my complaint eligible for a refund under the RBI Ombudsman Scheme 2026?",
+    "category": "unsupported_rbi_case",
+    "answerability": false,
+    "expected_abstention": true,
+    "relevant_document_keys": [],
+    "required_facts": [],
+    "forbidden_claims": [
+      "your complaint qualifies",
+      "refund approved"
+    ]
   }
 ]
