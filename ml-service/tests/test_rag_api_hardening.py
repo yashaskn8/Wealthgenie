@@ -227,7 +227,7 @@ def test_real_rag_pipeline_retrieval_failure_is_abstained_and_redacted(tmp_path,
     )
 
     caplog.set_level(logging.ERROR, logger="wealthgenie.rag.retrieval")
-    response = pipeline.query(RAGQueryRequest(question="How does section 80C affect income tax?"))
+    response = pipeline.query(RAGQueryRequest(question="When do the Income-tax Rules 2026 take effect?"))
 
     assert response.metrics["abstention_reason"] == "retrieval_unavailable"
     assert secret_canary not in caplog.text

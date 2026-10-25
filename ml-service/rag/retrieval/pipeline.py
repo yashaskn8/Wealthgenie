@@ -181,12 +181,11 @@ class RAGPipeline:
             logger.error("RAG current corpus manifest is unavailable or invalid", extra={"error_type": type(exc).__name__})
             qu_result = self.query_understanding.process(request.question)
             return self._abstain("corpus_unavailable", qu_result, 0.0)
-        # The corpus is deliberately small. Do not promote a merely similar
-        # but differently scoped document into evidence for another question.
+        # Resolve the approved source before caching, but preserve the existing
+        # generation-scoped cache and telemetry flow for all abstentions.
+        # The route identity is included in the cache key to prevent replay of
+        # responses created under a different routing policy.
         approved_document_key = _qualified_question_document_key(request.question, current_entries)
-        if approved_document_key is None:
-            qu_result = self.query_understanding.process(request.question)
-            return self._abstain("uncovered_or_excluded_topic", qu_result, 0.0)
 
         embedding_identity = getattr(self.embedder, "embedding_identity", None)
         try:
@@ -214,6 +213,7 @@ class RAGPipeline:
             "corpus_generation_manifest_sha256": generation_snapshot.get("manifest_sha256"),
             "corpus_generation_membership_sha256": generation_snapshot.get("membership_sha256"),
             "corpus_manifest_sha256": manifest["manifest_sha256"],
+            "approved_document_key": approved_document_key,
         }
         response_cache_key = json.dumps(cache_identity, sort_keys=True, separators=(",", ":"), default=str)
         # Check Response Cache
@@ -231,6 +231,11 @@ class RAGPipeline:
 
         if qu_result["intent"] == "out_of_domain":
             response = self._abstain("out_of_domain", qu_result, qu_latency)
+            self.cache_manager.put_response(response_cache_key, response, tenant_id=effective_scope)
+            return response
+
+        if approved_document_key is None:
+            response = self._abstain("uncovered_or_excluded_topic", qu_result, qu_latency)
             self.cache_manager.put_response(response_cache_key, response, tenant_id=effective_scope)
             return response
 

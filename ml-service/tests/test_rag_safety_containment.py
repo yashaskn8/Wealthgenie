@@ -100,7 +100,7 @@ def test_empty_low_confidence_and_untrusted_evidence_abstain():
 
 def test_rag_unavailable_returns_explicit_abstention_without_fake_citations():
     response = _pipeline(UnavailableRetriever([])).query(
-        RAGQueryRequest(question="What deduction is available under Section 80C?")
+        RAGQueryRequest(question="When do the Income-tax Rules 2026 take effect?")
     )
     assert response.grounded is False
     assert response.citations == []

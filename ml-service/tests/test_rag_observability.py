@@ -71,7 +71,7 @@ def test_rag_pipeline_telemetry_integration(tmp_path, caplog):
     collector = RAGObservabilityCollector(telemetry_dir=tmp_path)
 
     pipeline = RAGPipeline(embedder=embedder, vector_store=vector_store, telemetry=collector, config=config)
-    request = RAGQueryRequest(question="PRIVATE_QUERY_SENTINEL How much can I deduct under Section 80C?")
+    request = RAGQueryRequest(question="PRIVATE_QUERY_SENTINEL When do the Income-tax Rules 2026 take effect?")
     res = pipeline.query(request)
     pipeline.query(request)
 
