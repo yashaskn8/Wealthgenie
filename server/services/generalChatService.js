@@ -9,6 +9,7 @@ import { sanitizeExternalQuestion } from './groundedExplanationService.js';
 
 export const GENERAL_CHAT_PROMPT_VERSION = 'general-chat-v1';
 export const GENERAL_CHAT_TIMEOUT_MS = 60_000;
+const FINANCIAL_GOAL_QUERY = /\b(?:retirement|college|education|housing|home)\s+(?:(?:savings|investment|funding)\s+)?goals?\b|\b(?:fund|finance|afford|save\s+for)\s+(?:(?:my|our|a|the)\s+)?(?:retirement|college|education|house|home)\b/i;
 const INDIC_FINANCIAL_QUERY = /(?:निवेश|म्यूचुअल|वित्त|बचत|ब्याज|महंगाई|महँगाई|मुद्रास्फीति|शेयर|बाजार|पोर्टफोलियो|रिटर्न|सिप|एसआईपी|टैक्स|ಲಾಭ|ಬಂಡವಾಳ|ಹಣದುಬ್ಬರ|ಉಳಿತಾಯ|ಹೂಡಿಕೆ|ಮ್ಯೂಚುವಲ್|ಮಾರುಕಟ್ಟೆ|ತೆರಿಗೆ|ಷೇರು|ಬಡ್ಡಿ|ಪೋರ್ಟ್‌ಫೋಲಿಯೋ|ಸಿಪ್|ಎಸ್.?ಐ.?ಪಿ)/iu;
 const FINANCIAL_QUERY = /\b(?:diversif(?:y|ying|ied|ication)|rebalanc(?:e|ing)|invest(?:ing|ment|or)?s?|mutual\s*funds?|stocks?|shares?|equity|etfs?|securities|bonds?|deposits?|fixed[ -]?deposits?|fds?|pensions?|ppf|nps|elss|sip|nav|portfolio|asset\s*allocation|rebalanc(?:e|ing)|market|nifty|sensex|rbi|sebi|income[ -]?tax|tax(?:es|ation|able)?|deductions?|ltcg|stcg|capital\s*gains?|interest\s*rates?|inflation|returns?|profit|wealth|savings?|interest|compound(?:ing)?|yield|liquidity|suitability|risk|retirement|budget(?:ing)?|salary|emi|loans?|debt|credit|insurance|financial|recommend(?:ation|ations|ed|ing)|bank(?:s|ing)?|trading|commodities|crypto|bitcoin|crores?|crors?|lakhs?|lacs?|rupees?|paise|my\s*(?:plan|profile|goal|risk|allocation|recommendation)|where\s+to\s+invest|what\s+should\s+i\s+buy)\b/i;
 // Currency and savings requests must not bypass evidence validation merely
@@ -62,7 +63,7 @@ function violatesGeneralFinancialBoundary(reply) {
 
 export function isGeneralChatQuestion(question) {
   const text = String(question || '').slice(0, 1000).trim();
-  return text.length > 0 && !FINANCIAL_QUERY.test(text) && !INDIC_FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
+  return text.length > 0 && !FINANCIAL_GOAL_QUERY.test(text) && !FINANCIAL_QUERY.test(text) && !INDIC_FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
     && !FINANCIAL_SAVING_INTENT.test(text) && !FINANCIAL_PRODUCTS.test(text)
     && !GROUNDED_FINANCIAL_CONTEXT.test(text)
     && !isFinancialGoalPlanningQuestion(text);
