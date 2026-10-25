@@ -1,3 +1,5 @@
+const normalizeIndicJoiners=text=>text.replace(/([\u0900-\u097F\u0C80-\u0CFF])[\u200C\u200D](?=[\u0900-\u097F\u0C80-\u0CFF])/gu,'$1');
+
 /**
  * Strict read-only SIP / inflation / one-off drawdown illustrations.
  * This is NOT a product return forecast or a personal investment decision.
@@ -60,9 +62,10 @@ function scan(text) {
  * record. No guessing a rate, year, amount or market move.
  */
 export function retrieveIndicSipScenarioEvidence(question) {
-  if(typeof question!=='string' || question.length>1000 ||
-      /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(question))return [];
-  const text=normalizeIndicNumerals(question);
+  if(typeof question!=='string' || question.length>1000)return [];
+  const normalized=normalizeIndicJoiners(question);
+  if(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(normalized))return [];
+  const text=normalizeIndicNumerals(normalized);
   if(!SIP.test(text) || !SCENARIO.test(text))return [];
   const d=scan(text);
   const missing=[];
