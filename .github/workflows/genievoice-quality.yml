@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - feature/genievoice-production-hardening-20261025
+      - feature/genievoice-contextual-feature-guidance-20261026
   pull_request:
     branches:
       - feature/genievoice-jarvis-conversation-20261025
+      - feature/genievoice-production-hardening-20261025
   workflow_dispatch:
 
 permissions:
@@ -37,7 +39,7 @@ jobs:
       - run: npm run typecheck
         working-directory: reactapp
       - name: Verify voice trust policy and conversation lifecycle
-        run: npm test -- src/utils/__tests__/voiceRuntimePolicy.test.js src/components/__tests__/SovereignVoiceControl.test.jsx src/components/__tests__/GenieChatState.test.jsx
+        run: npm test -- src/utils/__tests__/voiceRuntimePolicy.test.js src/components/__tests__/SovereignVoiceControl.test.jsx src/components/__tests__/GenieChatState.test.jsx src/components/__tests__/GenieFeatureSuggestion.test.jsx src/utils/__tests__/featureNavigationCard.test.js
         working-directory: reactapp
       - run: npm run build
         working-directory: reactapp
@@ -59,5 +61,5 @@ jobs:
         working-directory: server
       - run: npm run lint
         working-directory: server
-      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js
+      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js test/featureSuggestionPolicy.test.js
         working-directory: server
