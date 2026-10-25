@@ -13,13 +13,15 @@ import unicodedata
 from urllib.parse import unquote
 
 _ROLE_MARKER = re.compile(
-    r"(?im)^\s*(?:#{1,6}\s*)?(?:system|developer|assistant)\s*:"
-    r"|^\s*(?:\[(?:system|developer|assistant)(?:\s+instruction)?\]"
-    r"|<\s*(?:system|developer|assistant)\s*>"
+    r"(?im)(?:"
+    r"^\s*(?:#{1,6}\s*)?(?:system|developer|assistant)\s*:"
+    r"|^\s*\[(?:system|developer|assistant)(?:\s+instruction)?\]"
+    r"|<\s*/?\s*(?:system|developer|assistant)\s*>"
     r"|===\s*(?:system|developer|assistant)\b"
     r"|\[im_start\]\s*(?:system|developer|assistant)"
     r"|<\|im_start\|>\s*(?:system|developer|assistant)"
-    r"|<<\s*SYS\s*>>",
+    r"|<<\s*SYS\s*>>"
+    r")"
 )
 _INSTRUCTION_PATTERNS = (
     re.compile(
