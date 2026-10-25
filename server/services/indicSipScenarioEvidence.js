@@ -13,7 +13,7 @@ export function normalizeIndicNumerals(value) {
 }
 const SIP = /(?:\bsip\b|monthly (?:investment|contribution)|monthly sip|एसआईपी|सिप|मासिक निवेश|ಪ್ರತಿ ತಿಂಗಳ ಹೂಡಿಕೆ|ತಿಂಗಳ ಹೂಡಿಕೆ|ಎಸ್.?ಐ.?ಪಿ|ಸಿಪ್)/i;
 const SCENARIO = /(?:\b(?:if|scenario|simulate|hypothetical|what happens|what will|what is|compare)\b|अगर|यदि|क्या होगा|परिदृश्य|यदि|ಏನಾಗುತ್ತದೆ|ಒಂದು ವೇಳೆ|ಹಾಗಾದರೆ|ಉದಾಹರಣೆ)/i;
-const RATE = '(?<![\\d.])(?:\\d{1,2}(?:\\.\\d{1,4})?)(?![\\d.])';
+const RATE = '(?<![\\d.+-])(?:\\d{1,2}(?:\\.\\d{1,4})?)(?![\\d.])';
 const MAX_AMOUNT = 10_000_000;
 const formatter = value => 'INR ' + value.toLocaleString('en-IN', {maximumFractionDigits: 2});
 function numberMatches(text,pattern) {
