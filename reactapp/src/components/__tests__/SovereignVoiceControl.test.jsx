@@ -200,4 +200,87 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(screen.getByRole('spinbutton',{name:'Monthly SIP amount'})).toHaveValue(null);
   });
 
+  it('treats interim captions as text only and dispatches once after final speech', async () => {
+    const x=setup({version:'sovereign-voice-intent-v1',action:'CHAT'});
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    const recognition=x.getRecognition();
+    await act(async()=>{
+      recognition.onresult({results:[{0:{transcript:'explain my'},isFinal:false,length:1}]});
+    });
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Voice transcript')).toHaveTextContent('explain my');
+    await act(async()=>{
+      recognition.onresult({results:[{0:{transcript:'explain my SIP'},isFinal:true,length:1}]});
+    });
+    expect(api.interpretVoiceCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it('conversation mode sends informational questions only after opt-in and reads verified new replies', async () => {
+    let recognition;
+    class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    }
+    vi.stubGlobal('SpeechRecognition',Recognition);
+    const speak=vi.fn(),cancel=vi.fn(),ask=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak,cancel});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance{
+      constructor(content){this.text=content;}
+    });
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT',reason:'NO_APPROVED_COMMAND'
+    });
+    const oldAnswer={grounded:true,validation_status:'PASS',
+      evidence_ids_used:['E_PROFILE_RISK'],content:'Earlier answer.'};
+    const newAnswer={...oldAnswer,content:'Your verified SIP explanation. [E_PROFILE_RISK]'};
+    const base={onQuestion:ask,onTranscript:vi.fn(),onNavigate:vi.fn(),sessionKey:'account-1'};
+    const ui=render(<SovereignVoiceControl {...base} lastAnswer={oldAnswer}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>{recognition.onresult({results:[[{transcript:'Explain my SIP'}]]});});
+    expect(ask).toHaveBeenCalledExactlyOnceWith('Explain my SIP');
+    expect(speak).not.toHaveBeenCalled();
+    ui.rerender(<SovereignVoiceControl {...base} lastAnswer={oldAnswer} chatBusy/>);
+    expect(screen.getByText(/Genie is preparing a grounded answer/)).toBeInTheDocument();
+    await act(async()=>{
+      ui.rerender(<SovereignVoiceControl {...base} lastAnswer={newAnswer}/>);
+    });
+    expect(speak).toHaveBeenCalledTimes(1);
+    expect(speak.mock.calls[0][0].text).toBe('Your verified SIP explanation.');
+    expect(screen.getByRole('button',{name:'End GenieVoice conversation'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'End GenieVoice conversation'}));
+    expect(cancel).toHaveBeenCalled();
+  });
+
+  it('conversation mode never auto-sends rejected commands, even if they resemble questions',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',
+      action:'REJECTED',reason:'ACTION_NOT_ALLOWED'});
+    const ask=vi.fn();
+    x.ui.rerender(<SovereignVoiceControl sessionKey="a" onQuestion={ask}
+      onNavigate={x.nav} onTranscript={x.transcript}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>{x.getRecognition().onresult({results:[[{transcript:'transfer my money'}]]});});
+    expect(ask).not.toHaveBeenCalled();
+    expect(x.transcript).not.toHaveBeenCalled();
+    expect(x.nav).not.toHaveBeenCalled();
+  });
+
+  it('a local goodbye immediately turns off conversation mode and never sends a request',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',action:'CHAT'});
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>{x.getRecognition().onresult({results:[[{transcript:'goodbye genie'}]]});});
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
+    expect(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'})).toBeInTheDocument();
+  });
+
+  it('rejects trailing raw ASR controls before trimming them off',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',action:'CHAT'});
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    await act(async()=>{x.getRecognition().onresult({
+      results:[[{transcript:'open goals\n'}]]
+    });});
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
+    expect(x.nav).not.toHaveBeenCalled();
+  });
+
 });
