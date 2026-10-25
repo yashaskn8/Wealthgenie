@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Trash2, Sparkles, RefreshCw, Scale, Coins, Percent, Target, ArrowLeft, ExternalLink, Mic, MicOff, ChevronRight, TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
 import SovereignVoiceControl from './SovereignVoiceControl';
+import { normalizeFeatureCard } from '../utils/featureNavigationCard';
 import './GenieChat.css';
 import * as api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
@@ -163,6 +164,7 @@ function mapStoredChatMessages(messages) {
     fallback: message.metadata?.fallback_used === true,
     fallback_reason_codes: message.metadata?.fallback_used ? message.metadata?.validation_reason_codes || [] : [],
     citations: message.metadata?.citations || [],
+    action_cards: message.metadata?.action_cards || [],
     _clientTurnHash: message.metadata?.client_turn_hash || null,
     _streamed: true,
   }));
@@ -595,6 +597,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         timestamp: new Date().toISOString(),
         latency_ms: data.latency_ms,
         citations: data.citations || [],
+        action_cards: data.action_cards || [],
         grounded: data.grounded,
         validation_status: data.validation_status || null,
         provider: data.provider,
@@ -852,7 +855,16 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
               <ProactiveNudge profile={profile} onAsk={sendMessage} />
 
-              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg} isLatest={i === visibleMessages.length - 1} />)}
+              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg}
+                isLatest={i === visibleMessages.length - 1}
+                onFeatureOpen={card => {
+                  const approved = normalizeFeatureCard(card);
+                  if (!approved || !sessionMatchesProfile ||
+                      typeof onNavigate !== 'function') return;
+                  // This is an explicit, visible click. Never navigate based
+                  // only on ASR text, an LLM sentence, or untrusted HTML.
+                  onNavigate({ page: approved.page, tab: null });
+                }} />)}
 
               {sessionMatchesProfile && isLoading && (
                 <div className="chat-bubble chat-bubble--genie">
