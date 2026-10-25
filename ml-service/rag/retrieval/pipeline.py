@@ -23,6 +23,7 @@ from rag.corpus_manifest import (
 from rag.embeddings.base import BaseEmbeddingProvider
 from rag.embeddings.dense_embedding import get_embedding_provider
 from rag.prompts.builder import PromptBuilder
+from rag.security.retrieval_guard import contains_retrieval_instruction_attack
 from rag.observability.metrics_collector import RAGObservabilityCollector
 from rag.query_understanding.pipeline import QueryUnderstandingPipeline
 from rag.reranking.base import BaseReranker
@@ -237,10 +238,16 @@ class RAGPipeline:
             if self._is_trustworthy(chunk, current_entries)
             and self._has_sufficient_relevance(request.question, chunk)
         ]
-        final_chunks = self._sanitize_chunks(trustworthy_chunks[:top_k])
+        # Limit every response to a small, provenance-checked context. A high
+        # caller-supplied top_k must not bypass the prompt-injection or context budget.
+        final_chunks = self._sanitize_chunks(trustworthy_chunks)
 
         if not final_chunks:
-            reason = "empty_evidence" if not retrieved_chunks else "insufficient_trust_or_relevance"
+            reason = (
+                "unsafe_or_oversized_evidence" if trustworthy_chunks
+                else "empty_evidence" if not retrieved_chunks
+                else "insufficient_trust_or_relevance"
+            )
             response = self._abstain(
                 reason,
                 qu_result,
@@ -383,13 +390,40 @@ class RAGPipeline:
         return len(matches) >= required_matches
 
     def _sanitize_chunks(self, chunks: List[RetrievedChunk]) -> List[RetrievedChunk]:
+        """Bound and isolate evidence before returning it to any downstream client.
+
+        Skip suspicious or oversized passages rather than truncating a legal
+        proposition into a potentially misleading partial statement. Always
+        preserve the original stored chunk; only sanitized copies are returned.
+        """
+        max_chunks = 5
+        max_total_chars = 12_000
+        max_chunk_chars = 4_096
         sanitized = []
+        total_chars = 0
+        seen_ids = set()
         for retrieved in chunks:
+            if len(sanitized) >= max_chunks:
+                break
+            chunk = retrieved.chunk
+            content = chunk.content
+            if chunk.chunk_id in seen_ids:
+                continue
+            seen_ids.add(chunk.chunk_id)
+            if not content or len(content) > max_chunk_chars or contains_retrieval_instruction_attack(content):
+                logger.warning("RAG excluded invalid or instruction-bearing retrieved evidence")
+                continue
             safe = retrieved.model_copy(deep=True)
-            safe.chunk.content = self.prompt_builder.sanitizer.sanitize_retrieved_context(
-                safe.chunk.content
-            )
+            safe.chunk.content = self.prompt_builder.sanitizer.sanitize_retrieved_context(content)
+            if (not safe.chunk.content.strip()
+                    or len(safe.chunk.content) > max_chunk_chars
+                    or contains_retrieval_instruction_attack(safe.chunk.content)):
+                logger.warning("RAG excluded unsafe sanitized evidence")
+                continue
+            if total_chars + len(safe.chunk.content) > max_total_chars:
+                continue
             sanitized.append(safe)
+            total_chars += len(safe.chunk.content)
         return sanitized
 
     def _abstain(
