@@ -89,6 +89,10 @@ describe('Sovereign X fail-closed voice policy',()=>{
     }
     assert.equal(classifyVoiceIntent('सिप तुलना खोलो').action,'OPEN_SIP_COMPARISON');
     assert.equal(classifyVoiceIntent('ಸಿಪ್ ಹೋಲಿಕೆ ತೆರೆ').action,'OPEN_SIP_COMPARISON');
+    assert.equal(classifyVoiceIntent('ಜಿನಿ, ಗುರಿಗಳನ್ನು ತೆರೆ').page,'goals');
+    assert.equal(classifyVoiceIntent('ಜಿನಿ, ಎಸ್‌ಐಪಿ ಪ್ಲಾನರ್ ತೆರೆ').page,'grow-my-sip');
+    assert.equal(classifyVoiceIntent('open\u200Cgoals').action,'REJECTED');
+    assert.equal(classifyVoiceIntent('ගುರಿಗಳನ್ನು ತೆರೆ').action,'CHAT');
   });
   it('never executes mixed-language commands or financial transfers',()=>{
     for(const value of [
