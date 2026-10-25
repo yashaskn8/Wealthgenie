@@ -451,7 +451,8 @@ export default function SovereignVoiceControl({
     spokenAnswer?.content === lastAnswer?.content;
 
   return (
-    <div className="sovereign-voice-control" aria-label="GenieVoice controls">
+    <div className="sovereign-voice-control" data-phase={phase} aria-label="GenieVoice controls">
+      <span className="genie-voice-status-light" aria-hidden="true" />
       <button type="button" disabled={disabled || chatBusy}
         aria-label={phase === 'listening' ? 'Stop GenieVoice listening' :
           phase === 'checking' ? 'Stop GenieVoice task' :
