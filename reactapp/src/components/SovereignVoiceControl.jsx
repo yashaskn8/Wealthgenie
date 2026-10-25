@@ -120,6 +120,8 @@ export default function SovereignVoiceControl({
     setCaption('');
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (typeof Recognition !== 'function') {
+      handsFreeRef.current = false;
+      setHandsFree(false);
       setState('idle');
       setStatus('Voice input is unavailable in this browser. Use text chat.');
       return;
@@ -247,6 +249,8 @@ export default function SovereignVoiceControl({
       setState('listening');
     } catch {
       listeningRef.current = null;
+      handsFreeRef.current = false;
+      setHandsFree(false);
       setState('idle');
       setStatus('Microphone could not start. Use text chat.');
     }
@@ -330,7 +334,7 @@ export default function SovereignVoiceControl({
       setState('idle');
       setStatus('The voice question did not produce a new answer. Check chat to retry.');
     }
-  }, [lastAnswer, chatBusy, disabled, canSpeak]);
+  }, [lastAnswer, chatBusy, disabled, canSpeak, speak]);
 
   const toggleConversation = () => {
     if (handsFreeRef.current) {
@@ -346,7 +350,7 @@ export default function SovereignVoiceControl({
   const activelySpeaking = state === 'speaking' && spokenAnswer === lastAnswer;
   return (
     <div className="sovereign-voice-control" aria-label="GenieVoice controls">
-      <button type="button" disabled={disabled}
+      <button type="button" disabled={disabled || chatBusy}
         aria-label={state === 'listening' ? 'Stop GenieVoice listening' :
           state === 'checking' ? 'Stop GenieVoice task' : 'Start GenieVoice navigation'}
         onClick={state === 'listening' || state === 'checking' ? stop : listen}>
@@ -360,7 +364,7 @@ export default function SovereignVoiceControl({
         {handsFree ? 'End conversation' : 'Conversation mode'}
       </button>
       {canSpeak && (
-        <button type="button" disabled={disabled}
+        <button type="button" disabled={disabled || chatBusy}
           aria-label={activelySpeaking ? 'Stop verified answer playback' : 'Speak verified answer'}
           onClick={activelySpeaking ? stop : () => speak(false)}>
           {activelySpeaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
