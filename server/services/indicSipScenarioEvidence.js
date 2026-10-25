@@ -43,9 +43,11 @@ function scan(text) {
   const shockPct=valueNear(text,SHOCK,SHOCK);
   const shockMentions=new RegExp(SHOCK,'i').test(text);
   const afterShock = new RegExp('(?:'+SHOCK+')[^.!?]{0,35}?(\\d{1,2})\\s*(?:years?|साल|वर्ष|ವರ್ಷ)', 'i').exec(text);
-  const atYear=numberMatches(text,/(?:in|at|after|during)\s+(?:year\s+)?(\d{1,2})(?:st|nd|rd|th)?(?:\s+years?)?\b/gi)
-    ?? (afterShock ? Number(afterShock[1]) : null)
-    ?? numberMatches(text,/(\d{1,2})(?:st|nd|rd|th)?\s+(?:year|साल|वर्ष|ವರ್ಷ)(?:\s+(?:में|की|ನಲ್ಲಿ|ನಂತರ))?/gi);
+  // Do not mistake the 10-year investment horizon for a drawdown in year
+  // 10. A shock is applied only when its timing is explicitly disambiguated.
+  const atYear=numberMatches(text,/(?:in|at|after|during)\s+year\s+(\d{1,2})\b/gi)
+    ?? numberMatches(text,/(?:in|at|after|during)\s+(\d{1,2})(?:st|nd|rd|th)?\s+years?\b/gi)
+    ?? (afterShock ? Number(afterShock[1]) : null);
   const candidates=shockMentions && atYear!==null && yearNumbers.length>1
     ? yearNumbers.filter(year=>year!==atYear) : yearNumbers;
   const distinct=[...new Set(candidates.length ? candidates : yearNumbers)];
