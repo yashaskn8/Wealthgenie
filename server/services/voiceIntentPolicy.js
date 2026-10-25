@@ -3,6 +3,9 @@
  * Read-only app navigation only. No autonomous financial or browser actions.
  */
 export const VOICE_INTENT_VERSION='sovereign-voice-intent-v1';
+// Preserve native orthography safety: remove only Indic joiners between two
+// Indic code points, then reject every other invisible/control character.
+const normalizeIndicJoiners=text=>text.replace(/([\u0900-\u097F\u0C80-\u0CFF])[\u200C\u200D](?=[\u0900-\u097F\u0C80-\u0CFF])/gu,'$1');
 const TARGETS=Object.freeze({
   home:['home','dashboard'],
   plan:['plan','investment plan'],
@@ -39,20 +42,22 @@ const INDIC_NAV = new Map([
   ['ತೆರಿಗೆ ವಿಶ್ಲೇಷಣೆ ತೆರೆ','taxes'], ['ಹೂಡಿಕೆ ಆಯ್ಕೆಗಳು ತೆರೆ','investments'],
   ['ಹೂಡಿಕೆ ಯೋಜನೆ ತೆರೆ','plan'], ['ಪೋರ್ಟ್‌ಫೋಲಿಯೋ ಪರಿಶೀಲನೆ ತೆರೆ','keep-on-track'],
   ['ಮುಖಪುಟ ತೆರೆ','home'],
-]);
+].map(([phrase,page])=>[normalizeIndicJoiners(phrase),page]));
 const INDIC_UNSAFE = /(?:पैसे\s*भेजो|पैसे\s*ट्रांसफर|पैसे\s*निकालो|शेयर\s*खरीदो|शेयर\s*बेचो|ट्रेड\s*करो|भुगतान\s*करो|ಖರೀದಿಸಿ|ಮಾರಾಟ\s*ಮಾಡಿ|ಹಣ\s*ವರ್ಗಾಯಿಸಿ|ಹಣ\s*ಕಳುಹಿಸಿ|ಹಣ\s*ಹಿಂಪಡೆಯಿರಿ|ವ್ಯಾಪಾರ\s*ಮಾಡಿ)/iu;
 const INDIC_COMMAND = /(?:खोलो|दिखाओ|नेविगेट\s*करो|तेರೆ|ತೆರೆ|ತೋರಿಸು|ತೋರಿಸಿ)/iu;
-const INDIC_COMPARE = new Set(['सिप तुलना खोलो','एसआईपी तुलना खोलो','ಸಿಪ್ ಹೋಲಿಕೆ ತೆರೆ']);
+const INDIC_COMPARE = new Set(['सिप तुलना खोलो','एसआईपी तुलना खोलो','ಸಿಪ್ ಹೋಲಿಕೆ ತೆರೆ'].map(normalizeIndicJoiners));
 const ROUTES=new Map(Object.entries(TARGETS).flatMap(([page,aliases])=>aliases.map(alias=>[alias,page])));
 export function classifyVoiceIntent(raw) {
   if(typeof raw!=='string'||raw.length===0||raw.length>1000)return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
   // Validate raw ASR bytes BEFORE whitespace normalization: otherwise LF,
   // CR and TAB can disappear and smuggle a multiline transcript into an
   // authorized single navigation instruction.
-  if(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(raw))return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
+  const normalizedRaw=normalizeIndicJoiners(raw);
+  if(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(normalizedRaw))return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
   // Conversational invocation is a speech convenience, never an authorization bypass.
-  const input=raw.trim().replace(/\s+/g,' ')
-    .replace(/^(?:(?:hey|okay|ok)\s+)?genie[,!:\s-]+/i,'');
+  const input=normalizedRaw.trim().replace(/\s+/g,' ')
+    .replace(/^(?:(?:hey|okay|ok)\s+)?genie[,!:\s-]+/i,'')
+    .replace(/^(?:जिनी|जीनि|ಜಿನಿ)[,:!?\s]+/u,'');
   if(!input)return {action:'REJECTED',reason:'INVALID_TRANSCRIPT'};
   const indicCommand=input.replace(/[.!?।]+$/u,'').trim();
   if(INDIC_UNSAFE.test(input))return {action:'REJECTED',reason:'ACTION_NOT_ALLOWED'};
