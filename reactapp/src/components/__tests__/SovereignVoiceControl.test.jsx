@@ -238,7 +238,8 @@ describe('GenieVoice opt-in navigation',()=>{
     const ui=render(<SovereignVoiceControl {...base} lastAnswer={oldAnswer}/>);
     fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
     await act(async()=>{recognition.onresult({results:[[{transcript:'Explain my SIP'}]]});});
-    expect(ask).toHaveBeenCalledExactlyOnceWith('Explain my SIP');
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(ask).toHaveBeenCalledWith('Explain my SIP');
     expect(speak).not.toHaveBeenCalled();
     ui.rerender(<SovereignVoiceControl {...base} lastAnswer={oldAnswer} chatBusy/>);
     expect(screen.getByText(/Genie is preparing a grounded answer/)).toBeInTheDocument();
