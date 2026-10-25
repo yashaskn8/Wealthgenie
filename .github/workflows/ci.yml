@@ -269,6 +269,10 @@ jobs:
           TRANSFORMERS_OFFLINE: '1'
         run: python -m rag.evaluation.paper_replay --output reports/paper_rag_current.json
 
+      - name: Enforce measured narrow-scope RAG quality gate
+        working-directory: ml-service
+        run: python -m rag.evaluation.release_gate --report reports/paper_rag_current.json
+
       - name: Validate reproducible RAG experiment lineage
         run: >-
           python scripts/research/validate_paper_evidence.py
