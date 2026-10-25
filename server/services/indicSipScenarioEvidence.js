@@ -13,7 +13,7 @@ export function normalizeIndicNumerals(value) {
 }
 const SIP = /(?:\bsip\b|monthly (?:investment|contribution)|monthly sip|एसआईपी|सिप|मासिक निवेश|ಪ್ರತಿ ತಿಂಗಳ ಹೂಡಿಕೆ|ತಿಂಗಳ ಹೂಡಿಕೆ|ಎಸ್.?ಐ.?ಪಿ|ಸಿಪ್)/i;
 const SCENARIO = /(?:\b(?:if|scenario|simulate|hypothetical|what happens|what will|what is|compare)\b|अगर|यदि|क्या होगा|परिदृश्य|यदि|ಏನಾಗುತ್ತದೆ|ಒಂದು ವೇಳೆ|ಹಾಗಾದರೆ|ಉದಾಹರಣೆ)/i;
-const RATE = '(?:\\d{1,2}(?:\\.\\d{1,4})?)';
+const RATE = '(?<![\\d.])(?:\\d{1,2}(?:\\.\\d{1,4})?)(?![\\d.])';
 const MAX_AMOUNT = 10_000_000;
 const formatter = value => 'INR ' + value.toLocaleString('en-IN', {maximumFractionDigits: 2});
 function numberMatches(text,pattern) {
@@ -41,7 +41,7 @@ const INFLATION = '(?:inflation|महंगाई|मुद्रास्फ�
 const SHOCK = '(?:market\\s+)?(?:crash|fall|drop|drawdown|decline)|गिरावट|बाजार\\s+गिरावट|ಕುಸಿತ|ಇಳಿಕೆ';
 function scan(text) {
   const amount=moneyAmount(text);
-  const yearNumbers=[...text.matchAll(/(\d{1,2})\s*(?:years?|yrs?|साल|वर्ष|ವರ್ಷ(?:ಗಳು|ಗಳ)?)/gi)]
+  const yearNumbers=[...text.matchAll(/(?<!\d)(\d{1,2})(?!\d)\s*(?:years?|yrs?|साल|वर्ष|ವರ್ಷ(?:ಗಳು|ಗಳ)?)/gi)]
     .map(match=>Number(match[1]));
   const returnPct=valueNear(text,GROWTH,GROWTH);
   const inflation=valueNear(text,INFLATION,INFLATION);
