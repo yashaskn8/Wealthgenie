@@ -52,6 +52,7 @@ export default function SovereignVoiceControl({
   const captureTimerRef = useRef(null);
   const intentTimerRef = useRef(null);
   const replyTimerRef = useRef(null);
+  const replyDisplayTimerRef = useRef(null);
   const speechTimerRef = useRef(null);
   const restartTimerRef = useRef(null);
 
@@ -88,7 +89,7 @@ export default function SovereignVoiceControl({
   }, []);
 
   const stopIO = useCallback(() => {
-    for (const ref of [intentTimerRef, replyTimerRef, restartTimerRef]) {
+    for (const ref of [intentTimerRef, replyTimerRef, replyDisplayTimerRef, restartTimerRef]) {
       if (ref.current !== null) clearTimeout(ref.current);
       ref.current = null;
     }
@@ -258,6 +259,7 @@ export default function SovereignVoiceControl({
       isVerifiedVoiceAnswer(lastAnswer);
     if (!displayed) return;
     replyReadyRef.current = null;
+    clearVoiceTimer(replyDisplayTimerRef);
     startSpeech(ready.answer, true, ready.token);
   }, [replyVersion, chatBusy, lastAnswer, startSpeech]);
 
@@ -352,7 +354,12 @@ export default function SovereignVoiceControl({
       return;
     }
     // Keep the exact response until the matching message is rendered.
-    replyReadyRef.current = { token, answer };
+    const ready = { token, answer };
+    replyReadyRef.current = ready;
+    replyDisplayTimerRef.current = setTimeout(() => {
+      if (replyReadyRef.current === ready && epochRef.current === token)
+        endConversation('The voice response no longer matches chat. It was not narrated.');
+    }, 2000);
     setReplyVersion(value => value + 1);
   }, [endConversation, scheduleResume]);
 
