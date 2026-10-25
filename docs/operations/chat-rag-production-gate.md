@@ -32,3 +32,16 @@ python -m rag.evaluation.release_gate --report reports/paper_rag_current.json
 4. Check GitHub security dependency audits separately. Vulnerable runtime dependencies are deployment blockers even if RAG correctness passes. Do not suppress findings or merge solely because this narrowly scoped RAG gate is green.
 
 This gate certifies only a **small allowlisted question surface**, not readiness as a general financial RAG advisor. The benchmark's sample size, source rights and production traffic SLOs must be expanded before a general release.
+
+## Bounded operational probe
+
+The read-only probe runs at most 32 authenticated queries and eight concurrent workers, half on the supported question and half on an unsupported tax detail. It verifies `/rag/readyz`, grounded/citation consistency, negative abstention and observed p95. The request identity is a designated test principal, never a real investor profile. It does not simulate a restart or assert real production SLOs without connecting to the deployed service.
+
+```bash
+cd ml-service
+ML_SERVICE_API_KEY=... RAG_SMOKE_USER_ID=designated-test-user \
+  python -m scripts.verify_rag_operational_slo \
+  --base-url http://127.0.0.1:8000 --samples 12 --concurrency 4
+```
+
+For remote staging, use explicit `--allow-remote` with HTTPS, allowlisted internal access and permitted credentials. A mocked unit test or a local run is not evidence of a successfully tested production deployment.
