@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import SovereignVoiceControl from '../SovereignVoiceControl';
 import * as api from '../../services/api';
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('GenieVoice opt-in navigation',()=>{
   function setup(response) {
@@ -187,6 +187,7 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(screen.queryByRole('spinbutton',{name:'Monthly SIP amount'})).not.toBeInTheDocument();
     x.ui.rerender(<SovereignVoiceControl disabled={false} sessionKey="b"
       onNavigate={x.nav} onTranscript={x.transcript}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Open SIP comparison'}));
     expect(screen.getByRole('spinbutton',{name:'Monthly SIP amount'})).toHaveValue(null);
   });
   it('resets SIP draft on account change even without a disabled intermediate render',()=>{
@@ -197,6 +198,8 @@ describe('GenieVoice opt-in navigation',()=>{
     });
     x.ui.rerender(<SovereignVoiceControl sessionKey="b"
       onNavigate={x.nav} onTranscript={x.transcript}/>);
+    expect(screen.queryByRole('spinbutton',{name:'Monthly SIP amount'})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Open SIP comparison'}));
     expect(screen.getByRole('spinbutton',{name:'Monthly SIP amount'})).toHaveValue(null);
   });
 
@@ -223,7 +226,9 @@ describe('GenieVoice opt-in navigation',()=>{
       abort(){}
     }
     vi.stubGlobal('SpeechRecognition',Recognition);
-    const speak=vi.fn(),cancel=vi.fn(),ask=vi.fn();
+    const speak=vi.fn(),cancel=vi.fn();
+    let resolveAsk;
+    const ask=vi.fn(() => new Promise(resolve => { resolveAsk=resolve; }));
     vi.stubGlobal('speechSynthesis',{speak,cancel});
     vi.stubGlobal('SpeechSynthesisUtterance',class Utterance{
       constructor(content){this.text=content;}
@@ -244,6 +249,8 @@ describe('GenieVoice opt-in navigation',()=>{
     ui.rerender(<SovereignVoiceControl {...base} lastAnswer={oldAnswer} chatBusy/>);
     expect(screen.getByText(/Genie is preparing a grounded answer/)).toBeInTheDocument();
     await act(async()=>{
+      resolveAsk({response:newAnswer.content,grounded:true,validation_status:'PASS',
+        evidence_ids_used:['E_PROFILE_RISK']});
       ui.rerender(<SovereignVoiceControl {...base} lastAnswer={newAnswer}/>);
     });
     expect(speak).toHaveBeenCalledTimes(1);
