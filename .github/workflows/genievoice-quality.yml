@@ -62,5 +62,5 @@ jobs:
         working-directory: server
       - run: npm run lint
         working-directory: server
-      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js test/featureSuggestionPolicy.test.js test/indicSipScenarioEvidence.test.js
+      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js test/featureSuggestionPolicy.test.js test/indicSipScenarioEvidence.test.js test/indicFinancialEducation.test.js test/chatEducationalRetrieval.test.js
         working-directory: server
