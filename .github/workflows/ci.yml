@@ -651,6 +651,15 @@ jobs:
             sleep 2
           done
 
+      - name: Probe authenticated RAG concurrency, citations, and negative abstention
+        working-directory: ml-service
+        env:
+          RAG_SMOKE_USER_ID: ci-rag-smoke-test-principal
+        run: |
+          python -m scripts.verify_rag_operational_slo \
+            --base-url http://127.0.0.1:8000 \
+            --samples 12 --concurrency 4 --timeout-seconds 8
+
       - name: Run profile completion integration
         env:
           RUN_PROFILE_COMPLETION_INTEGRATION: 'true'
