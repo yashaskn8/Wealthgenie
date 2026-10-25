@@ -488,3 +488,34 @@ describe('GenieVoice high-stakes speech review', () => {
     expect(t.ask).not.toHaveBeenCalled();
   });
 });
+
+
+describe('GenieVoice segmented ASR transcript integrity', () => {
+  it('waits for all chunks and retains the final financial amount and timing', async () => {
+    let recognition;
+    class Recognition {
+      constructor() { recognition=this; }
+      start() {}
+      abort() {}
+    }
+    vi.stubGlobal('SpeechRecognition', Recognition);
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    const ask=vi.fn();
+    render(<SovereignVoiceControl sessionKey="acct" onQuestion={ask}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    const first={0:{transcript:'What if my portfolio falls'},isFinal:true,length:1};
+    const second={0:{transcript:'20% after year 5'},isFinal:false,length:1};
+    await act(async()=>recognition.onresult({results:[first,second],resultIndex:1}));
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
+    expect(ask).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Voice transcript')).toHaveTextContent('20% after year 5');
+    second.isFinal=true;
+    await act(async()=>recognition.onresult({results:[first,second],resultIndex:1}));
+    expect(api.interpretVoiceCommand).toHaveBeenCalledWith(
+      'What if my portfolio falls 20% after year 5',expect.any(Object));
+    expect(ask).not.toHaveBeenCalled();
+    expect(screen.getByRole('button',{name:'Confirm and ask Genie'})).toBeInTheDocument();
+  });
+});
