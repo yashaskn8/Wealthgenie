@@ -87,11 +87,15 @@ export default function SovereignVoiceControl({
   const [boundContext, setBoundContext] = useState({ sessionKey, lastAnswer, disabled });
   if (boundContext.sessionKey !== sessionKey ||
       boundContext.lastAnswer !== lastAnswer || boundContext.disabled !== disabled) {
+    const identityChanged = boundContext.sessionKey !== sessionKey;
     setBoundContext({ sessionKey, lastAnswer, disabled });
     setState('idle');
     setSpokenAnswer(null);
     setStatus('');
     setCaption('');
+    // The UI must not continue to advertise active hands-free mode after an
+    // account/chat identity change even if React preserves this component.
+    if (identityChanged || disabled) setHandsFree(false);
   }
 
   const stop = () => {
