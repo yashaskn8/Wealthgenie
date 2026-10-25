@@ -56,7 +56,8 @@ const CORPORA = Object.freeze([
 
 function matchCoveredCorpus(question) {
   const q = String(question || '').slice(0, 1000);
-  if (!PERIOD.test(q) || GLOBAL_EXCLUSIONS.test(q)\n      || /\\b(?:published|gazette|amendments?|original\\s+issue|replaced\\s+(?:which|what))\\b/i.test(q)) return null;
+  if (!PERIOD.test(q) || GLOBAL_EXCLUSIONS.test(q)
+      || /\b(?:published|gazette|amendments?|original\s+issue)\b/i.test(q)) return null;
   return CORPORA.find(corpus => corpus.questionPattern.test(q)) || null;
 }
 
