@@ -114,10 +114,34 @@ export function normalizeRagResponse(value) {
   if (typeof value.grounded !== 'boolean') return null;
   if (!Array.isArray(value.citations) || !Array.isArray(value.retrieved_chunks)) return null;
   if (!value.metrics || typeof value.metrics !== 'object' || Array.isArray(value.metrics)) return null;
-  if (value.grounded && value.citations.length === 0) return null;
-  return {
-    ...value,
-    citations: value.grounded ? value.citations : [],
-    retrieved_chunks: value.grounded ? value.retrieved_chunks : [],
-  };
+  if (!value.grounded) {
+    // Never forward evidence that the upstream service explicitly disowned.
+    return { ...value, citations: [], retrieved_chunks: [] };
+  }
+  if (value.citations.length === 0 || value.retrieved_chunks.length === 0) return null;
+  const chunksById = new Map();
+  for (const retrieved of value.retrieved_chunks) {
+    const chunk = retrieved?.chunk;
+    if (typeof chunk?.chunk_id !== 'string' || !chunk.chunk_id
+        || typeof chunk.content !== 'string' || !chunk.content.trim()
+        || chunk.lifecycle_state !== 'ACTIVE'
+        || typeof chunk.metadata?.source !== 'string'
+        || typeof chunk.metadata?.title !== 'string'
+        || chunksById.has(chunk.chunk_id)) return null;
+    chunksById.set(chunk.chunk_id, chunk);
+  }
+  const citedIds = new Set();
+  for (const citation of value.citations) {
+    const chunk = chunksById.get(citation?.chunk_id);
+    if (!chunk || citedIds.has(citation.chunk_id)
+        || citation.document_title !== chunk.metadata.title
+        || citation.source !== chunk.metadata.source
+        || typeof citation.excerpt !== 'string'
+        || !citation.excerpt.trim()
+        || !chunk.content.startsWith(citation.excerpt.endsWith('...')
+          ? citation.excerpt.slice(0, -3) : citation.excerpt)) return null;
+    citedIds.add(citation.chunk_id);
+  }
+  if (citedIds.size !== chunksById.size) return null;
+  return { ...value, citations: value.citations, retrieved_chunks: value.retrieved_chunks };
 }

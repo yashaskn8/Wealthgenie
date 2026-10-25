@@ -652,7 +652,17 @@ test('ragClient and mlClient propagate verified X-Verified-User-Id header downst
       ragCapturedBody = payload;
       return { status: 200, data: {
         answer: 'Grounded tax advice', grounded: true,
-        citations: [{ chunk_id: 'tax#1' }], retrieved_chunks: [], metrics: {},
+        citations: [{
+          chunk_id: 'tax#1', document_title: 'Verified Document',
+          source: 'https://example.gov.in/document', excerpt: 'Verified passage.',
+        }],
+        retrieved_chunks: [{
+          chunk: { chunk_id: 'tax#1', lifecycle_state: 'ACTIVE',
+            content: 'Verified passage.', metadata: {
+              title: 'Verified Document', source: 'https://example.gov.in/document',
+            } },
+        }],
+        metrics: {},
       } };
     }
     if (url.includes('/predict')) {
