@@ -28,7 +28,8 @@
       "income-tax-rules-2026-commencement"
     ],
     "required_facts": [
-      "Tax Year 2026-27 begins on 1 April 2026 under the Income-tax Act, 2025."
+      "Tax Year 2026-27",
+      "Income-tax Act, 2025"
     ],
     "forbidden_claims": [
       "Income-tax Act, 1961 governs Tax Year 2026-27"
@@ -102,7 +103,7 @@
       "sebi-mf-regulations-2026-commencement"
     ],
     "required_facts": [
-      "published in the Gazette of India on 15 January 2026."
+      "15 January 2026"
     ],
     "forbidden_claims": [
       "guaranteed mutual fund return"

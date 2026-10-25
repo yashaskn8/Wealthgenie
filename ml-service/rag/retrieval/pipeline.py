@@ -64,6 +64,32 @@ def _same_generation(before: Dict[str, Any], after: Dict[str, Any]) -> bool:
 def _generation_metrics(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     return {"corpus_generation_id": snapshot.get("generation_id"), "corpus_revision": snapshot.get("revision"), "corpus_generation_manifest_sha256": snapshot.get("manifest_sha256"), "corpus_generation_membership_sha256": snapshot.get("membership_sha256")}
 
+def _qualified_question_document_key(question: str, current_entries: Dict[str, Dict[str, Any]]) -> Optional[str]:
+    """Allow only independently reviewed question classes and reject excluded asks.
+
+    A semantically similar chunk from another official document is NOT
+    authorization to answer a question outside that document's narrow scope.
+    """
+    q = str(question or "").lower()
+    if re.search(r"\b(?:income[ -]?tax rules?[, ]*2026|tax year 2026[- ]27)\b", q):
+        key = "income-tax-rules-2026-commencement"
+    elif re.search(r"\b(?:sebi\s+)?mutual\s+funds?\s+regulations?[, ]*2026\b", q):
+        key = "sebi-mf-regulations-2026-commencement"
+    elif re.search(r"\b(?:rbi\s+|reserve bank(?: of india)?\s+)?(?:integrated\s+)?ombudsman\s+scheme[,]?\s*2026\b", q):
+        key = "rbi-ombudsman-2026-commencement"
+    else:
+        return None
+    entry = current_entries.get(key)
+    if not entry:
+        return None
+    query_terms = _topic_terms(q)
+    for topic in entry.get("excluded_topics", []):
+        blocked = _topic_terms(topic)
+        if blocked and blocked.issubset(query_terms):
+            return None
+    return key
+
+
 # Registry of built-in reranker strategies
 _RERANKER_REGISTRY: Dict[str, type] = {
     "no_op": NoOpReranker,
@@ -155,6 +181,13 @@ class RAGPipeline:
             logger.error("RAG current corpus manifest is unavailable or invalid", extra={"error_type": type(exc).__name__})
             qu_result = self.query_understanding.process(request.question)
             return self._abstain("corpus_unavailable", qu_result, 0.0)
+        # The corpus is deliberately small. Do not promote a merely similar
+        # but differently scoped document into evidence for another question.
+        approved_document_key = _qualified_question_document_key(request.question, current_entries)
+        if approved_document_key is None:
+            qu_result = self.query_understanding.process(request.question)
+            return self._abstain("uncovered_or_excluded_topic", qu_result, 0.0)
+
         embedding_identity = getattr(self.embedder, "embedding_identity", None)
         try:
             generation_snapshot = _generation_snapshot(self.vector_store)
@@ -235,7 +268,8 @@ class RAGPipeline:
         # influence the extractive response.
         trustworthy_chunks = [
             chunk for chunk in reranked_chunks
-            if self._is_trustworthy(chunk, current_entries)
+            if chunk.chunk.metadata.custom_metadata.get("document_key") == approved_document_key
+            and self._is_trustworthy(chunk, current_entries)
             and self._has_sufficient_relevance(request.question, chunk)
         ]
         # Limit every response to a small, provenance-checked context. A high
