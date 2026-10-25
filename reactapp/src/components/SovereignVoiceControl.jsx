@@ -12,6 +12,11 @@ import {
 } from '../utils/voiceRuntimePolicy';
 import './SovereignVoiceControl.css';
 
+function clearVoiceTimer(ref) {
+  if (ref.current !== null) clearTimeout(ref.current);
+  ref.current = null;
+}
+
 /**
  * Opt-in, foreground-only voice controller.
  *
@@ -42,6 +47,7 @@ export default function SovereignVoiceControl({
   const utteranceRef = useRef(null);
   const spokenRef = useRef(null);
   const replyReadyRef = useRef(null);
+  const latestAnswerRef = useRef(lastAnswer);
   const listenActionRef = useRef(null);
   const captureTimerRef = useRef(null);
   const intentTimerRef = useRef(null);
@@ -55,12 +61,7 @@ export default function SovereignVoiceControl({
     callbacksRef.current = { onNavigate, onTranscript, onQuestion };
   }, [disabled, chatBusy, onNavigate, onTranscript, onQuestion]);
 
-  const clearTimer = ref => {
-    if (ref.current !== null) clearTimeout(ref.current);
-    ref.current = null;
-  };
-
-  const stopRecognition = useCallback(() => {
+    const stopRecognition = useCallback(() => {
     if (captureTimerRef.current !== null) clearTimeout(captureTimerRef.current);
     captureTimerRef.current = null;
     const recognition = listeningRef.current;
@@ -123,6 +124,16 @@ export default function SovereignVoiceControl({
     if (disabled) endConversation('Voice is unavailable for this session.');
   }, [disabled, endConversation]);
 
+  useLayoutEffect(() => {
+    // A component may survive a financial account change without remounting.
+    // Reset all UI state, in addition to the separate epoch cleanup above.
+    setHandsFree(false);
+    setPhase('idle');
+    setSpokenAnswer(null);
+    setCaption('');
+    setShowComparison(false);
+  }, [sessionKey]);
+
   // Browser visibility is part of the microphone's permission boundary.
   useEffect(() => {
     const hide = () => {
@@ -146,18 +157,23 @@ export default function SovereignVoiceControl({
     }
   }, [chatBusy, endConversation]);
 
-  // If the visible verified answer changes, never keep narrating an old one.
+  // A new unrelated chat answer invalidates in-flight intent classification
+  // and any stale narration. A voice-originated reply is matched separately
+  // against the exact authenticated response after its request finishes.
   useLayoutEffect(() => {
-    if (utteranceRef.current &&
-        spokenRef.current?.content !== lastAnswer?.content) {
-      endConversation('The displayed answer changed; old speech was stopped.');
+    if (latestAnswerRef.current !== lastAnswer) {
+      latestAnswerRef.current = lastAnswer;
+      if (intentRef.current ||
+          (utteranceRef.current && spokenRef.current?.content !== lastAnswer?.content)) {
+        endConversation('The displayed answer changed; the old voice turn was stopped.');
+      }
     }
   }, [lastAnswer, endConversation]);
 
   const scheduleResume = useCallback(token => {
     if (!handsFreeRef.current || !enabledRef.current || busyRef.current ||
         document.visibilityState === 'hidden') return;
-    clearTimer(restartTimerRef);
+    clearVoiceTimer(restartTimerRef);
     restartTimerRef.current = setTimeout(() => {
       restartTimerRef.current = null;
       if (epochRef.current === token && handsFreeRef.current &&
@@ -203,7 +219,7 @@ export default function SovereignVoiceControl({
       if (epochRef.current !== token || utteranceRef.current !== speech) return;
       utteranceRef.current = null;
       spokenRef.current = null;
-      clearTimer(speechTimerRef);
+      clearVoiceTimer(speechTimerRef);
       setSpokenAnswer(null);
       setPhase('idle');
       setStatus(resume ? 'Listening will resume after speech ends.' : 'Finished reading the answer.');
@@ -249,7 +265,7 @@ export default function SovereignVoiceControl({
     const transcript = validateVoiceTranscript(raw);
     if (epochRef.current !== token) return;
     if (!transcript) {
-      endConversation('Voice input was invalid or too long. Try a shorter question.');
+      endConversation('Voice transcript exceeded safety limits or was empty. Try a shorter question.');
       return;
     }
     setCaption(transcript);
@@ -271,7 +287,7 @@ export default function SovereignVoiceControl({
       endConversation('Voice interpretation failed. No action was executed.');
       return;
     } finally {
-      clearTimer(intentTimerRef);
+      clearVoiceTimer(intentTimerRef);
       if (intentRef.current === abort) intentRef.current = null;
     }
     if (epochRef.current !== token || !enabledRef.current || abort.signal.aborted) return;
@@ -284,7 +300,7 @@ export default function SovereignVoiceControl({
         await callbacksRef.current.onNavigate({ page: intent.page, tab: null });
         if (epochRef.current !== token) return;
         setPhase('idle');
-        setStatus('Opened ' + intent.page.replace(/-/g, ' ') + '.');
+        setStatus('Navigation requested: ' + intent.page.replace(/-/g, ' ') + '.');
         scheduleResume(token);
       } catch {
         endConversation('Navigation could not be confirmed. No more actions will run.');
@@ -328,7 +344,7 @@ export default function SovereignVoiceControl({
         endConversation('Could not send the voice question. Review the chat to retry.');
       return;
     } finally {
-      clearTimer(replyTimerRef);
+      clearVoiceTimer(replyTimerRef);
     }
     if (epochRef.current !== token || !handsFreeRef.current) return;
     if (!isVerifiedVoiceAnswer(answer) || !voiceAnswerText(answer)) {
