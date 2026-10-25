@@ -35,6 +35,7 @@ import {
 } from './chatGoalPlanning.js';
 import { buildGroundedEvidencePacket } from './groundedEvidence.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveInvestmentUniverseEducation, retrieveGoalHorizonEducation } from './chatInvestmentUniverseEducation.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -311,7 +312,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const sanitizedQuestion = sanitizeExternalQuestion(message);
     const unboundGoal = isFinancialGoalPlanningQuestion(sanitizedQuestion);
     const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
-      ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
+      ? [...retrieveChatEducationalEvidence(sanitizedQuestion), ...retrieveInvestmentUniverseEducation(sanitizedQuestion)] : [];
     const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(sanitizedQuestion);
     if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
         && (unboundGoal || reviewedPublicEducation.length > 0 || taxAssumptionEvidence.length > 0)) {
@@ -320,7 +321,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         question: sanitizedQuestion,
         profile: null,
         additionalEntries: unboundGoal
-          ? retrieveChatGoalPlanningEvidence(sanitizedQuestion)
+          ? (() => {
+            const goalEvidence = retrieveChatGoalPlanningEvidence(sanitizedQuestion);
+            return [...goalEvidence, ...retrieveGoalHorizonEducation(sanitizedQuestion, goalEvidence)];
+          })()
           : taxAssumptionEvidence.length ? taxAssumptionEvidence : reviewedPublicEducation,
       });
       const answer = await generateGroundedExplanation({

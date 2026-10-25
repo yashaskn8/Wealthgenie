@@ -5,6 +5,7 @@
  */
 import { ProviderManager } from './providerAbstraction.js';
 import { isFinancialGoalPlanningQuestion } from './chatGoalPlanning.js';
+import { isInvestmentUniverseEducationQuestion } from './chatInvestmentUniverseEducation.js';
 import { sanitizeExternalQuestion } from './groundedExplanationService.js';
 
 export const GENERAL_CHAT_PROMPT_VERSION = 'general-chat-v1';
@@ -64,7 +65,7 @@ export function isGeneralChatQuestion(question) {
   return text.length > 0 && !FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
     && !FINANCIAL_SAVING_INTENT.test(text) && !FINANCIAL_PRODUCTS.test(text)
     && !GROUNDED_FINANCIAL_CONTEXT.test(text)
-    && !isFinancialGoalPlanningQuestion(text);
+    && !isFinancialGoalPlanningQuestion(text) && !isInvestmentUniverseEducationQuestion(text);
 }
 
 export function generalChatTokenUpperBound(question, priorTurns = []) {

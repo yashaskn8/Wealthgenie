@@ -397,6 +397,11 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   } else {
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
+  if (/\b(?:has|have|having|available|lump[ -]?sum|to\s+invest)\b/i.test(text)
+      && /\b(?:invest|investment|put\s+aside|has|have)\b/i.test(text)
+      && target !== null) {
+    guidance += ' Please clarify whether the stated money is already available to invest or is the amount the goal must reach. They lead to different calculations; I will not treat one as the other.';
+  }
   if (unsupportedNetModel) guidance += ' A net-of-tax or fee-adjusted SIP cannot be calculated from gross annual-return inputs alone. Confirm the exact net-return convention and applicable tax/fee facts; no net scenario is presented.';
   if (conflictingRates) guidance += ' Conflicting annual-rate assumptions were supplied; give one investment return rate and one inflation rate before using a growth scenario.';
   if (declaredAnnualInflation !== null && !targetIsPresentCost) guidance += ' You supplied an inflation rate, but the goal target is not clearly stated in today’s rupees. Confirm whether the target is a present-day cost or already the amount needed at the deadline; I will not inflate it twice.';
@@ -412,7 +417,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   }
   const entries = [{
     id: 'E_GOAL_PLANNING_GUIDANCE', kind: 'ANSWER_BOUNDARY',
-    value: { goalContext: context, forecastAuthorized: false, sourceScope: scope },
+    value: { goalContext: context, forecastAuthorized: false, sourceScope: scope,
+      horizonMonths: horizon, targetAmount: target },
     displayValue: guidance, dataClass: 'DETERMINISTIC_GOAL_PLANNING_BOUNDARY',
     source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
   }];

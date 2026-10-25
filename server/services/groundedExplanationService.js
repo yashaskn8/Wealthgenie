@@ -23,6 +23,7 @@ import {
 } from './marketDataService.js';
 import { compareVerifiedFixedIncomeProducts } from './fixedIncomeProductRanking.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveInvestmentUniverseEducation, retrieveGoalHorizonEducation } from './chatInvestmentUniverseEducation.js';
 import { retrieveChatGoalPlanningEvidence } from './chatGoalPlanning.js';
 import { retrieveQualifiedRegulatoryChatEvidence } from './chatRegulatoryRetrieval.js';
 import { queryRAG } from './ragClient.js';
@@ -324,6 +325,12 @@ function deterministicCandidate(packet, question = '') {
     }
     if (capacity) claims.push({ text: capacity.displayValue + ' [' + capacity.id + '].',
       evidenceIds: [capacity.id] });
+    const horizonEducation = packet.entries.find(item => item.id === 'E_EDU_GOAL_HORIZON'
+      && item.kind === 'EDUCATION');
+    if (horizonEducation) claims.push({
+      text: horizonEducation.displayValue + ' [' + horizonEducation.id + ']',
+      evidenceIds: [horizonEducation.id],
+    });
     claims.push({ text: guidance.displayValue + ' [' + guidance.id + '].',
       evidenceIds: [guidance.id] });
     return {
@@ -1070,7 +1077,13 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
       .map(turn => turn.content),
   });
   const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(question);
-  const entries = [...goalEvidence, ...taxAssumptionEvidence, ...retrieveChatEducationalEvidence(question)];
+  const entries = [
+    ...goalEvidence,
+    ...retrieveGoalHorizonEducation(question, goalEvidence),
+    ...taxAssumptionEvidence,
+    ...retrieveChatEducationalEvidence(question),
+    ...retrieveInvestmentUniverseEducation(question),
+  ];
   if (isPortfolioReviewQuestion(question)) {
     entries.push(makeEvidenceEntry('E_PORTFOLIO_REVIEW_SCOPE', 'ANSWER_BOUNDARY',
       { sourceType: 'SAVED_MODEL_RECOMMENDATION', verifiedBrokerageHoldings: false }, {
