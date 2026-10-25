@@ -5,6 +5,7 @@ on:
     branches:
       - feature/genievoice-production-hardening-20261025
       - feature/genievoice-contextual-feature-guidance-20261026
+      - feature/genievoice-v5-multilingual-scenarios-20261026
   pull_request:
     branches:
       - feature/genievoice-jarvis-conversation-20261025
@@ -39,7 +40,7 @@ jobs:
       - run: npm run typecheck
         working-directory: reactapp
       - name: Verify voice trust policy and conversation lifecycle
-        run: npm test -- src/utils/__tests__/voiceRuntimePolicy.test.js src/components/__tests__/SovereignVoiceControl.test.jsx src/components/__tests__/GenieChatState.test.jsx src/components/__tests__/GenieFeatureSuggestion.test.jsx src/utils/__tests__/featureNavigationCard.test.js
+        run: npm test -- src/utils/__tests__/voiceRuntimePolicy.test.js src/components/__tests__/SovereignVoiceControl.test.jsx src/components/__tests__/GenieChatState.test.jsx src/components/__tests__/GenieFeatureSuggestion.test.jsx src/utils/__tests__/featureNavigationCard.test.js src/utils/__tests__/voiceLanguagePolicy.test.js
         working-directory: reactapp
       - run: npm run build
         working-directory: reactapp
@@ -61,5 +62,5 @@ jobs:
         working-directory: server
       - run: npm run lint
         working-directory: server
-      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js test/featureSuggestionPolicy.test.js
+      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js test/featureSuggestionPolicy.test.js test/indicSipScenarioEvidence.test.js
         working-directory: server
