@@ -429,19 +429,25 @@ export default function SovereignVoiceControl({
       recognition.onresult = event => {
         if (epochRef.current !== token || listeningRef.current !== recognition) return;
         const results = event.results || [];
-        let finalText = null;
-        for (let i = Math.max(0, event.resultIndex || 0); i < results.length; i += 1) {
+        const finalParts = [];
+        let interimText = '';
+        // Browser ASR may split one utterance across several result entries.
+        // Sending the first final chunk can silently drop a subsequent amount,
+        // inflation rate or negation. Await *all* chunks becoming final.
+        for (let i = 0; i < results.length; i += 1) {
           const text = results[i]?.[0]?.transcript;
           if (typeof text !== 'string') continue;
-          if (results[i].isFinal === false) {
-            setCaption(text.slice(0, 1000));
-          } else if (finalText === null) {
-            finalText = text;
-          }
+          if (results[i].isFinal === false) interimText += ' ' + text;
+          else finalParts.push(text.trim());
         }
-        if (finalText === null) return;
+        const assembled = finalParts.join(' ').trim();
+        if (interimText.trim()) {
+          setCaption((assembled + ' ' + interimText.trim()).trim().slice(0, 1000));
+          return;
+        }
+        if (!assembled) return;
         stopRecognition();
-        void interpret(finalText, token);
+        void interpret(assembled, token);
       };
       recognition.onerror = event => {
         if (epochRef.current !== token) return;
