@@ -62,7 +62,7 @@ function violatesGeneralFinancialBoundary(reply) {
 
 export function isGeneralChatQuestion(question) {
   const text = String(question || '').slice(0, 1000).trim();
-  return text.length > 0 && !FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
+  return text.length > 0 && !FINANCIAL_QUERY.test(text) && !INDIC_FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
     && !FINANCIAL_SAVING_INTENT.test(text) && !FINANCIAL_PRODUCTS.test(text)
     && !GROUNDED_FINANCIAL_CONTEXT.test(text)
     && !isFinancialGoalPlanningQuestion(text);
