@@ -279,7 +279,12 @@ export default function SovereignVoiceControl({
     intentRef.current = abort;
     setPhase('checking');
     setStatus('Checking the requested action...');
-    intentTimerRef.current = setTimeout(() => abort.abort(), VOICE_INTENT_TIMEOUT_MS);
+    intentTimerRef.current = setTimeout(() => {
+      if (epochRef.current === token && intentRef.current === abort) {
+        abort.abort();
+        endConversation('Voice interpretation timed out. No action was executed.');
+      }
+    }, VOICE_INTENT_TIMEOUT_MS);
     let intent;
     try {
       intent = await api.interpretVoiceCommand(transcript, { signal: abort.signal });
