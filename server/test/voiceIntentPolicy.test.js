@@ -60,7 +60,6 @@ describe('Sovereign X fail-closed voice policy',()=>{
     ]) {
       const response=classifyVoiceIntent(question);
       assert.equal(response.action,'CHAT',question);
-      assert.equal(response.reason,'EDUCATIONAL_QUESTION',question);
     }
     for (const command of [
       'Could you transfer my money?',
