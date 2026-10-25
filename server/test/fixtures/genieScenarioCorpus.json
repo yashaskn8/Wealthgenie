@@ -192,7 +192,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-02",
       "question": "show tax analysis",
       "expected": {
         "kind": "navigate",
@@ -200,7 +200,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-03",
       "question": "open sip planner",
       "expected": {
         "kind": "navigate",
@@ -208,7 +208,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-04",
       "question": "open investment plan",
       "expected": {
         "kind": "navigate",
@@ -216,7 +216,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-05",
       "question": "go to progress",
       "expected": {
         "kind": "navigate",
@@ -224,7 +224,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-06",
       "question": "open profile",
       "expected": {
         "kind": "navigate",
@@ -232,7 +232,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-07",
       "question": "लक्ष्य खोलो",
       "expected": {
         "kind": "navigate",
@@ -240,7 +240,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-08",
       "question": "सिप प्लानर खोलो",
       "expected": {
         "kind": "navigate",
@@ -248,7 +248,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-09",
       "question": "टैक्स खोलो",
       "expected": {
         "kind": "navigate",
@@ -256,7 +256,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-10",
       "question": "ಗುರಿಗಳನ್ನು ತೆರೆ",
       "expected": {
         "kind": "navigate",
@@ -264,7 +264,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-11",
       "question": "ಎಸ್‌ಐಪಿ ಪ್ಲಾನರ್ ತೆರೆ",
       "expected": {
         "kind": "navigate",
@@ -272,7 +272,7 @@
       }
     },
     {
-      "id": "navigate-01",
+      "id": "navigate-12",
       "question": "ತೆರಿಗೆ ವಿಶ್ಲೇಷಣೆ ತೆರೆ",
       "expected": {
         "kind": "navigate",
@@ -491,7 +491,7 @@
       }
     },
     {
-      "id": "feature-01",
+      "id": "feature-02",
       "question": "How can I fund college?",
       "expected": {
         "kind": "feature",
@@ -499,7 +499,7 @@
       }
     },
     {
-      "id": "feature-01",
+      "id": "feature-03",
       "question": "What if my income tax changes?",
       "expected": {
         "kind": "feature",
@@ -507,7 +507,7 @@
       }
     },
     {
-      "id": "feature-01",
+      "id": "feature-04",
       "question": "What happens if my portfolio crashes?",
       "expected": {
         "kind": "feature",
@@ -515,7 +515,7 @@
       }
     },
     {
-      "id": "feature-01",
+      "id": "feature-05",
       "question": "Explain my investment plan",
       "expected": {
         "kind": "feature",
@@ -523,7 +523,7 @@
       }
     },
     {
-      "id": "feature-01",
+      "id": "feature-06",
       "question": "मासिक निवेश सिप कैसे करें?",
       "expected": {
         "kind": "feature",
@@ -531,7 +531,7 @@
       }
     },
     {
-      "id": "feature-01",
+      "id": "feature-07",
       "question": "ಎಸ್‌ಐಪಿ ಬಗ್ಗೆ ವಿವರಿಸಿ",
       "expected": {
         "kind": "feature",
@@ -561,7 +561,7 @@
       }
     },
     {
-      "id": "education-01",
+      "id": "education-02",
       "question": "ಸಿಪ್ ಎಂದರೇನು?",
       "expected": {
         "kind": "education",
@@ -569,7 +569,7 @@
       }
     },
     {
-      "id": "education-01",
+      "id": "education-03",
       "question": "महंगाई क्या है",
       "expected": {
         "kind": "education",
@@ -577,7 +577,7 @@
       }
     },
     {
-      "id": "education-01",
+      "id": "education-04",
       "question": "ಚಕ್ರಬಡ್ಡಿ ಏನು?",
       "expected": {
         "kind": "education",
@@ -585,7 +585,7 @@
       }
     },
     {
-      "id": "education-01",
+      "id": "education-05",
       "question": "विविधीकरण समझाओ",
       "expected": {
         "kind": "education",
