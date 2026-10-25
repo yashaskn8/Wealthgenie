@@ -133,13 +133,18 @@ export function normalizeRagResponse(value) {
   const citedIds = new Set();
   for (const citation of value.citations) {
     const chunk = chunksById.get(citation?.chunk_id);
+    // A citation such as "..." used to validate because an empty string is
+    // a prefix of every document. Require substantive literal source text.
+    const excerpt = typeof citation?.excerpt === 'string' ? citation.excerpt.trim() : '';
+    const quoted = excerpt.endsWith('...') ? excerpt.slice(0, -3) : excerpt;
     if (!chunk || citedIds.has(citation.chunk_id)
         || citation.document_title !== chunk.metadata.title
         || citation.source !== chunk.metadata.source
-        || typeof citation.excerpt !== 'string'
-        || !citation.excerpt.trim()
-        || !chunk.content.startsWith(citation.excerpt.endsWith('...')
-          ? citation.excerpt.slice(0, -3) : citation.excerpt)) return null;
+        || quoted.length < 12 || excerpt.length > 4096
+        || !chunk.content.startsWith(quoted)
+        || (chunk.document_id !== undefined && chunk.metadata.document_id !== undefined
+          && chunk.document_id !== chunk.metadata.document_id)
+        || (chunk.metadata.chunk_id !== undefined && chunk.metadata.chunk_id !== chunk.chunk_id)) return null;
     citedIds.add(citation.chunk_id);
   }
   if (citedIds.size !== chunksById.size) return null;

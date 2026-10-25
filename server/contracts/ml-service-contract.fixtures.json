@@ -72,9 +72,15 @@
           "lifecycle_state": "ACTIVE",
           "metadata": {
             "title": "Income Tax guidance",
-            "source": "official-guidance"
-          }
-        }
+            "source": "official-guidance",
+            "chunk_id": "tax-80c#1",
+            "document_id": "tax-80c",
+            "chunk_index": 1
+          },
+          "document_id": "tax-80c"
+        },
+        "score": 0.94,
+        "rank": 1
       }
     ],
     "metrics": {
