@@ -133,7 +133,7 @@ test('authenticated evidence packet includes 250-entry educational scope, never 
   const scope = packet.entries.find(x => x.id === 'E_EDU_UNIVERSE_SCOPE');
   assert.ok(scope);
   assert.equal(scope.value.productRecommendation, false);
-  assert.equal(scope.dataClass, 'CURATED_PUBLIC_EDUCATION');
+  assert.equal(scope.dataClass, 'INTERNAL_CATALOG_DISCOVERY');
   assert.equal(packet.entries.some(x => x.value?.verifiedPurchasableProduct === true), false);
 });
 
@@ -209,4 +209,23 @@ test('third-person real-life goal statements are recognized without a first-pers
     assert.equal(isFinancialGoalPlanningQuestion(query), true, query);
     assert.ok(retrieveChatGoalPlanningEvidence(query).some(x => x.id === 'E_GOAL_PLANNING_GUIDANCE'));
   }
+});
+
+test('catalog provenance cannot masquerade as a public regulatory source', () => {
+  const sample = CATALOG[0];
+  const [internal] = retrieveInvestmentUniverseEducation(
+    'Explain ' + sample.name + ' as an investment option',
+  );
+  assert.equal(internal.source.provider, 'WEALTHGENIE_CATALOG');
+  assert.equal(internal.source.url, null);
+  assert.equal(internal.authority, 'WEALTHGENIE_BACKEND');
+  assert.equal(internal.dataClass, 'INTERNAL_CATALOG_DISCOVERY');
+  const goal = retrieveChatGoalPlanningEvidence(
+    "I need ₹2 crore for my daughter's wedding in 12 years."
+  );
+  const horizon = retrieveGoalHorizonEducation(
+    "I need ₹2 crore for my daughter's wedding in 12 years.", goal
+  )[0];
+  assert.equal(horizon.dataClass, 'CURATED_PUBLIC_EDUCATION');
+  assert.equal(horizon.source.provider, 'NISM');
 });

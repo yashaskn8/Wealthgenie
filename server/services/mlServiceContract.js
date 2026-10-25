@@ -110,9 +110,10 @@ export function buildRagQueryRequest({ query, top_k = 4, jurisdiction = "IN" }) 
 }
 
 export function normalizeRagResponse(value) {
-  if (!value || typeof value !== 'object' || !nonEmptyString(value.answer)) return null;
+  if (!value || typeof value !== 'object' || !nonEmptyString(value.answer) || value.answer.length > 10000) return null;
   if (typeof value.grounded !== 'boolean') return null;
-  if (!Array.isArray(value.citations) || !Array.isArray(value.retrieved_chunks)) return null;
+  if (!Array.isArray(value.citations) || !Array.isArray(value.retrieved_chunks)
+      || value.citations.length > 20 || value.retrieved_chunks.length > 20) return null;
   if (!value.metrics || typeof value.metrics !== 'object' || Array.isArray(value.metrics)) return null;
   if (!value.grounded) {
     // Never forward evidence that the upstream service explicitly disowned.
@@ -123,7 +124,7 @@ export function normalizeRagResponse(value) {
   for (const retrieved of value.retrieved_chunks) {
     const chunk = retrieved?.chunk;
     if (typeof chunk?.chunk_id !== 'string' || !chunk.chunk_id
-        || typeof chunk.content !== 'string' || !chunk.content.trim()
+        || typeof chunk.content !== 'string' || !chunk.content.trim() || chunk.content.length > 16000
         || chunk.lifecycle_state !== 'ACTIVE'
         || typeof chunk.metadata?.source !== 'string'
         || typeof chunk.metadata?.title !== 'string'

@@ -64,3 +64,23 @@ test('literal citation ellipsis must retain substantive text', () => {
   valid.citations[0].excerpt = 'Verified legal passage...';
   assert.ok(normalizeRagResponse(valid));
 });
+
+test('RAG transport enforces resource budgets against oversized upstream evidence', () => {
+  const hugeAnswer = response();
+  hugeAnswer.answer = 'x'.repeat(10001);
+  assert.equal(normalizeRagResponse(hugeAnswer), null);
+  const hugeChunk = response();
+  hugeChunk.retrieved_chunks[0].chunk.content = 'x'.repeat(16001);
+  assert.equal(normalizeRagResponse(hugeChunk), null);
+  const hugeExcerpt = response();
+  hugeExcerpt.citations[0].excerpt = 'a'.repeat(4097);
+  assert.equal(normalizeRagResponse(hugeExcerpt), null);
+  const manyChunks = response();
+  manyChunks.retrieved_chunks = Array.from({ length: 21 }, (_, index) => ({
+    chunk: {
+      ...manyChunks.retrieved_chunks[0].chunk,
+      chunk_id: 'doc#' + index,
+    },
+  }));
+  assert.equal(normalizeRagResponse(manyChunks), null);
+});

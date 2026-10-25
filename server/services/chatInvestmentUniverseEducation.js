@@ -62,7 +62,7 @@ function evidence(id, explanation, title = 'WealthGenie discovery catalog', url 
     value: { educationalOnly: true, productRecommendation: false,
       currentProductFactsVerified: false, datasetVersion: INVESTMENT_UNIVERSE_EDUCATION_VERSION },
     displayValue: explanation,
-    dataClass: 'CURATED_PUBLIC_EDUCATION',
+    dataClass: url ? 'CURATED_PUBLIC_EDUCATION' : 'INTERNAL_CATALOG_DISCOVERY',
     source: { provider: url === RISK_URL ? 'NISM' : url === ADVICE_URL ? 'SEBI_INVESTOR' : 'WEALTHGENIE_CATALOG', title, url,
       publicationDate: null, instrumentId: null },
     observedAt: null, freshness: null,
