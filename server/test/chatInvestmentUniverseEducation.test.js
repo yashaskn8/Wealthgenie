@@ -166,3 +166,23 @@ test('wedding investment question does not turn a named existing principal into 
   assert.equal(goal.some(entry => entry.id === 'E_GOAL_RETURN_SCENARIO'), false);
   assert.match(guidance.displayValue, /already available to invest or is the amount the goal must reach/);
 });
+
+test('capital available for investment must not be misrepresented as an already-known wedding target', () => {
+  const question = 'Suppose a man has to invest 2 crores for his daughters marriage; what should he do?';
+  const entries = retrieveChatGoalPlanningEvidence(question);
+  assert.equal(entries.some(x => x.id === 'E_GOAL_STATED_TARGET'), false);
+  assert.equal(entries.some(x => x.id === 'E_GOAL_MONTHLY_BASELINE'), false);
+  assert.equal(entries.some(x => x.id === 'E_GOAL_RETURN_SCENARIO'), false);
+  const guidance = entries.find(x => x.id === 'E_GOAL_PLANNING_GUIDANCE');
+  assert.ok(guidance);
+  assert.match(guidance.displayValue, /already available to invest or is the amount the goal must reach/);
+});
+
+test('explicit wedding target remains calculable from an exact date and zero earmarked savings', () => {
+  const entries = retrieveChatGoalPlanningEvidence(
+    "I need ₹2 crore for my daughter's marriage in 10 years, starting with zero savings."
+  );
+  assert.equal(entries.find(x => x.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
+  assert.equal(entries.find(x => x.id === 'E_GOAL_MONTHLY_BASELINE')?.value.horizonMonths, 120);
+  assert.equal(entries.find(x => x.id === 'E_GOAL_RETURN_SCENARIO'), undefined);
+});

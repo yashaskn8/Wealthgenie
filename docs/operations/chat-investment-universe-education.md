@@ -31,3 +31,11 @@ Do not assert that investing ₹2 crore in a specific named fund, FD or equity m
 ### Future work
 
 A full 250-**actual-product** assistant requires permissioned live product identity/evidence, issuer-specific risks, market freshness, tax/legal review, traceable comparisons and realistic anonymized gold evaluation scenarios. A curated discovery catalogue is not a substitute. Maintain explicit "unknown" for unverifiable facts.
+
+
+## Additional release invariants
+- A deployable corpus (e.g. "has ₹2 crore to invest") is **not** the target wedding expense; preserve ambiguity rather than printing it as a goal target.
+- Exact catalogue-name lookup must not be displaced by a "250 investment options" overview when the 250 is part of an index name.
+- Synthetic RAG contract fixtures must include matching active retrieved chunks and citation excerpts, even in tests.
+- The short deterministic Node regression gate runs **before** the full backend database suite and blocks a PR on catalogue coverage or wedding-intent regressions.
+- Reconcile dependency advisories via audited, updated lockfiles and reproducible Python hashes; never silence vulnerability audits or claim overall production approval from RAG-only success.

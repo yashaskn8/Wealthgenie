@@ -378,6 +378,19 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
     else if (months !== null) { horizon = months; ambiguousHorizon = false; }
   }
 
+  // "I have ₹2 crore to invest" names deployable principal, whereas
+  // "I need ₹2 crore for the wedding" names a target. Treat an amount next to
+  // "invest/allocate/deploy" as ambiguous unless an explicit target cue was
+  // separately supplied. Otherwise the backend fabricates a goal target and
+  // may calculate a meaningless monthly funding obligation.
+  const capitalVsTargetAmbiguous = used.some(turn =>
+    (/\b(?:invest|investing|allocate|deploy|put\s+aside)\s*(?:₹|(?:rs\.?|inr)\s*)?\d/i.test(turn)
+      || /\b(?:have|has|having|available)\s*(?:₹|(?:rs\.?|inr)\s*)?\d[^.!?]{0,60}\b(?:to\s+)?(?:invest|allocate|deploy)\b/i.test(turn))
+    && !/\b(?:need|require|target|goal|cost|budget|pay)\s*(?:is|of|:|to|for)?\s*(?:₹|(?:rs\.?|inr)\s*)?\d/i.test(turn));
+  if (capitalVsTargetAmbiguous) {
+    target = null;
+    ambiguousTarget = true;
+  }
   // Fail closed on ambiguous savings or amounts with fractional paise.
   if (invalidAmount || contradictorySavings) { target = null; saved = null; monthlyCapacity = null; invalidAmount = true; }
   const context = goalName(source);
@@ -399,7 +412,7 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   }
   if (/\b(?:has|have|having|available|lump[ -]?sum|to\s+invest)\b/i.test(text)
       && /\b(?:invest|investment|put\s+aside|has|have)\b/i.test(text)
-      && target !== null) {
+      && (target !== null || capitalVsTargetAmbiguous)) {
     guidance += ' Please clarify whether the stated money is already available to invest or is the amount the goal must reach. They lead to different calculations; I will not treat one as the other.';
   }
   if (unsupportedNetModel) guidance += ' A net-of-tax or fee-adjusted SIP cannot be calculated from gross annual-return inputs alone. Confirm the exact net-return convention and applicable tax/fee facts; no net scenario is presented.';

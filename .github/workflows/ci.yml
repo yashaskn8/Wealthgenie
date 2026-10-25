@@ -66,6 +66,13 @@ jobs:
           cd server
           npm run typecheck
 
+      - name: Fast chatbot goal and 250-catalog regression gate
+        run: >-
+          node --test
+          server/test/chatInvestmentUniverseEducation.test.js
+          server/test/chatGoalPlanning.test.js
+          server/test/mlServiceContract.test.js
+          server/test/ragResponseBoundary.test.js
       - name: Run Backend Tests & Coverage
         env:
           MONGODB_URI: 'mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0'
