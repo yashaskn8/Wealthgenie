@@ -80,6 +80,22 @@ def is_scope_accessible(
     return scope_allowed and tenant_allowed
 
 
+def has_consistent_chunk_ownership(chunk: "TextChunk") -> bool:
+    """Reject chunks whose searchable scope disagrees with source metadata.
+
+    A top-level default 'global' can never override a private metadata owner.
+    Both scope and tenant must match before accepting a retrieved chunk.
+    """
+    try:
+        scope = str(chunk.scope).strip().lower()
+        tenant = str(chunk.tenant_id).strip().lower()
+        meta_scope = str(chunk.metadata.scope).strip().lower()
+        meta_tenant = str(chunk.metadata.tenant_id).strip().lower()
+        return bool(scope and tenant) and scope == meta_scope and tenant == meta_tenant
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
 class DocumentMetadata(BaseModel):
     """Metadata retained for every ingested document."""
     title: str = Field(..., description="Document title")
