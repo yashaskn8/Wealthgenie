@@ -77,6 +77,7 @@ describe('Strict multilingual SIP scenario calculator',()=>{
       'What if ₹5000 SIP for 10 years with 8% annual return, 12% annual return and 6% inflation?',
       'What if ₹5000 SIP for 10 years with 8% annual return, 6% inflation and 8% inflation?',
       'What if ₹5000 SIP for 10 years with 100% annual return and 6% inflation?',
+      'What if ₹5000 SIP for 10 years with -8% annual return and 6% inflation?',
       'What if ₹5000 SIP for 200 years with 8% annual return and 6% inflation?',
       'What if ₹5000 SIP for 10 years with 8.12345% annual return and 6% inflation?',
     ]) {
