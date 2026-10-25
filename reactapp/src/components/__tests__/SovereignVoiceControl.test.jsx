@@ -291,4 +291,112 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(x.nav).not.toHaveBeenCalled();
   });
 
+  it('stops a stuck voice interpreter even if it ignores AbortSignal',async()=>{
+    vi.useFakeTimers();
+    const x=setup({action:'CHAT'});
+    vi.mocked(api.interpretVoiceCommand).mockImplementation(()=>new Promise(()=>{}));
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    act(()=>x.getRecognition().onresult({results:[[{transcript:'open goals'}]]}));
+    expect(screen.getByRole('button',{name:'Stop GenieVoice task'})).toBeInTheDocument();
+    await act(async()=>{vi.advanceTimersByTime(10_100);});
+    expect(screen.queryByRole('button',{name:'Stop GenieVoice task'})).not.toBeInTheDocument();
+    expect(screen.getByText(/interpretation timed out/i)).toBeInTheDocument();
+    expect(x.nav).not.toHaveBeenCalled();
+  });
+
+  it('ends an active conversation when the page is hidden',async()=>{
+    const x=setup({action:'CHAT'});
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    expect(screen.getByRole('button',{name:'End GenieVoice conversation'})).toBeInTheDocument();
+    vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');
+    await act(async()=>{document.dispatchEvent(new Event('visibilitychange'));});
+    expect(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'})).toBeInTheDocument();
+    expect(screen.getByText(/page is no longer active/i)).toBeInTheDocument();
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
+    // Once the page has been backgrounded, voice may resume only with an explicit gesture.
+    expect(x.nav).not.toHaveBeenCalled();
+  });
+
+  it('lets the user stop a pending chat reply and fences its late voice answer',async()=>{
+    const response={version:'sovereign-voice-intent-v1',action:'CHAT'};
+    let resolveAsk;
+    const ask=vi.fn(()=>new Promise(resolve=>{resolveAsk=resolve;}));
+    const x=setup(response);
+    const base={sessionKey:'a',onNavigate:x.nav,onTranscript:x.transcript,onQuestion:ask};
+    const voice=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak:voice,cancel:vi.fn()});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance {
+      constructor(value){this.text=value;}
+    });
+    x.ui.rerender(<SovereignVoiceControl {...base}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>{x.getRecognition().onresult({results:[[{transcript:'Explain my SIP'}]]});});
+    expect(ask).toHaveBeenCalledTimes(1);
+    x.ui.rerender(<SovereignVoiceControl {...base} chatBusy/>);
+    expect(screen.getByRole('button',{name:'End GenieVoice conversation'})).toBeEnabled();
+    fireEvent.click(screen.getByRole('button',{name:'End GenieVoice conversation'}));
+    const answer={content:'Only a specific verified reply.',grounded:true,validation_status:'PASS',
+      evidence_ids_used:['E_PROFILE_RISK']};
+    await act(async()=>{
+      resolveAsk({...answer,response:answer.content});
+      x.ui.rerender(<SovereignVoiceControl {...base} lastAnswer={answer}/>);
+    });
+    expect(voice).not.toHaveBeenCalled();
+    expect(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'})).toBeInTheDocument();
+  });
+
+  it('does not narrate a reply that fails to match the visible chat answer',async()=>{
+    vi.useFakeTimers();
+    let recognition;
+    class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    }
+    vi.stubGlobal('SpeechRecognition',Recognition);
+    const speak=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak,cancel:vi.fn()});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance{
+      constructor(text){this.text=text;}
+    });
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    const expected={response:'Expected reply',grounded:true,validation_status:'PASS',
+      evidence_ids_used:['E_PROFILE_RISK']};
+    const unrelated={content:'Some other conversation',grounded:true,validation_status:'PASS',
+      evidence_ids_used:['E_PROFILE_RISK']};
+    const ui=render(<SovereignVoiceControl sessionKey="a" onQuestion={()=>Promise.resolve(expected)}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>{recognition.onresult({results:[[{transcript:'Explain my goals'}]]});});
+    await act(async()=>{ui.rerender(<SovereignVoiceControl sessionKey="a"
+      onQuestion={()=>Promise.resolve(expected)} lastAnswer={unrelated}/>);});
+    expect(speak).not.toHaveBeenCalled();
+    await act(async()=>{vi.advanceTimersByTime(2_100);});
+    expect(screen.getByText(/no longer matches chat/i)).toBeInTheDocument();
+    expect(speak).not.toHaveBeenCalled();
+  });
+
+  it('interrupts current speech on a new explicit microphone gesture',()=>{
+    const speak=vi.fn(),cancel=vi.fn();
+    let micStarts=0;
+    vi.stubGlobal('SpeechRecognition',class Recognition{
+      start(){micStarts+=1;}
+      abort(){}
+    });
+    vi.stubGlobal('speechSynthesis',{speak,cancel});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance{
+      constructor(text){this.text=text;}
+    });
+    const lastAnswer={grounded:true,validation_status:'PASS',
+      evidence_ids_used:['E_PROFILE_RISK'],content:'A verified answer.'};
+    render(<SovereignVoiceControl sessionKey="a" lastAnswer={lastAnswer}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Speak verified answer'}));
+    expect(speak).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button',{name:'Interrupt Genie and speak'}));
+    expect(cancel).toHaveBeenCalled();
+    expect(micStarts).toBe(1);
+    expect(screen.getByRole('button',{name:'Stop GenieVoice listening'})).toBeInTheDocument();
+  });
+
 });
