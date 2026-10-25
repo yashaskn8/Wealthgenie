@@ -8,8 +8,10 @@ import {
   VOICE_INTENT_VERSION, VOICE_CAPTURE_TIMEOUT_MS, VOICE_INTENT_TIMEOUT_MS,
   VOICE_REPLY_TIMEOUT_MS, VOICE_SPEECH_TIMEOUT_MS, validateVoiceTranscript,
   isVoiceStopPhrase, isAuthorizedVoiceNavigation, isVerifiedVoiceAnswer,
-  voiceAnswerText, selectBrowserVoice,
+  voiceAnswerText,
 } from '../utils/voiceRuntimePolicy';
+import { VOICE_LANGUAGES, validVoiceLanguage, isLocalVoiceStop,
+  speechLocaleForText, voiceInLocale } from '../utils/voiceLanguagePolicy';
 import './SovereignVoiceControl.css';
 
 function clearVoiceTimer(ref) {
@@ -29,6 +31,7 @@ export default function SovereignVoiceControl({
   onNavigate, onTranscript, onQuestion, lastAnswer, sessionKey,
   chatBusy = false, disabled = false,
 }) {
+  const [language, setLanguage] = useState('en-IN');
   const [phase, setPhase] = useState('idle');
   const [status, setStatus] = useState('');
   const [caption, setCaption] = useState('');
@@ -202,12 +205,16 @@ export default function SovereignVoiceControl({
     stopRecognition();
     stopSpeech();
     const speech = new Utterance(words);
-    speech.lang = 'en-IN';
+    // Speak in the language of the *verified content*, not merely the mic
+    // locale. Never read English claims with a Hindi/Kannada voice as if
+    // they had been translated and source-checked.
+    const outputLocale = speechLocaleForText(words);
+    speech.lang = outputLocale;
     speech.rate = 1.04;
     speech.pitch = 1;
     try {
-      const preferred = selectBrowserVoice(
-        typeof synth.getVoices === 'function' ? synth.getVoices() : [],
+      const preferred = voiceInLocale(
+        typeof synth.getVoices === 'function' ? synth.getVoices() : [], outputLocale,
       );
       if (preferred) {
         speech.voice = preferred;
@@ -238,11 +245,13 @@ export default function SovereignVoiceControl({
     setPhase('speaking');
     try {
       synth.speak(speech);
-      setStatus('Reading the verified answer. Press Speak now to interrupt.');
+      setStatus(language !== outputLocale
+        ? 'The verified response is in English. Reading in English; no unverified translation was made.'
+        : 'Reading the verified answer. Press Speak now to interrupt.');
     } catch {
       endConversation('Browser speech could not start. Read the answer in chat.');
     }
-  }, [endConversation, scheduleResume, stopRecognition, stopSpeech]);
+  }, [endConversation, scheduleResume, stopRecognition, stopSpeech, language]);
 
   // The assistant response comes from the *same* authenticated chat request,
   // not merely the most recent message. Wait until it is visible and chat has
@@ -271,7 +280,7 @@ export default function SovereignVoiceControl({
       return;
     }
     setCaption(transcript);
-    if (isVoiceStopPhrase(transcript)) {
+    if (isVoiceStopPhrase(transcript) || isLocalVoiceStop(transcript)) {
       endConversation();
       return;
     }
@@ -385,7 +394,7 @@ export default function SovereignVoiceControl({
     let recognition;
     try {
       recognition = new Recognition();
-      recognition.lang = 'en-IN';
+      recognition.lang = language;
       recognition.continuous = false;
       recognition.interimResults = true;
       listeningRef.current = recognition;
@@ -428,7 +437,7 @@ export default function SovereignVoiceControl({
     } catch {
       endConversation('Microphone could not start. Check browser permissions.');
     }
-  }, [endConversation, interpret, stopIO, stopRecognition]);
+  }, [endConversation, interpret, stopIO, stopRecognition, language]);
 
   useLayoutEffect(() => {
     listenActionRef.current = startListening;
@@ -453,6 +462,18 @@ export default function SovereignVoiceControl({
   return (
     <div className="sovereign-voice-control" data-phase={phase} aria-label="GenieVoice controls">
       <span className="genie-voice-status-light" aria-hidden="true" />
+      <label className="genie-voice-locale-label" htmlFor="genievoice-language">Speech language</label>
+      <select id="genievoice-language" aria-label="GenieVoice speech language"
+        value={language} disabled={disabled || chatBusy}
+        onChange={event => {
+          const next=event.target.value;
+          if (!validVoiceLanguage(next) || next===language) return;
+          endConversation('Language changed. Start the microphone again for the new language.');
+          setLanguage(next);
+        }}>
+        {VOICE_LANGUAGES.map(item =>
+          <option key={item.code} value={item.code}>{item.label}</option>)}
+      </select>
       <button type="button" disabled={disabled || chatBusy}
         aria-label={phase === 'listening' ? 'Stop GenieVoice listening' :
           phase === 'checking' ? 'Stop GenieVoice task' :
@@ -497,7 +518,8 @@ export default function SovereignVoiceControl({
       {caption && <div className="genie-voice-caption" aria-label="Voice transcript">{caption}</div>}
       <small>Conversation mode sends spoken questions automatically. Only verified answers are
         narrated. The mic is off during responses and narration; you can interrupt or stop anytime.
-        Browser speech recognition may process audio through its provider.</small>
+        Browser speech recognition may process audio through its provider.
+        Hindi and Kannada recognition depend on device support; answers are spoken in their verified text language.</small>
       {status && <div role="status" aria-live="polite">{status}</div>}
     </div>
   );
