@@ -72,3 +72,12 @@ test('financial answer under uncertain return assumptions contains no invented y
   assert.equal(evidence[0].value.currentProductFactsVerified, false);
   assert.doesNotMatch(evidence[0].displayValue, /\b\d+(?:\.\d+)?%|\bNAV\s+(?:is|of)\s+\d/i);
 });
+
+test('dated goal prompts are supported without routing normal events as finance', () => {
+  assert.equal(isInvestmentScenarioQuestion(
+    'How should parents prepare a savings strategy for a wedding in 9 years?'
+  ), true);
+  assert.equal(isInvestmentScenarioQuestion(
+    'What flowers should I order for a wedding?'
+  ), false);
+});

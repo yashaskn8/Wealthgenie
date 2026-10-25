@@ -9,7 +9,6 @@ const SEBI_GOALS = 'https://investor.sebi.gov.in/moneymatters-budandfinangoal.ht
 const SEBI_INVESTING = 'https://investor.sebi.gov.in/investment-thingsbeforeinv.html';
 const SEBI_RISKS = 'https://investor.sebi.gov.in/securities-risks_trade_derivatives.html';
 const NISM_SELECTION = 'https://www.nism.ac.in/revamp-nism/things-to-consider-before-investing/';
-const AMFI_RISKS = 'https://www.amfiindia.com/investor/knowledge-center-info?zoneName=riskInMutualFunds';
 
 const FINANCE_SUBJECT = /\b(?:invest(?:ing|ment|ments|or|ors)?|money|wealth|funds?|mutual\s*funds?|equity|shares?|stocks?|etfs?|bonds?|deposit|fd|sip|portfolio|savings?|retire(?:ment)?|risk|returns?|market|asset(?:\s+allocation)?|capital|inflation|liquidity|corpus|crores?|crors?|lakhs?|lacs?|diversif\w*|emergency\s+fund|income\s+stream|windfall|inherit(?:ed|ance)?)\b|₹\s*\d/i;
 const QUESTION_STYLE = /\b(?:what|how|which|should|could|would|can|where|why|when|suppose|imagine|if|compare|versus|vs|plan|choose|protect|manage|invest|save|allocate|split|withdraw|start|build|explain|help)\b/i;
@@ -76,8 +75,11 @@ function evidence(scenario) {
 
 export function isInvestmentScenarioQuestion(question) {
   const text = String(question || '').slice(0, 1000);
-  if (!text.trim() || !FINANCE_SUBJECT.test(text) || ACCOUNT_SPECIFIC.test(text)
-      || TAX_SPECIFIC.test(text)) return false;
+  // A goal with a dated horizon may be financial even without the word
+  // "investment". Keep ordinary wedding/event chatter on the general route.
+  const datedGoal = /\b(?:wedding|marriage|education|college|retirement|home|house)\b.{0,75}\b(?:\d{1,3}\s+(?:years?|months?)|save|invest|fund|money|budget)\b/i.test(text);
+  if (!text.trim() || (!FINANCE_SUBJECT.test(text) && !datedGoal)
+      || ACCOUNT_SPECIFIC.test(text) || TAX_SPECIFIC.test(text)) return false;
   return QUESTION_STYLE.test(text) || SCENARIOS.some(x => x.match.test(text));
 }
 
