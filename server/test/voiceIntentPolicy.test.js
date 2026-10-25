@@ -71,4 +71,38 @@ describe('Sovereign X fail-closed voice policy',()=>{
     }
   });
 
+  it('recognizes only reviewed Hindi and Kannada commands',()=>{
+    const canonical=[
+      ['लक्ष्य खोलो','goals'],
+      ['सिप प्लानर खोलो','grow-my-sip'],
+      ['ಟೆರೆ',null],
+      ['ಗುರಿಗಳನ್ನು ತೆರೆ','goals'],
+      ['ಸಿಪ್ ಪ್ಲಾನರ್ ತೆರೆ','grow-my-sip'],
+      ['ತೆರಿಗೆ ವಿಶ್ಲೇಷಣೆ ತೆರೆ','taxes'],
+    ];
+    for(const [question,page] of canonical){
+      const result=classifyVoiceIntent(question);
+      if(page){
+        assert.equal(result.action,'APP_NAVIGATE',question);
+        assert.equal(result.page,page,question);
+      }else assert.notEqual(result.action,'APP_NAVIGATE',question);
+    }
+    assert.equal(classifyVoiceIntent('सिप तुलना खोलो').action,'OPEN_SIP_COMPARISON');
+    assert.equal(classifyVoiceIntent('ಸಿಪ್ ಹೋಲಿಕೆ ತೆರೆ').action,'OPEN_SIP_COMPARISON');
+  });
+  it('never executes mixed-language commands or financial transfers',()=>{
+    for(const value of [
+      'लक्ष्य खोलो और पैसे ट्रांसफर करो',
+      'शेयर खरीदो',
+      'गುರಿಗಳನ್ನು ತೆರೆ ಮತ್ತು ಹಣ ವರ್ಗಾಯಿಸಿ',
+      'ಹಣ ಕಳುಹಿಸಿ',
+      'बैंक वेबसाइट खोलो',
+      'ನಕಲಿ ಪುಟ ತೆರೆ'
+    ]){
+      assert.equal(classifyVoiceIntent(value).action,'REJECTED',value);
+    }
+    assert.equal(classifyVoiceIntent('एसआईपी के बारे में क्या है?').action,'CHAT');
+    assert.equal(classifyVoiceIntent('ಸಿಪ್ ಎಂದರೇನು?').action,'CHAT');
+  });
+
 });
