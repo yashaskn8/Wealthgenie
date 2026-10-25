@@ -152,7 +152,9 @@ test('deterministic grounded response to difficult wedding prompt explains the p
 });
 
 test('index product names containing 250 never collide with catalog-wide count requests', () => {
-  const query = 'Explain Nifty Smallcap 250 as an investment option';
+  const actualIndex = CATALOG.find(entry => entry.id === 'catalog_2026_index_smallcap250');
+  assert.ok(actualIndex, 'Catalog must contain the independently reviewed index archetype');
+  const query = 'Explain ' + actualIndex.name + ' as an investment option';
   const entries = retrieveInvestmentUniverseEducation(query);
   assert.ok(entries.every(entry => entry.id !== 'E_EDU_UNIVERSE_SCOPE'));
   assert.ok(entries.length > 0);
@@ -185,4 +187,14 @@ test('explicit wedding target remains calculable from an exact date and zero ear
   assert.equal(entries.find(x => x.id === 'E_GOAL_STATED_TARGET')?.value.targetAmount, 20000000);
   assert.equal(entries.find(x => x.id === 'E_GOAL_MONTHLY_BASELINE')?.value.horizonMonths, 120);
   assert.equal(entries.find(x => x.id === 'E_GOAL_RETURN_SCENARIO'), undefined);
+});
+
+test('emergency-expense goal classification works without investment advice', () => {
+  const question = 'I need ₹15 lakh for emergency expenses in a year';
+  assert.equal(isFinancialGoalPlanningQuestion(question), true);
+  const facts = retrieveChatGoalPlanningEvidence(question);
+  const explanation = facts.find(item => item.id === 'E_GOAL_PLANNING_GUIDANCE');
+  assert.ok(explanation);
+  assert.match(explanation.displayValue, /emergency reserve/);
+  assert.equal(facts.some(x => x.id === 'E_GOAL_RETURN_SCENARIO'), false);
 });

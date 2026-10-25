@@ -5,7 +5,7 @@ import { calculateGoalCompoundingScenario } from './chatGoalScenarioMath.js';
  * No model-return assumption, tax rate, product recommendation or live quote
  * is created by this module.
  */
-const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|trip|startup|business|ceremony|emergency fund|school|tuition)\b/i;
+const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|trip|startup|business|ceremony|emergency(?:\s+(?:fund|expense|expenses|savings|reserve))?|school|tuition)\b/i;
 const GOAL_INTENT = /\b(?:need|want|save|fund|invest|investing|investment|afford|plan|target|goal|corpus|budget|reach|arrange|require|how much|collect|build|set aside|prepare|raise|costs?|pay|spend|estimate)\b/i;
 const AMOUNT = /(?:₹\s*|(?:rs\.?|inr)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(crores?|crors?|crs?|cr|lakhs?|lacs?|lac|thousands?|k|l)\b|(?:₹|inr|rs\.?)\s*(\d[\d,]*(?:\.\d+)?)(?!\d|[,.](?=\d)|[A-Za-z]|\s*(?:%|years?\b|months?\b|yrs?\b|mos?\b))/gi;
 const INR = amount => 'INR ' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -263,6 +263,7 @@ function goalName(text) {
   if (/\b(?:travel|vacation|trip)\b/i.test(text)) return 'the travel goal';
   if (/\b(?:startup|business)\b/i.test(text)) return 'the business goal';
   if (/\bretirement\b/i.test(text)) return 'retirement';
+  if (/\bemergency(?:\s+(?:fund|expense|expenses|savings|reserve))?\b/i.test(text)) return 'the emergency reserve';
   return 'this goal';
 }
 
@@ -276,7 +277,7 @@ function namedGoalTopics(text) {
   if (/\b(?:travel|vacation|trip)\b/i.test(text)) topics.push('TRAVEL');
   if (/\b(?:startup|business)\b/i.test(text)) topics.push('BUSINESS');
   if (/\bretirement\b/i.test(text)) topics.push('RETIREMENT');
-  if (/\bemergency fund\b/i.test(text)) topics.push('EMERGENCY');
+  if (/\bemergency(?:\s+(?:fund|expense|expenses|savings|reserve))?\b/i.test(text)) topics.push('EMERGENCY');
   return topics;
 }
 
