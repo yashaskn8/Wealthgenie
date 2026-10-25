@@ -23,6 +23,11 @@ describe('Curated Hindi/Kannada finance education',()=>{
       assert.ok(result[0].source.url.startsWith('https://investor.sebi.gov.in/'));
     }
   });
+  it('accepts Kannada orthographic joiners only within native words',()=>{
+    const accepted=retrieveChatEducationalEvidence('ಎಸ್‌ಐಪಿ ಎಂದರೇನು?');
+    assert.equal(accepted[0]?.id,'E_INDIC_SIP_BASICS');
+    assert.deepEqual(retrieveIndicFinancialEducation('open\u200Cgoals'),[]);
+  });
   it('rejects personal recommendations, compound topics and control characters',()=>{
     for(const question of [
       'मेरे लिए कौन सा सिप सही है?',
