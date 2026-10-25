@@ -43,7 +43,7 @@ const DEFINITIONS = Object.freeze([
     label: 'Explore Investment Mix Planner',
     description: 'Review allocation drift and risk exposure; no trades are placed.',
     patterns: [
-      /\b(?:rebalanc(?:e|ing)|allocation\s+drift|portfolio\s+drift|portfolio\s+risk|asset\s+allocation|investment\s+mix|market\s+(?:crash|correction)|stock\s+market\s+falls?|portfolio\s+falls?|drawdown)\b/i,
+      /\b(?:rebalanc(?:e|ing)|allocation\s+drift|portfolio\s+drift|portfolio\s+risk|asset\s+allocation|investment\s+mix|market\s+(?:crash|correction)|stock\s+market\s+falls?|portfolio\s+(?:falls?|crash(?:es)?)|drawdown)\b/i,
     ],
   }),
   Object.freeze({
