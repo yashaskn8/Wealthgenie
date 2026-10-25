@@ -51,4 +51,25 @@ describe('Sovereign X fail-closed voice policy',()=>{
     assert.equal(classifyVoiceIntent('Hey Genie, open my account and transfer money').action,'REJECTED');
   });
 
+  it('answers educational finance questions without granting transaction powers',()=>{
+    for (const question of [
+      'How does buying a mutual fund work?',
+      'What happens if I sell my shares?',
+      'Could you explain rebalancing my portfolio?',
+      'Why does a withdrawal change the investment projection?',
+    ]) {
+      const response=classifyVoiceIntent(question);
+      assert.equal(response.action,'CHAT',question);
+      assert.equal(response.reason,'EDUCATIONAL_QUESTION',question);
+    }
+    for (const command of [
+      'Could you transfer my money?',
+      'Can you please buy shares?',
+      'How do I send money to https://bad.example',
+      'Tell me about buying; execute trade',
+    ]) {
+      assert.equal(classifyVoiceIntent(command).action,'REJECTED',command);
+    }
+  });
+
 });
