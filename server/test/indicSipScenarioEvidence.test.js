@@ -46,6 +46,13 @@ describe('Strict multilingual SIP scenario calculator',()=>{
       assert.equal(entries[0].value.annualInflationPct,6);
     }
   });
+  it('permits native script joiners but never masked Latin controls',()=>{
+    const accepted=retrieveIndicSipScenarioEvidence(
+      'ಒಂದು ವೇಳೆ ₹೧೫೦೦೦ ಎಸ್‌ಐಪಿ ೧೦ ವರ್ಷ, ೮% ವಾರ್ಷಿಕ ರಿಟರ್ನ್ ಮತ್ತು ೬% ಹಣದುಬ್ಬರ ಏನಾಗುತ್ತದೆ?'
+    );
+    assert.equal(accepted[0]?.id,'E_SIP_INFLATION_SCENARIO');
+    assert.deepEqual(retrieveIndicSipScenarioEvidence('What if ₹5000 SIP\u200C for 5 years?'),[]);
+  });
   it('asks for missing rates, refusing to make up financial predictions',()=>{
     const entries=retrieveIndicSipScenarioEvidence('What if I start ₹5000 SIP for 5 years?');
     assert.equal(entries[0].id,'E_SIP_SCENARIO_INPUTS_REQUIRED');
