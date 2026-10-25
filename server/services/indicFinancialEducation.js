@@ -1,7 +1,7 @@
 const normalizeIndicJoiners=text=>text.replace(/([\u0900-\u097F\u0C80-\u0CFF])[\u200C\u200D](?=[\u0900-\u097F\u0C80-\u0CFF])/gu,'$1');
 
 /**
- * Curated, language-reviewed basic financial education. These are
+ * Hand-authored Hindi/Kannada basic education templates, pending independent native-speaker review. These are
  * WealthGenie-authored explanations referencing public investor education,
  * NOT direct regulator quotations or claims about up-to-date tax/products.
  * Never use these templates for suitability, forecasts or allocations.
