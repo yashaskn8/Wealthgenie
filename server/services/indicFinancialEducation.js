@@ -1,3 +1,5 @@
+const normalizeIndicJoiners=text=>text.replace(/([\u0900-\u097F\u0C80-\u0CFF])[\u200C\u200D](?=[\u0900-\u097F\u0C80-\u0CFF])/gu,'$1');
+
 /**
  * Curated, language-reviewed basic financial education. These are
  * WealthGenie-authored explanations referencing public investor education,
@@ -39,9 +41,10 @@ const TOPICS=Object.freeze([
 ]);
 const ASK = /(?:क्या\s+(?:है|होता)|समझाओ|समझाइए|बताओ|बताइए|कैसे|अर्थ|ಏನು|ಎಂದರೇನು|ವಿವರಿಸಿ|ತಿಳಿಸಿ|ಹೇಗೆ|ಅರ್ಥ)/iu;
 const PERSONAL = /(?:मेरे\s+लिए|मेरे\s+निवेश|मुझे\s+कौन|मेरी\s+अलोकेशन|ನನಗೆ\s+ಯಾವ|ನನ್ನ\s+ಹೂಡಿಕೆಗೆ|ನನ್ನ\s+ಹಣದ)/iu;
-export function retrieveIndicFinancialEducation(question) {
-  if(typeof question!=='string' || question.length>1000 ||
-    /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(question) ||
+export function retrieveIndicFinancialEducation(rawQuestion) {
+  if(typeof rawQuestion!=='string' || rawQuestion.length>1000)return [];
+  const question=normalizeIndicJoiners(rawQuestion);
+  if(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(question) ||
     PERSONAL.test(question) || !ASK.test(question))return [];
   const kn=(question.match(/[ಕ-ಹ]/gu)||[]).length;
   const hi=(question.match(/[क-ह]/gu)||[]).length;
