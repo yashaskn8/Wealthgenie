@@ -1,3 +1,4 @@
+import { retrieveIndicFinancialEducation } from './indicFinancialEducation.js';
 /**
  * Curated, bounded retrieval for jurisdiction-neutral investor education.
  *
@@ -81,6 +82,8 @@ export function retrieveChatEducationalEvidence(question, { maxEntries = 2 } = {
   const text = String(question || '').slice(0, 1000);
   if (!text.trim()) return [];
   const limit = Number.isSafeInteger(maxEntries) ? Math.max(0, Math.min(maxEntries, 2)) : 2;
+  const indic = retrieveIndicFinancialEducation(text);
+  if(indic.length>0)return indic.slice(0,limit);
   return EDUCATIONAL_DOCUMENTS
     .filter(doc => doc.intent.test(text))
     .slice(0, limit)

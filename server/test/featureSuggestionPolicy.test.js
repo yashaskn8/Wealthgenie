@@ -33,6 +33,11 @@ describe('Question-to-feature suggestion is informational and opt-in', () => {
       'x'.repeat(1001), null, '', {},
     ]) assert.deepEqual(suggestWealthGenieFeature(text),[],String(text));
   });
+  it('understands Kannada SIP including orthographic joiners',()=>{
+    const answer=suggestWealthGenieFeature('ಎಸ್‌ಐಪಿ ಬಗ್ಗೆ ವಿವರಿಸಿ');
+    assert.equal(answer[0]?.page,'grow-my-sip');
+    assert.deepEqual(suggestWealthGenieFeature('open\u200Cgoals'),[]);
+  });
   it('has no mutating investment action or invisible link payload',()=>{
     const result=suggestWealthGenieFeature('Explain asset allocation');
     assert.equal(result[0]?.page,'keep-on-track');

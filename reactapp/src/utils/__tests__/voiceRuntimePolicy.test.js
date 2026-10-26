@@ -18,6 +18,9 @@ describe('GenieVoice trust-boundary policy', () => {
       expect(validateVoiceTranscript(input)).toBeNull();
     }
     expect(validateVoiceTranscript('  open goals  ')).toBe('open goals');
+    expect(validateVoiceTranscript('ಎಸ್‌ಐಪಿ ಪ್ಲಾನರ್ ತೆರೆ')).toBe('ಎಸ್ಐಪಿ ಪ್ಲಾನರ್ ತೆರೆ');
+    expect(validateVoiceTranscript('open\u200Cgoals')).toBeNull();
+    expect(validateVoiceTranscript('open\u200Dgoals')).toBeNull();
   });
   it('stops on local commands without sending audio to a provider', () => {
     expect(isVoiceStopPhrase('goodbye genie')).toBe(true);

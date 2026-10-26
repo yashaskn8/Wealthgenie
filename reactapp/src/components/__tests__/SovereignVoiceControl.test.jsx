@@ -399,4 +399,29 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(screen.getByRole('button',{name:'Stop GenieVoice listening'})).toBeInTheDocument();
   });
 
+  it('switches recognition language only after explicitly stopping the active session',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',action:'CHAT'});
+    fireEvent.change(screen.getByRole('combobox',{name:'GenieVoice speech language'}),{
+      target:{value:'hi-IN'}
+    });
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    expect(x.getRecognition().lang).toBe('hi-IN');
+    fireEvent.change(screen.getByRole('combobox',{name:'GenieVoice speech language'}),{
+      target:{value:'kn-IN'}
+    });
+    expect(screen.getByRole('button',{name:'Start GenieVoice navigation'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    expect(x.getRecognition().lang).toBe('kn-IN');
+  });
+  it('processes Hindi/Kannada local stop commands without sending any request',async()=>{
+    const x=setup({version:'sovereign-voice-intent-v1',action:'CHAT'});
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>x.getRecognition().onresult({results:[[{transcript:'सुनना बंद करो'}]]}));
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
+    expect(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>x.getRecognition().onresult({results:[[{transcript:'ಸಂಭಾಷಣೆ ನಿಲ್ಲಿಸು'}]]}));
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
+  });
+
 });

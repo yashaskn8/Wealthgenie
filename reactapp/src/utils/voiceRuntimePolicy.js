@@ -13,13 +13,15 @@ export const MAX_VOICE_TRANSCRIPT_LENGTH = 1000;
 export const MAX_VOICE_ANSWER_LENGTH = 2400;
 
 const DISALLOWED_TRANSCRIPT_CHARACTERS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const normalizeIndicJoiners=text=>text.replace(/([\u0900-\u097F\u0C80-\u0CFF])[\u200C\u200D](?=[\u0900-\u097F\u0C80-\u0CFF])/gu,'$1');
 const STOP_PHRASES = /^(?:stop listening|goodbye genie|end conversation|cancel voice mode|stop genie)[.!?]*$/i;
 const EVIDENCE_IDENTIFIER = /^E_[A-Z0-9_:-]+$/;
 
 export function validateVoiceTranscript(raw) {
-  if (typeof raw !== 'string' || !raw || raw.length > MAX_VOICE_TRANSCRIPT_LENGTH ||
-      DISALLOWED_TRANSCRIPT_CHARACTERS.test(raw)) return null;
-  const text = raw.trim();
+  if (typeof raw !== 'string' || !raw || raw.length > MAX_VOICE_TRANSCRIPT_LENGTH) return null;
+  const normalized=normalizeIndicJoiners(raw);
+  if (DISALLOWED_TRANSCRIPT_CHARACTERS.test(normalized)) return null;
+  const text = normalized.trim();
   return text.length > 0 ? text : null;
 }
 
