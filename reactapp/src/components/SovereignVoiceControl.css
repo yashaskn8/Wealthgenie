@@ -23,7 +23,7 @@
 }
 .sovereign-voice-control > button:disabled,
 .sovereign-sip-comparison button:disabled { opacity: .5; cursor: not-allowed; }
-.sovereign-voice-control :is(button,input):focus-visible {
+.sovereign-voice-control :is(button,input,textarea):focus-visible {
   outline: 2px solid #7dd3fc;
   outline-offset: 2px;
 }
@@ -174,3 +174,13 @@
   outline: 2px solid #7dd3fc;
   outline-offset: 2px;
 }
+
+/* Financial transcript correction must remain usable on narrow screens. */
+.genie-voice-financial-review label { display:block; margin-bottom:6px; font-size:12px; }
+.genie-voice-financial-review textarea {
+  display:block; width:100%; min-width:0; box-sizing:border-box;
+  background:rgba(15,23,42,.95); color:inherit;
+  border:1px solid rgba(148,163,184,.65); border-radius:8px;
+  padding:8px; font:inherit; font-size:14px; resize:vertical;
+}
+.genie-voice-financial-review [role="alert"] { color:#fecaca; }
