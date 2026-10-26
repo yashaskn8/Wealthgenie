@@ -70,4 +70,20 @@ describe('Strict multilingual SIP scenario calculator',()=>{
       assert.equal(evidence.some(e=>e.id==='E_SIP_INFLATION_SCENARIO'),false,text);
     }
   });
+  it('fails closed on conflicting rates and partial numeric matches',()=>{
+    const base='What if ₹5000 SIP for 10 years with 8% annual return and 6% inflation?';
+    assert.equal(retrieveIndicSipScenarioEvidence(base)[0]?.id,'E_SIP_INFLATION_SCENARIO');
+    for(const question of [
+      'What if ₹5000 SIP for 10 years with 8% annual return, 12% annual return and 6% inflation?',
+      'What if ₹5000 SIP for 10 years with 8% annual return, 6% inflation and 8% inflation?',
+      'What if ₹5000 SIP for 10 years with 100% annual return and 6% inflation?',
+      'What if ₹5000 SIP for 10 years with -8% annual return and 6% inflation?',
+      'What if ₹5000 SIP for 200 years with 8% annual return and 6% inflation?',
+      'What if ₹5000 SIP for 10 years with 8.12345% annual return and 6% inflation?',
+    ]) {
+      const entries=retrieveIndicSipScenarioEvidence(question);
+      assert.notEqual(entries[0]?.id,'E_SIP_INFLATION_SCENARIO',question);
+    }
+  });
+
 });
