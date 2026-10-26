@@ -96,6 +96,25 @@ describe('GenieVoice opt-in navigation',()=>{
     await act(async()=>{resolveCommand({version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'goals',tab:null});});
     expect(x.nav).not.toHaveBeenCalled();
   });
+
+  it('stops narration when unrelated text chat starts while playback is active', () => {
+    const cancel=vi.fn(),speak=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak,cancel});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance {
+      constructor(content){this.text=content;}
+    });
+    const answer={content:'Verified summary.',grounded:true,validation_status:'PASS',
+      evidence_ids_used:['E_PROFILE_RISK'],_turnKey:'manual-spoken-1'};
+    const ui=render(<SovereignVoiceControl sessionKey="account-a" lastAnswer={answer}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Speak verified answer'}));
+    expect(speak).toHaveBeenCalledTimes(1);
+    ui.rerender(<SovereignVoiceControl sessionKey="account-a" lastAnswer={answer}
+      chatBusy/>);
+    expect(cancel).toHaveBeenCalled();
+    expect(screen.queryByRole('button',{name:'Stop verified answer playback'}))
+      .not.toBeInTheDocument();
+  });
+
   it('cancels an old spoken answer when the grounded result changes',()=>{
     const say=vi.fn();
     const cancel=vi.fn();

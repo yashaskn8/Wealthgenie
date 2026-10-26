@@ -176,7 +176,11 @@ export default function SovereignVoiceControl({
   // A manual chat send while the microphone is active is an interruption.
   // Do not cancel a voice-originated chat response (the mic is already off).
   useEffect(() => {
-    if (chatBusy && listeningRef.current) {
+    if (chatBusy && (listeningRef.current || utteranceRef.current ||
+        intentRef.current || reviewRef.current || replyReadyRef.current)) {
+      // Unlike the originating voice chat request (which releases all these
+      // refs before sending), an unrelated chat action invalidates old audio,
+      // unsent review and any pending narration immediately.
       endConversation('Voice paused because another chat request started.');
     }
   }, [chatBusy, endConversation]);

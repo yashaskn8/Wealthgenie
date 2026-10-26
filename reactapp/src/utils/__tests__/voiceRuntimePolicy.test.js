@@ -84,7 +84,7 @@ describe('GenieVoice trust-boundary policy', () => {
       .toEqual({status:'invalid'});
     expect(collectVoiceRecognitionResults([result('x'),[{}]]))
       .toEqual({status:'invalid'});
-    expect(collectVoiceRecognitionResults([result('open goals\\n')]))
+    expect(collectVoiceRecognitionResults([result('open goals\n')]))
       .toEqual({status:'invalid'});
   });
   it('refuses fallback, incomplete, or structurally ambiguous verified speech', () => {
