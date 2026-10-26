@@ -14,7 +14,7 @@ test('OpenAPI is a single parseable document with one declared history route per
   assert.deepEqual(yaml.errors.map(error => error.message), []);
   const doc = yaml.toJS();
   assert.equal(doc.openapi, '3.1.0');
-  assert.ok(source.length < 260_000, 'API specification unexpectedly duplicated');
+  assert.ok(source.length < 280_000, 'API specification unexpectedly duplicated');
   for (const route of [
     '/api/market-data/admin/equity-history',
     '/api/market-data/admin/equity-history/ingest',

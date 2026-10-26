@@ -1507,6 +1507,186 @@ paths:
     get: { operationId: getLegacyLiveness, tags: [Health], security: [], responses: { '200': { $ref: '#/components/responses/Health' } } }
   /readyz:
     get: { operationId: redirectLegacyReadiness, tags: [Health], security: [], responses: { '307': { description: Redirect to /health/ready } } }
+  /api/coverage/ledger:
+    get:
+      operationId: getOwnedCoverageLedger
+      tags: [CashCoverage]
+      description: Returns only the authenticated owner's current self-declared 90-day cash plan. A deletion tombstone returns a revision with null ledger.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    put:
+      operationId: replaceOwnedCoverageLedger
+      tags: [CashCoverage]
+      description: Atomic revision replacement and immutable snapshot. Same-day India cash declaration required. Neither bank-verified nor investment advice. An idempotency replay may return a committed earlier revision even after a newer save.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      x-idempotency-key: required
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/CoverageIfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CoverageLedgerInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      operationId: deleteOwnedCoverageLedger
+      tags: [CashCoverage]
+      description: Explicit revision-bound deletion of saved cash entries and snapshots. Retains only a nonfinancial revision tombstone, hashed operation identity and minimal deletion receipt to fence retries.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      x-idempotency-key: required
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/CoverageIfMatch' }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/coverage/commitments/{entryId}/settle:
+    post:
+      operationId: attestOneOffCashPayment
+      tags: [CashCoverage]
+      description: User-attested ONE-OFF cash payment. Requires the current revision, explicit settlement confirmation and the accessible cash balance AFTER payment. Never bank-verified; recurring or future income entries cannot be settled automatically.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      x-idempotency-key: required
+      parameters:
+        - { $ref: '#/components/parameters/CoverageIfMatch' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { name: entryId, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [asOfDate, openingCashPaise, completenessConfirmed, settlementConfirmed]
+              properties:
+                asOfDate: { type: string, format: date }
+                openingCashPaise: { type: integer, minimum: 0, maximum: 1000000000000 }
+                completenessConfirmed: { type: boolean, enum: [true] }
+                settlementConfirmed: { type: boolean, enum: [true] }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/coverage/settlements:
+    get:
+      operationId: listOwnedCashSettlements
+      tags: [CashCoverage]
+      description: Owner-only latest 20 immutable user-attested settlements. Supplying afterRevision enables bounded ascending cursor pagination for complete private export. Deleted with saved cash records.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: afterRevision, in: query, required: false, schema: { type: integer, minimum: 0 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 20 } }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/coverage/scenarios/preview:
+    post:
+      operationId: previewVoluntaryCashExclusion
+      tags: [CashCoverage]
+      description: Read-only scenario that excludes only explicitly listed voluntary contributions; contractual payments cannot be excluded.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [revision, excludedVoluntaryEntryIds]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                excludedVoluntaryEntryIds:
+                  type: array
+                  maxItems: 100
+                  uniqueItems: true
+                  items: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/coverage/alerts:
+    get:
+      operationId: listOwnedCashRiskAlerts
+      tags: [CashCoverage]
+      description: Owner-scoped bounded alerts for the current saved cash revision. Does not contain raw bank transactions or account numbers.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 20 } }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/coverage/alerts/{id}/ack:
+    patch:
+      operationId: acknowledgeOwnedCashRiskAlert
+      tags: [CashCoverage]
+      description: Idempotently acknowledge an owned alert only if its cash revision is still current. No transaction, transfer or investment action is performed.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      x-csrf-protection: cookie-session
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/coverage/export:
+    get:
+      operationId: exportOwnedCoverageHistory
+      tags: [CashCoverage]
+      description: Paginates only owner-accessible immutable saved revisions, at most 20 records per page. Records are sensitive user-declared financial data.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: afterRevision, in: query, schema: { type: integer, minimum: 0 }, required: false }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 20 }, required: false }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/coverage/revisions/{revision}:
+    get:
+      operationId: getOwnedCoverageRevision
+      tags: [CashCoverage]
+      description: Historical saved input plus calculation; never return another user's financial records.
+      security: [{ CookieAuth: [] }, { BearerAuth: [] }]
+      parameters:
+        - { name: revision, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { $ref: '#/components/responses/Object' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/health:
     get: { operationId: getApiHealth, tags: [Health], security: [], responses: { '200': { $ref: '#/components/responses/Health' } } }
 
@@ -1515,6 +1695,12 @@ components:
     CookieAuth: { type: apiKey, in: cookie, name: wg_session, description: Secure HttpOnly browser session cookie. }
     BearerAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Explicitly configured non-browser compatibility authentication. }
   parameters:
+    CoverageIfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted exact current cash revision; after deletion use nextRevision rather than zero.
+      schema: { type: string, pattern: '^"(0|[1-9][0-9]{0,12})"$' }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, pattern: '^[A-Za-z0-9._:-]{8,128}$', minLength: 8, maxLength: 128 } }
     ChatIdempotencyKey: { name: Idempotency-Key, in: header, required: false, description: Reuse the same key for a retry of one chat message. Completed turns replay without provider work or quota consumption. A key cannot be reused for different text., schema: { type: string, pattern: '^[A-Za-z0-9._:-]{8,128}$', minLength: 8, maxLength: 128 } }
     ProfileId: { name: profileId, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' } }
@@ -1644,6 +1830,29 @@ components:
     Unavailable: { description: Service or dependency unavailable. Current recommendation consumers may return MARKET_ADJUSTMENT_PROVIDER_PROVENANCE_MISSING or UPSTOX_PUBLIC_DISTRIBUTION_NOT_CONFIRMED when a generation-time market tilt cannot be safely distributed., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     BadGateway: { description: An upstream service could not provide valid output, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   schemas:
+    CoverageLedgerInput:
+      type: object
+      additionalProperties: false
+      required: [asOfDate, openingCashPaise, cashSource, completenessConfirmed, entries]
+      properties:
+        asOfDate: { type: string, format: date }
+        openingCashPaise: { oneOf: [{ type: integer, minimum: 0, maximum: 1000000000000 }, { type: 'null' }] }
+        cashSource: { type: string, enum: [USER_DECLARED_BANK_CASH, USER_DECLARED_WALLET_CASH, USER_DECLARED_OTHER_ACCESSIBLE_CASH] }
+        completenessConfirmed: { type: boolean }
+        entries:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, type, label, amountPaise, startDate, recurrence]
+            properties:
+              id: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' }
+              type: { type: string, enum: [EXPECTED_INCOME, ESSENTIAL_PAYMENT, CONTRACTUAL_PAYMENT, VOLUNTARY_CONTRIBUTION, OTHER_PAYMENT] }
+              label: { type: string, minLength: 1, maxLength: 80 }
+              amountPaise: { type: integer, minimum: 1, maximum: 1000000000000 }
+              startDate: { type: string, format: date }
+              recurrence: { type: string, enum: [ONCE, WEEKLY, MONTHLY] }
     VerifiedComplexCapitalGainsRequest:
       type: object
       additionalProperties: false

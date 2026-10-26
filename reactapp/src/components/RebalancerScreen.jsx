@@ -430,6 +430,7 @@ const RebalancerScreen = ({ profile, financialStateIdentity = null, recommendati
   }, [projectionData, userGoals, horizon, projectionDisplayYear]);
 
   const readScore = (value) => {
+    if (value === null || value === undefined) return null;
     const scoreValue = Number(value);
     return Number.isFinite(scoreValue) && scoreValue >= 0 && scoreValue <= 100 ? scoreValue : null;
   };
