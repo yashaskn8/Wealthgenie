@@ -11,6 +11,7 @@ describe('Financial voice ASR value-confirmation boundary', () => {
       'ಒಂದು ವೇಳೆ ₹೧೫೦೦೦ ಎಸ್‌ಐಪಿ ೧೦ ವರ್ಷ ಆಗಿದ್ದರೆ?',
       'What is my tax for INR 50,000?',
       'Can we project savings after 5 years?',
+      'What if I save ₹15000 every month?',
     ]) expect(needsFinancialTranscriptReview(question), question).toBe(true);
   });
   it('keeps low-risk conversational questions fast, without confirmation friction', () => {

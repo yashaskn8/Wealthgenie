@@ -6,6 +6,8 @@ import { PAGE_ALLOWLIST } from './navigationMap';
  */
 export const VOICE_INTENT_VERSION = 'sovereign-voice-intent-v1';
 export const VOICE_CAPTURE_TIMEOUT_MS = 20_000;
+// Require a new explicit consent gesture after a bounded hands-free session.
+export const VOICE_CONVERSATION_MAX_MS = 5 * 60_000;
 export const VOICE_INTENT_TIMEOUT_MS = 10_000;
 export const VOICE_REPLY_TIMEOUT_MS = 45_000;
 export const VOICE_SPEECH_TIMEOUT_MS = 180_000;
