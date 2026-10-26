@@ -138,7 +138,7 @@ test('geminiChatService offers only public, grounded scenario education without 
   assert.equal(result.grounded, true);
   assert.equal(typeof result.response, 'string');
   assert.ok(result.response.length > 0);
-  assert.ok(result.evidence_ids_used.includes('E_SCENARIO_PRODUCT_COMPARISON'));
+  assert.ok(result.evidence_ids_used.includes('E_SCENARIO_GENERAL_DECISION'));
   assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
 });
 
