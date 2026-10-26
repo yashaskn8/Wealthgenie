@@ -9,7 +9,7 @@ import {
   VOICE_REPLY_TIMEOUT_MS, VOICE_SPEECH_TIMEOUT_MS, VOICE_CONVERSATION_MAX_MS,
   validateVoiceTranscript,
   isVoiceStopPhrase, isAuthorizedVoiceNavigation, isVerifiedVoiceAnswer,
-  voiceAnswerText,
+  sameVerifiedVoiceReply, voiceAnswerText,
 } from '../utils/voiceRuntimePolicy';
 import { VOICE_LANGUAGES, validVoiceLanguage, isLocalVoiceStop,
   speechLocaleForText, voiceInLocale } from '../utils/voiceLanguagePolicy';
@@ -286,8 +286,7 @@ export default function SovereignVoiceControl({
       replyReadyRef.current = null;
       return;
     }
-    const displayed = lastAnswer?.content === (ready.answer.content ?? ready.answer.response) &&
-      isVerifiedVoiceAnswer(lastAnswer);
+    const displayed = sameVerifiedVoiceReply(ready.answer, lastAnswer);
     if (!displayed) return;
     replyReadyRef.current = null;
     clearVoiceTimer(replyDisplayTimerRef);
@@ -311,7 +310,8 @@ export default function SovereignVoiceControl({
         endConversation('Could not send the voice question. Review the chat to retry.');
       return;
     } finally {
-      clearVoiceTimer(replyTimerRef);
+      // An older cancelled request must not disable a newer turn's deadline.
+      if (epochRef.current === token) clearVoiceTimer(replyTimerRef);
     }
     if (epochRef.current !== token || !handsFreeRef.current) return;
     if (!isVerifiedVoiceAnswer(answer) || !voiceAnswerText(answer)) {
@@ -359,8 +359,12 @@ export default function SovereignVoiceControl({
       endConversation('Voice interpretation failed. No action was executed.');
       return;
     } finally {
-      clearVoiceTimer(intentTimerRef);
-      if (intentRef.current === abort) intentRef.current = null;
+      // Only the active request owns the timeout; stale finally blocks must
+      // never clear the watchdog for a new microphone session.
+      if (intentRef.current === abort) {
+        clearVoiceTimer(intentTimerRef);
+        intentRef.current = null;
+      }
     }
     if (epochRef.current !== token || !enabledRef.current || abort.signal.aborted) return;
     if (isAuthorizedVoiceNavigation(intent)) {
@@ -532,6 +536,10 @@ export default function SovereignVoiceControl({
       endConversation('Voice question cancelled.');
       return;
     }
+    // Lock synchronously before any awaited classifier call; rapid clicks
+    // cannot authorize or bill the same financial question twice.
+    if (review.confirming) return;
+    review.confirming = true;
     // Editing may change a harmless question into a navigation or forbidden
     // action. Re-run the server allowlist: corrected text may only become CHAT.
     if (reviewedText !== review.transcript) {
@@ -553,8 +561,10 @@ export default function SovereignVoiceControl({
           endConversation('Could not verify the corrected question. Nothing was sent.');
         return;
       } finally {
-        clearVoiceTimer(intentTimerRef);
-        if (intentRef.current === abort) intentRef.current = null;
+        if (intentRef.current === abort) {
+          clearVoiceTimer(intentTimerRef);
+          intentRef.current = null;
+        }
       }
       if (epochRef.current !== review.token || !handsFreeRef.current ||
           !enabledRef.current || busyRef.current || abort.signal.aborted ||
