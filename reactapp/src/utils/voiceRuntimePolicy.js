@@ -33,18 +33,21 @@ export function collectVoiceRecognitionResults(results) {
   let length = 0;
   for (let i = 0; i < results.length; i += 1) {
     const text = results[i]?.[0]?.transcript;
-    if (typeof text !== 'string') return { status: 'invalid' };
+    if (typeof text !== 'string' || DISALLOWED_TRANSCRIPT_CHARACTERS.test(text))
+      return { status: 'invalid' };
     length += text.length + 1;
     if (length > MAX_VOICE_TRANSCRIPT_LENGTH + 1) return { status: 'invalid' };
     if (results[i].isFinal === false) partials.push(text);
     else finals.push(text);
   }
-  const transcript = finals.join(' ').trim();
+  // Preserve raw edges for validateVoiceTranscript: trimming first could
+  // erase forbidden trailing controls and authorize an injected command.
+  const transcript = finals.join(' ');
   if (partials.length) {
     const caption = (transcript + ' ' + partials.join(' ')).trim();
     return caption ? { status: 'partial', caption } : { status: 'invalid' };
   }
-  return transcript ? { status: 'final', transcript } : { status: 'invalid' };
+  return transcript.trim() ? { status: 'final', transcript } : { status: 'invalid' };
 }
 
 export function validateVoiceTranscript(raw) {

@@ -771,3 +771,24 @@ describe('GenieVoice adversarial async-boundary regressions', () => {
     expect(ask).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('GenieVoice final malformed-ASR adversarial boundaries', () => {
+  it('rejects oversized fragmented browser speech without querying the server', async () => {
+    let recognition;
+    vi.stubGlobal('SpeechRecognition',class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    });
+    const classify=vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    render(<SovereignVoiceControl sessionKey="final-security-audit"/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    await act(async()=>recognition.onresult({
+      results:Array.from({length:25},()=>[{transcript:'open goals'}])
+    }));
+    expect(classify).not.toHaveBeenCalled();
+    expect(screen.getByText(/capture exceeded safety limits/i)).toBeInTheDocument();
+  });
+});

@@ -159,6 +159,24 @@ describe('GenieChat persisted conversation state', () => {
       grounded:false,validation_status:'UNVERIFIED',evidence_ids_used:[]}));
   });
 
+
+  it('preserves all final legacy ASR segments so the user can review the full amount', async () => {
+    let recognition;
+    vi.stubGlobal('SpeechRecognition',class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    });
+    openChat();
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
+    await act(async()=>recognition.onresult({
+      results:[[{transcript:'My salary is'}],[{transcript:'seventy thousand'}]]
+    }));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i}))
+      .toHaveValue('My salary is seventy thousand');
+  });
+
   it('waits for canonical recommendation context before binding or restoring the saved chat session', async () => {
     const profile = { profileId: '64b000000000000000000101', version: 3, name: 'Canonical Profile', monthly_savings: 1000 };
     const recommendations = [{ id: 'scheme-a', allocationWeight: 0.7, allocation_pct: 70 }];

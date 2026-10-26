@@ -84,6 +84,8 @@ describe('GenieVoice trust-boundary policy', () => {
       .toEqual({status:'invalid'});
     expect(collectVoiceRecognitionResults([result('x'),[{}]]))
       .toEqual({status:'invalid'});
+    expect(collectVoiceRecognitionResults([result('open goals\\n')]))
+      .toEqual({status:'invalid'});
   });
   it('refuses fallback, incomplete, or structurally ambiguous verified speech', () => {
     for(const answer of [
@@ -97,7 +99,7 @@ describe('GenieVoice trust-boundary policy', () => {
     ]) expect(voiceAnswerText(answer)).toBeNull();
   });
   it('rejects unpaired surrogate controls in provider speech', () => {
-    expect(validateVoiceTranscript('open\\uD800 goals')).toBeNull();
+    expect(validateVoiceTranscript('open\uD800 goals')).toBeNull();
   });
   it('does not truncate or invent words from long financial answers', () => {
     expect(voiceAnswerText({...verified,response:'x'.repeat(2401)})).toBeNull();
