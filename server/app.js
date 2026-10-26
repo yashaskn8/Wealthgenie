@@ -27,6 +27,7 @@ import taxAwareScenarioRoutes from './routes/taxAwareScenario.js';
 import projectionRoutes from './routes/projection.js';
 import montecarloRoutes from './routes/montecarlo.js';
 import goalRoutes from './routes/goals.js';
+import coverageRoutes from './routes/coverage.js';
 import goalFinanceRoutes from './routes/goalFinance.js';
 import marketRoutes from './routes/market.js';
 import marketQuotesRoutes from './routes/marketQuotes.js';
@@ -234,6 +235,11 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/montecarlo', montecarloRoutes);
   app.use('/api/goals/finance', goalFinanceRoutes);
   app.use('/api/goals', goalRoutes);
+  // Disable private household-data collection in production until approved.
+  const coverageEnabled = config.isProduction
+    ? env.COVERAGE_ENABLED === 'true'
+    : env.COVERAGE_ENABLED !== 'false';
+  if (coverageEnabled) app.use('/api/coverage', coverageRoutes);
   app.use('/api/market', marketRoutes);
   app.use('/api/market-data', marketQuotesRoutes);
   app.use('/api/market-data', marketDataAdminRoutes);
