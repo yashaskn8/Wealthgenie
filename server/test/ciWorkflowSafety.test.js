@@ -41,6 +41,9 @@ test('Mongo-required suites are partitioned exhaustively between standalone and 
   // Validate membership and exhaustive partition, never a stale fixed count.
   assert.ok(mongoRequiredTests.length > 0, 'Mongo partition must not be empty');
   assert.ok(replicaSetRequiredTests.length > 0, 'Replica-set partition must not be empty');
+  assert.ok(mongoSet.has('test/runwayMongo.integration.test.js'));
+  assert.ok(replicaSetSet.has('test/runwayMongo.integration.test.js'),
+    'Household Runway transaction tampering and account isolation must use real MongoDB');
   assert.ok(replicaSetSet.has('test/coverageLedger.integration.test.js'),
     'Cash ledger transaction tests must run against a replica set');
   assert.ok(replicaSetSet.has('test/qualifiedEquityHistoryMongo.integration.test.js'));
@@ -60,6 +63,21 @@ test('required Linux CI jobs retain Mongo-backed integrity and isolated financia
     'backend-financial-integrity', 'finance-postgres-integration',
     'frontend-quality', 'ai-ml-rag-safety', 'integration-security',
   ]) assert.ok(Object.hasOwn(workflow.jobs, job), 'Missing mandatory CI job: ' + job);
+  const runway = workflow.jobs['household-runway-adversarial'];
+  assert.equal(runway['runs-on'], 'ubuntu-latest');
+  assert.equal(runway['timeout-minutes'], 15);
+  assert.equal(runway.steps.find(step => step.name === 'Start isolated transaction-capable MongoDB 7')?.with?.['mongodb-replica-set'], 'rs0');
+  const oracleStep = runway.steps.find(step => step.name === 'Red-team deterministic amounts, same-day timing and independent numerical oracle');
+  assert.ok(oracleStep?.run?.includes('server/test/runwayOracle.test.js'));
+  assert.ok(oracleStep?.run?.includes('server/test/runwaySeal.test.js'));
+  const integrationStep = runway.steps.find(step => step.name === 'Red-team real Mongo transactions, account boundaries, tampering and concurrency');
+  assert.equal(integrationStep?.env?.MONGODB_URI, 'mongodb://127.0.0.1:27017/wealthgenie_runway_test?replicaSet=rs0');
+  assert.match(integrationStep.run, /export RUNWAY_INTEGRITY_SECRET="\$\(openssl rand -hex 32\)"/);
+  assert.match(integrationStep.run, /server\/test\/runwayMongo\.integration\.test\.js/);
+  assert.ok(!runway.steps.some(step => JSON.stringify(step).includes('secrets.')),
+    'Untrusted PRs must never receive live HMAC secrets');
+  assert.ok(runway.steps.some(step => step.run === 'npm ci --prefix server'),
+    'Dedicated financial gate must install from reviewed lockfile');
   const financialSql = workflow.jobs['finance-postgres-integration'];
   assert.match(financialSql.services?.postgres?.image || '', /^postgres:16@sha256:[a-f0-9]{64}$/);
   assert.equal(financialSql.services.postgres.env.POSTGRES_DB, 'wealthgenie_financial_test');
@@ -94,6 +112,15 @@ test('required Linux CI jobs retain Mongo-backed integrity and isolated financia
   assert.equal(findStep('integration-security', 'Audit Python dependencies').if, '${{ !cancelled() }}');
   assert.ok(integration.steps.some(step => step.name === 'Audit frontend npm dependencies'));
   assert.ok(integration.steps.some(step => step.name === 'Audit backend npm dependencies'));
+  // Browser regression evidence cannot disappear merely because an npm
+  // advisory is published. Keep all three security scans mandatory and
+  // independently runnable after real-dependency integration exercises.
+  const integrationNames = integration.steps.map(step => step.name);
+  const lifecycle = integrationNames.indexOf('Run real-dependency Playwright lifecycle');
+  for (const name of ['Audit backend npm dependencies', 'Audit frontend npm dependencies']) {
+    assert.ok(integrationNames.indexOf(name) > lifecycle, name + ' must not mask E2E evidence');
+    assert.equal(findStep('integration-security', name).if, '${{ !cancelled() }}');
+  }
 });
 
 test('Kind deployment runs only on successful main CI or explicit manual dispatch, with strict live preflight opt-in', () => {

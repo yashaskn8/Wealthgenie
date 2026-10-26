@@ -26,6 +26,7 @@ const TaxesHub = lazy(() => import('./components/TaxesHub'));
 const ProgressHub = lazy(() => import('./components/ProgressHub'));
 const JourneyPage = lazy(() => import('./components/JourneyPage'));
 const GenieProofEntry = lazy(() => import('./components/GenieProofEntry'));
+const HouseholdRunway = lazy(() => import('./components/HouseholdRunway'));
 const CashCheck = lazy(() => import('./components/CashCheck'));
 const COVERAGE_UI_ENABLED = !import.meta.env.PROD || import.meta.env.VITE_COVERAGE_ENABLED === 'true';
 const AllocationPlanner = lazy(() => import('./components/AllocationPlanner'));
@@ -37,7 +38,8 @@ const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const AuthPage = lazy(() => import('./components/AuthPage'));
 const LandingPage = lazy(() => import('./LandingPage'));
 // Navigation is discoverable; authenticated backend readiness gates operations.
-const NAVIGATION_OPTIONS = { allowGenieProof: true };
+const RUNWAY_UI_ENABLED = import.meta.env.VITE_RUNWAY_ENABLED === 'true';
+const NAVIGATION_OPTIONS = { allowGenieProof: true, allowRunway: RUNWAY_UI_ENABLED };
 
 // ── Bounded retry helper for deferred advisory generation ──
 // A crashed server claim becomes reclaimable after two minutes. Continue the
@@ -896,6 +898,10 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
         return COVERAGE_UI_ENABLED
           ? <ErrorBoundary><CashCheck key={String(authenticatedUser?.id || 'restoring-session')} /></ErrorBoundary>
           : null;
+      case NAV_PAGES.RUNWAY:
+        return RUNWAY_UI_ENABLED ? (
+          <ErrorBoundary><HouseholdRunway /></ErrorBoundary>
+        ) : null;
       case NAV_PAGES.GENIEPROOF:
         return (
           <ErrorBoundary>
@@ -958,6 +964,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
         onNavigate={navigateTo}
         onLogout={handleLogout}
         genieProofEnabled
+        runwayEnabled={RUNWAY_UI_ENABLED}
       />
       <main className="app-main">
         <Suspense fallback={lazyFallback}>

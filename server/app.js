@@ -43,6 +43,7 @@ import { createMcpCapacityController } from './mcp/mcpCapacity.js';
 import { createMcpRuntime } from './mcp/mcpRuntime.js';
 import agentRoutes from './routes/agentRoutes.js';
 import genieProofRoutes from './routes/genieProofRoutes.js';
+import runwayRoutes from './routes/runwayRoutes.js';
 import { createGenieProofRuntime } from './agents/genieProof/genieProofPassportSignature.js';
 import { createGenieProofReadOnlyVerifier } from './agents/genieProof/genieProofCheckService.js';
 import { createHealthRouter } from './routes/health.js';
@@ -115,6 +116,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.locals.mcpRuntime = mcpLifecycle;
   app.locals.mcpCapacity = mcpCapacity;
   app.locals.genieProofRuntime = genieProofRuntime || createGenieProofRuntime({ env });
+  app.locals.runwayEnabled = env.RUNWAY_ENABLED === 'true';
   app.locals.genieProofClaimVerifier = createGenieProofReadOnlyVerifier(env);
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -196,6 +198,8 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
     requireRedis: config.requireRedis,
     requireAgentRuntimePersistence: config.agenticPlanReviewEnabled,
     requireMcp: config.isProduction && config.mcp.enabled && config.mcp.remoteEnabled,
+    requireRunway: env.RUNWAY_ENABLED === 'true',
+    runwayEnv: env,
     mcpRuntime: mcpLifecycle,
     mcpCapacity,
     timeoutMs: config.deepHealthTimeoutMs,
@@ -257,6 +261,7 @@ export function createApp({ env = process.env, runtimeState = null, mcpRuntime =
   app.use('/api/metrics', metricsRoutes);
   app.use('/api/agent', agentRoutes);
   app.use('/api/genieproof', genieProofRoutes);
+  app.use('/api/runway', runwayRoutes);
   app.get('/api/health', detailedHealth);
 
   app.use((req, res) => sendError(req, res, 404, 'Route not found.', 'ROUTE_NOT_FOUND'));
