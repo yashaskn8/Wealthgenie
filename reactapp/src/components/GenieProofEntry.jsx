@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../services/api';
+import { containsGenieProofSensitiveIdentifiers } from '../../../shared/genieProofPrivacyPolicy.js';
 import GenieProofCalculator from './GenieProofCalculator';
 import GenieProofNvidiaReview from './GenieProofNvidiaReview';
 
@@ -25,12 +26,6 @@ const verdicts = {
 
 const EVIDENCE_MAX_AGE_MS = 72 * 60 * 60 * 1000;
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-
-function containsSensitiveIdentifiers(text) {
-  return /\b[A-Z]{5}\d{4}[A-Z]\b/i.test(text)
-    || /\b(?:aadhaar|aadhar|uidai)\s*(?:card\s*)?(?:number|no\.?|id|:|#)?\s*\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/i.test(text)
-    || /\b(?:bank\s+)?(?:account|a\/c)\s*(?:(?:number|no\.?|#)\s*)?:?\s*\d{9,18}\b/i.test(text);
-}
 
 function exactTimestamp(value) {
   return typeof value === 'string' && ISO_UTC.test(value) && Number.isFinite(Date.parse(value))
@@ -90,7 +85,7 @@ export default function GenieProofEntry() {
   const requestRef = useRef(null);
   const bytes = new TextEncoder().encode(statement).length;
   const tooLarge = bytes > MAX_BYTES;
-  const sensitiveIdentifier = containsSensitiveIdentifiers(statement);
+  const sensitiveIdentifier = containsGenieProofSensitiveIdentifiers(statement);
 
   useEffect(() => () => requestRef.current?.abort(), []);
 
@@ -175,11 +170,11 @@ export default function GenieProofEntry() {
           />
           <p id="genieproof-privacy" style={{ fontSize: '.9rem', color: '#cbd5e1' }}>
             GenieProof does not create a saved claim or account record in this check. Avoid entering PAN,
-            Aadhaar, account numbers or other personal details. Common PAN, Aadhaar and
-            bank-account number formats are blocked; always mask other identifiers yourself.
+            Aadhaar, account numbers, payment handles, phone numbers, e-mail addresses or other personal details.
+            Common identifier formats are blocked locally and by the server, but automatic detection is incomplete.
           </p>
           {sensitiveIdentifier && <p role="alert" style={{ color: '#fca5a5' }}>
-            A possible personal identifier was found. Mask your PAN, Aadhaar or account number before submitting.
+            A possible personal identifier was found. Remove or mask personal and financial identifiers before submitting.
           </p>}
           <p id="genieproof-size" style={{ color: tooLarge ? '#fca5a5' : '#94a3b8', fontSize: '.85rem' }}>
             {bytes.toLocaleString('en-IN')} / {MAX_BYTES.toLocaleString('en-IN')} bytes

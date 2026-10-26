@@ -72,6 +72,15 @@ function withFixture(offerText, fixture, overrides = {}) {
 
 test('read-only claim check refuses common personal identifiers without echoing them', async () => {
   const identifiers = [
+    "My PAN ABCDE 1234 F promises 12% interest.",
+    "My Aadhaar: १२३४-५६७८-९०१२ for 8% guaranteed returns.",
+    "The document has ID 1234 5678 9012 and advertises 10% returns.",
+    "My account 12 3456 7890 1234 gets 9% interest.",
+    "Transfer funds to payment@okaxis at 10%.",
+    "For a guaranteed return please email joe@example.com.",
+    "My mobile number: 9876543210 is tied to that offer.",
+    "Call +91 9876543210 to get 20% guaranteed returns.",
+    "The statement contains hidden ABCDE​1234F PAN and 12% interest.",
     'My PAN ABCDE1234F promises 12% interest.',
     'Aadhaar number 1234-5678-9012 for 8% guaranteed returns.',
     'Bank account number: 123456789012 receives 20% profit.',

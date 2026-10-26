@@ -1,3 +1,4 @@
+import { containsGenieProofSensitiveIdentifiers } from '../../../shared/genieProofPrivacyPolicy.js';
 import { extractGenieProofClaims, GENIEPROOF_EVIDENCE_VERIFIER_VERSION, verifyConfirmedGenieProofClaim } from './genieProofCore.js';
 import { resolveGenieProofEvidenceForClaims } from './genieProofEvidenceRegistryService.js';
 import { GenieProofPassportVerifier, parseGenieProofTrustedPublicKeysJson } from './genieProofPassportSignature.js';
@@ -17,16 +18,6 @@ export function createGenieProofReadOnlyVerifier(env = process.env) {
     // Invalid or missing public-key trust is never treated as successful verification.
     return null;
   }
-}
-
-// Refuse common personal financial identifiers before attempting extraction.
-// A customer can mask identifiers and resubmit; neither the raw value nor a
-// fragment of it is ever returned in an error message.
-function containsSensitiveIdentifiers(text) {
-  if (typeof text !== 'string') return false;
-  return /\b[A-Z]{5}\d{4}[A-Z]\b/i.test(text)
-    || /\b(?:aadhaar|aadhar|uidai)\s*(?:card\s*)?(?:number|no\.?|id|:|#)?\s*\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/i.test(text)
-    || /\b(?:bank\s+)?(?:account|a\/c)\s*(?:(?:number|no\.?|#)\s*)?:?\s*\d{9,18}\b/i.test(text);
 }
 
 function warningSignals(statement) {
@@ -61,7 +52,7 @@ export async function checkGenieProofClaims({
   verifier = null,
   evidenceResolver = resolveGenieProofEvidenceForClaims,
 } = {}) {
-  if (containsSensitiveIdentifiers(offerText)) {
+  if (containsGenieProofSensitiveIdentifiers(offerText)) {
     return { ok: false, code: 'GENIEPROOF_SENSITIVE_IDENTIFIERS' };
   }
   const extracted = extractGenieProofClaims(offerText);

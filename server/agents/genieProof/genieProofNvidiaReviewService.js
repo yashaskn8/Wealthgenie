@@ -1,3 +1,4 @@
+import { containsGenieProofSensitiveIdentifiers } from '../../../shared/genieProofPrivacyPolicy.js';
 import { ProviderManager, NVIDIA_NIM_DEFAULT_BASE_URL } from '../../services/providerAbstraction.js';
 import { checkGenieProofClaims } from './genieProofCheckService.js';
 
@@ -64,18 +65,9 @@ export async function reviewGenieProofWithNvidia({
     return unavailable(null, 'EXPLICIT_CONSENT_AND_CLAIM_REQUIRED');
   }
   if (signal?.aborted) return unavailable(claimId, 'REQUEST_CANCELLED');
-  // Prevent accidental disclosure of recognizable Indian financial identity data.
-  // This intentionally rejects the optional review instead of transmitting redacted,
-  // potentially misleading text to an outside AI provider.
-  // Match obvious PAN, Aadhaar, bank-account, Indian mobile, e-mail and UPI
-  // identifiers. This is not an exhaustive PII detector; users must still
-  // avoid pasting confidential or identifying details.
-  if (/\b[A-Z]{5}\d{4}[A-Z]\b/i.test(statement)
-      || /\b(?:\d{4}[- ]?){2}\d{4}\b/.test(statement)
-      || /\b\d{13,19}\b/.test(statement)
-      || /(?:^|[^\d])(?:\+?91[-\s]?)?[6-9]\d{9}(?!\d)/.test(statement)
-      || /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(statement)
-      || /\b[A-Z0-9._-]{2,}@(upi|okaxis|okhdfcbank|okicici|oksbi|paytm|ybl|ibl|axl)\b/i.test(statement)) {
+  // One conservative privacy policy is shared with local claim-checking and
+  // browser-side filtering; no outside model sees flagged identifiers.
+  if (containsGenieProofSensitiveIdentifiers(statement)) {
     return unavailable(claimId, 'POTENTIAL_PERSONAL_DATA');
   }
 
