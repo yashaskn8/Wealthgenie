@@ -91,6 +91,46 @@ database must support the transactions required by model activation and RAG
 lifecycle writes. Application startup verifies migration state read-only and
 never creates indexes or guesses model state.
 
+## Optional financial workspace release contract
+
+Cash Check and Household Runway are **disabled by default in a production
+frontend image**. Vite compiles their flags into browser assets, so changing a
+Kubernetes ConfigMap **cannot** turn on a workspace in an already built image.
+The Dockerfile accepts explicit
+`--build-arg VITE_COVERAGE_ENABLED=true` and
+`--build-arg VITE_RUNWAY_ENABLED=true`, defaulting both to `false`.
+
+Before building a production image with either flag enabled:
+
+1. Verify the corresponding authenticated API, migration/index prerequisites,
+   data isolation, restore/erasure, risk and audit gates on the exact release SHA.
+2. For Cash Check, opt in the server separately with `COVERAGE_ENABLED=true`.
+   For Runway, opt in with `RUNWAY_ENABLED=true`, and provision the server-side
+   `RUNWAY_INTEGRITY_SECRET`, `RUNWAY_EVIDENCE_KEY_V1` and key identifier
+   according to the hardened runtime configuration. Do not copy secrets into
+   Docker build args or client-side Vite variables.
+3. Build and publish the frontend with only the corresponding approved Vite
+   flag(s). Attach the immutable digest and the approved build provenance to the
+   production release; never substitute a local Kind image ID for this digest.
+4. Test login, feature entry, current-state reads, ownership, stale revisions,
+   save/export/erasure and logout against the real production-like environment.
+   Check the matching backend feature flag and the final frontend image before
+   admitting live user traffic.
+
+If the backend is disabled, the UI must not advertise the feature as available.
+A disabled frontend flag does not secure a backend API: authenticated clients
+can still call enabled routes, so keep the backend feature off until both its
+safety gates and the frontend rollout are approved. GenieVoice task execution and its optional durable
+receipt store remain independently opt-in via `GENIEVOICE_TASKS_ENABLED` and
+`GENIEVOICE_RECEIPTS_ENABLED`; a visible voice conversation UI does not mean
+tasks or receipts are ready.
+
+The CI/CD workflow verifies a disposable **Kind** cluster, not an external
+production release. Real production rollout still requires an operator-approved
+registry publishing/attestation pipeline, release-scoped migrations, TLS,
+database and Redis credentials, monitoring, rollback and backup/restore drills.
+Never treat a successful Kind run as proof that these operator-only steps ran.
+
 ## Account persistence and database identity
 
 The API reads registrations and logins from the active MongoDB database, **not**

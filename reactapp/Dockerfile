@@ -7,6 +7,13 @@ ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 ARG VITE_BUILD_SHA
 ENV VITE_BUILD_SHA=$VITE_BUILD_SHA
+# The two private financial workspaces are opt-in at build time. Vite cannot
+# read Kubernetes ConfigMap variables after these assets are compiled.
+# Enable only when matching API flags, migrations, secrets and readiness pass.
+ARG VITE_RUNWAY_ENABLED=false
+ENV VITE_RUNWAY_ENABLED=${VITE_RUNWAY_ENABLED}
+ARG VITE_COVERAGE_ENABLED=false
+ENV VITE_COVERAGE_ENABLED=${VITE_COVERAGE_ENABLED}
 
 COPY reactapp/package*.json ./
 RUN npm ci
