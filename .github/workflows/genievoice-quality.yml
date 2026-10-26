@@ -3,19 +3,10 @@ name: GenieVoice Production Hardening Checks
 on:
   push:
     branches:
-      - feature/genievoice-production-hardening-20261025
-      - feature/genievoice-contextual-feature-guidance-20261026
-      - feature/genievoice-v5-multilingual-scenarios-20261026
-      - feature/genievoice-v6-redteam-hardening-20261026
-      - feature/genievoice-v7-scenario-fuzz-20261026
-      - feature/genievoice-v7-scenario-evaluation-20261026
-      - feature/genievoice-v8-audio-policy-20261026
+      - main
   pull_request:
     branches:
-      - feature/genievoice-jarvis-conversation-20261025
-      - feature/genievoice-production-hardening-20261025
-      - feature/genievoice-v7-scenario-evaluation-20261026
-      - feature/genievoice-v8-audio-policy-20261026
+      - main
   workflow_dispatch:
 
 permissions:
