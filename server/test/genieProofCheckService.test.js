@@ -97,6 +97,20 @@ test('read-only claim check refuses common personal identifiers without echoing 
   assert.ok(ordinaryClaim.claims.every(claim => claim.verdict === 'NOT_VERIFIED'));
 });
 
+test('production verifier cannot be activated by public keys while source rights remain blocked', () => {
+  const pair = crypto.generateKeyPairSync('ed25519');
+  const publicKey = pair.publicKey.export({ type:'spki', format:'pem' });
+  const trusted = JSON.stringify({ 'research-trusted-key': publicKey });
+  assert.equal(createGenieProofReadOnlyVerifier({
+    NODE_ENV: 'production',
+    GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON: trusted,
+  }), null);
+  assert.ok(createGenieProofReadOnlyVerifier({
+    NODE_ENV: 'test',
+    GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON: trusted,
+  }));
+});
+
 test('read-only checking requires no signer or saved case and abstains without a configured public trust', async () => {
   const result = await checkGenieProofClaims({
     offerText: PPF,

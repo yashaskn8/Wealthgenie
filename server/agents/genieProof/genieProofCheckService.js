@@ -7,6 +7,11 @@ const SOURCE_URL = 'https://www.indiapost.gov.in/banking-services/savings';
 const MAX_EVIDENCE_AGE_MS = 72 * 60 * 60 * 1000;
 
 export function createGenieProofReadOnlyVerifier(env = process.env) {
+  // As recorded in GENIEPROOF_STATUS.json, India Post source reuse is not
+  // legally qualified. Public keys prove signature identity, NOT permission to
+  // republish provider facts. Production must abstain until a separately
+  // reviewed legal/source qualification enables a future vetted release.
+  if (env.NODE_ENV === 'production') return null;
   if (!env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON) return null;
   try {
     const trustedPublicKeys = parseGenieProofTrustedPublicKeysJson(env.GENIEPROOF_VERIFY_PUBLIC_KEYS_JSON);

@@ -65,6 +65,18 @@ test('production-safe claim extraction contains only unsaved candidate classific
   assert.equal(Object.hasOwn(review, 'evidence'), false);
 });
 
+test('preview blocks sensitive identifiers before candidate extraction', () => {
+  for (const offerText of [
+    'My PAN ABCDE 1234 F promises 12% interest.',
+    'Contact me at sample@example.com for a 9% return.',
+    'My Aadhaar 1234 5678 9012 earned 8% interest.',
+  ]) {
+    assert.deepEqual(buildGenieProofClaimPreview(offerText), {
+      ok: false, code: 'GENIEPROOF_SENSITIVE_IDENTIFIERS',
+    });
+  }
+});
+
 test('preview rejects oversized text and never promotes unsupported statements to verified claims', () => {
   assert.equal(buildGenieProofClaimPreview('x'.repeat(16_001)).code, 'OFFER_TEXT_TOO_LARGE');
   const review = buildGenieProofClaimPreview('PPF guarantees a 7.1% p.a. return.');
