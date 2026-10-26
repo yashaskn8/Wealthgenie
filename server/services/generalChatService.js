@@ -8,6 +8,9 @@ import { isFinancialGoalPlanningQuestion } from './chatGoalPlanning.js';
 import { sanitizeExternalQuestion } from './groundedExplanationService.js';
 
 export const GENERAL_CHAT_PROMPT_VERSION = 'general-chat-v1';
+export const GENERAL_CHAT_TIMEOUT_MS = 60_000;
+const FINANCIAL_GOAL_QUERY = /\b(?:retirement|college|education|housing|home)\s+(?:(?:savings|investment|funding)\s+)?goals?\b|\b(?:fund|finance|afford|save\s+for)\s+(?:(?:my|our|a|the)\s+)?(?:retirement|college|education|house|home)\b/i;
+const INDIC_FINANCIAL_QUERY = /(?:निवेश|म्यूचुअल|वित्त|बचत|ब्याज|महंगाई|महँगाई|मुद्रास्फीति|शेयर|बाजार|पोर्टफोलियो|रिटर्न|सिप|एसआईपी|टैक्स|ಲಾಭ|ಬಂಡವಾಳ|ಹಣದುಬ್ಬರ|ಉಳಿತಾಯ|ಹೂಡಿಕೆ|ಮ್ಯೂಚುವಲ್|ಮಾರುಕಟ್ಟೆ|ತೆರಿಗೆ|ಷೇರು|ಬಡ್ಡಿ|ಪೋರ್ಟ್‌ಫೋಲಿಯೋ|ಸಿಪ್|ಎಸ್.?ಐ.?ಪಿ)/iu;
 const FINANCIAL_QUERY = /\b(?:diversif(?:y|ying|ied|ication)|rebalanc(?:e|ing)|invest(?:ing|ment|or)?s?|mutual\s*funds?|stocks?|shares?|equity|etfs?|securities|bonds?|deposits?|fixed[ -]?deposits?|fds?|pensions?|ppf|nps|elss|sip|nav|portfolio|asset\s*allocation|rebalanc(?:e|ing)|market|nifty|sensex|rbi|sebi|income[ -]?tax|tax(?:es|ation|able)?|deductions?|ltcg|stcg|capital\s*gains?|interest\s*rates?|inflation|returns?|profit|wealth|savings?|interest|compound(?:ing)?|yield|liquidity|suitability|risk|retirement|budget(?:ing)?|salary|emi|loans?|debt|credit|insurance|financial|recommend(?:ation|ations|ed|ing)|bank(?:s|ing)?|trading|commodities|crypto|bitcoin|crores?|crors?|lakhs?|lacs?|rupees?|paise|my\s*(?:plan|profile|goal|risk|allocation|recommendation)|where\s+to\s+invest|what\s+should\s+i\s+buy)\b/i;
 // Currency and savings requests must not bypass evidence validation merely
 // because the user omitted the word "investment" or the goal subject.
@@ -60,7 +63,7 @@ function violatesGeneralFinancialBoundary(reply) {
 
 export function isGeneralChatQuestion(question) {
   const text = String(question || '').slice(0, 1000).trim();
-  return text.length > 0 && !FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
+  return text.length > 0 && !FINANCIAL_GOAL_QUERY.test(text) && !FINANCIAL_QUERY.test(text) && !INDIC_FINANCIAL_QUERY.test(text) && !FINANCIAL_MONEY.test(text)
     && !FINANCIAL_SAVING_INTENT.test(text) && !FINANCIAL_PRODUCTS.test(text)
     && !GROUNDED_FINANCIAL_CONTEXT.test(text)
     && !isFinancialGoalPlanningQuestion(text);
@@ -97,13 +100,46 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
     || String(process.env.LLM_DEFAULT_PROVIDER || '').trim().toLowerCase() === 'mock';
   const providers = dependencies.providers || (mockOnly ? [] : [ProviderManager.groq, ProviderManager.nvidia]);
   const maxAttempts = 2;
+  const parentSignal = dependencies.signal;
+  if (parentSignal?.aborted) {
+    throw parentSignal.reason || Object.assign(new Error('General chat cancelled.'), { name: 'AbortError' });
+  }
+  const deadlineMs = Number.isFinite(dependencies.providerDeadlineMs)
+    ? Math.max(1, Math.min(GENERAL_CHAT_TIMEOUT_MS, dependencies.providerDeadlineMs))
+    : GENERAL_CHAT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const onParentAbort = () => controller.abort(parentSignal.reason
+    || Object.assign(new Error('General chat cancelled.'), { name: 'AbortError' }));
+  parentSignal?.addEventListener('abort', onParentAbort, { once: true });
+  const deadline = setTimeout(() => controller.abort(
+    Object.assign(new Error('General chat provider deadline exceeded.'), {
+      code: 'PROVIDER_CHAIN_DEADLINE_EXCEEDED',
+    })), deadlineMs);
+  const waitForProvider = async invoke => {
+    if (controller.signal.aborted) throw controller.signal.reason;
+    let onAbort;
+    const aborted = new Promise((_, reject) => {
+      onAbort = () => reject(controller.signal.reason);
+      controller.signal.addEventListener('abort', onAbort, { once: true });
+    });
+    try {
+      return await Promise.race([Promise.resolve().then(invoke), aborted]);
+    } finally {
+      controller.signal.removeEventListener('abort', onAbort);
+    }
+  };
   let attempted = 0;
   let failures = 0;
   let consumed = 0;
   let usageComplete = true;
   let lastFailure = null;
 
+  try {
   for (const [providerIndex, provider] of providers.slice(0, maxAttempts).entries()) {
+    if (controller.signal.aborted) {
+      lastFailure = 'PROVIDER_CHAIN_DEADLINE_EXCEEDED';
+      break;
+    }
     if (typeof provider?.isConfigured === 'function' && !provider.isConfigured()) {
       lastFailure = 'PROVIDER_NOT_CONFIGURED';
       continue;
@@ -125,7 +161,7 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
     let response = null;
     let failure = null;
     try {
-      response = await provider.generate({
+      response = await waitForProvider(() => provider.generate({
         systemPrompt: SYSTEM_PROMPT,
         recentHistory: [
           ...safeGeneralHistory(priorTurns),
@@ -134,11 +170,19 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
         maxTokens: 800,
         jsonMode: false,
         tools: null,
-        signal: dependencies.signal,
-      });
+        signal: controller.signal,
+      }));
     } catch (error) {
-      if (dependencies.signal?.aborted || error?.name === 'AbortError') throw error;
-      failure = 'PROVIDER_NETWORK_ERROR';
+      if (parentSignal?.aborted) throw error;
+      if (controller.signal.aborted
+          && controller.signal.reason?.code === 'PROVIDER_CHAIN_DEADLINE_EXCEEDED') {
+        failure = 'PROVIDER_CHAIN_DEADLINE_EXCEEDED';
+      } else if (error?.name === 'AbortError') {
+        throw error;
+      } else {
+        failure = error?.code === 'PROVIDER_CHAIN_DEADLINE_EXCEEDED'
+          ? 'PROVIDER_CHAIN_DEADLINE_EXCEEDED' : 'PROVIDER_NETWORK_ERROR';
+      }
     }
     const actualTokens = Number(response?.tokensUsed);
     const knownTokens = response && Number.isSafeInteger(actualTokens) && actualTokens > 0
@@ -188,11 +232,15 @@ export async function generateGeneralChatAnswer({ question, priorTurns = [] }, d
     }
     lastFailure = failure;
     failures += 1;
-    if (!PROVIDER_FAILURES.has(failure)) break;
+    if (controller.signal.aborted || !PROVIDER_FAILURES.has(failure)) break;
   }
   return result({
     text: 'The general AI answer service is unavailable right now. Please try again.',
     fallback: true, reasons: [lastFailure || 'NO_LLM_PROVIDER_CONFIGURED'],
     tokensUsed: consumed, attempted, failures, providerUsageComplete: usageComplete,
   });
+  } finally {
+    clearTimeout(deadline);
+    parentSignal?.removeEventListener('abort', onParentAbort);
+  }
 }

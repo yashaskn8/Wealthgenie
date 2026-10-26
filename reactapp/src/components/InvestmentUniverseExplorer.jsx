@@ -81,6 +81,8 @@ async function loadFinancialDirectory(signal) {
 }
 
 function validThreeProductResponse(response) {
+  const presentFinite = value => (typeof value === 'number' && Number.isFinite(value))
+    || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
   return response?.status === 'AVAILABLE'
     && Array.isArray(response.products)
     && response.products.length === 3
@@ -88,7 +90,7 @@ function validThreeProductResponse(response) {
     && response.products.every(product => isFamilyId(product?.id)
       && typeof product.name === 'string' && product.name.trim()
       && product.marketFact?.sourceId && product.marketFact?.observationId
-      && Number.isFinite(Number(product.marketFact?.value))
+      && presentFinite(product.marketFact?.value)
       && permittedEvidenceUrl(product.evidence?.product));
 }
 
@@ -108,6 +110,15 @@ export default function InvestmentUniverseExplorer() {
   const compareAbort = useRef(null);
 
   useEffect(() => () => compareAbort.current?.abort(), []);
+
+  const toggleDirectory = () => {
+    compareAbort.current?.abort();
+    setSelectedFamily(null);
+    setComparison(null);
+    setData(null);
+    setStatus(open ? 'NOT_REQUESTED' : 'LOADING');
+    setOpen(value => !value);
+  };
 
   useEffect(() => {
     if (!FINANCIAL_CATALOG_UI_ENABLED || !open) return undefined;
@@ -177,11 +188,24 @@ export default function InvestmentUniverseExplorer() {
     }
   };
 
-  if (!FINANCIAL_CATALOG_UI_ENABLED) return null;
+  if (!FINANCIAL_CATALOG_UI_ENABLED) {
+    return (
+      <section className="wti-universe" aria-label="Tailored product comparison status">
+        <div className="wti-universe-content">
+          <h2>Tailored top-three product comparison unavailable</h2>
+          <p role="status">
+            Individual products are shown here only after their source rights, current facts,
+            product terms and suitability are verified. Your suitable investment categories
+            remain available below.
+          </p>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="wti-universe" aria-label="All 250 Indian investment options and tailored product comparison">
       <button type="button" className="wti-universe-toggle" aria-expanded={open}
-        onClick={() => setOpen(value => !value)}>
+        onClick={toggleDirectory}>
         {open ? 'Hide all 250 investment options' : 'Explore all 250 investment options'}
       </button>
       {open && (
@@ -252,7 +276,7 @@ export default function InvestmentUniverseExplorer() {
                     <p role="status">
                       Three distinct, current, suitable products cannot yet be verified
                       for this category. {comparison.reasonCode || 'INSUFFICIENT_VERIFIED_PRODUCTS'}.
-                      No duplicate issuers, assumed rates or invented returns are shown.
+                      No duplicate product identities, assumed rates or invented returns are shown.
                     </p>
                   )}
                   {comparison?.status === 'ERROR' && (
@@ -263,14 +287,14 @@ export default function InvestmentUniverseExplorer() {
                   )}
                   {comparison?.status === 'AVAILABLE' && (
                     <>
-                      <p>Three independently checked products, ranked by verified risk fit,
-                        charges and lock-in. This ranking is not a return guarantee.</p>
+                      <p>Three independently checked products, ordered by lower verified risk,
+                        then charges, then lock-in. This is not a return ranking or guarantee.</p>
                       <ol>
                         {comparison.products.map(product => (
                           <li key={product.id}>
                             <strong>{product.name}</strong>
                             <div>
-                              Risk: {product.riskLevel}/5 · Match: {product.matchScore}/100
+                              Risk: {product.riskLevel}/5
                               · Charges: {product.annualFeeBps} basis points per year
                               · Lock-in: {product.lockInMonths} months
                             </div>

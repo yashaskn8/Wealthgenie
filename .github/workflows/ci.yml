@@ -56,6 +56,18 @@ jobs:
           MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
         run: npm run goals:migrate-budget-indexes --prefix server
 
+      # A real MongoDB 7 replica-set smoke test is mandatory for the
+      # opt-in GenieVoice ledger. This database is isolated from unit tests.
+      - name: Migrate GenieVoice receipt indexes in isolated MongoDB
+        env:
+          MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_genievoice_receipts_ci?replicaSet=rs0
+        run: node server/scripts/migrateSovereignTaskReceiptIndexes.js
+
+      - name: Verify GenieVoice Mongo receipt concurrency and account isolation
+        env:
+          GENIEVOICE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017/wealthgenie_genievoice_receipts_ci?replicaSet=rs0
+        run: node --test server/integration/sovereignMongoReceipt.integration.mjs
+
       - name: Migrate and verify GenieDecision owner/idempotency indexes
         env:
           MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0

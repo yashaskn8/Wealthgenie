@@ -802,6 +802,21 @@ export async function verifyExecutionReceipt(receiptId, options = {}) {
   return request('GET', `/agent/receipts/${encodeURIComponent(receiptId)}/verify`, null, { retries: 0, ...options });
 }
 
+/** Authenticated read-only GenieVoice task classification. */
+export async function interpretVoiceCommand(transcript, options = {}) {
+  return request('POST', '/voice/interpret', { transcript }, { retries: 0, ...options });
+}
+
+/** Read-only, profile-bound comparison using deterministic SIP engine; not an investment quote. */
+export async function compareVoiceSipScenarios(input, options = {}) {
+  return request('POST', '/voice/sip-compare', input, { retries: 0, ...options });
+}
+
+/** Preview only: returns navigation proposals, never executes any app/browser action. */
+export async function previewSovereignTask(plan, options = {}) {
+  return request('POST', '/voice/task-preview', { plan }, { retries: 0, ...options });
+}
+
 export async function getPlanHealth(profileId, options = {}) {
   if (!profileId) throw new TypeError('A profile ID is required.');
   return request('GET', `/agent/plan-health?profileId=${encodeURIComponent(profileId)}`, null, options);
@@ -1173,6 +1188,62 @@ export async function computePostTaxReturnBatch(instruments, annualIncome, regim
   }, requestOptions);
 }
 
+export function settleCoverageOneOff(entryId, settlement, revision, options = {}) {
+  if (typeof entryId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(entryId)) throw new TypeError('Invalid cash commitment identity.');
+  if (!Number.isSafeInteger(revision) || revision < 1) throw new TypeError('Cash revision must be positive.');
+  return request('POST', '/coverage/commitments/' + encodeURIComponent(entryId) + '/settle',
+    settlement, {
+      ...options,
+      headers: { ...options.headers, 'If-Match': '"' + revision + '"' },
+    });
+}
+export function exportCoverageSettlementPage(afterRevision = 0, options = {}) {
+  if (!Number.isSafeInteger(afterRevision) || afterRevision < 0) {
+    throw new TypeError('Invalid cash settlement export cursor.');
+  }
+  return request('GET', '/coverage/settlements?limit=20&afterRevision=' + afterRevision, null, options);
+}
+export function getCoverageSettlements(options = {}) {
+  return request('GET', '/coverage/settlements', null, options);
+}
+export function getCoverageAlerts(options = {}) {
+  return request('GET', '/coverage/alerts?limit=20', null, options);
+}
+export function acknowledgeCoverageAlert(id, options = {}) {
+  if (typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id)) throw new TypeError('Invalid cash alert identity.');
+  return request('PATCH', '/coverage/alerts/' + encodeURIComponent(id) + '/ack', {}, options);
+}
+export function getCoverageLedger(options = {}) {
+  return request('GET', '/coverage/ledger', null, options);
+}
+
+export function saveCoverageLedger(ledger, revision, options = {}) {
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new TypeError('Coverage revision must be nonnegative integer.');
+  return request('PUT', '/coverage/ledger', ledger, {
+    ...options, headers: { ...options.headers, 'If-Match': String.fromCharCode(34) + revision + String.fromCharCode(34) },
+  });
+}
+
+export function previewCoverageScenario(revision, excludedVoluntaryEntryIds = [], options = {}) {
+  return request('POST', '/coverage/scenarios/preview', { revision, excludedVoluntaryEntryIds }, options);
+}
+
+export function getCoverageRevision(revision, options = {}) {
+  return request('GET', '/coverage/revisions/' + encodeURIComponent(String(revision)), null, options);
+}
+
+export function deleteCoverageLedger(revision, options = {}) {
+  if (!Number.isSafeInteger(revision) || revision < 1) throw new TypeError('Coverage revision must be positive integer.');
+  return request('DELETE', '/coverage/ledger', null, {
+    ...options, headers: { ...options.headers, 'If-Match': String.fromCharCode(34) + revision + String.fromCharCode(34) },
+  });
+}
+
+export function exportCoverageHistoryPage(afterRevision = 0, options = {}) {
+  if (!Number.isSafeInteger(afterRevision) || afterRevision < 0) throw new TypeError('Invalid coverage export cursor.');
+  return request('GET', '/coverage/export?limit=20&afterRevision=' + afterRevision, null, options);
+}
+
 /**
  * An authenticated, resumable live decision stream. EventSource cannot carry
  * the development Authorization header, so read standard SSE with fetch.
@@ -1341,6 +1412,9 @@ export async function deleteDecisionScenario(id, expectedRevision, options = {})
 
 // Default export for convenience
 const api = {
+  getCoverageLedger, getCoverageAlerts, acknowledgeCoverageAlert,
+  settleCoverageOneOff, getCoverageSettlements, exportCoverageSettlementPage,
+  saveCoverageLedger, previewCoverageScenario, getCoverageRevision, deleteCoverageLedger, exportCoverageHistoryPage,
   getDecisionAvailability, listDecisionScenarios, getDecisionScenario, createDecisionScenario,
   updateDecisionScenario, evaluateDecisionScenario, getDecisionRun, listDecisionRuns, deleteDecisionScenario,
   subscribeDecisionEvents, simulateDecisionScenario, getDecisionMonitor, setDecisionMonitor,

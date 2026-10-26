@@ -27,6 +27,8 @@ const ProgressHub = lazy(() => import('./components/ProgressHub'));
 const JourneyPage = lazy(() => import('./components/JourneyPage'));
 const GenieProofEntry = lazy(() => import('./components/GenieProofEntry'));
 const GenieDecisionWorkspace = lazy(() => import('./components/GenieDecisionWorkspace'));
+const CashCheck = lazy(() => import('./components/CashCheck'));
+const COVERAGE_UI_ENABLED = !import.meta.env.PROD || import.meta.env.VITE_COVERAGE_ENABLED === 'true';
 const AllocationPlanner = lazy(() => import('./components/AllocationPlanner'));
 const ProfileEditor = lazy(() => import('./ProfileEditor'));
 const HelpTourScreen = lazy(() => import('./HelpTourScreen'));
@@ -152,7 +154,7 @@ export function advisoryMatchesCurrentFinancialState(current, advisory) {
 /* ===== DASHBOARD SHELL - Sidebar + Pages + Chatbot ===== */
 const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = null }) => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user: authenticatedUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL search params are the SINGLE source of truth for navigation
@@ -893,6 +895,10 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
             />
           </ErrorBoundary>
         );
+      case NAV_PAGES.CASH_CHECK:
+        return COVERAGE_UI_ENABLED
+          ? <ErrorBoundary><CashCheck key={String(authenticatedUser?.id || 'restoring-session')} /></ErrorBoundary>
+          : null;
       case NAV_PAGES.GENIEPROOF:
         return (
           <ErrorBoundary>

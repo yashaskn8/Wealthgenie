@@ -17,6 +17,7 @@ import freeFinancialSourcesRoutes from '../routes/freeFinancialSources.js';
 import chatRoutes from '../routes/chatRoutes.js';
 import recommendRoutes from '../routes/recommend.js';
 import goalsRoutes from '../routes/goals.js';
+import coverageRoutes from '../routes/coverage.js';
 import marketRoutes from '../routes/market.js';
 import { createMarketQuotesRouter } from '../routes/marketQuotes.js';
 import marketDataAdminRoutes from '../routes/marketDataAdmin.js';
@@ -171,6 +172,7 @@ const publicMounts = [
   ['projection.js', '/api/projection'],
   ['montecarlo.js', '/api/montecarlo'],
   ['goals.js', '/api/goals'],
+  ['coverage.js', '/api/coverage'],
   ['market.js', '/api/market'],
   ['marketQuotes.js', '/api/market-data'],
   ['marketDataAdmin.js', '/api/market-data'],
@@ -301,6 +303,10 @@ function buildContractTestApp() {
   app.use('/api/montecarlo', montecarloRoutes);
   app.use('/api/portfolio', portfolioRoutes);
   app.use('/api/goals', goalsRoutes);
+  // Live authenticated OpenAPI cases must mount every documented router.
+  // Coverage remains production-gated in the real app; this test harness
+  // deliberately exercises the enabled route for its 401/CSRF contract.
+  app.use('/api/coverage', coverageRoutes);
   app.use('/api/regime', regimeRoutes);
   app.use('/api/decisions', genieDecisionRoutes);
   app.use('/api/decisions', decisionScenariosRoutes);

@@ -79,7 +79,7 @@ describe('250-family Where to Invest directory', () => {
       products: Array.from({ length: 3 }, (_, index) => ({
         id: 'product_' + index,
         name: 'Issuer ' + (index + 1),
-        riskLevel: 1, matchScore: 90 - index, annualFeeBps: index,
+        riskLevel: 1, annualFeeBps: index,
         lockInMonths: 0, verifiedTaxClass: 'ORDINARY_INTEREST',
         marketFact: {
           type: 'PUBLISHED_RATE', value: String(6.5 - index / 10),
@@ -101,6 +101,7 @@ describe('250-family Where to Invest directory', () => {
     expect(within(comparisonPanel).getAllByRole('link', { name: 'Issuer evidence' })).toHaveLength(3);
     expect(screen.getAllByRole('link', { name: 'Issuer evidence' })).toHaveLength(3);
     expect(screen.getAllByText(/Personalized post-tax return: not calculated by this comparison/)).toHaveLength(3);
+    expect(comparisonPanel.textContent).not.toContain('Match:');
   });
 
   it('rejects partial product lists instead of padding the comparison', async () => {
@@ -113,6 +114,49 @@ describe('250-family Where to Invest directory', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent)
       .toContain('CURRENT_PROFILE_OR_QUALIFIED_COMPARISON_UNAVAILABLE'));
     expect(screen.queryByText('Unverified comparison entry')).toBeNull();
+  });
+
+  it('rejects a missing market value instead of rendering it as zero', async () => {
+    api.getQualifiedFamilyTopProducts.mockResolvedValue({
+      status: 'AVAILABLE',
+      products: Array.from({ length: 3 }, (_, index) => ({
+        id: 'product_' + index,
+        name: 'Issuer ' + (index + 1),
+        marketFact: {
+          sourceId: 'verified_source', observationId: String(index + 1),
+          value: index === 0 ? null : '6.5',
+        },
+        evidence: { product: 'https://issuer.example/evidence/' + index },
+      })),
+    });
+    render(<InvestmentUniverseExplorer />);
+    await waitFor(() => expect(screen.getByText('Investment family 1')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Check tailored top 3 for Investment family 1' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent)
+      .toContain('CURRENT_PROFILE_OR_QUALIFIED_COMPARISON_UNAVAILABLE'));
+    expect(screen.queryByText('Issuer 1')).toBeNull();
+  });
+
+  it('clears a prior personalized comparison when the directory is closed', async () => {
+    api.getQualifiedFamilyTopProducts.mockResolvedValue({
+      status: 'AVAILABLE',
+      products: Array.from({ length: 3 }, (_, index) => ({
+        id: 'product_' + index,
+        name: 'Issuer ' + (index + 1),
+        marketFact: { sourceId: 'verified_source', observationId: String(index + 1), value: 1 },
+        evidence: { product: 'https://issuer.example/evidence/' + index },
+      })),
+    });
+    render(<InvestmentUniverseExplorer />);
+    await waitFor(() => expect(screen.getByText('Investment family 1')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Check tailored top 3 for Investment family 1' }));
+    await waitFor(() => expect(screen.getByText('Issuer 1')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide all 250 investment options' }));
+    expect(screen.queryByText('Issuer 1')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Explore all 250 investment options' }));
+    await waitFor(() => expect(screen.getByText('Investment family 1')).toBeTruthy());
+    expect(screen.queryByText('Issuer 1')).toBeNull();
   });
 
   it('fails closed for inconsistent catalog totals rather than showing fewer than 250 as complete', async () => {

@@ -12,11 +12,18 @@ import { connectRedis, redisAvailable, redisClient } from './config/redis.js';
 import { getRuntimeConfig, assertValidRuntimeConfig } from './config/runtime.js';
 import { validateEnvironmentConfig } from './config/validateEnv.js';
 import { startMarketDataRefreshJobs, stopMarketDataRefreshJobs } from './jobs/marketDataRefresh.js';
+import { startCoverageRiskWorker, stopCoverageRiskWorker } from './jobs/coverageRiskAlerts.js';
 import { startPlanReviewWorker, stopPlanReviewWorker } from './agents/planReview/planReviewWorker.js';
 import logger from './utils/logger.js';
 import { createRuntimeState } from './services/runtimeState.js';
 import { warmAdvisoryPersistence } from './services/advisoryPersistence.js';
-import { verifyGenieProofPersistenceIndexes, verifyMarketDataPersistenceIndexes } from './services/persistenceIndexReadiness.js';
+import { verifyGenieProofPersistenceIndexes, verifyMarketDataPersistenceIndexes, verifyPersistenceIndexes } from './services/persistenceIndexReadiness.js';
+import CoverageLedger from './models/CoverageLedger.js';
+import CoverageResult from './models/CoverageResult.js';
+import CoverageDeletionReceipt from './models/CoverageDeletionReceipt.js';
+import CoverageRiskAlert from './models/CoverageRiskAlert.js';
+import CoverageSettlement from './models/CoverageSettlement.js';
+import IdempotencyKey from './models/IdempotencyKey.js';
 import { verifyPlanReviewPersistenceIndexes } from './services/planReviewPersistence.js';
 import { verifyAgentRuntimePersistence } from './services/planHealthPersistence.js';
 import AgentRunEvent from './models/AgentRunEvent.js';
@@ -37,6 +44,46 @@ const runtimeState = createRuntimeState();
 let activeConfig = null;
 let authorizedRecoveryTimer = null;
 let activeMcpRuntime = null;
+
+const COVERAGE_STARTUP_MODELS = Object.freeze([
+  CoverageLedger, CoverageResult, CoverageDeletionReceipt,
+  CoverageRiskAlert, CoverageSettlement, IdempotencyKey,
+]);
+/** Read-only startup fence: missing indexes are a deployment migration error,
+ * not a reason to run Mongoose autoIndex on the live user-facing server. */
+export async function verifyEnabledCoveragePersistence(
+  env, verifier = verifyPersistenceIndexes,
+  readScanIndexes = () => CoverageLedger.collection.indexes(),
+  readCleanupIndexes = () => IdempotencyKey.collection.indexes(),
+) {
+  const feature = env.COVERAGE_ENABLED === 'true';
+  const worker = env.COVERAGE_ALERT_WORKER_ENABLED === 'true';
+  if (worker && !feature) {
+    throw new Error('Cash risk alert worker requires COVERAGE_ENABLED=true');
+  }
+  if (!feature) return { ready: true, skipped: true };
+  await verifier({ models: COVERAGE_STARTUP_MODELS, force: true, scope: 'persistence' });
+  const cleanupIndexes = await readCleanupIndexes();
+  const cleanupReady = Array.isArray(cleanupIndexes) && cleanupIndexes.some(index => (
+    index.name === 'idx_idempotency_owner_operation'
+      && index.key?.userId === 1 && index.key?.operation === 1
+      && Object.keys(index.key).length === 2
+  ));
+  if (!cleanupReady) {
+    throw new Error('Cash mutation cleanup index missing; run the controlled Phase 2 Mongo migration');
+  }
+  if (worker) {
+    const indexes = await readScanIndexes();
+    const matching = Array.isArray(indexes) && indexes.some(index => (
+      index.name === 'cash_staleness_batch_scan'
+      && index.key?.['input.asOfDate'] === 1
+      && index.key?._id === 1
+      && Object.keys(index.key).length === 2
+    ));
+    if (!matching) throw new Error('Cash risk worker staleness-scan index is missing; run the controlled Mongo migration before enabling this worker');
+  }
+  return { ready: true };
+}
 
 export async function verifyEnabledApiAgentPersistence(config, verifier = verifyAgentRuntimePersistence) {
   if (!config.agenticPlanReviewEnabled) return { ready: true, skipped: true };
@@ -60,6 +107,7 @@ function closeHttpServer(httpServer) {
 
 async function closeInfrastructure({ stopAgentWorker = false } = {}) {
   stopMarketDataRefreshJobs();
+  await stopCoverageRiskWorker();
   if (stopAgentWorker) await stopPlanReviewWorker();
   await stopProductionEvaluationReconciliation();
   if (authorizedRecoveryTimer) clearInterval(authorizedRecoveryTimer);
@@ -117,6 +165,7 @@ export async function startServer({ env = process.env } = {}) {
     }
     await warmAdvisoryPersistence();
     await verifyMarketDataPersistenceIndexes({ force: true });
+    await verifyEnabledCoveragePersistence(env);
     if (genieProofRuntime.enabled) await verifyGenieProofPersistenceIndexes({ force: true });
     if (config.agenticPlanReviewEnabled) {
       await verifyPlanReviewPersistenceIndexes();
@@ -149,6 +198,7 @@ export async function startServer({ env = process.env } = {}) {
       server.listen(config.port);
     });
     startMarketDataRefreshJobs();
+    startCoverageRiskWorker({ env });
     if (config.agentWorkerEnabled && config.agentWorkerMode === 'embedded') {
       startPlanReviewWorker({ runtimeConfig: config, eventModel: AgentRunEvent, productionEvaluationModel: ProductionAgentEvaluation });
       if (config.agenticPlanReviewEnabled) {

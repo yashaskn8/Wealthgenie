@@ -14,6 +14,7 @@ export const NAV_PAGES = {
   KEEP_ON_TRACK: 'keep-on-track',
   GENIEPROOF: 'genieproof',
   GENIEDECISION: 'geniedecision',
+  CASH_CHECK: 'cash-check',
   ACCOUNT: 'account',
   HELP: 'help',
 };
@@ -29,6 +30,7 @@ export const PAGE_ALLOWLIST = [
   NAV_PAGES.KEEP_ON_TRACK,
   NAV_PAGES.GENIEPROOF,
   NAV_PAGES.GENIEDECISION,
+  NAV_PAGES.CASH_CHECK,
   NAV_PAGES.ACCOUNT,
   NAV_PAGES.HELP,
 ];

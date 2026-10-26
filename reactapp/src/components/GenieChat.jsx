@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Trash2, Sparkles, RefreshCw, Scale, Coins, Percent, Target, ArrowLeft, ExternalLink, Mic, MicOff, ChevronRight, TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
+import SovereignVoiceControl from './SovereignVoiceControl';
+import { normalizeFeatureCard } from '../utils/featureNavigationCard';
 import './GenieChat.css';
 import * as api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
@@ -153,6 +155,7 @@ function mapStoredChatMessages(messages) {
     timestamp: message.timestamp || new Date().toISOString(),
     latency_ms: message.metadata?.latency_ms,
     grounded: message.metadata?.grounded_on_profile,
+    validation_status: message.metadata?.validation_status || null,
     provider: message.metadata?.provider,
     model: message.metadata?.model,
     grounding_version: message.metadata?.grounding_version,
@@ -161,6 +164,7 @@ function mapStoredChatMessages(messages) {
     fallback: message.metadata?.fallback_used === true,
     fallback_reason_codes: message.metadata?.fallback_used ? message.metadata?.validation_reason_codes || [] : [],
     citations: message.metadata?.citations || [],
+    action_cards: message.metadata?.action_cards || [],
     _clientTurnHash: message.metadata?.client_turn_hash || null,
     _streamed: true,
   }));
@@ -526,52 +530,6 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     }
   };
 
-  const handleAction = useCallback((action) => {
-    if (!action) return;
-    const target = action.target || action.url || '';
-    if (onNavigate) {
-      const TARGET_MAPPING = {
-        '/rebalancer': 'rebalancer',
-        '/portfolio-rebalance': 'rebalancer',
-        '/stepup': 'sip-planner',
-        '/tax': 'taxes',
-        '/tax-optimizer': 'taxes',
-        '/goals': 'goals',
-        '/comparison': 'compare',
-        '/compare': 'compare',
-        '/investments': 'compare',
-        '/invest': 'compare',
-        '/recommendations': 'dashboard',
-        '/dashboard': 'dashboard',
-        '/profile': 'profile',
-        '/calculators': 'sip-planner',
-        '/allocation': 'allocation',
-      };
-
-      let page = TARGET_MAPPING[target];
-      if (!page && target) {
-        const lower = target.toLowerCase();
-        if (lower.includes('rebal')) page = 'rebalancer';
-        else if (lower.includes('tax')) page = 'taxes';
-        else if (lower.includes('step') || lower.includes('sip') || lower.includes('calc')) page = 'sip-planner';
-        else if (lower.includes('goal')) page = 'goals';
-        else if (lower.includes('comp') || lower.includes('invest')) page = 'compare';
-        else if (lower.includes('prof')) page = 'profile';
-        else if (lower.includes('alloc')) page = 'allocation';
-        else page = 'dashboard';
-      }
-
-      if (!page) page = 'dashboard';
-
-      if (['rebalancer', 'sip-planner'].includes(page)) {
-        setActiveWorkspace(page);
-      } else {
-        onNavigate(page);
-        setIsOpen(false); // Close chatbot panel on successful navigation
-      }
-    }
-  }, [onNavigate]);
-
   const sendMessage = useCallback(async (text) => {
     const messageText = (text || input).trim();
     if (!messageText || isLoading || sendInFlightRef.current || isClearing || clearingRef.current) return;
@@ -639,7 +597,9 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         timestamp: new Date().toISOString(),
         latency_ms: data.latency_ms,
         citations: data.citations || [],
+        action_cards: data.action_cards || [],
         grounded: data.grounded,
+        validation_status: data.validation_status || null,
         provider: data.provider,
         model: data.model,
         grounding_version: data.grounding_version,
@@ -664,6 +624,10 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             : 'You used the last message reported by the server. Genie will check availability on your next message.');
         }
       }
+      // Return the *exact* authenticated response for the originating spoken
+      // turn. Voice playback must never infer turn identity from the newest
+      // visible chat message, which may change before speech synthesis starts.
+      return data;
     } catch (err) {
       if (isCurrent() && err?.code !== 'REQUEST_ABORTED') {
         if (err?.code === 'CHAT_RATE_LIMIT_EXCEEDED') {
@@ -891,7 +855,16 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
               <ProactiveNudge profile={profile} onAsk={sendMessage} />
 
-              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg} onAction={handleAction} isLatest={i === visibleMessages.length - 1} />)}
+              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg}
+                isLatest={i === visibleMessages.length - 1}
+                onFeatureOpen={card => {
+                  const approved = normalizeFeatureCard(card);
+                  if (!approved || !sessionMatchesProfile ||
+                      typeof onNavigate !== 'function') return;
+                  // This is an explicit, visible click. Never navigate based
+                  // only on ASR text, an LLM sentence, or untrusted HTML.
+                  onNavigate({ page: approved.page, tab: null });
+                }} />)}
 
               {sessionMatchesProfile && isLoading && (
                 <div className="chat-bubble chat-bubble--genie">
@@ -915,7 +888,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
             {/* Input Bar */}
             <div className="genie-input-bar">
-              {recognitionRef.current && (
+              {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED !== 'true' && recognitionRef.current && (
                 <button className={`voice-btn ${isListening ? 'voice-active' : ''}`} onClick={toggleVoice} title="Voice input" aria-label={isListening ? "Stop voice input" : "Start voice input"}>
                   {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
@@ -926,6 +899,18 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
               </button>
             </div>
             {voiceError && <div role="status" className="chat-error-banner">{voiceError}</div>}
+            {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED === 'true' && (
+              <SovereignVoiceControl
+                key={sessionId}
+                sessionKey={sessionId}
+                disabled={!sessionMatchesProfile || isClearing || rateLimitBlocked}
+                chatBusy={isLoading}
+                onNavigate={onNavigate}
+                onTranscript={text => setInput(prev => prev ? prev + ' ' + text : text)}
+                onQuestion={text => sendMessage(text)}
+                lastAnswer={lastAssistantMsg}
+              />
+            )}
             <div className="genie-disclaimer">For informational purposes only. Not registered investment advice under SEBI (IA) Regulations, 2013. Consult a SEBI-registered adviser before investing. Mutual fund investments are subject to market risks.</div>
           </div>
 

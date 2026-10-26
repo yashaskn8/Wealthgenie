@@ -1,0 +1,176 @@
+.sovereign-voice-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  color: var(--color-gray-200, #e2e8f0);
+  border-top: 1px solid rgba(148,163,184,.18);
+}
+.sovereign-voice-control > button,
+.sovereign-sip-comparison button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 10px;
+  border: 1px solid rgba(56,189,248,.35);
+  background: rgba(14,165,233,.11);
+  color: inherit;
+  padding: 7px 10px;
+  min-height: 36px;
+  cursor: pointer;
+}
+.sovereign-voice-control > button:disabled,
+.sovereign-sip-comparison button:disabled { opacity: .5; cursor: not-allowed; }
+.sovereign-voice-control :is(button,input):focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+.sovereign-voice-control small { flex-basis: 100%; color: #94a3b8; font-size: 11px; }
+.sovereign-voice-control > [role="status"] { flex-basis: 100%; font-size: 12px; overflow-wrap: anywhere; }
+.sovereign-sip-comparison {
+  flex-basis: 100%;
+  min-width: 0;
+  max-height: min(340px, 49vh);
+  overflow-y: auto;
+  background: rgba(15,23,42,.75);
+  border: 1px solid rgba(56,189,248,.24);
+  border-radius: 12px;
+  padding: 12px;
+  line-height: 1.5;
+  scrollbar-width: thin;
+}
+.sovereign-sip-comparison p { font-size: 12px; margin: 0 0 8px; }
+.sovereign-sip-comparison form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.sovereign-sip-comparison label { display: grid; min-width: 0; gap: 3px; font-size: 11px; }
+.sovereign-sip-comparison input {
+  width: 100%;
+  min-width: 0;
+  background: rgba(15,23,42,.95);
+  color: #fff;
+  border: 1px solid #64748b;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 14px;
+}
+.sovereign-sip-comparison [role="alert"] { color: #fecaca; }
+.sovereign-sip-comparison [role="status"] { overflow-x: auto; }
+.sovereign-sip-comparison table { width: 100%; font-size: 11px; border-collapse: collapse; }
+.sovereign-sip-comparison th, .sovereign-sip-comparison td {
+  border-bottom: 1px solid rgba(148,163,184,.2);
+  padding: 6px;
+  text-align: left;
+  white-space: nowrap;
+}
+@media(max-width:400px) {
+  .sovereign-sip-comparison form {grid-template-columns: 1fr;}
+}
+@media(prefers-reduced-motion: reduce) {
+  .sovereign-voice-control *, .sovereign-sip-comparison * {transition:none!important;animation:none!important;}
+}
+
+.sovereign-voice-control > button[aria-pressed="true"] {
+  background: rgba(56, 189, 248, .24);
+  border-color: #7dd3fc;
+}
+.sovereign-voice-control .genie-voice-caption {
+  flex-basis: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, .12);
+  border: 1px solid rgba(148, 163, 184, .22);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* The mic indicator is an explicit privacy signal, not an always-on listener. */
+.sovereign-voice-control .genie-voice-status-light {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: #64748b;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, .3);
+}
+.sovereign-voice-control[data-phase="listening"] .genie-voice-status-light {
+  background: #34d399;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, .18);
+  animation: genievoice-mic-pulse 1.7s ease-in-out infinite;
+}
+.sovereign-voice-control[data-phase="checking"] .genie-voice-status-light,
+.sovereign-voice-control[data-phase="thinking"] .genie-voice-status-light {
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, .14);
+}
+.sovereign-voice-control[data-phase="speaking"] .genie-voice-status-light {
+  background: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, .17);
+}
+@keyframes genievoice-mic-pulse {
+  50% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sovereign-voice-control .genie-voice-status-light { animation: none; }
+}
+
+.sovereign-voice-control .genie-voice-locale-label {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+.sovereign-voice-control #genievoice-language {
+  max-width: 170px;
+  background: rgba(15, 23, 42, .96);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, .5);
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+.sovereign-voice-control #genievoice-language:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+
+/* Numeric values from speech recognition must be visibly approved first. */
+.sovereign-voice-control .genie-voice-financial-review {
+  flex-basis: 100%;
+  min-width: 0;
+  border: 1px solid rgba(245, 158, 11, .65);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(120, 53, 15, .18);
+  color: inherit;
+}
+.genie-voice-financial-review > strong {
+  display: block;
+  margin-bottom: 6px;
+}
+.genie-voice-financial-review p {
+  margin: 4px 0 10px;
+  font-size: 13px;
+}
+.genie-voice-financial-review-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, .45);
+  border-radius: 8px;
+}
+.genie-voice-financial-review button {
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, .6);
+  background: rgba(14, 165, 233, .16);
+  padding: 8px 12px;
+  margin: 4px 8px 4px 0;
+  min-height: 38px;
+  color: inherit;
+  cursor: pointer;
+}
+.genie-voice-financial-review button:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
