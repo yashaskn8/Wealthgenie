@@ -20,15 +20,20 @@ const TARGETS=Object.freeze({
 });
 const OPEN_COMPARISON_RE=/^(?:please\s+)?(?:open|show|start|prepare)\s+(?:(?:the|my)\s+)?(?:sip comparison|sip scenario comparison|sip what if|sip what-if)(?:\s+(?:tool|screen|panel))?[.!?]*$/i;
 const NAV_RE=/^(?:(?:please|(?:could|can) you(?: please)?)\s+)?(?:open|show|visit|go to|navigate to|take me to|bring up|pull up)\s+(?:(?:the|my)\s+)?(.+?)(?:\s+(?:page|screen|tab))?[.!?]*$/i;
-const UNSAFE_RE=/\b(?:buy|sell|trade|transfer|withdraw|pay|purchase|delete|erase|remove|submit|send|save|change|modify|update|rebalance|approve|authorize|confirm|execute|install|download|upload|log\s*in|sign\s*in)\b|(?:https?:\/\/|www\.)/i;
+const UNSAFE_RE=/\b(?:invest|redeem|cancel|set|edit|adjust|deposit|move|schedule|liquidate|buy|sell|trade|transfer|withdraw|pay|purchase|delete|erase|remove|submit|send|save|change|modify|update|rebalance|approve|authorize|confirm|execute|install|download|upload|log\s*in|sign\s*in)\b|(?:https?:\/\/|www\.)/i;
 const EXTERNAL_RE=/\b(?:browser|chrome|firefox|tab|website|google|youtube|gmail|email|external|internet|webpage)\b/i;
 // The interpretation endpoint is NOT a tool executor. Users must be able to ask
 // educational questions about buying/selling without granting transaction
 // authority. Explicit requests that the assistant act on their behalf remain
 // denied, even when phrased as questions.
 const EDUCATIONAL_RE=/^(?:what\s+(?:is|are|does|happens|if|would)|how\s+(?:do|does|can|could|would|is|are)|why\s+(?:do|does|is|are)|explain\b|tell\s+me\s+about\b|could\s+you\s+explain\b|should\s+i\b)/i;
-const DIRECT_ACTION_QUESTION_RE=/^(?:(?:can|could|would|will)\s+you\s+(?:please\s+)?)(?:buy|sell|trade|transfer|withdraw|pay|purchase|delete|erase|remove|submit|send|save|change|modify|update|rebalance|approve|authorize|confirm|execute|install|download|upload|log\s*in|sign\s*in)\b/i;
+const DIRECT_ACTION_QUESTION_RE=/^(?:(?:can|could|would|will)\s+you\s+(?:please\s+)?)(?:invest|redeem|cancel|set|edit|adjust|deposit|move|schedule|liquidate|buy|sell|trade|transfer|withdraw|pay|purchase|delete|erase|remove|submit|send|save|change|modify|update|rebalance|approve|authorize|confirm|execute|install|download|upload|log\s*in|sign\s*in)\b/i;
 const URL_RE=/(?:https?:\/\/|www\.)/i;
+// Hypothetical and how-to phrasing cannot turn a request that Genie act as
+// the financial operator into ordinary hands-free chat. Questions about
+// actions the *user* might take remain educational.
+const DELEGATED_ACTION_QUESTION_RE=/^(?:how\s+(?:can|could|would|do|will)\s+you|what\s+if\s+you)\s+(?:please\s+)?(?:invest|redeem|cancel|set|edit|adjust|deposit|move|schedule|liquidate|buy|sell|trade|transfer|withdraw|pay|purchase|delete|erase|remove|submit|send|save|change|modify|update|rebalance|approve|authorize|confirm|execute|install|download|upload|log\s*in|sign\s*in)\b/i;
+
 // Exact, reviewed navigation phrases only; these are commands, not a natural
 // language model, so the user cannot trick a translation layer into executing.
 const INDIC_NAV = new Map([
@@ -67,6 +72,7 @@ export function classifyVoiceIntent(raw) {
   if(INDIC_COMMAND.test(input))return {action:'REJECTED',reason:'UNSUPPORTED_NAVIGATION'};
   if(UNSAFE_RE.test(input)) {
     if(EDUCATIONAL_RE.test(input) && !DIRECT_ACTION_QUESTION_RE.test(input) &&
+      !DELEGATED_ACTION_QUESTION_RE.test(input) &&
       !URL_RE.test(input) && !/[;{}<>]/.test(input))
       return {action:'CHAT',reason:'EDUCATIONAL_QUESTION'};
     return {action:'REJECTED',reason:'ACTION_NOT_ALLOWED'};
