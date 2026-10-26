@@ -4,7 +4,7 @@ on:
   # Only a successful CI push on main is eligible for automatic Kind verification.
   # Pull-request CI, stale commits, and failures cannot trigger deployment.
   workflow_run:
-    workflows: [CI]
+    workflows: [CI, GenieVoice Production Hardening Checks, Coverage Firewall - Targeted Safety Gate]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -17,15 +17,53 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: cd-kind-deployment
   cancel-in-progress: false
 
 jobs:
+  release-quality-gate:
+    name: Verify Same-Commit Production Release Gates
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Require current main and three successful push workflows
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_IS_TRUSTED: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+        run: |
+          set -euo pipefail
+          echo 'ready=false' >> "$GITHUB_OUTPUT"
+          if [ "$SOURCE_IS_TRUSTED" != 'true' ] || [ "$GITHUB_REF" != 'refs/heads/main' ]; then
+            echo 'Release gate: untrusted or non-main invocation; refusing deployment.'
+            exit 0
+          fi
+          latest_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$VERIFIED_SHA" != "$latest_sha" ]; then
+            echo 'Release gate: this commit was superseded on main.'
+            exit 0
+          fi
+          for workflow in ci.yml genievoice-quality.yml coverage-firewall-ci.yml; do
+            conclusion="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs" \
+              -f head_sha="$VERIFIED_SHA" -f event=push -f per_page=10 \
+              --jq '.workflow_runs | sort_by(.created_at) | last | .conclusion // "pending"')"
+            if [ "$conclusion" != 'success' ]; then
+              echo "Release gate: $workflow is $conclusion, not successful; refusing deployment."
+              exit 0
+            fi
+          done
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+          echo 'Release gate passed: CI, GenieVoice and Cash Check all succeeded at the current main SHA.'
+
   deploy-and-verify-kind:
     name: Local Kind Cluster Deployment & Smoke Verification
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_sha == github.sha) }}
+    needs: release-quality-gate
+    if: ${{ needs.release-quality-gate.outputs.ready == 'true' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_sha == github.sha)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

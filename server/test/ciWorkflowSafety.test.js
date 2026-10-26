@@ -125,15 +125,20 @@ test('required Linux CI jobs retain Mongo-backed integrity and isolated financia
   }
 });
 
-test('Kind deployment runs only on successful main CI or explicit manual dispatch, with strict live preflight opt-in', () => {
+test('Kind deployment requires all main release checks and explicit live preflight opt-in', () => {
   assert.deepEqual(Object.keys(cdWorkflow.on), ['workflow_run', 'workflow_dispatch']);
   assert.deepEqual(cdWorkflow.on.workflow_run, {
-    workflows: ['CI'],
+    workflows: ['CI', 'GenieVoice Production Hardening Checks', 'Coverage Firewall - Targeted Safety Gate'],
     types: ['completed'],
     branches: ['main'],
   });
   assert.equal(cdWorkflow.on.workflow_dispatch.inputs.run_live_market_preflight.default, false);
-  assert.deepEqual(Object.keys(cdWorkflow.jobs), ['deploy-and-verify-kind']);
+  assert.deepEqual(Object.keys(cdWorkflow.jobs), ['release-quality-gate', 'deploy-and-verify-kind']);
+  const releaseGate = cdWorkflow.jobs['release-quality-gate'];
+  assert.equal(releaseGate.outputs.ready, '${{ steps.check.outputs.ready }}');
+  assert.ok(releaseGate.steps.some(step => step.run?.includes('for workflow in ci.yml genievoice-quality.yml coverage-firewall-ci.yml')));
+  assert.equal(cdWorkflow.jobs['deploy-and-verify-kind'].needs, 'release-quality-gate');
+  assert.ok(cdWorkflow.jobs['deploy-and-verify-kind'].if.includes("needs.release-quality-gate.outputs.ready == 'true'"));
 
   const gate = cdWorkflow.jobs['deploy-and-verify-kind'].if;
   for (const required of [

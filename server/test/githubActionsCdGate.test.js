@@ -9,20 +9,33 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const source = fs.readFileSync(path.join(projectRoot, '.github/workflows/cd.yml'), 'utf8');
 const parsed = parseDocument(source, { uniqueKeys: true, strict: true });
 
-test('CD workflow is syntactically valid and only watches main CI completion', () => {
+test('CD workflow requires same-commit main CI and feature safety completion', () => {
   assert.deepEqual(parsed.errors.map(error => error.message), []);
   const workflow = parsed.toJS();
-  assert.deepEqual(workflow.on.workflow_run.workflows, ['CI']);
+  assert.deepEqual(workflow.on.workflow_run.workflows, [
+    'CI', 'GenieVoice Production Hardening Checks', 'Coverage Firewall - Targeted Safety Gate',
+  ]);
   assert.deepEqual(workflow.on.workflow_run.types, ['completed']);
   assert.deepEqual(workflow.on.workflow_run.branches, ['main']);
   assert.ok(workflow.on.workflow_dispatch, 'explicit isolated Kind run remains available');
   assert.equal(workflow.permissions.contents, 'read');
+  assert.equal(workflow.permissions.actions, 'read');
+  assert.deepEqual(Object.keys(workflow.jobs), ['release-quality-gate', 'deploy-and-verify-kind']);
 });
 
 test('automatic Kind verification refuses failed, foreign, PR and superseded CI builds', () => {
   const workflow = parsed.toJS();
   const job = workflow.jobs['deploy-and-verify-kind'];
   const gate = job.if;
+  assert.equal(job.needs, 'release-quality-gate');
+  assert.ok(gate.includes("needs.release-quality-gate.outputs.ready == 'true'"));
+  const releaseGate = workflow.jobs['release-quality-gate'];
+  const check = releaseGate.steps.find(step => step.id === 'check');
+  assert.ok(check?.run.includes("workflow in ci.yml genievoice-quality.yml coverage-firewall-ci.yml"));
+  assert.ok(check.run.includes("-f head_sha=\"$VERIFIED_SHA\""));
+  assert.ok(check.run.includes("-f event=push"));
+  assert.ok(check.run.includes("latest_sha=\"$(gh api"));
+  assert.ok(check.run.includes("echo 'ready=true' >> \"$GITHUB_OUTPUT\""));
   for (const required of [
     "github.event_name == 'workflow_dispatch'",
     "github.event_name == 'workflow_run'",

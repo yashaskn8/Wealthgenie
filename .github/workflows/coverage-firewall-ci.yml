@@ -3,26 +3,6 @@ name: Coverage Firewall - Targeted Safety Gate
 on:
   push:
     branches: [main]
-    paths:
-      - 'server/routes/coverage.js'
-      - 'server/services/coverageEngine.js'
-      - 'server/models/Coverage*.js'
-      - 'server/services/coverageRiskPolicy.js'
-      - 'server/jobs/coverageRiskAlerts.js'
-      - 'server/middleware/idempotency.js'
-      - 'server/test/coverage*.test.js'
-      - 'server/scripts/*required-tests.json'
-      - 'server/services/persistenceIndexReadiness.js'
-      - 'reactapp/src/utils/cashStatementImport.js'
-      - 'reactapp/src/utils/cashStatementImport.test.js'
-      - 'reactapp/src/components/CashCheck.jsx'
-      - 'reactapp/src/components/CashCheck.css'
-      - 'reactapp/src/components/__tests__/CashCheck.test.jsx'
-      - 'reactapp/src/services/api.js'
-      - 'reactapp/e2e/cash-check.spec.ts'
-      - 'reactapp/e2e/cash-check-harness.html'
-      - 'reactapp/e2e/cash-check-harness.jsx'
-      - '.github/workflows/coverage-firewall-ci.yml'
   pull_request:
     branches: [main]
     paths:
