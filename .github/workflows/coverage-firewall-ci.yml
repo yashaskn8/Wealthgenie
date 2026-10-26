@@ -52,6 +52,7 @@ jobs:
           server/test/ciWorkflowSafety.test.js
           server/test/githubActionsCdGate.test.js
           server/test/productionFeatureFlagPackaging.test.js
+          server/test/productionPodSecurity.test.js
 
   cash-engine:
     name: Exact-Paise Engine & Real Mongo Transactions

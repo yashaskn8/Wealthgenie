@@ -15,6 +15,11 @@ spec:
       labels:
         app: wealthgenie-server
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: server
           image: wealthgenie-server:latest
@@ -86,6 +91,10 @@ spec:
                 secretKeyRef:
                   name: wealthgenie-secrets
                   key: METRICS_TOKEN
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 100m
