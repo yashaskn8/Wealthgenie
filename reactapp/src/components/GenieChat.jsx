@@ -500,8 +500,10 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   // Close/background, profile swap and chat session rebind cannot deliver a
   // late old-account transcript into the newly displayed input field.
   useEffect(() => {
-    if(!isOpen || !sessionMatchesProfile) stopLegacyVoice();
-  }, [isOpen, sessionMatchesProfile, sessionId, stopLegacyVoice]);
+    if(!isOpen || !sessionMatchesProfile || isLoading || isClearing || rateLimitBlocked)
+      stopLegacyVoice();
+  }, [isOpen, sessionMatchesProfile, sessionId, isLoading, isClearing,
+    rateLimitBlocked, stopLegacyVoice]);
   useEffect(() => {
     const onHide=() => {
       if(document.visibilityState === 'hidden') stopLegacyVoice();
@@ -521,8 +523,8 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
       stopLegacyVoice();
       return;
     }
-    if(!isOpen || !sessionMatchesProfile || document.visibilityState === 'hidden')
-      return;
+    if(!isOpen || !sessionMatchesProfile || isLoading || isClearing ||
+        rateLimitBlocked || document.visibilityState === 'hidden') return;
     const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;
     if(typeof Recognition !== 'function') {
       setVoiceError('Speech recognition is unavailable in this browser. Type your question.');
@@ -858,7 +860,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                   {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                 </button>
                 <button onClick={clearChat} title="Clear chat" aria-label="Clear chat conversation" disabled={isClearing || !recommendationContextReady || !chatSession.bindingReady}><Trash2 size={16} /></button>
-                <button onClick={() => setIsOpen(false)} title="Close" aria-label="Close chat helper"><X size={18} /></button>
+                <button onClick={() => { stopLegacyVoice(); setIsOpen(false); }} title="Close" aria-label="Close chat helper"><X size={18} /></button>
               </div>
             </div>
 
@@ -952,7 +954,8 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             <div className="genie-input-bar">
               {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED !== 'true' &&
                 typeof (window.SpeechRecognition || window.webkitSpeechRecognition) === 'function' && (
-                <button className={`voice-btn ${isListening ? 'voice-active' : ''}`} onClick={toggleVoice} title="Voice input" aria-label={isListening ? "Stop voice input" : "Start voice input"}>
+                <button disabled={!sessionMatchesProfile || isLoading || isClearing || rateLimitBlocked}
+                  className={`voice-btn ${isListening ? 'voice-active' : ''}`} onClick={toggleVoice} title="Voice input" aria-label={isListening ? "Stop voice input" : "Start voice input"}>
                   {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
               )}
