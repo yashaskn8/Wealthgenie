@@ -5,8 +5,8 @@ import { calculateGoalCompoundingScenario } from './chatGoalScenarioMath.js';
  * No model-return assumption, tax rate, product recommendation or live quote
  * is created by this module.
  */
-const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|trip|startup|business|ceremony|emergency fund|school|tuition)\b/i;
-const GOAL_INTENT = /\b(?:need|want|save|fund|afford|plan|target|goal|corpus|budget|reach|arrange|require|how much|collect|build|set aside|prepare|raise|costs?|pay|spend|estimate)\b/i;
+const SUBJECT = /\b(?:daughter(?:s|'s)?|daugter(?:s|'s)?|saugter(?:s|'s)?|sons?|children|child|kids?|marriage|wedding|college|university|education|study|home|house|property|down payment|vehicle|car|retirement|financial goal|goal corpus|medical|hospital|healthcare|vacation|travel|trip|startup|business|ceremony|emergency(?:\s+(?:fund|expense|expenses|savings|reserve))?|school|tuition)\b/i;
+const GOAL_INTENT = /\b(?:needs?|wants?|save|fund|invest|investing|investment|afford|plans?|planning|target|goal|corpus|budget|reach|arrange|requires?|how much|collect|build|set aside|prepare|raise|costs?|pay|spend|estimate)\b/i;
 const AMOUNT = /(?:₹\s*|(?:rs\.?|inr)\s*)?(\d[\d,]*(?:\.\d+)?)\s*(crores?|crors?|crs?|cr|lakhs?|lacs?|lac|thousands?|k|l)\b|(?:₹|inr|rs\.?)\s*(\d[\d,]*(?:\.\d+)?)(?!\d|[,.](?=\d)|[A-Za-z]|\s*(?:%|years?\b|months?\b|yrs?\b|mos?\b))/gi;
 const INR = amount => 'INR ' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const goalText = value => String(value || '').slice(0, 1000).trim();
@@ -263,6 +263,7 @@ function goalName(text) {
   if (/\b(?:travel|vacation|trip)\b/i.test(text)) return 'the travel goal';
   if (/\b(?:startup|business)\b/i.test(text)) return 'the business goal';
   if (/\bretirement\b/i.test(text)) return 'retirement';
+  if (/\bemergency(?:\s+(?:fund|expense|expenses|savings|reserve))?\b/i.test(text)) return 'the emergency reserve';
   return 'this goal';
 }
 
@@ -276,7 +277,7 @@ function namedGoalTopics(text) {
   if (/\b(?:travel|vacation|trip)\b/i.test(text)) topics.push('TRAVEL');
   if (/\b(?:startup|business)\b/i.test(text)) topics.push('BUSINESS');
   if (/\bretirement\b/i.test(text)) topics.push('RETIREMENT');
-  if (/\bemergency fund\b/i.test(text)) topics.push('EMERGENCY');
+  if (/\bemergency(?:\s+(?:fund|expense|expenses|savings|reserve))?\b/i.test(text)) topics.push('EMERGENCY');
   return topics;
 }
 
@@ -378,6 +379,19 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
     else if (months !== null) { horizon = months; ambiguousHorizon = false; }
   }
 
+  // "I have ₹2 crore to invest" names deployable principal, whereas
+  // "I need ₹2 crore for the wedding" names a target. Treat an amount next to
+  // "invest/allocate/deploy" as ambiguous unless an explicit target cue was
+  // separately supplied. Otherwise the backend fabricates a goal target and
+  // may calculate a meaningless monthly funding obligation.
+  const capitalVsTargetAmbiguous = used.some(turn =>
+    (/\b(?:invest|investing|allocate|deploy|put\s+aside)\s*(?:₹|(?:rs\.?|inr)\s*)?\d/i.test(turn)
+      || /\b(?:have|has|having|available)\s*(?:₹|(?:rs\.?|inr)\s*)?\d[^.!?]{0,60}\b(?:to\s+)?(?:invest|allocate|deploy)\b/i.test(turn))
+    && !/\b(?:need|require|target|goal|cost|budget|pay)\s*(?:is|of|:|to|for)?\s*(?:₹|(?:rs\.?|inr)\s*)?\d/i.test(turn));
+  if (capitalVsTargetAmbiguous) {
+    target = null;
+    ambiguousTarget = true;
+  }
   // Fail closed on ambiguous savings or amounts with fractional paise.
   if (invalidAmount || contradictorySavings) { target = null; saved = null; monthlyCapacity = null; invalidAmount = true; }
   const context = goalName(source);
@@ -397,6 +411,11 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   } else {
     guidance = 'For ' + context + ', the funding-only monthly amount is based on your stated target, savings and deadline. Compare it with what you can set aside each month. This is not a return forecast; future costs, taxes and inflation are not estimated here.';
   }
+  if (/\b(?:has|have|having|available|lump[ -]?sum|to\s+invest)\b/i.test(text)
+      && /\b(?:invest|investment|put\s+aside|has|have)\b/i.test(text)
+      && (target !== null || capitalVsTargetAmbiguous)) {
+    guidance += ' Please clarify whether the stated money is already available to invest or is the amount the goal must reach. They lead to different calculations; I will not treat one as the other.';
+  }
   if (unsupportedNetModel) guidance += ' A net-of-tax or fee-adjusted SIP cannot be calculated from gross annual-return inputs alone. Confirm the exact net-return convention and applicable tax/fee facts; no net scenario is presented.';
   if (conflictingRates) guidance += ' Conflicting annual-rate assumptions were supplied; give one investment return rate and one inflation rate before using a growth scenario.';
   if (declaredAnnualInflation !== null && !targetIsPresentCost) guidance += ' You supplied an inflation rate, but the goal target is not clearly stated in today’s rupees. Confirm whether the target is a present-day cost or already the amount needed at the deadline; I will not inflate it twice.';
@@ -412,7 +431,8 @@ export function retrieveChatGoalPlanningEvidence(question, { priorUserTurns = []
   }
   const entries = [{
     id: 'E_GOAL_PLANNING_GUIDANCE', kind: 'ANSWER_BOUNDARY',
-    value: { goalContext: context, forecastAuthorized: false, sourceScope: scope },
+    value: { goalContext: context, forecastAuthorized: false, sourceScope: scope,
+      horizonMonths: horizon, targetAmount: target },
     displayValue: guidance, dataClass: 'DETERMINISTIC_GOAL_PLANNING_BOUNDARY',
     source: null, observedAt: null, freshness: null, authority: 'WEALTHGENIE_BACKEND',
   }];

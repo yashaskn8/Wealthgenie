@@ -24,7 +24,7 @@ except ImportError:
 
 from pymongo import MongoClient
 
-from rag.schema import TextChunk, RetrievedChunk, ChunkMetadata, is_scope_accessible
+from rag.schema import TextChunk, RetrievedChunk, ChunkMetadata, is_scope_accessible, has_consistent_chunk_ownership
 from rag.embeddings.identity import EmbeddingIdentityError, normalize_embedding_identity
 from rag.corpus_generation import canonical_member, generation_digest
 from rag.vector_store.base import BaseVectorStore
@@ -198,7 +198,7 @@ class MongoVectorStore(BaseVectorStore):
         # Scope & Tenant filtering: global content or matching user's private content
         valid_indices = [
             i for i, c in enumerate(self._chunks)
-            if c.lifecycle_state == "ACTIVE" and is_scope_accessible(
+            if c.lifecycle_state == "ACTIVE" and has_consistent_chunk_ownership(c) and is_scope_accessible(
                 chunk_scope=getattr(c, "scope", getattr(c.metadata, "scope", "global")),
                 chunk_tenant_id=getattr(c, "tenant_id", getattr(c.metadata, "tenant_id", "default")),
                 requesting_scope=scope,

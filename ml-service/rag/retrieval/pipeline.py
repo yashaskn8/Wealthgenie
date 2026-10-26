@@ -23,6 +23,7 @@ from rag.corpus_manifest import (
 from rag.embeddings.base import BaseEmbeddingProvider
 from rag.embeddings.dense_embedding import get_embedding_provider
 from rag.prompts.builder import PromptBuilder
+from rag.security.retrieval_guard import contains_retrieval_instruction_attack
 from rag.observability.metrics_collector import RAGObservabilityCollector
 from rag.query_understanding.pipeline import QueryUnderstandingPipeline
 from rag.reranking.base import BaseReranker
@@ -62,6 +63,32 @@ def _same_generation(before: Dict[str, Any], after: Dict[str, Any]) -> bool:
 
 def _generation_metrics(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     return {"corpus_generation_id": snapshot.get("generation_id"), "corpus_revision": snapshot.get("revision"), "corpus_generation_manifest_sha256": snapshot.get("manifest_sha256"), "corpus_generation_membership_sha256": snapshot.get("membership_sha256")}
+
+def _qualified_question_document_key(question: str, current_entries: Dict[str, Dict[str, Any]]) -> Optional[str]:
+    """Allow only independently reviewed question classes and reject excluded asks.
+
+    A semantically similar chunk from another official document is NOT
+    authorization to answer a question outside that document's narrow scope.
+    """
+    q = str(question or "").lower()
+    if re.search(r"\b(?:income[ -]?tax rules?[, ]*2026|tax year 2026[- ]27)\b", q):
+        key = "income-tax-rules-2026-commencement"
+    elif re.search(r"\b(?:sebi\s+)?mutual\s+funds?\s+regulations?[, ]*2026\b", q):
+        key = "sebi-mf-regulations-2026-commencement"
+    elif re.search(r"\b(?:rbi\s+|reserve bank(?: of india)?\s+)?(?:integrated\s+)?ombudsman\s+scheme[,]?\s*2026\b", q):
+        key = "rbi-ombudsman-2026-commencement"
+    else:
+        return None
+    entry = current_entries.get(key)
+    if not entry:
+        return None
+    query_terms = _topic_terms(q)
+    for topic in entry.get("excluded_topics", []):
+        blocked = _topic_terms(topic)
+        if blocked and blocked.issubset(query_terms):
+            return None
+    return key
+
 
 # Registry of built-in reranker strategies
 _RERANKER_REGISTRY: Dict[str, type] = {
@@ -154,6 +181,12 @@ class RAGPipeline:
             logger.error("RAG current corpus manifest is unavailable or invalid", extra={"error_type": type(exc).__name__})
             qu_result = self.query_understanding.process(request.question)
             return self._abstain("corpus_unavailable", qu_result, 0.0)
+        # Resolve the approved source before caching, but preserve the existing
+        # generation-scoped cache and telemetry flow for all abstentions.
+        # The route identity is included in the cache key to prevent replay of
+        # responses created under a different routing policy.
+        approved_document_key = _qualified_question_document_key(request.question, current_entries)
+
         embedding_identity = getattr(self.embedder, "embedding_identity", None)
         try:
             generation_snapshot = _generation_snapshot(self.vector_store)
@@ -180,6 +213,7 @@ class RAGPipeline:
             "corpus_generation_manifest_sha256": generation_snapshot.get("manifest_sha256"),
             "corpus_generation_membership_sha256": generation_snapshot.get("membership_sha256"),
             "corpus_manifest_sha256": manifest["manifest_sha256"],
+            "approved_document_key": approved_document_key,
         }
         response_cache_key = json.dumps(cache_identity, sort_keys=True, separators=(",", ":"), default=str)
         # Check Response Cache
@@ -197,6 +231,11 @@ class RAGPipeline:
 
         if qu_result["intent"] == "out_of_domain":
             response = self._abstain("out_of_domain", qu_result, qu_latency)
+            self.cache_manager.put_response(response_cache_key, response, tenant_id=effective_scope)
+            return response
+
+        if approved_document_key is None:
+            response = self._abstain("uncovered_or_excluded_topic", qu_result, qu_latency)
             self.cache_manager.put_response(response_cache_key, response, tenant_id=effective_scope)
             return response
 
@@ -234,13 +273,20 @@ class RAGPipeline:
         # influence the extractive response.
         trustworthy_chunks = [
             chunk for chunk in reranked_chunks
-            if self._is_trustworthy(chunk, current_entries)
+            if chunk.chunk.metadata.custom_metadata.get("document_key") == approved_document_key
+            and self._is_trustworthy(chunk, current_entries)
             and self._has_sufficient_relevance(request.question, chunk)
         ]
-        final_chunks = self._sanitize_chunks(trustworthy_chunks[:top_k])
+        # Limit every response to a small, provenance-checked context. A high
+        # caller-supplied top_k must not bypass the prompt-injection or context budget.
+        final_chunks = self._sanitize_chunks(trustworthy_chunks)
 
         if not final_chunks:
-            reason = "empty_evidence" if not retrieved_chunks else "insufficient_trust_or_relevance"
+            reason = (
+                "unsafe_or_oversized_evidence" if trustworthy_chunks
+                else "empty_evidence" if not retrieved_chunks
+                else "insufficient_trust_or_relevance"
+            )
             response = self._abstain(
                 reason,
                 qu_result,
@@ -383,13 +429,40 @@ class RAGPipeline:
         return len(matches) >= required_matches
 
     def _sanitize_chunks(self, chunks: List[RetrievedChunk]) -> List[RetrievedChunk]:
+        """Bound and isolate evidence before returning it to any downstream client.
+
+        Skip suspicious or oversized passages rather than truncating a legal
+        proposition into a potentially misleading partial statement. Always
+        preserve the original stored chunk; only sanitized copies are returned.
+        """
+        max_chunks = 5
+        max_total_chars = 12_000
+        max_chunk_chars = 4_096
         sanitized = []
+        total_chars = 0
+        seen_ids = set()
         for retrieved in chunks:
+            if len(sanitized) >= max_chunks:
+                break
+            chunk = retrieved.chunk
+            content = chunk.content
+            if chunk.chunk_id in seen_ids:
+                continue
+            seen_ids.add(chunk.chunk_id)
+            if not content or len(content) > max_chunk_chars or contains_retrieval_instruction_attack(content):
+                logger.warning("RAG excluded invalid or instruction-bearing retrieved evidence")
+                continue
             safe = retrieved.model_copy(deep=True)
-            safe.chunk.content = self.prompt_builder.sanitizer.sanitize_retrieved_context(
-                safe.chunk.content
-            )
+            safe.chunk.content = self.prompt_builder.sanitizer.sanitize_retrieved_context(content)
+            if (not safe.chunk.content.strip()
+                    or len(safe.chunk.content) > max_chunk_chars
+                    or contains_retrieval_instruction_attack(safe.chunk.content)):
+                logger.warning("RAG excluded unsafe sanitized evidence")
+                continue
+            if total_chars + len(safe.chunk.content) > max_total_chars:
+                continue
             sanitized.append(safe)
+            total_chars += len(safe.chunk.content)
         return sanitized
 
     def _abstain(

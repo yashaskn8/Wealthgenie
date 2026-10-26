@@ -6,7 +6,7 @@ Verifies strict tenant and user scope data boundary guarantees across vector sto
 from rag.config import RAGConfig
 from rag.embeddings.dense_embedding import DenseVectorEmbeddingProvider
 from rag.retrieval.pipeline import RAGPipeline
-from rag.schema import TextChunk, ChunkMetadata, RAGQueryRequest, is_scope_accessible
+from rag.schema import TextChunk, ChunkMetadata, RAGQueryRequest, is_scope_accessible, has_consistent_chunk_ownership
 from rag.vector_store.memory_vector_store import PersistentVectorStore
 
 
@@ -143,3 +143,57 @@ def test_user_scoped_vs_global_corpus_isolation(tmp_path):
     res_global_123 = pipeline.query(req_global_123)
     assert not res_global_123.grounded
     assert res_global_123.citations == []
+
+
+def test_conflicting_scope_and_tenant_cannot_leak_private_documents():
+    # This shape was previously leaked through an OR across scope and tenant.
+    assert not is_scope_accessible(
+        "user:account_b", "account_a", requesting_user_id="account_a"
+    )
+    assert not is_scope_accessible(
+        "user:account_b", "account_a", requesting_user_id="account_b"
+    )
+    # Public-looking scope must never override a private tenant restriction.
+    assert not is_scope_accessible(
+        "global", "account_b", requesting_user_id="account_a"
+    )
+    assert is_scope_accessible(
+        "global", "account_b", requesting_user_id="account_b"
+    )
+    assert is_scope_accessible(
+        "user:account_a", "account_a", requesting_user_id="account_a"
+    )
+    assert not is_scope_accessible(
+        "user:account_a", "account_a", requesting_user_id="account_b"
+    )
+    assert is_scope_accessible("global", "default", requesting_user_id="account_b")
+
+
+def test_top_level_and_metadata_ownership_must_agree_before_index_search(tmp_path):
+    embedder = DenseVectorEmbeddingProvider(dimension=64, enable_cache=False)
+    store = PersistentVectorStore(index_path=tmp_path / "owner_conflict.json")
+    content = "Private mortgage account information owned by another user."
+    vector = embedder.embed_text(content)
+    private_metadata = ChunkMetadata(
+        chunk_id="conflicted#0", document_id="conflicted",
+        chunk_index=0, title="Private example", source="user_private.txt",
+        scope="user:account_b", tenant_id="account_b",
+    )
+    conflict = TextChunk(
+        chunk_id="conflicted#0", document_id="conflicted",
+        content=content, metadata=private_metadata,
+        scope="global", tenant_id="default", embedding=vector,
+    )
+    assert has_consistent_chunk_ownership(conflict) is False
+    store.add_chunks([conflict])
+    assert store.search(vector, top_k=5, user_id="account_a") == []
+    assert store.search(vector, top_k=5, user_id="account_b") == []
+
+    valid = conflict.model_copy(deep=True)
+    valid.scope = "user:account_b"
+    valid.tenant_id = "account_b"
+    assert has_consistent_chunk_ownership(valid) is True
+    store.add_chunks([valid])
+    results = store.search(vector, top_k=5, user_id="account_b")
+    assert results and all(item.chunk.chunk_id == "conflicted#0" for item in results)
+    assert store.search(vector, top_k=5, user_id="account_a") == []

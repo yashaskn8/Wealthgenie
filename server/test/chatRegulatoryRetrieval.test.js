@@ -31,9 +31,10 @@ function approvedResponse() {
           publication_date: '2026-03-20',
           effective_date: '2026-04-01',
           source_trust_tier: 'government_official',
+          scope: 'global', tenant_id: 'default',
           custom_metadata: {
             document_key: 'income-tax-rules-2026-commencement',
-            corpus_manifest_sha256: '248ad8a8418f3e763b625625cc6746c93dc74783299f710bfcf58f08917bb1bf',
+            corpus_manifest_sha256: '12f685ff27d432dc793afc4b1d9d1646cd920a1af237466ae96776757c3d2906',
             content_sha256: '026b9c068c11f89bebd8451cbe7c6568cc2937b0ec19b4b18d327f70c7b78ab2',
           },
         },
@@ -143,4 +144,81 @@ test('an official-looking chunk lacking the answer cannot be cited for commencem
     queryRag: async () => bad });
   assert.deepEqual(result.entries, []);
   assert.deepEqual(result.unavailableFacts, ['REGULATORY_RAG_EVIDENCE_NOT_QUALIFIED']);
+});
+
+test('new SEBI and RBI sources only answer source-backed commencement questions', async () => {
+  const variants = [
+    { question: 'When did SEBI Mutual Funds Regulations 2026 take effect?',
+      key: 'sebi-mf-regulations-2026-commencement',
+      title: 'Sebi Mutual Fund Regulations 2026 Commencement',
+      url: 'https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792659909505.pdf',
+      authority: 'Securities and Exchange Board of India',
+      publicationDate: '2026-01-15', date: '2026-04-01',
+      hash: '2d8e4d5c5d2176ebac1aa8c167c383623e2170f7f0318f979ed6b42170dfa5c8',
+      content: 'SEBI (Mutual Funds) Regulations, 2026 took effect on 1 April 2026.' },
+    { question: 'On what date did the RBI Integrated Ombudsman Scheme 2026 become effective?',
+      key: 'rbi-ombudsman-2026-commencement',
+      title: 'Rbi Ombudsman 2026 Commencement',
+      url: 'https://old.rbi.org.in/commonman/english/scripts/faqs.aspx?id=3407',
+      authority: 'Reserve Bank of India',
+      publicationDate: '2026-07-01', date: '2026-07-01',
+      hash: '650751ab0f478eeccdaffa32ef63ecc3d2b878c576c6f903697c1068d0121224',
+      content: 'The RBI Integrated Ombudsman Scheme, 2026 became effective on 1 July 2026.' },
+  ];
+  for (const item of variants) {
+    assert.equal(isCoveredRegulatoryChatQuestion(item.question), true);
+    const approved = {
+      grounded: true,
+      citations: [{ chunk_id: 'verified#1', source: item.url,
+        document_title: item.title, excerpt: item.content }],
+      retrieved_chunks: [{ chunk: {
+        chunk_id: 'verified#1', content: item.content, lifecycle_state: 'ACTIVE',
+        tenant_id: 'default', scope: 'global',
+        metadata: { title: item.title, source: item.url, author: item.authority,
+          publication_date: item.publicationDate, effective_date: item.date,
+          source_trust_tier: 'government_official',
+          scope: 'global', tenant_id: 'default',
+          custom_metadata: { document_key: item.key,
+            corpus_manifest_sha256: '12f685ff27d432dc793afc4b1d9d1646cd920a1af237466ae96776757c3d2906',
+            content_sha256: item.hash } },
+      } }],
+    };
+    const out = await retrieveQualifiedRegulatoryChatEvidence({
+      question: item.question, userId: 'verified',
+      queryRag: async () => approved,
+    });
+    assert.equal(out.entries.length, 1);
+    assert.equal(out.entries[0].value.documentKey, item.key);
+    assert.ok(out.entries[0].displayValue.includes(item.date));
+    approved.retrieved_chunks[0].chunk.metadata.custom_metadata.content_sha256 = 'forged';
+    const invalid = await retrieveQualifiedRegulatoryChatEvidence({
+      question: item.question, userId: 'verified', queryRag: async () => approved,
+    });
+    assert.deepEqual(invalid.entries, []);
+  }
+  for (const q of [
+    'Do SEBI Mutual Funds Regulations 2026 guarantee returns?',
+    'Which mutual fund regulated by SEBI should I buy?',
+    'How much compensation will the RBI Integrated Ombudsman Scheme 2026 pay me?',
+  ]) assert.equal(isCoveredRegulatoryChatQuestion(q), false);
+});
+
+test('malformed official chunk ownership and meaningless citations are rejected', async () => {
+  const mutations = [
+    x => { x.retrieved_chunks[0].chunk.scope = 'global'; x.retrieved_chunks[0].chunk.metadata.scope = 'user:someone-else'; },
+    x => { x.retrieved_chunks[0].chunk.tenant_id = 'default'; x.retrieved_chunks[0].chunk.metadata.tenant_id = 'user:someone-else'; },
+    x => { x.retrieved_chunks[0].chunk.metadata.scope = 'global'; x.retrieved_chunks[0].chunk.metadata.tenant_id = 'someone-else'; },
+    x => { x.citations[0].excerpt = '...'; },
+    x => { x.citations[0].excerpt = 'A...'; },
+    x => { x.citations[0].excerpt = 'Text not in official corpus'; },
+  ];
+  for (const mutate of mutations) {
+    const response = approvedResponse();
+    mutate(response);
+    const out = await retrieveQualifiedRegulatoryChatEvidence({
+      question, userId: 'user-verified-123', queryRag: async () => response,
+    });
+    assert.deepEqual(out.entries, []);
+    assert.ok(out.unavailableFacts.length >= 1);
+  }
 });

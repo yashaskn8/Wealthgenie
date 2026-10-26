@@ -105,6 +105,12 @@ def verify_question_contract(root: Path) -> dict[str, Any]:
         require(bool(keys) == q["answerability"], "unexpected source binding on abstention question")
         require(isinstance(q.get("required_facts"), list) and isinstance(q.get("forbidden_claims"), list),
                 "missing factual support/forbidden-claim controls")
+        passages = q.get("relevant_passages", [])
+        require(isinstance(passages, list)
+                and all(isinstance(p, str) and len(p.strip()) >= 15 for p in passages),
+                "invalid reviewed passage labels")
+        require(not passages or (q["answerability"] and not q.get("relevant_chunk_ids")),
+                "answer-bearing passages cannot label abstention controls")
     return {
         "count": len(questions),
         "abstention_count": sum(q["expected_abstention"] for q in questions),
@@ -132,7 +138,7 @@ def verify_candidate(root: Path, candidate_file: Path, expected: dict[str, Any])
             "candidate uses a different corpus")
     require(info.get("questions_evaluated") == len(questions), "candidate question count mismatch")
     require(info.get("index_binding", {}).get("status") == "VERIFIED", "candidate index binding unverified")
-    labeled_count = sum(bool(q.get("relevant_chunk_ids")) for q in questions)
+    labeled_count = sum(bool(q.get("relevant_chunk_ids") or q.get("relevant_passages")) for q in questions)
     require(info.get("questions_with_chunk_relevance_gold") == labeled_count,
             "chunk-level gold count differs from independently labeled questions")
     if labeled_count == 0:
@@ -182,13 +188,13 @@ def audit(root: Path = ROOT, candidate_file: Path | None = None) -> dict[str, An
     block = []
     if candidate_file is None:
         replay = {"status": "NOT_PROVIDED"}
-        block.append("No replay of the current five-question, manifest-verified RAG corpus is attached.")
+        block.append("No replay of the current manifest-verified RAG corpus is attached.")
     else:
         replay = verify_candidate(root, candidate_file, current)
     if current["count"] < 30:
         block.append("Current verified RAG set is too small for broad generalization (only %s queries)." % current["count"])
     if current["documents"] < 5:
-        block.append("Current verified RAG corpus has only %s document; external/topic coverage is narrow." % current["documents"])
+        block.append("Current verified RAG corpus has only %s documents; external/topic coverage is narrow." % current["documents"])
 
     old_llm = load_json(root, "ml-service/reports/llm_eval_report.json")
     llm_faithfulness = old_llm["aggregate_metrics"]["mean_faithfulness_score"]

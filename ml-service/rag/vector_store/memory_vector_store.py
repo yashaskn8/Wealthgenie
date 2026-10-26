@@ -23,7 +23,7 @@ except ImportError:
 
 from rag.config import RAGConfig
 from rag.embeddings.identity import EmbeddingIdentityError, normalize_embedding_identity
-from rag.schema import TextChunk, RetrievedChunk, is_scope_accessible
+from rag.schema import TextChunk, RetrievedChunk, is_scope_accessible, has_consistent_chunk_ownership
 from rag.vector_store.base import BaseVectorStore
 
 logger = logging.getLogger("wealthgenie.rag.vector_store")
@@ -139,7 +139,7 @@ class PersistentVectorStore(BaseVectorStore):
         # Filter indices by scope & tenant_id
         valid_indices = [
             i for i, c in enumerate(self._chunks)
-            if c.lifecycle_state == "ACTIVE" and is_scope_accessible(
+            if c.lifecycle_state == "ACTIVE" and has_consistent_chunk_ownership(c) and is_scope_accessible(
                 chunk_scope=getattr(c, "scope", getattr(c.metadata, "scope", "global")),
                 chunk_tenant_id=getattr(c, "tenant_id", getattr(c.metadata, "tenant_id", "default")),
                 requesting_scope=scope,

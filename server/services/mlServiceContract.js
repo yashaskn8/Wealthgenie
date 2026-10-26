@@ -110,14 +110,44 @@ export function buildRagQueryRequest({ query, top_k = 4, jurisdiction = "IN" }) 
 }
 
 export function normalizeRagResponse(value) {
-  if (!value || typeof value !== 'object' || !nonEmptyString(value.answer)) return null;
+  if (!value || typeof value !== 'object' || !nonEmptyString(value.answer) || value.answer.length > 10000) return null;
   if (typeof value.grounded !== 'boolean') return null;
-  if (!Array.isArray(value.citations) || !Array.isArray(value.retrieved_chunks)) return null;
+  if (!Array.isArray(value.citations) || !Array.isArray(value.retrieved_chunks)
+      || value.citations.length > 20 || value.retrieved_chunks.length > 20) return null;
   if (!value.metrics || typeof value.metrics !== 'object' || Array.isArray(value.metrics)) return null;
-  if (value.grounded && value.citations.length === 0) return null;
-  return {
-    ...value,
-    citations: value.grounded ? value.citations : [],
-    retrieved_chunks: value.grounded ? value.retrieved_chunks : [],
-  };
+  if (!value.grounded) {
+    // Never forward evidence that the upstream service explicitly disowned.
+    return { ...value, citations: [], retrieved_chunks: [] };
+  }
+  if (value.citations.length === 0 || value.retrieved_chunks.length === 0) return null;
+  const chunksById = new Map();
+  for (const retrieved of value.retrieved_chunks) {
+    const chunk = retrieved?.chunk;
+    if (typeof chunk?.chunk_id !== 'string' || !chunk.chunk_id
+        || typeof chunk.content !== 'string' || !chunk.content.trim() || chunk.content.length > 16000
+        || chunk.lifecycle_state !== 'ACTIVE'
+        || typeof chunk.metadata?.source !== 'string'
+        || typeof chunk.metadata?.title !== 'string'
+        || chunksById.has(chunk.chunk_id)) return null;
+    chunksById.set(chunk.chunk_id, chunk);
+  }
+  const citedIds = new Set();
+  for (const citation of value.citations) {
+    const chunk = chunksById.get(citation?.chunk_id);
+    // A citation such as "..." used to validate because an empty string is
+    // a prefix of every document. Require substantive literal source text.
+    const excerpt = typeof citation?.excerpt === 'string' ? citation.excerpt.trim() : '';
+    const quoted = excerpt.endsWith('...') ? excerpt.slice(0, -3) : excerpt;
+    if (!chunk || citedIds.has(citation.chunk_id)
+        || citation.document_title !== chunk.metadata.title
+        || citation.source !== chunk.metadata.source
+        || quoted.length < 12 || excerpt.length > 4096
+        || !chunk.content.startsWith(quoted)
+        || (chunk.document_id !== undefined && chunk.metadata.document_id !== undefined
+          && chunk.document_id !== chunk.metadata.document_id)
+        || (chunk.metadata.chunk_id !== undefined && chunk.metadata.chunk_id !== chunk.chunk_id)) return null;
+    citedIds.add(citation.chunk_id);
+  }
+  if (citedIds.size !== chunksById.size) return null;
+  return { ...value, citations: value.citations, retrieved_chunks: value.retrieved_chunks };
 }

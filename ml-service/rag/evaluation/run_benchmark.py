@@ -77,6 +77,13 @@ def load_questions(path: Path) -> List[Dict[str, Any]]:
             raise ValueError(f"Abstention control {index} must not claim relevant evidence")
         if item["answerability"] and not item["relevant_document_keys"]:
             raise ValueError(f"Answerable item {index} must identify relevant documents")
+        if "relevant_passages" in item:
+            labels = item["relevant_passages"]
+            if (not isinstance(labels, list) or not labels
+                    or any(not isinstance(p, str) or len(p.strip()) < 15 or len(p) > 256 for p in labels)
+                    or len(set(labels)) != len(labels)
+                    or not item["answerability"] or "relevant_chunk_ids" in item):
+                raise ValueError(f"RAG evaluation item {index} has invalid reviewed passage labels")
         # Document-level provenance is not chunk-level relevance gold.
         # A genuine chunk label must be explicit, never every chunk of a document.
         if "relevant_chunk_ids" in item:
@@ -106,6 +113,31 @@ def build_ground_truth_chunk_ids(
         and chunk.lifecycle_state == "ACTIVE"
         and chunk.metadata.custom_metadata.get("corpus_manifest_sha256") == manifest_sha256
     }
+
+
+def build_passage_ground_truth_chunk_ids(
+    vector_store, relevant_document_keys: List[str], manifest_sha256: str,
+    reviewed_passages: List[str],
+) -> set[str]:
+    """Portable passage-level relevance labels authored before retrieval."""
+    import re
+
+    def norm(value: str) -> str:
+        return " ".join(re.findall(r"[a-z0-9]+", value.lower()))
+
+    candidates = [
+        chunk for chunk in vector_store.get_chunks()
+        if chunk.lifecycle_state == "ACTIVE"
+        and chunk.metadata.custom_metadata.get("document_key") in relevant_document_keys
+        and chunk.metadata.custom_metadata.get("corpus_manifest_sha256") == manifest_sha256
+    ]
+    relevant = set()
+    for passage in reviewed_passages:
+        matches = [c.chunk_id for c in candidates if norm(passage) in norm(c.content)]
+        if not matches:
+            raise ValueError(f"Reviewed passage label not present in qualified corpus: {passage[:60]}")
+        relevant.update(matches)
+    return relevant
 
 
 def source_match(retrieved_chunks, relevant_document_keys: List[str], manifest_sha256: str) -> bool:
@@ -191,7 +223,13 @@ def run_benchmark(*, config=None, vector_store=None, embedder=None, research_rep
         # Document identity is not an answer-bearing chunk annotation.
         # If independently labeled chunk IDs are missing, chunk metrics stay null.
         gt_chunk_ids = None
-        if q_item.get("relevant_chunk_ids"):
+        if q_item.get("relevant_passages"):
+            gt_chunk_ids = build_passage_ground_truth_chunk_ids(
+                vector_store, relevant_document_keys, manifest["manifest_sha256"],
+                q_item["relevant_passages"],
+            )
+            questions_with_chunk_gold += 1
+        elif q_item.get("relevant_chunk_ids"):
             allowed = build_ground_truth_chunk_ids(
                 vector_store, relevant_document_keys, manifest["manifest_sha256"]
             )
@@ -302,7 +340,7 @@ def run_benchmark(*, config=None, vector_store=None, embedder=None, research_rep
             "total_chunks_in_store": len(vector_store.get_chunks()),
             "questions_evaluated": total_queries,
             "questions_with_chunk_relevance_gold": questions_with_chunk_gold,
-            "chunk_relevance_gold_method": "EXPLICIT_LABELS_ONLY_NO_DOCUMENT_WIDE_PROXY",
+            "chunk_relevance_gold_method": "PRE_RETRIEVAL_REVIEWED_PASSAGES_OR_EXPLICIT_CHUNK_IDS",
             "questions_file": str(QUESTIONS_FILE.name),
             "questions_sha256": hashlib.sha256(QUESTIONS_FILE.read_bytes()).hexdigest(),
             "manifest_sha256": manifest["manifest_sha256"],

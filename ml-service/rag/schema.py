@@ -27,10 +27,9 @@ def is_scope_accessible(
     Rules:
     1. A chunk with scope "global", "default", "*", or "public" (AND tenant_id in ("default", "global", None))
        is accessible to all queries.
-    2. A chunk with tenant_id != "default" or user scope "user:{user_id}" is accessible ONLY IF:
-       - requesting_user_id == user_id / tenant_id, OR
-       - requesting_scope matches, OR
-       - tenant_id == chunk_tenant_id
+    2. A private chunk's tenant and scope restrictions BOTH require authorization.
+       A mismatched user scope and tenant owner is rejected regardless of caller.
+       Public scope with a private tenant remains private.
     3. Never returns another user/tenant's scoped content.
     """
     c_scope = (chunk_scope or "global").strip().lower()
@@ -65,7 +64,36 @@ def is_scope_accessible(
         else:
             allowed_scopes.add(f"user:{t}")
 
-    return c_scope in allowed_scopes or c_tenant in allowed_scopes
+    # A private chunk can carry both a scope owner and a tenant owner.
+    # Treat these as independent restrictions, never alternatives.  The old
+    # OR condition leaked a user:B-scoped chunk to tenant A when its tenant_id
+    # was accidentally (or maliciously) set to A.
+    public_scope = c_scope in ("global", "default", "*", "public", "")
+    public_tenant = c_tenant in ("default", "global", "")
+    if c_scope.startswith("user:") and not public_tenant:
+        declared_owner = c_scope[5:]
+        tenant_owner = c_tenant[5:] if c_tenant.startswith("user:") else c_tenant
+        if declared_owner != tenant_owner:
+            return False
+    scope_allowed = public_scope or c_scope in allowed_scopes
+    tenant_allowed = public_tenant or c_tenant in allowed_scopes or f"user:{c_tenant}" in allowed_scopes
+    return scope_allowed and tenant_allowed
+
+
+def has_consistent_chunk_ownership(chunk: "TextChunk") -> bool:
+    """Reject chunks whose searchable scope disagrees with source metadata.
+
+    A top-level default 'global' can never override a private metadata owner.
+    Both scope and tenant must match before accepting a retrieved chunk.
+    """
+    try:
+        scope = str(chunk.scope).strip().lower()
+        tenant = str(chunk.tenant_id).strip().lower()
+        meta_scope = str(chunk.metadata.scope).strip().lower()
+        meta_tenant = str(chunk.metadata.tenant_id).strip().lower()
+        return bool(scope and tenant) and scope == meta_scope and tenant == meta_tenant
+    except (AttributeError, TypeError, ValueError):
+        return False
 
 
 class DocumentMetadata(BaseModel):

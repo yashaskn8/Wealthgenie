@@ -16,12 +16,14 @@ import {
 import { assessSuitabilityRisk } from './riskProfiler.js';
 import {
   buildChatEvidencePacket,
+  buildChatInjectionBoundaryPacket,
   generateGroundedExplanation,
   getGroundedExplanationTokenUpperBound,
   isGroundingBoundaryAttack,
   retrieveTaxAssumptionEvidence,
   sanitizeExternalQuestion,
 } from './groundedExplanationService.js';
+import { SECURITY_BOUNDARY_MESSAGE } from './chatInjectionFirewall.js';
 import { resolveCurrentRecommendationState } from './recommendationState.js';
 import {
   generateGeneralChatAnswer,
@@ -35,6 +37,8 @@ import {
 } from './chatGoalPlanning.js';
 import { buildGroundedEvidencePacket } from './groundedEvidence.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveInvestmentScenarioEducation } from './chatInvestmentScenarioEducation.js';
+import { retrieveInvestmentUniverseEducation, retrieveGoalHorizonEducation } from './chatInvestmentUniverseEducation.js';
 import { retrieveIndicSipScenarioEvidence } from './indicSipScenarioEvidence.js';
 import { suggestWealthGenieFeature } from './featureSuggestionPolicy.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
@@ -250,6 +254,8 @@ function buildTrustedPriorTurns(conversation, binding, mode = 'FINANCIAL') {
       && userMessage?.metadata?.grounded_on_profile === false
       && modelMessage?.metadata?.grounded_on_profile === false;
     if ((mode === 'GENERAL') !== isGeneralTurn) break;
+    if (isGroundingBoundaryAttack(userMessage.content)
+        || isGroundingBoundaryAttack(modelMessage.content)) break;
     const pair = [
       { role: 'user', content: truncateUtf8(sanitizeExternalQuestion(userMessage.content), 1000) },
       { role: 'model', content: truncateUtf8(sanitizeExternalQuestion(modelMessage.content), 1000) },
@@ -290,6 +296,17 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         details: { retryAfterSeconds: rateCheck.ttl, resetAt: new Date(rateCheck.resetAt).toISOString() },
       });
     }
+    if (isGroundingBoundaryAttack(message)) {
+      return buildClientResponseDTO({
+        response: SECURITY_BOUNDARY_MESSAGE,
+        session_id: sessionId, grounded: false,
+        provider: 'SYSTEM', validation_status: 'PROMPT_INJECTION_BLOCKED',
+        evidence_ids_used: [], citations: [],
+        messages_this_hour: rateCheck.count,
+        rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
+        rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
+      });
+    }
     if (isUnboundGoalFollowUp(message)) {
       return buildClientResponseDTO({
         response: 'I do not have an account-bound goal from an earlier turn. Please restate the goal amount, deadline and savings together so I can calculate from the numbers you provide, without assuming an investment return.',
@@ -312,8 +329,14 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     // personalized explanation, live rate or unqualified RAG content.
     const sanitizedQuestion = sanitizeExternalQuestion(message);
     const unboundGoal = isFinancialGoalPlanningQuestion(sanitizedQuestion);
+    // General, source-reviewed public principles are eligible without an account.
+    // Never expose saved private financial state or personalized suitability.
+    const publicScenarioEducation = !unboundGoal
+      ? retrieveInvestmentScenarioEducation(sanitizedQuestion) : [];
     const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
-      ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
+      ? [...retrieveChatEducationalEvidence(sanitizedQuestion), ...retrieveInvestmentUniverseEducation(sanitizedQuestion),
+        ...publicScenarioEducation]
+      : publicScenarioEducation;
     const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(sanitizedQuestion);
     const sipScenarioEvidence = retrieveIndicSipScenarioEvidence(sanitizedQuestion);
     if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
@@ -324,7 +347,10 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
         question: sanitizedQuestion,
         profile: null,
         additionalEntries: unboundGoal
-          ? retrieveChatGoalPlanningEvidence(sanitizedQuestion)
+          ? (() => {
+            const goalEvidence = retrieveChatGoalPlanningEvidence(sanitizedQuestion);
+            return [...goalEvidence, ...retrieveGoalHorizonEducation(sanitizedQuestion, goalEvidence)];
+          })()
           : sipScenarioEvidence.length ? sipScenarioEvidence
             : taxAssumptionEvidence.length ? taxAssumptionEvidence : reviewedPublicEducation,
       });
@@ -391,6 +417,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
   const llmProfile = buildLlmFinancialContext(profile, suitability);
   const securityContext = ImmutableSecurityPipeline.processInput(message, profile);
   const promptInjectionDetected = securityContext.isInjection
+    || isGroundingBoundaryAttack(message)
     || isGroundingBoundaryAttack(securityContext.sanitizedMessage);
   if (promptInjectionDetected) PrometheusMetrics.inc('prompt_injection_attempts_total');
 
@@ -444,7 +471,8 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const trustedFinancialTurns = generalMode ? [] : recentFinancialTurns;
     const groundedQuestion = generalMode ? securityContext.sanitizedMessage
       : resolveBoundSuitabilityFollowUp(securityContext.sanitizedMessage, trustedFinancialTurns, claim.conversation);
-    const evidencePacket = generalMode ? null : await buildChatEvidencePacket({
+    const evidencePacket = generalMode ? null : promptInjectionDetected
+      ? buildChatInjectionBoundaryPacket() : await buildChatEvidencePacket({
       question: groundedQuestion,
       profile: llmProfile,
       recommendation,

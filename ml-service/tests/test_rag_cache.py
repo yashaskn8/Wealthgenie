@@ -131,7 +131,7 @@ def test_rag_discards_evidence_when_generation_changes_during_retrieval(tmp_path
         cache_manager=MultiLevelCacheManager(cache_dir=tmp_path / "cache"),
         config=RAGConfig(embedding_dim=64),
     )
-    response = pipeline.query(RAGQueryRequest(question="What is the current official tax rule?"))
+    response = pipeline.query(RAGQueryRequest(question="When do the Income-tax Rules 2026 take effect?"))
     assert response.grounded is False
     assert response.metrics["abstention_reason"] == "corpus_changed_during_retrieval"
     assert response.metrics["corpus_generation_id"] == "generation-a"

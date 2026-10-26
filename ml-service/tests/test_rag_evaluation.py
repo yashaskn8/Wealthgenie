@@ -693,3 +693,19 @@ def test_citation_preview_is_identity_valid_even_when_truncated_mid_word():
     assert results["metrics"]["citation_identity_correctness"] == 1.0
     assert results["metrics"]["factual_support"] == 1.0
 
+
+
+def test_unrelated_source_scope_disclaimer_does_not_negate_verified_date():
+    from rag.evaluation.evaluator import _has_uncontradicted_phrase
+
+    excerpt = (
+        "SEBI regulations were published on 15 January 2026. "
+        "The consolidated edition incorporates amendments through 10 October 2026. "
+        "This source verifies its publication date. It does not establish "
+        "the NAV or guarantee returns for an individual fund."
+    )
+    assert _has_uncontradicted_phrase(excerpt, "15 January 2026")
+    assert not _has_uncontradicted_phrase(
+        "The rule takes effect on 1 April 2026. However, I retract that statement.",
+        "1 April 2026",
+    )

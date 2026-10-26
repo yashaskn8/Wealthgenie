@@ -9,7 +9,9 @@
     "financial_dependents": 1,
     "emergency_fund_months": 6,
     "risk_tolerance": "Moderate",
-    "investment_goals": ["Wealth Growth"],
+    "investment_goals": [
+      "Wealth Growth"
+    ],
     "investment_horizon_years": 15,
     "deployable_lump_sum": 0,
     "risk_capacity_score": 55,
@@ -19,8 +21,18 @@
     "primary": "ETF",
     "secondary": "Debt_MF",
     "tertiary": "ELSS",
-    "confidence_scores": { "Equity_MF": 0.0, "ELSS": 0.1, "ETF": 0.71, "Debt_MF": 0.19, "FD": 0.0, "RBI_Bond": 0.0 },
-    "decision_path": ["final_suitability_risk=Moderate", "risk_capacity_score=55"],
+    "confidence_scores": {
+      "Equity_MF": 0,
+      "ELSS": 0.1,
+      "ETF": 0.71,
+      "Debt_MF": 0.19,
+      "FD": 0,
+      "RBI_Bond": 0
+    },
+    "decision_path": [
+      "final_suitability_risk=Moderate",
+      "risk_capacity_score=55"
+    ],
     "feature_schema_version": "recommendation-features-4.0.0",
     "model_used": "RandomForest",
     "low_confidence": false,
@@ -52,15 +64,38 @@
         "relevance_score": 0.94
       }
     ],
-    "retrieved_chunks": [],
-    "metrics": { "retrieval_hit": true, "citation_id_valid": true },
+    "retrieved_chunks": [
+      {
+        "chunk": {
+          "chunk_id": "tax-80c#1",
+          "content": "Section 80C evidence excerpt. Synthetic contract-validation text only; not a statement of current Indian tax law.",
+          "lifecycle_state": "ACTIVE",
+          "metadata": {
+            "title": "Income Tax guidance",
+            "source": "official-guidance",
+            "chunk_id": "tax-80c#1",
+            "document_id": "tax-80c",
+            "chunk_index": 1
+          },
+          "document_id": "tax-80c"
+        },
+        "score": 0.94,
+        "rank": 1
+      }
+    ],
+    "metrics": {
+      "retrieval_hit": true,
+      "citation_id_valid": true
+    },
     "grounded": true
   },
   "rag_abstention_response": {
     "answer": "I cannot answer this from trustworthy in-domain evidence.",
     "citations": [],
     "retrieved_chunks": [],
-    "metrics": { "abstention_reason": "insufficient_evidence" },
+    "metrics": {
+      "abstention_reason": "insufficient_evidence"
+    },
     "grounded": false
   },
   "trace": {

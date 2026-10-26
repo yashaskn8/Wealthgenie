@@ -17,18 +17,18 @@ class PaperEvidenceContractTests(unittest.TestCase):
         self.assertEqual(len({x["training_data_sha256"] for x in reports.values()}), 1)
         self.assertTrue(all("Synthetic" in x["interpretation"] for x in reports.values()))
 
-    def test_current_eval_is_five_questions_with_abstention_and_manifest_binding(self):
+    def test_current_eval_expansion_preserves_abstention_and_manifest_binding(self):
         contract = verify_question_contract(ROOT)
-        self.assertEqual(contract["count"], 5)
-        self.assertEqual(contract["abstention_count"], 3)
-        self.assertEqual(contract["documents"], 1)
+        self.assertGreaterEqual(contract["count"], 13)
+        self.assertGreaterEqual(contract["abstention_count"], 7)
+        self.assertGreaterEqual(contract["documents"], 3)
         self.assertEqual(len(contract["question_file_sha256"]), 64)
 
     def test_archive_metrics_not_presented_as_current_measurements(self):
         result = audit(ROOT)
         self.assertEqual(result["legacy_rag"]["status"], "HISTORICAL_NONCOMPARABLE")
         self.assertEqual(result["legacy_rag"]["question_count"], 75)
-        self.assertEqual(result["current_rag"]["count"], 5)
+        self.assertGreaterEqual(result["current_rag"]["count"], 13)
         self.assertEqual(result["current_rag_replay"]["status"], "NOT_PROVIDED")
         self.assertTrue(result["blockers"])
 
@@ -94,7 +94,7 @@ class PaperEvidenceContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "fabricated_chunk_metrics.json"
             source.write_text(json.dumps(forged), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "unlabeled chunk ranking"):
+            with self.assertRaisesRegex(ValueError, "chunk-level gold count"):
                 verify_candidate(ROOT, source, contract)
 
 
