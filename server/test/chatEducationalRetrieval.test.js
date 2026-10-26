@@ -54,7 +54,9 @@ test('first-investment education gives a sourced starting sequence and emergency
   const question = 'How do I start my first investment?';
   const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
   const education = packet.entries.filter(entry => entry.kind === 'EDUCATION');
-  assert.deepEqual(education.map(entry => entry.id), ['E_EDU_INVESTING_READINESS', 'E_EDU_INVESTING_BASICS']);
+  assert.deepEqual(education.map(entry => entry.id), [
+    'E_EDU_INVESTING_READINESS', 'E_EDU_INVESTING_BASICS', 'E_SCENARIO_GENERAL_DECISION',
+  ]);
   assert.ok(education.every(entry => entry.source.provider === 'SEBI_INVESTOR'));
   const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
     providers: [], getCache: async () => null, setCache: async () => {},
