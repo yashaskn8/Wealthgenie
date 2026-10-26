@@ -128,7 +128,7 @@ test('required Linux CI jobs retain Mongo-backed integrity and isolated financia
 test('Kind deployment requires all main release checks and explicit live preflight opt-in', () => {
   assert.deepEqual(Object.keys(cdWorkflow.on), ['workflow_run', 'workflow_dispatch']);
   assert.deepEqual(cdWorkflow.on.workflow_run, {
-    workflows: ['CI', 'GenieVoice Production Hardening Checks', 'Coverage Firewall - Targeted Safety Gate'],
+    workflows: ['CI'],
     types: ['completed'],
     branches: ['main'],
   });
@@ -137,6 +137,13 @@ test('Kind deployment requires all main release checks and explicit live preflig
   const releaseGate = cdWorkflow.jobs['release-quality-gate'];
   assert.equal(releaseGate.outputs.ready, '${{ steps.check.outputs.ready }}');
   assert.ok(releaseGate.steps.some(step => step.run?.includes('for workflow in ci.yml genievoice-quality.yml coverage-firewall-ci.yml')));
+  assert.equal(releaseGate['timeout-minutes'], 25);
+  const releaseCheck = releaseGate.steps.find(step => step.id === 'check')?.run || '';
+  assert.match(releaseCheck, /for attempt in \$\(seq 1 90\); do/);
+  assert.match(releaseCheck, /case "\$conclusion" in/);
+  assert.match(releaseCheck, /timed out waiting for all same-commit main checks/);
+  assert.match(releaseCheck, /echo 'ready=true'/);
+  assert.match(releaseCheck, /sleep 10/);
   assert.equal(cdWorkflow.jobs['deploy-and-verify-kind'].needs, 'release-quality-gate');
   assert.ok(cdWorkflow.jobs['deploy-and-verify-kind'].if.includes("needs.release-quality-gate.outputs.ready == 'true'"));
 
