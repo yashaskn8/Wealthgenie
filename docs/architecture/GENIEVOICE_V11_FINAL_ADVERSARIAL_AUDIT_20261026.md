@@ -34,3 +34,14 @@ Android/iOS devices, accented Hindi/Kannada ASR quality, accessibility and
 human adversarial audio testing are still unverified and require consented
 real-device testing. No keys, third-party provider, background listener or
 autonomous financial transaction capability were introduced.
+
+## Final uncategorized-numeric attack (fail-closed policy)
+
+Keyword-only financial-topic detection cannot classify every spoken salary,
+loan, pension or money phrase across India’s languages. In the opt-in hands-free
+interface, **any recognized numerical word, digit, financial currency unit,
+percentage, fraction or multiplier requires the visible transcript confirmation**
+even if a recognizer does not label the question as financial. This is an
+intentional small usability cost to prevent a silently misheard material value
+from being submitted. Unrecognized numbers and word-error rates still require
+consented real-device multilingual benchmarking.

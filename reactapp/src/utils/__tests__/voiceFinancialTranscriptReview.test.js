@@ -25,6 +25,11 @@ describe('Financial voice ASR value-confirmation boundary', () => {
 
       'What if I save ₹15000 every month?',
       'I earn eighty thousand every month',
+      'I have seventy thousand',
+      'What is fifteen?',
+      'What about nine years?',
+      'ನನಗೆ ಐವತ್ತು ಬೇಕು',
+      'मुझे पचास चाहिए',
       'My insurance premium costs seventy thousand',
       'My salary is fifty six thousand',
       'I have two lakh rupees available',
