@@ -1,0 +1,89 @@
+name: GenieProof Production Safety Gate
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/agents/genieProof/**'
+      - 'server/routes/genieProofRoutes.js'
+      - 'server/test/genieProof*.test.js'
+      - 'reactapp/src/components/GenieProof*'
+      - 'reactapp/src/components/__tests__/GenieProof*'
+      - 'shared/genieProofPrivacyPolicy.js'
+      - '.github/workflows/genieproof-quality.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/agents/genieProof/**'
+      - 'server/routes/genieProofRoutes.js'
+      - 'server/test/genieProof*.test.js'
+      - 'reactapp/src/components/GenieProof*'
+      - 'reactapp/src/components/__tests__/GenieProof*'
+      - 'shared/genieProofPrivacyPolicy.js'
+      - '.github/workflows/genieproof-quality.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: genieproof-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof-browser:
+    name: GenieProof Browser Privacy and Math UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: reactapp/package-lock.json
+      - run: npm ci
+        working-directory: reactapp
+      - run: npm run lint
+        working-directory: reactapp
+      - run: npm run typecheck
+        working-directory: reactapp
+      - name: Claim checking and calculation UI regressions
+        run: npm test -- src/components/__tests__/GenieProofEntry.test.jsx src/components/__tests__/GenieProofCalculator.test.jsx src/components/__tests__/GenieProofNvidiaReview.test.jsx
+        working-directory: reactapp
+      - run: npm run build
+        working-directory: reactapp
+
+  proof-server:
+    name: GenieProof Evidence Rights and Privacy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - run: npm run lint
+        working-directory: server
+      - name: Verify source, claim, signature and persistence boundaries
+        run: >-
+          node --test
+          test/genieProofCapabilityStatus.test.js
+          test/genieProofCheckService.test.js
+          test/genieProofNvidiaReviewService.test.js
+          test/genieProofMathService.test.js
+          test/genieProofCore.test.js
+          test/genieProofService.test.js
+          test/genieProofEvidenceVerifier.test.js
+          test/genieProofEvidenceRegistryService.test.js
+          test/genieProofPassportSignature.test.js
+          test/genieProofPassportVerifier.test.js
+          test/genieProofSchemas.test.js
+        working-directory: server
