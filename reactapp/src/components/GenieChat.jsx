@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Trash2, Sparkles, RefreshCw, Scale, Coins, Percent, Target, ArrowLeft, ExternalLink, Mic, MicOff, ChevronRight, TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
 import SovereignVoiceControl from './SovereignVoiceControl';
+import { VOICE_CAPTURE_TIMEOUT_MS, validateVoiceTranscript } from '../utils/voiceRuntimePolicy';
 import { normalizeFeatureCard } from '../utils/featureNavigationCard';
 import './GenieChat.css';
 import * as api from '../services/api';
@@ -199,6 +200,8 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
+  const legacyVoiceEpochRef = useRef(0);
+  const legacyVoiceTimerRef = useRef(null);
   const historyRequestIdRef = useRef(0);
   const sessionGenerationRef = useRef(0);
   const sendGenerationRef = useRef(0);
@@ -476,56 +479,113 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
   }, [cancelPendingSendRef, invalidatePendingSend]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isLoading]);
 
-  // Voice recognition setup
+  // The original push-to-talk button must have the same privacy fences as
+  // GenieVoice. Keep one recognition instance per explicit microphone gesture.
+  const stopLegacyVoice = useCallback(() => {
+    legacyVoiceEpochRef.current += 1;
+    if (legacyVoiceTimerRef.current !== null) clearTimeout(legacyVoiceTimerRef.current);
+    legacyVoiceTimerRef.current = null;
+    const recognition=recognitionRef.current;
+    recognitionRef.current=null;
+    if(recognition) {
+      recognition.onresult=null;
+      recognition.onerror=null;
+      recognition.onend=null;
+      try { (recognition.abort || recognition.stop)?.call(recognition); }
+      catch { /* Browser provider already closed. */ }
+    }
+    setIsListening(false);
+  }, []);
+
+  // Close/background, profile swap and chat session rebind cannot deliver a
+  // late old-account transcript into the newly displayed input field.
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-IN';
-      recognitionRef.current.onresult = (e) => {
-        const transcript = e.results?.[0]?.[0]?.transcript;
-        if (typeof transcript === 'string' && transcript.trim()) {
-          setInput(prev => prev + transcript);
-          setVoiceError(null);
-        } else {
-          setVoiceError('No speech was captured. Please try again or type your question.');
+    if(!isOpen || !sessionMatchesProfile) stopLegacyVoice();
+  }, [isOpen, sessionMatchesProfile, sessionId, stopLegacyVoice]);
+  useEffect(() => {
+    const onHide=() => {
+      if(document.visibilityState === 'hidden') stopLegacyVoice();
+    };
+    const onPageHide=() => stopLegacyVoice();
+    document.addEventListener('visibilitychange',onHide);
+    window.addEventListener('pagehide',onPageHide);
+    return () => {
+      document.removeEventListener('visibilitychange',onHide);
+      window.removeEventListener('pagehide',onPageHide);
+      stopLegacyVoice();
+    };
+  }, [stopLegacyVoice]);
+
+  const toggleVoice = () => {
+    if(isListening) {
+      stopLegacyVoice();
+      return;
+    }
+    if(!isOpen || !sessionMatchesProfile || document.visibilityState === 'hidden')
+      return;
+    const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(typeof Recognition !== 'function') {
+      setVoiceError('Speech recognition is unavailable in this browser. Type your question.');
+      return;
+    }
+    stopLegacyVoice();
+    const epoch=++legacyVoiceEpochRef.current;
+    const boundSession=sessionId;
+    setVoiceError(null);
+    try {
+      const recognition=new Recognition();
+      recognitionRef.current=recognition;
+      recognition.continuous=false;
+      recognition.interimResults=false;
+      recognition.lang='en-IN';
+      const isCurrent=()=>legacyVoiceEpochRef.current === epoch &&
+        recognitionRef.current === recognition &&
+        sessionIdRef.current === boundSession &&
+        document.visibilityState !== 'hidden';
+      recognition.onresult=event => {
+        if(!isCurrent()) return;
+        const raw=event.results?.[0]?.[0]?.transcript;
+        const transcript=validateVoiceTranscript(raw);
+        stopLegacyVoice();
+        if(!transcript) {
+          setVoiceError('Speech transcript was empty or contained unsupported characters. Please type your question.');
+          return;
         }
-        setIsListening(false);
+        setInput(previous => {
+          const updated=previous ? previous + ' ' + transcript : transcript;
+          if(updated.length>1000) {
+            setVoiceError('Spoken question is too long. Edit the current text before retrying.');
+            return previous;
+          }
+          return updated;
+        });
+        setVoiceError(null);
       };
-      recognitionRef.current.onerror = (event) => {
-        const code = String(event?.error || '');
-        const message = code === 'not-allowed' || code === 'service-not-allowed'
+      recognition.onerror=event => {
+        if(!isCurrent()) return;
+        const code=String(event?.error || '');
+        stopLegacyVoice();
+        setVoiceError(code === 'not-allowed' || code === 'service-not-allowed'
           ? 'Microphone access was blocked. Allow microphone permission in your browser or type your question.'
           : code === 'audio-capture'
             ? 'No microphone was detected. Connect a microphone or type your question.'
             : code === 'network'
               ? 'Speech recognition is unavailable due to a network error. Please type your question.'
-              : 'Voice input could not capture your speech. Please try again or type your question.';
-        setVoiceError(message);
-        setIsListening(false);
+              : 'Voice input could not capture your speech. Please try again or type your question.');
       };
-      recognitionRef.current.onend = () => setIsListening(false);
-    }
-  }, []);
-
-  const toggleVoice = () => {
-    const recognition = recognitionRef.current;
-    if (!recognition) return;
-    if (isListening) {
-      recognition.stop();
-      setIsListening(false);
-      return;
-    }
-    setVoiceError(null);
-    try {
-      // Speech recognition can synchronously reject start() if the permission
-      // is denied or the recognition session is already active.
+      recognition.onend=() => {
+        if(isCurrent()) stopLegacyVoice();
+      };
       recognition.start();
       setIsListening(true);
+      legacyVoiceTimerRef.current=setTimeout(() => {
+        if(isCurrent()) {
+          stopLegacyVoice();
+          setVoiceError('Voice capture timed out. Please retry or type your question.');
+        }
+      }, VOICE_CAPTURE_TIMEOUT_MS);
     } catch {
-      setIsListening(false);
+      stopLegacyVoice();
       setVoiceError('Voice input could not start. Check microphone access or type your question.');
     }
   };
