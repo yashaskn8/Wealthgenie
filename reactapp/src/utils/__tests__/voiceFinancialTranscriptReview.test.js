@@ -11,6 +11,18 @@ describe('Financial voice ASR value-confirmation boundary', () => {
       'ಒಂದು ವೇಳೆ ₹೧೫೦೦೦ ಎಸ್‌ಐಪಿ ೧೦ ವರ್ಷ ಆಗಿದ್ದರೆ?',
       'What is my tax for INR 50,000?',
       'Can we project savings after 5 years?',
+      'What if I double my SIP monthly?',
+      'Should I invest half my savings?',
+      'What if I withdraw a quarter of my retirement fund?',
+      'Should I invest forty percent of my salary?',
+      'How much will my EMI be at seventy percent interest?',
+      'What if I deposit twenty five rupees?',
+      'What if I invest seventy-five?',
+      'क्या मैं पचास प्रतिशत बचत करूं?',
+      'ನಾನು ನಲವತ್ತು ರೂಪಾಯಿ ಉಳಿಸಿದರೆ ಏನು?',
+      'Tell me whether ₹50000 is more than ₹15000?',
+      'Can you explain 50000 versus 15000?',
+
       'What if I save ₹15000 every month?',
     ]) expect(needsFinancialTranscriptReview(question), question).toBe(true);
   });

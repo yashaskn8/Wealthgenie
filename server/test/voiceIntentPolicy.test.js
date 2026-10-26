@@ -71,6 +71,27 @@ describe('Sovereign X fail-closed voice policy',()=>{
     }
   });
 
+  it('rejects indirect delegated financial actions instead of routing them to hands-free chat',()=>{
+    for(const request of [
+      'How can you transfer my money?',
+      'How would you buy shares for me?',
+      'What if you withdraw my savings?',
+      'Please invest 50000 for me',
+      'Set my risk profile to aggressive',
+      'Redeem my mutual fund now',
+      'Cancel my savings order',
+    ]) {
+      assert.equal(classifyVoiceIntent(request).action,'REJECTED',request);
+    }
+    for(const educational of [
+      'How can I transfer my money safely?',
+      'What happens if I sell my shares?',
+      'How do I invest 50000 in a mutual fund?',
+    ]) {
+      assert.equal(classifyVoiceIntent(educational).action,'CHAT',educational);
+    }
+  });
+
   it('recognizes only reviewed Hindi and Kannada commands',()=>{
     const canonical=[
       ['लक्ष्य खोलो','goals'],

@@ -59,13 +59,104 @@ describe('GenieChat persisted conversation state', () => {
     vi.stubGlobal('SpeechRecognition', DeniedSpeechRecognition);
     openChat();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Start voice input' }));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
     expect(recognition).toBeDefined();
     await act(async () => { recognition.onerror({ error: 'not-allowed' }); });
 
     expect(screen.getByText(/Microphone access was blocked/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start voice input' })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /Ask Genie a financial question/i })).toBeInTheDocument();
+  });
+
+
+  it('aborts legacy mic on chat closure and fences a late old transcript', async () => {
+    let recognition;
+    const abort=vi.fn();
+    vi.stubGlobal('SpeechRecognition', class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){abort();}
+    });
+    openChat();
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
+    const staleResult=recognition.onresult;
+    fireEvent.click(screen.getByRole('button',{name:'Close chat helper'}));
+    expect(abort).toHaveBeenCalledTimes(1);
+    expect(recognition.onresult).toBeNull();
+    await act(async()=>staleResult({results:[[{transcript:'Private value from old account'}]]}));
+    fireEvent.click(screen.getByRole('button',{name:'Genie AI'}));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i})).toHaveValue('');
+  });
+
+  it('aborts legacy mic and drops callbacks when account binding changes', async () => {
+    let recognition;
+    const abort=vi.fn();
+    vi.stubGlobal('SpeechRecognition', class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){abort();}
+    });
+    const ui=render(<GenieChat profile={null} onNavigate={vi.fn()}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Genie AI'}));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
+    const late=recognition.onresult;
+    ui.rerender(<GenieChat profile={{
+      profileId:'64b000000000000000000333',version:2,monthly_savings:1000
+    }} onNavigate={vi.fn()}/>);
+    await waitFor(()=>expect(abort).toHaveBeenCalled());
+    await act(async()=>late({results:[[{transcript:'Private previous balance'}]]}));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i})).not
+      .toHaveValue('Private previous balance');
+  });
+
+  it('stops legacy microphone on page hide and ignores the delayed transcript', async () => {
+    let recognition;
+    const abort=vi.fn();
+    vi.stubGlobal('SpeechRecognition', class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){abort();}
+    });
+    openChat();
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
+    const staleResult=recognition.onresult;
+    vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');
+    await act(async()=>document.dispatchEvent(new Event('visibilitychange')));
+    expect(abort).toHaveBeenCalledTimes(1);
+    await act(async()=>staleResult({results:[[{transcript:'Private background transcript'}]]}));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i})).toHaveValue('');
+  });
+
+  it('stops old dictation when chat begins sending and discards its late result', async () => {
+    let recognition;
+    const abort=vi.fn();
+    vi.stubGlobal('SpeechRecognition', class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){abort();}
+    });
+    vi.spyOn(api,'getChatHistory').mockResolvedValue({conversations:[]});
+    const response=deferred();
+    vi.spyOn(api,'sendChatMessage').mockReturnValue(response.promise);
+    openChat();
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
+    const late=recognition.onresult;
+    fireEvent.change(screen.getByRole('textbox',{name:/Ask Genie a financial question/i}),{
+      target:{value:'Explain diversification'}
+    });
+    fireEvent.click(screen.getByRole('button',{name:'Send message'}));
+    await waitFor(()=>expect(abort).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button',{name:'Start voice input'})).toBeDisabled();
+    await act(async()=>late({results:[[{transcript:'Old background account balance'}]]}));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i}))
+      .not.toHaveValue('Old background account balance');
+    await act(async()=>response.resolve({response:'Read the displayed answer instead.',
+      grounded:false,validation_status:'UNVERIFIED',evidence_ids_used:[]}));
   });
 
   it('waits for canonical recommendation context before binding or restoring the saved chat session', async () => {

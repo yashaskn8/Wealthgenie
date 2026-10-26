@@ -377,6 +377,58 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(speak).not.toHaveBeenCalled();
   });
 
+  it('cancels narration when identical text is replaced by different evidence', () => {
+    const speak=vi.fn(),cancel=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak,cancel});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance {
+      constructor(text){this.text=text;}
+    });
+    const answer={content:'Verified portfolio statement.',grounded:true,
+      validation_status:'PASS',evidence_ids_used:['E_PROFILE_RISK'],
+      _turnKey:'same-session-1'};
+    const ui=render(<SovereignVoiceControl sessionKey="a" lastAnswer={answer}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Speak verified answer'}));
+    expect(speak).toHaveBeenCalledTimes(1);
+    ui.rerender(<SovereignVoiceControl sessionKey="a" lastAnswer={{
+      ...answer,evidence_ids_used:['E_DIFFERENT_EVIDENCE']
+    }}/>);
+    expect(cancel).toHaveBeenCalled();
+    expect(screen.queryByRole('button',{name:'Stop verified answer playback'}))
+      .not.toBeInTheDocument();
+  });
+
+  it('refuses to narrate the wrong turn even if text and evidence are identical', async () => {
+    vi.useFakeTimers();
+    let recognition;
+    vi.stubGlobal('SpeechRecognition',class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    });
+    const speak=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak,cancel:vi.fn()});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance {
+      constructor(text){this.text=text;}
+    });
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    const response={response:'The shared response.',grounded:true,
+      validation_status:'PASS',evidence_ids_used:['E_PROFILE_RISK'],_turnKey:'new-turn'};
+    const oldAnswer={content:'The shared response.',grounded:true,
+      validation_status:'PASS',evidence_ids_used:['E_PROFILE_RISK'],_turnKey:'old-turn'};
+    const ask=vi.fn().mockResolvedValue(response);
+    const ui=render(<SovereignVoiceControl sessionKey="a" onQuestion={ask}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>recognition.onresult({results:[[{transcript:'Explain diversification'}]]}));
+    await act(async()=>ui.rerender(<SovereignVoiceControl sessionKey="a"
+      onQuestion={ask} lastAnswer={oldAnswer}/>));
+    expect(speak).not.toHaveBeenCalled();
+    await act(async()=>vi.advanceTimersByTime(2_100));
+    expect(screen.getByText(/no longer matches chat/i)).toBeInTheDocument();
+    expect(speak).not.toHaveBeenCalled();
+  });
+
   it('interrupts current speech on a new explicit microphone gesture',()=>{
     const speak=vi.fn(),cancel=vi.fn();
     let micStarts=0;
@@ -604,5 +656,118 @@ describe('GenieVoice segmented ASR transcript integrity', () => {
       'What if my portfolio falls 20% after year 5',expect.any(Object));
     expect(ask).not.toHaveBeenCalled();
     expect(screen.getByRole('button',{name:'Confirm and ask Genie'})).toBeInTheDocument();
+  });
+});
+
+describe('GenieVoice adversarial async-boundary regressions', () => {
+  it('keeps the newer intent timeout after a cancelled older request settles', async () => {
+    vi.useFakeTimers();
+    let recognition;
+    class Recognition {
+      constructor(){ recognition=this; }
+      start(){}
+      abort(){}
+    }
+    vi.stubGlobal('SpeechRecognition', Recognition);
+    const resolvers=[];
+    vi.spyOn(api,'interpretVoiceCommand').mockImplementation(() =>
+      new Promise(resolve => { resolvers.push(resolve); }));
+    render(<SovereignVoiceControl sessionKey="account-1" onNavigate={vi.fn()}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    act(()=>recognition.onresult({results:[[{transcript:'open goals'}]]}));
+    expect(resolvers).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button',{name:'Stop GenieVoice task'}));
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    act(()=>recognition.onresult({results:[[{transcript:'open goals'}]]}));
+    expect(resolvers).toHaveLength(2);
+    await act(async()=>resolvers[0]({version:'sovereign-voice-intent-v1',action:'CHAT'}));
+    await act(async()=>vi.advanceTimersByTime(10_100));
+    expect(screen.getByText(/interpretation timed out/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Checking voice command/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the newer answer timeout after an older cancelled answer settles', async () => {
+    vi.useFakeTimers();
+    let recognition;
+    class Recognition {
+      constructor(){ recognition=this; }
+      start(){}
+      abort(){}
+    }
+    vi.stubGlobal('SpeechRecognition', Recognition);
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    const resolveAnswers=[];
+    const ask=vi.fn(() => new Promise(resolve => {resolveAnswers.push(resolve);}));
+    render(<SovereignVoiceControl sessionKey="account-1" onQuestion={ask}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>recognition.onresult({results:[[{transcript:'Explain SIP'}]]}));
+    expect(ask).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button',{name:'End GenieVoice conversation'}));
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>recognition.onresult({results:[[{transcript:'Explain diversification'}]]}));
+    expect(ask).toHaveBeenCalledTimes(2);
+    await act(async()=>resolveAnswers[0]({grounded:false,validation_status:'UNVERIFIED'}));
+    await act(async()=>vi.advanceTimersByTime(45_100));
+    expect(screen.getByText(/answer took too long/i)).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'})).toBeInTheDocument();
+  });
+
+  it('does not narrate a same-text answer with different evidence identifiers', async () => {
+    vi.useFakeTimers();
+    let recognition;
+    vi.stubGlobal('SpeechRecognition',class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    });
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    const speech=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak:speech,cancel:vi.fn()});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance {
+      constructor(text){this.text=text;}
+    });
+    const reply={response:'The same sentence.',grounded:true,
+      validation_status:'PASS',evidence_ids_used:['E_PROFILE_RISK']};
+    const differentEvidence={content:'The same sentence.',grounded:true,
+      validation_status:'PASS',evidence_ids_used:['E_UNRELATED_SOURCE']};
+    const ui=render(<SovereignVoiceControl sessionKey="account-1"
+      onQuestion={()=>Promise.resolve(reply)}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>recognition.onresult({results:[[{transcript:'Explain diversification'}]]}));
+    await act(async()=>ui.rerender(<SovereignVoiceControl sessionKey="account-1"
+      onQuestion={()=>Promise.resolve(reply)} lastAnswer={differentEvidence}/>));
+    expect(speech).not.toHaveBeenCalled();
+    await act(async()=>vi.advanceTimersByTime(2_100));
+    expect(screen.getByText(/no longer matches chat/i)).toBeInTheDocument();
+  });
+
+  it('allows only one edited numeric confirmation even when activated twice before rerender', async () => {
+    let recognition;
+    vi.stubGlobal('SpeechRecognition',class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    });
+    let resolveCheck;
+    const check=vi.spyOn(api,'interpretVoiceCommand')
+      .mockResolvedValueOnce({version:'sovereign-voice-intent-v1',action:'CHAT'})
+      .mockImplementationOnce(()=>new Promise(resolve=>{resolveCheck=resolve;}));
+    const ask=vi.fn().mockResolvedValue({grounded:false,validation_status:'UNVERIFIED'});
+    render(<SovereignVoiceControl sessionKey="account-1" onQuestion={ask}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>recognition.onresult({results:[[{transcript:
+      'What if I invest ₹15000 monthly?'}]]}));
+    fireEvent.change(screen.getByRole('textbox',{name:'Edit recognized financial question'}),{
+      target:{value:'What if I invest ₹50000 monthly?'}
+    });
+    const button=screen.getByRole('button',{name:'Confirm and ask Genie'});
+    act(()=>{fireEvent.click(button);fireEvent.click(button);});
+    expect(check).toHaveBeenCalledTimes(2);
+    await act(async()=>resolveCheck({version:'sovereign-voice-intent-v1',action:'CHAT'}));
+    expect(ask).toHaveBeenCalledTimes(1);
   });
 });

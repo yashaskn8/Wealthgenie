@@ -49,6 +49,27 @@ export function isVerifiedVoiceAnswer(answer) {
       id !== 'E_CHAT_ANSWER_UNAVAILABLE');
 }
 
+/**
+ * Narration is bound to BOTH the authenticated reply and its displayed evidence.
+ * Equal-looking text from another turn is not proof that the same financial
+ * source or validation passed. This must remain a read-only, pure comparison.
+ */
+export function sameVerifiedVoiceReply(returned, displayed) {
+  if (!isVerifiedVoiceAnswer(returned) || !isVerifiedVoiceAnswer(displayed))
+    return false;
+  if ((returned.content ?? returned.response) !== (displayed.content ?? displayed.response))
+    return false;
+  // Real chat turns carry the originating idempotency key in both the
+  // authenticated reply and the visible message. If either side is keyed,
+  // never narrate an older equal-text answer or an unbound reply.
+  if (returned._turnKey !== undefined || displayed._turnKey !== undefined) {
+    if (typeof returned._turnKey !== 'string' || !returned._turnKey ||
+        returned._turnKey !== displayed._turnKey) return false;
+  }
+  return returned.evidence_ids_used.length === displayed.evidence_ids_used.length &&
+    returned.evidence_ids_used.every((id, i) => id === displayed.evidence_ids_used[i]);
+}
+
 export function voiceAnswerText(answer) {
   if (!isVerifiedVoiceAnswer(answer)) return null;
   const content = answer.content ?? answer.response;
