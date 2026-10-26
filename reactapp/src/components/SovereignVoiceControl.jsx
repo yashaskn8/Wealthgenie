@@ -188,7 +188,7 @@ export default function SovereignVoiceControl({
     if (latestAnswerRef.current !== lastAnswer) {
       latestAnswerRef.current = lastAnswer;
       if (intentRef.current ||
-          (utteranceRef.current && spokenRef.current?.content !== lastAnswer?.content)) {
+          (utteranceRef.current && !sameVerifiedVoiceReply(spokenRef.current?.answer, lastAnswer))) {
         endConversation('The displayed answer changed; the old voice turn was stopped.');
       }
     }
@@ -242,7 +242,7 @@ export default function SovereignVoiceControl({
       }
     } catch { /* Keep the default voice. */ }
     utteranceRef.current = speech;
-    spokenRef.current = { content: answer.content ?? answer.response };
+    spokenRef.current = { answer };
     speech.onend = () => {
       if (epochRef.current !== token || utteranceRef.current !== speech) return;
       utteranceRef.current = null;
@@ -517,7 +517,7 @@ export default function SovereignVoiceControl({
 
   const canSpeak = isVerifiedVoiceAnswer(lastAnswer) && !!voiceAnswerText(lastAnswer);
   const activelySpeaking = phase === 'speaking' &&
-    spokenAnswer?.content === lastAnswer?.content;
+    sameVerifiedVoiceReply(spokenAnswer, lastAnswer);
 
   const confirmFinancialReview = async () => {
     const review = reviewRef.current;
