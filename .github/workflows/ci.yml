@@ -430,12 +430,8 @@ jobs:
       - name: Validate deployment and security configuration
         run: node server/scripts/validate-deployment-config.js
       - name: Start MongoDB for the explicit ML/RAG state migration
-        id: backend_npm_audit
-        continue-on-error: true
         run: docker compose up -d mongodb
 
-        id: frontend_npm_audit
-        continue-on-error: true
         env:
           JWT_SECRET: edge-e2e-jwt-secret-with-more-than-32-characters
           CORS_ORIGINS: http://127.0.0.1
@@ -734,11 +730,15 @@ jobs:
       # Each audit runs even if a previous check failed; none is allowed to
       # convert a security failure into a successful CI conclusion.
       - name: Audit backend npm dependencies
+        id: backend_npm_audit
         if: ${{ !cancelled() }}
+        continue-on-error: true
         run: npm audit --prefix server --omit=dev --audit-level=low
 
       - name: Audit frontend npm dependencies
+        id: frontend_npm_audit
         if: ${{ !cancelled() }}
+        continue-on-error: true
         run: npm audit --prefix reactapp --audit-level=high
 
       - name: Audit Python dependencies
