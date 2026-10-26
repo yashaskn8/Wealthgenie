@@ -12,7 +12,7 @@ const NISM_SELECTION = 'https://www.nism.ac.in/revamp-nism/things-to-consider-be
 
 const FINANCE_SUBJECT = /\b(?:invest(?:ing|ment|ments|or|ors)?|money|wealth|funds?|mutual\s*funds?|equity|shares?|stocks?|etfs?|bonds?|deposit|fd|sip|portfolio|savings?|retire(?:ment)?|risk|returns?|market|asset(?:\s+allocation)?|capital|inflation|liquidity|corpus|crores?|crors?|lakhs?|lacs?|diversif\w*|emergency\s+fund|income\s+stream|windfall|inherit(?:ed|ance)?)\b|₹\s*\d/i;
 const QUESTION_STYLE = /\b(?:what|how|which|should|could|would|can|where|why|when|suppose|imagine|if|compare|versus|vs|plan|choose|protect|manage|invest|save|allocate|split|withdraw|start|build|explain|help)\b/i;
-const ACCOUNT_SPECIFIC = /\b(?:my|our)\s+(?:account|holdings?|transactions?|demat|kyc|profile|current\s+portfolio|saved\s+recommendations?|risk\s+assessment|stock\s+positions?)\b/i;
+const ACCOUNT_SPECIFIC = /\b(?:my|our)\s+(?:(?:current|latest|saved|existing|personal|actual|specific)\s+)?(?:accounts?|holdings?|transactions?|demat|kyc|profile|portfolio|investments?|asset\s+allocations?|recommendations?|risk\s+assessments?|stock\s+positions?|account\s+valuations?)\b/i;
 const TAX_SPECIFIC = /\b(?:income[ -]?tax|tax\s+(?:slab|liability|refund|deduction|rebate|regime|amount|rate|calculator)|ltcg|stcg|section\s+\d+[a-z]?)\b/i;
 
 const SCENARIOS = Object.freeze([
