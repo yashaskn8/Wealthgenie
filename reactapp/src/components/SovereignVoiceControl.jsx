@@ -1,0 +1,246 @@
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import * as api from '../services/api';
+import { PAGE_ALLOWLIST } from '../utils/navigationMap';
+import SovereignSipComparison from './SovereignSipComparison';
+import './SovereignVoiceControl.css';
+
+/**
+ * An opt-in, bounded voice experience. The model is never an action executor.
+ * Only server-classified, independently allowlisted app navigation is supported.
+ */
+export default function SovereignVoiceControl({
+  onNavigate, onTranscript, lastAnswer, sessionKey, disabled = false,
+}) {
+  const [state, setState] = useState('idle');
+  const [spokenAnswer, setSpokenAnswer] = useState(null);
+  const [status, setStatus] = useState('');
+  const [showComparison, setShowComparison] = useState(false);
+  const listeningRef = useRef(null);
+  const requestRef = useRef(null);
+  const utteranceRef = useRef(null);
+  const generationRef = useRef(0);
+  const callbacksRef = useRef({ onNavigate, onTranscript });
+  const enabledRef = useRef(!disabled);
+  useLayoutEffect(() => {
+    enabledRef.current = !disabled;
+    callbacksRef.current = { onNavigate, onTranscript };
+  }, [disabled, onNavigate, onTranscript]);
+
+  const cancelAll = useCallback(() => {
+    generationRef.current += 1;
+    const recognition = listeningRef.current;
+    listeningRef.current = null;
+    if (recognition) {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.abort?.();
+    }
+    requestRef.current?.abort();
+    requestRef.current = null;
+    if (utteranceRef.current) window.speechSynthesis?.cancel?.();
+    utteranceRef.current = null;
+  }, []);
+
+  useLayoutEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
+  // Any new answer/identity invalidates pending work, including spoken audio.
+  useLayoutEffect(() => () => cancelAll(), [cancelAll, lastAnswer]);
+  useEffect(() => {
+    if (disabled) cancelAll();
+  }, [disabled, cancelAll]);
+  // Reset derived control state during the render that receives the new props,
+  // not synchronously inside an effect (which causes cascading renders).
+  // This also prevents an old 'checking' latch surviving disable/re-enable.
+  const [boundContext, setBoundContext] = useState({ sessionKey, lastAnswer, disabled });
+  if (boundContext.sessionKey !== sessionKey ||
+      boundContext.lastAnswer !== lastAnswer || boundContext.disabled !== disabled) {
+    setBoundContext({ sessionKey, lastAnswer, disabled });
+    setState('idle');
+    setSpokenAnswer(null);
+    setStatus('');
+  }
+
+  const stop = () => {
+    cancelAll();
+    setState('idle');
+    setSpokenAnswer(null);
+    setStatus('Voice operation stopped.');
+  };
+
+  const listen = () => {
+    if (disabled) return;
+    cancelAll();
+    setStatus('');
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (typeof Recognition !== 'function') {
+      setState('idle');
+      setStatus('Voice input is unavailable in this browser. Use text chat.');
+      return;
+    }
+    const current = generationRef.current;
+    const recognition = new Recognition();
+    listeningRef.current = recognition;
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = event => {
+      // Browsers may emit duplicate final events. Only the first may create a task.
+      if (current !== generationRef.current || listeningRef.current !== recognition) return;
+      listeningRef.current = null;
+      const transcript = String(event.results?.[0]?.[0]?.transcript || '').trim();
+      // ASR output is untrusted input; keep it within the same hard boundary as
+      // server interpretation rather than forwarding oversized text to chat.
+      if (transcript.length > 1000 || /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(transcript)) {
+        setState('idle');
+        setStatus('Voice transcript exceeded safety limits. Use text chat instead.');
+        return;
+      }
+      if (!transcript) {
+        setState('idle'); setStatus('No voice command was captured.'); return;
+      }
+      const controller = new AbortController();
+      requestRef.current = controller;
+      setState('checking');
+      void api.interpretVoiceCommand(transcript, { signal: controller.signal })
+        .then(result => {
+          if (current !== generationRef.current || controller.signal.aborted || !enabledRef.current) return;
+          if (result?.version !== 'sovereign-voice-intent-v1') {
+            setStatus('Unrecognized voice response. No action executed.');
+          } else if (result.action === 'APP_NAVIGATE' && result.tab === null &&
+            PAGE_ALLOWLIST.includes(result.page) && result.page !== 'genieproof') {
+            try {
+              callbacksRef.current.onNavigate?.({ page: result.page, tab: null });
+              setStatus('Navigation requested: ' + result.page.replace(/-/g, ' ') + '.');
+            } catch {
+              setStatus('Navigation outcome could not be confirmed. No further tasks will run.');
+            }
+          } else if (result.action === 'OPEN_SIP_COMPARISON') {
+            setShowComparison(true);
+            setStatus('SIP comparison ready. Enter and review two hypothetical return assumptions before calculating.');
+          } else if (result.action === 'CHAT') {
+            callbacksRef.current.onTranscript?.(transcript);
+            setStatus('Transcript added to chat. Review it before sending.');
+          } else {
+            setStatus('That voice action is not authorized. Nothing was executed.');
+          }
+        })
+        .catch(() => {
+          if (current !== generationRef.current || controller.signal.aborted || !enabledRef.current) return;
+          callbacksRef.current.onTranscript?.(transcript);
+          setStatus('Voice tasks unavailable. Review the transcript before sending.');
+        })
+        .finally(() => {
+          if (requestRef.current === controller) requestRef.current = null;
+          if (current === generationRef.current) setState('idle');
+        });
+    };
+    recognition.onerror = event => {
+      if (current !== generationRef.current) return;
+      listeningRef.current = null;
+      setState('idle');
+      setStatus(event?.error === 'not-allowed' ? 'Microphone permission denied.' :
+        'Voice capture failed. Use text chat.');
+    };
+    recognition.onend = () => {
+      if (current !== generationRef.current) return;
+      listeningRef.current = null;
+      // onend commonly fires after onresult, while classification remains pending.
+      if (!requestRef.current) setState('idle');
+    };
+    try {
+      recognition.start();
+      setState('listening');
+    } catch {
+      listeningRef.current = null;
+      setState('idle');
+      setStatus('Microphone could not start. Use text chat.');
+    }
+  };
+
+  const canSpeak = lastAnswer?.grounded === true &&
+    lastAnswer.validation_status === 'PASS' &&
+    Array.isArray(lastAnswer.evidence_ids_used) &&
+    lastAnswer.evidence_ids_used.length > 0 &&
+    lastAnswer.evidence_ids_used.every(id => typeof id === 'string' && id.startsWith('E_') &&
+      id !== 'E_CHAT_ANSWER_UNAVAILABLE') &&
+    typeof lastAnswer.content === 'string';
+
+  const speak = () => {
+    if (!canSpeak || disabled) return;
+    const synth = window.speechSynthesis;
+    if (!synth || typeof window.SpeechSynthesisUtterance !== 'function') {
+      setStatus('Browser speech output is unavailable. Read the answer in chat.');
+      return;
+    }
+    const words = lastAnswer.content.replace(/\[E_[A-Z0-9_:-]+\]/g, '').trim();
+    if (!words || words.length > 2400) {
+      setStatus('The answer cannot safely be played as browser speech.');
+      return;
+    }
+    cancelAll();
+    const current = generationRef.current;
+    const utterance = new window.SpeechSynthesisUtterance(words);
+    utterance.lang = 'en-IN';
+    utterance.onend = () => {
+      if (generationRef.current === current) {
+        utteranceRef.current = null;
+        setSpokenAnswer(null);
+        setState('idle');
+      }
+    };
+    utterance.onerror = () => {
+      if (generationRef.current === current) {
+        utteranceRef.current = null;
+        setSpokenAnswer(null);
+        setState('idle');
+        setStatus('Spoken playback failed. Read the answer in chat.');
+      }
+    };
+    utteranceRef.current = utterance;
+    setSpokenAnswer(lastAnswer);
+    try {
+      synth.speak(utterance);
+      setState('speaking');
+      setStatus('Reading the grounded answer shown in chat.');
+    } catch {
+      utteranceRef.current = null;
+      setSpokenAnswer(null);
+      setState('idle');
+      setStatus('Speech playback could not start.');
+    }
+  };
+
+  const activelySpeaking = state === 'speaking' && spokenAnswer === lastAnswer;
+  return (
+    <div className="sovereign-voice-control" aria-label="GenieVoice controls">
+      <button type="button" disabled={disabled}
+        aria-label={state === 'listening' ? 'Stop GenieVoice listening' :
+          state === 'checking' ? 'Stop GenieVoice task' : 'Start GenieVoice navigation'}
+        onClick={state === 'listening' || state === 'checking' ? stop : listen}>
+        {state === 'listening' || state === 'checking' ? <MicOff size={16} /> : <Mic size={16} />}
+        {state === 'listening' ? 'Stop listening' :
+          state === 'checking' ? 'Stop task' : 'GenieVoice navigation'}
+      </button>
+      {canSpeak && (
+        <button type="button" disabled={disabled}
+          aria-label={activelySpeaking ? 'Stop verified answer playback' : 'Speak verified answer'}
+          onClick={activelySpeaking ? stop : speak}>
+          {activelySpeaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          {activelySpeaking ? 'Stop speaking' : 'Speak verified answer'}
+        </button>
+      )}
+      <button type="button" disabled={disabled || state === 'checking'}
+        onClick={() => { cancelAll(); setState('idle'); setShowComparison(v => !v); }}
+        aria-label={showComparison ? 'Close SIP comparison' : 'Open SIP comparison'}>
+        {showComparison ? 'Close SIP comparison' : 'Compare SIP scenarios'}
+      </button>
+      {!disabled && showComparison && <SovereignSipComparison
+        key={String(sessionKey ?? '')} disabled={disabled}
+        onClose={() => setShowComparison(false)} />}
+      {state === 'checking' && <span role="status">Checking voice command…</span>}
+      <small>Browser speech recognition may process audio through its provider. No background listening.</small>
+      {status && <div role="status">{status}</div>}
+    </div>
+  );
+}

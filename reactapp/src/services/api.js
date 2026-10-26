@@ -802,6 +802,21 @@ export async function verifyExecutionReceipt(receiptId, options = {}) {
   return request('GET', `/agent/receipts/${encodeURIComponent(receiptId)}/verify`, null, { retries: 0, ...options });
 }
 
+/** Authenticated read-only GenieVoice task classification. */
+export async function interpretVoiceCommand(transcript, options = {}) {
+  return request('POST', '/voice/interpret', { transcript }, { retries: 0, ...options });
+}
+
+/** Read-only, profile-bound comparison using deterministic SIP engine; not an investment quote. */
+export async function compareVoiceSipScenarios(input, options = {}) {
+  return request('POST', '/voice/sip-compare', input, { retries: 0, ...options });
+}
+
+/** Preview only: returns navigation proposals, never executes any app/browser action. */
+export async function previewSovereignTask(plan, options = {}) {
+  return request('POST', '/voice/task-preview', { plan }, { retries: 0, ...options });
+}
+
 export async function getPlanHealth(profileId, options = {}) {
   if (!profileId) throw new TypeError('A profile ID is required.');
   return request('GET', `/agent/plan-health?profileId=${encodeURIComponent(profileId)}`, null, options);
