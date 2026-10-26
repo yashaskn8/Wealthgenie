@@ -425,3 +425,97 @@ describe('GenieVoice opt-in navigation',()=>{
   });
 
 });
+
+
+describe('GenieVoice high-stakes speech review', () => {
+  function setup() {
+    let recognition;
+    class Recognition {
+      constructor() { recognition=this; }
+      start() {}
+      abort() {}
+    }
+    vi.stubGlobal('SpeechRecognition', Recognition);
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT',reason:'NO_APPROVED_COMMAND'
+    });
+    const ask=vi.fn().mockResolvedValue({grounded:false,validation_status:'UNVERIFIED'});
+    const props={sessionKey:'profile-1',onNavigate:vi.fn(),onQuestion:ask,
+      onTranscript:vi.fn()};
+    const ui=render(<SovereignVoiceControl {...props}/>);
+    return {ask,props,ui,getRecognition:()=>recognition};
+  }
+
+  it('will not auto-send an ASR financial number until the user confirms it', async () => {
+    const t=setup();
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>{
+      t.getRecognition().onresult({results:[[{transcript:
+        'What if I invest ₹15000 monthly SIP for 10 years at 8% annual return?'}]]});
+    });
+    expect(t.ask).not.toHaveBeenCalled();
+    expect(screen.getByRole('group',{name:'Review recognized financial question'}))
+      .toHaveTextContent('₹15000');
+    fireEvent.click(screen.getByRole('button',{name:'Confirm and ask Genie'}));
+    await act(async()=>{});
+    expect(t.ask).toHaveBeenCalledTimes(1);
+    expect(t.ask).toHaveBeenCalledWith(
+      'What if I invest ₹15000 monthly SIP for 10 years at 8% annual return?');
+    expect(screen.queryByRole('button',{name:'Confirm and ask Genie'})).not.toBeInTheDocument();
+  });
+
+  it('cancel, locale switch and profile rebind invalidate an unconfirmed amount', async () => {
+    const t=setup();
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>t.getRecognition().onresult({results:[[{transcript:
+      'ಒಂದು ವೇಳೆ ₹೧೫೦೦೦ ಸಿಪ್ ೧೦ ವರ್ಷ ಆಗಿದ್ದರೆ?'}]]}));
+    expect(screen.getByRole('button',{name:'Confirm and ask Genie'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Cancel voice question'}));
+    expect(t.ask).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>t.getRecognition().onresult({results:[[{transcript:
+      'What if my portfolio falls 20%?'}]]}));
+    fireEvent.change(screen.getByRole('combobox',{name:'GenieVoice speech language'}),{
+      target:{value:'hi-IN'}
+    });
+    expect(screen.queryByRole('button',{name:'Confirm and ask Genie'})).not.toBeInTheDocument();
+    expect(t.ask).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>t.getRecognition().onresult({results:[[{transcript:
+      'What if my portfolio falls 20%?'}]]}));
+    t.ui.rerender(<SovereignVoiceControl {...t.props} sessionKey="profile-2"/>);
+    expect(screen.queryByRole('button',{name:'Confirm and ask Genie'})).not.toBeInTheDocument();
+    expect(t.ask).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('GenieVoice segmented ASR transcript integrity', () => {
+  it('waits for all chunks and retains the final financial amount and timing', async () => {
+    let recognition;
+    class Recognition {
+      constructor() { recognition=this; }
+      start() {}
+      abort() {}
+    }
+    vi.stubGlobal('SpeechRecognition', Recognition);
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    const ask=vi.fn();
+    render(<SovereignVoiceControl sessionKey="acct" onQuestion={ask}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    const first={0:{transcript:'What if my portfolio falls'},isFinal:true,length:1};
+    const second={0:{transcript:'20% after year 5'},isFinal:false,length:1};
+    await act(async()=>recognition.onresult({results:[first,second],resultIndex:1}));
+    expect(api.interpretVoiceCommand).not.toHaveBeenCalled();
+    expect(ask).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Voice transcript')).toHaveTextContent('20% after year 5');
+    second.isFinal=true;
+    await act(async()=>recognition.onresult({results:[first,second],resultIndex:1}));
+    expect(api.interpretVoiceCommand).toHaveBeenCalledWith(
+      'What if my portfolio falls 20% after year 5',expect.any(Object));
+    expect(ask).not.toHaveBeenCalled();
+    expect(screen.getByRole('button',{name:'Confirm and ask Genie'})).toBeInTheDocument();
+  });
+});

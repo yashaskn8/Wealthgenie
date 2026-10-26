@@ -12,6 +12,7 @@ import {
 } from '../utils/voiceRuntimePolicy';
 import { VOICE_LANGUAGES, validVoiceLanguage, isLocalVoiceStop,
   speechLocaleForText, voiceInLocale } from '../utils/voiceLanguagePolicy';
+import { needsFinancialTranscriptReview } from '../utils/voiceFinancialTranscriptReview';
 import './SovereignVoiceControl.css';
 
 function clearVoiceTimer(ref) {
@@ -32,6 +33,7 @@ export default function SovereignVoiceControl({
   chatBusy = false, disabled = false,
 }) {
   const [language, setLanguage] = useState('en-IN');
+  const [pendingReview, setPendingReview] = useState(null);
   const [phase, setPhase] = useState('idle');
   const [status, setStatus] = useState('');
   const [caption, setCaption] = useState('');
@@ -46,6 +48,7 @@ export default function SovereignVoiceControl({
   const handsFreeRef = useRef(false);
   const callbacksRef = useRef({ onNavigate, onTranscript, onQuestion });
   const listeningRef = useRef(null);
+  const reviewRef = useRef(null);
   const intentRef = useRef(null);
   const utteranceRef = useRef(null);
   const spokenRef = useRef(null);
@@ -106,7 +109,11 @@ export default function SovereignVoiceControl({
   const endConversation = useCallback((message = 'Voice operation stopped.') => {
     epochRef.current += 1;
     handsFreeRef.current = false;
+    reviewRef.current = null;
     stopIO();
+    setPendingReview(null);
+    reviewRef.current = null;
+    setPendingReview(null);
     setHandsFree(false);
     setPhase('idle');
     setSpokenAnswer(null);
@@ -120,6 +127,7 @@ export default function SovereignVoiceControl({
     return () => {
       epochRef.current += 1;
       handsFreeRef.current = false;
+      reviewRef.current = null;
       stopIO();
     };
   }, [sessionKey, stopIO]);
@@ -274,6 +282,40 @@ export default function SovereignVoiceControl({
     startSpeech(ready.answer, true, ready.token);
   }, [replyVersion, chatBusy, lastAnswer, startSpeech]);
 
+  const sendVerifiedVoiceQuestion = useCallback(async (transcript, token) => {
+    if (epochRef.current !== token || !handsFreeRef.current ||
+        !enabledRef.current || busyRef.current) return;
+    setPhase('thinking');
+    setStatus('Asking Genie. The microphone is off while the answer is prepared.');
+    let answer;
+    replyTimerRef.current = setTimeout(() => {
+      if (epochRef.current === token)
+        endConversation('The answer took too long. Check chat before retrying.');
+    }, VOICE_REPLY_TIMEOUT_MS);
+    try {
+      answer = await callbacksRef.current.onQuestion(transcript);
+    } catch {
+      if (epochRef.current === token)
+        endConversation('Could not send the voice question. Review the chat to retry.');
+      return;
+    } finally {
+      clearVoiceTimer(replyTimerRef);
+    }
+    if (epochRef.current !== token || !handsFreeRef.current) return;
+    if (!isVerifiedVoiceAnswer(answer) || !voiceAnswerText(answer)) {
+      endConversation('The response could not be verified for voice. Read it in chat.');
+      return;
+    }
+    // Keep the exact response until the matching message is rendered.
+    const ready = { token, answer };
+    replyReadyRef.current = ready;
+    replyDisplayTimerRef.current = setTimeout(() => {
+      if (replyReadyRef.current === ready && epochRef.current === token)
+        endConversation('The voice response no longer matches chat. It was not narrated.');
+    }, 2000);
+    setReplyVersion(value => value + 1);
+  }, [endConversation]);
+
   const interpret = useCallback(async (raw, token) => {
     const transcript = validateVoiceTranscript(raw);
     if (epochRef.current !== token) return;
@@ -348,36 +390,18 @@ export default function SovereignVoiceControl({
       endConversation('Chat is unavailable. Nothing was sent.');
       return;
     }
-    setPhase('thinking');
-    setStatus('Asking Genie. The microphone is off while the answer is prepared.');
-    let answer;
-    replyTimerRef.current = setTimeout(() => {
-      if (epochRef.current === token)
-        endConversation('The answer took too long. Check chat before retrying.');
-    }, VOICE_REPLY_TIMEOUT_MS);
-    try {
-      answer = await callbacksRef.current.onQuestion(transcript);
-    } catch {
-      if (epochRef.current === token)
-        endConversation('Could not send the voice question. Review the chat to retry.');
-      return;
-    } finally {
-      clearVoiceTimer(replyTimerRef);
-    }
-    if (epochRef.current !== token || !handsFreeRef.current) return;
-    if (!isVerifiedVoiceAnswer(answer) || !voiceAnswerText(answer)) {
-      endConversation('The response could not be verified for voice. Read it in chat.');
+    if (needsFinancialTranscriptReview(transcript)) {
+      // Speech-to-text numbers are prone to material errors (for example,
+      // fifteen vs fifty thousand). Never auto-send such questions.
+      const review = { token, transcript };
+      reviewRef.current = review;
+      setPendingReview(review);
+      setPhase('confirming');
+      setStatus('Confirm the recognized financial amounts and assumptions before sending.');
       return;
     }
-    // Keep the exact response until the matching message is rendered.
-    const ready = { token, answer };
-    replyReadyRef.current = ready;
-    replyDisplayTimerRef.current = setTimeout(() => {
-      if (replyReadyRef.current === ready && epochRef.current === token)
-        endConversation('The voice response no longer matches chat. It was not narrated.');
-    }, 2000);
-    setReplyVersion(value => value + 1);
-  }, [endConversation, scheduleResume]);
+    void sendVerifiedVoiceQuestion(transcript, token);
+  }, [endConversation, scheduleResume, sendVerifiedVoiceQuestion]);
 
   const startListening = useCallback(() => {
     if (!enabledRef.current || busyRef.current) return;
@@ -392,6 +416,8 @@ export default function SovereignVoiceControl({
     }
     // Button-triggered interruption is an explicit microphone gesture.
     stopIO();
+    reviewRef.current = null;
+    setPendingReview(null);
     const token = ++epochRef.current;
     let recognition;
     try {
@@ -403,19 +429,25 @@ export default function SovereignVoiceControl({
       recognition.onresult = event => {
         if (epochRef.current !== token || listeningRef.current !== recognition) return;
         const results = event.results || [];
-        let finalText = null;
-        for (let i = Math.max(0, event.resultIndex || 0); i < results.length; i += 1) {
+        const finalParts = [];
+        let interimText = '';
+        // Browser ASR may split one utterance across several result entries.
+        // Sending the first final chunk can silently drop a subsequent amount,
+        // inflation rate or negation. Await *all* chunks becoming final.
+        for (let i = 0; i < results.length; i += 1) {
           const text = results[i]?.[0]?.transcript;
           if (typeof text !== 'string') continue;
-          if (results[i].isFinal === false) {
-            setCaption(text.slice(0, 1000));
-          } else if (finalText === null) {
-            finalText = text;
-          }
+          if (results[i].isFinal === false) interimText += ' ' + text;
+          else finalParts.push(text); // Retain controls for downstream raw validation.
         }
-        if (finalText === null) return;
+        const assembled = finalParts.join(' ');
+        if (interimText.trim()) {
+          setCaption((assembled + ' ' + interimText.trim()).trim().slice(0, 1000));
+          return;
+        }
+        if (!assembled.trim()) return;
         stopRecognition();
-        void interpret(finalText, token);
+        void interpret(assembled, token);
       };
       recognition.onerror = event => {
         if (epochRef.current !== token) return;
@@ -460,6 +492,19 @@ export default function SovereignVoiceControl({
   const canSpeak = isVerifiedVoiceAnswer(lastAnswer) && !!voiceAnswerText(lastAnswer);
   const activelySpeaking = phase === 'speaking' &&
     spokenAnswer?.content === lastAnswer?.content;
+
+  const confirmFinancialReview = () => {
+    const review = reviewRef.current;
+    if (!review || epochRef.current !== review.token ||
+        !handsFreeRef.current || !enabledRef.current || busyRef.current ||
+        document.visibilityState === 'hidden') {
+      endConversation('The voice question is no longer valid. Please repeat it.');
+      return;
+    }
+    reviewRef.current = null;
+    setPendingReview(null);
+    void sendVerifiedVoiceQuestion(review.transcript, review.token);
+  };
 
   return (
     <div className="sovereign-voice-control" data-phase={phase} aria-label="GenieVoice controls">
@@ -514,6 +559,19 @@ export default function SovereignVoiceControl({
       {!disabled && showComparison && (
         <SovereignSipComparison key={String(sessionKey ?? '')}
           disabled={disabled || chatBusy} onClose={() => setShowComparison(false)} />
+      )}
+      {pendingReview && phase === 'confirming' && (
+        <div className="genie-voice-financial-review" role="group"
+          aria-label="Review recognized financial question">
+          <strong>Review financial values before sending</strong>
+          <p>The microphone may confuse amounts, percentages or years. Verify the transcript:</p>
+          <p className="genie-voice-financial-review-text">{pendingReview.transcript}</p>
+          <button type="button" disabled={disabled || chatBusy}
+            onClick={confirmFinancialReview}>Confirm and ask Genie</button>
+          <button type="button" onClick={() => endConversation('Voice question cancelled.')}>
+            Cancel voice question
+          </button>
+        </div>
       )}
       {phase === 'checking' && <span role="status">Checking voice command…</span>}
       {phase === 'thinking' && <span role="status">Genie is preparing a grounded answer…</span>}
