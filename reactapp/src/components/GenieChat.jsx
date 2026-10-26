@@ -950,7 +950,8 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
             {/* Input Bar */}
             <div className="genie-input-bar">
-              {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED !== 'true' && recognitionRef.current && (
+              {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED !== 'true' &&
+                typeof (window.SpeechRecognition || window.webkitSpeechRecognition) === 'function' && (
                 <button className={`voice-btn ${isListening ? 'voice-active' : ''}`} onClick={toggleVoice} title="Voice input" aria-label={isListening ? "Stop voice input" : "Start voice input"}>
                   {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
