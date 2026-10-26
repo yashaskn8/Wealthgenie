@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  validateVoiceTranscript, isVoiceStopPhrase, isAuthorizedVoiceNavigation,
+  validateVoiceTranscript, collectVoiceRecognitionResults, isVoiceStopPhrase, isAuthorizedVoiceNavigation,
   isVerifiedVoiceAnswer, sameVerifiedVoiceReply, voiceAnswerText, selectBrowserVoice,
 } from '../voiceRuntimePolicy';
 
@@ -70,6 +70,35 @@ describe('GenieVoice trust-boundary policy', () => {
     expect(sameVerifiedVoiceReply({...verified},{...verified,_turnKey:'voice-turn-a'})).toBe(false);
   });
 
+  it('bounds malicious or excessive browser ASR result chunks before interpretation', () => {
+    const result=(text,isFinal=true)=>Object.assign([{transcript:text}],{isFinal});
+    const a=collectVoiceRecognitionResults([
+      result('My savings are',true),result('thirty thousand',false)
+    ]);
+    expect(a).toEqual({status:'partial',caption:'My savings are thirty thousand'});
+    expect(collectVoiceRecognitionResults([result('My savings are'),result('thirty thousand')]))
+      .toEqual({status:'final',transcript:'My savings are thirty thousand'});
+    expect(collectVoiceRecognitionResults(Array.from({length:25},()=>result('word'))))
+      .toEqual({status:'invalid'});
+    expect(collectVoiceRecognitionResults([result('x'.repeat(1001))]))
+      .toEqual({status:'invalid'});
+    expect(collectVoiceRecognitionResults([result('x'),[{}]]))
+      .toEqual({status:'invalid'});
+  });
+  it('refuses fallback, incomplete, or structurally ambiguous verified speech', () => {
+    for(const answer of [
+      {...verified,fallback:true},
+      {...verified,unavailable_facts:['Current coupon unavailable']},
+      {...verified,response:'| Scheme | Rate |\\n|---|---|'},
+      {...verified,response:'~~8%~~ 5% is the corrected assumption'},
+      {...verified,response:'```html\\n<unsafe>\\n```'},
+      {...verified,response:'![Chart with missing numbers](https://example.test/chart)'},
+      {...verified,response:'<table><tr><td>8%</td></tr></table>'},
+    ]) expect(voiceAnswerText(answer)).toBeNull();
+  });
+  it('rejects unpaired surrogate controls in provider speech', () => {
+    expect(validateVoiceTranscript('open\\uD800 goals')).toBeNull();
+  });
   it('does not truncate or invent words from long financial answers', () => {
     expect(voiceAnswerText({...verified,response:'x'.repeat(2401)})).toBeNull();
     expect(voiceAnswerText({...verified,response:'**Returns** are hypothetical.'}))

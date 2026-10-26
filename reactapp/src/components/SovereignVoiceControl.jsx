@@ -7,7 +7,7 @@ import SovereignSipComparison from './SovereignSipComparison';
 import {
   VOICE_INTENT_VERSION, VOICE_CAPTURE_TIMEOUT_MS, VOICE_INTENT_TIMEOUT_MS,
   VOICE_REPLY_TIMEOUT_MS, VOICE_SPEECH_TIMEOUT_MS, VOICE_CONVERSATION_MAX_MS,
-  validateVoiceTranscript,
+  collectVoiceRecognitionResults, validateVoiceTranscript,
   isVoiceStopPhrase, isAuthorizedVoiceNavigation, isVerifiedVoiceAnswer,
   sameVerifiedVoiceReply, voiceAnswerText,
 } from '../utils/voiceRuntimePolicy';
@@ -448,26 +448,17 @@ export default function SovereignVoiceControl({
       listeningRef.current = recognition;
       recognition.onresult = event => {
         if (epochRef.current !== token || listeningRef.current !== recognition) return;
-        const results = event.results || [];
-        const finalParts = [];
-        let interimText = '';
-        // Browser ASR may split one utterance across several result entries.
-        // Sending the first final chunk can silently drop a subsequent amount,
-        // inflation rate or negation. Await *all* chunks becoming final.
-        for (let i = 0; i < results.length; i += 1) {
-          const text = results[i]?.[0]?.transcript;
-          if (typeof text !== 'string') continue;
-          if (results[i].isFinal === false) interimText += ' ' + text;
-          else finalParts.push(text); // Retain controls for downstream raw validation.
-        }
-        const assembled = finalParts.join(' ');
-        if (interimText.trim()) {
-          setCaption((assembled + ' ' + interimText.trim()).trim().slice(0, 1000));
+        const captured = collectVoiceRecognitionResults(event?.results);
+        if (captured.status === 'invalid') {
+          endConversation('Voice capture exceeded safety limits or contained malformed speech results.');
           return;
         }
-        if (!assembled.trim()) return;
+        if (captured.status === 'partial') {
+          setCaption(captured.caption);
+          return;
+        }
         stopRecognition();
-        void interpret(assembled, token);
+        void interpret(captured.transcript, token);
       };
       recognition.onerror = event => {
         if (epochRef.current !== token) return;

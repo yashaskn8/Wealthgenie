@@ -24,6 +24,14 @@ describe('Financial voice ASR value-confirmation boundary', () => {
       'Can you explain 50000 versus 15000?',
 
       'What if I save ₹15000 every month?',
+      'I earn eighty thousand every month',
+      'My insurance premium costs seventy thousand',
+      'My salary is fifty six thousand',
+      'I have two lakh rupees available',
+      'My rent will double next year',
+      'मेरा वेतन पचास हजार है',
+      'ನನ್ನ ಸಂಬಳ ಐವತ್ತು ಸಾವಿರ ರೂಪಾಯಿ',
+      'Please explain a lakh in rupees',
     ]) expect(needsFinancialTranscriptReview(question), question).toBe(true);
   });
   it('keeps low-risk conversational questions fast, without confirmation friction', () => {

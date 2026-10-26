@@ -12,12 +12,40 @@ export const VOICE_INTENT_TIMEOUT_MS = 10_000;
 export const VOICE_REPLY_TIMEOUT_MS = 45_000;
 export const VOICE_SPEECH_TIMEOUT_MS = 180_000;
 export const MAX_VOICE_TRANSCRIPT_LENGTH = 1000;
+export const MAX_VOICE_ASR_SEGMENTS = 24;
 export const MAX_VOICE_ANSWER_LENGTH = 2400;
 
-const DISALLOWED_TRANSCRIPT_CHARACTERS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const DISALLOWED_TRANSCRIPT_CHARACTERS = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
 const normalizeIndicJoiners=text=>text.replace(/([\u0900-\u097F\u0C80-\u0CFF])[\u200C\u200D](?=[\u0900-\u097F\u0C80-\u0CFF])/gu,'$1');
 const STOP_PHRASES = /^(?:stop listening|goodbye genie|end conversation|cancel voice mode|stop genie)[.!?]*$/i;
 const EVIDENCE_IDENTIFIER = /^E_[A-Z0-9_:-]+$/;
+
+/**
+ * Treat browser speech-recognition result arrays as untrusted input.
+ * Never loop an unbounded provider-supplied collection or silently discard
+ * a later financial amount, negation, or percentage after the first chunk.
+ */
+export function collectVoiceRecognitionResults(results) {
+  if (!results || !Number.isSafeInteger(results.length) ||
+      results.length < 1 || results.length > MAX_VOICE_ASR_SEGMENTS)
+    return { status: 'invalid' };
+  const finals = [], partials = [];
+  let length = 0;
+  for (let i = 0; i < results.length; i += 1) {
+    const text = results[i]?.[0]?.transcript;
+    if (typeof text !== 'string') return { status: 'invalid' };
+    length += text.length + 1;
+    if (length > MAX_VOICE_TRANSCRIPT_LENGTH + 1) return { status: 'invalid' };
+    if (results[i].isFinal === false) partials.push(text);
+    else finals.push(text);
+  }
+  const transcript = finals.join(' ').trim();
+  if (partials.length) {
+    const caption = (transcript + ' ' + partials.join(' ')).trim();
+    return caption ? { status: 'partial', caption } : { status: 'invalid' };
+  }
+  return transcript ? { status: 'final', transcript } : { status: 'invalid' };
+}
 
 export function validateVoiceTranscript(raw) {
   if (typeof raw !== 'string' || !raw || raw.length > MAX_VOICE_TRANSCRIPT_LENGTH) return null;
@@ -40,7 +68,10 @@ export function isAuthorizedVoiceNavigation(result) {
 }
 
 export function isVerifiedVoiceAnswer(answer) {
-  if (!answer || answer.grounded !== true || answer.validation_status !== 'PASS') return false;
+  if (!answer || answer.grounded !== true || answer.validation_status !== 'PASS' ||
+      answer.fallback === true ||
+      (Array.isArray(answer.unavailable_facts) && answer.unavailable_facts.length > 0))
+    return false;
   const ids = answer.evidence_ids_used;
   const content = answer.content ?? answer.response;
   return typeof content === 'string' && content.trim().length > 0 &&
@@ -73,6 +104,11 @@ export function sameVerifiedVoiceReply(returned, displayed) {
 export function voiceAnswerText(answer) {
   if (!isVerifiedVoiceAnswer(answer)) return null;
   const content = answer.content ?? answer.response;
+  // HTML, tables, code blocks and strikethrough cannot be read aloud without
+  // losing financial qualifiers, structure, or whether a value was retracted.
+  if (/<\/?[a-z][^>]*>/i.test(content) || /```|~~~|!\[[^\]]*\]\(/.test(content) ||
+      /~~/.test(content) || /(?:^|\n)\s*\|[^\n]*\|/m.test(content) ||
+      /\n\s*[-:| ]*---[-:| ]*\|[-:| ]*---/m.test(content)) return null;
   // Strip evidence markers and presentational Markdown without inventing or
   // summarizing any financial claim. Oversize answers are not truncated.
   const text = content.replace(/\[E_[A-Z0-9_:-]+\]/g, '')

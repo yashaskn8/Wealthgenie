@@ -18,7 +18,7 @@ import {
 const transcriptSchema=Joi.object({
   // Do not trim/normalize before validation: reject CR/LF/TAB and other
   // control characters even for direct clients bypassing the voice widget.
-  transcript:Joi.string().min(1).max(1000).pattern(/^[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}]*$/u).required()
+  transcript:Joi.string().min(1).max(1000).pattern(/^[^\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]*$/u).required()
 }).unknown(false);
 
 // These are separate distributed quotas in production. They fail closed if the
