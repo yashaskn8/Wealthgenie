@@ -32,5 +32,6 @@
   "test/recommendationAllocationRevisionBehavior.test.js",
   "test/recommendationAuditProvenanceRoutes.test.js",
   "test/researchTaskLease.integration.test.js",
+  "test/runwayMongo.integration.test.js",
   "test/security.test.js"
 ]

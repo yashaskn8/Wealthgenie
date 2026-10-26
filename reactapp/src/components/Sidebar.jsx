@@ -39,6 +39,7 @@ const JOURNEY_NAV_ITEMS = [
   { id: NAV_PAGES.GOALS, label: 'Goals', icon: Target, testId: 'nav-my-goals', legacyTestIds: ['nav-goals', 'nav-goal-planner'] },
   { id: NAV_PAGES.GROW_MY_SIP, label: 'Grow My SIP', icon: TrendingUp, testId: 'nav-grow-my-sip', legacyTestIds: ['nav-sip-planner'] },
   { id: NAV_PAGES.KEEP_ON_TRACK, label: 'Keep on Track', icon: ArrowLeftRight, testId: 'nav-keep-on-track', legacyTestIds: ['nav-rebalancer'] },
+  { id: NAV_PAGES.RUNWAY, label: 'Household Runway', icon: Wallet, testId: 'nav-runway', legacyTestIds: [] },
 ];
 const SECONDARY_NAV_ITEMS = [
   { id: NAV_PAGES.GENIEPROOF, label: 'GenieProof', icon: FileSearch, testId: 'nav-genieproof', legacyTestIds: [] },
@@ -76,7 +77,7 @@ const getLegacyHandler = (legacyId, onNavigate, handleItemClick) => {
   }
 };
 
-const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true }) => {
+const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true, runwayEnabled = false }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -277,7 +278,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
               </div>
             )}
             <div className="sidebar-group-items">
-              {JOURNEY_NAV_ITEMS.map((item) => {
+              {JOURNEY_NAV_ITEMS.filter(item => runwayEnabled || item.id !== NAV_PAGES.RUNWAY).map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
                 const isHovered = hoveredItem === item.id;
@@ -519,7 +520,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
           aria-expanded={mobileMenuOpen}
           aria-label="More navigation options"
           className={`tab-item ${
-            [NAV_PAGES.GENIEPROOF, NAV_PAGES.GENIEDECISION, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
+            [NAV_PAGES.GENIEPROOF, NAV_PAGES.GENIEDECISION, NAV_PAGES.RUNWAY, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
               ? 'tab-item--active'
               : ''
           }`}
@@ -527,7 +528,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
         >
           <Menu size={20} strokeWidth={1.8} />
           <span className="tab-label">More</span>
-          {[NAV_PAGES.GENIEPROOF, NAV_PAGES.GENIEDECISION, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
+          {[NAV_PAGES.GENIEPROOF, NAV_PAGES.GENIEDECISION, NAV_PAGES.RUNWAY, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
             <span className="tab-active-dot" />
           )}
         </button>
@@ -579,6 +580,12 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true })
                 </>
               )}
 
+              {runwayEnabled && (
+                <button type="button" className={`mobile-drawer-btn ${activePage === NAV_PAGES.RUNWAY ? 'mobile-drawer-btn--active' : ''}`}
+                  onClick={() => handleItemClick(NAV_PAGES.RUNWAY)} data-testid="mobile-nav-runway">
+                  <Wallet size={19} /><span>Household Runway</span>
+                </button>
+              )}
               <div className="mobile-drawer-section-title" style={{ marginTop: 12 }}>FINANCIAL DECISIONS</div>
               <button type="button"
                 data-testid="mobile-nav-geniedecision"

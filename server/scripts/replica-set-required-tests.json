@@ -28,5 +28,6 @@
   "test/recommendRestore.test.js",
   "test/recommendationAllocationRevisionBehavior.test.js",
   "test/researchTaskLease.integration.test.js",
+  "test/runwayMongo.integration.test.js",
   "test/security.test.js"
 ]
