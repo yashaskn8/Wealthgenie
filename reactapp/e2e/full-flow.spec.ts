@@ -197,6 +197,61 @@ test.describe('real WealthGenie dependency lifecycle', () => {
       Origin: new URL(page.url()).origin,
     });
 
+    // Multi-feature integration smoke on one authenticated browser session:
+    // every read uses the profile/recommendation identity created above. This
+    // does not fabricate a ledger, execute a financial task, or enable an
+    // opt-in feature for a user who has not opted in.
+    const decisionAvailabilityResponse = await page.request.get(apiUrl('/decisions/data-availability'));
+    expect(decisionAvailabilityResponse.status()).toBe(200);
+    const decisionAvailability = await decisionAvailabilityResponse.json();
+    expect(decisionAvailability.profileId).toBe(String(profile.profileId));
+    expect(typeof decisionAvailability.available).toBe('boolean');
+    expect(decisionAvailability.llmRequired).toBe(false);
+    expect(decisionAvailability.providerForecastAvailable).toBe(false);
+
+    const decisionScenariosResponse = await page.request.get(apiUrl('/decisions/scenarios'));
+    expect(decisionScenariosResponse.status()).toBe(200);
+    const decisionScenarios = await decisionScenariosResponse.json();
+    expect(decisionScenarios.scenarios).toEqual([]);
+
+    const cashLedgerResponse = await page.request.get(apiUrl('/coverage/ledger'));
+    expect(cashLedgerResponse.status()).toBe(200);
+    expect(await cashLedgerResponse.json()).toMatchObject({
+      revision: 0, ledger: null, latestResult: null,
+    });
+
+    const runwayLedgerResponse = await page.request.get(apiUrl('/runway/current'));
+    expect(runwayLedgerResponse.status()).toBe(404);
+    const runwayLedger = await runwayLedgerResponse.json();
+    expect(['FEATURE_UNAVAILABLE', 'RUNWAY_LEDGER_NOT_FOUND']).toContain(runwayLedger.code);
+
+    // Voice tasks must either be explicitly disabled or return a bounded,
+    // classified intent. They must never silently execute a financial action.
+    const voiceInterpretResponse = await page.request.post(apiUrl('/voice/interpret'), {
+      data: { transcript: 'Explain diversification' },
+      headers: writeHeaders(),
+    });
+    expect([200, 404]).toContain(voiceInterpretResponse.status());
+    const voiceInterpretation = await voiceInterpretResponse.json();
+    if (voiceInterpretResponse.status() === 404) {
+      expect(voiceInterpretation.code).toBe('VOICE_TASKS_DISABLED');
+    } else {
+      expect(typeof voiceInterpretation.version).toBe('string');
+      expect(voiceInterpretation).not.toHaveProperty('executed');
+    }
+
+    await page.getByTestId('nav-geniedecision').click();
+    await expect(page.getByRole('heading', { name: 'Understand what a big decision changes.' })).toBeVisible();
+    await page.getByTestId('nav-cash-check').click();
+    await expect(page.getByRole('heading', { name: '90-day cash check' }).first()).toBeVisible();
+    const runwayNavigation = page.getByTestId('nav-runway');
+    if (await runwayNavigation.isVisible()) {
+      await runwayNavigation.click();
+      await expect(page.getByRole('heading', { name: 'Household Runway' })).toBeVisible();
+    }
+    await page.getByTestId('nav-home').click();
+    await expect(page.getByTestId('beginner-home-hero')).toBeVisible();
+
     const wtiResponse = await page.request.post(apiUrl('/instruments/rank-wti'), {
       data: {
         profileId: profile.profileId,
