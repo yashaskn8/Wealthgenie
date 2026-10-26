@@ -8,6 +8,7 @@ on:
       - feature/genievoice-v5-multilingual-scenarios-20261026
       - feature/genievoice-v6-redteam-hardening-20261026
       - feature/genievoice-v7-scenario-fuzz-20261026
+      - feature/genievoice-v7-scenario-evaluation-20261026
   pull_request:
     branches:
       - feature/genievoice-jarvis-conversation-20261025
@@ -64,5 +65,5 @@ jobs:
         working-directory: server
       - run: npm run lint
         working-directory: server
-      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js test/featureSuggestionPolicy.test.js test/indicSipScenarioEvidence.test.js test/voiceScenarioFuzz.test.js test/indicFinancialEducation.test.js test/chatEducationalRetrieval.test.js
+      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js test/featureSuggestionPolicy.test.js test/indicSipScenarioEvidence.test.js test/voiceScenarioFuzz.test.js test/genieScenarioCorpus.test.js test/indicFinancialEducation.test.js test/chatEducationalRetrieval.test.js
         working-directory: server
