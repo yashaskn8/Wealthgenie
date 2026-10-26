@@ -69,3 +69,17 @@
 @media(prefers-reduced-motion: reduce) {
   .sovereign-voice-control *, .sovereign-sip-comparison * {transition:none!important;animation:none!important;}
 }
+
+.sovereign-voice-control > button[aria-pressed="true"] {
+  background: rgba(56, 189, 248, .24);
+  border-color: #7dd3fc;
+}
+.sovereign-voice-control .genie-voice-caption {
+  flex-basis: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, .12);
+  border: 1px solid rgba(148, 163, 184, .22);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}

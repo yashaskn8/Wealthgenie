@@ -872,7 +872,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
             {/* Input Bar */}
             <div className="genie-input-bar">
-              {recognitionRef.current && (
+              {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED !== 'true' && recognitionRef.current && (
                 <button className={`voice-btn ${isListening ? 'voice-active' : ''}`} onClick={toggleVoice} title="Voice input" aria-label={isListening ? "Stop voice input" : "Start voice input"}>
                   {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
@@ -885,11 +885,13 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             {voiceError && <div role="status" className="chat-error-banner">{voiceError}</div>}
             {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED === 'true' && (
               <SovereignVoiceControl
-                key={sessionId + ':' + (sessionMatchesProfile && !isClearing && !isLoading ? 'ready' : 'disabled')}
+                key={sessionId}
                 sessionKey={sessionId}
-                disabled={!sessionMatchesProfile || isClearing || isLoading}
+                disabled={!sessionMatchesProfile || isClearing || rateLimitBlocked}
+                chatBusy={isLoading}
                 onNavigate={onNavigate}
                 onTranscript={text => setInput(prev => prev ? prev + ' ' + text : text)}
+                onQuestion={text => sendMessage(text)}
                 lastAnswer={lastAssistantMsg}
               />
             )}
