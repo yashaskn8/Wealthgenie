@@ -10,13 +10,18 @@
 // Normalize ONLY those, while rejecting hidden controls elsewhere.
 const normalizeIndicJoiners = value => value.replace(
   /([\u0900-\u097F\u0C80-\u0CFF])[\u200C\u200D](?=[\u0900-\u097F\u0C80-\u0CFF])/gu,'$1');
-const FINANCE_TOPIC = /(?:\b(?:sip|sips|invest(?:ment|ing)?|portfolio|retirement|college|goal|sav(?:e|ing|ings)|inflation|return|projection|project|forecast|finance|financial|tax|emi|loan|fund|deposit|interest|stocks?|bond|crash|risk|withdrawal|mutual)\b|निवेश|सिप|एसआईपी|रिटर्न|महँगाई|महंगाई|मुद्रास्फीति|जोखिम|कर\s+गणना|टैक्स|बचत|लक्ष्य|हूಡಿಕೆ|ಹೂಡಿಕೆ|ಸಿಪ್|ಎಸ್ಐಪಿ|ಹಣದುಬ್ಬರ|ಪೋರ್ಟ್‌?ಫೋಲಿಯೋ|ತೆರಿಗೆ|ಉಳಿತಾಯ|ಬಡ್ಡಿ|ನಿವೃತ್ತಿ)/iu;
-const QUANTIFIED = /[\p{Nd}%₹]|\b(?:inr|rupees|rs|percent|percentage|hundred|thousand|lakh|lac|crore|million|billion|five|ten|twenty|thirty|fifty|hundreds|thousands|lakhs|crores)\b|(?:रुपये|प्रतिशत|हजार|लाख|करोड़|साल|रुपया|ರೂಪಾಯಿ|ಶೇಕಡಾ|ಲಕ್ಷ|ಕೋಟಿ|ವರ್ಷ)/iu;
+const FINANCE_TOPIC = /(?:\b(?:sip|sips|invest(?:ment|ing)?|portfolio|retirement|college|goal|sav(?:e|ing|ings)|inflation|return|projection|project|forecast|finance|financial|tax|emi|loan|fund|deposit|interest|stocks?|bond|crash|risk|withdrawal|mutual)\b|निवेश|सिप|एसआईपी|रिटर्न|महँगाई|महंगाई|मुद्रास्फीति|जोखिम|कर\s+गणना|टैक्स|बचत|लक्ष्य|हूಡಿಕೆ|ಹೂಡಿಕೆ|ಸಿಪ್|ಎಸ್ಐಪಿ|ಹಣದುಬ್ಬರ|ಪೋರ್ಟ್‌?ಫೋಲಿಯೋ|ತೆರಿಗೆ|ಉಳಿತಾಯ|ಬಡ್ಡಿ|ನಿವೃತ್ತಿ|ಉಳಿಸ|ಉಳಿಸಿದ|ಉಳಿಸುವ)/iu;
+// Do not rely on a small English-number dictionary for Indian ASR. For
+// example, "seventy" and "forty" are financially material even without digits.
+const QUANTIFIED = /[\\p{Nd}%₹$€£]|\\b(?:inr|rupees?|rs|percent|percentage|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundreds?|thousands?|lakhs?|lacs?|crores?|millions?|billions?)\\b|(?:रुपये|प्रतिशत|हजार|लाख|करोड़|साल|रुपया|दस|बीस|तीस|चालीस|पचास|साठ|सत्तर|अस्सी|नब्बे|सौ|ಹತ್ತು|ಇಪ್ಪತ್ತು|ಮೂವತ್ತು|ನಲವತ್ತು|ಐವತ್ತು|ಅರವತ್ತು|ಎಪ್ಪತ್ತು|ಎಂಭತ್ತು|ತೊಂಬತ್ತು|ನೂರು|ಸಾವಿರ|ರೂಪಾಯಿ|ಶೇಕಡಾ|ಲಕ್ಷ|ಕೋಟಿ|ವರ್ಷ)/iu;
+// An otherwise unknown finance term must never exempt an explicit ASR number,
+// currency or percentage from review in a financial assistant.
+const EXPLICIT_VALUE = /[\\p{Nd}%₹$€£]/u;
 const INVALID = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
 export function needsFinancialTranscriptReview(raw) {
   if (typeof raw !== 'string' || !raw || raw.length > 1000) return false;
   const text = normalizeIndicJoiners(raw);
   if (INVALID.test(text)) return false;
-  return FINANCE_TOPIC.test(text) && QUANTIFIED.test(text);
+  return EXPLICIT_VALUE.test(text) || (FINANCE_TOPIC.test(text) && QUANTIFIED.test(text));
 }
