@@ -76,6 +76,9 @@ export function createMcpRouter({
     limit: config.mcp.maxRequestBytes,
     strict: true,
     type: 'application/json',
+    // Fail closed for compressed JSON rather than entering vulnerable
+    // body-parser decompression (GHSA-27r3-jxmh-p828).
+    inflate: false,
   }));
   router.post('/', asyncHandler(async (req, res) => {
     if (!req.is('application/json')) {

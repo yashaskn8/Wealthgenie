@@ -1,0 +1,34 @@
+.runway{max-width:1120px;margin:0 auto;padding:32px 18px 60px;color:var(--text-primary,#e6edf7);line-height:1.55}
+.runway header{margin-bottom:24px}.runway h1{font-size:clamp(2rem,4vw,3rem);margin:0 0 10px}
+.runway h2{font-size:1.25rem;margin:0 0 10px}.runway h3{margin:22px 0 10px}.runway h4{margin:0 0 8px}
+.runway p{max-width:75ch}.runway-eyebrow{letter-spacing:.11em;font-size:.75rem;text-transform:uppercase;color:#67e8f9}
+.runway-panel{background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.24);border-radius:18px;padding:22px;margin:16px 0}
+.runway label{display:flex;flex-direction:column;gap:6px;font-size:.9rem;margin:10px 0;max-width:460px}
+.runway input,.runway select{border:1px solid #64748b;background:#0b1427;color:#f1f5f9;border-radius:8px;padding:11px;max-width:100%;font:inherit}
+.runway input:focus-visible,.runway select:focus-visible,.runway button:focus-visible{outline:3px solid #38bdf8;outline-offset:3px}
+.runway button{background:#0891b2;color:white;padding:11px 15px;font:inherit;font-weight:650;border:0;border-radius:9px;cursor:pointer;margin:8px 8px 8px 0}
+.runway button:disabled{opacity:.48;cursor:not-allowed}
+.runway button.runway-minor{background:#1e293b;border:1px solid #64748b}
+.runway-entry{border:1px solid #475569;border-radius:10px;padding:12px 18px;margin:14px 0}
+.runway-entry legend{padding:0 7px;font-weight:650}.runway-tracks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.runway-track{border:1px solid #475569;background:#0c182d;padding:16px;border-radius:12px}
+.runway-amount{font-weight:760;font-size:1.7rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.runway-message,.runway-error{padding:12px;border-radius:8px}.runway-message{border:1px solid #0891b2}.runway-error{border:1px solid #ef4444;color:#fecaca}
+.runway code{overflow-wrap:anywhere} .runway details summary{cursor:pointer;font-weight:700}
+
+.runway .runway-check{display:flex;flex-direction:row;align-items:flex-start;gap:10px;max-width:72ch}
+.runway .runway-check input{width:20px;min-width:20px;height:20px;margin:3px 0 0}
+.runway fieldset.runway-options{min-width:0}
+.runway fieldset.runway-options legend{padding:0 8px;font-size:1.25rem}
+.runway fieldset:disabled{opacity:.85}
+
+.runway .runway-history{list-style:none;padding:0;margin:10px 0}
+.runway .runway-history li{border-top:1px solid #475569;padding:12px 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.runway .runway-history-actions{display:flex;gap:4px;flex-wrap:wrap}
+
+.runway-live-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;margin:12px 0}
+.runway-live-grid>div{border:1px solid #475569;border-radius:12px;padding:12px;background:#0b1427}
+.runway-live-grid strong{display:block;font-size:1.15rem;margin-top:5px}
+.runway-live-subtitle{font-size:.87rem;color:#cbd5e1}
+.runway-live-csv{font:inherit;max-width:100%;border:1px solid #64748b;border-radius:9px;padding:7px}
+.runway-live-statement{padding:12px 0;border-top:1px solid #475569}
