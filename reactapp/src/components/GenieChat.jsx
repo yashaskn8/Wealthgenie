@@ -531,6 +531,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
     stopLegacyVoice();
     const epoch=++legacyVoiceEpochRef.current;
     const boundSession=sessionId;
+    const boundFinancialBinding=financialBinding;
     setVoiceError(null);
     try {
       const recognition=new Recognition();
@@ -541,6 +542,8 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
       const isCurrent=()=>legacyVoiceEpochRef.current === epoch &&
         recognitionRef.current === recognition &&
         sessionIdRef.current === boundSession &&
+        financialBindingRef.current === boundFinancialBinding &&
+        sessionBindingRef.current === boundFinancialBinding &&
         document.visibilityState !== 'hidden';
       recognition.onresult=event => {
         if(!isCurrent()) return;
@@ -551,14 +554,13 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
           setVoiceError('Speech transcript was empty or contained unsupported characters. Please type your question.');
           return;
         }
-        setInput(previous => {
-          const updated=previous ? previous + ' ' + transcript : transcript;
-          if(updated.length>1000) {
-            setVoiceError('Spoken question is too long. Edit the current text before retrying.');
-            return previous;
-          }
-          return updated;
-        });
+        const previous=inputRef.current?.value ?? '';
+        const updated=previous ? previous + ' ' + transcript : transcript;
+        if(updated.length>1000) {
+          setVoiceError('Spoken question is too long. Edit the current text before retrying.');
+          return;
+        }
+        setInput(updated);
         setVoiceError(null);
       };
       recognition.onerror=event => {
