@@ -8,9 +8,6 @@ import { isFinancialGoalPlanningQuestion } from './chatGoalPlanning.js';
 import { isInvestmentUniverseEducationQuestion } from './chatInvestmentUniverseEducation.js';
 import { isChatInjection } from './chatInjectionFirewall.js';
 import { isInvestmentScenarioQuestion } from './chatInvestmentScenarioEducation.js';
-import { isInvestmentUniverseEducationQuestion } from './chatInvestmentUniverseEducation.js';
-import { isChatInjection } from './chatInjectionFirewall.js';
-import { isInvestmentScenarioQuestion } from './chatInvestmentScenarioEducation.js';
 import { sanitizeExternalQuestion } from './groundedExplanationService.js';
 
 export const GENERAL_CHAT_PROMPT_VERSION = 'general-chat-v1';
