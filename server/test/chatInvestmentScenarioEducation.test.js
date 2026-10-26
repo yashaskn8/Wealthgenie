@@ -43,8 +43,15 @@ test('unsupported exact tax and account claims do not become generic educational
     'How much income tax is owed on my investments?',
     'Which funds are in my demat account?',
     'What is my latest account valuation?',
+    'Explain my asset allocation and diversification',
+    'Explain my investments',
+    'What is my portfolio worth?',
+    'Can you review our saved investments?',
   ]) assert.deepEqual(retrieveInvestmentScenarioEducation(query), []);
   assert.deepEqual(retrieveInvestmentScenarioEducation('Who won the football final?'), []);
+  // Public, self-declared scenarios remain allowed without access to private holdings.
+  assert.equal(retrieveInvestmentScenarioEducation('Compare FD vs mutual fund for my goal').length, 1);
+  assert.equal(retrieveInvestmentScenarioEducation('How do I start my first investment?').length, 1);
 });
 
 test('authenticated investment scenario has a verified deterministic answer, even with no product quotes', async () => {
