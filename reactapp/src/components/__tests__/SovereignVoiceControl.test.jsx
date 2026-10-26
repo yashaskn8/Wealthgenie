@@ -377,6 +377,58 @@ describe('GenieVoice opt-in navigation',()=>{
     expect(speak).not.toHaveBeenCalled();
   });
 
+  it('cancels narration when identical text is replaced by different evidence', () => {
+    const speak=vi.fn(),cancel=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak,cancel});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance {
+      constructor(text){this.text=text;}
+    });
+    const answer={content:'Verified portfolio statement.',grounded:true,
+      validation_status:'PASS',evidence_ids_used:['E_PROFILE_RISK'],
+      _turnKey:'same-session-1'};
+    const ui=render(<SovereignVoiceControl sessionKey="a" lastAnswer={answer}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Speak verified answer'}));
+    expect(speak).toHaveBeenCalledTimes(1);
+    ui.rerender(<SovereignVoiceControl sessionKey="a" lastAnswer={{
+      ...answer,evidence_ids_used:['E_DIFFERENT_EVIDENCE']
+    }}/>);
+    expect(cancel).toHaveBeenCalled();
+    expect(screen.queryByRole('button',{name:'Stop verified answer playback'}))
+      .not.toBeInTheDocument();
+  });
+
+  it('refuses to narrate the wrong turn even if text and evidence are identical', async () => {
+    vi.useFakeTimers();
+    let recognition;
+    vi.stubGlobal('SpeechRecognition',class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    });
+    const speak=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak,cancel:vi.fn()});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance {
+      constructor(text){this.text=text;}
+    });
+    vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    const response={response:'The shared response.',grounded:true,
+      validation_status:'PASS',evidence_ids_used:['E_PROFILE_RISK'],_turnKey:'new-turn'};
+    const oldAnswer={content:'The shared response.',grounded:true,
+      validation_status:'PASS',evidence_ids_used:['E_PROFILE_RISK'],_turnKey:'old-turn'};
+    const ask=vi.fn().mockResolvedValue(response);
+    const ui=render(<SovereignVoiceControl sessionKey="a" onQuestion={ask}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice hands-free conversation'}));
+    await act(async()=>recognition.onresult({results:[[{transcript:'Explain diversification'}]]}));
+    await act(async()=>ui.rerender(<SovereignVoiceControl sessionKey="a"
+      onQuestion={ask} lastAnswer={oldAnswer}/>));
+    expect(speak).not.toHaveBeenCalled();
+    await act(async()=>vi.advanceTimersByTime(2_100));
+    expect(screen.getByText(/no longer matches chat/i)).toBeInTheDocument();
+    expect(speak).not.toHaveBeenCalled();
+  });
+
   it('interrupts current speech on a new explicit microphone gesture',()=>{
     const speak=vi.fn(),cancel=vi.fn();
     let micStarts=0;
