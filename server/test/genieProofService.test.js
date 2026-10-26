@@ -173,6 +173,25 @@ function requestFor(text = 'The current official PPF interest rate is 7.1% p.a.'
   };
 }
 
+test('case persistence refuses sensitive inputs before opening any transaction', async () => {
+  const f = fixture();
+  let sessionsStarted = 0;
+  const offerText = 'My PAN ABCDE 1234 F guarantees 12% profits.';
+  await assert.rejects(createGenieProofCase({
+    userId: userOne,
+    offerText,
+    submissionHash: '0'.repeat(64),
+    savingConsent: true,
+    confirmedClaims: [],
+    idempotencyKey: 'genieproof-pii-rejected-before-save',
+    signer: f.signer,
+    startSession: async () => { sessionsStarted += 1; return f.session; },
+  }), error => error.code === 'GENIEPROOF_SENSITIVE_IDENTIFIERS'
+    && !error.clientMessage.includes('ABCDE'));
+  assert.equal(sessionsStarted, 0);
+  assert.equal(f.cases.length, 0);
+});
+
 test('case creation checks the original input hash, requires extracted claim IDs, and never stores offer text', async () => {
   const f = fixture();
   const request = requestFor();

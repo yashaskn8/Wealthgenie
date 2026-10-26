@@ -67,6 +67,15 @@ test('NVIDIA only chooses vetted next steps after the independent claim check', 
 
 test('financial identifiers are rejected before sending the text to NVIDIA', async () => {
   const fixtures = [
+    "My PAN ABCDE 1234 F promises 12% interest.",
+    "My Aadhaar: १२३४-५६७८-९०१२ for 8% guaranteed returns.",
+    "The document has ID 1234 5678 9012 and advertises 10% returns.",
+    "My account 12 3456 7890 1234 gets 9% interest.",
+    "Transfer funds to payment@okaxis at 10%.",
+    "For a guaranteed return please email joe@example.com.",
+    "My mobile number: 9876543210 is tied to that offer.",
+    "Call +91 9876543210 to get 20% guaranteed returns.",
+    "The statement contains hidden ABCDE​1234F PAN and 12% interest.",
     'My PAN is ABCDE1234F and the offer guarantees 25% profit.',
     'The Aadhaar 1234 5678 9012 was used to claim a 25% return.',
     'Transfer to account 1234567890123456 to earn guaranteed 25% profit.',

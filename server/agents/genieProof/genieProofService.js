@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { containsGenieProofSensitiveIdentifiers } from '../../../shared/genieProofPrivacyPolicy.js';
 import mongoose from 'mongoose';
 import GenieProofCase from '../../models/GenieProofCase.js';
 import GenieProofRevision from '../../models/GenieProofRevision.js';
@@ -29,6 +30,11 @@ function isTransientTransactionConflict(error) {
 }
 
 function validateConfirmation({ offerText, submissionHash, confirmedClaims }) {
+  // Persisted research passports must never contain identifiers, even when
+  // invoked without the HTTP route or with explicit consent.
+  if (containsGenieProofSensitiveIdentifiers(offerText))
+    throw serviceError(400, 'GENIEPROOF_SENSITIVE_IDENTIFIERS',
+      'Mask personal identifiers before confirming a financial claim.');
   const extraction = extractGenieProofClaims(offerText);
   if (!extraction.ok) throw serviceError(400, extraction.code, 'The offer text could not be processed.');
   if (extraction.inputHash !== submissionHash) {

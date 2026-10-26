@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { containsGenieProofSensitiveIdentifiers } from '../../shared/genieProofPrivacyPolicy.js';
 import { isIP } from 'node:net';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { verifyJWT } from '../middleware/authMiddleware.js';
@@ -153,6 +154,8 @@ router.get('/capabilities', verifyJWT, rejectQueryParameters, (req, res) => {
 // evidence, persists offers, checks a claim, or signs a passport. It can run
 // in production even while the evidence-bound workflow remains restricted.
 export function buildGenieProofClaimPreview(offerText) {
+  if (containsGenieProofSensitiveIdentifiers(offerText))
+    return { ok: false, code: 'GENIEPROOF_SENSITIVE_IDENTIFIERS' };
   const extraction = extractGenieProofClaims(offerText);
   if (!extraction.ok) return extraction;
   return {
@@ -231,6 +234,9 @@ router.post('/extract-preview', verifyJWT, genieProofLimiter, validateStrict(gen
 
 router.post('/extract', verifyJWT, genieProofLimiter, validateStrict(genieProofExtractSchema), asyncHandler(async (req, res) => {
   requireEnabled(req);
+  if (containsGenieProofSensitiveIdentifiers(req.body.offerText))
+    throw createError(400, 'Please mask personal identifiers before extracting claims.',
+      'Remove personal identifiers before submitting.', { code: 'GENIEPROOF_SENSITIVE_IDENTIFIERS' });
   const result = extractGenieProofClaims(req.body.offerText);
   if (!result.ok) throw createError(400, result.code, 'The offer text could not be processed.', { code: result.code });
   return res.json(result);
