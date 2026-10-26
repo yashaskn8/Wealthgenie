@@ -3,6 +3,7 @@
  * ────────────────────────────────────────
  * Extracted from GenieChat.jsx for maintainability.
  */
+import { normalizeFeatureCard } from '../utils/featureNavigationCard';
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ChevronRight, TrendingUp, TrendingDown, Shield, Target, BarChart3, Zap, AlertTriangle, DollarSign, Copy, ThumbsUp, ThumbsDown, Info, BookOpen, ChevronDown } from 'lucide-react';
 import chatGenie from '../assets/chat_genie.png';
@@ -227,9 +228,12 @@ export function MessageContent({ content, citations, hideDisclosure = false }) {
 }
 
 // ── Message Bubble ────────────────────────────────────────────────
-export const MessageBubble = ({ msg, isLatest }) => {
+export const MessageBubble = ({ msg, isLatest, onFeatureOpen }) => {
   const [copied, setCopied] = useState(false);
   const isAssistant = msg.role === 'assistant';
+  const feature = isAssistant && Array.isArray(msg.action_cards)
+    ? msg.action_cards.map(normalizeFeatureCard).find(Boolean)
+    : null;
   const displayCitations = isAssistant
     ? msg.citations?.filter(citation => citation.citation_id !== 'E_REGULATORY_NOTICE')
     : null;
@@ -263,6 +267,13 @@ export const MessageBubble = ({ msg, isLatest }) => {
           <MessageContent content={content} citations={displayCitations} hideDisclosure={isAssistant} />
           {shouldStream && !done && <span className="stream-cursor">|</span>}
         </div>
+        {feature && typeof onFeatureOpen === 'function' && (
+          <div className="genie-feature-suggestion">
+            <span className="genie-feature-suggestion-label">Suggested WealthGenie tool</span>
+            <button type="button" aria-label={feature.label}
+              onClick={() => onFeatureOpen(feature)}>{feature.label}</button>
+          </div>
+        )}
         {isAssistant && displayCitations?.length > 0 && (
           <CitationsList citations={displayCitations} />
         )}
