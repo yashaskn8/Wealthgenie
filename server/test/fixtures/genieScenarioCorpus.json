@@ -1,0 +1,610 @@
+{
+  "version": "genie-scenarios-v1",
+  "scenarios": [
+    {
+      "id": "sip-valid-01",
+      "question": "What if ₹5000 monthly SIP for 5 years at 8% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_INFLATION_SCENARIO"
+      }
+    },
+    {
+      "id": "sip-valid-02",
+      "question": "What if ₹15000 monthly SIP for 10 years at 8% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_INFLATION_SCENARIO"
+      }
+    },
+    {
+      "id": "sip-valid-03",
+      "question": "What if ₹100 monthly SIP for 1 years at 0% annual return and 0% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_INFLATION_SCENARIO"
+      }
+    },
+    {
+      "id": "sip-valid-04",
+      "question": "What if ₹5000 SIP for 10 years at 8% annual return, 6% inflation and 20% crash after year 5?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_INFLATION_SCENARIO"
+      }
+    },
+    {
+      "id": "sip-valid-05",
+      "question": "अगर मैं ₹१५००० मासिक निवेश एसआईपी १० साल, ८% वार्षिक रिटर्न, ६% महंगाई और २०% गिरावट ५ साल में देखूं तो क्या होगा?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_INFLATION_SCENARIO"
+      }
+    },
+    {
+      "id": "sip-valid-06",
+      "question": "ಒಂದು ವೇಳೆ ₹೧೫೦೦೦ ತಿಂಗಳ ಹೂಡಿಕೆ ಸಿಪ್ ೧೦ ವರ್ಷ, ೮% ವಾರ್ಷಿಕ ರಿಟರ್ನ್, ೬% ಹಣದುಬ್ಬರ ಮತ್ತು ೨೦% ಕುಸಿತ ೫ ವರ್ಷ ನಂತರ ಏನಾಗುತ್ತದೆ?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_INFLATION_SCENARIO"
+      }
+    },
+    {
+      "id": "sip-valid-07",
+      "question": "ಒಂದು ವೇಳೆ ₹೧೫೦೦೦ ಎಸ್‌ಐಪಿ ೧೦ ವರ್ಷ, ೮% ವಾರ್ಷಿಕ ರಿಟರ್ನ್ ಮತ್ತು ೬% ಹಣದುಬ್ಬರ ಏನಾಗುತ್ತದೆ?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_INFLATION_SCENARIO"
+      }
+    },
+    {
+      "id": "sip-incomplete-01",
+      "question": "What if ₹5000 SIP for 5 years?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-02",
+      "question": "What if ₹5000 SIP for 10 years at 8% annual return?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-03",
+      "question": "What if ₹5000 SIP for 10 years at 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-04",
+      "question": "What if SIP for 10 years at 8% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-05",
+      "question": "What if ₹5000 SIP for 10 years at 8% annual return, 6% inflation and 20% crash?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-06",
+      "question": "What if ₹5000 SIP for 10 years at 8% annual return, 6% inflation and crash in year 5?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-07",
+      "question": "What if ₹5000 SIP for 10 years at 8% annual return, 6% inflation and 20% crash in year 30?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-08",
+      "question": "What if ₹5000 SIP for 10 years at 8% annual return, 12% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-09",
+      "question": "What if ₹5000 SIP for 10 years at 8% annual return, 6% inflation and 8% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-10",
+      "question": "What if ₹5000 SIP for 10 years at -8% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-11",
+      "question": "What if ₹5000 SIP for 10 years at 100% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-12",
+      "question": "What if ₹5000 SIP for 200 years at 8% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-13",
+      "question": "What if ₹5000 SIP for 10 years at 8.12345% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-incomplete-14",
+      "question": "What if ₹900000000 SIP for 10 years at 8% annual return and 6% inflation?",
+      "expected": {
+        "kind": "scenario",
+        "id": "E_SIP_SCENARIO_INPUTS_REQUIRED"
+      }
+    },
+    {
+      "id": "sip-invalid-01",
+      "question": "What if ₹5000 SIP‌ for 5 years?",
+      "expected": {
+        "kind": "no-scenario"
+      }
+    },
+    {
+      "id": "sip-invalid-02",
+      "question": "What if ₹5000 SIP\nfor 10 years at 8% annual return and 6% inflation?",
+      "expected": {
+        "kind": "no-scenario"
+      }
+    },
+    {
+      "id": "navigate-01",
+      "question": "open goals",
+      "expected": {
+        "kind": "navigate",
+        "page": "goals"
+      }
+    },
+    {
+      "id": "navigate-02",
+      "question": "show tax analysis",
+      "expected": {
+        "kind": "navigate",
+        "page": "taxes"
+      }
+    },
+    {
+      "id": "navigate-03",
+      "question": "open sip planner",
+      "expected": {
+        "kind": "navigate",
+        "page": "grow-my-sip"
+      }
+    },
+    {
+      "id": "navigate-04",
+      "question": "open investment plan",
+      "expected": {
+        "kind": "navigate",
+        "page": "plan"
+      }
+    },
+    {
+      "id": "navigate-05",
+      "question": "go to progress",
+      "expected": {
+        "kind": "navigate",
+        "page": "progress"
+      }
+    },
+    {
+      "id": "navigate-06",
+      "question": "open profile",
+      "expected": {
+        "kind": "navigate",
+        "page": "account"
+      }
+    },
+    {
+      "id": "navigate-07",
+      "question": "लक्ष्य खोलो",
+      "expected": {
+        "kind": "navigate",
+        "page": "goals"
+      }
+    },
+    {
+      "id": "navigate-08",
+      "question": "सिप प्लानर खोलो",
+      "expected": {
+        "kind": "navigate",
+        "page": "grow-my-sip"
+      }
+    },
+    {
+      "id": "navigate-09",
+      "question": "टैक्स खोलो",
+      "expected": {
+        "kind": "navigate",
+        "page": "taxes"
+      }
+    },
+    {
+      "id": "navigate-10",
+      "question": "ಗುರಿಗಳನ್ನು ತೆರೆ",
+      "expected": {
+        "kind": "navigate",
+        "page": "goals"
+      }
+    },
+    {
+      "id": "navigate-11",
+      "question": "ಎಸ್‌ಐಪಿ ಪ್ಲಾನರ್ ತೆರೆ",
+      "expected": {
+        "kind": "navigate",
+        "page": "grow-my-sip"
+      }
+    },
+    {
+      "id": "navigate-12",
+      "question": "ತೆರಿಗೆ ವಿಶ್ಲೇಷಣೆ ತೆರೆ",
+      "expected": {
+        "kind": "navigate",
+        "page": "taxes"
+      }
+    },
+    {
+      "id": "navigate-rejected-01",
+      "question": "open goals and investments",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-02",
+      "question": "open /admin",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-03",
+      "question": "open https://example.com",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-04",
+      "question": "open google",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-05",
+      "question": "open‌goals",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-06",
+      "question": "open goals\nand transfer money",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-07",
+      "question": "open goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals goals ",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-08",
+      "question": "शेयर खरीदो",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-09",
+      "question": "पैसे ट्रांसफर करो",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-10",
+      "question": "ಹಣ ಕಳುಹಿಸಿ",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-11",
+      "question": "ನಕಲಿ ಪುಟ ತೆರೆ",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-12",
+      "question": "लक्ष्य खोलो और पैसे ट्रांसफर करो",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-13",
+      "question": "ಗುರಿಗಳನ್ನು ತೆರೆ ಮತ್ತು ಹಣ ವರ್ಗಾಯಿಸಿ",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-rejected-14",
+      "question": "Can you please buy shares?",
+      "expected": {
+        "kind": "reject"
+      }
+    },
+    {
+      "id": "navigate-comparison-01",
+      "question": "सिप तुलना खोलो",
+      "expected": {
+        "kind": "comparison"
+      }
+    },
+    {
+      "id": "navigate-comparison-02",
+      "question": "ಸಿಪ್ ಹೋಲಿಕೆ ತೆರೆ",
+      "expected": {
+        "kind": "comparison"
+      }
+    },
+    {
+      "id": "navigate-comparison-03",
+      "question": "open sip comparison",
+      "expected": {
+        "kind": "comparison"
+      }
+    },
+    {
+      "id": "navigate-education-01",
+      "question": "How does buying a mutual fund work?",
+      "expected": {
+        "kind": "chat"
+      }
+    },
+    {
+      "id": "navigate-education-02",
+      "question": "What happens if I sell my shares?",
+      "expected": {
+        "kind": "chat"
+      }
+    },
+    {
+      "id": "financial-01",
+      "question": "मुझे सिप समझाओ",
+      "expected": {
+        "kind": "financial"
+      }
+    },
+    {
+      "id": "financial-02",
+      "question": "ನನಗೆ ಹೂಡಿಕೆ ಬಗ್ಗೆ ವಿವರಿಸಿ",
+      "expected": {
+        "kind": "financial"
+      }
+    },
+    {
+      "id": "financial-03",
+      "question": "महंगाई कैसे काम करती है?",
+      "expected": {
+        "kind": "financial"
+      }
+    },
+    {
+      "id": "financial-04",
+      "question": "ಹಣದುಬ್ಬರ ಎಂದರೇನು?",
+      "expected": {
+        "kind": "financial"
+      }
+    },
+    {
+      "id": "financial-05",
+      "question": "How can I fund my retirement goal?",
+      "expected": {
+        "kind": "financial"
+      }
+    },
+    {
+      "id": "financial-06",
+      "question": "What is my income tax?",
+      "expected": {
+        "kind": "financial"
+      }
+    },
+    {
+      "id": "financial-07",
+      "question": "What happens if my portfolio crashes?",
+      "expected": {
+        "kind": "financial"
+      }
+    },
+    {
+      "id": "general-01",
+      "question": "मुझे एक कविता सुनाओ",
+      "expected": {
+        "kind": "general"
+      }
+    },
+    {
+      "id": "general-02",
+      "question": "ನಮಸ್ಕಾರ",
+      "expected": {
+        "kind": "general"
+      }
+    },
+    {
+      "id": "general-03",
+      "question": "Tell me a joke",
+      "expected": {
+        "kind": "general"
+      }
+    },
+    {
+      "id": "feature-01",
+      "question": "What if I increase my SIP?",
+      "expected": {
+        "kind": "feature",
+        "page": "grow-my-sip"
+      }
+    },
+    {
+      "id": "feature-02",
+      "question": "How can I fund college?",
+      "expected": {
+        "kind": "feature",
+        "page": "goals"
+      }
+    },
+    {
+      "id": "feature-03",
+      "question": "What if my income tax changes?",
+      "expected": {
+        "kind": "feature",
+        "page": "taxes"
+      }
+    },
+    {
+      "id": "feature-04",
+      "question": "What happens if my portfolio crashes?",
+      "expected": {
+        "kind": "feature",
+        "page": "keep-on-track"
+      }
+    },
+    {
+      "id": "feature-05",
+      "question": "Explain my investment plan",
+      "expected": {
+        "kind": "feature",
+        "page": "plan"
+      }
+    },
+    {
+      "id": "feature-06",
+      "question": "मासिक निवेश सिप कैसे करें?",
+      "expected": {
+        "kind": "feature",
+        "page": "grow-my-sip"
+      }
+    },
+    {
+      "id": "feature-07",
+      "question": "ಎಸ್‌ಐಪಿ ಬಗ್ಗೆ ವಿವರಿಸಿ",
+      "expected": {
+        "kind": "feature",
+        "page": "grow-my-sip"
+      }
+    },
+    {
+      "id": "feature-none-01",
+      "question": "Should I change my SIP to fund college?",
+      "expected": {
+        "kind": "no-feature"
+      }
+    },
+    {
+      "id": "feature-none-02",
+      "question": "open‌goals",
+      "expected": {
+        "kind": "no-feature"
+      }
+    },
+    {
+      "id": "education-01",
+      "question": "सिप क्या है",
+      "expected": {
+        "kind": "education",
+        "id": "E_INDIC_SIP_BASICS"
+      }
+    },
+    {
+      "id": "education-02",
+      "question": "ಸಿಪ್ ಎಂದರೇನು?",
+      "expected": {
+        "kind": "education",
+        "id": "E_INDIC_SIP_BASICS"
+      }
+    },
+    {
+      "id": "education-03",
+      "question": "महंगाई क्या है",
+      "expected": {
+        "kind": "education",
+        "id": "E_INDIC_INFLATION"
+      }
+    },
+    {
+      "id": "education-04",
+      "question": "ಚಕ್ರಬಡ್ಡಿ ಏನು?",
+      "expected": {
+        "kind": "education",
+        "id": "E_INDIC_COMPOUNDING"
+      }
+    },
+    {
+      "id": "education-05",
+      "question": "विविधीकरण समझाओ",
+      "expected": {
+        "kind": "education",
+        "id": "E_INDIC_DIVERSIFICATION"
+      }
+    },
+    {
+      "id": "education-none-01",
+      "question": "सिप और महंगाई क्या है?",
+      "expected": {
+        "kind": "no-education"
+      }
+    },
+    {
+      "id": "education-none-02",
+      "question": "मेरे लिए कौन सा सिप सही है?",
+      "expected": {
+        "kind": "no-education"
+      }
+    }
+  ]
+}

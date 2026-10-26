@@ -116,6 +116,7 @@ describe('investment universe browser', () => {
     await waitFor(() => expect(screen.getByText('Example verified product')).toBeTruthy());
     expect(screen.getAllByRole('link',{name:'Issuer evidence'})).toHaveLength(3);
     expect(screen.getAllByRole('link',{name:'Issuer evidence'})[0].getAttribute('href')).toBe('https://issuer.example/terms');
+    expect(screen.getByRole('region',{name:'Verified product comparison'}).textContent).not.toContain('fit ');
   });
 
   it('rejects malformed or padded product responses instead of displaying unqualified offers', async () => {

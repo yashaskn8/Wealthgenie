@@ -24,8 +24,9 @@ describe('GenieChat tax-mode retirement safety', () => {
     ]) {
       expect(source).not.toContain(oldOfNew);
     }
-    expect(source).toContain("'/tax': 'taxes'");
-    expect(source).toContain("'/tax-optimizer': 'taxes'");
+    // Assistant prose cannot create navigation actions, including retired tax routes.
+    expect(source).not.toContain('TARGET_MAPPING');
+    expect(source).not.toContain('handleAction');
     expect(source).not.toContain("['rebalancer', 'sip-planner', 'taxes'].includes(page)");
   });
 

@@ -80,6 +80,76 @@ test('chat evidence includes education without disclosing unrelated saved profil
   assert.doesNotMatch(JSON.stringify(packet), /PRIVATE_HOLDING|Sensitive Holding/);
 });
 
+test('portfolio review states saved allocations without claiming verified holdings or model returns', async () => {
+  const question = 'Review my portfolio';
+  const packet = await buildChatEvidencePacket({
+    question, profile,
+    recommendation: { modelVersion: 'test-model', instruments: [
+      { id: 'BOND_A', type: 'bond', name: 'Government Bonds', allocation_pct: 35, nominalReturn: null },
+      { id: 'EQUITY_B', type: 'equity', name: 'Equity Funds', allocation_pct: 65, nominalReturn: null },
+    ] },
+  });
+  let providerCalls = 0;
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [{ name: 'groq', isConfigured: () => true, async generate() {
+      providerCalls += 1;
+      throw new Error('Model must not handle saved allocation review');
+    } }],
+    getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(providerCalls, 0);
+  assert.equal(answer.validation.status, 'PASS');
+  assert.equal(answer.provider, 'DETERMINISTIC_TEMPLATE');
+  assert.match(answer.text, /35% to Government Bonds/);
+  assert.match(answer.text, /65% to Equity Funds/);
+  assert.match(answer.text, /not verified investments you currently hold/);
+  assert.doesNotMatch(answer.text, /authoritative backend reports|0% pre-tax nominal/i);
+  assert.equal(answer.financialClaims.filter(claim => claim.type === 'ALLOCATION_WEIGHT').length, 2);
+});
+
+test('portfolio review preserves nullable legacy weights and abstains without a saved allocation', async () => {
+  const question = 'Review my portfolio';
+  const packet = await buildChatEvidencePacket({
+    question, profile,
+    recommendation: { modelVersion: 'test-model', instruments: [
+      { id: 'LEGACY', name: 'Treasury Bonds', type: 'bond',
+        allocation_pct: null, allocationWeight: 0.45, nominalReturn: null },
+    ] },
+  });
+  const instrument = packet.entries.find(item => item.id === 'E_REC_001');
+  assert.equal(instrument.value.allocationPct, 45);
+  assert.equal(instrument.value.modelReturnAssumptionPct, null);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /45% to Treasury Bonds/);
+
+  const missingPacket = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const missingAnswer = await generateGroundedExplanation({ question, evidencePacket: missingPacket }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(missingAnswer.validation.status, 'PASS');
+  assert.match(missingAnswer.text, /no current saved recommendation allocation available/i);
+  assert.equal(missingAnswer.financialClaims.length, 0);
+});
+
+test('allocation review phrased without my still uses the saved recommendation contract', async () => {
+  const question = 'Review the allocation';
+  const packet = await buildChatEvidencePacket({
+    question, profile,
+    recommendation: { modelVersion: 'test-model', instruments: [
+      { id: 'SAVED_A', name: 'Debt Funds', type: 'debt', allocation_pct: 60 },
+    ] },
+  });
+  assert.equal(packet.entries.find(entry => entry.id === 'E_REC_001')?.value.allocationPct, 60);
+  const answer = await generateGroundedExplanation({ question, evidencePacket: packet }, {
+    providers: [], getCache: async () => null, setCache: async () => {},
+  });
+  assert.equal(answer.validation.status, 'PASS');
+  assert.match(answer.text, /60% to Debt Funds/);
+});
+
 test('without any model provider, educational fallback answers question and preserves valid citations', async () => {
   const question = 'Explain portfolio balancing in simple terms';
   const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
@@ -192,20 +262,33 @@ test('educational evidence cannot license a fabricated numeric return or stock p
 test('suggested tax-regime question explains missing inputs, not disclosure metadata', async () => {
   const question = 'Which tax regime is best for a beginner?';
   const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
+  const boundary = packet.entries.find(entry => entry.id === 'E_TAX_INPUT_BOUNDARY');
+  assert.deepEqual(boundary.value.requiredInputs,
+    ['taxYear', 'incomeType', 'primaryIncome', 'otherOrdinaryIncome',
+      'residency', 'specialRateIncome', 'confirmedOrdinaryOnly']);
+  assert.equal(boundary.value.supportedRegime, 'new');
   const response = await generateGroundedExplanation({ question, evidencePacket: packet }, {
     providers: [], getCache: async () => null, setCache: async () => {},
   });
   assert.equal(response.validation.status, 'PASS');
-  assert.match(response.text, /explicit fiscal year, annual income, regime, and income source/i);
+  assert.match(response.text, /declared tax-year, income type, primary income, other ordinary income/i);
   assert.ok(response.text.includes('[E_TAX_INPUT_BOUNDARY]'));
   assert.doesNotMatch(response.text, /authoritative backend reports disclosure evidence/i);
   assert.ok(!response.evidenceIdsUsed.some(id => id.startsWith('E_EDU_')));
 });
 
+test('old-regime comparison request stays unavailable without implying the law abolished it', async () => {
+  const packet = await buildChatEvidencePacket({
+    question: 'Compare old and new tax regimes for me', profile, recommendation: null,
+  });
+  assert.ok(packet.unavailableFacts.includes('UNSUPPORTED_TAX_REGIME_NEW_ONLY'));
+  const boundary = packet.entries.find(entry => entry.id === 'E_TAX_INPUT_BOUNDARY');
+  assert.match(boundary.displayValue, /unsupported in this app, not abolished under law/i);
+});
+
 test('suggested tax-assumptions action cites the qualified new-regime policy without inventing tax', async () => {
   const question = 'Explain tax assumptions';
   const packet = await buildChatEvidencePacket({ question, profile, recommendation: null });
-  // The explicit tax-policy route supersedes the generic missing-input boundary.
   assert.ok(packet.entries.some(entry => entry.id === 'E_TAX_ASSUMPTIONS_INPUTS'));
   assert.ok(packet.entries.some(entry => entry.id === 'E_TAX_ASSUMPTIONS_LIMITS'));
   assert.ok(!packet.entries.some(entry => entry.id === 'E_TAX_INPUT_BOUNDARY'));
@@ -215,12 +298,11 @@ test('suggested tax-assumptions action cites the qualified new-regime policy wit
   });
   assert.equal(response.validation.status, 'PASS');
   assert.match(response.text, /supports only the new income-tax regime/i);
-  assert.match(response.text, /explicit financial year, annual income, tax regime/i);
+  assert.match(response.text, /declared tax year, income type, primary income, other ordinary income/i);
   assert.match(response.text, /none is inferred from your investing profile/i);
   assert.match(response.text, /has not calculated your tax liability/i);
   assert.ok(response.citations.some(citation => citation.citation_id === 'E_TAX_ASSUMPTIONS_INPUTS'));
   assert.ok(response.citations.some(citation => citation.citation_id === 'E_TAX_ASSUMPTIONS_LIMITS'));
-  assert.ok(!response.evidenceIdsUsed.includes('E_TAX_INPUT_BOUNDARY'));
 });
 
 test('unsupported question abstains with explicit system provenance instead of inventing a source', async () => {
