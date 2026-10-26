@@ -68,6 +68,65 @@ describe('GenieChat persisted conversation state', () => {
     expect(screen.getByRole('textbox', { name: /Ask Genie a financial question/i })).toBeInTheDocument();
   });
 
+
+  it('aborts legacy mic on chat closure and fences a late old transcript', async () => {
+    let recognition;
+    const abort=vi.fn();
+    vi.stubGlobal('SpeechRecognition', class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){abort();}
+    });
+    openChat();
+    fireEvent.click(await screen.findByRole('button',{name:'Start voice input'}));
+    const staleResult=recognition.onresult;
+    fireEvent.click(screen.getByRole('button',{name:'Close chat helper'}));
+    expect(abort).toHaveBeenCalledTimes(1);
+    expect(recognition.onresult).toBeNull();
+    await act(async()=>staleResult({results:[[{transcript:'Private value from old account'}]]}));
+    fireEvent.click(screen.getByRole('button',{name:'Genie AI'}));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i})).toHaveValue('');
+  });
+
+  it('aborts legacy mic and drops callbacks when account binding changes', async () => {
+    let recognition;
+    const abort=vi.fn();
+    vi.stubGlobal('SpeechRecognition', class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){abort();}
+    });
+    const ui=render(<GenieChat profile={null} onNavigate={vi.fn()}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Genie AI'}));
+    fireEvent.click(await screen.findByRole('button',{name:'Start voice input'}));
+    const late=recognition.onresult;
+    ui.rerender(<GenieChat profile={{
+      profileId:'64b000000000000000000333',version:2,monthly_savings:1000
+    }} onNavigate={vi.fn()}/>);
+    await waitFor(()=>expect(abort).toHaveBeenCalled());
+    await act(async()=>late({results:[[{transcript:'Private previous balance'}]]}));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i})).not
+      .toHaveValue('Private previous balance');
+  });
+
+  it('stops legacy microphone on page hide and ignores the delayed transcript', async () => {
+    let recognition;
+    const abort=vi.fn();
+    vi.stubGlobal('SpeechRecognition', class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){abort();}
+    });
+    openChat();
+    fireEvent.click(await screen.findByRole('button',{name:'Start voice input'}));
+    const staleResult=recognition.onresult;
+    vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');
+    await act(async()=>document.dispatchEvent(new Event('visibilitychange')));
+    expect(abort).toHaveBeenCalledTimes(1);
+    await act(async()=>staleResult({results:[[{transcript:'Private background transcript'}]]}));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i})).toHaveValue('');
+  });
+
   it('waits for canonical recommendation context before binding or restoring the saved chat session', async () => {
     const profile = { profileId: '64b000000000000000000101', version: 3, name: 'Canonical Profile', monthly_savings: 1000 };
     const recommendations = [{ id: 'scheme-a', allocationWeight: 0.7, allocation_pct: 70 }];
