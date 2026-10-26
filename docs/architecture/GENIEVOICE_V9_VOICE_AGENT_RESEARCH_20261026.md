@@ -94,3 +94,83 @@ npm run build
   how unverified live output is withheld before any playback.
 - Keep `GENIEVOICE_TASKS_ENABLED` and `VITE_GENIEVOICE_TASKS_ENABLED`
   disabled by default until all release gates are met.
+
+## Additional provider research, checked 26 October 2026
+
+These are **documented capabilities**, not evidence that any provider meets
+WealthGenie's real-user quality, India processing, accuracy or privacy gates.
+Avoid inferring a global quality ranking from vendor benchmarks.
+
+| Candidate | Particularly relevant capability | Caveat / proposed treatment |
+| --- | --- | --- |
+| **Meta Muse Voice Transcribe 1.0** | September 2026 streaming ASR, in-model endpointing, vocabulary hints and code switching; official API lists English, Hindi and Kannada among 25 validated languages | Transcription only (no TTS or conversation model). No word-level timestamps or confidence scores: never turn its output directly into an approved financial amount; benchmark using actual speakers and explicit review. |
+| **Sarvam Saaras v4** | India-focused ASR with documented `hi-IN`, `kn-IN`, `en-IN`, WebSocket streaming, and codemix/transliteration output choices | Version-specific features vary across REST and WebSocket. Marketing claims on language quality, residency or retention require contractual validation before integrating raw account-related audio. |
+| **Sarvam Bulbul v3** | Indian-language synthesis including Kannada and Hindi | Candidate for narrating **only** already-verified WealthGenie text. Evaluate mixed-script numbers and acronyms against the actual rendered transcript; never let TTS rewrite financial facts. |
+| **Pipecat** | An open-source orchestration/pipeline that coordinates interruption and cancellation of in-flight output | Consider only when full-duplex streaming is justified; it is not financial authority, a speech provider, or an automatic privacy guarantee. |
+| **Retell AI / Vapi** | Phone-first interruption sensitivity, latency diagnostics, call/webhook observability | Learn from operational patterns, but telephony and hosted call logs are not a priority for WealthGenie's opt-in web microphone interface. |
+
+First-party research references:
+
+- https://research.meta.ai/blog/introducing-muse-voice-transcribe (2026-09-01)
+- https://dev.meta.ai/docs/speech-to-text (realtime modes, supported languages, keyword biasing, limitations)
+- https://docs.sarvam.ai/api/getting-started/models (current model/language matrix)
+- https://docs.sarvam.ai/api-reference/speech-to-text/transcribe/ws (Saaras streaming)
+- https://docs.pipecat.ai/pipecat/fundamentals/interruptions
+- https://docs.retellai.com/reliability/check-estimated-latency
+- https://docs.vapi.ai/debugging
+
+### Privacy pitfall in hosted voice-agent observability
+
+Do not assume application logs are the *only* place raw transcripts live.
+LiveKit Agent insights may include transcripts, audio, logs and traces; its
+`AgentSession.start(record=...)` configuration can opt out of recording or
+turn off individual categories. In any future migration, explicitly assess
+provider-side defaults, storage region, transcript/redaction behavior,
+retention, security access, deletion and user consent. Do not enable default
+conversation recordings to collect debugging metrics. Prefer an independently
+redacted, content-free stage latency summary to any transcript-bearing trace.
+
+References:
+- https://docs.livekit.io/reference/agents/session-recording-options/
+- https://docs.livekit.io/reference/agents/session-traces/
+- https://docs.livekit.io/testing/observability/insights/
+
+### Evaluation protocol — evidence required before selecting speech vendor
+
+1. **Gold data**: obtain *consented*, human-transcribed recordings and
+   authoritatively labelled expected amounts/rates for English India, Hindi,
+   Kannada, and English-code-mixed examples. Cover digits and words, lakh/crore,
+   years vs months, negative returns, rupees vs percentages, false starts,
+   corrections, negation, ambiguous instructions and local navigation phrases.
+   Honor the established V5 minimum of 200 labelled prompts **per language**.
+2. **Scenarios**: representative Android browsers, iOS Safari where supported,
+   wired/microphone headsets, midrange phones, noisy rooms, low-bandwidth links,
+   drop/reconnect and no-provider fallback; stratify by user-approved accent/
+   speaking style instead of extrapolating from a leaderboard.
+3. **Metrics**: exact financial-slot error rate (currency, amount, duration,
+   rates, negation), unsafe auto-submit rate, unintended action rate,
+   transcription coverage, rejected/uncertain rate, p50/p95 input-to-captions,
+   end-of-turn-to-verified-text, verified-text-to-audio and whole-turn latency,
+   interruptions, token/microphone termination and cost per **successful**
+   verified session. General word error rate alone is insufficient.
+4. **Release blockers**: no accidental money movement (voice policy remains
+   read-only); no wrong-account playback, no unverified spoken finance answer,
+   no silent numeric assumption; no raw voice stored in diagnostic telemetry;
+   independent privacy/regulatory review, user-visible fallback, kill switch,
+   rollback and canary measurements.
+5. **Trial design**: first use a **shadow/offline transcription comparison**
+   on consented examples, not direct microphone streaming or new API keys in
+   production. Pick a candidate only after an auditable test report; add a
+   provider adapter and opt-in streaming rollout as a separate reviewed change.
+
+### Practical next architecture decision
+
+Keep the existing `Browser ASR -> authenticated intent policy -> verified
+financial backend -> verified text -> TTS` separation. The biggest near-term
+production gain is better *measured* Hindi/Kannada numeric transcription, not
+the ability to let a realtime audio model improvise finance dialogue. If later
+adding semantic endpointing or full duplex, treat interruption, transcript,
+tool authorization and speech-release as separate stateful trust boundaries.
+See also:
+- https://developers.openai.com/api/docs/guides/realtime-vad
+- https://docs.livekit.io/agents/logic/turns/tuning/
