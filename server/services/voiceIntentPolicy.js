@@ -70,6 +70,13 @@ export function classifyVoiceIntent(raw) {
   if(INDIC_NAV.has(indicCommand))
     return {action:'APP_NAVIGATE',page:INDIC_NAV.get(indicCommand),tab:null,version:VOICE_INTENT_VERSION};
   if(INDIC_COMMAND.test(input))return {action:'REJECTED',reason:'UNSUPPORTED_NAVIGATION'};
+  // Exact allowlisted navigation takes precedence over vocabulary screening:
+  // `show where to invest` is a page name, not permission to invest money.
+  // Compound commands never match ROUTES and still fail the unsafe gate.
+  const matched=NAV_RE.exec(input);
+  const noun=matched?.[1]?.toLowerCase().trim().replace(/[.!?]+$/,'').trim();
+  const page=ROUTES.get(noun);
+  if(page)return {action:'APP_NAVIGATE',page,tab:null,version:VOICE_INTENT_VERSION};
   if(UNSAFE_RE.test(input)) {
     if(EDUCATIONAL_RE.test(input) && !DIRECT_ACTION_QUESTION_RE.test(input) &&
       !DELEGATED_ACTION_QUESTION_RE.test(input) &&
@@ -78,11 +85,7 @@ export function classifyVoiceIntent(raw) {
     return {action:'REJECTED',reason:'ACTION_NOT_ALLOWED'};
   }
   if(OPEN_COMPARISON_RE.test(input))return {action:'OPEN_SIP_COMPARISON',version:VOICE_INTENT_VERSION};
-  const matched=NAV_RE.exec(input);
   if(!matched)return {action:'CHAT',reason:'NO_APPROVED_COMMAND'};
-  const noun=matched[1].toLowerCase().trim().replace(/[.!?]+$/,'').trim();
-  const page=ROUTES.get(noun);
-  if(page)return {action:'APP_NAVIGATE',page,tab:null,version:VOICE_INTENT_VERSION};
   if(EXTERNAL_RE.test(noun))return {action:'REJECTED',reason:'EXTERNAL_BROWSER_DISABLED'};
   return {action:'REJECTED',reason:'UNSUPPORTED_NAVIGATION'};
 }
