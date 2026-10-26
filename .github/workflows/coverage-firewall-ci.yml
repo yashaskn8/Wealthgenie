@@ -31,6 +31,28 @@ permissions:
   contents: read
 
 jobs:
+  release-contracts:
+    name: Production Release & Financial Feature Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Reproduce audited backend lockfile
+        run: npm ci --prefix server
+      - name: Verify release gate, deployment and private workspace feature contracts
+        run: >-
+          node --test
+          server/test/ciWorkflowSafety.test.js
+          server/test/githubActionsCdGate.test.js
+          server/test/productionFeatureFlagPackaging.test.js
+
   cash-engine:
     name: Exact-Paise Engine & Real Mongo Transactions
     runs-on: ubuntu-latest
