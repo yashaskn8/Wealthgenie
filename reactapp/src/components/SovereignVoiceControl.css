@@ -83,3 +83,33 @@
   font-size: 13px;
   overflow-wrap: anywhere;
 }
+
+/* The mic indicator is an explicit privacy signal, not an always-on listener. */
+.sovereign-voice-control .genie-voice-status-light {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: #64748b;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, .3);
+}
+.sovereign-voice-control[data-phase="listening"] .genie-voice-status-light {
+  background: #34d399;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, .18);
+  animation: genievoice-mic-pulse 1.7s ease-in-out infinite;
+}
+.sovereign-voice-control[data-phase="checking"] .genie-voice-status-light,
+.sovereign-voice-control[data-phase="thinking"] .genie-voice-status-light {
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, .14);
+}
+.sovereign-voice-control[data-phase="speaking"] .genie-voice-status-light {
+  background: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, .17);
+}
+@keyframes genievoice-mic-pulse {
+  50% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sovereign-voice-control .genie-voice-status-light { animation: none; }
+}
