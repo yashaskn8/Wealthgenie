@@ -92,6 +92,20 @@ describe('Sovereign X fail-closed voice policy',()=>{
     }
   });
 
+  it('rejects indirect financial action forms not covered by a single verb',()=>{
+    for(const command of [
+      'Please wire my savings to another person',
+      'How could you remit money from my account?',
+      'Could you email my PAN details?',
+      'Please disclose my account information',
+      'Place a share order for me',
+    ]) assert.equal(classifyVoiceIntent(command).action,'REJECTED',command);
+    assert.equal(classifyVoiceIntent('How can I wire money safely?').action,'CHAT');
+    assert.equal(classifyVoiceIntent('show where to invest').page,'investments');
+  });
+  it('rejects invalid surrogate transcript characters',()=>{
+    assert.equal(classifyVoiceIntent('open\uD800goals').action,'REJECTED');
+  });
   it('recognizes only reviewed Hindi and Kannada commands',()=>{
     const canonical=[
       ['लक्ष्य खोलो','goals'],

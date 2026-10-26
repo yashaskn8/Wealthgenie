@@ -96,6 +96,25 @@ describe('GenieVoice opt-in navigation',()=>{
     await act(async()=>{resolveCommand({version:'sovereign-voice-intent-v1',action:'APP_NAVIGATE',page:'goals',tab:null});});
     expect(x.nav).not.toHaveBeenCalled();
   });
+
+  it('stops narration when unrelated text chat starts while playback is active', () => {
+    const cancel=vi.fn(),speak=vi.fn();
+    vi.stubGlobal('speechSynthesis',{speak,cancel});
+    vi.stubGlobal('SpeechSynthesisUtterance',class Utterance {
+      constructor(content){this.text=content;}
+    });
+    const answer={content:'Verified summary.',grounded:true,validation_status:'PASS',
+      evidence_ids_used:['E_PROFILE_RISK'],_turnKey:'manual-spoken-1'};
+    const ui=render(<SovereignVoiceControl sessionKey="account-a" lastAnswer={answer}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Speak verified answer'}));
+    expect(speak).toHaveBeenCalledTimes(1);
+    ui.rerender(<SovereignVoiceControl sessionKey="account-a" lastAnswer={answer}
+      chatBusy/>);
+    expect(cancel).toHaveBeenCalled();
+    expect(screen.queryByRole('button',{name:'Stop verified answer playback'}))
+      .not.toBeInTheDocument();
+  });
+
   it('cancels an old spoken answer when the grounded result changes',()=>{
     const say=vi.fn();
     const cancel=vi.fn();
@@ -769,5 +788,26 @@ describe('GenieVoice adversarial async-boundary regressions', () => {
     expect(check).toHaveBeenCalledTimes(2);
     await act(async()=>resolveCheck({version:'sovereign-voice-intent-v1',action:'CHAT'}));
     expect(ask).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('GenieVoice final malformed-ASR adversarial boundaries', () => {
+  it('rejects oversized fragmented browser speech without querying the server', async () => {
+    let recognition;
+    vi.stubGlobal('SpeechRecognition',class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){}
+    });
+    const classify=vi.spyOn(api,'interpretVoiceCommand').mockResolvedValue({
+      version:'sovereign-voice-intent-v1',action:'CHAT'
+    });
+    render(<SovereignVoiceControl sessionKey="final-security-audit"/>);
+    fireEvent.click(screen.getByRole('button',{name:'Start GenieVoice navigation'}));
+    await act(async()=>recognition.onresult({
+      results:Array.from({length:25},()=>[{transcript:'open goals'}])
+    }));
+    expect(classify).not.toHaveBeenCalled();
+    expect(screen.getByText(/capture exceeded safety limits/i)).toBeInTheDocument();
   });
 });

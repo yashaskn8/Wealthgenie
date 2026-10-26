@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Trash2, Sparkles, RefreshCw, Scale, Coins, Percent, Target, ArrowLeft, ExternalLink, Mic, MicOff, ChevronRight, TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
 import SovereignVoiceControl from './SovereignVoiceControl';
-import { VOICE_CAPTURE_TIMEOUT_MS, validateVoiceTranscript } from '../utils/voiceRuntimePolicy';
+import { VOICE_CAPTURE_TIMEOUT_MS, collectVoiceRecognitionResults, validateVoiceTranscript } from '../utils/voiceRuntimePolicy';
 import { normalizeFeatureCard } from '../utils/featureNavigationCard';
 import './GenieChat.css';
 import * as api from '../services/api';
@@ -549,8 +549,10 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         document.visibilityState !== 'hidden';
       recognition.onresult=event => {
         if(!isCurrent()) return;
-        const raw=event.results?.[0]?.[0]?.transcript;
-        const transcript=validateVoiceTranscript(raw);
+        const captured=collectVoiceRecognitionResults(event?.results);
+        if (captured.status === 'partial') return;
+        const transcript=captured.status === 'final'
+          ? validateVoiceTranscript(captured.transcript) : null;
         stopLegacyVoice();
         if(!transcript) {
           setVoiceError('Speech transcript was empty or contained unsupported characters. Please type your question.');
