@@ -62,6 +62,14 @@ describe('GenieVoice trust-boundary policy', () => {
     expect(sameVerifiedVoiceReply(a,{...a,content:'Different explanation.'})).toBe(false);
   });
 
+  it('rejects equal-looking authenticated replies from different chat turns', () => {
+    const a={...verified,_turnKey:'voice-turn-a'};
+    expect(sameVerifiedVoiceReply(a,{...a,_turnKey:'voice-turn-b'})).toBe(false);
+    expect(sameVerifiedVoiceReply(a,{...a,_turnKey:'voice-turn-a'})).toBe(true);
+    expect(sameVerifiedVoiceReply(a,{...a,_turnKey:undefined})).toBe(false);
+    expect(sameVerifiedVoiceReply({...verified},{...verified,_turnKey:'voice-turn-a'})).toBe(false);
+  });
+
   it('does not truncate or invent words from long financial answers', () => {
     expect(voiceAnswerText({...verified,response:'x'.repeat(2401)})).toBeNull();
     expect(voiceAnswerText({...verified,response:'**Returns** are hypothetical.'}))
