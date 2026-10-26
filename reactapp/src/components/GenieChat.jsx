@@ -686,10 +686,10 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             : 'You used the last message reported by the server. Genie will check availability on your next message.');
         }
       }
-      // Return the *exact* authenticated response for the originating spoken
-      // turn. Voice playback must never infer turn identity from the newest
-      // visible chat message, which may change before speech synthesis starts.
-      return data;
+      // Attach the same client-generated idempotency turn key to the return
+      // value and the rendered message. It is local UI provenance, never a
+      // claim from the model or a grant of financial authority.
+      return { ...data, _turnKey: retryableTurn.idempotencyKey };
     } catch (err) {
       if (isCurrent() && err?.code !== 'REQUEST_ABORTED') {
         if (err?.code === 'CHAT_RATE_LIMIT_EXCEEDED') {
