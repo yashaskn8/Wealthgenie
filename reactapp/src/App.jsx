@@ -27,6 +27,7 @@ const ProgressHub = lazy(() => import('./components/ProgressHub'));
 const JourneyPage = lazy(() => import('./components/JourneyPage'));
 const GenieProofEntry = lazy(() => import('./components/GenieProofEntry'));
 const HouseholdRunway = lazy(() => import('./components/HouseholdRunway'));
+const GenieDecisionWorkspace = lazy(() => import('./components/GenieDecisionWorkspace'));
 const CashCheck = lazy(() => import('./components/CashCheck'));
 const COVERAGE_UI_ENABLED = !import.meta.env.PROD || import.meta.env.VITE_COVERAGE_ENABLED === 'true';
 const AllocationPlanner = lazy(() => import('./components/AllocationPlanner'));
@@ -863,6 +864,8 @@ const DashboardShell = ({ userProfile, onProfileUpdate, initialRecommendation = 
             />
           </ErrorBoundary>
         );
+      case NAV_PAGES.GENIEDECISION:
+        return <ErrorBoundary><GenieDecisionWorkspace /></ErrorBoundary>;
       case NAV_PAGES.GOALS:
       case NAV_PAGES.GROW_MY_SIP:
       case NAV_PAGES.KEEP_ON_TRACK:

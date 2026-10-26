@@ -7,6 +7,7 @@ import {
   TrendingUp,
   ArrowLeftRight,
   FileSearch,
+  Scale,
   Wallet,
   User,
   BookOpen,
@@ -34,6 +35,7 @@ const PRIMARY_NAV_ITEMS = [
 const DESKTOP_PRIMARY_NAV_ITEMS = PRIMARY_NAV_ITEMS.filter(item => item.id !== NAV_PAGES.PROGRESS);
 // Mobile continues using the original PRIMARY_NAV_ITEMS.
 const JOURNEY_NAV_ITEMS = [
+  { id: NAV_PAGES.GENIEDECISION, label: 'Decision Lab', icon: Scale, testId: 'nav-geniedecision', legacyTestIds: [] },
   { id: NAV_PAGES.GOALS, label: 'Goals', icon: Target, testId: 'nav-my-goals', legacyTestIds: ['nav-goals', 'nav-goal-planner'] },
   { id: NAV_PAGES.GROW_MY_SIP, label: 'Grow My SIP', icon: TrendingUp, testId: 'nav-grow-my-sip', legacyTestIds: ['nav-sip-planner'] },
   { id: NAV_PAGES.KEEP_ON_TRACK, label: 'Keep on Track', icon: ArrowLeftRight, testId: 'nav-keep-on-track', legacyTestIds: ['nav-rebalancer'] },
@@ -518,7 +520,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true, r
           aria-expanded={mobileMenuOpen}
           aria-label="More navigation options"
           className={`tab-item ${
-            [NAV_PAGES.GENIEPROOF, NAV_PAGES.RUNWAY, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
+            [NAV_PAGES.GENIEPROOF, NAV_PAGES.GENIEDECISION, NAV_PAGES.RUNWAY, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage)
               ? 'tab-item--active'
               : ''
           }`}
@@ -526,7 +528,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true, r
         >
           <Menu size={20} strokeWidth={1.8} />
           <span className="tab-label">More</span>
-          {[NAV_PAGES.GENIEPROOF, NAV_PAGES.RUNWAY, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
+          {[NAV_PAGES.GENIEPROOF, NAV_PAGES.GENIEDECISION, NAV_PAGES.RUNWAY, NAV_PAGES.ACCOUNT, NAV_PAGES.HELP].includes(activePage) && (
             <span className="tab-active-dot" />
           )}
         </button>
@@ -584,6 +586,15 @@ const Sidebar = ({ activePage, onNavigate, onLogout, genieProofEnabled = true, r
                   <Wallet size={19} /><span>Household Runway</span>
                 </button>
               )}
+              <div className="mobile-drawer-section-title" style={{ marginTop: 12 }}>FINANCIAL DECISIONS</div>
+              <button type="button"
+                data-testid="mobile-nav-geniedecision"
+                className={`mobile-drawer-btn ${activePage === NAV_PAGES.GENIEDECISION ? 'mobile-drawer-btn--active' : ''}`}
+                onClick={() => handleItemClick(NAV_PAGES.GENIEDECISION)}>
+                <Scale size={18} />
+                <span>Decision Lab</span>
+              </button>
+
               <div className="mobile-drawer-section-title" style={{ marginTop: 12 }}>ACCOUNT & SUPPORT</div>
               <button
                 type="button"
