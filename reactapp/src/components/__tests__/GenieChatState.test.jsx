@@ -59,7 +59,8 @@ describe('GenieChat persisted conversation state', () => {
     vi.stubGlobal('SpeechRecognition', DeniedSpeechRecognition);
     openChat();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Start voice input' }));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
     expect(recognition).toBeDefined();
     await act(async () => { recognition.onerror({ error: 'not-allowed' }); });
 
@@ -78,7 +79,8 @@ describe('GenieChat persisted conversation state', () => {
       abort(){abort();}
     });
     openChat();
-    fireEvent.click(await screen.findByRole('button',{name:'Start voice input'}));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
     const staleResult=recognition.onresult;
     fireEvent.click(screen.getByRole('button',{name:'Close chat helper'}));
     expect(abort).toHaveBeenCalledTimes(1);
@@ -98,7 +100,8 @@ describe('GenieChat persisted conversation state', () => {
     });
     const ui=render(<GenieChat profile={null} onNavigate={vi.fn()}/>);
     fireEvent.click(screen.getByRole('button',{name:'Genie AI'}));
-    fireEvent.click(await screen.findByRole('button',{name:'Start voice input'}));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
     const late=recognition.onresult;
     ui.rerender(<GenieChat profile={{
       profileId:'64b000000000000000000333',version:2,monthly_savings:1000
@@ -118,7 +121,8 @@ describe('GenieChat persisted conversation state', () => {
       abort(){abort();}
     });
     openChat();
-    fireEvent.click(await screen.findByRole('button',{name:'Start voice input'}));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
     const staleResult=recognition.onresult;
     vi.spyOn(document,'visibilityState','get').mockReturnValue('hidden');
     await act(async()=>document.dispatchEvent(new Event('visibilitychange')));
@@ -139,7 +143,8 @@ describe('GenieChat persisted conversation state', () => {
     const response=deferred();
     vi.spyOn(api,'sendChatMessage').mockReturnValue(response.promise);
     openChat();
-    fireEvent.click(await screen.findByRole('button',{name:'Start voice input'}));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Start voice input'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'Start voice input'}));
     const late=recognition.onresult;
     fireEvent.change(screen.getByRole('textbox',{name:/Ask Genie a financial question/i}),{
       target:{value:'Explain diversification'}
