@@ -108,6 +108,11 @@ jobs:
           MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
         run: npm run runway:migrate-indexes --prefix server
 
+      - name: Migrate and verify GenieDecision owner/idempotency indexes
+        env:
+          MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
+        run: npm run decision:migrate-indexes --prefix server
+
       - name: Run Backend ESLint Check
         run: |
           cd server
@@ -117,6 +122,30 @@ jobs:
         run: |
           cd server
           npm run typecheck
+
+      - name: Red-team GenieDecision numeric and Mongo persistence contracts
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/wealthgenie_test?replicaSet=rs0
+        run: |
+          export JWT_SECRET="$(openssl rand -hex 32)"
+          node --test --test-concurrency=1 \
+            server/test/genieDecisionLedger.test.js \
+            server/test/genieDecisionScenarios.test.js \
+            server/test/genieDecisionIntegrity.test.js \
+            server/test/genieDecisionMonitor.test.js \
+            server/test/genieDecisionIndependentOracle.test.js \
+            server/test/genieDecisionLiveEvents.test.js \
+            server/test/genieDecisionProperty.test.js \
+            server/test/genieDecisionPreview.test.js \
+            server/test/genieDecisionPersistenceMongo.integration.test.js
+
+      - name: Verify canonical OpenAPI and public route ownership
+        env:
+          JWT_SECRET: openapi-ci-contract-verification-secret-2026
+        run: |
+          node --test --test-concurrency=1 \
+            server/test/openapiContract.test.js \
+            server/test/openapiSingleDocumentRegression.test.js
 
       - name: Fast chatbot goal and 250-catalog regression gate
         run: >-

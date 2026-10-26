@@ -1,0 +1,28 @@
+import mongoose from 'mongoose';
+import { protectImmutableIdentity } from './immutableIdentity.js';
+
+const schema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, immutable: true },
+  scenarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'DecisionScenario', required: true, immutable: true },
+  revision: { type: Number, required: true, min: 1, immutable: true },
+  profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'FinancialProfile', required: true, immutable: true },
+  profileStateRevision: { type: Number, required: true, min: 1, immutable: true },
+  profileVersion: { type: Number, required: true, min: 1, immutable: true },
+  profileFinancialFence: { type: Number, required: true, min: 0, immutable: true },
+  profileFactsHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  runKeyHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  issuedAt: { type: String, required: true, immutable: true,
+    match: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/ },
+  inputHash: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  integrityKeyId: { type: String, required: true, immutable: true, match: /^[A-Za-z0-9_-]{1,32}$/ },
+  integrityTag: { type: String, required: true, immutable: true, match: /^[a-f0-9]{64}$/ },
+  result: { type: mongoose.Schema.Types.Mixed, required: true, immutable: true },
+  resultHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
+}, { timestamps: { createdAt: true, updatedAt: false }, strict: 'throw' });
+
+schema.index({ userId: 1, runKeyHash: 1 }, { unique: true, name: 'uniq_decision_run_key' });
+schema.index({ userId: 1, scenarioId: 1, createdAt: -1 }, { name: 'decision_run_owner_history' });
+protectImmutableIdentity(schema, [
+  'userId', 'scenarioId', 'revision', 'profileId', 'runKeyHash', 'inputHash', 'result', 'resultHash', 'profileFactsHash', 'integrityKeyId', 'integrityTag', 'issuedAt',
+], { code: 'DECISION_REPORT_IMMUTABLE', label: 'GenieDecision report' });
+export default mongoose.models.DecisionRun || mongoose.model('DecisionRun', schema);

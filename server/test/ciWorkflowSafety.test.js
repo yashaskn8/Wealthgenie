@@ -44,6 +44,8 @@ test('Mongo-required suites are partitioned exhaustively between standalone and 
   assert.ok(mongoSet.has('test/runwayMongo.integration.test.js'));
   assert.ok(replicaSetSet.has('test/runwayMongo.integration.test.js'),
     'Household Runway transaction tampering and account isolation must use real MongoDB');
+  assert.ok(replicaSetSet.has('test/genieDecisionPersistenceMongo.integration.test.js'),
+    'GenieDecision integration must run against MongoDB transactions');
   assert.ok(replicaSetSet.has('test/coverageLedger.integration.test.js'),
     'Cash ledger transaction tests must run against a replica set');
   assert.ok(replicaSetSet.has('test/qualifiedEquityHistoryMongo.integration.test.js'));
