@@ -127,6 +127,33 @@ describe('GenieChat persisted conversation state', () => {
     expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i})).toHaveValue('');
   });
 
+  it('stops old dictation when chat begins sending and discards its late result', async () => {
+    let recognition;
+    const abort=vi.fn();
+    vi.stubGlobal('SpeechRecognition', class Recognition {
+      constructor(){recognition=this;}
+      start(){}
+      abort(){abort();}
+    });
+    vi.spyOn(api,'getChatHistory').mockResolvedValue({conversations:[]});
+    const response=deferred();
+    vi.spyOn(api,'sendChatMessage').mockReturnValue(response.promise);
+    openChat();
+    fireEvent.click(await screen.findByRole('button',{name:'Start voice input'}));
+    const late=recognition.onresult;
+    fireEvent.change(screen.getByRole('textbox',{name:/Ask Genie a financial question/i}),{
+      target:{value:'Explain diversification'}
+    });
+    fireEvent.click(screen.getByRole('button',{name:'Send message'}));
+    await waitFor(()=>expect(abort).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button',{name:'Start voice input'})).toBeDisabled();
+    await act(async()=>late({results:[[{transcript:'Old background account balance'}]]}));
+    expect(screen.getByRole('textbox',{name:/Ask Genie a financial question/i}))
+      .not.toHaveValue('Old background account balance');
+    await act(async()=>response.resolve({response:'Read the displayed answer instead.',
+      grounded:false,validation_status:'UNVERIFIED',evidence_ids_used:[]}));
+  });
+
   it('waits for canonical recommendation context before binding or restoring the saved chat session', async () => {
     const profile = { profileId: '64b000000000000000000101', version: 3, name: 'Canonical Profile', monthly_savings: 1000 };
     const recommendations = [{ id: 'scheme-a', allocationWeight: 0.7, allocation_pct: 70 }];
