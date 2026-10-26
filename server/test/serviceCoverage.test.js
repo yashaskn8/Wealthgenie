@@ -113,7 +113,7 @@ test('geminiService uses the shared grounded provider contract', async (t) => {
   assert.doesNotMatch(providerInputs[2], /CUSTOM_GOAL_PRIVATE_SENTINEL|9876543|45678|12345|19 years|monthlySavingsCapacity|raw_value/);
 });
 
-test('geminiChatService returns profile setup guidance when no profile exists', async (t) => {
+test('geminiChatService offers only public, grounded scenario education without an account profile', async (t) => {
   const originalFindOne = FinancialProfile.findOne;
   const originalStateFindOne = FinancialProfileState.findOne;
   FinancialProfile.findOne = () => ({ sort: () => ({ lean: async () => null }) });
@@ -135,8 +135,11 @@ test('geminiChatService returns profile setup guidance when no profile exists', 
     sessionId: 'session-1',
   });
 
-  assert.equal(result.grounded, false);
-  assert.match(result.response, /financial profile/i);
+  assert.equal(result.grounded, true);
+  assert.equal(typeof result.response, 'string');
+  assert.ok(result.response.length > 0);
+  assert.ok(result.evidence_ids_used.includes('E_SCENARIO_PRODUCT_COMPARISON'));
+  assert.equal(result.provider, 'SYSTEM');
 });
 
 test('grounded evidence minimizes external profile data and excludes identity', () => {
