@@ -139,7 +139,7 @@ test('geminiChatService offers only public, grounded scenario education without 
   assert.equal(typeof result.response, 'string');
   assert.ok(result.response.length > 0);
   assert.ok(result.evidence_ids_used.includes('E_SCENARIO_PRODUCT_COMPARISON'));
-  assert.equal(result.provider, 'SYSTEM');
+  assert.equal(result.provider, 'DETERMINISTIC_TEMPLATE');
 });
 
 test('grounded evidence minimizes external profile data and excludes identity', () => {
