@@ -189,7 +189,7 @@ it('red-team: committed import followed by failed refresh is never misreported a
   await waitFor(() => expect(api.importRunwayStatement).toHaveBeenCalledTimes(1));
   await waitFor(() => expect(screen.getByRole('alert'))
     .toHaveTextContent(/Statement import committed, but the financial screen could not refresh/));
-  expect(screen.getByText(/Statement imported and every running balance reconciled/))
+  expect(screen.getByText(/Statement imported\. Running balances passed arithmetic checks; the opening balance was inferred, not bank-verified/))
     .toBeInTheDocument();
   expect(onChooseCash).not.toHaveBeenCalled();
 });

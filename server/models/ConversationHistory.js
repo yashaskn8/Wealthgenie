@@ -30,6 +30,18 @@ const MessageSchema = new mongoose.Schema({
     evidence_ids_used: [String],
     unavailable_facts: [String],
     citations: [mongoose.Schema.Types.Mixed],
+    action_cards: [{
+      _id: false,
+      version: { type: String, enum: ['genie-feature-card-v1'], required: true },
+      kind: { type: String, enum: ['FEATURE_NAVIGATION_SUGGESTION'], required: true },
+      page: { type: String, enum: [
+        'goals', 'grow-my-sip', 'taxes', 'keep-on-track', 'investments', 'plan', 'progress',
+      ], required: true },
+      tab: { type: String, default: null },
+      label: { type: String, maxlength: 80 },
+      description: { type: String, maxlength: 180 },
+      requiresUserClick: { type: Boolean, default: true },
+    }],
     validation_status: String,
     validation_reason_codes: [String],
     fallback_used: Boolean,

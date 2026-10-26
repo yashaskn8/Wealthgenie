@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { gzipSync } from 'node:zlib';
 import { withServer, jsonRequest } from '../test-utils/httpTestUtils.js';
 
 process.env.NODE_ENV = 'test';
@@ -51,4 +52,19 @@ test('health readiness is release-blocking only when Runway is enabled', async (
       assert.ok((body.reasons || []).some(reason => reason.includes('Database not connected')));
     });
   }
+});
+
+test('security regression: compressed JSON is rejected before vulnerable body-parser inflation', async () => {
+  const app = createApp({ env: { ...process.env, RUNWAY_ENABLED: 'true' } });
+  await withServer(app, async base => {
+    const response = await fetch(base + '/api/runway/ledger', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' },
+      body: gzipSync(Buffer.from('{}')),
+    });
+    assert.equal(response.status, 415, 'Compressed JSON must not be inflated on public APIs');
+    // The API must remain responsive after a rejected encoded body.
+    const alive = await fetch(base + '/api/runway/current');
+    assert.equal(alive.status, 401);
+  });
 });

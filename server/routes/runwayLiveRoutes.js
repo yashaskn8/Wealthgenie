@@ -15,7 +15,7 @@ import {
   createRunwayLedgerSeal, verifyRunwayLedgerSeal,
   createRunwaySettlementSeal, verifyRunwaySettlementSeal,
 } from '../services/runwaySeal.js';
-import { simulateRunway } from '../services/runwayEngine.js';
+import { simulateRunway, RUNWAY_ENGINE_VERSION } from '../services/runwayEngine.js';
 import {
   buildRunwayMatchCandidates, prepareRunwaySettlement, runwayTransactionIdentity,
 } from '../services/runwayReconciliation.js';
@@ -164,6 +164,13 @@ export function createRunwayLiveRouter({
       throw fail(503, 'RUNWAY_ALERT_INTEGRITY_INVALID',
         'A persisted risk alert cannot be verified against the current signed ledger.');
     }
+    if (projection.engineVersion !== RUNWAY_ENGINE_VERSION) {
+      return res.json({
+        status: 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED', items: [],
+        engineVersion: projection.engineVersion,
+        warning: 'This saved warning was calculated with an older engine. Reconfirm today\'s cash in a new ledger revision to regenerate it.',
+      });
+    }
     const plain = decryptRunwayProjectionResult(projection);
     const shortfall = plain.scenarios?.[0]?.cashAlreadyAvailable?.firstCertainShortfall;
     if (!shortfall || !shortfall.date || !shortfall.deficitPaise) {
@@ -212,6 +219,13 @@ export function createRunwayLiveRouter({
       || result.inputHash !== current.revision.inputHash
       || !verifyRunwayProjectionResult(result)) {
       throw fail(503, 'RUNWAY_PROJECTION_INTEGRITY_INVALID', 'Projection result integrity failed.');
+    }
+    if (result.engineVersion !== RUNWAY_ENGINE_VERSION) {
+      return res.json({
+        status: 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED', revision: result.revision,
+        engineVersion: result.engineVersion,
+        warning: 'Saved projection is from an older calculation engine. Reconfirm cash in a new ledger revision before using a current forecast.',
+      });
     }
     return res.json({ status: 'DONE', revision: result.revision,
       engineVersion: result.engineVersion, computedAt: result.computedAt,
@@ -417,7 +431,7 @@ export function createRunwayLiveRouter({
         await queueRunwayProjection(userId, next, nextInputHash, session);
         await createRunwaySignal(userId, 'SETTLEMENT_CONFIRMED', session);
         return { revision: next, receiptId };
-      });
+      }, req);
     } catch (error) {
       if (error?.code === 11000) {
         const sources = await verifiedSources(userId);
@@ -504,7 +518,7 @@ export function createRunwayLiveRouter({
         await RunwayStatement.create([item], { session });
         await createRunwaySignal(userId, 'STATEMENT_IMPORTED', session);
         return { item, replayed: false };
-      });
+      }, req);
     } catch (error) {
       if (error?.code === 11000) {
         const other = await RunwayStatement.findOne({ _id: id, userId }).lean();
@@ -530,7 +544,7 @@ export function createRunwayLiveRouter({
         if (fence.matchedCount !== 1) throw fail(409, 'RUNWAY_LEDGER_CHANGED', 'Ledger changed concurrently.');
         await RunwayStatement.deleteOne({ _id: req.params.id, userId }).session(session);
         await createRunwaySignal(userId, 'STATEMENT_DELETED', session);
-      });
+      }, req);
     } catch (error) { rethrowTransaction(error); }
     return res.json({ status: 'DELETED', scope: 'ONE_USER_IMPORTED_STATEMENT' });
   }));

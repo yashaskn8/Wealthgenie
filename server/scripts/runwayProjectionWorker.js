@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { processOneRunwayProjection } from '../services/runwayProjectionOutbox.js';
+import { runRunwayWorkerLoop } from '../services/runwayWorkerLoop.js';
 import connectDB from '../config/db.js';
 import { verifyRunwayOperationalReadiness } from '../services/runwayOperationalReadiness.js';
 const env = process.env;
@@ -20,16 +21,12 @@ process.on('SIGTERM', stop);
 process.on('SIGINT', stop);
 try {
   await verifyRunwayOperationalReadiness();
-  while (!stopping) {
-    const done = await processOneRunwayProjection();
-    if (done.status === 'IDLE') {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } else if (done.status === 'BLOCKED') {
-      // Never silently continue after a financial integrity error.
-      process.stderr.write('Runway projection blocked: ' + done.code + '\n');
-      process.exitCode = 1; break;
-    }
-  }
+  await runRunwayWorkerLoop({
+    processOne: () => processOneRunwayProjection(),
+    shouldStop: () => stopping,
+    sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+    reportBlocked: code => { process.stderr.write('Runway projection blocked: ' + code + '\n'); },
+  });
 } finally {
   await mongoose.disconnect();
 }

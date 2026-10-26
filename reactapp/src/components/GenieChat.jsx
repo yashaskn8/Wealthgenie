@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Send, Trash2, Sparkles, RefreshCw, Scale, Coins, Percent, Target, ArrowLeft, ExternalLink, Mic, MicOff, ChevronRight, TrendingUp, Maximize2, Minimize2 } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
 import SovereignVoiceControl from './SovereignVoiceControl';
+import { normalizeFeatureCard } from '../utils/featureNavigationCard';
 import './GenieChat.css';
 import * as api from '../services/api';
 import { isPresentFiniteNumber } from '../utils/financialValues';
@@ -163,6 +164,7 @@ function mapStoredChatMessages(messages) {
     fallback: message.metadata?.fallback_used === true,
     fallback_reason_codes: message.metadata?.fallback_used ? message.metadata?.validation_reason_codes || [] : [],
     citations: message.metadata?.citations || [],
+    action_cards: message.metadata?.action_cards || [],
     _clientTurnHash: message.metadata?.client_turn_hash || null,
     _streamed: true,
   }));
@@ -595,6 +597,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
         timestamp: new Date().toISOString(),
         latency_ms: data.latency_ms,
         citations: data.citations || [],
+        action_cards: data.action_cards || [],
         grounded: data.grounded,
         validation_status: data.validation_status || null,
         provider: data.provider,
@@ -621,6 +624,10 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             : 'You used the last message reported by the server. Genie will check availability on your next message.');
         }
       }
+      // Return the *exact* authenticated response for the originating spoken
+      // turn. Voice playback must never infer turn identity from the newest
+      // visible chat message, which may change before speech synthesis starts.
+      return data;
     } catch (err) {
       if (isCurrent() && err?.code !== 'REQUEST_ABORTED') {
         if (err?.code === 'CHAT_RATE_LIMIT_EXCEEDED') {
@@ -848,7 +855,16 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
               <ProactiveNudge profile={profile} onAsk={sendMessage} />
 
-              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg} isLatest={i === visibleMessages.length - 1} />)}
+              {visibleMessages.map((msg, i) => <MessageBubble key={i} msg={msg}
+                isLatest={i === visibleMessages.length - 1}
+                onFeatureOpen={card => {
+                  const approved = normalizeFeatureCard(card);
+                  if (!approved || !sessionMatchesProfile ||
+                      typeof onNavigate !== 'function') return;
+                  // This is an explicit, visible click. Never navigate based
+                  // only on ASR text, an LLM sentence, or untrusted HTML.
+                  onNavigate({ page: approved.page, tab: null });
+                }} />)}
 
               {sessionMatchesProfile && isLoading && (
                 <div className="chat-bubble chat-bubble--genie">
@@ -872,7 +888,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
 
             {/* Input Bar */}
             <div className="genie-input-bar">
-              {recognitionRef.current && (
+              {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED !== 'true' && recognitionRef.current && (
                 <button className={`voice-btn ${isListening ? 'voice-active' : ''}`} onClick={toggleVoice} title="Voice input" aria-label={isListening ? "Stop voice input" : "Start voice input"}>
                   {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                 </button>
@@ -885,11 +901,13 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
             {voiceError && <div role="status" className="chat-error-banner">{voiceError}</div>}
             {import.meta.env.VITE_GENIEVOICE_TASKS_ENABLED === 'true' && (
               <SovereignVoiceControl
-                key={sessionId + ':' + (sessionMatchesProfile && !isClearing && !isLoading ? 'ready' : 'disabled')}
+                key={sessionId}
                 sessionKey={sessionId}
-                disabled={!sessionMatchesProfile || isClearing || isLoading}
+                disabled={!sessionMatchesProfile || isClearing || rateLimitBlocked}
+                chatBusy={isLoading}
                 onNavigate={onNavigate}
                 onTranscript={text => setInput(prev => prev ? prev + ' ' + text : text)}
+                onQuestion={text => sendMessage(text)}
                 lastAnswer={lastAssistantMsg}
               />
             )}

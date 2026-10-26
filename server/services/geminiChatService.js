@@ -35,6 +35,8 @@ import {
 } from './chatGoalPlanning.js';
 import { buildGroundedEvidencePacket } from './groundedEvidence.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
+import { retrieveIndicSipScenarioEvidence } from './indicSipScenarioEvidence.js';
+import { suggestWealthGenieFeature } from './featureSuggestionPolicy.js';
 import { resolveCurrentFinancialProfile } from './currentFinancialProfile.js';
 import {
   CHAT_SESSION_TOKEN_CAP,
@@ -313,15 +315,18 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const reviewedPublicEducation = !unboundGoal && !/\b(?:my|our|mine)\b/i.test(sanitizedQuestion)
       ? retrieveChatEducationalEvidence(sanitizedQuestion) : [];
     const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(sanitizedQuestion);
+    const sipScenarioEvidence = retrieveIndicSipScenarioEvidence(sanitizedQuestion);
     if (!noProfileGeneral && !isGroundingBoundaryAttack(message)
-        && (unboundGoal || reviewedPublicEducation.length > 0 || taxAssumptionEvidence.length > 0)) {
+        && (unboundGoal || reviewedPublicEducation.length > 0 || taxAssumptionEvidence.length > 0
+          || sipScenarioEvidence.length > 0)) {
       // No account-bound state is created or reused by this stateless answer.
       const packet = buildGroundedEvidencePacket({
         question: sanitizedQuestion,
         profile: null,
         additionalEntries: unboundGoal
           ? retrieveChatGoalPlanningEvidence(sanitizedQuestion)
-          : taxAssumptionEvidence.length ? taxAssumptionEvidence : reviewedPublicEducation,
+          : sipScenarioEvidence.length ? sipScenarioEvidence
+            : taxAssumptionEvidence.length ? taxAssumptionEvidence : reviewedPublicEducation,
       });
       const answer = await generateGroundedExplanation({
         question: sanitizeExternalQuestion(message), evidencePacket: packet,
@@ -517,7 +522,17 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
     const attemptedProviderFailure = Number(explanation.providerAttemptFailureCount || 0) > 0
       || (explanation.fallback
         && (explanation.reasonCodes || []).some(reason => /REQUEST_FAILED|EMPTY_COMPLETION|GROUNDING_VALIDATION_FAILED/.test(reason)));
+    // Feature hints describe existing app screens, NOT personal investment
+    // recommendations. Derive them only from the user's original question.
+    // Neither retrieved evidence nor the external LLM can choose a route.
+    // Feature discovery is not a factual assertion or a calculator result.
+    // It may help users even when the financial answer correctly abstains.
+    // Keep suggestions separate from evidence and never auto-navigate.
+    const actionCards = !generalMode && !promptInjectionDetected
+      ? suggestWealthGenieFeature(securityContext.sanitizedMessage)
+      : [];
     const auditMetadata = {
+      action_cards: actionCards,
       provider: explanation.provider,
       model: explanation.model,
       grounded_on_profile: !generalMode,
@@ -570,7 +585,7 @@ export async function processChat({ userId, user: _user, message, sessionId, ide
       rate_limit_remaining: CHAT_RATE_LIMIT - rateCheck.count,
       rate_limit_reset_at: new Date(rateCheck.resetAt).toISOString(),
       citations: explanation.citations,
-      action_cards: [],
+      action_cards: actionCards,
     });
     await requireCurrentBinding(binding, userId);
     await sessionStore.complete({

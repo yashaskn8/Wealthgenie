@@ -1,227 +1,586 @@
+/* eslint-disable react-hooks/set-state-in-effect -- external microphone, visibility and
+   synthesis events must synchronously invalidate pending audio on prop changes */
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import * as api from '../services/api';
-import { PAGE_ALLOWLIST } from '../utils/navigationMap';
 import SovereignSipComparison from './SovereignSipComparison';
+import {
+  VOICE_INTENT_VERSION, VOICE_CAPTURE_TIMEOUT_MS, VOICE_INTENT_TIMEOUT_MS,
+  VOICE_REPLY_TIMEOUT_MS, VOICE_SPEECH_TIMEOUT_MS, validateVoiceTranscript,
+  isVoiceStopPhrase, isAuthorizedVoiceNavigation, isVerifiedVoiceAnswer,
+  voiceAnswerText,
+} from '../utils/voiceRuntimePolicy';
+import { VOICE_LANGUAGES, validVoiceLanguage, isLocalVoiceStop,
+  speechLocaleForText, voiceInLocale } from '../utils/voiceLanguagePolicy';
+import { needsFinancialTranscriptReview } from '../utils/voiceFinancialTranscriptReview';
 import './SovereignVoiceControl.css';
 
+function clearVoiceTimer(ref) {
+  if (ref.current !== null) clearTimeout(ref.current);
+  ref.current = null;
+}
+
 /**
- * An opt-in, bounded voice experience. The model is never an action executor.
- * Only server-classified, independently allowlisted app navigation is supported.
+ * Opt-in, foreground-only voice controller.
+ *
+ * One microphone -> one final transcript -> one authenticated intent -> at most
+ * one authorized action or chat turn. A generation fence invalidates all
+ * callbacks when the user stops or changes sessions. Neither ASR, model output,
+ * nor web content may grant additional tool privileges.
  */
 export default function SovereignVoiceControl({
-  onNavigate, onTranscript, lastAnswer, sessionKey, disabled = false,
+  onNavigate, onTranscript, onQuestion, lastAnswer, sessionKey,
+  chatBusy = false, disabled = false,
 }) {
-  const [state, setState] = useState('idle');
-  const [spokenAnswer, setSpokenAnswer] = useState(null);
+  const [language, setLanguage] = useState('en-IN');
+  const [pendingReview, setPendingReview] = useState(null);
+  const [phase, setPhase] = useState('idle');
   const [status, setStatus] = useState('');
+  const [caption, setCaption] = useState('');
+  const [handsFree, setHandsFree] = useState(false);
+  const [spokenAnswer, setSpokenAnswer] = useState(null);
   const [showComparison, setShowComparison] = useState(false);
-  const listeningRef = useRef(null);
-  const requestRef = useRef(null);
-  const utteranceRef = useRef(null);
-  const generationRef = useRef(0);
-  const callbacksRef = useRef({ onNavigate, onTranscript });
+  const [replyVersion, setReplyVersion] = useState(0);
+
+  const epochRef = useRef(0);
   const enabledRef = useRef(!disabled);
+  const busyRef = useRef(chatBusy);
+  const handsFreeRef = useRef(false);
+  const callbacksRef = useRef({ onNavigate, onTranscript, onQuestion });
+  const listeningRef = useRef(null);
+  const reviewRef = useRef(null);
+  const intentRef = useRef(null);
+  const utteranceRef = useRef(null);
+  const spokenRef = useRef(null);
+  const replyReadyRef = useRef(null);
+  const latestAnswerRef = useRef(lastAnswer);
+  const listenActionRef = useRef(null);
+  const captureTimerRef = useRef(null);
+  const intentTimerRef = useRef(null);
+  const replyTimerRef = useRef(null);
+  const replyDisplayTimerRef = useRef(null);
+  const speechTimerRef = useRef(null);
+  const restartTimerRef = useRef(null);
+
   useLayoutEffect(() => {
     enabledRef.current = !disabled;
-    callbacksRef.current = { onNavigate, onTranscript };
-  }, [disabled, onNavigate, onTranscript]);
+    busyRef.current = chatBusy;
+    callbacksRef.current = { onNavigate, onTranscript, onQuestion };
+  }, [disabled, chatBusy, onNavigate, onTranscript, onQuestion]);
 
-  const cancelAll = useCallback(() => {
-    generationRef.current += 1;
+    const stopRecognition = useCallback(() => {
+    if (captureTimerRef.current !== null) clearTimeout(captureTimerRef.current);
+    captureTimerRef.current = null;
     const recognition = listeningRef.current;
     listeningRef.current = null;
     if (recognition) {
       recognition.onresult = null;
       recognition.onerror = null;
       recognition.onend = null;
-      recognition.abort?.();
+      try { recognition.abort?.(); } catch { /* already closed */ }
     }
-    requestRef.current?.abort();
-    requestRef.current = null;
-    if (utteranceRef.current) window.speechSynthesis?.cancel?.();
-    utteranceRef.current = null;
   }, []);
 
-  useLayoutEffect(() => () => cancelAll(), [cancelAll, sessionKey]);
-  // A new chat result invalidates speech and in-flight commands from the old answer.
-  useLayoutEffect(() => () => cancelAll(), [cancelAll, lastAnswer]);
-  useEffect(() => {
-    if (disabled) cancelAll();
-  }, [disabled, cancelAll]);
+  const stopSpeech = useCallback(() => {
+    if (speechTimerRef.current !== null) clearTimeout(speechTimerRef.current);
+    speechTimerRef.current = null;
+    const utterance = utteranceRef.current;
+    utteranceRef.current = null;
+    spokenRef.current = null;
+    if (utterance) {
+      utterance.onend = null;
+      utterance.onerror = null;
+      try { window.speechSynthesis?.cancel?.(); } catch { /* provider shutdown */ }
+    }
+  }, []);
 
-  const stop = () => {
-    cancelAll();
-    setState('idle');
+  const stopIO = useCallback(() => {
+    for (const ref of [intentTimerRef, replyTimerRef, replyDisplayTimerRef, restartTimerRef]) {
+      if (ref.current !== null) clearTimeout(ref.current);
+      ref.current = null;
+    }
+    stopRecognition();
+    intentRef.current?.abort();
+    intentRef.current = null;
+    stopSpeech();
+    replyReadyRef.current = null;
+  }, [stopRecognition, stopSpeech]);
+
+  const endConversation = useCallback((message = 'Voice operation stopped.') => {
+    epochRef.current += 1;
+    handsFreeRef.current = false;
+    reviewRef.current = null;
+    stopIO();
+    setPendingReview(null);
+    reviewRef.current = null;
+    setPendingReview(null);
+    setHandsFree(false);
+    setPhase('idle');
     setSpokenAnswer(null);
-    setStatus('Voice operation stopped.');
-  };
+    setCaption('');
+    setStatus(message);
+  }, [stopIO]);
 
-  const listen = () => {
-    if (disabled) return;
-    cancelAll();
-    setStatus('');
+  // Unmount, logout or session rebinding must fence every old callback before
+  // any new account can receive a voice response.
+  useLayoutEffect(() => {
+    return () => {
+      epochRef.current += 1;
+      handsFreeRef.current = false;
+      reviewRef.current = null;
+      stopIO();
+    };
+  }, [sessionKey, stopIO]);
+
+  useEffect(() => {
+    if (disabled) endConversation('Voice is unavailable for this session.');
+  }, [disabled, endConversation]);
+
+  useLayoutEffect(() => {
+    // A component may survive a financial account change without remounting.
+    // Reset all UI state, in addition to the separate epoch cleanup above.
+    setHandsFree(false);
+    setPhase('idle');
+    setSpokenAnswer(null);
+    setCaption('');
+    setShowComparison(false);
+  }, [sessionKey]);
+
+  // Browser visibility is part of the microphone's permission boundary.
+  useEffect(() => {
+    const hide = () => {
+      if (document.visibilityState === 'hidden' || !enabledRef.current)
+        endConversation('Voice stopped because this page is no longer active.');
+    };
+    const pagehide = () => endConversation('Voice stopped because the page is leaving.');
+    document.addEventListener('visibilitychange', hide);
+    window.addEventListener('pagehide', pagehide);
+    return () => {
+      document.removeEventListener('visibilitychange', hide);
+      window.removeEventListener('pagehide', pagehide);
+    };
+  }, [endConversation]);
+
+  // A manual chat send while the microphone is active is an interruption.
+  // Do not cancel a voice-originated chat response (the mic is already off).
+  useEffect(() => {
+    if (chatBusy && listeningRef.current) {
+      endConversation('Voice paused because another chat request started.');
+    }
+  }, [chatBusy, endConversation]);
+
+  // A new unrelated chat answer invalidates in-flight intent classification
+  // and any stale narration. A voice-originated reply is matched separately
+  // against the exact authenticated response after its request finishes.
+  useLayoutEffect(() => {
+    if (latestAnswerRef.current !== lastAnswer) {
+      latestAnswerRef.current = lastAnswer;
+      if (intentRef.current ||
+          (utteranceRef.current && spokenRef.current?.content !== lastAnswer?.content)) {
+        endConversation('The displayed answer changed; the old voice turn was stopped.');
+      }
+    }
+  }, [lastAnswer, endConversation]);
+
+  const scheduleResume = useCallback(token => {
+    if (!handsFreeRef.current || !enabledRef.current || busyRef.current ||
+        document.visibilityState === 'hidden') return;
+    clearVoiceTimer(restartTimerRef);
+    restartTimerRef.current = setTimeout(() => {
+      restartTimerRef.current = null;
+      if (epochRef.current === token && handsFreeRef.current &&
+          enabledRef.current && !busyRef.current &&
+          document.visibilityState !== 'hidden') {
+        listenActionRef.current?.();
+      }
+    }, 500);
+  }, []);
+
+  const startSpeech = useCallback((answer, resume, token) => {
+    if (!enabledRef.current || busyRef.current || epochRef.current !== token) return;
+    const words = voiceAnswerText(answer);
+    if (!words) {
+      if (resume) endConversation('The answer is in chat but cannot be verified for voice playback.');
+      else setStatus('This answer cannot safely be played as browser speech.');
+      return;
+    }
+    const synth = window.speechSynthesis;
+    const Utterance = window.SpeechSynthesisUtterance;
+    if (!synth || typeof synth.speak !== 'function' || typeof Utterance !== 'function') {
+      endConversation('Speech playback is unavailable. Read the verified answer in chat.');
+      return;
+    }
+    stopRecognition();
+    stopSpeech();
+    const speech = new Utterance(words);
+    // Speak in the language of the *verified content*, not merely the mic
+    // locale. Never read English claims with a Hindi/Kannada voice as if
+    // they had been translated and source-checked.
+    const outputLocale = speechLocaleForText(words);
+    speech.lang = outputLocale;
+    speech.rate = 1.04;
+    speech.pitch = 1;
+    try {
+      const preferred = voiceInLocale(
+        typeof synth.getVoices === 'function' ? synth.getVoices() : [], outputLocale,
+      );
+      if (preferred) {
+        speech.voice = preferred;
+        speech.lang = preferred.lang;
+      }
+    } catch { /* Keep the default voice. */ }
+    utteranceRef.current = speech;
+    spokenRef.current = { content: answer.content ?? answer.response };
+    speech.onend = () => {
+      if (epochRef.current !== token || utteranceRef.current !== speech) return;
+      utteranceRef.current = null;
+      spokenRef.current = null;
+      clearVoiceTimer(speechTimerRef);
+      setSpokenAnswer(null);
+      setPhase('idle');
+      setStatus(resume ? 'Listening will resume after speech ends.' : 'Finished reading the answer.');
+      if (resume) scheduleResume(token);
+    };
+    speech.onerror = () => {
+      if (epochRef.current === token && utteranceRef.current === speech)
+        endConversation('Speech playback failed. Read the answer in chat.');
+    };
+    speechTimerRef.current = setTimeout(() => {
+      if (epochRef.current === token && utteranceRef.current === speech)
+        endConversation('Speech timed out. You can restart conversation mode.');
+    }, VOICE_SPEECH_TIMEOUT_MS);
+    setSpokenAnswer(answer);
+    setPhase('speaking');
+    try {
+      synth.speak(speech);
+      const answerLanguage = VOICE_LANGUAGES.find(item=>item.code===outputLocale)?.label || 'its original language';
+      setStatus(language !== outputLocale
+        ? 'The answer is in a different language. Reading in ' + answerLanguage +
+          '; no unverified translation was made.'
+        : 'Reading the verified answer. Press Speak now to interrupt.');
+    } catch {
+      endConversation('Browser speech could not start. Read the answer in chat.');
+    }
+  }, [endConversation, scheduleResume, stopRecognition, stopSpeech, language]);
+
+  // The assistant response comes from the *same* authenticated chat request,
+  // not merely the most recent message. Wait until it is visible and chat has
+  // completed before starting TTS; old account responses cannot pass the fence.
+  useEffect(() => {
+    const ready = replyReadyRef.current;
+    if (!ready || chatBusy) return;
+    if (epochRef.current !== ready.token || !handsFreeRef.current ||
+        !enabledRef.current) {
+      replyReadyRef.current = null;
+      return;
+    }
+    const displayed = lastAnswer?.content === (ready.answer.content ?? ready.answer.response) &&
+      isVerifiedVoiceAnswer(lastAnswer);
+    if (!displayed) return;
+    replyReadyRef.current = null;
+    clearVoiceTimer(replyDisplayTimerRef);
+    startSpeech(ready.answer, true, ready.token);
+  }, [replyVersion, chatBusy, lastAnswer, startSpeech]);
+
+  const sendVerifiedVoiceQuestion = useCallback(async (transcript, token) => {
+    if (epochRef.current !== token || !handsFreeRef.current ||
+        !enabledRef.current || busyRef.current) return;
+    setPhase('thinking');
+    setStatus('Asking Genie. The microphone is off while the answer is prepared.');
+    let answer;
+    replyTimerRef.current = setTimeout(() => {
+      if (epochRef.current === token)
+        endConversation('The answer took too long. Check chat before retrying.');
+    }, VOICE_REPLY_TIMEOUT_MS);
+    try {
+      answer = await callbacksRef.current.onQuestion(transcript);
+    } catch {
+      if (epochRef.current === token)
+        endConversation('Could not send the voice question. Review the chat to retry.');
+      return;
+    } finally {
+      clearVoiceTimer(replyTimerRef);
+    }
+    if (epochRef.current !== token || !handsFreeRef.current) return;
+    if (!isVerifiedVoiceAnswer(answer) || !voiceAnswerText(answer)) {
+      endConversation('The response could not be verified for voice. Read it in chat.');
+      return;
+    }
+    // Keep the exact response until the matching message is rendered.
+    const ready = { token, answer };
+    replyReadyRef.current = ready;
+    replyDisplayTimerRef.current = setTimeout(() => {
+      if (replyReadyRef.current === ready && epochRef.current === token)
+        endConversation('The voice response no longer matches chat. It was not narrated.');
+    }, 2000);
+    setReplyVersion(value => value + 1);
+  }, [endConversation]);
+
+  const interpret = useCallback(async (raw, token) => {
+    const transcript = validateVoiceTranscript(raw);
+    if (epochRef.current !== token) return;
+    if (!transcript) {
+      endConversation('Voice transcript exceeded safety limits or was empty. Try a shorter question.');
+      return;
+    }
+    setCaption(transcript);
+    if (isVoiceStopPhrase(transcript) || isLocalVoiceStop(transcript)) {
+      endConversation();
+      return;
+    }
+    const abort = new AbortController();
+    intentRef.current = abort;
+    setPhase('checking');
+    setStatus('Checking the requested action...');
+    intentTimerRef.current = setTimeout(() => {
+      if (epochRef.current === token && intentRef.current === abort) {
+        abort.abort();
+        endConversation('Voice interpretation timed out. No action was executed.');
+      }
+    }, VOICE_INTENT_TIMEOUT_MS);
+    let intent;
+    try {
+      intent = await api.interpretVoiceCommand(transcript, { signal: abort.signal });
+    } catch {
+      if (epochRef.current !== token) return;
+      if (!handsFreeRef.current) callbacksRef.current.onTranscript?.(transcript);
+      endConversation('Voice interpretation failed. No action was executed.');
+      return;
+    } finally {
+      clearVoiceTimer(intentTimerRef);
+      if (intentRef.current === abort) intentRef.current = null;
+    }
+    if (epochRef.current !== token || !enabledRef.current || abort.signal.aborted) return;
+    if (isAuthorizedVoiceNavigation(intent)) {
+      if (typeof callbacksRef.current.onNavigate !== 'function') {
+        endConversation('Navigation is unavailable. No action was executed.');
+        return;
+      }
+      try {
+        await callbacksRef.current.onNavigate({ page: intent.page, tab: null });
+        if (epochRef.current !== token) return;
+        setPhase('idle');
+        setStatus('Navigation requested: ' + intent.page.replace(/-/g, ' ') + '.');
+        scheduleResume(token);
+      } catch {
+        endConversation('Navigation could not be confirmed. No more actions will run.');
+      }
+      return;
+    }
+    if (intent?.version !== VOICE_INTENT_VERSION) {
+      endConversation('Invalid voice response. No action was executed.');
+      return;
+    }
+    if (intent.action === 'OPEN_SIP_COMPARISON') {
+      endConversation('Review SIP assumptions before running a comparison.');
+      setShowComparison(true);
+      return;
+    }
+    if (intent.action !== 'CHAT') {
+      endConversation('That action is not authorized. Nothing was executed.');
+      return;
+    }
+    if (!handsFreeRef.current) {
+      callbacksRef.current.onTranscript?.(transcript);
+      setPhase('idle');
+      setStatus('Transcript added to chat. Review it before sending.');
+      return;
+    }
+    if (typeof callbacksRef.current.onQuestion !== 'function') {
+      endConversation('Chat is unavailable. Nothing was sent.');
+      return;
+    }
+    if (needsFinancialTranscriptReview(transcript)) {
+      // Speech-to-text numbers are prone to material errors (for example,
+      // fifteen vs fifty thousand). Never auto-send such questions.
+      const review = { token, transcript };
+      reviewRef.current = review;
+      setPendingReview(review);
+      setPhase('confirming');
+      setStatus('Confirm the recognized financial amounts and assumptions before sending.');
+      return;
+    }
+    void sendVerifiedVoiceQuestion(transcript, token);
+  }, [endConversation, scheduleResume, sendVerifiedVoiceQuestion]);
+
+  const startListening = useCallback(() => {
+    if (!enabledRef.current || busyRef.current) return;
+    if (document.visibilityState === 'hidden') {
+      endConversation('Return to the app before using the microphone.');
+      return;
+    }
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (typeof Recognition !== 'function') {
-      setState('idle');
-      setStatus('Voice input is unavailable in this browser. Use text chat.');
+      endConversation('Microphone speech recognition is unsupported in this browser.');
       return;
     }
-    const current = generationRef.current;
-    const recognition = new Recognition();
-    listeningRef.current = recognition;
-    recognition.lang = 'en-IN';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onresult = event => {
-      // Browsers may emit duplicate final events. Only the first may create a task.
-      if (current !== generationRef.current || listeningRef.current !== recognition) return;
-      listeningRef.current = null;
-      const transcript = String(event.results?.[0]?.[0]?.transcript || '').trim();
-      if (!transcript) {
-        setState('idle'); setStatus('No voice command was captured.'); return;
-      }
-      const controller = new AbortController();
-      requestRef.current = controller;
-      setState('checking');
-      void api.interpretVoiceCommand(transcript, { signal: controller.signal })
-        .then(result => {
-          if (current !== generationRef.current || controller.signal.aborted || !enabledRef.current) return;
-          if (result?.version !== 'sovereign-voice-intent-v1') {
-            setStatus('Unrecognized voice response. No action executed.');
-          } else if (result.action === 'APP_NAVIGATE' && result.tab === null &&
-            PAGE_ALLOWLIST.includes(result.page) && result.page !== 'genieproof') {
-            try {
-              callbacksRef.current.onNavigate?.({ page: result.page, tab: null });
-              setStatus('Navigation requested: ' + result.page.replace(/-/g, ' ') + '.');
-            } catch {
-              setStatus('Navigation outcome could not be confirmed. No further tasks will run.');
-            }
-          } else if (result.action === 'OPEN_SIP_COMPARISON') {
-            setShowComparison(true);
-            setStatus('SIP comparison ready. Enter and review two hypothetical return assumptions before calculating.');
-          } else if (result.action === 'CHAT') {
-            callbacksRef.current.onTranscript?.(transcript);
-            setStatus('Transcript added to chat. Review it before sending.');
-          } else {
-            setStatus('That voice action is not authorized. Nothing was executed.');
-          }
-        })
-        .catch(() => {
-          if (current !== generationRef.current || controller.signal.aborted || !enabledRef.current) return;
-          callbacksRef.current.onTranscript?.(transcript);
-          setStatus('Voice tasks unavailable. Review the transcript before sending.');
-        })
-        .finally(() => {
-          if (requestRef.current === controller) requestRef.current = null;
-          if (current === generationRef.current) setState('idle');
-        });
-    };
-    recognition.onerror = event => {
-      if (current !== generationRef.current) return;
-      listeningRef.current = null;
-      setState('idle');
-      setStatus(event?.error === 'not-allowed' ? 'Microphone permission denied.' :
-        'Voice capture failed. Use text chat.');
-    };
-    recognition.onend = () => {
-      if (current !== generationRef.current) return;
-      listeningRef.current = null;
-      // onend commonly fires after onresult, while classification remains pending.
-      if (!requestRef.current) setState('idle');
-    };
+    // Button-triggered interruption is an explicit microphone gesture.
+    stopIO();
+    reviewRef.current = null;
+    setPendingReview(null);
+    const token = ++epochRef.current;
+    let recognition;
     try {
+      recognition = new Recognition();
+      recognition.lang = language;
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      listeningRef.current = recognition;
+      recognition.onresult = event => {
+        if (epochRef.current !== token || listeningRef.current !== recognition) return;
+        const results = event.results || [];
+        const finalParts = [];
+        let interimText = '';
+        // Browser ASR may split one utterance across several result entries.
+        // Sending the first final chunk can silently drop a subsequent amount,
+        // inflation rate or negation. Await *all* chunks becoming final.
+        for (let i = 0; i < results.length; i += 1) {
+          const text = results[i]?.[0]?.transcript;
+          if (typeof text !== 'string') continue;
+          if (results[i].isFinal === false) interimText += ' ' + text;
+          else finalParts.push(text); // Retain controls for downstream raw validation.
+        }
+        const assembled = finalParts.join(' ');
+        if (interimText.trim()) {
+          setCaption((assembled + ' ' + interimText.trim()).trim().slice(0, 1000));
+          return;
+        }
+        if (!assembled.trim()) return;
+        stopRecognition();
+        void interpret(assembled, token);
+      };
+      recognition.onerror = event => {
+        if (epochRef.current !== token) return;
+        const code = event?.error;
+        endConversation(code === 'not-allowed' || code === 'service-not-allowed'
+          ? 'Microphone permission denied. Enable it in browser settings.'
+          : 'Voice capture failed. Use text chat or restart conversation mode.');
+      };
+      recognition.onend = () => {
+        if (epochRef.current !== token || listeningRef.current !== recognition) return;
+        endConversation('No final speech was captured. Restart conversation mode to try again.');
+      };
       recognition.start();
-      setState('listening');
+      captureTimerRef.current = setTimeout(() => {
+        if (epochRef.current === token && listeningRef.current === recognition)
+          endConversation('Microphone stopped after 20 seconds without a final command.');
+      }, VOICE_CAPTURE_TIMEOUT_MS);
+      setCaption('');
+      setStatus('Listening…');
+      setPhase('listening');
     } catch {
-      listeningRef.current = null;
-      setState('idle');
-      setStatus('Microphone could not start. Use text chat.');
+      endConversation('Microphone could not start. Check browser permissions.');
+    }
+  }, [endConversation, interpret, stopIO, stopRecognition, language]);
+
+  useLayoutEffect(() => {
+    listenActionRef.current = startListening;
+  }, [startListening]);
+
+  const toggleConversation = () => {
+    if (handsFreeRef.current) {
+      endConversation();
+    } else {
+      handsFreeRef.current = true;
+      setHandsFree(true);
+      startListening();
     }
   };
 
-  const canSpeak = lastAnswer?.grounded === true &&
-    lastAnswer.validation_status === 'PASS' &&
-    Array.isArray(lastAnswer.evidence_ids_used) &&
-    lastAnswer.evidence_ids_used.length > 0 &&
-    lastAnswer.evidence_ids_used.every(id => typeof id === 'string' && id.startsWith('E_') &&
-      id !== 'E_CHAT_ANSWER_UNAVAILABLE') &&
-    typeof lastAnswer.content === 'string';
+  const stop = () => endConversation();
 
-  const speak = () => {
-    if (!canSpeak || disabled) return;
-    const synth = window.speechSynthesis;
-    if (!synth || typeof window.SpeechSynthesisUtterance !== 'function') {
-      setStatus('Browser speech output is unavailable. Read the answer in chat.');
+  const canSpeak = isVerifiedVoiceAnswer(lastAnswer) && !!voiceAnswerText(lastAnswer);
+  const activelySpeaking = phase === 'speaking' &&
+    spokenAnswer?.content === lastAnswer?.content;
+
+  const confirmFinancialReview = () => {
+    const review = reviewRef.current;
+    if (!review || epochRef.current !== review.token ||
+        !handsFreeRef.current || !enabledRef.current || busyRef.current ||
+        document.visibilityState === 'hidden') {
+      endConversation('The voice question is no longer valid. Please repeat it.');
       return;
     }
-    const words = lastAnswer.content.replace(/\[E_[A-Z0-9_:-]+\]/g, '').trim();
-    if (!words || words.length > 2400) {
-      setStatus('The answer cannot safely be played as browser speech.');
-      return;
-    }
-    cancelAll();
-    const current = generationRef.current;
-    const utterance = new window.SpeechSynthesisUtterance(words);
-    utterance.lang = 'en-IN';
-    utterance.onend = () => {
-      if (generationRef.current === current) {
-        utteranceRef.current = null;
-        setSpokenAnswer(null);
-        setState('idle');
-      }
-    };
-    utterance.onerror = () => {
-      if (generationRef.current === current) {
-        utteranceRef.current = null;
-        setSpokenAnswer(null);
-        setState('idle');
-        setStatus('Spoken playback failed. Read the answer in chat.');
-      }
-    };
-    utteranceRef.current = utterance;
-    setSpokenAnswer(lastAnswer);
-    try {
-      synth.speak(utterance);
-      setState('speaking');
-      setStatus('Reading the grounded answer shown in chat.');
-    } catch {
-      utteranceRef.current = null;
-      setSpokenAnswer(null);
-      setState('idle');
-      setStatus('Speech playback could not start.');
-    }
+    reviewRef.current = null;
+    setPendingReview(null);
+    void sendVerifiedVoiceQuestion(review.transcript, review.token);
   };
 
-  const activelySpeaking = state === 'speaking' && spokenAnswer === lastAnswer;
   return (
-    <div className="sovereign-voice-control" aria-label="GenieVoice controls">
-      <button type="button" disabled={disabled}
-        aria-label={state === 'listening' ? 'Stop GenieVoice listening' :
-          state === 'checking' ? 'Stop GenieVoice task' : 'Start GenieVoice navigation'}
-        onClick={state === 'listening' || state === 'checking' ? stop : listen}>
-        {state === 'listening' || state === 'checking' ? <MicOff size={16} /> : <Mic size={16} />}
-        {state === 'listening' ? 'Stop listening' :
-          state === 'checking' ? 'Stop task' : 'GenieVoice navigation'}
+    <div className="sovereign-voice-control" data-phase={phase} aria-label="GenieVoice controls">
+      <span className="genie-voice-status-light" aria-hidden="true" />
+      <label className="genie-voice-locale-label" htmlFor="genievoice-language">Speech language</label>
+      <select id="genievoice-language" aria-label="GenieVoice speech language"
+        value={language} disabled={disabled || chatBusy}
+        onChange={event => {
+          const next=event.target.value;
+          if (!validVoiceLanguage(next) || next===language) return;
+          endConversation('Language changed. Start the microphone again for the new language.');
+          setLanguage(next);
+        }}>
+        {VOICE_LANGUAGES.map(item =>
+          <option key={item.code} value={item.code}>{item.label}</option>)}
+      </select>
+      <button type="button" disabled={disabled || chatBusy}
+        aria-label={phase === 'listening' ? 'Stop GenieVoice listening' :
+          phase === 'checking' ? 'Stop GenieVoice task' :
+          phase === 'speaking' ? 'Interrupt Genie and speak' : 'Start GenieVoice navigation'}
+        onClick={phase === 'listening' || phase === 'checking' ? stop : startListening}>
+        {phase === 'listening' || phase === 'checking' ? <MicOff size={16} /> : <Mic size={16} />}
+        {phase === 'listening' ? 'Stop listening' :
+          phase === 'checking' ? 'Stop task' :
+          phase === 'speaking' ? 'Speak now' : 'GenieVoice navigation'}
+      </button>
+      <button type="button" disabled={disabled || (chatBusy && !handsFree)}
+        aria-label={handsFree ? 'End GenieVoice conversation' : 'Start GenieVoice hands-free conversation'}
+        aria-pressed={handsFree} onClick={toggleConversation}>
+        {handsFree ? 'End conversation' : 'Conversation mode'}
       </button>
       {canSpeak && (
-        <button type="button" disabled={disabled}
+        <button type="button" disabled={disabled || chatBusy}
           aria-label={activelySpeaking ? 'Stop verified answer playback' : 'Speak verified answer'}
-          onClick={activelySpeaking ? stop : speak}>
+          onClick={activelySpeaking ? stop : () => {
+            // Manual speech is one-shot and cannot covertly start the microphone.
+            endConversation('');
+            const token = epochRef.current;
+            startSpeech(lastAnswer, false, token);
+          }}>
           {activelySpeaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
           {activelySpeaking ? 'Stop speaking' : 'Speak verified answer'}
         </button>
       )}
-      <button type="button" disabled={disabled || state === 'checking'}
-        onClick={() => { cancelAll(); setState('idle'); setShowComparison(v => !v); }}
-        aria-label={showComparison ? 'Close SIP comparison' : 'Open SIP comparison'}>
+      <button type="button" disabled={disabled || chatBusy || phase === 'checking'}
+        onClick={() => {
+          endConversation('');
+          setShowComparison(value => !value);
+        }} aria-label={showComparison ? 'Close SIP comparison' : 'Open SIP comparison'}>
         {showComparison ? 'Close SIP comparison' : 'Compare SIP scenarios'}
       </button>
-      {showComparison && <SovereignSipComparison disabled={disabled}
-        onClose={() => setShowComparison(false)} />}
-      {state === 'checking' && <span role="status">Checking voice command…</span>}
-      <small>Browser speech recognition may process audio through its provider. No background listening.</small>
-      {status && <div role="status">{status}</div>}
+      {!disabled && showComparison && (
+        <SovereignSipComparison key={String(sessionKey ?? '')}
+          disabled={disabled || chatBusy} onClose={() => setShowComparison(false)} />
+      )}
+      {pendingReview && phase === 'confirming' && (
+        <div className="genie-voice-financial-review" role="group"
+          aria-label="Review recognized financial question">
+          <strong>Review financial values before sending</strong>
+          <p>The microphone may confuse amounts, percentages or years. Verify the transcript:</p>
+          <p className="genie-voice-financial-review-text">{pendingReview.transcript}</p>
+          <button type="button" disabled={disabled || chatBusy}
+            onClick={confirmFinancialReview}>Confirm and ask Genie</button>
+          <button type="button" onClick={() => endConversation('Voice question cancelled.')}>
+            Cancel voice question
+          </button>
+        </div>
+      )}
+      {phase === 'checking' && <span role="status">Checking voice command…</span>}
+      {phase === 'thinking' && <span role="status">Genie is preparing a grounded answer…</span>}
+      {caption && <div className="genie-voice-caption" aria-label="Voice transcript">{caption}</div>}
+      <small>Conversation mode sends spoken questions automatically. Only verified answers are
+        narrated. The mic is off during responses and narration; you can interrupt or stop anytime.
+        Browser speech recognition may process audio through its provider.
+        Hindi and Kannada recognition depend on device support; answers are spoken in their verified text language.</small>
+      {status && <div role="status" aria-live="polite">{status}</div>}
     </div>
   );
 }

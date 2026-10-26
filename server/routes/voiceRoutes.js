@@ -15,7 +15,11 @@ import {
 } from '../services/sovereignTaskReceiptStore.js';
 
 
-const transcriptSchema=Joi.object({ transcript:Joi.string().trim().min(1).max(1000).required() }).unknown(false);
+const transcriptSchema=Joi.object({
+  // Do not trim/normalize before validation: reject CR/LF/TAB and other
+  // control characters even for direct clients bypassing the voice widget.
+  transcript:Joi.string().min(1).max(1000).pattern(/^[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}]*$/u).required()
+}).unknown(false);
 
 // These are separate distributed quotas in production. They fail closed if the
 // shared rate-limit store is unavailable, unlike the permissive general API cap.
@@ -147,13 +151,21 @@ export function createVoiceRouter({
     asyncHandler(async(req,res)=>{
       if(!receiptsEnabled)throw createError(404,'Task receipts are disabled.',
         'Task receipts are not enabled.',{code:'SOVEREIGN_RECEIPTS_DISABLED'});
-      const receipt=await getSovereignTaskReceipt({
-        userId:req.user.userId,id:req.params.id,
-        ...(receiptRepository?{repository:receiptRepository}:{}),
-        ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{})
-      });
-      await assertSessionCurrent(req.user);
-      res.json({receipt});
+      const cancel=new AbortController();
+      const onDisconnect=()=>cancel.abort();
+      res.once('close',onDisconnect);
+      try {
+        const signal=AbortSignal.any([cancel.signal,AbortSignal.timeout(12_000)]);
+        const receipt=await getSovereignTaskReceipt({
+          userId:req.user.userId,id:req.params.id,signal,
+          ...(receiptRepository?{repository:receiptRepository}:{}),
+          ...(ensureReceiptReady?{ensureReady:ensureReceiptReady}:{})
+        });
+        if(!signal.aborted&&!res.destroyed) {
+          await assertSessionCurrent(req.user,{signal});
+          if(!signal.aborted&&!res.destroyed)res.json({receipt});
+        }
+      }finally{res.off('close',onDisconnect);}
     }));
   return router;
 }

@@ -91,6 +91,18 @@ jobs:
           MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
         run: npm run goals:migrate-budget-indexes --prefix server
 
+      # A real MongoDB 7 replica-set smoke test is mandatory for the
+      # opt-in GenieVoice ledger. This database is isolated from unit tests.
+      - name: Migrate GenieVoice receipt indexes in isolated MongoDB
+        env:
+          MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_genievoice_receipts_ci?replicaSet=rs0
+        run: node server/scripts/migrateSovereignTaskReceiptIndexes.js
+
+      - name: Verify GenieVoice Mongo receipt concurrency and account isolation
+        env:
+          GENIEVOICE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017/wealthgenie_genievoice_receipts_ci?replicaSet=rs0
+        run: node --test server/integration/sovereignMongoReceipt.integration.mjs
+
       - name: Migrate Household Runway indexes
         env:
           MONGODB_MIGRATION_URI: mongodb://127.0.0.1:27017/wealthgenie_financial_indexes_test?replicaSet=rs0
@@ -405,10 +417,6 @@ jobs:
         run: node --check server/worker.js
       - name: Validate deployment and security configuration
         run: node server/scripts/validate-deployment-config.js
-      - name: Audit backend npm dependencies
-        run: npm audit --prefix server --omit=dev --audit-level=low
-      - name: Audit frontend npm dependencies
-        run: npm audit --prefix reactapp --audit-level=high
       - name: Start MongoDB for the explicit ML/RAG state migration
         run: docker compose up -d mongodb
 
@@ -695,6 +703,18 @@ jobs:
 
       - name: Run real-dependency Playwright lifecycle
         run: npm run test:e2e --prefix reactapp -- --grep-invert @production-edge
+
+      # The vulnerability gates remain mandatory, but do not suppress
+      # independent browser, database, or lifecycle test evidence.
+      # Each audit runs even if a previous check failed; none is allowed to
+      # convert a security failure into a successful CI conclusion.
+      - name: Audit backend npm dependencies
+        if: ${{ !cancelled() }}
+        run: npm audit --prefix server --omit=dev --audit-level=low
+
+      - name: Audit frontend npm dependencies
+        if: ${{ !cancelled() }}
+        run: npm audit --prefix reactapp --audit-level=high
 
       - name: Audit Python dependencies
         if: ${{ !cancelled() }}

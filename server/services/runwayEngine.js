@@ -5,7 +5,7 @@
  */
 // A financial-result semantics change must change this version. Historical
 // results are never quietly reinterpreted using a different algorithm.
-export const RUNWAY_ENGINE_VERSION = 'runway-cashflow-1.2.0';
+export const RUNWAY_ENGINE_VERSION = 'runway-cashflow-1.2.1';
 export const MAX_PAISE = 1000000000000000n;
 const DAY_LIMIT = 395;
 const ENTRY_LIMIT = 256;
@@ -129,9 +129,14 @@ function expand(ledger, end) {
       push({ id: e.id, label: e.label, kind: e.kind, amount: paise(e.amountPaise), date: start.iso, day: start.ordinal });
       continue;
     }
-    const until = Math.min(civilDate(e.untilDate).ordinal, end);
-    for (let offset = 0; offset <= 13; offset++) {
-      const absoluteMonth = (start.y * 12 + start.m - 1) + offset;
+    const last = civilDate(e.untilDate);
+    const until = Math.min(last.ordinal, end);
+    // Stop at the actual recurrence end month. Generating a candidate in a
+    // later year can reject an otherwise valid 2100 ledger before the
+    // day-level until check ever executes.
+    const lastMonth = last.y * 12 + last.m - 1;
+    for (let absoluteMonth = start.y * 12 + start.m - 1;
+      absoluteMonth <= lastMonth; absoluteMonth++) {
       const y = Math.floor(absoluteMonth / 12);
       const m = absoluteMonth % 12 + 1;
       const maxDay = daysInMonth(y, m);

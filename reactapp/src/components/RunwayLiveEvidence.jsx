@@ -121,7 +121,7 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
       const text = await csvFile.text();
       const imported = await api.importRunwayStatement(accountLabel, text);
       setMessage(imported.replayed ? 'That evidence was already imported; no duplicate was created.'
-        : 'Statement imported and every running balance reconciled. This is not bank-verified data.');
+        : 'Statement imported. Running balances passed arithmetic checks; the opening balance was inferred, not bank-verified.');
       setCsvFile(null);
       try { await reload(); } catch {
         setOverview(null); setObservations(null); setRiskAlerts(null); setImports([]);
@@ -227,6 +227,10 @@ export default function RunwayLiveEvidence({ canImport, canSettle = false, onCho
       </p>}
       {observations?.status === 'ACCOUNT_OBSERVATIONS_UNAVAILABLE' && <p role="status">
         Separate account observations are temporarily unavailable; no bank balances were verified.
+      </p>}
+      {riskAlerts?.status === 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED' && <p role="alert">
+        Saved risk alerts used an older calculation engine and are not presented as current.
+        Reconfirm accessible household cash in a new ledger revision to refresh alerts.
       </p>}
       {riskAlerts?.status === 'CURRENT_USER_DECLARED_RISK'
         && riskAlerts.items?.map(alert => (

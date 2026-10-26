@@ -90,7 +90,11 @@ describe('GenieVoice protected route',()=>{
   });
   it('rejects schema smuggling, long transcripts and unexpected fields',async()=>{
     await withServer(buildApp(),async(base)=>{
-      for(const body of [{transcript:'open goals',tool:'deleteProfile'}, {transcript:'x'.repeat(1001)}, {transcript:123}]){
+      for(const body of [{transcript:'open goals',tool:'deleteProfile'}, {transcript:'x'.repeat(1001)}, {transcript:123},
+        {transcript:'open\ngoals'}, {transcript:'open\tgoals'},
+        {transcript:'open goals\r'}, {transcript:'open\nsip comparison'},
+        {transcript:'open\u2028goals'}, {transcript:'open\u2029goals'},
+        {transcript:'open goals\uFEFF'}]){
         const r=await rawRequest(base+'/api/voice/interpret',{
           method:'POST',
           headers:{'content-type':'application/json',authorization:'Bearer '+token()},

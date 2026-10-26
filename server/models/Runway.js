@@ -56,6 +56,23 @@ snapshotDeletionSchema.index({ expiresAt: 1 }, {
   name: 'runway_deleted_snapshot_ttl', expireAfterSeconds: 0,
 });
 
+// Retain only the owner ID and last erasure timestamp to prevent a stale
+// authenticated initial-ledger request from resurrecting deleted financial data.
+// This is non-financial deletion-control metadata, not a restored ledger.
+const erasureFenceSchema = new Schema({
+  _id: { type: Schema.Types.ObjectId, required: true },
+  generation: { type: Number, min: 1, required: true, validate: Number.isSafeInteger },
+  erasedAt: { type: Date, default: null },
+}, options);
+// Old sessions expire, and a deleted ledger's as-of date becomes stale.
+// Seven days is therefore a conservative bounded fence-retention window.
+erasureFenceSchema.index({ erasedAt: 1 }, {
+  name: 'runway_erasure_fence_retention', expireAfterSeconds: 7 * 24 * 60 * 60,
+});
+
+export const RunwayErasureFence = mongoose.models.RunwayErasureFence
+  || mongoose.model('RunwayErasureFence', erasureFenceSchema);
+
 export const RunwayLedgerState = mongoose.models.RunwayLedgerState || mongoose.model('RunwayLedgerState', stateSchema);
 export const RunwayLedgerRevision = mongoose.models.RunwayLedgerRevision || mongoose.model('RunwayLedgerRevision', ledgerRevisionSchema);
 export const RunwayMutationReceipt = mongoose.models.RunwayMutationReceipt || mongoose.model('RunwayMutationReceipt', receiptSchema);

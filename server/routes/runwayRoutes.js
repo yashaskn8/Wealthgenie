@@ -14,7 +14,7 @@ import { createEndpointRateLimiter, ipKeyGenerator } from '../middleware/rateLim
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 import { RUNWAY_ENGINE_VERSION, simulateRunway, validateLedger, validateRequest } from '../services/runwayEngine.js';
 import {
-  RunwayLedgerState, RunwayLedgerRevision, RunwayMutationReceipt, RunwaySnapshot, RunwaySnapshotDeletion,
+  RunwayLedgerState, RunwayLedgerRevision, RunwayMutationReceipt, RunwaySnapshot, RunwaySnapshotDeletion, RunwayErasureFence,
 } from '../models/Runway.js';
 
 const router = Router();
@@ -101,11 +101,17 @@ async function currentRevision(userId, session = null) {
   requireValidLedgerSeal(revision);
   return { state, revision };
 }
-async function inTransaction(action) {
+async function inTransaction(action, req) {
   const session = await mongoose.startSession();
   try {
     let output;
-    await session.withTransaction(async () => { output = await action(session); }, {
+    await session.withTransaction(async () => {
+      // The HTTP middleware fence can be checked before an erasure commits.
+      // Recheck within the database snapshot used for this financial write.
+      const fence = await RunwayErasureFence.findById(owner(req)).session(session).lean();
+      requirePostErasureAuthentication(req, fence);
+      output = await action(session);
+    }, {
       readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' },
     });
     return output;
@@ -173,6 +179,20 @@ function requireRecentSession(req) {
     throw failure(403, 'RUNWAY_RECENT_AUTH_REQUIRED', 'Sign in again before exporting or deleting Runway data.');
   }
 }
+function requirePostErasureAuthentication(req, fence) {
+  if (!fence) return;
+  if (!Number.isSafeInteger(fence.generation) || fence.generation < 1
+    || (fence.erasedAt !== null
+      && (!(fence.erasedAt instanceof Date) || Number.isNaN(fence.erasedAt.getTime())))) {
+    throw failure(503, 'RUNWAY_ERASURE_FENCE_INVALID', 'Deletion boundary cannot be verified.');
+  }
+  if (fence.erasedAt
+    && (!Number.isSafeInteger(req.user?.iat)
+      || req.user.iat <= Math.floor(fence.erasedAt.getTime() / 1000))) {
+    throw failure(403, 'RUNWAY_REAUTH_AFTER_ERASURE_REQUIRED',
+      'Runway data was erased. Sign in again before deliberately creating a new cash ledger.');
+  }
+}
 function requireListedPayments(ledger) {
   if (!ledger.entries.some(entry => entry.kind === 'OBLIGATION')) {
     throw failure(400, 'RUNWAY_INSUFFICIENT_INPUT', 'List at least one dated payment before calculating.');
@@ -182,6 +202,22 @@ function requireListedPayments(ledger) {
 router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 router.use(requireSession, enable, (req, res, next) =>
   (req.method === 'GET' ? readLimiter : limiter)(req, res, next));
+router.use(asyncHandler(async (req, _res, next) => {
+  // An erasure revokes the authority of all Runway sessions issued before
+  // that erasure, including when a newer session intentionally creates a
+  // replacement ledger. Guard every read, export, import and mutation, not
+  // only initial ledger creation.
+  const userId = owner(req);
+  let fence;
+  try {
+    fence = await RunwayErasureFence.findById(userId).lean();
+  } catch {
+    throw failure(503, 'RUNWAY_ERASURE_FENCE_UNAVAILABLE',
+      'Financial-data deletion status could not be checked. Retry later.');
+  }
+  requirePostErasureAuthentication(req, fence);
+  next();
+}));
 router.use('/live', createRunwayLiveRouter({
   owner, currentRevision, inTransaction, rethrowTransaction, requireRecentSession,
   indiaCivilToday, requireRunwayIndexes, idempotency,
@@ -257,6 +293,8 @@ router.put('/ledger', asyncHandler(async (req, res) => {
   let created;
   try {
     created = await inTransaction(async session => {
+      const fence = await RunwayErasureFence.findById(userId).session(session).lean();
+      requirePostErasureAuthentication(req, fence);
       const previous = await RunwayLedgerState.findById(userId).session(session).lean();
       if ((previous?.revision || 0) !== expected) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Ledger was edited elsewhere. Refresh before saving.');
       const next = expected + 1;
@@ -270,11 +308,23 @@ router.put('/ledger', asyncHandler(async (req, res) => {
         const cas = await RunwayLedgerState.updateOne({ _id: userId, revision: expected }, { $set: { revision: next } }, { session });
         if (cas.matchedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Ledger was edited elsewhere.');
       }
+      // Share a versioned owner write with full erasure, including the first
+      // ledger write after deletion. Mongo write conflicts prevent an in-flight
+      // initial request from committing across the deletion boundary.
+      if (!fence) {
+        await RunwayErasureFence.create([{ _id: userId, generation: 1, erasedAt: null }], { session });
+      } else {
+        const updated = await RunwayErasureFence.updateOne(
+          { _id: userId, generation: fence.generation },
+          { $inc: { generation: 1 } }, { session });
+        if (updated.matchedCount !== 1) throw failure(409, 'RUNWAY_ERASURE_CONFLICT',
+          'Runway data was changed or erased concurrently. Sign in again and refresh.');
+      }
       await RunwayMutationReceipt.create([{ _id: receiptId, userId, operation: 'LEDGER', requestHash, revision: next }], { session });
       await queueRunwayProjection(userId, next, inputHash, session);
       await createRunwaySignal(userId, 'LEDGER_UPDATED', session);
       return next;
-    });
+    }, req);
   } catch (error) { rethrowTransaction(error); }
   const found = await RunwayLedgerRevision.findOne({ userId, revision: created }).lean();
   if (!found || canonicalSha256(found.ledger) !== found.inputHash) {
@@ -402,7 +452,7 @@ router.post('/snapshots', asyncHandler(async (req, res) => {
       newSnapshot.sealHmac = makeSnapshotSeal(newSnapshot);
       await RunwaySnapshot.create([newSnapshot], { session });
       return { snapshotId, ledgerRevision: found.state.revision };
-    });
+    }, req);
   } catch (error) {
     if (error?.code === 11000) {
       const committed = await RunwaySnapshot.findOne({ _id: snapshotId, userId }).lean();
@@ -478,7 +528,7 @@ router.delete('/snapshots/:id', asyncHandler(async (req, res) => {
       }], { session });
       const deleted = await RunwaySnapshot.deleteOne({ _id: req.params.id, userId }).session(session);
       if (deleted.deletedCount !== 1) throw failure(409, 'RUNWAY_REVISION_CONFLICT', 'Saved result changed concurrently.');
-    });
+    }, req);
   } catch (error) { rethrowTransaction(error); }
   return res.json({ status: 'DELETED', scope: 'ONE_RUNWAY_SNAPSHOT' });
 }));
@@ -512,6 +562,20 @@ router.delete('/data', asyncHandler(async (req, res) => {
   if (req.body.confirmation !== 'DELETE_RUNWAY_DATA') throw failure(400, 'RUNWAY_DELETE_CONFIRMATION', 'Explicit deletion confirmation required.');
   requireRecentSession(req);
   await inTransaction(async session => {
+    const previousFence = await RunwayErasureFence.findById(userId).session(session).lean();
+    const erasedAt = new Date();
+    if (!previousFence) {
+      await RunwayErasureFence.create([{ _id: userId, generation: 1, erasedAt }], { session });
+    } else {
+      requirePostErasureAuthentication(req, {
+        ...previousFence, erasedAt: null,
+      });
+      const updated = await RunwayErasureFence.updateOne(
+        { _id: userId, generation: previousFence.generation },
+        { $inc: { generation: 1 }, $set: { erasedAt } }, { session });
+      if (updated.matchedCount !== 1) throw failure(409, 'RUNWAY_ERASURE_CONFLICT',
+        'Concurrent changes prevented safe erasure. Retry.');
+    }
     await RunwaySnapshot.deleteMany({ userId }, { session });
     await RunwaySnapshotDeletion.deleteMany({ userId }, { session });
     await RunwayMutationReceipt.deleteMany({ userId }, { session });
@@ -523,8 +587,9 @@ router.delete('/data', asyncHandler(async (req, res) => {
     await RunwayAlert.deleteMany({ userId }, { session });
     await RunwayLedgerRevision.deleteMany({ userId }, { session });
     await RunwayLedgerState.deleteOne({ _id: userId }, { session });
-  });
-  return res.json({ status: 'DELETED', scope: 'RUNWAY_PRIMARY_DATABASE', backupExpiryVerified: false });
+  }, req);
+  return res.json({ status: 'DELETED', scope: 'RUNWAY_PRIMARY_FINANCIAL_RECORDS',
+    minimalErasureFenceRetained: true, backupExpiryVerified: false });
 }));
 
 export default router;

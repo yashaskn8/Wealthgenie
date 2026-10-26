@@ -24,6 +24,7 @@ import {
 import { compareVerifiedFixedIncomeProducts } from './fixedIncomeProductRanking.js';
 import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
 import { retrieveChatGoalPlanningEvidence } from './chatGoalPlanning.js';
+import { retrieveIndicSipScenarioEvidence } from './indicSipScenarioEvidence.js';
 import { retrieveQualifiedRegulatoryChatEvidence } from './chatRegulatoryRetrieval.js';
 import { queryRAG } from './ragClient.js';
 import { PrometheusMetrics } from './metricsCollector.js';
@@ -1070,7 +1071,8 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
       .map(turn => turn.content),
   });
   const taxAssumptionEvidence = retrieveTaxAssumptionEvidence(question);
-  const entries = [...goalEvidence, ...taxAssumptionEvidence, ...retrieveChatEducationalEvidence(question)];
+  const entries = [...goalEvidence, ...taxAssumptionEvidence,
+    ...retrieveIndicSipScenarioEvidence(question), ...retrieveChatEducationalEvidence(question)];
   if (isPortfolioReviewQuestion(question)) {
     entries.push(makeEvidenceEntry('E_PORTFOLIO_REVIEW_SCOPE', 'ANSWER_BOUNDARY',
       { sourceType: 'SAVED_MODEL_RECOMMENDATION', verifiedBrokerageHoldings: false }, {

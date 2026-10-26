@@ -12,13 +12,19 @@ const idempotencyKeySchema = new mongoose.Schema({
   requestHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
   lockOwnerId: { type: String, default: null },
   leaseExpiresAt: { type: Date, default: null },
-  resourceType: { type: String, enum: ['FinancialProfile', 'Goal', null], default: null },
+  resourceType: { type: String, enum: ['FinancialProfile', 'Goal', 'CoverageResult', 'CoverageDeletionReceipt', null], default: null },
   resourceId: { type: mongoose.Schema.Types.ObjectId, default: null },
   response: { type: mongoose.Schema.Types.Mixed, default: null },
   responseStatus: { type: Number, min: 200, max: 299, default: null },
   committedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
 }, { strict: 'throw' });
+
+// Used for bounded per-owner cash mutation cleanup at financial data deletion.
+// Only the explicit migration installs this index on deployed databases.
+idempotencyKeySchema.index({ userId: 1, operation: 1 }, {
+  name: 'idx_idempotency_owner_operation',
+});
 
 protectImmutableIdentity(idempotencyKeySchema, ['operation', 'method', 'userId', 'requestHash'], {
   code: 'IDEMPOTENCY_IDENTITY_IMMUTABLE',

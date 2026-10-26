@@ -1,6 +1,6 @@
 import{describe,it}from'node:test';
 import assert from'node:assert/strict';
-import{isApprovedPublicResearchUrl}from'../../extensions/genievoice-browser/publicSourcePolicy.mjs';
+import{isApprovedPublicResearchUrl,isSameApprovedPublicResearchPage}from'../../extensions/genievoice-browser/publicSourcePolicy.mjs';
 describe('GenieVoice browser inspector URL policy',()=>{
   it('accepts only approved public authority HTTPS hosts',()=>{
     for(const url of ['https://rbi.org.in/','https://www.sebi.gov.in/','https://www.indiapost.gov.in/'])
@@ -23,5 +23,12 @@ describe('GenieVoice browser inspector URL policy',()=>{
       'https://www.indiapost.gov.in/transactions','not a url',
       null, 'x'.repeat(2050)
     ])assert.equal(isApprovedPublicResearchUrl(url),false,String(url).slice(0,120));
+  });
+  it('never treats another approved tab or private URL variant as the same user-selected page',()=>{
+    assert.equal(isSameApprovedPublicResearchPage('https://rbi.org.in/public','https://rbi.org.in/public'),true);
+    assert.equal(isSameApprovedPublicResearchPage('https://rbi.org.in/public','https://sebi.gov.in/public'),false);
+    assert.equal(isSameApprovedPublicResearchPage('https://rbi.org.in/public','https://rbi.org.in/other'),false);
+    assert.equal(isSameApprovedPublicResearchPage('https://rbi.org.in/public','https://rbi.org.in/public?token=secret'),false);
+    assert.equal(isSameApprovedPublicResearchPage('https://rbi.org.in/public',null),false);
   });
 });

@@ -45,6 +45,20 @@ test('rejects formula injection, missing references, giant CSV and malformed quo
   ]) assert.throws(() => parse(bad));
   assert.throws(() => parse(csv, '=HYPERLINK()'));
 });
+test('rejects Unicode direction overrides that can spoof imported payees or references', () => {
+  for (const spoof of [
+    csv.replace('Rent', 'Rent\u202Eliated'),
+    csv.replace('TXN2', 'TXN\u2066fake\u2069'),
+    csv.replace('UPI transfer', 'UPI\u200F transfer'),
+  ]) {
+    assert.throws(() => parse(spoof));
+  }
+  assert.throws(() => parse(csv, 'Household\u202Etnuocca'));
+  // Devanagari and ordinary right-to-left script are valid content;
+  // reject only control formatting characters, not language itself.
+  assert.doesNotThrow(() => parse(csv.replace('Rent', 'किराया'), 'बचत खाता'));
+});
+
 test('handles one row, negative overdraft balances, quoted commas and zero-sized opening', () => {
   const one = parse(['date,description,debit,credit,balance,reference',
     '2026-10-23,"ATM, main branch",200.00,0,-200.00,abc'].join('\n'));

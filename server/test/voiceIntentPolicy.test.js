@@ -34,8 +34,79 @@ describe('Sovereign X fail-closed voice policy',()=>{
     }
   });
   it('rejects control characters, long payloads and invalid types',()=>{
-    for(const input of ['', ' ', 'open\u0000goals','x'.repeat(1001),null,{},[]]){
+    for(const input of ['', ' ', 'open\u0000goals','open\ngoals',
+      'open\rgoals','open\tgoals','open goals\n',
+      'open\nsip comparison','open\u2028goals','open\u2029goals',
+      'open\u200Bgoals','open goals\uFEFF','x'.repeat(1001),null,{},[]]){
       assert.equal(classifyVoiceIntent(input).action,'REJECTED');
     }
   });
+  it('accepts conversational invocations without extending the action allowlist',()=>{
+    for (const input of ['Hey Genie, open my goals','Genie, bring up my profile',
+      'could you please show investment options','can you navigate to the taxes page']) {
+      assert.equal(classifyVoiceIntent(input).action,'APP_NAVIGATE',input);
+    }
+    assert.equal(classifyVoiceIntent('Hey Genie, what is SIP?').action,'CHAT');
+    assert.equal(classifyVoiceIntent('Genie, open a random route').reason,'UNSUPPORTED_NAVIGATION');
+    assert.equal(classifyVoiceIntent('Hey Genie, open my account and transfer money').action,'REJECTED');
+  });
+
+  it('answers educational finance questions without granting transaction powers',()=>{
+    for (const question of [
+      'How does buying a mutual fund work?',
+      'What happens if I sell my shares?',
+      'Could you explain rebalancing my portfolio?',
+      'Why does a withdrawal change the investment projection?',
+    ]) {
+      const response=classifyVoiceIntent(question);
+      assert.equal(response.action,'CHAT',question);
+    }
+    for (const command of [
+      'Could you transfer my money?',
+      'Can you please buy shares?',
+      'How do I send money to https://bad.example',
+      'Tell me about buying; execute trade',
+    ]) {
+      assert.equal(classifyVoiceIntent(command).action,'REJECTED',command);
+    }
+  });
+
+  it('recognizes only reviewed Hindi and Kannada commands',()=>{
+    const canonical=[
+      ['लक्ष्य खोलो','goals'],
+      ['सिप प्लानर खोलो','grow-my-sip'],
+      ['ಟೆರೆ',null],
+      ['ಗುರಿಗಳನ್ನು ತೆರೆ','goals'],
+      ['ಸಿಪ್ ಪ್ಲಾನರ್ ತೆರೆ','grow-my-sip'],
+      ['ತೆರಿಗೆ ವಿಶ್ಲೇಷಣೆ ತೆರೆ','taxes'],
+    ];
+    for(const [question,page] of canonical){
+      const result=classifyVoiceIntent(question);
+      if(page){
+        assert.equal(result.action,'APP_NAVIGATE',question);
+        assert.equal(result.page,page,question);
+      }else assert.notEqual(result.action,'APP_NAVIGATE',question);
+    }
+    assert.equal(classifyVoiceIntent('सिप तुलना खोलो').action,'OPEN_SIP_COMPARISON');
+    assert.equal(classifyVoiceIntent('ಸಿಪ್ ಹೋಲಿಕೆ ತೆರೆ').action,'OPEN_SIP_COMPARISON');
+    assert.equal(classifyVoiceIntent('ಜಿನಿ, ಗುರಿಗಳನ್ನು ತೆರೆ').page,'goals');
+    assert.equal(classifyVoiceIntent('ಜಿನಿ, ಎಸ್‌ಐಪಿ ಪ್ಲಾನರ್ ತೆರೆ').page,'grow-my-sip');
+    assert.equal(classifyVoiceIntent('open\u200Cgoals').action,'REJECTED');
+    assert.equal(classifyVoiceIntent('ගುರಿಗಳನ್ನು ತೆರೆ').action,'REJECTED');
+  });
+  it('never executes mixed-language commands or financial transfers',()=>{
+    for(const value of [
+      'लक्ष्य खोलो और पैसे ट्रांसफर करो',
+      'शेयर खरीदो',
+      'गುರಿಗಳನ್ನು ತೆರೆ ಮತ್ತು ಹಣ ವರ್ಗಾಯಿಸಿ',
+      'ಹಣ ಕಳುಹಿಸಿ',
+      'बैंक वेबसाइट खोलो',
+      'ನಕಲಿ ಪುಟ ತೆರೆ'
+    ]){
+      assert.equal(classifyVoiceIntent(value).action,'REJECTED',value);
+    }
+    assert.equal(classifyVoiceIntent('एसआईपी के बारे में क्या है?').action,'CHAT');
+    assert.equal(classifyVoiceIntent('ಸಿಪ್ ಎಂದರೇನು?').action,'CHAT');
+  });
+
 });

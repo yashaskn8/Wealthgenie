@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
-import { canonicalSha256 } from '../utils/canonicalJson.js';
+import { canonicalSha256, canonicalJson } from '../utils/canonicalJson.js';
+import { encryptRunwayProjectionResult, decryptRunwayProjectionResult } from '../services/runwayEvidenceCrypto.js';
 import { createRunwaySeal, createRunwayLedgerSeal, RUNWAY_SEAL_VERSION } from '../services/runwaySeal.js';
 import User from '../models/User.js';
 import FinancialProfile from '../models/FinancialProfile.js';
 import Goal from '../models/Goal.js';
 import Recommendation from '../models/Recommendation.js';
-import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt } from '../models/Runway.js';
+import { RunwayLedgerState, RunwayLedgerRevision, RunwaySnapshot, RunwaySnapshotDeletion, RunwayMutationReceipt, RunwayErasureFence } from '../models/Runway.js';
 import { RunwayStatement, RunwaySignal, RunwaySettlement } from '../models/RunwayEvidence.js';
 import { RunwayProjectionJob, RunwayProjectionResult, RunwayAlert } from '../models/RunwayProjection.js';
 import { processOneRunwayProjection } from '../services/runwayProjectionOutbox.js';
@@ -37,6 +38,10 @@ const token = id => jwt.sign({
 test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recompute and deletion', async () => {
   await setupTestDatabase({ requireReplicaSet: true });
   try {
+    await RunwayErasureFence.createCollection();
+    await RunwayErasureFence.collection.createIndex({ erasedAt: 1 }, {
+      name: 'runway_erasure_fence_retention', expireAfterSeconds: 7 * 24 * 60 * 60,
+    });
     await RunwayLedgerRevision.collection.createIndex({ userId: 1, revision: 1 }, {
       unique: true, name: 'uniq_runway_ledger_revision',
     });
@@ -132,6 +137,43 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(validProjection.result.encryptionVersion, 'RUNWAY_PROJECTION_AES256GCM_V1');
       assert.equal(JSON.stringify(validProjection.result).includes('Rent'), false);
       assert.equal(JSON.stringify(validProjection.result).includes('12000'), false);
+      // Recreate a cryptographically valid projection signed by the prior
+      // calculation engine. Historical signed data must remain authentic,
+      // but cannot be served as a current financial forecast or risk alert.
+      const historicalPlaintext = {
+        ...decryptRunwayProjectionResult(validProjection),
+        engineVersion: 'runway-cashflow-1.2.0',
+      };
+      const historical = {
+        ...validProjection, engineVersion: 'runway-cashflow-1.2.0',
+        resultHash: canonicalSha256(historicalPlaintext),
+      };
+      historical.result = encryptRunwayProjectionResult({
+        ...historical, result: historicalPlaintext,
+      });
+      historical.sealHmac = crypto.createHmac('sha256',
+        Buffer.from(process.env.RUNWAY_INTEGRITY_SECRET, 'hex'))
+        .update('wealthgenie:runway:projection-result:v1:')
+        .update(canonicalJson({
+          id: String(historical._id), userId: String(historical.userId),
+          revision: historical.revision, inputHash: historical.inputHash,
+          engineVersion: historical.engineVersion, resultHash: historical.resultHash,
+          result: historical.result, computedAt: historical.computedAt,
+        })).digest('hex');
+      await RunwayProjectionResult.collection.replaceOne({ _id: projectionId }, historical);
+      await RunwayAlert.collection.updateOne({ userId: userA, projectionId },
+        { $set: { resultHash: historical.resultHash } });
+      const historicalProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
+      assert.equal(historicalProjection.response.status, 200, JSON.stringify(historicalProjection.body));
+      assert.equal(historicalProjection.body.status, 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED');
+      assert.equal(historicalProjection.body.result, undefined);
+      const historicalAlerts = await jsonRequest(ownedBase + 'live/alerts', { headers: authA });
+      assert.equal(historicalAlerts.response.status, 200, JSON.stringify(historicalAlerts.body));
+      assert.equal(historicalAlerts.body.status, 'HISTORICAL_ENGINE_RECONFIRM_REQUIRED');
+      assert.deepEqual(historicalAlerts.body.items, []);
+      await RunwayProjectionResult.collection.replaceOne({ _id: projectionId }, validProjection);
+      await RunwayAlert.collection.updateOne({ userId: userA, projectionId },
+        { $set: { resultHash: validProjection.resultHash } });
       await RunwayProjectionResult.collection.updateOne({ _id: projectionId },
         { $set: { resultHash: 'f'.repeat(64) } });
       const corruptedProjection = await jsonRequest(ownedBase + 'live/projection', { headers: authA });
@@ -437,6 +479,14 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       });
       assert.equal(deleted.response.status, 200);
       assert.equal(deleted.body.status, 'DELETED');
+      assert.equal(deleted.body.minimalErasureFenceRetained, true);
+      const fence = await RunwayErasureFence.findById(userA).lean();
+      assert.ok(fence?.erasedAt instanceof Date);
+      const replayAfterErasure = await write(base, ledger, 0, 'runway-initial-001');
+      assert.equal(replayAfterErasure.response.status, 403,
+        'An old valid same-day token and original key must not recreate deleted cash data.');
+      assert.equal(replayAfterErasure.body.code, 'RUNWAY_REAUTH_AFTER_ERASURE_REQUIRED');
+      assert.equal(await RunwayLedgerState.countDocuments({ _id: userA }), 0);
       assert.equal(await RunwayLedgerRevision.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySnapshot.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwaySnapshotDeletion.countDocuments({ userId: userA }), 0);
@@ -447,10 +497,45 @@ test('Runway Mongo: owner isolation, CAS race, persisted replay, snapshot recomp
       assert.equal(await RunwayProjectionResult.countDocuments({ userId: userA }), 0);
       assert.equal(await RunwayAlert.countDocuments({ userId: userA }), 0);
       const missing = await jsonRequest(ownedBase + 'snapshots/' + snapshot.body.snapshotId, { headers: authA });
-      assert.equal(missing.response.status, 404);
+      assert.equal(missing.response.status, 403);
+      assert.equal(missing.body.code, 'RUNWAY_REAUTH_AFTER_ERASURE_REQUIRED');
       assert.equal(await FinancialProfile.countDocuments({ userId: userA }), 0);
       assert.equal(await Goal.countDocuments({ userId: userA }), 0);
       assert.equal(await Recommendation.countDocuments({ userId: userA }), 0);
+      // A deliberate new sign-in can start a new self-managed ledger;
+      // old pre-erasure sessions cannot silently replay the deleted one.
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      const newAuth = { Authorization: 'Bearer ' + token(userA) };
+      const intentionalRestart = await write(base, ledger, 0, 'runway-restart-001', newAuth);
+      assert.equal(intentionalRestart.response.status, 201, JSON.stringify(intentionalRestart.body));
+      assert.equal(intentionalRestart.body.revision, 1);
+      // The original still-valid session must not read or modify a deliberate
+      // post-erasure replacement, even when it knows current revision numbers.
+      const staleCurrent = await jsonRequest(ownedBase + 'current', { headers: authA });
+      assert.equal(staleCurrent.response.status, 403);
+      assert.equal(staleCurrent.body.code, 'RUNWAY_REAUTH_AFTER_ERASURE_REQUIRED');
+      const staleOverview = await jsonRequest(ownedBase + 'live/overview', { headers: authA });
+      assert.equal(staleOverview.response.status, 403);
+      const staleImport = await jsonRequest(ownedBase + 'live/statements', {
+        method: 'POST', headers: { ...authA, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountLabel: 'stale', csvText: 'invalid' }),
+      });
+      assert.equal(staleImport.response.status, 403);
+      const staleUpdate = await write(base, ledger, 1, 'runway-stale-after-erasure');
+      assert.equal(staleUpdate.response.status, 403);
+      assert.equal((await RunwayLedgerState.findById(userA).lean()).revision, 1);
+      const validReplacement = await jsonRequest(ownedBase + 'current', { headers: newAuth });
+      assert.equal(validReplacement.response.status, 200);
+      assert.equal(validReplacement.body.revision, 1);
+      // The test re-created an outbox job. Do not leave its pending work in
+      // the shared external CI replica set: subsequent worker tests must
+      // observe only the jobs they create.
+      const cleanup = await jsonRequest(ownedBase + 'data', {
+        method: 'DELETE', headers: { ...newAuth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE_RUNWAY_DATA' }),
+      });
+      assert.equal(cleanup.response.status, 200, JSON.stringify(cleanup.body));
+      assert.equal(await RunwayProjectionJob.countDocuments({ userId: userA }), 0);
     });
   } finally {
     await teardownTestDatabase();
@@ -462,6 +547,10 @@ test('Runway settlement: user-confirmed cash, bank-evidence ambiguity, idempoten
   await setupTestDatabase({ requireReplicaSet: true });
   try {
     // These are the same explicitly migrated indexes checked by readiness.
+    await RunwayErasureFence.createCollection();
+    await RunwayErasureFence.collection.createIndex({ erasedAt: 1 }, {
+      name: 'runway_erasure_fence_retention', expireAfterSeconds: 7 * 24 * 60 * 60,
+    });
     await RunwayLedgerRevision.collection.createIndex({ userId: 1, revision: 1 },
       { name: 'uniq_runway_ledger_revision', unique: true });
     await RunwaySnapshot.collection.createIndex({ userId: 1, createdAt: -1 },
