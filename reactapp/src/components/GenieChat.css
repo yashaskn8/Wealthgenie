@@ -928,3 +928,38 @@ input[type="range"].sandbox-slider::-moz-range-thumb:hover {
 .font-bold { font-weight: 800 !important; }
 .border-t { border-top: 1px solid rgba(255,255,255,0.08) !important; }
 .border-b { border-bottom: 1px solid rgba(255,255,255,0.08) !important; }
+
+/* Strictly opt-in, backend-derived feature guidance. Never executable by voice alone. */
+.genie-feature-suggestion {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid rgba(125, 211, 252, .3);
+  background: rgba(14, 165, 233, .08);
+  border-radius: 10px;
+}
+.genie-feature-suggestion-label {
+  color: #cbd5e1;
+  flex-basis: 100%;
+  font-size: .7rem;
+}
+.genie-feature-suggestion button {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  color: #e0f2fe;
+  background: rgba(14, 165, 233, .18);
+  border: 1px solid rgba(56, 189, 248, .45);
+  border-radius: 8px;
+  font-size: .76rem;
+  cursor: pointer;
+  min-height: 36px;
+}
+.genie-feature-suggestion button:hover { background: rgba(14,165,233,.26); }
+.genie-feature-suggestion button:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}

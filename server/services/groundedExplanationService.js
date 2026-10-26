@@ -27,6 +27,7 @@ import { retrieveChatEducationalEvidence } from './chatEducationalRetrieval.js';
 import { retrieveInvestmentUniverseEducation, retrieveGoalHorizonEducation } from './chatInvestmentUniverseEducation.js';
 import { retrieveInvestmentScenarioEducation } from './chatInvestmentScenarioEducation.js';
 import { retrieveChatGoalPlanningEvidence } from './chatGoalPlanning.js';
+import { retrieveIndicSipScenarioEvidence } from './indicSipScenarioEvidence.js';
 import { retrieveQualifiedRegulatoryChatEvidence } from './chatRegulatoryRetrieval.js';
 import { queryRAG } from './ragClient.js';
 import { PrometheusMetrics } from './metricsCollector.js';
@@ -1105,6 +1106,7 @@ export async function buildChatEvidencePacket({ question, profile, recommendatio
     ...goalEvidence,
     ...retrieveGoalHorizonEducation(question, goalEvidence),
     ...taxAssumptionEvidence,
+    ...retrieveIndicSipScenarioEvidence(question),
     ...retrieveChatEducationalEvidence(question),
     ...retrieveInvestmentUniverseEducation(question),
     ...retrieveInvestmentScenarioEducation(question, { allowAccountContext: Boolean(userId && profile) }),

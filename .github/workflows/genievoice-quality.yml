@@ -1,0 +1,72 @@
+name: GenieVoice Production Hardening Checks
+
+on:
+  push:
+    branches:
+      - feature/genievoice-production-hardening-20261025
+      - feature/genievoice-contextual-feature-guidance-20261026
+      - feature/genievoice-v5-multilingual-scenarios-20261026
+      - feature/genievoice-v6-redteam-hardening-20261026
+      - feature/genievoice-v7-scenario-fuzz-20261026
+      - feature/genievoice-v7-scenario-evaluation-20261026
+      - feature/genievoice-v8-audio-policy-20261026
+  pull_request:
+    branches:
+      - feature/genievoice-jarvis-conversation-20261025
+      - feature/genievoice-production-hardening-20261025
+      - feature/genievoice-v7-scenario-evaluation-20261026
+      - feature/genievoice-v8-audio-policy-20261026
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: genievoice-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  voice-frontend:
+    name: Voice UI Tests, Lint and Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: reactapp/package-lock.json
+      - run: npm ci
+        working-directory: reactapp
+      - run: npm run lint
+        working-directory: reactapp
+      - run: npm run typecheck
+        working-directory: reactapp
+      - name: Verify voice trust policy and conversation lifecycle
+        run: npm test -- src/utils/__tests__/voiceRuntimePolicy.test.js src/components/__tests__/SovereignVoiceControl.test.jsx src/components/__tests__/GenieChatState.test.jsx src/components/__tests__/GenieFeatureSuggestion.test.jsx src/utils/__tests__/featureNavigationCard.test.js src/utils/__tests__/voiceLanguagePolicy.test.js src/utils/__tests__/voiceFinancialTranscriptReview.test.js
+        working-directory: reactapp
+      - run: npm run build
+        working-directory: reactapp
+
+  voice-backend:
+    name: Voice Authorization and API Regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - run: npm run lint
+        working-directory: server
+      - run: node --test test/voiceIntentPolicy.test.js test/voiceRoutes.test.js test/featureSuggestionPolicy.test.js test/indicSipScenarioEvidence.test.js test/voiceScenarioFuzz.test.js test/genieScenarioCorpus.test.js test/indicFinancialEducation.test.js test/chatEducationalRetrieval.test.js
+        working-directory: server
