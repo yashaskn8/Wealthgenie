@@ -68,3 +68,40 @@ workflow may report success while its deployment job is skipped.
 5. **End-to-end validation**: privacy/security audit, accessibility,
    real-device reliability, rollout kill switch, rollback, and non-skipped
    deployment smoke tests remain release conditions.
+
+## Red-team cycles 2–3: attack, regression, hardening
+
+After the first timer, session and numeric review fixes, another review
+identified additional unsafe state equivalences and voice-control gaps.
+
+### Round 2 — identity and authority substitution
+
+- A previously rendered answer can have identical words and evidence IDs to
+  the answer returned by a **different** chat request. New authenticated voice
+  replies now carry the originating client-side idempotency `_turnKey` already
+  assigned to the stored/rendered message. When either side carries a key,
+  narration requires both keys to match. This is a UI correlation safeguard,
+  not a user-controlled backend authorization token.
+- Replacing an answer while audio is speaking must cancel playback even if the
+  new answer has identical words. Narration is now invalidated by mismatched
+  verified answer/evidence/turn provenance, not merely a string inequality.
+- Indirect imperatives such as requests for Genie to move money, redeem funds
+  or set account risk were incorrectly routed into ordinary hands-free chat by
+  educational-question heuristics. The server voice interpreter now rejects
+  delegated action formulations and additional mutating verbs. Questions
+  about what a user may do continue to be classified as educational.
+
+### Round 3 — legacy microphone / chat send overlap
+
+- The push-to-talk microphone must stop before closing a chat; the close
+  gesture now invalidates the current recognition epoch synchronously.
+- Starting or continuing legacy microphone capture while a chat send, clear or
+  rate-limit restriction is active is prohibited. Stale callbacks cannot
+  append dictated text to a new request while an earlier request is pending.
+- Tests simulate a delayed browser ASR callback delivered after an authenticated
+  chat request begins and verify it is ignored.
+
+Release checks required: Vitest voice and GenieChat suites, server voice-intent
+policy tests, frontend lint/typecheck/build, full GitHub CI, post-merge main
+checks, and separately verified cluster smoke tests. This record lists test
+scenarios; it does not certify absence of other attack paths.
