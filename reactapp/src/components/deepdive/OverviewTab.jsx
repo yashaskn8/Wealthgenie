@@ -231,7 +231,7 @@ const OverviewTab = ({ inv, comparisonData, onSelectInvestment }) => {
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '6px' }}>{alt.category}</div>
                 <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem' }}>
-                  <span style={{ color: '#22c55e' }}>Model assumption: {formatCatalogRate(alt.expectedReturn)}</span>
+                  <span style={{ color: '#22c55e' }}>{alt.returnDataClass === 'UNAVAILABLE' ? 'Product return unavailable' : `Model assumption: ${formatCatalogRate(alt.expectedReturn)}`}</span>
                   <span style={{ color: alt.riskLabel?.includes?.('High') ? '#f43f5e' : '#94a3b8' }}>{alt.riskLabel || 'Unavailable'}</span>
                 </div>
               </button>
@@ -289,8 +289,8 @@ const OverviewTab = ({ inv, comparisonData, onSelectInvestment }) => {
             <div><span style={{ color: '#64748b' }}>Reviewed By:</span> <span style={{ color: '#94a3b8', fontWeight: 600 }}>{metadata.reviewedBy}</span></div>
             <div><span style={{ color: '#64748b' }}>Confidence:</span> <span style={{ color: metadata.sourceConfidence === 'High' ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>{metadata.sourceConfidence}</span></div>
             <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#64748b' }}>Return Classification:</span> <span style={{ color: '#94a3b8', fontWeight: 600 }}>{inv.returnDataClass === 'UNAVAILABLE'
-              ? 'UNAVAILABLE · No current bank quote is available in this catalog'
-              : `MODEL_ASSUMPTION · ${inv.returnAssumptionVersion || 'wealthgenie-projection-assumptions-1.0.0'} · not an observed market fact or provider forecast`}</span></div>
+              ? 'UNAVAILABLE · No qualified product return is available for this entry'
+              : `MODEL_ASSUMPTION · ${inv.returnAssumptionVersion || 'Version unavailable'} · not an observed market fact or provider forecast`}</span></div>
             {returnSource && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#64748b' }}>Legacy Catalog Citation:</span> <span style={{ color: '#94a3b8', fontWeight: 600 }}>{returnSource} ({returnLastUpdated}) — reference metadata only</span></div>}
           </div>
         </div>

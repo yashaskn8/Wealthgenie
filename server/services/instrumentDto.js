@@ -1,3 +1,5 @@
+import { investmentDatabase } from '../data/investmentDatabase.js';
+
 const PUBLIC_INSTRUMENT_FIELDS = Object.freeze([
   'id', 'name', 'abbr', 'type', 'category', 'cat', 'subCategory', 'assetClass', 'provider',
   'expectedReturn', 'rate', 'returnRange', 'interestRate', 'interestRateSenior',
@@ -20,9 +22,24 @@ function pick(value, fields) {
     .map(field => [field, value[field]]));
 }
 
+// Old Mongo rows may still contain fictitious category returns or blanket tax
+// claims for these discovery entries. A routine seed
+// preserves stored financial fields, so the public read boundary must use the
+// reviewed catalog record, including when reserializing Redis cache entries.
+const reviewedDiscoveryEntries = new Map(
+  ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks'].map(id => {
+    const entry = investmentDatabase.find(item => item.id === id);
+    if (!entry || entry.returnDataClass !== 'UNAVAILABLE') {
+      throw new Error('DISCOVERY_CATALOG_UNQUALIFIED:' + id);
+    }
+    return [id, entry];
+  }),
+);
+
 /** Serialize catalog records through an explicit public allowlist. */
 export function serializeInstrument(instrument) {
-  const record = plain(instrument);
+  const persisted = plain(instrument);
+  const record = reviewedDiscoveryEntries.get(persisted?.id) || persisted;
   if (!record || typeof record.id !== 'string' || record.id.length === 0
       || typeof record.name !== 'string' || record.name.length === 0) {
     const error = new Error('Instrument catalog record is missing its public identity.');

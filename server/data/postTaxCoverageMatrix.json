@@ -5537,7 +5537,7 @@
       "category": "Insurance-linked",
       "canonicalInstrumentId": "ulip",
       "name": "Unit Linked Insurance Plan",
-      "economicType": "Mutual_Fund",
+      "economicType": "Insurance_Archetype",
       "productDiscovery": {
         "provider": null,
         "status": "UNSUPPORTED_FAIL_CLOSED",
@@ -5588,7 +5588,7 @@
       "category": "Insurance-linked",
       "canonicalInstrumentId": "endowment_plan",
       "name": "Endowment Insurance Policy",
-      "economicType": "Mutual_Fund",
+      "economicType": "Insurance_Archetype",
       "productDiscovery": {
         "provider": null,
         "status": "UNSUPPORTED_FAIL_CLOSED",
@@ -5639,7 +5639,7 @@
       "category": "Insurance-linked",
       "canonicalInstrumentId": "term_mf_combo",
       "name": "Term Insurance + Mutual Fund",
-      "economicType": "Mutual_Fund",
+      "economicType": "Planning_Strategy",
       "productDiscovery": {
         "provider": null,
         "status": "UNSUPPORTED_FAIL_CLOSED",
@@ -5690,7 +5690,7 @@
       "category": "Direct Equity",
       "canonicalInstrumentId": "bluechip_stocks",
       "name": "Nifty 50 Blue-Chip Stocks",
-      "economicType": "ETF",
+      "economicType": "Equity_Archetype",
       "productDiscovery": {
         "provider": null,
         "status": "UNSUPPORTED_FAIL_CLOSED",

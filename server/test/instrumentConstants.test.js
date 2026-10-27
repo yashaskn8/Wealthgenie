@@ -32,6 +32,14 @@ test('projection and product-ranking returns retain separate versioned model-ass
   }
 
   for (const instrument of investmentDatabase) {
+    if (instrument.returnDataClass === 'UNAVAILABLE') {
+      assert.equal(instrument.expectedReturn, null, `Unavailable product return must stay null for ${instrument.id}`);
+      assert.equal(instrument.returnAssumptionVersion, null);
+      assert.equal(instrument.returnAssumptionHash, null);
+      assert.equal(instrument.returnSource, null);
+      assert.equal(instrument.providerForecast, false);
+      continue;
+    }
     assert.ok(Number.isFinite(instrument.expectedReturn), `Product ranking assumption must exist for ${instrument.id}`);
     assert.equal(instrument.returnDataClass, PROJECTION_ASSUMPTION_DATA_CLASS);
     assert.equal(instrument.returnAssumptionVersion, PROJECTION_ASSUMPTION_VERSION);

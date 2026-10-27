@@ -24,7 +24,7 @@ const instrumentDetailSchema = new mongoose.Schema({
   effectiveYield: { type: Number, min: -100, max: 100, required: true },
   returnBasis: { type: String, enum: ['PRE_TAX_NOMINAL'], required: true },
   returnDataClass: { type: String, enum: ['MODEL_ASSUMPTION'], default: 'MODEL_ASSUMPTION', required: true },
-  returnAssumptionVersion: { type: String, default: 'wealthgenie-projection-assumptions-1.1.0', required: true },
+  returnAssumptionVersion: { type: String, default: 'wealthgenie-projection-assumptions-1.1.5', required: true },
   returnAssumptionHash: { type: String, match: /^[a-f0-9]{64}$/, default: null },
   returnSource: { type: String, enum: ['WEALTHGENIE_MODEL_POLICY'], default: 'WEALTHGENIE_MODEL_POLICY', required: true },
   observedMarketFact: { type: Boolean, enum: [false], default: false, required: true },

@@ -198,9 +198,9 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
       name: investment.name || investment.abbr,
     };
   }, [investment]);
-  const returnMin = Number(inv.expected_return_min);
-  const returnMax = Number(inv.expected_return_max);
-  const hasReturnRange = Number.isFinite(returnMin) && Number.isFinite(returnMax);
+  const returnMin = isPresentFiniteNumber(inv.expected_return_min) ? Number(inv.expected_return_min) : null;
+  const returnMax = isPresentFiniteNumber(inv.expected_return_max) ? Number(inv.expected_return_max) : null;
+  const hasReturnRange = returnMin !== null && returnMax !== null;
   const riskLevel = typeof inv.risk_level === 'string' ? inv.risk_level : '';
 
   React.useEffect(() => {
@@ -397,7 +397,9 @@ const DeepDiveModal = ({ isOpen, onClose, investment, onSelectInvestment, allRec
             <span className="premium-badge">{inv.category}</span>
             <h2 id="deepdive-modal-title" className="ddm-title">{inv.name}</h2>
             <span className="ddm-data-note">
-              {inv.returnDataClass || 'MODEL_ASSUMPTION'} · {inv.returnAssumptionVersion || 'wealthgenie-projection-assumptions-1.0.0'} · not an observed market fact or provider forecast
+              {inv.returnDataClass === 'UNAVAILABLE'
+                ? 'Product return unavailable — compare exact qualified products'
+                : `${inv.returnDataClass || 'MODEL_ASSUMPTION'} · ${inv.returnAssumptionVersion || 'Version unavailable'} · not an observed market fact or provider forecast`}
             </span>
           </div>
 

@@ -493,7 +493,7 @@ const SOURCE_UNAVAILABLE_IDS = new Set([
   'sgb_secondary', 'embassy_reit', 'mindspace_reit', 'brookfield_reit', 'nexus_reit',
   'indigrid_invit', 'powergrid_invit', 'aaa_corporate_bond', 'aa_corporate_bond',
   'tax_free_bonds', 'bharat_bond_direct', 'municipal_bonds', 'bonds_54ec', 'nps',
-  'nps_tier_2', 'epf', 'vpf', 'ulip', 'endowment_plan', 'term_mf_combo',
+  'nps_tier_2', 'epf', 'vpf', 'ulip', 'endowment_plan',
   'parag_parikh_flexi', 'sbi_bluechip', 'hdfc_midcap', 'mirae_elss', 'bajaj_finance_fd',
   'shriram_finance_fd', 'lic_housing_fd', 'pnb_housing_fd', 'mahindra_finance_fd',
   'jana_sfb_fd', 'suryoday_sfb_fd', 'esaf_sfb_fd', 'utkarsh_sfb_fd', 'rbi_retail_direct_gilt',

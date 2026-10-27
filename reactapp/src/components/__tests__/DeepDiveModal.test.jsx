@@ -64,6 +64,20 @@ it('keeps the retained investment detail tabs without exposing the crash stress 
   expect(screen.queryByRole('tab', { name: /stress test/i })).toBeNull();
 });
 
+it.each(['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks'])('%s shows an unavailable return without a fictitious 0%% or model version', id => {
+  render(<DeepDiveModal
+    isOpen
+    investment={{ id, name: id, category: 'Insurance-linked', returnDataClass: 'UNAVAILABLE',
+      nominalReturn: null, returnRange: { min: null, max: null } }}
+    onClose={vi.fn()}
+    allRecommendations={[]}
+  />);
+  const dialog = screen.getByRole('dialog', { name: id });
+  expect(dialog).toHaveTextContent('Product return unavailable');
+  expect(dialog).not.toHaveTextContent('0% p.a.');
+  expect(dialog).not.toHaveTextContent('wealthgenie-projection-assumptions-1.0.0');
+});
+
 it.each([
   ['missing', {}, 'Unavailable'],
   ['negative', { lock_in_years: -1 }, 'Unavailable'],

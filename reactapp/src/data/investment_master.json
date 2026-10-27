@@ -17945,70 +17945,60 @@
       "name": "Unit Linked Insurance Plan",
       "abbr": "ULIP",
       "category": "Insurance-linked",
-      "assetClass": "Equity",
+      "assetClass": "Insurance-linked",
       "color": "#db2777",
       "metadata": {
         "version": "1.0.0",
-        "lastUpdated": "2026-07-18",
-        "reviewedBy": "WealthGenie Team",
-        "sourceConfidence": "High"
+        "lastUpdated": "2026-10-27",
+        "reviewedBy": "Code-level catalog audit",
+        "sourceConfidence": "Not established"
       },
       "staticData": {
-        "description": "Hybrids combining term life insurance covers with market mutual fund units. Lock-in 5 years.",
+        "description": "A unit-linked insurance policy combines life cover with market-linked investment units. Charges, risk, benefit and tax treatment depend on the exact policy and investor facts.",
         "pros": [
-          "Provides attractive interest/growth yield of 10.0% p.a., outperforming traditional savings.",
-          "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "Allows convenient systematic investing via monthly SIPs beginning at ₹2000."
+          "Life cover and market-linked units are available within some individual policies; compare exact policy documents before choosing."
         ],
         "cons": [
-          "Locks your capital for 5 years, preventing early premature redemptions without significant penalties.",
-          "Exposed to moderate market risk and NAV fluctuations based on interest rate cycles.",
-          "Charges a relatively high annual expense ratio of 2.00%, which eats into compounding returns."
+          "Unit values can fall and policy charges vary. Individual ULIPs have a five-year regulatory lock-in; early discontinuance follows policy rules."
         ],
         "faq": [
           {
-            "question": "What is the entry limit for Unit Linked Insurance Plan?",
-            "answer": "To start investing in Unit Linked Insurance Plan, a minimum initial amount of ₹2,000 is required. The maximum annual contribution is capped at ₹2,50,000 by regulation."
+            "question": "What return is available?",
+            "answer": "No category-wide return is established. Market-linked unit values and insurer charges vary by exact policy."
           },
           {
-            "question": "How are returns from Unit Linked Insurance Plan taxed?",
-            "answer": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority. Best possible tax treatment."
+            "question": "How are proceeds taxed?",
+            "answer": "Tax treatment depends on issue date, premium history across policies, payout reason and current law. No universal exemption is established."
           },
           {
-            "question": "Can I close my Unit Linked Insurance Plan account before 5 years?",
-            "answer": "Premature closure of Unit Linked Insurance Plan is heavily restricted during the 5-year lock-in period. Early withdrawals are permitted only under specific emergency clauses (such as critical illness or higher education) or with a penalty fee."
+            "question": "Can I withdraw early?",
+            "answer": "Individual ULIPs have a five-year regulatory lock-in. Check the exact policy for discontinuance, partial withdrawal and surrender terms."
+          },
+          {
+            "question": "Where can I buy?",
+            "answer": "Review an exact insurer-issued policy and its benefit illustration through an authorized insurance channel."
           }
         ],
         "taxation": {
-          "type": "eee",
-          "section": "80C",
-          "taxFreeInterest": true,
-          "stcg": "Exempt",
-          "ltcg": "Exempt",
+          "type": null,
+          "section": null,
+          "taxFreeInterest": null,
+          "stcg": null,
+          "ltcg": null,
           "indexation": null,
-          "details": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "statutoryReferenceStatus": "LEGACY_OR_STATIC_CATALOG_NOT_CURRENT_AUTHORITY",
+          "details": "A product- and investor-specific fiscal-year tax calculation is required; no blanket exemption is established.",
+          "statutoryReferenceStatus": "UNVERIFIED_FOR_EXACT_POLICY",
           "currentStatuteAuthority": null
         },
         "whereToInvest": {
-          "howToStart": "Submit a direct mutual fund application on the AMC portal, or transact seamlessly on any popular mutual fund platform.",
-          "platforms": [
-            "AMC Portal",
-            "Groww",
-            "Zerodha Coin",
-            "Kuvera"
-          ]
+          "howToStart": "Compare exact insurer-issued policies, benefit illustrations, charges and risk disclosures through an authorized insurance channel.",
+          "platforms": []
         },
         "suitability": {
-          "idealFor": "Moderate risk-takers seeking a balanced growth profile over a 3–5 year investment cycle. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "whoShouldAvoid": "Investors who cannot tolerate any short-term capital dips or need guaranteed cash flows."
+          "idealFor": "Only investors whose protection need, risk capacity, horizon and exact policy charges pass an independent suitability review.",
+          "whoShouldAvoid": "Investors needing access before the regulatory lock-in ends or expecting a guaranteed market return."
         },
-        "trustBadge": {
-          "type": "sebi",
-          "label": "SEBI Regulated",
-          "body": "Mutual Fund Trust Structure",
-          "desc": "Regulated under SEBI (Mutual Funds) Regulations. Assets of Unit Linked Insurance Plan are held in independent client trusts."
-        },
+        "trustBadge": null,
         "alternatives": [
           "nps_tier_2",
           "nps",
@@ -18016,114 +18006,56 @@
           "hybrid_mf"
         ],
         "explainer": {
-          "what": "Hybrids combining term life insurance covers with market mutual fund units. Lock-in 5 years.",
-          "riskPlain": "Moderate market risk. The asset value will fluctuate slightly over short cycles.",
-          "lockInPlain": "Capital is locked in for 5 years. Premature withdrawals are highly restricted.",
-          "whoFor": "Moderate risk-takers seeking a balanced growth profile over a 3–5 year investment cycle. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
+          "what": "A unit-linked insurance policy combines life cover with market-linked investment units. Charges, risk, benefit and tax treatment depend on the exact policy and investor facts.",
+          "riskPlain": "Market-linked units can lose value; compare exact fund choices, charges and guarantees, if any.",
+          "lockInPlain": "Individual ULIPs have a five-year regulatory lock-in; exact withdrawal and discontinuance terms vary.",
+          "whoFor": "Investors whose exact policy and protection needs are independently suitable.",
           "example": null
         },
-        "cardSubtitle": "Hybrids combining term life insurance covers with market mutual fund units. Lock-in 5 years."
+        "cardSubtitle": "Compare exact insurer policies; no category return or blanket tax exemption."
       },
       "dynamicData": {
         "expectedReturn": {
-          "min": 6,
-          "avg": 10.25,
-          "max": 14.5,
-          "source": "Historical category averages (mid-2026)",
-          "lastUpdated": "July 2026"
+          "min": null,
+          "avg": null,
+          "max": null,
+          "source": null,
+          "lastUpdated": null,
+          "dataClass": "UNAVAILABLE"
         },
-        "expenseRatio": 0.02,
+        "expenseRatio": null,
         "interestRates": null,
         "fundSize": null,
-        "topSchemes": [
-          {
-            "name": "Unit Linked Insurance Plan via Zerodha Kite",
-            "provider": "Zerodha",
-            "rate": "~10.25% p.a.",
-            "highlight": "Zero brokerage on equity delivery investments with India's largest discount broker.",
-            "platform": "Zerodha Kite App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": "Top Discount Broker",
-            "sector": null
-          },
-          {
-            "name": "Unit Linked Insurance Plan via Groww",
-            "provider": "Groww",
-            "rate": "~10.25% p.a.",
-            "highlight": "Most beginner-friendly UI with instant paperless onboarding.",
-            "platform": "Groww App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": "Best Beginner UI",
-            "sector": null
-          },
-          {
-            "name": "Unit Linked Insurance Plan via Angel One",
-            "provider": "Angel One",
-            "rate": "~10.25% p.a.",
-            "highlight": "Full service research reports and automated trading tools.",
-            "platform": "Angel One App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "Unit Linked Insurance Plan via ICICI Direct",
-            "provider": "ICICI Direct",
-            "rate": "~10.25% p.a.",
-            "highlight": "3-in-1 integrated banking + demat + trading account convenience.",
-            "platform": "ICICI Direct Portal",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "Unit Linked Insurance Plan via Upstox / Kuvera",
-            "provider": "Upstox / Kuvera",
-            "rate": "~10.25% p.a.",
-            "highlight": "Low fee execution with direct portfolio analytics.",
-            "platform": "Upstox / Kuvera App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          }
-        ],
+        "topSchemes": [],
         "risk": {
-          "level": "Medium",
-          "value": 3,
-          "volatility": 0.11
+          "level": "Not established",
+          "value": null,
+          "volatility": null
         },
         "liquidity": {
-          "score": 2,
-          "type": "N/A",
-          "lockIn": 5
+          "score": null,
+          "type": null,
+          "lockIn": null
         },
-        "minMonthlyInvestment": 2000,
-        "maxAnnualInvestment": 250000,
+        "minMonthlyInvestment": null,
+        "maxAnnualInvestment": null,
         "idealHorizon": {
-          "min": 5,
-          "max": 15
+          "min": null,
+          "max": null
         },
-        "goalTags": [
-          "Tax Saving",
-          "Child Education"
-        ],
-        "taxType": "eee",
-        "taxEfficiencyScore": 4,
-        "lockIn": 5,
-        "liquidityScore": 2,
-        "volatility": 0.11,
-        "riskLevel": 3
+        "goalTags": [],
+        "taxType": null,
+        "taxEfficiencyScore": null,
+        "lockIn": null,
+        "liquidityScore": null,
+        "volatility": null,
+        "riskLevel": null
       },
       "eligibility": {
-        "minAge": 18,
+        "minAge": null,
         "maxAge": null,
-        "minAnnualIncome": 0,
-        "minMonthlySavings": 500,
+        "minAnnualIncome": null,
+        "minMonthlySavings": null,
         "notes": null,
         "requiresDemat": null,
         "hasGirlChild": null
@@ -18135,70 +18067,56 @@
       "name": "Endowment Insurance Policy",
       "abbr": "Endowment Plan",
       "category": "Insurance-linked",
-      "assetClass": "Debt",
+      "assetClass": "Insurance-linked",
       "color": "#9d174d",
       "metadata": {
         "version": "1.0.0",
-        "lastUpdated": "2026-07-18",
-        "reviewedBy": "WealthGenie Team",
-        "sourceConfidence": "High"
+        "lastUpdated": "2026-10-27",
+        "reviewedBy": "Code-level catalog audit",
+        "sourceConfidence": "Not established"
       },
       "staticData": {
-        "description": "Conservative traditional life policies. Guarantees low single-digit return compounding.",
+        "description": "An endowment policy combines life insurance with a policy-specific maturity benefit. Premiums, charges, contractual benefits and illustrative bonuses require the exact insurer illustration.",
         "pros": [
-          "Maintains low return volatility, securing your core capital against sudden market swings.",
-          "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "Allows convenient systematic investing via monthly SIPs beginning at ₹2000."
+          "Some policies specify guaranteed benefits; verify each promise in the insurer-issued policy and benefit illustration."
         ],
         "cons": [
-          "Locks your capital for 10 years, preventing early premature redemptions without significant penalties.",
-          "Conservative yield may fail to beat high inflation, resulting in flat real purchasing power over time.",
-          "Charges a relatively high annual expense ratio of 2.50%, which eats into compounding returns."
+          "Premium commitment, surrender value, charges and bonus uncertainty vary by policy. Early exit may reduce the amount received."
         ],
         "faq": [
           {
-            "question": "What is the entry limit for Endowment Insurance Policy?",
-            "answer": "To start investing in Endowment Insurance Policy, a minimum initial amount of ₹2,000 is required. There is no upper limit on the maximum amount you can invest."
+            "question": "What amount will I receive?",
+            "answer": "Check the exact insurer-issued benefit illustration. Separate guaranteed benefits from non-guaranteed bonuses and account for every premium and charge."
           },
           {
-            "question": "How are returns from Endowment Insurance Policy taxed?",
-            "answer": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority. Best possible tax treatment."
+            "question": "How is an endowment policy taxed?",
+            "answer": "Tax treatment depends on policy issue date, premiums, insured amount, payout and investor facts under the applicable fiscal-year rules. No universal exemption is established."
           },
           {
-            "question": "Can I close my Endowment Insurance Policy account before 10 years?",
-            "answer": "Premature closure of Endowment Insurance Policy is heavily restricted during the 10-year lock-in period. Early withdrawals are permitted only under specific emergency clauses (such as critical illness or higher education) or with a penalty fee."
+            "question": "Can I surrender early?",
+            "answer": "Check the exact policy's surrender and paid-up terms before purchase; no category-wide lock-in or payout can be quoted."
           }
         ],
         "taxation": {
-          "type": "eee",
-          "section": "80C",
-          "taxFreeInterest": true,
-          "stcg": "Exempt",
-          "ltcg": "Exempt",
+          "type": null,
+          "section": null,
+          "taxFreeInterest": null,
+          "stcg": null,
+          "ltcg": null,
           "indexation": null,
-          "details": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "statutoryReferenceStatus": "LEGACY_OR_STATIC_CATALOG_NOT_CURRENT_AUTHORITY",
+          "details": "An exact policy and investor-specific fiscal-year calculation is required; no blanket exemption is established.",
+          "statutoryReferenceStatus": "UNVERIFIED_FOR_EXACT_POLICY",
           "currentStatuteAuthority": null
         },
         "whereToInvest": {
-          "howToStart": "Submit a direct mutual fund application on the AMC portal, or transact seamlessly on any popular mutual fund platform.",
-          "platforms": [
-            "AMC Portal",
-            "Groww",
-            "Zerodha Coin",
-            "Kuvera"
-          ]
+          "howToStart": "Compare exact insurer-issued policies and benefit illustrations through an authorized insurance channel.",
+          "platforms": []
         },
         "suitability": {
-          "idealFor": "Low-risk individuals looking to park surplus savings safely for 1–3 years using Endowment Insurance Policy. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "whoShouldAvoid": "Long-term growth seekers who are comfortable taking short-term equity risks for higher returns."
+          "idealFor": "Only investors whose insurance need, premium capacity and exact policy terms pass independent suitability review.",
+          "whoShouldAvoid": "People needing flexible access or expecting a guaranteed category-wide investment return."
         },
-        "trustBadge": {
-          "type": "sebi",
-          "label": "SEBI Regulated",
-          "body": "Mutual Fund Trust Structure",
-          "desc": "Regulated under SEBI (Mutual Funds) Regulations. Assets of Endowment Insurance Policy are held in independent client trusts."
-        },
+        "trustBadge": null,
         "alternatives": [
           "debt_mf",
           "ultra_short_mf",
@@ -18206,113 +18124,56 @@
           "bharat_bond_direct"
         ],
         "explainer": {
-          "what": "Conservative traditional life policies. Guarantees low single-digit return compounding.",
-          "riskPlain": "Low capital risk, with slight yield variations based on macroeconomic policy.",
-          "lockInPlain": "Capital is locked in for 10 years. Premature withdrawals are highly restricted.",
-          "whoFor": "Low-risk individuals looking to park surplus savings safely for 1–3 years using Endowment Insurance Policy. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
+          "what": "Life insurance with maturity benefits determined by the exact policy; non-guaranteed bonuses are not promised returns.",
+          "riskPlain": "Insurer and policy terms matter. Check guaranteed and non-guaranteed amounts separately.",
+          "lockInPlain": "Premium term, surrender value and exit conditions depend on the exact policy.",
+          "whoFor": "Investors whose protection need and premium commitment fit the exact policy.",
           "example": null
         },
-        "cardSubtitle": "Conservative traditional life policies. Guarantees low single-digit return compounding."
+        "cardSubtitle": "Compare insurer illustrations; no category return or blanket tax exemption."
       },
       "dynamicData": {
         "expectedReturn": {
-          "min": 5,
-          "avg": 5.5,
-          "max": 6,
-          "source": "Historical category averages (mid-2026)",
-          "lastUpdated": "July 2026"
+          "min": null,
+          "avg": null,
+          "max": null,
+          "source": null,
+          "lastUpdated": null,
+          "dataClass": "UNAVAILABLE"
         },
-        "expenseRatio": 0.025,
+        "expenseRatio": null,
         "interestRates": null,
         "fundSize": null,
-        "topSchemes": [
-          {
-            "name": "Endowment Insurance Policy via Zerodha Kite",
-            "provider": "Zerodha",
-            "rate": "~5.5% p.a.",
-            "highlight": "Zero brokerage on equity delivery investments with India's largest discount broker.",
-            "platform": "Zerodha Kite App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": "Top Discount Broker",
-            "sector": null
-          },
-          {
-            "name": "Endowment Insurance Policy via Groww",
-            "provider": "Groww",
-            "rate": "~5.5% p.a.",
-            "highlight": "Most beginner-friendly UI with instant paperless onboarding.",
-            "platform": "Groww App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": "Best Beginner UI",
-            "sector": null
-          },
-          {
-            "name": "Endowment Insurance Policy via Angel One",
-            "provider": "Angel One",
-            "rate": "~5.5% p.a.",
-            "highlight": "Full service research reports and automated trading tools.",
-            "platform": "Angel One App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "Endowment Insurance Policy via ICICI Direct",
-            "provider": "ICICI Direct",
-            "rate": "~5.5% p.a.",
-            "highlight": "3-in-1 integrated banking + demat + trading account convenience.",
-            "platform": "ICICI Direct Portal",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "Endowment Insurance Policy via Upstox / Kuvera",
-            "provider": "Upstox / Kuvera",
-            "rate": "~5.5% p.a.",
-            "highlight": "Low fee execution with direct portfolio analytics.",
-            "platform": "Upstox / Kuvera App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          }
-        ],
+        "topSchemes": [],
         "risk": {
-          "level": "Low",
-          "value": 2,
-          "volatility": 0.005
+          "level": "Not established",
+          "value": null,
+          "volatility": null
         },
         "liquidity": {
-          "score": 2,
-          "type": "N/A",
-          "lockIn": 10
+          "score": null,
+          "type": null,
+          "lockIn": null
         },
-        "minMonthlyInvestment": 2000,
+        "minMonthlyInvestment": null,
         "maxAnnualInvestment": null,
         "idealHorizon": {
-          "min": 10,
-          "max": 20
+          "min": null,
+          "max": null
         },
-        "goalTags": [
-          "Tax Saving"
-        ],
-        "taxType": "eee",
-        "taxEfficiencyScore": 3,
-        "lockIn": 10,
-        "liquidityScore": 2,
-        "volatility": 0.005,
-        "riskLevel": 2
+        "goalTags": [],
+        "taxType": null,
+        "taxEfficiencyScore": null,
+        "lockIn": null,
+        "liquidityScore": null,
+        "volatility": null,
+        "riskLevel": null
       },
       "eligibility": {
-        "minAge": 18,
+        "minAge": null,
         "maxAge": null,
-        "minAnnualIncome": 0,
-        "minMonthlySavings": 500,
+        "minAnnualIncome": null,
+        "minMonthlySavings": null,
         "notes": null,
         "requiresDemat": null,
         "hasGirlChild": null
@@ -18324,69 +18185,60 @@
       "name": "Term Insurance + Mutual Fund",
       "abbr": "Term + MF",
       "category": "Insurance-linked",
-      "assetClass": "Equity",
+      "assetClass": "Planning",
       "color": "#6b7280",
       "metadata": {
         "version": "1.0.0",
-        "lastUpdated": "2026-07-18",
-        "reviewedBy": "WealthGenie Team",
-        "sourceConfidence": "High"
+        "lastUpdated": "2026-10-27",
+        "reviewedBy": "Code-level catalog audit",
+        "sourceConfidence": "Not established"
       },
       "staticData": {
-        "description": "Alternative strategy: combines low-cost pure term cover with index mutual funds for better capital yields.",
+        "description": "A planning approach that pairs a separately purchased term insurance policy with a separately selected mutual-fund scheme. It is not one investable product.",
         "pros": [
-          "Offers strong historical return potential ranging between 8% and 17.5% p.a. for long-term wealth growth.",
-          "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "Highly liquid setup with no lock-in, enabling you to redeem units of Term Insurance + Mutual Fund within 24–48 hours."
+          "Protection and investment can be assessed as separate decisions."
         ],
         "cons": [
-          "Exposed to moderate market risk and NAV fluctuations based on interest rate cycles.",
-          "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority."
+          "Premiums, fund costs, risk, access and tax treatment depend on the two actual contracts; no combined return can be quoted."
         ],
         "faq": [
           {
-            "question": "What is the entry limit for Term Insurance + Mutual Fund?",
-            "answer": "To start investing in Term Insurance + Mutual Fund, a minimum initial amount of ₹2,000 is required. There is no upper limit on the maximum amount you can invest."
+            "question": "What can I buy?",
+            "answer": "Choose a term policy for cover and a mutual-fund scheme separately after checking eligibility and suitability."
           },
           {
-            "question": "How are returns from Term Insurance + Mutual Fund taxed?",
-            "answer": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority."
+            "question": "What return can I expect?",
+            "answer": "There is no combined product return. Mutual-fund outcomes can vary; term cover is protection."
           },
           {
-            "question": "What is the redemption timeline for Term Insurance + Mutual Fund?",
-            "answer": "Since Term Insurance + Mutual Fund has no lock-in, you can request redemption at any time. Standard payouts process in T+1 business days directly to your linked savings bank account."
+            "question": "How are taxes handled?",
+            "answer": "Tax results require the exact policy, fund, holding, premium, payout and investor facts for the applicable fiscal year."
+          },
+          {
+            "question": "Can I redeem?",
+            "answer": "The policy and fund have separate cancellation, surrender and redemption terms; verify each contract."
           }
         ],
         "taxation": {
-          "type": "ltcg",
+          "type": null,
           "section": null,
-          "taxFreeInterest": false,
-          "stcg": "20% on short term holdings",
-          "ltcg": "12.5% on annual gains exceeding ₹1.25 Lakhs",
+          "taxFreeInterest": null,
+          "stcg": null,
+          "ltcg": null,
           "indexation": null,
-          "details": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "statutoryReferenceStatus": "LEGACY_OR_STATIC_CATALOG_NOT_CURRENT_AUTHORITY",
+          "details": "The policy and fund require separate product-specific and investor-specific tax assessment.",
+          "statutoryReferenceStatus": "UNVERIFIED",
           "currentStatuteAuthority": null
         },
         "whereToInvest": {
-          "howToStart": "Submit a direct mutual fund application on the AMC portal, or transact seamlessly on any popular mutual fund platform.",
-          "platforms": [
-            "AMC Portal",
-            "Groww",
-            "Zerodha Coin",
-            "Kuvera"
-          ]
+          "howToStart": "Assess insurance needs and investment suitability separately; compare only exact qualified policies and schemes.",
+          "platforms": []
         },
         "suitability": {
-          "idealFor": "Moderate risk-takers seeking a balanced growth profile over a 3–5 year investment cycle.",
-          "whoShouldAvoid": "Investors who cannot tolerate any short-term capital dips or need guaranteed cash flows."
+          "idealFor": "People whose protection need and fund choice are assessed separately.",
+          "whoShouldAvoid": "People seeking a single guaranteed investment return or one combined product."
         },
-        "trustBadge": {
-          "type": "sebi",
-          "label": "SEBI Regulated",
-          "body": "Mutual Fund Trust Structure",
-          "desc": "Regulated under SEBI (Mutual Funds) Regulations. Assets of Term Insurance + Mutual Fund are held in independent client trusts."
-        },
+        "trustBadge": null,
         "alternatives": [
           "dividend_yield_mf",
           "agg_hybrid_mf",
@@ -18394,114 +18246,56 @@
           "sensex_etf"
         ],
         "explainer": {
-          "what": "Alternative strategy: combines low-cost pure term cover with index mutual funds for better capital yields.",
-          "riskPlain": "Moderate market risk. The asset value will fluctuate slightly over short cycles.",
-          "lockInPlain": "No lock-in. You are free to redeem your balance at any time.",
-          "whoFor": "Moderate risk-takers seeking a balanced growth profile over a 3–5 year investment cycle.",
+          "what": "A planning approach that pairs a separately purchased term insurance policy with a separately selected mutual-fund scheme. It is not one investable product.",
+          "riskPlain": "The chosen fund can lose value; policy terms and insurer risk must be reviewed separately.",
+          "lockInPlain": "Access depends on each chosen contract. No single redemption timeline applies.",
+          "whoFor": "People who need cover and an independently suitable investment.",
           "example": null
         },
-        "cardSubtitle": "Alternative strategy: combines low-cost pure term cover with index mutual funds for better capital yields."
+        "cardSubtitle": "Two separate contracts; no combined rate or ranked product."
       },
       "dynamicData": {
         "expectedReturn": {
-          "min": 8,
-          "avg": 12.75,
-          "max": 17.5,
-          "source": "Historical category averages (mid-2026)",
-          "lastUpdated": "July 2026"
+          "min": null,
+          "avg": null,
+          "max": null,
+          "source": null,
+          "lastUpdated": null,
+          "dataClass": "UNAVAILABLE"
         },
-        "expenseRatio": 0.012,
+        "expenseRatio": null,
         "interestRates": null,
         "fundSize": null,
-        "topSchemes": [
-          {
-            "name": "Term Insurance + Mutual Fund via Zerodha Kite",
-            "provider": "Zerodha",
-            "rate": "~12.75% p.a.",
-            "highlight": "Zero brokerage on equity delivery investments with India's largest discount broker.",
-            "platform": "Zerodha Kite App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": "Top Discount Broker",
-            "sector": null
-          },
-          {
-            "name": "Term Insurance + Mutual Fund via Groww",
-            "provider": "Groww",
-            "rate": "~12.75% p.a.",
-            "highlight": "Most beginner-friendly UI with instant paperless onboarding.",
-            "platform": "Groww App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": "Best Beginner UI",
-            "sector": null
-          },
-          {
-            "name": "Term Insurance + Mutual Fund via Angel One",
-            "provider": "Angel One",
-            "rate": "~12.75% p.a.",
-            "highlight": "Full service research reports and automated trading tools.",
-            "platform": "Angel One App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "Term Insurance + Mutual Fund via ICICI Direct",
-            "provider": "ICICI Direct",
-            "rate": "~12.75% p.a.",
-            "highlight": "3-in-1 integrated banking + demat + trading account convenience.",
-            "platform": "ICICI Direct Portal",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "Term Insurance + Mutual Fund via Upstox / Kuvera",
-            "provider": "Upstox / Kuvera",
-            "rate": "~12.75% p.a.",
-            "highlight": "Low fee execution with direct portfolio analytics.",
-            "platform": "Upstox / Kuvera App",
-            "minInvestment": "₹2000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          }
-        ],
+        "topSchemes": [],
         "risk": {
-          "level": "Medium",
-          "value": 3,
-          "volatility": 0.15
+          "level": "Not established",
+          "value": null,
+          "volatility": null
         },
         "liquidity": {
-          "score": 4,
-          "type": "T+1",
-          "lockIn": 0
+          "score": null,
+          "type": null,
+          "lockIn": null
         },
-        "minMonthlyInvestment": 2000,
+        "minMonthlyInvestment": null,
         "maxAnnualInvestment": null,
         "idealHorizon": {
-          "min": 5,
-          "max": 30
+          "min": null,
+          "max": null
         },
-        "goalTags": [
-          "Wealth Growth",
-          "Retirement"
-        ],
-        "taxType": "ltcg",
-        "taxEfficiencyScore": 4,
-        "lockIn": 0,
-        "liquidityScore": 4,
-        "volatility": 0.15,
-        "riskLevel": 3
+        "goalTags": [],
+        "taxType": null,
+        "taxEfficiencyScore": null,
+        "lockIn": null,
+        "liquidityScore": null,
+        "volatility": null,
+        "riskLevel": null
       },
       "eligibility": {
-        "minAge": 18,
+        "minAge": null,
         "maxAge": null,
-        "minAnnualIncome": 0,
-        "minMonthlySavings": 500,
+        "minAnnualIncome": null,
+        "minMonthlySavings": null,
         "notes": null,
         "requiresDemat": null,
         "hasGirlChild": null
@@ -18517,65 +18311,52 @@
       "color": "#7c3aed",
       "metadata": {
         "version": "1.0.0",
-        "lastUpdated": "2026-07-18",
-        "reviewedBy": "WealthGenie Team",
-        "sourceConfidence": "High"
+        "lastUpdated": "2026-10-27",
+        "reviewedBy": "Code-level catalog audit",
+        "sourceConfidence": "Not established"
       },
       "staticData": {
-        "description": "Direct stock investment in top-tier Nifty 50 leaders. Bypasses mutual fund management costs.",
+        "description": "A discovery category for directly owned listed shares in the Nifty 50. It is not one investable product; exact securities, prices and risks require separate verification.",
         "pros": [
-          "Offers strong historical return potential ranging between 7% and 21% p.a. for long-term wealth growth.",
-          "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "Highly liquid setup with no lock-in, enabling you to redeem units of Nifty 50 Blue-Chip Stocks within 24–48 hours.",
-          "Extremely cost-effective option featuring an ultra-low expense ratio of 0.00%."
+          "Direct share ownership is possible when an exact listed security and account eligibility are verified."
         ],
         "cons": [
-          "Subject to significant price fluctuations, requiring a patient investment horizon of at least 5 to 7 years.",
-          "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority."
+          "Share prices can fall. Concentration, brokerage, taxes and sale proceeds depend on the exact holding and transaction."
         ],
         "faq": [
           {
-            "question": "What is the entry limit for Nifty 50 Blue-Chip Stocks?",
-            "answer": "To start investing in Nifty 50 Blue-Chip Stocks, a minimum initial amount of ₹3,000 is required. There is no upper limit on the maximum amount you can invest."
+            "question": "What are the top three stocks?",
+            "answer": "No stock ranking is established here. A broker is an execution channel, not a recommended security."
           },
           {
-            "question": "How are returns from Nifty 50 Blue-Chip Stocks taxed?",
-            "answer": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority. Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority."
+            "question": "What return is available?",
+            "answer": "No category-wide return applies to every stock. Historical price data for an exact security is not a future return."
           },
           {
-            "question": "What is the redemption timeline for Nifty 50 Blue-Chip Stocks?",
-            "answer": "Since Nifty 50 Blue-Chip Stocks has no lock-in, you can request redemption at any time. Standard payouts process in T+1 business days directly to your linked savings bank account."
+            "question": "How are gains taxed?",
+            "answer": "An exact fiscal-year tax calculation requires the security, transaction dates, sale proceeds, cost basis and investor facts."
           }
         ],
         "taxation": {
-          "type": "ltcg",
+          "type": null,
           "section": null,
-          "taxFreeInterest": false,
-          "stcg": "20% on short term holdings",
-          "ltcg": "12.5% on annual gains exceeding ₹1.25 Lakhs",
+          "taxFreeInterest": null,
+          "stcg": null,
+          "ltcg": null,
           "indexation": null,
-          "details": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "statutoryReferenceStatus": "LEGACY_OR_STATIC_CATALOG_NOT_CURRENT_AUTHORITY",
+          "details": "A transaction-specific and investor-specific fiscal-year calculation is required.",
+          "statutoryReferenceStatus": "UNVERIFIED_FOR_EXACT_SECURITY",
           "currentStatuteAuthority": null
         },
         "whereToInvest": {
-          "howToStart": "Open a demat and trading account with a discount broker. Search for the ticker symbol of Nifty 50 Blue-Chip Stocks and purchase units.",
-          "platforms": [
-            "Zerodha Kite",
-            "Groww App",
-            "Angel One App"
-          ]
+          "howToStart": "Identify an exact listed security and compare current qualified market facts and charges through an authorized trading channel.",
+          "platforms": []
         },
         "suitability": {
-          "idealFor": "Aggressive wealth accumulators planning long-term goals like child education or home buying.",
-          "whoShouldAvoid": "Senior citizens near retirement or anyone with immediate financial requirements in under 3 years."
+          "idealFor": "Only investors whose financial profile and concentration limits permit the exact listed security.",
+          "whoShouldAvoid": "Investors requiring a guaranteed return or unable to bear a loss of capital."
         },
-        "trustBadge": {
-          "type": "sebi",
-          "label": "SEBI Regulated ETF/Equity",
-          "body": "NSE & BSE Exchange Traded",
-          "desc": "Traded under SEBI governance with independent custodians protecting the underlying securities of Nifty 50 Blue-Chip Stocks."
-        },
+        "trustBadge": null,
         "alternatives": [
           "elss",
           "value_mf",
@@ -18583,114 +18364,56 @@
           "large_cap_stocks"
         ],
         "explainer": {
-          "what": "Direct stock investment in top-tier Nifty 50 leaders. Bypasses mutual fund management costs.",
-          "riskPlain": "High risk. Subject to significant equity market volatility and temporary capital draws.",
-          "lockInPlain": "No lock-in. You are free to redeem your balance at any time.",
-          "whoFor": "Aggressive wealth accumulators planning long-term goals like child education or home buying.",
+          "what": "A discovery category for direct ownership of exact listed shares; it is not an investable product by itself.",
+          "riskPlain": "Prices and realized gains or losses differ for each stock and transaction.",
+          "lockInPlain": "Trading access and settlement require exact security, exchange and account facts.",
+          "whoFor": "Investors who pass backend suitability and concentration checks for the exact holding.",
           "example": null
         },
-        "cardSubtitle": "Direct stock investment in top-tier Nifty 50 leaders. Bypasses mutual fund management costs."
+        "cardSubtitle": "Choose exact qualified securities; no category-wide return or ranked broker products."
       },
       "dynamicData": {
         "expectedReturn": {
-          "min": 7,
-          "avg": 14,
-          "max": 21,
-          "source": "AMFI category averages (5Y CAGR)",
-          "lastUpdated": "July 2026"
+          "min": null,
+          "avg": null,
+          "max": null,
+          "source": null,
+          "lastUpdated": null,
+          "dataClass": "UNAVAILABLE"
         },
-        "expenseRatio": 0,
+        "expenseRatio": null,
         "interestRates": null,
         "fundSize": null,
-        "topSchemes": [
-          {
-            "name": "Nifty 50 Blue-Chip Stocks via Zerodha Kite",
-            "provider": "Zerodha",
-            "rate": "~14% p.a.",
-            "highlight": "Zero brokerage on equity delivery investments with India's largest discount broker.",
-            "platform": "Zerodha Kite App",
-            "minInvestment": "₹3000",
-            "tenure": null,
-            "badge": "Top Discount Broker",
-            "sector": null
-          },
-          {
-            "name": "Nifty 50 Blue-Chip Stocks via Groww",
-            "provider": "Groww",
-            "rate": "~14% p.a.",
-            "highlight": "Most beginner-friendly UI with instant paperless onboarding.",
-            "platform": "Groww App",
-            "minInvestment": "₹3000",
-            "tenure": null,
-            "badge": "Best Beginner UI",
-            "sector": null
-          },
-          {
-            "name": "Nifty 50 Blue-Chip Stocks via Angel One",
-            "provider": "Angel One",
-            "rate": "~14% p.a.",
-            "highlight": "Full service research reports and automated trading tools.",
-            "platform": "Angel One App",
-            "minInvestment": "₹3000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "Nifty 50 Blue-Chip Stocks via ICICI Direct",
-            "provider": "ICICI Direct",
-            "rate": "~14% p.a.",
-            "highlight": "3-in-1 integrated banking + demat + trading account convenience.",
-            "platform": "ICICI Direct Portal",
-            "minInvestment": "₹3000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "Nifty 50 Blue-Chip Stocks via Upstox / Kuvera",
-            "provider": "Upstox / Kuvera",
-            "rate": "~14% p.a.",
-            "highlight": "Low fee execution with direct portfolio analytics.",
-            "platform": "Upstox / Kuvera App",
-            "minInvestment": "₹3000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          }
-        ],
+        "topSchemes": [],
         "risk": {
-          "level": "High",
-          "value": 4,
-          "volatility": 0.17
+          "level": "Not established",
+          "value": null,
+          "volatility": null
         },
         "liquidity": {
-          "score": 4,
-          "type": "T+1",
-          "lockIn": 0
+          "score": null,
+          "type": null,
+          "lockIn": null
         },
-        "minMonthlyInvestment": 3000,
+        "minMonthlyInvestment": null,
         "maxAnnualInvestment": null,
         "idealHorizon": {
-          "min": 5,
-          "max": 25
+          "min": null,
+          "max": null
         },
-        "goalTags": [
-          "Wealth Growth",
-          "Retirement"
-        ],
-        "taxType": "ltcg",
-        "taxEfficiencyScore": 4,
-        "lockIn": 0,
-        "liquidityScore": 4,
-        "volatility": 0.17,
-        "riskLevel": 4
+        "goalTags": [],
+        "taxType": null,
+        "taxEfficiencyScore": null,
+        "lockIn": null,
+        "liquidityScore": null,
+        "volatility": null,
+        "riskLevel": null
       },
       "eligibility": {
-        "minAge": 18,
+        "minAge": null,
         "maxAge": null,
-        "minAnnualIncome": 0,
-        "minMonthlySavings": 500,
+        "minAnnualIncome": null,
+        "minMonthlySavings": null,
         "notes": null,
         "requiresDemat": null,
         "hasGirlChild": null

@@ -28,7 +28,6 @@ test('catalog seed is idempotent non-destructive upserts, never collection-wide 
     assert.equal(Object.hasOwn(update.$set, 'returns1yr'), false);
   }
 });
-
 test('invalid/duplicate catalog is rejected before any database mutation is constructed', () => {
   for (const input of [null, [], [{ id: '', name: 'A' }], [{ id: 'a', name: '' }],
     [{ id: 'same', name: 'A' }, { id: 'same', name: 'B' }],
@@ -71,6 +70,45 @@ test('missing market rates do not become projection assumptions', () => {
   const op = buildInstrumentSeedOperations([{ id: 'missing', name: 'Missing rate', expectedReturn: 10, rate: null }]).operations[0];
   assert.equal(op.updateOne.update.$setOnInsert.rate, null);
   assert.equal(op.updateOne.update.$setOnInsert.interestRate, null);
+});
+
+test('a new composite-strategy Mongo row does not receive zero cost, zero lock-in, or medium risk defaults', () => {
+  const strategy = investmentDatabase.find(item => item.id === 'term_mf_combo');
+  assert.equal(strategy.type, 'Planning_Strategy');
+  const mapped = mapCatalogInstrument(strategy);
+  assert.equal(mapped.type, 'Planning_Strategy');
+  for (const field of ['expectedReturn', 'rate', 'interestRate', 'risk', 'lockIn', 'lockInYears', 'expenseRatio']) {
+    assert.equal(mapped[field], null, field);
+  }
+});
+
+test('a new ULIP discovery row does not receive fabricated rate, tax, cost, or risk values', () => {
+  const entry = investmentDatabase.find(item => item.id === 'ulip');
+  const mapped = mapCatalogInstrument(entry);
+  assert.equal(mapped.type, 'Insurance_Archetype');
+  for (const field of ['expectedReturn', 'rate', 'interestRate', 'risk', 'lockIn', 'lockInYears',
+    'expenseRatio', 'taxType']) assert.equal(mapped[field], null, field);
+});
+
+test('a new endowment discovery row does not receive fabricated return, exemption or cost', () => {
+  const source = investmentDatabase.find(item => item.id === 'endowment_plan');
+  const mapped = mapCatalogInstrument(source);
+  assert.equal(mapped.type, 'Insurance_Archetype');
+  assert.equal(mapped.expectedReturn, null);
+  assert.equal(mapped.rate, null);
+  assert.equal(mapped.taxType, null);
+  assert.equal(mapped.risk, null);
+  assert.equal(mapped.lockIn, null);
+  assert.equal(mapped.expenseRatio, null);
+});
+
+test('a new blue-chip stock discovery row is not seeded as an ETF or with a fund return', () => {
+  const source = investmentDatabase.find(item => item.id === 'bluechip_stocks');
+  const mapped = mapCatalogInstrument(source);
+  assert.equal(mapped.type, 'Equity_Archetype');
+  for (const field of ['expectedReturn', 'rate', 'risk', 'lockIn', 'expenseRatio', 'taxType']) {
+    assert.equal(mapped[field], null, field);
+  }
 });
 
 test('master catalog structured tax disclosure matches the legacy string schema', () => {

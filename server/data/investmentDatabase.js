@@ -138,6 +138,10 @@ const SPECIFIC_ID_TYPE_MAP = {
   'rbi_bonds': 'RBI_Bond',
   'rbi_retail_direct_gilt': 'G-Sec',
   'g_sec': 'G-Sec',
+  'term_mf_combo': 'Planning_Strategy',
+  'ulip': 'Insurance_Archetype',
+  'endowment_plan': 'Insurance_Archetype',
+  'bluechip_stocks': 'Equity_Archetype',
 };
 
 const EXACT_RECOMMENDATION_TYPES = Object.freeze({
@@ -182,6 +186,12 @@ export function recommendationTypeForCatalogInstrument(instrument) {
 // Map masterCatalog instruments to the old flat structure for backward compatibility
 export const investmentDatabase = masterCatalog.instruments.map(inst => {
   const safeStaticData = sanitizeStaticTaxClaims(inst.staticData);
+  const unavailableDiscovery = ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks'].includes(inst.id);
+  if (unavailableDiscovery && (inst.dynamicData?.expectedReturn?.dataClass !== 'UNAVAILABLE'
+      || inst.dynamicData.expectedReturn.avg !== null || inst.dynamicData.topSchemes.length !== 0)) {
+    throw new Error('DISCOVERY_CATALOG_UNQUALIFIED:' + inst.id);
+  }
+  const safeDynamicData = { ...inst.dynamicData, topSchemes: [] };
   const legacyType = SPECIFIC_ID_TYPE_MAP[inst.id] || (
     inst.dynamicData?.taxType === 'elss' || inst.taxType === 'elss'
       ? 'ELSS'
@@ -217,11 +227,11 @@ export const investmentDatabase = masterCatalog.instruments.map(inst => {
     cardSubtitle: safeStaticData.cardSubtitle,
     
     // Dynamic fields flattened
-    expectedReturn: inst.dynamicData.expectedReturn.avg,
-    returnDataClass: PROJECTION_ASSUMPTION_DATA_CLASS,
-    returnAssumptionVersion: PROJECTION_ASSUMPTION_VERSION,
-    returnAssumptionHash: PROJECTION_ASSUMPTION_POLICY_HASH,
-    returnSource: PROJECTION_ASSUMPTION_SOURCE,
+    expectedReturn: safeDynamicData.expectedReturn.avg,
+    returnDataClass: unavailableDiscovery ? 'UNAVAILABLE' : PROJECTION_ASSUMPTION_DATA_CLASS,
+    returnAssumptionVersion: unavailableDiscovery ? null : PROJECTION_ASSUMPTION_VERSION,
+    returnAssumptionHash: unavailableDiscovery ? null : PROJECTION_ASSUMPTION_POLICY_HASH,
+    returnSource: unavailableDiscovery ? null : PROJECTION_ASSUMPTION_SOURCE,
     observedMarketFact: false,
     providerForecast: false,
     rate: inst.dynamicData.interestRates,
@@ -235,8 +245,8 @@ export const investmentDatabase = masterCatalog.instruments.map(inst => {
     volatility: inst.dynamicData.risk.volatility,
     liquidityScore: inst.dynamicData.liquidity.score,
     lockIn: inst.dynamicData.liquidity.lockIn,
-    taxType: inst.dynamicData.taxType,
-    taxEfficiencyScore: inst.dynamicData.taxEfficiencyScore,
+    taxType: unavailableDiscovery ? null : inst.dynamicData.taxType,
+    taxEfficiencyScore: unavailableDiscovery ? null : inst.dynamicData.taxEfficiencyScore,
     expenseRatio: inst.dynamicData.expenseRatio,
     minMonthlyInvestment: inst.dynamicData.minMonthlyInvestment,
     maxAnnualInvestment: inst.dynamicData.maxAnnualInvestment,
@@ -245,6 +255,6 @@ export const investmentDatabase = masterCatalog.instruments.map(inst => {
     
     // Keep nested references for new code
     staticData: safeStaticData,
-    dynamicData: inst.dynamicData
+    dynamicData: safeDynamicData
   };
 });

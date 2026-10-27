@@ -27,7 +27,7 @@ import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { readFileSync } from 'node:fs';
 
 export const CESS_RATE = 0.04;
-export const PROJECTION_ASSUMPTION_VERSION = 'wealthgenie-projection-assumptions-1.1.0';
+export const PROJECTION_ASSUMPTION_VERSION = 'wealthgenie-projection-assumptions-1.1.5';
 export const PROJECTION_ASSUMPTION_SOURCE = 'WEALTHGENIE_MODEL_POLICY';
 export const PROJECTION_ASSUMPTION_DATA_CLASS = 'MODEL_ASSUMPTION';
 
@@ -43,6 +43,8 @@ const assumptionCatalog = JSON.parse(readFileSync(
 const catalogReturnAssumptions = assumptionCatalog.instruments
   .map(instrument => {
     const expectedReturn = instrument.dynamicData?.expectedReturn;
+    if (expectedReturn?.dataClass === 'UNAVAILABLE'
+      && ['min', 'avg', 'max'].every(key => expectedReturn[key] === null)) return null;
     if (!instrument.id || !['min', 'avg', 'max'].every(key => Number.isFinite(expectedReturn?.[key]))) {
       throw new Error(`Recommendation return assumption is incomplete for catalog instrument ${instrument.id || '(missing id)'}.`);
     }
@@ -53,6 +55,7 @@ const catalogReturnAssumptions = assumptionCatalog.instruments
       max: expectedReturn.max,
     };
   })
+  .filter(Boolean)
   .sort((left, right) => left.instrumentId.localeCompare(right.instrumentId));
 
 if (new Set(catalogReturnAssumptions.map(item => item.instrumentId)).size !== catalogReturnAssumptions.length) {
@@ -109,7 +112,7 @@ export const PROJECTION_ASSUMPTION_POLICY_MANIFEST = Object.freeze({
   version: PROJECTION_ASSUMPTION_VERSION,
   source: PROJECTION_ASSUMPTION_SOURCE,
   dataClass: PROJECTION_ASSUMPTION_DATA_CLASS,
-  expectedHash: '477adce40d7e3a04f10201bc6b353b61f82721ca16bea48c253c5855fde6eb59',
+  expectedHash: '730f2ee125014f695adfc622cf4f6c42e3f00285e1158aadfcee8c0d2602e37f',
 });
 
 if (PROJECTION_ASSUMPTION_POLICY_HASH !== PROJECTION_ASSUMPTION_POLICY_MANIFEST.expectedHash) {

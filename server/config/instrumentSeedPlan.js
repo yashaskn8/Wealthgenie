@@ -12,6 +12,7 @@ export function mapCatalogInstrument(inv) {
     : (inv.taxType === 'elss'
       ? 'ELSS'
       : (LEGACY_TYPE_MAP[inv.category] || LEGACY_TYPE_MAP[inv.cat] || 'Mutual_Fund'));
+  const isUnqualifiedDiscoveryOption = ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks'].includes(inv.id);
 
   return {
     id: inv.id,
@@ -31,19 +32,19 @@ export function mapCatalogInstrument(inv) {
     returnRange: inv.returnRange,
     interestRate: inv.interestRate ?? inv.rate
       ?? (inv.interestRate === null || inv.rate === null ? null : undefined),
-    risk: inv.dynamicData?.risk?.value ?? inv.riskLevel ?? 3,
+    risk: isUnqualifiedDiscoveryOption ? null : inv.dynamicData?.risk?.value ?? inv.riskLevel ?? 3,
     riskLabel: inv.riskLabel,
     volatility: inv.volatility,
     liquidityScore: inv.liquidityScore,
-    lockIn: inv.lockIn ?? 0,
-    lockInYears: inv.lockIn ?? 0,
+    lockIn: isUnqualifiedDiscoveryOption ? null : inv.lockIn ?? 0,
+    lockInYears: isUnqualifiedDiscoveryOption ? null : inv.lockIn ?? 0,
     taxType: inv.taxType,
     taxEfficiencyScore: inv.taxEfficiencyScore,
     // The master catalog contains structured unavailable tax metadata but
     // the persisted Instrument schema expects a string, never an object.
     taxation: typeof inv.taxation === 'string' ? inv.taxation
       : (typeof inv.taxation?.desc === 'string' ? inv.taxation.desc : undefined),
-    expenseRatio: inv.expenseRatio ?? 0,
+    expenseRatio: isUnqualifiedDiscoveryOption ? null : inv.expenseRatio ?? 0,
     minMonthlyInvestment: inv.minMonthlyInvestment,
     maxAnnualInvestment: inv.maxAnnualInvestment,
     minInvestment: inv.minMonthlyInvestment ?? inv.minInvestment,

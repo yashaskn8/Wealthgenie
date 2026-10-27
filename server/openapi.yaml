@@ -1040,7 +1040,7 @@ paths:
       tags: [Instruments]
       security: []
       parameters:
-        - { name: type, in: query, schema: { type: string, enum: [FD, Mutual_Fund, ETF, Government, ELSS] } }
+        - { name: type, in: query, schema: { type: string, enum: [FD, Mutual_Fund, ETF, Government, ELSS, Planning_Strategy, Insurance_Archetype, Equity_Archetype] } }
         - { name: sort, in: query, schema: { type: string, enum: [name, interestRate, rate, returns1yr, returns3yr, returns5yr, riskLevel, aumCr, expenseRatio] } }
         - { name: order, in: query, schema: { type: string, enum: [asc, desc] } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, x-raw-query-pattern: '^(0|[1-9][0-9]*)$' } }
@@ -3112,45 +3112,45 @@ components:
         type: { type: string }
         category: { type: string }
         cat: { type: string }
-        subCategory: { type: string }
+        subCategory: { type: [string, 'null'] }
         assetClass: { type: string }
         provider: { type: string }
-        expectedReturn: { type: number }
-        rate: { type: number }
-        returnRange: { type: object, additionalProperties: false, properties: { min: { type: number }, max: { type: number } } }
+        expectedReturn: { type: [number, 'null'] }
+        rate: { type: [number, 'null'] }
+        returnRange: { type: object, additionalProperties: false, properties: { min: { type: [number, 'null'] }, max: { type: [number, 'null'] } } }
         interestRate: { type: number }
         interestRateSenior: { type: number }
         returns1yr: { type: number }
         returns3yr: { type: number }
         returns5yr: { type: number }
         riskLevel: { type: [string, number, boolean, object, array, 'null'] }
-        risk: { type: number }
+        risk: { type: [number, 'null'] }
         riskLabel: { type: string }
-        volatility: { type: number }
-        liquidityScore: { type: number }
-        lockIn: { type: number }
-        lockInYears: { type: number }
-        taxType: { type: string }
-        taxEfficiencyScore: { type: number }
-        expenseRatio: { type: number }
-        minMonthlyInvestment: { type: number }
-        maxAnnualInvestment: { type: number }
+        volatility: { type: [number, 'null'] }
+        liquidityScore: { type: [number, 'null'] }
+        lockIn: { type: [number, 'null'] }
+        lockInYears: { type: [number, 'null'] }
+        taxType: { type: [string, 'null'] }
+        taxEfficiencyScore: { type: [number, 'null'] }
+        expenseRatio: { type: [number, 'null'] }
+        minMonthlyInvestment: { type: [number, 'null'] }
+        maxAnnualInvestment: { type: [number, 'null'] }
         minInvestment: { type: number }
-        idealHorizon: { type: object, additionalProperties: false, properties: { min: { type: number }, max: { type: number } } }
+        idealHorizon: { type: object, additionalProperties: false, properties: { min: { type: [number, 'null'] }, max: { type: [number, 'null'] } } }
         goalTags: { type: array, items: { type: string } }
         maturityYears: { type: number }
         eligibility:
           type: object
           additionalProperties: false
           properties:
-            minAge: { type: number }
-            maxAge: { type: number }
-            minAnnualIncome: { type: number }
-            minMonthlySavings: { type: number }
-            requiresDemat: { type: boolean }
-            hasGirlChild: { type: boolean }
+            minAge: { type: [number, 'null'] }
+            maxAge: { type: [number, 'null'] }
+            minAnnualIncome: { type: [number, 'null'] }
+            minMonthlySavings: { type: [number, 'null'] }
+            requiresDemat: { type: [boolean, 'null'] }
+            hasGirlChild: { type: [boolean, 'null'] }
             requires_daughter_under_10: { type: boolean }
-            notes: { type: string }
+            notes: { type: [string, 'null'] }
         nav: { type: number }
         aumCr: { type: number }
         exitLoad: { type: string }

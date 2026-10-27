@@ -88,6 +88,7 @@ masterCatalog.instruments.forEach(inst => {
 // Map masterCatalog instruments to the old flat structure for backward compatibility
 export const investmentDatabase = masterCatalog.instruments.map(inst => {
   const isBankDeposit = inst.category === 'Bank Deposits';
+  const unavailableDiscovery = ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks'].includes(inst.id);
   const sanitizedStaticData = sanitizeStaticTaxClaims(inst.staticData);
   const safeStaticData = isBankDeposit
     ? {
@@ -103,6 +104,7 @@ export const investmentDatabase = masterCatalog.instruments.map(inst => {
     : sanitizedStaticData;
   const safeDynamicData = {
     ...inst.dynamicData,
+    topSchemes: [],
     ...(isBankDeposit ? {
       expectedReturn: {
         ...inst.dynamicData.expectedReturn,
@@ -148,9 +150,9 @@ export const investmentDatabase = masterCatalog.instruments.map(inst => {
     
     // Dynamic fields flattened
     expectedReturn: safeDynamicData.expectedReturn.avg,
-    returnDataClass: isBankDeposit ? 'UNAVAILABLE' : 'MODEL_ASSUMPTION',
-    returnAssumptionVersion: isBankDeposit ? null : 'wealthgenie-projection-assumptions-1.0.0',
-    returnSource: isBankDeposit ? null : 'WEALTHGENIE_MODEL_POLICY',
+    returnDataClass: isBankDeposit || unavailableDiscovery ? 'UNAVAILABLE' : 'MODEL_ASSUMPTION',
+    returnAssumptionVersion: isBankDeposit || unavailableDiscovery ? null : 'wealthgenie-projection-assumptions-1.1.5',
+    returnSource: isBankDeposit || unavailableDiscovery ? null : 'WEALTHGENIE_MODEL_POLICY',
     observedMarketFact: false,
     providerForecast: false,
     rate: safeDynamicData.interestRates,
