@@ -31,7 +31,7 @@ test('term cover plus fund remains educational and never supplies a fictitious c
   assert.equal(adapted.taxType, null);
   assert.equal(adapted.rate, null);
   assert.equal(resolveBackendType(adapted), null);
-  assert.equal(PROJECTION_ASSUMPTION_VERSION, 'wealthgenie-projection-assumptions-1.1.5');
+  assert.equal(PROJECTION_ASSUMPTION_VERSION, 'wealthgenie-projection-assumptions-1.1.6');
   assert.equal(PROJECTION_ASSUMPTION_POLICY_HASH, PROJECTION_ASSUMPTION_POLICY_MANIFEST.expectedHash);
   const coverage = JSON.parse(readFileSync(new URL('../data/market_data_coverage.json', import.meta.url)));
   const coverageRow = coverage.entries.find(item => item.catalogId === 'term_mf_combo');
@@ -97,6 +97,30 @@ test('blue-chip stock discovery never treats brokers as ranked securities or a f
   assert.deepEqual(raw.staticData.whereToInvest.platforms, []);
   assert.match(raw.staticData.description, /not one investable product/i);
   assert.equal(adapted.type, 'Equity_Archetype');
+  assert.equal(adapted.recommendationType, null);
+  assert.equal(adapted.returnDataClass, 'UNAVAILABLE');
+  assert.equal(adapted.expectedReturn, null);
+  assert.equal(adapted.taxType, null);
+  assert.equal(resolveBackendType(adapted), null);
+});
+
+test('AA corporate bond remains an unqualified archetype without a generic yield, tax or lock-in', () => {
+  const catalog = JSON.parse(readFileSync(new URL('../data/investment_master.json', import.meta.url)));
+  const raw = catalog.instruments.find(item => item.id === 'aa_corporate_bond');
+  const adapted = investmentDatabase.find(item => item.id === 'aa_corporate_bond');
+  assert.ok(raw);
+  assert.ok(adapted);
+  assert.equal(raw.metadata.sourceConfidence, 'Not established');
+  assert.equal(raw.dynamicData.expectedReturn.dataClass, 'UNAVAILABLE');
+  assert.equal(raw.dynamicData.expectedReturn.avg, null);
+  assert.deepEqual(raw.dynamicData.topSchemes, []);
+  assert.equal(raw.dynamicData.risk.value, null);
+  assert.equal(raw.dynamicData.liquidity.lockIn, null);
+  assert.equal(raw.staticData.taxation.type, null);
+  assert.equal(raw.staticData.trustBadge, null);
+  assert.deepEqual(raw.staticData.whereToInvest.platforms, []);
+  assert.match(raw.staticData.description, /no individual bond is qualified/i);
+  assert.equal(adapted.type, 'Bond_Archetype');
   assert.equal(adapted.recommendationType, null);
   assert.equal(adapted.returnDataClass, 'UNAVAILABLE');
   assert.equal(adapted.expectedReturn, null);

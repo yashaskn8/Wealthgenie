@@ -27,7 +27,7 @@ function pick(value, fields) {
 // preserves stored financial fields, so the public read boundary must use the
 // reviewed catalog record, including when reserializing Redis cache entries.
 const reviewedDiscoveryEntries = new Map(
-  ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks'].map(id => {
+  ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks', 'aa_corporate_bond'].map(id => {
     const entry = investmentDatabase.find(item => item.id === id);
     if (!entry || entry.returnDataClass !== 'UNAVAILABLE') {
       throw new Error('DISCOVERY_CATALOG_UNQUALIFIED:' + id);

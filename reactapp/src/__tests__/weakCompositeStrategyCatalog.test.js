@@ -63,5 +63,19 @@ describe('blue-chip stock discovery entry', () => {
 
 it('keeps the frontend model assumption label on the current backend policy version', () => {
   const modelEntry = investmentDatabase.find(item => item.id === 'ppf');
-  expect(modelEntry.returnAssumptionVersion).toBe('wealthgenie-projection-assumptions-1.1.5');
+  expect(modelEntry.returnAssumptionVersion).toBe('wealthgenie-projection-assumptions-1.1.6');
+});
+
+it('does not present AA bond brokers as products or a category-wide rate and tax result', () => {
+  const entry = investmentDatabase.find(item => item.id === 'aa_corporate_bond');
+  expect(entry).toBeDefined();
+  expect(entry.returnDataClass).toBe('UNAVAILABLE');
+  expect(entry.expectedReturn).toBeNull();
+  expect(entry.returnSource).toBeNull();
+  expect(entry.risk).toBeNull();
+  expect(entry.lockIn).toBeNull();
+  expect(entry.taxType).toBeNull();
+  expect(entry.dynamicData.topSchemes).toEqual([]);
+  expect(entry.staticData.whereToInvest.platforms).toEqual([]);
+  expect(entry.trustBadge).toBeNull();
 });

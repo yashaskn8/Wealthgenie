@@ -173,3 +173,28 @@ test('old blue-chip Mongo and Redis rows cannot publish brokers as securities or
     assert.equal(validate(dto), true, JSON.stringify(validate.errors));
   }
 });
+
+test('old AA bond Mongo and Redis rows cannot publish a generic yield, tax class or bond terms', () => {
+  const stale = {
+    id: 'aa_corporate_bond', name: 'AA Rated Corporate Bond', type: 'Government',
+    expectedReturn: 8.9, rate: 8.9, returns1yr: 9.8,
+    taxType: 'slab', expenseRatio: 0, risk: 3, lockIn: 3,
+    desc: '8.9% guaranteed AA government bond',
+  };
+  const contract = parse(readFileSync(new URL('../openapi.yaml', import.meta.url), 'utf8'));
+  const validate = new Ajv2020({ strict: false }).compile(contract.components.schemas.Instrument);
+  for (const dto of [
+    serializeInstrument(stale),
+    serializeCachedInstrumentPage({ instruments: [stale], total: 1, page: 1, pageSize: 20 }).instruments[0],
+  ]) {
+    assert.equal(dto.type, 'Bond_Archetype');
+    assert.equal(dto.expectedReturn, null);
+    assert.equal(dto.returns1yr, undefined);
+    assert.equal(dto.taxType, null);
+    assert.equal(dto.expenseRatio, null);
+    assert.equal(dto.risk, null);
+    assert.equal(dto.lockIn, null);
+    assert.match(dto.desc, /no individual bond is qualified/i);
+    assert.equal(validate(dto), true, JSON.stringify(validate.errors));
+  }
+});

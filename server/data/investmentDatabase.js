@@ -142,6 +142,7 @@ const SPECIFIC_ID_TYPE_MAP = {
   'ulip': 'Insurance_Archetype',
   'endowment_plan': 'Insurance_Archetype',
   'bluechip_stocks': 'Equity_Archetype',
+  'aa_corporate_bond': 'Bond_Archetype',
 };
 
 const EXACT_RECOMMENDATION_TYPES = Object.freeze({
@@ -186,7 +187,7 @@ export function recommendationTypeForCatalogInstrument(instrument) {
 // Map masterCatalog instruments to the old flat structure for backward compatibility
 export const investmentDatabase = masterCatalog.instruments.map(inst => {
   const safeStaticData = sanitizeStaticTaxClaims(inst.staticData);
-  const unavailableDiscovery = ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks'].includes(inst.id);
+  const unavailableDiscovery = ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks', 'aa_corporate_bond'].includes(inst.id);
   if (unavailableDiscovery && (inst.dynamicData?.expectedReturn?.dataClass !== 'UNAVAILABLE'
       || inst.dynamicData.expectedReturn.avg !== null || inst.dynamicData.topSchemes.length !== 0)) {
     throw new Error('DISCOVERY_CATALOG_UNQUALIFIED:' + inst.id);

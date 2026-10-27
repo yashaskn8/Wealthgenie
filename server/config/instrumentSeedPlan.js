@@ -12,7 +12,7 @@ export function mapCatalogInstrument(inv) {
     : (inv.taxType === 'elss'
       ? 'ELSS'
       : (LEGACY_TYPE_MAP[inv.category] || LEGACY_TYPE_MAP[inv.cat] || 'Mutual_Fund'));
-  const isUnqualifiedDiscoveryOption = ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks'].includes(inv.id);
+  const isUnqualifiedDiscoveryOption = ['term_mf_combo', 'ulip', 'endowment_plan', 'bluechip_stocks', 'aa_corporate_bond'].includes(inv.id);
 
   return {
     id: inv.id,

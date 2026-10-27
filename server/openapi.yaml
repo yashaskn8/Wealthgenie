@@ -1040,7 +1040,7 @@ paths:
       tags: [Instruments]
       security: []
       parameters:
-        - { name: type, in: query, schema: { type: string, enum: [FD, Mutual_Fund, ETF, Government, ELSS, Planning_Strategy, Insurance_Archetype, Equity_Archetype] } }
+        - { name: type, in: query, schema: { type: string, enum: [FD, Mutual_Fund, ETF, Government, ELSS, Planning_Strategy, Insurance_Archetype, Equity_Archetype, Bond_Archetype] } }
         - { name: sort, in: query, schema: { type: string, enum: [name, interestRate, rate, returns1yr, returns3yr, returns5yr, riskLevel, aumCr, expenseRatio] } }
         - { name: order, in: query, schema: { type: string, enum: [asc, desc] } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, x-raw-query-pattern: '^(0|[1-9][0-9]*)$' } }
@@ -3125,7 +3125,7 @@ components:
         returns5yr: { type: number }
         riskLevel: { type: [string, number, boolean, object, array, 'null'] }
         risk: { type: [number, 'null'] }
-        riskLabel: { type: string }
+        riskLabel: { type: [string, 'null'] }
         volatility: { type: [number, 'null'] }
         liquidityScore: { type: [number, 'null'] }
         lockIn: { type: [number, 'null'] }

@@ -5027,7 +5027,7 @@
       "category": "Bonds & Debentures",
       "canonicalInstrumentId": "aa_corporate_bond",
       "name": "AA Rated Corporate Bond",
-      "economicType": "Government",
+      "economicType": "Bond_Archetype",
       "productDiscovery": {
         "provider": null,
         "status": "UNSUPPORTED_FAIL_CLOSED",

@@ -27,7 +27,7 @@ import { canonicalSha256 } from '../utils/canonicalJson.js';
 import { readFileSync } from 'node:fs';
 
 export const CESS_RATE = 0.04;
-export const PROJECTION_ASSUMPTION_VERSION = 'wealthgenie-projection-assumptions-1.1.5';
+export const PROJECTION_ASSUMPTION_VERSION = 'wealthgenie-projection-assumptions-1.1.6';
 export const PROJECTION_ASSUMPTION_SOURCE = 'WEALTHGENIE_MODEL_POLICY';
 export const PROJECTION_ASSUMPTION_DATA_CLASS = 'MODEL_ASSUMPTION';
 
@@ -112,7 +112,7 @@ export const PROJECTION_ASSUMPTION_POLICY_MANIFEST = Object.freeze({
   version: PROJECTION_ASSUMPTION_VERSION,
   source: PROJECTION_ASSUMPTION_SOURCE,
   dataClass: PROJECTION_ASSUMPTION_DATA_CLASS,
-  expectedHash: '730f2ee125014f695adfc622cf4f6c42e3f00285e1158aadfcee8c0d2602e37f',
+  expectedHash: 'ec0c527f383439030e924a1dc12a7f4d53247fc65def2236308ffb839e2da448',
 });
 
 if (PROJECTION_ASSUMPTION_POLICY_HASH !== PROJECTION_ASSUMPTION_POLICY_MANIFEST.expectedHash) {

@@ -168,12 +168,19 @@ test('chat evidence identifies recommendation returns as model assumptions', () 
   assert.match(evidence.displayValue, /pre-tax nominal model assumption/);
 });
 
-test('legacy catalog return fields are explicitly classified as model assumptions', () => {
+test('catalog return fields distinguish model assumptions from unavailable product returns', () => {
   for (const instrument of investmentDatabase) {
-    assert.equal(instrument.returnDataClass, 'MODEL_ASSUMPTION');
-    assert.equal(instrument.returnAssumptionVersion, PROJECTION_ASSUMPTION_VERSION);
-    assert.equal(instrument.returnAssumptionHash, PROJECTION_ASSUMPTION_POLICY_HASH);
-    assert.equal(instrument.returnSource, PROJECTION_ASSUMPTION_SOURCE);
+    if (instrument.returnDataClass === 'UNAVAILABLE') {
+      assert.equal(instrument.expectedReturn, null, instrument.id);
+      assert.equal(instrument.returnAssumptionVersion, null);
+      assert.equal(instrument.returnAssumptionHash, null);
+      assert.equal(instrument.returnSource, null);
+    } else {
+      assert.equal(instrument.returnDataClass, 'MODEL_ASSUMPTION');
+      assert.equal(instrument.returnAssumptionVersion, PROJECTION_ASSUMPTION_VERSION);
+      assert.equal(instrument.returnAssumptionHash, PROJECTION_ASSUMPTION_POLICY_HASH);
+      assert.equal(instrument.returnSource, PROJECTION_ASSUMPTION_SOURCE);
+    }
     assert.equal(instrument.observedMarketFact, false);
     assert.equal(instrument.providerForecast, false);
   }

@@ -16066,66 +16066,53 @@
       "color": "#1d4ed8",
       "metadata": {
         "version": "1.0.0",
-        "lastUpdated": "2026-07-18",
-        "reviewedBy": "WealthGenie Team",
-        "sourceConfidence": "High"
+        "lastUpdated": "2026-10-27",
+        "reviewedBy": "Code-level catalog audit",
+        "sourceConfidence": "Not established"
       },
       "staticData": {
-        "description": "Corporate bonds with AA credit ratings, offering a slight yield premium over AAA bonds.",
+        "description": "An educational category for corporate debt securities with an AA rating. Rating, price, coupon, maturity, trading liquidity and terms must be checked for each ISIN; no individual bond is qualified here.",
         "pros": [
-          "Provides attractive interest/growth yield of 8.8% p.a., outperforming traditional savings.",
-          "Extremely cost-effective option featuring an ultra-low expense ratio of 0.00%.",
-          "Allows convenient systematic investing via monthly SIPs beginning at ₹10000."
+          "An exact bond may provide contract-defined coupon cash flows when its issuer terms and payment schedule are verified."
         ],
         "cons": [
-          "Requires a mandatory 3-year holding period per investment installment.",
-          "Exposed to moderate market risk and NAV fluctuations based on interest rate cycles.",
-          "Gains from AA Rated Corporate Bond are taxed at your marginal income tax slab rate, which can drag down net post-tax returns."
+          "Issuer default, rating changes, market-price changes and limited trading liquidity can cause loss.",
+          "A listing-time credit rating is not proof of a current rating or a guaranteed return."
         ],
         "faq": [
           {
-            "question": "What is the entry limit for AA Rated Corporate Bond?",
-            "answer": "To start investing in AA Rated Corporate Bond, a minimum initial amount of ₹10,000 is required. There is no upper limit on the maximum amount you can invest."
+            "question": "What return is available?",
+            "answer": "No AA category return is established. A bond quote requires an exact ISIN, current price, coupon schedule, maturity and trade-date evidence."
           },
           {
-            "question": "How are returns from AA Rated Corporate Bond taxed?",
-            "answer": "Under AA Rated Corporate Bond, taxation is classified under Taxed at Income Slab Rate. Specifically: Interest/gains added to taxable income and taxed at your marginal income tax rate."
+            "question": "How is this taxed?",
+            "answer": "Interest and sale or redemption gains require separate, fiscal-year-specific treatment for the exact security and investor. No universal post-tax rate is established."
           },
           {
-            "question": "Can I close my AA Rated Corporate Bond account before 3 years?",
-            "answer": "Premature closure of AA Rated Corporate Bond is heavily restricted during the 3-year lock-in period. Early withdrawals are permitted only under specific emergency clauses (such as critical illness or higher education) or with a penalty fee."
+            "question": "Can I sell before maturity?",
+            "answer": "Sale depends on the exact bond and market liquidity. A general three-year lock-in does not apply to every AA bond."
           }
         ],
         "taxation": {
-          "type": "slab",
+          "type": null,
           "section": null,
-          "taxFreeInterest": false,
-          "stcg": "Added to taxable income and taxed at slab rate",
-          "ltcg": "Added to taxable income and taxed at slab rate",
-          "indexation": false,
-          "details": "Tax treatment must be resolved by the server fiscal-year policy from verified product classification and applicable user, account, contribution, holding and exit facts; static catalog copy is not tax authority.",
-          "statutoryReferenceStatus": "LEGACY_OR_STATIC_CATALOG_NOT_CURRENT_AUTHORITY",
+          "taxFreeInterest": null,
+          "stcg": null,
+          "ltcg": null,
+          "indexation": null,
+          "details": "Tax requires a source-qualified bond identity, payment and transaction facts, and the applicable fiscal-year policy.",
+          "statutoryReferenceStatus": "UNVERIFIED_FOR_EXACT_BOND",
           "currentStatuteAuthority": null
         },
         "whereToInvest": {
-          "howToStart": "Submit a direct mutual fund application on the AMC portal, or transact seamlessly on any popular mutual fund platform.",
-          "platforms": [
-            "AMC Portal",
-            "Groww",
-            "Zerodha Coin",
-            "Kuvera"
-          ]
+          "howToStart": "Compare exact ISINs using current issuer terms, rating evidence, market price, maturity, coupon schedule and liquidity before choosing a regulated execution channel.",
+          "platforms": []
         },
         "suitability": {
-          "idealFor": "Moderate risk-takers seeking a balanced growth profile over a 3–5 year investment cycle.",
-          "whoShouldAvoid": "Investors who cannot tolerate any short-term capital dips or need guaranteed cash flows."
+          "idealFor": "Only investors whose profile and an exact bond’s credit, liquidity, maturity and concentration risks have been assessed.",
+          "whoShouldAvoid": "Investors who need assured liquidity or cannot accept issuer default and mark-to-market risk."
         },
-        "trustBadge": {
-          "type": "sebi",
-          "label": "SEBI Regulated",
-          "body": "Mutual Fund Trust Structure",
-          "desc": "Regulated under SEBI (Mutual Funds) Regulations. Assets of AA Rated Corporate Bond are held in independent client trusts."
-        },
+        "trustBadge": null,
         "alternatives": [
           "equity_savings_mf",
           "credit_risk_mf",
@@ -16133,114 +16120,57 @@
           "aaa_corporate_bond"
         ],
         "explainer": {
-          "what": "Corporate bonds with AA credit ratings, offering a slight yield premium over AAA bonds.",
-          "riskPlain": "Moderate market risk. The asset value will fluctuate slightly over short cycles.",
-          "lockInPlain": "Capital is locked in for 3 years. Premature withdrawals are highly restricted.",
-          "whoFor": "Moderate risk-takers seeking a balanced growth profile over a 3–5 year investment cycle.",
+          "what": "An AA rating describes a credit-rating category, not a specific investable product or a guaranteed return.",
+          "riskPlain": "Issuer credit quality, price and tradability must be checked for the exact ISIN.",
+          "lockInPlain": "No category-wide lock-in is established; maturity and sale terms depend on the bond.",
+          "whoFor": "Investors who pass exact-bond suitability and concentration checks.",
           "example": null
         },
-        "cardSubtitle": "Corporate bonds with AA credit ratings, offering a slight yield premium over AAA bonds."
+        "cardSubtitle": "Exact ISIN and current terms required; no category-wide yield or Top 3 is verified."
       },
       "dynamicData": {
         "expectedReturn": {
-          "min": 8,
-          "avg": 8.9,
-          "max": 9.8,
-          "source": "RBI / SEBI corporate bond market data",
-          "lastUpdated": "July 2026"
+          "min": null,
+          "avg": null,
+          "max": null,
+          "source": null,
+          "lastUpdated": null,
+          "dataClass": "UNAVAILABLE"
         },
-        "expenseRatio": 0,
+        "expenseRatio": null,
         "interestRates": null,
         "fundSize": null,
-        "topSchemes": [
-          {
-            "name": "AA Rated Corporate Bond via Zerodha Kite",
-            "provider": "Zerodha",
-            "rate": "~8.9% p.a.",
-            "highlight": "Zero brokerage on equity delivery investments with India's largest discount broker.",
-            "platform": "Zerodha Kite App",
-            "minInvestment": "₹10000",
-            "tenure": null,
-            "badge": "Top Discount Broker",
-            "sector": null
-          },
-          {
-            "name": "AA Rated Corporate Bond via Groww",
-            "provider": "Groww",
-            "rate": "~8.9% p.a.",
-            "highlight": "Most beginner-friendly UI with instant paperless onboarding.",
-            "platform": "Groww App",
-            "minInvestment": "₹10000",
-            "tenure": null,
-            "badge": "Best Beginner UI",
-            "sector": null
-          },
-          {
-            "name": "AA Rated Corporate Bond via Angel One",
-            "provider": "Angel One",
-            "rate": "~8.9% p.a.",
-            "highlight": "Full service research reports and automated trading tools.",
-            "platform": "Angel One App",
-            "minInvestment": "₹10000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "AA Rated Corporate Bond via ICICI Direct",
-            "provider": "ICICI Direct",
-            "rate": "~8.9% p.a.",
-            "highlight": "3-in-1 integrated banking + demat + trading account convenience.",
-            "platform": "ICICI Direct Portal",
-            "minInvestment": "₹10000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          },
-          {
-            "name": "AA Rated Corporate Bond via Upstox / Kuvera",
-            "provider": "Upstox / Kuvera",
-            "rate": "~8.9% p.a.",
-            "highlight": "Low fee execution with direct portfolio analytics.",
-            "platform": "Upstox / Kuvera App",
-            "minInvestment": "₹10000",
-            "tenure": null,
-            "badge": null,
-            "sector": null
-          }
-        ],
+        "topSchemes": [],
         "risk": {
-          "level": "Medium",
-          "value": 3,
-          "volatility": 0.04
+          "level": null,
+          "value": null,
+          "volatility": null
         },
         "liquidity": {
-          "score": 3,
-          "type": "T+2",
-          "lockIn": 3
+          "score": null,
+          "type": null,
+          "lockIn": null
         },
-        "minMonthlyInvestment": 10000,
+        "minMonthlyInvestment": null,
         "maxAnnualInvestment": null,
         "idealHorizon": {
-          "min": 3,
-          "max": 5
+          "min": null,
+          "max": null
         },
-        "goalTags": [
-          "Retirement"
-        ],
-        "taxType": "slab",
-        "taxEfficiencyScore": 1,
-        "lockIn": 3,
-        "liquidityScore": 3,
-        "volatility": 0.04,
-        "riskLevel": 3
+        "goalTags": [],
+        "taxType": null,
+        "taxEfficiencyScore": null,
+        "lockIn": null,
+        "liquidityScore": null,
+        "volatility": null,
+        "riskLevel": null
       },
       "eligibility": {
-        "minAge": 18,
+        "minAge": null,
         "maxAge": null,
-        "minAnnualIncome": 0,
-        "minMonthlySavings": 500,
-        "notes": null,
+        "minAnnualIncome": null,
+        "minMonthlySavings": null,
+        "notes": "Eligibility depends on the exact bond issue and investor.",
         "requiresDemat": null,
         "hasGirlChild": null
       }

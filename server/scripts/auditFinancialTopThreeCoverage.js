@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Pool } from 'pg';
 import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
+import { summarizeTopThreeCoverage } from './topThreeCoverageSummary.js';
 
 // Read-only release gate: coverage is measured, never invented or filled.
 // Counts are source-qualifiable *candidates*, not personalized suitability.
@@ -45,23 +46,7 @@ try {
     'GROUP BY f.id,f.name,c.label ORDER BY f.id',
   ].join(' '));
   if (rows.length < 250) throw new Error('FINANCIAL_FAMILY_COVERAGE_BELOW_250');
-  const deficits = rows.map(row => ({
-    familyId: row.id, name: row.name, category: row.category,
-    potentialProducts: Number(row.potentially_qualified),
-    slotsMissing: Math.max(0, 3 - Number(row.potentially_qualified)),
-  }));
-  const covered = deficits.filter(item => item.slotsMissing === 0);
-  const summary = {
-    status: 'EVIDENCE_MEASURED_NOT_INFERRED',
-    at: new Date().toISOString(),
-    families: rows.length,
-    familiesWithThreePotentialProducts: covered.length,
-    familiesWithFewerThanThree: deficits.length - covered.length,
-    remainingTopThreeSlots: deficits.reduce((n,item) => n+item.slotsMissing, 0),
-    topThreeIsMaximumNotQuota: true,
-    qualifiedForAnySpecificInvestor: 'NOT_ASSESSED',
-    missingOrUnderfilledFamilies: deficits.filter(item => item.slotsMissing>0),
-  };
+  const summary = summarizeTopThreeCoverage(rows);
   process.stdout.write(JSON.stringify(summary, null, 2) + '\n');
 } finally {
   await pool.end();

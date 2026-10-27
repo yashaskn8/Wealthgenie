@@ -111,6 +111,14 @@ test('a new blue-chip stock discovery row is not seeded as an ETF or with a fund
   }
 });
 
+test('a new AA bond discovery row is not seeded as government debt or with invented bond terms', () => {
+  const source = investmentDatabase.find(item => item.id === 'aa_corporate_bond');
+  const mapped = mapCatalogInstrument(source);
+  assert.equal(mapped.type, 'Bond_Archetype');
+  for (const field of ['expectedReturn', 'rate', 'interestRate', 'risk', 'lockIn', 'lockInYears',
+    'expenseRatio', 'taxType']) assert.equal(mapped[field], null, field);
+});
+
 test('master catalog structured tax disclosure matches the legacy string schema', () => {
   const item = { id: 'x', name: 'Example', taxation: {
     status: 'TAX_CLASSIFICATION_UNAVAILABLE',
