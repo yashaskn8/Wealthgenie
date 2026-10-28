@@ -29,6 +29,9 @@ test('qualified product registry inserts real source IDs but never auto-approves
   status:'REGISTERED',productId:input.productId,
   recommendationEligible:false,taxClass:'UNVERIFIED',
  });
+ const rightsSql=h.calls.find(c=>c.sql.includes('FROM finance.provider_rights'))?.sql;
+ assert.match(rightsSql,/verification_state='VERIFIED'/);
+ assert.match(rightsSql,/verification_expires_at>now\(\)/);
  assert.ok(h.calls.some(c=>c.sql.includes('INSERT INTO finance.products')));
  assert.ok(h.calls.some(c=>c.sql.includes('INSERT INTO finance.product_external_ids')));
  assert.ok(h.calls.some(c=>c.sql==='COMMIT'));

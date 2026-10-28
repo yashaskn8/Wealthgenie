@@ -37,6 +37,9 @@ export async function registerQualifiedActualProduct(pool,{
        AND redistribution_allowed
        AND reviewed_at IS NOT NULL AND revoked_at IS NULL
        AND retention_seconds IS NOT NULL AND retention_seconds>0
+       AND verification_state='VERIFIED'
+       AND verification_expires_at>now()
+       AND reviewed_at<=now()
        AND (expires_at IS NULL OR expires_at>now())
      FOR SHARE`,[sourceId]);
   if(rights.rows.length!==1)throw bad('ACTUAL_PRODUCT_SOURCE_RIGHTS_UNQUALIFIED');
