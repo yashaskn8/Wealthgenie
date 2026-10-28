@@ -133,6 +133,9 @@ function buildDirectory() {
         actualRiskScore: null,
         issuerTermsVerified: false,
         sourceRightsVerified: false,
+        reviewedOfficialFrameworkFact: research.verifiedPublicFrameworkFact
+          ? { ...research.verifiedPublicFrameworkFact } : null,
+        officialFrameworkVerification: research.publicFrameworkVerification,
       };
     })(),
     description: null, educationalRiskLabel: null,
@@ -174,7 +177,11 @@ export function listFinancialDiscoveryDirectory() {
     disclaimer: '250 educational investment categories, not 250 verified purchasable products. No current prices, rates, tax outcomes or personalized investment recommendations are established by this catalog.',
     items: DIRECTORY.map(item => ({
       ...item, productData: { ...item.productData },
-      frameworkResearch: item.frameworkResearch ? { ...item.frameworkResearch } : null,
+      frameworkResearch: item.frameworkResearch ? {
+        ...item.frameworkResearch,
+        reviewedOfficialFrameworkFact: item.frameworkResearch.reviewedOfficialFrameworkFact
+          ? { ...item.frameworkResearch.reviewedOfficialFrameworkFact } : null,
+      } : null,
       studyNotes: {
         ...item.studyNotes,
         possibleBenefits: [...item.studyNotes.possibleBenefits],

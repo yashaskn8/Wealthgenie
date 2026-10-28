@@ -38,6 +38,13 @@ const families = Array.from({length:250},(_,index)=>({
     standardCapitalReferenceInr:index===249?1000000:null,
     standardMinimumHasExceptions:index===249,
     actualRiskScore:null,issuerTermsVerified:false,sourceRightsVerified:false,
+    reviewedOfficialFrameworkFact:index===249?{
+      factCode:'NPS_ACTIVE_EQUITY_MAX_SHARE_PERCENT',value:75,
+      officialSourceUrl:'https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models',
+      reviewedOn:'2026-10-28',scope:'PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT',
+    }:null,
+    officialFrameworkVerification:index===249?'DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED':
+      'INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED',
   }:null,
   referenceUrl:index>=155?'https://www.sebi.gov.in/':null,
   referenceCheckedAsOf:index>=155?'2026-10-22':null,
@@ -116,6 +123,9 @@ describe('all 250 investment categories are browseable without product approval'
    expect(screen.getByText(/Investment family 250: category risk structure requires product verification/)).toBeTruthy();
    expect(screen.getByText(/Standard regulatory investment threshold/)).toBeTruthy();
    expect(screen.getByText(/₹10,00,000/)).toBeTruthy();
+   expect(screen.getByText(/NPS ACTIVE EQUITY MAX SHARE PERCENT/)).toBeTruthy();
+   expect(screen.getByRole('link',{name:'Official rule evidence'}))
+      .toHaveAttribute('href','https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models');
    expect(screen.getAllByText(/No live rate, licensed data feed or personal suitability is established/))
      .toHaveLength(2);
    expect(screen.getByRole('link',{name:'Website usage terms'}))

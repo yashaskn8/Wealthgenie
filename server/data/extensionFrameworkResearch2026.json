@@ -487,7 +487,7 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "NBFC_DEPOSIT_INSURANCE_SCOPE",
         "value": "NBFC public deposits are not covered by DICGC insurance",
-        "officialSourceUrl": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563",
+        "officialSourceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
@@ -515,7 +515,7 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "NBFC_DEPOSIT_INSURANCE_SCOPE",
         "value": "NBFC public deposits are not covered by DICGC insurance",
-        "officialSourceUrl": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563",
+        "officialSourceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },

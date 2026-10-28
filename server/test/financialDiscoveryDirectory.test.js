@@ -77,6 +77,33 @@ test('all 95 newer categories expose different structure research without invest
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===aif.id)
    .frameworkResearch.standardCapitalReferenceInr,10000000);
 });
+test('28 direct official facts across all 95 are separate from product rates and suitability',()=>{
+ const rows=listFinancialDiscoveryDirectory().items.filter(x=>x.origin==='EXTENDED_95');
+ const reviewed=rows.filter(x=>x.frameworkResearch.reviewedOfficialFrameworkFact !== null);
+ assert.equal(rows.length,95);
+ assert.equal(reviewed.length,28);
+ assert.ok(reviewed.every(x=>x.frameworkResearch.officialFrameworkVerification
+    ==='DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED'));
+ assert.ok(rows.every(x=>!x.recommendationEligible && x.productAvailability==='NOT_VERIFIED'
+   && x.dataRights==='NOT_VERIFIED' && x.frameworkResearch.actualRiskScore===null));
+ const find=id=>rows.find(x=>x.id==='catalog_2026_'+id);
+ assert.equal(find('nps_lc25').frameworkResearch.reviewedOfficialFrameworkFact.value,25);
+ assert.equal(find('nps_lc50').frameworkResearch.reviewedOfficialFrameworkFact.value,50);
+ assert.equal(find('nps_lc75').frameworkResearch.reviewedOfficialFrameworkFact.value,75);
+ assert.equal(find('nps_lc_aggressive').frameworkResearch.reviewedOfficialFrameworkFact.value,50);
+ assert.equal(find('nps_asset_a').frameworkResearch.reviewedOfficialFrameworkFact.value,5);
+ assert.equal(find('po_td_5').frameworkResearch.reviewedOfficialFrameworkFact.value,60);
+ assert.equal(find('tbill_91').frameworkResearch.reviewedOfficialFrameworkFact.value,91);
+ assert.equal(find('aif1_vc').frameworkResearch.reviewedOfficialFrameworkFact.value,10000000);
+ assert.equal(find('sif_hybrid_longshort').frameworkResearch.reviewedOfficialFrameworkFact.value,1000000);
+ assert.equal(find('nbfc_fd_payout').frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl,
+  'https://www.dicgc.org.in/guide-to-deposit-insurance');
+ assert.equal(find('index_nifty100').frameworkResearch.reviewedOfficialFrameworkFact,null);
+ const mutated=rows.find(x=>x.id==='catalog_2026_nps_lc25');
+ mutated.frameworkResearch.reviewedOfficialFrameworkFact.value=99;
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===mutated.id)
+    .frameworkResearch.reviewedOfficialFrameworkFact.value,25);
+});
 test('every catalog item reports missing REAL product facts, not fabricated rates',()=>{
  const items=listFinancialDiscoveryDirectory().items;
  for (const x of items){

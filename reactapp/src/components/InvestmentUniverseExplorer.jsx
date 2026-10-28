@@ -453,6 +453,19 @@ export default function InvestmentUniverseExplorer({
                           </>}
                         </dd>
                       </>}
+                    {selectedFamily.frameworkResearch?.reviewedOfficialFrameworkFact && <>
+                      <dt>Official framework fact (not an investment quote)</dt>
+                      <dd>
+                        {selectedFamily.frameworkResearch.reviewedOfficialFrameworkFact.factCode.replaceAll('_',' ')}:
+                        {' '}{String(selectedFamily.frameworkResearch.reviewedOfficialFrameworkFact.value)}
+                        {' · '}Checked {selectedFamily.frameworkResearch.reviewedOfficialFrameworkFact.reviewedOn}.
+                        {' '}This verifies a published category rule, not a specific product's
+                        risk, current rate, availability or suitability.
+                        {' '}<a
+                          href={permittedEvidenceUrl(selectedFamily.frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl)}
+                          target="_blank" rel="noopener noreferrer">Official rule evidence</a>
+                      </dd>
+                    </>}
                     {selectedFamily.frameworkResearch && <>
                       <dt>Researched investment structure</dt>
                       <dd>{selectedFamily.frameworkResearch.structuralExposureClass.replaceAll('_',' ')}</dd>
