@@ -111,8 +111,10 @@ describe('all 250 investment categories are browseable without product approval'
        id:'bond_'+index,name:'Verified bond '+index,riskLevel:2,annualFeeBps:0,lockInMonths:0,
        verifiedTaxClass:'ORDINARY_INTEREST',marketFact:{
          type:'PRICE',value:100+index,unit:'INR',dataClass:'END_OF_DAY',
-         sourceId:'verified_source',observationId:String(index),
-       },evidence:{product:'https://issuer.example/bond/'+index},
+         sourceId:'verified_source',observationId:String(index),asOf:'2026-10-28T10:00:00Z',
+       },evidence:{product:'https://issuer.example/bond/'+index,
+         terms:'https://issuer.example/terms/'+index,risk:'https://issuer.example/risk/'+index,
+         reviewedAt:'2026-10-27T12:00:00Z',expiresAt:'2026-11-15T12:00:00Z'},
      })),
    });
    render(<Explorer/>);
@@ -120,6 +122,12 @@ describe('all 250 investment categories are browseable without product approval'
    fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
    await waitFor(()=>expect(screen.getByText('Verified bond 1')).toBeTruthy());
    expect(screen.getAllByRole('link',{name:'Issuer evidence'})).toHaveLength(2);
+   expect(screen.getAllByText(/Observation as-of:/)).toHaveLength(2);
+   expect(screen.getAllByText(/Review expires:/)).toHaveLength(2);
+   expect(screen.getAllByRole('link',{name:'Terms'})).toHaveLength(2);
+   expect(screen.getAllByRole('link',{name:'Risk evidence'})).toHaveLength(2);
+   expect(screen.getByText(/Observation ID: 1/)).toBeTruthy();
+   expect(screen.getByText(/Observation ID: 2/)).toBeTruthy();
    expect(api.getQualifiedFamilyTopProducts).toHaveBeenCalledWith(
      'family_001','0123456789abcdef01234567',expect.any(Object));
  });

@@ -408,12 +408,37 @@ export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LI
                               {' '}{product.marketFact?.unit || ''}
                               {' '}({product.marketFact?.dataClass || 'classification unavailable'})
                               · Source: {product.marketFact?.sourceId}
+                              · Observation ID: {product.marketFact?.observationId}
+                            </div>
+                            <div>
+                              Observation as-of: {product.marketFact?.asOf
+                                ? new Date(product.marketFact.asOf).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'})
+                                : 'Not provided'}
+                              · Source classification: {product.marketFact?.dataClass || 'Unavailable'}
                             </div>
                             <div>Tax class: {product.verifiedTaxClass || 'Not established'}.
                               Personalized post-tax return: not calculated by this comparison.
                             </div>
+                            <div>
+                              Reviewed: {product.evidence?.reviewedAt
+                                ? new Date(product.evidence.reviewedAt).toLocaleDateString('en-IN', {timeZone:'Asia/Kolkata'})
+                                : 'Not provided'}
+                              · Review expires: {product.evidence?.expiresAt
+                                ? new Date(product.evidence.expiresAt).toLocaleDateString('en-IN', {timeZone:'Asia/Kolkata'})
+                                : 'Not provided'}
+                            </div>
                             <a href={permittedEvidenceUrl(product.evidence?.product)}
                               target="_blank" rel="noopener noreferrer">Issuer evidence</a>
+                            {' · '}
+                            {permittedEvidenceUrl(product.evidence?.terms) && (
+                              <a href={permittedEvidenceUrl(product.evidence.terms)}
+                                target="_blank" rel="noopener noreferrer">Terms</a>
+                            )}
+                            {' · '}
+                            {permittedEvidenceUrl(product.evidence?.risk) && (
+                              <a href={permittedEvidenceUrl(product.evidence.risk)}
+                                target="_blank" rel="noopener noreferrer">Risk evidence</a>
+                            )}
                           </li>
                         ))}
                       </ol>
