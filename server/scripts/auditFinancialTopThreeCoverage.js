@@ -2,26 +2,35 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import { createFinancialPostgresPoolOptions } from '../postgres/poolConfig.js';
 import { summarizeTopThreeCoverage } from './topThreeCoverageSummary.js';
+import { buildCatalog250Verification } from './auditCatalog250Verification.js';
 
 // Read-only release gate: coverage is measured, never invented or filled.
 // Counts are source-qualifiable *candidates*, not personalized suitability.
 if (!process.env.FINANCIAL_POSTGRES_URL) throw new Error('FINANCIAL_POSTGRES_URL_REQUIRED');
 const pool = new Pool(createFinancialPostgresPoolOptions(process.env, { max: 1 }));
 try {
+  const expectedFamilyIds = buildCatalog250Verification().families.map(x => x.familyId);
   const { rows } = await pool.query([
     'SELECT f.id,f.name,c.label AS category,',
-    'count(DISTINCT q.product_id) FILTER (WHERE',
+    'count(DISTINCT p.source_identity) FILTER (WHERE',
     "q.status='ACTIVE' AND q.valid_until>now() AND q.reviewed_at<=now()",
     "AND p.record_kind='ACTUAL_PRODUCT' AND p.availability='AVAILABLE'",
-    'AND p.recommendation_eligible=true',
+    'AND p.recommendation_eligible=true AND p.category_id=f.category_id',
+    "AND p.verification_scope='VERIFIED_ACTUAL_PRODUCT' AND p.source_identity IS NOT NULL",
+    "AND p.tax_class_evidence_url LIKE 'https://%' AND p.tax_class_reviewed_at IS NOT NULL",
+    'AND p.tax_class_reviewed_at<=now()',
+    'AND q.retail_access=true AND q.requires_demat=false AND q.requires_accreditation=false',
+    'AND q.requires_nps_account=false AND q.requires_child_eligibility=false',
     "AND p.qualified_tax_class NOT IN ('UNVERIFIED','OTHER_UNSUPPORTED')",
     'AND r.source_id=q.source_id AND r.access_allowed AND r.extraction_allowed',
     'AND r.storage_allowed AND r.derivation_allowed AND r.public_display_allowed',
     'AND r.commercial_use_allowed AND r.redistribution_allowed',
-    'AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL',
+    'AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL AND r.reviewed_at<=now()',
     'AND r.revoked_at IS NULL AND (r.expires_at IS NULL OR r.expires_at>now())',
     "AND r.verification_state='VERIFIED' AND r.verification_expires_at>now()", 
     'AND EXISTS (SELECT 1 FROM finance.market_observations o',
+    'JOIN finance.product_external_ids ext ON ext.product_id=p.id',
+    'AND ext.source_id=q.source_id AND ext.source_instrument_id=o.source_instrument_id',
     'WHERE o.product_id=p.id AND o.source_id=q.source_id',
     'AND o.observation_type=q.observation_type',
     'AND o.retain_until>now() AND o.fetched_at<=now() AND o.observed_at<=now()',
@@ -43,11 +52,10 @@ try {
     'LEFT JOIN finance.family_product_qualifications q ON q.family_id=f.id',
     'LEFT JOIN finance.products p ON p.id=q.product_id',
     'LEFT JOIN finance.provider_rights r ON r.source_id=q.source_id',
-    "WHERE f.record_kind='ARCHETYPE'",
+    "WHERE f.record_kind='ARCHETYPE' AND f.id=ANY($1::text[])",
     'GROUP BY f.id,f.name,c.label ORDER BY f.id',
-  ].join(' '));
-  if (rows.length < 250) throw new Error('FINANCIAL_FAMILY_COVERAGE_BELOW_250');
-  const summary = summarizeTopThreeCoverage(rows);
+  ].join(' '), [expectedFamilyIds]);
+  const summary = summarizeTopThreeCoverage(rows, new Date().toISOString(), { expectedFamilyIds });
   process.stdout.write(JSON.stringify(summary, null, 2) + '\n');
 } finally {
   await pool.end();
