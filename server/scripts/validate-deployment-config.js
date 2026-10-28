@@ -329,7 +329,7 @@ const metricsServerInstall = namedStep(cdSteps, 'Install Metrics Server for HPA'
 const imageBuild = namedStep(cdSteps, 'Build Docker Container Images');
 if (kindCluster.step.with?.version !== 'v0.32.0'
     || kindCluster.step.with?.node_image !== 'kindest/node:v1.34.8@sha256:02722c2dedddcfc00febf5d27fbeb9b7b2c14294c82109ff4a85d89ac9ba3256'
-    || !imageBuild.step.run?.includes("printf -- '- Commit: `%s`\\n' \"$GITHUB_SHA\"")
+    || !imageBuild.step.run?.includes("printf -- '- Commit: `%s`\\n' \"$RELEASE_SHA\"")
     || /echo\s+"[^"]*`/.test(imageBuild.step.run || '')
     || !metricsServerInstall.step.run?.includes('releases/download/v0.9.0/components.yaml')
     || !metricsServerInstall.step.run?.includes('1cec29a5267809306a2c6ec74a3e449abbb705b4a8beed0c8a1963910f72c79b')
@@ -384,7 +384,7 @@ if (!(dbApply.index < secrets.index
     || !cdPhase7Migration.step.run?.includes('kubectl wait --for=condition=complete')
     || !appApply.step.run?.includes('kubectl kustomize k8s/')
     || !appApply.step.run?.includes('kubectl apply -f build/k8s-pinned.yaml')
-    || !appApply.step.run?.includes('GITHUB_SHA')
+    || !appApply.step.run?.includes('RELEASE_SHA')
     || !secrets.step.run?.includes('EPHEMERAL_REDIS_PASSWORD=$(openssl rand -hex 32)')
     || !secrets.step.run?.includes('--from-literal=REDIS_PASSWORD="$EPHEMERAL_REDIS_PASSWORD"')
     || !appReady.step.run?.includes('kubectl rollout status deployment/wealthgenie-agent-worker')
