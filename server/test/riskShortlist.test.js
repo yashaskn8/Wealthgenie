@@ -245,3 +245,35 @@ test('RBI and DICGC evidence distinguishes both NBFC deposit structures and prof
  assert.equal(research.filter(x=>x.nbfcPublicDepositAccessReview).length,2);
  assert.equal(research.filter(x=>x.suitabilityRankingPermitted===true).length,0);
 });
+
+test('RBI Retail Direct access research stays separate from product eligibility for four categories',()=>{
+ const ids=['tbill_91','tbill_182','tbill_364','sdl_dated'];
+ const rows=listExtensionResearch();
+ const conservative=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative'}));
+ const aggressive=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive'}));
+ for(const id of ids){
+  const row=rows.find(x=>x.id==='catalog_2026_'+id),access=row.rbiRetailDirectAccessReview;
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
+  assert.equal(access.officialRetailDirectFaqUrl,'https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145');
+  assert.equal(access.faqPublishedOn,'2021-11-12');
+  assert.equal(access.reviewedOn,'2026-10-29');
+  assert.equal(access.generalRetailAccessDescribed,true);
+  for(const key of ['profileSpecificAccountEligibilityVerified','currentIssueOrQuoteVerified','specificInstrumentTermsVerified','independentCommercialDataPermissionVerified','instrumentSpecificSuitabilityVerified'])assert.equal(access[key],false);
+  assert.equal(row.actualRetailProductEligible,false);
+  assert.equal(row.sourcePermissionVerified,false);
+  assert.equal(row.productRiskScore,null);
+  for(const screened of [conservative,aggressive]){
+   const item=screened.find(x=>x.id===row.id);
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.ok(item.screeningReasonCodes.includes('RBI_RETAIL_DIRECT_ACCOUNT_KYC_AND_PERSONAL_ELIGIBILITY_UNVERIFIED'));
+   assert.ok(item.screeningReasonCodes.includes('GOVERNMENT_SECURITY_CURRENT_ISSUE_PRICE_AND_SOURCE_RIGHTS_UNVERIFIED'));
+  }
+  assert.ok(conservative.find(x=>x.id===row.id).screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_GOVT_SECURITY_EARLY_SALE_PRICE_AND_LIQUIDITY_REVIEW'));
+  assert.ok(!aggressive.find(x=>x.id===row.id).screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_GOVT_SECURITY_EARLY_SALE_PRICE_AND_LIQUIDITY_REVIEW'));
+ }
+ assert.equal(rows.filter(x=>x.rbiRetailDirectAccessReview).length,4);
+ rows.find(x=>x.id==='catalog_2026_tbill_91').rbiRetailDirectAccessReview.currentIssueOrQuoteVerified=true;
+ assert.equal(listExtensionResearch().find(x=>x.id==='catalog_2026_tbill_91').rbiRetailDirectAccessReview.currentIssueOrQuoteVerified,false);
+});

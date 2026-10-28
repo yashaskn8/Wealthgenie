@@ -192,3 +192,23 @@ test('NBFC educational entries show separate RBI deposit-access and DICGC covera
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===ids[0])
   .frameworkResearch.publicDepositAccessReview.issuerDepositTakingPermissionVerified,false);
 });
+
+test('four government-security categories expose dated RBI evidence but no investable product facts',()=>{
+ const all=listFinancialDiscoveryDirectory().items;
+ const ids=['tbill_91','tbill_182','tbill_364','sdl_dated'];
+ for(const id of ids){
+  const row=all.find(x=>x.id==='catalog_2026_'+id),access=row.frameworkResearch.retailDirectAccessReview;
+  assert.equal(access.reviewedOn,'2026-10-29');
+  assert.equal(access.generalRetailAccessDescribed,true);
+  assert.equal(access.profileSpecificAccountEligibilityVerified,false);
+  assert.equal(access.currentIssueOrQuoteVerified,false);
+  assert.equal(access.independentCommercialDataPermissionVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.productData.currentPrice,null);
+  assert.equal(row.productData.marketFactAsOf,null);
+ }
+ assert.equal(all.filter(x=>x.frameworkResearch?.retailDirectAccessReview).length,4);
+ all.find(x=>x.id==='catalog_2026_tbill_91').frameworkResearch.retailDirectAccessReview.currentIssueOrQuoteVerified=true;
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_tbill_91').frameworkResearch.retailDirectAccessReview.currentIssueOrQuoteVerified,false);
+});

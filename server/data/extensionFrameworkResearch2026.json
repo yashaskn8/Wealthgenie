@@ -120,10 +120,10 @@
     {
       "id": "catalog_2026_tbill_91",
       "exposureClass": "SHORT_TERM_GOVERNMENT_BILL",
-      "scenarioDescription": "91-Day Government Treasury Bill: Treasury Bills category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "91-Day Government Treasury Bill: Treasury Bills category. Examine actual issuer or scheme terms before assigning an investment risk rating. RBI Retail Direct describes T-bill category access subject to PAN/KYC; the RBI 9 May 2025 auction notice confirms this tenor. Current issue, price, resale liquidity and individual eligibility remain unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": 91,
       "standardCapitalReferenceInr": null,
@@ -139,19 +139,33 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "GOVERNMENT_TREASURY_BILL_TENOR_DAYS",
         "value": 91,
-        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "rbiRetailDirectAccessReview": {
+        "officialRetailDirectFaqUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "faqPublishedOn": "2021-11-12",
+        "reviewedOn": "2026-10-29",
+        "securityClass": "TREASURY_BILL",
+        "generalRetailAccessDescribed": true,
+        "sourceScope": "GENERAL_RETAIL_DIRECT_FRAMEWORK_ONLY_NOT_CURRENT_ISSUE_OR_ACCOUNT_APPROVAL",
+        "profileSpecificAccountEligibilityVerified": false,
+        "currentIssueOrQuoteVerified": false,
+        "specificInstrumentTermsVerified": false,
+        "independentCommercialDataPermissionVerified": false,
+        "instrumentSpecificSuitabilityVerified": false,
+        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420"
+      }
     },
     {
       "id": "catalog_2026_tbill_182",
       "exposureClass": "SHORT_TERM_GOVERNMENT_BILL",
-      "scenarioDescription": "182-Day Government Treasury Bill: Treasury Bills category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "182-Day Government Treasury Bill: Treasury Bills category. Examine actual issuer or scheme terms before assigning an investment risk rating. RBI Retail Direct describes T-bill category access subject to PAN/KYC; the RBI 9 May 2025 auction notice confirms this tenor. Current issue, price, resale liquidity and individual eligibility remain unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": 182,
       "standardCapitalReferenceInr": null,
@@ -167,19 +181,33 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "GOVERNMENT_TREASURY_BILL_TENOR_DAYS",
         "value": 182,
-        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "rbiRetailDirectAccessReview": {
+        "officialRetailDirectFaqUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "faqPublishedOn": "2021-11-12",
+        "reviewedOn": "2026-10-29",
+        "securityClass": "TREASURY_BILL",
+        "generalRetailAccessDescribed": true,
+        "sourceScope": "GENERAL_RETAIL_DIRECT_FRAMEWORK_ONLY_NOT_CURRENT_ISSUE_OR_ACCOUNT_APPROVAL",
+        "profileSpecificAccountEligibilityVerified": false,
+        "currentIssueOrQuoteVerified": false,
+        "specificInstrumentTermsVerified": false,
+        "independentCommercialDataPermissionVerified": false,
+        "instrumentSpecificSuitabilityVerified": false,
+        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420"
+      }
     },
     {
       "id": "catalog_2026_tbill_364",
       "exposureClass": "SHORT_TERM_GOVERNMENT_BILL",
-      "scenarioDescription": "364-Day Government Treasury Bill: Treasury Bills category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "364-Day Government Treasury Bill: Treasury Bills category. Examine actual issuer or scheme terms before assigning an investment risk rating. RBI Retail Direct describes T-bill category access subject to PAN/KYC; the RBI 9 May 2025 auction notice confirms this tenor. Current issue, price, resale liquidity and individual eligibility remain unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": 364,
       "standardCapitalReferenceInr": null,
@@ -195,19 +223,33 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "GOVERNMENT_TREASURY_BILL_TENOR_DAYS",
         "value": 364,
-        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "rbiRetailDirectAccessReview": {
+        "officialRetailDirectFaqUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "faqPublishedOn": "2021-11-12",
+        "reviewedOn": "2026-10-29",
+        "securityClass": "TREASURY_BILL",
+        "generalRetailAccessDescribed": true,
+        "sourceScope": "GENERAL_RETAIL_DIRECT_FRAMEWORK_ONLY_NOT_CURRENT_ISSUE_OR_ACCOUNT_APPROVAL",
+        "profileSpecificAccountEligibilityVerified": false,
+        "currentIssueOrQuoteVerified": false,
+        "specificInstrumentTermsVerified": false,
+        "independentCommercialDataPermissionVerified": false,
+        "instrumentSpecificSuitabilityVerified": false,
+        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420"
+      }
     },
     {
       "id": "catalog_2026_sdl_dated",
       "exposureClass": "GOVERNMENT_BOND_DURATION_AND_MARKET_PRICE",
-      "scenarioDescription": "State Development Loan (SDL) Dated Security: State Government Securities category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "State Development Loan (SDL) Dated Security: State Government Securities category. Examine actual issuer or scheme terms before assigning an investment risk rating. RBI Retail Direct lists SDLs subject to account PAN/KYC and auction or secondary-market terms. The particular state issue, maturity, price, resale liquidity and individual eligibility remain unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -224,10 +266,23 @@
         "factCode": "RBI_SECONDARY_GOVERNMENT_SECURITY_PRICE_RISK",
         "value": "Government securities can move in market price before maturity; issuer-specific security terms remain unverified",
         "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
-        "reviewedOn": "2026-10-28",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "rbiRetailDirectAccessReview": {
+        "officialRetailDirectFaqUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "faqPublishedOn": "2021-11-12",
+        "reviewedOn": "2026-10-29",
+        "securityClass": "STATE_DEVELOPMENT_LOAN",
+        "generalRetailAccessDescribed": true,
+        "sourceScope": "GENERAL_RETAIL_DIRECT_FRAMEWORK_ONLY_NOT_CURRENT_ISSUE_OR_ACCOUNT_APPROVAL",
+        "profileSpecificAccountEligibilityVerified": false,
+        "currentIssueOrQuoteVerified": false,
+        "specificInstrumentTermsVerified": false,
+        "independentCommercialDataPermissionVerified": false,
+        "instrumentSpecificSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_sdl_coupon_strip",

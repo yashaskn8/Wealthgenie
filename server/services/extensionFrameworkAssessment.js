@@ -9,6 +9,7 @@ const research=JSON.parse(readFileSync(
 const idSet=new Set(universe.map(x=>x.id));
 const legacyIds=new Set(investmentDatabase.map(x=>x.id));
 const nbfcDepositIds=new Set(['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout']);
+const retailDirectIds=new Set(['catalog_2026_tbill_91','catalog_2026_tbill_182','catalog_2026_tbill_364','catalog_2026_sdl_dated']);
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -43,6 +44,23 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.nbfcPublicDepositAccessReview?.individualRetailEligibilityVerified!==false
       || x.nbfcPublicDepositAccessReview?.commercialDataRightsVerified!==false)
     : x.nbfcPublicDepositAccessReview!==undefined)
+  || research.entries.some(x=>retailDirectIds.has(x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.rbiRetailDirectAccessReview?.officialRetailDirectFaqUrl!=='https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145'
+      || x.rbiRetailDirectAccessReview?.faqPublishedOn!=='2021-11-12'
+      || x.rbiRetailDirectAccessReview?.reviewedOn!=='2026-10-29'
+      || x.rbiRetailDirectAccessReview?.securityClass!==(x.id.startsWith('catalog_2026_tbill_')?'TREASURY_BILL':'STATE_DEVELOPMENT_LOAN')
+      || x.rbiRetailDirectAccessReview?.generalRetailAccessDescribed!==true
+      || x.rbiRetailDirectAccessReview?.sourceScope!=='GENERAL_RETAIL_DIRECT_FRAMEWORK_ONLY_NOT_CURRENT_ISSUE_OR_ACCOUNT_APPROVAL'
+      || x.rbiRetailDirectAccessReview?.profileSpecificAccountEligibilityVerified!==false
+      || x.rbiRetailDirectAccessReview?.currentIssueOrQuoteVerified!==false
+      || x.rbiRetailDirectAccessReview?.specificInstrumentTermsVerified!==false
+      || x.rbiRetailDirectAccessReview?.independentCommercialDataPermissionVerified!==false
+      || x.rbiRetailDirectAccessReview?.instrumentSpecificSuitabilityVerified!==false
+      || (x.id.startsWith('catalog_2026_tbill_')
+        ? x.rbiRetailDirectAccessReview?.officialTenorAuctionReferenceUrl!=='https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420'
+        : x.rbiRetailDirectAccessReview?.officialTenorAuctionReferenceUrl!==undefined))
+    : x.rbiRetailDirectAccessReview!==undefined)
   || research.entries.some((e,i)=> e.id!==universe[i].id
     || !idSet.has(e.id) || legacyIds.has(e.id)
     || e.referenceUrl!==universe[i].sourceUrl
@@ -57,7 +75,7 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
 }
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
- return research.entries.map(row=>({...row}));
+ return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
 }
 /**
  * These are conservative, non-ranking profile screening FLAGS. Never call
@@ -105,6 +123,12 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('NBFC_TENOR_AND_PREMATURE_REPAYMENT_REQUIRE_ISSUER_TERMS');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NBFC_CREDIT_AND_LIQUIDITY_REVIEW');
+   }
+   if(row.rbiRetailDirectAccessReview) {
+     reasons.push('RBI_RETAIL_DIRECT_ACCOUNT_KYC_AND_PERSONAL_ELIGIBILITY_UNVERIFIED');
+     reasons.push('GOVERNMENT_SECURITY_CURRENT_ISSUE_PRICE_AND_SOURCE_RIGHTS_UNVERIFIED');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_GOVT_SECURITY_EARLY_SALE_PRICE_AND_LIQUIDITY_REVIEW');
    }
    if(row.id.startsWith('catalog_2026_ncd_'))
      reasons.push('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW');

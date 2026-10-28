@@ -138,6 +138,8 @@ function buildDirectory() {
         officialFrameworkVerification: research.publicFrameworkVerification,
         publicDepositAccessReview: research.nbfcPublicDepositAccessReview
           ? { ...research.nbfcPublicDepositAccessReview } : null,
+        retailDirectAccessReview: research.rbiRetailDirectAccessReview
+          ? { ...research.rbiRetailDirectAccessReview } : null,
       };
     })(),
     description: null, educationalRiskLabel: null,
@@ -185,6 +187,8 @@ export function listFinancialDiscoveryDirectory() {
           ? { ...item.frameworkResearch.reviewedOfficialFrameworkFact } : null,
         publicDepositAccessReview: item.frameworkResearch.publicDepositAccessReview
           ? { ...item.frameworkResearch.publicDepositAccessReview } : null,
+        retailDirectAccessReview: item.frameworkResearch.retailDirectAccessReview
+          ? { ...item.frameworkResearch.retailDirectAccessReview } : null,
       } : null,
       studyNotes: {
         ...item.studyNotes,
