@@ -230,6 +230,40 @@ describe('all 250 investment categories are browseable without product approval'
    ]);
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
  });
+ it('includes all 95 newer options in the same 250-category profile screening',async()=>{
+   const profileAssessments=families.map((item,index)=>({
+     id:item.id,
+     profileAssessment:index>=155?'MISSING_SUITABILITY_EVIDENCE':
+       index<3?'PROFILE_ELIGIBLE_CATEGORY':'PROFILE_EXCLUDED_CATEGORY',
+     reasonCode:index>=155?'UNVERIFIED_CATEGORY_RISK_ELIGIBILITY_AND_TERMS':
+       index<3?null:'RISK_EXCEEDS_FINAL_SUITABILITY',
+     scoreAvailable:index<3,productQualified:false,
+     source:index>=155?'EXTENDED_95_DISCOVERY':'EXISTING_155_MODEL',
+   }));
+   const profileCoverage={
+     totalCategories:250,modelEvaluatedLegacyCategories:155,
+     extensionCategoriesMissingSuitabilityEvidence:95,
+     legacyProfileEligibleCount:3,legacyProfileExcludedCount:152,
+     assessmentScope:'CATEGORY_SCREENING_NOT_PRODUCT_RECOMMENDATION',
+   };
+   render(<Explorer profileAssessments={profileAssessments} profileCoverage={profileCoverage}/>);
+   await waitFor(()=>expect(screen.getByText('Investment family 250')).toBeTruthy());
+   expect(screen.getByText(/Profile screening covers all 250 categories/)).toBeTruthy();
+   expect(screen.getByText('250 matching options')).toBeTruthy();
+   fireEvent.change(screen.getByLabelText('Filter by financial profile screening'),{
+     target:{value:'MISSING_SUITABILITY_EVIDENCE'},
+   });
+   expect(screen.getByText('95 matching options')).toBeTruthy();
+   expect(screen.queryByText('Investment family 1')).toBeNull();
+   expect(screen.getByText('Investment family 250')).toBeTruthy();
+   expect(screen.getAllByText(/risk and eligibility not yet established/)).toHaveLength(95);
+   fireEvent.change(screen.getByLabelText('Filter by financial profile screening'),{
+     target:{value:'PROFILE_ELIGIBLE_CATEGORY'},
+   });
+   expect(screen.getByText('3 matching options')).toBeTruthy();
+   expect(screen.queryByText('Investment family 250')).toBeNull();
+   expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
+ });
  it('clears personalized comparisons when the directory closes',async()=>{
    api.getQualifiedFamilyTopProducts.mockResolvedValue(qualifiedResponse());
    render(<Explorer/>);

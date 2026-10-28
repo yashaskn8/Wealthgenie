@@ -140,11 +140,17 @@ function validProductComparisonResponse(response, familyId, profileId, now = Dat
  * portfolio shortlist. Each family's candidate comparison remains
  * profile-bound and fails closed until two real products qualify.
  */
-export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LIST, profileRankedCategories = EMPTY_LIST }) {
+export default function InvestmentUniverseExplorer({
+  profileShortlist = EMPTY_LIST,
+  profileRankedCategories = EMPTY_LIST,
+  profileAssessments = EMPTY_LIST,
+  profileCoverage = null,
+}) {
   const [open, setOpen] = useState(true);
   const [status, setStatus] = useState('NOT_REQUESTED');
   const [data, setData] = useState(null);
   const [category, setCategory] = useState('');
+  const [profileFilter, setProfileFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [selectedFamily, setSelectedFamily] = useState(null);
   const [comparison, setComparison] = useState(null);
@@ -210,13 +216,38 @@ export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LI
       return matches;
     }, []);
   }, [items, profileShortlist, profileRankedCategories]);
+  const assessments = useMemo(() => {
+    if (!Array.isArray(profileAssessments) || profileAssessments.length !== CATALOG_SIZE
+      || !profileCoverage || profileCoverage.totalCategories !== CATALOG_SIZE
+      || profileCoverage.modelEvaluatedLegacyCategories !== 155
+      || profileCoverage.extensionCategoriesMissingSuitabilityEvidence !== 95
+      || profileCoverage.assessmentScope !== 'CATEGORY_SCREENING_NOT_PRODUCT_RECOMMENDATION') {
+      return null;
+    }
+    const expected = new Map(items.map(item => [item.id, item]));
+    if (expected.size !== CATALOG_SIZE) return null;
+    const result = new Map();
+    for (const row of profileAssessments) {
+      const item = expected.get(row?.id);
+      if (!item || result.has(row.id) || row.productQualified !== false
+        || !['PROFILE_ELIGIBLE_CATEGORY','PROFILE_EXCLUDED_CATEGORY',
+          'MISSING_SUITABILITY_EVIDENCE'].includes(row.profileAssessment)
+        || (item.origin === 'EXTENDED_95') !== (row.profileAssessment === 'MISSING_SUITABILITY_EVIDENCE')
+        || (row.profileAssessment === 'MISSING_SUITABILITY_EVIDENCE'
+          && (row.scoreAvailable !== false || row.source !== 'EXTENDED_95_DISCOVERY'))
+        || (item.origin === 'LEGACY_155' && row.source !== 'EXISTING_155_MODEL')) return null;
+      result.set(row.id, row);
+    }
+    return result.size === CATALOG_SIZE ? result : null;
+  }, [items, profileAssessments, profileCoverage]);
   const categories = useMemo(() => [...new Set(items.map(item => item.category).filter(Boolean))].sort(), [items]);
   const filtered = useMemo(() => {
     const phrase = search.trim().toLowerCase();
     return items.filter(item => (!category || item.category === category)
+      && (profileFilter === 'ALL' || assessments?.get(item.id)?.profileAssessment === profileFilter)
       && (!phrase || [item.id, item.name, item.category, item.subcategory]
         .some(field => String(field || '').toLowerCase().includes(phrase))));
-  }, [items, category, search]);
+  }, [items, category, search, profileFilter, assessments]);
 
   const inspectFamily = async family => {
     compareAbort.current?.abort();
@@ -301,7 +332,7 @@ export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LI
                     ? 'Top 3 profile-matched investment categories'
                     : 'Categories in your current financial plan'}</h3>
                   <p>{profileMatches[0]?.matchOrigin === 'PROFILE_POLICY_RANKED'
-                    ? 'Selected from 155 modeled legacy categories by the existing backend suitability ranking. The 95 newer discovery categories are not yet ranked.'
+                    ? 'All 250 categories are screened. The existing model ranks eligible categories among 155 legacy entries; 95 newer entries require suitability evidence before ranking.'
                     : 'Shown in the order of your current saved plan. No new product ranking has been calculated.'}
                     {' '}These are category-level educational matches, not verified investment products,
                     current returns, or advice to purchase.</p>
@@ -320,6 +351,14 @@ export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LI
                   </ol>
                 </section>
               )}
+              {assessments && (
+                <p role="status">
+                  Profile screening covers all 250 categories: {profileCoverage.legacyProfileEligibleCount}
+                  {' '}eligible legacy categories, {profileCoverage.legacyProfileExcludedCount}
+                  {' '}excluded legacy categories, and 95 newer categories awaiting risk,
+                  eligibility and product evidence. No unverified category is called suitable.
+                </p>
+              )}
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <label>
                   Search investments
@@ -335,6 +374,16 @@ export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LI
                     {categories.map(name => <option key={name} value={name}>{name}</option>)}
                   </select>
                 </label>
+                {assessments && <label>
+                  Financial profile screening
+                  <select aria-label="Filter by financial profile screening"
+                    value={profileFilter} onChange={event => setProfileFilter(event.target.value)}>
+                    <option value="ALL">All 250 categories</option>
+                    <option value="PROFILE_ELIGIBLE_CATEGORY">Eligible educational categories</option>
+                    <option value="PROFILE_EXCLUDED_CATEGORY">Excluded by profile policy</option>
+                    <option value="MISSING_SUITABILITY_EVIDENCE">Evidence missing (95 newer categories)</option>
+                  </select>
+                </label>}
               </div>
               <p>{filtered.length} matching options</p>
               <ul className="wti-universe-list">
@@ -345,8 +394,15 @@ export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LI
                       <small>{item.category}{item.subcategory ? ' · ' + item.subcategory : ''}</small>
                     </div>
                     <span className="wti-universe-status">
-                      {readySet.has(item.id) ? 'Source-qualified candidates; suitability pending'
-                        : 'Discovery category — current product data not verified'}
+                      {assessments?.get(item.id)?.profileAssessment === 'MISSING_SUITABILITY_EVIDENCE'
+                        ? 'Included in 250-category screen — risk and eligibility not yet established'
+                        : assessments?.get(item.id)?.profileAssessment === 'PROFILE_EXCLUDED_CATEGORY'
+                          ? 'Excluded under current profile category policy'
+                          : assessments?.get(item.id)?.profileAssessment === 'PROFILE_ELIGIBLE_CATEGORY'
+                            ? 'Profile-eligible category; actual products not verified'
+                            : readySet.has(item.id)
+                              ? 'Source-qualified candidates; suitability pending'
+                              : 'Discovery category — current product data not verified'}
                     </span>
                     <button type="button" className="wti-universe-more"
                       onClick={() => inspectFamily(item)}
