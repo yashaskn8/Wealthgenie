@@ -81,20 +81,60 @@ async function loadFinancialDirectory(signal) {
   }
 }
 
-function validProductComparisonResponse(response) {
-  const presentFinite = value => (typeof value === 'number' && Number.isFinite(value))
-    || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
-  return response?.status === 'AVAILABLE'
-    && Array.isArray(response.products)
-    && [2, 3].includes(response.products.length)
-    && new Set(response.products.map(product => product?.id)).size === response.products.length
-    && response.products.every(product => isFamilyId(product?.id)
-      && typeof product.name === 'string' && product.name.trim()
-      && product.marketFact?.sourceId && product.marketFact?.observationId
-      && presentFinite(product.marketFact?.value)
-      && permittedEvidenceUrl(product.evidence?.product));
+function validProductComparisonResponse(response, familyId, profileId, now = Date.now()) {
+  const timestamp = value => typeof value === 'string'
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    && Number.isFinite(Date.parse(value));
+  const numeric = value => typeof value === 'number' && Number.isFinite(value)
+    ? value : typeof value === 'string' && value.trim() && Number.isFinite(Number(value))
+      ? Number(value) : null;
+  if (response?.status !== 'AVAILABLE' || response.familyId !== familyId
+    || response.source?.profileId !== profileId
+    || !Array.isArray(response.products) || ![2, 3].includes(response.products.length)) {
+    return false;
+  }
+  const productIds = new Set(), observationKeys = new Set();
+  return response.products.every(product => {
+    const fact = product?.marketFact, evidence = product?.evidence;
+    const value = numeric(fact?.value);
+    const observedAt = Date.parse(fact?.asOf);
+    const reviewedAt = Date.parse(evidence?.reviewedAt);
+    const expiresAt = Date.parse(evidence?.expiresAt);
+    const observationKey = fact?.sourceId + ':' + fact?.observationId;
+    if (!isFamilyId(product?.id) || product.familyId !== familyId
+      || productIds.has(product.id)
+      || typeof product.name !== 'string' || !product.name.trim()
+      || !Number.isInteger(product.riskLevel) || product.riskLevel < 1 || product.riskLevel > 5
+      || !Number.isInteger(product.annualFeeBps) || product.annualFeeBps < 0
+      || product.annualFeeBps > 10000
+      || !Number.isInteger(product.lockInMonths) || product.lockInMonths < 0
+      || typeof product.verifiedTaxClass !== 'string'
+      || !product.verifiedTaxClass.trim()
+      || ['UNVERIFIED', 'OTHER_UNSUPPORTED'].includes(product.verifiedTaxClass)
+      || !isFamilyId(fact?.sourceId)
+      || typeof fact?.observationId !== 'string' || !fact.observationId.trim()
+      || observationKeys.has(observationKey)
+      || !['PRICE', 'NAV', 'PUBLISHED_RATE', 'YIELD', 'VOLUME'].includes(fact.type)
+      || !['LIVE', 'DELAYED', 'END_OF_DAY', 'PUBLISHED_RATE'].includes(fact.dataClass)
+      || (fact.type === 'PUBLISHED_RATE') !== (fact.dataClass === 'PUBLISHED_RATE')
+      || (fact.type === 'NAV' && fact.dataClass !== 'END_OF_DAY')
+      || typeof fact.unit !== 'string' || !fact.unit.trim()
+      || value === null || value < 0 || (fact.type !== 'PUBLISHED_RATE' && value === 0)
+      || !timestamp(fact.asOf) || observedAt > now + 5 * 60 * 1000
+      || (fact.dataClass === 'LIVE' && observedAt < now - 5 * 60 * 1000)
+      || (fact.dataClass === 'DELAYED' && observedAt < now - 24 * 60 * 60 * 1000)
+      || (fact.dataClass === 'END_OF_DAY' && observedAt < now - 7 * 24 * 60 * 60 * 1000)
+      || !permittedEvidenceUrl(evidence?.product)
+      || !permittedEvidenceUrl(evidence?.terms)
+      || !permittedEvidenceUrl(evidence?.risk)
+      || !timestamp(evidence?.reviewedAt) || !timestamp(evidence?.expiresAt)
+      || reviewedAt > now + 5 * 60 * 1000 || expiresAt <= now
+      || expiresAt <= reviewedAt) return false;
+    productIds.add(product.id);
+    observationKeys.add(observationKey);
+    return true;
+  });
 }
-
 /**
  * The full 250-family directory belongs on Where to Invest, not inside a
  * portfolio shortlist. Each family's candidate comparison remains
@@ -190,7 +230,7 @@ export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LI
       const result = await getQualifiedFamilyTopProducts(family.id, profileId, { signal: controller.signal });
       if (controller.signal.aborted) return;
       if (result?.status === 'AVAILABLE') {
-        if (!validProductComparisonResponse(result)) throw new Error('TOP_THREE_RESPONSE_INVALID');
+        if (!validProductComparisonResponse(result, family.id, profileId)) throw new Error('TOP_THREE_RESPONSE_INVALID');
         setComparison({ status: 'AVAILABLE', products: result.products });
       } else if (result?.status === 'INSUFFICIENT_VERIFIED_PRODUCTS'
           || result?.status === 'NO_QUALIFIED_PRODUCTS') {

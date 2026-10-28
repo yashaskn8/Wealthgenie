@@ -44,6 +44,26 @@ const directory=()=>({
   status:'DISCOVERY_ONLY',source:'WEALTHGENIE_CATALOG_155_PLUS_95',
   totalCount:250,items:families.map(x=>({...x,productData:{...x.productData}})),
 });
+const qualifiedResponse = () => ({
+  status:'AVAILABLE',familyId:'family_001',
+  source:{profileId:'0123456789abcdef01234567'},
+  products:[1,2].map(index=>({
+    id:'bond_'+index,familyId:'family_001',name:'Verified bond '+index,
+    riskLevel:2,annualFeeBps:0,lockInMonths:0,verifiedTaxClass:'ORDINARY_INTEREST',
+    marketFact:{
+      type:'PRICE',value:100+index,unit:'INR_PER_UNIT',dataClass:'END_OF_DAY',
+      sourceId:'verified_source',observationId:String(index),
+      asOf:new Date(Date.now()-30*60*1000).toISOString(),
+    },
+    evidence:{
+      product:'https://issuer.example/bond/'+index,
+      terms:'https://issuer.example/terms/'+index,
+      risk:'https://issuer.example/risk/'+index,
+      reviewedAt:new Date(Date.now()-86400000).toISOString(),
+      expiresAt:new Date(Date.now()+30*86400000).toISOString(),
+    },
+  })),
+});
 let Explorer;
 beforeAll(async()=>{
   vi.stubEnv('VITE_FINANCIAL_POSTGRES_ENABLED','true');
@@ -106,17 +126,7 @@ describe('all 250 investment categories are browseable without product approval'
    expect(api.getCurrentProfile).not.toHaveBeenCalled();
  });
  it('shows two or three properly qualified products only from profile-bound backend',async()=>{
-   api.getQualifiedFamilyTopProducts.mockResolvedValue({
-     status:'AVAILABLE',products:[1,2].map(index=>({
-       id:'bond_'+index,name:'Verified bond '+index,riskLevel:2,annualFeeBps:0,lockInMonths:0,
-       verifiedTaxClass:'ORDINARY_INTEREST',marketFact:{
-         type:'PRICE',value:100+index,unit:'INR',dataClass:'END_OF_DAY',
-         sourceId:'verified_source',observationId:String(index),asOf:'2026-10-28T10:00:00Z',
-       },evidence:{product:'https://issuer.example/bond/'+index,
-         terms:'https://issuer.example/terms/'+index,risk:'https://issuer.example/risk/'+index,
-         reviewedAt:'2026-10-27T12:00:00Z',expiresAt:'2026-11-15T12:00:00Z'},
-     })),
-   });
+   api.getQualifiedFamilyTopProducts.mockResolvedValue(qualifiedResponse());
    render(<Explorer/>);
    await waitFor(()=>expect(screen.getByText('Investment family 1')).toBeTruthy());
    fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
@@ -130,6 +140,36 @@ describe('all 250 investment categories are browseable without product approval'
    expect(screen.getByText(/Observation ID: 2/)).toBeTruthy();
    expect(api.getQualifiedFamilyTopProducts).toHaveBeenCalledWith(
      'family_001','0123456789abcdef01234567',expect.any(Object));
+ });
+ it('rejects mismatched profiles, duplicated facts and missing or stale evidence',async()=>{
+   const changes=[
+     x=>{x.source.profileId='fedcba9876543210fedcba98';},
+     x=>{x.familyId='family_002';},
+     x=>{x.products[1].familyId='family_002';},
+     x=>{x.products[1].marketFact.observationId=x.products[0].marketFact.observationId;},
+     x=>{delete x.products[0].marketFact.asOf;},
+     x=>{x.products[0].marketFact.asOf='not-a-date';},
+     x=>{x.products[0].marketFact.asOf=new Date(Date.now()+30*86400000).toISOString();},
+     x=>{x.products[0].marketFact.asOf=new Date(Date.now()-30*86400000).toISOString();},
+     x=>{x.products[0].marketFact.value=0;},
+     x=>{x.products[0].marketFact.dataClass='PUBLISHED_RATE';},
+     x=>{delete x.products[0].evidence.terms;},
+     x=>{delete x.products[0].evidence.reviewedAt;},
+     x=>{x.products[0].evidence.expiresAt=new Date(Date.now()-86400000).toISOString();},
+     x=>{x.products[0].verifiedTaxClass='UNVERIFIED';},
+     x=>{x.products[1].id=x.products[0].id;},
+   ];
+   for (const change of changes) {
+     const response=qualifiedResponse();
+     change(response);
+     api.getQualifiedFamilyTopProducts.mockResolvedValueOnce(response);
+     const view=render(<Explorer/>);
+     await waitFor(()=>expect(screen.getByText('Investment family 1')).toBeTruthy());
+     fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
+     await waitFor(()=>expect(screen.getByText(/CURRENT_PROFILE_OR_QUALIFIED_COMPARISON_UNAVAILABLE/)).toBeTruthy());
+     expect(screen.queryByText('Verified bond 1')).toBeNull();
+     view.unmount();
+   }
  });
  it('rejects incomplete, duplicated and falsely approved public catalog input',async()=>{
    for(const makeBad of [
@@ -161,19 +201,15 @@ describe('all 250 investment categories are browseable without product approval'
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
  });
  it('clears personalized comparisons when the directory closes',async()=>{
-   api.getQualifiedFamilyTopProducts.mockResolvedValue({status:'AVAILABLE',products:[0,1].map(i=>({
-     id:'product_'+i,name:'Issuer '+i,
-     marketFact:{sourceId:'verified_source',observationId:String(i),value:1},
-     evidence:{product:'https://issuer.example/evidence/'+i},
-   }))});
+   api.getQualifiedFamilyTopProducts.mockResolvedValue(qualifiedResponse());
    render(<Explorer/>);
    await waitFor(()=>expect(screen.getByText('Investment family 1')).toBeTruthy());
    fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
-   await waitFor(()=>expect(screen.getByText('Issuer 0')).toBeTruthy());
+   await waitFor(()=>expect(screen.getByText('Verified bond 1')).toBeTruthy());
    fireEvent.click(screen.getByRole('button',{name:'Hide all 250 investment options'}));
-   expect(screen.queryByText('Issuer 0')).toBeNull();
+   expect(screen.queryByText('Verified bond 1')).toBeNull();
    fireEvent.click(screen.getByRole('button',{name:'Explore all 250 investment options'}));
    await waitFor(()=>expect(screen.getByText('Investment family 250')).toBeTruthy());
-   expect(screen.queryByText('Issuer 0')).toBeNull();
+   expect(screen.queryByText('Verified bond 1')).toBeNull();
  });
 });
