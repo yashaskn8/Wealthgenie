@@ -202,7 +202,7 @@ jobs:
       - name: Install reproducible server dependencies
         run: npm ci --prefix server
       - name: Red-team product qualification, suitability and migration hashes
-        run: node --test server/test/familyTopThree.test.js server/test/threeProductFamilyCatalog.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js server/test/verifyProviderEntitlement.test.js server/test/applySignedProviderEntitlement.test.js server/test/auditCatalog250Verification.test.js server/test/validateFirstFamilyResearchPilot.test.js
+        run: node --test server/test/familyTopThree.test.js server/test/threeProductFamilyCatalog.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js server/test/verifyProviderEntitlement.test.js server/test/applySignedProviderEntitlement.test.js server/test/auditCatalog250Verification.test.js server/test/financialDiscoveryDirectory.test.js server/test/validateFirstFamilyResearchPilot.test.js
       - name: Audit every one of the 250 catalog families (source evidence, not live product approval)
         run: |
           npm run finance:catalog:verify --prefix server > financial-catalog-250-verification.json
