@@ -74,7 +74,7 @@ describe('all 250 investment categories are browseable without product approval'
    expect(within(panel).getByText(/Medium.*unverified catalog assumption/)).toBeTruthy();
    expect(within(panel).getByText(/Not verified for an actual product/)).toBeTruthy();
    expect(within(panel).getByText(/Not calculated; requires verified product/)).toBeTruthy();
-   expect(within(panel).getByText(/Comparison/)).toBeTruthy();
+   expect(within(panel).getByText(/Personalized product comparison/i)).toBeTruthy();
  });
  it('does not hide the directory when the qualified-product database fails',async()=>{
    api.getThreeProductReadyFamilies.mockRejectedValueOnce(new Error('Postgres unavailable'));
