@@ -167,3 +167,28 @@ test('NPS Vatsalya points to the dedicated PFRDA minor scheme without product ap
  assert.equal(child.productData.currentPrice,null);
  assert.equal(child.dataRights,'NOT_VERIFIED');
 });
+
+test('NBFC educational entries show separate RBI deposit-access and DICGC coverage blockers without product approval',()=>{
+ const entries=listFinancialDiscoveryDirectory().items;
+ const ids=['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout'];
+ for(const id of ids){
+  const item=entries.find(x=>x.id===id);
+  const review=item.frameworkResearch.publicDepositAccessReview;
+  assert.equal(review.officialRbiDirectionsUrl,'https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563');
+  assert.equal(review.officialDicgcCoverageUrl,'https://www.dicgc.org.in/guide-to-deposit-insurance');
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.issuerDepositTakingPermissionVerified,false);
+  assert.equal(review.issuerCreditRatingVerified,false);
+  assert.equal(review.issuerSpecificTermsVerified,false);
+  assert.equal(review.individualRetailEligibilityVerified,false);
+  assert.equal(review.commercialDataRightsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.productData.currentInterestRate,null);
+ }
+ assert.equal(entries.filter(x=>x.frameworkResearch?.publicDepositAccessReview).length,2);
+ const edited=entries.find(x=>x.id===ids[0]);
+ edited.frameworkResearch.publicDepositAccessReview.issuerDepositTakingPermissionVerified=true;
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===ids[0])
+  .frameworkResearch.publicDepositAccessReview.issuerDepositTakingPermissionVerified,false);
+});

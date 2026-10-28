@@ -540,10 +540,10 @@
     {
       "id": "catalog_2026_nbfc_fd_cumulative",
       "exposureClass": "NBFC_CREDIT_AND_UNINSURED_DEPOSIT",
-      "scenarioDescription": "NBFC Cumulative Public Deposit: NBFC Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NBFC Cumulative Public Deposit: cumulative maturity proceeds depend on the issuer's actual compounding and repayment terms. Confirm RBI deposit-taking permission, current credit rating, deposit tenor and early-exit conditions; NBFC public deposits have no DICGC insurance. No issuer-specific terms, rates or investor eligibility verified.",
       "referenceUrl": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -563,15 +563,27 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "nbfcPublicDepositAccessReview": {
+        "officialRbiDirectionsUrl": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563",
+        "officialDicgcCoverageUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-29",
+        "frameworkMinimumMonths": 12,
+        "frameworkMaximumMonths": 60,
+        "issuerDepositTakingPermissionVerified": false,
+        "issuerCreditRatingVerified": false,
+        "issuerSpecificTermsVerified": false,
+        "individualRetailEligibilityVerified": false,
+        "commercialDataRightsVerified": false
+      }
     },
     {
       "id": "catalog_2026_nbfc_fd_payout",
       "exposureClass": "NBFC_CREDIT_AND_UNINSURED_DEPOSIT",
-      "scenarioDescription": "NBFC Noncumulative Public Deposit: NBFC Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NBFC Noncumulative Public Deposit: payout timing and cash flows depend on the issuer's actual payout and repayment terms. Confirm RBI deposit-taking permission, current credit rating, deposit tenor and early-exit conditions; NBFC public deposits have no DICGC insurance. No issuer-specific terms, rates or investor eligibility verified.",
       "referenceUrl": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -591,7 +603,19 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "nbfcPublicDepositAccessReview": {
+        "officialRbiDirectionsUrl": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563",
+        "officialDicgcCoverageUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-29",
+        "frameworkMinimumMonths": 12,
+        "frameworkMaximumMonths": 60,
+        "issuerDepositTakingPermissionVerified": false,
+        "issuerCreditRatingVerified": false,
+        "issuerSpecificTermsVerified": false,
+        "individualRetailEligibilityVerified": false,
+        "commercialDataRightsVerified": false
+      }
     },
     {
       "id": "catalog_2026_gilt_10y_constant",

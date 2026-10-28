@@ -209,3 +209,39 @@ test('2026 PFRDA NPS exit and Vatsalya source reviews remain non-ranking',()=>{
  assert.ok(!child.screeningReasonCodes.includes(
    'NPS_FIVE_YEAR_MINIMUM_REMOVED_BUT_VESTING_AND_EXIT_RULES_APPLY'));
 });
+
+test('RBI and DICGC evidence distinguishes both NBFC deposit structures and profile notices without eligibility promotion',()=>{
+ const ids=['nbfc_fd_cumulative','nbfc_fd_payout'];
+ const research=listExtensionResearch();
+ const conservative=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative'}));
+ const aggressive=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive'}));
+ for(const id of ids){
+  const key='catalog_2026_'+id;
+  const row=research.find(x=>x.id===key);
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
+  assert.equal(row.referenceUrl,'https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563');
+  assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,'https://www.dicgc.org.in/guide-to-deposit-insurance');
+  assert.match(row.scenarioDescription,/No issuer-specific terms, rates or investor eligibility verified/);
+  assert.deepEqual([row.nbfcPublicDepositAccessReview.frameworkMinimumMonths,
+    row.nbfcPublicDepositAccessReview.frameworkMaximumMonths],[12,60]);
+  for(const field of ['issuerDepositTakingPermissionVerified','issuerCreditRatingVerified',
+   'issuerSpecificTermsVerified','individualRetailEligibilityVerified','commercialDataRightsVerified']){
+   assert.equal(row.nbfcPublicDepositAccessReview[field],false);
+  }
+  for(const [screened,isConservative] of [[conservative,true],[aggressive,false]]){
+   const item=screened.find(x=>x.id===key);
+   for(const code of ['NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED',
+    'NBFC_RBI_DEPOSIT_TAKING_PERMISSION_AND_CURRENT_RATING_NOT_VERIFIED',
+    'NBFC_TENOR_AND_PREMATURE_REPAYMENT_REQUIRE_ISSUER_TERMS'])
+    assert.ok(item.screeningReasonCodes.includes(code),key+':'+code);
+   assert.equal(item.screeningReasonCodes.includes(
+    'CONSERVATIVE_PROFILE_REQUIRES_NBFC_CREDIT_AND_LIQUIDITY_REVIEW'),isConservative);
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+  }
+ }
+ assert.equal(research.filter(x=>x.nbfcPublicDepositAccessReview).length,2);
+ assert.equal(research.filter(x=>x.suitabilityRankingPermitted===true).length,0);
+});

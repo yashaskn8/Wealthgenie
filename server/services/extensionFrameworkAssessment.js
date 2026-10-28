@@ -8,6 +8,7 @@ const research=JSON.parse(readFileSync(
   new URL('../data/extensionFrameworkResearch2026.json',import.meta.url),'utf8'));
 const idSet=new Set(universe.map(x=>x.id));
 const legacyIds=new Set(investmentDatabase.map(x=>x.id));
+const nbfcDepositIds=new Set(['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout']);
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -29,6 +30,19 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || !x.verifiedPublicFrameworkFact.officialSourceUrl.startsWith('https://')))
   || research.entries.some(x=>x.verifiedPublicFrameworkFact === null
     && x.publicFrameworkVerification !== 'INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED')
+  || research.entries.some(x=> nbfcDepositIds.has(x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.nbfcPublicDepositAccessReview?.officialRbiDirectionsUrl!=='https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563'
+      || x.nbfcPublicDepositAccessReview?.officialDicgcCoverageUrl!=='https://www.dicgc.org.in/guide-to-deposit-insurance'
+      || x.nbfcPublicDepositAccessReview?.reviewedOn!=='2026-10-29'
+      || x.nbfcPublicDepositAccessReview?.frameworkMinimumMonths!==12
+      || x.nbfcPublicDepositAccessReview?.frameworkMaximumMonths!==60
+      || x.nbfcPublicDepositAccessReview?.issuerDepositTakingPermissionVerified!==false
+      || x.nbfcPublicDepositAccessReview?.issuerCreditRatingVerified!==false
+      || x.nbfcPublicDepositAccessReview?.issuerSpecificTermsVerified!==false
+      || x.nbfcPublicDepositAccessReview?.individualRetailEligibilityVerified!==false
+      || x.nbfcPublicDepositAccessReview?.commercialDataRightsVerified!==false)
+    : x.nbfcPublicDepositAccessReview!==undefined)
   || research.entries.some((e,i)=> e.id!==universe[i].id
     || !idSet.has(e.id) || legacyIds.has(e.id)
     || e.referenceUrl!==universe[i].sourceUrl
@@ -84,6 +98,13 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('SGS_STRIP_SECURITY_ELIGIBILITY_AND_CUSTODIAN_ACCESS_NOT_VERIFIED');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_STRIP_MARKET_PRICE_AND_LIQUIDITY_REVIEW');
+   }
+   if(row.nbfcPublicDepositAccessReview) {
+     reasons.push('NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED');
+     reasons.push('NBFC_RBI_DEPOSIT_TAKING_PERMISSION_AND_CURRENT_RATING_NOT_VERIFIED');
+     reasons.push('NBFC_TENOR_AND_PREMATURE_REPAYMENT_REQUIRE_ISSUER_TERMS');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NBFC_CREDIT_AND_LIQUIDITY_REVIEW');
    }
    if(row.id.startsWith('catalog_2026_ncd_'))
      reasons.push('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW');

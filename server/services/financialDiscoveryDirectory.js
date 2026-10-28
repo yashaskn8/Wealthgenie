@@ -136,6 +136,8 @@ function buildDirectory() {
         reviewedOfficialFrameworkFact: research.verifiedPublicFrameworkFact
           ? { ...research.verifiedPublicFrameworkFact } : null,
         officialFrameworkVerification: research.publicFrameworkVerification,
+        publicDepositAccessReview: research.nbfcPublicDepositAccessReview
+          ? { ...research.nbfcPublicDepositAccessReview } : null,
       };
     })(),
     description: null, educationalRiskLabel: null,
@@ -181,6 +183,8 @@ export function listFinancialDiscoveryDirectory() {
         ...item.frameworkResearch,
         reviewedOfficialFrameworkFact: item.frameworkResearch.reviewedOfficialFrameworkFact
           ? { ...item.frameworkResearch.reviewedOfficialFrameworkFact } : null,
+        publicDepositAccessReview: item.frameworkResearch.publicDepositAccessReview
+          ? { ...item.frameworkResearch.publicDepositAccessReview } : null,
       } : null,
       studyNotes: {
         ...item.studyNotes,
