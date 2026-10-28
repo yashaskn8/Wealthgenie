@@ -554,6 +554,11 @@ export async function getThreeProductReadyFamilies(options = {}) {
     { retries: 0, ...options });
 }
 
+// Educational catalog: independent of PostgreSQL and personalized advice.
+export async function getFinancialDiscoveryDirectory(options={}) {
+  return request('GET','/financial-universe/discovery',null,{retries:0,...options});
+}
+
 export async function getFinancialUniverseCategories(options={}) {
   return request('GET','/financial-universe/categories',null,{retries:0,...options});
 }

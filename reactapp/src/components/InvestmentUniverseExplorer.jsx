@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   getCurrentProfile,
-  getFinancialUniverse,
-  getFinancialUniverseSummary,
+  getFinancialDiscoveryDirectory,
   getQualifiedFamilyTopProducts,
   getThreeProductReadyFamilies,
 } from '../services/api';
@@ -28,56 +27,58 @@ function permittedEvidenceUrl(value) {
 
 /** Discovery and personalized comparison are separate authorities. */
 async function loadFinancialDirectory(signal) {
-  const [summary, ready] = await Promise.all([
-    getFinancialUniverseSummary({ signal }),
-    getThreeProductReadyFamilies({ signal }),
-  ]);
-  if (summary?.totalCount !== CATALOG_SIZE) {
-    throw new Error('FINANCIAL_UNIVERSE_250_CATALOG_NOT_READY');
+  // Browse the public, source-backed educational catalog even when Postgres,
+  // source entitlements or personalized comparison are not enabled.
+  const directory = await getFinancialDiscoveryDirectory({ signal });
+  if (directory?.status !== 'DISCOVERY_ONLY'
+      || directory.totalCount !== CATALOG_SIZE
+      || !Array.isArray(directory.items)
+      || directory.items.length !== CATALOG_SIZE
+      || directory.source !== 'WEALTHGENIE_CATALOG_155_PLUS_95') {
+    throw new Error('FINANCIAL_DISCOVERY_250_SOURCE_INVALID');
   }
-  if (ready?.status !== 'TWO_OR_MORE_SOURCE_QUALIFIED_CANDIDATES'
-      || !Array.isArray(ready.familyIds) || !Number.isSafeInteger(ready.count)
-      || ready.count !== ready.familyIds.length || ready.count > CATALOG_SIZE
-      || ready.familyIds.some(id => !isFamilyId(id))
-      || new Set(ready.familyIds).size !== ready.familyIds.length) {
-    throw new Error('FINANCIAL_UNIVERSE_TOP_THREE_EVIDENCE_INVALID');
+  const ids = new Set();
+  const names = new Set();
+  for (const item of directory.items) {
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+    const normalizedName = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!isFamilyId(item?.id) || ids.has(item.id) || !normalizedName
+      || names.has(normalizedName) || !item?.category
+      || item.record_kind !== 'ARCHETYPE' || item.recommendationEligible !== false
+      || item.productAvailability !== 'NOT_VERIFIED'
+      || item.dataRights !== 'NOT_VERIFIED'
+      || !item.productData || Object.values(item.productData).some(value => value !== null)) {
+      throw new Error('FINANCIAL_DISCOVERY_UNVERIFIED_FAMILY_INVALID');
+    }
+    ids.add(item.id);
+    names.add(normalizedName);
+  }
+  if (directory.items.filter(item => item.origin === 'LEGACY_155').length !== 155
+      || directory.items.filter(item => item.origin === 'EXTENDED_95').length !== 95) {
+    throw new Error('FINANCIAL_DISCOVERY_SOURCE_COUNTS_INVALID');
   }
 
-  const all = [];
-  const ids = new Set();
-  const cursors = new Set();
-  let cursor = null;
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const response = await getFinancialUniverse({
-      limit: PAGE_SIZE,
-      ...(cursor ? { cursor } : {}),
-    }, { signal });
-    if (!Array.isArray(response?.items) || response.items.length > PAGE_SIZE) {
-      throw new Error('FINANCIAL_UNIVERSE_PAGE_INVALID');
-    }
-    for (const item of response.items) {
-      if (!item || !isFamilyId(item.id) || ids.has(item.id)
-          || item.record_kind !== 'ARCHETYPE') {
-        throw new Error('FINANCIAL_UNIVERSE_DUPLICATE_OR_INVALID_FAMILY');
-      }
-      ids.add(item.id);
-      all.push(item);
-    }
-    const nextCursor = response.nextCursor ?? null;
-    if (nextCursor === null) {
-      if (all.length !== CATALOG_SIZE || ready.familyIds.some(id => !ids.has(id))) {
-        throw new Error('FINANCIAL_UNIVERSE_INCOMPLETE');
-      }
-      return { items: all, summary, readyFamilyIds: ready.familyIds };
-    }
-    if (!isFamilyId(nextCursor) || nextCursor === cursor || cursors.has(nextCursor)
-        || response.items.length === 0) {
-      throw new Error('FINANCIAL_UNIVERSE_CURSOR_INVALID');
-    }
-    cursors.add(nextCursor);
-    cursor = nextCursor;
+  // A failed or disabled comparison API does not prevent educational browsing.
+  // Its status must never be interpreted as zero qualified products.
+  if (!FINANCIAL_CATALOG_UI_ENABLED) {
+    return { items: directory.items, readyFamilyIds: [], comparisonEvidence: 'UNAVAILABLE' };
   }
-  throw new Error('FINANCIAL_UNIVERSE_PAGE_LIMIT_EXCEEDED');
+  try {
+    const ready = await getThreeProductReadyFamilies({ signal });
+    if (ready?.status !== 'TWO_OR_MORE_SOURCE_QUALIFIED_CANDIDATES'
+      || !Array.isArray(ready.familyIds) || !Number.isSafeInteger(ready.count)
+      || ready.count !== ready.familyIds.length
+      || ready.count > CATALOG_SIZE
+      || new Set(ready.familyIds).size !== ready.familyIds.length
+      || ready.familyIds.some(id => !ids.has(id))) {
+      throw new Error('FINANCIAL_PRODUCT_QUALIFICATION_RESPONSE_INVALID');
+    }
+    return { items: directory.items, readyFamilyIds: ready.familyIds,
+      comparisonEvidence: 'AVAILABLE' };
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return { items: directory.items, readyFamilyIds: [], comparisonEvidence: 'UNAVAILABLE' };
+  }
 }
 
 function validProductComparisonResponse(response) {
@@ -121,7 +122,7 @@ export default function InvestmentUniverseExplorer() {
   };
 
   useEffect(() => {
-    if (!FINANCIAL_CATALOG_UI_ENABLED || !open) return undefined;
+    if (!open) return undefined;
     const controller = new AbortController();
     setStatus('LOADING');
     loadFinancialDirectory(controller.signal)
@@ -155,6 +156,11 @@ export default function InvestmentUniverseExplorer() {
     const controller = new AbortController();
     compareAbort.current = controller;
     setSelectedFamily(family);
+    if (data?.comparisonEvidence !== 'AVAILABLE') {
+      setComparison({ status: 'UNAVAILABLE',
+        reasonCode: 'CURRENT_PRODUCT_COMPARISON_SOURCE_UNAVAILABLE' });
+      return;
+    }
     if (!readySet.has(family.id)) {
       setComparison({ status: 'UNAVAILABLE', reasonCode: 'FEWER_THAN_TWO_SOURCE_QUALIFIED_PRODUCTS' });
       return;
@@ -188,20 +194,6 @@ export default function InvestmentUniverseExplorer() {
     }
   };
 
-  if (!FINANCIAL_CATALOG_UI_ENABLED) {
-    return (
-      <section className="wti-universe" aria-label="Tailored product comparison status">
-        <div className="wti-universe-content">
-          <h2>Tailored top-three product comparison unavailable</h2>
-          <p role="status">
-            Individual products are shown here only after their source rights, current facts,
-            product terms and suitability are verified. Your suitable investment categories
-            remain available below.
-          </p>
-        </div>
-      </section>
-    );
-  }
   return (
     <section className="wti-universe" aria-label="All 250 Indian investment options and tailored product comparison">
       <button type="button" className="wti-universe-toggle" aria-expanded={open}
@@ -210,26 +202,32 @@ export default function InvestmentUniverseExplorer() {
       </button>
       {open && (
         <div className="wti-universe-content">
-          <h2>All 250 investment options</h2>
+          <h2>All 250 investment categories — browse details</h2>
           <p>
             Select any investment family to check for two or three distinct, current products
             suitable for your financial profile. The directory is educational;
             only verified issuer products can enter a personalized comparison.
           </p>
-          {status === 'LOADING' && <p role="status">Loading the complete PostgreSQL investment directory...</p>}
+          {status === 'LOADING' && <p role="status">Loading all 250 educational investment categories...</p>}
           {status === 'UNAVAILABLE' && (
             <p role="alert">
-              The complete 250-family PostgreSQL directory is unavailable.
-              Check database connectivity, migrations and the catalog seed.
-              No placeholder investments were substituted.
+              The source-backed 250-family directory could not be loaded.
+              No placeholder investments or unverified market facts were substituted.
             </p>
           )}
           {status === 'AVAILABLE' && (
             <>
               <p role="status">
-                {items.length} investment options loaded from PostgreSQL; {readyIds.length} families
-                currently have at least two preliminarily verified products.
+                {items.length} educational investment categories loaded from the WealthGenie source catalog
+                (155 existing and 95 extended categories).
               </p>
+              <p role="status">
+                {data.comparisonEvidence === 'AVAILABLE'
+                  ? `${readyIds.length} families have at least two source-qualified candidates; profile suitability still applies.`
+                  : 'Personalized product comparisons are not currently available. All educational category details remain visible.'}
+              </p>
+              <p>Catalog details are educational references, not current prices, investment rates,
+                live availability, tax calculations or product recommendations.</p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <label>
                   Search investments
@@ -255,8 +253,8 @@ export default function InvestmentUniverseExplorer() {
                       <small>{item.category}{item.subcategory ? ' · ' + item.subcategory : ''}</small>
                     </div>
                     <span className="wti-universe-status">
-                      {readySet.has(item.id) ? 'At least two source-qualified candidates; suitability pending'
-                        : 'Two verified products not yet available'}
+                      {readySet.has(item.id) ? 'Source-qualified candidates; suitability pending'
+                        : 'Discovery category — current product data not verified'}
                     </span>
                     <button type="button" className="wti-universe-more"
                       onClick={() => inspectFamily(item)}
@@ -270,7 +268,38 @@ export default function InvestmentUniverseExplorer() {
                   className="wti-universe-detail"
                   aria-label={'Tailored top three for ' + item.name}
                   aria-live="polite">
-                  <h3>{selectedFamily.name}: tailored top three</h3>
+                  <h3>{selectedFamily.name}: catalog details</h3>
+                  <dl className="wti-universe-facts">
+                    <dt>Catalog category</dt>
+                    <dd>{selectedFamily.category}{selectedFamily.subcategory ? ' / ' + selectedFamily.subcategory : ''}</dd>
+                    <dt>Record type</dt>
+                    <dd>Educational investment family (not an individually verified product)</dd>
+                    {selectedFamily.instrumentForm && <>
+                      <dt>Instrument type</dt><dd>{selectedFamily.instrumentForm.replaceAll('_', ' ')}</dd>
+                    </>}
+                    {selectedFamily.description && <>
+                      <dt>Legacy catalog description</dt>
+                      <dd>{selectedFamily.description} (educational reference, not validated current terms)</dd>
+                    </>}
+                    {selectedFamily.educationalRiskLabel && <>
+                      <dt>Legacy risk label</dt>
+                      <dd>{selectedFamily.educationalRiskLabel} (unverified catalog assumption)</dd>
+                    </>}
+                    <dt>Current market price / NAV / interest rate</dt>
+                    <dd>Unavailable — no authorized, fresh product observation</dd>
+                    <dt>Minimum investment and fees</dt><dd>Not verified for an actual product</dd>
+                    <dt>Tax and post-tax returns</dt><dd>Not calculated; requires verified product and tax context</dd>
+                    <dt>Availability and data permissions</dt><dd>Not verified</dd>
+                    {selectedFamily.referenceUrl && <>
+                      <dt>Category or regulatory reference</dt>
+                      <dd><a href={permittedEvidenceUrl(selectedFamily.referenceUrl)}
+                        target="_blank" rel="noopener noreferrer">View public category reference</a>
+                        {selectedFamily.referenceCheckedAsOf
+                          ? ' · reference checked ' + selectedFamily.referenceCheckedAsOf : ''}
+                      </dd>
+                    </>}
+                  </dl>
+                  <h4>Personalized product comparison</h4>
                   {comparison?.status === 'LOADING' && <p role="status">Revalidating your profile and product evidence...</p>}
                   {comparison?.status === 'UNAVAILABLE' && (
                     <p role="status">
