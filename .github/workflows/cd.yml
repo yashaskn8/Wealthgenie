@@ -37,17 +37,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERIFIED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           SOURCE_IS_TRUSTED: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+          SOURCE_CI_SUCCESS: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
         run: |
           set -euo pipefail
           echo 'ready=false' >> "$GITHUB_OUTPUT"
-          if [ "$SOURCE_IS_TRUSTED" != 'true' ] || [ "$GITHUB_REF" != 'refs/heads/main' ]; then
-            echo 'Release gate: untrusted or non-main invocation; refusing deployment.'
-            exit 0
+          if [ "$SOURCE_IS_TRUSTED" != 'true' ] || [ "$GITHUB_REF" != 'refs/heads/main' ] || [ "$SOURCE_CI_SUCCESS" != 'true' ]; then
+            echo '::error::Release gate: failed CI, untrusted, or non-main invocation; refusing deployment.'
+            exit 1
           fi
           latest_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
           if [ "$VERIFIED_SHA" != "$latest_sha" ]; then
-            echo 'Release gate: this commit was superseded on main.'
-            exit 0
+            echo '::error::Release gate: this commit was superseded on main; no deployment took place.'
+            exit 1
           fi
           # CI is the only automatic entrypoint. Wait for the other two
           # required push checks on the exact same main commit to finish.
@@ -73,8 +74,8 @@ jobs:
             if [ "$missing" -eq 0 ]; then
               latest_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
               if [ "$VERIFIED_SHA" != "$latest_sha" ]; then
-                echo 'Release gate: this commit was superseded on main while waiting.'
-                exit 0
+                echo '::error::Release gate: this commit was superseded on main while waiting; no deployment took place.'
+                exit 1
               fi
               echo 'ready=true' >> "$GITHUB_OUTPUT"
               echo 'Release gate passed: CI, GenieVoice and Coverage Firewall succeeded at current main SHA.'
