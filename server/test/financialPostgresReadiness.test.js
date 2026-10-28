@@ -17,6 +17,7 @@ const names = [
   '010_family_qualification_integrity.sql',
   '011_private_provider_rights_evidence.sql',
   '012_provider_permission_verification.sql',
+  '013_provider_permission_revocation_fence.sql',
 ];
 const applied=names.map(name=>({
   name,
@@ -29,9 +30,9 @@ function fakePool({migrations=applied,archetypes=250,unsafePromoted=0}={}) {
     {rows:migrations} : {rows:[{archetypes,unsafe_promoted:unsafePromoted}]}};
 }
 
-test('finance SQL starts only after twelve matching migrations and all 250 discovery entries',async()=>{
+test('finance SQL starts only after thirteen matching migrations and all 250 discovery entries',async()=>{
  assert.deepEqual(await verifyFinancialPostgresReadiness(fakePool()),
-   {ready:true,archetypes:250,migrations:12});
+   {ready:true,archetypes:250,migrations:13});
 });
 test('missing or modified migration is blocked before financial service becomes available',async()=>{
  await assert.rejects(verifyFinancialPostgresReadiness(fakePool({migrations:applied.slice(0,4)})),
