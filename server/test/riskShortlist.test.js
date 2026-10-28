@@ -4,6 +4,7 @@ import { buildRiskShortlist, RISK_SHORTLIST_POLICY_VERSION } from '../services/r
 import { runPipeline } from '../services/RecommendationPipeline.js';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
+import {screenExtensionResearchForProfile,listExtensionResearch} from '../services/extensionFrameworkAssessment.js';
 
 test('Top 5 risk categories use the same eligibility and ranking policy as current recommendations',()=>{
   const profile=canonicalProfile();
@@ -27,7 +28,8 @@ test('Top 5 risk categories use the same eligibility and ranking policy as curre
   assert.equal(extra.length,95);
   assert.ok(extra.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
     && x.scoreAvailable===false && x.productQualified===false
-    && x.reasonCode==='UNVERIFIED_CATEGORY_RISK_ELIGIBILITY_AND_TERMS'));
+    && x.productRiskLevel===null && x.screeningReasonCodes.length>0
+    && x.screeningReasonCodes.includes('INDIVIDUAL_PRODUCT_RISK_ELIGIBILITY_NOT_ESTABLISHED')));
   assert.ok(a.catalogAssessments.filter(x=>x.profileAssessment==='PROFILE_EXCLUDED_CATEGORY')
     .every(x=>typeof x.reasonCode==='string' && !x.scoreAvailable));
   assert.ok(a.catalogAssessments.filter(x=>x.profileAssessment==='PROFILE_ELIGIBLE_CATEGORY')
@@ -67,4 +69,40 @@ test('mismatched, duplicate, or forged saved allocation fails closed',()=>{
   assert.throws(()=>buildRiskShortlist({profile,instruments:[recommended[0],recommended[0]]}),
     /Duplicate instrument/);
   assert.throws(()=>buildRiskShortlist({profile,instruments:[]}),/empty/);
+});
+
+test('research-led 95 individually mapped categories react conservatively to real profile constraints',()=>{
+ const rows=listExtensionResearch();
+ assert.equal(rows.length,95);
+ assert.equal(new Set(rows.map(x=>x.id)).size,95);
+ assert.ok(new Set(rows.map(x=>x.exposureClass)).size>=25);
+ assert.ok(rows.every(x=>x.productRiskScore===null && x.suitabilityRankingPermitted===false
+  && x.marketFactsVerified===false && x.sourcePermissionVerified===false));
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+   investmentHorizonYears:1,hasLumpSum:true,lumpSumAmount:50000,riskTolerance:'Conservative'
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+   investmentHorizonYears:10,hasLumpSum:true,lumpSumAmount:10000000,riskTolerance:'Aggressive'
+ }));
+ assert.deepEqual(short.map(x=>x.id),long.map(x=>x.id));
+ assert.equal(short.length,95);
+ const get=(all,id)=>all.find(x=>x.id==='catalog_2026_'+id);
+ assert.ok(get(short,'po_td_5').screeningReasonCodes
+  .includes('NOMINAL_TENOR_EXCEEDS_PROFILE_HORIZON_REVIEW_WITHDRAWAL_TERMS'));
+ assert.ok(!get(long,'po_td_5').screeningReasonCodes
+  .includes('NOMINAL_TENOR_EXCEEDS_PROFILE_HORIZON_REVIEW_WITHDRAWAL_TERMS'));
+ assert.ok(get(short,'aif1_vc').screeningReasonCodes
+  .includes('REPORTED_LUMP_SUM_BELOW_STANDARD_REFERENCE_NOT_PROOF_OF_INELIGIBILITY'));
+ assert.ok(!get(long,'aif1_vc').screeningReasonCodes
+  .includes('REPORTED_LUMP_SUM_BELOW_STANDARD_REFERENCE_NOT_PROOF_OF_INELIGIBILITY'));
+ assert.ok(get(short,'nps_vatsalya').screeningReasonCodes
+  .includes('MINOR_BENEFICIARY_AND_GUARDIAN_ELIGIBILITY_UNKNOWN'));
+ assert.ok(get(long,'nps_vatsalya').screeningReasonCodes
+  .includes('MINOR_BENEFICIARY_AND_GUARDIAN_ELIGIBILITY_UNKNOWN'));
+ assert.ok(get(short,'index_nifty100').screeningReasonCodes
+  .includes('CONSERVATIVE_PROFILE_REQUIRES_ACTUAL_SCHEME_RISK_REVIEW'));
+ assert.ok(!get(long,'index_nifty100').screeningReasonCodes
+  .includes('CONSERVATIVE_PROFILE_REQUIRES_ACTUAL_SCHEME_RISK_REVIEW'));
+ assert.ok(short.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
+  && !x.scoreAvailable && !x.productQualified));
 });

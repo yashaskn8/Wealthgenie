@@ -1,5 +1,6 @@
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { readFileSync } from 'node:fs';
+import { screenExtensionResearchForProfile } from './extensionFrameworkAssessment.js';
 const discovery = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
 )).entries;
@@ -70,14 +71,7 @@ export function buildRiskShortlist({ profile, instruments }) {
       source: 'EXISTING_155_MODEL',
       productQualified: false,
     })),
-    ...discovery.map(item => ({
-      id: item.id,
-      profileAssessment: 'MISSING_SUITABILITY_EVIDENCE',
-      reasonCode: 'UNVERIFIED_CATEGORY_RISK_ELIGIBILITY_AND_TERMS',
-      scoreAvailable: false,
-      source: 'EXTENDED_95_DISCOVERY',
-      productQualified: false,
-    })),
+    ...screenExtensionResearchForProfile(profile),
   ];
   const ranked = rankInstruments(eligible, parsed, weights);
   const output = { LOW: [], MODERATE: [], AGGRESSIVE: [] };
