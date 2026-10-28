@@ -90,6 +90,31 @@ export function validateFirstFamilyResearchPilot(
       fail('PUBLIC_BOOKING_CHANNEL_MINIMUM_MISMATCH');
     }
   }
+
+  // The banks' 12-month rates happen to match. Their official 18-month
+  // ordinary rates differ; record that difference without granting data
+  // distribution, investor-specific availability, or quote status.
+  const expectedTenors = {
+    'State Bank of India': {rate:6.25,effective:'2025-12-15',basis:'TERM_DEPOSIT_RATE_USED_BY_RD'},
+    'HDFC Bank Limited': {rate:6.45,effective:'2025-12-17',basis:'SPECIFIC_RD_RATE_ROW'},
+  };
+  for (const offer of raw.candidates) {
+    const expected = expectedTenors[offer.issuer];
+    const extra = offer.additionalOfficialTenorResearch;
+    if (!expected || !extra || extra.tenorMonths !== 18
+      || extra.ordinaryPublishedRatePercentPerAnnum !== expected.rate
+      || extra.issuerRateEffectiveFrom !== expected.effective
+      || extra.sourceValueType !== expected.basis
+      || extra.officialSourceUrl !== offer.officialRateUrl
+      || !sourceUrl(extra.officialSourceUrl,offer.issuerDomain)
+      || extra.sourceReviewDate !== raw.researchReviewedOn
+      || extra.status !== 'PUBLIC_ISSUER_RESEARCH_ONLY_NOT_LICENSED_MARKET_OBSERVATION'
+      || extra.licensedCommercialDisplay !== false
+      || extra.bookedCustomerRateConfirmed !== false
+      || extra.recommendationEligible !== false) {
+      fail('EIGHTEEN_MONTH_RATE_SOURCE_OR_PERMISSION_UNVERIFIED');
+    }
+  }
   if (issuers.size !== 2) fail('TWO_INDEPENDENT_ISSUERS_REQUIRED');
   const ageDays = (+now - Date.parse(raw.researchReviewedOn + 'T00:00:00Z')) / 86400000;
   return {

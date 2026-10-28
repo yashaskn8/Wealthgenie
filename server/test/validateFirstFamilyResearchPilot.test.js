@@ -48,6 +48,27 @@ test('HDFC standard and SMS channel minima remain separate, with official source
    .publishedChannelMinimums[1].monthlyMinimumInr=500;
  assert.throws(()=>validateFirstFamilyResearchPilot(altered,{now:at}),/RD_PILOT_PUBLIC_BOOKING_CHANNEL_MINIMUM_MISMATCH/);
 });
+test('18-month issuer rate evidence is distinct and never promoted to a licensed product quote',()=>{
+ const raw=copy();
+ const sbi=raw.candidates.find(x=>x.issuer==='State Bank of India').additionalOfficialTenorResearch;
+ const hdfc=raw.candidates.find(x=>x.issuer==='HDFC Bank Limited').additionalOfficialTenorResearch;
+ assert.equal(sbi.ordinaryPublishedRatePercentPerAnnum,6.25);
+ assert.equal(hdfc.ordinaryPublishedRatePercentPerAnnum,6.45);
+ assert.notEqual(sbi.ordinaryPublishedRatePercentPerAnnum,hdfc.ordinaryPublishedRatePercentPerAnnum);
+ assert.ok([sbi,hdfc].every(x=>x.status==='PUBLIC_ISSUER_RESEARCH_ONLY_NOT_LICENSED_MARKET_OBSERVATION'
+  && x.licensedCommercialDisplay===false && x.bookedCustomerRateConfirmed===false
+  && x.recommendationEligible===false));
+ for(const mutation of [
+   x=>x.additionalOfficialTenorResearch.ordinaryPublishedRatePercentPerAnnum=7.5,
+   x=>x.additionalOfficialTenorResearch.licensedCommercialDisplay=true,
+   x=>x.additionalOfficialTenorResearch.officialSourceUrl='https://fake-bank.example/rates',
+ ]) {
+  const changed=copy();
+  mutation(changed.candidates[1]);
+  assert.throws(()=>validateFirstFamilyResearchPilot(changed,{now:at}),
+    /RD_PILOT_EIGHTEEN_MONTH_RATE_SOURCE_OR_PERMISSION_UNVERIFIED/);
+ }
+});
 test('published reference facts become due for recheck without becoming a live rate',()=>{
  const p=validateFirstFamilyResearchPilot(copy(),{now:new Date('2026-11-12T00:00:00Z')});
  assert.equal(p.researchEvidenceFreshness,'RECHECK_REQUIRED');

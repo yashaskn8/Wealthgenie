@@ -13,7 +13,7 @@
   "regulatedAdviceAuthorizationVerified": false,
   "confidentiality": "NO_CONFIDENTIAL_APPROVAL_DOCUMENTS_OR_DERIVED_HASHES",
   "insuranceReferenceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
-  "note": "Issuer product existence and published reference-rate evidence, not a price/NAV feed, licensed product dataset, booked offer, tax determination, or suitability approval. Do not run production registration from this file. Booking-channel minimums can differ even for the same bank and tenor; never collapse them into a single applicant-specific quote.",
+  "note": "Issuer product existence and published reference-rate evidence, not a price/NAV feed, licensed product dataset, booked offer, tax determination, or suitability approval. Do not run production registration from this file. Booking-channel minimums can differ even for the same bank and tenor; never collapse them into a single applicant-specific quote. Separately inspected 18-month ordinary rate tables have DIFFERENT published values (SBI 6.25%, HDFC 6.45% on 2026-10-28); both remain research-only and are not included in the live market feed.",
   "candidates": [
     {
       "researchId": "research_sbi_rd_resident_12m",
@@ -42,7 +42,19 @@
           "officialUrl": "https://sbi.bank.in/web/personal-banking/investments-deposits/deposits/recurring-deposit",
           "caveat": "Published basic RD minimum, not proof any particular applicant can open it."
         }
-      ]
+      ],
+      "additionalOfficialTenorResearch": {
+        "tenorMonths": 18,
+        "ordinaryPublishedRatePercentPerAnnum": 6.25,
+        "issuerRateEffectiveFrom": "2025-12-15",
+        "officialSourceUrl": "https://sbi.bank.in/web/interest-rates/deposit-rates/retail-domestic-term-deposits",
+        "sourceReviewDate": "2026-10-28",
+        "sourceValueType": "TERM_DEPOSIT_RATE_USED_BY_RD",
+        "status": "PUBLIC_ISSUER_RESEARCH_ONLY_NOT_LICENSED_MARKET_OBSERVATION",
+        "licensedCommercialDisplay": false,
+        "bookedCustomerRateConfirmed": false,
+        "recommendationEligible": false
+      }
     },
     {
       "researchId": "research_hdfc_rd_resident_12m",
@@ -77,7 +89,19 @@
           "officialUrl": "https://www.hdfc.bank.in/recurring-deposit/rd-booking-via-sms",
           "caveat": "Separate SMS-only RD channel requires prior eligible registered SMS banking and linked account."
         }
-      ]
+      ],
+      "additionalOfficialTenorResearch": {
+        "tenorMonths": 18,
+        "ordinaryPublishedRatePercentPerAnnum": 6.45,
+        "issuerRateEffectiveFrom": "2025-12-17",
+        "officialSourceUrl": "https://www.hdfc.bank.in/interest-rates",
+        "sourceReviewDate": "2026-10-28",
+        "sourceValueType": "SPECIFIC_RD_RATE_ROW",
+        "status": "PUBLIC_ISSUER_RESEARCH_ONLY_NOT_LICENSED_MARKET_OBSERVATION",
+        "licensedCommercialDisplay": false,
+        "bookedCustomerRateConfirmed": false,
+        "recommendationEligible": false
+      }
     }
   ]
 }
