@@ -211,6 +211,25 @@ describe('all 250 investment categories are browseable without product approval'
    expect(within(matches).queryByRole('button',{name:'Explore profile-shortlisted category Investment family 4'})).toBeNull();
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
  });
+ it('shows backend policy-ranked Top 3 category matches, not fabricated investable products',async()=>{
+   render(<Explorer profileShortlist={[{id:'family_002'}]} profileRankedCategories={[
+     {id:'family_003',rankScore:92.4,riskGroup:'MODERATE'},
+     {id:'family_001',rankScore:88.1,riskGroup:'LOW'},
+     {id:'family_002',rankScore:76.8,riskGroup:'LOW'},
+   ]}/>);
+   const matches=await screen.findByRole('region',{name:'Existing profile shortlist category matches'});
+   expect(within(matches).getByText('Top 3 profile-matched investment categories')).toBeTruthy();
+   expect(within(matches).getByText(/155 modeled legacy categories/)).toBeTruthy();
+   expect(within(matches).getByText(/95 newer discovery categories are not yet ranked/)).toBeTruthy();
+   expect(within(matches).getByText(/backend policy score 92\.4/)).toBeTruthy();
+   const list=within(matches).getAllByRole('button');
+   expect(list.map(x=>x.getAttribute('aria-label'))).toEqual([
+     'Explore profile-shortlisted category Investment family 3',
+     'Explore profile-shortlisted category Investment family 1',
+     'Explore profile-shortlisted category Investment family 2',
+   ]);
+   expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
+ });
  it('clears personalized comparisons when the directory closes',async()=>{
    api.getQualifiedFamilyTopProducts.mockResolvedValue(qualifiedResponse());
    render(<Explorer/>);
