@@ -10,6 +10,7 @@ const idSet=new Set(universe.map(x=>x.id));
 const legacyIds=new Set(investmentDatabase.map(x=>x.id));
 const nbfcDepositIds=new Set(['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout']);
 const retailDirectIds=new Set(['catalog_2026_tbill_91','catalog_2026_tbill_182','catalog_2026_tbill_364','catalog_2026_sdl_dated']);
+const postalSavingsIds=new Set(['catalog_2026_po_savings','catalog_2026_po_td_2','catalog_2026_po_td_3','catalog_2026_po_td_5']);
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -44,6 +45,20 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.nbfcPublicDepositAccessReview?.individualRetailEligibilityVerified!==false
       || x.nbfcPublicDepositAccessReview?.commercialDataRightsVerified!==false)
     : x.nbfcPublicDepositAccessReview!==undefined)
+  || research.entries.some(x=>postalSavingsIds.has(x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.postalSavingsAccessReview?.officialIndiaPostSchemeListingUrl!=='https://www.indiapost.gov.in/banking-services/savings'
+      || x.postalSavingsAccessReview?.reviewedOn!=='2026-10-29'
+      || x.postalSavingsAccessReview?.schemeType!==(x.id==='catalog_2026_po_savings'?'SAVINGS_ACCOUNT':'NATIONAL_SAVINGS_TIME_DEPOSIT')
+      || x.postalSavingsAccessReview?.nominalTenorMonths!==x.nominalMaturityMonths
+      || x.postalSavingsAccessReview?.publicSchemeListingObserved!==true
+      || x.postalSavingsAccessReview?.schemeListingScope!=='GENERAL_PUBLIC_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_TENOR_RATE'
+      || x.postalSavingsAccessReview?.individualAccountEligibilityAndKycVerified!==false
+      || x.postalSavingsAccessReview?.currentAccountTermsAndEarlyExitVerified!==false
+      || x.postalSavingsAccessReview?.independentlyAuthorizedCurrentRateVerified!==false
+      || x.postalSavingsAccessReview?.commercialDisplayAndRedistributionRightsVerified!==false
+      || x.postalSavingsAccessReview?.personalizedSuitabilityVerified!==false)
+    : x.postalSavingsAccessReview!==undefined)
   || research.entries.some(x=>retailDirectIds.has(x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
       || x.rbiRetailDirectAccessReview?.officialRetailDirectFaqUrl!=='https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145'
@@ -116,6 +131,19 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('SGS_STRIP_SECURITY_ELIGIBILITY_AND_CUSTODIAN_ACCESS_NOT_VERIFIED');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_STRIP_MARKET_PRICE_AND_LIQUIDITY_REVIEW');
+   }
+   if(row.postalSavingsAccessReview) {
+     reasons.push('INDIA_POST_ACCOUNT_KYC_AND_INDIVIDUAL_ELIGIBILITY_UNVERIFIED');
+     reasons.push('INDIA_POST_CURRENT_ACCOUNT_TERMS_RATE_AND_SOURCE_RIGHTS_UNVERIFIED');
+     if(row.postalSavingsAccessReview.schemeType==='NATIONAL_SAVINGS_TIME_DEPOSIT') {
+       reasons.push('POST_OFFICE_TIME_DEPOSIT_EARLY_CLOSURE_TERMS_REQUIRE_CURRENT_REVIEW');
+       if(row.nominalMaturityMonths===60)
+         reasons.push('POST_OFFICE_FIVE_YEAR_TD_EARLY_EXIT_CONDITIONS_REQUIRE_SPECIAL_REVIEW');
+       if(profile.riskTolerance==='Conservative')
+         reasons.push('CONSERVATIVE_PROFILE_REQUIRES_POSTAL_TD_EARLY_EXIT_LIQUIDITY_REVIEW');
+     } else {
+       reasons.push('POST_OFFICE_SAVINGS_ACCOUNT_BALANCE_AND_WITHDRAWAL_TERMS_UNVERIFIED');
+     }
    }
    if(row.nbfcPublicDepositAccessReview) {
      reasons.push('NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED');

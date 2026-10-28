@@ -8,10 +8,10 @@
     {
       "id": "catalog_2026_po_savings",
       "exposureClass": "POSTAL_DEPOSIT_AND_TENOR",
-      "scenarioDescription": "Post Office Savings Account: Postal Savings category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Post Office Savings Account: Postal Savings category. Examine actual issuer or scheme terms before assigning an investment risk rating. India Post publicly lists this savings-account scheme; actual account eligibility, KYC, balance/withdrawal rules, current authorized interest observation and reuse rights are not verified.",
       "referenceUrl": "https://www.indiapost.gov.in/banking-services/savings",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -31,15 +31,28 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "postalSavingsAccessReview": {
+        "officialIndiaPostSchemeListingUrl": "https://www.indiapost.gov.in/banking-services/savings",
+        "reviewedOn": "2026-10-29",
+        "schemeType": "SAVINGS_ACCOUNT",
+        "nominalTenorMonths": null,
+        "publicSchemeListingObserved": true,
+        "schemeListingScope": "GENERAL_PUBLIC_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_TENOR_RATE",
+        "individualAccountEligibilityAndKycVerified": false,
+        "currentAccountTermsAndEarlyExitVerified": false,
+        "independentlyAuthorizedCurrentRateVerified": false,
+        "commercialDisplayAndRedistributionRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_po_td_2",
       "exposureClass": "POSTAL_DEPOSIT_AND_TENOR",
-      "scenarioDescription": "Post Office 2-Year Time Deposit: Postal Time Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Post Office 2-Year Time Deposit: Postal Time Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating. India Post publicly lists National Savings Time Deposit as a scheme, but this research row does not verify an individually opened account, tenor-specific live interest observation, early-closure terms, KYC or reuse rights.",
       "referenceUrl": "https://www.indiapost.gov.in/banking-services/savings",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": 24,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -59,15 +72,28 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "postalSavingsAccessReview": {
+        "officialIndiaPostSchemeListingUrl": "https://www.indiapost.gov.in/banking-services/savings",
+        "reviewedOn": "2026-10-29",
+        "schemeType": "NATIONAL_SAVINGS_TIME_DEPOSIT",
+        "nominalTenorMonths": 24,
+        "publicSchemeListingObserved": true,
+        "schemeListingScope": "GENERAL_PUBLIC_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_TENOR_RATE",
+        "individualAccountEligibilityAndKycVerified": false,
+        "currentAccountTermsAndEarlyExitVerified": false,
+        "independentlyAuthorizedCurrentRateVerified": false,
+        "commercialDisplayAndRedistributionRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_po_td_3",
       "exposureClass": "POSTAL_DEPOSIT_AND_TENOR",
-      "scenarioDescription": "Post Office 3-Year Time Deposit: Postal Time Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Post Office 3-Year Time Deposit: Postal Time Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating. India Post publicly lists National Savings Time Deposit as a scheme, but this research row does not verify an individually opened account, tenor-specific live interest observation, early-closure terms, KYC or reuse rights.",
       "referenceUrl": "https://www.indiapost.gov.in/banking-services/savings",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": 36,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -87,15 +113,28 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "postalSavingsAccessReview": {
+        "officialIndiaPostSchemeListingUrl": "https://www.indiapost.gov.in/banking-services/savings",
+        "reviewedOn": "2026-10-29",
+        "schemeType": "NATIONAL_SAVINGS_TIME_DEPOSIT",
+        "nominalTenorMonths": 36,
+        "publicSchemeListingObserved": true,
+        "schemeListingScope": "GENERAL_PUBLIC_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_TENOR_RATE",
+        "individualAccountEligibilityAndKycVerified": false,
+        "currentAccountTermsAndEarlyExitVerified": false,
+        "independentlyAuthorizedCurrentRateVerified": false,
+        "commercialDisplayAndRedistributionRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_po_td_5",
       "exposureClass": "POSTAL_DEPOSIT_AND_TENOR",
-      "scenarioDescription": "Post Office 5-Year Time Deposit: Postal Time Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Post Office 5-Year Time Deposit: Postal Time Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating. India Post publicly lists National Savings Time Deposit as a scheme, but this research row does not verify an individually opened account, tenor-specific live interest observation, early-closure terms, KYC or reuse rights.",
       "referenceUrl": "https://www.indiapost.gov.in/banking-services/savings",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": 60,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -115,7 +154,20 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "postalSavingsAccessReview": {
+        "officialIndiaPostSchemeListingUrl": "https://www.indiapost.gov.in/banking-services/savings",
+        "reviewedOn": "2026-10-29",
+        "schemeType": "NATIONAL_SAVINGS_TIME_DEPOSIT",
+        "nominalTenorMonths": 60,
+        "publicSchemeListingObserved": true,
+        "schemeListingScope": "GENERAL_PUBLIC_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_TENOR_RATE",
+        "individualAccountEligibilityAndKycVerified": false,
+        "currentAccountTermsAndEarlyExitVerified": false,
+        "independentlyAuthorizedCurrentRateVerified": false,
+        "commercialDisplayAndRedistributionRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_tbill_91",

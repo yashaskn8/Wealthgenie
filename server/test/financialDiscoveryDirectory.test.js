@@ -212,3 +212,28 @@ test('four government-security categories expose dated RBI evidence but no inves
  all.find(x=>x.id==='catalog_2026_tbill_91').frameworkResearch.retailDirectAccessReview.currentIssueOrQuoteVerified=true;
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_tbill_91').frameworkResearch.retailDirectAccessReview.currentIssueOrQuoteVerified,false);
 });
+
+
+test('India Post research exposes dated scheme listings but no authorized account terms or rates',()=>{
+ const all=listFinancialDiscoveryDirectory().items;
+ const ids=['po_savings','po_td_2','po_td_3','po_td_5'];
+ for(const suffix of ids){
+  const row=all.find(x=>x.id==='catalog_2026_'+suffix);
+  const review=row.frameworkResearch.postalSavingsAccessReview;
+  assert.equal(review.officialIndiaPostSchemeListingUrl,
+   'https://www.indiapost.gov.in/banking-services/savings');
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.individualAccountEligibilityAndKycVerified,false);
+  assert.equal(review.independentlyAuthorizedCurrentRateVerified,false);
+  assert.equal(review.commercialDisplayAndRedistributionRightsVerified,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  assert.equal(row.productData.currentInterestRate,null);
+  assert.equal(row.recommendationEligible,false);
+ }
+ assert.equal(all.filter(x=>x.frameworkResearch?.postalSavingsAccessReview).length,4);
+ all.find(x=>x.id==='catalog_2026_po_td_5').frameworkResearch.postalSavingsAccessReview
+  .independentlyAuthorizedCurrentRateVerified=true;
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_po_td_5')
+  .frameworkResearch.postalSavingsAccessReview.independentlyAuthorizedCurrentRateVerified,false);
+});

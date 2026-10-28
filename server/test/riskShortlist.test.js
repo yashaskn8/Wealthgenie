@@ -277,3 +277,49 @@ test('RBI Retail Direct access research stays separate from product eligibility 
  rows.find(x=>x.id==='catalog_2026_tbill_91').rbiRetailDirectAccessReview.currentIssueOrQuoteVerified=true;
  assert.equal(listExtensionResearch().find(x=>x.id==='catalog_2026_tbill_91').rbiRetailDirectAccessReview.currentIssueOrQuoteVerified,false);
 });
+
+
+test('four India Post schemes retain individual eligibility and licensed-rate blockers across profiles',()=>{
+ const ids=['po_savings','po_td_2','po_td_3','po_td_5'];
+ const research=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Conservative',investmentHorizonYears:1,
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Aggressive',investmentHorizonYears:10,
+ }));
+ for(const suffix of ids){
+  const id='catalog_2026_'+suffix;
+  const row=research.find(x=>x.id===id);
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
+  assert.equal(row.postalSavingsAccessReview.reviewedOn,'2026-10-29');
+  assert.equal(row.postalSavingsAccessReview.publicSchemeListingObserved,true);
+  assert.equal(row.postalSavingsAccessReview.individualAccountEligibilityAndKycVerified,false);
+  assert.equal(row.postalSavingsAccessReview.independentlyAuthorizedCurrentRateVerified,false);
+  assert.equal(row.postalSavingsAccessReview.commercialDisplayAndRedistributionRightsVerified,false);
+  for(const screened of [short,long]){
+   const item=screened.find(x=>x.id===id);
+   assert.ok(item.screeningReasonCodes.includes(
+    'INDIA_POST_ACCOUNT_KYC_AND_INDIVIDUAL_ELIGIBILITY_UNVERIFIED'));
+   assert.ok(item.screeningReasonCodes.includes(
+    'INDIA_POST_CURRENT_ACCOUNT_TERMS_RATE_AND_SOURCE_RIGHTS_UNVERIFIED'));
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+  }
+  if(suffix==='po_savings'){
+   assert.ok(short.find(x=>x.id===id).screeningReasonCodes.includes(
+    'POST_OFFICE_SAVINGS_ACCOUNT_BALANCE_AND_WITHDRAWAL_TERMS_UNVERIFIED'));
+  } else {
+   assert.ok(short.find(x=>x.id===id).screeningReasonCodes.includes(
+    'CONSERVATIVE_PROFILE_REQUIRES_POSTAL_TD_EARLY_EXIT_LIQUIDITY_REVIEW'));
+   assert.ok(!long.find(x=>x.id===id).screeningReasonCodes.includes(
+    'CONSERVATIVE_PROFILE_REQUIRES_POSTAL_TD_EARLY_EXIT_LIQUIDITY_REVIEW'));
+  }
+ }
+ assert.ok(short.find(x=>x.id==='catalog_2026_po_td_5').screeningReasonCodes.includes(
+  'POST_OFFICE_FIVE_YEAR_TD_EARLY_EXIT_CONDITIONS_REQUIRE_SPECIAL_REVIEW'));
+ assert.ok(!short.find(x=>x.id==='catalog_2026_po_td_3').screeningReasonCodes.includes(
+  'POST_OFFICE_FIVE_YEAR_TD_EARLY_EXIT_CONDITIONS_REQUIRE_SPECIAL_REVIEW'));
+ assert.equal(research.filter(x=>x.postalSavingsAccessReview).length,4);
+});
