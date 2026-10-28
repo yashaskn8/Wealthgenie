@@ -259,7 +259,14 @@ test('Kind CD uses a containerd-v4-compatible release and verifies the fixed Met
   assert.match(terraformValidation.run, /terraform -chdir="\$TERRAFORM_VALIDATION_DIR" validate/);
   assert.equal(parsed.jobs['deploy-and-verify-kind'].steps
     .find(step => step.name === 'Create Kind Kubernetes Cluster').with.node_image, 'kindest/node:v1.34.8@sha256:02722c2dedddcfc00febf5d27fbeb9b7b2c14294c82109ff4a85d89ac9ba3256');
-  assert.match(build.run, /printf -- '- Commit: `%s`\\n' "\$GITHUB_SHA"/);
+  // workflow_run's GITHUB_SHA can differ from the CI-verified source commit.
+  // Preserve verified-release identity across checkout, images and smoke checks.
+  assert.match(workflow, /RELEASE_SHA: \$\{\{ github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/);
+  assert.match(workflow, /if \[ "\$RELEASE_SHA" != "\$CURRENT_MAIN" \]; then/);
+  assert.match(workflow, /ref: \$\{\{ github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/);
+  assert.match(workflow, /SOURCE_IS_TRUSTED: [^\n]*head_branch == 'main'/);
+  assert.match(workflow, /SOURCE_CI_SUCCESS: [^\n]*conclusion == 'success'/);
+  assert.match(build.run, /printf -- '- Commit: `%s`\\n' "\$RELEASE_SHA"/);
   assert.doesNotMatch(build.run, /echo\s+"[^"]*`/, 'Markdown backticks must not trigger shell command substitution');
   assert.match(workflow, /releases\/download\/v0\.9\.0\/components\.yaml/);
   assert.match(workflow, /1cec29a5267809306a2c6ec74a3e449abbb705b4a8beed0c8a1963910f72c79b/);
