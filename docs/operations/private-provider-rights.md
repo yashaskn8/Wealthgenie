@@ -53,3 +53,8 @@ review. Registration alone does not create a product, qualify its tax class,
 ingest a current observation, establish suitability, or enable personalized
 advice. The AA bond family still needs two independently evidenced ISINs and
 their current terms, rating/risk, tax treatment and publishable observations.
+
+The Top 3 evidence review queue uses `providerApprovalReference` to link a
+candidate product to this non-confidential rights metadata. It never asks for
+an approval-document URL; the document and its path remain outside the queue,
+PostgreSQL, and GitHub.

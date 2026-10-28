@@ -11,14 +11,18 @@ test('every one of the exact 250 families gets three unapproved evidence slots',
   assert.deepEqual(rows.filter(x=>x.familyId===id).map(x=>x.slot),[1,2,3]);
  }
  assert.ok(rows.every(x=>x.status===REVIEW_QUEUE_STATUS));
- assert.ok(rows.every(x=>x.actualProductId===''&&x.dataUseRightsEvidenceUrl===''));
+ assert.ok(rows.every(x=>x.actualProductId===''&&x.providerApprovalReference===''));
+ assert.ok(rows.every(x=>!Object.hasOwn(x,'dataUseRightsEvidenceUrl')));
 });
 test('review queue never passes a category link off as issuer approval',()=>{
  const rows=buildTopThreeProductEvidenceQueue();
  assert.ok(rows.some(x=>x.categoryEvidenceUrl));
  assert.ok(rows.some(x=>!x.categoryEvidenceUrl));
  assert.ok(rows.every(x=>!x.issuerOfficialDocumentUrl));
- assert.equal(topThreeEvidenceQueueCsv(rows).split('\n').length,752);
+ const csv=topThreeEvidenceQueueCsv(rows);
+ assert.equal(csv.split('\n').length,752);
+ assert.match(csv.split('\n')[0],/providerApprovalReference/);
+ assert.doesNotMatch(csv.split('\n')[0],/dataUseRightsEvidenceUrl/);
 });
 test('duplicate or missing family data cannot inflate the queue',()=>{
  const base=buildTopThreeProductEvidenceQueue();

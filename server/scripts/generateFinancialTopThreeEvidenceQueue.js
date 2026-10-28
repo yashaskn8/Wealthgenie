@@ -29,7 +29,7 @@ export function buildTopThreeProductEvidenceQueue({
     categoryEvidenceUrl:f.sourceUrl||'',
     actualProductId:'',issuerName:'',issuerOfficialDocumentUrl:'',
     officialProductTermsUrl:'',riskEvidenceUrl:'',taxEvidenceUrl:'',
-    providerSourceId:'',providerInstrumentId:'',dataUseRightsEvidenceUrl:'',
+    providerSourceId:'',providerInstrumentId:'',providerApprovalReference:'',
     independentReviewer:'',approvedAt:'',expiresAt:'',
     status:REVIEW_QUEUE_STATUS,
   })));
@@ -40,7 +40,7 @@ export function topThreeEvidenceQueueCsv(rows=buildTopThreeProductEvidenceQueue(
   const keys=['familyId','familyName','category','slot','categoryEvidenceUrl',
     'actualProductId','issuerName','issuerOfficialDocumentUrl','officialProductTermsUrl',
     'riskEvidenceUrl','taxEvidenceUrl','providerSourceId','providerInstrumentId',
-    'dataUseRightsEvidenceUrl','independentReviewer','approvedAt','expiresAt','status'];
+    'providerApprovalReference','independentReviewer','approvedAt','expiresAt','status'];
   return keys.join(',')+'\n'+rows.map(row=>keys.map(key=>csv(row[key])).join(',')).join('\n')+'\n';
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1]){
