@@ -202,7 +202,20 @@ jobs:
       - name: Install reproducible server dependencies
         run: npm ci --prefix server
       - name: Red-team product qualification, suitability and migration hashes
-        run: node --test server/test/familyTopThree.test.js server/test/threeProductFamilyCatalog.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js server/test/verifyProviderEntitlement.test.js server/test/applySignedProviderEntitlement.test.js
+        run: node --test server/test/familyTopThree.test.js server/test/threeProductFamilyCatalog.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js server/test/verifyProviderEntitlement.test.js server/test/applySignedProviderEntitlement.test.js server/test/auditCatalog250Verification.test.js
+      - name: Audit every one of the 250 catalog families (source evidence, not live product approval)
+        run: |
+          npm run finance:catalog:verify --prefix server > financial-catalog-250-verification.json
+          npm run finance:catalog:verify --prefix server -- --csv > financial-catalog-250-verification.csv
+      - name: Publish all 250 per-family verification results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: financial-catalog-250-verification
+          path: |
+            financial-catalog-250-verification.json
+            financial-catalog-250-verification.csv
+          if-no-files-found: warn
       - name: Apply financial-universe schema with migration checksum
         run: npm run finance:pg:migrate --prefix server
       - name: Stage and reconcile canonical 155-entry archetype catalog
