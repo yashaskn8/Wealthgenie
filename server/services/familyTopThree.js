@@ -50,6 +50,7 @@ export async function compareQualifiedFamilyProducts({
     'AND r.derivation_allowed AND r.public_display_allowed AND r.commercial_use_allowed',
     'AND r.redistribution_allowed AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL',
     'AND r.reviewed_at<=$2 AND r.revoked_at IS NULL',
+    "AND r.verification_state='VERIFIED' AND r.verification_expires_at>$2",
     'AND (r.expires_at IS NULL OR r.expires_at>$2)',
     'WHERE q.family_id=$1 ORDER BY q.product_id LIMIT 501',
   ].join(' '), [familyId, now]);

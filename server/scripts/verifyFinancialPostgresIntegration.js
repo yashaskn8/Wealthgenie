@@ -93,8 +93,12 @@ try {
   await pool.query(`UPDATE finance.provider_rights SET
     access_allowed=true,extraction_allowed=true,storage_allowed=true,
     derivation_allowed=true,public_display_allowed=true,commercial_use_allowed=true,
-    redistribution_allowed=true,reviewed_at=now()
-    WHERE source_id=$1`,[sourceId]);
+    redistribution_allowed=true,reviewed_at=now(),
+    verification_state='VERIFIED',verification_issuer='ci-synthetic-only',
+    verification_claim_id=$2,verification_revision=1,
+    verification_expires_at=now()+interval '1 hour',
+    entitlement_receipt_sha256=$3
+    WHERE source_id=$1`,[sourceId,'ci-synthetic-grant-'+suffix,'1'.repeat(64)]);
   await assert.rejects(store.appendObservation({...input,
     sourceInstrumentId:'CI:WRONG:'+suffix}),/PRODUCT_PROVIDER_IDENTITY_MISMATCH/);
   // No operator can silently assign listed-equity tax treatment to an

@@ -22,6 +22,7 @@ export async function listFamiliesWithThreeSourceQualifiedProducts(pool,now=new 
  "AND r.derivation_allowed AND r.public_display_allowed AND r.commercial_use_allowed",
  "AND r.redistribution_allowed AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL",
  "AND r.reviewed_at<=$1 AND r.revoked_at IS NULL",
+ "AND r.verification_state='VERIFIED' AND r.verification_expires_at>$1",
  "AND (r.expires_at IS NULL OR r.expires_at>$1)",
  "AND EXISTS (SELECT 1 FROM finance.market_observations o",
  "JOIN finance.product_external_ids ext ON ext.product_id=p.id",

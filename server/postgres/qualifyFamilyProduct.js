@@ -59,6 +59,7 @@ export async function qualifyProductForFamily(pool, input, { now = new Date() } 
       'AND r.commercial_use_allowed AND r.redistribution_allowed',
       'AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL',
       'AND r.reviewed_at<=now() AND r.revoked_at IS NULL',
+      "AND r.verification_state='VERIFIED' AND r.verification_expires_at>now()", 
       'AND (r.expires_at IS NULL OR r.expires_at>now())',
       'FOR SHARE OF f,p,r',
     ].join(' '), [familyId, productId, sourceId]);

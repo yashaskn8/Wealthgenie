@@ -94,6 +94,7 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
           AND r.commercial_use_allowed AND r.redistribution_allowed
           AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL
           AND r.reviewed_at<=$3 AND r.revoked_at IS NULL
+          AND r.verification_state='VERIFIED' AND r.verification_expires_at>$3
           AND (r.expires_at IS NULL OR r.expires_at>$3)
           AND o.retain_until IS NOT NULL AND o.retain_until>$3
           AND o.observed_at<=$3 AND o.fetched_at<=$3
@@ -147,6 +148,7 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
          AND r.commercial_use_allowed AND r.redistribution_allowed
          AND r.retention_seconds>0 AND r.reviewed_at IS NOT NULL
          AND r.reviewed_at<=$4 AND r.revoked_at IS NULL
+         AND r.verification_state='VERIFIED' AND r.verification_expires_at>$4
          AND (r.expires_at IS NULL OR r.expires_at>$4)
          AND o.retain_until IS NOT NULL AND o.retain_until>$4
          AND o.observed_at<=$4 AND o.fetched_at<=$4
@@ -230,6 +232,7 @@ export function createFinancialStore(pool, {env = process.env} = {}) {
           WHERE source_id=$1 AND access_allowed AND extraction_allowed AND storage_allowed
             AND derivation_allowed AND commercial_use_allowed
             AND reviewed_at IS NOT NULL AND revoked_at IS NULL
+            AND verification_state='VERIFIED' AND verification_expires_at>now()
             AND (expires_at IS NULL OR expires_at>now()) FOR SHARE`,
         [input.sourceId],
       );
