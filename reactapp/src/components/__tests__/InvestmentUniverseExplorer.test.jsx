@@ -206,7 +206,7 @@ describe('all 250 investment categories are browseable without product approval'
    const matches=await screen.findByRole('region',{name:'Existing profile shortlist category matches'});
    const names=within(matches).getAllByRole('button').map(x=>x.textContent);
    expect(names).toHaveLength(3);
-   expect(within(matches).getByText(/not a ranking of all 250 categories/i)).toBeTruthy();
+   expect(within(matches).getByText(/No new product ranking has been calculated/i)).toBeTruthy();
    expect(within(matches).getByRole('button',{name:'Explore profile-shortlisted category Investment family 3'})).toBeTruthy();
    expect(within(matches).queryByRole('button',{name:'Explore profile-shortlisted category Investment family 4'})).toBeNull();
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
@@ -219,8 +219,8 @@ describe('all 250 investment categories are browseable without product approval'
    ]}/>);
    const matches=await screen.findByRole('region',{name:'Existing profile shortlist category matches'});
    expect(within(matches).getByText('Top 3 profile-matched investment categories')).toBeTruthy();
-   expect(within(matches).getByText(/155 modeled legacy categories/)).toBeTruthy();
-   expect(within(matches).getByText(/95 newer discovery categories are not yet ranked/)).toBeTruthy();
+   expect(within(matches).getByText(/All 250 categories are screened/)).toBeTruthy();
+   expect(within(matches).getByText(/95 newer entries require suitability evidence before ranking/)).toBeTruthy();
    expect(within(matches).getByText(/backend policy score 92\.4/)).toBeTruthy();
    const list=within(matches).getAllByRole('button');
    expect(list.map(x=>x.getAttribute('aria-label'))).toEqual([
