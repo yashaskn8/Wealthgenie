@@ -34,8 +34,15 @@ const families = Array.from({length:250},(_,index)=>({
   referenceUrl:index>=155?'https://www.sebi.gov.in/':null,
   referenceCheckedAsOf:index>=155?'2026-10-22':null,
   publicIssuerReferences:index===249?[
-    {issuerName:'State Bank of India',officialProductUrl:'https://sbi.bank.in/example',reviewedOn:'2026-10-28',evidenceStatus:'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA'},
-    {issuerName:'HDFC Bank Limited',officialProductUrl:'https://www.hdfc.bank.in/example',reviewedOn:'2026-10-28',evidenceStatus:'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA'},
+    {issuerName:'State Bank of India',officialProductUrl:'https://sbi.bank.in/example',reviewedOn:'2026-10-28',
+      evidenceStatus:'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA',
+      providerRightsReview:'BANK_PUBLIC_RATE_PAGE_HAS_NO_INDEPENDENTLY_VERIFIED_COMMERCIAL_ENTITLEMENT',
+      providerTermsUrl:null,independentCommercialPermissionVerified:false},
+    {issuerName:'HDFC Bank Limited',officialProductUrl:'https://www.hdfc.bank.in/example',reviewedOn:'2026-10-28',
+      evidenceStatus:'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA',
+      providerRightsReview:'PUBLIC_TERMS_RESTRICT_COMMERCIAL_REPRODUCTION_STORAGE_AND_REDISTRIBUTION',
+      providerTermsUrl:'https://www.hdfc.bank.in/useful-links/website-usage-terms',
+      independentCommercialPermissionVerified:false},
   ]:[],
   productData:{currentPrice:null,latestNav:null,currentInterestRate:null,
     verifiedMinimumInvestment:null,verifiedFees:null,personalizedAfterTaxReturn:null,marketFactAsOf:null},
@@ -100,6 +107,12 @@ describe('all 250 investment categories are browseable without product approval'
      .toHaveAttribute('href','https://www.hdfc.bank.in/example');
    expect(screen.getAllByText(/No live rate, licensed data feed or personal suitability is established/))
      .toHaveLength(2);
+   expect(screen.getByRole('link',{name:'Website usage terms'}))
+     .toHaveAttribute('href','https://www.hdfc.bank.in/useful-links/website-usage-terms');
+   expect(screen.getByText(/Official website terms restrict commercial reuse without separate permission/))
+     .toBeTruthy();
+   expect(screen.getByText(/Independent commercial reuse permission has not been established/))
+     .toBeTruthy();
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
  });
  it('shows detailed educational metadata without a current price, fake fees or tax',async()=>{

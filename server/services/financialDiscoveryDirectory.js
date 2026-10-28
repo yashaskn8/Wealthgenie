@@ -5,6 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { investmentDatabase } from '../data/investmentDatabase.js';
+import { validateFirstFamilyResearchPilot } from '../scripts/validateFirstFamilyResearchPilot.js';
 
 const extensions = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
@@ -19,6 +20,7 @@ const RD_HOSTS = Object.freeze({
   'HDFC Bank Limited': 'www.hdfc.bank.in',
 });
 function readOfficialIssuerReferences() {
+  validateFirstFamilyResearchPilot(rdResearch);
   if (rdResearch.familyId !== RD_FAMILY_ID
     || rdResearch.actualProductsApprovedForRecommendations !== 0
     || rdResearch.commercialDataEntitlementVerified !== false
@@ -34,7 +36,9 @@ function readOfficialIssuerReferences() {
       || url.hostname !== host || url.username || url.password || url.hash
       || candidate.productionRecommendationEligible !== false
       || candidate.issuerEntitlementVerified !== false
-      || candidate.commercialDisplayAndRedistributionRightsVerified !== false) {
+      || candidate.commercialDisplayAndRedistributionRightsVerified !== false
+      || candidate.publicWebsiteLicenseReview?.independentlyAuthorizedCommercialDataFeed !== false
+      || candidate.publicWebsiteLicenseReview?.separateProviderGrantRequired !== true) {
       throw new Error('FINANCIAL_RD_RESEARCH_SOURCE_INVALID');
     }
     seen.add(candidate.issuer);
@@ -43,6 +47,9 @@ function readOfficialIssuerReferences() {
       officialProductUrl: url.href,
       reviewedOn: rdResearch.researchReviewedOn,
       evidenceStatus: 'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA',
+      providerRightsReview: candidate.publicWebsiteLicenseReview.result,
+      providerTermsUrl: candidate.publicWebsiteLicenseReview.officialTermsUrl,
+      independentCommercialPermissionVerified: false,
     });
   });
 }

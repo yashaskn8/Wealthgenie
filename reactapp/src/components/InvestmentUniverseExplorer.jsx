@@ -401,6 +401,16 @@ export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LI
                                 </a>
                                 {' · '}Research checked {reference.reviewedOn || 'date not supplied'}.
                                 No live rate, licensed data feed or personal suitability is established.
+                                {reference.providerRightsReview ===
+                                  'PUBLIC_TERMS_RESTRICT_COMMERCIAL_REPRODUCTION_STORAGE_AND_REDISTRIBUTION'
+                                  ? ' Official website terms restrict commercial reuse without separate permission.'
+                                  : ' Independent commercial reuse permission has not been established.'}
+                                {permittedEvidenceUrl(reference.providerTermsUrl) && <>
+                                  {' '}<a href={permittedEvidenceUrl(reference.providerTermsUrl)}
+                                    target="_blank" rel="noopener noreferrer">
+                                    Website usage terms
+                                  </a>
+                                </>}
                               </li>
                             ))}
                           </ul>

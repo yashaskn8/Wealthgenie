@@ -22,6 +22,13 @@ test('the first category exposes official bank links without market rates or pro
  assert.ok(rd.publicIssuerReferences.every(x=>x.evidenceStatus==='PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA'
    && x.officialProductUrl.startsWith('https://')
    && !('publishedRatePercentPerAnnum' in x)));
+ const hdfc = rd.publicIssuerReferences.find(x => x.issuerName === 'HDFC Bank Limited');
+ assert.equal(hdfc.providerRightsReview,
+   'PUBLIC_TERMS_RESTRICT_COMMERCIAL_REPRODUCTION_STORAGE_AND_REDISTRIBUTION');
+ assert.equal(hdfc.providerTermsUrl,
+   'https://www.hdfc.bank.in/useful-links/website-usage-terms');
+ assert.ok(rd.publicIssuerReferences.every(x => x.independentCommercialPermissionVerified === false));
+ assert.ok(rd.publicIssuerReferences.every(x => !('publishedRatePercentPerAnnum' in x)));
  assert.equal(rd.productData.currentInterestRate,null);
  assert.equal(rd.dataRights,'NOT_VERIFIED');
  assert.ok(response.items.filter(x=>x.id!==rd.id).every(x=>x.publicIssuerReferences.length===0));

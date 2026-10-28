@@ -15,6 +15,8 @@ test('each of all 250 unique family IDs has exactly 3 empty evidence slots', () 
   assert.equal(report.reviewSlotsChecked, 750);
   assert.equal(report.reviewedProductIdentitySlotsPopulated, 0);
   assert.equal(report.productionQualifiedFamilies, 'NOT_MEASURED');
+  assert.equal(report.familiesWithIssuerResearchReferences, 1);
+  assert.equal(report.issuerOfferingsReferencedNotApproved, 2);
   assert.equal(report.basis, 'REPOSITORY_SOURCE_FILES_ONLY_NOT_LIVE_PROVIDER_OR_PRODUCTION_DB');
   assert.equal(new Set(report.families.map(x => x.familyId)).size, 250);
   assert.equal(new Set(report.families.map(x => x.name.toLowerCase())).size, 250);
@@ -54,4 +56,29 @@ test('source audit rejects forged, promoted, extra, or misbound review slot evid
   rejects('category', 'MISBOUND_CATEGORY');
   rejects('categoryEvidenceUrl', 'https://example.org/misbound');
   rejects('unreviewedExtraField');
+});
+
+test('RD issuer references are source-audited but commercial rights and product approval remain blocked', () => {
+  const report = buildCatalog250Verification();
+  const rd = report.families.find(row => row.familyId === 'catalog_2026_bank_rd');
+  assert.equal(rd.issuerResearchCount, 2);
+  assert.equal(rd.issuerResearchStatus, 'ISSUER_OFFERINGS_RESEARCHED__PRODUCTION_APPROVAL_BLOCKED');
+  assert.equal(rd.sourceRightsVerification, 'BLOCKED_INDEPENDENT_COMMERCIAL_SOURCE_PERMISSION');
+  assert.deepEqual(rd.issuerResearch.offerings.map(x => x.issuerName),
+    ['State Bank of India', 'HDFC Bank Limited']);
+  assert.equal(rd.issuerResearch.offerings[1].websiteUsageTermsUrl,
+    'https://www.hdfc.bank.in/useful-links/website-usage-terms');
+  assert.ok(rd.issuerResearch.offerings.every(x =>
+    x.independentCommercialPermissionVerified === false && x.actualProductApproved === false));
+  assert.equal(rd.actualProductIdentitiesApprovedByThisSource, 0);
+  assert.equal(rd.currentProductionQualifiedProducts, null);
+  assert.equal(report.families.filter(x => x.issuerResearch !== null).length, 1);
+  assert.equal(report.families.filter(x => x.issuerResearchCount === 0).length, 249);
+  assert.ok(catalog250VerificationCsv(report).includes('issuerResearchStatus,issuerResearchCount'));
+  const pilot = JSON.parse(readFileSync(
+    new URL('../data/qualificationPilots/bankRecurringDeposit2026-10-28.json', import.meta.url), 'utf8',
+  ));
+  pilot.candidates[1].publicWebsiteLicenseReview.independentlyAuthorizedCommercialDataFeed = true;
+  assert.throws(() => buildCatalog250Verification({ pilotResearch: pilot }),
+    /RD_PILOT_PUBLIC_WEBSITE_LICENCE_REVIEW_MISSING/);
 });

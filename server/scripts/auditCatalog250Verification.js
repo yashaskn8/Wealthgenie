@@ -2,9 +2,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { buildTopThreeProductEvidenceQueue, REVIEW_QUEUE_STATUS } from './generateFinancialTopThreeEvidenceQueue.js';
+import { validateFirstFamilyResearchPilot, PILOT_FAMILY_ID } from './validateFirstFamilyResearchPilot.js';
 
 const manifest = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
+));
+const rdResearch = JSON.parse(readFileSync(
+  new URL('../data/qualificationPilots/bankRecurringDeposit2026-10-28.json', import.meta.url), 'utf8',
 ));
 const normalizedName = name => name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const validId = id => typeof id === 'string' && /^[A-Za-z0-9:_-]{1,160}$/.test(id);
@@ -23,7 +27,10 @@ export function buildCatalog250Verification({
   legacy = investmentDatabase,
   extensions = manifest.entries,
   slots = null,
+  pilotResearch = rdResearch,
 } = {}) {
+  // Research-only issuer references do not confer commercial source permission.
+  const pilotCheck = validateFirstFamilyResearchPilot(pilotResearch);
   if (!Array.isArray(legacy) || legacy.length !== 155
     || !Array.isArray(extensions) || extensions.length !== 95) {
     reject('EXPECTED_155_LEGACY_PLUS_95_EXTENSION_FAMILIES');
@@ -78,6 +85,7 @@ export function buildCatalog250Verification({
       }
       // A family reference (including a legacy return assumption) is never
       // an individually approved, priced, licensed security or deposit.
+      const isPilot = e.id === PILOT_FAMILY_ID;
       families.push({
         familyId: e.id,
         name: e.name,
@@ -92,7 +100,25 @@ export function buildCatalog250Verification({
         minimumActualQualifiedProductsNeeded: 2,
         topThreeMaximum: 3,
         currentProductionQualifiedProducts: null,
-        sourceRightsVerification: 'NOT_ESTABLISHED_BY_SOURCE_INVENTORY',
+        sourceRightsVerification: isPilot
+          ? 'BLOCKED_INDEPENDENT_COMMERCIAL_SOURCE_PERMISSION'
+          : 'NOT_ESTABLISHED_BY_SOURCE_INVENTORY',
+        issuerResearchStatus: isPilot ? pilotCheck.status : 'NO_ISSUER_RESEARCH_IN_THIS_SOURCE',
+        issuerResearchCount: isPilot ? pilotCheck.independentlyDocumentedIssuerOfferings : 0,
+        issuerResearch: isPilot ? {
+          reviewedOn: pilotResearch.researchReviewedOn,
+          evidenceScope: pilotResearch.evidenceScope,
+          offerings: pilotResearch.candidates.map(candidate => ({
+            issuerName: candidate.issuer,
+            officialProductUrl: candidate.officialProductUrl,
+            officialRateSourceUrl: candidate.officialRateUrl,
+            officialTermsUrl: candidate.officialTermsUrl,
+            websiteUsageTermsUrl: candidate.publicWebsiteLicenseReview.officialTermsUrl,
+            publicRightsReview: candidate.publicWebsiteLicenseReview.result,
+            independentCommercialPermissionVerified: false,
+            actualProductApproved: false,
+          })),
+        } : null,
         productionStatus: 'NOT_VERIFIED_AS_TWO_CURRENT_SUITABLE_ACTUAL_PRODUCTS',
         remainingRequirements: [
           'TWO_DISTINCT_ACTUAL_PRODUCT_IDENTITIES',
@@ -117,6 +143,8 @@ export function buildCatalog250Verification({
     reviewSlotsChecked: 750,
     reviewedProductIdentitySlotsPopulated: 0,
     sourceEstablishedActualProducts: 0,
+    familiesWithIssuerResearchReferences: 1,
+    issuerOfferingsReferencedNotApproved: pilotCheck.independentlyDocumentedIssuerOfferings,
     productionQualifiedFamilies: 'NOT_MEASURED',
     verifiedForAnySpecificInvestor: false,
     semantics: '250 discovery families are not 250 verified investments; 2 suitable real products per family required.',
@@ -128,7 +156,8 @@ export function catalog250VerificationCsv(report = buildCatalog250Verification()
   const fields = ['familyId','name','category','subCategory','inventory','catalogIdentity',
     'identityLevel','catalogSourceReference','actualProductIdentitiesApprovedByThisSource',
     'minimumActualQualifiedProductsNeeded','currentProductionQualifiedProducts',
-    'sourceRightsVerification','productionStatus','remainingRequirements'];
+    'sourceRightsVerification','issuerResearchStatus','issuerResearchCount',
+    'productionStatus','remainingRequirements'];
   return fields.join(',') + '\n' + report.families.map(row =>
     fields.map(k => csv(Array.isArray(row[k]) ? row[k].join(';') : row[k])).join(',')
   ).join('\n') + '\n';
