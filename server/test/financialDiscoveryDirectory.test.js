@@ -237,3 +237,24 @@ test('India Post research exposes dated scheme listings but no authorized accoun
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_po_td_5')
   .frameworkResearch.postalSavingsAccessReview.independentlyAuthorizedCurrentRateVerified,false);
 });
+
+test('four central-government bond directory entries expose read-only structure evidence only',()=>{
+ const ids=['gsec_coupon_strip','gsec_principal_strip','sovereign_green','gsec_floating'];
+ const all=listFinancialDiscoveryDirectory().items;
+ for(const suffix of ids){
+  const item=all.find(x=>x.id==='catalog_2026_'+suffix),review=item.frameworkResearch.governmentBondStructureReview;
+  assert.ok(review);
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.currentMarketPriceOrYieldVerified,false);
+  assert.equal(review.specificSecurityIsinVerified,false);
+  assert.equal(review.independentCommercialDataRightsVerified,false);
+  assert.equal(item.frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl,review.officialStructureSourceUrl);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(v=>v===null));
+ }
+ assert.equal(all.filter(x=>x.frameworkResearch?.governmentBondStructureReview).length,4);
+ all.find(x=>x.id==='catalog_2026_gsec_coupon_strip').frameworkResearch.governmentBondStructureReview.specificSecurityIsinVerified=true;
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_gsec_coupon_strip').frameworkResearch.governmentBondStructureReview.specificSecurityIsinVerified,false);
+});

@@ -11,6 +11,8 @@ const legacyIds=new Set(investmentDatabase.map(x=>x.id));
 const nbfcDepositIds=new Set(['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout']);
 const retailDirectIds=new Set(['catalog_2026_tbill_91','catalog_2026_tbill_182','catalog_2026_tbill_364','catalog_2026_sdl_dated']);
 const postalSavingsIds=new Set(['catalog_2026_po_savings','catalog_2026_po_td_2','catalog_2026_po_td_3','catalog_2026_po_td_5']);
+const governmentBondStructureTypes=Object.freeze({"catalog_2026_gsec_coupon_strip":"CENTRAL_GSEC_COUPON_STRIP","catalog_2026_gsec_principal_strip":"CENTRAL_GSEC_PRINCIPAL_STRIP","catalog_2026_sovereign_green":"SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","catalog_2026_gsec_floating":"FLOATING_RATE_CENTRAL_GSEC"});
+const governmentBondOfficialSources=Object.freeze({"catalog_2026_gsec_coupon_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_gsec_principal_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_sovereign_green":"https://dea.gov.in/framework-sovereign-green-bonds","catalog_2026_gsec_floating":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711"});
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -59,6 +61,20 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.postalSavingsAccessReview?.commercialDisplayAndRedistributionRightsVerified!==false
       || x.postalSavingsAccessReview?.personalizedSuitabilityVerified!==false)
     : x.postalSavingsAccessReview!==undefined)
+  || research.entries.some(x=>Object.hasOwn(governmentBondStructureTypes,x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.governmentBondStructureReview?.structureType!==governmentBondStructureTypes[x.id]
+      || x.governmentBondStructureReview?.officialStructureSourceUrl!==governmentBondOfficialSources[x.id]
+      || x.governmentBondStructureReview?.reviewedOn!=='2026-10-29'
+      || x.governmentBondStructureReview?.sourceScope!=='GENERAL_ISSUANCE_OR_STRUCTURE_FRAMEWORK_NOT_A_CURRENT_SECURITY'
+      || x.verifiedPublicFrameworkFact?.officialSourceUrl!==governmentBondOfficialSources[x.id]
+      || x.governmentBondStructureReview?.specificSecurityIsinVerified!==false
+      || x.governmentBondStructureReview?.specificCouponMaturityAndTermsVerified!==false
+      || x.governmentBondStructureReview?.retailAccessCustodyAndKycVerified!==false
+      || x.governmentBondStructureReview?.currentMarketPriceOrYieldVerified!==false
+      || x.governmentBondStructureReview?.independentCommercialDataRightsVerified!==false
+      || x.governmentBondStructureReview?.taxAndProductSuitabilityVerified!==false)
+    : x.governmentBondStructureReview!==undefined)
   || research.entries.some(x=>retailDirectIds.has(x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
       || x.rbiRetailDirectAccessReview?.officialRetailDirectFaqUrl!=='https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145'
@@ -151,6 +167,19 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('NBFC_TENOR_AND_PREMATURE_REPAYMENT_REQUIRE_ISSUER_TERMS');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NBFC_CREDIT_AND_LIQUIDITY_REVIEW');
+   }
+   if(row.governmentBondStructureReview) {
+     reasons.push('GOVT_BOND_ISIN_TERMS_RETAIL_ACCESS_AND_SOURCE_RIGHTS_UNVERIFIED');
+     if(row.governmentBondStructureReview.structureType.endsWith('_STRIP')) {
+       reasons.push('CENTRAL_GSEC_STRIP_CASH_FLOW_AND_CUSTODIAN_ACCESS_REQUIRE_ISIN_REVIEW');
+       reasons.push('GSEC_STRIPS_SECONDARY_MARKET_LIQUIDITY_AND_NO_INTERIM_CASH_FLOW_REVIEW');
+     } else if(row.id==='catalog_2026_sovereign_green') {
+       reasons.push('SOVEREIGN_GREEN_USE_OF_PROCEEDS_NOT_INSTRUMENT_OR_IMPACT_APPROVAL');
+     } else if(row.id==='catalog_2026_gsec_floating') {
+       reasons.push('FLOATING_RATE_GSEC_RESET_BASIS_SPREAD_AND_DATES_UNVERIFIED');
+     }
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_GOVT_BOND_MARKET_PRICE_AND_LIQUIDITY_REVIEW');
    }
    if(row.rbiRetailDirectAccessReview) {
      reasons.push('RBI_RETAIL_DIRECT_ACCOUNT_KYC_AND_PERSONAL_ELIGIBILITY_UNVERIFIED');

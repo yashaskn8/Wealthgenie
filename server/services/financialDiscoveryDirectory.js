@@ -142,6 +142,8 @@ function buildDirectory() {
           ? { ...research.nbfcPublicDepositAccessReview } : null,
         retailDirectAccessReview: research.rbiRetailDirectAccessReview
           ? { ...research.rbiRetailDirectAccessReview } : null,
+        governmentBondStructureReview: research.governmentBondStructureReview
+          ? { ...research.governmentBondStructureReview } : null,
       };
     })(),
     description: null, educationalRiskLabel: null,

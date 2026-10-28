@@ -323,3 +323,37 @@ test('four India Post schemes retain individual eligibility and licensed-rate bl
   'POST_OFFICE_FIVE_YEAR_TD_EARLY_EXIT_CONDITIONS_REQUIRE_SPECIAL_REVIEW'));
  assert.equal(research.filter(x=>x.postalSavingsAccessReview).length,4);
 });
+
+test('four central-government bond structures keep instrument and profile gates closed',()=>{
+ const ids=['gsec_coupon_strip','gsec_principal_strip','sovereign_green','gsec_floating'];
+ const types=["CENTRAL_GSEC_COUPON_STRIP","CENTRAL_GSEC_PRINCIPAL_STRIP","SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","FLOATING_RATE_CENTRAL_GSEC"];
+ const rows=listExtensionResearch();
+ const conservative=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative'}));
+ const aggressive=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive'}));
+ for(const [i,suffix] of ids.entries()){
+  const id='catalog_2026_'+suffix,row=rows.find(x=>x.id===id),review=row.governmentBondStructureReview;
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
+  assert.equal(review.structureType,types[i]);
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,review.officialStructureSourceUrl);
+  assert.equal(review.officialStructureSourceUrl,i===2?'https://dea.gov.in/framework-sovereign-green-bonds':'https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711');
+  for(const key of ['specificSecurityIsinVerified','specificCouponMaturityAndTermsVerified','retailAccessCustodyAndKycVerified','currentMarketPriceOrYieldVerified','independentCommercialDataRightsVerified','taxAndProductSuitabilityVerified'])assert.equal(review[key],false);
+  assert.equal(row.actualRetailProductEligible,false);
+  assert.equal(row.sourcePermissionVerified,false);
+  assert.equal(row.productRiskScore,null);
+  for(const screened of [conservative,aggressive]){
+   const item=screened.find(x=>x.id===id);
+   assert.ok(item.screeningReasonCodes.includes('GOVT_BOND_ISIN_TERMS_RETAIL_ACCESS_AND_SOURCE_RIGHTS_UNVERIFIED'));
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productQualified,false);
+   assert.equal(item.productRiskLevel,null);
+  }
+  assert.ok(conservative.find(x=>x.id===id).screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_GOVT_BOND_MARKET_PRICE_AND_LIQUIDITY_REVIEW'));
+  assert.ok(!aggressive.find(x=>x.id===id).screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_GOVT_BOND_MARKET_PRICE_AND_LIQUIDITY_REVIEW'));
+ }
+ for(const suffix of ids.slice(0,2))assert.ok(conservative.find(x=>x.id==='catalog_2026_'+suffix).screeningReasonCodes.includes('GSEC_STRIPS_SECONDARY_MARKET_LIQUIDITY_AND_NO_INTERIM_CASH_FLOW_REVIEW'));
+ assert.ok(conservative.find(x=>x.id==='catalog_2026_sovereign_green').screeningReasonCodes.includes('SOVEREIGN_GREEN_USE_OF_PROCEEDS_NOT_INSTRUMENT_OR_IMPACT_APPROVAL'));
+ assert.ok(conservative.find(x=>x.id==='catalog_2026_gsec_floating').screeningReasonCodes.includes('FLOATING_RATE_GSEC_RESET_BASIS_SPREAD_AND_DATES_UNVERIFIED'));
+ assert.equal(rows.filter(x=>x.governmentBondStructureReview).length,4);
+});

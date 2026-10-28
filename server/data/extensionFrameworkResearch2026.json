@@ -395,10 +395,10 @@
     {
       "id": "catalog_2026_gsec_coupon_strip",
       "exposureClass": "STRIPPED_GOVERNMENT_CASH_FLOW",
-      "scenarioDescription": "Central Government Security Coupon STRIP: Central Government STRIPS category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Central Government Security Coupon STRIP: a scheduled coupon cash flow separated from an eligible fixed-coupon central government bond, not a primary-auction security. Its actual ISIN, maturity, price, custody, retail access, liquidity, tax and source rights remain unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -412,21 +412,33 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "RBI_STRIPS_SEPARATE_COUPON_OR_PRINCIPAL_CASH_FLOW",
-        "value": "Government-security STRIPS separate coupon and principal cash flows; availability of the named state/central instrument is not verified",
+        "factCode": "RBI_CENTRAL_GSEC_COUPON_STRIP_STRUCTURE",
+        "value": "RBI describes separately tradable coupon STRIPS from eligible fixed-coupon Central Government securities; no current coupon STRIP ISIN or quote is authenticated.",
         "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
-        "reviewedOn": "2026-10-28",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "governmentBondStructureReview": {
+        "structureType": "CENTRAL_GSEC_COUPON_STRIP",
+        "officialStructureSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_ISSUANCE_OR_STRUCTURE_FRAMEWORK_NOT_A_CURRENT_SECURITY",
+        "specificSecurityIsinVerified": false,
+        "specificCouponMaturityAndTermsVerified": false,
+        "retailAccessCustodyAndKycVerified": false,
+        "currentMarketPriceOrYieldVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxAndProductSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_gsec_principal_strip",
       "exposureClass": "STRIPPED_GOVERNMENT_CASH_FLOW",
-      "scenarioDescription": "Central Government Security Principal STRIP: Central Government STRIPS category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Central Government Security Principal STRIP: a final principal cash flow separated from an eligible fixed-coupon central government bond, not a primary-auction security. Its actual ISIN, maturity, price, custody, retail access, liquidity, tax and source rights remain unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -440,21 +452,33 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "RBI_STRIPS_SEPARATE_COUPON_OR_PRINCIPAL_CASH_FLOW",
-        "value": "Government-security STRIPS separate coupon and principal cash flows; availability of the named state/central instrument is not verified",
+        "factCode": "RBI_CENTRAL_GSEC_PRINCIPAL_STRIP_STRUCTURE",
+        "value": "RBI describes separately tradable principal STRIPS from eligible fixed-coupon Central Government securities; no current principal STRIP ISIN or quote is authenticated.",
         "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
-        "reviewedOn": "2026-10-28",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "governmentBondStructureReview": {
+        "structureType": "CENTRAL_GSEC_PRINCIPAL_STRIP",
+        "officialStructureSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_ISSUANCE_OR_STRUCTURE_FRAMEWORK_NOT_A_CURRENT_SECURITY",
+        "specificSecurityIsinVerified": false,
+        "specificCouponMaturityAndTermsVerified": false,
+        "retailAccessCustodyAndKycVerified": false,
+        "currentMarketPriceOrYieldVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxAndProductSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_sovereign_green",
       "exposureClass": "GOVERNMENT_BOND_DURATION_AND_MARKET_PRICE",
-      "scenarioDescription": "Sovereign Green Bond: Central Government Securities category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Sovereign Green Bond: government borrowing with a public green use-of-proceeds framework, not proof of a currently offered security or guaranteed environmental impact. Issue ISIN, green allocation reporting, price, retail access, terms, tax and rights are unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -468,21 +492,33 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "RBI_SECONDARY_GOVERNMENT_SECURITY_PRICE_RISK",
-        "value": "Government securities can move in market price before maturity; issuer-specific security terms remain unverified",
-        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
-        "reviewedOn": "2026-10-28",
+        "factCode": "GOI_SOVEREIGN_GREEN_BOND_USE_OF_PROCEEDS_FRAMEWORK",
+        "value": "The Government of India publishes a sovereign green bond framework for eligible public-sector green expenditures; the framework is not evidence of a current purchasable bond or product-specific environmental outcome.",
+        "officialSourceUrl": "https://dea.gov.in/framework-sovereign-green-bonds",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "governmentBondStructureReview": {
+        "structureType": "SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND",
+        "officialStructureSourceUrl": "https://dea.gov.in/framework-sovereign-green-bonds",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_ISSUANCE_OR_STRUCTURE_FRAMEWORK_NOT_A_CURRENT_SECURITY",
+        "specificSecurityIsinVerified": false,
+        "specificCouponMaturityAndTermsVerified": false,
+        "retailAccessCustodyAndKycVerified": false,
+        "currentMarketPriceOrYieldVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxAndProductSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_gsec_floating",
       "exposureClass": "GOVERNMENT_BOND_DURATION_AND_MARKET_PRICE",
-      "scenarioDescription": "Floating-Rate Government Dated Security: Central Government Securities category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Floating-Rate Government Dated Security: government bond with coupons reset at specified intervals against an issue-specific reference rate, possibly with a fixed spread. ISIN, benchmark, spread, reset dates, price, retail access, tax and rights remain unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -496,13 +532,25 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "RBI_SECONDARY_GOVERNMENT_SECURITY_PRICE_RISK",
-        "value": "Government securities can move in market price before maturity; issuer-specific security terms remain unverified",
-        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
-        "reviewedOn": "2026-10-28",
+        "factCode": "RBI_FLOATING_RATE_GSEC_COUPON_RESET_STRUCTURE",
+        "value": "RBI describes floating-rate Government securities with periodic coupon resets, including base-rate-plus-fixed-spread structures; no live issue-specific coupon, reset basis or quote is authenticated.",
+        "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "governmentBondStructureReview": {
+        "structureType": "FLOATING_RATE_CENTRAL_GSEC",
+        "officialStructureSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_ISSUANCE_OR_STRUCTURE_FRAMEWORK_NOT_A_CURRENT_SECURITY",
+        "specificSecurityIsinVerified": false,
+        "specificCouponMaturityAndTermsVerified": false,
+        "retailAccessCustodyAndKycVerified": false,
+        "currentMarketPriceOrYieldVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxAndProductSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_bank_rd",
