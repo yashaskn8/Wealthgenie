@@ -14,7 +14,7 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
   || research.entries.some((e,i)=> e.id!==universe[i].id
     || !idSet.has(e.id) || legacyIds.has(e.id)
     || e.referenceUrl!==universe[i].sourceUrl
-    || !e.exposureClass || !e.scenarioDescription?.includes(e.name)
+    || !e.exposureClass || !e.scenarioDescription?.includes(universe[i].name)
     || e.productRiskScore!==null || e.actualRetailProductEligible!==false
     || e.marketFactsVerified!==false || e.sourcePermissionVerified!==false
     || e.overallEvidence!=='STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION'
@@ -22,7 +22,6 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
     || !['https:'].includes(new URL(e.referenceUrl).protocol))) {
   throw new Error('FINANCIAL_95_FRAMEWORK_RESEARCH_COVERAGE_INVALID');
 }
-const studyById=new Map(research.entries.map(e=>[e.id,e]));
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>({...row}));
