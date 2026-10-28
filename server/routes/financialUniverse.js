@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { listFinancialDiscoveryDirectory } from '../services/financialDiscoveryDirectory.js';
 import Joi from 'joi';
 import { asyncHandler, sendError } from '../middleware/errorHandler.js';
 import { validate, validateQuery } from '../validation/schemas.js';
@@ -18,6 +19,11 @@ const browseSchema = Joi.object({
   cursor: slug.optional(),
   limit: Joi.string().pattern(/^(?:[1-9]|[1-9][0-9]|100)$/).optional(),
 }).unknown(false);
+// Public educational directory is independent of PostgreSQL production rights.
+router.get('/discovery', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  return res.json(listFinancialDiscoveryDirectory());
+});
 router.get('/', validateQuery(browseSchema), asyncHandler(async (req, res) => {
   const pool = await getFinancialPostgresPool();
   if (!pool) return sendError(req,res,503,'Financial-universe PostgreSQL is not enabled.','FINANCIAL_UNIVERSE_NOT_ENABLED');
