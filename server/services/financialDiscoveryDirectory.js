@@ -10,6 +10,44 @@ const extensions = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
 )).entries;
 
+const rdResearch = JSON.parse(readFileSync(
+  new URL('../data/qualificationPilots/bankRecurringDeposit2026-10-28.json', import.meta.url), 'utf8',
+));
+const RD_FAMILY_ID = 'catalog_2026_bank_rd';
+const RD_HOSTS = Object.freeze({
+  'State Bank of India': 'sbi.bank.in',
+  'HDFC Bank Limited': 'www.hdfc.bank.in',
+});
+function readOfficialIssuerReferences() {
+  if (rdResearch.familyId !== RD_FAMILY_ID
+    || rdResearch.actualProductsApprovedForRecommendations !== 0
+    || rdResearch.commercialDataEntitlementVerified !== false
+    || rdResearch.investorSuitabilityAuthorized !== false
+    || !Array.isArray(rdResearch.candidates) || rdResearch.candidates.length !== 2) {
+    throw new Error('FINANCIAL_RD_ISSUER_RESEARCH_MUST_REMAIN_UNAPPROVED');
+  }
+  const seen = new Set();
+  return rdResearch.candidates.map(candidate => {
+    const host = RD_HOSTS[candidate.issuer];
+    const url = new URL(candidate.officialProductUrl);
+    if (!host || seen.has(candidate.issuer) || url.protocol !== 'https:'
+      || url.hostname !== host || url.username || url.password || url.hash
+      || candidate.productionRecommendationEligible !== false
+      || candidate.issuerEntitlementVerified !== false
+      || candidate.commercialDisplayAndRedistributionRightsVerified !== false) {
+      throw new Error('FINANCIAL_RD_RESEARCH_SOURCE_INVALID');
+    }
+    seen.add(candidate.issuer);
+    return Object.freeze({
+      issuerName: candidate.issuer,
+      officialProductUrl: url.href,
+      reviewedOn: rdResearch.researchReviewedOn,
+      evidenceStatus: 'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA',
+    });
+  });
+}
+const RD_OFFICIAL_ISSUER_REFERENCES = Object.freeze(readOfficialIssuerReferences());
+
 const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const asText = s => typeof s === 'string' && s.trim() ? s.trim() : null;
 const httpsUrl = value => {
@@ -36,6 +74,7 @@ function buildDirectory() {
     id: item.id, name: item.name, category: item.category,
     subcategory: item.subCategory || null,
     record_kind: 'ARCHETYPE', origin: 'LEGACY_155',
+    publicIssuerReferences: [],
     instrumentForm: null,
     description: asText(item.description),
     // The source catalog may contain assumptions, which are NOT market quotes.
@@ -51,6 +90,7 @@ function buildDirectory() {
     id: item.id, name: item.name, category: item.category,
     subcategory: item.subCategory || null,
     record_kind: 'ARCHETYPE', origin: 'EXTENDED_95',
+    publicIssuerReferences: item.id === RD_FAMILY_ID ? RD_OFFICIAL_ISSUER_REFERENCES : [],
     instrumentForm: asText(item.instrumentForm),
     description: null, educationalRiskLabel: null,
     educationalRiskBasis: 'NOT_ESTABLISHED',
@@ -85,6 +125,9 @@ export function listFinancialDiscoveryDirectory() {
     actualProductCountBasis: 'CATALOG_SOURCE_ONLY_NOT_LIVE_DATABASE',
     marketFactsAvailable: false,
     disclaimer: '250 educational investment categories, not 250 verified purchasable products. No current prices, rates, tax outcomes or personalized investment recommendations are established by this catalog.',
-    items: DIRECTORY.map(item => ({ ...item, productData: { ...item.productData } })),
+    items: DIRECTORY.map(item => ({
+      ...item, productData: { ...item.productData },
+      publicIssuerReferences: item.publicIssuerReferences.map(reference => ({ ...reference })),
+    })),
   };
 }

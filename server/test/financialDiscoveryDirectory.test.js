@@ -13,6 +13,22 @@ test('all 250 educational entries are visible without PostgreSQL or provider ent
  assert.equal(new Set(response.items.map(e=>e.name.toLowerCase())).size,250);
  assert.equal(response.items.find(x=>x.id==='catalog_2026_bank_rd')?.name,'Bank Recurring Deposit');
 });
+test('the first category exposes official bank links without market rates or product approval',()=>{
+ const response=listFinancialDiscoveryDirectory();
+ const rd=response.items.find(x=>x.id==='catalog_2026_bank_rd');
+ assert.equal(rd.publicIssuerReferences.length,2);
+ assert.deepEqual(rd.publicIssuerReferences.map(x=>x.issuerName),
+   ['State Bank of India','HDFC Bank Limited']);
+ assert.ok(rd.publicIssuerReferences.every(x=>x.evidenceStatus==='PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA'
+   && x.officialProductUrl.startsWith('https://')
+   && !('publishedRatePercentPerAnnum' in x)));
+ assert.equal(rd.productData.currentInterestRate,null);
+ assert.equal(rd.dataRights,'NOT_VERIFIED');
+ assert.ok(response.items.filter(x=>x.id!==rd.id).every(x=>x.publicIssuerReferences.length===0));
+ rd.publicIssuerReferences[0].issuerName='tampered';
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===rd.id)
+   .publicIssuerReferences[0].issuerName,'State Bank of India');
+});
 test('every catalog item reports missing REAL product facts, not fabricated rates',()=>{
  const items=listFinancialDiscoveryDirectory().items;
  for (const x of items){
