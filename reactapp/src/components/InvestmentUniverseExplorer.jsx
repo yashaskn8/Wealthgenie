@@ -453,6 +453,39 @@ export default function InvestmentUniverseExplorer({
                           </>}
                         </dd>
                       </>}
+                    {selectedFamily.frameworkResearch && <>
+                      <dt>Researched investment structure</dt>
+                      <dd>{selectedFamily.frameworkResearch.structuralExposureClass.replaceAll('_',' ')}</dd>
+                      <dt>Distinct risk and eligibility consideration</dt>
+                      <dd>{selectedFamily.frameworkResearch.specificResearchConcern}
+                        {' '}Structural research only; the individual fund, bond or deposit risk rating is not verified.
+                      </dd>
+                      {selectedFamily.frameworkResearch.nominalMaturityMonths !== null && <>
+                        <dt>Named product-family tenor</dt>
+                        <dd>{selectedFamily.frameworkResearch.nominalMaturityMonths} months;
+                          premature access and account rules require offering-specific checks
+                        </dd>
+                      </>}
+                      {selectedFamily.frameworkResearch.nominalMaturityDays !== null && <>
+                        <dt>Named instrument tenor</dt>
+                        <dd>{selectedFamily.frameworkResearch.nominalMaturityDays} days;
+                          auction security details and available quotes require verification
+                        </dd>
+                      </>}
+                      {selectedFamily.frameworkResearch.standardCapitalReferenceInr !== null && <>
+                        <dt>Standard regulatory investment threshold (not a quote)</dt>
+                        <dd>₹{selectedFamily.frameworkResearch.standardCapitalReferenceInr.toLocaleString('en-IN')}
+                          {' '}— exceptions and applicant qualifications apply; verify current scheme or mandate terms
+                        </dd>
+                      </>}
+                      {assessments?.get(selectedFamily.id)?.screeningReasonCodes?.length>0 && <>
+                        <dt>Financial-profile research checks</dt>
+                        <dd><ul>
+                          {assessments.get(selectedFamily.id).screeningReasonCodes.map(reason =>
+                            <li key={reason}>{reason.replaceAll('_',' ').toLowerCase()}</li>)}
+                        </ul></dd>
+                      </>}
+                    </>}
                     {selectedFamily.educationalRiskLabel && <>
                       <dt>Legacy risk label</dt>
                       <dd>{selectedFamily.educationalRiskLabel} (unverified catalog assumption)</dd>

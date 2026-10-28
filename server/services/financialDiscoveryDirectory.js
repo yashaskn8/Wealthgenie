@@ -5,6 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { investmentDatabase } from '../data/investmentDatabase.js';
+import { listExtensionResearch } from './extensionFrameworkAssessment.js';
 import { validateFirstFamilyResearchPilot } from '../scripts/validateFirstFamilyResearchPilot.js';
 
 const extensions = JSON.parse(readFileSync(
@@ -14,6 +15,7 @@ const extensions = JSON.parse(readFileSync(
 const rdResearch = JSON.parse(readFileSync(
   new URL('../data/qualificationPilots/bankRecurringDeposit2026-10-28.json', import.meta.url), 'utf8',
 ));
+const extensionResearchById = new Map(listExtensionResearch().map(x => [x.id,x]));
 const RD_FAMILY_ID = 'catalog_2026_bank_rd';
 const RD_HOSTS = Object.freeze({
   'State Bank of India': 'sbi.bank.in',
@@ -113,6 +115,26 @@ function buildDirectory() {
     record_kind: 'ARCHETYPE', origin: 'EXTENDED_95',
     publicIssuerReferences: item.id === RD_FAMILY_ID ? RD_OFFICIAL_ISSUER_REFERENCES : [],
     instrumentForm: asText(item.instrumentForm),
+    frameworkResearch: (() => {
+      const research = extensionResearchById.get(item.id);
+      if (!research || research.referenceUrl !== item.sourceUrl
+        || research.productRiskScore !== null || research.actualRetailProductEligible !== false
+        || research.sourcePermissionVerified !== false) {
+        throw new Error('FINANCIAL_95_FRAMEWORK_ITEM_UNQUALIFIED:' + item.id);
+      }
+      return {
+        structuralExposureClass: research.exposureClass,
+        specificResearchConcern: research.scenarioDescription,
+        standardCapitalReferenceInr: research.standardCapitalReferenceInr,
+        standardMinimumHasExceptions: research.thresholdHasAccreditedInvestorExceptions,
+        nominalMaturityMonths: research.nominalMaturityMonths,
+        nominalMaturityDays: research.nominalMaturityDays,
+        evidenceScope: research.referenceBasis,
+        actualRiskScore: null,
+        issuerTermsVerified: false,
+        sourceRightsVerified: false,
+      };
+    })(),
     description: null, educationalRiskLabel: null,
     educationalRiskBasis: 'NOT_ESTABLISHED',
     studyNotes: {
@@ -152,6 +174,7 @@ export function listFinancialDiscoveryDirectory() {
     disclaimer: '250 educational investment categories, not 250 verified purchasable products. No current prices, rates, tax outcomes or personalized investment recommendations are established by this catalog.',
     items: DIRECTORY.map(item => ({
       ...item, productData: { ...item.productData },
+      frameworkResearch: item.frameworkResearch ? { ...item.frameworkResearch } : null,
       studyNotes: {
         ...item.studyNotes,
         possibleBenefits: [...item.studyNotes.possibleBenefits],

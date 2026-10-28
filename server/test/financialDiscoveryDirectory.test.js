@@ -54,6 +54,29 @@ test('each source inventory entry exposes provenance-labelled, safely copied edu
  assert.ok(!listFinancialDiscoveryDirectory().items[0].studyNotes.possibleBenefits
    .includes('unauthorized mutation'));
 });
+test('all 95 newer categories expose different structure research without investment approvals',()=>{
+ const rows=listFinancialDiscoveryDirectory().items;
+ const ext=rows.filter(x=>x.origin==='EXTENDED_95');
+ assert.equal(ext.length,95);
+ assert.ok(new Set(ext.map(x=>x.frameworkResearch.structuralExposureClass)).size>=25);
+ assert.ok(ext.every(x=>x.frameworkResearch.specificResearchConcern.includes(x.name)
+   && x.frameworkResearch.actualRiskScore===null
+   && x.frameworkResearch.issuerTermsVerified===false
+   && x.frameworkResearch.sourceRightsVerified===false));
+ const year5=ext.find(x=>x.id==='catalog_2026_po_td_5');
+ assert.equal(year5.frameworkResearch.nominalMaturityMonths,60);
+ const aif=ext.find(x=>x.id==='catalog_2026_aif1_vc');
+ assert.equal(aif.frameworkResearch.standardCapitalReferenceInr,10000000);
+ assert.equal(aif.frameworkResearch.standardMinimumHasExceptions,true);
+ const child=ext.find(x=>x.id==='catalog_2026_nps_vatsalya');
+ assert.match(child.frameworkResearch.structuralExposureClass,/MINOR/);
+ const without=ext.find(x=>x.id==='catalog_2026_index_nifty500');
+ assert.equal(without.frameworkResearch.standardCapitalReferenceInr,null);
+ const edited=listFinancialDiscoveryDirectory();
+ edited.items.find(x=>x.id===aif.id).frameworkResearch.standardCapitalReferenceInr=0;
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===aif.id)
+   .frameworkResearch.standardCapitalReferenceInr,10000000);
+});
 test('every catalog item reports missing REAL product facts, not fabricated rates',()=>{
  const items=listFinancialDiscoveryDirectory().items;
  for (const x of items){

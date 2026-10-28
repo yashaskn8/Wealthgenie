@@ -31,6 +31,14 @@ const families = Array.from({length:250},(_,index)=>({
   } : {provenance:'REGULATORY_CATEGORY_REFERENCE_ONLY',
     possibleBenefits:[],keyTradeoffs:[],goalThemes:[]},
   instrumentForm:index>=155?'FUND_STRATEGY':null,
+  frameworkResearch:index>=155?{
+    structuralExposureClass:index===249?'MINOR_BENEFICIARY_AND_GUARDIAN_REQUIRED':'EQUITY_INDEX_TRACKING_AND_MARKET_LOSS',
+    specificResearchConcern:'Investment family '+(index+1)+': category risk structure requires product verification',
+    nominalMaturityMonths:null,nominalMaturityDays:null,
+    standardCapitalReferenceInr:index===249?1000000:null,
+    standardMinimumHasExceptions:index===249,
+    actualRiskScore:null,issuerTermsVerified:false,sourceRightsVerified:false,
+  }:null,
   referenceUrl:index>=155?'https://www.sebi.gov.in/':null,
   referenceCheckedAsOf:index>=155?'2026-10-22':null,
   publicIssuerReferences:index===249?[
@@ -105,6 +113,9 @@ describe('all 250 investment categories are browseable without product approval'
      .toHaveAttribute('href','https://sbi.bank.in/example');
    expect(screen.getByRole('link',{name:'HDFC Bank Limited — official issuer page'}))
      .toHaveAttribute('href','https://www.hdfc.bank.in/example');
+   expect(screen.getByText(/Investment family 250: category risk structure requires product verification/)).toBeTruthy();
+   expect(screen.getByText(/Standard regulatory investment threshold/)).toBeTruthy();
+   expect(screen.getByText(/₹10,00,000/)).toBeTruthy();
    expect(screen.getAllByText(/No live rate, licensed data feed or personal suitability is established/))
      .toHaveLength(2);
    expect(screen.getByRole('link',{name:'Website usage terms'}))
@@ -238,6 +249,9 @@ describe('all 250 investment categories are browseable without product approval'
      reasonCode:index>=155?'UNVERIFIED_CATEGORY_RISK_ELIGIBILITY_AND_TERMS':
        index<3?null:'RISK_EXCEEDS_FINAL_SUITABILITY',
      scoreAvailable:index<3,productQualified:false,
+     screeningReasonCodes:index>=155
+       ? ['INDIVIDUAL_PRODUCT_RISK_ELIGIBILITY_NOT_ESTABLISHED','MINOR_BENEFICIARY_AND_GUARDIAN_ELIGIBILITY_UNKNOWN']
+       : [],
      source:index>=155?'EXTENDED_95_DISCOVERY':'EXISTING_155_MODEL',
    }));
    const profileCoverage={
