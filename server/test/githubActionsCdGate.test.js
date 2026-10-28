@@ -54,7 +54,6 @@ test('automatic Kind verification refuses failed, foreign, PR and superseded CI 
     "github.event.workflow_run.conclusion == 'success'",
     "github.event.workflow_run.head_branch == 'main'",
     'github.event.workflow_run.head_repository.full_name == github.repository',
-    'github.event.workflow_run.head_sha == github.sha',
   ]) {
     assert.ok(gate.includes(required), 'missing deployment restriction: ' + required);
   }
@@ -63,5 +62,17 @@ test('automatic Kind verification refuses failed, foreign, PR and superseded CI 
   assert.match(checkout.with.ref, /github\.event\.workflow_run\.head_sha/);
   assert.match(checkout.with.ref, /github\.sha/);
   assert.equal(checkout.with['persist-credentials'], false);
+  // workflow_run github.sha is the latest default-branch SHA, which can differ
+  // from the successful CI run. Every deployment identity uses that CI SHA.
+  assert.equal(job.env.RELEASE_SHA,
+    "${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}");
+  assert.ok(!gate.includes('github.event.workflow_run.head_sha == github.sha'));
+  assert.ok(job.steps.some(step => step.name === 'Verify the release commit is still current main'));
+  const verifyHead = job.steps.find(step => step.name === 'Verify the release commit is still current main');
+  assert.match(verifyHead.run, /\$RELEASE_SHA/);
+  assert.match(verifyHead.run, /\$CURRENT_MAIN/);
+  assert.equal(source.includes('$GITHUB_SHA'), false);
+  assert.equal(job.steps.find(step => step.name.startsWith('Execute complete Phase 15'))
+    .env.DEMO_EXPECTED_BUILD_SHA, "${{ env.RELEASE_SHA }}");
   assert.ok(job.steps.some(step => step.name === 'Validate Terraform IaC'));
 });
