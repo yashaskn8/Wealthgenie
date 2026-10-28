@@ -47,3 +47,30 @@ have been exercised. See GitHub Actions for current test status.
 - Pending work: qualify licensed market data and per-product sources; verify a real
   model provider and bounded fallback calls; exercise Plan Review through a live external
   worker; complete documented identity/signing prerequisites; green integration and security CI.
+
+## 2026-10-28 main-branch release-blocker audit
+
+This is a **source-and-CI evidence snapshot**, not a declaration that all features are gap-free, live integrations are exercised, or production release is authorized. All checks below refer to `main` merge commit `1899ad5a8f983037841ea1bf381f4ab023314356` unless otherwise stated. The snapshot must be refreshed after dependency remediation.
+
+### Confirmed release blocker — Python supply chain (P0)
+
+- [CI push run 40690202178](https://github.com/yashaskn8/Wealthgenie/actions/runs/40690202178) failed the Integration & Security **dependency audit release gate**: backend npm audit = success, frontend npm audit = success, Python pip-audit = failure.
+- The Python audit reported `dnspython 2.8.0` (CVE-2026-114605; fixed in 2.9.0), `litellm 1.102.0` (CVE-2026-114612; fixed releases include 1.102.2), and `pymongo 4.18.2` (CVE-2026-106435; fixed in 4.18.3). These are actual reported dependency findings, not evidence of exploitation.
+- Remediate against the authenticated upstream package releases on a **single, current `main` worktree**. Change version constraints as warranted and regenerate `ml-service/uv.lock`, `ml-service/requirements.txt`, `ml-service/requirements-agent-evolution-tests.txt`, and `ml-service/requirements-ci-audit.txt` with the repository's pinned `uv` commands. Run `node ml-service/scripts/validate_dependency_lock.js`, the ML test suite, strict dependency audit, and full CI at the **new final SHA**. Do not hand-edit hashes, relax `--require-hashes`, or ignore the newly identified CVEs.
+- No dependency changes are claimed by this audit record. The affected package updates are **OPEN**, and production deployment remains **NO-GO** until verified.
+
+### Other material, independently gated capabilities
+
+| Capability | What is source-verified | Remaining qualification / release gate |
+| --- | --- | --- |
+| Financial universe and Top-3 / 250 reference families | The 95 additional entries are explicitly non-investable discovery archetypes; see `docs/research/financial-universe-qualification-audit-20261022.md` | Product-level issuer identity, availability, tax treatment, licensed provider rights, source freshness and investor suitability; do not pad shortlists or promote archetypes to securities |
+| GenieProof signed financial claims | `GENIEPROOF_STATUS.json` records `BLOCKED_LEGAL` / `enabled:false`; unsaved read-only claim preview is a distinct capability | Independent Department of Posts source-reuse qualification, approved signing operation and deployment verification; no production activation |
+| GenieVoice | Separate voice-hardening workflow was green for the indicated `main` commit; source-based adversarial checks are documented | Consented real-device audio, speech-provider retention/privacy approval, human accessibility and successful non-skipped production-like smoke verification |
+| Household Runway | Adversarial CI gate was green at the indicated commit | External privacy, retention, Indian legal and deployment sign-off, real staging failover/load and user-comprehension testing; flags remain off by default |
+| GenieDecision near-real-time monitoring | Owner-scoped event, preview, and replay contracts are documented and regression tested | Real worker heartbeat/leases, staging concurrency and restore measurements, source rights and privacy review; do not claim instantaneous or bank-verified data |
+| GenieChat / RAG | CI AI/ML & RAG gate was green; trusted corpus is explicitly small and allowlisted | Live authenticated provider tests, rights review and a broader evidence-grounded benchmark before general financial-advisor claims |
+| Plan Review / workers / market data | Configuration and fail-closed startup checks exist | Real production Redis/worker credentials, external provider permission and live staging behavior remain independently unverified |
+| Branch governance / deployment | The default branch was `main`; CI/CD consolidation PR #81 merged at the stated SHA | `main` was reported **unprotected**; configure GitHub branch protection/rulesets and verify CI plus non-skipped deployment on a final clean SHA |
+
+**Known-good test slices do not override a failing security gate.** No production feature flag should be flipped solely to satisfy a checklist, and source/licensing or regulator approval cannot be substituted by synthetic tests.
+
