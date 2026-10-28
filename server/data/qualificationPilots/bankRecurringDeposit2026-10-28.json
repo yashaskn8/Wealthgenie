@@ -54,6 +54,15 @@
         "licensedCommercialDisplay": false,
         "bookedCustomerRateConfirmed": false,
         "recommendationEligible": false
+      },
+      "publicWebsiteLicenseReview": {
+        "officialTermsUrl": null,
+        "reviewedOn": "2026-10-28",
+        "result": "BANK_PUBLIC_RATE_PAGE_HAS_NO_INDEPENDENTLY_VERIFIED_COMMERCIAL_ENTITLEMENT",
+        "independentlyAuthorizedCommercialDataFeed": false,
+        "apiAccessIsCommercialDataLicense": false,
+        "separateProviderGrantRequired": true,
+        "note": "Published issuer rates establish research references, not licensed third-party commercial redistribution rights."
       }
     },
     {
@@ -101,7 +110,17 @@
         "licensedCommercialDisplay": false,
         "bookedCustomerRateConfirmed": false,
         "recommendationEligible": false
+      },
+      "publicWebsiteLicenseReview": {
+        "officialTermsUrl": "https://www.hdfc.bank.in/useful-links/website-usage-terms",
+        "reviewedOn": "2026-10-28",
+        "result": "PUBLIC_TERMS_RESTRICT_COMMERCIAL_REPRODUCTION_STORAGE_AND_REDISTRIBUTION",
+        "independentlyAuthorizedCommercialDataFeed": false,
+        "apiAccessIsCommercialDataLicense": false,
+        "separateProviderGrantRequired": true,
+        "note": "Website visitor terms do not authorize commercial database reuse/display. A separately authenticated grant with exact scope is required."
       }
     }
-  ]
+  ],
+  "commercialSourceAuthorizationSummary": "HDFC_BANK_PUBLIC_WEBSITE_REUSE_RESTRICTED__NO_INDEPENDENT_SIGNED_DATA_GRANT"
 }

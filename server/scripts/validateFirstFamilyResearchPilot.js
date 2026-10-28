@@ -115,6 +115,32 @@ export function validateFirstFamilyResearchPilot(
       fail('EIGHTEEN_MONTH_RATE_SOURCE_OR_PERMISSION_UNVERIFIED');
     }
   }
+  if (raw.commercialSourceAuthorizationSummary !==
+    'HDFC_BANK_PUBLIC_WEBSITE_REUSE_RESTRICTED__NO_INDEPENDENT_SIGNED_DATA_GRANT') {
+    fail('PUBLIC_WEBSITE_LICENCE_REVIEW_MISSING');
+  }
+  const websiteTerms = {
+    'State Bank of India': {
+      url: null,
+      result: 'BANK_PUBLIC_RATE_PAGE_HAS_NO_INDEPENDENTLY_VERIFIED_COMMERCIAL_ENTITLEMENT',
+    },
+    'HDFC Bank Limited': {
+      url: 'https://www.hdfc.bank.in/useful-links/website-usage-terms',
+      result: 'PUBLIC_TERMS_RESTRICT_COMMERCIAL_REPRODUCTION_STORAGE_AND_REDISTRIBUTION',
+    },
+  };
+  for (const offer of raw.candidates) {
+    const expected = websiteTerms[offer.issuer];
+    const usage = offer.publicWebsiteLicenseReview;
+    if (!expected || !usage || usage.officialTermsUrl !== expected.url
+      || usage.result !== expected.result || usage.reviewedOn !== raw.researchReviewedOn
+      || usage.independentlyAuthorizedCommercialDataFeed !== false
+      || usage.apiAccessIsCommercialDataLicense !== false
+      || usage.separateProviderGrantRequired !== true
+      || typeof usage.note !== 'string' || usage.note.length < 40) {
+      fail('PUBLIC_WEBSITE_LICENCE_REVIEW_MISSING');
+    }
+  }
   if (issuers.size !== 2) fail('TWO_INDEPENDENT_ISSUERS_REQUIRED');
   const ageDays = (+now - Date.parse(raw.researchReviewedOn + 'T00:00:00Z')) / 86400000;
   return {

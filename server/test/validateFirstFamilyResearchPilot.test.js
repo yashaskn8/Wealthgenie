@@ -69,6 +69,22 @@ test('18-month issuer rate evidence is distinct and never promoted to a licensed
     /RD_PILOT_EIGHTEEN_MONTH_RATE_SOURCE_OR_PERMISSION_UNVERIFIED/);
  }
 });
+test('official HDFC website terms restrict commercial reuse; research cannot supply entitlement',()=>{
+ const pilot=copy();
+ const hdfc=pilot.candidates.find(x=>x.issuer==='HDFC Bank Limited');
+ assert.equal(hdfc.publicWebsiteLicenseReview.officialTermsUrl,
+   'https://www.hdfc.bank.in/useful-links/website-usage-terms');
+ assert.equal(hdfc.publicWebsiteLicenseReview.result,
+   'PUBLIC_TERMS_RESTRICT_COMMERCIAL_REPRODUCTION_STORAGE_AND_REDISTRIBUTION');
+ assert.equal(hdfc.publicWebsiteLicenseReview.independentlyAuthorizedCommercialDataFeed,false);
+ assert.equal(hdfc.publicWebsiteLicenseReview.separateProviderGrantRequired,true);
+ const tampered=copy();
+ tampered.candidates[1].publicWebsiteLicenseReview.independentlyAuthorizedCommercialDataFeed=true;
+ assert.throws(()=>validateFirstFamilyResearchPilot(tampered,{now:at}),/RD_PILOT_PUBLIC_WEBSITE_LICENCE_REVIEW_MISSING/);
+ const altered=copy();
+ altered.candidates[1].publicWebsiteLicenseReview.result='ALL_COMMERCIALLY_LICENSED';
+ assert.throws(()=>validateFirstFamilyResearchPilot(altered,{now:at}),/RD_PILOT_PUBLIC_WEBSITE_LICENCE_REVIEW_MISSING/);
+});
 test('published reference facts become due for recheck without becoming a live rate',()=>{
  const p=validateFirstFamilyResearchPilot(copy(),{now:new Date('2026-11-12T00:00:00Z')});
  assert.equal(p.researchEvidenceFreshness,'RECHECK_REQUIRED');
