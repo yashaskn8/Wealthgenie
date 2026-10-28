@@ -4010,7 +4010,7 @@
       "name": "NPS Vatsalya Child Pension Account",
       "category": "Retirement",
       "subCategory": "NPS Vatsalya",
-      "sourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+      "sourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya",
       "verificationScope": "REGULATORY_CATEGORY_OR_INDEX_ONLY",
       "recordKind": "ARCHETYPE",
       "availability": "UNVERIFIED",
@@ -4021,7 +4021,7 @@
       "instrumentForm": "PENSION_ALLOCATION_CHOICE",
       "researchEvidence": {
         "sourceScope": "FAMILY_OR_INDEX_FRAMEWORK_ONLY",
-        "referenceCheckedAsOf": "2026-10-22",
+        "referenceCheckedAsOf": "2026-10-29",
         "evidenceDoesNotVerifySpecificProduct": true,
         "actualIssuerOrSchemeVerified": false,
         "currentlyOpenForInvestmentVerified": false,

@@ -22,7 +22,10 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
         'PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF',
         'GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY']
         .includes(x.verifiedPublicFrameworkFact.scope)
-      || x.verifiedPublicFrameworkFact.reviewedOn !== '2026-10-28'
+      || (!/^\d{4}-\d{2}-\d{2}$/.test(x.verifiedPublicFrameworkFact.reviewedOn)
+        || Number.isNaN(Date.parse(x.verifiedPublicFrameworkFact.reviewedOn))
+        || x.verifiedPublicFrameworkFact.reviewedOn < research.asOf
+        || Date.parse(x.verifiedPublicFrameworkFact.reviewedOn) > Date.now() + 86400000)
       || !x.verifiedPublicFrameworkFact.officialSourceUrl.startsWith('https://')))
   || research.entries.some(x=>x.verifiedPublicFrameworkFact === null
     && x.publicFrameworkVerification !== 'INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED')
@@ -68,8 +71,15 @@ export function screenExtensionResearchForProfile(profileInput) {
    }
    if(profile.riskTolerance==='Conservative' && /EQUITY_|AIF_|SPECIALIZED_|PERPETUAL_/.test(row.exposureClass))
      reasons.push('CONSERVATIVE_PROFILE_REQUIRES_ACTUAL_SCHEME_RISK_REVIEW');
-   if(row.id.startsWith('catalog_2026_nps_'))
+   if(row.id.startsWith('catalog_2026_nps_')) {
      reasons.push('NPS_ALLOCATION_EXIT_AND_AGE_RULES_REQUIRE_SCHEME_REVIEW');
+     if(row.id === 'catalog_2026_nps_vatsalya')
+       reasons.push('NPS_VATSALYA_MINOR_GUARDIAN_KYC_AND_AGE_18_TRANSITION_REQUIRE_REVIEW');
+     else
+       // PFRDA All Citizen Model: removal of the five-year minimum does not
+       // remove vesting, scheme-specific lock-in or premature-exit conditions.
+       reasons.push('NPS_FIVE_YEAR_MINIMUM_REMOVED_BUT_VESTING_AND_EXIT_RULES_APPLY');
+   }
    if(row.id==='catalog_2026_sdl_coupon_strip' || row.id==='catalog_2026_sdl_principal_strip') {
      reasons.push('SGS_STRIP_SECURITY_ELIGIBILITY_AND_CUSTODIAN_ACCESS_NOT_VERIFIED');
      if(profile.riskTolerance==='Conservative')

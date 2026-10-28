@@ -181,3 +181,31 @@ test('RBI SGS STRIPS use separate source-backed rules and remain blocked for bot
    'CONSERVATIVE_PROFILE_REQUIRES_STRIP_MARKET_PRICE_AND_LIQUIDITY_REVIEW'));
  }
 });
+
+test('2026 PFRDA NPS exit and Vatsalya source reviews remain non-ranking',()=>{
+ const rows=listExtensionResearch();
+ const vatsalya=rows.find(x=>x.id==='catalog_2026_nps_vatsalya');
+ assert.equal(vatsalya.referenceUrl,'https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya');
+ assert.equal(vatsalya.referenceReviewedAt,'2026-10-29');
+ assert.equal(vatsalya.verifiedPublicFrameworkFact.officialSourceUrl,vatsalya.referenceUrl);
+ const screened=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative'}));
+ const nps=screened.filter(x=>x.id.startsWith('catalog_2026_nps_'));
+ assert.equal(nps.length,9);
+ for(const x of nps){
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+ }
+ const adult=nps.filter(x=>x.id!=='catalog_2026_nps_vatsalya');
+ assert.equal(adult.length,8);
+ assert.ok(adult.every(x=>x.screeningReasonCodes.includes(
+   'NPS_FIVE_YEAR_MINIMUM_REMOVED_BUT_VESTING_AND_EXIT_RULES_APPLY')));
+ const child=nps.find(x=>x.id==='catalog_2026_nps_vatsalya');
+ assert.ok(child.screeningReasonCodes.includes(
+   'NPS_VATSALYA_MINOR_GUARDIAN_KYC_AND_AGE_18_TRANSITION_REQUIRE_REVIEW'));
+ assert.ok(child.screeningReasonCodes.includes(
+   'MINOR_BENEFICIARY_AND_GUARDIAN_ELIGIBILITY_UNKNOWN'));
+ assert.ok(!child.screeningReasonCodes.includes(
+   'NPS_FIVE_YEAR_MINIMUM_REMOVED_BUT_VESTING_AND_EXIT_RULES_APPLY'));
+});

@@ -157,3 +157,13 @@ test('all 95 framework evidence scopes are explicit and SGS STRIPS are not licen
   assert.equal(item.productData.currentPrice,null);
  }
 });
+
+test('NPS Vatsalya points to the dedicated PFRDA minor scheme without product approval',()=>{
+ const child=listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_nps_vatsalya');
+ assert.equal(child.referenceUrl,'https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya');
+ assert.equal(child.frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl,child.referenceUrl);
+ assert.equal(child.frameworkResearch.reviewedOfficialFrameworkFact.reviewedOn,'2026-10-29');
+ assert.equal(child.recommendationEligible,false);
+ assert.equal(child.productData.currentPrice,null);
+ assert.equal(child.dataRights,'NOT_VERIFIED');
+});

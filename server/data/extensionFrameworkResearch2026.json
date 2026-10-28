@@ -1745,9 +1745,9 @@
       "id": "catalog_2026_nps_vatsalya",
       "exposureClass": "MINOR_BENEFICIARY_AND_GUARDIAN_REQUIRED",
       "scenarioDescription": "NPS Vatsalya Child Pension Account: NPS Vatsalya category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+      "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1763,8 +1763,8 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "MINOR_BENEFICIARY_AND_GUARDIAN",
         "value": "Minor beneficiary and guardian-operated account",
-        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
       "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
