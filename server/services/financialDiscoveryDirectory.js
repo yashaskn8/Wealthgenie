@@ -195,6 +195,8 @@ export function listFinancialDiscoveryDirectory() {
           ? { ...item.frameworkResearch.publicDepositAccessReview } : null,
         retailDirectAccessReview: item.frameworkResearch.retailDirectAccessReview
           ? { ...item.frameworkResearch.retailDirectAccessReview } : null,
+        governmentBondStructureReview: item.frameworkResearch.governmentBondStructureReview
+          ? { ...item.frameworkResearch.governmentBondStructureReview } : null,
       } : null,
       studyNotes: {
         ...item.studyNotes,
