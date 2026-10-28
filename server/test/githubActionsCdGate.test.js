@@ -72,7 +72,7 @@ test('automatic Kind verification refuses failed, foreign, PR and superseded CI 
   assert.match(verifyHead.run, /\$RELEASE_SHA/);
   assert.match(verifyHead.run, /\$CURRENT_MAIN/);
   assert.equal(source.includes('$GITHUB_SHA'), false);
-  assert.equal(job.steps.find(step => step.name.startsWith('Execute complete Phase 15'))
+  assert.equal(job.steps.find(step => step.name?.startsWith('Execute complete Phase 15'))
     .env.DEMO_EXPECTED_BUILD_SHA, "${{ env.RELEASE_SHA }}");
   assert.ok(job.steps.some(step => step.name === 'Validate Terraform IaC'));
 });

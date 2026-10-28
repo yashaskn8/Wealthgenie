@@ -155,10 +155,17 @@ test('Kind deployment requires all main release checks and explicit live preflig
     "github.event.workflow_run.conclusion == 'success'",
     "github.event.workflow_run.head_branch == 'main'",
     'github.event.workflow_run.head_repository.full_name == github.repository',
-    'github.event.workflow_run.head_sha == github.sha',
   ]) {
     assert.ok(gate.includes(required), 'Missing CD gate condition: ' + required);
   }
+  const deploy = cdWorkflow.jobs['deploy-and-verify-kind'];
+  assert.equal(deploy.env.RELEASE_SHA,
+    "${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}");
+  const verify = deploy.steps.find(step => step.name === 'Verify the release commit is still current main');
+  assert.ok(verify);
+  assert.match(verify.run, /\$RELEASE_SHA/);
+  assert.match(verify.run, /\$CURRENT_MAIN/);
+  assert.ok(!gate.includes('github.event.workflow_run.head_sha == github.sha'));
 });
 
 test('standalone Mongo partition owns and stops a disposable 7.0.5 loopback _test server', () => {
