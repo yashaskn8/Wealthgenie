@@ -38,6 +38,16 @@ test('pilot source notes never become a commercial entitlement, booking or tax/s
   assert.throws(()=>validateFirstFamilyResearchPilot(changed,{now:at}), /^Error: RD_PILOT_/);
  }
 });
+test('HDFC standard and SMS channel minima remain separate, with official source links',()=>{
+ const expected=copy().candidates.find(x=>x.issuer==='HDFC Bank Limited');
+ assert.deepEqual(expected.publishedChannelMinimums.map(x=>[x.channel,x.monthlyMinimumInr]),
+   [['STANDARD_RD',500],['SMS_RD',1000]]);
+ assert.ok(expected.publishedChannelMinimums.every(x=>x.officialUrl.startsWith('https://www.hdfc.bank.in/')));
+ const altered=copy();
+ altered.candidates.find(x=>x.issuer==='HDFC Bank Limited')
+   .publishedChannelMinimums[1].monthlyMinimumInr=500;
+ assert.throws(()=>validateFirstFamilyResearchPilot(altered,{now:at}),/RD_PILOT_PUBLIC_BOOKING_CHANNEL_MINIMUM_MISMATCH/);
+});
 test('published reference facts become due for recheck without becoming a live rate',()=>{
  const p=validateFirstFamilyResearchPilot(copy(),{now:new Date('2026-11-12T00:00:00Z')});
  assert.equal(p.researchEvidenceFreshness,'RECHECK_REQUIRED');

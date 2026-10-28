@@ -13,7 +13,7 @@
   "regulatedAdviceAuthorizationVerified": false,
   "confidentiality": "NO_CONFIDENTIAL_APPROVAL_DOCUMENTS_OR_DERIVED_HASHES",
   "insuranceReferenceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
-  "note": "Issuer product existence and published reference-rate evidence, not a price/NAV feed, licensed product dataset, booked offer, tax determination, or suitability approval. Do not run production registration from this file.",
+  "note": "Issuer product existence and published reference-rate evidence, not a price/NAV feed, licensed product dataset, booked offer, tax determination, or suitability approval. Do not run production registration from this file. Booking-channel minimums can differ even for the same bank and tenor; never collapse them into a single applicant-specific quote.",
   "candidates": [
     {
       "researchId": "research_sbi_rd_resident_12m",
@@ -34,7 +34,15 @@
       "currentLivePublishedRateFeedAvailable": false,
       "taxClassificationReviewComplete": false,
       "independentSuitabilityReviewComplete": false,
-      "productionRecommendationEligible": false
+      "productionRecommendationEligible": false,
+      "publishedChannelMinimums": [
+        {
+          "channel": "STANDARD_RD",
+          "monthlyMinimumInr": 100,
+          "officialUrl": "https://sbi.bank.in/web/personal-banking/investments-deposits/deposits/recurring-deposit",
+          "caveat": "Published basic RD minimum, not proof any particular applicant can open it."
+        }
+      ]
     },
     {
       "researchId": "research_hdfc_rd_resident_12m",
@@ -55,7 +63,21 @@
       "currentLivePublishedRateFeedAvailable": false,
       "taxClassificationReviewComplete": false,
       "independentSuitabilityReviewComplete": false,
-      "productionRecommendationEligible": false
+      "productionRecommendationEligible": false,
+      "publishedChannelMinimums": [
+        {
+          "channel": "STANDARD_RD",
+          "monthlyMinimumInr": 500,
+          "officialUrl": "https://www.hdfc.bank.in/terms-and-conditions",
+          "caveat": "Bank's general RD conditions; not necessarily the minimum for every booking channel."
+        },
+        {
+          "channel": "SMS_RD",
+          "monthlyMinimumInr": 1000,
+          "officialUrl": "https://www.hdfc.bank.in/recurring-deposit/rd-booking-via-sms",
+          "caveat": "Separate SMS-only RD channel requires prior eligible registered SMS banking and linked account."
+        }
+      ]
     }
   ]
 }

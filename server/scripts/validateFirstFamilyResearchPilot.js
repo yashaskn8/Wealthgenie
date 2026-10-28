@@ -71,6 +71,25 @@ export function validateFirstFamilyResearchPilot(
     issuers.add(offer.issuer);
     researchIds.add(offer.researchId);
   }
+  // Booking minimums are distinct from user eligibility or a licensed rate feed.
+  // Do not silently reuse a branch/web minimum in another booking channel.
+  const expectedChannels = {
+    'State Bank of India': [['STANDARD_RD',100]],
+    'HDFC Bank Limited': [['STANDARD_RD',500],['SMS_RD',1000]],
+  };
+  for (const offer of raw.candidates) {
+    const expected = expectedChannels[offer.issuer];
+    if (!Array.isArray(offer.publishedChannelMinimums)
+      || offer.publishedChannelMinimums.length !== expected.length
+      || offer.publishedChannelMinimums.some((fact,index) =>
+        fact?.channel !== expected[index][0]
+        || fact?.monthlyMinimumInr !== expected[index][1]
+        || !sourceUrl(fact?.officialUrl,offer.issuerDomain)
+        || typeof fact.caveat !== 'string' || fact.caveat.length < 25)
+      || offer.publishedChannelMinimums[0].monthlyMinimumInr !== offer.monthlyInstallmentMinimumInr) {
+      fail('PUBLIC_BOOKING_CHANNEL_MINIMUM_MISMATCH');
+    }
+  }
   if (issuers.size !== 2) fail('TWO_INDEPENDENT_ISSUERS_REQUIRED');
   const ageDays = (+now - Date.parse(raw.researchReviewedOn + 'T00:00:00Z')) / 86400000;
   return {
