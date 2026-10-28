@@ -4,7 +4,7 @@ on:
   # Only a successful CI push on main is eligible for automatic Kind verification.
   # Pull-request CI, stale commits, and failures cannot trigger deployment.
   workflow_run:
-    workflows: [CI, GenieVoice Production Hardening Checks, Coverage Firewall - Targeted Safety Gate]
+    workflows: [CI]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -27,6 +27,7 @@ jobs:
   release-quality-gate:
     name: Verify Same-Commit Production Release Gates
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     outputs:
       ready: ${{ steps.check.outputs.ready }}
     steps:
@@ -48,17 +49,43 @@ jobs:
             echo 'Release gate: this commit was superseded on main.'
             exit 0
           fi
-          for workflow in ci.yml genievoice-quality.yml coverage-firewall-ci.yml; do
-            conclusion="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs" \
-              -f head_sha="$VERIFIED_SHA" -f event=push -f per_page=10 \
-              --jq '.workflow_runs | sort_by(.created_at) | last | .conclusion // "pending"')"
-            if [ "$conclusion" != 'success' ]; then
-              echo "Release gate: $workflow is $conclusion, not successful; refusing deployment."
+          # CI is the only automatic entrypoint. Wait for the other two
+          # required push checks on the exact same main commit to finish.
+          # Never treat an absent, failed or timed-out check as a deployment success.
+          for attempt in $(seq 1 90); do
+            missing=0
+            for workflow in ci.yml genievoice-quality.yml coverage-firewall-ci.yml; do
+              conclusion="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs" \
+                -f head_sha="$VERIFIED_SHA" -f event=push -f per_page=10 \
+                --jq '.workflow_runs | sort_by(.created_at) | last | .conclusion // "pending"')"
+              case "$conclusion" in
+                success) ;;
+                pending)
+                  echo "Release gate: waiting for $workflow on $VERIFIED_SHA."
+                  missing=1
+                  ;;
+                *)
+                  echo "::error::Release gate: $workflow is $conclusion on $VERIFIED_SHA; refusing deployment."
+                  exit 1
+                  ;;
+              esac
+            done
+            if [ "$missing" -eq 0 ]; then
+              latest_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+              if [ "$VERIFIED_SHA" != "$latest_sha" ]; then
+                echo 'Release gate: this commit was superseded on main while waiting.'
+                exit 0
+              fi
+              echo 'ready=true' >> "$GITHUB_OUTPUT"
+              echo 'Release gate passed: CI, GenieVoice and Coverage Firewall succeeded at current main SHA.'
               exit 0
             fi
+            if [ "$attempt" -eq 90 ]; then
+              echo "::error::Release gate: timed out waiting for all same-commit main checks."
+              exit 1
+            fi
+            sleep 10
           done
-          echo 'ready=true' >> "$GITHUB_OUTPUT"
-          echo 'Release gate passed: CI, GenieVoice and Cash Check all succeeded at the current main SHA.'
 
   deploy-and-verify-kind:
     name: Local Kind Cluster Deployment & Smoke Verification
