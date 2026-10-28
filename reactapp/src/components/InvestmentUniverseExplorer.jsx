@@ -100,7 +100,7 @@ function validProductComparisonResponse(response) {
  * portfolio shortlist. Each family's candidate comparison remains
  * profile-bound and fails closed until two real products qualify.
  */
-export default function InvestmentUniverseExplorer() {
+export default function InvestmentUniverseExplorer({ profileShortlist = EMPTY_LIST }) {
   const [open, setOpen] = useState(true);
   const [status, setStatus] = useState('NOT_REQUESTED');
   const [data, setData] = useState(null);
@@ -143,6 +143,21 @@ export default function InvestmentUniverseExplorer() {
   const items = data?.items || EMPTY_LIST;
   const readyIds = data?.readyFamilyIds || EMPTY_LIST;
   const readySet = useMemo(() => new Set(readyIds), [readyIds]);
+  // Existing backend-authored profile shortlist, preserved in its exact order.
+  // It is NOT a new risk model and does NOT claim to rank all 250 products.
+  const profileMatches = useMemo(() => {
+    if (!Array.isArray(profileShortlist)) return [];
+    const byId = new Map(items.map(item => [item.id, item]));
+    const seen = new Set();
+    return profileShortlist.reduce((matches, candidate) => {
+      const id = candidate?.id;
+      if (matches.length < 3 && typeof id === 'string' && !seen.has(id) && byId.has(id)) {
+        seen.add(id);
+        matches.push(byId.get(id));
+      }
+      return matches;
+    }, []);
+  }, [items, profileShortlist]);
   const categories = useMemo(() => [...new Set(items.map(item => item.category).filter(Boolean))].sort(), [items]);
   const filtered = useMemo(() => {
     const phrase = search.trim().toLowerCase();
@@ -228,6 +243,25 @@ export default function InvestmentUniverseExplorer() {
               </p>
               <p>Catalog details are educational references, not current prices, investment rates,
                 live availability, tax calculations or product recommendations.</p>
+              {profileMatches.length>0 && (
+                <section aria-label="Existing profile shortlist category matches" className="wti-universe-profile-matches">
+                  <h3>Categories from your existing financial-profile shortlist</h3>
+                  <p>These appear in the existing backend shortlist order.
+                    This is not a ranking of all 250 categories, a real-product Top 3,
+                    or verification of current returns.</p>
+                  <ol>
+                    {profileMatches.map(item => (
+                      <li key={item.id}>
+                        <strong>{item.name}</strong> · {item.category}
+                        {' '}<button type="button" onClick={() => inspectFamily(item)}
+                          aria-label={'Explore profile-shortlisted category ' + item.name}>
+                          View category evidence
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <label>
                   Search investments
@@ -281,6 +315,30 @@ export default function InvestmentUniverseExplorer() {
                       <dt>Legacy catalog description</dt>
                       <dd>{selectedFamily.description} (educational reference, not validated current terms)</dd>
                     </>}
+                    {selectedFamily.studyNotes?.provenance === 'UNVERIFIED_LEGACY_EDUCATIONAL_CATALOG'
+                      && ['possibleBenefits','keyTradeoffs','goalThemes'].some(
+                        key => selectedFamily.studyNotes[key]?.length > 0) && <>
+                        <dt>Different educational characteristics from legacy catalog</dt>
+                        <dd>
+                          <p>These notes are unverified historical descriptions, not
+                            current financial terms, guaranteed advantages or suitability advice.</p>
+                          {selectedFamily.studyNotes.possibleBenefits?.length>0 && <>
+                            <strong>Catalog-listed possible benefits</strong>
+                            <ul>{selectedFamily.studyNotes.possibleBenefits.map((point,index) =>
+                              <li key={'benefit-'+index}>{point}</li>)}</ul>
+                          </>}
+                          {selectedFamily.studyNotes.keyTradeoffs?.length>0 && <>
+                            <strong>Catalog-listed trade-offs</strong>
+                            <ul>{selectedFamily.studyNotes.keyTradeoffs.map((point,index) =>
+                              <li key={'tradeoff-'+index}>{point}</li>)}</ul>
+                          </>}
+                          {selectedFamily.studyNotes.goalThemes?.length>0 && <>
+                            <strong>Related catalog goal themes</strong>
+                            <ul>{selectedFamily.studyNotes.goalThemes.map((goal,index) =>
+                              <li key={'theme-'+index}>{goal}</li>)}</ul>
+                          </>}
+                        </dd>
+                      </>}
                     {selectedFamily.educationalRiskLabel && <>
                       <dt>Legacy risk label</dt>
                       <dd>{selectedFamily.educationalRiskLabel} (unverified catalog assumption)</dd>

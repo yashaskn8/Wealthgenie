@@ -136,7 +136,7 @@ const WhereToInvestScreen = ({
   if (!recommendedParents || recommendedParents.length === 0) {
     return (
       <div className="wti-screen-container">
-        <InvestmentUniverseExplorer key={catalogProfileKey} />
+        <InvestmentUniverseExplorer key={catalogProfileKey} profileShortlist={recommendedParents} />
         <div className="wti-loading-card">
           <AlertCircle size={24} className="wti-loading-icon" aria-hidden="true" />
           <div>
@@ -220,7 +220,7 @@ const WhereToInvestScreen = ({
         </section>
       )}
 
-      <InvestmentUniverseExplorer key={catalogProfileKey} />
+      <InvestmentUniverseExplorer key={catalogProfileKey} profileShortlist={recommendedParents} />
 
       {/* ─── Recommended Category Segmented Rail (Strictly in exact backend recommendation order) ─── */}
       <nav className="wti-category-nav" aria-label="Investment category selector">

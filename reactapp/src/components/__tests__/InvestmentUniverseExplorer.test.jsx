@@ -23,6 +23,13 @@ const families = Array.from({length:250},(_,index)=>({
   description:index===0?'Educational description of this family':null,
   educationalRiskLabel:index===0?'Medium':null,
   educationalRiskBasis:'UNVERIFIED_LEGACY_CATALOG_REFERENCE',
+  studyNotes:index<155 ? {
+    provenance:'UNVERIFIED_LEGACY_EDUCATIONAL_CATALOG',
+    possibleBenefits:index===0?['Benefit unique to first category']:[],
+    keyTradeoffs:index===0?['Tradeoff unique to first category']:[],
+    goalThemes:index===0?['Emergency Fund']:[],
+  } : {provenance:'REGULATORY_CATEGORY_REFERENCE_ONLY',
+    possibleBenefits:[],keyTradeoffs:[],goalThemes:[]},
   instrumentForm:index>=155?'FUND_STRATEGY':null,
   referenceUrl:index>=155?'https://www.sebi.gov.in/':null,
   referenceCheckedAsOf:index>=155?'2026-10-22':null,
@@ -85,6 +92,9 @@ describe('all 250 investment categories are browseable without product approval'
    expect(within(panel).getByText(/Not verified for an actual product/)).toBeTruthy();
    expect(within(panel).getByText(/Not calculated; requires verified product/)).toBeTruthy();
    expect(within(panel).getByText(/Personalized product comparison/i)).toBeTruthy();
+   expect(within(panel).getByText('Benefit unique to first category')).toBeTruthy();
+   expect(within(panel).getByText('Tradeoff unique to first category')).toBeTruthy();
+   expect(within(panel).getByText(/unverified historical descriptions/)).toBeTruthy();
  });
  it('does not hide the directory when the qualified-product database fails',async()=>{
    api.getThreeProductReadyFamilies.mockRejectedValueOnce(new Error('Postgres unavailable'));
@@ -127,6 +137,20 @@ describe('all 250 investment categories are browseable without product approval'
      expect(screen.queryByText('Investment family 1')).toBeNull();
      view.unmount();
    }
+ });
+
+ it('keeps existing profile-based category order without inventing a ranking of 250 or products',async()=>{
+   render(<Explorer profileShortlist={[
+     {id:'family_003'}, {id:'family_001'}, {id:'family_003'},
+     {id:'not-in-catalog'}, {id:'family_002'}, {id:'family_004'},
+   ]}/>);
+   const matches=await screen.findByRole('region',{name:'Existing profile shortlist category matches'});
+   const names=within(matches).getAllByRole('button').map(x=>x.textContent);
+   expect(names).toHaveLength(3);
+   expect(within(matches).getByText(/not a ranking of all 250 categories/i)).toBeTruthy();
+   expect(within(matches).getByRole('button',{name:'Explore profile-shortlisted category Investment family 3'})).toBeTruthy();
+   expect(within(matches).queryByRole('button',{name:'Explore profile-shortlisted category Investment family 4'})).toBeNull();
+   expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
  });
  it('clears personalized comparisons when the directory closes',async()=>{
    api.getQualifiedFamilyTopProducts.mockResolvedValue({status:'AVAILABLE',products:[0,1].map(i=>({
