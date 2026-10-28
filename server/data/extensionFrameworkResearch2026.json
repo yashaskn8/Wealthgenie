@@ -3,7 +3,7 @@
   "asOf": "2026-10-28",
   "categoryCount": 95,
   "sourceScope": "PUBLIC_REGULATORY_REFERENCE_AND_INSTRUMENT_STRUCTURE_NOT_SCHEME_APPROVAL",
-  "disclosure": "Each row is a separately identified category research item, not a verified investment product, riskometer, market quote or permission. Capital thresholds are general regulatory references with exemptions, not a conclusive personal eligibility decision. The direct-official-source fact fields are narrow public regulatory facts only, NOT product-specific scheme risk, current yields/NAVs, eligibility, investment licensing or permission to give financial advice. For 24 index-tracking category archetypes the named underlying NSE index methodology was checked; this does NOT establish that a corresponding mutual fund or ETF exists or that any fund's riskometer/NAV is verified.",
+  "disclosure": "Each row is a separately identified category research item, not a verified investment product, riskometer, market quote or permission. Capital thresholds are general regulatory references with exemptions, not a conclusive personal eligibility decision. The direct-official-source fact fields are narrow public regulatory facts only, NOT product-specific scheme risk, current yields/NAVs, eligibility, investment licensing or permission to give financial advice. For 24 index-tracking category archetypes the named underlying NSE index methodology was checked; this does NOT establish that a corresponding mutual fund or ETF exists or that any fund's riskometer/NAV is verified. All 95 category archetypes now have at least one general public official framework fact referenced and checked; no actual scheme-level risk-o-meter, investor eligibility, market-data license, tax or purchasable product has been authenticated by these references.",
   "entries": [
     {
       "id": "catalog_2026_po_savings",
@@ -220,8 +220,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "RBI_SECONDARY_GOVERNMENT_SECURITY_PRICE_RISK",
+        "value": "Government securities can move in market price before maturity; issuer-specific security terms remain unverified",
+        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_sdl_coupon_strip",
@@ -242,8 +248,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "RBI_STRIPS_SEPARATE_COUPON_OR_PRINCIPAL_CASH_FLOW",
+        "value": "Government-security STRIPS separate coupon and principal cash flows; availability of the named state/central instrument is not verified",
+        "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_sdl_principal_strip",
@@ -264,8 +276,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "RBI_STRIPS_SEPARATE_COUPON_OR_PRINCIPAL_CASH_FLOW",
+        "value": "Government-security STRIPS separate coupon and principal cash flows; availability of the named state/central instrument is not verified",
+        "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_gsec_coupon_strip",
@@ -286,8 +304,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "RBI_STRIPS_SEPARATE_COUPON_OR_PRINCIPAL_CASH_FLOW",
+        "value": "Government-security STRIPS separate coupon and principal cash flows; availability of the named state/central instrument is not verified",
+        "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_gsec_principal_strip",
@@ -308,8 +332,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "RBI_STRIPS_SEPARATE_COUPON_OR_PRINCIPAL_CASH_FLOW",
+        "value": "Government-security STRIPS separate coupon and principal cash flows; availability of the named state/central instrument is not verified",
+        "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_sovereign_green",
@@ -330,8 +360,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "RBI_SECONDARY_GOVERNMENT_SECURITY_PRICE_RISK",
+        "value": "Government securities can move in market price before maturity; issuer-specific security terms remain unverified",
+        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_gsec_floating",
@@ -352,8 +388,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "RBI_SECONDARY_GOVERNMENT_SECURITY_PRICE_RISK",
+        "value": "Government securities can move in market price before maturity; issuer-specific security terms remain unverified",
+        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bank_rd",
@@ -374,8 +416,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "DICGC_INSURED_BANK_DEPOSIT_CAP_SUBJECT_TO_CONDITIONS",
+        "value": "Eligible deposits at insured banks have an aggregate ₹5 lakh principal-plus-interest protection limit per depositor per bank in the same capacity; specific bank and deposit conditions remain unverified",
+        "officialSourceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bank_tax_saver_fd",
@@ -396,8 +444,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "DICGC_INSURED_BANK_DEPOSIT_CAP_SUBJECT_TO_CONDITIONS",
+        "value": "Eligible deposits at insured banks have an aggregate ₹5 lakh principal-plus-interest protection limit per depositor per bank in the same capacity; specific bank and deposit conditions remain unverified",
+        "officialSourceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bank_sweep_fd",
@@ -418,8 +472,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "DICGC_INSURED_BANK_DEPOSIT_CAP_SUBJECT_TO_CONDITIONS",
+        "value": "Eligible deposits at insured banks have an aggregate ₹5 lakh principal-plus-interest protection limit per depositor per bank in the same capacity; specific bank and deposit conditions remain unverified",
+        "officialSourceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bank_fd_monthly",
@@ -440,8 +500,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "DICGC_INSURED_BANK_DEPOSIT_CAP_SUBJECT_TO_CONDITIONS",
+        "value": "Eligible deposits at insured banks have an aggregate ₹5 lakh principal-plus-interest protection limit per depositor per bank in the same capacity; specific bank and deposit conditions remain unverified",
+        "officialSourceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bank_fd_quarterly",
@@ -462,8 +528,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "DICGC_INSURED_BANK_DEPOSIT_CAP_SUBJECT_TO_CONDITIONS",
+        "value": "Eligible deposits at insured banks have an aggregate ₹5 lakh principal-plus-interest protection limit per depositor per bank in the same capacity; specific bank and deposit conditions remain unverified",
+        "officialSourceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nbfc_fd_cumulative",
@@ -540,8 +612,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_medium_long_duration_mf",
@@ -562,8 +640,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_long_duration_mf",
@@ -584,8 +668,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_target_maturity_gsec_index",
@@ -606,8 +696,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_target_maturity_sdl_index",
@@ -628,8 +724,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_target_maturity_psu_index",
@@ -650,8 +752,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_constant_maturity_debt_index",
@@ -672,8 +780,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_domestic_debt_fof",
@@ -694,8 +808,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_gsec_debt_etf",
@@ -716,8 +836,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty_next50",
@@ -1662,8 +1788,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_ncd_unsecured",
@@ -1684,8 +1816,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_ncd_unlisted",
@@ -1706,8 +1844,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bond_subordinated",
@@ -1728,8 +1872,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bond_perpetual",
@@ -1750,8 +1900,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bond_corporate_floating",
@@ -1772,8 +1928,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bond_corporate_zero",
@@ -1794,8 +1956,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_bond_convertible",
@@ -1816,8 +1984,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_psu_bond_taxable",
@@ -1838,8 +2012,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_infra_corporate_bond",
@@ -1860,8 +2040,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_municipal_green",
@@ -1882,8 +2068,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_commercial_paper",
@@ -1904,8 +2096,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_BOND_ISSUER_RATE_AND_LIQUIDITY_RISKS",
+        "value": "Bond investments expose holders to issuer default, interest-rate and liquidity risks; terms and security details must be checked for the actual issue",
+        "officialSourceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_aif1_vc",
@@ -2211,8 +2409,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_REIT_FRAMEWORK_REGULATIONS_EXIST",
+        "value": "SEBI has REIT regulations amended in October 2026; this does not identify or qualify a particular SM REIT scheme",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-october-15-2026-_105376.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_physical_gold_bullion",
@@ -2233,8 +2437,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "BIS_GOLD_BAR_PURITY_STANDARD_EXISTS",
+        "value": "BIS publishes gold and refined bullion purity/assaying standards; no specific gold bar has been assayed or approved",
+        "officialSourceUrl": "https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_physical_silver_bullion",
@@ -2255,8 +2465,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "BIS_SILVER_BAR_PURITY_STANDARD_EXISTS",
+        "value": "BIS publishes silver and refined bullion purity/assaying standards; no specific silver bar has been assayed or approved",
+        "officialSourceUrl": "https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_silver_fof",
@@ -2277,8 +2493,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_equity_diversified_fof",
@@ -2299,8 +2521,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_equity_sector_fof",
@@ -2321,8 +2549,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_fof_aggressive_hybrid",
@@ -2343,8 +2577,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_fof_conservative_hybrid",
@@ -2365,8 +2605,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_fof_income_arbitrage",
@@ -2387,8 +2633,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_fof_dynamic_allocation",
@@ -2409,11 +2661,17 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
+        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     }
   ],
-  "publicFrameworkFactsDirectlyReviewed": 52,
+  "publicFrameworkFactsDirectlyReviewed": 95,
   "productRiskScoresIndependentlyVerified": 0,
   "actualProductEligibilityVerified": 0,
   "sourcePermissionGrantsIndependentlyVerified": 0

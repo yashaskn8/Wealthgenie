@@ -77,11 +77,11 @@ test('all 95 newer categories expose different structure research without invest
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===aif.id)
    .frameworkResearch.standardCapitalReferenceInr,10000000);
 });
-test('52 direct public framework facts across 95 do not qualify market products',()=>{
+test('95 public regulatory framework facts do not qualify actual investments',()=>{
  const rows=listFinancialDiscoveryDirectory().items.filter(x=>x.origin==='EXTENDED_95');
  const reviewed=rows.filter(x=>x.frameworkResearch.reviewedOfficialFrameworkFact !== null);
  assert.equal(rows.length,95);
- assert.equal(reviewed.length,52);
+ assert.equal(reviewed.length,95);
  assert.ok(reviewed.every(x=>x.frameworkResearch.officialFrameworkVerification
     ==='DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED'));
  assert.ok(rows.every(x=>!x.recommendationEligible && x.productAvailability==='NOT_VERIFIED'
@@ -99,6 +99,12 @@ test('52 direct public framework facts across 95 do not qualify market products'
  assert.equal(find('nbfc_fd_payout').frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl,
   'https://www.dicgc.org.in/guide-to-deposit-insurance');
   assert.equal(find('index_nifty100').frameworkResearch.reviewedOfficialFrameworkFact.value,'Nifty 100');
+ assert.match(find('ncd_unsecured').frameworkResearch.reviewedOfficialFrameworkFact.factCode,/BOND_ISSUER_RATE/);
+ assert.match(find('gilt_10y_constant').frameworkResearch.reviewedOfficialFrameworkFact.factCode,/RISKOMETER/);
+ assert.match(find('sm_reit_scheme').frameworkResearch.reviewedOfficialFrameworkFact.factCode,/REIT_FRAMEWORK/);
+ assert.match(find('physical_silver_bullion').frameworkResearch.reviewedOfficialFrameworkFact.factCode,/SILVER_BAR/);
+ assert.match(find('sdl_coupon_strip').frameworkResearch.reviewedOfficialFrameworkFact.factCode,/STRIPS/);
+ assert.match(find('bank_tax_saver_fd').frameworkResearch.reviewedOfficialFrameworkFact.factCode,/DICGC/);
  assert.equal(find('etf_nifty500_lowvol').frameworkResearch.reviewedOfficialFrameworkFact.value,
  'Nifty500 Low Volatility 50');
  assert.equal(find('index_india_digital').frameworkResearch.reviewedOfficialFrameworkFact.value,'Nifty India Digital');
