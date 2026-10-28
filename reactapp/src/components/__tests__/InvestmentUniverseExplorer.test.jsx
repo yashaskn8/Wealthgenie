@@ -154,35 +154,33 @@ describe('all 250 investment categories are browseable without product approval'
    expect(api.getQualifiedFamilyTopProducts).toHaveBeenCalledWith(
      'family_001','0123456789abcdef01234567',expect.any(Object));
  });
- it('rejects mismatched profiles, duplicated facts and missing or stale evidence',async()=>{
-   const changes=[
-     x=>{x.source.profileId='fedcba9876543210fedcba98';},
-     x=>{x.familyId='family_002';},
-     x=>{x.products[1].familyId='family_002';},
-     x=>{x.products[1].marketFact.observationId=x.products[0].marketFact.observationId;},
-     x=>{delete x.products[0].marketFact.asOf;},
-     x=>{x.products[0].marketFact.asOf='not-a-date';},
-     x=>{x.products[0].marketFact.asOf=new Date(Date.now()+30*86400000).toISOString();},
-     x=>{x.products[0].marketFact.asOf=new Date(Date.now()-30*86400000).toISOString();},
-     x=>{x.products[0].marketFact.value=0;},
-     x=>{x.products[0].marketFact.dataClass='PUBLISHED_RATE';},
-     x=>{delete x.products[0].evidence.terms;},
-     x=>{delete x.products[0].evidence.reviewedAt;},
-     x=>{x.products[0].evidence.expiresAt=new Date(Date.now()-86400000).toISOString();},
-     x=>{x.products[0].verifiedTaxClass='UNVERIFIED';},
-     x=>{x.products[1].id=x.products[0].id;},
-   ];
-   for (const change of changes) {
-     const response=qualifiedResponse();
-     change(response);
-     api.getQualifiedFamilyTopProducts.mockResolvedValueOnce(response);
-     const view=render(<Explorer/>);
-     await waitFor(()=>expect(screen.getByText('Investment family 1')).toBeTruthy());
-     fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
-     await waitFor(()=>expect(screen.getByText(/CURRENT_PROFILE_OR_QUALIFIED_COMPARISON_UNAVAILABLE/)).toBeTruthy());
-     expect(screen.queryByText('Verified bond 1')).toBeNull();
-     view.unmount();
-   }
+ // Isolate every invalid response so slow CI cannot time out the entire attack matrix.
+ it.each([
+   ['mismatched profile', x=>{x.source.profileId='fedcba9876543210fedcba98';}],
+   ['mismatched family', x=>{x.familyId='family_002';}],
+   ['mismatched product family', x=>{x.products[1].familyId='family_002';}],
+   ['reused observation', x=>{x.products[1].marketFact.observationId=x.products[0].marketFact.observationId;}],
+   ['missing as-of', x=>{delete x.products[0].marketFact.asOf;}],
+   ['invalid as-of', x=>{x.products[0].marketFact.asOf='not-a-date';}],
+   ['future observation', x=>{x.products[0].marketFact.asOf=new Date(Date.now()+30*86400000).toISOString();}],
+   ['stale observation', x=>{x.products[0].marketFact.asOf=new Date(Date.now()-30*86400000).toISOString();}],
+   ['zero price', x=>{x.products[0].marketFact.value=0;}],
+   ['wrong rate data class', x=>{x.products[0].marketFact.dataClass='PUBLISHED_RATE';}],
+   ['missing terms', x=>{delete x.products[0].evidence.terms;}],
+   ['missing review timestamp', x=>{delete x.products[0].evidence.reviewedAt;}],
+   ['expired review', x=>{x.products[0].evidence.expiresAt=new Date(Date.now()-86400000).toISOString();}],
+   ['unverified tax class', x=>{x.products[0].verifiedTaxClass='UNVERIFIED';}],
+   ['duplicate product identity', x=>{x.products[1].id=x.products[0].id;}],
+ ])('rejects invalid comparison evidence: %s',async(_label,change)=>{
+   const response=qualifiedResponse();
+   change(response);
+   api.getQualifiedFamilyTopProducts.mockResolvedValueOnce(response);
+   const view=render(<Explorer/>);
+   await waitFor(()=>expect(screen.getByText('Investment family 1')).toBeTruthy());
+   fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
+   await waitFor(()=>expect(screen.getByText(/CURRENT_PROFILE_OR_QUALIFIED_COMPARISON_UNAVAILABLE/)).toBeTruthy());
+   expect(screen.queryByText('Verified bond 1')).toBeNull();
+   view.unmount();
  });
  it('rejects incomplete, duplicated and falsely approved public catalog input',async()=>{
    for(const makeBad of [
