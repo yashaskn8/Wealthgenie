@@ -14,6 +14,24 @@ test('Top 5 risk categories use the same eligibility and ranking policy as curre
   assert.equal(a.shortlistPolicyVersion,RISK_SHORTLIST_POLICY_VERSION);
   assert.ok(a.selectedCount>0 && a.selectedCount<=15);
   assert.equal(a.maxPerGroup,5);
+  assert.equal(a.catalogCoverage.totalCategories,250);
+  assert.equal(a.catalogCoverage.modelEvaluatedLegacyCategories,155);
+  assert.equal(a.catalogCoverage.extensionCategoriesMissingSuitabilityEvidence,95);
+  assert.equal(a.catalogCoverage.legacyProfileEligibleCount+a.catalogCoverage.legacyProfileExcludedCount,155);
+  assert.equal(a.catalogCoverage.productApprovedByCatalog,0);
+  assert.equal(a.catalogCoverage.assessmentScope,'CATEGORY_SCREENING_NOT_PRODUCT_RECOMMENDATION');
+  assert.equal(a.catalogAssessments.length,250);
+  assert.equal(new Set(a.catalogAssessments.map(x=>x.id)).size,250);
+  assert.equal(a.catalogAssessments.filter(x=>x.source==='EXISTING_155_MODEL').length,155);
+  const extra=a.catalogAssessments.filter(x=>x.source==='EXTENDED_95_DISCOVERY');
+  assert.equal(extra.length,95);
+  assert.ok(extra.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
+    && x.scoreAvailable===false && x.productQualified===false
+    && x.reasonCode==='UNVERIFIED_CATEGORY_RISK_ELIGIBILITY_AND_TERMS'));
+  assert.ok(a.catalogAssessments.filter(x=>x.profileAssessment==='PROFILE_EXCLUDED_CATEGORY')
+    .every(x=>typeof x.reasonCode==='string' && !x.scoreAvailable));
+  assert.ok(a.catalogAssessments.filter(x=>x.profileAssessment==='PROFILE_ELIGIBLE_CATEGORY')
+    .every(x=>x.reasonCode===null && x.scoreAvailable));
   assert.equal(a.notFilledWithUnsuitableInstruments,true);
   const parentIds=new Set(investmentDatabase.map(e=>e.id));
   const ids=new Set();

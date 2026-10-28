@@ -1,4 +1,18 @@
 import { investmentDatabase } from '../data/investmentDatabase.js';
+import { readFileSync } from 'node:fs';
+const discovery = JSON.parse(readFileSync(
+  new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
+)).entries;
+if (investmentDatabase.length !== 155 || discovery.length !== 95
+  || new Set([...investmentDatabase, ...discovery].map(item => item.id)).size !== 250
+  || discovery.some(item => item.recordKind !== 'ARCHETYPE'
+    || item.isActualPurchasableProduct !== false || item.recommendationEligible !== false
+    || item.riskAndSuitability?.riskScore !== null
+    || item.riskAndSuitability?.suitabilityAllowed !== false
+    || item.riskAndSuitability?.status !== 'NOT_ESTABLISHED')) {
+  throw new Error('RISK_SHORTLIST_250_CATALOG_PROVENANCE_INVALID');
+}
+
 import {
   filterEligible, getInstrumentRisk, parseProfile, deriveWeights,
   reconcileRisk, rankInstruments,
@@ -42,6 +56,29 @@ export function buildRiskShortlist({ profile, instruments }) {
       throw new TypeError('Saved allocation failed current profile suitability');
     }
   }
+  // Screen all 250 source categories together, but do not convert unknown
+  // suitability into a score or allow discovery records into eligible picks.
+  const excludedReasons = new Map(excluded.map(item => [item.id, item.reasonCode]));
+  const catalogAssessments = [
+    ...investmentDatabase.map(item => ({
+      id: item.id,
+      profileAssessment: eligibleIds.has(item.id)
+        ? 'PROFILE_ELIGIBLE_CATEGORY' : 'PROFILE_EXCLUDED_CATEGORY',
+      reasonCode: eligibleIds.has(item.id) ? null
+        : excludedReasons.get(item.id) || 'PROFILE_ELIGIBILITY_NOT_ESTABLISHED',
+      scoreAvailable: eligibleIds.has(item.id),
+      source: 'EXISTING_155_MODEL',
+      productQualified: false,
+    })),
+    ...discovery.map(item => ({
+      id: item.id,
+      profileAssessment: 'MISSING_SUITABILITY_EVIDENCE',
+      reasonCode: 'UNVERIFIED_CATEGORY_RISK_ELIGIBILITY_AND_TERMS',
+      scoreAvailable: false,
+      source: 'EXTENDED_95_DISCOVERY',
+      productQualified: false,
+    })),
+  ];
   const ranked = rankInstruments(eligible, parsed, weights);
   const output = { LOW: [], MODERATE: [], AGGRESSIVE: [] };
   for (const row of ranked) {
@@ -66,6 +103,16 @@ export function buildRiskShortlist({ profile, instruments }) {
   }
   return {
     groups: output,
+    catalogCoverage: {
+      totalCategories: 250,
+      modelEvaluatedLegacyCategories: 155,
+      extensionCategoriesMissingSuitabilityEvidence: 95,
+      legacyProfileEligibleCount: eligible.length,
+      legacyProfileExcludedCount: excluded.length,
+      productApprovedByCatalog: 0,
+      assessmentScope: 'CATEGORY_SCREENING_NOT_PRODUCT_RECOMMENDATION',
+    },
+    catalogAssessments,
     selectedCount: GROUPS.reduce((n, key) => n + output[key].length, 0),
     maxPerGroup: MAX_PER_GROUP,
     notFilledWithUnsuitableInstruments: true,
