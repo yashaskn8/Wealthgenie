@@ -290,6 +290,24 @@ export default function InvestmentUniverseExplorer() {
                     <dt>Minimum investment and fees</dt><dd>Not verified for an actual product</dd>
                     <dt>Tax and post-tax returns</dt><dd>Not calculated; requires verified product and tax context</dd>
                     <dt>Availability and data permissions</dt><dd>Not verified</dd>
+                    {Array.isArray(selectedFamily.publicIssuerReferences)
+                      && selectedFamily.publicIssuerReferences.length > 0 && <>
+                        <dt>Public issuer offering references (research links only)</dt>
+                        <dd>
+                          <ul>
+                            {selectedFamily.publicIssuerReferences.map(reference => (
+                              <li key={reference.issuerName}>
+                                <a href={permittedEvidenceUrl(reference.officialProductUrl)}
+                                  target="_blank" rel="noopener noreferrer">
+                                  {reference.issuerName} — official issuer page
+                                </a>
+                                {' · '}Research checked {reference.reviewedOn || 'date not supplied'}.
+                                No live rate, licensed data feed or personal suitability is established.
+                              </li>
+                            ))}
+                          </ul>
+                        </dd>
+                      </>}
                     {selectedFamily.referenceUrl && <>
                       <dt>Category or regulatory reference</dt>
                       <dd><a href={permittedEvidenceUrl(selectedFamily.referenceUrl)}

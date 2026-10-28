@@ -26,6 +26,10 @@ const families = Array.from({length:250},(_,index)=>({
   instrumentForm:index>=155?'FUND_STRATEGY':null,
   referenceUrl:index>=155?'https://www.sebi.gov.in/':null,
   referenceCheckedAsOf:index>=155?'2026-10-22':null,
+  publicIssuerReferences:index===249?[
+    {issuerName:'State Bank of India',officialProductUrl:'https://sbi.bank.in/example',reviewedOn:'2026-10-28',evidenceStatus:'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA'},
+    {issuerName:'HDFC Bank Limited',officialProductUrl:'https://www.hdfc.bank.in/example',reviewedOn:'2026-10-28',evidenceStatus:'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA'},
+  ]:[],
   productData:{currentPrice:null,latestNav:null,currentInterestRate:null,
     verifiedMinimumInvestment:null,verifiedFees:null,personalizedAfterTaxReturn:null,marketFactAsOf:null},
 }));
@@ -63,6 +67,12 @@ describe('all 250 investment categories are browseable without product approval'
    expect(screen.getByText(/Current market price \/ NAV \/ interest rate/)).toBeTruthy();
    expect(screen.getByText(/Unavailable — no authorized, fresh product observation/)).toBeTruthy();
    expect(screen.getByRole('link',{name:'View public category reference'})).toHaveAttribute('href','https://www.sebi.gov.in/');
+   expect(screen.getByRole('link',{name:'State Bank of India — official issuer page'}))
+     .toHaveAttribute('href','https://sbi.bank.in/example');
+   expect(screen.getByRole('link',{name:'HDFC Bank Limited — official issuer page'}))
+     .toHaveAttribute('href','https://www.hdfc.bank.in/example');
+   expect(screen.getByText(/No live rate, licensed data feed or personal suitability is established/))
+     .toBeTruthy();
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
  });
  it('shows detailed educational metadata without a current price, fake fees or tax',async()=>{
