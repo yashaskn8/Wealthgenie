@@ -3,7 +3,7 @@
   "asOf": "2026-10-28",
   "categoryCount": 95,
   "sourceScope": "PUBLIC_REGULATORY_REFERENCE_AND_INSTRUMENT_STRUCTURE_NOT_SCHEME_APPROVAL",
-  "disclosure": "Each row is a separately identified category research item, not a verified investment product, riskometer, market quote or permission. Capital thresholds are general regulatory references with exemptions, not a conclusive personal eligibility decision. The direct-official-source fact fields are narrow public regulatory facts only, NOT product-specific scheme risk, current yields/NAVs, eligibility, investment licensing or permission to give financial advice.",
+  "disclosure": "Each row is a separately identified category research item, not a verified investment product, riskometer, market quote or permission. Capital thresholds are general regulatory references with exemptions, not a conclusive personal eligibility decision. The direct-official-source fact fields are narrow public regulatory facts only, NOT product-specific scheme risk, current yields/NAVs, eligibility, investment licensing or permission to give financial advice. For 24 index-tracking category archetypes the named underlying NSE index methodology was checked; this does NOT establish that a corresponding mutual fund or ETF exists or that any fund's riskometer/NAV is verified.",
   "entries": [
     {
       "id": "catalog_2026_po_savings",
@@ -738,8 +738,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty Next 50",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty100",
@@ -760,8 +766,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty 100",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty500",
@@ -782,8 +794,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty 500",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_midcap150",
@@ -804,8 +822,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty Midcap 150",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_smallcap250",
@@ -826,8 +850,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty Smallcap 250",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty50_equal",
@@ -848,8 +878,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty50 Equal Weight",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty100_equal",
@@ -870,8 +906,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty 100 Equal Weight",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty200_quality",
@@ -892,8 +934,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty200 Quality 30",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty_lowvol",
@@ -914,8 +962,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty100 Low Volatility 30",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty500_momentum",
@@ -936,8 +990,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty500 Momentum 50",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_nifty500_equal",
@@ -958,8 +1018,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty500 Equal Weight",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_india_defence",
@@ -980,8 +1046,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty India Defence",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_india_digital",
@@ -1002,8 +1074,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty India Digital",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_index_india_consumption",
@@ -1024,8 +1102,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty India Consumption",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_nifty100",
@@ -1046,8 +1130,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty 100",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_nifty500",
@@ -1068,8 +1158,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty 500",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_smallcap250",
@@ -1090,8 +1186,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty Smallcap 250",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_nifty50_equal",
@@ -1112,8 +1214,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty50 Equal Weight",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_nifty100_equal",
@@ -1134,8 +1242,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty 100 Equal Weight",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_nifty200_quality",
@@ -1156,8 +1270,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty200 Quality 30",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_nifty500_lowvol",
@@ -1178,8 +1298,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty500 Low Volatility 50",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_nifty500_momentum",
@@ -1200,8 +1326,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty500 Momentum 50",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_india_defence",
@@ -1222,8 +1354,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty India Defence",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_etf_india_consumption",
@@ -1244,8 +1382,14 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "verifiedPublicFrameworkFact": null,
-      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "value": "Nifty India Consumption",
+        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_lc25",
@@ -2269,7 +2413,7 @@
       "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     }
   ],
-  "publicFrameworkFactsDirectlyReviewed": 28,
+  "publicFrameworkFactsDirectlyReviewed": 52,
   "productRiskScoresIndependentlyVerified": 0,
   "actualProductEligibilityVerified": 0,
   "sourcePermissionGrantsIndependentlyVerified": 0

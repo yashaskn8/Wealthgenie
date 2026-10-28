@@ -11,14 +11,16 @@ const legacyIds=new Set(investmentDatabase.map(x=>x.id));
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || new Set(research.entries.map(x=>x.id)).size!==95
-  || research.publicFrameworkFactsDirectlyReviewed !== 28
+  || research.publicFrameworkFactsDirectlyReviewed !== 52
   || research.productRiskScoresIndependentlyVerified !== 0
   || research.actualProductEligibilityVerified !== 0
   || research.sourcePermissionGrantsIndependentlyVerified !== 0
-  || research.entries.filter(x=>x.verifiedPublicFrameworkFact!==null).length !== 28
+  || research.entries.filter(x=>x.verifiedPublicFrameworkFact!==null).length !== 52
   || research.entries.some(x=> x.verifiedPublicFrameworkFact !== null
     && (x.publicFrameworkVerification !== 'DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED'
-      || x.verifiedPublicFrameworkFact.scope !== 'PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT'
+      || !['PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT',
+        'PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF']
+        .includes(x.verifiedPublicFrameworkFact.scope)
       || x.verifiedPublicFrameworkFact.reviewedOn !== '2026-10-28'
       || !x.verifiedPublicFrameworkFact.officialSourceUrl.startsWith('https://')))
   || research.entries.some(x=>x.verifiedPublicFrameworkFact === null

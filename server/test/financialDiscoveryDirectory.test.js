@@ -77,11 +77,11 @@ test('all 95 newer categories expose different structure research without invest
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===aif.id)
    .frameworkResearch.standardCapitalReferenceInr,10000000);
 });
-test('28 direct official facts across all 95 are separate from product rates and suitability',()=>{
+test('52 direct public framework facts across 95 do not qualify market products',()=>{
  const rows=listFinancialDiscoveryDirectory().items.filter(x=>x.origin==='EXTENDED_95');
  const reviewed=rows.filter(x=>x.frameworkResearch.reviewedOfficialFrameworkFact !== null);
  assert.equal(rows.length,95);
- assert.equal(reviewed.length,28);
+ assert.equal(reviewed.length,52);
  assert.ok(reviewed.every(x=>x.frameworkResearch.officialFrameworkVerification
     ==='DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED'));
  assert.ok(rows.every(x=>!x.recommendationEligible && x.productAvailability==='NOT_VERIFIED'
@@ -98,7 +98,12 @@ test('28 direct official facts across all 95 are separate from product rates and
  assert.equal(find('sif_hybrid_longshort').frameworkResearch.reviewedOfficialFrameworkFact.value,1000000);
  assert.equal(find('nbfc_fd_payout').frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl,
   'https://www.dicgc.org.in/guide-to-deposit-insurance');
- assert.equal(find('index_nifty100').frameworkResearch.reviewedOfficialFrameworkFact,null);
+  assert.equal(find('index_nifty100').frameworkResearch.reviewedOfficialFrameworkFact.value,'Nifty 100');
+ assert.equal(find('etf_nifty500_lowvol').frameworkResearch.reviewedOfficialFrameworkFact.value,
+ 'Nifty500 Low Volatility 50');
+ assert.equal(find('index_india_digital').frameworkResearch.reviewedOfficialFrameworkFact.value,'Nifty India Digital');
+ assert.ok(find('etf_nifty500_lowvol').frameworkResearch.reviewedOfficialFrameworkFact.scope
+ .includes('NOT_AN_EXISTING_FUND_OR_ETF'));
  const mutated=rows.find(x=>x.id==='catalog_2026_nps_lc25');
  mutated.frameworkResearch.reviewedOfficialFrameworkFact.value=99;
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===mutated.id)
