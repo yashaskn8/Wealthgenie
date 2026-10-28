@@ -3,7 +3,7 @@
   "asOf": "2026-10-28",
   "categoryCount": 95,
   "sourceScope": "PUBLIC_REGULATORY_REFERENCE_AND_INSTRUMENT_STRUCTURE_NOT_SCHEME_APPROVAL",
-  "disclosure": "Each row is a separately identified category research item, not a verified investment product, riskometer, market quote or permission. Capital thresholds are general regulatory references with exemptions, not a conclusive personal eligibility decision.",
+  "disclosure": "Each row is a separately identified category research item, not a verified investment product, riskometer, market quote or permission. Capital thresholds are general regulatory references with exemptions, not a conclusive personal eligibility decision. The direct-official-source fact fields are narrow public regulatory facts only, NOT product-specific scheme risk, current yields/NAVs, eligibility, investment licensing or permission to give financial advice.",
   "entries": [
     {
       "id": "catalog_2026_po_savings",
@@ -23,7 +23,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "OFFICIAL_POSTAL_ACCOUNT_TYPE",
+        "value": "Post Office Savings Account",
+        "officialSourceUrl": "https://www.indiapost.gov.in/banking-services/savings",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_po_td_2",
@@ -43,7 +51,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "POST_OFFICE_TIME_DEPOSIT_TENOR_MONTHS",
+        "value": 24,
+        "officialSourceUrl": "https://www.indiapost.gov.in/banking-services/savings",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_po_td_3",
@@ -63,7 +79,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "POST_OFFICE_TIME_DEPOSIT_TENOR_MONTHS",
+        "value": 36,
+        "officialSourceUrl": "https://www.indiapost.gov.in/banking-services/savings",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_po_td_5",
@@ -83,7 +107,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "POST_OFFICE_TIME_DEPOSIT_TENOR_MONTHS",
+        "value": 60,
+        "officialSourceUrl": "https://www.indiapost.gov.in/banking-services/savings",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_tbill_91",
@@ -103,7 +135,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "GOVERNMENT_TREASURY_BILL_TENOR_DAYS",
+        "value": 91,
+        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_tbill_182",
@@ -123,7 +163,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "GOVERNMENT_TREASURY_BILL_TENOR_DAYS",
+        "value": 182,
+        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_tbill_364",
@@ -143,7 +191,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "GOVERNMENT_TREASURY_BILL_TENOR_DAYS",
+        "value": 364,
+        "officialSourceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_sdl_dated",
@@ -163,7 +219,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_sdl_coupon_strip",
@@ -183,7 +241,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_sdl_principal_strip",
@@ -203,7 +263,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_gsec_coupon_strip",
@@ -223,7 +285,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_gsec_principal_strip",
@@ -243,7 +307,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_sovereign_green",
@@ -263,7 +329,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_gsec_floating",
@@ -283,7 +351,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bank_rd",
@@ -303,7 +373,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bank_tax_saver_fd",
@@ -323,7 +395,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bank_sweep_fd",
@@ -343,7 +417,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bank_fd_monthly",
@@ -363,7 +439,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bank_fd_quarterly",
@@ -383,7 +461,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_nbfc_fd_cumulative",
@@ -403,7 +483,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "NBFC_DEPOSIT_INSURANCE_SCOPE",
+        "value": "NBFC public deposits are not covered by DICGC insurance",
+        "officialSourceUrl": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nbfc_fd_payout",
@@ -423,7 +511,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "NBFC_DEPOSIT_INSURANCE_SCOPE",
+        "value": "NBFC public deposits are not covered by DICGC insurance",
+        "officialSourceUrl": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_gilt_10y_constant",
@@ -443,7 +539,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_medium_long_duration_mf",
@@ -463,7 +561,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_long_duration_mf",
@@ -483,7 +583,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_target_maturity_gsec_index",
@@ -503,7 +605,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_target_maturity_sdl_index",
@@ -523,7 +627,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_target_maturity_psu_index",
@@ -543,7 +649,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_constant_maturity_debt_index",
@@ -563,7 +671,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_domestic_debt_fof",
@@ -583,7 +693,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_gsec_debt_etf",
@@ -603,7 +715,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty_next50",
@@ -623,7 +737,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty100",
@@ -643,7 +759,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty500",
@@ -663,7 +781,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_midcap150",
@@ -683,7 +803,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_smallcap250",
@@ -703,7 +825,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty50_equal",
@@ -723,7 +847,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty100_equal",
@@ -743,7 +869,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty200_quality",
@@ -763,7 +891,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty_lowvol",
@@ -783,7 +913,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty500_momentum",
@@ -803,7 +935,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_nifty500_equal",
@@ -823,7 +957,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_india_defence",
@@ -843,7 +979,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_india_digital",
@@ -863,7 +1001,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_index_india_consumption",
@@ -883,7 +1023,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_nifty100",
@@ -903,7 +1045,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_nifty500",
@@ -923,7 +1067,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_smallcap250",
@@ -943,7 +1089,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_nifty50_equal",
@@ -963,7 +1111,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_nifty100_equal",
@@ -983,7 +1133,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_nifty200_quality",
@@ -1003,7 +1155,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_nifty500_lowvol",
@@ -1023,7 +1177,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_nifty500_momentum",
@@ -1043,7 +1199,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_india_defence",
@@ -1063,7 +1221,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_etf_india_consumption",
@@ -1083,7 +1243,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_nps_lc25",
@@ -1103,7 +1265,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PUBLISHED_NPS_AUTO_EQUITY_SHARE_AT_AGE_35_PERCENT",
+        "value": 25,
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_lc50",
@@ -1123,7 +1293,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PUBLISHED_NPS_AUTO_EQUITY_SHARE_AT_AGE_35_PERCENT",
+        "value": 50,
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_lc75",
@@ -1143,7 +1321,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PUBLISHED_NPS_AUTO_EQUITY_SHARE_AT_AGE_35_PERCENT",
+        "value": 75,
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_lc_aggressive",
@@ -1163,7 +1349,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PUBLISHED_NPS_AUTO_EQUITY_SHARE_AT_AGE_35_PERCENT",
+        "value": 50,
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_asset_e",
@@ -1183,7 +1377,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PUBLISHED_NPS_ACTIVE_CHOICE_MAX_CLASS_ALLOCATION_PERCENT",
+        "value": 75,
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_asset_c",
@@ -1203,7 +1405,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PUBLISHED_NPS_ACTIVE_CHOICE_MAX_CLASS_ALLOCATION_PERCENT",
+        "value": 100,
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_asset_g",
@@ -1223,7 +1433,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PUBLISHED_NPS_ACTIVE_CHOICE_MAX_CLASS_ALLOCATION_PERCENT",
+        "value": 100,
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_asset_a",
@@ -1243,7 +1461,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PUBLISHED_NPS_ACTIVE_CHOICE_MAX_CLASS_ALLOCATION_PERCENT",
+        "value": 5,
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_nps_vatsalya",
@@ -1263,7 +1489,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "MINOR_BENEFICIARY_AND_GUARDIAN",
+        "value": "Minor beneficiary and guardian-operated account",
+        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_ncd_secured",
@@ -1283,7 +1517,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_ncd_unsecured",
@@ -1303,7 +1539,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_ncd_unlisted",
@@ -1323,7 +1561,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bond_subordinated",
@@ -1343,7 +1583,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bond_perpetual",
@@ -1363,7 +1605,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bond_corporate_floating",
@@ -1383,7 +1627,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bond_corporate_zero",
@@ -1403,7 +1649,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_bond_convertible",
@@ -1423,7 +1671,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_psu_bond_taxable",
@@ -1443,7 +1693,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_infra_corporate_bond",
@@ -1463,7 +1715,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_municipal_green",
@@ -1483,7 +1737,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_commercial_paper",
@@ -1503,7 +1759,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_aif1_vc",
@@ -1523,7 +1781,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "AIF_STANDARD_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 10000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_aif1_sme",
@@ -1543,7 +1809,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "AIF_STANDARD_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 10000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_aif1_social",
@@ -1564,7 +1838,15 @@
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
-      "socialImpactNpoSseSpecialThresholdRequiresVerification": true
+      "socialImpactNpoSseSpecialThresholdRequiresVerification": true,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SOCIAL_IMPACT_FUND_MINIMUM_IS_EXCEPTION_DEPENDENT",
+        "value": "Must verify specific social-impact scheme and investor exception",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_aif1_infra",
@@ -1584,7 +1866,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "AIF_STANDARD_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 10000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_aif2_pe",
@@ -1604,7 +1894,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "AIF_STANDARD_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 10000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_aif2_debt",
@@ -1624,7 +1922,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "AIF_STANDARD_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 10000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_aif3_hedge",
@@ -1644,7 +1950,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "AIF_STANDARD_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 10000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_pms_discretionary",
@@ -1666,7 +1980,15 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "futureRegulatoryReferenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
-      "futureRegulatoryEffectiveFrom": "2027-04-01"
+      "futureRegulatoryEffectiveFrom": "2027-04-01",
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PORTFOLIO_MANAGER_STANDARD_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 5000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_pms_nondiscretionary",
@@ -1688,7 +2010,15 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "futureRegulatoryReferenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
-      "futureRegulatoryEffectiveFrom": "2027-04-01"
+      "futureRegulatoryEffectiveFrom": "2027-04-01",
+      "verifiedPublicFrameworkFact": {
+        "factCode": "PORTFOLIO_MANAGER_STANDARD_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 5000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_sif_hybrid_longshort",
@@ -1708,7 +2038,15 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": {
+        "factCode": "SIF_AGGREGATE_MINIMUM_RUPEES_WITH_EXCEPTIONS",
+        "value": 1000000,
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html",
+        "reviewedOn": "2026-10-28",
+        "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
+      },
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
     },
     {
       "id": "catalog_2026_sm_reit_scheme",
@@ -1728,7 +2066,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_physical_gold_bullion",
@@ -1748,7 +2088,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_physical_silver_bullion",
@@ -1768,7 +2110,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_silver_fof",
@@ -1788,7 +2132,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_equity_diversified_fof",
@@ -1808,7 +2154,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_equity_sector_fof",
@@ -1828,7 +2176,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_fof_aggressive_hybrid",
@@ -1848,7 +2198,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_fof_conservative_hybrid",
@@ -1868,7 +2220,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_fof_income_arbitrage",
@@ -1888,7 +2242,9 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     },
     {
       "id": "catalog_2026_fof_dynamic_allocation",
@@ -1908,7 +2264,13 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "verifiedPublicFrameworkFact": null,
+      "publicFrameworkVerification": "INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED"
     }
-  ]
+  ],
+  "publicFrameworkFactsDirectlyReviewed": 28,
+  "productRiskScoresIndependentlyVerified": 0,
+  "actualProductEligibilityVerified": 0,
+  "sourcePermissionGrantsIndependentlyVerified": 0
 }
