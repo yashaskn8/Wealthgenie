@@ -37,6 +37,12 @@ test('automatic Kind verification refuses failed, foreign, PR and superseded CI 
   assert.match(check.run, /timed out waiting for all same-commit main checks/);
   assert.match(check.run, /sleep 10/);
   assert.match(check.run, /exit 1/);
+  // A superseded or failed CI run must never make CD appear green with a skipped Kind job.
+  assert.equal(check.env.SOURCE_CI_SUCCESS,
+    "${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}");
+  assert.match(check.run, /\$SOURCE_CI_SUCCESS\" != 'true'/);
+  assert.match(check.run, /::error::Release gate: this commit was superseded on main/);
+  assert.doesNotMatch(check.run, /superseded on main[^\n]*\n\s*exit 0/);
   assert.ok(check.run.includes("-f head_sha=\"$VERIFIED_SHA\""));
   assert.ok(check.run.includes("-f event=push"));
   assert.ok(check.run.includes("latest_sha=\"$(gh api"));
