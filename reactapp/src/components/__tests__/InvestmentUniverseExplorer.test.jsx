@@ -71,8 +71,8 @@ describe('all 250 investment categories are browseable without product approval'
      .toHaveAttribute('href','https://sbi.bank.in/example');
    expect(screen.getByRole('link',{name:'HDFC Bank Limited — official issuer page'}))
      .toHaveAttribute('href','https://www.hdfc.bank.in/example');
-   expect(screen.getByText(/No live rate, licensed data feed or personal suitability is established/))
-     .toBeTruthy();
+   expect(screen.getAllByText(/No live rate, licensed data feed or personal suitability is established/))
+     .toHaveLength(2);
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
  });
  it('shows detailed educational metadata without a current price, fake fees or tax',async()=>{
