@@ -39,6 +39,11 @@ test('authenticated document-free grant is stored with narrow real scopes',async
  assert.ok(insert);assert.ok(insert.args.includes(false));
  assert.ok(insert.args.some(x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x)));
  assert.ok(!x.calls.some(x=>JSON.stringify(x).includes('approvalDocumentPath')));
+ const immutable=x.calls.find(x=>x.sql.includes('INSERT INTO finance.provider_entitlement_receipts'));
+ assert.ok(immutable);
+ assert.equal(immutable.args[0],'market-data.example');
+ assert.equal(immutable.args[2],1);
+ assert.equal(immutable.args[5],'VERIFIED');
 });
 test('same or older signed revision cannot replay, even with a different grant ID',async()=>{
  const x=db({source_id:'s1',verification_state:'VERIFIED',verification_revision:1,
@@ -54,7 +59,7 @@ test('a terminal source cannot be reactivated by a newer grant',async()=>{
  revision:2,grantId:'unique-grant-id-002'})),anchors,{now}),/PROVIDER_PERMISSION_REPLAY_OR_TERMINAL/);
 });
 test('only a provider-signed revocation can move a source to revoked in this API',async()=>{
- const revoked=claims({action:'REVOKE',grantId:'revocation-0002',revision:2,
+ const revoked=claims({action:'REVOKE',revision:2,
   permissions:Object.fromEntries(Object.keys(permissions).map(k=>[k,false])),retentionSeconds:0});
  const x=db({verification_state:'VERIFIED',verification_revision:1,
   verification_issuer:'market-data.example'});
@@ -62,6 +67,18 @@ test('only a provider-signed revocation can move a source to revoked in this API
  assert.equal(res.status,'REVOKED');
  const sql=x.calls.find(c=>c.sql.includes("verification_state='REVOKED'"));
  assert.ok(sql);assert.ok(sql.sql.includes('redistribution_allowed=false'));
+ assert.ok(x.calls.some(c=>c.sql.includes('INSERT INTO finance.provider_entitlement_receipts')
+   && c.args[5]==='REVOKED'));
+});
+test('changing a source endpoint or grant identity on renewal fails closed',async()=>{
+ const x=db({verification_state:'VERIFIED',verification_revision:1,
+   verification_issuer:'market-data.example',
+   verification_claim_id:'unique-grant-id-001',
+   endpoint_url:'https://market-data.example/other-endpoint'});
+ await assert.rejects(
+   applySignedProviderEntitlement(x.pool,receipt(claims({revision:2})),anchors,{now}),
+   /PROVIDER_PERMISSION_REPLAY_OR_TERMINAL/);
+ assert.ok(!x.calls.some(c=>c.sql.includes('INSERT INTO finance.provider_entitlement_receipts')));
 });
 test('a forged signature cannot run any SQL transaction',async()=>{
  const x=db();

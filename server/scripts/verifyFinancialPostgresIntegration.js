@@ -90,6 +90,9 @@ try {
     fetchedAt:new Date(Date.now()-15000).toISOString(),
   };
   await assert.rejects(store.appendObservation(input), /MARKET_DATA_SOURCE_RIGHTS_UNQUALIFIED/);
+  // Even a valid-looking operator rights row must remain unusable without an
+  // independently verified provider entitlement. Only this *_test fixture
+  // assigns a synthetic verified state; never do so for a real provider.
   await pool.query(`UPDATE finance.provider_rights SET
     access_allowed=true,extraction_allowed=true,storage_allowed=true,
     derivation_allowed=true,public_display_allowed=true,commercial_use_allowed=true,
@@ -99,6 +102,10 @@ try {
     verification_expires_at=now()+interval '1 hour',
     entitlement_receipt_sha256=$3
     WHERE source_id=$1`,[sourceId,'ci-synthetic-grant-'+suffix,'1'.repeat(64)]);
+  await pool.query(`INSERT INTO finance.provider_entitlement_receipts
+    (issuer,grant_id,revision,source_id,receipt_sha256,result_state)
+    VALUES('ci-synthetic-only',$2,1,$1,$3,'VERIFIED')`,
+  [sourceId,'ci-synthetic-grant-'+suffix,'1'.repeat(64)]);
   await assert.rejects(store.appendObservation({...input,
     sourceInstrumentId:'CI:WRONG:'+suffix}),/PRODUCT_PROVIDER_IDENTITY_MISMATCH/);
   // No operator can silently assign listed-equity tax treatment to an

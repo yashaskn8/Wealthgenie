@@ -18,13 +18,15 @@ export async function applySignedProviderEntitlement(pool, receipt, anchors, {no
   try {
     await client.query('BEGIN');
     const {rows} = await client.query(
-      'SELECT source_id,verification_state,verification_revision,verification_issuer FROM finance.provider_rights WHERE source_id=$1 FOR UPDATE',
+      'SELECT source_id,endpoint_url,verification_state,verification_revision,verification_issuer,verification_claim_id FROM finance.provider_rights WHERE source_id=$1 FOR UPDATE',
       [claim.sourceId],
     );
     const prior = rows[0];
     if (prior && (prior.verification_state === 'REVOKED'
       || prior.verification_state === 'REJECTED'
       || (prior.verification_issuer && prior.verification_issuer !== claim.issuer)
+      || (prior.verification_claim_id && prior.verification_claim_id !== claim.grantId)
+      || (prior.endpoint_url && prior.endpoint_url !== claim.endpointUrl)
       || claim.revision <= Number(prior.verification_revision))) {
       throw bad('PROVIDER_PERMISSION_REPLAY_OR_TERMINAL');
     }
@@ -81,6 +83,15 @@ export async function applySignedProviderEntitlement(pool, receipt, anchors, {no
         claim.grantId,claim.revision,claim.expiresAt,claim.receiptSha256,
       ]);
     }
+    // Immutable ledger is written in the SAME transaction as the rights update.
+    // A reused old receipt, grant revision or receipt digest cannot be accepted.
+    await client.query(
+      'INSERT INTO finance.provider_entitlement_receipts ' +
+      '(issuer,grant_id,revision,source_id,receipt_sha256,result_state) ' +
+      'VALUES ($1,$2,$3,$4,$5,$6)',
+      [claim.issuer,claim.grantId,claim.revision,claim.sourceId,
+        claim.receiptSha256,claim.permissionState],
+    );
     await client.query('COMMIT');
     return {
       sourceId:claim.sourceId,status:claim.permissionState,
