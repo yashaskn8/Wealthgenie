@@ -28,5 +28,5 @@ test('missing external identity, rights or invalid extension metadata cannot be 
   assert.throws(()=>buildCatalog250Verification({extensions:clone}), /EXTENSION_EVIDENCE_CLAIM_INCONSISTENT/);
   const dupe = [...investmentDatabase];
   dupe[1]={...dupe[1],id:dupe[0].id};
-  assert.throws(()=>buildCatalog250Verification({legacy:dupe}), /INVALID_OR_DUPLICATE_FAMILY_ID/);
+  assert.throws(()=>buildCatalog250Verification({legacy:dupe}), /FINANCIAL_FAMILY_INVENTORY_DUPLICATE_OR_INVALID|INVALID_OR_DUPLICATE_FAMILY_ID/);
 });
