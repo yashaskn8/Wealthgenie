@@ -129,7 +129,7 @@ function buildDirectory() {
         standardMinimumHasExceptions: research.thresholdHasAccreditedInvestorExceptions,
         nominalMaturityMonths: research.nominalMaturityMonths,
         nominalMaturityDays: research.nominalMaturityDays,
-        evidenceScope: research.referenceBasis,
+        evidenceScope: research.verifiedPublicFrameworkFact?.scope ?? 'NOT_VERIFIED',
         actualRiskScore: null,
         issuerTermsVerified: false,
         sourceRightsVerified: false,

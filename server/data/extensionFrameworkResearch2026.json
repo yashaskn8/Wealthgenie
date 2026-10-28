@@ -232,10 +232,10 @@
     {
       "id": "catalog_2026_sdl_coupon_strip",
       "exposureClass": "STRIPPED_GOVERNMENT_CASH_FLOW",
-      "scenarioDescription": "State Government Security Coupon STRIP: State Government STRIPS category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "State Government Security Coupon STRIP: State Government STRIPS category. Examine actual issuer or scheme terms before assigning an investment risk rating. RBI's 12 June 2025 SGS STRIPS rules require eligible underlying securities and a custodian/e-Kuber route. The coupon cash flow has instrument-specific market-price and liquidity uncertainty; retail access is not established.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -249,9 +249,9 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "RBI_STRIPS_SEPARATE_COUPON_OR_PRINCIPAL_CASH_FLOW",
-        "value": "Government-security STRIPS separate coupon and principal cash flows; availability of the named state/central instrument is not verified",
-        "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "factCode": "RBI_SGS_COUPON_STRIP_ELIGIBILITY",
+        "value": "RBI's June 12, 2025 circular allows stripping only fixed-coupon State Government Securities with residual maturity up to 14 years, at least INR 1,000 crore outstanding on stripping day, SLR-eligible status and transferability. This category represents the separated coupon cash flow, not a verified specific STRIP, price or retail access.",
+        "officialSourceUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
@@ -260,10 +260,10 @@
     {
       "id": "catalog_2026_sdl_principal_strip",
       "exposureClass": "STRIPPED_GOVERNMENT_CASH_FLOW",
-      "scenarioDescription": "State Government Security Principal STRIP: State Government STRIPS category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "State Government Security Principal STRIP: State Government STRIPS category. Examine actual issuer or scheme terms before assigning an investment risk rating. RBI's 12 June 2025 SGS STRIPS rules require eligible underlying securities and a custodian/e-Kuber route. The principal cash flow has instrument-specific market-price and liquidity uncertainty; retail access is not established.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -277,9 +277,9 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "RBI_STRIPS_SEPARATE_COUPON_OR_PRINCIPAL_CASH_FLOW",
-        "value": "Government-security STRIPS separate coupon and principal cash flows; availability of the named state/central instrument is not verified",
-        "officialSourceUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+        "factCode": "RBI_SGS_PRINCIPAL_STRIP_ELIGIBILITY",
+        "value": "RBI's June 12, 2025 circular allows stripping only fixed-coupon State Government Securities with residual maturity up to 14 years, at least INR 1,000 crore outstanding on stripping day, SLR-eligible status and transferability. This category represents the separated principal cash flow, not a verified specific STRIP, price or retail access.",
+        "officialSourceUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },

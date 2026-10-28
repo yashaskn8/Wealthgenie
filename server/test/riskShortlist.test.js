@@ -141,3 +141,43 @@ test('October 2026 framework refresh distinguishes current rules, future PMS rul
  assert.ok(screened.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
    && x.productQualified===false && x.scoreAvailable===false));
 });
+
+test('RBI SGS STRIPS use separate source-backed rules and remain blocked for both profile types',()=>{
+ const rows=listExtensionResearch();
+ const ids=['sdl_coupon_strip','sdl_principal_strip'];
+ const official='https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0';
+ for(const id of ids){
+  const row=rows.find(x=>x.id==='catalog_2026_'+id);
+  assert.ok(row,id);
+  assert.equal(row.referenceUrl,official);
+  assert.equal(row.referenceReviewedAt,'2026-10-28');
+  assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,official);
+  assert.match(row.verifiedPublicFrameworkFact.factCode,/RBI_SGS_.*_STRIP_ELIGIBILITY/);
+  assert.match(row.verifiedPublicFrameworkFact.value,/14 years/);
+  assert.match(row.verifiedPublicFrameworkFact.value,/1,000 crore/);
+  assert.match(row.verifiedPublicFrameworkFact.value,/SLR-eligible/);
+  assert.match(row.verifiedPublicFrameworkFact.value,/transferability/);
+  assert.equal(row.standardCapitalReferenceInr,null,
+   'Underlying security outstanding amount is not a retail investor minimum');
+  assert.equal(row.actualRetailProductEligible,false);
+  assert.equal(row.sourcePermissionVerified,false);
+  assert.equal(row.suitabilityRankingPermitted,false);
+ }
+ const conservative=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative'}));
+ const aggressive=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive'}));
+ for(const id of ids){
+  const pick=rows=>rows.find(x=>x.id==='catalog_2026_'+id);
+  for(const all of [conservative,aggressive]){
+   const item=pick(all);
+   assert.ok(item.screeningReasonCodes.includes(
+    'SGS_STRIP_SECURITY_ELIGIBILITY_AND_CUSTODIAN_ACCESS_NOT_VERIFIED'));
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+  }
+  assert.ok(pick(conservative).screeningReasonCodes.includes(
+   'CONSERVATIVE_PROFILE_REQUIRES_STRIP_MARKET_PRICE_AND_LIQUIDITY_REVIEW'));
+  assert.ok(!pick(aggressive).screeningReasonCodes.includes(
+   'CONSERVATIVE_PROFILE_REQUIRES_STRIP_MARKET_PRICE_AND_LIQUIDITY_REVIEW'));
+ }
+});

@@ -137,3 +137,23 @@ test('every catalog item reports missing REAL product facts, not fabricated rate
  assert.notEqual(refreshed.items[0].name,'not the source');
  assert.equal(refreshed.items[0].productData.currentPrice,null);
 });
+
+test('all 95 framework evidence scopes are explicit and SGS STRIPS are not licensed products',()=>{
+ const extended=listFinancialDiscoveryDirectory().items.filter(x=>x.origin==='EXTENDED_95');
+ assert.equal(extended.length,95);
+ for(const item of extended){
+  assert.equal(item.frameworkResearch.evidenceScope,
+   item.frameworkResearch.reviewedOfficialFrameworkFact.scope);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+ }
+ for(const id of ['catalog_2026_sdl_coupon_strip','catalog_2026_sdl_principal_strip']){
+  const item=extended.find(x=>x.id===id);
+  assert.equal(item.frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl,
+   'https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+  assert.equal(item.frameworkResearch.sourceRightsVerified,false);
+  assert.equal(item.productData.currentPrice,null);
+ }
+});
