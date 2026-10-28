@@ -124,12 +124,16 @@ test('October 2026 framework refresh distinguishes current rules, future PMS rul
   assert.match(byId(id).futureRegulatoryReferenceUrl,/oct-2026.*april-1-2027/);
   assert.equal(byId(id).futureRegulatoryEffectiveFrom,'2027-04-01');
  }
+ assert.equal(byId('aif1_social').standardCapitalReferenceInr,null);
+ assert.equal(byId('aif1_social').socialImpactNpoSseSpecialThresholdRequiresVerification,true);
  assert.match(byId('ncd_secured').exposureClass,/^SECURED_NCD_/);
  assert.match(byId('ncd_unsecured').exposureClass,/^UNSECURED_NCD_/);
  assert.ok(!byId('ncd_secured').exposureClass.includes('EQUITY_CONVERSION'));
  const profile=canonicalProfile({riskTolerance:'Conservative'});
  const screened=screenExtensionResearchForProfile(profile);
  const get=id=>screened.find(x=>x.id==='catalog_2026_'+id);
+ assert.ok(get('aif1_social').screeningReasonCodes.includes('SOCIAL_IMPACT_NPO_SSE_SPECIAL_INVESTOR_MINIMUM_REQUIRES_SCHEME_REVIEW'));
+ assert.ok(!get('aif1_social').screeningReasonCodes.includes('REPORTED_LUMP_SUM_BELOW_STANDARD_REFERENCE_NOT_PROOF_OF_INELIGIBILITY'));
  assert.ok(get('ncd_secured').screeningReasonCodes.includes('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW'));
  assert.ok(get('nps_lc25').screeningReasonCodes.includes('NPS_ALLOCATION_EXIT_AND_AGE_RULES_REQUIRE_SCHEME_REVIEW'));
  assert.ok(get('nps_asset_e').screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_PRODUCT_SPECIFIC_RISK_REVIEW'));

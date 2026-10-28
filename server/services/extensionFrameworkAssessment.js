@@ -43,6 +43,8 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('T_BILL_TENOR_EXCEEDS_PROFILE_HORIZON');
    if(row.minorBeneficiaryRequired)
      reasons.push('MINOR_BENEFICIARY_AND_GUARDIAN_ELIGIBILITY_UNKNOWN');
+   if(row.socialImpactNpoSseSpecialThresholdRequiresVerification===true)
+     reasons.push('SOCIAL_IMPACT_NPO_SSE_SPECIAL_INVESTOR_MINIMUM_REQUIRES_SCHEME_REVIEW');
    if(nonnegative(row.standardCapitalReferenceInr)) {
      reasons.push('STANDARD_REGULATORY_CAPITAL_MINIMUM_HAS_EXCEPTIONS');
      if(profile.hasLumpSum===true && nonnegative(profile.lumpSumAmount)

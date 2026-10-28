@@ -1548,13 +1548,13 @@
     {
       "id": "catalog_2026_aif1_social",
       "exposureClass": "AIF_ILLIQUIDITY_AND_ACCESS",
-      "scenarioDescription": "Category I AIF Social Impact Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
+      "scenarioDescription": "Category I AIF Social Impact Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified. Social-impact funds investing solely in eligible NPO social-stock-exchange securities have a distinct regulatory minimum; do not apply the general INR 1 crore AIF reference to this structure without scheme-specific confirmation.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
       "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
-      "standardCapitalReferenceInr": 10000000,
+      "standardCapitalReferenceInr": null,
       "thresholdHasAccreditedInvestorExceptions": true,
       "minorBeneficiaryRequired": false,
       "productRiskScore": null,
@@ -1563,7 +1563,8 @@
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
-      "suitabilityRankingPermitted": false
+      "suitabilityRankingPermitted": false,
+      "socialImpactNpoSseSpecialThresholdRequiresVerification": true
     },
     {
       "id": "catalog_2026_aif1_infra",
