@@ -29,6 +29,24 @@ test('the first category exposes official bank links without market rates or pro
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===rd.id)
    .publicIssuerReferences[0].issuerName,'State Bank of India');
 });
+test('each source inventory entry exposes provenance-labelled, safely copied educational metadata',()=>{
+ const entries=listFinancialDiscoveryDirectory().items;
+ assert.equal(entries.length,250);
+ assert.equal(entries.filter(x=>x.studyNotes.provenance==='UNVERIFIED_LEGACY_EDUCATIONAL_CATALOG').length,155);
+ assert.equal(entries.filter(x=>x.studyNotes.provenance==='REGULATORY_CATEGORY_REFERENCE_ONLY').length,95);
+ for (const entry of entries) {
+   for (const key of ['possibleBenefits','keyTradeoffs','goalThemes']) {
+     assert.ok(Array.isArray(entry.studyNotes[key]));
+     assert.ok(entry.studyNotes[key].length<=4);
+     assert.ok(entry.studyNotes[key].every(x=>typeof x==='string'));
+   }
+   assert.ok(Object.values(entry.productData).every(x=>x===null));
+   assert.equal(entry.recommendationEligible,false);
+ }
+ entries[0].studyNotes.possibleBenefits.push('unauthorized mutation');
+ assert.ok(!listFinancialDiscoveryDirectory().items[0].studyNotes.possibleBenefits
+   .includes('unauthorized mutation'));
+});
 test('every catalog item reports missing REAL product facts, not fabricated rates',()=>{
  const items=listFinancialDiscoveryDirectory().items;
  for (const x of items){

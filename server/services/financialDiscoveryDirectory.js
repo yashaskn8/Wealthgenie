@@ -50,6 +50,19 @@ const RD_OFFICIAL_ISSUER_REFERENCES = Object.freeze(readOfficialIssuerReferences
 
 const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const asText = s => typeof s === 'string' && s.trim() ? s.trim() : null;
+const sourceLearningPoints = values => Array.isArray(values)
+  ? values.filter(value => typeof value === 'string' && value.trim())
+    .map(value => value.trim()).slice(0, 4)
+  : [];
+function legacyStudyNotes(item) {
+  // Unreviewed educational descriptions: NOT actual product facts or advice.
+  return {
+    provenance: 'UNVERIFIED_LEGACY_EDUCATIONAL_CATALOG',
+    possibleBenefits: sourceLearningPoints(item.pros),
+    keyTradeoffs: sourceLearningPoints(item.cons),
+    goalThemes: sourceLearningPoints(item.goalTags),
+  };
+}
 const httpsUrl = value => {
   try {
     const url = new URL(value);
@@ -80,6 +93,7 @@ function buildDirectory() {
     // The source catalog may contain assumptions, which are NOT market quotes.
     educationalRiskLabel: asText(item.riskLabel),
     educationalRiskBasis: 'UNVERIFIED_LEGACY_CATALOG_REFERENCE',
+    studyNotes: legacyStudyNotes(item),
     referenceUrl: null, referenceCheckedAsOf: null,
     productData: { ...missingFacts },
     productAvailability: 'NOT_VERIFIED',
@@ -94,6 +108,10 @@ function buildDirectory() {
     instrumentForm: asText(item.instrumentForm),
     description: null, educationalRiskLabel: null,
     educationalRiskBasis: 'NOT_ESTABLISHED',
+    studyNotes: {
+      provenance: 'REGULATORY_CATEGORY_REFERENCE_ONLY',
+      possibleBenefits: [], keyTradeoffs: [], goalThemes: [],
+    },
     referenceUrl: httpsUrl(item.sourceUrl),
     referenceCheckedAsOf: item.researchEvidence?.referenceCheckedAsOf ?? null,
     productData: { ...missingFacts },
@@ -127,6 +145,12 @@ export function listFinancialDiscoveryDirectory() {
     disclaimer: '250 educational investment categories, not 250 verified purchasable products. No current prices, rates, tax outcomes or personalized investment recommendations are established by this catalog.',
     items: DIRECTORY.map(item => ({
       ...item, productData: { ...item.productData },
+      studyNotes: {
+        ...item.studyNotes,
+        possibleBenefits: [...item.studyNotes.possibleBenefits],
+        keyTradeoffs: [...item.studyNotes.keyTradeoffs],
+        goalThemes: [...item.studyNotes.goalThemes],
+      },
       publicIssuerReferences: item.publicIssuerReferences.map(reference => ({ ...reference })),
     })),
   };
