@@ -15,6 +15,7 @@ test('each of all 250 unique family IDs has exactly 3 empty evidence slots', () 
   assert.equal(report.reviewSlotsChecked, 750);
   assert.equal(report.reviewedProductIdentitySlotsPopulated, 0);
   assert.equal(report.productionQualifiedFamilies, 'NOT_MEASURED');
+  assert.equal(report.basis, 'REPOSITORY_SOURCE_FILES_ONLY_NOT_LIVE_PROVIDER_OR_PRODUCTION_DB');
   assert.equal(new Set(report.families.map(x => x.familyId)).size, 250);
   assert.equal(new Set(report.families.map(x => x.name.toLowerCase())).size, 250);
   assert.ok(report.families.every(x=>x.minimumActualQualifiedProductsNeeded === 2

@@ -202,11 +202,11 @@ jobs:
       - name: Install reproducible server dependencies
         run: npm ci --prefix server
       - name: Red-team product qualification, suitability and migration hashes
-        run: node --test server/test/familyTopThree.test.js server/test/threeProductFamilyCatalog.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js server/test/verifyProviderEntitlement.test.js server/test/applySignedProviderEntitlement.test.js server/test/auditCatalog250Verification.test.js server/test/financialDiscoveryDirectory.test.js server/test/financialTopThreeAuditSql.test.js server/test/topThreeCoverageSummary.test.js server/test/validateFirstFamilyResearchPilot.test.js
+        run: node --test server/test/familyTopThree.test.js server/test/threeProductFamilyCatalog.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js server/test/verifyProviderEntitlement.test.js server/test/applySignedProviderEntitlement.test.js server/test/auditCatalog250Verification.test.js server/test/financialDiscoveryDirectory.test.js server/test/financialTopThreeAuditSql.test.js server/test/topThreeCoverageSummary.test.js server/test/financialCiArtifactContract.test.js server/test/validateFirstFamilyResearchPilot.test.js
       - name: Audit every one of the 250 catalog families (source evidence, not live product approval)
         run: |
-          npm run finance:catalog:verify --prefix server > financial-catalog-250-verification.json
-          npm run finance:catalog:verify --prefix server -- --csv > financial-catalog-250-verification.csv
+          node server/scripts/auditCatalog250Verification.js > financial-catalog-250-verification.json
+          node server/scripts/auditCatalog250Verification.js --csv > financial-catalog-250-verification.csv
       - name: Publish all 250 per-family verification results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -223,9 +223,25 @@ jobs:
       - name: Verify actual SQL identity, rights default, revocation, and valuation data
         run: node server/scripts/verifyFinancialPostgresIntegration.js
       - name: Audit all 250 families and report missing real product evidence
-        run: npm run finance:top3:audit --prefix server > financial-top3-coverage.json
+        run: node server/scripts/auditFinancialTopThreeCoverage.js > financial-top3-coverage.json
       - name: Generate 750 empty evidence slots without pretending issuer verification
-        run: npm run finance:top3:review-queue --prefix server > financial-top3-review-queue.csv
+        run: node server/scripts/generateFinancialTopThreeEvidenceQueue.js > financial-top3-review-queue.csv
+      - name: Validate financial audit artifacts are clean machine-readable outputs
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const catalog = JSON.parse(readFileSync('financial-catalog-250-verification.json', 'utf8'));
+          const coverage = JSON.parse(readFileSync('financial-top3-coverage.json', 'utf8'));
+          assert.equal(catalog.status, 'SOURCE_INVENTORY_VERIFIED__PRODUCT_APPROVAL_NOT_ESTABLISHED');
+          assert.equal(catalog.totalFamilies, 250);
+          assert.equal(catalog.families.length, 250);
+          assert.equal(catalog.reviewSlotsChecked, 750);
+          assert.equal(coverage.status, 'EVIDENCE_MEASURED_NOT_INFERRED');
+          assert.equal(coverage.families, 250);
+          assert.ok(readFileSync('financial-catalog-250-verification.csv', 'utf8').startsWith('familyId,'));
+          assert.ok(readFileSync('financial-top3-review-queue.csv', 'utf8').startsWith('familyId,'));
+          NODE
       - name: Upload 250-family product evidence review queue
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -108,7 +108,7 @@ export function buildCatalog250Verification({
   if (families.length !== 250 || slotMap.size !== 250) reject('FAMILY_INVENTORY_NOT_250');
   return {
     status: 'SOURCE_INVENTORY_VERIFIED__PRODUCT_APPROVAL_NOT_ESTABLISHED',
-    basis: 'MAIN_BRANCH_SOURCE_FILES_ONLY_NOT_LIVE_PROVIDER_OR_PRODUCTION_DB',
+    basis: 'REPOSITORY_SOURCE_FILES_ONLY_NOT_LIVE_PROVIDER_OR_PRODUCTION_DB',
     legacyFamilies: 155,
     extensionFamilies: 95,
     totalFamilies: 250,
