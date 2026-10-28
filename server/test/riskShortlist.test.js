@@ -152,7 +152,7 @@ test('RBI SGS STRIPS use separate source-backed rules and remain blocked for bot
   assert.equal(row.referenceUrl,official);
   assert.equal(row.referenceReviewedAt,'2026-10-28');
   assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,official);
-  assert.match(row.verifiedPublicFrameworkFact.factCode,/RBI_SGS_.*_STRIP_ELIGIBILITY/);
+  assert.match(row.verifiedPublicFrameworkFact.factCode,/RBI_SGS_.*_STRIPS_ELIGIBILITY/);
   assert.match(row.verifiedPublicFrameworkFact.value,/14 years/);
   assert.match(row.verifiedPublicFrameworkFact.value,/1,000 crore/);
   assert.match(row.verifiedPublicFrameworkFact.value,/SLR-eligible/);

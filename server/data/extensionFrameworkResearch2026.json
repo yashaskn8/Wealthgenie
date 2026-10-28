@@ -249,7 +249,7 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "RBI_SGS_COUPON_STRIP_ELIGIBILITY",
+        "factCode": "RBI_SGS_COUPON_STRIPS_ELIGIBILITY",
         "value": "RBI's June 12, 2025 circular allows stripping only fixed-coupon State Government Securities with residual maturity up to 14 years, at least INR 1,000 crore outstanding on stripping day, SLR-eligible status and transferability. This category represents the separated coupon cash flow, not a verified specific STRIP, price or retail access.",
         "officialSourceUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
         "reviewedOn": "2026-10-28",
@@ -277,7 +277,7 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "RBI_SGS_PRINCIPAL_STRIP_ELIGIBILITY",
+        "factCode": "RBI_SGS_PRINCIPAL_STRIPS_ELIGIBILITY",
         "value": "RBI's June 12, 2025 circular allows stripping only fixed-coupon State Government Securities with residual maturity up to 14 years, at least INR 1,000 crore outstanding on stripping day, SLR-eligible status and transferability. This category represents the separated principal cash flow, not a verified specific STRIP, price or retail access.",
         "officialSourceUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
         "reviewedOn": "2026-10-28",
