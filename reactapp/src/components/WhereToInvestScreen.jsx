@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import WhereToInvestTab from './deepdive/WhereToInvestTab';
 import InvestmentUniverseExplorer from './InvestmentUniverseExplorer';
+import { selectProfileCategoryMatches } from '../utils/profileCategoryMatches';
 import { getRiskShortlist, saveRiskShortlist } from '../services/api';
 import {
   AlertCircle,
@@ -47,6 +48,10 @@ const WhereToInvestScreen = ({
   const profileVersion = userProfile?.version || null;
   const catalogProfileKey = `${profileId || 'none'}:${profileVersion || 'none'}`;
   const recommendationIds = recommendedParents.map(entry => entry?.id).join('|');
+  const rankedProfileCategories = useMemo(
+    () => selectProfileCategoryMatches(riskShortlist, profileId, profileVersion),
+    [riskShortlist, profileId, profileVersion],
+  );
 
   useEffect(() => {
     if (!FINANCIAL_SHORTLIST_UI_ENABLED || !profileId || !recommendedParents.length) {
@@ -60,7 +65,9 @@ const WhereToInvestScreen = ({
     setShortlistState('LOADING');
     getRiskShortlist(profileId, { signal:controller.signal }).then(result => {
       if (controller.signal.aborted) return;
-      if (result?.status !== 'PROFILE_ELIGIBLE_PARENT_CATEGORIES' || !result.groups) {
+      if (result?.status !== 'PROFILE_ELIGIBLE_PARENT_CATEGORIES' || !result.groups
+        || result.source?.profileId?.toString() !== profileId?.toString()
+        || result.source?.profileVersion !== profileVersion) {
         setShortlistState('UNAVAILABLE');
         return;
       }
@@ -136,7 +143,8 @@ const WhereToInvestScreen = ({
   if (!recommendedParents || recommendedParents.length === 0) {
     return (
       <div className="wti-screen-container">
-        <InvestmentUniverseExplorer key={catalogProfileKey} profileShortlist={recommendedParents} />
+        <InvestmentUniverseExplorer key={catalogProfileKey}
+          profileShortlist={recommendedParents} profileRankedCategories={rankedProfileCategories} />
         <div className="wti-loading-card">
           <AlertCircle size={24} className="wti-loading-icon" aria-hidden="true" />
           <div>
@@ -220,7 +228,8 @@ const WhereToInvestScreen = ({
         </section>
       )}
 
-      <InvestmentUniverseExplorer key={catalogProfileKey} profileShortlist={recommendedParents} />
+      <InvestmentUniverseExplorer key={catalogProfileKey}
+          profileShortlist={recommendedParents} profileRankedCategories={rankedProfileCategories} />
 
       {/* ─── Recommended Category Segmented Rail (Strictly in exact backend recommendation order) ─── */}
       <nav className="wti-category-nav" aria-label="Investment category selector">
