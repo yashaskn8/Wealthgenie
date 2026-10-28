@@ -35,7 +35,7 @@ async function loadFinancialDirectory(signal) {
   if (summary?.totalCount !== CATALOG_SIZE) {
     throw new Error('FINANCIAL_UNIVERSE_250_CATALOG_NOT_READY');
   }
-  if (ready?.status !== 'THREE_SOURCE_QUALIFIED_CANDIDATES'
+  if (ready?.status !== 'TWO_OR_MORE_SOURCE_QUALIFIED_CANDIDATES'
       || !Array.isArray(ready.familyIds) || !Number.isSafeInteger(ready.count)
       || ready.count !== ready.familyIds.length || ready.count > CATALOG_SIZE
       || ready.familyIds.some(id => !isFamilyId(id))
@@ -80,13 +80,13 @@ async function loadFinancialDirectory(signal) {
   throw new Error('FINANCIAL_UNIVERSE_PAGE_LIMIT_EXCEEDED');
 }
 
-function validThreeProductResponse(response) {
+function validProductComparisonResponse(response) {
   const presentFinite = value => (typeof value === 'number' && Number.isFinite(value))
     || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
   return response?.status === 'AVAILABLE'
     && Array.isArray(response.products)
-    && response.products.length === 3
-    && new Set(response.products.map(product => product?.id)).size === 3
+    && [2, 3].includes(response.products.length)
+    && new Set(response.products.map(product => product?.id)).size === response.products.length
     && response.products.every(product => isFamilyId(product?.id)
       && typeof product.name === 'string' && product.name.trim()
       && product.marketFact?.sourceId && product.marketFact?.observationId
@@ -97,7 +97,7 @@ function validThreeProductResponse(response) {
 /**
  * The full 250-family directory belongs on Where to Invest, not inside a
  * portfolio shortlist. Each family's candidate comparison remains
- * profile-bound and fails closed until three real products qualify.
+ * profile-bound and fails closed until two real products qualify.
  */
 export default function InvestmentUniverseExplorer() {
   const [open, setOpen] = useState(true);
@@ -156,7 +156,7 @@ export default function InvestmentUniverseExplorer() {
     compareAbort.current = controller;
     setSelectedFamily(family);
     if (!readySet.has(family.id)) {
-      setComparison({ status: 'UNAVAILABLE', reasonCode: 'FEWER_THAN_THREE_SOURCE_QUALIFIED_PRODUCTS' });
+      setComparison({ status: 'UNAVAILABLE', reasonCode: 'FEWER_THAN_TWO_SOURCE_QUALIFIED_PRODUCTS' });
       return;
     }
     setComparison({ status: 'LOADING' });
@@ -169,7 +169,7 @@ export default function InvestmentUniverseExplorer() {
       const result = await getQualifiedFamilyTopProducts(family.id, profileId, { signal: controller.signal });
       if (controller.signal.aborted) return;
       if (result?.status === 'AVAILABLE') {
-        if (!validThreeProductResponse(result)) throw new Error('TOP_THREE_RESPONSE_INVALID');
+        if (!validProductComparisonResponse(result)) throw new Error('TOP_THREE_RESPONSE_INVALID');
         setComparison({ status: 'AVAILABLE', products: result.products });
       } else if (result?.status === 'INSUFFICIENT_VERIFIED_PRODUCTS'
           || result?.status === 'NO_QUALIFIED_PRODUCTS') {
@@ -212,7 +212,7 @@ export default function InvestmentUniverseExplorer() {
         <div className="wti-universe-content">
           <h2>All 250 investment options</h2>
           <p>
-            Select any investment family to check for three distinct, current products
+            Select any investment family to check for two or three distinct, current products
             suitable for your financial profile. The directory is educational;
             only verified issuer products can enter a personalized comparison.
           </p>
@@ -228,7 +228,7 @@ export default function InvestmentUniverseExplorer() {
             <>
               <p role="status">
                 {items.length} investment options loaded from PostgreSQL; {readyIds.length} families
-                currently have at least three preliminarily verified products.
+                currently have at least two preliminarily verified products.
               </p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <label>
@@ -255,8 +255,8 @@ export default function InvestmentUniverseExplorer() {
                       <small>{item.category}{item.subcategory ? ' · ' + item.subcategory : ''}</small>
                     </div>
                     <span className="wti-universe-status">
-                      {readySet.has(item.id) ? 'Three source-qualified candidates; suitability pending'
-                        : 'Three verified products not yet available'}
+                      {readySet.has(item.id) ? 'At least two source-qualified candidates; suitability pending'
+                        : 'Two verified products not yet available'}
                     </span>
                     <button type="button" className="wti-universe-more"
                       onClick={() => inspectFamily(item)}
@@ -274,7 +274,7 @@ export default function InvestmentUniverseExplorer() {
                   {comparison?.status === 'LOADING' && <p role="status">Revalidating your profile and product evidence...</p>}
                   {comparison?.status === 'UNAVAILABLE' && (
                     <p role="status">
-                      Three distinct, current, suitable products cannot yet be verified
+                      Two distinct, current, suitable products cannot yet be verified
                       for this category. {comparison.reasonCode || 'INSUFFICIENT_VERIFIED_PRODUCTS'}.
                       No duplicate product identities, assumed rates or invented returns are shown.
                     </p>
@@ -287,7 +287,7 @@ export default function InvestmentUniverseExplorer() {
                   )}
                   {comparison?.status === 'AVAILABLE' && (
                     <>
-                      <p>Three independently checked products, ordered by lower verified risk,
+                      <p>{comparison.products.length} independently checked products, ordered by lower verified risk,
                         then charges, then lock-in. This is not a return ranking or guarantee.</p>
                       <ol>
                         {comparison.products.map(product => (

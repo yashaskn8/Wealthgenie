@@ -10,7 +10,7 @@ async function loadFinancialUniverse(signal) {
     getFinancialUniverseSummary({ signal }),
     getThreeProductReadyFamilies({ signal }),
   ]);
-  if (ready?.status !== 'THREE_SOURCE_QUALIFIED_CANDIDATES'
+  if (ready?.status !== 'TWO_OR_MORE_SOURCE_QUALIFIED_CANDIDATES'
     || !Array.isArray(ready.familyIds) || !Number.isSafeInteger(ready.count)
     || ready.count !== ready.familyIds.length || ready.count > 250
     || ready.familyIds.some(id => typeof id !== 'string')) {
@@ -38,7 +38,7 @@ async function loadFinancialUniverse(signal) {
     const nextCursor = response.nextCursor || null;
     if (!nextCursor) {
       if (rows.length !== summary.totalCount) throw new Error('FINANCIAL_UNIVERSE_COUNT_MISMATCH');
-      if (ready.familyIds.some(id => !seenIds.has(id))) throw new Error('THREE_PRODUCT_UNKNOWN_FAMILY');
+      if (ready.familyIds.some(id => !seenIds.has(id))) throw new Error('QUALIFIED_PRODUCT_UNKNOWN_FAMILY');
       return { rows, summary, readyFamilyIds: ready.familyIds };
     }
     if (typeof nextCursor !== 'string' || seenCursors.has(nextCursor) || nextCursor === cursor) {
@@ -87,9 +87,9 @@ export default function InvestmentUniverseBrowser() {
       const result = await getQualifiedFamilyTopProducts(familyId, profileId, { signal: controller.signal });
       if (controller.signal.aborted) return;
       if (!result || !Array.isArray(result.products)
-        || ![0, 3].includes(result.products.length)
-        || (result.products.length === 3 && result.status !== 'AVAILABLE')
-        || (result.status === 'AVAILABLE' && result.products.length !== 3)) {
+        || ![0, 2, 3].includes(result.products.length)
+        || (result.products.length >= 2 && result.status !== 'AVAILABLE')
+        || (result.status === 'AVAILABLE' && result.products.length < 2)) {
         throw new Error('Invalid financial product comparison response.');
       }
       setCompareResult(result);
@@ -196,10 +196,10 @@ export default function InvestmentUniverseBrowser() {
                 </p>
               )}
               <p style={{ color: '#cbd5e1', fontSize: '0.75rem', lineHeight: 1.5 }}>
-                All discovery families are visible by default, but they are not recommendations. Only families with at least three individually qualified issuer candidates offer a comparison; suitability is checked again for your profile. The additional 95 families have not been individually verified for investment, live prices, or post-tax outcomes.
+                All discovery families are visible by default, but they are not recommendations. Only families with at least two individually qualified issuer candidates offer a comparison of up to three; suitability is checked again for your profile. The additional 95 families have not been individually verified for investment, live prices, or post-tax outcomes.
               </p>
               <p role="status" style={{ color: '#a7f3d0', fontSize: '0.79rem', fontWeight: 700 }}>
-                {readyFamilyIds.length} of {items.length} investment families have at least three source-qualified product candidates.
+                {readyFamilyIds.length} of {items.length} investment families have at least two source-qualified product candidates.
               </p>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#cbd5e1', marginBottom: 12 }}>
                 <input type="checkbox" checked={showArchive}
@@ -209,7 +209,7 @@ export default function InvestmentUniverseBrowser() {
               </label>
               {readyFamilyIds.length === 0 && (
                 <p role="status" style={{ color: '#fbbf24' }}>
-                  No investment family currently has three fully source-qualified candidate products.
+                  No investment family currently has two fully source-qualified candidate products.
                   Products are withheld until issuer, licensed market data, and current terms are verified.
                 </p>
               )}
@@ -257,7 +257,7 @@ export default function InvestmentUniverseBrowser() {
                         {readyFamilyIds.includes(item.id) && <button type="button" onClick={() => compareFamily(item.id)}
                           aria-label={'Compare verified products for ' + (item.name || item.id)}
                           style={{ display: 'block', marginTop: 6, cursor: 'pointer' }}>
-                          Compare 3 source-qualified products
+                          Compare verified products
                         </button>}
                       </td>
                       <td style={{ padding: 9, color: '#cbd5e1' }}>{item.category || 'Not classified'}{item.subcategory ? ' / ' + item.subcategory : ''}</td>
@@ -288,7 +288,7 @@ export default function InvestmentUniverseBrowser() {
                   {compareStatus === 'loaded' && compareResult?.products?.length > 0 && (
                     <>
                       <p role="status">
-                        3 suitably qualified products,
+                        {compareResult.products.length} suitably qualified products,
                         ordered by lower verified risk, then charges and lock-in—not promised returns.
                       </p>
                       <ol>{compareResult.products.map(product => <li key={product.id}
@@ -310,7 +310,7 @@ export default function InvestmentUniverseBrowser() {
                   </p>
                 </section>
               )}
-              {filtered.length === 0 && <p>No supported three-product families match your filters. You can view the separate discovery archive without treating its entries as recommendations.</p>}
+              {filtered.length === 0 && <p>No supported product families match your filters. You can view the separate discovery archive without treating its entries as recommendations.</p>}
               {maxPage > 0 && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
                 <button type="button" disabled={currentPage === 0} onClick={() => setPageIndex(n => Math.max(0, n - 1))}>Previous</button>
                 <button type="button" disabled={currentPage === maxPage} onClick={() => setPageIndex(n => Math.min(maxPage, n + 1))}>Next</button>

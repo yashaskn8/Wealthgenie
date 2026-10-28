@@ -172,21 +172,21 @@ test('revocation between preliminary screening and final publication drops the w
  assert.equal(r.exclusionCounts.MARKET_SOURCE_CHANGED_DURING_COMPARISON,1);
 });
 
-test('suspending a reviewed product during comparison cannot publish a stale top three',async()=>{
+test('suspending a reviewed product during comparison publishes only two still-approved products',async()=>{
  const h=harness([product('p1'),product('p2'),product('p3')],{}, {p1:false});
  const result=await compare(h);
- assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
- assert.deepEqual(result.products,[]);
+ assert.equal(result.status,'AVAILABLE');
+ assert.deepEqual(result.products.map(p=>p.id),['p2','p3']);
  assert.equal(result.verifiedProductCount,2);
  assert.equal(result.exclusionCounts.PRODUCT_REVIEW_CHANGED_DURING_COMPARISON,1);
 });
 
-test('a product restricted after initial screening cannot retain an approved top-three card',async()=>{
+test('a product restricted after initial screening cannot retain an approved comparison card',async()=>{
  const h=harness([product('p1'),product('p2'),product('p3')],{},
    {p1:{availability:'RESTRICTED'}});
  const result=await compare(h);
- assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
- assert.deepEqual(result.products,[]);
+ assert.equal(result.status,'AVAILABLE');
+ assert.deepEqual(result.products.map(p=>p.id),['p2','p3']);
  assert.equal(result.verifiedProductCount,2);
  assert.equal(result.exclusionCounts.PRODUCT_REVIEW_CHANGED_DURING_COMPARISON,1);
 });
@@ -200,8 +200,8 @@ test('changed risk, fee or reviewed terms cannot reuse an earlier top-three qual
  ]){
   const h=harness([product('p1'),product('p2'),product('p3')],{}, {p1:change});
   const result=await compare(h);
-  assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
-  assert.deepEqual(result.products,[]);
+  assert.equal(result.status,'AVAILABLE');
+  assert.deepEqual(result.products.map(p=>p.id),['p2','p3']);
   assert.equal(result.exclusionCounts.PRODUCT_REVIEW_CHANGED_DURING_COMPARISON,1);
  }
 });
@@ -216,8 +216,8 @@ test('a changed observation unit or classification cannot reuse the earlier mark
     data_class:'PUBLISHED_RATE',observed_at:now};
  };
  const result=await compare(h);
- assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
- assert.deepEqual(result.products,[]);
+ assert.equal(result.status,'AVAILABLE');
+ assert.deepEqual(result.products.map(p=>p.id),['p2','p3']);
  assert.equal(result.exclusionCounts.MARKET_SOURCE_CHANGED_DURING_COMPARISON,1);
 });
 
@@ -237,27 +237,27 @@ test('the comparison fetches only the reviewed provider identity, not a newer un
  assert.deepEqual(invoked.map(x=>x.sourceId),['verified-bank','verified-bank']);
 });
 
-test('zero, one and two qualified products never produce a top-three recommendation',async()=>{
- for(const count of [0,1,2]){
+test('zero or one qualified product never produces a comparison',async()=>{
+ for(const count of [0,1]){
   const h=harness(Array.from({length:count},(_,i)=>product('qualified-'+i)));
   const result=await compare(h);
   assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
-  assert.equal(result.reasonCode,'FEWER_THAN_THREE_SUITABLE_VERIFIED_PRODUCTS');
-  assert.equal(result.requiredProductCount,3);
+  assert.equal(result.reasonCode,'FEWER_THAN_TWO_SUITABLE_VERIFIED_PRODUCTS');
+  assert.equal(result.requiredProductCount,2);
   assert.equal(result.verifiedProductCount,count);
   assert.deepEqual(result.products,[]);
  }
 });
 
-test('three product IDs that alias the same real issuer offer never fill three slots',async()=>{
+test('two distinct verified identities can be compared without padding a duplicate third',async()=>{
  const h=harness([
   product('p1',{source_identity:'ISIN:ONE'}),
   product('p2',{source_identity:'ISIN:ONE'}),
   product('p3',{source_identity:'ISIN:TWO'}),
  ]);
  const result=await compare(h);
- assert.equal(result.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.equal(result.status,'AVAILABLE');
  assert.equal(result.verifiedProductCount,2);
- assert.deepEqual(result.products,[]);
+ assert.deepEqual(result.products.map(p=>p.id),['p1','p3']);
  assert.equal(result.exclusionCounts.PRODUCT_IDENTITY_MISSING_OR_DUPLICATE,1);
 });

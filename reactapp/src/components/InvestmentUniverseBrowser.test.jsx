@@ -23,7 +23,7 @@ const catalog = Array.from({ length: 250 }, (_, index) => ({
 
 beforeEach(() => {
   getCurrentProfile.mockResolvedValue({ profileId: '0123456789abcdef01234567' });
-  getThreeProductReadyFamilies.mockResolvedValue({status:'THREE_SOURCE_QUALIFIED_CANDIDATES',
+  getThreeProductReadyFamilies.mockResolvedValue({status:'TWO_OR_MORE_SOURCE_QUALIFIED_CANDIDATES',
     familyIds:['family_001'],count:1});
   getQualifiedFamilyTopProducts.mockResolvedValue({ status: 'NO_QUALIFIED_PRODUCTS', products: [], reasonCode: 'NO_SUITABLE_CURRENTLY_QUALIFIED_PRODUCTS' });
   getFinancialUniverseSummary.mockResolvedValue({status:'DISCOVERY_ONLY',totalCount:250,
@@ -119,6 +119,26 @@ describe('investment universe browser', () => {
     expect(screen.getByRole('region',{name:'Verified product comparison'}).textContent).not.toContain('fit ');
   });
 
+  it('shows exactly two verified products without fabricating a third', async () => {
+    getQualifiedFamilyTopProducts.mockResolvedValueOnce({ status: 'AVAILABLE', products: [
+      { id: 'bond-1', name: 'Verified bond one', riskLevel: 2, annualFeeBps: 0,
+        minimumInvestmentInr: 1000, lockInMonths: 0,
+        marketFact: { type: 'PRICE', value: 100, dataClass: 'END_OF_DAY' },
+        evidence: { product: 'https://issuer.example/bond-1', terms: 'https://issuer.example/bond-1-terms' } },
+      { id: 'bond-2', name: 'Verified bond two', riskLevel: 2, annualFeeBps: 0,
+        minimumInvestmentInr: 1000, lockInMonths: 0,
+        marketFact: { type: 'PRICE', value: 101, dataClass: 'END_OF_DAY' },
+        evidence: { product: 'https://issuer.example/bond-2', terms: 'https://issuer.example/bond-2-terms' } },
+    ] });
+    render(<InvestmentUniverseBrowser />);
+    fireEvent.click(screen.getByRole('button', { name: 'Browse all investment options' }));
+    await waitFor(() => expect(screen.getByText('250 catalog entries loaded from PostgreSQL.')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Compare verified products for Investment family 1' }));
+    await waitFor(() => expect(screen.getByText('Verified bond one')).toBeTruthy());
+    expect(screen.getAllByRole('link', { name: 'Issuer evidence' })).toHaveLength(2);
+    expect(screen.queryByText('Verified bond three')).toBeNull();
+  });
+
   it('rejects malformed or padded product responses instead of displaying unqualified offers', async () => {
     getQualifiedFamilyTopProducts.mockResolvedValueOnce({products:Array.from({length:4},(_,i)=>({id:'p'+i,name:'Unreviewed'}))});
     render(<InvestmentUniverseBrowser />);
@@ -131,13 +151,13 @@ describe('investment universe browser', () => {
 
 });
 
-describe('three-product-only catalog safety',()=>{
+describe('qualified product catalog safety',()=>{
  it('does not display unqualified families as selectable investment choices',async()=>{
   getThreeProductReadyFamilies.mockResolvedValueOnce({
-   status:'THREE_SOURCE_QUALIFIED_CANDIDATES',familyIds:[],count:0});
+   status:'TWO_OR_MORE_SOURCE_QUALIFIED_CANDIDATES',familyIds:[],count:0});
   render(<InvestmentUniverseBrowser />);
   fireEvent.click(screen.getByRole('button',{name:'Browse all investment options'}));
-  await waitFor(()=>expect(screen.getByText(/No investment family currently has three/)).toBeTruthy());
+  await waitFor(()=>expect(screen.getByText(/No investment family currently has two/)).toBeTruthy());
   expect(screen.getByText('Investment family 1')).toBeTruthy();
   expect(screen.queryByRole('button',{name:'Compare verified products for Investment family 1'})).toBeNull();
   fireEvent.click(screen.getByLabelText('Show unqualified discovery families'));

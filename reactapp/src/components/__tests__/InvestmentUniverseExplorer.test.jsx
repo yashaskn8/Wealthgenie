@@ -29,7 +29,7 @@ afterAll(() => vi.unstubAllEnvs());
 beforeEach(() => {
   api.getFinancialUniverseSummary.mockResolvedValue({ status: 'DISCOVERY_ONLY', totalCount: 250 });
   api.getThreeProductReadyFamilies.mockResolvedValue({
-    status: 'THREE_SOURCE_QUALIFIED_CANDIDATES', familyIds: ['family_001'], count: 1,
+    status: 'TWO_OR_MORE_SOURCE_QUALIFIED_CANDIDATES', familyIds: ['family_001'], count: 1,
   });
   api.getCurrentProfile.mockResolvedValue({ profileId: '0123456789abcdef01234567' });
   api.getFinancialUniverse.mockImplementation(({ cursor }) => {
@@ -65,7 +65,7 @@ describe('250-family Where to Invest directory', () => {
     render(<InvestmentUniverseExplorer />);
     await waitFor(() => expect(screen.getByText('Investment family 2')).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Check tailored top 3 for Investment family 2' }));
-    expect(screen.getByText(/Three distinct, current, suitable products cannot yet be verified/)).toBeTruthy();
+    expect(screen.getByText(/Two distinct, current, suitable products cannot yet be verified/)).toBeTruthy();
     expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
     expect(api.getCurrentProfile).not.toHaveBeenCalled();
     const familyRow = screen.getByText('Investment family 2').closest('li');
@@ -102,6 +102,27 @@ describe('250-family Where to Invest directory', () => {
     expect(screen.getAllByRole('link', { name: 'Issuer evidence' })).toHaveLength(3);
     expect(screen.getAllByText(/Personalized post-tax return: not calculated by this comparison/)).toHaveLength(3);
     expect(comparisonPanel.textContent).not.toContain('Match:');
+  });
+
+  it('renders two verified products without inventing a third', async () => {
+    api.getQualifiedFamilyTopProducts.mockResolvedValue({
+      status: 'AVAILABLE',
+      products: [1, 2].map(index => ({
+        id: 'bond_' + index, name: 'Verified bond ' + index,
+        riskLevel: 2, annualFeeBps: 0, lockInMonths: 0,
+        verifiedTaxClass: 'ORDINARY_INTEREST',
+        marketFact: { type: 'PRICE', value: 100 + index,
+          unit: 'INR', dataClass: 'END_OF_DAY',
+          sourceId: 'verified_source', observationId: String(index) },
+        evidence: { product: 'https://issuer.example/bond/' + index },
+      })),
+    });
+    render(<InvestmentUniverseExplorer />);
+    await waitFor(() => expect(screen.getByText('Investment family 1')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Check tailored top 3 for Investment family 1' }));
+    await waitFor(() => expect(screen.getByText('Verified bond 1')).toBeTruthy());
+    expect(screen.getAllByRole('link', { name: 'Issuer evidence' })).toHaveLength(2);
+    expect(screen.getByText(/2 independently checked products/)).toBeTruthy();
   });
 
   it('rejects partial product lists instead of padding the comparison', async () => {

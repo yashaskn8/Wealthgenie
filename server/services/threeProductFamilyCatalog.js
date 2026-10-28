@@ -41,19 +41,19 @@ export async function listFamiliesWithThreeSourceQualifiedProducts(pool,now=new 
  "ELSE false END)",
  "AND NOT EXISTS(SELECT 1 FROM finance.observation_corrections oc WHERE oc.observation_id=o.id))",
  "GROUP BY f.id",
- "HAVING count(DISTINCT p.source_identity)>=3 ORDER BY f.id LIMIT 251"
+ "HAVING count(DISTINCT p.source_identity)>=2 ORDER BY f.id LIMIT 251"
  ].join(' ');
  const {rows}=await pool.query(sql,[now]);
- if(!Array.isArray(rows)||rows.length>250)throw new Error('THREE_PRODUCT_FAMILY_RESULT_INVALID');
+ if(!Array.isArray(rows)||rows.length>250)throw new Error('QUALIFIED_FAMILY_RESULT_INVALID');
  const seen=new Set();
  for(const row of rows){
   if(typeof row.family_id!=='string'||!/^[a-zA-Z0-9:_-]{1,160}$/.test(row.family_id)
-    ||!Number.isSafeInteger(row.product_count)||row.product_count<3||seen.has(row.family_id)){
-   throw new Error('THREE_PRODUCT_FAMILY_RESULT_INVALID');
+    ||!Number.isSafeInteger(row.product_count)||row.product_count<2||seen.has(row.family_id)){
+   throw new Error('QUALIFIED_FAMILY_RESULT_INVALID');
   }
   seen.add(row.family_id);
  }
- return {status:'THREE_SOURCE_QUALIFIED_CANDIDATES',minimumProducts:3,
+ return {status:'TWO_OR_MORE_SOURCE_QUALIFIED_CANDIDATES',minimumProducts:2,maxResults:3,
   familyIds:[...seen],count:seen.size,asOf:now.toISOString(),personalizedSuitabilityVerified:false,
   disclosure:'Candidates only; profile-specific suitability must be rechecked at comparison time.'};
 }

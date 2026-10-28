@@ -152,7 +152,7 @@ try {
   const onlyOne=await compare();
   assert.equal(onlyOne.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
   assert.deepEqual(onlyOne.products,[],
-    'A single real product must never be misrepresented as a three-offer recommendation');
+    'A single real product must never be misrepresented as a comparison');
   assert.ok(!(await listFamiliesWithThreeSourceQualifiedProducts(pool)).familyIds.includes(familyId));
   for(const [offset,nextId] of productIds.slice(1).entries()){
     const sequence=offset+2;
@@ -185,10 +185,18 @@ try {
       reviewNote:'Synthetic isolated test only; never represents a commercial real offer.',
     });
     assert.equal(nextApproval.status,'ACTIVE');
+    if (sequence === 2) {
+      const twoCandidates = await listFamiliesWithThreeSourceQualifiedProducts(pool);
+      assert.ok(twoCandidates.familyIds.includes(familyId),
+        'Two distinct source-qualified products must make the family discoverable');
+      const twoProducts = await compare();
+      assert.equal(twoProducts.status,'AVAILABLE');
+      assert.equal(twoProducts.products.length,2);
+    }
   }
   const eligibleFamilies=await listFamiliesWithThreeSourceQualifiedProducts(pool);
   assert.ok(eligibleFamilies.familyIds.includes(familyId),
-    'A family becomes discoverable only with three distinct source-qualified products');
+    'A family becomes discoverable with at least two distinct source-qualified products');
   const available=await compare();
   assert.equal(available.status,'AVAILABLE');
   assert.deepEqual(new Set(available.products.map(p=>p.id)),new Set(productIds));

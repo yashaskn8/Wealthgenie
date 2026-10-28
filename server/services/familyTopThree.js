@@ -2,7 +2,7 @@ import { buildRecommendationProfile } from './recommendationProfile.js';
 import { assessSuitabilityRisk } from './riskProfiler.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
 
-export const FAMILY_TOP_THREE_VERSION = 'family-product-comparison-1.1.0';
+export const FAMILY_TOP_THREE_VERSION = 'family-product-comparison-1.2.0';
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9:_-]{1,160}$/.test(value);
 const numeric = value => value !== null && value !== undefined && value !== ''
   && Number.isFinite(Number(value)) ? Number(value) : null;
@@ -180,16 +180,16 @@ export async function compareQualifiedFamilyProducts({
     }
     selected.push(product);
   }
-  const hasThree = selected.length === 3;
+  const hasEnough = selected.length >= 2;
   return {
-    status: hasThree ? 'AVAILABLE' : 'INSUFFICIENT_VERIFIED_PRODUCTS',
-    reasonCode: hasThree ? null : 'FEWER_THAN_THREE_SUITABLE_VERIFIED_PRODUCTS',
+    status: hasEnough ? 'AVAILABLE' : 'INSUFFICIENT_VERIFIED_PRODUCTS',
+    reasonCode: hasEnough ? null : 'FEWER_THAN_TWO_SUITABLE_VERIFIED_PRODUCTS',
     version: FAMILY_TOP_THREE_VERSION, familyId, familyName, maxResults: 3,
     rankingPolicy: 'LOWER_VERIFIED_RISK_THEN_FEES_THEN_LOCK_IN_THEN_ID',
     qualifyingCount: eligible.length, examinedCount: response.rows.length,
-    requiredProductCount:3,verifiedProductCount:selected.length,
-    exclusionCounts: exclusions, products: hasThree ? selected : [],
-    disclosure: 'Exactly three independently qualified products are required for this comparison; no assured return, tax forecast, trade execution or automatic portfolio change.',
+    requiredProductCount:2,verifiedProductCount:selected.length,
+    exclusionCounts: exclusions, products: hasEnough ? selected : [],
+    disclosure: 'Two or three independently qualified products can be compared; no assured return, tax forecast, trade execution or automatic portfolio change.',
     profileBasis: { riskLevelCeiling: riskLimit, investmentHorizonYears: profile.investmentHorizonYears },
   };
 }
