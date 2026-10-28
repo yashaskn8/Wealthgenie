@@ -106,3 +106,34 @@ test('research-led 95 individually mapped categories react conservatively to rea
  assert.ok(short.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
   && !x.scoreAvailable && !x.productQualified));
 });
+
+test('October 2026 framework refresh distinguishes current rules, future PMS rules and non-convertible debt risks',()=>{
+ const rows=listExtensionResearch();
+ const byId=id=>rows.find(x=>x.id==='catalog_2026_'+id);
+ assert.equal(rows.length,95);
+ assert.ok(rows.every(x=>x.suitabilityRankingPermitted===false && x.productRiskScore===null
+   && x.actualRetailProductEligible===false && x.sourcePermissionVerified===false
+   && x.marketFactsVerified===false && x.fiscalYearTaxVerified===false));
+ for(const row of rows.filter(x=>x.id.startsWith('catalog_2026_aif'))){
+  assert.match(row.referenceUrl,/oct-2026.*alternative-investment-funds/);
+  assert.equal(row.referenceReviewedAt,'2026-10-28');
+ }
+ assert.match(byId('sm_reit_scheme').referenceUrl,/oct-2026.*real-estate-investment-trusts/);
+ for(const id of ['pms_discretionary','pms_nondiscretionary']){
+  assert.match(byId(id).referenceUrl,/sep-2025.*portfolio-managers/);
+  assert.match(byId(id).futureRegulatoryReferenceUrl,/oct-2026.*april-1-2027/);
+  assert.equal(byId(id).futureRegulatoryEffectiveFrom,'2027-04-01');
+ }
+ assert.match(byId('ncd_secured').exposureClass,/^SECURED_NCD_/);
+ assert.match(byId('ncd_unsecured').exposureClass,/^UNSECURED_NCD_/);
+ assert.ok(!byId('ncd_secured').exposureClass.includes('EQUITY_CONVERSION'));
+ const profile=canonicalProfile({riskTolerance:'Conservative'});
+ const screened=screenExtensionResearchForProfile(profile);
+ const get=id=>screened.find(x=>x.id==='catalog_2026_'+id);
+ assert.ok(get('ncd_secured').screeningReasonCodes.includes('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW'));
+ assert.ok(get('nps_lc25').screeningReasonCodes.includes('NPS_ALLOCATION_EXIT_AND_AGE_RULES_REQUIRE_SCHEME_REVIEW'));
+ assert.ok(get('nps_asset_e').screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_PRODUCT_SPECIFIC_RISK_REVIEW'));
+ assert.ok(get('index_smallcap250').screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_PRODUCT_SPECIFIC_RISK_REVIEW'));
+ assert.ok(screened.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
+   && x.productQualified===false && x.scoreAvailable===false));
+});

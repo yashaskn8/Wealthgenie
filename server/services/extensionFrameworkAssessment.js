@@ -15,7 +15,8 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
     || !idSet.has(e.id) || legacyIds.has(e.id)
     || e.referenceUrl!==universe[i].sourceUrl
     || !e.exposureClass || !e.scenarioDescription?.includes(universe[i].name)
-    || e.productRiskScore!==null || e.actualRetailProductEligible!==false
+    || e.productRiskScore!==null || e.suitabilityRankingPermitted!==false
+    || e.actualRetailProductEligible!==false
     || e.marketFactsVerified!==false || e.sourcePermissionVerified!==false
     || e.overallEvidence!=='STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION'
     || e.fiscalYearTaxVerified!==false
@@ -50,6 +51,13 @@ export function screenExtensionResearchForProfile(profileInput) {
    }
    if(profile.riskTolerance==='Conservative' && /EQUITY_|AIF_|SPECIALIZED_|PERPETUAL_/.test(row.exposureClass))
      reasons.push('CONSERVATIVE_PROFILE_REQUIRES_ACTUAL_SCHEME_RISK_REVIEW');
+   if(row.id.startsWith('catalog_2026_nps_'))
+     reasons.push('NPS_ALLOCATION_EXIT_AND_AGE_RULES_REQUIRE_SCHEME_REVIEW');
+   if(row.id.startsWith('catalog_2026_ncd_'))
+     reasons.push('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW');
+   if(profile.riskTolerance==='Conservative'
+     && /NPS_EQUITY|NPS_ALTERNATIVES|SMALL_MID_CAP|SECTOR_CONCENTRATION|SIF_LONG_SHORT|PMS_MANAGER/.test(row.exposureClass))
+     reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PRODUCT_SPECIFIC_RISK_REVIEW');
    return {
      id:row.id,
      profileAssessment:'MISSING_SUITABILITY_EVIDENCE',

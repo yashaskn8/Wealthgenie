@@ -124,63 +124,63 @@ export const REVIEWED_DISCOVERY_CORRECTIONS = Object.freeze({
     "previousName": "Category I AIF Venture Capital Fund",
     "previousSourceUrl": "https://www.sebi.gov.in/media/press-releases/may-2012/sebi-notifies-sebi-alternative-investment-funds-regulations-2012_22799.html",
     "currentName": "Category I AIF Venture Capital Fund",
-    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html"
   },
   "catalog_2026_aif1_sme": {
     "id": "catalog_2026_aif1_sme",
     "previousName": "Category I AIF SME Fund",
     "previousSourceUrl": "https://www.sebi.gov.in/media/press-releases/may-2012/sebi-notifies-sebi-alternative-investment-funds-regulations-2012_22799.html",
     "currentName": "Category I AIF SME Fund",
-    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html"
   },
   "catalog_2026_aif1_social": {
     "id": "catalog_2026_aif1_social",
     "previousName": "Category I AIF Social Impact Fund",
     "previousSourceUrl": "https://www.sebi.gov.in/media/press-releases/may-2012/sebi-notifies-sebi-alternative-investment-funds-regulations-2012_22799.html",
     "currentName": "Category I AIF Social Impact Fund",
-    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html"
   },
   "catalog_2026_aif1_infra": {
     "id": "catalog_2026_aif1_infra",
     "previousName": "Category I AIF Infrastructure Fund",
     "previousSourceUrl": "https://www.sebi.gov.in/media/press-releases/may-2012/sebi-notifies-sebi-alternative-investment-funds-regulations-2012_22799.html",
     "currentName": "Category I AIF Infrastructure Fund",
-    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html"
   },
   "catalog_2026_aif2_pe": {
     "id": "catalog_2026_aif2_pe",
     "previousName": "Category II AIF Private Equity Fund",
     "previousSourceUrl": "https://www.sebi.gov.in/media/press-releases/may-2012/sebi-notifies-sebi-alternative-investment-funds-regulations-2012_22799.html",
     "currentName": "Category II AIF Private Equity Fund",
-    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html"
   },
   "catalog_2026_aif2_debt": {
     "id": "catalog_2026_aif2_debt",
     "previousName": "Category II AIF Private Debt Fund",
     "previousSourceUrl": "https://www.sebi.gov.in/media/press-releases/may-2012/sebi-notifies-sebi-alternative-investment-funds-regulations-2012_22799.html",
     "currentName": "Category II AIF Private Debt Fund",
-    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html"
   },
   "catalog_2026_aif3_hedge": {
     "id": "catalog_2026_aif3_hedge",
     "previousName": "Category III AIF Hedge Fund Strategy",
     "previousSourceUrl": "https://www.sebi.gov.in/media/press-releases/may-2012/sebi-notifies-sebi-alternative-investment-funds-regulations-2012_22799.html",
     "currentName": "Category III AIF Hedge Fund Strategy",
-    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html"
   },
   "catalog_2026_pms_discretionary": {
     "id": "catalog_2026_pms_discretionary",
     "previousName": "Discretionary Portfolio Management Service",
     "previousSourceUrl": "https://investor.sebi.gov.in/pms_final.html",
     "currentName": "Discretionary Portfolio Management Service",
-    "currentSourceUrl": "https://www.sebi.gov.in/sebiweb/other/OtherAction.do?doRecognisedFpi=yes&intmId=33"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html"
   },
   "catalog_2026_pms_nondiscretionary": {
     "id": "catalog_2026_pms_nondiscretionary",
     "previousName": "Non-Discretionary Portfolio Management Service",
     "previousSourceUrl": "https://investor.sebi.gov.in/pms_final.html",
     "currentName": "Non-Discretionary Portfolio Management Service",
-    "currentSourceUrl": "https://www.sebi.gov.in/sebiweb/other/OtherAction.do?doRecognisedFpi=yes&intmId=33"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html"
   },
   "catalog_2026_sif_hybrid_longshort": {
     "id": "catalog_2026_sif_hybrid_longshort",
@@ -194,6 +194,6 @@ export const REVIEWED_DISCOVERY_CORRECTIONS = Object.freeze({
     "previousName": "Small and Medium REIT Investment Scheme",
     "previousSourceUrl": "https://www.sebi.gov.in/legal/regulations/mar-2024/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-march-8-2024-_82513.html",
     "currentName": "Small and Medium REIT Investment Scheme",
-    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/apr-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-april-18-2026-_101013.html"
+    "currentSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-october-15-2026-_105376.html"
   }
 });

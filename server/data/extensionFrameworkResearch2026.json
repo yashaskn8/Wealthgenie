@@ -22,7 +22,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_po_td_2",
@@ -41,7 +42,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_po_td_3",
@@ -60,7 +62,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_po_td_5",
@@ -79,7 +82,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_tbill_91",
@@ -98,7 +102,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_tbill_182",
@@ -117,7 +122,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_tbill_364",
@@ -136,7 +142,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_sdl_dated",
@@ -155,7 +162,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_sdl_coupon_strip",
@@ -174,7 +182,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_sdl_principal_strip",
@@ -193,7 +202,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_gsec_coupon_strip",
@@ -212,7 +222,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_gsec_principal_strip",
@@ -231,7 +242,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_sovereign_green",
@@ -250,7 +262,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_gsec_floating",
@@ -269,7 +282,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bank_rd",
@@ -288,7 +302,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bank_tax_saver_fd",
@@ -307,7 +322,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bank_sweep_fd",
@@ -326,7 +342,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bank_fd_monthly",
@@ -345,7 +362,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bank_fd_quarterly",
@@ -364,7 +382,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nbfc_fd_cumulative",
@@ -383,7 +402,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nbfc_fd_payout",
@@ -402,7 +422,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_gilt_10y_constant",
@@ -421,7 +442,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_medium_long_duration_mf",
@@ -440,7 +462,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_long_duration_mf",
@@ -459,7 +482,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_target_maturity_gsec_index",
@@ -478,7 +502,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_target_maturity_sdl_index",
@@ -497,7 +522,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_target_maturity_psu_index",
@@ -516,7 +542,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_constant_maturity_debt_index",
@@ -535,7 +562,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_domestic_debt_fof",
@@ -554,7 +582,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_gsec_debt_etf",
@@ -573,7 +602,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty_next50",
@@ -592,7 +622,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty100",
@@ -611,7 +642,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty500",
@@ -630,7 +662,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_midcap150",
@@ -649,7 +682,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_smallcap250",
@@ -668,7 +702,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty50_equal",
@@ -687,7 +722,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty100_equal",
@@ -706,7 +742,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty200_quality",
@@ -725,7 +762,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty_lowvol",
@@ -744,7 +782,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty500_momentum",
@@ -763,7 +802,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_nifty500_equal",
@@ -782,7 +822,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_india_defence",
@@ -801,7 +842,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_india_digital",
@@ -820,7 +862,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_index_india_consumption",
@@ -839,7 +882,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_nifty100",
@@ -858,7 +902,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_nifty500",
@@ -877,7 +922,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_smallcap250",
@@ -896,7 +942,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_nifty50_equal",
@@ -915,7 +962,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_nifty100_equal",
@@ -934,7 +982,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_nifty200_quality",
@@ -953,7 +1002,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_nifty500_lowvol",
@@ -972,7 +1022,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_nifty500_momentum",
@@ -991,7 +1042,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_india_defence",
@@ -1010,7 +1062,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_etf_india_consumption",
@@ -1029,7 +1082,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_lc25",
@@ -1048,7 +1102,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_lc50",
@@ -1067,7 +1122,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_lc75",
@@ -1086,7 +1142,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_lc_aggressive",
@@ -1105,7 +1162,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_asset_e",
@@ -1124,7 +1182,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_asset_c",
@@ -1143,7 +1202,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_asset_g",
@@ -1162,7 +1222,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_asset_a",
@@ -1181,7 +1242,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_nps_vatsalya",
@@ -1200,15 +1262,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_ncd_secured",
-      "exposureClass": "EQUITY_CONVERSION_AND_CREDIT",
-      "scenarioDescription": "Secured Listed Non-Convertible Debenture: Listed Corporate Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "exposureClass": "SECURED_NCD_ISSUER_CREDIT_COLLATERAL_AND_LIQUIDITY",
+      "scenarioDescription": "Secured Listed Non-Convertible Debenture: Non-convertible corporate debt, not an equity-conversion strategy. Collateral priority, issuer credit, interest-rate exposure, market liquidity and debt risk disclosures require instrument-specific review.",
       "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1219,15 +1282,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_ncd_unsecured",
-      "exposureClass": "EQUITY_CONVERSION_AND_CREDIT",
-      "scenarioDescription": "Unsecured Listed Non-Convertible Debenture: Listed Corporate Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "exposureClass": "UNSECURED_NCD_ISSUER_CREDIT_RECOVERY_AND_LIQUIDITY",
+      "scenarioDescription": "Unsecured Listed Non-Convertible Debenture: Non-convertible corporate debt, not an equity-conversion strategy. Unsecured recovery priority, issuer credit, interest-rate exposure, market liquidity and debt risk disclosures require instrument-specific review.",
       "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1238,7 +1302,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_ncd_unlisted",
@@ -1257,7 +1322,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bond_subordinated",
@@ -1276,7 +1342,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bond_perpetual",
@@ -1295,7 +1362,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bond_corporate_floating",
@@ -1314,7 +1382,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bond_corporate_zero",
@@ -1333,7 +1402,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_bond_convertible",
@@ -1352,7 +1422,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_psu_bond_taxable",
@@ -1371,7 +1442,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_infra_corporate_bond",
@@ -1390,7 +1462,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_municipal_green",
@@ -1409,7 +1482,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_commercial_paper",
@@ -1428,15 +1502,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_aif1_vc",
       "exposureClass": "AIF_ILLIQUIDITY_AND_ACCESS",
-      "scenarioDescription": "Category I AIF Venture Capital Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html",
+      "scenarioDescription": "Category I AIF Venture Capital Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -1447,15 +1522,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_aif1_sme",
       "exposureClass": "AIF_ILLIQUIDITY_AND_ACCESS",
-      "scenarioDescription": "Category I AIF SME Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html",
+      "scenarioDescription": "Category I AIF SME Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -1466,15 +1542,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_aif1_social",
       "exposureClass": "AIF_ILLIQUIDITY_AND_ACCESS",
-      "scenarioDescription": "Category I AIF Social Impact Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html",
+      "scenarioDescription": "Category I AIF Social Impact Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -1485,15 +1562,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_aif1_infra",
       "exposureClass": "AIF_ILLIQUIDITY_AND_ACCESS",
-      "scenarioDescription": "Category I AIF Infrastructure Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html",
+      "scenarioDescription": "Category I AIF Infrastructure Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -1504,15 +1582,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_aif2_pe",
       "exposureClass": "AIF_ILLIQUIDITY_AND_ACCESS",
-      "scenarioDescription": "Category II AIF Private Equity Fund: Category II AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html",
+      "scenarioDescription": "Category II AIF Private Equity Fund: Category II AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -1523,15 +1602,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_aif2_debt",
       "exposureClass": "AIF_ILLIQUIDITY_AND_ACCESS",
-      "scenarioDescription": "Category II AIF Private Debt Fund: Category II AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html",
+      "scenarioDescription": "Category II AIF Private Debt Fund: Category II AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -1542,15 +1622,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_aif3_hedge",
       "exposureClass": "AIF_ILLIQUIDITY_AND_ACCESS",
-      "scenarioDescription": "Category III AIF Hedge Fund Strategy: Category III AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-july-14-2026-_102975.html",
+      "scenarioDescription": "Category III AIF Hedge Fund Strategy: Category III AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -1561,15 +1642,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_pms_discretionary",
       "exposureClass": "PMS_MANAGER_MANDATE_AND_ACCESS",
-      "scenarioDescription": "Discretionary Portfolio Management Service: Portfolio Management Services category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/sebiweb/other/OtherAction.do?doRecognisedFpi=yes&intmId=33",
+      "scenarioDescription": "Discretionary Portfolio Management Service: Portfolio Management Services category. Examine actual issuer or scheme terms before assigning an investment risk rating. The SEBI Portfolio Managers Regulations, 2026 take effect on 1 April 2027, not as of this review; manager registration, mandate and eligibility are unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 5000000,
@@ -1580,15 +1662,18 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false,
+      "futureRegulatoryReferenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
+      "futureRegulatoryEffectiveFrom": "2027-04-01"
     },
     {
       "id": "catalog_2026_pms_nondiscretionary",
       "exposureClass": "PMS_MANAGER_MANDATE_AND_ACCESS",
-      "scenarioDescription": "Non-Discretionary Portfolio Management Service: Portfolio Management Services category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/sebiweb/other/OtherAction.do?doRecognisedFpi=yes&intmId=33",
+      "scenarioDescription": "Non-Discretionary Portfolio Management Service: Portfolio Management Services category. Examine actual issuer or scheme terms before assigning an investment risk rating. The SEBI Portfolio Managers Regulations, 2026 take effect on 1 April 2027, not as of this review; manager registration, mandate and eligibility are unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 5000000,
@@ -1599,7 +1684,10 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false,
+      "futureRegulatoryReferenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
+      "futureRegulatoryEffectiveFrom": "2027-04-01"
     },
     {
       "id": "catalog_2026_sif_hybrid_longshort",
@@ -1618,15 +1706,16 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_sm_reit_scheme",
       "exposureClass": "PROPERTY_CONCENTRATION_AND_LIQUIDITY",
-      "scenarioDescription": "Small and Medium REIT Investment Scheme: Small and Medium REITs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/apr-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-april-18-2026-_101013.html",
+      "scenarioDescription": "Small and Medium REIT Investment Scheme: Small and Medium REITs category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI REIT regulations updated 15 October 2026; scheme-specific terms and tradability remain unverified.",
+      "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-october-15-2026-_105376.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-28",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1637,7 +1726,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_physical_gold_bullion",
@@ -1656,7 +1746,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_physical_silver_bullion",
@@ -1675,7 +1766,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_silver_fof",
@@ -1694,7 +1786,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_equity_diversified_fof",
@@ -1713,7 +1806,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_equity_sector_fof",
@@ -1732,7 +1826,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_fof_aggressive_hybrid",
@@ -1751,7 +1846,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_fof_conservative_hybrid",
@@ -1770,7 +1866,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_fof_income_arbitrage",
@@ -1789,7 +1886,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     },
     {
       "id": "catalog_2026_fof_dynamic_allocation",
@@ -1808,7 +1906,8 @@
       "sourcePermissionVerified": false,
       "marketFactsVerified": false,
       "fiscalYearTaxVerified": false,
-      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION"
+      "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
+      "suitabilityRankingPermitted": false
     }
   ]
 }
