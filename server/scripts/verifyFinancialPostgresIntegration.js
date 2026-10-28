@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
+import { registerProviderRightsMetadata } from '../postgres/registerProviderRightsMetadata.js';
 import { qualifyProductForFamily, suspendProductForFamily } from '../postgres/qualifyFamilyProduct.js';
 import { compareQualifiedFamilyProducts } from '../services/familyTopThree.js';
 import { listFamiliesWithThreeSourceQualifiedProducts } from '../services/threeProductFamilyCatalog.js';
@@ -62,10 +63,22 @@ try {
   const firstPage=await store.browse({limit:100});
   assert.ok(firstPage.items.every(row=>row.record_kind==='ARCHETYPE'),
     'The family browser cannot present actual instruments as new families');
-  await pool.query(`INSERT INTO finance.provider_rights
-    (source_id,endpoint_url,evidence_url,retention_seconds)
-    VALUES($1,$2,$3,3600)`,
-    [sourceId,'https://example.invalid/fixture','https://example.invalid/rights']);
+  const privateRights = await registerProviderRightsMetadata(pool, {
+    sourceId, endpointUrl: 'https://example.invalid/fixture',
+    approvalReference: 'CI-SYNTHETIC-TEST', evidenceSha256: '0'.repeat(64),
+    attestedBy: 'ci synthetic fixture', reviewedAt: new Date().toISOString(),
+    expiresAt: null, retentionSeconds: 3600,
+    permissions: { access: false, extraction: false, storage: false,
+      derivation: false, publicDisplay: false, commercialUse: false,
+      redistribution: false },
+  });
+  assert.equal(privateRights.documentStored, false);
+  const evidence = await pool.query(
+    'SELECT evidence_url,evidence_sha256 FROM finance.provider_rights WHERE source_id=$1',
+    [sourceId],
+  );
+  assert.equal(evidence.rows[0].evidence_url, null);
+  assert.equal(evidence.rows[0].evidence_sha256, '0'.repeat(64));
   await pool.query(`INSERT INTO finance.product_external_ids
     (product_id,source_id,source_instrument_id) VALUES($1,$2,$3)`,
     [productId,sourceId,'CI:INSTRUMENT:'+suffix]);
