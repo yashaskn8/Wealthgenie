@@ -18,7 +18,7 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
     || e.productRiskScore!==null || e.actualRetailProductEligible!==false
     || e.marketFactsVerified!==false || e.sourcePermissionVerified!==false
     || e.overallEvidence!=='STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION'
-    || e.verifiedIndividualInvestorEligibility!==false || e.suitabilityRankingPermitted!==false
+    || e.fiscalYearTaxVerified!==false
     || !['https:'].includes(new URL(e.referenceUrl).protocol))) {
   throw new Error('FINANCIAL_95_FRAMEWORK_RESEARCH_COVERAGE_INVALID');
 }
