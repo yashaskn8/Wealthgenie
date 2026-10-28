@@ -1239,6 +1239,13 @@ paths:
       security: []
       description: Paginated source-labeled discovery catalog. These are archetypes, not individually verified purchasable products.
       responses: { '200': { $ref: '#/components/responses/Object' }, '400': { $ref: '#/components/responses/BadRequest' }, '503': { $ref: '#/components/responses/Unavailable' } }
+  /api/financial-universe/discovery:
+    get:
+      operationId: listFinancialEducationalDiscovery
+      tags: [Instruments]
+      security: []
+      description: Source-backed directory of all 250 educational investment categories, independent of PostgreSQL and market-data rights. Entries have no verified actual product rates, prices, fees, tax calculations or personalized recommendation status. An official category reference link is not a commercial data entitlement.
+      responses: { '200': { $ref: '#/components/responses/Object' } }
   /api/financial-universe/summary:
     get:
       operationId: summarizeFinancialUniverse

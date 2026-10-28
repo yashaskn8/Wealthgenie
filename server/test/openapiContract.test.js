@@ -332,6 +332,7 @@ export const LIVE_CONTRACT_CASES = Object.freeze([
   { operation: 'POST /api/tax/post-tax-scenario', method: 'POST', path: '/api/tax/post-tax-scenario', url: '/api/tax/post-tax-scenario', expectedStatus: 200, body: { canonicalInstrumentId: 'sbi_fd', scenarioType: 'INTEREST_INCOME', interestReceived: 2500, annualGrossIncome: 1000000, incomeSource: 'salary', regime: 'new', fiscalYear: 'FY2026-27', userAge: 35 } },
   { operation: 'GET /api/instruments', method: 'GET', path: '/api/instruments', url: '/api/instruments?page=1&limit=10', expectedStatus: 200 },
   { operation: 'GET /api/financial-universe', method: 'GET', path: '/api/financial-universe', url: '/api/financial-universe?limit=10', expectedStatus: 503 },
+  { operation: 'GET /api/financial-universe/discovery', method: 'GET', path: '/api/financial-universe/discovery', url: '/api/financial-universe/discovery', expectedStatus: 200 },
   { operation: 'GET /api/financial-universe/summary', method: 'GET', path: '/api/financial-universe/summary', url: '/api/financial-universe/summary', expectedStatus: 503 },
   { operation: 'GET /api/financial-universe/categories', method: 'GET', path: '/api/financial-universe/categories', url: '/api/financial-universe/categories', expectedStatus: 503 },
   { operation: 'GET /api/financial-universe/three-product-families', method: 'GET', path: '/api/financial-universe/three-product-families', url: '/api/financial-universe/three-product-families', expectedStatus: 503 },
