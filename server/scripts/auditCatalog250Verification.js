@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { investmentDatabase } from '../data/investmentDatabase.js';
-import { buildTopThreeProductEvidenceQueue } from './generateFinancialTopThreeEvidenceQueue.js';
+import { buildTopThreeProductEvidenceQueue, REVIEW_QUEUE_STATUS } from './generateFinancialTopThreeEvidenceQueue.js';
 
 const manifest = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
@@ -10,6 +10,14 @@ const normalizedName = name => name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').tr
 const validId = id => typeof id === 'string' && /^[A-Za-z0-9:_-]{1,160}$/.test(id);
 const reject = (code, id) => { throw new Error(code + (id ? ':' + id : '')); };
 const csv = value => '"' + String(value ?? '').replaceAll('"', '""') + '"';
+const evidenceFields = [
+  'actualProductId', 'issuerName', 'issuerOfficialDocumentUrl',
+  'officialProductTermsUrl', 'riskEvidenceUrl', 'taxEvidenceUrl',
+  'providerSourceId', 'providerInstrumentId', 'providerApprovalReference',
+  'independentReviewer', 'approvedAt', 'expiresAt',
+];
+const slotFields = ['familyId', 'familyName', 'category', 'slot',
+  'categoryEvidenceUrl', ...evidenceFields, 'status'];
 
 export function buildCatalog250Verification({
   legacy = investmentDatabase,
@@ -25,8 +33,10 @@ export function buildCatalog250Verification({
   const slotMap = new Map();
   for (const slot of slotRows) {
     if (!slot || !validId(slot.familyId) || ![1, 2, 3].includes(slot.slot)
-      || slot.actualProductId || slot.providerInstrumentId || slot.providerApprovalReference
-      || slot.approvedAt || slot.expiresAt || slot.independentReviewer) {
+      || Object.keys(slot).length !== slotFields.length
+      || slotFields.some(field => !Object.hasOwn(slot, field))
+      || evidenceFields.some(field => slot[field] !== '')
+      || slot.status !== REVIEW_QUEUE_STATUS) {
       reject('UNAPPROVED_PRODUCT_EVIDENCE_IN_REVIEW_QUEUE', slot?.familyId);
     }
     const arr = slotMap.get(slot.familyId) || [];
@@ -42,7 +52,12 @@ export function buildCatalog250Verification({
         || nameSet.has(normalizedName(e.name))) reject('INVALID_OR_DUPLICATE_FAMILY_NAME', e.id);
       if (typeof e.category !== 'string' || !e.category.trim()) reject('MISSING_FAMILY_CATEGORY', e.id);
       const reviewSlots = slotMap.get(e.id);
-      if (!reviewSlots || reviewSlots.length !== 3) reject('FAMILY_REVIEW_SLOTS_NOT_COMPLETE', e.id);
+      if (!reviewSlots || reviewSlots.length !== 3
+        || reviewSlots.some(row => row.familyName !== e.name
+          || row.category !== e.category
+          || row.categoryEvidenceUrl !== (origin === 'EXTENDED_95' ? e.sourceUrl : ''))) {
+        reject('FAMILY_REVIEW_SLOTS_NOT_COMPLETE', e.id);
+      }
       idSet.add(e.id); nameSet.add(normalizedName(e.name));
       if (origin === 'EXTENDED_95') {
         if (e.recordKind !== 'ARCHETYPE' || e.isActualPurchasableProduct !== false
