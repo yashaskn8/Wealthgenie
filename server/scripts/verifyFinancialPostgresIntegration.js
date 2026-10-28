@@ -257,6 +257,11 @@ try {
     /PROVIDER_RIGHTS_AUDIT_IMMUTABLE/,
     'Provider-rights audit history must be append-only at the database layer',
   );
+  await assert.rejects(
+    pool.query('DELETE FROM finance.provider_entitlement_receipts WHERE source_id=$1',[sourceId]),
+    /ENTITLEMENT_RECEIPT_HISTORY_IMMUTABLE/,
+    'Provider entitlement receipt history must remain immutable',
+  );
   process.stdout.write(JSON.stringify({status:'PASS',archetypes:catalog.rows[0].n,
     sourcedExtensions:added.rows[0].n,reviewMetadataRecords:detail.rows[0].n,
     licenseAbsentDenied:true,revocationDenied:true,
@@ -269,6 +274,8 @@ try {
   await pool.query('DELETE FROM finance.family_product_qualifications WHERE product_id=ANY($1::text[])',[productIds]);
   await pool.query('DELETE FROM finance.product_external_ids WHERE source_id=$1',[sourceId]);
   await pool.query('DELETE FROM finance.products WHERE id=ANY($1::text[])',[productIds]);
-  await pool.query('DELETE FROM finance.provider_rights WHERE source_id=$1',[sourceId]);
+  // Entitlement receipts are immutable and hold a foreign-key reference to
+  // the provider. In this disposable *_test DB, leave its revoked synthetic
+  // permission record and immutable audit history until the DB is destroyed.
   await pool.end();
 }
