@@ -491,3 +491,27 @@ test('PFRDA 2026 NPS Vatsalya facts are isolated and never qualify a subscriber 
  assert.equal(fresh.individualSuitabilityVerified,false);
  assert.ok(!fresh.riskConsiderations.includes('forged'));
 });
+
+test('nine NPS framework records disclose April 2026 PFRDA NAV variants without asserting current subscriber prices or permissions',()=>{
+ const rows=listFinancialDiscoveryDirectory().items.filter(x=>x.id.startsWith('catalog_2026_nps_'));
+ assert.equal(rows.length,9);
+ for(const row of rows){
+  const review=row.frameworkResearch.npsCommonSchemeReview
+   ||row.frameworkResearch.npsVatsalyaAccessReview;
+  const nav=review.multipleNavFrameworkReview;
+  assert.equal(nav.officialPfrdaNoticeUrl,'https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026');
+  assert.equal(nav.effectiveFrom,'2026-04-01');
+  assert.equal(nav.sourceScope,
+   'PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV');
+  assert.equal(nav.specificPensionFundNavVariantVerified,false);
+  assert.equal(nav.commercialNavReuseRightsVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productData.latestNav,null);
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  nav.specificPensionFundNavVariantVerified=true;
+  const refreshed=listFinancialDiscoveryDirectory().items.find(x=>x.id===row.id);
+  const refreshedReview=refreshed.frameworkResearch.npsCommonSchemeReview
+   ||refreshed.frameworkResearch.npsVatsalyaAccessReview;
+  assert.equal(refreshedReview.multipleNavFrameworkReview.specificPensionFundNavVariantVerified,false);
+ }
+});
