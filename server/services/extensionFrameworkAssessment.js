@@ -513,6 +513,23 @@ if(research.entries.filter(x=>x.npsVatsalyaAccessReview?.guidelines2026EvidenceR
  'personalizedAdviceAuthorizationVerified'].some(k=>e[k]!==false)
  ||v.riskConsiderations.length<5||v.investorAccessConstraints.length<6)
  throw new Error('FINANCIAL_NPS_VATSALYA_2026_EFFECTIVE_GUIDELINES_EVIDENCE_INVALID');
+// A published FoF category or its underlying-fund allocation does not supply
+// the actual scheme risk-o-meter. SEBI's 5 Nov 2024 disclosure circular applies
+// at scheme level; these six archetypes have no verified scheme observation.
+const fofRiskometerCircularUrl='https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html';
+const fofIds=new Set(["catalog_2026_equity_diversified_fof","catalog_2026_equity_sector_fof","catalog_2026_fof_aggressive_hybrid","catalog_2026_fof_conservative_hybrid","catalog_2026_fof_income_arbitrage","catalog_2026_fof_dynamic_allocation"]);
+if(research.entries.some(row=>{
+ const evidence=row.fundOfFundsCategoryReview?.schemeRiskometerDisclosureReview;
+ if(!fofIds.has(row.id))return evidence!==undefined;
+ return !evidence||evidence.officialSebiCircularUrl!==fofRiskometerCircularUrl
+  ||!isOfficialFrameworkReferenceUrl(evidence.officialSebiCircularUrl)
+  ||evidence.circularIssuedOn!=='2024-11-05'||evidence.reviewedOn!=='2026-10-30'
+  ||evidence.scope!=='SCHEME_SPECIFIC_DISCLOSURE_REQUIREMENT_NOT_CATEGORY_RISK_OR_INVESTMENT_APPROVAL'
+  ||typeof evidence.categoryInterpretation!=='string'||evidence.categoryInterpretation.length<40
+  ||['actualFoFSchemeRiskometerVerified','underlyingSchemeRiskometersVerified',
+   'currentSchemeNavAndLicensedDataVerified','investorAccessAndAdviceRightsVerified']
+   .some(field=>evidence[field]!==false);
+}))throw new Error('FINANCIAL_FOF_SCHEME_RISKOMETER_DISCLOSURE_EVIDENCE_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -935,6 +952,18 @@ export function screenExtensionResearchForProfile(profileInput) {
      ||(row.governmentBondStructureReview
        && !row.governmentBondStructureReview.structureType.endsWith('_STRIP'))
    ))reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_GSEC_EARLY_SALE_PRICE_AND_SETTLEMENT_REVIEW');
+   // SEBI's scheme-level risk-o-meter and redemption disclosures do not
+   // turn an index, ETF, debt-fund or FoF category into a cash equivalent.
+   // Only an explicitly recorded zero-month emergency buffer adds these
+   // non-ranking notices; missing profile data cannot imply zero coverage.
+   if(profile.emergencyFundMonths===0){
+     if(row.indexBenchmarkReview||row.etfBenchmarkReview||row.thematicIndexReview)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_EQUITY_SCHEME_DRAWDOWN_AND_EXIT_REVIEW');
+     if(row.sebiDebtSchemeStructureReview)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_FUND_NAV_AND_REDEMPTION_REVIEW');
+     if(row.fundOfFundsCategoryReview)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FOF_UNDERLYING_RISK_AND_REDEMPTION_REVIEW');
+   }
    return {
      id:row.id,
      profileAssessment:'MISSING_SUITABILITY_EVIDENCE',

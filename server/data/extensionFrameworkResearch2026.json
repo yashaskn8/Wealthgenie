@@ -5646,7 +5646,18 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "schemeRiskometerDisclosureReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html",
+          "circularIssuedOn": "2024-11-05",
+          "reviewedOn": "2026-10-30",
+          "scope": "SCHEME_SPECIFIC_DISCLOSURE_REQUIREMENT_NOT_CATEGORY_RISK_OR_INVESTMENT_APPROVAL",
+          "categoryInterpretation": "Diversified underlying equity funds do not establish a low-risk FoF scheme label or a verified risk-o-meter.",
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemeNavAndLicensedDataVerified": false,
+          "investorAccessAndAdviceRightsVerified": false
+        }
       }
     },
     {
@@ -5700,7 +5711,18 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "schemeRiskometerDisclosureReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html",
+          "circularIssuedOn": "2024-11-05",
+          "reviewedOn": "2026-10-30",
+          "scope": "SCHEME_SPECIFIC_DISCLOSURE_REQUIREMENT_NOT_CATEGORY_RISK_OR_INVESTMENT_APPROVAL",
+          "categoryInterpretation": "Thematic and sectoral underlying exposures require the actual FoF scheme risk-o-meter; a category name is not a rating.",
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemeNavAndLicensedDataVerified": false,
+          "investorAccessAndAdviceRightsVerified": false
+        }
       }
     },
     {
@@ -5754,7 +5776,18 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "schemeRiskometerDisclosureReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html",
+          "circularIssuedOn": "2024-11-05",
+          "reviewedOn": "2026-10-30",
+          "scope": "SCHEME_SPECIFIC_DISCLOSURE_REQUIREMENT_NOT_CATEGORY_RISK_OR_INVESTMENT_APPROVAL",
+          "categoryInterpretation": "Published hybrid allocation bands do not establish a particular aggressive-hybrid FoF scheme risk-o-meter.",
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemeNavAndLicensedDataVerified": false,
+          "investorAccessAndAdviceRightsVerified": false
+        }
       }
     },
     {
@@ -5808,7 +5841,18 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "schemeRiskometerDisclosureReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html",
+          "circularIssuedOn": "2024-11-05",
+          "reviewedOn": "2026-10-30",
+          "scope": "SCHEME_SPECIFIC_DISCLOSURE_REQUIREMENT_NOT_CATEGORY_RISK_OR_INVESTMENT_APPROVAL",
+          "categoryInterpretation": "A conservative-hybrid category label is not principal protection or an independently verified low-risk scheme risk-o-meter.",
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemeNavAndLicensedDataVerified": false,
+          "investorAccessAndAdviceRightsVerified": false
+        }
       }
     },
     {
@@ -5862,7 +5906,18 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "schemeRiskometerDisclosureReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html",
+          "circularIssuedOn": "2024-11-05",
+          "reviewedOn": "2026-10-30",
+          "scope": "SCHEME_SPECIFIC_DISCLOSURE_REQUIREMENT_NOT_CATEGORY_RISK_OR_INVESTMENT_APPROVAL",
+          "categoryInterpretation": "An income/arbitrage category label does not establish deposit-like safety or the actual scheme risk-o-meter.",
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemeNavAndLicensedDataVerified": false,
+          "investorAccessAndAdviceRightsVerified": false
+        }
       }
     },
     {
@@ -5916,7 +5971,18 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "schemeRiskometerDisclosureReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html",
+          "circularIssuedOn": "2024-11-05",
+          "reviewedOn": "2026-10-30",
+          "scope": "SCHEME_SPECIFIC_DISCLOSURE_REQUIREMENT_NOT_CATEGORY_RISK_OR_INVESTMENT_APPROVAL",
+          "categoryInterpretation": "Dynamic underlying allocation makes a category-level static risk rating unreliable; verify the actual scheme disclosure.",
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemeNavAndLicensedDataVerified": false,
+          "investorAccessAndAdviceRightsVerified": false
+        }
       }
     }
   ],

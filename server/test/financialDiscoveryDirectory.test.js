@@ -727,3 +727,25 @@ test('Vatsalya updated PFRDA source warnings are copied and cannot grant product
  assert.equal(clean.guidelines2026EvidenceReview.currentGuidelinesInitialAndAnnualMinimumInr,250);
  assert.ok(!clean.riskConsiderations.includes('forged'));
 });
+
+test('FoF scheme risk-o-meter disclosure references are copied without granting data or advice rights',()=>{
+ const ids=['catalog_2026_equity_diversified_fof','catalog_2026_equity_sector_fof',
+  'catalog_2026_fof_aggressive_hybrid','catalog_2026_fof_conservative_hybrid',
+  'catalog_2026_fof_income_arbitrage','catalog_2026_fof_dynamic_allocation'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ for(const id of ids){
+  const item=get(id),e=item.frameworkResearch.fundOfFundsCategoryReview.schemeRiskometerDisclosureReview;
+  assert.equal(e.actualFoFSchemeRiskometerVerified,false,id);
+  assert.equal(e.underlyingSchemeRiskometersVerified,false,id);
+  assert.equal(e.currentSchemeNavAndLicensedDataVerified,false,id);
+  assert.equal(e.investorAccessAndAdviceRightsVerified,false,id);
+  assert.equal(item.recommendationEligible,false,id);
+  assert.equal(item.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(item.productData).every(value=>value===null),id);
+  e.actualFoFSchemeRiskometerVerified=true;
+  e.categoryInterpretation='FORGED CATEGORY APPROVAL';
+  const next=get(id).frameworkResearch.fundOfFundsCategoryReview.schemeRiskometerDisclosureReview;
+  assert.equal(next.actualFoFSchemeRiskometerVerified,false,id);
+  assert.notEqual(next.categoryInterpretation,'FORGED CATEGORY APPROVAL',id);
+ }
+});

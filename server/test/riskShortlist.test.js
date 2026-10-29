@@ -1250,3 +1250,60 @@ test('recorded zero emergency buffer flags six government security categories fo
  assert.equal(zero.length,95);
  assert.equal(new Set(zero.map(row=>row.id)).size,95);
 });
+
+test('six FoF categories retain source-scoped SEBI scheme risk-o-meter evidence, never scheme approval',()=>{
+ const rows=listExtensionResearch().filter(row=>row.fundOfFundsCategoryReview);
+ assert.equal(rows.length,6);
+ const interpretations=new Set();
+ for(const row of rows){
+  const e=row.fundOfFundsCategoryReview.schemeRiskometerDisclosureReview;
+  assert.equal(e.officialSebiCircularUrl,
+   'https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html');
+  assert.equal(e.circularIssuedOn,'2024-11-05');
+  assert.equal(e.reviewedOn,'2026-10-30');
+  assert.equal(e.scope,'SCHEME_SPECIFIC_DISCLOSURE_REQUIREMENT_NOT_CATEGORY_RISK_OR_INVESTMENT_APPROVAL');
+  assert.ok(isOfficialFrameworkReferenceUrl(e.officialSebiCircularUrl));
+  assert.ok(e.categoryInterpretation.length>40);
+  interpretations.add(e.categoryInterpretation);
+  for(const key of ['actualFoFSchemeRiskometerVerified','underlyingSchemeRiskometersVerified',
+   'currentSchemeNavAndLicensedDataVerified','investorAccessAndAdviceRightsVerified'])
+   assert.equal(e[key],false,row.id+' '+key);
+  assert.equal(row.productRiskScore,null);
+  assert.equal(row.actualRetailProductEligible,false);
+  assert.equal(row.suitabilityRankingPermitted,false);
+ }
+ assert.equal(interpretations.size,6,'Each FoF has an individual risk interpretation');
+});
+
+test('zero emergency buffer adds source-specific non-ranking MF and ETF liquidity notices',()=>{
+ const categories=[
+  ['indexBenchmarkReview','RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_EQUITY_SCHEME_DRAWDOWN_AND_EXIT_REVIEW',11],
+  ['etfBenchmarkReview','RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_EQUITY_SCHEME_DRAWDOWN_AND_EXIT_REVIEW',10],
+  ['thematicIndexReview','RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_EQUITY_SCHEME_DRAWDOWN_AND_EXIT_REVIEW',3],
+  ['sebiDebtSchemeStructureReview','RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_FUND_NAV_AND_REDEMPTION_REVIEW',9],
+  ['fundOfFundsCategoryReview','RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FOF_UNDERLYING_RISK_AND_REDEMPTION_REVIEW',6],
+ ];
+ const make=months=>screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:months,investmentGoals:['Wealth Growth'],
+  investmentHorizonYears:10,riskTolerance:'Aggressive',
+ }));
+ const zero=make(0),missing=make(null),positive=make(6);
+ const source=listExtensionResearch(),byId=rows=>new Map(rows.map(row=>[row.id,row]));
+ const z=byId(zero),m=byId(missing),p=byId(positive);
+ for(const [key,code,expected] of categories){
+  const rows=source.filter(row=>row[key]);
+  assert.equal(rows.length,expected,key);
+  for(const row of rows){
+   assert.ok(z.get(row.id).screeningReasonCodes.includes(code),row.id+' zero');
+   assert.ok(!m.get(row.id).screeningReasonCodes.includes(code),row.id+' missing');
+   assert.ok(!p.get(row.id).screeningReasonCodes.includes(code),row.id+' positive');
+  }
+ }
+ const notices=categories.map(x=>x[1]);
+ for(const id of ['catalog_2026_bank_rd','catalog_2026_po_td_2','catalog_2026_gsec_floating']){
+  assert.ok(notices.every(code=>!z.get(id).screeningReasonCodes.includes(code)),id);
+ }
+ assert.equal(zero.length,95);
+ assert.ok(zero.every(row=>row.productQualified===false&&row.scoreAvailable===false
+  &&row.productRiskLevel===null&&row.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'));
+});
