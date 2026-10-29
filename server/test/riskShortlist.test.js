@@ -679,3 +679,35 @@ test('all 23 final research categories remain unqualified with profile-bound scr
    }
  }
 });
+
+test('NPS Vatsalya 2026 PFRDA facts produce only profile-supported, non-ranking cautions',()=>{
+ const row=listExtensionResearch().find(x=>x.id==='catalog_2026_nps_vatsalya');
+ const review=row.npsVatsalyaAccessReview;
+ assert.equal(review.reviewedOn,'2026-10-29');
+ assert.equal(review.minimumInitialContributionInr,250);
+ assert.equal(review.partialWithdrawalLockInYears,3);
+ assert.equal(review.partialWithdrawalMaximumPctOfOwnContributions,25);
+ assert.equal(review.marketLinkedReturnsNotGuaranteed,true);
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund'],
+ })).find(x=>x.id===row.id);
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement'],
+ })).find(x=>x.id===row.id);
+ for(const item of [short,long]){
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   for(const code of ['NPS_VATSALYA_MINOR_GUARDIAN_KYC_AND_AGE_18_TRANSITION_REQUIRE_REVIEW',
+     'NPS_VATSALYA_PFRDA_2026_THREE_YEAR_RESTRICTED_WITHDRAWAL_AND_FRESH_KYC_REVIEW',
+     'NPS_VATSALYA_SPECIFIC_PENSION_FUND_NAV_FEES_AND_MARKET_RISK_UNVERIFIED'])
+     assert.ok(item.screeningReasonCodes.includes(code),code);
+ }
+ for(const code of ['EMERGENCY_FUND_REQUIRES_NPS_VATSALYA_RESTRICTED_WITHDRAWAL_REVIEW',
+   'SHORT_HORIZON_BELOW_NPS_VATSALYA_PARTIAL_WITHDRAWAL_LOCK_IN',
+   'CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_MARKET_LOSS_CAPACITY_REVIEW']){
+   assert.ok(short.screeningReasonCodes.includes(code),code);
+   assert.ok(!long.screeningReasonCodes.includes(code),code);
+ }
+});
