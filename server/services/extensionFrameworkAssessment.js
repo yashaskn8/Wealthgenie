@@ -466,6 +466,30 @@ if(research.entries.filter(row=>row.debtInstrumentReview?.merchantBankerExemptio
      ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
      ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<3;
  }))throw new Error('FINANCIAL_OCTOBER_DEBT_ISSUER_PROCESS_EXCEPTION_SCOPE_INVALID');
+// Vatsalya 2026 effective scheme rules outrank an older still-live FAQ.
+const vatsalyaResearch=research.entries.find(x=>x.id==='catalog_2026_nps_vatsalya');
+const v=vatsalyaResearch?.npsVatsalyaAccessReview, e=v?.guidelines2026EvidenceReview;
+if(research.entries.filter(x=>x.npsVatsalyaAccessReview?.guidelines2026EvidenceReview).length!==1
+ ||v.eligibleSubscriber!=='INDIAN_CITIZEN_OR_NRI_OR_OCI_UNDER_18_WITH_PARENT_OR_LEGAL_GUARDIAN'
+ ||v.minimumSubsequentContributionInr!==null
+ ||e?.officialGuidelinesUrl!=='https://pfrda.org.in/documents/33652/153574/NPS%2BVatsalya%2BScheme%2BGuidelines%2B2025.pdf'
+ ||e.officialEffectiveDateNoticeUrl!=='https://pfrda.org.in/documents/33652/153574/Circular%2BNPS%2BVatsalya%2BScheme%2BGuidelines%2B2025%2Beffective%2Bfrom%2B23rd%2BFeb%2B2026.pdf'
+ ||e.officialUpdatedFaqUrl!=='https://www.pfrda.org.in/d/faqs-nps-vatsalya-updated-as-on-16-06-2026-'
+ ||e.olderStillAccessibleFaqUrl!=='https://pfrda.org.in/hi/w/faqs/nps-vatsalya'
+ ||e.guidelinesIssuedOn!=='2026-01-07'||e.effectiveDateNotifiedOn!=='2026-02-27'
+ ||e.effectiveFrom!=='2026-02-23'||e.updatedFaqAsOf!=='2026-06-16'||e.reviewedOn!=='2026-10-29'
+ ||e.olderFaqStatesInitialAndAnnualMinimumInr!==1000||e.currentGuidelinesInitialAndAnnualMinimumInr!==250
+ ||e.olderFaqStatesFullExitCorpusLimitInr!==250000
+ ||e.currentGuidelinesFullExitWording!=='LESS_THAN_800000_INR'
+ ||e.pressReleaseFullExitWording!=='800000_INR_OR_LESS'
+ ||e.sourceScope!=='EFFECTIVE_PFRDA_2026_SCHEME_RULES_AND_STALE_FAQ_CONFLICT_NOT_ACCOUNT_APPROVAL'
+ ||['minimumPerSubsequentContributionNotEstablished','fullExitBoundaryWordingRequiresConfirmation',
+ 'pensionFundMayDesignUpToFullEquityAllocation','automaticHighEquityMsfShiftAt21IfNoChoice'].some(k=>e[k]!==true)
+ ||['currentSelectedPensionFundAllocationVerified','individualGuardianMinorNriOciKycVerified',
+ 'individualContributionAndExitTermsVerified','schemeNavRiskometerAndMarketDataRightsVerified',
+ 'personalizedAdviceAuthorizationVerified'].some(k=>e[k]!==false)
+ ||v.riskConsiderations.length<5||v.investorAccessConstraints.length<6)
+ throw new Error('FINANCIAL_NPS_VATSALYA_2026_EFFECTIVE_GUIDELINES_EVIDENCE_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -510,12 +534,16 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('NPS_VATSALYA_MINOR_GUARDIAN_KYC_AND_AGE_18_TRANSITION_REQUIRE_REVIEW');
        reasons.push('NPS_VATSALYA_PFRDA_2026_THREE_YEAR_RESTRICTED_WITHDRAWAL_AND_FRESH_KYC_REVIEW');
        reasons.push('NPS_VATSALYA_SPECIFIC_PENSION_FUND_NAV_FEES_AND_MARKET_RISK_UNVERIFIED');
+       reasons.push('NPS_VATSALYA_2026_GUIDELINES_SUPERSEDE_STALE_FAQ_CONTRIBUTION_AND_EXIT_FIGURES');
+       reasons.push('NPS_VATSALYA_PENSION_FUND_MAY_USE_FULL_EQUITY_AND_AGE_21_HIGH_EQUITY_SHIFT_REVIEW');
+       reasons.push('NPS_VATSALYA_EXACT_FULL_EXIT_CORPUS_BOUNDARY_AND_KYC_NOT_VERIFIED');
        if(profile.investmentGoals.includes('Emergency Fund'))
          reasons.push('EMERGENCY_FUND_REQUIRES_NPS_VATSALYA_RESTRICTED_WITHDRAWAL_REVIEW');
        if(profile.investmentHorizonYears<3)
          reasons.push('SHORT_HORIZON_BELOW_NPS_VATSALYA_PARTIAL_WITHDRAWAL_LOCK_IN');
        if(profile.riskTolerance==='Conservative')
-         reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_MARKET_LOSS_CAPACITY_REVIEW');
+         {reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_MARKET_LOSS_CAPACITY_REVIEW');
+         reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_PENSION_FUND_FULL_EQUITY_REVIEW');}
      }
      else
        // PFRDA All Citizen Model: removal of the five-year minimum does not

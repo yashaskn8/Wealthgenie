@@ -705,3 +705,25 @@ test('October 2026 debt issuer exemption research is copied, not product or reta
   assert.equal(clean.merchantBankerExemptionApprovedForIssuer,false,id);
  }
 });
+
+test('Vatsalya updated PFRDA source warnings are copied and cannot grant product approval',()=>{
+ const find=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_nps_vatsalya');
+ const item=find(),r=item.frameworkResearch.npsVatsalyaAccessReview,e=r.guidelines2026EvidenceReview;
+ assert.equal(e.officialUpdatedFaqUrl,'https://www.pfrda.org.in/d/faqs-nps-vatsalya-updated-as-on-16-06-2026-');
+ assert.equal(e.effectiveFrom,'2026-02-23');
+ assert.equal(e.fullExitBoundaryWordingRequiresConfirmation,true);
+ assert.equal(e.minimumPerSubsequentContributionNotEstablished,true);
+ assert.equal(e.currentSelectedPensionFundAllocationVerified,false);
+ assert.equal(e.individualContributionAndExitTermsVerified,false);
+ assert.equal(e.schemeNavRiskometerAndMarketDataRightsVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.ok(Object.values(item.productData).every(v=>v===null));
+ e.individualContributionAndExitTermsVerified=true;
+ e.currentGuidelinesInitialAndAnnualMinimumInr=1000;
+ r.riskConsiderations.push('forged');
+ const clean=find().frameworkResearch.npsVatsalyaAccessReview;
+ assert.equal(clean.guidelines2026EvidenceReview.individualContributionAndExitTermsVerified,false);
+ assert.equal(clean.guidelines2026EvidenceReview.currentGuidelinesInitialAndAnnualMinimumInr,250);
+ assert.ok(!clean.riskConsiderations.includes('forged'));
+});

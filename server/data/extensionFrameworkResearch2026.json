@@ -3669,10 +3669,10 @@
         "officialPfrdaSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya",
         "officialPfrdaGuidelinesPressReleaseUrl": "https://www.pfrda.org.in/documents/33652/86710/Press%2BRelease%2B-%2BPFRDA%2Bissues%2BNPS%2BVatsalya%2BScheme%2BGuidelines%2B2025.pdf",
         "reviewedOn": "2026-10-29",
-        "eligibleSubscriber": "INDIAN_CITIZEN_UNDER_18_WITH_PARENT_OR_LEGAL_GUARDIAN",
+        "eligibleSubscriber": "INDIAN_CITIZEN_OR_NRI_OR_OCI_UNDER_18_WITH_PARENT_OR_LEGAL_GUARDIAN",
         "minimumInitialContributionInr": 250,
         "minimumAnnualContributionInr": 250,
-        "minimumSubsequentContributionInr": 10,
+        "minimumSubsequentContributionInr": null,
         "partialWithdrawalLockInYears": 3,
         "partialWithdrawalMaximumPctOfOwnContributions": 25,
         "partialWithdrawalExcludesReturns": true,
@@ -3691,13 +3691,17 @@
         "riskConsiderations": [
           "Selected pension fund and asset allocation can lose value; no fixed or guaranteed return.",
           "Partial withdrawal is restricted by three-year lock-in, eligible purposes, and own-contribution limits; not equivalent to emergency cash.",
-          "At majority, fresh KYC and scheme-specific exit/annuity rules affect access."
+          "At majority, fresh KYC and scheme-specific exit/annuity rules affect access.",
+          "PFRDA's June 16, 2026 FAQ permits pension funds to design Vatsalya schemes with up to 100% equity; no actual selected allocation, NAV or individual loss capacity is verified.",
+          "If no choice is made by age 21, the effective guidelines describe a shift to a higher-equity MSF variant; the applicable account and KYC status are unknown."
         ],
         "investorAccessConstraints": [
           "Actual minor age and citizenship, guardian authority, required KYC and registered intermediary must be checked independently.",
           "Current pension fund, selected allocation, NAV, charges, investor tax treatment, access and advice permissions are not verified.",
           "Account exit/withdrawal rules depend on subscriber age, corpus and applicable regulations; do not infer personalized eligibility.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's effective 2026 guidelines and June FAQ specify Rs 250 opening/annual contributions, while an older still-accessible FAQ says Rs 1,000; stale figures are not current booking terms.",
+          "The January guidelines use 'less than Rs 8 lakh' for full exit while the January press release says 'Rs 8 lakh or less'; the exact boundary, KYC and subscriber-specific exit conditions require confirmation."
         ],
         "specificPensionFundAndAllocationVerified": false,
         "minorCitizenshipAgeGuardianKycVerified": false,
@@ -3735,6 +3739,32 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "guidelines2026EvidenceReview": {
+          "officialGuidelinesUrl": "https://pfrda.org.in/documents/33652/153574/NPS%2BVatsalya%2BScheme%2BGuidelines%2B2025.pdf",
+          "officialEffectiveDateNoticeUrl": "https://pfrda.org.in/documents/33652/153574/Circular%2BNPS%2BVatsalya%2BScheme%2BGuidelines%2B2025%2Beffective%2Bfrom%2B23rd%2BFeb%2B2026.pdf",
+          "officialUpdatedFaqUrl": "https://www.pfrda.org.in/d/faqs-nps-vatsalya-updated-as-on-16-06-2026-",
+          "olderStillAccessibleFaqUrl": "https://pfrda.org.in/hi/w/faqs/nps-vatsalya",
+          "guidelinesIssuedOn": "2026-01-07",
+          "effectiveDateNotifiedOn": "2026-02-27",
+          "effectiveFrom": "2026-02-23",
+          "updatedFaqAsOf": "2026-06-16",
+          "reviewedOn": "2026-10-29",
+          "olderFaqStatesInitialAndAnnualMinimumInr": 1000,
+          "currentGuidelinesInitialAndAnnualMinimumInr": 250,
+          "minimumPerSubsequentContributionNotEstablished": true,
+          "olderFaqStatesFullExitCorpusLimitInr": 250000,
+          "currentGuidelinesFullExitWording": "LESS_THAN_800000_INR",
+          "pressReleaseFullExitWording": "800000_INR_OR_LESS",
+          "fullExitBoundaryWordingRequiresConfirmation": true,
+          "pensionFundMayDesignUpToFullEquityAllocation": true,
+          "automaticHighEquityMsfShiftAt21IfNoChoice": true,
+          "currentSelectedPensionFundAllocationVerified": false,
+          "individualGuardianMinorNriOciKycVerified": false,
+          "individualContributionAndExitTermsVerified": false,
+          "schemeNavRiskometerAndMarketDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "sourceScope": "EFFECTIVE_PFRDA_2026_SCHEME_RULES_AND_STALE_FAQ_CONFLICT_NOT_ACCOUNT_APPROVAL"
         }
       }
     },

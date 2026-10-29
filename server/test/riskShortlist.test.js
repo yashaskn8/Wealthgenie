@@ -1141,3 +1141,43 @@ test('October 7 SEBI merchant-banker exception is conditional issuer process, ne
  assert.ok(!rows.find(x=>x.id==='catalog_2026_ncd_unlisted')
   .debtInstrumentReview.merchantBankerExemptionOct2026Review);
 });
+
+test('NPS Vatsalya effective 2026 guidance and stale FAQ remain distinct from applicant eligibility',()=>{
+ const r=listExtensionResearch().find(x=>x.id==='catalog_2026_nps_vatsalya').npsVatsalyaAccessReview;
+ const e=r.guidelines2026EvidenceReview;
+ assert.equal(r.eligibleSubscriber,'INDIAN_CITIZEN_OR_NRI_OR_OCI_UNDER_18_WITH_PARENT_OR_LEGAL_GUARDIAN');
+ assert.equal(r.minimumInitialContributionInr,250);
+ assert.equal(r.minimumAnnualContributionInr,250);
+ assert.equal(r.minimumSubsequentContributionInr,null);
+ assert.equal(e.effectiveFrom,'2026-02-23');
+ assert.equal(e.updatedFaqAsOf,'2026-06-16');
+ assert.equal(e.olderFaqStatesInitialAndAnnualMinimumInr,1000);
+ assert.equal(e.currentGuidelinesInitialAndAnnualMinimumInr,250);
+ assert.equal(e.olderFaqStatesFullExitCorpusLimitInr,250000);
+ assert.equal(e.currentGuidelinesFullExitWording,'LESS_THAN_800000_INR');
+ assert.equal(e.pressReleaseFullExitWording,'800000_INR_OR_LESS');
+ assert.equal(e.fullExitBoundaryWordingRequiresConfirmation,true);
+ assert.equal(e.minimumPerSubsequentContributionNotEstablished,true);
+ assert.equal(e.pensionFundMayDesignUpToFullEquityAllocation,true);
+ assert.equal(e.automaticHighEquityMsfShiftAt21IfNoChoice,true);
+ for(const key of ['currentSelectedPensionFundAllocationVerified','individualGuardianMinorNriOciKycVerified',
+  'individualContributionAndExitTermsVerified','schemeNavRiskometerAndMarketDataRightsVerified',
+  'personalizedAdviceAuthorizationVerified'])assert.equal(e[key],false,key);
+ const conservative=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative'}))
+  .find(x=>x.id==='catalog_2026_nps_vatsalya');
+ const aggressive=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive'}))
+  .find(x=>x.id==='catalog_2026_nps_vatsalya');
+ for(const item of [conservative,aggressive]){
+  for(const code of ['NPS_VATSALYA_2026_GUIDELINES_SUPERSEDE_STALE_FAQ_CONTRIBUTION_AND_EXIT_FIGURES',
+   'NPS_VATSALYA_PENSION_FUND_MAY_USE_FULL_EQUITY_AND_AGE_21_HIGH_EQUITY_SHIFT_REVIEW',
+   'NPS_VATSALYA_EXACT_FULL_EXIT_CORPUS_BOUNDARY_AND_KYC_NOT_VERIFIED'])
+   assert.ok(item.screeningReasonCodes.includes(code),code);
+  assert.equal(item.productQualified,false);
+  assert.equal(item.scoreAvailable,false);
+  assert.equal(item.productRiskLevel,null);
+ }
+ assert.ok(conservative.screeningReasonCodes.includes(
+  'CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_PENSION_FUND_FULL_EQUITY_REVIEW'));
+ assert.ok(!aggressive.screeningReasonCodes.includes(
+  'CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_PENSION_FUND_FULL_EQUITY_REVIEW'));
+});
