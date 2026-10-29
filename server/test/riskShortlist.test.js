@@ -477,7 +477,7 @@ test('five independently sourced broad-market equity indices remain non-ranking 
   assert.ok(get(short).includes('CONSERVATIVE_PROFILE_REQUIRES_EQUITY_INDEX_LOSS_CAPACITY_REVIEW'));
   assert.ok(!get(long).includes('CONSERVATIVE_PROFILE_REQUIRES_EQUITY_INDEX_LOSS_CAPACITY_REVIEW'));
  }
- assert.equal(rows.filter(x=>x.indexBenchmarkReview).length,5);
+ assert.equal(rows.filter(x=>x.indexBenchmarkReview).length,11);
 });
 
 
@@ -532,4 +532,36 @@ test('eight PFRDA common NPS choices have source-specific risks and age/horizon 
  rows.find(x=>x.id==='catalog_2026_nps_asset_a').npsCommonSchemeReview.riskConsiderations.push('tampered');
  assert.ok(!listExtensionResearch().find(x=>x.id==='catalog_2026_nps_asset_a')
   .npsCommonSchemeReview.riskConsiderations.includes('tampered'));
+});
+
+
+test('six sourced NSE factor index archetypes remain non-ranking with profile-dependent review notices',()=>{
+ const specs={"catalog_2026_index_nifty50_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","code":"EQUAL_WEIGHT_NIFTY50"},"catalog_2026_index_nifty100_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight","code":"EQUAL_WEIGHT_NIFTY100"},"catalog_2026_index_nifty200_quality":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","code":"QUALITY_SCORE_NIFTY200"},"catalog_2026_index_nifty_lowvol":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-low-volatility","code":"LOW_VOLATILITY_NIFTY100"},"catalog_2026_index_nifty500_momentum":{"url":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","code":"MOMENTUM_NIFTY500"},"catalog_2026_index_nifty500_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight","code":"EQUAL_WEIGHT_NIFTY500"}};
+ const rows=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund']}));
+ const long=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement']}));
+ for(const [id,spec] of Object.entries(specs)){
+  const row=rows.find(x=>x.id===id),r=row.indexBenchmarkReview;
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
+  assert.equal(r.officialNseIndexUrl,spec.url);
+  assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,spec.url);
+  assert.equal(r.factorStrategyCode,spec.code);
+  assert.ok(r.riskConsiderations.length>=2&&r.investorAccessConstraints.length>=2);
+  for(const key of ['specificSchemeAndAmcVerified','currentSchemeRiskometerVerified','currentNavOrExchangeQuoteVerified','currentSidKimFeesAndTrackingErrorVerified','investorKycAndRetailAccessVerified','independentCommercialDataRightsVerified','taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified'])assert.equal(r[key],false,id+key);
+  const s=short.find(x=>x.id===id),l=long.find(x=>x.id===id);
+  for(const x of [s,l]){
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   assert.ok(x.screeningReasonCodes.includes('FACTOR_INDEX_METHODOLOGY_NOT_SCHEME_RISK_OR_LOSS_PROTECTION'));
+   assert.ok(x.screeningReasonCodes.includes('INDEX_FUND_SCHEME_RISKOMETER_NAV_TRACKING_COSTS_KYC_AND_SOURCE_RIGHTS_UNVERIFIED'));
+  }
+  assert.ok(s.screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_FACTOR_STRATEGY_LOSS_CAPACITY_REVIEW'));
+  assert.ok(!l.screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_FACTOR_STRATEGY_LOSS_CAPACITY_REVIEW'));
+  assert.ok(s.screeningReasonCodes.includes('SHORT_HORIZON_REQUIRES_EQUITY_INDEX_DRAWDOWN_AND_REDEMPTION_REVIEW'));
+  assert.ok(!l.screeningReasonCodes.includes('SHORT_HORIZON_REQUIRES_EQUITY_INDEX_DRAWDOWN_AND_REDEMPTION_REVIEW'));
+  const factor=spec.code.startsWith('EQUAL_WEIGHT_')?'EQUAL_WEIGHT_REBALANCING_AND_RELATIVE_SIZE_EXPOSURE_REVIEW':spec.code==='QUALITY_SCORE_NIFTY200'?'QUALITY_FACTOR_ACCOUNTING_METRICS_AND_CONCENTRATION_REVIEW':spec.code==='LOW_VOLATILITY_NIFTY100'?'LOW_VOLATILITY_HISTORICAL_MEASURE_NOT_CAPITAL_PROTECTION':'MOMENTUM_REVERSAL_AND_RECONSTITUTION_TURNOVER_REVIEW';
+  assert.ok(s.screeningReasonCodes.includes(factor));
+ }
+ assert.equal(rows.filter(x=>x.indexBenchmarkReview).length,11);
 });

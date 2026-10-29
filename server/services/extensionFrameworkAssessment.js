@@ -25,6 +25,8 @@ const npsLifecycleCircularUrl="https://pfrda.org.in/documents/33652/154008/Circu
 const npsExitFaqUrl="https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf";
 const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50","catalog_2026_index_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_index_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_index_midcap150":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150","catalog_2026_index_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"});
 const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
+const nseFactorIndexSpecs=Object.freeze({"catalog_2026_index_nifty50_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","code":"EQUAL_WEIGHT_NIFTY50"},"catalog_2026_index_nifty100_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight","code":"EQUAL_WEIGHT_NIFTY100"},"catalog_2026_index_nifty200_quality":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","code":"QUALITY_SCORE_NIFTY200"},"catalog_2026_index_nifty_lowvol":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-low-volatility","code":"LOW_VOLATILITY_NIFTY100"},"catalog_2026_index_nifty500_momentum":{"url":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","code":"MOMENTUM_NIFTY500"},"catalog_2026_index_nifty500_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight","code":"EQUAL_WEIGHT_NIFTY500"}});
+const nseIndexPages=Object.freeze({...nseBroadIndexPages,...Object.fromEntries(Object.entries(nseFactorIndexSpecs).map(([id,x])=>[id,x.url]))});
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -139,15 +141,15 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
         'taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified']
         .some(key=>x.sebiDebtSchemeStructureReview[key]!==false))
     : x.sebiDebtSchemeStructureReview!==undefined)
-  || research.entries.some(x=>Object.hasOwn(nseBroadIndexPages,x.id)
+  || research.entries.some(x=>Object.hasOwn(nseIndexPages,x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
-      || x.indexBenchmarkReview?.officialNseIndexUrl!==nseBroadIndexPages[x.id]
+      || x.indexBenchmarkReview?.officialNseIndexUrl!==nseIndexPages[x.id]
       || x.indexBenchmarkReview?.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
       || x.indexBenchmarkReview?.officialSebiMutualFundRegulationsListingUrl!=='https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3'
       || x.indexBenchmarkReview?.sebiMutualFundRegulationsLastAmendedOn!=='2026-10-10'
       || x.indexBenchmarkReview?.reviewedOn!=='2026-10-29'
       || x.indexBenchmarkReview?.sourceScope!=='OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME'
-      || x.verifiedPublicFrameworkFact?.officialSourceUrl!==nseBroadIndexPages[x.id]
+      || x.verifiedPublicFrameworkFact?.officialSourceUrl!==nseIndexPages[x.id]
       || !Array.isArray(x.indexBenchmarkReview?.riskConsiderations)
       || x.indexBenchmarkReview.riskConsiderations.length<2
       || !Array.isArray(x.indexBenchmarkReview?.investorAccessConstraints)
@@ -158,6 +160,11 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
         'taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified']
         .some(key=>x.indexBenchmarkReview[key]!==false))
     : x.indexBenchmarkReview!==undefined)
+  || research.entries.some(x=>Object.hasOwn(nseFactorIndexSpecs,x.id)
+    ? (x.indexBenchmarkReview?.factorStrategyCode!==nseFactorIndexSpecs[x.id].code
+      || typeof x.indexBenchmarkReview?.factorMethodology!=='string'
+      || x.indexBenchmarkReview.factorMethodology.length<35)
+    : x.indexBenchmarkReview?.factorStrategyCode!==undefined)
   || research.entries.some(x=>Object.hasOwn(npsCommonChoiceSpecs,x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
       || x.npsCommonSchemeReview?.choiceCode!==npsCommonChoiceSpecs[x.id].choiceCode
@@ -313,6 +320,20 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('MID_SMALL_CAP_INDEX_VOLATILITY_AND_CONSTITUENT_LIQUIDITY_REVIEW');
      if(row.id==='catalog_2026_index_smallcap250')
        reasons.push('SMALLCAP_INDEX_UNDERLYING_LIQUIDITY_AND_REPLICATION_REVIEW');
+     if(row.indexBenchmarkReview.factorStrategyCode) {
+       reasons.push('FACTOR_INDEX_METHODOLOGY_NOT_SCHEME_RISK_OR_LOSS_PROTECTION');
+       const factor=row.indexBenchmarkReview.factorStrategyCode;
+       if(factor.startsWith('EQUAL_WEIGHT_'))
+         reasons.push('EQUAL_WEIGHT_REBALANCING_AND_RELATIVE_SIZE_EXPOSURE_REVIEW');
+       if(factor==='QUALITY_SCORE_NIFTY200')
+         reasons.push('QUALITY_FACTOR_ACCOUNTING_METRICS_AND_CONCENTRATION_REVIEW');
+       if(factor==='LOW_VOLATILITY_NIFTY100')
+         reasons.push('LOW_VOLATILITY_HISTORICAL_MEASURE_NOT_CAPITAL_PROTECTION');
+       if(factor==='MOMENTUM_NIFTY500')
+         reasons.push('MOMENTUM_REVERSAL_AND_RECONSTITUTION_TURNOVER_REVIEW');
+       if(profile.riskTolerance==='Conservative')
+         reasons.push('CONSERVATIVE_PROFILE_REQUIRES_FACTOR_STRATEGY_LOSS_CAPACITY_REVIEW');
+     }
    }
    if(row.nbfcPublicDepositAccessReview) {
      reasons.push('NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED');

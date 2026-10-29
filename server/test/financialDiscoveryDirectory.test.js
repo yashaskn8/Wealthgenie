@@ -324,7 +324,7 @@ test('five equity index archetypes expose independent official benchmark evidenc
   assert.equal(item.dataRights,'NOT_VERIFIED');
   assert.ok(Object.values(item.productData).every(v=>v===null));
  }
- assert.equal(items.filter(x=>x.frameworkResearch?.indexBenchmarkReview).length,5);
+ assert.equal(items.filter(x=>x.frameworkResearch?.indexBenchmarkReview).length,11);
  const first=items.find(x=>x.id==='catalog_2026_index_nifty100');
  first.frameworkResearch.indexBenchmarkReview.riskConsiderations.push('forged');
  first.frameworkResearch.indexBenchmarkReview.individualSuitabilityVerified=true;
@@ -370,4 +370,26 @@ test('eight PFRDA NPS common choices expose independently copied dated framework
  const again=listFinancialDiscoveryDirectory().items.find(x=>x.id===rows[7].id);
  assert.ok(!again.frameworkResearch.npsCommonSchemeReview.riskConsiderations.includes('tampered'));
  assert.notEqual(again.frameworkResearch.npsCommonSchemeReview.investorAccessConstraints[0],'tampered');
+});
+
+
+test('six factor index directory rows isolate official methodology and retain product gates',()=>{
+ const ids=["catalog_2026_index_nifty50_equal","catalog_2026_index_nifty100_equal","catalog_2026_index_nifty200_quality","catalog_2026_index_nifty_lowvol","catalog_2026_index_nifty500_momentum","catalog_2026_index_nifty500_equal"];
+ const items=listFinancialDiscoveryDirectory().items;
+ for(const id of ids){
+  const item=items.find(x=>x.id===id),r=item.frameworkResearch.indexBenchmarkReview;
+  assert.equal(r.reviewedOn,'2026-10-29');
+  assert.equal(r.officialNseIndexUrl,item.frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl);
+  assert.ok(r.factorMethodology.length>35);
+  assert.equal(r.independentCommercialDataRightsVerified,false);
+  assert.equal(r.currentSchemeRiskometerVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.ok(Object.values(item.productData).every(v=>v===null));
+ }
+ const x=items.find(x=>x.id==='catalog_2026_index_nifty500_momentum');
+ x.frameworkResearch.indexBenchmarkReview.riskConsiderations.push('forged');
+ x.frameworkResearch.indexBenchmarkReview.factorStrategyCode='FORGED';
+ const fresh=listFinancialDiscoveryDirectory().items.find(y=>y.id===x.id);
+ assert.equal(fresh.frameworkResearch.indexBenchmarkReview.factorStrategyCode,'MOMENTUM_NIFTY500');
+ assert.ok(!fresh.frameworkResearch.indexBenchmarkReview.riskConsiderations.includes('forged'));
 });

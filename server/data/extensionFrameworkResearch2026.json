@@ -1611,10 +1611,10 @@
     {
       "id": "catalog_2026_index_nifty50_equal",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty 50 Equal Weight Index-Tracking Fund Strategy: Equal Weight Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 50 Equal Weight Index-Tracking Fund Strategy: Equal Weight Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. Official NSE benchmark construction: Nifty 50 constituents assigned equal weight at periodic rebalancing. This is not an authenticated fund or ETF; scheme-specific riskometer, NAV, KYC, access, permissions, tax and suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1630,19 +1630,47 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty50 Equal Weight",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty50 Equal Weight",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "Nifty 50 constituents assigned equal weight at periodic rebalancing",
+        "factorStrategyCode": "EQUAL_WEIGHT_NIFTY50",
+        "factorMethodology": "Nifty 50 constituents assigned equal weight at periodic rebalancing",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Equal weighting raises smaller-constituent influence versus the cap-weighted parent",
+          "Equity loss, turnover and tracking differences remain possible"
+        ],
+        "investorAccessConstraints": [
+          "Verify named AMC scheme/ETF, current SID/KIM, tracking strategy and scheme-specific riskometer",
+          "Verify investor KYC and scheme minimum, settlement, costs, authorized current NAV/quote, commercial redistribution rights and advice authority"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty100_equal",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty 100 Equal Weight Index-Tracking Fund Strategy: Equal Weight Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 100 Equal Weight Index-Tracking Fund Strategy: Equal Weight Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. Official NSE benchmark construction: Nifty 100 constituents assigned equal weight at periodic rebalancing. This is not an authenticated fund or ETF; scheme-specific riskometer, NAV, KYC, access, permissions, tax and suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1657,20 +1685,48 @@
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
-        "value": "Nifty 100 Equal Weight",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "value": "Nifty100 Equal Weight",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty100 Equal Weight",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "Nifty 100 constituents assigned equal weight at periodic rebalancing",
+        "factorStrategyCode": "EQUAL_WEIGHT_NIFTY100",
+        "factorMethodology": "Nifty 100 constituents assigned equal weight at periodic rebalancing",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Equal weights change company-size exposure versus the capitalization-weighted parent",
+          "Equity drawdowns, rebalancing costs and tracking differences remain possible"
+        ],
+        "investorAccessConstraints": [
+          "Verify named AMC scheme/ETF, current SID/KIM, tracking strategy and scheme-specific riskometer",
+          "Verify investor KYC and scheme minimum, settlement, costs, authorized current NAV/quote, commercial redistribution rights and advice authority"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty200_quality",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty 200 Quality 30 Index-Tracking Fund Strategy: Factor Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 200 Quality 30 Index-Tracking Fund Strategy: Factor Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. Official NSE benchmark construction: Thirty Nifty 200 companies selected by return on equity, debt-equity ratio and five-year EPS variability; quality score and free-float cap affect weights. This is not an authenticated fund or ETF; scheme-specific riskometer, NAV, KYC, access, permissions, tax and suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1686,19 +1742,47 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty200 Quality 30",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty200 Quality 30",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "Thirty Nifty 200 companies selected by return on equity, debt-equity ratio and five-year EPS variability; quality score and free-float cap affect weights",
+        "factorStrategyCode": "QUALITY_SCORE_NIFTY200",
+        "factorMethodology": "Thirty Nifty 200 companies selected by return on equity, debt-equity ratio and five-year EPS variability; quality score and free-float cap affect weights",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Quality factor concentration can underperform broader equities",
+          "Past accounting ratios do not guarantee future profitability or downside protection"
+        ],
+        "investorAccessConstraints": [
+          "Verify named AMC scheme/ETF, current SID/KIM, tracking strategy and scheme-specific riskometer",
+          "Verify investor KYC and scheme minimum, settlement, costs, authorized current NAV/quote, commercial redistribution rights and advice authority"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty_lowvol",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty100 Low Volatility 30 Index-Tracking Fund Strategy: Factor Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty100 Low Volatility 30 Index-Tracking Fund Strategy: Factor Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. Official NSE benchmark construction: Thirty Nifty 100 stocks selected for lowest measured one-year volatility; lower-volatility stocks receive higher index weights. This is not an authenticated fund or ETF; scheme-specific riskometer, NAV, KYC, access, permissions, tax and suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-low-volatility",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1714,19 +1798,47 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty100 Low Volatility 30",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-low-volatility",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty100 Low Volatility 30",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-low-volatility",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "Thirty Nifty 100 stocks selected for lowest measured one-year volatility; lower-volatility stocks receive higher index weights",
+        "factorStrategyCode": "LOW_VOLATILITY_NIFTY100",
+        "factorMethodology": "Thirty Nifty 100 stocks selected for lowest measured one-year volatility; lower-volatility stocks receive higher index weights",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Backward-looking low volatility does not ensure capital protection",
+          "Factor concentration and equity losses remain possible"
+        ],
+        "investorAccessConstraints": [
+          "Verify named AMC scheme/ETF, current SID/KIM, tracking strategy and scheme-specific riskometer",
+          "Verify investor KYC and scheme minimum, settlement, costs, authorized current NAV/quote, commercial redistribution rights and advice authority"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty500_momentum",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty500 Momentum 50 Index-Tracking Fund Strategy: Factor Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty500 Momentum 50 Index-Tracking Fund Strategy: Factor Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. Official NSE benchmark construction: Fifty Nifty 500 stocks selected by volatility-adjusted six- and twelve-month returns, weighted by momentum score and free-float cap. This is not an authenticated fund or ETF; scheme-specific riskometer, NAV, KYC, access, permissions, tax and suitability remain unverified.",
       "referenceUrl": "https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1742,19 +1854,47 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty500 Momentum 50",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty500 Momentum 50",
+        "officialNseIndexUrl": "https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "Fifty Nifty 500 stocks selected by volatility-adjusted six- and twelve-month returns, weighted by momentum score and free-float cap",
+        "factorStrategyCode": "MOMENTUM_NIFTY500",
+        "factorMethodology": "Fifty Nifty 500 stocks selected by volatility-adjusted six- and twelve-month returns, weighted by momentum score and free-float cap",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Momentum reversals can produce substantial losses",
+          "Index reconstitution and turnover can cause tracking costs"
+        ],
+        "investorAccessConstraints": [
+          "Verify named AMC scheme/ETF, current SID/KIM, tracking strategy and scheme-specific riskometer",
+          "Verify investor KYC and scheme minimum, settlement, costs, authorized current NAV/quote, commercial redistribution rights and advice authority"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty500_equal",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty 500 Equal Weight Index-Tracking Fund Strategy: Equal Weight Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 500 Equal Weight Index-Tracking Fund Strategy: Equal Weight Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. Official NSE benchmark construction: Nifty 500 constituents weighted equally, with periodic reconstitution and quarterly rebalancing. This is not an authenticated fund or ETF; scheme-specific riskometer, NAV, KYC, access, permissions, tax and suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500--equal--weight",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1770,11 +1910,39 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty500 Equal Weight",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty500 Equal Weight",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "Nifty 500 constituents weighted equally, with periodic reconstitution and quarterly rebalancing",
+        "factorStrategyCode": "EQUAL_WEIGHT_NIFTY500",
+        "factorMethodology": "Nifty 500 constituents weighted equally, with periodic reconstitution and quarterly rebalancing",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Equal weighting increases smaller-company influence versus capitalization weights",
+          "Smaller-stock liquidity and rebalancing turnover may affect replication"
+        ],
+        "investorAccessConstraints": [
+          "Verify named AMC scheme/ETF, current SID/KIM, tracking strategy and scheme-specific riskometer",
+          "Verify investor KYC and scheme minimum, settlement, costs, authorized current NAV/quote, commercial redistribution rights and advice authority"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_india_defence",
