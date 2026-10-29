@@ -152,6 +152,16 @@ function buildDirectory() {
           ? structuredClone(research.indexBenchmarkReview) : null,
         etfBenchmarkReview: research.etfBenchmarkReview
           ? structuredClone(research.etfBenchmarkReview) : null,
+        fundOfFundsCategoryReview: research.fundOfFundsCategoryReview
+          ? structuredClone(research.fundOfFundsCategoryReview) : null,
+        thematicIndexReview: research.thematicIndexReview
+          ? structuredClone(research.thematicIndexReview) : null,
+        debtInstrumentReview: research.debtInstrumentReview
+          ? structuredClone(research.debtInstrumentReview) : null,
+        individualCategoryReview: research.individualCategoryReview
+          ? structuredClone(research.individualCategoryReview) : null,
+        preciousMetalsCategoryReview: research.preciousMetalsCategoryReview
+          ? structuredClone(research.preciousMetalsCategoryReview) : null,
         governmentBondStructureReview: research.governmentBondStructureReview
           ? { ...research.governmentBondStructureReview } : null,
       };
