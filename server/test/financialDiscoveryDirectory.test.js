@@ -398,7 +398,7 @@ test('six factor index directory rows isolate official methodology and retain pr
 test('five ETF category reviews expose isolated evidence without fabricated listing or quotes',()=>{
  const ids=["catalog_2026_etf_nifty100","catalog_2026_etf_nifty500","catalog_2026_etf_smallcap250","catalog_2026_etf_nifty50_equal","catalog_2026_etf_nifty100_equal"];
  const items=listFinancialDiscoveryDirectory().items;
- assert.equal(items.filter(x=>x.frameworkResearch?.etfBenchmarkReview).length,5);
+ assert.equal(items.filter(x=>x.frameworkResearch?.etfBenchmarkReview).length,10);
  for(const id of ids){
   const item=items.find(x=>x.id===id),review=item.frameworkResearch.etfBenchmarkReview;
   assert.equal(review.reviewedOn,'2026-10-29');

@@ -572,7 +572,7 @@ test('five individually reviewed ETF benchmarks remain unqualified with fact-bas
  const rows=listExtensionResearch();
  const conservative=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund']}));
  const aggressive=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement']}));
- assert.equal(rows.filter(x=>x.etfBenchmarkReview).length,5);
+ assert.equal(rows.filter(x=>x.etfBenchmarkReview).length,10);
  for(const [id,url] of Object.entries(urls)){
   const row=rows.find(x=>x.id===id),review=row.etfBenchmarkReview;
   assert.equal(row.referenceReviewedAt,'2026-10-29');
