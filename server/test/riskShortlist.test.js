@@ -695,7 +695,10 @@ test('October 2026 SEBI debt credit meters are future issue disclosures, not cat
    const row=rows.find(row=>row.id===id);
    const review=row.debtInstrumentReview.creditRiskometerOct2026Review;
    assert.equal(review.officialSebiCircularUrl,'https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html',id);
-   assert.equal(review.circularIssuedOn,'2026-10-07',id);
+   assert.equal(row.referenceReviewedAt,'2026-10-29',id);
+  assert.equal(row.debtInstrumentReview.reviewedOn,'2026-10-29',id);
+  assert.equal(review.reviewedOn,'2026-10-30',id);
+  assert.equal(review.circularIssuedOn,'2026-10-07',id);
    assert.equal(review.effectiveFrom,'2026-11-21',id);
    assert.equal(review.effectiveAtReviewDate,false,id);
    assert.equal(review.multipleCraRatingsUseLowestRating,true,id);
