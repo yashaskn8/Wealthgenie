@@ -636,11 +636,11 @@ test('five additional ETF factor and thematic categories remain unqualified with
  }
 });
 
-test('all 23 final research categories remain unqualified with profile-bound screening flags',()=>{
+test('all 28 reviewed fund, thematic, debt, metal and individual categories stay unqualified with profile-bound flags',()=>{
  const keys=['fundOfFundsCategoryReview','thematicIndexReview','debtInstrumentReview',
    'individualCategoryReview','preciousMetalsCategoryReview'];
  const rows=listExtensionResearch().filter(row=>keys.some(key=>row[key]));
- assert.equal(rows.length,23);
+ assert.equal(rows.length,28);
  const short=screenExtensionResearchForProfile(canonicalProfile({
    riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund'],
  }));
@@ -677,6 +677,55 @@ test('all 23 final research categories remain unqualified with profile-bound scr
      assert.ok(a.screeningReasonCodes.includes(code),row.id+':'+code);
      assert.ok(!b.screeningReasonCodes.includes(code),row.id+':'+code);
    }
+ }
+});
+
+
+test('October 2026 SEBI debt credit meters are future issue disclosures, not category risk scores',()=>{
+ const ids=["catalog_2026_ncd_secured","catalog_2026_ncd_unsecured","catalog_2026_ncd_unlisted","catalog_2026_bond_subordinated","catalog_2026_bond_perpetual","catalog_2026_bond_corporate_floating","catalog_2026_bond_corporate_zero","catalog_2026_bond_convertible","catalog_2026_psu_bond_taxable","catalog_2026_infra_corporate_bond","catalog_2026_commercial_paper"];
+ const rows=listExtensionResearch();
+ const conservative=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund'],
+ }));
+ const aggressive=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement'],
+ }));
+ assert.equal(rows.filter(row=>row.debtInstrumentReview?.creditRiskometerOct2026Review).length,11);
+ for(const id of ids){
+   const row=rows.find(row=>row.id===id);
+   const review=row.debtInstrumentReview.creditRiskometerOct2026Review;
+   assert.equal(review.officialSebiCircularUrl,'https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html',id);
+   assert.equal(review.circularIssuedOn,'2026-10-07',id);
+   assert.equal(review.effectiveFrom,'2026-11-21',id);
+   assert.equal(review.effectiveAtReviewDate,false,id);
+   assert.equal(review.multipleCraRatingsUseLowestRating,true,id);
+   assert.equal(review.creditMeterIsMutualFundSchemeRiskometer,false,id);
+   assert.equal(review.creditMeterCoversMarketLiquidityAndStructuralRisks,false,id);
+   for(const key of ['issuerAndIsinVerified','specificListingStatusVerified',
+     'currentSebiRegisteredCraRatingVerified','actualIssueCreditRiskometerVerified',
+     'commercialRatingAndMeterReuseRightsVerified','individualRetailAccessVerified',
+     'adviceAuthorizationVerified'])assert.equal(review[key],false,id+':'+key);
+   assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2,id);
+   const conditional=!['catalog_2026_ncd_unlisted','catalog_2026_bond_convertible'].includes(id);
+   assert.equal(review.categoryApplicability,conditional?'ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED'
+     :id==='catalog_2026_ncd_unlisted'?'UNLISTED_CATEGORY_NOT_AUTOMATICALLY_COVERED'
+     :'CONVERTIBLE_SECURITY_OUTSIDE_ASSUMED_NCS_SCOPE',id);
+   const a=conservative.find(row=>row.id===id),b=aggressive.find(row=>row.id===id);
+   for(const item of [a,b]){
+     assert.equal(item.productQualified,false,id);
+     assert.equal(item.scoreAvailable,false,id);
+     assert.equal(item.productRiskLevel,null,id);
+     assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE',id);
+     for(const code of ['SEBI_DEBT_CREDIT_METER_EFFECTIVE_DATE_AND_ISSUE_EVIDENCE_REVIEW',
+       'DEBT_CREDIT_METER_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY_ASSESSMENT',
+       conditional?'LISTED_DEBT_ISSUER_ISIN_CRA_RATING_AND_METER_UNVERIFIED'
+         :'DEBT_CREDIT_METER_INSTRUMENT_AND_LISTING_SCOPE_NOT_PRESUMED'])
+       assert.ok(item.screeningReasonCodes.includes(code),id+':'+code);
+   }
+   assert.ok(a.screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_DEBT_DEFAULT_AND_NONCREDIT_LOSS_REVIEW'),id);
+   assert.ok(!b.screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_DEBT_DEFAULT_AND_NONCREDIT_LOSS_REVIEW'),id);
+   if(id==='catalog_2026_bond_perpetual')
+     assert.ok(a.screeningReasonCodes.includes('PERPETUAL_BOND_CREDIT_METER_DOES_NOT_CAPTURE_AT1_STRUCTURAL_LOSS'));
  }
 });
 

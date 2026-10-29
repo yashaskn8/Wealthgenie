@@ -618,6 +618,27 @@ test('15 individually sourced risk/access profiles cannot be mutated into produc
  }
 });
 
+
+test('October 2026 SEBI debt credit meter evidence remains copied, unlicensed and unranked',()=>{
+ const ids=["catalog_2026_ncd_secured","catalog_2026_ncd_unsecured","catalog_2026_ncd_unlisted","catalog_2026_bond_subordinated","catalog_2026_bond_perpetual","catalog_2026_bond_corporate_floating","catalog_2026_bond_corporate_zero","catalog_2026_bond_convertible","catalog_2026_psu_bond_taxable","catalog_2026_infra_corporate_bond","catalog_2026_commercial_paper"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+   const row=get(id),review=row.frameworkResearch.debtInstrumentReview.creditRiskometerOct2026Review;
+   assert.equal(review.effectiveFrom,'2026-11-21',id);
+   assert.equal(review.effectiveAtReviewDate,false,id);
+   assert.equal(review.actualIssueCreditRiskometerVerified,false,id);
+   assert.equal(review.commercialRatingAndMeterReuseRightsVerified,false,id);
+   assert.equal(row.recommendationEligible,false,id);
+   assert.equal(row.dataRights,'NOT_VERIFIED',id);
+   assert.ok(Object.values(row.productData).every(value=>value===null),id);
+   review.riskConsiderations.push('FORGED');
+   review.actualIssueCreditRiskometerVerified=true;
+   const clean=get(id).frameworkResearch.debtInstrumentReview.creditRiskometerOct2026Review;
+   assert.ok(!clean.riskConsiderations.includes('FORGED'),id);
+   assert.equal(clean.actualIssueCreditRiskometerVerified,false,id);
+ }
+});
+
 test('final 15 source-scoped categories expose immutable caution arrays and no actual product terms',()=>{
  const ids=["catalog_2026_ncd_secured","catalog_2026_ncd_unsecured","catalog_2026_ncd_unlisted","catalog_2026_bond_subordinated","catalog_2026_bond_perpetual","catalog_2026_bond_corporate_floating","catalog_2026_bond_corporate_zero","catalog_2026_bond_convertible","catalog_2026_psu_bond_taxable","catalog_2026_infra_corporate_bond","catalog_2026_municipal_green","catalog_2026_commercial_paper","catalog_2026_sif_hybrid_longshort","catalog_2026_sm_reit_scheme","catalog_2026_silver_fof"];
  const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);

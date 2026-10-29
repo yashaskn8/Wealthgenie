@@ -388,6 +388,31 @@ if(research.entries.some(row=>!Object.values(row).some(v=>v&&typeof v==='object'
  &&Array.isArray(v.investorAccessConstraints)&&v.investorAccessConstraints.length>=2
  &&v.investorAccessConstraints.every(s=>typeof s==='string'&&s.trim()))))
  throw new Error('FINANCIAL_95_CATEGORY_RISK_ACCESS_COVERAGE_INCOMPLETE');
+// SEBI's 7 October 2026 debt-security Credit Risk-o-Meter is a future
+// issue-specific disclosure, NOT a mutual-fund scheme riskometer or an
+// independently verified credit rating for any discovery archetype.
+const octoberDebtIds=new Set(["catalog_2026_ncd_secured","catalog_2026_ncd_unsecured","catalog_2026_ncd_unlisted","catalog_2026_bond_subordinated","catalog_2026_bond_perpetual","catalog_2026_bond_corporate_floating","catalog_2026_bond_corporate_zero","catalog_2026_bond_convertible","catalog_2026_psu_bond_taxable","catalog_2026_infra_corporate_bond","catalog_2026_commercial_paper"]);
+if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentReview).length!==11
+ ||research.entries.some(row=>octoberDebtIds.has(row.id)!==Boolean(row.debtInstrumentReview?.creditRiskometerOct2026Review))
+ ||research.entries.filter(row=>octoberDebtIds.has(row.id)).some(row=>{
+   const r=row.debtInstrumentReview.creditRiskometerOct2026Review;
+   const expectedScope=row.id==='catalog_2026_ncd_unlisted'?'UNLISTED_CATEGORY_NOT_AUTOMATICALLY_COVERED'
+     :row.id==='catalog_2026_bond_convertible'?'CONVERTIBLE_SECURITY_OUTSIDE_ASSUMED_NCS_SCOPE'
+     :'ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED';
+   return r.officialSebiCircularUrl!=='https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html'
+     ||r.circularIssuedOn!=='2026-10-07'||r.effectiveFrom!=='2026-11-21'
+     ||r.reviewedOn!=='2026-10-29'||r.effectiveAtReviewDate!==false
+     ||r.instrumentScope!=='LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD'
+     ||r.categoryApplicability!==expectedScope
+     ||r.multipleCraRatingsUseLowestRating!==true
+     ||['issuerAndIsinVerified','specificListingStatusVerified',
+       'currentSebiRegisteredCraRatingVerified','actualIssueCreditRiskometerVerified',
+       'commercialRatingAndMeterReuseRightsVerified','individualRetailAccessVerified',
+       'adviceAuthorizationVerified','creditMeterIsMutualFundSchemeRiskometer',
+       'creditMeterCoversMarketLiquidityAndStructuralRisks'].some(k=>r[k]!==false)
+     ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
+     ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
+ }))throw new Error('FINANCIAL_OCTOBER_DEBT_CREDIT_METER_SCOPE_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -714,6 +739,18 @@ export function screenExtensionResearchForProfile(profileInput) {
 
    if(row.debtInstrumentReview){
      reasons.push('DEBT_ISSUER_ISIN_RATING_COVENANTS_MARKET_PRICE_AND_RETAIL_ACCESS_UNVERIFIED');
+     const creditMeter=row.debtInstrumentReview.creditRiskometerOct2026Review;
+     if(creditMeter){
+       reasons.push('SEBI_DEBT_CREDIT_METER_EFFECTIVE_DATE_AND_ISSUE_EVIDENCE_REVIEW');
+       reasons.push('DEBT_CREDIT_METER_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY_ASSESSMENT');
+       reasons.push(creditMeter.categoryApplicability==='ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED'
+         ? 'LISTED_DEBT_ISSUER_ISIN_CRA_RATING_AND_METER_UNVERIFIED'
+         : 'DEBT_CREDIT_METER_INSTRUMENT_AND_LISTING_SCOPE_NOT_PRESUMED');
+       if(row.id==='catalog_2026_bond_perpetual')
+         reasons.push('PERPETUAL_BOND_CREDIT_METER_DOES_NOT_CAPTURE_AT1_STRUCTURAL_LOSS');
+       if(profile.riskTolerance==='Conservative')
+         reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_DEFAULT_AND_NONCREDIT_LOSS_REVIEW');
+     }
      if(row.id==='catalog_2026_ncd_unlisted')
        reasons.push('UNLISTED_NCD_TRANSFER_RESTRICTIONS_AND_EXIT_COUNTERPARTY_UNVERIFIED');
      if(row.id==='catalog_2026_bond_perpetual')

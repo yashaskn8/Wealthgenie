@@ -3789,7 +3789,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Security interests may prove insufficient or difficult to enforce after issuer default; 'secured' does not guarantee full recovery.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -3843,7 +3870,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Unsecured creditors may have weaker recovery than secured claims if the issuer defaults.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -3897,7 +3951,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "UNLISTED_CATEGORY_NOT_AUTOMATICALLY_COVERED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Issuer non-payment or restructuring can lead to principal and interest loss.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "An unlisted NCD category is not automatically within the circular's listed/proposed-listed scope; do not infer a mandatory meter or retail transfer permission.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -3951,7 +4032,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Contractual subordination may leave recoveries behind senior creditors in distress.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -4005,7 +4113,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Without a fixed maturity, call/non-call decisions can extend holding duration and increase price sensitivity.",
+            "SEBI expressly warns that an unsecured perpetual bond's credit meter does not capture its structural capital-loss risk; a rating is not principal protection."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -4059,7 +4194,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Reset benchmarks and spread terms may not match the investor's funding or inflation needs.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -4113,7 +4275,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "No interim coupon means repayment is concentrated at maturity, with issuer default risk.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -4167,7 +4356,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "CONVERTIBLE_SECURITY_OUTSIDE_ASSUMED_NCS_SCOPE",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Equity conversion can expose investors to share-price falls and dilution, while pre-conversion credit risk may remain.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "A convertible debenture cannot be presumed covered by the circular's enumerated NCS/CP/SDI/SR/MLD classes; confirm the specific security's legal classification.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -4221,7 +4437,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Public-sector ownership alone does not establish a sovereign repayment guarantee; issuer default remains possible.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -4275,7 +4518,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Construction delays, project revenue shortfalls and refinancing risk can impair an infrastructure issuer's debt service.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
@@ -4386,7 +4656,34 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "creditRiskometerOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-11-21",
+          "reviewedOn": "2026-10-29",
+          "effectiveAtReviewDate": false,
+          "instrumentScope": "LISTED_OR_PROPOSED_LISTED_NCS_CP_SDI_SR_MLD",
+          "categoryApplicability": "ONLY_IF_LISTED_OR_PROPOSED_TO_BE_LISTED",
+          "issuerAndIsinVerified": false,
+          "specificListingStatusVerified": false,
+          "currentSebiRegisteredCraRatingVerified": false,
+          "actualIssueCreditRiskometerVerified": false,
+          "commercialRatingAndMeterReuseRightsVerified": false,
+          "individualRetailAccessVerified": false,
+          "adviceAuthorizationVerified": false,
+          "creditMeterIsMutualFundSchemeRiskometer": false,
+          "creditMeterCoversMarketLiquidityAndStructuralRisks": false,
+          "multipleCraRatingsUseLowestRating": true,
+          "riskConsiderations": [
+            "Unsecured short-term promissory notes expose holders to issuer default and refinancing/rollover risk.",
+            "A security-specific credit meter indicates credit risk only, not market-price, liquidity, maturity, conversion or other structural risks."
+          ],
+          "investorAccessConstraints": [
+            "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
+            "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        }
       }
     },
     {
