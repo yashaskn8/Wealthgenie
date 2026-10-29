@@ -635,3 +635,47 @@ test('five additional ETF factor and thematic categories remain unqualified with
   }
  }
 });
+
+test('all 23 final research categories remain unqualified with profile-bound screening flags',()=>{
+ const keys=['fundOfFundsCategoryReview','thematicIndexReview','debtInstrumentReview',
+   'individualCategoryReview','preciousMetalsCategoryReview'];
+ const rows=listExtensionResearch().filter(row=>keys.some(key=>row[key]));
+ assert.equal(rows.length,23);
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund'],
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement'],
+ }));
+ for(const row of rows){
+   assert.equal(row.referenceReviewedAt,'2026-10-29',row.id);
+   assert.equal(row.productRiskScore,null,row.id);
+   assert.equal(row.actualRetailProductEligible,false,row.id);
+   assert.equal(row.sourcePermissionVerified,false,row.id);
+   assert.equal(row.marketFactsVerified,false,row.id);
+   assert.equal(row.suitabilityRankingPermitted,false,row.id);
+   const categoryReview=keys.map(key=>row[key]).find(Boolean);
+   assert.ok(categoryReview.officialSourceUrl.startsWith('https://'),row.id);
+   assert.ok(categoryReview.categoryRisks,row.id);
+   assert.ok(categoryReview.investorAccessAndEligibility,row.id);
+   for(const item of [short.find(item=>item.id===row.id),long.find(item=>item.id===row.id)]){
+     assert.ok(item,row.id);
+     assert.equal(item.productQualified,false,row.id);
+     assert.equal(item.scoreAvailable,false,row.id);
+     assert.equal(item.productRiskLevel,null,row.id);
+     assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE',row.id);
+     assert.ok(item.screeningReasonCodes.includes('REVIEWED_CATEGORY_STRUCTURE_NOT_VERIFIED_INVESTABLE_PRODUCT'),row.id);
+     assert.ok(item.screeningReasonCodes.includes('ACTUAL_ISSUER_TERMS_ACCESS_AND_LIQUIDITY_UNVERIFIED'),row.id);
+   }
+   const a=short.find(item=>item.id===row.id);
+   const b=long.find(item=>item.id===row.id);
+   for(const code of [
+     'EMERGENCY_FUND_GOAL_REQUIRES_REVIEWED_CATEGORY_REDEMPTION_AND_LOSS_CHECK',
+     'CONSERVATIVE_PROFILE_REQUIRES_REVIEWED_CATEGORY_LOSS_AND_LIQUIDITY_CHECK',
+     'SHORT_HORIZON_REQUIRES_REVIEWED_CATEGORY_EXIT_AND_LOSS_CHECK',
+   ]){
+     assert.ok(a.screeningReasonCodes.includes(code),row.id+':'+code);
+     assert.ok(!b.screeningReasonCodes.includes(code),row.id+':'+code);
+   }
+ }
+});
