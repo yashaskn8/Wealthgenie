@@ -215,6 +215,16 @@ export function listFinancialDiscoveryDirectory() {
           ? structuredClone(item.frameworkResearch.indexBenchmarkReview) : null,
         etfBenchmarkReview: item.frameworkResearch.etfBenchmarkReview
           ? structuredClone(item.frameworkResearch.etfBenchmarkReview) : null,
+        fundOfFundsCategoryReview: item.frameworkResearch.fundOfFundsCategoryReview
+          ? structuredClone(item.frameworkResearch.fundOfFundsCategoryReview) : null,
+        thematicIndexReview: item.frameworkResearch.thematicIndexReview
+          ? structuredClone(item.frameworkResearch.thematicIndexReview) : null,
+        debtInstrumentReview: item.frameworkResearch.debtInstrumentReview
+          ? structuredClone(item.frameworkResearch.debtInstrumentReview) : null,
+        individualCategoryReview: item.frameworkResearch.individualCategoryReview
+          ? structuredClone(item.frameworkResearch.individualCategoryReview) : null,
+        preciousMetalsCategoryReview: item.frameworkResearch.preciousMetalsCategoryReview
+          ? structuredClone(item.frameworkResearch.preciousMetalsCategoryReview) : null,
         governmentBondStructureReview: item.frameworkResearch.governmentBondStructureReview
           ? { ...item.frameworkResearch.governmentBondStructureReview } : null,
       } : null,
