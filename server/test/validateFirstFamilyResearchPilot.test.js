@@ -90,3 +90,27 @@ test('published reference facts become due for recheck without becoming a live r
  assert.equal(p.researchEvidenceFreshness,'RECHECK_REQUIRED');
  assert.equal(p.productionEligible,false);
 });
+
+test('issuer-specific source paths and HDFC conflicting official channel wording fail closed',()=>{
+ const changes=[
+  x=>x.candidates[0].officialProductUrl='https://sbi.bank.in/web/personal-banking/other-product',
+  x=>x.candidates[1].officialRateUrl='https://www.hdfc.bank.in/other-interest-rates',
+  x=>x.candidates[1].officialTermsUrl='https://www.hdfc.bank.in/unrelated-terms',
+  x=>x.candidates[0].researchId='research_different_sbi_rd',
+  x=>x.candidates[1].publishedChannelMinimums[1].officialUrl='https://www.hdfc.bank.in/recurring-deposit',
+  x=>x.candidates[1].publicSourceConsistencyReview.issuerChannelTermsReconciled=true,
+  x=>x.candidates[1].publicSourceConsistencyReview.productionRecommendationEligible=true,
+  x=>x.candidates[1].publicSourceConsistencyReview.mainPageSmsDefaultMonthlyInr=1000,
+ ];
+ for(const change of changes){
+  const tampered=copy();change(tampered);
+  assert.throws(()=>validateFirstFamilyResearchPilot(tampered,{now:at}),/^Error: RD_PILOT_/);
+ }
+ const conflict=copy().candidates[1].publicSourceConsistencyReview;
+ assert.equal(conflict.status,
+  'CONFLICTING_OFFICIAL_PUBLIC_CHANNEL_TEXT_REQUIRES_ISSUER_CONFIRMATION');
+ assert.equal(conflict.issuerChannelTermsReconciled,false);
+ assert.equal(conflict.individualBookingEligibilityVerified,false);
+ assert.equal(conflict.licensedCommercialDataRightsVerified,false);
+ assert.equal(validateFirstFamilyResearchPilot(copy(),{now:at}).approvedActualInvestmentProducts,0);
+});

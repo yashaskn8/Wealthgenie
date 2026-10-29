@@ -13,7 +13,7 @@
   "regulatedAdviceAuthorizationVerified": false,
   "confidentiality": "NO_CONFIDENTIAL_APPROVAL_DOCUMENTS_OR_DERIVED_HASHES",
   "insuranceReferenceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
-  "note": "Issuer product existence and published reference-rate evidence, not a price/NAV feed, licensed product dataset, booked offer, tax determination, or suitability approval. Do not run production registration from this file. Booking-channel minimums can differ even for the same bank and tenor; never collapse them into a single applicant-specific quote. Separately inspected 18-month ordinary rate tables have DIFFERENT published values (SBI 6.25%, HDFC 6.45% on 2026-10-28); both remain research-only and are not included in the live market feed.",
+  "note": "Issuer product existence and published reference-rate evidence, not a price/NAV feed, licensed product dataset, booked offer, tax determination, or suitability approval. Do not run production registration from this file. Booking-channel minimums can differ even for the same bank and tenor; never collapse them into a single applicant-specific quote. Separately inspected 18-month ordinary rate tables have DIFFERENT published values (SBI 6.25%, HDFC 6.45% on 2026-10-28); both remain research-only and are not included in the live market feed. On 2026-10-29 the HDFC main RD and dedicated SMS pages showed inconsistent monthly-minimum and SMS-default wording; the source conflict requires issuer confirmation and is not an applicant-specific booking fact.",
   "candidates": [
     {
       "researchId": "research_sbi_rd_resident_12m",
@@ -119,6 +119,21 @@
         "apiAccessIsCommercialDataLicense": false,
         "separateProviderGrantRequired": true,
         "note": "Website visitor terms do not authorize commercial database reuse/display. A separately authenticated grant with exact scope is required."
+      },
+      "publicSourceConsistencyReview": {
+        "reviewedOn": "2026-10-29",
+        "officialMainProductUrl": "https://www.hdfc.bank.in/recurring-deposit",
+        "officialSmsBookingUrl": "https://www.hdfc.bank.in/recurring-deposit/rd-booking-via-sms",
+        "mainPageFeatureMinimumMonthlyInr": 500,
+        "mainPageFaqStartingMonthlyInr": 1000,
+        "mainPageSmsDefaultMonthlyInr": 21000,
+        "dedicatedSmsPageDefaultMonthlyInr": 1000,
+        "status": "CONFLICTING_OFFICIAL_PUBLIC_CHANNEL_TEXT_REQUIRES_ISSUER_CONFIRMATION",
+        "issuerChannelTermsReconciled": false,
+        "individualBookingEligibilityVerified": false,
+        "licensedCommercialDataRightsVerified": false,
+        "productionRecommendationEligible": false,
+        "note": "On 2026-10-29 HDFC's main RD page described a Rs 500 feature minimum but Rs 1,000 in its FAQ; its SMS example gave a Rs 21,000 default while the dedicated SMS page stated Rs 1,000. Do not infer a single applicant-specific minimum, SMS default or bookable offer from these inconsistent public statements."
       }
     }
   ],

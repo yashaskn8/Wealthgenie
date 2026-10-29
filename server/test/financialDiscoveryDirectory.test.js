@@ -664,3 +664,23 @@ test('final 15 source-scoped categories expose immutable caution arrays and no a
   assert.equal(next.specificInstrumentOrSchemeVerified,false,id);
  }
 });
+
+test('HDFC contradictory official channel wording remains a source warning, not a bookable offer',()=>{
+ const rd=listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_bank_rd');
+ const hdfc=rd.publicIssuerReferences.find(x=>x.issuerName==='HDFC Bank Limited');
+ const sbi=rd.publicIssuerReferences.find(x=>x.issuerName==='State Bank of India');
+ assert.equal(sbi.sourceConsistencyNotice,null);
+ assert.equal(hdfc.sourceConsistencyNotice.status,
+  'CONFLICTING_OFFICIAL_PUBLIC_CHANNEL_TEXT_REQUIRES_ISSUER_CONFIRMATION');
+ assert.equal(hdfc.sourceConsistencyNotice.reviewedOn,'2026-10-29');
+ assert.equal(hdfc.sourceConsistencyNotice.issuerConfirmationRequired,true);
+ assert.equal(hdfc.sourceConsistencyNotice.applicantSpecificBookingTermsVerified,false);
+ assert.equal(hdfc.independentCommercialPermissionVerified,false);
+ assert.equal(rd.recommendationEligible,false);
+ assert.equal(rd.productData.currentInterestRate,null);
+ hdfc.sourceConsistencyNotice.status='MISLEADINGLY_RESOLVED';
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===rd.id)
+  .publicIssuerReferences.find(x=>x.issuerName==='HDFC Bank Limited')
+  .sourceConsistencyNotice.status,
+  'CONFLICTING_OFFICIAL_PUBLIC_CHANNEL_TEXT_REQUIRES_ISSUER_CONFIRMATION');
+});

@@ -49,6 +49,13 @@ function readOfficialIssuerReferences() {
       officialProductUrl: url.href,
       reviewedOn: rdResearch.researchReviewedOn,
       evidenceStatus: 'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA',
+      sourceConsistencyNotice: candidate.publicSourceConsistencyReview ? {
+        status: candidate.publicSourceConsistencyReview.status,
+        reviewedOn: candidate.publicSourceConsistencyReview.reviewedOn,
+        issuerConfirmationRequired: true,
+        applicantSpecificBookingTermsVerified: false,
+        note: 'Official issuer pages contain inconsistent recurring-deposit channel wording; confirm terms directly with the bank before relying on them.',
+      } : null,
       providerRightsReview: candidate.publicWebsiteLicenseReview.result,
       providerTermsUrl: candidate.publicWebsiteLicenseReview.officialTermsUrl,
       independentCommercialPermissionVerified: false,
@@ -256,7 +263,11 @@ export function listFinancialDiscoveryDirectory() {
         keyTradeoffs: [...item.studyNotes.keyTradeoffs],
         goalThemes: [...item.studyNotes.goalThemes],
       },
-      publicIssuerReferences: item.publicIssuerReferences.map(reference => ({ ...reference })),
+      publicIssuerReferences: item.publicIssuerReferences.map(reference => ({
+        ...reference,
+        sourceConsistencyNotice: reference.sourceConsistencyNotice
+          ? { ...reference.sourceConsistencyNotice } : null,
+      })),
     })),
   };
 }

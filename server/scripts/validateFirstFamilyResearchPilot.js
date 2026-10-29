@@ -22,8 +22,20 @@ const sourceUrl = (value, allowedHost) => {
   } catch { return false; }
 };
 const issuerSpecs = new Map([
-  ['State Bank of India', {domain:'sbi.bank.in',min:100}],
-  ['HDFC Bank Limited', {domain:'www.hdfc.bank.in',min:500}],
+  ['State Bank of India', {
+    domain:'sbi.bank.in',min:100,researchId:'research_sbi_rd_resident_12m',
+    productUrl:'https://sbi.bank.in/web/personal-banking/investments-deposits/deposits/recurring-deposit',
+    rateUrl:'https://sbi.bank.in/web/interest-rates/deposit-rates/retail-domestic-term-deposits',
+    termsUrl:'https://sbi.bank.in/web/personal-banking/investments-deposits/deposits/recurring-deposit',
+    rateEffectiveFrom:'2025-12-15',
+  }],
+  ['HDFC Bank Limited', {
+    domain:'www.hdfc.bank.in',min:500,researchId:'research_hdfc_rd_resident_12m',
+    productUrl:'https://www.hdfc.bank.in/recurring-deposit',
+    rateUrl:'https://www.hdfc.bank.in/interest-rates',
+    termsUrl:'https://www.hdfc.bank.in/terms-and-conditions',
+    rateEffectiveFrom:'2025-06-10',
+  }],
 ]);
 export function validateFirstFamilyResearchPilot(
   raw = JSON.parse(readFileSync(pilotFile, 'utf8')),
@@ -55,11 +67,16 @@ export function validateFirstFamilyResearchPilot(
       || typeof offer.researchId !== 'string'
       || !/^research_[a-z0-9_]{8,80}$/.test(offer.researchId)
       || offer.issuerDomain !== spec.domain
+      || offer.researchId !== spec.researchId
       || typeof offer.offerLabel !== 'string' || !offer.offerLabel.trim()
       || offer.tenorMonths !== 12 || offer.monthlyInstallmentMinimumInr !== spec.min
       || offer.publishedRatePercentPerAnnum !== 6.25
       || !isDate(offer.publishedRateEffectiveFrom)
+      || offer.publishedRateEffectiveFrom !== spec.rateEffectiveFrom
       || offer.publishedRateEffectiveFrom > raw.researchReviewedOn
+      || offer.officialProductUrl !== spec.productUrl
+      || offer.officialRateUrl !== spec.rateUrl
+      || offer.officialTermsUrl !== spec.termsUrl
       || !sourceUrl(offer.officialProductUrl, spec.domain)
       || !sourceUrl(offer.officialRateUrl, spec.domain)
       || !sourceUrl(offer.officialTermsUrl, spec.domain)
@@ -74,8 +91,12 @@ export function validateFirstFamilyResearchPilot(
   // Booking minimums are distinct from user eligibility or a licensed rate feed.
   // Do not silently reuse a branch/web minimum in another booking channel.
   const expectedChannels = {
-    'State Bank of India': [['STANDARD_RD',100]],
-    'HDFC Bank Limited': [['STANDARD_RD',500],['SMS_RD',1000]],
+    'State Bank of India': [['STANDARD_RD',100,
+      'https://sbi.bank.in/web/personal-banking/investments-deposits/deposits/recurring-deposit']],
+    'HDFC Bank Limited': [
+      ['STANDARD_RD',500,'https://www.hdfc.bank.in/terms-and-conditions'],
+      ['SMS_RD',1000,'https://www.hdfc.bank.in/recurring-deposit/rd-booking-via-sms'],
+    ],
   };
   for (const offer of raw.candidates) {
     const expected = expectedChannels[offer.issuer];
@@ -84,6 +105,7 @@ export function validateFirstFamilyResearchPilot(
       || offer.publishedChannelMinimums.some((fact,index) =>
         fact?.channel !== expected[index][0]
         || fact?.monthlyMinimumInr !== expected[index][1]
+        || fact?.officialUrl !== expected[index][2]
         || !sourceUrl(fact?.officialUrl,offer.issuerDomain)
         || typeof fact.caveat !== 'string' || fact.caveat.length < 25)
       || offer.publishedChannelMinimums[0].monthlyMinimumInr !== offer.monthlyInstallmentMinimumInr) {
@@ -140,6 +162,26 @@ export function validateFirstFamilyResearchPilot(
       || typeof usage.note !== 'string' || usage.note.length < 40) {
       fail('PUBLIC_WEBSITE_LICENCE_REVIEW_MISSING');
     }
+  }
+  // A bank-controlled web page is not automatically a consistent or bookable offer.
+  // HDFC's own product and dedicated SMS pages disagree on channel wording.
+  const hdfc = raw.candidates.find(x => x.issuer === 'HDFC Bank Limited');
+  const conflict = hdfc?.publicSourceConsistencyReview;
+  if (raw.candidates.some(x => x.issuer === 'State Bank of India'
+    && x.publicSourceConsistencyReview !== undefined)
+    || !conflict || conflict.reviewedOn !== '2026-10-29'
+    || conflict.officialMainProductUrl !== hdfc.officialProductUrl
+    || conflict.officialSmsBookingUrl !== hdfc.publishedChannelMinimums[1].officialUrl
+    || conflict.mainPageFeatureMinimumMonthlyInr !== 500
+    || conflict.mainPageFaqStartingMonthlyInr !== 1000
+    || conflict.mainPageSmsDefaultMonthlyInr !== 21000
+    || conflict.dedicatedSmsPageDefaultMonthlyInr !== 1000
+    || conflict.status !== 'CONFLICTING_OFFICIAL_PUBLIC_CHANNEL_TEXT_REQUIRES_ISSUER_CONFIRMATION'
+    || ['issuerChannelTermsReconciled','individualBookingEligibilityVerified',
+      'licensedCommercialDataRightsVerified','productionRecommendationEligible']
+      .some(key => conflict[key] !== false)
+    || typeof conflict.note !== 'string' || conflict.note.length < 80) {
+    fail('PUBLIC_SOURCE_CONFLICT_NOT_RECONCILED');
   }
   if (issuers.size !== 2) fail('TWO_INDEPENDENT_ISSUERS_REQUIRED');
   const ageDays = (+now - Date.parse(raw.researchReviewedOn + 'T00:00:00Z')) / 86400000;
