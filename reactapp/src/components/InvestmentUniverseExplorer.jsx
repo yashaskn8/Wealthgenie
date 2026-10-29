@@ -25,6 +25,53 @@ function permittedEvidenceUrl(value) {
   }
 }
 
+// Show available official category evidence without converting it into a
+// scheme riskometer, investor eligibility approval or personalized recommendation.
+const REVIEW_TYPES = Object.freeze([
+  ['postalSavingsAccessReview', 'India Post scheme access'],
+  ['rbiRetailDirectAccessReview', 'RBI Retail Direct access'],
+  ['governmentBondStructureReview', 'Government-security structure'],
+  ['bankDepositAccessReview', 'Bank deposit access'],
+  ['publicDepositAccessReview', 'NBFC public deposit access'],
+  ['sebiDebtSchemeStructureReview', 'SEBI debt scheme structure'],
+  ['indexBenchmarkReview', 'NSE index methodology'],
+  ['thematicIndexReview', 'Thematic index methodology'],
+  ['etfBenchmarkReview', 'ETF benchmark structure'],
+  ['npsCommonSchemeReview', 'PFRDA pension scheme framework'],
+  ['npsVatsalyaAccessReview', 'PFRDA minor scheme framework'],
+  ['debtInstrumentReview', 'Corporate debt instrument structure'],
+  ['individualCategoryReview', 'Specialised instrument structure'],
+  ['preciousMetalsCategoryReview', 'Precious-metal structure'],
+  ['fundOfFundsCategoryReview', 'Fund-of-funds structure'],
+]);
+function categoryResearchSummary(framework) {
+  if (!framework || typeof framework !== 'object') return null;
+  const match = REVIEW_TYPES.find(([key]) => framework[key]
+    && typeof framework[key] === 'object' && !Array.isArray(framework[key]));
+  if (!match) return null;
+  const [key, title] = match;
+  const review = framework[key];
+  const structure = [
+    review.structure, review.officialIndexStructure, review.structuralAssessment,
+    review.constituentStructure, review.benchmarkConstituentStructure,
+    review.etfStructure, review.depositStructure, review.schemeArchetype,
+    review.structureType, review.securityClass, review.schemeType,
+    review.benchmarkName, review.choiceCode, review.category, review.theme,
+  ].find(value => typeof value === 'string' && value.trim()) || null;
+  const strings = value => (Array.isArray(value) ? value : [value])
+    .filter(item => typeof item === 'string' && item.trim());
+  const risks = strings(review.riskConsiderations || review.categoryRisks);
+  const access = strings(review.investorAccessConstraints || review.investorAccessAndEligibility);
+  const sourceUrl = [
+    review.officialSourceUrl, review.officialNseIndexUrl,
+    review.officialRbiInterestOnDepositsFaqUrl, review.officialIndiaPostSchemeListingUrl,
+    review.officialRetailDirectFaqUrl, review.officialStructureSourceUrl,
+    review.officialSebiCategorizationCircularUrl, review.officialAllCitizenSchemeUrl,
+    review.officialPfrdaSchemeUrl, review.officialRbiDirectionsUrl,
+  ].map(permittedEvidenceUrl).find(Boolean) || null;
+  return { key, title, structure: structure?.replaceAll('_', ' ') || null, risks, access, sourceUrl };
+}
+
 /** Discovery and personalized comparison are separate authorities. */
 async function loadFinancialDirectory(signal) {
   // Browse the public, source-backed educational catalog even when Postgres,
@@ -151,6 +198,7 @@ export default function InvestmentUniverseExplorer({
   const [data, setData] = useState(null);
   const [category, setCategory] = useState('');
   const [profileFilter, setProfileFilter] = useState('ALL');
+  const [originFilter, setOriginFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [selectedFamily, setSelectedFamily] = useState(null);
   const [comparison, setComparison] = useState(null);
@@ -244,10 +292,14 @@ export default function InvestmentUniverseExplorer({
   const filtered = useMemo(() => {
     const phrase = search.trim().toLowerCase();
     return items.filter(item => (!category || item.category === category)
+      && (originFilter === 'ALL' || item.origin === originFilter)
       && (profileFilter === 'ALL' || assessments?.get(item.id)?.profileAssessment === profileFilter)
       && (!phrase || [item.id, item.name, item.category, item.subcategory]
         .some(field => String(field || '').toLowerCase().includes(phrase))));
-  }, [items, category, search, profileFilter, assessments]);
+  }, [items, category, search, originFilter, profileFilter, assessments]);
+  const selectedResearchReview = useMemo(
+    () => categoryResearchSummary(selectedFamily?.frameworkResearch), [selectedFamily],
+  );
 
   const inspectFamily = async family => {
     compareAbort.current?.abort();
@@ -326,6 +378,11 @@ export default function InvestmentUniverseExplorer({
               </p>
               <p>Catalog details are educational references, not current prices, investment rates,
                 live availability, tax calculations or product recommendations.</p>
+              {!assessments && <p>
+                Financial-profile category screening is currently unavailable. The 95 extended
+                categories can still be researched, but they are not profile-qualified,
+                scored or ranked investments.
+              </p>}
               {profileMatches.length>0 && (
                 <section aria-label="Existing profile shortlist category matches" className="wti-universe-profile-matches">
                   <h3>{profileMatches[0]?.matchOrigin === 'PROFILE_POLICY_RANKED'
@@ -374,6 +431,15 @@ export default function InvestmentUniverseExplorer({
                     {categories.map(name => <option key={name} value={name}>{name}</option>)}
                   </select>
                 </label>
+                <label>
+                  Catalog research group
+                  <select aria-label="Filter catalog research group" value={originFilter}
+                    onChange={event => setOriginFilter(event.target.value)}>
+                    <option value="ALL">All 250 categories</option>
+                    <option value="EXTENDED_95">95 extended research categories</option>
+                    <option value="LEGACY_155">155 existing categories</option>
+                  </select>
+                </label>
                 {assessments && <label>
                   Financial profile screening
                   <select aria-label="Filter by financial profile screening"
@@ -400,6 +466,8 @@ export default function InvestmentUniverseExplorer({
                           ? 'Excluded under current profile category policy'
                           : assessments?.get(item.id)?.profileAssessment === 'PROFILE_ELIGIBLE_CATEGORY'
                             ? 'Profile-eligible category; actual products not verified'
+                            : item.origin === 'EXTENDED_95'
+                              ? 'Extended research category — individual risk and suitability not verified'
                             : readySet.has(item.id)
                               ? 'Source-qualified candidates; suitability pending'
                               : 'Discovery category — current product data not verified'}
@@ -473,6 +541,31 @@ export default function InvestmentUniverseExplorer({
                       <dd>{selectedFamily.frameworkResearch.specificResearchConcern}
                         {' '}Structural research only; the individual fund, bond or deposit risk rating is not verified.
                       </dd>
+                      {selectedResearchReview && <>
+                        <dt>Detailed category research type</dt>
+                        <dd>{selectedResearchReview.title} — educational structure only</dd>
+                        {selectedResearchReview.structure && <>
+                          <dt>Category structure or index methodology</dt>
+                          <dd>{selectedResearchReview.structure}</dd>
+                        </>}
+                        {selectedResearchReview.risks.length > 0 && <>
+                          <dt>Category-level risk considerations (not a scheme riskometer)</dt>
+                          <dd><ul>{selectedResearchReview.risks.map((risk, index) =>
+                            <li key={index}>{risk}</li>)}</ul></dd>
+                        </>}
+                        {selectedResearchReview.access.length > 0 && <>
+                          <dt>Investor-access checks (not eligibility approval)</dt>
+                          <dd><ul>{selectedResearchReview.access.map((constraint, index) =>
+                            <li key={index}>{constraint}</li>)}</ul></dd>
+                        </>}
+                        {selectedResearchReview.sourceUrl && <>
+                          <dt>Official category research source</dt>
+                          <dd><a href={selectedResearchReview.sourceUrl}
+                            target="_blank" rel="noopener noreferrer">
+                            View underlying official framework
+                          </a></dd>
+                        </>}
+                      </>}
                       {selectedFamily.frameworkResearch.nominalMaturityMonths !== null && <>
                         <dt>Named product-family tenor</dt>
                         <dd>{selectedFamily.frameworkResearch.nominalMaturityMonths} months;
