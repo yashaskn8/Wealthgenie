@@ -3438,9 +3438,9 @@
       "id": "catalog_2026_municipal_green",
       "exposureClass": "ISSUER_SPECIFIC_CREDIT_LIQUIDITY_AND_TERMS",
       "scenarioDescription": "Municipal Green Bond: Municipal Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/sebi_data/commondocs/jan-2023/Municipal%20Debt%20Securities%20-%20Key%20Regulatory%20Framework_p.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3460,7 +3460,15 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "individualCategoryReview": {
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/commondocs/jan-2023/Municipal%20Debt%20Securities%20-%20Key%20Regulatory%20Framework_p.pdf",
+        "structure": "SEBI municipal debt framework expressly includes green municipal debt securities under its municipal issuance/listing and green debt disclosure framework.",
+        "categoryRisks": "Municipal issuer repayment risk, project/use-of-proceeds and green-label verification risk, interest-rate risk and secondary-market liquidity.",
+        "investorAccessAndEligibility": "Verify exact municipal issuer, listed/security identity, disclosures, green use-of-proceeds certification, offer route, denomination, KYC and actual investor access.",
+        "financialProfileScreening": "Only where recorded profile shows short horizon, emergency liquidity need or constrained loss capacity, warn of instrument-specific liquidity and loss risk without ranking or inferred suitability.",
+        "scope": "OFFICIAL_CATEGORY_FRAMEWORK_ONLY_NOT_SPECIFIC_ISSUE_OR_SCHEME_ELIGIBILITY_RISKOMETER_PRICE_OR_DATA_LICENSE"
+      }
     },
     {
       "id": "catalog_2026_commercial_paper",
@@ -3751,9 +3759,9 @@
       "id": "catalog_2026_sif_hybrid_longshort",
       "exposureClass": "SIF_LONG_SHORT_AND_ACCESS",
       "scenarioDescription": "Specialized Investment Fund Hybrid Long-Short Strategy: Specialized Investment Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+      "referenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 1000000,
@@ -3773,7 +3781,15 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "individualCategoryReview": {
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+        "structure": "SEBI March 20 2026 mutual-fund master circular describes Hybrid Long-Short Fund as an interval strategy with at least 25% equity/equity-related and at least 25% debt, and up to 25% unhedged short derivative exposure.",
+        "categoryRisks": "Derivatives and short exposures may amplify losses; equity, credit, interest-rate, liquidity and interval-redemption risks.",
+        "investorAccessAndEligibility": "Verify current SIF eligibility thresholds, investor onboarding, current ISID, strategy terms and distributor certification; no blanket retail approval.",
+        "financialProfileScreening": "Only where recorded profile shows short horizon, emergency liquidity need or constrained loss capacity, warn of instrument-specific liquidity and loss risk without ranking or inferred suitability.",
+        "scope": "OFFICIAL_CATEGORY_FRAMEWORK_ONLY_NOT_SPECIFIC_ISSUE_OR_SCHEME_ELIGIBILITY_RISKOMETER_PRICE_OR_DATA_LICENSE"
+      }
     },
     {
       "id": "catalog_2026_sm_reit_scheme",
