@@ -322,6 +322,22 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
     || !['https:'].includes(new URL(e.referenceUrl).protocol))) {
   throw new Error('FINANCIAL_95_FRAMEWORK_RESEARCH_COVERAGE_INVALID');
 }
+const sourceScopedRiskAccessIds=new Set(["catalog_2026_gsec_coupon_strip","catalog_2026_gsec_principal_strip","catalog_2026_sovereign_green","catalog_2026_gsec_floating","catalog_2026_bank_rd","catalog_2026_bank_tax_saver_fd","catalog_2026_bank_sweep_fd","catalog_2026_bank_fd_monthly","catalog_2026_bank_fd_quarterly"]);
+if(research.entries.some(row=>{
+ if(!sourceScopedRiskAccessIds.has(row.id))return false;
+ const review=row.governmentBondStructureReview||row.bankDepositAccessReview;
+ return !review||!Array.isArray(review.riskConsiderations)
+  ||review.riskConsiderations.length<2
+  ||review.riskConsiderations.some(x=>typeof x!=='string'||!x.trim())
+  ||!Array.isArray(review.investorAccessConstraints)
+  ||review.investorAccessConstraints.length<2
+  ||review.investorAccessConstraints.some(x=>typeof x!=='string'||!x.trim())
+  ||(row.governmentBondStructureReview
+   ?review.officialStructureSourceUrl!==row.verifiedPublicFrameworkFact.officialSourceUrl
+   :review.officialDicgcCoverageUrl!==row.verifiedPublicFrameworkFact.officialSourceUrl)
+  ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
+  ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
+}))throw new Error('FINANCIAL_GOVT_BANK_SOURCE_SCOPED_RISK_ACCESS_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -421,14 +437,22 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_BANK_DEPOSIT_EARLY_ACCESS_REVIEW');
      switch(row.bankDepositAccessReview.depositStructure) {
        case 'RECURRING_INSTALLMENT_DEPOSIT':
-         reasons.push('RECURRING_DEPOSIT_INSTALLMENT_AND_MISSED_PAYMENT_TERMS_UNVERIFIED'); break;
+         reasons.push('RECURRING_DEPOSIT_INSTALLMENT_AND_MISSED_PAYMENT_TERMS_UNVERIFIED');
+         if(profile.investmentHorizonYears<=1)
+           reasons.push('SHORT_HORIZON_REQUIRES_RD_INSTALLMENT_AND_EARLY_CLOSURE_REVIEW');
+         break;
        case 'FIVE_YEAR_TAX_SAVER_TERM_DEPOSIT':
          reasons.push('TAX_SAVER_FIVE_YEAR_SCHEME_AND_CURRENT_TAX_REGIME_REQUIRE_REVIEW');
+         if(profile.investmentGoals.includes('Tax Saving'))
+           reasons.push('TAX_SAVING_GOAL_REQUIRES_CURRENT_FY_DEPOSIT_DEDUCTION_ELIGIBILITY_REVIEW');
          if(profile.investmentHorizonYears<5)
            reasons.push('TAX_SAVER_FIVE_YEAR_REFERENCE_EXCEEDS_PROFILE_HORIZON');
          break;
        case 'SWEEP_LINKED_TERM_DEPOSIT':
-         reasons.push('SWEEP_TRIGGER_PARTIAL_BREAKAGE_AND_LIQUIDITY_TERMS_UNVERIFIED'); break;
+         reasons.push('SWEEP_TRIGGER_PARTIAL_BREAKAGE_AND_LIQUIDITY_TERMS_UNVERIFIED');
+         if(profile.investmentGoals.includes('Emergency Fund'))
+           reasons.push('EMERGENCY_FUND_REQUIRES_SWEEP_REVERSE_TRANSFER_ACCESS_REVIEW');
+         break;
        case 'NONCUMULATIVE_MONTHLY_PAYOUT':
          reasons.push('MONTHLY_DEPOSIT_PAYOUT_AND_EFFECTIVE_RETURN_REQUIRE_ISSUER_TERMS'); break;
        case 'NONCUMULATIVE_QUARTERLY_PAYOUT':
@@ -524,6 +548,10 @@ export function screenExtensionResearchForProfile(profileInput) {
    }
    if(row.governmentBondStructureReview) {
      reasons.push('GOVT_BOND_ISIN_TERMS_RETAIL_ACCESS_AND_SOURCE_RIGHTS_UNVERIFIED');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_GOVT_BOND_SECONDARY_EXIT_PRICE_AND_LIQUIDITY_REVIEW');
+     if(profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_GOVT_BOND_MATURITY_AND_SALE_PRICE_REVIEW');
      if(row.governmentBondStructureReview.structureType.endsWith('_STRIP')) {
        reasons.push('CENTRAL_GSEC_STRIP_CASH_FLOW_AND_CUSTODIAN_ACCESS_REQUIRE_ISIN_REVIEW');
        reasons.push('GSEC_STRIPS_SECONDARY_MARKET_LIQUIDITY_AND_NO_INTERIM_CASH_FLOW_REVIEW');

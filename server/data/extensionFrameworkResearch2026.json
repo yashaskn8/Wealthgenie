@@ -545,7 +545,15 @@
         "retailAccessCustodyAndKycVerified": false,
         "currentMarketPriceOrYieldVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "taxAndProductSuitabilityVerified": false
+        "taxAndProductSuitabilityVerified": false,
+        "riskConsiderations": [
+          "A coupon STRIP pays a single future cash flow without interim interest; resale price may fall as yields rise, particularly at longer maturities.",
+          "Sparse trading and bid-ask spreads can impair exit; absence of interim coupon payments is not protection from market loss."
+        ],
+        "investorAccessConstraints": [
+          "RBI describes STRIPS as derived from eligible fixed-coupon central G-Secs through authorized SGL/CSGL arrangements, not primary-auction securities.",
+          "A specific coupon STRIP ISIN, maturity, custodian route, KYC, current price, tax treatment and authorized commercial market-data rights remain unverified."
+        ]
       }
     },
     {
@@ -585,7 +593,15 @@
         "retailAccessCustodyAndKycVerified": false,
         "currentMarketPriceOrYieldVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "taxAndProductSuitabilityVerified": false
+        "taxAndProductSuitabilityVerified": false,
+        "riskConsiderations": [
+          "A principal STRIP pays one maturity principal cash flow; its discounted resale price is sensitive to yields and remaining duration.",
+          "A sovereign principal claim does not guarantee liquidity or unchanged sale-before-maturity value."
+        ],
+        "investorAccessConstraints": [
+          "RBI's stripping framework requires an eligible underlying fixed-coupon central G-Sec and an SGL/CSGL custody route; no specific principal STRIP ISIN is authenticated.",
+          "The maturity, tradeable quantity, investor KYC, market spread, tax treatment and commercial quote permissions require independent verification."
+        ]
       }
     },
     {
@@ -625,7 +641,15 @@
         "retailAccessCustodyAndKycVerified": false,
         "currentMarketPriceOrYieldVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "taxAndProductSuitabilityVerified": false
+        "taxAndProductSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Sovereign green-bond prices can decline as yields rise, and green designation does not remove interest-rate or secondary-market liquidity risk.",
+          "Project selection, allocation and reporting create environmental-outcome uncertainty; the framework alone does not verify the impact of an individual issue."
+        ],
+        "investorAccessConstraints": [
+          "The Department of Economic Affairs green-bond framework governs eligible public expenditures and reporting, not a current purchasable issue or individual access.",
+          "Verify actual ISIN, offering and coupon terms, custody and KYC, allocation reports, resale market, tax treatment and licensed market-data rights."
+        ]
       }
     },
     {
@@ -665,7 +689,15 @@
         "retailAccessCustodyAndKycVerified": false,
         "currentMarketPriceOrYieldVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "taxAndProductSuitabilityVerified": false
+        "taxAndProductSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Periodic coupon resets may mitigate some fixed-rate sensitivity, but benchmark changes, reset timing and spread still affect income and resale price.",
+          "Secondary liquidity, spreads and early-sale price risk remain; floating interest does not guarantee real purchasing power."
+        ],
+        "investorAccessConstraints": [
+          "RBI describes issue-specific reset intervals, benchmarks and possible fixed spreads; no live ISIN, benchmark or reset dates are authenticated.",
+          "A current offering, custody and KYC, coupon quote, tax treatment and independently licensed data use are needed before any individual access claim."
+        ]
       }
     },
     {
@@ -709,7 +741,15 @@
         "accountKycAndIndividualEligibilityVerified": false,
         "currentTaxRegimeAndDeductionEligibilityVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Recurring installments require sustained cash-flow capacity; late installments and premature closure have issuer-specific consequences.",
+          "Nominal interest may lag inflation; DICGC insurance is conditional and aggregated across deposits in the same bank and depositor capacity."
+        ],
+        "investorAccessConstraints": [
+          "RBI's 2025 deposit FAQ permits bank-policy early-withdrawal penalties and DICGC lists eligible recurring deposits, but neither verifies a bank's missed-payment rules.",
+          "Check insured bank, aggregated principal and interest, KYC, installment and exit terms, current rate and permission to redistribute source data."
+        ]
       }
     },
     {
@@ -753,7 +793,15 @@
         "accountKycAndIndividualEligibilityVerified": false,
         "currentTaxRegimeAndDeductionEligibilityVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "A five-year tax-saving term deposit may restrict early access; scheme-specific withdrawal and pledge rules require verification.",
+          "A tax benefit depends on the applicable fiscal-year regime and personal eligibility, not the marketing label; inflation can reduce real returns."
+        ],
+        "investorAccessConstraints": [
+          "Income Tax Department Section 80C references notified scheduled-bank term deposits of at least five years, not an automatic current-year deduction.",
+          "Check bank scheme, lock-in, DICGC insured status and aggregate deposits, individual KYC and tax regime, rate and independent data rights."
+        ]
       }
     },
     {
@@ -797,7 +845,15 @@
         "accountKycAndIndividualEligibilityVerified": false,
         "currentTaxRegimeAndDeductionEligibilityVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Automatic sweep and reverse-sweep operations may break deposits partially and change effective interest, subject to bank policy.",
+          "Linked-account access does not establish instant availability of every swept balance; DICGC insurance is conditional and aggregated."
+        ],
+        "investorAccessConstraints": [
+          "RBI's 2025 FAQ leaves partial premature withdrawal procedures to bank-approved policy, not a universally verified sweep facility.",
+          "Check linked account, sweep triggers, reverse-transfer order, penalties, bank insurance, aggregate balances, KYC, live rate and data rights."
+        ]
       }
     },
     {
@@ -841,7 +897,15 @@
         "accountKycAndIndividualEligibilityVerified": false,
         "currentTaxRegimeAndDeductionEligibilityVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Monthly payouts alter cash-flow timing and can differ in effective return from a reinvestment deposit; no bank payout rate is authenticated.",
+          "Premature withdrawal may reduce accrued interest and attract bank-policy penalties; DICGC protection is capped by aggregate same-capacity balances."
+        ],
+        "investorAccessConstraints": [
+          "RBI's deposit framework distinguishes reinvestment and payouts without authenticating an actual monthly-payout issuer contract.",
+          "Check insured bank, aggregate balances, KYC, payout calculation, maturity and early-exit terms, taxes, rate and licensed data rights."
+        ]
       }
     },
     {
@@ -885,7 +949,15 @@
         "accountKycAndIndividualEligibilityVerified": false,
         "currentTaxRegimeAndDeductionEligibilityVerified": false,
         "independentCommercialDataRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Quarterly payouts change reinvestment patterns relative to cumulative deposits; effective yield and future reinvestment income are unverified.",
+          "Premature exit can trigger interest recalculation or bank-policy penalties; DICGC protection is conditional and aggregated."
+        ],
+        "investorAccessConstraints": [
+          "RBI deposit-interest rules and DICGC's guide do not authenticate a specific quarterly payout contract, maturity, rate or depositor eligibility.",
+          "Check bank insurance, same-capacity aggregate balances, KYC, quarterly payout rules, early withdrawal, taxes and licensed rate-data rights."
+        ]
       }
     },
     {

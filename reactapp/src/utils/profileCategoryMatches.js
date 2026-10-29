@@ -25,6 +25,7 @@ export function selectProfileCategoryMatches(shortlist, profileId, profileVersio
       if (typeof row?.canonicalParentId !== 'string'
         || !/^[a-zA-Z0-9:_-]{1,160}$/.test(row.canonicalParentId)
         || seen.has(row.canonicalParentId)
+        || row.canonicalParentId.startsWith('catalog_2026_')
         || typeof row.name !== 'string' || !row.name.trim()
         || row.riskGroup !== group
         || !Number.isFinite(row.rankScore)

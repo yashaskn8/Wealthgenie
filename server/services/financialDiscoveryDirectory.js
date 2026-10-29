@@ -143,7 +143,7 @@ function buildDirectory() {
         sgsStripsAccessReview: research.sgsStripsAccessReview
           ? structuredClone(research.sgsStripsAccessReview) : null,
         bankDepositAccessReview: research.bankDepositAccessReview
-          ? { ...research.bankDepositAccessReview } : null,
+          ? structuredClone(research.bankDepositAccessReview) : null,
         publicDepositAccessReview: research.nbfcPublicDepositAccessReview
           ? { ...research.nbfcPublicDepositAccessReview } : null,
         retailDirectAccessReview: research.rbiRetailDirectAccessReview
@@ -169,7 +169,7 @@ function buildDirectory() {
         preciousMetalsCategoryReview: research.preciousMetalsCategoryReview
           ? structuredClone(research.preciousMetalsCategoryReview) : null,
         governmentBondStructureReview: research.governmentBondStructureReview
-          ? { ...research.governmentBondStructureReview } : null,
+          ? structuredClone(research.governmentBondStructureReview) : null,
       };
     })(),
     description: null, educationalRiskLabel: null,
@@ -222,7 +222,7 @@ export function listFinancialDiscoveryDirectory() {
         sgsStripsAccessReview: item.frameworkResearch.sgsStripsAccessReview
           ? structuredClone(item.frameworkResearch.sgsStripsAccessReview) : null,
         bankDepositAccessReview: item.frameworkResearch.bankDepositAccessReview
-          ? { ...item.frameworkResearch.bankDepositAccessReview } : null,
+          ? structuredClone(item.frameworkResearch.bankDepositAccessReview) : null,
         publicDepositAccessReview: item.frameworkResearch.publicDepositAccessReview
           ? { ...item.frameworkResearch.publicDepositAccessReview } : null,
         retailDirectAccessReview: item.frameworkResearch.retailDirectAccessReview
@@ -248,7 +248,7 @@ export function listFinancialDiscoveryDirectory() {
         preciousMetalsCategoryReview: item.frameworkResearch.preciousMetalsCategoryReview
           ? structuredClone(item.frameworkResearch.preciousMetalsCategoryReview) : null,
         governmentBondStructureReview: item.frameworkResearch.governmentBondStructureReview
-          ? { ...item.frameworkResearch.governmentBondStructureReview } : null,
+          ? structuredClone(item.frameworkResearch.governmentBondStructureReview) : null,
       } : null,
       studyNotes: {
         ...item.studyNotes,

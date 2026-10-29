@@ -856,3 +856,39 @@ test('nine debt schemes retain two scheme-specific access cautions, not product 
  assert.ok(rows.every(x=>x.sebiDebtSchemeStructureReview.investorAccessConstraints.length>=2));
  assert.ok(rows.every(x=>x.productRiskScore===null&&x.actualRetailProductEligible===false));
 });
+
+test('nine individually sourced bank and sovereign risk/access profiles remain unqualified',()=>{
+ const ids=["catalog_2026_gsec_coupon_strip","catalog_2026_gsec_principal_strip","catalog_2026_sovereign_green","catalog_2026_gsec_floating","catalog_2026_bank_rd","catalog_2026_bank_tax_saver_fd","catalog_2026_bank_sweep_fd","catalog_2026_bank_fd_monthly","catalog_2026_bank_fd_quarterly"];
+ const rows=listExtensionResearch();
+ for(const id of ids){
+  const row=rows.find(x=>x.id===id);
+  const review=row.governmentBondStructureReview||row.bankDepositAccessReview;
+  assert.ok(review,id);
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2,id);
+  assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,
+   review.officialStructureSourceUrl||review.officialDicgcCoverageUrl);
+  assert.equal(row.productRiskScore,null);
+  assert.equal(row.actualRetailProductEligible,false);
+  assert.equal(row.suitabilityRankingPermitted,false);
+  assert.equal(row.sourcePermissionVerified,false);
+ }
+ const get=(rows,id)=>rows.find(x=>x.id==='catalog_2026_'+id).screeningReasonCodes;
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:1,investmentGoals:['Emergency Fund','Tax Saving'],riskTolerance:'Conservative'
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive'
+ }));
+ for(const id of ['gsec_coupon_strip','gsec_principal_strip','sovereign_green','gsec_floating']){
+  assert.ok(get(short,id).includes('EMERGENCY_FUND_REQUIRES_GOVT_BOND_SECONDARY_EXIT_PRICE_AND_LIQUIDITY_REVIEW'));
+  assert.ok(get(short,id).includes('SHORT_HORIZON_REQUIRES_GOVT_BOND_MATURITY_AND_SALE_PRICE_REVIEW'));
+  assert.ok(!get(long,id).includes('SHORT_HORIZON_REQUIRES_GOVT_BOND_MATURITY_AND_SALE_PRICE_REVIEW'));
+ }
+ assert.ok(get(short,'bank_rd').includes('SHORT_HORIZON_REQUIRES_RD_INSTALLMENT_AND_EARLY_CLOSURE_REVIEW'));
+ assert.ok(!get(long,'bank_rd').includes('SHORT_HORIZON_REQUIRES_RD_INSTALLMENT_AND_EARLY_CLOSURE_REVIEW'));
+ assert.ok(get(short,'bank_tax_saver_fd').includes('TAX_SAVING_GOAL_REQUIRES_CURRENT_FY_DEPOSIT_DEDUCTION_ELIGIBILITY_REVIEW'));
+ assert.ok(!get(long,'bank_tax_saver_fd').includes('TAX_SAVING_GOAL_REQUIRES_CURRENT_FY_DEPOSIT_DEDUCTION_ELIGIBILITY_REVIEW'));
+ assert.ok(get(short,'bank_sweep_fd').includes('EMERGENCY_FUND_REQUIRES_SWEEP_REVERSE_TRANSFER_ACCESS_REVIEW'));
+ assert.ok(!get(long,'bank_sweep_fd').includes('EMERGENCY_FUND_REQUIRES_SWEEP_REVERSE_TRANSFER_ACCESS_REVIEW'));
+ assert.ok(short.every(x=>!x.productQualified&&!x.scoreAvailable&&x.productRiskLevel===null));
+});

@@ -42,3 +42,12 @@ describe('ranked educational category matches from current financial profile',()
   expect(selectProfileCategoryMatches(noScore,profileId,2)).toEqual([]);
  });
 });
+
+describe('extension archetypes cannot become profile-ranked matches',()=>{
+ it('rejects forged sovereign and bank extensions even with plausible category scores',()=>{
+  const a=result();a.groups.LOW[0]=candidate('catalog_2026_gsec_coupon_strip','LOW',99);
+  expect(selectProfileCategoryMatches(a,profileId,2)).toEqual([]);
+  const b=result();b.groups.MODERATE[0]=candidate('catalog_2026_bank_tax_saver_fd','MODERATE',99);
+  expect(selectProfileCategoryMatches(b,profileId,2)).toEqual([]);
+ });
+});

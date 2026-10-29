@@ -573,3 +573,22 @@ test('AIF, SGS STRIPS and NPS October framework metadata are copied without prod
   assert.equal(q.revisedImplementationDate,'2026-12-01');
  }
 });
+
+test('bank and sovereign source risk/access arrays cannot mutate the educational directory',()=>{
+ const ids=["catalog_2026_gsec_coupon_strip","catalog_2026_gsec_principal_strip","catalog_2026_sovereign_green","catalog_2026_gsec_floating","catalog_2026_bank_rd","catalog_2026_bank_tax_saver_fd","catalog_2026_bank_sweep_fd","catalog_2026_bank_fd_monthly","catalog_2026_bank_fd_quarterly"];
+ const rows=listFinancialDiscoveryDirectory().items;
+ for(const id of ids){
+  const row=rows.find(x=>x.id===id);
+  const review=row.frameworkResearch.bankDepositAccessReview||row.frameworkResearch.governmentBondStructureReview;
+  assert.ok(review&&review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2,id);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(row.productData).every(x=>x===null));
+  review.riskConsiderations[0]='forged';
+  review.investorAccessConstraints.push('forged');
+  const fresh=listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+  const clean=fresh.frameworkResearch.bankDepositAccessReview||fresh.frameworkResearch.governmentBondStructureReview;
+  assert.notEqual(clean.riskConsiderations[0],'forged');
+  assert.ok(!clean.investorAccessConstraints.includes('forged'));
+ }
+});
