@@ -451,11 +451,12 @@ test('all 23 final category research reviews remain discovery-only and do not co
  ].some(key=>x.frameworkResearch[key]));
  assert.equal(reviewed.length,23);
  for(const item of reviewed){
-   assert.equal(item.frameworkResearch.actualRetailProductEligible,false,item.id);
-   assert.equal(item.frameworkResearch.suitabilityRankingPermitted,false,item.id);
-   assert.equal(item.frameworkResearch.marketFactsVerified,false,item.id);
-   assert.equal(item.frameworkResearch.sourcePermissionVerified,false,item.id);
-   assert.equal(item.frameworkResearch.productRiskScore,null,item.id);
+   assert.equal(item.recommendationEligible,false,item.id);
+   assert.equal(item.productAvailability,'NOT_VERIFIED',item.id);
+   assert.equal(item.dataRights,'NOT_VERIFIED',item.id);
+   assert.equal(item.frameworkResearch.actualRiskScore,null,item.id);
+   assert.equal(item.frameworkResearch.issuerTermsVerified,false,item.id);
+   assert.equal(item.frameworkResearch.sourceRightsVerified,false,item.id);
    const review=['fundOfFundsCategoryReview','thematicIndexReview','debtInstrumentReview',
      'individualCategoryReview','preciousMetalsCategoryReview']
      .map(key=>item.frameworkResearch[key]).find(Boolean);
