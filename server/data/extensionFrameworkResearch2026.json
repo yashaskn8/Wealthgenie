@@ -997,7 +997,20 @@
         "issuerCreditRatingVerified": false,
         "issuerSpecificTermsVerified": false,
         "individualRetailEligibilityVerified": false,
-        "commercialDataRightsVerified": false
+        "commercialDataRightsVerified": false,
+        "officialRiskAccessEvidenceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "riskConsiderations": [
+          "A cumulative interest structure defers cash receipts to maturity; issuer default or delayed repayment can put principal and accrued interest at risk.",
+          "RBI registration is not a repayment guarantee and NBFC public deposits are outside DICGC insurance."
+        ],
+        "investorAccessConstraints": [
+          "Verify the actual NBFC's current RBI deposit-taking authorisation, minimum investment-grade deposit rating and issue-specific compounding terms.",
+          "Check applicant KYC, permitted 12-60 month tenor, premature repayment restrictions, verified offer documents and data rights before any product display."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "personalizedAdviceAuthorizationVerified": false
       }
     },
     {
@@ -1037,7 +1050,20 @@
         "issuerCreditRatingVerified": false,
         "issuerSpecificTermsVerified": false,
         "individualRetailEligibilityVerified": false,
-        "commercialDataRightsVerified": false
+        "commercialDataRightsVerified": false,
+        "officialRiskAccessEvidenceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "riskConsiderations": [
+          "Periodic payout does not remove issuer credit/default risk or guarantee repayment of principal at maturity.",
+          "Income frequency may differ from the effective yield; early exit and reinvestment of distributions create cash-flow and liquidity risk without DICGC insurance."
+        ],
+        "investorAccessConstraints": [
+          "Confirm issuer-specific RBI deposit-taking permission, current credit rating and the actual monthly/quarterly payout contract rather than inferring a universal payout.",
+          "Verify individual KYC, minimum deposit, early withdrawal rules, maturity repayment, licensed rate source and any distribution rights."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "personalizedAdviceAuthorizationVerified": false
       }
     },
     {
@@ -2175,7 +2201,23 @@
         "investorAccessAndEligibility": "Index methodology is not proof of a purchasable fund; require verified scheme/ISIN, KYC and applicable account access, issuer riskometer, current NAV or price and rights before product-level display.",
         "financialProfileScreening": "When supplied profile indicates short horizon, emergency liquidity need or limited loss capacity, display non-ranking thematic equity drawdown warning; do not infer missing profile facts.",
         "officialSourceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
-        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION"
+        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
+        "riskConsiderations": [
+          "Defence procurement cycles and policy shifts can concentrate equity drawdowns even where an index applies a 20% constituent cap.",
+          "A tracking fund may incur replication error, fees, cash drag and liquidity costs distinct from underlying index performance."
+        ],
+        "investorAccessConstraints": [
+          "NSE's published index methodology is not evidence that any particular fund is registered, available for subscription or eligible for a given investor.",
+          "Require the actual AMC/scheme/ISIN, SID/KIM, current scheme-specific riskometer, NAV, KYC, redemption terms and licensed data rights."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     },
     {
@@ -2212,7 +2254,23 @@
         "investorAccessAndEligibility": "Index methodology is not proof of a purchasable fund; require verified scheme/ISIN, KYC and applicable account access, issuer riskometer, current NAV or price and rights before product-level display.",
         "financialProfileScreening": "When supplied profile indicates short horizon, emergency liquidity need or limited loss capacity, display non-ranking thematic equity drawdown warning; do not infer missing profile facts.",
         "officialSourceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-digital",
-        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION"
+        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-digital",
+        "riskConsiderations": [
+          "Digital-sector valuations, competitive disruption and regulatory change can create concentrated equity losses.",
+          "The 30-stock index methodology does not prevent market drawdowns or tracking error in a separate fund."
+        ],
+        "investorAccessConstraints": [
+          "Confirm the actual scheme/AMC and whether its stated benchmark is the current Nifty India Digital methodology; an index listing is not a fund approval.",
+          "Verify scheme-specific riskometer, NAV, holdings, tracking expenses, KYC, subscription/redemption and provider data permissions."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     },
     {
@@ -2249,7 +2307,23 @@
         "investorAccessAndEligibility": "Index methodology is not proof of a purchasable fund; require verified scheme/ISIN, KYC and applicable account access, issuer riskometer, current NAV or price and rights before product-level display.",
         "financialProfileScreening": "When supplied profile indicates short horizon, emergency liquidity need or limited loss capacity, display non-ranking thematic equity drawdown warning; do not infer missing profile facts.",
         "officialSourceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
-        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION"
+        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
+        "riskConsiderations": [
+          "Domestic demand and consumer-credit cycles can affect many index sectors together despite apparent industry diversification.",
+          "Valuation shocks and a separate tracking fund's fees or tracking difference can reduce investor returns."
+        ],
+        "investorAccessConstraints": [
+          "The NSE domestic-revenue screening rule defines an index universe, not a verified investable scheme or personal retail eligibility.",
+          "Check actual scheme identity, current riskometer, NAV, holdings, KYC, exit conditions, and licensed display rights before product comparison."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     },
     {
@@ -4499,7 +4573,7 @@
       "scenarioDescription": "Discretionary Portfolio Management Service: Portfolio Management Services category. Examine actual issuer or scheme terms before assigning an investment risk rating. The SEBI Portfolio Managers Regulations, 2026 take effect on 1 April 2027, not as of this review; manager registration, mandate and eligibility are unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 5000000,
@@ -4521,7 +4595,33 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "individualCategoryReview": {
+        "category": "Discretionary PMS",
+        "structure": "Manager exercises portfolio trading discretion within agreed mandate.",
+        "categoryRisks": "Under a discretionary PMS mandate the manager can make portfolio trades within the contract, exposing the client to security losses, concentration and manager decisions. Fees, turnover, custody arrangements and liquidity of holdings can affect realised returns and exit proceeds.",
+        "investorAccessAndEligibility": "Verify the specific SEBI-registered portfolio manager, executed discretionary mandate, client eligibility and applicable regulatory minimum/exemptions; the INR 50 lakh reference is not an approval. Check account/custody arrangements, investment policy, current fees, reporting, tax treatment, exit restrictions and advice/data permissions; 2026 PMS regulations start April 2027.",
+        "financialProfileScreening": "Only recorded short horizon, emergency-fund goal, conservative risk preference or reported capital below the standard reference triggers additional review; no individual eligibility or recommendation is inferred.",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+        "futureFrameworkEffectiveFrom": "2027-04-01",
+        "futureFrameworkUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
+        "scope": "SEBI_PMS_MANDATE_FRAMEWORK_NOT_MANAGER_REGISTRATION_CONTRACT_OR_CLIENT_APPROVAL",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+        "riskConsiderations": [
+          "Under a discretionary PMS mandate the manager can make portfolio trades within the contract, exposing the client to security losses, concentration and manager decisions.",
+          "Fees, turnover, custody arrangements and liquidity of holdings can affect realised returns and exit proceeds."
+        ],
+        "investorAccessConstraints": [
+          "Verify the specific SEBI-registered portfolio manager, executed discretionary mandate, client eligibility and applicable regulatory minimum/exemptions; the INR 50 lakh reference is not an approval.",
+          "Check account/custody arrangements, investment policy, current fees, reporting, tax treatment, exit restrictions and advice/data permissions; 2026 PMS regulations start April 2027."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false
+      }
     },
     {
       "id": "catalog_2026_pms_nondiscretionary",
@@ -4529,7 +4629,7 @@
       "scenarioDescription": "Non-Discretionary Portfolio Management Service: Portfolio Management Services category. Examine actual issuer or scheme terms before assigning an investment risk rating. The SEBI Portfolio Managers Regulations, 2026 take effect on 1 April 2027, not as of this review; manager registration, mandate and eligibility are unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 5000000,
@@ -4551,7 +4651,33 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "individualCategoryReview": {
+        "category": "Non-discretionary PMS",
+        "structure": "Client retains trade-decision authority within a non-discretionary manager mandate.",
+        "categoryRisks": "A non-discretionary PMS still exposes the client to security and concentration losses; client decisions do not guarantee execution price or returns. Execution delays, transaction costs, manager fees and limited liquidity of chosen holdings can impair realised proceeds.",
+        "investorAccessAndEligibility": "Verify the registered portfolio manager, non-discretionary consent and instruction workflow, signed mandate, KYC and regulatory minimum/exemptions. Check the individual contract, trading authority, fees, custodian, tax, current valuations and advice/data rights; future 2027 regulations are not yet effective.",
+        "financialProfileScreening": "Only recorded short horizon, emergency-fund goal, conservative risk preference or reported capital below the standard reference triggers additional review; no individual eligibility or recommendation is inferred.",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+        "futureFrameworkEffectiveFrom": "2027-04-01",
+        "futureFrameworkUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
+        "scope": "SEBI_PMS_MANDATE_FRAMEWORK_NOT_MANAGER_REGISTRATION_CONTRACT_OR_CLIENT_APPROVAL",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+        "riskConsiderations": [
+          "A non-discretionary PMS still exposes the client to security and concentration losses; client decisions do not guarantee execution price or returns.",
+          "Execution delays, transaction costs, manager fees and limited liquidity of chosen holdings can impair realised proceeds."
+        ],
+        "investorAccessConstraints": [
+          "Verify the registered portfolio manager, non-discretionary consent and instruction workflow, signed mandate, KYC and regulatory minimum/exemptions.",
+          "Check the individual contract, trading authority, fees, custodian, tax, current valuations and advice/data rights; future 2027 regulations are not yet effective."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false
+      }
     },
     {
       "id": "catalog_2026_sif_hybrid_longshort",
@@ -4650,7 +4776,22 @@
         "categoryRisks": "Spot-price volatility, authenticity/purity and custody/theft risks, dealer spreads and resale liquidity.",
         "investorAccessAndEligibility": "Verify actual bar/coin weight, assay/fineness, seller/refinery credentials, invoice, custody and lawful purchase access; do not treat BIS quality standards as investment authorization.",
         "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
-        "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION"
+        "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.bis.gov.in/refineries/?lang=en",
+        "riskConsiderations": [
+          "Physical gold can lose market value and bears dealer bid/ask spread, storage and theft risks without a scheme riskometer.",
+          "Purity, weight or counterfeit disputes can impair resale proceeds even when general BIS refinery/mint standards exist."
+        ],
+        "investorAccessConstraints": [
+          "Verify actual bar/coin identity, assay/fineness, seller and refinery/mint credentials, invoice and custody; BIS quality framework does not certify an individual purchase.",
+          "Check lawful local sale conditions, quoted buyback spread and independently authorised current pricing; no personalized suitability or data rights are established."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false
       }
     },
     {
@@ -4686,7 +4827,22 @@
         "categoryRisks": "Silver spot-price volatility, authenticity/purity and storage risks, transaction spreads and resale liquidity.",
         "investorAccessAndEligibility": "Verify bar assay, seller provenance, invoice, physical custody and local sale conditions; jewellery hallmarking is not proof of bullion certification.",
         "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
-        "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION"
+        "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en",
+        "riskConsiderations": [
+          "Physical silver price swings, storage/handling and dealer spreads can cause losses on resale.",
+          "Silver jewellery/artefact hallmark rules are not evidence of BIS certification of a particular silver bullion bar or its fineness."
+        ],
+        "investorAccessConstraints": [
+          "Verify specific silver bar assay, weight, seller provenance, invoice, custody and buyer resale terms independently.",
+          "Do not transfer jewellery HUID or hallmark claims to bullion; check current authorised price, purchase restrictions and data permissions before any product presentation."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false
       }
     },
     {
@@ -4760,7 +4916,23 @@
         "investorAccessAndEligibility": "Verify actual scheme documents, eligible investor/KYC, underlying holdings and scheme riskometer; category alone grants no access.",
         "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
         "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
-        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "riskConsiderations": [
+          "Underlying large/mid/small-cap equity schemes may fall together; diversification across funds does not remove market loss risk.",
+          "Underlying fund fees plus FoF expenses, allocation drift and redemption settlement can impair realised proceeds."
+        ],
+        "investorAccessConstraints": [
+          "SEBI's diversified domestic equity FoF classification excludes factor-based underlying schemes, but does not identify an approved AMC or scheme.",
+          "Verify actual underlying schemes, SID/KIM, current riskometer, NAV, layered charges, investor KYC, redemption and licensed rights."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     },
     {
@@ -4798,7 +4970,23 @@
         "investorAccessAndEligibility": "Verify actual sector/theme mandate, holdings, scheme riskometer and account eligibility.",
         "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
         "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
-        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "riskConsiderations": [
+          "Single-theme or multi-sector underlying funds may share correlated exposures and experience severe sector drawdowns.",
+          "FoF expense layering and changes in underlying allocation can amplify tracking and liquidity uncertainty."
+        ],
+        "investorAccessConstraints": [
+          "Check whether the actual scheme mandate is single-sector, single-theme or multi-sector; a SEBI category is not a verified offering.",
+          "Verify holdings, concentration limits, AMC/scheme/ISIN, riskometer, NAV, KYC, redemption restrictions and provider data rights."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     },
     {
@@ -4836,7 +5024,23 @@
         "investorAccessAndEligibility": "Check scheme mandate, latest holdings, riskometer, KYC and redemption conditions.",
         "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
         "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
-        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "riskConsiderations": [
+          "The category's 65%-80% equity-oriented underlying-fund allocation creates substantial equity drawdown exposure.",
+          "Debt credit/rate losses, rebalancing and layered FoF/underlying fees add risks beyond the hybrid label."
+        ],
+        "investorAccessConstraints": [
+          "The SEBI allocation band is a category framework, not a verified current scheme allocation or guarantee.",
+          "Check actual equity/debt underlying holdings, scheme riskometer, NAV, KYC, exit loads, settlement and authorised data rights."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     },
     {
@@ -4874,7 +5078,23 @@
         "investorAccessAndEligibility": "Check actual credit exposure, duration, scheme riskometer, KYC and redemption conditions.",
         "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
         "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
-        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "riskConsiderations": [
+          "A 75%-90% debt-oriented underlying allocation may still suffer credit and interest-rate NAV losses.",
+          "The 10%-25% equity-oriented allocation and layered expenses mean 'conservative' is not capital protection."
+        ],
+        "investorAccessConstraints": [
+          "Confirm the actual scheme's holdings, credit/duration exposure and riskometer; the regulatory band is not an individual suitability rating.",
+          "Verify AMC/ISIN, NAV, exit loads, KYC, settlement and licensed provider terms before displaying a purchasable scheme."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     },
     {
@@ -4912,7 +5132,23 @@
         "investorAccessAndEligibility": "Check actual underlying schemes, scheme riskometer, KYC and liquidity/redemption terms.",
         "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
         "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
-        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "riskConsiderations": [
+          "Underlying debt credit/duration losses and changing arbitrage spreads can affect NAV even when labelled income plus arbitrage.",
+          "Basis risk, rollover costs and layered fees make this category different from an insured cash deposit."
+        ],
+        "investorAccessConstraints": [
+          "Verify the actual debt-versus-arbitrage allocation, underlying funds and riskometer; a category is not a cash-equivalent approval.",
+          "Confirm scheme identity, current NAV, redemption/settlement, KYC, tax classification and authorised data rights."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     },
     {
@@ -4950,7 +5186,23 @@
         "investorAccessAndEligibility": "Check actual allocation policy, latest holdings, scheme riskometer, KYC and redemption conditions.",
         "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
         "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
-        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "reviewedOn": "2026-10-29",
+        "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+        "riskConsiderations": [
+          "Dynamic equity/debt shifts can mis-time market changes; equity losses and debt credit/duration risk remain.",
+          "Turnover, model decisions and two layers of fund costs may change performance and redemption liquidity."
+        ],
+        "investorAccessConstraints": [
+          "SEBI permits dynamic allocation within the category, but no actual scheme policy or current exposure has been verified.",
+          "Check latest underlying allocations, scheme riskometer, NAV, manager rules, KYC, exit load, settlement and commercial data rights."
+        ],
+        "specificInstrumentOrSchemeVerified": false,
+        "currentPriceOrNavVerified": false,
+        "individualInvestorAccessVerified": false,
+        "commercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "currentSchemeRiskometerVerified": false
       }
     }
   ],

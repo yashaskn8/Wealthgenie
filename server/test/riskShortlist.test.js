@@ -892,3 +892,49 @@ test('nine individually sourced bank and sovereign risk/access profiles remain u
  assert.ok(!get(long,'bank_sweep_fd').includes('EMERGENCY_FUND_REQUIRES_SWEEP_REVERSE_TRANSFER_ACCESS_REVIEW'));
  assert.ok(short.every(x=>!x.productQualified&&!x.scoreAvailable&&x.productRiskLevel===null));
 });
+
+test('15 individually sourced category risk/access profiles remain discovery-only and profile-bound',()=>{
+ const ids=["catalog_2026_nbfc_fd_cumulative","catalog_2026_nbfc_fd_payout","catalog_2026_index_india_defence","catalog_2026_index_india_digital","catalog_2026_index_india_consumption","catalog_2026_pms_discretionary","catalog_2026_pms_nondiscretionary","catalog_2026_physical_gold_bullion","catalog_2026_physical_silver_bullion","catalog_2026_equity_diversified_fof","catalog_2026_equity_sector_fof","catalog_2026_fof_aggressive_hybrid","catalog_2026_fof_conservative_hybrid","catalog_2026_fof_income_arbitrage","catalog_2026_fof_dynamic_allocation"];
+ const rows=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:1,investmentGoals:['Emergency Fund'],riskTolerance:'Conservative'
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive'
+ }));
+ for(const id of ids){
+  const row=rows.find(x=>x.id===id);
+  const review=row.nbfcPublicDepositAccessReview||row.thematicIndexReview
+   ||row.individualCategoryReview||row.preciousMetalsCategoryReview||row.fundOfFundsCategoryReview;
+  assert.ok(review,id);
+  assert.equal(review.reviewedOn,'2026-10-29',id);
+  assert.ok(review.officialRiskAccessEvidenceUrl.startsWith('https://'),id);
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2,id);
+  for(const k of ['specificInstrumentOrSchemeVerified','currentPriceOrNavVerified',
+   'individualInvestorAccessVerified','commercialDataRightsVerified',
+   'personalizedAdviceAuthorizationVerified'])assert.equal(review[k],false,id+':'+k);
+  assert.equal(row.productRiskScore,null,id);
+  assert.equal(row.actualRetailProductEligible,false,id);
+  assert.equal(row.suitabilityRankingPermitted,false,id);
+  for(const screened of [short,long]){
+   const result=screened.find(x=>x.id===id);
+   assert.equal(result.productQualified,false,id);
+   assert.equal(result.scoreAvailable,false,id);
+   assert.equal(result.productRiskLevel,null,id);
+  }
+ }
+ const reasons=(list,id)=>list.find(x=>x.id==='catalog_2026_'+id).screeningReasonCodes;
+ for(const id of ['nbfc_fd_cumulative','nbfc_fd_payout']){
+  assert.ok(reasons(short,id).includes('EMERGENCY_FUND_REQUIRES_UNINSURED_NBFC_DEPOSIT_REPAYMENT_AND_LIQUIDITY_REVIEW'));
+  assert.ok(!reasons(long,id).includes('EMERGENCY_FUND_REQUIRES_UNINSURED_NBFC_DEPOSIT_REPAYMENT_AND_LIQUIDITY_REVIEW'));
+  assert.ok(reasons(short,id).includes('SHORT_HORIZON_REQUIRES_NBFC_DEPOSIT_TENOR_AND_PREMATURE_REPAYMENT_REVIEW'));
+  assert.ok(!reasons(long,id).includes('SHORT_HORIZON_REQUIRES_NBFC_DEPOSIT_TENOR_AND_PREMATURE_REPAYMENT_REVIEW'));
+ }
+ for(const id of ['pms_discretionary','pms_nondiscretionary']){
+  assert.ok(reasons(short,id).includes('PMS_2026_REGULATIONS_NOT_EFFECTIVE_UNTIL_APRIL_2027'));
+  assert.ok(reasons(short,id).includes('EMERGENCY_FUND_GOAL_REQUIRES_REVIEWED_CATEGORY_REDEMPTION_AND_LOSS_CHECK'));
+  assert.ok(!reasons(long,id).includes('EMERGENCY_FUND_GOAL_REQUIRES_REVIEWED_CATEGORY_REDEMPTION_AND_LOSS_CHECK'));
+ }
+ assert.ok(reasons(short,'fof_conservative_hybrid').includes('CONSERVATIVE_HYBRID_FOF_LABEL_NOT_PRINCIPAL_PROTECTION'));
+ assert.ok(reasons(short,'physical_silver_bullion').includes('SILVER_JEWELLERY_HALLMARK_NOT_BULLION_CERTIFICATION'));
+});

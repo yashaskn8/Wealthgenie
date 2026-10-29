@@ -338,6 +338,28 @@ if(research.entries.some(row=>{
   ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
   ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
 }))throw new Error('FINANCIAL_GOVT_BANK_SOURCE_SCOPED_RISK_ACCESS_INVALID');
+
+// Explicit, source-scoped review of 15 further distinct archetypes. Narrative
+// category risk is not a scheme riskometer, investor approval or market feed.
+const individualRiskAccessReviewFields=Object.freeze({"catalog_2026_nbfc_fd_cumulative":["nbfcPublicDepositAccessReview","https://www.dicgc.org.in/guide-to-deposit-insurance"],"catalog_2026_nbfc_fd_payout":["nbfcPublicDepositAccessReview","https://www.dicgc.org.in/guide-to-deposit-insurance"],"catalog_2026_index_india_defence":["thematicIndexReview","https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence"],"catalog_2026_index_india_digital":["thematicIndexReview","https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-digital"],"catalog_2026_index_india_consumption":["thematicIndexReview","https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption"],"catalog_2026_pms_discretionary":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html"],"catalog_2026_pms_nondiscretionary":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html"],"catalog_2026_physical_gold_bullion":["preciousMetalsCategoryReview","https://www.bis.gov.in/refineries/?lang=en"],"catalog_2026_physical_silver_bullion":["preciousMetalsCategoryReview","https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en"],"catalog_2026_equity_diversified_fof":["fundOfFundsCategoryReview","https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"],"catalog_2026_equity_sector_fof":["fundOfFundsCategoryReview","https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"],"catalog_2026_fof_aggressive_hybrid":["fundOfFundsCategoryReview","https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"],"catalog_2026_fof_conservative_hybrid":["fundOfFundsCategoryReview","https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"],"catalog_2026_fof_income_arbitrage":["fundOfFundsCategoryReview","https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"],"catalog_2026_fof_dynamic_allocation":["fundOfFundsCategoryReview","https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"]});
+if(research.entries.some(row=>{
+ const spec=individualRiskAccessReviewFields[row.id];
+ if(!spec)return false;
+ const review=row[spec[0]];
+ return !review||review.reviewedOn!=='2026-10-29'
+  ||review.officialRiskAccessEvidenceUrl!==spec[1]
+  ||!Array.isArray(review.riskConsiderations)||review.riskConsiderations.length<2
+  ||review.riskConsiderations.some(s=>typeof s!=='string'||!s.trim())
+  ||!Array.isArray(review.investorAccessConstraints)||review.investorAccessConstraints.length<2
+  ||review.investorAccessConstraints.some(s=>typeof s!=='string'||!s.trim())
+  ||['specificInstrumentOrSchemeVerified','currentPriceOrNavVerified',
+    'individualInvestorAccessVerified','commercialDataRightsVerified',
+    'personalizedAdviceAuthorizationVerified'].some(k=>review[k]!==false)
+  ||((row.thematicIndexReview||row.fundOfFundsCategoryReview)
+    &&review.currentSchemeRiskometerVerified!==false)
+  ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
+  ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
+}))throw new Error('FINANCIAL_INDIVIDUAL_RISK_ACCESS_EVIDENCE_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -617,6 +639,49 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(Number.isFinite(profile.investmentHorizonYears)
        && profile.investmentHorizonYears<=3)
        reasons.push('SHORT_HORIZON_REQUIRES_REVIEWED_CATEGORY_EXIT_AND_LOSS_CHECK');
+   }
+
+   if(row.nbfcPublicDepositAccessReview){
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_UNINSURED_NBFC_DEPOSIT_REPAYMENT_AND_LIQUIDITY_REVIEW');
+     if(profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_NBFC_DEPOSIT_TENOR_AND_PREMATURE_REPAYMENT_REVIEW');
+     reasons.push(row.id==='catalog_2026_nbfc_fd_cumulative'
+       ? 'NBFC_CUMULATIVE_INTEREST_AND_MATURITY_CASH_FLOW_TERMS_UNVERIFIED'
+       : 'NBFC_PAYOUT_FREQUENCY_EFFECTIVE_YIELD_AND_PRINCIPAL_REPAYMENT_UNVERIFIED');
+   }
+   if(row.id==='catalog_2026_pms_discretionary'||row.id==='catalog_2026_pms_nondiscretionary'){
+     reasons.push('PMS_MANAGER_REGISTRATION_MANDATE_CLIENT_MINIMUM_AND_FEES_UNVERIFIED');
+     reasons.push('PMS_2026_REGULATIONS_NOT_EFFECTIVE_UNTIL_APRIL_2027');
+     reasons.push(row.id==='catalog_2026_pms_discretionary'
+       ? 'DISCRETIONARY_PMS_MANAGER_TRADING_AUTHORITY_AND_CUSTODY_UNVERIFIED'
+       : 'NONDISCRETIONARY_PMS_CLIENT_INSTRUCTION_AND_EXECUTION_TERMS_UNVERIFIED');
+     if(profile.hasLumpSum===true&&Number.isFinite(profile.lumpSumAmount)
+       &&profile.lumpSumAmount<row.standardCapitalReferenceInr)
+       reasons.push('REPORTED_PMS_CAPITAL_BELOW_STANDARD_REFERENCE_NOT_PERSONAL_REJECTION');
+   }
+   if(row.thematicIndexReview){
+     reasons.push('THEMATIC_NSE_INDEX_IS_NOT_SCHEME_RISKOMETER_OR_PUBLISHED_NAV');
+     const themeNotices={
+       catalog_2026_index_india_defence:'DEFENCE_INDEX_POLICY_PROCUREMENT_AND_CONCENTRATION_REVIEW',
+       catalog_2026_index_india_digital:'DIGITAL_INDEX_DISRUPTION_VALUATION_AND_CONCENTRATION_REVIEW',
+       catalog_2026_index_india_consumption:'CONSUMPTION_INDEX_DOMESTIC_DEMAND_AND_CORRELATION_REVIEW',
+     };
+     if(themeNotices[row.id])reasons.push(themeNotices[row.id]);
+   }
+   if(row.fundOfFundsCategoryReview){
+     reasons.push('FOF_UNDERLYING_SCHEMES_LAYERED_FEES_RISKOMETER_AND_NAV_UNVERIFIED');
+     if(row.id==='catalog_2026_fof_conservative_hybrid')
+       reasons.push('CONSERVATIVE_HYBRID_FOF_LABEL_NOT_PRINCIPAL_PROTECTION');
+     if(row.id==='catalog_2026_fof_income_arbitrage')
+       reasons.push('INCOME_ARBITRAGE_FOF_NOT_AN_INSURED_CASH_DEPOSIT');
+     if(row.id==='catalog_2026_fof_dynamic_allocation')
+       reasons.push('DYNAMIC_FOF_ALLOCATION_NOT_FIXED_OR_VERIFIED');
+   }
+   if(row.preciousMetalsCategoryReview){
+     reasons.push('PHYSICAL_BULLION_ASSAY_DEALER_SPREAD_CUSTODY_AND_RESALE_UNVERIFIED');
+     if(row.id==='catalog_2026_physical_silver_bullion')
+       reasons.push('SILVER_JEWELLERY_HALLMARK_NOT_BULLION_CERTIFICATION');
    }
    if(row.id.startsWith('catalog_2026_ncd_'))
      reasons.push('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW');

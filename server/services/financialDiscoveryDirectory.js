@@ -145,7 +145,7 @@ function buildDirectory() {
         bankDepositAccessReview: research.bankDepositAccessReview
           ? structuredClone(research.bankDepositAccessReview) : null,
         publicDepositAccessReview: research.nbfcPublicDepositAccessReview
-          ? { ...research.nbfcPublicDepositAccessReview } : null,
+          ? structuredClone(research.nbfcPublicDepositAccessReview) : null,
         retailDirectAccessReview: research.rbiRetailDirectAccessReview
           ? structuredClone(research.rbiRetailDirectAccessReview) : null,
         sebiDebtSchemeStructureReview: research.sebiDebtSchemeStructureReview
@@ -224,7 +224,7 @@ export function listFinancialDiscoveryDirectory() {
         bankDepositAccessReview: item.frameworkResearch.bankDepositAccessReview
           ? structuredClone(item.frameworkResearch.bankDepositAccessReview) : null,
         publicDepositAccessReview: item.frameworkResearch.publicDepositAccessReview
-          ? { ...item.frameworkResearch.publicDepositAccessReview } : null,
+          ? structuredClone(item.frameworkResearch.publicDepositAccessReview) : null,
         retailDirectAccessReview: item.frameworkResearch.retailDirectAccessReview
           ? structuredClone(item.frameworkResearch.retailDirectAccessReview) : null,
         sebiDebtSchemeStructureReview: item.frameworkResearch.sebiDebtSchemeStructureReview

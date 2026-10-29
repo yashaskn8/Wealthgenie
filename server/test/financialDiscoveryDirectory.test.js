@@ -592,3 +592,28 @@ test('bank and sovereign source risk/access arrays cannot mutate the educational
   assert.ok(!clean.investorAccessConstraints.includes('forged'));
  }
 });
+
+test('15 individually sourced risk/access profiles cannot be mutated into product approvals',()=>{
+ const ids=["catalog_2026_nbfc_fd_cumulative","catalog_2026_nbfc_fd_payout","catalog_2026_index_india_defence","catalog_2026_index_india_digital","catalog_2026_index_india_consumption","catalog_2026_pms_discretionary","catalog_2026_pms_nondiscretionary","catalog_2026_physical_gold_bullion","catalog_2026_physical_silver_bullion","catalog_2026_equity_diversified_fof","catalog_2026_equity_sector_fof","catalog_2026_fof_aggressive_hybrid","catalog_2026_fof_conservative_hybrid","catalog_2026_fof_income_arbitrage","catalog_2026_fof_dynamic_allocation"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const row=get(id),f=row.frameworkResearch;
+  const review=f.publicDepositAccessReview||f.thematicIndexReview||f.individualCategoryReview
+   ||f.preciousMetalsCategoryReview||f.fundOfFundsCategoryReview;
+  assert.ok(review,id);
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2,id);
+  assert.equal(review.specificInstrumentOrSchemeVerified,false,id);
+  assert.equal(row.recommendationEligible,false,id);
+  assert.equal(row.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(row.productData).every(x=>x===null),id);
+  review.riskConsiderations[0]='FORGED';
+  review.investorAccessConstraints.push('FORGED');
+  review.currentPriceOrNavVerified=true;
+  const fresh=get(id).frameworkResearch;
+  const clean=fresh.publicDepositAccessReview||fresh.thematicIndexReview||fresh.individualCategoryReview
+   ||fresh.preciousMetalsCategoryReview||fresh.fundOfFundsCategoryReview;
+  assert.notEqual(clean.riskConsiderations[0],'FORGED',id);
+  assert.ok(!clean.investorAccessConstraints.includes('FORGED'),id);
+  assert.equal(clean.currentPriceOrNavVerified,false,id);
+ }
+});
