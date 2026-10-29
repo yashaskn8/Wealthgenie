@@ -322,6 +322,34 @@ describe('all 250 investment categories are browseable without product approval'
    expect(screen.queryByText('Investment family 250')).toBeNull();
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
  });
+ it('keeps the full catalog visible if a previous profile-screening filter loses its source',async()=>{
+   const assessments=families.map((item,index)=>({
+     id:item.id,profileAssessment:index>=155?'MISSING_SUITABILITY_EVIDENCE':'PROFILE_ELIGIBLE_CATEGORY',
+     scoreAvailable:index<155,productQualified:false,
+     source:index>=155?'EXTENDED_95_DISCOVERY':'EXISTING_155_MODEL',
+   }));
+   const coverage={
+     totalCategories:250,modelEvaluatedLegacyCategories:155,
+     extensionCategoriesMissingSuitabilityEvidence:95,
+     legacyProfileEligibleCount:155,legacyProfileExcludedCount:0,
+     assessmentScope:'CATEGORY_SCREENING_NOT_PRODUCT_RECOMMENDATION',
+   };
+   const view=render(<Explorer profileAssessments={assessments} profileCoverage={coverage}/>);
+   await waitFor(()=>expect(screen.getByText('250 matching options')).toBeTruthy());
+   fireEvent.change(screen.getByLabelText('Filter by financial profile screening'),{
+     target:{value:'PROFILE_ELIGIBLE_CATEGORY'},
+   });
+   expect(screen.getByText('155 matching options')).toBeTruthy();
+   view.rerender(<Explorer profileAssessments={[]} profileCoverage={null}/>);
+   expect(screen.getByText('250 matching options')).toBeTruthy();
+   expect(screen.queryByLabelText('Filter by financial profile screening')).toBeNull();
+   expect(screen.getByText(/Financial-profile category screening is currently unavailable/)).toBeTruthy();
+   fireEvent.change(screen.getByLabelText('Filter catalog research group'),{
+     target:{value:'EXTENDED_95'},
+   });
+   expect(screen.getByText('95 matching options')).toBeTruthy();
+   expect(screen.getByText('Investment family 250')).toBeTruthy();
+ });
  it('clears personalized comparisons when the directory closes',async()=>{
    api.getQualifiedFamilyTopProducts.mockResolvedValue(qualifiedResponse());
    render(<Explorer/>);
