@@ -43,7 +43,17 @@
         "currentAccountTermsAndEarlyExitVerified": false,
         "independentlyAuthorizedCurrentRateVerified": false,
         "commercialDisplayAndRedistributionRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Interest may not preserve purchasing power after inflation; this is a general risk, not a verified real return.",
+          "Withdrawal and balance access depend on current account rules and service availability, not a guaranteed instant cash-out."
+        ],
+        "investorAccessConstraints": [
+          "India Post lists the savings account scheme, but the specific applicant's KYC, eligibility, balance rules and operating channel remain unverified.",
+          "Current interest observation, withdrawal conditions, tax treatment and commercial reuse permission must be checked independently."
+        ],
+        "officialOriginalSchemeRulesUrl": null,
+        "originalRulesMayHaveSubsequentAmendments": false
       }
     },
     {
@@ -84,7 +94,17 @@
         "currentAccountTermsAndEarlyExitVerified": false,
         "independentlyAuthorizedCurrentRateVerified": false,
         "commercialDisplayAndRedistributionRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Premature closure and interest recalculation can change realized proceeds; current tenor-specific terms are not verified.",
+          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity."
+        ],
+        "investorAccessConstraints": [
+          "India Post lists National Savings Time Deposit and the original 2019 scheme text describes 1/2/3/5-year tenors, subject to amendments; current account terms are unverified.",
+          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established."
+        ],
+        "officialOriginalSchemeRulesUrl": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf",
+        "originalRulesMayHaveSubsequentAmendments": true
       }
     },
     {
@@ -125,7 +145,17 @@
         "currentAccountTermsAndEarlyExitVerified": false,
         "independentlyAuthorizedCurrentRateVerified": false,
         "commercialDisplayAndRedistributionRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Premature closure and interest recalculation can change realized proceeds; current tenor-specific terms are not verified.",
+          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity."
+        ],
+        "investorAccessConstraints": [
+          "India Post lists National Savings Time Deposit and the original 2019 scheme text describes 1/2/3/5-year tenors, subject to amendments; current account terms are unverified.",
+          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established."
+        ],
+        "officialOriginalSchemeRulesUrl": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf",
+        "originalRulesMayHaveSubsequentAmendments": true
       }
     },
     {
@@ -166,7 +196,17 @@
         "currentAccountTermsAndEarlyExitVerified": false,
         "independentlyAuthorizedCurrentRateVerified": false,
         "commercialDisplayAndRedistributionRightsVerified": false,
-        "personalizedSuitabilityVerified": false
+        "personalizedSuitabilityVerified": false,
+        "riskConsiderations": [
+          "Premature closure and interest recalculation can change realized proceeds; current tenor-specific terms are not verified.",
+          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity."
+        ],
+        "investorAccessConstraints": [
+          "India Post lists National Savings Time Deposit and the original 2019 scheme text describes 1/2/3/5-year tenors, subject to amendments; current account terms are unverified.",
+          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established."
+        ],
+        "officialOriginalSchemeRulesUrl": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf",
+        "originalRulesMayHaveSubsequentAmendments": true
       }
     },
     {
@@ -208,7 +248,15 @@
         "specificInstrumentTermsVerified": false,
         "independentCommercialDataPermissionVerified": false,
         "instrumentSpecificSuitabilityVerified": false,
-        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420"
+        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
+        "riskConsiderations": [
+          "A Treasury Bill sold before maturity may realize a different price; the RBI FAQ warns of government-security market risk on early sale.",
+          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed."
+        ],
+        "investorAccessConstraints": [
+          "The RBI Retail Direct FAQ requires an eligible individual with an Indian rupee savings bank account, PAN, valid KYC document, email and registered mobile; individual onboarding is unverified.",
+          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission."
+        ]
       }
     },
     {
@@ -250,7 +298,15 @@
         "specificInstrumentTermsVerified": false,
         "independentCommercialDataPermissionVerified": false,
         "instrumentSpecificSuitabilityVerified": false,
-        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420"
+        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
+        "riskConsiderations": [
+          "A Treasury Bill sold before maturity may realize a different price; the RBI FAQ warns of government-security market risk on early sale.",
+          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed."
+        ],
+        "investorAccessConstraints": [
+          "The RBI Retail Direct FAQ requires an eligible individual with an Indian rupee savings bank account, PAN, valid KYC document, email and registered mobile; individual onboarding is unverified.",
+          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission."
+        ]
       }
     },
     {
@@ -292,7 +348,15 @@
         "specificInstrumentTermsVerified": false,
         "independentCommercialDataPermissionVerified": false,
         "instrumentSpecificSuitabilityVerified": false,
-        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420"
+        "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
+        "riskConsiderations": [
+          "A Treasury Bill sold before maturity may realize a different price; the RBI FAQ warns of government-security market risk on early sale.",
+          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed."
+        ],
+        "investorAccessConstraints": [
+          "The RBI Retail Direct FAQ requires an eligible individual with an Indian rupee savings bank account, PAN, valid KYC document, email and registered mobile; individual onboarding is unverified.",
+          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission."
+        ]
       }
     },
     {
@@ -333,7 +397,15 @@
         "currentIssueOrQuoteVerified": false,
         "specificInstrumentTermsVerified": false,
         "independentCommercialDataPermissionVerified": false,
-        "instrumentSpecificSuitabilityVerified": false
+        "instrumentSpecificSuitabilityVerified": false,
+        "riskConsiderations": [
+          "SDL secondary-market prices can change with yields, liquidity and security-specific terms; early sale can result in a loss.",
+          "A state security's actual maturity, coupon, settlement and market depth must be assessed instrument by instrument."
+        ],
+        "investorAccessConstraints": [
+          "The RBI Retail Direct FAQ requires an eligible individual with an Indian rupee savings bank account, PAN, valid KYC document, email and registered mobile; individual onboarding is unverified.",
+          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission."
+        ]
       }
     },
     {
