@@ -28,6 +28,16 @@ it('shows all 250 educational families while PostgreSQL recommendation feature i
  render(<Explorer/>);
  await waitFor(()=>expect(screen.getByText('Investment family 250')).toBeTruthy());
  expect(screen.getByText('250 matching options')).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('Filter catalog research group'),{
+   target:{value:'EXTENDED_95'},
+ });
+ expect(screen.getByText('95 matching options')).toBeTruthy();
+ expect(screen.getByText('Investment family 250')).toBeTruthy();
+ expect(screen.queryByText('Investment family 1')).toBeNull();
+ expect(screen.getByText(/Financial-profile category screening is currently unavailable/)).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('Filter catalog research group'),{
+   target:{value:'ALL'},
+ });
  fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
  expect(screen.getByText(/Current market price \/ NAV \/ interest rate/)).toBeTruthy();
  expect(screen.getByText(/CURRENT_PRODUCT_COMPARISON_SOURCE_UNAVAILABLE/)).toBeTruthy();
