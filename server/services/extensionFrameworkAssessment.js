@@ -110,7 +110,13 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.postalSavingsAccessReview?.currentAccountTermsAndEarlyExitVerified!==false
       || x.postalSavingsAccessReview?.independentlyAuthorizedCurrentRateVerified!==false
       || x.postalSavingsAccessReview?.commercialDisplayAndRedistributionRightsVerified!==false
-      || x.postalSavingsAccessReview?.personalizedSuitabilityVerified!==false)
+      || x.postalSavingsAccessReview?.personalizedSuitabilityVerified!==false
+      || !Array.isArray(x.postalSavingsAccessReview?.riskConsiderations)
+      || x.postalSavingsAccessReview.riskConsiderations.length<2
+      || !Array.isArray(x.postalSavingsAccessReview?.investorAccessConstraints)
+      || x.postalSavingsAccessReview.investorAccessConstraints.length<2
+      || x.postalSavingsAccessReview?.officialOriginalSchemeRulesUrl!==(x.id==='catalog_2026_po_savings'?null:'https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf')
+      || x.postalSavingsAccessReview?.originalRulesMayHaveSubsequentAmendments!==(x.id!=='catalog_2026_po_savings'))
     : x.postalSavingsAccessReview!==undefined)
   || research.entries.some(x=>Object.hasOwn(governmentBondStructureTypes,x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
@@ -139,6 +145,10 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.rbiRetailDirectAccessReview?.specificInstrumentTermsVerified!==false
       || x.rbiRetailDirectAccessReview?.independentCommercialDataPermissionVerified!==false
       || x.rbiRetailDirectAccessReview?.instrumentSpecificSuitabilityVerified!==false
+      || !Array.isArray(x.rbiRetailDirectAccessReview?.riskConsiderations)
+      || x.rbiRetailDirectAccessReview.riskConsiderations.length<2
+      || !Array.isArray(x.rbiRetailDirectAccessReview?.investorAccessConstraints)
+      || x.rbiRetailDirectAccessReview.investorAccessConstraints.length<2
       || (x.id.startsWith('catalog_2026_tbill_')
         ? x.rbiRetailDirectAccessReview?.officialTenorAuctionReferenceUrl!=='https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420'
         : x.rbiRetailDirectAccessReview?.officialTenorAuctionReferenceUrl!==undefined))
@@ -460,6 +470,8 @@ export function screenExtensionResearchForProfile(profileInput) {
    if(row.rbiRetailDirectAccessReview) {
      reasons.push('RBI_RETAIL_DIRECT_ACCOUNT_KYC_AND_PERSONAL_ELIGIBILITY_UNVERIFIED');
      reasons.push('GOVERNMENT_SECURITY_CURRENT_ISSUE_PRICE_AND_SOURCE_RIGHTS_UNVERIFIED');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_RETAIL_DIRECT_EARLY_SALE_PRICE_AND_LIQUIDITY_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_GOVT_SECURITY_EARLY_SALE_PRICE_AND_LIQUIDITY_REVIEW');
    }
