@@ -289,14 +289,17 @@ export default function InvestmentUniverseExplorer({
     return result.size === CATALOG_SIZE ? result : null;
   }, [items, profileAssessments, profileCoverage]);
   const categories = useMemo(() => [...new Set(items.map(item => item.category).filter(Boolean))].sort(), [items]);
+  // A prior screening filter must not hide the catalog if profile evidence
+  // becomes unavailable after an account/profile state transition.
+  const effectiveProfileFilter = assessments ? profileFilter : 'ALL';
   const filtered = useMemo(() => {
     const phrase = search.trim().toLowerCase();
     return items.filter(item => (!category || item.category === category)
       && (originFilter === 'ALL' || item.origin === originFilter)
-      && (profileFilter === 'ALL' || assessments?.get(item.id)?.profileAssessment === profileFilter)
+      && (effectiveProfileFilter === 'ALL' || assessments?.get(item.id)?.profileAssessment === effectiveProfileFilter)
       && (!phrase || [item.id, item.name, item.category, item.subcategory]
         .some(field => String(field || '').toLowerCase().includes(phrase))));
-  }, [items, category, search, originFilter, profileFilter, assessments]);
+  }, [items, category, search, originFilter, effectiveProfileFilter, assessments]);
   const selectedResearchReview = useMemo(
     () => categoryResearchSummary(selectedFamily?.frameworkResearch), [selectedFamily],
   );
