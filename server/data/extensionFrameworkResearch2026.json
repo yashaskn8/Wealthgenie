@@ -2143,10 +2143,10 @@
     {
       "id": "catalog_2026_nps_lc25",
       "exposureClass": "NPS_LIFECYCLE_ALLOCATION_AND_PENSION_LOCK_IN",
-      "scenarioDescription": "NPS Tier I Life Cycle 25 Allocation Choice: NPS Auto Choice category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NPS Tier I Life Cycle 25 Allocation Choice: PFRDA Life Cycle 25 (Low) starts at 25% equity through age 35 and tapers to 5% by age 55; it retains equity, corporate-credit and government-bond price risks. Account eligibility, KYC, sector, pension fund, current NAV, scheme risk, exit conditions, tax and data rights are not independently established.",
       "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2166,15 +2166,49 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsCommonSchemeReview": {
+        "choiceType": "AUTO_CHOICE",
+        "choiceCode": "LIFE_CYCLE_25_LOW",
+        "officialAllCitizenSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialPensionFundsGuidanceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
+        "officialLifecycleNomenclatureCircularUrl": "https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf",
+        "lifecycleNomenclatureCircularIssuedOn": "2025-10-17",
+        "officialExitWithdrawalFaqUrl": "https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf",
+        "exitFaqUpdatedMonth": "2026-03",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY",
+        "publishedEquityAllocationAtAge35Pct": 25,
+        "publishedEquityAllocationAtAge55Pct": 5,
+        "equityTaperStartsAfterAge": 35,
+        "publishedActiveChoiceMaximumAllocationPct": null,
+        "riskConsiderations": [
+          "Equity drawdowns remain possible despite the lower published equity share.",
+          "Corporate-bond credit spreads and government-bond duration can affect the pension NAV.",
+          "Tier I premature exit and partial withdrawal rules can constrain liquidity."
+        ],
+        "investorAccessConstraints": [
+          "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
+          "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+        ],
+        "specificPensionFundAndSchemeVerified": false,
+        "currentSchemeNavAndRiskLevelVerified": false,
+        "currentSubscriptionTermsAndFeesVerified": false,
+        "subscriberAgeResidencyKycAndSectorVerified": false,
+        "individualExitAndWithdrawalEligibilityVerified": false,
+        "commercialDataAndRedistributionRightsVerified": false,
+        "taxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_lc50",
       "exposureClass": "NPS_LIFECYCLE_ALLOCATION_AND_PENSION_LOCK_IN",
-      "scenarioDescription": "NPS Tier I Life Cycle 50 Allocation Choice: NPS Auto Choice category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NPS Tier I Life Cycle 50 Allocation Choice: PFRDA Life Cycle 50 (Moderate) starts at 50% equity through age 35 and tapers to 10% by age 55; published percentages are not a specific pension-fund risk rating. Account eligibility, KYC, sector, pension fund, current NAV, scheme risk, exit conditions, tax and data rights are not independently established.",
       "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2194,15 +2228,49 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsCommonSchemeReview": {
+        "choiceType": "AUTO_CHOICE",
+        "choiceCode": "LIFE_CYCLE_50_MODERATE",
+        "officialAllCitizenSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialPensionFundsGuidanceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
+        "officialLifecycleNomenclatureCircularUrl": "https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf",
+        "lifecycleNomenclatureCircularIssuedOn": "2025-10-17",
+        "officialExitWithdrawalFaqUrl": "https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf",
+        "exitFaqUpdatedMonth": "2026-03",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY",
+        "publishedEquityAllocationAtAge35Pct": 50,
+        "publishedEquityAllocationAtAge55Pct": 10,
+        "equityTaperStartsAfterAge": 35,
+        "publishedActiveChoiceMaximumAllocationPct": null,
+        "riskConsiderations": [
+          "Equity losses can occur before and during the age-based taper.",
+          "Corporate debt adds issuer and credit-spread risk; government debt adds rate sensitivity.",
+          "Tier I exit and annuity terms can restrict near-term access."
+        ],
+        "investorAccessConstraints": [
+          "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
+          "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+        ],
+        "specificPensionFundAndSchemeVerified": false,
+        "currentSchemeNavAndRiskLevelVerified": false,
+        "currentSubscriptionTermsAndFeesVerified": false,
+        "subscriberAgeResidencyKycAndSectorVerified": false,
+        "individualExitAndWithdrawalEligibilityVerified": false,
+        "commercialDataAndRedistributionRightsVerified": false,
+        "taxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_lc75",
       "exposureClass": "NPS_LIFECYCLE_ALLOCATION_AND_PENSION_LOCK_IN",
-      "scenarioDescription": "NPS Tier I Life Cycle 75 Allocation Choice: NPS Auto Choice category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NPS Tier I Life Cycle 75 Allocation Choice: PFRDA Life Cycle 75 is now named High (formerly Aggressive), starts at 75% equity through age 35 and tapers to 15% by age 55; do not confuse it with the newly named Aggressive life cycle. Account eligibility, KYC, sector, pension fund, current NAV, scheme risk, exit conditions, tax and data rights are not independently established.",
       "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2222,15 +2290,49 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsCommonSchemeReview": {
+        "choiceType": "AUTO_CHOICE",
+        "choiceCode": "LIFE_CYCLE_75_HIGH",
+        "officialAllCitizenSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialPensionFundsGuidanceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
+        "officialLifecycleNomenclatureCircularUrl": "https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf",
+        "lifecycleNomenclatureCircularIssuedOn": "2025-10-17",
+        "officialExitWithdrawalFaqUrl": "https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf",
+        "exitFaqUpdatedMonth": "2026-03",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY",
+        "publishedEquityAllocationAtAge35Pct": 75,
+        "publishedEquityAllocationAtAge55Pct": 15,
+        "equityTaperStartsAfterAge": 35,
+        "publishedActiveChoiceMaximumAllocationPct": null,
+        "riskConsiderations": [
+          "Higher published early-life equity allocation exposes pension wealth to large market drawdowns.",
+          "Corporate and government bonds also carry credit-spread or duration price risk.",
+          "Age-dependent reallocation and Tier I exit restrictions may not fit a short horizon."
+        ],
+        "investorAccessConstraints": [
+          "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
+          "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+        ],
+        "specificPensionFundAndSchemeVerified": false,
+        "currentSchemeNavAndRiskLevelVerified": false,
+        "currentSubscriptionTermsAndFeesVerified": false,
+        "subscriberAgeResidencyKycAndSectorVerified": false,
+        "individualExitAndWithdrawalEligibilityVerified": false,
+        "commercialDataAndRedistributionRightsVerified": false,
+        "taxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_lc_aggressive",
       "exposureClass": "NPS_LIFECYCLE_ALLOCATION_AND_PENSION_LOCK_IN",
-      "scenarioDescription": "NPS Tier I Aggressive Life Cycle Allocation Choice: NPS Auto Choice category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NPS Tier I Aggressive Life Cycle Allocation Choice: PFRDA Life Cycle Aggressive (formerly Balanced) maintains 50% equity through age 45 and tapers to 35% by age 55; it is distinct from Life Cycle 75 (High). Account eligibility, KYC, sector, pension fund, current NAV, scheme risk, exit conditions, tax and data rights are not independently established.",
       "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2250,15 +2352,49 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsCommonSchemeReview": {
+        "choiceType": "AUTO_CHOICE",
+        "choiceCode": "LIFE_CYCLE_AGGRESSIVE_FORMER_BALANCED",
+        "officialAllCitizenSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialPensionFundsGuidanceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
+        "officialLifecycleNomenclatureCircularUrl": "https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf",
+        "lifecycleNomenclatureCircularIssuedOn": "2025-10-17",
+        "officialExitWithdrawalFaqUrl": "https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf",
+        "exitFaqUpdatedMonth": "2026-03",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY",
+        "publishedEquityAllocationAtAge35Pct": 50,
+        "publishedEquityAllocationAtAge55Pct": 35,
+        "equityTaperStartsAfterAge": 45,
+        "publishedActiveChoiceMaximumAllocationPct": null,
+        "riskConsiderations": [
+          "A 50% equity share continues through age 45 rather than tapering from age 35.",
+          "A 35% equity share at age 55 can still generate significant market losses.",
+          "Corporate and government bond exposures and Tier I exit terms add further risk."
+        ],
+        "investorAccessConstraints": [
+          "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
+          "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+        ],
+        "specificPensionFundAndSchemeVerified": false,
+        "currentSchemeNavAndRiskLevelVerified": false,
+        "currentSubscriptionTermsAndFeesVerified": false,
+        "subscriberAgeResidencyKycAndSectorVerified": false,
+        "individualExitAndWithdrawalEligibilityVerified": false,
+        "commercialDataAndRedistributionRightsVerified": false,
+        "taxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_asset_e",
       "exposureClass": "NPS_EQUITY_AND_PENSION_LOCK_IN",
-      "scenarioDescription": "NPS Tier I Active Choice Equity Asset Class E: NPS Active Choice category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NPS Tier I Active Choice Equity Asset Class E: Active Choice Class E is an equity and related-instruments allocation with a published maximum of 75% under the PFRDA common-scheme framework; this is not a pension-fund holding or riskometer. Account eligibility, KYC, sector, pension fund, current NAV, scheme risk, exit conditions, tax and data rights are not independently established.",
       "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2278,15 +2414,49 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsCommonSchemeReview": {
+        "choiceType": "ACTIVE_CHOICE",
+        "choiceCode": "ACTIVE_CLASS_E_EQUITY",
+        "officialAllCitizenSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialPensionFundsGuidanceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
+        "officialLifecycleNomenclatureCircularUrl": "https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf",
+        "lifecycleNomenclatureCircularIssuedOn": "2025-10-17",
+        "officialExitWithdrawalFaqUrl": "https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf",
+        "exitFaqUpdatedMonth": "2026-03",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY",
+        "publishedEquityAllocationAtAge35Pct": null,
+        "publishedEquityAllocationAtAge55Pct": null,
+        "equityTaperStartsAfterAge": null,
+        "publishedActiveChoiceMaximumAllocationPct": 75,
+        "riskConsiderations": [
+          "Equity prices can fall and losses are not capped by the published allocation maximum.",
+          "Actual pension-fund portfolio composition and scheme-level NAV remain unverified.",
+          "Tier I exit restrictions may constrain access during market declines."
+        ],
+        "investorAccessConstraints": [
+          "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
+          "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+        ],
+        "specificPensionFundAndSchemeVerified": false,
+        "currentSchemeNavAndRiskLevelVerified": false,
+        "currentSubscriptionTermsAndFeesVerified": false,
+        "subscriberAgeResidencyKycAndSectorVerified": false,
+        "individualExitAndWithdrawalEligibilityVerified": false,
+        "commercialDataAndRedistributionRightsVerified": false,
+        "taxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_asset_c",
       "exposureClass": "NPS_CREDIT_AND_PENSION_LOCK_IN",
-      "scenarioDescription": "NPS Tier I Active Choice Corporate Bonds Asset Class C: NPS Active Choice category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NPS Tier I Active Choice Corporate Bonds Asset Class C: Active Choice Class C is corporate bonds and related instruments with a published maximum of 100% of common-scheme allocation; a cap is not a credit guarantee. Account eligibility, KYC, sector, pension fund, current NAV, scheme risk, exit conditions, tax and data rights are not independently established.",
       "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2306,15 +2476,49 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsCommonSchemeReview": {
+        "choiceType": "ACTIVE_CHOICE",
+        "choiceCode": "ACTIVE_CLASS_C_CORPORATE_BONDS",
+        "officialAllCitizenSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialPensionFundsGuidanceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
+        "officialLifecycleNomenclatureCircularUrl": "https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf",
+        "lifecycleNomenclatureCircularIssuedOn": "2025-10-17",
+        "officialExitWithdrawalFaqUrl": "https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf",
+        "exitFaqUpdatedMonth": "2026-03",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY",
+        "publishedEquityAllocationAtAge35Pct": null,
+        "publishedEquityAllocationAtAge55Pct": null,
+        "equityTaperStartsAfterAge": null,
+        "publishedActiveChoiceMaximumAllocationPct": 100,
+        "riskConsiderations": [
+          "Corporate-bond issuer defaults, downgrades and credit-spread widening may reduce value.",
+          "Interest-rate movements can reduce bond market values and pension NAV.",
+          "Tier I exit and partial withdrawal conditions affect access."
+        ],
+        "investorAccessConstraints": [
+          "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
+          "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+        ],
+        "specificPensionFundAndSchemeVerified": false,
+        "currentSchemeNavAndRiskLevelVerified": false,
+        "currentSubscriptionTermsAndFeesVerified": false,
+        "subscriberAgeResidencyKycAndSectorVerified": false,
+        "individualExitAndWithdrawalEligibilityVerified": false,
+        "commercialDataAndRedistributionRightsVerified": false,
+        "taxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_asset_g",
       "exposureClass": "NPS_RATE_SENSITIVITY_AND_PENSION_LOCK_IN",
-      "scenarioDescription": "NPS Tier I Active Choice Government Securities Asset Class G: NPS Active Choice category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "NPS Tier I Active Choice Government Securities Asset Class G: Active Choice Class G covers government securities and related investments with a published maximum of 100% under the common-scheme framework; sovereign exposure is not zero NAV risk. Account eligibility, KYC, sector, pension fund, current NAV, scheme risk, exit conditions, tax and data rights are not independently established.",
       "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2334,15 +2538,49 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsCommonSchemeReview": {
+        "choiceType": "ACTIVE_CHOICE",
+        "choiceCode": "ACTIVE_CLASS_G_GOVERNMENT_SECURITIES",
+        "officialAllCitizenSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialPensionFundsGuidanceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
+        "officialLifecycleNomenclatureCircularUrl": "https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf",
+        "lifecycleNomenclatureCircularIssuedOn": "2025-10-17",
+        "officialExitWithdrawalFaqUrl": "https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf",
+        "exitFaqUpdatedMonth": "2026-03",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY",
+        "publishedEquityAllocationAtAge35Pct": null,
+        "publishedEquityAllocationAtAge55Pct": null,
+        "equityTaperStartsAfterAge": null,
+        "publishedActiveChoiceMaximumAllocationPct": 100,
+        "riskConsiderations": [
+          "Government-bond duration creates interest-rate and mark-to-market risk.",
+          "Fund-level security mix, liquidity and valuation remain unverified.",
+          "Tier I exit and partial withdrawal conditions affect access."
+        ],
+        "investorAccessConstraints": [
+          "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
+          "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+        ],
+        "specificPensionFundAndSchemeVerified": false,
+        "currentSchemeNavAndRiskLevelVerified": false,
+        "currentSubscriptionTermsAndFeesVerified": false,
+        "subscriberAgeResidencyKycAndSectorVerified": false,
+        "individualExitAndWithdrawalEligibilityVerified": false,
+        "commercialDataAndRedistributionRightsVerified": false,
+        "taxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_asset_a",
       "exposureClass": "NPS_ALTERNATIVES_AND_PENSION_LOCK_IN",
-      "scenarioDescription": "NPS Tier I Active Choice Alternative Assets Class A: NPS Active Choice category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+      "scenarioDescription": "NPS Tier I Active Choice Alternative Assets Class A: PFRDA's Pension Funds guidance explicitly identifies Active Choice Class A alternative investments with a maximum 5% allocation; the general All Citizen choice table omits Class A, so the specific Pension Funds source is necessary. Account eligibility, KYC, sector, pension fund, current NAV, scheme risk, exit conditions, tax and data rights are not independently established.",
+      "referenceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2358,11 +2596,45 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "PUBLISHED_NPS_ACTIVE_CHOICE_MAX_CLASS_ALLOCATION_PERCENT",
         "value": 5,
-        "officialSourceUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialSourceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsCommonSchemeReview": {
+        "choiceType": "ACTIVE_CHOICE",
+        "choiceCode": "ACTIVE_CLASS_A_ALTERNATIVES",
+        "officialAllCitizenSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models",
+        "officialPensionFundsGuidanceUrl": "https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds",
+        "officialLifecycleNomenclatureCircularUrl": "https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf",
+        "lifecycleNomenclatureCircularIssuedOn": "2025-10-17",
+        "officialExitWithdrawalFaqUrl": "https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf",
+        "exitFaqUpdatedMonth": "2026-03",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY",
+        "publishedEquityAllocationAtAge35Pct": null,
+        "publishedEquityAllocationAtAge55Pct": null,
+        "equityTaperStartsAfterAge": null,
+        "publishedActiveChoiceMaximumAllocationPct": 5,
+        "riskConsiderations": [
+          "Alternative exposures may be less liquid and harder to value than listed assets.",
+          "A 5% maximum allocation does not establish an individual scheme's actual holdings or risk.",
+          "Tier I pension exit and fund-specific access rules remain relevant."
+        ],
+        "investorAccessConstraints": [
+          "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
+          "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+        ],
+        "specificPensionFundAndSchemeVerified": false,
+        "currentSchemeNavAndRiskLevelVerified": false,
+        "currentSubscriptionTermsAndFeesVerified": false,
+        "subscriberAgeResidencyKycAndSectorVerified": false,
+        "individualExitAndWithdrawalEligibilityVerified": false,
+        "commercialDataAndRedistributionRightsVerified": false,
+        "taxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_vatsalya",

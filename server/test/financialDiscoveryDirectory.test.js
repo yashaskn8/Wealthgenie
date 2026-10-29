@@ -332,3 +332,42 @@ test('five equity index archetypes expose independent official benchmark evidenc
  assert.equal(refreshed.frameworkResearch.indexBenchmarkReview.individualSuitabilityVerified,false);
  assert.ok(!refreshed.frameworkResearch.indexBenchmarkReview.riskConsiderations.includes('forged'));
 });
+
+
+test('eight PFRDA NPS common choices expose independently copied dated framework evidence only',()=>{
+ const items=listFinancialDiscoveryDirectory().items;
+ const ids=['nps_lc25','nps_lc50','nps_lc75','nps_lc_aggressive',
+  'nps_asset_e','nps_asset_c','nps_asset_g','nps_asset_a'];
+ const rows=ids.map(s=>items.find(x=>x.id==='catalog_2026_'+s));
+ assert.equal(rows.length,8);
+ for(const row of rows){
+  const review=row.frameworkResearch.npsCommonSchemeReview;
+  assert.ok(review,row.id);
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.lifecycleNomenclatureCircularIssuedOn,'2025-10-17');
+  assert.equal(review.exitFaqUpdatedMonth,'2026-03');
+  assert.ok(review.riskConsiderations.length>=2);
+  assert.ok(review.investorAccessConstraints.length>=2);
+  assert.equal(review.specificPensionFundAndSchemeVerified,false);
+  assert.equal(review.currentSchemeNavAndRiskLevelVerified,false);
+  assert.equal(review.subscriberAgeResidencyKycAndSectorVerified,false);
+  assert.equal(review.commercialDataAndRedistributionRightsVerified,false);
+  assert.equal(review.individualSuitabilityVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.ok(Object.values(row.productData).every(v=>v===null));
+ }
+ assert.equal(items.filter(x=>x.frameworkResearch?.npsCommonSchemeReview).length,8);
+ const aggressive=rows[3].frameworkResearch.npsCommonSchemeReview;
+ assert.deepEqual([aggressive.publishedEquityAllocationAtAge35Pct,
+  aggressive.publishedEquityAllocationAtAge55Pct,aggressive.equityTaperStartsAfterAge],[50,35,45]);
+ assert.equal(rows[2].frameworkResearch.npsCommonSchemeReview.choiceCode,'LIFE_CYCLE_75_HIGH');
+ assert.equal(rows[7].referenceUrl,
+  'https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds');
+ assert.equal(rows[7].frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl,rows[7].referenceUrl);
+ rows[7].frameworkResearch.npsCommonSchemeReview.riskConsiderations.push('tampered');
+ rows[7].frameworkResearch.npsCommonSchemeReview.investorAccessConstraints[0]='tampered';
+ const again=listFinancialDiscoveryDirectory().items.find(x=>x.id===rows[7].id);
+ assert.ok(!again.frameworkResearch.npsCommonSchemeReview.riskConsiderations.includes('tampered'));
+ assert.notEqual(again.frameworkResearch.npsCommonSchemeReview.investorAccessConstraints[0],'tampered');
+});

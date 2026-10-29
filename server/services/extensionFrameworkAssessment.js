@@ -18,6 +18,11 @@ const postalSavingsIds=new Set(['catalog_2026_po_savings','catalog_2026_po_td_2'
 const governmentBondStructureTypes=Object.freeze({"catalog_2026_gsec_coupon_strip":"CENTRAL_GSEC_COUPON_STRIP","catalog_2026_gsec_principal_strip":"CENTRAL_GSEC_PRINCIPAL_STRIP","catalog_2026_sovereign_green":"SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","catalog_2026_gsec_floating":"FLOATING_RATE_CENTRAL_GSEC"});
 const governmentBondOfficialSources=Object.freeze({"catalog_2026_gsec_coupon_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_gsec_principal_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_sovereign_green":"https://dea.gov.in/framework-sovereign-green-bonds","catalog_2026_gsec_floating":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711"});
 const sebiDebtSchemeKinds=Object.freeze({"catalog_2026_gilt_10y_constant":"GILT_10_YEAR_CONSTANT_DURATION","catalog_2026_medium_long_duration_mf":"MEDIUM_TO_LONG_TERM_DEBT_FUND","catalog_2026_long_duration_mf":"LONG_TERM_DEBT_FUND","catalog_2026_target_maturity_gsec_index":"GSEC_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_sdl_index":"SDL_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_psu_index":"PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_constant_maturity_debt_index":"CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY","catalog_2026_domestic_debt_fof":"DOMESTIC_DEBT_FUND_OF_FUNDS","catalog_2026_gsec_debt_etf":"GSEC_PASSIVE_DEBT_ETF_STRATEGY"});
+const npsCommonChoiceSpecs=Object.freeze({"catalog_2026_nps_lc25":{"choiceCode":"LIFE_CYCLE_25_LOW","choiceType":"AUTO_CHOICE","age35":25,"age55":5,"taperAfter":35,"cap":null},"catalog_2026_nps_lc50":{"choiceCode":"LIFE_CYCLE_50_MODERATE","choiceType":"AUTO_CHOICE","age35":50,"age55":10,"taperAfter":35,"cap":null},"catalog_2026_nps_lc75":{"choiceCode":"LIFE_CYCLE_75_HIGH","choiceType":"AUTO_CHOICE","age35":75,"age55":15,"taperAfter":35,"cap":null},"catalog_2026_nps_lc_aggressive":{"choiceCode":"LIFE_CYCLE_AGGRESSIVE_FORMER_BALANCED","choiceType":"AUTO_CHOICE","age35":50,"age55":35,"taperAfter":45,"cap":null},"catalog_2026_nps_asset_e":{"choiceCode":"ACTIVE_CLASS_E_EQUITY","choiceType":"ACTIVE_CHOICE","age35":null,"age55":null,"taperAfter":null,"cap":75},"catalog_2026_nps_asset_c":{"choiceCode":"ACTIVE_CLASS_C_CORPORATE_BONDS","choiceType":"ACTIVE_CHOICE","age35":null,"age55":null,"taperAfter":null,"cap":100},"catalog_2026_nps_asset_g":{"choiceCode":"ACTIVE_CLASS_G_GOVERNMENT_SECURITIES","choiceType":"ACTIVE_CHOICE","age35":null,"age55":null,"taperAfter":null,"cap":100},"catalog_2026_nps_asset_a":{"choiceCode":"ACTIVE_CLASS_A_ALTERNATIVES","choiceType":"ACTIVE_CHOICE","age35":null,"age55":null,"taperAfter":null,"cap":5}});
+const npsAllCitizenUrl="https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models";
+const npsPensionFundsUrl="https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds";
+const npsLifecycleCircularUrl="https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf";
+const npsExitFaqUrl="https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf";
 const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50","catalog_2026_index_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_index_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_index_midcap150":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150","catalog_2026_index_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"});
 const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
@@ -153,6 +158,30 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
         'taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified']
         .some(key=>x.indexBenchmarkReview[key]!==false))
     : x.indexBenchmarkReview!==undefined)
+  || research.entries.some(x=>Object.hasOwn(npsCommonChoiceSpecs,x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.npsCommonSchemeReview?.choiceCode!==npsCommonChoiceSpecs[x.id].choiceCode
+      || x.npsCommonSchemeReview?.choiceType!==npsCommonChoiceSpecs[x.id].choiceType
+      || x.npsCommonSchemeReview?.publishedEquityAllocationAtAge35Pct!==npsCommonChoiceSpecs[x.id].age35
+      || x.npsCommonSchemeReview?.publishedEquityAllocationAtAge55Pct!==npsCommonChoiceSpecs[x.id].age55
+      || x.npsCommonSchemeReview?.equityTaperStartsAfterAge!==npsCommonChoiceSpecs[x.id].taperAfter
+      || x.npsCommonSchemeReview?.publishedActiveChoiceMaximumAllocationPct!==npsCommonChoiceSpecs[x.id].cap
+      || x.npsCommonSchemeReview?.officialAllCitizenSchemeUrl!==npsAllCitizenUrl
+      || x.npsCommonSchemeReview?.officialPensionFundsGuidanceUrl!==npsPensionFundsUrl
+      || x.npsCommonSchemeReview?.officialLifecycleNomenclatureCircularUrl!==npsLifecycleCircularUrl
+      || x.npsCommonSchemeReview?.officialExitWithdrawalFaqUrl!==npsExitFaqUrl
+      || x.npsCommonSchemeReview?.lifecycleNomenclatureCircularIssuedOn!=='2025-10-17'
+      || x.npsCommonSchemeReview?.exitFaqUpdatedMonth!=='2026-03'
+      || x.npsCommonSchemeReview?.reviewedOn!=='2026-10-29'
+      || x.npsCommonSchemeReview?.sourceScope!=='PFRDA_COMMON_SCHEME_ALLOCATION_FRAMEWORK_NOT_ACTUAL_FUND_NAV_OR_INDIVIDUAL_ELIGIBILITY'
+      || x.verifiedPublicFrameworkFact?.officialSourceUrl!==(x.id==='catalog_2026_nps_asset_a'?npsPensionFundsUrl:npsAllCitizenUrl)
+      || x.verifiedPublicFrameworkFact?.value!==(npsCommonChoiceSpecs[x.id].choiceType==='AUTO_CHOICE'?npsCommonChoiceSpecs[x.id].age35:npsCommonChoiceSpecs[x.id].cap)
+      || !Array.isArray(x.npsCommonSchemeReview?.riskConsiderations)
+      || x.npsCommonSchemeReview.riskConsiderations.length<2
+      || !Array.isArray(x.npsCommonSchemeReview?.investorAccessConstraints)
+      || x.npsCommonSchemeReview.investorAccessConstraints.length<2
+      || ["specificPensionFundAndSchemeVerified","currentSchemeNavAndRiskLevelVerified","currentSubscriptionTermsAndFeesVerified","subscriberAgeResidencyKycAndSectorVerified","individualExitAndWithdrawalEligibilityVerified","commercialDataAndRedistributionRightsVerified","taxAndAdviceAuthorizationVerified","individualSuitabilityVerified"].some(k=>x.npsCommonSchemeReview[k]!==false))
+    : x.npsCommonSchemeReview!==undefined)
   || research.entries.some((e,i)=> e.id!==universe[i].id
     || !idSet.has(e.id) || legacyIds.has(e.id)
     || e.referenceUrl!==universe[i].sourceUrl
@@ -310,6 +339,33 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('GOVERNMENT_SECURITY_CURRENT_ISSUE_PRICE_AND_SOURCE_RIGHTS_UNVERIFIED');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_GOVT_SECURITY_EARLY_SALE_PRICE_AND_LIQUIDITY_REVIEW');
+   }
+   if(row.npsCommonSchemeReview) {
+     reasons.push('NPS_COMMON_SCHEME_PENSION_FUND_NAV_KYC_AND_ENTITLEMENTS_UNVERIFIED');
+     reasons.push('NPS_TIER_I_VESTING_PREMATURE_EXIT_AND_ANNUITY_TERMS_REQUIRE_REVIEW');
+     // This is a normal-exit horizon notice, NOT a hard lock-in or eligibility decision.
+     const yearsUntilSixty=Math.max(0,60-profile.age);
+     if(profile.investmentHorizonYears<Math.min(15,yearsUntilSixty))
+       reasons.push('NPS_RECORDED_HORIZON_BEFORE_COMMON_SCHEME_NORMAL_EXIT_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_NPS_TIER_I_WITHDRAWAL_ACCESS_REVIEW');
+     if(row.npsCommonSchemeReview.choiceType==='AUTO_CHOICE') {
+       reasons.push('NPS_LIFECYCLE_AGE_DEPENDENT_EQUITY_TAPER_NOT_SCHEME_RISKOMETER');
+       if(row.id==='catalog_2026_nps_lc_aggressive')
+         reasons.push('NPS_AGGRESSIVE_LIFECYCLE_TAPERS_AFTER_45_NOT_LC75_HIGH');
+     } else {
+       const activeRisks={
+         catalog_2026_nps_asset_e:'NPS_CLASS_E_EQUITY_MARKET_LOSS_AND_ALLOCATION_CAP_REVIEW',
+         catalog_2026_nps_asset_c:'NPS_CLASS_C_CORPORATE_ISSUER_CREDIT_AND_RATE_RISK_REVIEW',
+         catalog_2026_nps_asset_g:'NPS_CLASS_G_GOVT_BOND_DURATION_AND_NAV_RISK_REVIEW',
+         catalog_2026_nps_asset_a:'NPS_CLASS_A_ALTERNATIVES_FIVE_PERCENT_CAP_LIQUIDITY_AND_VALUATION_REVIEW',
+       };
+       reasons.push(activeRisks[row.id]);
+     }
+     if(profile.riskTolerance==='Conservative'
+       && ['catalog_2026_nps_lc50','catalog_2026_nps_lc75',
+         'catalog_2026_nps_lc_aggressive','catalog_2026_nps_asset_e'].includes(row.id))
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NPS_EQUITY_DRAWDOWN_CAPACITY_REVIEW');
    }
    if(row.id.startsWith('catalog_2026_ncd_'))
      reasons.push('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW');

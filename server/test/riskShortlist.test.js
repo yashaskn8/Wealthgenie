@@ -479,3 +479,57 @@ test('five independently sourced broad-market equity indices remain non-ranking 
  }
  assert.equal(rows.filter(x=>x.indexBenchmarkReview).length,5);
 });
+
+
+test('eight PFRDA common NPS choices have source-specific risks and age/horizon notices without approval',()=>{
+ const ids=['nps_lc25','nps_lc50','nps_lc75','nps_lc_aggressive',
+  'nps_asset_e','nps_asset_c','nps_asset_g','nps_asset_a'];
+ const rows=listExtensionResearch();
+ const young=screenExtensionResearchForProfile(canonicalProfile({
+  age:30,investmentHorizonYears:3,riskTolerance:'Conservative',investmentGoals:['Emergency Fund'],
+ }));
+ const older=screenExtensionResearchForProfile(canonicalProfile({
+  age:65,investmentHorizonYears:3,riskTolerance:'Aggressive',investmentGoals:['Retirement'],
+ }));
+ const get=(list,s)=>list.find(x=>x.id==='catalog_2026_'+s);
+ for(const suffix of ids){
+  const row=get(rows,suffix),review=row.npsCommonSchemeReview;
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.individualSuitabilityVerified,false);
+  assert.equal(row.actualRetailProductEligible,false);
+  assert.equal(row.sourcePermissionVerified,false);
+  assert.equal(row.suitabilityRankingPermitted,false);
+  assert.equal(row.productRiskScore,null);
+  for(const screened of [young,older]){
+   const item=get(screened,suffix);
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+   assert.ok(item.screeningReasonCodes.includes('NPS_COMMON_SCHEME_PENSION_FUND_NAV_KYC_AND_ENTITLEMENTS_UNVERIFIED'));
+  }
+  assert.ok(get(young,suffix).screeningReasonCodes.includes(
+   'NPS_RECORDED_HORIZON_BEFORE_COMMON_SCHEME_NORMAL_EXIT_REVIEW'));
+  assert.ok(!get(older,suffix).screeningReasonCodes.includes(
+   'NPS_RECORDED_HORIZON_BEFORE_COMMON_SCHEME_NORMAL_EXIT_REVIEW'));
+  assert.ok(get(young,suffix).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_NPS_TIER_I_WITHDRAWAL_ACCESS_REVIEW'));
+  assert.ok(!get(older,suffix).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_NPS_TIER_I_WITHDRAWAL_ACCESS_REVIEW'));
+ }
+ assert.ok(get(young,'nps_lc_aggressive').screeningReasonCodes.includes(
+  'NPS_AGGRESSIVE_LIFECYCLE_TAPERS_AFTER_45_NOT_LC75_HIGH'));
+ assert.ok(!get(young,'nps_lc75').screeningReasonCodes.includes(
+  'NPS_AGGRESSIVE_LIFECYCLE_TAPERS_AFTER_45_NOT_LC75_HIGH'));
+ const expected={nps_asset_e:'NPS_CLASS_E_EQUITY_MARKET_LOSS_AND_ALLOCATION_CAP_REVIEW',
+  nps_asset_c:'NPS_CLASS_C_CORPORATE_ISSUER_CREDIT_AND_RATE_RISK_REVIEW',
+  nps_asset_g:'NPS_CLASS_G_GOVT_BOND_DURATION_AND_NAV_RISK_REVIEW',
+  nps_asset_a:'NPS_CLASS_A_ALTERNATIVES_FIVE_PERCENT_CAP_LIQUIDITY_AND_VALUATION_REVIEW'};
+ for(const [suffix,reason] of Object.entries(expected))
+  assert.ok(get(young,suffix).screeningReasonCodes.includes(reason));
+ assert.equal(rows.filter(x=>x.npsCommonSchemeReview).length,8);
+ rows.find(x=>x.id==='catalog_2026_nps_asset_a').npsCommonSchemeReview.riskConsiderations.push('tampered');
+ assert.ok(!listExtensionResearch().find(x=>x.id==='catalog_2026_nps_asset_a')
+  .npsCommonSchemeReview.riskConsiderations.includes('tampered'));
+});
