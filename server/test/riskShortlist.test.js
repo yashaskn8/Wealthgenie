@@ -754,3 +754,23 @@ test('PFRDA April 2026 multiple-NAV fee variants remain unverified for all nine 
   assert.ok(!b.screeningReasonCodes.includes(taxCode));
  }
 });
+
+test('RBI Retail Direct emergency-fund screening flags secondary-sale uncertainty without ranking',()=>{
+ const emergency=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Emergency Fund'],investmentHorizonYears:1,
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+ }));
+ for(const id of ['tbill_91','tbill_182','tbill_364','sdl_dated']){
+  const key='catalog_2026_'+id;
+  const a=emergency.find(x=>x.id===key),b=long.find(x=>x.id===key);
+  assert.ok(a.screeningReasonCodes.includes(
+   'EMERGENCY_FUND_REQUIRES_RETAIL_DIRECT_EARLY_SALE_PRICE_AND_LIQUIDITY_REVIEW'));
+  assert.ok(!b.screeningReasonCodes.includes(
+   'EMERGENCY_FUND_REQUIRES_RETAIL_DIRECT_EARLY_SALE_PRICE_AND_LIQUIDITY_REVIEW'));
+  assert.equal(a.productQualified,false);
+  assert.equal(a.productRiskLevel,null);
+  assert.equal(a.scoreAvailable,false);
+ }
+});
