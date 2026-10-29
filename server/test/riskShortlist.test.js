@@ -4,7 +4,7 @@ import { buildRiskShortlist, RISK_SHORTLIST_POLICY_VERSION } from '../services/r
 import { runPipeline } from '../services/RecommendationPipeline.js';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
-import {screenExtensionResearchForProfile,listExtensionResearch} from '../services/extensionFrameworkAssessment.js';
+import {screenExtensionResearchForProfile,listExtensionResearch,isOfficialFrameworkReferenceUrl} from '../services/extensionFrameworkAssessment.js';
 
 test('Top 5 risk categories use the same eligibility and ranking policy as current recommendations',()=>{
   const profile=canonicalProfile();
@@ -1059,4 +1059,45 @@ test('zero recorded emergency-fund months trigger restricted-exit review without
  assert.ok(zero.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
    && x.scoreAvailable===false && x.productQualified===false
    && x.productRiskLevel===null));
+});
+
+
+test('official framework references reject spoofed HTTPS origins and credentials',()=>{
+ const rows=listExtensionResearch();
+ for(const row of rows){
+  assert.equal(isOfficialFrameworkReferenceUrl(row.referenceUrl),true,row.id);
+  assert.equal(isOfficialFrameworkReferenceUrl(row.verifiedPublicFrameworkFact.officialSourceUrl),true,row.id);
+ }
+ for(const invalid of [
+  'http://www.sebi.gov.in/legal/regulations',
+  'https://www.sebi.gov.in.attacker.example/legal/regulations',
+  'https://www.rbi.org.in.evil.example/Scripts/FAQView.aspx?Id=145',
+  'https://attacker.example@www.sebi.gov.in/legal/regulations',
+  'https://www.sebi.gov.in:444/legal/regulations',
+  'https://www.sebi.gov.in/legal/regulations#unreviewed',
+  'https://www.sebi.gov.in/',null,{},
+ ])assert.equal(isOfficialFrameworkReferenceUrl(invalid),false,String(invalid));
+});
+
+test('zero emergency buffer flags unverified issuer and secondary exit access, not blanket ineligibility',()=>{
+ const flag='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_UNVERIFIED_EXIT_LIQUIDITY_REVIEW';
+ const zero=screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:0,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+ }));
+ const missing=screenExtensionResearchForProfile(canonicalProfile({emergencyFundMonths:null}));
+ const positive=screenExtensionResearchForProfile(canonicalProfile({emergencyFundMonths:6}));
+ const get=(rows,id)=>rows.find(row=>row.id==='catalog_2026_'+id);
+ for(const id of ['nbfc_fd_cumulative','nbfc_fd_payout','sdl_coupon_strip',
+  'sdl_principal_strip','gsec_coupon_strip','gsec_principal_strip',
+  'pms_discretionary','pms_nondiscretionary','ncd_unlisted']){
+  assert.ok(get(zero,id).screeningReasonCodes.includes(flag),id);
+  assert.ok(!get(missing,id).screeningReasonCodes.includes(flag),id+' unknown');
+  assert.ok(!get(positive,id).screeningReasonCodes.includes(flag),id+' positive');
+ }
+ for(const id of ['po_savings','bank_rd','index_nifty100','nps_lc25']){
+  assert.ok(!get(zero,id).screeningReasonCodes.includes(flag),id);
+ }
+ assert.equal(zero.length,95);
+ assert.ok(zero.every(row=>row.productQualified===false && row.scoreAvailable===false
+  && row.productRiskLevel===null && row.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'));
 });

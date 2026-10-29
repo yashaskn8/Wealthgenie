@@ -47,8 +47,27 @@ const nseIndexPages=Object.freeze({...nseBroadIndexPages,...Object.fromEntries(O
 const nseEquityEtfBenchmarks=Object.freeze({"catalog_2026_etf_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_etf_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_etf_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250","catalog_2026_etf_nifty50_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","catalog_2026_etf_nifty100_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight","catalog_2026_etf_nifty200_quality":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","catalog_2026_etf_nifty500_lowvol":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50","catalog_2026_etf_nifty500_momentum":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","catalog_2026_etf_india_defence":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence","catalog_2026_etf_india_consumption":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption"});
 const nseAdditionalEtfBenchmarks=Object.freeze({"catalog_2026_etf_nifty200_quality":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","code":"QUALITY_FACTOR_NIFTY200"},"catalog_2026_etf_nifty500_lowvol":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50","code":"LOW_VOLATILITY_FACTOR_NIFTY500"},"catalog_2026_etf_nifty500_momentum":{"url":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","code":"MOMENTUM_FACTOR_NIFTY500"},"catalog_2026_etf_india_defence":{"url":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence","code":"DEFENCE_THEME"},"catalog_2026_etf_india_consumption":{"url":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption","code":"DOMESTIC_CONSUMPTION_THEME"}});
 const sebiEtfInvestorEducationUrl="https://investor.sebi.gov.in/exchange_traded_fund.html";
+// HTTPS alone is not evidence of an official framework source. Exact hosts
+// prevent lookalike domains and credential-bearing URLs from passing validation.
+const officialFrameworkHosts=new Set([
+  'www.indiapost.gov.in','www.rbi.org.in','m.rbi.org.in','rbi.org.in',
+  'dea.gov.in','www.dicgc.org.in','www.sebi.gov.in',
+  'investor.sebi.gov.in','www.niftyindices.com','niftyindices.com',
+  'pfrda.org.in','www.bis.gov.in',
+]);
+export function isOfficialFrameworkReferenceUrl(value) {
+  if(typeof value!=='string')return false;
+  try {
+    const url=new URL(value);
+    return url.protocol==='https:' && officialFrameworkHosts.has(url.hostname)
+      && !url.username && !url.password && !url.port && !url.hash
+      && url.pathname.length>1;
+  } catch { return false; }
+}
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
+  || research.entries.some(x=>!isOfficialFrameworkReferenceUrl(x.referenceUrl)
+    || !isOfficialFrameworkReferenceUrl(x.verifiedPublicFrameworkFact?.officialSourceUrl))
   || new Set(research.entries.map(x=>x.id)).size!==95
   || research.publicFrameworkFactsDirectlyReviewed !== 95
   || research.productRiskScoresIndependentlyVerified !== 0
@@ -797,6 +816,15 @@ export function screenExtensionResearchForProfile(profileInput) {
      ||row.id==='catalog_2026_bank_tax_saver_fd'
      ||row.id==='catalog_2026_sif_hybrid_longshort'
    ))reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_RESTRICTED_EXIT_ACCESS_REVIEW');
+   // Not a statutory lock-in: these archetypes have unverified secondary exit,
+   // issuer repayment or managed-account liquidity terms. This is only a notice.
+   if(profile.emergencyFundMonths===0 && (
+     row.nbfcPublicDepositAccessReview || row.sgsStripsAccessReview
+     || row.governmentBondStructureReview?.structureType?.endsWith('_STRIP')
+     || row.id==='catalog_2026_pms_discretionary'
+     || row.id==='catalog_2026_pms_nondiscretionary'
+     || row.id==='catalog_2026_ncd_unlisted'
+   ))reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_UNVERIFIED_EXIT_LIQUIDITY_REVIEW');
    return {
      id:row.id,
      profileAssessment:'MISSING_SUITABILITY_EVIDENCE',
