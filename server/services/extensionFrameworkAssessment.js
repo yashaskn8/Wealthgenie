@@ -85,6 +85,8 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
   || research.entries.some(x=>Object.hasOwn(aifCategoryStructures,x.id)
     ? (x.aifCategoryAccessReview?.officialSebiRegulationsUrl!==aifOctoberRegulationsUrl
       || x.aifCategoryAccessReview?.regulationsAmendedThrough!=='2026-10-15'
+      || x.referenceReviewedAt!=='2026-10-29'
+      || x.aifCategoryAccessReview?.reviewedOn!=='2026-10-29'
       || x.aifCategoryAccessReview?.categoryStructure!==aifCategoryStructures[x.id]
       || x.aifCategoryAccessReview?.privatePlacementRequired!==true
       || x.aifCategoryAccessReview?.generalMinimumInr!==(x.id==='catalog_2026_aif1_social'?null:10000000)
@@ -101,6 +103,8 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
     : x.aifCategoryAccessReview!==undefined)
   || research.entries.some(x=>['catalog_2026_sdl_coupon_strip','catalog_2026_sdl_principal_strip'].includes(x.id)
     ? (x.sgsStripsAccessReview?.officialRbiCircularUrl!==rbiSgsStripsUrl
+      || x.referenceReviewedAt!=='2026-10-29'
+      || x.sgsStripsAccessReview?.reviewedOn!=='2026-10-29'
       || x.sgsStripsAccessReview?.eligibleUnderlyingResidualMaturityMaximumYears!==14
       || x.sgsStripsAccessReview?.eligibleUnderlyingMinimumOutstandingInr!==10000000000
       || x.sgsStripsAccessReview?.underlyingOutstandingIsNotRetailInvestorMinimum!==true

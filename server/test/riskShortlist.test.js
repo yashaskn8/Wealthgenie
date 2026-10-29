@@ -116,7 +116,7 @@ test('October 2026 framework refresh distinguishes current rules, future PMS rul
    && x.marketFactsVerified===false && x.fiscalYearTaxVerified===false));
  for(const row of rows.filter(x=>x.id.startsWith('catalog_2026_aif'))){
   assert.match(row.referenceUrl,/oct-2026.*alternative-investment-funds/);
-  assert.equal(row.referenceReviewedAt,'2026-10-28');
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
  }
  assert.match(byId('sm_reit_scheme').referenceUrl,/oct-2026.*real-estate-investment-trusts/);
  for(const id of ['pms_discretionary','pms_nondiscretionary']){
@@ -150,7 +150,7 @@ test('RBI SGS STRIPS use separate source-backed rules and remain blocked for bot
   const row=rows.find(x=>x.id==='catalog_2026_'+id);
   assert.ok(row,id);
   assert.equal(row.referenceUrl,official);
-  assert.equal(row.referenceReviewedAt,'2026-10-28');
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
   assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,official);
   assert.match(row.verifiedPublicFrameworkFact.factCode,/RBI_SGS_.*_STRIPS_ELIGIBILITY/);
   assert.match(row.verifiedPublicFrameworkFact.value,/14 years/);
