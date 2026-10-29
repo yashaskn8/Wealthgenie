@@ -515,3 +515,30 @@ test('nine NPS framework records disclose April 2026 PFRDA NAV variants without 
   assert.equal(refreshedReview.multipleNavFrameworkReview.specificPensionFundNavVariantVerified,false);
  }
 });
+
+test('postal and RBI Retail Direct source-specific risks and access cautions are deeply copied',()=>{
+ const ids=['po_savings','po_td_2','po_td_3','po_td_5',
+  'tbill_91','tbill_182','tbill_364','sdl_dated'];
+ for(const id of ids){
+  const key='catalog_2026_'+id;
+  const row=listFinancialDiscoveryDirectory().items.find(x=>x.id===key);
+  const review=row.frameworkResearch.postalSavingsAccessReview
+   ||row.frameworkResearch.retailDirectAccessReview;
+  assert.ok(review.riskConsiderations.length>=2);
+  assert.ok(review.investorAccessConstraints.length>=2);
+  assert.equal(row.productData.currentInterestRate,null);
+  assert.equal(row.productData.currentPrice,null);
+  assert.equal(row.recommendationEligible,false);
+  if(id.startsWith('po_td_')){
+   assert.equal(review.officialOriginalSchemeRulesUrl,'https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf');
+   assert.equal(review.originalRulesMayHaveSubsequentAmendments,true);
+  }
+  review.riskConsiderations.push('FORGED');
+  review.investorAccessConstraints[0]='FORGED';
+  const fresh=listFinancialDiscoveryDirectory().items.find(x=>x.id===key);
+  const freshReview=fresh.frameworkResearch.postalSavingsAccessReview
+   ||fresh.frameworkResearch.retailDirectAccessReview;
+  assert.ok(!freshReview.riskConsiderations.includes('FORGED'));
+  assert.notEqual(freshReview.investorAccessConstraints[0],'FORGED');
+ }
+});
