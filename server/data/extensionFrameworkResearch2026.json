@@ -3152,7 +3152,50 @@
         "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "npsVatsalyaAccessReview": {
+        "schemeType": "MINOR_BENEFICIARY_GUARDIAN_OPERATED_MARKET_LINKED_NPS",
+        "officialPfrdaSchemeUrl": "https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya",
+        "officialPfrdaGuidelinesPressReleaseUrl": "https://www.pfrda.org.in/documents/33652/86710/Press%2BRelease%2B-%2BPFRDA%2Bissues%2BNPS%2BVatsalya%2BScheme%2BGuidelines%2B2025.pdf",
+        "reviewedOn": "2026-10-29",
+        "eligibleSubscriber": "INDIAN_CITIZEN_UNDER_18_WITH_PARENT_OR_LEGAL_GUARDIAN",
+        "minimumInitialContributionInr": 250,
+        "minimumAnnualContributionInr": 250,
+        "minimumSubsequentContributionInr": 10,
+        "partialWithdrawalLockInYears": 3,
+        "partialWithdrawalMaximumPctOfOwnContributions": 25,
+        "partialWithdrawalExcludesReturns": true,
+        "partialWithdrawalPermittedPurposes": [
+          "MINOR_EDUCATION",
+          "SPECIFIED_ILLNESS_TREATMENT",
+          "QUALIFYING_DISABILITY"
+        ],
+        "freshSubscriberKycRequiredAtAge": 18,
+        "age18Options": [
+          "CONTINUE_VATSALYA_TO_21",
+          "TRANSFER_TO_APPLICABLE_NPS_MODEL",
+          "EXIT_SUBJECT_TO_CORPUS_AND_ANNUITIZATION_RULES"
+        ],
+        "marketLinkedReturnsNotGuaranteed": true,
+        "riskConsiderations": [
+          "Selected pension fund and asset allocation can lose value; no fixed or guaranteed return.",
+          "Partial withdrawal is restricted by three-year lock-in, eligible purposes, and own-contribution limits; not equivalent to emergency cash.",
+          "At majority, fresh KYC and scheme-specific exit/annuity rules affect access."
+        ],
+        "investorAccessConstraints": [
+          "Actual minor age and citizenship, guardian authority, required KYC and registered intermediary must be checked independently.",
+          "Current pension fund, selected allocation, NAV, charges, investor tax treatment, access and advice permissions are not verified.",
+          "Account exit/withdrawal rules depend on subscriber age, corpus and applicable regulations; do not infer personalized eligibility."
+        ],
+        "specificPensionFundAndAllocationVerified": false,
+        "minorCitizenshipAgeGuardianKycVerified": false,
+        "currentNavFeesAndMarketRiskVerified": false,
+        "individualWithdrawalAndExitEligibilityVerified": false,
+        "commercialDataRightsVerified": false,
+        "investorTaxAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false,
+        "sourceScope": "PFRDA_PUBLIC_MINOR_SCHEME_FRAMEWORK_NOT_VERIFIED_ACCOUNT_OR_PRODUCT"
+      }
     },
     {
       "id": "catalog_2026_ncd_secured",
