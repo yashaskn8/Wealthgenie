@@ -3913,9 +3913,9 @@
       "id": "catalog_2026_physical_gold_bullion",
       "exposureClass": "PHYSICAL_METAL_PRICE_PURITY_STORAGE",
       "scenarioDescription": "Physical Investment Gold Bullion: Physical Precious Metals category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.bis.gov.in/hallmarking-jewellers/?lang=en",
+      "referenceUrl": "https://www.bis.gov.in/refineries/?lang=en",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3935,15 +3935,23 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "preciousMetalsCategoryReview": {
+        "officialSourceUrl": "https://www.bis.gov.in/refineries/?lang=en",
+        "structure": "Physical gold bullion or coin; BIS refinery/mint voluntary hallmarking scheme covers gold bullion/coin, including 999/995 fineness, and is distinct from jewellery hallmarking.",
+        "categoryRisks": "Spot-price volatility, authenticity/purity and custody/theft risks, dealer spreads and resale liquidity.",
+        "investorAccessAndEligibility": "Verify actual bar/coin weight, assay/fineness, seller/refinery credentials, invoice, custody and lawful purchase access; do not treat BIS quality standards as investment authorization.",
+        "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
+        "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION"
+      }
     },
     {
       "id": "catalog_2026_physical_silver_bullion",
       "exposureClass": "PHYSICAL_METAL_PRICE_PURITY_STORAGE",
       "scenarioDescription": "Physical Investment Silver Bullion: Physical Precious Metals category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.bis.gov.in/hallmarking-jewellers/?lang=en",
+      "referenceUrl": "https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3963,15 +3971,23 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "preciousMetalsCategoryReview": {
+        "officialSourceUrl": "https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en",
+        "structure": "Physical silver bullion/bar; BIS lists IS 17278 refined gold and silver bars and IS 2113 silver assaying, but its refinery/mint bullion hallmarking scheme is currently described as gold-only; do not claim silver bullion hallmark certification.",
+        "categoryRisks": "Silver spot-price volatility, authenticity/purity and storage risks, transaction spreads and resale liquidity.",
+        "investorAccessAndEligibility": "Verify bar assay, seller provenance, invoice, physical custody and local sale conditions; jewellery hallmarking is not proof of bullion certification.",
+        "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
+        "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION"
+      }
     },
     {
       "id": "catalog_2026_silver_fof",
       "exposureClass": "SILVER_COMMODITY_AND_FOF_COST",
       "scenarioDescription": "Silver ETF Fund of Funds Strategy: Commodity Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+      "referenceUrl": "https://www.sebi.gov.in/web/?file=%2Fsebi_data%2Fattachdocs%2Fjan-2022%2F1642395164041.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3991,7 +4007,15 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "preciousMetalsCategoryReview": {
+        "officialSourceUrl": "https://www.sebi.gov.in/web/?file=%2Fsebi_data%2Fattachdocs%2Fjan-2022%2F1642395164041.pdf",
+        "structure": "Illustrative SEBI-hosted Silver FoF scheme document describes an FoF investing in units of a silver ETF that holds silver-related exposure; this is a historical example, not proof of a currently offered scheme.",
+        "categoryRisks": "Silver price fluctuations pass through underlying ETF NAV; additional fund layers, tracking differences, ETF liquidity and redemption terms matter.",
+        "investorAccessAndEligibility": "Verify actual current FoF scheme identity, underlying ETF, current SID/KIM, riskometer, NAV, KYC and source rights. Historical filed documents are not current authorization.",
+        "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
+        "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION"
+      }
     },
     {
       "id": "catalog_2026_equity_diversified_fof",
