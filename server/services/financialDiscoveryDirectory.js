@@ -144,6 +144,8 @@ function buildDirectory() {
           ? { ...research.nbfcPublicDepositAccessReview } : null,
         retailDirectAccessReview: research.rbiRetailDirectAccessReview
           ? { ...research.rbiRetailDirectAccessReview } : null,
+        sebiDebtSchemeStructureReview: research.sebiDebtSchemeStructureReview
+          ? structuredClone(research.sebiDebtSchemeStructureReview) : null,
         governmentBondStructureReview: research.governmentBondStructureReview
           ? { ...research.governmentBondStructureReview } : null,
       };
@@ -199,6 +201,8 @@ export function listFinancialDiscoveryDirectory() {
           ? { ...item.frameworkResearch.publicDepositAccessReview } : null,
         retailDirectAccessReview: item.frameworkResearch.retailDirectAccessReview
           ? { ...item.frameworkResearch.retailDirectAccessReview } : null,
+        sebiDebtSchemeStructureReview: item.frameworkResearch.sebiDebtSchemeStructureReview
+          ? structuredClone(item.frameworkResearch.sebiDebtSchemeStructureReview) : null,
         governmentBondStructureReview: item.frameworkResearch.governmentBondStructureReview
           ? { ...item.frameworkResearch.governmentBondStructureReview } : null,
       } : null,

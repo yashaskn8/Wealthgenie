@@ -17,6 +17,8 @@ const retailDirectIds=new Set(['catalog_2026_tbill_91','catalog_2026_tbill_182',
 const postalSavingsIds=new Set(['catalog_2026_po_savings','catalog_2026_po_td_2','catalog_2026_po_td_3','catalog_2026_po_td_5']);
 const governmentBondStructureTypes=Object.freeze({"catalog_2026_gsec_coupon_strip":"CENTRAL_GSEC_COUPON_STRIP","catalog_2026_gsec_principal_strip":"CENTRAL_GSEC_PRINCIPAL_STRIP","catalog_2026_sovereign_green":"SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","catalog_2026_gsec_floating":"FLOATING_RATE_CENTRAL_GSEC"});
 const governmentBondOfficialSources=Object.freeze({"catalog_2026_gsec_coupon_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_gsec_principal_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_sovereign_green":"https://dea.gov.in/framework-sovereign-green-bonds","catalog_2026_gsec_floating":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711"});
+const sebiDebtSchemeKinds=Object.freeze({"catalog_2026_gilt_10y_constant":"GILT_10_YEAR_CONSTANT_DURATION","catalog_2026_medium_long_duration_mf":"MEDIUM_TO_LONG_TERM_DEBT_FUND","catalog_2026_long_duration_mf":"LONG_TERM_DEBT_FUND","catalog_2026_target_maturity_gsec_index":"GSEC_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_sdl_index":"SDL_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_psu_index":"PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_constant_maturity_debt_index":"CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY","catalog_2026_domestic_debt_fof":"DOMESTIC_DEBT_FUND_OF_FUNDS","catalog_2026_gsec_debt_etf":"GSEC_PASSIVE_DEBT_ETF_STRATEGY"});
+const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -113,6 +115,24 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
         ? x.rbiRetailDirectAccessReview?.officialTenorAuctionReferenceUrl!=='https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420'
         : x.rbiRetailDirectAccessReview?.officialTenorAuctionReferenceUrl!==undefined))
     : x.rbiRetailDirectAccessReview!==undefined)
+  || research.entries.some(x=>Object.hasOwn(sebiDebtSchemeKinds,x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.sebiDebtSchemeStructureReview?.schemeArchetype!==sebiDebtSchemeKinds[x.id]
+      || x.sebiDebtSchemeStructureReview?.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
+      || x.sebiDebtSchemeStructureReview?.circularIssuedOn!=='2026-02-26'
+      || x.sebiDebtSchemeStructureReview?.reviewedOn!=='2026-10-29'
+      || x.sebiDebtSchemeStructureReview?.sourceScope!=='REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER'
+      || x.verifiedPublicFrameworkFact?.officialSourceUrl!==sebiDebtSchemeCircularUrl
+      || !Array.isArray(x.sebiDebtSchemeStructureReview?.riskConsiderations)
+      || x.sebiDebtSchemeStructureReview.riskConsiderations.length<2
+      || !Array.isArray(x.sebiDebtSchemeStructureReview?.investorAccessConstraints)
+      || x.sebiDebtSchemeStructureReview.investorAccessConstraints.length<1
+      || ['specificSchemeAndAmcVerified','currentSchemeRiskometerVerified',
+        'currentNavOrExchangeQuoteVerified','currentSidKimAndExitLoadVerified',
+        'investorKycAndRetailAccessVerified','independentCommercialDataRightsVerified',
+        'taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified']
+        .some(key=>x.sebiDebtSchemeStructureReview[key]!==false))
+    : x.sebiDebtSchemeStructureReview!==undefined)
   || research.entries.some((e,i)=> e.id!==universe[i].id
     || !idSet.has(e.id) || legacyIds.has(e.id)
     || e.referenceUrl!==universe[i].sourceUrl
@@ -204,6 +224,32 @@ export function screenExtensionResearchForProfile(profileInput) {
      }
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_BANK_DEPOSIT_EARLY_EXIT_AND_COVERAGE_REVIEW');
+   }
+   if(row.sebiDebtSchemeStructureReview) {
+     reasons.push('DEBT_FUND_SCHEME_RISKOMETER_NAV_ELIGIBILITY_AND_DATA_RIGHTS_UNVERIFIED');
+     reasons.push('DEBT_FUND_SID_HOLDINGS_FEES_AND_EXIT_LOAD_REQUIRE_SCHEME_REVIEW');
+     switch(row.sebiDebtSchemeStructureReview.schemeArchetype) {
+       case 'GILT_10_YEAR_CONSTANT_DURATION':
+         reasons.push('GILT_10Y_DURATION_RATE_SENSITIVITY_NOT_RISK_FREE'); break;
+       case 'MEDIUM_TO_LONG_TERM_DEBT_FUND':
+         reasons.push('MEDIUM_LONG_DEBT_NORMAL_AND_ADVERSE_DURATION_REQUIRE_REVIEW'); break;
+       case 'LONG_TERM_DEBT_FUND':
+         reasons.push('LONG_DURATION_DEBT_INTEREST_RATE_AND_NAV_RISK_REQUIRE_REVIEW'); break;
+       case 'DOMESTIC_DEBT_FUND_OF_FUNDS':
+         reasons.push('DEBT_FOF_UNDERLYING_SCHEMES_AND_LAYERED_FEES_UNVERIFIED'); break;
+       case 'GSEC_PASSIVE_DEBT_ETF_STRATEGY':
+         reasons.push('GSEC_DEBT_ETF_MARKET_PRICE_VS_NAV_AND_LIQUIDITY_UNVERIFIED'); break;
+       case 'CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY':
+         reasons.push('CONSTANT_MATURITY_DEBT_INDEX_RESET_AND_DURATION_REQUIRE_REVIEW'); break;
+       default:
+         reasons.push('TARGET_MATURITY_DEBT_INDEX_BENCHMARK_AND_SCHEME_TERMS_UNVERIFIED');
+     }
+     if(profile.investmentHorizonYears<3)
+       reasons.push('SHORT_HORIZON_REQUIRES_DEBT_SCHEME_REDEMPTION_AND_NAV_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_DEBT_SCHEME_SETTLEMENT_AND_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_SCHEME_RATE_AND_CREDIT_RISK_REVIEW');
    }
    if(row.nbfcPublicDepositAccessReview) {
      reasons.push('NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED');

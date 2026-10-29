@@ -855,10 +855,10 @@
     {
       "id": "catalog_2026_gilt_10y_constant",
       "exposureClass": "GILT_FUND_INTEREST_RATE_DURATION",
-      "scenarioDescription": "Gilt Fund with 10-Year Constant Duration: Gilt Debt Schemes category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Gilt Fund with 10-Year Constant Duration: 10-year constant maturity gilt category: at least 80% government securities with portfolio Macaulay duration of 10 years; a duration target is not a maturity lock-in or a guaranteed NAV.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -872,21 +872,47 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_GILT_10Y_CONSTANT_DURATION_AND_SCHEME_RISKOMETER",
+        "value": "Minimum 80% in government securities and portfolio Macaulay duration equal to 10 years",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "GILT_10_YEAR_CONSTANT_DURATION",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": 80,
+        "normalMacaulayDurationMinimumYears": 10,
+        "normalMacaulayDurationMaximumYears": 10,
+        "normalDurationMinimumExclusive": false,
+        "riskConsiderations": [
+          "Rate-driven NAV fluctuations despite government-security exposure",
+          "Duration maintenance and secondary-market liquidity"
+        ],
+        "investorAccessConstraints": [
+          "Scheme SID/KIM, AMC/KYC, and actual unit availability not verified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_medium_long_duration_mf",
       "exposureClass": "DEBT_SCHEME_DURATION_CREDIT_AND_NAV",
-      "scenarioDescription": "Medium-to-Long Duration Debt Fund: Duration Based Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Medium-to-Long Duration Debt Fund: Medium-to-long term debt fund: normal portfolio Macaulay duration 4-7 years; SEBI permits 1-7 years in anticipated adverse conditions subject to scheme disclosures and trustee review. Duration is not a mandatory investor holding period.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -900,21 +926,47 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_MEDIUM_LONG_TERM_DEBT_PORTFOLIO_DURATION",
+        "value": "Normal Macaulay duration 4-7 years; 1-7 years in anticipated adverse conditions",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "MEDIUM_TO_LONG_TERM_DEBT_FUND",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": null,
+        "normalMacaulayDurationMinimumYears": 4,
+        "normalMacaulayDurationMaximumYears": 7,
+        "normalDurationMinimumExclusive": false,
+        "riskConsiderations": [
+          "Interest-rate sensitivity and debt issuer credit risk",
+          "Exceptional duration reduction does not guarantee loss avoidance"
+        ],
+        "investorAccessConstraints": [
+          "Actual scheme SID, KYC, NAV, redemption settlement and exit loads not verified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_long_duration_mf",
       "exposureClass": "DEBT_SCHEME_DURATION_CREDIT_AND_NAV",
-      "scenarioDescription": "Long Duration Debt Fund: Duration Based Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Long Duration Debt Fund: Long duration debt fund (2026 SEBI category: Long Term Fund): portfolio Macaulay duration greater than seven years. A duration measure does not mean investor lock-in or a fixed maturity date.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -928,21 +980,47 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_LONG_TERM_DEBT_PORTFOLIO_DURATION",
+        "value": "Portfolio Macaulay duration greater than 7 years",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "LONG_TERM_DEBT_FUND",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": null,
+        "normalMacaulayDurationMinimumYears": 7,
+        "normalMacaulayDurationMaximumYears": null,
+        "normalDurationMinimumExclusive": true,
+        "riskConsiderations": [
+          "High sensitivity of NAV to interest-rate changes",
+          "Portfolio credit, concentration and redemption-liquidity risks depend on actual scheme"
+        ],
+        "investorAccessConstraints": [
+          "Current scheme riskometer, SID, KYC, NAV and exit load not verified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_target_maturity_gsec_index",
       "exposureClass": "INDEX_MATURITY_AND_UNDERLYING_CREDIT",
-      "scenarioDescription": "Target-Maturity G-Sec Debt Index Fund Strategy: Target Maturity Debt Index category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Target-Maturity G-Sec Debt Index Fund Strategy: Target-maturity G-Sec index strategy: passive debt index archetype; SEBI's index fund rule generally requires 95% tracking of the specified index. The particular G-Sec benchmark, maturity year and investable scheme are unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -956,21 +1034,47 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_PASSIVE_INDEX_TRACKING_95_PERCENT",
+        "value": "Minimum 95% in securities of the particular index being tracked",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "GSEC_TARGET_MATURITY_INDEX_STRATEGY",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": 95,
+        "normalMacaulayDurationMinimumYears": null,
+        "normalMacaulayDurationMaximumYears": null,
+        "normalDurationMinimumExclusive": false,
+        "riskConsiderations": [
+          "NAV may fluctuate before target maturity",
+          "Benchmark concentration, tracking error and index reconstitution"
+        ],
+        "investorAccessConstraints": [
+          "Actual fund identity, target date, index constituents and subscription availability unverified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_target_maturity_sdl_index",
       "exposureClass": "INDEX_MATURITY_AND_UNDERLYING_CREDIT",
-      "scenarioDescription": "Target-Maturity SDL Debt Index Fund Strategy: Target Maturity Debt Index category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Target-Maturity SDL Debt Index Fund Strategy: Target-maturity SDL index strategy: passive debt index archetype; SEBI's index fund rule generally requires 95% tracking of the specified index. Specific state issuers, target maturity and fund existence are unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -984,21 +1088,47 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_PASSIVE_INDEX_TRACKING_95_PERCENT",
+        "value": "Minimum 95% in securities of the particular index being tracked",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "SDL_TARGET_MATURITY_INDEX_STRATEGY",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": 95,
+        "normalMacaulayDurationMinimumYears": null,
+        "normalMacaulayDurationMaximumYears": null,
+        "normalDurationMinimumExclusive": false,
+        "riskConsiderations": [
+          "State-security concentration, interest-rate and liquidity risk",
+          "Tracking difference and early-sale NAV risk"
+        ],
+        "investorAccessConstraints": [
+          "Actual fund identity, state holdings, target date and retail scheme terms unverified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_target_maturity_psu_index",
       "exposureClass": "INDEX_MATURITY_AND_UNDERLYING_CREDIT",
-      "scenarioDescription": "Target-Maturity PSU Bond Debt Index Fund Strategy: Target Maturity Debt Index category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Target-Maturity PSU Bond Debt Index Fund Strategy: Target-maturity PSU bond index strategy: passive debt index archetype; SEBI's index fund rule generally requires 95% tracking of the specified index. PSU debt is not automatically a sovereign guarantee; issuer credit and index membership require review.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1012,21 +1142,47 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_PASSIVE_INDEX_TRACKING_95_PERCENT",
+        "value": "Minimum 95% in securities of the particular index being tracked",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": 95,
+        "normalMacaulayDurationMinimumYears": null,
+        "normalMacaulayDurationMaximumYears": null,
+        "normalDurationMinimumExclusive": false,
+        "riskConsiderations": [
+          "Issuer credit and spread changes even for public-sector borrowers",
+          "Concentration, duration and tracking error"
+        ],
+        "investorAccessConstraints": [
+          "Actual issuer list, credit ratings, fund identity, target date and scheme access unverified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_constant_maturity_debt_index",
       "exposureClass": "DEBT_SCHEME_DURATION_CREDIT_AND_NAV",
-      "scenarioDescription": "Constant-Maturity Debt Index Fund Strategy: Passive Debt Schemes category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Constant-Maturity Debt Index Fund Strategy: Constant-maturity debt index strategy: index-tracking archetype under SEBI's general 95% passive index allocation rule; maintaining a constant-duration benchmark differs from holding bonds to one target maturity date.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1040,21 +1196,47 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_PASSIVE_INDEX_TRACKING_95_PERCENT",
+        "value": "Minimum 95% in securities of the particular index being tracked",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": 95,
+        "normalMacaulayDurationMinimumYears": null,
+        "normalMacaulayDurationMaximumYears": null,
+        "normalDurationMinimumExclusive": false,
+        "riskConsiderations": [
+          "Rebalancing to maintain constant maturity sustains interest-rate exposure",
+          "Tracking error and constituent credit risks depend on benchmark"
+        ],
+        "investorAccessConstraints": [
+          "Named benchmark, scheme existence, NAV, KYC and fund redemption terms unverified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_domestic_debt_fof",
       "exposureClass": "DEBT_FOF_UNDERLYING_PORTFOLIO_AND_COST",
-      "scenarioDescription": "Domestic Debt-Oriented Fund of Funds: Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Domestic Debt-Oriented Fund of Funds: Domestic debt fund-of-funds archetype: SEBI's FoF category generally allocates at least 95% to underlying fund(s), with separate provisions for multiple underlying funds. No specific underlying portfolio or actual scheme has been established.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1068,21 +1250,47 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_FOF_UNDERLYING_FUND_95_PERCENT",
+        "value": "Minimum 95% in underlying fund under the category table; multi-underlying framework requires separate review",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "DOMESTIC_DEBT_FUND_OF_FUNDS",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": 95,
+        "normalMacaulayDurationMinimumYears": null,
+        "normalMacaulayDurationMaximumYears": null,
+        "normalDurationMinimumExclusive": false,
+        "riskConsiderations": [
+          "Look-through duration and issuer credit risks of underlying schemes",
+          "Layered fees, redemption settlement and portfolio overlap"
+        ],
+        "investorAccessConstraints": [
+          "Actual FoF and underlying schemes, fees, KYC, NAV and redemption rules unverified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_gsec_debt_etf",
       "exposureClass": "DEBT_SCHEME_DURATION_CREDIT_AND_NAV",
-      "scenarioDescription": "Government Securities Debt ETF Strategy: Passive Debt Schemes category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Government Securities Debt ETF Strategy: Government-securities debt ETF strategy: passive index-tracking archetype subject to SEBI's general 95% index replication rule; an index methodology is not evidence of an actual listed ETF or executable quote.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1096,13 +1304,39 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "SEBI_ACTUAL_SCHEME_RISKOMETER_REQUIRES_MONTHLY_DISCLOSURE",
-        "value": "SEBI requires scheme-specific risk-o-meter disclosure, evaluated monthly. A fund category or underlying index is not an individual scheme risk rating",
-        "officialSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
-        "reviewedOn": "2026-10-28",
+        "factCode": "SEBI_PASSIVE_INDEX_TRACKING_95_PERCENT",
+        "value": "Minimum 95% in securities of the particular index being tracked",
+        "officialSourceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "reviewedOn": "2026-10-29",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sebiDebtSchemeStructureReview": {
+        "schemeArchetype": "GSEC_PASSIVE_DEBT_ETF_STRATEGY",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "circularIssuedOn": "2026-02-26",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER",
+        "minimumPortfolioExposurePercent": 95,
+        "normalMacaulayDurationMinimumYears": null,
+        "normalMacaulayDurationMaximumYears": null,
+        "normalDurationMinimumExclusive": false,
+        "riskConsiderations": [
+          "ETF market price can differ from NAV and trading liquidity can vary",
+          "Interest-rate sensitivity, tracking error and bid-ask spread"
+        ],
+        "investorAccessConstraints": [
+          "Specific ETF, listing, exchange access, KYC, market quote and scheme riskometer unverified"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimAndExitLoadVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty_next50",

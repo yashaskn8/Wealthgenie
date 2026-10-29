@@ -279,3 +279,30 @@ test('five bank deposit directory records copy dated evidence without product qu
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_bank_rd')
   .frameworkResearch.bankDepositAccessReview.independentCommercialDataRightsVerified,false);
 });
+
+test('nine SEBI debt-fund strategy directory rows expose distinct sourced structure and copy nested evidence',()=>{
+ const ids=["gilt_10y_constant","medium_long_duration_mf","long_duration_mf","target_maturity_gsec_index","target_maturity_sdl_index","target_maturity_psu_index","constant_maturity_debt_index","domestic_debt_fof","gsec_debt_etf"];
+ const all=listFinancialDiscoveryDirectory().items;
+ const kinds=["GILT_10_YEAR_CONSTANT_DURATION","MEDIUM_TO_LONG_TERM_DEBT_FUND","LONG_TERM_DEBT_FUND","GSEC_TARGET_MATURITY_INDEX_STRATEGY","SDL_TARGET_MATURITY_INDEX_STRATEGY","PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY","CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY","DOMESTIC_DEBT_FUND_OF_FUNDS","GSEC_PASSIVE_DEBT_ETF_STRATEGY"];
+ for(const [i,suffix] of ids.entries()){
+  const row=all.find(x=>x.id==='catalog_2026_'+suffix);
+  const review=row.frameworkResearch.sebiDebtSchemeStructureReview;
+  assert.equal(review.schemeArchetype,kinds[i]);
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.officialSebiCategorizationCircularUrl,'https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html');
+  assert.equal(review.currentSchemeRiskometerVerified,false);
+  assert.equal(review.independentCommercialDataRightsVerified,false);
+  assert.equal(review.individualSuitabilityVerified,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  assert.equal(row.recommendationEligible,false);
+  assert.ok(Object.values(row.productData).every(value=>value===null));
+ }
+ assert.equal(all.filter(x=>x.frameworkResearch?.sebiDebtSchemeStructureReview).length,9);
+ const mutated=all.find(x=>x.id==='catalog_2026_medium_long_duration_mf');
+ mutated.frameworkResearch.sebiDebtSchemeStructureReview.riskConsiderations[0]='tampered';
+ mutated.frameworkResearch.sebiDebtSchemeStructureReview.currentSchemeRiskometerVerified=true;
+ const fresh=listFinancialDiscoveryDirectory().items.find(x=>x.id===mutated.id);
+ assert.notEqual(fresh.frameworkResearch.sebiDebtSchemeStructureReview.riskConsiderations[0],'tampered');
+ assert.equal(fresh.frameworkResearch.sebiDebtSchemeStructureReview.currentSchemeRiskometerVerified,false);
+});

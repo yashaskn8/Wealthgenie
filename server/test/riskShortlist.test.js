@@ -396,3 +396,44 @@ test('five bank deposit reviews produce distinct profile-bound non-ranking block
   'TAX_SAVER_FIVE_YEAR_REFERENCE_EXCEEDS_PROFILE_HORIZON'));
  assert.equal(rows.filter(x=>x.bankDepositAccessReview).length,5);
 });
+
+test('nine SEBI debt-scheme archetypes expose individually researched rules and profile-bound blockers without recommendations',()=>{
+ const ids=["gilt_10y_constant","medium_long_duration_mf","long_duration_mf","target_maturity_gsec_index","target_maturity_sdl_index","target_maturity_psu_index","constant_maturity_debt_index","domestic_debt_fof","gsec_debt_etf"];
+ const rows=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund']}));
+ const long=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Wealth Growth']}));
+ const kinds=["GILT_10_YEAR_CONSTANT_DURATION","MEDIUM_TO_LONG_TERM_DEBT_FUND","LONG_TERM_DEBT_FUND","GSEC_TARGET_MATURITY_INDEX_STRATEGY","SDL_TARGET_MATURITY_INDEX_STRATEGY","PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY","CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY","DOMESTIC_DEBT_FUND_OF_FUNDS","GSEC_PASSIVE_DEBT_ETF_STRATEGY"];
+ for(const [i,suffix] of ids.entries()){
+  const id='catalog_2026_'+suffix,row=rows.find(x=>x.id===id),review=row.sebiDebtSchemeStructureReview;
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
+  assert.equal(review.schemeArchetype,kinds[i]);
+  assert.equal(review.officialSebiCategorizationCircularUrl,'https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html');
+  assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,review.officialSebiCategorizationCircularUrl);
+  assert.ok(review.riskConsiderations.length>=2);
+  assert.ok(review.investorAccessConstraints.length>=1);
+  for(const key of ['specificSchemeAndAmcVerified','currentSchemeRiskometerVerified','currentNavOrExchangeQuoteVerified',
+   'currentSidKimAndExitLoadVerified','investorKycAndRetailAccessVerified','independentCommercialDataRightsVerified',
+   'taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified'])assert.equal(review[key],false);
+  for(const group of [short,long]){
+   const result=group.find(x=>x.id===id);
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+   assert.ok(result.screeningReasonCodes.includes('DEBT_FUND_SCHEME_RISKOMETER_NAV_ELIGIBILITY_AND_DATA_RIGHTS_UNVERIFIED'));
+  }
+  const shorter=short.find(x=>x.id===id).screeningReasonCodes;
+  const longer=long.find(x=>x.id===id).screeningReasonCodes;
+  assert.ok(shorter.includes('SHORT_HORIZON_REQUIRES_DEBT_SCHEME_REDEMPTION_AND_NAV_REVIEW'));
+  assert.ok(shorter.includes('EMERGENCY_FUND_REQUIRES_DEBT_SCHEME_SETTLEMENT_AND_LIQUIDITY_REVIEW'));
+  assert.ok(shorter.includes('CONSERVATIVE_PROFILE_REQUIRES_DEBT_SCHEME_RATE_AND_CREDIT_RISK_REVIEW'));
+  assert.ok(!longer.includes('SHORT_HORIZON_REQUIRES_DEBT_SCHEME_REDEMPTION_AND_NAV_REVIEW'));
+  assert.ok(!longer.includes('EMERGENCY_FUND_REQUIRES_DEBT_SCHEME_SETTLEMENT_AND_LIQUIDITY_REVIEW'));
+  assert.ok(!longer.includes('CONSERVATIVE_PROFILE_REQUIRES_DEBT_SCHEME_RATE_AND_CREDIT_RISK_REVIEW'));
+ }
+ assert.equal(rows.filter(x=>x.sebiDebtSchemeStructureReview).length,9);
+ assert.equal(rows.filter(x=>x.suitabilityRankingPermitted).length,0);
+ assert.equal(rows.filter(x=>x.productRiskScore!==null).length,0);
+ rows.find(x=>x.id==='catalog_2026_gilt_10y_constant').sebiDebtSchemeStructureReview.riskConsiderations.push('tampered');
+ assert.equal(listExtensionResearch().find(x=>x.id==='catalog_2026_gilt_10y_constant').sebiDebtSchemeStructureReview.riskConsiderations.length,2);
+});
