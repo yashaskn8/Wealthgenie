@@ -439,6 +439,24 @@ export function screenExtensionResearchForProfile(profileInput) {
          'catalog_2026_nps_lc_aggressive','catalog_2026_nps_asset_e'].includes(row.id))
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NPS_EQUITY_DRAWDOWN_CAPACITY_REVIEW');
    }
+   // These are research-only cautions; never infer product qualification from a reviewed category.
+   const categoryReview=row.fundOfFundsCategoryReview||row.thematicIndexReview
+     ||row.debtInstrumentReview||row.individualCategoryReview||row.preciousMetalsCategoryReview;
+   if(categoryReview) {
+     reasons.push('REVIEWED_CATEGORY_STRUCTURE_NOT_VERIFIED_INVESTABLE_PRODUCT');
+     reasons.push('ACTUAL_ISSUER_TERMS_ACCESS_AND_LIQUIDITY_UNVERIFIED');
+     if(row.thematicIndexReview||row.fundOfFundsCategoryReview)
+       reasons.push('SCHEME_SPECIFIC_RISKOMETER_NAV_AND_HOLDINGS_UNVERIFIED');
+     if(row.debtInstrumentReview||row.individualCategoryReview)
+       reasons.push('ISSUER_CREDIT_SECURITY_TERMS_AND_SECONDARY_LIQUIDITY_UNVERIFIED');
+     if(row.preciousMetalsCategoryReview)
+       reasons.push('PRECIOUS_METALS_AUTHENTICITY_CUSTODY_OR_UNDERLYING_SCHEME_UNVERIFIED');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_REVIEWED_CATEGORY_LOSS_AND_LIQUIDITY_CHECK');
+     if(Number.isFinite(profile.investmentHorizonYears)
+       && profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_REVIEWED_CATEGORY_EXIT_AND_LOSS_CHECK');
+   }
    if(row.id.startsWith('catalog_2026_ncd_'))
      reasons.push('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW');
    if(profile.riskTolerance==='Conservative'
