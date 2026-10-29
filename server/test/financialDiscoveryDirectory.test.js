@@ -442,3 +442,24 @@ test('five new ETF methodology records isolate source evidence and preserve prod
  assert.equal(fresh.frameworkResearch.etfBenchmarkReview.individualSuitabilityVerified,false);
  assert.ok(!fresh.frameworkResearch.etfBenchmarkReview.riskConsiderations.includes('forged'));
 });
+
+test('all 23 final category research reviews remain discovery-only and do not confer product qualification',()=>{
+ const items=listFinancialDiscoveryDirectory().items.filter(x=>x.origin==='EXTENDED_95');
+ const reviewed=items.filter(x=>x.frameworkResearch && [
+   'fundOfFundsCategoryReview','thematicIndexReview','debtInstrumentReview',
+   'individualCategoryReview','preciousMetalsCategoryReview',
+ ].some(key=>x.frameworkResearch[key]));
+ assert.equal(reviewed.length,23);
+ for(const item of reviewed){
+   assert.equal(item.frameworkResearch.actualRetailProductEligible,false,item.id);
+   assert.equal(item.frameworkResearch.suitabilityRankingPermitted,false,item.id);
+   assert.equal(item.frameworkResearch.marketFactsVerified,false,item.id);
+   assert.equal(item.frameworkResearch.sourcePermissionVerified,false,item.id);
+   assert.equal(item.frameworkResearch.productRiskScore,null,item.id);
+   const review=['fundOfFundsCategoryReview','thematicIndexReview','debtInstrumentReview',
+     'individualCategoryReview','preciousMetalsCategoryReview']
+     .map(key=>item.frameworkResearch[key]).find(Boolean);
+   assert.ok(review.officialSourceUrl?.startsWith('https://'),item.id);
+   assert.ok(review.investorAccessAndEligibility,item.id);
+ }
+});
