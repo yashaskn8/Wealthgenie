@@ -146,6 +146,8 @@ function buildDirectory() {
           ? { ...research.rbiRetailDirectAccessReview } : null,
         sebiDebtSchemeStructureReview: research.sebiDebtSchemeStructureReview
           ? structuredClone(research.sebiDebtSchemeStructureReview) : null,
+        npsVatsalyaAccessReview: research.npsVatsalyaAccessReview
+          ? structuredClone(research.npsVatsalyaAccessReview) : null,
         npsCommonSchemeReview: research.npsCommonSchemeReview
           ? structuredClone(research.npsCommonSchemeReview) : null,
         indexBenchmarkReview: research.indexBenchmarkReview
@@ -219,6 +221,8 @@ export function listFinancialDiscoveryDirectory() {
           ? { ...item.frameworkResearch.retailDirectAccessReview } : null,
         sebiDebtSchemeStructureReview: item.frameworkResearch.sebiDebtSchemeStructureReview
           ? structuredClone(item.frameworkResearch.sebiDebtSchemeStructureReview) : null,
+        npsVatsalyaAccessReview: item.frameworkResearch.npsVatsalyaAccessReview
+          ? structuredClone(item.frameworkResearch.npsVatsalyaAccessReview) : null,
         npsCommonSchemeReview: item.frameworkResearch.npsCommonSchemeReview
           ? structuredClone(item.frameworkResearch.npsCommonSchemeReview) : null,
         indexBenchmarkReview: item.frameworkResearch.indexBenchmarkReview
