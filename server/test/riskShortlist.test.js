@@ -4,7 +4,7 @@ import { buildRiskShortlist, RISK_SHORTLIST_POLICY_VERSION } from '../services/r
 import { runPipeline } from '../services/RecommendationPipeline.js';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
-import {screenExtensionResearchForProfile,listExtensionResearch,isOfficialFrameworkReferenceUrl} from '../services/extensionFrameworkAssessment.js';
+import {screenExtensionResearchForProfile,listExtensionResearch,isOfficialFrameworkReferenceUrl,hasCompleteCategoryRiskAccessResearch} from '../services/extensionFrameworkAssessment.js';
 
 test('Top 5 risk categories use the same eligibility and ranking policy as current recommendations',()=>{
   const profile=canonicalProfile();
@@ -1180,4 +1180,47 @@ test('NPS Vatsalya effective 2026 guidance and stale FAQ remain distinct from ap
   'CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_PENSION_FUND_FULL_EQUITY_REVIEW'));
  assert.ok(!aggressive.screeningReasonCodes.includes(
   'CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_PENSION_FUND_FULL_EQUITY_REVIEW'));
+});
+
+test('all 95 distinct category reviews require two real risk and investor-access considerations',()=>{
+ const rows=listExtensionResearch();
+ assert.equal(rows.length,95);
+ assert.ok(rows.every(hasCompleteCategoryRiskAccessResearch));
+ const original=rows.find(row=>row.id==='catalog_2026_po_td_5');
+ const withoutRisk=structuredClone(original);
+ withoutRisk.postalSavingsAccessReview.riskConsiderations=[];
+ assert.equal(hasCompleteCategoryRiskAccessResearch(withoutRisk),false);
+ const withoutAccess=structuredClone(original);
+ withoutAccess.postalSavingsAccessReview.investorAccessConstraints=['Unverified'];
+ assert.equal(hasCompleteCategoryRiskAccessResearch(withoutAccess),false);
+ const duplicate=structuredClone(original);
+ duplicate.postalSavingsAccessReview.riskConsiderations[1]=duplicate.postalSavingsAccessReview.riskConsiderations[0];
+ assert.equal(hasCompleteCategoryRiskAccessResearch(duplicate),false);
+ const ambiguous=structuredClone(original);
+ ambiguous.bankDepositAccessReview={riskConsiderations:['Long first risk statement','Long second risk statement'],
+  investorAccessConstraints:['Long first access constraint','Long second access constraint']};
+ assert.equal(hasCompleteCategoryRiskAccessResearch(ambiguous),false);
+ assert.equal(hasCompleteCategoryRiskAccessResearch(null),false);
+});
+
+test('recorded zero emergency buffer adds deposit-specific exit review without ranking or blanket exclusion',()=>{
+ const flag='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEPOSIT_ACCESS_AND_EARLY_EXIT_REVIEW';
+ const zero=screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:0,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+ }));
+ const missing=screenExtensionResearchForProfile(canonicalProfile({emergencyFundMonths:null}));
+ const positive=screenExtensionResearchForProfile(canonicalProfile({emergencyFundMonths:6}));
+ const find=(rows,id)=>rows.find(row=>row.id==='catalog_2026_'+id);
+ for(const id of ['po_td_2','po_td_3','po_td_5','bank_rd','bank_tax_saver_fd',
+  'bank_sweep_fd','bank_fd_monthly','bank_fd_quarterly']){
+  assert.ok(find(zero,id).screeningReasonCodes.includes(flag),id);
+  assert.ok(!find(missing,id).screeningReasonCodes.includes(flag),id+' missing');
+  assert.ok(!find(positive,id).screeningReasonCodes.includes(flag),id+' positive');
+ }
+ for(const id of ['po_savings','index_nifty100','aif1_vc']){
+  assert.ok(!find(zero,id).screeningReasonCodes.includes(flag),id);
+ }
+ assert.equal(zero.length,95);
+ assert.ok(zero.every(row=>row.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
+  &&row.productQualified===false&&row.scoreAvailable===false&&row.productRiskLevel===null));
 });

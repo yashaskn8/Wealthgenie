@@ -64,8 +64,31 @@ export function isOfficialFrameworkReferenceUrl(value) {
       && url.pathname.length>1;
   } catch { return false; }
 }
+// A framework citation without separate, nonempty category risk and access
+// research is incomplete. Exactly one category review must back each archetype.
+const categoryRiskAccessReviewKeys=Object.freeze([
+ 'postalSavingsAccessReview','rbiRetailDirectAccessReview','sgsStripsAccessReview',
+ 'governmentBondStructureReview','bankDepositAccessReview','nbfcPublicDepositAccessReview',
+ 'sebiDebtSchemeStructureReview','indexBenchmarkReview','thematicIndexReview',
+ 'etfBenchmarkReview','npsCommonSchemeReview','npsVatsalyaAccessReview',
+ 'debtInstrumentReview','individualCategoryReview','aifCategoryAccessReview',
+ 'preciousMetalsCategoryReview','fundOfFundsCategoryReview',
+]);
+export function hasCompleteCategoryRiskAccessResearch(row) {
+ if(!row||typeof row!=='object'||Array.isArray(row))return false;
+ const keys=categoryRiskAccessReviewKeys.filter(key=>Object.hasOwn(row,key));
+ if(keys.length!==1)return false;
+ const review=row[keys[0]];
+ const distinctConsiderations=values=>Array.isArray(values)&&values.length>=2
+  &&values.every(value=>typeof value==='string'&&value.trim().length>=12)
+  &&new Set(values).size===values.length;
+ return review!==null&&typeof review==='object'&&!Array.isArray(review)
+  &&distinctConsiderations(review.riskConsiderations)
+  &&distinctConsiderations(review.investorAccessConstraints);
+}
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
+  || research.entries.some(row=>!hasCompleteCategoryRiskAccessResearch(row))
   || research.entries.some(x=>!isOfficialFrameworkReferenceUrl(x.referenceUrl)
     || !isOfficialFrameworkReferenceUrl(x.verifiedPublicFrameworkFact?.officialSourceUrl))
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -879,6 +902,12 @@ export function screenExtensionResearchForProfile(profileInput) {
    if(profile.riskTolerance==='Conservative'
      && /NPS_EQUITY|NPS_ALTERNATIVES|SMALL_MID_CAP|SECTOR_CONCENTRATION|SIF_LONG_SHORT|PMS_MANAGER/.test(row.exposureClass))
      reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PRODUCT_SPECIFIC_RISK_REVIEW');
+   // A documented absence of an emergency buffer warrants a deposit-access
+   // caution; it is not a finding of investor ineligibility or a rate/exit quote.
+   if(profile.emergencyFundMonths===0 && (
+     row.bankDepositAccessReview
+     ||row.postalSavingsAccessReview?.schemeType==='NATIONAL_SAVINGS_TIME_DEPOSIT'
+   ))reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEPOSIT_ACCESS_AND_EARLY_EXIT_REVIEW');
    // Only a recorded zero-month emergency buffer justifies this additional
    // non-ranking notice. Missing optional facts must not be treated as zero,
    // and a broad category review never establishes product ineligibility.
