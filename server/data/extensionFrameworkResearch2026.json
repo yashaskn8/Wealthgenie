@@ -3864,9 +3864,9 @@
       "id": "catalog_2026_equity_diversified_fof",
       "exposureClass": "FOF_UNDERLYING_STRATEGY_AND_LAYERS_OF_FEES",
       "scenarioDescription": "Domestic Diversified Equity Fund of Funds: Domestic Equity Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+      "referenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3886,15 +3886,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "fundOfFundsCategoryReview": {
+        "officialFramework": "SEBI 26 February 2026 Categorization and Rationalization of Mutual Fund Schemes, Annexure C (multiple-underlying-fund FoFs)",
+        "category": "Domestic diversified equity FoF",
+        "structure": "Underlying domestic equity schemes across market capitalisations; Annexure C excludes factor-based underlying schemes from this diversified subcategory.",
+        "categoryRisks": "Equity drawdowns, underlying fund concentration, layered expenses and redemption timing.",
+        "investorAccessAndEligibility": "Verify actual scheme documents, eligible investor/KYC, underlying holdings and scheme riskometer; category alone grants no access.",
+        "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
+        "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+      }
     },
     {
       "id": "catalog_2026_equity_sector_fof",
       "exposureClass": "SECTOR_FOF_CONCENTRATION_AND_FEES",
       "scenarioDescription": "Domestic Sectoral or Thematic Equity Fund of Funds: Domestic Equity Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+      "referenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3914,15 +3924,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "fundOfFundsCategoryReview": {
+        "officialFramework": "SEBI 26 February 2026 Categorization and Rationalization of Mutual Fund Schemes, Annexure C (multiple-underlying-fund FoFs)",
+        "category": "Domestic sectoral/thematic equity FoF",
+        "structure": "Annexure C permits single-sector, single-theme or multi-sector underlying fund structures.",
+        "categoryRisks": "Sector correlation, concentration, cyclical losses, layered expenses and redemption timing.",
+        "investorAccessAndEligibility": "Verify actual sector/theme mandate, holdings, scheme riskometer and account eligibility.",
+        "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
+        "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+      }
     },
     {
       "id": "catalog_2026_fof_aggressive_hybrid",
       "exposureClass": "AGGRESSIVE_HYBRID_UNDERLYING_FUND_RISK",
       "scenarioDescription": "Aggressive Hybrid Fund of Funds: Domestic Hybrid Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+      "referenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3942,15 +3962,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "fundOfFundsCategoryReview": {
+        "officialFramework": "SEBI 26 February 2026 Categorization and Rationalization of Mutual Fund Schemes, Annexure C (multiple-underlying-fund FoFs)",
+        "category": "Aggressive hybrid FoF",
+        "structure": "Annexure C specifies underlying equity-oriented schemes 65%-80% and debt-oriented schemes 20%-35%.",
+        "categoryRisks": "Equity losses plus debt duration/credit risks, rebalancing and layered fees.",
+        "investorAccessAndEligibility": "Check scheme mandate, latest holdings, riskometer, KYC and redemption conditions.",
+        "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
+        "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+      }
     },
     {
       "id": "catalog_2026_fof_conservative_hybrid",
       "exposureClass": "CONSERVATIVE_HYBRID_UNDERLYING_FUND_RISK",
       "scenarioDescription": "Conservative Hybrid Fund of Funds: Domestic Hybrid Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+      "referenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3970,15 +4000,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "fundOfFundsCategoryReview": {
+        "officialFramework": "SEBI 26 February 2026 Categorization and Rationalization of Mutual Fund Schemes, Annexure C (multiple-underlying-fund FoFs)",
+        "category": "Conservative hybrid FoF",
+        "structure": "Annexure C specifies underlying equity-oriented schemes 10%-25% and debt-oriented schemes 75%-90%.",
+        "categoryRisks": "Debt credit/duration losses remain possible; equity drawdowns and layered fees persist despite conservative label.",
+        "investorAccessAndEligibility": "Check actual credit exposure, duration, scheme riskometer, KYC and redemption conditions.",
+        "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
+        "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+      }
     },
     {
       "id": "catalog_2026_fof_income_arbitrage",
       "exposureClass": "FOF_UNDERLYING_STRATEGY_AND_LAYERS_OF_FEES",
       "scenarioDescription": "Income Plus Arbitrage Fund of Funds: Domestic Hybrid Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+      "referenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3998,15 +4038,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "fundOfFundsCategoryReview": {
+        "officialFramework": "SEBI 26 February 2026 Categorization and Rationalization of Mutual Fund Schemes, Annexure C (multiple-underlying-fund FoFs)",
+        "category": "Income plus arbitrage FoF",
+        "structure": "Annexure C specifies debt-oriented underlying schemes up to 65%, with the balance only in arbitrage-based underlying schemes.",
+        "categoryRisks": "Debt credit/duration risk, arbitrage spread compression, basis/rollover risk and layered expenses.",
+        "investorAccessAndEligibility": "Check actual underlying schemes, scheme riskometer, KYC and liquidity/redemption terms.",
+        "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
+        "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+      }
     },
     {
       "id": "catalog_2026_fof_dynamic_allocation",
       "exposureClass": "FOF_UNDERLYING_STRATEGY_AND_LAYERS_OF_FEES",
       "scenarioDescription": "Dynamic Asset Allocation Fund of Funds: Domestic Hybrid Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
+      "referenceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -4026,7 +4076,17 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "fundOfFundsCategoryReview": {
+        "officialFramework": "SEBI 26 February 2026 Categorization and Rationalization of Mutual Fund Schemes, Annexure C (multiple-underlying-fund FoFs)",
+        "category": "Dynamic asset allocation FoF",
+        "structure": "Annexure C describes dynamically managed allocations among equity- and debt-oriented underlying schemes, not a fixed equity/debt split.",
+        "categoryRisks": "Allocation-model error, equity drawdowns, debt duration/credit exposure, turnover and layered expenses.",
+        "investorAccessAndEligibility": "Check actual allocation policy, latest holdings, scheme riskometer, KYC and redemption conditions.",
+        "financialProfileScreening": "For recorded short horizons, emergency-fund needs or limited loss capacity, show a non-ranking warning about redemption liquidity and possible losses; absent profile facts do not infer capacity or eligibility.",
+        "scope": "MULTIPLE_UNDERLYING_FUND_CATEGORY_FRAMEWORK_ONLY; NOT SCHEME EXISTENCE, RISKOMETER, NAV, TAX, RETAIL ELIGIBILITY OR LICENSED DATA",
+        "officialSourceUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf"
+      }
     }
   ],
   "publicFrameworkFactsDirectlyReviewed": 95,
