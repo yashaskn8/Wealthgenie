@@ -542,3 +542,34 @@ test('postal and RBI Retail Direct source-specific risks and access cautions are
   assert.notEqual(freshReview.investorAccessConstraints[0],'FORGED');
  }
 });
+
+test('AIF, SGS STRIPS and NPS October framework metadata are copied without product promotion',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_'+id);
+ for(const id of ['aif1_vc','aif1_sme','aif1_social','aif1_infra','aif2_pe','aif2_debt','aif3_hedge']){
+  const x=get(id),a=x.frameworkResearch.aifCategoryAccessReview;
+  assert.equal(a.regulationsAmendedThrough,'2026-10-15');
+  assert.ok(a.riskConsiderations.length>=2&&a.investorAccessConstraints.length>=2);
+  assert.equal(x.recommendationEligible,false);
+  assert.equal(x.productData.currentPrice,null);
+ }
+ const social=get('aif1_social');
+ assert.equal(social.frameworkResearch.aifCategoryAccessReview.socialImpactNpoOnlyIndividualMinimumInr,1000);
+ social.frameworkResearch.aifCategoryAccessReview.riskConsiderations[0]='tampered';
+ assert.notEqual(get('aif1_social').frameworkResearch.aifCategoryAccessReview.riskConsiderations[0],'tampered');
+ for(const id of ['sdl_coupon_strip','sdl_principal_strip']){
+  const x=get(id);
+  assert.equal(x.frameworkResearch.sgsStripsAccessReview.underlyingOutstandingIsNotRetailInvestorMinimum,true);
+  x.frameworkResearch.sgsStripsAccessReview.investorAccessConstraints.push('tampered');
+  assert.ok(!get(id).frameworkResearch.sgsStripsAccessReview.investorAccessConstraints.includes('tampered'));
+ }
+ for(const id of ['nps_lc25','nps_lc50','nps_lc75','nps_lc_aggressive',
+   'nps_asset_e','nps_asset_c','nps_asset_g','nps_asset_a','nps_vatsalya']){
+  const x=get(id);
+  const p=(x.frameworkResearch.npsCommonSchemeReview||x.frameworkResearch.npsVatsalyaAccessReview).popChargeDateReview;
+  assert.equal(p.revisedImplementationDate,'2026-12-01');
+  p.revisedImplementationDate='1900-01-01';
+  const y=get(id);
+  const q=(y.frameworkResearch.npsCommonSchemeReview||y.frameworkResearch.npsVatsalyaAccessReview).popChargeDateReview;
+  assert.equal(q.revisedImplementationDate,'2026-12-01');
+ }
+});

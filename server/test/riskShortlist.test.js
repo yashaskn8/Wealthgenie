@@ -774,3 +774,85 @@ test('RBI Retail Direct emergency-fund screening flags secondary-sale uncertaint
   assert.equal(a.scoreAvailable,false);
  }
 });
+
+test('seven AIF access reviews use October 2026 accreditation rules without approval',()=>{
+ const rows=listExtensionResearch().filter(x=>x.aifCategoryAccessReview);
+ assert.equal(rows.length,7);
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+   investmentHorizonYears:1,investmentGoals:['Emergency Fund'],
+   riskTolerance:'Conservative',hasLumpSum:true,lumpSumAmount:50000
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+   investmentHorizonYears:10,investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive'
+ }));
+ for(const row of rows){
+  const a=row.aifCategoryAccessReview;
+  assert.equal(a.regulationsAmendedThrough,'2026-10-15');
+  assert.ok(a.riskConsiderations.length>=2&&a.investorAccessConstraints.length>=2);
+  assert.equal(a.privatePlacementRequired,true);
+  for(const k of ['actualFundRegistrationAndPpmVerified','individualAccreditationVerified',
+    'individualKycAndSubscriptionEligibilityVerified','schemeFeesTenureAndRedemptionVerified',
+    'currentValuationAndCommercialDataRightsVerified','personalizedAdviceAuthorizationVerified'])
+    assert.equal(a[k],false,row.id);
+  const s=short.find(x=>x.id===row.id),l=long.find(x=>x.id===row.id);
+  assert.ok(s.screeningReasonCodes.includes('AIF_OCT_2026_ACCREDITATION_CHANGE_NOT_PERSONAL_ACCREDITATION'));
+  assert.ok(s.screeningReasonCodes.includes('EMERGENCY_FUND_REQUIRES_AIF_ILLIQUIDITY_AND_LOSS_REVIEW'));
+  assert.ok(s.screeningReasonCodes.includes('SHORT_HORIZON_REQUIRES_AIF_CAPITAL_CALL_AND_EXIT_REVIEW'));
+  assert.ok(!l.screeningReasonCodes.includes('EMERGENCY_FUND_REQUIRES_AIF_ILLIQUIDITY_AND_LOSS_REVIEW'));
+  assert.ok(!l.screeningReasonCodes.includes('SHORT_HORIZON_REQUIRES_AIF_CAPITAL_CALL_AND_EXIT_REVIEW'));
+  assert.equal(s.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(s.productQualified,false);
+  assert.equal(s.scoreAvailable,false);
+  assert.equal(s.productRiskLevel,null);
+ }
+ const social=rows.find(x=>x.id==='catalog_2026_aif1_social');
+ assert.equal(social.standardCapitalReferenceInr,null);
+ assert.equal(social.aifCategoryAccessReview.socialImpactNpoOnlyIndividualMinimumInr,1000);
+ assert.equal(social.aifCategoryAccessReview.socialUnitsCanCarryNoFinancialReturn,true);
+ assert.ok(!short.find(x=>x.id===social.id).screeningReasonCodes.includes(
+   'REPORTED_LUMP_SUM_BELOW_STANDARD_REFERENCE_NOT_PROOF_OF_INELIGIBILITY'));
+});
+test('nine NPS archetypes record PFRDA October 26 postponement to December 1 without a NAV claim',()=>{
+ const rows=listExtensionResearch().filter(x=>x.id.startsWith('catalog_2026_nps_'));
+ assert.equal(rows.length,9);
+ const screened=screenExtensionResearchForProfile(canonicalProfile());
+ for(const row of rows){
+  const p=(row.npsCommonSchemeReview||row.npsVatsalyaAccessReview).popChargeDateReview;
+  assert.equal(p.issuedOn,'2026-10-26');
+  assert.equal(p.priorImplementationDate,'2026-10-01');
+  assert.equal(p.revisedImplementationDate,'2026-12-01');
+  assert.equal(p.separateFromApril2026MultipleNavFramework,true);
+  assert.equal(p.individualPopChannelAndApplicableChargesVerified,false);
+  assert.equal(p.individualNavFeeImpactVerified,false);
+  assert.equal(p.commercialNavRightsVerified,false);
+  assert.ok(screened.find(x=>x.id===row.id).screeningReasonCodes.includes(
+    'NPS_OCT_2026_POP_CHARGE_DATE_MOVED_TO_DEC_VERIFY_APPLICABLE_FEES'));
+ }
+});
+test('RBI SGS STRIPS evidence separates underlying outstanding threshold from retail access',()=>{
+ const rows=listExtensionResearch().filter(x=>x.sgsStripsAccessReview);
+ assert.equal(rows.length,2);
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+   investmentHorizonYears:1,investmentGoals:['Emergency Fund']
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+   investmentHorizonYears:10,investmentGoals:['Wealth Growth']
+ }));
+ for(const row of rows){
+  const s=row.sgsStripsAccessReview;
+  assert.equal(s.eligibleUnderlyingMinimumOutstandingInr,10000000000);
+  assert.equal(s.underlyingOutstandingIsNotRetailInvestorMinimum,true);
+  assert.equal(s.actualEligibleUnderlyingAndIsinVerified,false);
+  assert.ok(s.riskConsiderations.length>=2&&s.investorAccessConstraints.length>=2);
+  assert.ok(short.find(x=>x.id===row.id).screeningReasonCodes.includes(
+    'EMERGENCY_FUND_REQUIRES_SGS_STRIP_EXIT_LIQUIDITY_REVIEW'));
+  assert.ok(!long.find(x=>x.id===row.id).screeningReasonCodes.includes(
+    'EMERGENCY_FUND_REQUIRES_SGS_STRIP_EXIT_LIQUIDITY_REVIEW'));
+ }
+});
+test('nine debt schemes retain two scheme-specific access cautions, not product approvals',()=>{
+ const rows=listExtensionResearch().filter(x=>x.sebiDebtSchemeStructureReview);
+ assert.equal(rows.length,9);
+ assert.ok(rows.every(x=>x.sebiDebtSchemeStructureReview.investorAccessConstraints.length>=2));
+ assert.ok(rows.every(x=>x.productRiskScore===null&&x.actualRetailProductEligible===false));
+});

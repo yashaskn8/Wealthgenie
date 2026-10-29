@@ -414,7 +414,7 @@
       "scenarioDescription": "State Government Security Coupon STRIP: State Government STRIPS category. Examine actual issuer or scheme terms before assigning an investment risk rating. RBI's 12 June 2025 SGS STRIPS rules require eligible underlying securities and a custodian/e-Kuber route. The coupon cash flow has instrument-specific market-price and liquidity uncertainty; retail access is not established.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -434,7 +434,29 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sgsStripsAccessReview": {
+        "officialRbiCircularUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
+        "circularIssuedOn": "2025-06-12",
+        "reviewedOn": "2026-10-29",
+        "cashFlowType": "COUPON",
+        "eligibleUnderlyingResidualMaturityMaximumYears": 14,
+        "eligibleUnderlyingMinimumOutstandingInr": 10000000000,
+        "underlyingOutstandingIsNotRetailInvestorMinimum": true,
+        "sglOrCustodianCsglEKuberRouteDescribed": true,
+        "actualEligibleUnderlyingAndIsinVerified": false,
+        "individualCustodianAccountEligibilityVerified": false,
+        "currentPriceYieldAndSecondaryLiquidityVerified": false,
+        "commercialDataRightsVerified": false,
+        "riskConsiderations": [
+          "Separated coupon cash flows do not confer principal repayment; discount-rate changes can change resale value.",
+          "A specific coupon STRIP may have limited secondary bids, and its actual spread is unverified."
+        ],
+        "investorAccessConstraints": [
+          "RBI's INR 1,000 crore minimum applies to outstanding eligible underlying SGS, not a retail investor ticket.",
+          "Actual stripping requires an SGL or custodian CSGL/e-Kuber route; retail account access, ISIN, quote and permission are unverified."
+        ]
+      }
     },
     {
       "id": "catalog_2026_sdl_principal_strip",
@@ -442,7 +464,7 @@
       "scenarioDescription": "State Government Security Principal STRIP: State Government STRIPS category. Examine actual issuer or scheme terms before assigning an investment risk rating. RBI's 12 June 2025 SGS STRIPS rules require eligible underlying securities and a custodian/e-Kuber route. The principal cash flow has instrument-specific market-price and liquidity uncertainty; retail access is not established.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -462,7 +484,29 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "sgsStripsAccessReview": {
+        "officialRbiCircularUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0",
+        "circularIssuedOn": "2025-06-12",
+        "reviewedOn": "2026-10-29",
+        "cashFlowType": "PRINCIPAL",
+        "eligibleUnderlyingResidualMaturityMaximumYears": 14,
+        "eligibleUnderlyingMinimumOutstandingInr": 10000000000,
+        "underlyingOutstandingIsNotRetailInvestorMinimum": true,
+        "sglOrCustodianCsglEKuberRouteDescribed": true,
+        "actualEligibleUnderlyingAndIsinVerified": false,
+        "individualCustodianAccountEligibilityVerified": false,
+        "currentPriceYieldAndSecondaryLiquidityVerified": false,
+        "commercialDataRightsVerified": false,
+        "riskConsiderations": [
+          "Separated principal STRIPS provide no interim coupon income and their price is sensitive to discount rates.",
+          "Long-dated principal cash flows can have duration and resale liquidity risk even for government issuers."
+        ],
+        "investorAccessConstraints": [
+          "RBI's INR 1,000 crore minimum applies to outstanding eligible underlying SGS, not a retail investor ticket.",
+          "Actual stripping requires an SGL or custodian CSGL/e-Kuber route; retail account access, ISIN, quote and permission are unverified."
+        ]
+      }
     },
     {
       "id": "catalog_2026_gsec_coupon_strip",
@@ -966,7 +1010,8 @@
           "Duration maintenance and secondary-market liquidity"
         ],
         "investorAccessConstraints": [
-          "Scheme SID/KIM, AMC/KYC, and actual unit availability not verified"
+          "Scheme SID/KIM, AMC/KYC, and actual unit availability not verified",
+          "Verify the actual 10-year constant-duration mandate, SID/KIM, plan availability and exit load."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -1020,7 +1065,8 @@
           "Exceptional duration reduction does not guarantee loss avoidance"
         ],
         "investorAccessConstraints": [
-          "Actual scheme SID, KYC, NAV, redemption settlement and exit loads not verified"
+          "Actual scheme SID, KYC, NAV, redemption settlement and exit loads not verified",
+          "Verify the named scheme's duration under normal and adverse conditions, credit PRC, SID/KIM and redemption."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -1074,7 +1120,8 @@
           "Portfolio credit, concentration and redemption-liquidity risks depend on actual scheme"
         ],
         "investorAccessConstraints": [
-          "Current scheme riskometer, SID, KYC, NAV and exit load not verified"
+          "Current scheme riskometer, SID, KYC, NAV and exit load not verified",
+          "Verify the named scheme's long-duration holdings, PRC, riskometer and exit-load terms."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -1128,7 +1175,8 @@
           "Benchmark concentration, tracking error and index reconstitution"
         ],
         "investorAccessConstraints": [
-          "Actual fund identity, target date, index constituents and subscription availability unverified"
+          "Actual fund identity, target date, index constituents and subscription availability unverified",
+          "Verify the actual G-Sec benchmark constituents, fund launch, maturity date and subscription terms."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -1182,7 +1230,8 @@
           "Tracking difference and early-sale NAV risk"
         ],
         "investorAccessConstraints": [
-          "Actual fund identity, state holdings, target date and retail scheme terms unverified"
+          "Actual fund identity, state holdings, target date and retail scheme terms unverified",
+          "Verify the actual SDL benchmark, issuer concentration, maturity date and scheme redemption terms."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -1236,7 +1285,8 @@
           "Concentration, duration and tracking error"
         ],
         "investorAccessConstraints": [
-          "Actual issuer list, credit ratings, fund identity, target date and scheme access unverified"
+          "Actual issuer list, credit ratings, fund identity, target date and scheme access unverified",
+          "Verify actual PSU issuers and ratings, target date, SID/KIM and subscription access."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -1290,7 +1340,8 @@
           "Tracking error and constituent credit risks depend on benchmark"
         ],
         "investorAccessConstraints": [
-          "Named benchmark, scheme existence, NAV, KYC and fund redemption terms unverified"
+          "Named benchmark, scheme existence, NAV, KYC and fund redemption terms unverified",
+          "Verify the actual rolling benchmark, reset methodology, duration and redemption terms."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -1344,7 +1395,8 @@
           "Layered fees, redemption settlement and portfolio overlap"
         ],
         "investorAccessConstraints": [
-          "Actual FoF and underlying schemes, fees, KYC, NAV and redemption rules unverified"
+          "Actual FoF and underlying schemes, fees, KYC, NAV and redemption rules unverified",
+          "Verify underlying funds, layered fees, current SID/KIM, investor class and redemption settlement."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -1398,7 +1450,8 @@
           "Interest-rate sensitivity, tracking error and bid-ask spread"
         ],
         "investorAccessConstraints": [
-          "Specific ETF, listing, exchange access, KYC, market quote and scheme riskometer unverified"
+          "Specific ETF, listing, exchange access, KYC, market quote and scheme riskometer unverified",
+          "Verify an actual listed ticker/ISIN, demat access, exchange spreads versus NAV and settlement."
         ],
         "specificSchemeAndAmcVerified": false,
         "currentSchemeRiskometerVerified": false,
@@ -2776,6 +2829,21 @@
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
+          "individualSuitabilityVerified": false
         }
       }
     },
@@ -2852,6 +2920,21 @@
           "specificPensionFundNavVariantVerified": false,
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
         }
       }
@@ -2930,6 +3013,21 @@
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
+          "individualSuitabilityVerified": false
         }
       }
     },
@@ -3006,6 +3104,21 @@
           "specificPensionFundNavVariantVerified": false,
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
         }
       }
@@ -3084,6 +3197,21 @@
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
+          "individualSuitabilityVerified": false
         }
       }
     },
@@ -3160,6 +3288,21 @@
           "specificPensionFundNavVariantVerified": false,
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
         }
       }
@@ -3238,6 +3381,21 @@
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
+          "individualSuitabilityVerified": false
         }
       }
     },
@@ -3314,6 +3472,21 @@
           "specificPensionFundNavVariantVerified": false,
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
         }
       }
@@ -3400,6 +3573,21 @@
           "specificPensionFundNavVariantVerified": false,
           "applicableFeesAndUnitsVerified": false,
           "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        },
+        "popChargeDateReview": {
+          "officialPfrdaCircularUrl": "https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1",
+          "circularNumber": "PFRDA/2026/53/REG-POP/09",
+          "issuedOn": "2026-10-26",
+          "priorCircularIssuedOn": "2026-08-28",
+          "priorImplementationDate": "2026-10-01",
+          "revisedImplementationDate": "2026-12-01",
+          "reviewedOn": "2026-10-29",
+          "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
+          "separateFromApril2026MultipleNavFramework": true,
+          "individualPopChannelAndApplicableChargesVerified": false,
+          "individualNavFeeImpactVerified": false,
+          "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
         }
       }
@@ -3853,7 +4041,7 @@
       "scenarioDescription": "Category I AIF Venture Capital Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -3873,7 +4061,34 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "aifCategoryAccessReview": {
+        "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "regulationsAmendedThrough": "2026-10-15",
+        "reviewedOn": "2026-10-29",
+        "categoryStructure": "CATEGORY_I_VENTURE_CAPITAL",
+        "regulatorySections": "SEBI AIF Regulations 2012 regulations 2, 10, 11 and applicable 16/17/18",
+        "sourceScope": "PRIVATE_PLACEMENT_CATEGORY_RULES_NOT_AN_ACTUAL_REGISTERED_FUND_OR_OFFER",
+        "generalMinimumInr": 10000000,
+        "socialImpactNpoOnlyIndividualMinimumInr": null,
+        "socialUnitsCanCarryNoFinancialReturn": false,
+        "octoberAccreditationAmendment": "October 15, 2026 expanded accredited-investor recognition routes and securities-market-exposure criteria; a self-reported financial profile is not proof of accreditation.",
+        "privatePlacementRequired": true,
+        "actualFundRegistrationAndPpmVerified": false,
+        "individualAccreditationVerified": false,
+        "individualKycAndSubscriptionEligibilityVerified": false,
+        "schemeFeesTenureAndRedemptionVerified": false,
+        "currentValuationAndCommercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "riskConsiderations": [
+          "Early-stage issuer failure and financing shortfalls can cause major loss.",
+          "Unlisted valuations and long holding periods can prevent timely exit."
+        ],
+        "investorAccessConstraints": [
+          "Verify a registered Category I venture-capital scheme, actual PPM, fees, capital calls and exits.",
+          "The INR 1 crore general minimum has exceptions; individual private-placement invitation, KYC and accreditation are unverified."
+        ]
+      }
     },
     {
       "id": "catalog_2026_aif1_sme",
@@ -3881,7 +4096,7 @@
       "scenarioDescription": "Category I AIF SME Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -3901,7 +4116,34 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "aifCategoryAccessReview": {
+        "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "regulationsAmendedThrough": "2026-10-15",
+        "reviewedOn": "2026-10-29",
+        "categoryStructure": "CATEGORY_I_SME",
+        "regulatorySections": "SEBI AIF Regulations 2012 regulations 2, 10, 11 and applicable 16/17/18",
+        "sourceScope": "PRIVATE_PLACEMENT_CATEGORY_RULES_NOT_AN_ACTUAL_REGISTERED_FUND_OR_OFFER",
+        "generalMinimumInr": 10000000,
+        "socialImpactNpoOnlyIndividualMinimumInr": null,
+        "socialUnitsCanCarryNoFinancialReturn": false,
+        "octoberAccreditationAmendment": "October 15, 2026 expanded accredited-investor recognition routes and securities-market-exposure criteria; a self-reported financial profile is not proof of accreditation.",
+        "privatePlacementRequired": true,
+        "actualFundRegistrationAndPpmVerified": false,
+        "individualAccreditationVerified": false,
+        "individualKycAndSubscriptionEligibilityVerified": false,
+        "schemeFeesTenureAndRedemptionVerified": false,
+        "currentValuationAndCommercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "riskConsiderations": [
+          "SME issuer concentration and financing risk can materially affect capital.",
+          "Unlisted or SME-exchange holdings may have limited resale liquidity."
+        ],
+        "investorAccessConstraints": [
+          "Verify the actual Category I SME mandate, PPM, eligible holdings and redemption conditions.",
+          "General capital threshold exceptions, investor onboarding and accredited status require individual proof."
+        ]
+      }
     },
     {
       "id": "catalog_2026_aif1_social",
@@ -3909,7 +4151,7 @@
       "scenarioDescription": "Category I AIF Social Impact Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified. Social-impact funds investing solely in eligible NPO social-stock-exchange securities have a distinct regulatory minimum; do not apply the general INR 1 crore AIF reference to this structure without scheme-specific confirmation.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3930,7 +4172,34 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "aifCategoryAccessReview": {
+        "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "regulationsAmendedThrough": "2026-10-15",
+        "reviewedOn": "2026-10-29",
+        "categoryStructure": "CATEGORY_I_SOCIAL_IMPACT",
+        "regulatorySections": "SEBI AIF Regulations 2012 regulations 2, 10, 11 and applicable 16/17/18",
+        "sourceScope": "PRIVATE_PLACEMENT_CATEGORY_RULES_NOT_AN_ACTUAL_REGISTERED_FUND_OR_OFFER",
+        "generalMinimumInr": null,
+        "socialImpactNpoOnlyIndividualMinimumInr": 1000,
+        "socialUnitsCanCarryNoFinancialReturn": true,
+        "octoberAccreditationAmendment": "October 15, 2026 expanded accredited-investor recognition routes and securities-market-exposure criteria; a self-reported financial profile is not proof of accreditation.",
+        "privatePlacementRequired": true,
+        "actualFundRegistrationAndPpmVerified": false,
+        "individualAccreditationVerified": false,
+        "individualKycAndSubscriptionEligibilityVerified": false,
+        "schemeFeesTenureAndRedemptionVerified": false,
+        "currentValuationAndCommercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "riskConsiderations": [
+          "Social units may confer social benefits without any financial return.",
+          "Project impact, valuations and illiquid positions can differ sharply by actual scheme."
+        ],
+        "investorAccessConstraints": [
+          "The INR 1,000 individual threshold is restricted to social-impact funds investing solely in eligible NPO social-stock-exchange securities, not all social funds.",
+          "Verify whether actual interests are social units, grants or return-bearing units and the applicable PPM, minimum and access terms."
+        ]
+      }
     },
     {
       "id": "catalog_2026_aif1_infra",
@@ -3938,7 +4207,7 @@
       "scenarioDescription": "Category I AIF Infrastructure Fund: Category I AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -3958,7 +4227,34 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "aifCategoryAccessReview": {
+        "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "regulationsAmendedThrough": "2026-10-15",
+        "reviewedOn": "2026-10-29",
+        "categoryStructure": "CATEGORY_I_INFRASTRUCTURE",
+        "regulatorySections": "SEBI AIF Regulations 2012 regulations 2, 10, 11 and applicable 16/17/18",
+        "sourceScope": "PRIVATE_PLACEMENT_CATEGORY_RULES_NOT_AN_ACTUAL_REGISTERED_FUND_OR_OFFER",
+        "generalMinimumInr": 10000000,
+        "socialImpactNpoOnlyIndividualMinimumInr": null,
+        "socialUnitsCanCarryNoFinancialReturn": false,
+        "octoberAccreditationAmendment": "October 15, 2026 expanded accredited-investor recognition routes and securities-market-exposure criteria; a self-reported financial profile is not proof of accreditation.",
+        "privatePlacementRequired": true,
+        "actualFundRegistrationAndPpmVerified": false,
+        "individualAccreditationVerified": false,
+        "individualKycAndSubscriptionEligibilityVerified": false,
+        "schemeFeesTenureAndRedemptionVerified": false,
+        "currentValuationAndCommercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "riskConsiderations": [
+          "Project construction, counterparty and regulatory changes can impair expected cash flows.",
+          "Long project life and unlisted holdings can make early exits difficult."
+        ],
+        "investorAccessConstraints": [
+          "Verify the specific Category I infrastructure mandate, project assets and placement memorandum.",
+          "Private placement, standard minimum exceptions, investor KYC, accreditation and tenure are not established."
+        ]
+      }
     },
     {
       "id": "catalog_2026_aif2_pe",
@@ -3966,7 +4262,7 @@
       "scenarioDescription": "Category II AIF Private Equity Fund: Category II AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -3986,7 +4282,34 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "aifCategoryAccessReview": {
+        "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "regulationsAmendedThrough": "2026-10-15",
+        "reviewedOn": "2026-10-29",
+        "categoryStructure": "CATEGORY_II_PRIVATE_EQUITY",
+        "regulatorySections": "SEBI AIF Regulations 2012 regulations 2, 10, 11 and applicable 16/17/18",
+        "sourceScope": "PRIVATE_PLACEMENT_CATEGORY_RULES_NOT_AN_ACTUAL_REGISTERED_FUND_OR_OFFER",
+        "generalMinimumInr": 10000000,
+        "socialImpactNpoOnlyIndividualMinimumInr": null,
+        "socialUnitsCanCarryNoFinancialReturn": false,
+        "octoberAccreditationAmendment": "October 15, 2026 expanded accredited-investor recognition routes and securities-market-exposure criteria; a self-reported financial profile is not proof of accreditation.",
+        "privatePlacementRequired": true,
+        "actualFundRegistrationAndPpmVerified": false,
+        "individualAccreditationVerified": false,
+        "individualKycAndSubscriptionEligibilityVerified": false,
+        "schemeFeesTenureAndRedemptionVerified": false,
+        "currentValuationAndCommercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "riskConsiderations": [
+          "Private business failure and valuation uncertainty can cause capital loss.",
+          "Concentrated investments, drawdowns and delayed exits create liquidity risk."
+        ],
+        "investorAccessConstraints": [
+          "Verify the specific Category II PE mandate, PPM, fees, capital calls and distribution waterfall.",
+          "A broad category reference and a reported lump sum do not establish private-placement eligibility or accreditation."
+        ]
+      }
     },
     {
       "id": "catalog_2026_aif2_debt",
@@ -3994,7 +4317,7 @@
       "scenarioDescription": "Category II AIF Private Debt Fund: Category II AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -4014,7 +4337,34 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "aifCategoryAccessReview": {
+        "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "regulationsAmendedThrough": "2026-10-15",
+        "reviewedOn": "2026-10-29",
+        "categoryStructure": "CATEGORY_II_PRIVATE_DEBT",
+        "regulatorySections": "SEBI AIF Regulations 2012 regulations 2, 10, 11 and applicable 16/17/18",
+        "sourceScope": "PRIVATE_PLACEMENT_CATEGORY_RULES_NOT_AN_ACTUAL_REGISTERED_FUND_OR_OFFER",
+        "generalMinimumInr": 10000000,
+        "socialImpactNpoOnlyIndividualMinimumInr": null,
+        "socialUnitsCanCarryNoFinancialReturn": false,
+        "octoberAccreditationAmendment": "October 15, 2026 expanded accredited-investor recognition routes and securities-market-exposure criteria; a self-reported financial profile is not proof of accreditation.",
+        "privatePlacementRequired": true,
+        "actualFundRegistrationAndPpmVerified": false,
+        "individualAccreditationVerified": false,
+        "individualKycAndSubscriptionEligibilityVerified": false,
+        "schemeFeesTenureAndRedemptionVerified": false,
+        "currentValuationAndCommercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "riskConsiderations": [
+          "Borrower default, recovery priority and collateral enforcement may impair proceeds.",
+          "Unlisted debt and limited secondary liquidity can obstruct early exit."
+        ],
+        "investorAccessConstraints": [
+          "Verify borrower concentration, collateral, seniority and the actual Category II debt PPM.",
+          "The general minimum and exceptions, accreditation, KYC and subscription permissions remain unverified."
+        ]
+      }
     },
     {
       "id": "catalog_2026_aif3_hedge",
@@ -4022,7 +4372,7 @@
       "scenarioDescription": "Category III AIF Hedge Fund Strategy: Category III AIF category. Examine actual issuer or scheme terms before assigning an investment risk rating. SEBI AIF regulations updated 15 October 2026; the fund placement memorandum, retail access and exceptions remain unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-28",
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 10000000,
@@ -4042,7 +4392,34 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_REGULATORY_STRUCTURE_ONLY_NOT_LIVE_PRODUCT_FACT"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "aifCategoryAccessReview": {
+        "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html",
+        "regulationsAmendedThrough": "2026-10-15",
+        "reviewedOn": "2026-10-29",
+        "categoryStructure": "CATEGORY_III_HEDGE_STRATEGY",
+        "regulatorySections": "SEBI AIF Regulations 2012 regulations 2, 10, 11 and applicable 16/17/18",
+        "sourceScope": "PRIVATE_PLACEMENT_CATEGORY_RULES_NOT_AN_ACTUAL_REGISTERED_FUND_OR_OFFER",
+        "generalMinimumInr": 10000000,
+        "socialImpactNpoOnlyIndividualMinimumInr": null,
+        "socialUnitsCanCarryNoFinancialReturn": false,
+        "octoberAccreditationAmendment": "October 15, 2026 expanded accredited-investor recognition routes and securities-market-exposure criteria; a self-reported financial profile is not proof of accreditation.",
+        "privatePlacementRequired": true,
+        "actualFundRegistrationAndPpmVerified": false,
+        "individualAccreditationVerified": false,
+        "individualKycAndSubscriptionEligibilityVerified": false,
+        "schemeFeesTenureAndRedemptionVerified": false,
+        "currentValuationAndCommercialDataRightsVerified": false,
+        "personalizedAdviceAuthorizationVerified": false,
+        "riskConsiderations": [
+          "Derivatives, short positions and permitted leverage may amplify losses.",
+          "Complex valuation and redemption restrictions can impair cash access."
+        ],
+        "investorAccessConstraints": [
+          "Verify the actual Category III strategy, leverage, redemption gates, PPM and current risk disclosures.",
+          "Private-placement invitation, minimum exceptions, accreditation and investor eligibility cannot be inferred from a profile risk label."
+        ]
+      }
     },
     {
       "id": "catalog_2026_pms_discretionary",

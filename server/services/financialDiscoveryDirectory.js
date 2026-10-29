@@ -138,6 +138,10 @@ function buildDirectory() {
         officialFrameworkVerification: research.publicFrameworkVerification,
         postalSavingsAccessReview: research.postalSavingsAccessReview
           ? structuredClone(research.postalSavingsAccessReview) : null,
+        aifCategoryAccessReview: research.aifCategoryAccessReview
+          ? structuredClone(research.aifCategoryAccessReview) : null,
+        sgsStripsAccessReview: research.sgsStripsAccessReview
+          ? structuredClone(research.sgsStripsAccessReview) : null,
         bankDepositAccessReview: research.bankDepositAccessReview
           ? { ...research.bankDepositAccessReview } : null,
         publicDepositAccessReview: research.nbfcPublicDepositAccessReview
@@ -213,6 +217,10 @@ export function listFinancialDiscoveryDirectory() {
           ? { ...item.frameworkResearch.reviewedOfficialFrameworkFact } : null,
         postalSavingsAccessReview: item.frameworkResearch.postalSavingsAccessReview
           ? structuredClone(item.frameworkResearch.postalSavingsAccessReview) : null,
+        aifCategoryAccessReview: item.frameworkResearch.aifCategoryAccessReview
+          ? structuredClone(item.frameworkResearch.aifCategoryAccessReview) : null,
+        sgsStripsAccessReview: item.frameworkResearch.sgsStripsAccessReview
+          ? structuredClone(item.frameworkResearch.sgsStripsAccessReview) : null,
         bankDepositAccessReview: item.frameworkResearch.bankDepositAccessReview
           ? { ...item.frameworkResearch.bankDepositAccessReview } : null,
         publicDepositAccessReview: item.frameworkResearch.publicDepositAccessReview

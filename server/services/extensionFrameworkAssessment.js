@@ -35,6 +35,10 @@ const validNpsMultipleNavReview=review=>{
     'applicableFeesAndUnitsVerified','commercialNavReuseRightsVerified',
     'individualSuitabilityVerified'].every(key=>nav[key]===false);
 };
+const aifCategoryStructures=Object.freeze({"catalog_2026_aif1_vc":"CATEGORY_I_VENTURE_CAPITAL","catalog_2026_aif1_sme":"CATEGORY_I_SME","catalog_2026_aif1_social":"CATEGORY_I_SOCIAL_IMPACT","catalog_2026_aif1_infra":"CATEGORY_I_INFRASTRUCTURE","catalog_2026_aif2_pe":"CATEGORY_II_PRIVATE_EQUITY","catalog_2026_aif2_debt":"CATEGORY_II_PRIVATE_DEBT","catalog_2026_aif3_hedge":"CATEGORY_III_HEDGE_STRATEGY"});
+const aifOctoberRegulationsUrl="https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html";
+const pfrdaPopOctoberUrl="https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1";
+const rbiSgsStripsUrl="https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0";
 const npsExitFaqUrl="https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf";
 const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50","catalog_2026_index_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_index_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_index_midcap150":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150","catalog_2026_index_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"});
 const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
@@ -68,6 +72,47 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
     ? !validNpsMultipleNavReview(x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)
     : x.npsCommonSchemeReview?.multipleNavFrameworkReview!==undefined
       || x.npsVatsalyaAccessReview?.multipleNavFrameworkReview!==undefined)
+  || research.entries.some(x=>x.id.startsWith('catalog_2026_nps_')
+    ? (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.officialPfrdaCircularUrl!==pfrdaPopOctoberUrl
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.issuedOn!=='2026-10-26'
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.priorImplementationDate!=='2026-10-01'
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.revisedImplementationDate!=='2026-12-01'
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.individualPopChannelAndApplicableChargesVerified!==false
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.individualNavFeeImpactVerified!==false
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.commercialNavRightsVerified!==false
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.individualSuitabilityVerified!==false
+    : x.npsCommonSchemeReview?.popChargeDateReview!==undefined || x.npsVatsalyaAccessReview?.popChargeDateReview!==undefined)
+  || research.entries.some(x=>Object.hasOwn(aifCategoryStructures,x.id)
+    ? (x.aifCategoryAccessReview?.officialSebiRegulationsUrl!==aifOctoberRegulationsUrl
+      || x.aifCategoryAccessReview?.regulationsAmendedThrough!=='2026-10-15'
+      || x.aifCategoryAccessReview?.categoryStructure!==aifCategoryStructures[x.id]
+      || x.aifCategoryAccessReview?.privatePlacementRequired!==true
+      || x.aifCategoryAccessReview?.generalMinimumInr!==(x.id==='catalog_2026_aif1_social'?null:10000000)
+      || x.aifCategoryAccessReview?.socialImpactNpoOnlyIndividualMinimumInr!==(x.id==='catalog_2026_aif1_social'?1000:null)
+      || x.aifCategoryAccessReview?.socialUnitsCanCarryNoFinancialReturn!==(x.id==='catalog_2026_aif1_social')
+      || !Array.isArray(x.aifCategoryAccessReview?.riskConsiderations)
+      || x.aifCategoryAccessReview.riskConsiderations.length<2
+      || !Array.isArray(x.aifCategoryAccessReview?.investorAccessConstraints)
+      || x.aifCategoryAccessReview.investorAccessConstraints.length<2
+      || ['actualFundRegistrationAndPpmVerified','individualAccreditationVerified',
+        'individualKycAndSubscriptionEligibilityVerified','schemeFeesTenureAndRedemptionVerified',
+        'currentValuationAndCommercialDataRightsVerified','personalizedAdviceAuthorizationVerified']
+        .some(k=>x.aifCategoryAccessReview[k]!==false))
+    : x.aifCategoryAccessReview!==undefined)
+  || research.entries.some(x=>['catalog_2026_sdl_coupon_strip','catalog_2026_sdl_principal_strip'].includes(x.id)
+    ? (x.sgsStripsAccessReview?.officialRbiCircularUrl!==rbiSgsStripsUrl
+      || x.sgsStripsAccessReview?.eligibleUnderlyingResidualMaturityMaximumYears!==14
+      || x.sgsStripsAccessReview?.eligibleUnderlyingMinimumOutstandingInr!==10000000000
+      || x.sgsStripsAccessReview?.underlyingOutstandingIsNotRetailInvestorMinimum!==true
+      || x.sgsStripsAccessReview?.actualEligibleUnderlyingAndIsinVerified!==false
+      || x.sgsStripsAccessReview?.individualCustodianAccountEligibilityVerified!==false
+      || x.sgsStripsAccessReview?.currentPriceYieldAndSecondaryLiquidityVerified!==false
+      || x.sgsStripsAccessReview?.commercialDataRightsVerified!==false
+      || !Array.isArray(x.sgsStripsAccessReview?.riskConsiderations)
+      || x.sgsStripsAccessReview.riskConsiderations.length<2
+      || !Array.isArray(x.sgsStripsAccessReview?.investorAccessConstraints)
+      || x.sgsStripsAccessReview.investorAccessConstraints.length<2)
+    : x.sgsStripsAccessReview!==undefined)
   || research.entries.some(x=> nbfcDepositIds.has(x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
       || x.nbfcPublicDepositAccessReview?.officialRbiDirectionsUrl!=='https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563'
@@ -306,6 +351,7 @@ export function screenExtensionResearchForProfile(profileInput) {
    if(row.id.startsWith('catalog_2026_nps_')) {
      reasons.push('NPS_ALLOCATION_EXIT_AND_AGE_RULES_REQUIRE_SCHEME_REVIEW');
      reasons.push('NPS_MULTIPLE_NAV_FEE_SECTOR_AND_CHANNEL_NOT_INDIVIDUALLY_VERIFIED');
+      reasons.push('NPS_OCT_2026_POP_CHARGE_DATE_MOVED_TO_DEC_VERIFY_APPLICABLE_FEES');
      if(profile.investmentHorizonYears<=3)
        reasons.push('SHORT_HORIZON_REQUIRES_NPS_APPLICABLE_NAV_FEES_AND_EXIT_VALUE_REVIEW');
      if(profile.investmentGoals.includes('Tax Saving'))
@@ -330,10 +376,28 @@ export function screenExtensionResearchForProfile(profileInput) {
    }
    if(row.id==='catalog_2026_sdl_coupon_strip' || row.id==='catalog_2026_sdl_principal_strip') {
      reasons.push('SGS_STRIP_SECURITY_ELIGIBILITY_AND_CUSTODIAN_ACCESS_NOT_VERIFIED');
+      reasons.push('SGS_STRIP_UNDERLYING_OUTSTANDING_IS_NOT_INVESTOR_MINIMUM');
+      if(profile.investmentGoals.includes('Emergency Fund'))
+        reasons.push('EMERGENCY_FUND_REQUIRES_SGS_STRIP_EXIT_LIQUIDITY_REVIEW');
+      if(profile.investmentHorizonYears<=3)
+        reasons.push('SHORT_HORIZON_REQUIRES_SGS_STRIP_CASH_FLOW_AND_EXIT_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_STRIP_MARKET_PRICE_AND_LIQUIDITY_REVIEW');
    }
-   if(row.postalSavingsAccessReview) {
+   if(row.aifCategoryAccessReview) {
+      reasons.push('AIF_PRIVATE_PLACEMENT_PPM_REGISTRATION_AND_KYC_UNVERIFIED');
+      reasons.push('AIF_OCT_2026_ACCREDITATION_CHANGE_NOT_PERSONAL_ACCREDITATION');
+      reasons.push('AIF_FEES_REDEMPTION_VALUATION_AND_DATA_RIGHTS_UNVERIFIED');
+      if(row.id==='catalog_2026_aif1_social')
+        reasons.push('SOCIAL_IMPACT_NPO_ONLY_MINIMUM_AND_NO_RETURN_UNIT_TYPE_REQUIRE_VERIFICATION');
+      if(profile.investmentGoals.includes('Emergency Fund'))
+        reasons.push('EMERGENCY_FUND_REQUIRES_AIF_ILLIQUIDITY_AND_LOSS_REVIEW');
+      if(profile.investmentHorizonYears<=3)
+        reasons.push('SHORT_HORIZON_REQUIRES_AIF_CAPITAL_CALL_AND_EXIT_REVIEW');
+      if(profile.riskTolerance==='Conservative')
+        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_AIF_ILLIQUIDITY_LOSS_REVIEW');
+    }
+    if(row.postalSavingsAccessReview) {
      reasons.push('INDIA_POST_ACCOUNT_KYC_AND_INDIVIDUAL_ELIGIBILITY_UNVERIFIED');
      reasons.push('INDIA_POST_CURRENT_ACCOUNT_TERMS_RATE_AND_SOURCE_RIGHTS_UNVERIFIED');
      if(row.postalSavingsAccessReview.schemeType==='NATIONAL_SAVINGS_TIME_DEPOSIT') {
