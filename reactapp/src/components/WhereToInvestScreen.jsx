@@ -45,12 +45,25 @@ const WhereToInvestScreen = ({
   const [shortlistSaving, setShortlistSaving] = useState(false);
   const [shortlistSaved, setShortlistSaved] = useState(false);
   const profileId = userProfile?.profileId || userProfile?._id || null;
-  const profileVersion = userProfile?.version || null;
+  const profileVersion = userProfile?.version ?? null;
   const catalogProfileKey = `${profileId || 'none'}:${profileVersion || 'none'}`;
   const recommendationIds = recommendedParents.map(entry => entry?.id).join('|');
+  // Do not surface stale screening from a different saved profile revision.
+  // Availability of the educational 250-category directory is independent.
+  const currentRiskShortlist = useMemo(() => (
+    FINANCIAL_SHORTLIST_UI_ENABLED
+    && riskShortlist?.status === 'PROFILE_ELIGIBLE_PARENT_CATEGORIES'
+    && riskShortlist.qualificationScope === 'PARENT_CATEGORY_ONLY'
+    && typeof profileId === 'string'
+    && Number.isSafeInteger(profileVersion)
+    && riskShortlist.source?.profileId?.toString() === profileId
+    && riskShortlist.source?.profileVersion === profileVersion
+    && riskShortlist.catalogCoverage?.totalCategories === 250
+      ? riskShortlist : null
+  ), [riskShortlist, profileId, profileVersion]);
   const rankedProfileCategories = useMemo(
-    () => selectProfileCategoryMatches(riskShortlist, profileId, profileVersion),
-    [riskShortlist, profileId, profileVersion],
+    () => selectProfileCategoryMatches(currentRiskShortlist, profileId, profileVersion),
+    [currentRiskShortlist, profileId, profileVersion],
   );
 
   useEffect(() => {
@@ -80,7 +93,7 @@ const WhereToInvestScreen = ({
   }, [profileId, profileVersion, recommendationIds, recommendedParents.length]);
 
   const handleSaveRiskShortlist = useCallback(async () => {
-    if (!FINANCIAL_SHORTLIST_UI_ENABLED || !profileId || !riskShortlist || shortlistSaving) return;
+    if (!FINANCIAL_SHORTLIST_UI_ENABLED || !profileId || !currentRiskShortlist || shortlistSaving) return;
     setShortlistSaving(true);
     try {
       const saved = await saveRiskShortlist(profileId);
@@ -92,7 +105,7 @@ const WhereToInvestScreen = ({
     } finally {
       setShortlistSaving(false);
     }
-  }, [profileId, riskShortlist, shortlistSaving]);
+  }, [profileId, currentRiskShortlist, shortlistSaving]);
 
   // Scroll ref for category rail
   const railRef = useRef(null);
@@ -145,8 +158,8 @@ const WhereToInvestScreen = ({
       <div className="wti-screen-container">
         <InvestmentUniverseExplorer key={catalogProfileKey}
           profileShortlist={recommendedParents} profileRankedCategories={rankedProfileCategories}
-          profileAssessments={riskShortlist?.catalogAssessments}
-          profileCoverage={riskShortlist?.catalogCoverage} />
+          profileAssessments={currentRiskShortlist?.catalogAssessments}
+          profileCoverage={currentRiskShortlist?.catalogCoverage} />
         <div className="wti-loading-card">
           <AlertCircle size={24} className="wti-loading-icon" aria-hidden="true" />
           <div>
@@ -186,7 +199,7 @@ const WhereToInvestScreen = ({
         </p>
       </header>
 
-      {FINANCIAL_SHORTLIST_UI_ENABLED && riskShortlist && (
+      {FINANCIAL_SHORTLIST_UI_ENABLED && currentRiskShortlist && (
         <section className="wti-risk-groups" aria-label="Profile-eligible Top 5 investment categories">
           <div className="wti-risk-groups-heading">
             <div>
@@ -210,11 +223,11 @@ const WhereToInvestScreen = ({
             ].map(([code, title]) => (
               <div className="wti-risk-column" key={code}>
                 <h3>{title}</h3>
-                {(riskShortlist.groups[code] || []).length === 0 ? (
+                {(currentRiskShortlist.groups[code] || []).length === 0 ? (
                   <p className="wti-risk-empty">No suitable categories qualified for this profile.</p>
                 ) : (
                   <ol>
-                    {(riskShortlist.groups[code] || []).map(pick => (
+                    {(currentRiskShortlist.groups[code] || []).map(pick => (
                       <li key={pick.canonicalParentId}>
                         <span>{pick.name}</span>
                         <small>{pick.shortlistSource === 'CURRENT_SAVED_ALLOCATION'
@@ -232,8 +245,8 @@ const WhereToInvestScreen = ({
 
       <InvestmentUniverseExplorer key={catalogProfileKey}
           profileShortlist={recommendedParents} profileRankedCategories={rankedProfileCategories}
-          profileAssessments={riskShortlist?.catalogAssessments}
-          profileCoverage={riskShortlist?.catalogCoverage} />
+          profileAssessments={currentRiskShortlist?.catalogAssessments}
+          profileCoverage={currentRiskShortlist?.catalogCoverage} />
 
       {/* ─── Recommended Category Segmented Rail (Strictly in exact backend recommendation order) ─── */}
       <nav className="wti-category-nav" aria-label="Investment category selector">
