@@ -1341,10 +1341,10 @@
     {
       "id": "catalog_2026_index_nifty_next50",
       "exposureClass": "EQUITY_INDEX_TRACKING_AND_MARKET_LOSS",
-      "scenarioDescription": "Nifty Next 50 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty Next 50 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices identifies the underlying Nifty Next 50 as 50 Nifty 100 companies after excluding Nifty 50 constituents. This benchmark is not itself a purchasable index fund or ETF; scheme-level riskometer, NAV, access, permissions and investor suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1360,19 +1360,45 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty Next 50",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty Next 50",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "50 Nifty 100 companies after excluding Nifty 50 constituents",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Equity market drawdowns and concentration differ from Nifty 50 exposure",
+          "Index reconstitution, tracking error and scheme costs can affect actual fund outcomes"
+        ],
+        "investorAccessConstraints": [
+          "Identify the actual AMC scheme, share class and current SID/KIM before discussing investment access",
+          "Verify scheme-level KYC, purchase minimum, redemption terms and authorized NAV or exchange quote"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty100",
       "exposureClass": "EQUITY_INDEX_TRACKING_AND_MARKET_LOSS",
-      "scenarioDescription": "Nifty 100 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 100 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices identifies the underlying Nifty 100 as Top 100 companies by full market capitalization from Nifty 500, combining Nifty 50 and Nifty Next 50. This benchmark is not itself a purchasable index fund or ETF; scheme-level riskometer, NAV, access, permissions and investor suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1388,19 +1414,45 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty 100",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty 100",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "Top 100 companies by full market capitalization from Nifty 500, combining Nifty 50 and Nifty Next 50",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Market-cap weighting may concentrate equity exposure in larger constituents",
+          "Equity drawdowns and scheme tracking error remain possible even with broad large-cap coverage"
+        ],
+        "investorAccessConstraints": [
+          "Confirm actual AMC index fund or ETF, benchmark variant, SID/KIM and scheme-specific riskometer",
+          "Verify investor KYC, scheme minimum, redemption access, current NAV or exchange quote and data rights"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty500",
       "exposureClass": "EQUITY_INDEX_TRACKING_AND_MARKET_LOSS",
-      "scenarioDescription": "Nifty 500 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 500 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices identifies the underlying Nifty 500 as 500 companies selected from the eligible universe using full market capitalization and average daily turnover. This benchmark is not itself a purchasable index fund or ETF; scheme-level riskometer, NAV, access, permissions and investor suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1416,19 +1468,45 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty 500",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty 500",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "500 companies selected from the eligible universe using full market capitalization and average daily turnover",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Large-, mid- and smaller-company equity exposures can experience market losses",
+          "Constituent turnover and fund replication may create tracking differences, costs and liquidity considerations"
+        ],
+        "investorAccessConstraints": [
+          "Verify a specific fund or ETF tracking the stated index and its current SID/KIM and riskometer",
+          "Verify KYC, scheme minimum, exit loads, authorized NAV or quote and commercial source permissions"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_midcap150",
       "exposureClass": "SMALL_MID_CAP_EQUITY_VOLATILITY",
-      "scenarioDescription": "Nifty Midcap 150 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty Midcap 150 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices identifies the underlying Nifty Midcap 150 as 150 companies ranked 101 to 250 by full market capitalization from Nifty 500. This benchmark is not itself a purchasable index fund or ETF; scheme-level riskometer, NAV, access, permissions and investor suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1444,19 +1522,45 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty Midcap 150",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty Midcap 150",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "150 companies ranked 101 to 250 by full market capitalization from Nifty 500",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Mid-cap equities may experience material volatility and drawdowns",
+          "Underlying stock liquidity, reconstitution and fund tracking differences can affect outcomes"
+        ],
+        "investorAccessConstraints": [
+          "Identify actual scheme, benchmark variant, SID/KIM, riskometer and AMC permissions",
+          "Verify investor KYC, redemption and settlement conditions, scheme minimum and current authorized NAV or quote"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_smallcap250",
       "exposureClass": "SMALL_MID_CAP_EQUITY_VOLATILITY",
-      "scenarioDescription": "Nifty Smallcap 250 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty Smallcap 250 Index-Tracking Fund Strategy: Broad Market Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices identifies the underlying Nifty Smallcap 250 as 250 companies ranked 251 to 500 from Nifty 500. This benchmark is not itself a purchasable index fund or ETF; scheme-level riskometer, NAV, access, permissions and investor suitability remain unverified.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1472,11 +1576,37 @@
       "verifiedPublicFrameworkFact": {
         "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
         "value": "Nifty Smallcap 250",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "indexBenchmarkReview": {
+        "benchmarkName": "Nifty Smallcap 250",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "constituentStructure": "250 companies ranked 251 to 500 from Nifty 500",
+        "sourceScope": "OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME",
+        "riskConsiderations": [
+          "Small-cap equities may experience sharp drawdowns and higher volatility",
+          "Constituent liquidity and fund tracking or redemption conditions require scheme-specific examination"
+        ],
+        "investorAccessConstraints": [
+          "Verify an actual AMC scheme or ETF, SID/KIM, current riskometer and benchmark variant",
+          "Verify KYC, minimum purchase, liquidity and redemption conditions, authorized NAV or quote and data rights"
+        ],
+        "specificSchemeAndAmcVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavOrExchangeQuoteVerified": false,
+        "currentSidKimFeesAndTrackingErrorVerified": false,
+        "investorKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_index_nifty50_equal",

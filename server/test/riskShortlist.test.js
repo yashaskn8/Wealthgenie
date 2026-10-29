@@ -437,3 +437,45 @@ test('nine SEBI debt-scheme archetypes expose individually researched rules and 
  rows.find(x=>x.id==='catalog_2026_gilt_10y_constant').sebiDebtSchemeStructureReview.riskConsiderations.push('tampered');
  assert.equal(listExtensionResearch().find(x=>x.id==='catalog_2026_gilt_10y_constant').sebiDebtSchemeStructureReview.riskConsiderations.length,2);
 });
+
+test('five independently sourced broad-market equity indices remain non-ranking under different profile facts',()=>{
+ const suffixes=['index_nifty_next50','index_nifty100','index_nifty500','index_midcap150','index_smallcap250'];
+ const rows=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:1,riskTolerance:'Conservative',investmentGoals:['Emergency Fund']
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,riskTolerance:'Aggressive',investmentGoals:['Retirement']
+ }));
+ for(const suffix of suffixes){
+  const id='catalog_2026_'+suffix,row=rows.find(x=>x.id===id);
+  assert.equal(row.referenceReviewedAt,'2026-10-29',id);
+  assert.match(row.indexBenchmarkReview.officialNseIndexUrl,/^https:\/\/www\.niftyindices\.com\//);
+  assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,row.indexBenchmarkReview.officialNseIndexUrl);
+  assert.equal(row.indexBenchmarkReview.sebiMutualFundRegulationsLastAmendedOn,'2026-10-10');
+  assert.ok(row.indexBenchmarkReview.riskConsiderations.length>=2);
+  assert.ok(row.indexBenchmarkReview.investorAccessConstraints.length>=2);
+  for(const key of ['specificSchemeAndAmcVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExchangeQuoteVerified','currentSidKimFeesAndTrackingErrorVerified',
+   'investorKycAndRetailAccessVerified','independentCommercialDataRightsVerified',
+   'taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified'])
+   assert.equal(row.indexBenchmarkReview[key],false,id+':'+key);
+  for(const screened of [short,long]){
+   const result=screened.find(x=>x.id===id);
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.ok(result.screeningReasonCodes.includes('EQUITY_INDEX_BENCHMARK_NOT_AN_APPROVED_FUND_OR_ETF'));
+   assert.ok(result.screeningReasonCodes.includes('INDEX_FUND_SCHEME_RISKOMETER_NAV_TRACKING_COSTS_KYC_AND_SOURCE_RIGHTS_UNVERIFIED'));
+  }
+  const get=all=>all.find(x=>x.id===id).screeningReasonCodes;
+  assert.ok(get(short).includes('SHORT_HORIZON_REQUIRES_EQUITY_INDEX_DRAWDOWN_AND_REDEMPTION_REVIEW'));
+  assert.ok(!get(long).includes('SHORT_HORIZON_REQUIRES_EQUITY_INDEX_DRAWDOWN_AND_REDEMPTION_REVIEW'));
+  assert.ok(get(short).includes('EMERGENCY_FUND_REQUIRES_EQUITY_INDEX_LIQUIDITY_AND_SETTLEMENT_REVIEW'));
+  assert.ok(!get(long).includes('EMERGENCY_FUND_REQUIRES_EQUITY_INDEX_LIQUIDITY_AND_SETTLEMENT_REVIEW'));
+  assert.ok(get(short).includes('CONSERVATIVE_PROFILE_REQUIRES_EQUITY_INDEX_LOSS_CAPACITY_REVIEW'));
+  assert.ok(!get(long).includes('CONSERVATIVE_PROFILE_REQUIRES_EQUITY_INDEX_LOSS_CAPACITY_REVIEW'));
+ }
+ assert.equal(rows.filter(x=>x.indexBenchmarkReview).length,5);
+});

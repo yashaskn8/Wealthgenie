@@ -306,3 +306,29 @@ test('nine SEBI debt-fund strategy directory rows expose distinct sourced struct
  assert.notEqual(fresh.frameworkResearch.sebiDebtSchemeStructureReview.riskConsiderations[0],'tampered');
  assert.equal(fresh.frameworkResearch.sebiDebtSchemeStructureReview.currentSchemeRiskometerVerified,false);
 });
+
+test('five equity index archetypes expose independent official benchmark evidence without product promotion or mutable references',()=>{
+ const suffixes=['index_nifty_next50','index_nifty100','index_nifty500','index_midcap150','index_smallcap250'];
+ const items=listFinancialDiscoveryDirectory().items;
+ for(const suffix of suffixes){
+  const item=items.find(x=>x.id==='catalog_2026_'+suffix);
+  const review=item.frameworkResearch.indexBenchmarkReview;
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.officialNseIndexUrl,item.frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl);
+  assert.ok(review.riskConsiderations.length>=2);
+  assert.ok(review.investorAccessConstraints.length>=2);
+  assert.equal(review.currentSchemeRiskometerVerified,false);
+  assert.equal(review.independentCommercialDataRightsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(v=>v===null));
+ }
+ assert.equal(items.filter(x=>x.frameworkResearch?.indexBenchmarkReview).length,5);
+ const first=items.find(x=>x.id==='catalog_2026_index_nifty100');
+ first.frameworkResearch.indexBenchmarkReview.riskConsiderations.push('forged');
+ first.frameworkResearch.indexBenchmarkReview.individualSuitabilityVerified=true;
+ const refreshed=listFinancialDiscoveryDirectory().items.find(x=>x.id===first.id);
+ assert.equal(refreshed.frameworkResearch.indexBenchmarkReview.individualSuitabilityVerified,false);
+ assert.ok(!refreshed.frameworkResearch.indexBenchmarkReview.riskConsiderations.includes('forged'));
+});

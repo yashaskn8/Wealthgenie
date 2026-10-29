@@ -18,6 +18,7 @@ const postalSavingsIds=new Set(['catalog_2026_po_savings','catalog_2026_po_td_2'
 const governmentBondStructureTypes=Object.freeze({"catalog_2026_gsec_coupon_strip":"CENTRAL_GSEC_COUPON_STRIP","catalog_2026_gsec_principal_strip":"CENTRAL_GSEC_PRINCIPAL_STRIP","catalog_2026_sovereign_green":"SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","catalog_2026_gsec_floating":"FLOATING_RATE_CENTRAL_GSEC"});
 const governmentBondOfficialSources=Object.freeze({"catalog_2026_gsec_coupon_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_gsec_principal_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_sovereign_green":"https://dea.gov.in/framework-sovereign-green-bonds","catalog_2026_gsec_floating":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711"});
 const sebiDebtSchemeKinds=Object.freeze({"catalog_2026_gilt_10y_constant":"GILT_10_YEAR_CONSTANT_DURATION","catalog_2026_medium_long_duration_mf":"MEDIUM_TO_LONG_TERM_DEBT_FUND","catalog_2026_long_duration_mf":"LONG_TERM_DEBT_FUND","catalog_2026_target_maturity_gsec_index":"GSEC_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_sdl_index":"SDL_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_psu_index":"PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_constant_maturity_debt_index":"CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY","catalog_2026_domestic_debt_fof":"DOMESTIC_DEBT_FUND_OF_FUNDS","catalog_2026_gsec_debt_etf":"GSEC_PASSIVE_DEBT_ETF_STRATEGY"});
+const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50","catalog_2026_index_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_index_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_index_midcap150":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150","catalog_2026_index_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"});
 const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
@@ -133,6 +134,25 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
         'taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified']
         .some(key=>x.sebiDebtSchemeStructureReview[key]!==false))
     : x.sebiDebtSchemeStructureReview!==undefined)
+  || research.entries.some(x=>Object.hasOwn(nseBroadIndexPages,x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.indexBenchmarkReview?.officialNseIndexUrl!==nseBroadIndexPages[x.id]
+      || x.indexBenchmarkReview?.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
+      || x.indexBenchmarkReview?.officialSebiMutualFundRegulationsListingUrl!=='https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3'
+      || x.indexBenchmarkReview?.sebiMutualFundRegulationsLastAmendedOn!=='2026-10-10'
+      || x.indexBenchmarkReview?.reviewedOn!=='2026-10-29'
+      || x.indexBenchmarkReview?.sourceScope!=='OFFICIAL_INDEX_METHODOLOGY_AND_GENERAL_MUTUAL_FUND_RULES_NOT_AN_APPROVED_SCHEME'
+      || x.verifiedPublicFrameworkFact?.officialSourceUrl!==nseBroadIndexPages[x.id]
+      || !Array.isArray(x.indexBenchmarkReview?.riskConsiderations)
+      || x.indexBenchmarkReview.riskConsiderations.length<2
+      || !Array.isArray(x.indexBenchmarkReview?.investorAccessConstraints)
+      || x.indexBenchmarkReview.investorAccessConstraints.length<2
+      || ['specificSchemeAndAmcVerified','currentSchemeRiskometerVerified',
+        'currentNavOrExchangeQuoteVerified','currentSidKimFeesAndTrackingErrorVerified',
+        'investorKycAndRetailAccessVerified','independentCommercialDataRightsVerified',
+        'taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified']
+        .some(key=>x.indexBenchmarkReview[key]!==false))
+    : x.indexBenchmarkReview!==undefined)
   || research.entries.some((e,i)=> e.id!==universe[i].id
     || !idSet.has(e.id) || legacyIds.has(e.id)
     || e.referenceUrl!==universe[i].sourceUrl
@@ -250,6 +270,20 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('EMERGENCY_FUND_REQUIRES_DEBT_SCHEME_SETTLEMENT_AND_LIQUIDITY_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_SCHEME_RATE_AND_CREDIT_RISK_REVIEW');
+   }
+   if(row.indexBenchmarkReview) {
+     reasons.push('EQUITY_INDEX_BENCHMARK_NOT_AN_APPROVED_FUND_OR_ETF');
+     reasons.push('INDEX_FUND_SCHEME_RISKOMETER_NAV_TRACKING_COSTS_KYC_AND_SOURCE_RIGHTS_UNVERIFIED');
+     if(profile.investmentHorizonYears<3)
+       reasons.push('SHORT_HORIZON_REQUIRES_EQUITY_INDEX_DRAWDOWN_AND_REDEMPTION_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_EQUITY_INDEX_LIQUIDITY_AND_SETTLEMENT_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_EQUITY_INDEX_LOSS_CAPACITY_REVIEW');
+     if(row.id==='catalog_2026_index_midcap150' || row.id==='catalog_2026_index_smallcap250')
+       reasons.push('MID_SMALL_CAP_INDEX_VOLATILITY_AND_CONSTITUENT_LIQUIDITY_REVIEW');
+     if(row.id==='catalog_2026_index_smallcap250')
+       reasons.push('SMALLCAP_INDEX_UNDERLYING_LIQUIDITY_AND_REPLICATION_REVIEW');
    }
    if(row.nbfcPublicDepositAccessReview) {
      reasons.push('NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED');
