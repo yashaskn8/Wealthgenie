@@ -451,6 +451,8 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('ISSUER_CREDIT_SECURITY_TERMS_AND_SECONDARY_LIQUIDITY_UNVERIFIED');
      if(row.preciousMetalsCategoryReview)
        reasons.push('PRECIOUS_METALS_AUTHENTICITY_CUSTODY_OR_UNDERLYING_SCHEME_UNVERIFIED');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_REVIEWED_CATEGORY_REDEMPTION_AND_LOSS_CHECK');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_REVIEWED_CATEGORY_LOSS_AND_LIQUIDITY_CHECK');
      if(Number.isFinite(profile.investmentHorizonYears)
