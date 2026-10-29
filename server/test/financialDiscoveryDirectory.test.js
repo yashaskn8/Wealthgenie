@@ -443,13 +443,13 @@ test('five new ETF methodology records isolate source evidence and preserve prod
  assert.ok(!fresh.frameworkResearch.etfBenchmarkReview.riskConsiderations.includes('forged'));
 });
 
-test('all 23 final category research reviews remain discovery-only and do not confer product qualification',()=>{
+test('all source-reviewed final categories remain discovery-only and cannot confer product qualification',()=>{
  const items=listFinancialDiscoveryDirectory().items.filter(x=>x.origin==='EXTENDED_95');
  const reviewed=items.filter(x=>x.frameworkResearch && [
    'fundOfFundsCategoryReview','thematicIndexReview','debtInstrumentReview',
    'individualCategoryReview','preciousMetalsCategoryReview',
  ].some(key=>x.frameworkResearch[key]));
- assert.equal(reviewed.length,23);
+ assert.ok(reviewed.length>=28);
  for(const item of reviewed){
    assert.equal(item.recommendationEligible,false,item.id);
    assert.equal(item.productAvailability,'NOT_VERIFIED',item.id);
@@ -615,5 +615,31 @@ test('15 individually sourced risk/access profiles cannot be mutated into produc
   assert.notEqual(clean.riskConsiderations[0],'FORGED',id);
   assert.ok(!clean.investorAccessConstraints.includes('FORGED'),id);
   assert.equal(clean.currentPriceOrNavVerified,false,id);
+ }
+});
+
+test('final 15 source-scoped categories expose immutable caution arrays and no actual product terms',()=>{
+ const ids=["catalog_2026_ncd_secured","catalog_2026_ncd_unsecured","catalog_2026_ncd_unlisted","catalog_2026_bond_subordinated","catalog_2026_bond_perpetual","catalog_2026_bond_corporate_floating","catalog_2026_bond_corporate_zero","catalog_2026_bond_convertible","catalog_2026_psu_bond_taxable","catalog_2026_infra_corporate_bond","catalog_2026_municipal_green","catalog_2026_commercial_paper","catalog_2026_sif_hybrid_longshort","catalog_2026_sm_reit_scheme","catalog_2026_silver_fof"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const row=get(id),f=row.frameworkResearch;
+  const review=f.debtInstrumentReview||f.individualCategoryReview||f.preciousMetalsCategoryReview;
+  assert.ok(review,id);
+  assert.equal(review.reviewedOn,'2026-10-29',id);
+  assert.ok(review.officialRiskAccessEvidenceUrl.startsWith('https://'),id);
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2,id);
+  assert.equal(review.currentPriceOrNavVerified,false,id);
+  assert.equal(review.individualInvestorAccessVerified,false,id);
+  assert.equal(row.recommendationEligible,false,id);
+  assert.equal(row.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(row.productData).every(v=>v===null),id);
+  review.riskConsiderations[0]='FORGED';
+  review.investorAccessConstraints.push('FORGED');
+  review.specificInstrumentOrSchemeVerified=true;
+  const clean=get(id).frameworkResearch;
+  const next=clean.debtInstrumentReview||clean.individualCategoryReview||clean.preciousMetalsCategoryReview;
+  assert.notEqual(next.riskConsiderations[0],'FORGED',id);
+  assert.ok(!next.investorAccessConstraints.includes('FORGED'),id);
+  assert.equal(next.specificInstrumentOrSchemeVerified,false,id);
  }
 });

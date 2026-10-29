@@ -938,3 +938,52 @@ test('15 individually sourced category risk/access profiles remain discovery-onl
  assert.ok(reasons(short,'fof_conservative_hybrid').includes('CONSERVATIVE_HYBRID_FOF_LABEL_NOT_PRINCIPAL_PROTECTION'));
  assert.ok(reasons(short,'physical_silver_bullion').includes('SILVER_JEWELLERY_HALLMARK_NOT_BULLION_CERTIFICATION'));
 });
+
+test('all 95 extended categories have separate sourced risk/access reviews without product qualification',()=>{
+ const rows=listExtensionResearch();
+ assert.equal(rows.length,95);
+ assert.equal(new Set(rows.map(x=>x.id)).size,95);
+ for(const row of rows){
+  const reviews=Object.values(row).filter(v=>v&&typeof v==='object'
+   &&Array.isArray(v.riskConsiderations)&&v.riskConsiderations.length>=2
+   &&Array.isArray(v.investorAccessConstraints)&&v.investorAccessConstraints.length>=2);
+  assert.ok(reviews.length>=1,row.id);
+  assert.ok(reviews.some(v=>v.riskConsiderations.every(s=>typeof s==='string'&&s.trim())
+   &&v.investorAccessConstraints.every(s=>typeof s==='string'&&s.trim())),row.id);
+  assert.ok(row.verifiedPublicFrameworkFact?.officialSourceUrl.startsWith('https://'),row.id);
+  assert.equal(row.productRiskScore,null,row.id);
+  assert.equal(row.actualRetailProductEligible,false,row.id);
+  assert.equal(row.sourcePermissionVerified,false,row.id);
+  assert.equal(row.marketFactsVerified,false,row.id);
+  assert.equal(row.fiscalYearTaxVerified,false,row.id);
+  assert.equal(row.suitabilityRankingPermitted,false,row.id);
+ }
+ const screened=screenExtensionResearchForProfile(canonicalProfile());
+ assert.equal(screened.length,95);
+ assert.ok(screened.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
+  &&x.productQualified===false&&x.scoreAvailable===false&&x.productRiskLevel===null));
+});
+test('RBI CP, convertible ICDR, municipal July and REIT October evidence stays scoped',()=>{
+ const rows=listExtensionResearch(),get=id=>rows.find(x=>x.id==='catalog_2026_'+id);
+ const cp=get('commercial_paper').debtInstrumentReview;
+ assert.equal(cp.officialRiskAccessEvidenceUrl,'https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592');
+ assert.equal(cp.rbiCpMinimumDenominationInr,500000);
+ assert.equal(cp.rbiCpPrimaryIndividualSubscriptionAggregateCapPct,25);
+ assert.equal(cp.currentInvestorSpecificAccessVerified,false);
+ assert.equal(get('bond_convertible').debtInstrumentReview.officialSourceUrl,
+  'https://www.sebi.gov.in/legal/regulations/mar-2026/securities-and-exchange-board-of-india-issue-of-capital-and-disclosure-requirements-regulations-2018-last-amended-on-march-21-2026-_100581.html');
+ assert.equal(get('municipal_green').individualCategoryReview.frameworkAmendedOn,'2026-07-08');
+ assert.equal(get('sm_reit_scheme').individualCategoryReview.currentSchemeRegistrationAndListingVerified,false);
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:1,investmentGoals:['Emergency Fund'],riskTolerance:'Conservative'
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive'
+ }));
+ const reasons=(list,id)=>list.find(x=>x.id==='catalog_2026_'+id).screeningReasonCodes;
+ assert.ok(reasons(short,'sif_hybrid_longshort').includes('SIF_SHORT_HORIZON_OR_EMERGENCY_LIQUIDITY_REQUIRES_INTERVAL_EXIT_REVIEW'));
+ assert.ok(!reasons(long,'sif_hybrid_longshort').includes('SIF_SHORT_HORIZON_OR_EMERGENCY_LIQUIDITY_REQUIRES_INTERVAL_EXIT_REVIEW'));
+ assert.ok(reasons(short,'bond_perpetual').includes('PERPETUAL_BOND_CALL_COUPON_DEFERRAL_AND_NO_FIXED_MATURITY_REVIEW'));
+ assert.ok(reasons(short,'commercial_paper').includes('CP_RBI_2024_DEMAT_MINIMUM_DENOMINATION_AND_RELATED_PARTY_REVIEW'));
+ assert.ok(short.every(x=>!x.productQualified&&!x.scoreAvailable&&x.productRiskLevel===null));
+});

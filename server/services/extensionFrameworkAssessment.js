@@ -360,6 +360,34 @@ if(research.entries.some(row=>{
   ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
   ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
 }))throw new Error('FINANCIAL_INDIVIDUAL_RISK_ACCESS_EVIDENCE_INVALID');
+
+// The final 15 source-scoped profiles include corporate debt, money-market,
+// SIF, SM REIT and silver FoF structures; no verified instrument is inferred.
+const finalRiskAccessReviewFields=Object.freeze({"catalog_2026_ncd_secured":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html"],"catalog_2026_ncd_unsecured":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html"],"catalog_2026_ncd_unlisted":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_subordinated":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_perpetual":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_corporate_floating":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_corporate_zero":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_convertible":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/mar-2026/securities-and-exchange-board-of-india-issue-of-capital-and-disclosure-requirements-regulations-2018-last-amended-on-march-21-2026-_100581.html"],"catalog_2026_psu_bond_taxable":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_infra_corporate_bond":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_municipal_green":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015-last-amendment-on-july-08-2026-_102918.html"],"catalog_2026_commercial_paper":["debtInstrumentReview","https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592"],"catalog_2026_sif_hybrid_longshort":["individualCategoryReview","https://www.sebi.gov.in/legal/circulars/feb-2025/regulatory-framework-for-specialized-investment-funds-sif-_92299.html"],"catalog_2026_sm_reit_scheme":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-october-15-2026-_105376.html"],"catalog_2026_silver_fof":["preciousMetalsCategoryReview","https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html"]});
+if(research.entries.some(row=>{
+ const spec=finalRiskAccessReviewFields[row.id];
+ if(!spec)return false;
+ const review=row[spec[0]];
+ return !review||review.reviewedOn!=='2026-10-29'
+  ||review.officialRiskAccessEvidenceUrl!==spec[1]
+  ||!Array.isArray(review.riskConsiderations)||review.riskConsiderations.length<2
+  ||review.riskConsiderations.some(s=>typeof s!=='string'||!s.trim())
+  ||!Array.isArray(review.investorAccessConstraints)||review.investorAccessConstraints.length<2
+  ||review.investorAccessConstraints.some(s=>typeof s!=='string'||!s.trim())
+  ||['specificInstrumentOrSchemeVerified','currentPriceOrNavVerified',
+    'individualInvestorAccessVerified','commercialDataRightsVerified',
+    'personalizedAdviceAuthorizationVerified'].some(k=>review[k]!==false)
+  ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
+  ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
+}))throw new Error('FINANCIAL_FINAL_15_SOURCE_SCOPED_RESEARCH_INVALID');
+// All 95 rows must now have distinct, nonempty structured risk and investor
+// access cautions; this does NOT qualify 95 products or grant advice rights.
+if(research.entries.some(row=>!Object.values(row).some(v=>v&&typeof v==='object'
+ &&Array.isArray(v.riskConsiderations)&&v.riskConsiderations.length>=2
+ &&v.riskConsiderations.every(s=>typeof s==='string'&&s.trim())
+ &&Array.isArray(v.investorAccessConstraints)&&v.investorAccessConstraints.length>=2
+ &&v.investorAccessConstraints.every(s=>typeof s==='string'&&s.trim()))))
+ throw new Error('FINANCIAL_95_CATEGORY_RISK_ACCESS_COVERAGE_INCOMPLETE');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -683,6 +711,41 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(row.id==='catalog_2026_physical_silver_bullion')
        reasons.push('SILVER_JEWELLERY_HALLMARK_NOT_BULLION_CERTIFICATION');
    }
+
+   if(row.debtInstrumentReview){
+     reasons.push('DEBT_ISSUER_ISIN_RATING_COVENANTS_MARKET_PRICE_AND_RETAIL_ACCESS_UNVERIFIED');
+     if(row.id==='catalog_2026_ncd_unlisted')
+       reasons.push('UNLISTED_NCD_TRANSFER_RESTRICTIONS_AND_EXIT_COUNTERPARTY_UNVERIFIED');
+     if(row.id==='catalog_2026_bond_perpetual')
+       reasons.push('PERPETUAL_BOND_CALL_COUPON_DEFERRAL_AND_NO_FIXED_MATURITY_REVIEW');
+     if(row.id==='catalog_2026_bond_subordinated')
+       reasons.push('SUBORDINATED_BOND_RECOVERY_PRIORITY_AND_LOSS_ABSORPTION_REVIEW');
+     if(row.id==='catalog_2026_bond_corporate_floating')
+       reasons.push('FLOATING_CORPORATE_BOND_RESET_BENCHMARK_SPREAD_AND_CAP_REVIEW');
+     if(row.id==='catalog_2026_bond_corporate_zero')
+       reasons.push('ZERO_COUPON_BOND_NO_INTERIM_CASH_FLOW_AND_DURATION_REVIEW');
+     if(row.id==='catalog_2026_bond_convertible')
+       reasons.push('CONVERTIBLE_DEBENTURE_ICDR_CONVERSION_PRICE_AND_EQUITY_RISK_REVIEW');
+     if(row.id==='catalog_2026_psu_bond_taxable')
+       reasons.push('PSU_BOND_OWNERSHIP_NOT_SOVEREIGN_GUARANTEE_OR_TAX_EXEMPTION');
+     if(row.id==='catalog_2026_infra_corporate_bond')
+       reasons.push('INFRA_CORPORATE_BOND_PROJECT_REVENUE_REFINANCING_AND_COVENANT_REVIEW');
+     if(row.id==='catalog_2026_commercial_paper'){
+       reasons.push('CP_RBI_2024_DEMAT_MINIMUM_DENOMINATION_AND_RELATED_PARTY_REVIEW');
+       reasons.push('CP_RBI_2024_INDIVIDUAL_PRIMARY_SUBSCRIPTION_CAP_NOT_PERSONAL_APPROVAL');
+     }
+   }
+   if(row.id==='catalog_2026_municipal_green')
+     reasons.push('MUNICIPAL_GREEN_BOND_JULY_2026_ISSUE_DISCLOSURES_AND_GREEN_CLAIMS_REVIEW');
+   if(row.id==='catalog_2026_sm_reit_scheme')
+     reasons.push('SM_REIT_OCTOBER_2026_REGULATIONS_NOT_A_REGISTERED_SCHEME_OR_UNIT_QUOTE');
+   if(row.id==='catalog_2026_sif_hybrid_longshort'){
+     reasons.push('SIF_DERIVATIVE_SHORT_AND_INTERVAL_REDEMPTION_TERMS_UNVERIFIED');
+     if(profile.investmentHorizonYears<=3||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SIF_SHORT_HORIZON_OR_EMERGENCY_LIQUIDITY_REQUIRES_INTERVAL_EXIT_REVIEW');
+   }
+   if(row.id==='catalog_2026_silver_fof')
+     reasons.push('SILVER_FOF_UNDERLYING_ETF_RISKOMETER_NAV_TRACKING_AND_FEES_UNVERIFIED');
    if(row.id.startsWith('catalog_2026_ncd_'))
      reasons.push('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW');
    if(profile.riskTolerance==='Conservative'
