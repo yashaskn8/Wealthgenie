@@ -3214,9 +3214,9 @@
       "id": "catalog_2026_ncd_unlisted",
       "exposureClass": "UNLISTED_LIQUIDITY_AND_CREDIT",
       "scenarioDescription": "Unlisted Non-Convertible Debenture: Restricted Corporate Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3236,15 +3236,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Unlisted NCD",
+        "structuralAssessment": "Debt claim without an established listed trading venue; issue terms, placement route and transfer restrictions control access.",
+        "categoryRisks": "Issuer default, uncertain secondary exit and valuation.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_bond_subordinated",
       "exposureClass": "SUBORDINATED_CREDIT_RECOVERY",
       "scenarioDescription": "Subordinated Corporate Bond: Subordinated Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3264,15 +3274,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Subordinated corporate bond",
+        "structuralAssessment": "Contractual ranking behind senior obligations must be verified from the specific issue's terms.",
+        "categoryRisks": "Elevated loss severity in issuer distress, coupon and liquidity risks.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_bond_perpetual",
       "exposureClass": "PERPETUAL_CALL_AND_SUBORDINATION",
       "scenarioDescription": "Perpetual Corporate Bond: Perpetual Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3292,15 +3312,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Perpetual corporate bond",
+        "structuralAssessment": "No fixed contractual maturity; call and coupon-deferral terms depend on actual documentation.",
+        "categoryRisks": "Extension/call uncertainty, duration sensitivity, deferral and issuer-loss risks.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_bond_corporate_floating",
       "exposureClass": "ISSUER_SPECIFIC_CREDIT_LIQUIDITY_AND_TERMS",
       "scenarioDescription": "Floating-Rate Corporate Bond: Corporate Coupon Structures category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3320,15 +3350,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Floating-rate corporate bond",
+        "structuralAssessment": "Coupon reset against a specified reference benchmark and spread, subject to actual terms.",
+        "categoryRisks": "Reset-basis mismatch, issuer spread widening, benchmark and liquidity risk.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_bond_corporate_zero",
       "exposureClass": "ZERO_COUPON_DURATION_AND_CREDIT",
       "scenarioDescription": "Zero-Coupon Corporate Bond: Corporate Coupon Structures category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3348,15 +3388,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Zero-coupon corporate bond",
+        "structuralAssessment": "No periodic coupon; repayment/redemption amount and maturity depend on issue terms.",
+        "categoryRisks": "Long-duration price sensitivity, issuer default and reinvestment/exit uncertainty.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_bond_convertible",
       "exposureClass": "EQUITY_CONVERSION_AND_CREDIT",
       "scenarioDescription": "Convertible Debenture: Convertible Securities category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3376,15 +3426,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Convertible debenture",
+        "structuralAssessment": "Debt with issuer-specific equity conversion option or obligation; conversion mechanics must be verified.",
+        "categoryRisks": "Equity dilution/volatility, credit risk and conversion-value uncertainty.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_psu_bond_taxable",
       "exposureClass": "ISSUER_SPECIFIC_CREDIT_LIQUIDITY_AND_TERMS",
       "scenarioDescription": "Taxable Public Sector Undertaking Bond: Public Sector Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3404,15 +3464,25 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Taxable PSU bond",
+        "structuralAssessment": "Debt issued by a public-sector undertaking; PSU ownership alone does not establish a sovereign guarantee or particular tax treatment.",
+        "categoryRisks": "Issuer credit, interest-rate and liquidity risk; no assumed tax exemption.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_infra_corporate_bond",
       "exposureClass": "ISSUER_SPECIFIC_CREDIT_LIQUIDITY_AND_TERMS",
       "scenarioDescription": "Infrastructure Company Bond: Infrastructure Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3432,7 +3502,17 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Infrastructure company bond",
+        "structuralAssessment": "Corporate issuer financing infrastructure activity; security, covenants and project linkage depend on actual issue.",
+        "categoryRisks": "Construction/project cash-flow, refinancing, issuer and liquidity risks.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_municipal_green",
@@ -3474,9 +3554,9 @@
       "id": "catalog_2026_commercial_paper",
       "exposureClass": "SHORT_TERM_ISSUER_CREDIT_AND_LIQUIDITY",
       "scenarioDescription": "Corporate Commercial Paper: Money Market Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
-      "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
+      "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -3496,7 +3576,17 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "debtInstrumentReview": {
+        "category": "Corporate commercial paper",
+        "structuralAssessment": "Short-term corporate money-market debt within SEBI's commercial-paper issuance/listing framework where applicable.",
+        "categoryRisks": "Rollover/refinancing, issuer credit and thin secondary liquidity risk.",
+        "officialFrameworkSourceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
+        "evidenceBoundary": "SEBI master circular concerns issuance/listing of covered securities; it does NOT prove this particular archetype is listed, presently offered, legally accessible or a specific security. Contract-specific claims are analytical cautions pending verification.",
+        "investorAccessAndEligibility": "Check actual issuer and ISIN, offer route (public/private/unlisted), eligible investor conditions, issue terms, denomination, transfer restrictions, verified current price and brokerage access. No category-wide retail approval.",
+        "financialProfileScreening": "Warn only when known emergency-liquidity needs, short horizon or limited loss capacity conflict with possible issuer losses, maturity or exit restrictions. Do not infer missing financial facts.",
+        "scope": "PUBLIC_FRAMEWORK_AND_INSTRUMENT_STRUCTURE_ONLY_NOT_ISSUER_VERIFICATION_OR_PRODUCT_QUALIFICATION"
+      }
     },
     {
       "id": "catalog_2026_aif1_vc",
