@@ -771,3 +771,25 @@ test('SIF certification and aggregate-threshold evidence is defensively copied a
  assert.equal(fresh.distributionCertificationReview.actualDistributorCertificationVerified,false);
  assert.ok(!fresh.riskConsiderations.includes('fabricated scheme approval'));
 });
+
+
+test('October 2026 issuer ISIN-cap evidence is defensively copied without retail qualification',()=>{
+ const ids=['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured',
+  'catalog_2026_bond_corporate_floating','catalog_2026_bond_corporate_zero'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(item=>item.id===id);
+ for(const id of ids){
+  const item=get(id);
+  const review=item.frameworkResearch.debtInstrumentReview.privatePlacementIsinOct2026Review;
+  assert.equal(review.generalIssuerIsinCapPerMaturityFinancialYear,17,id);
+  assert.equal(review.individualRetailEligibilityVerified,false,id);
+  assert.equal(review.actualSecurityApprovedByCircular,false,id);
+  assert.equal(item.recommendationEligible,false,id);
+  assert.equal(item.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(item.productData).every(value=>value===null),id);
+  review.individualRetailEligibilityVerified=true;
+  review.generalIssuerIsinCapPerMaturityFinancialYear=1;
+  const fresh=get(id).frameworkResearch.debtInstrumentReview.privatePlacementIsinOct2026Review;
+  assert.equal(fresh.individualRetailEligibilityVerified,false,id);
+  assert.equal(fresh.generalIssuerIsinCapPerMaturityFinancialYear,17,id);
+ }
+});

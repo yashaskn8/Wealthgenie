@@ -1400,3 +1400,50 @@ test('SIF active-breach threshold and 2026 distributor certification are not inv
  assert.equal(row.sourcePermissionVerified,false);
  assert.equal(row.suitabilityRankingPermitted,false);
 });
+
+
+test('SEBI October 2026 private-placement ISIN limits remain issuer-side, not investor approvals',()=>{
+ const ids=['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured',
+  'catalog_2026_bond_corporate_floating','catalog_2026_bond_corporate_zero'];
+ const expectedBuckets=[
+  'PLAIN_VANILLA_ONLY_IF_ISSUE_AND_ISSUER_SCOPE_CONFIRMED',
+  'PLAIN_VANILLA_ONLY_IF_ISSUE_AND_ISSUER_SCOPE_CONFIRMED',
+  'FLOATING_RATE_ONLY_IF_ISSUE_AND_ISSUER_SCOPE_CONFIRMED',
+  'ZERO_COUPON_ONLY_IF_ISSUE_AND_ISSUER_SCOPE_CONFIRMED'];
+ const rows=new Map(listExtensionResearch().map(row=>[row.id,row]));
+ const notices=new Map(screenExtensionResearchForProfile(canonicalProfile())
+  .map(row=>[row.id,row]));
+ assert.equal(rows.size,95);
+ for(const [index,id] of ids.entries()){
+  const row=rows.get(id),review=row.debtInstrumentReview.privatePlacementIsinOct2026Review;
+  assert.equal(review.circularIssuedOn,'2026-10-07',id);
+  assert.equal(review.effectiveFrom,'2026-10-07',id);
+  assert.match(review.officialSebiCircularUrl,/^https:\/\/www\.sebi\.gov\.in\/legal\/circulars\/oct-2026\//);
+  assert.equal(review.categoryApplicability,expectedBuckets[index],id);
+  assert.equal(review.generalIssuerIsinCapPerMaturityFinancialYear,17,id);
+  assert.equal(review.plainVanillaIsinCapPerMaturityFinancialYear,12,id);
+  assert.equal(review.structuredFrbZcbTier2IsinCapPerMaturityFinancialYear,5,id);
+  assert.equal(review.structuredOnlyIssuerIsinCapPerMaturityFinancialYear,12,id);
+  assert.equal(review.additionalSection54ecIsinsForAuthorizedIssuers,6,id);
+  assert.equal(review.plainVanillaOutstandingThresholdCrore,15000,id);
+  assert.equal(review.incrementalIssuanceForExtraIsinCrore,3000,id);
+  assert.equal(review.legacyFrbZcbTier2GrandfatheringIsConditional,true,id);
+  assert.equal(review.goiServicedEbrAndEsgIsinsExcludedFromCount,true,id);
+  for(const field of ['issuerIsinMaturityAndListingVerified','actualPrivatePlacementTermsVerified',
+   'individualRetailEligibilityVerified','currentPriceAndCommercialDataRightsVerified',
+   'personalizedAdviceAuthorizationVerified','issuerCapIsPersonalInvestmentMinimum',
+   'actualSecurityApprovedByCircular'])assert.equal(review[field],false,id+':'+field);
+  assert.ok(notices.get(id).screeningReasonCodes.includes(
+   'SEBI_OCT_2026_PRIVATE_PLACEMENT_ISIN_CAP_NOT_RETAIL_ELIGIBILITY'),id);
+  assert.equal(notices.get(id).productQualified,false,id);
+  assert.equal(notices.get(id).scoreAvailable,false,id);
+  assert.equal(notices.get(id).productRiskLevel,null,id);
+  assert.equal(row.actualRetailProductEligible,false,id);
+ }
+ for(const id of ['catalog_2026_ncd_unlisted','catalog_2026_bond_convertible',
+  'catalog_2026_commercial_paper','catalog_2026_psu_bond_taxable']){
+  assert.equal(rows.get(id).debtInstrumentReview.privatePlacementIsinOct2026Review,undefined,id);
+  assert.ok(!notices.get(id).screeningReasonCodes.includes(
+   'SEBI_OCT_2026_PRIVATE_PLACEMENT_ISIN_CAP_NOT_RETAIL_ELIGIBILITY'),id);
+ }
+});

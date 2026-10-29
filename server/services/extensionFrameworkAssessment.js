@@ -487,6 +487,46 @@ if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentRevi
      ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
      ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
  }))throw new Error('FINANCIAL_OCTOBER_DEBT_CREDIT_METER_SCOPE_INVALID');
+// SEBI 7 Oct 2026 Chapter VIII ISIN limits govern issuer maturity-year
+// capacity for certain privately placed debt, never a buyer's minimum,
+// a security identity, licensed quote or personal retail eligibility.
+const privatePlacementIsinOct2026Url='https://www.sebi.gov.in/legal/circulars/oct-2026/review-of-provisions-related-to-international-securities-identification-number-isin-for-debt-securities-issued-on-private-placement-basis_105076.html';
+const privatePlacementIsinOct2026Scopes=Object.freeze({
+ 'catalog_2026_ncd_secured':'PLAIN_VANILLA_ONLY_IF_ISSUE_AND_ISSUER_SCOPE_CONFIRMED',
+ 'catalog_2026_ncd_unsecured':'PLAIN_VANILLA_ONLY_IF_ISSUE_AND_ISSUER_SCOPE_CONFIRMED',
+ 'catalog_2026_bond_corporate_floating':'FLOATING_RATE_ONLY_IF_ISSUE_AND_ISSUER_SCOPE_CONFIRMED',
+ 'catalog_2026_bond_corporate_zero':'ZERO_COUPON_ONLY_IF_ISSUE_AND_ISSUER_SCOPE_CONFIRMED',
+});
+const privatePlacementIsinUnverifiedFields=[
+ 'issuerIsinMaturityAndListingVerified','actualPrivatePlacementTermsVerified',
+ 'individualRetailEligibilityVerified','currentPriceAndCommercialDataRightsVerified',
+ 'personalizedAdviceAuthorizationVerified','issuerCapIsPersonalInvestmentMinimum',
+ 'actualSecurityApprovedByCircular',
+];
+if(research.entries.filter(row=>row.debtInstrumentReview?.privatePlacementIsinOct2026Review).length!==4
+ ||research.entries.some(row=>{
+  const r=row.debtInstrumentReview?.privatePlacementIsinOct2026Review;
+  if(!Object.hasOwn(privatePlacementIsinOct2026Scopes,row.id))return r!==undefined;
+  return !r||r.officialSebiCircularUrl!==privatePlacementIsinOct2026Url
+   ||!isOfficialFrameworkReferenceUrl(r.officialSebiCircularUrl)
+   ||r.circularIssuedOn!=='2026-10-07'||r.effectiveFrom!=='2026-10-07'
+   ||r.reviewedOn!=='2026-10-30'
+   ||r.sourceScope!=='PRIVATE_PLACEMENT_ISSUER_MATURITY_YEAR_ISIN_LIMIT_NOT_INVESTOR_MINIMUM_OR_PRODUCT_APPROVAL'
+   ||r.categoryApplicability!==privatePlacementIsinOct2026Scopes[row.id]
+   ||typeof r.categoryInterpretation!=='string'||r.categoryInterpretation.length<75
+   ||r.generalIssuerIsinCapPerMaturityFinancialYear!==17
+   ||r.plainVanillaIsinCapPerMaturityFinancialYear!==12
+   ||r.structuredFrbZcbTier2IsinCapPerMaturityFinancialYear!==5
+   ||r.structuredOnlyIssuerIsinCapPerMaturityFinancialYear!==12
+   ||r.additionalSection54ecIsinsForAuthorizedIssuers!==6
+   ||r.plainVanillaOutstandingThresholdCrore!==15000
+   ||r.incrementalIssuanceForExtraIsinCrore!==3000
+   ||r.legacyFrbZcbTier2GrandfatheringIsConditional!==true
+   ||r.goiServicedEbrAndEsgIsinsExcludedFromCount!==true
+   ||privatePlacementIsinUnverifiedFields.some(key=>r[key]!==false)
+   ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
+   ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
+ }))throw new Error('FINANCIAL_OCT_2026_PRIVATE_PLACEMENT_ISIN_ISSUER_SCOPE_INVALID');
 // The Oct 7 issuer-process exception is not a retail access, rating or advice approval.
 const merchantBankerExemptionScope=Object.freeze({"catalog_2026_ncd_secured":"SECURED_LISTED_NCD_ONLY_IF_SENIOR_AND_ALL_ISSUER_CONDITIONS","catalog_2026_ncd_unsecured":"UNSECURED_LISTED_NCD_ONLY_IF_CPSE_PSU_STATUTORY_AND_ALL_ISSUER_CONDITIONS","catalog_2026_psu_bond_taxable":"PSU_BOND_ONLY_IF_ACTUAL_PSU_STATUS_SENIORITY_AND_ALL_CONDITIONS"});
 const merchantBankerExemptionUrl="https://www.sebi.gov.in/legal/circulars/oct-2026/exemption-from-the-requirement-of-mandatory-merchant-banker-appointment-for-debt-issued-through-private-placement-by-certain-listed-issuers_105080.html";
@@ -925,6 +965,8 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('CP_RBI_2024_INDIVIDUAL_PRIMARY_SUBSCRIPTION_CAP_NOT_PERSONAL_APPROVAL');
      }
    }
+   if(row.debtInstrumentReview?.privatePlacementIsinOct2026Review)
+     reasons.push('SEBI_OCT_2026_PRIVATE_PLACEMENT_ISIN_CAP_NOT_RETAIL_ELIGIBILITY');
    if(row.debtInstrumentReview?.merchantBankerExemptionOct2026Review) {
      reasons.push('SEBI_OCT_2026_MERCHANT_BANKER_EXCEPTION_IS_ISSUER_PROCESS_NOT_RETAIL_APPROVAL');
      reasons.push('DEBT_PRIVATE_PLACEMENT_10000_FACE_VALUE_NOT_PERSONAL_INVESTMENT_MINIMUM');
