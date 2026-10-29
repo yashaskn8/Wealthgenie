@@ -37,6 +37,8 @@ const validNpsMultipleNavReview=review=>{
 };
 const aifCategoryStructures=Object.freeze({"catalog_2026_aif1_vc":"CATEGORY_I_VENTURE_CAPITAL","catalog_2026_aif1_sme":"CATEGORY_I_SME","catalog_2026_aif1_social":"CATEGORY_I_SOCIAL_IMPACT","catalog_2026_aif1_infra":"CATEGORY_I_INFRASTRUCTURE","catalog_2026_aif2_pe":"CATEGORY_II_PRIVATE_EQUITY","catalog_2026_aif2_debt":"CATEGORY_II_PRIVATE_DEBT","catalog_2026_aif3_hedge":"CATEGORY_III_HEDGE_STRATEGY"});
 const aifOctoberRegulationsUrl="https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html";
+const sifMinimumThresholdMonitoringUrl="https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html";
+const sifDistributorCertificationUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html";
 const pfrdaPopOctoberUrl="https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1";
 const rbiSgsStripsUrl="https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0";
 const npsExitFaqUrl="https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf";
@@ -422,6 +424,36 @@ if(research.entries.some(row=>{
   ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
   ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
 }))throw new Error('FINANCIAL_FINAL_15_SOURCE_SCOPED_RESEARCH_INVALID');
+// SIF access and distribution facts must remain source-scoped: a PAN-level
+// aggregate threshold and distributor certification never approve an investor,
+// actual strategy, licensed data feed or personalized recommendation.
+const sifReview=research.entries.find(row=>row.id==='catalog_2026_sif_hybrid_longshort')?.individualCategoryReview;
+const sifThreshold=sifReview?.minimumThresholdMonitoringReview;
+const sifDistribution=sifReview?.distributionCertificationReview;
+if(sifThreshold?.officialSebiCircularUrl!==sifMinimumThresholdMonitoringUrl
+  ||sifThreshold.circularIssuedOn!=='2025-07-29'
+  ||sifThreshold.effectiveFrom!=='2025-07-29'
+  ||sifThreshold.aggregateThresholdInr!==1000000
+  ||sifThreshold.thresholdScope!=='ACROSS_STRATEGIES_OF_THE_CONCERNED_SIF_NOT_A_SINGLE_PURCHASE'
+  ||sifThreshold.activeBreachNoticeCalendarDays!==30
+  ||['activeBreachRequiresInvestorInitiatedTransaction',
+    'activeBreachIncludesExchangeAndOffMarketTransfers',
+    'activeBreachFreezesAllUnitsForDebitAcrossConcernedSif',
+    'unresolvedBreachAutoRedeemedAtNextBusinessDayNav'].some(key=>sifThreshold[key]!==true)
+  ||['marketNavDeclineAloneCountsAsActiveBreach',
+    'applicantPanHoldingsAndAccreditationVerified','specificSchemeExitAndNavVerified',
+    'individualEligibilityOrApprovalVerified'].some(key=>sifThreshold[key]!==false)
+  ||sifDistribution?.officialSebiCircularUrl!==sifDistributorCertificationUrl
+  ||sifDistribution.circularIssuedOn!=='2026-07-21'
+  ||sifDistribution.effectiveFrom!=='2026-07-21'
+  ||sifDistribution.standardRequiredCertificate!=='NISM_SERIES_V_D'
+  ||sifDistribution.legacySeriesXiiiCutoff!=='2026-09-21'
+  ||sifDistribution.legacyTransitionRequiresValidSeriesVA!==true
+  ||sifDistribution.legacyTransitionEndsAtExistingSeriesXiiiExpiry!==true
+  ||sifDistribution.scope!=='DISTRIBUTOR_CERTIFICATION_NOT_SCHEME_APPROVAL_OR_PERSONAL_ADVICE_AUTHORIZATION'
+  ||['actualDistributorCertificationVerified','signedProviderDistributionEntitlementVerified',
+    'personalizedAdviceAuthorizationVerified'].some(key=>sifDistribution[key]!==false))
+ throw new Error('FINANCIAL_SIF_THRESHOLD_DISTRIBUTION_EVIDENCE_INVALID');
 // All 95 rows must now have distinct, nonempty structured risk and investor
 // access cautions; this does NOT qualify 95 products or grant advice rights.
 if(research.entries.some(row=>!Object.values(row).some(v=>v&&typeof v==='object'
@@ -909,6 +941,13 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('SM_REIT_OCTOBER_2026_REGULATIONS_NOT_A_REGISTERED_SCHEME_OR_UNIT_QUOTE');
    if(row.id==='catalog_2026_sif_hybrid_longshort'){
      reasons.push('SIF_DERIVATIVE_SHORT_AND_INTERVAL_REDEMPTION_TERMS_UNVERIFIED');
+     reasons.push('SIF_PAN_AGGREGATE_THRESHOLD_ACTIVE_BREACH_AND_REDEMPTION_REVIEW');
+     reasons.push('SIF_DISTRIBUTOR_CERTIFICATION_AND_SIGNED_ENTITLEMENT_UNVERIFIED');
+     // A reported lump sum is not the investor's verified aggregate PAN-level
+     // holdings in this SIF. The notice must never become an eligibility denial.
+     if(profile.hasLumpSum===true&&nonnegative(profile.lumpSumAmount)
+       &&profile.lumpSumAmount<row.standardCapitalReferenceInr)
+       reasons.push('SIF_REPORTED_LUMP_SUM_NOT_VERIFIED_PAN_AGGREGATE_OR_ACCREDITATION');
      if(profile.investmentHorizonYears<=3||profile.investmentGoals.includes('Emergency Fund'))
        reasons.push('SIF_SHORT_HORIZON_OR_EMERGENCY_LIQUIDITY_REQUIRES_INTERVAL_EXIT_REVIEW');
    }

@@ -1352,3 +1352,51 @@ test('zero emergency buffer flags debt, bullion, SM REIT and silver FoF exit ris
  assert.equal(zero.length,95);
  assert.equal(new Set(zero.map(row=>row.id)).size,95);
 });
+
+test('SIF active-breach threshold and 2026 distributor certification are not investor approvals',()=>{
+ const row=listExtensionResearch().find(item=>item.id==='catalog_2026_sif_hybrid_longshort');
+ const review=row.individualCategoryReview;
+ const threshold=review.minimumThresholdMonitoringReview;
+ const distributor=review.distributionCertificationReview;
+ assert.equal(threshold.officialSebiCircularUrl,
+  'https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html');
+ assert.equal(threshold.aggregateThresholdInr,1000000);
+ assert.equal(threshold.thresholdScope,'ACROSS_STRATEGIES_OF_THE_CONCERNED_SIF_NOT_A_SINGLE_PURCHASE');
+ assert.equal(threshold.activeBreachNoticeCalendarDays,30);
+ assert.equal(threshold.activeBreachRequiresInvestorInitiatedTransaction,true);
+ assert.equal(threshold.activeBreachIncludesExchangeAndOffMarketTransfers,true);
+ assert.equal(threshold.activeBreachFreezesAllUnitsForDebitAcrossConcernedSif,true);
+ assert.equal(threshold.unresolvedBreachAutoRedeemedAtNextBusinessDayNav,true);
+ assert.equal(threshold.marketNavDeclineAloneCountsAsActiveBreach,false);
+ assert.equal(threshold.applicantPanHoldingsAndAccreditationVerified,false);
+ assert.equal(threshold.individualEligibilityOrApprovalVerified,false);
+ assert.equal(distributor.officialSebiCircularUrl,
+  'https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html');
+ assert.equal(distributor.standardRequiredCertificate,'NISM_SERIES_V_D');
+ assert.equal(distributor.legacySeriesXiiiCutoff,'2026-09-21');
+ assert.equal(distributor.legacyTransitionRequiresValidSeriesVA,true);
+ assert.equal(distributor.legacyTransitionEndsAtExistingSeriesXiiiExpiry,true);
+ assert.equal(distributor.actualDistributorCertificationVerified,false);
+ assert.equal(distributor.signedProviderDistributionEntitlementVerified,false);
+ assert.equal(distributor.personalizedAdviceAuthorizationVerified,false);
+ const find=profile=>screenExtensionResearchForProfile(canonicalProfile(profile))
+  .find(item=>item.id===row.id);
+ const below=find({hasLumpSum:true,lumpSumAmount:500000});
+ const above=find({hasLumpSum:true,lumpSumAmount:1500000});
+ const unknown=find({hasLumpSum:null,lumpSumAmount:null});
+ const notice='SIF_REPORTED_LUMP_SUM_NOT_VERIFIED_PAN_AGGREGATE_OR_ACCREDITATION';
+ assert.ok(below.screeningReasonCodes.includes(notice));
+ assert.ok(!above.screeningReasonCodes.includes(notice));
+ assert.ok(!unknown.screeningReasonCodes.includes(notice));
+ for(const result of [below,above,unknown]){
+  assert.ok(result.screeningReasonCodes.includes('SIF_PAN_AGGREGATE_THRESHOLD_ACTIVE_BREACH_AND_REDEMPTION_REVIEW'));
+  assert.ok(result.screeningReasonCodes.includes('SIF_DISTRIBUTOR_CERTIFICATION_AND_SIGNED_ENTITLEMENT_UNVERIFIED'));
+  assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(result.scoreAvailable,false);
+  assert.equal(result.productQualified,false);
+  assert.equal(result.productRiskLevel,null);
+ }
+ assert.equal(row.actualRetailProductEligible,false);
+ assert.equal(row.sourcePermissionVerified,false);
+ assert.equal(row.suitabilityRankingPermitted,false);
+});

@@ -5337,7 +5337,7 @@
     {
       "id": "catalog_2026_sif_hybrid_longshort",
       "exposureClass": "SIF_LONG_SHORT_AND_ACCESS",
-      "scenarioDescription": "Specialized Investment Fund Hybrid Long-Short Strategy: Specialized Investment Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Specialized Investment Fund Hybrid Long-Short Strategy: SEBI describes an interval strategy with equity, debt and permitted unhedged derivative short exposure. The ₹10 lakh threshold is measured across strategies of the concerned SIF, not an approved per-order retail minimum; investor-initiated breaches may freeze units and lead to redemption after notice. Scheme ISID, interval exit terms, actual riskometer/NAV, applicant PAN holdings/accreditation, distributor credentials, licensed data and advice rights are unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
       "referenceReviewedAt": "2026-10-29",
@@ -5374,17 +5374,51 @@
         "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/legal/circulars/feb-2025/regulatory-framework-for-specialized-investment-funds-sif-_92299.html",
         "riskConsiderations": [
           "Long-short derivatives may create leverage-like losses, basis risk and rapid changes in exposure alongside equity/debt credit risks.",
-          "An interval strategy's redemption windows, margin costs and liquidity can restrict early exit; 'hedged' does not mean loss-free."
+          "An interval strategy's redemption windows, margin costs and liquidity can restrict early exit; 'hedged' does not mean loss-free.",
+          "Investor-initiated transactions that breach the aggregate SIF threshold can freeze units for debit and, if unresolved after the notice period, result in automatic redemption at a later applicable NAV."
         ],
         "investorAccessConstraints": [
           "Verify the specific SIF/AMC, current ISID, regulatory investment threshold and exceptions, investor KYC and distributor qualifications.",
-          "Check actual interval redemption terms, short limits, margin/fees, scheme riskometer, NAV, tax and licensed data/advice rights."
+          "Check actual interval redemption terms, short limits, margin/fees, scheme riskometer, NAV, tax and licensed data/advice rights.",
+          "SEBI's July 29, 2025 threshold-monitoring circular applies across strategies of the concerned SIF: investor-initiated active breaches can freeze all units for debit, with 30 calendar days to rebalance before automatic redemption on the next business day. Applicant PAN-level holdings and exemptions are unverified.",
+          "SEBI's July 21, 2026 distributor rule requires valid NISM Series-V-D certification, subject to a limited Series XIII plus V-A transition for qualifying existing distributors. No actual distributor, distribution mandate or advice authorization is verified."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "minimumThresholdMonitoringReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html",
+          "circularIssuedOn": "2025-07-29",
+          "effectiveFrom": "2025-07-29",
+          "reviewedOn": "2026-10-30",
+          "aggregateThresholdInr": 1000000,
+          "thresholdScope": "ACROSS_STRATEGIES_OF_THE_CONCERNED_SIF_NOT_A_SINGLE_PURCHASE",
+          "activeBreachRequiresInvestorInitiatedTransaction": true,
+          "activeBreachIncludesExchangeAndOffMarketTransfers": true,
+          "activeBreachFreezesAllUnitsForDebitAcrossConcernedSif": true,
+          "activeBreachNoticeCalendarDays": 30,
+          "unresolvedBreachAutoRedeemedAtNextBusinessDayNav": true,
+          "marketNavDeclineAloneCountsAsActiveBreach": false,
+          "applicantPanHoldingsAndAccreditationVerified": false,
+          "specificSchemeExitAndNavVerified": false,
+          "individualEligibilityOrApprovalVerified": false
+        },
+        "distributionCertificationReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html",
+          "circularIssuedOn": "2026-07-21",
+          "effectiveFrom": "2026-07-21",
+          "reviewedOn": "2026-10-30",
+          "standardRequiredCertificate": "NISM_SERIES_V_D",
+          "legacySeriesXiiiCutoff": "2026-09-21",
+          "legacyTransitionRequiresValidSeriesVA": true,
+          "legacyTransitionEndsAtExistingSeriesXiiiExpiry": true,
+          "scope": "DISTRIBUTOR_CERTIFICATION_NOT_SCHEME_APPROVAL_OR_PERSONAL_ADVICE_AUTHORIZATION",
+          "actualDistributorCertificationVerified": false,
+          "signedProviderDistributionEntitlementVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {

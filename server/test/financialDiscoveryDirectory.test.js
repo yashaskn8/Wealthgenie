@@ -749,3 +749,25 @@ test('FoF scheme risk-o-meter disclosure references are copied without granting 
   assert.notEqual(next.categoryInterpretation,'FORGED CATEGORY APPROVAL',id);
  }
 });
+
+test('SIF certification and aggregate-threshold evidence is defensively copied and not a product',()=>{
+ const find=()=>listFinancialDiscoveryDirectory().items
+  .find(item=>item.id==='catalog_2026_sif_hybrid_longshort');
+ const item=find();
+ const review=item.frameworkResearch.individualCategoryReview;
+ assert.equal(review.minimumThresholdMonitoringReview.aggregateThresholdInr,1000000);
+ assert.equal(review.minimumThresholdMonitoringReview.individualEligibilityOrApprovalVerified,false);
+ assert.equal(review.distributionCertificationReview.actualDistributorCertificationVerified,false);
+ assert.equal(review.distributionCertificationReview.personalizedAdviceAuthorizationVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.ok(Object.values(item.productData).every(value=>value===null));
+ review.minimumThresholdMonitoringReview.aggregateThresholdInr=1;
+ review.distributionCertificationReview.actualDistributorCertificationVerified=true;
+ review.riskConsiderations.push('fabricated scheme approval');
+ const fresh=find().frameworkResearch.individualCategoryReview;
+ assert.equal(fresh.minimumThresholdMonitoringReview.aggregateThresholdInr,1000000);
+ assert.equal(fresh.distributionCertificationReview.actualDistributorCertificationVerified,false);
+ assert.ok(!fresh.riskConsiderations.includes('fabricated scheme approval'));
+});
