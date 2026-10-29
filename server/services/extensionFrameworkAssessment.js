@@ -216,6 +216,24 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.npsCommonSchemeReview.investorAccessConstraints.length<2
       || ["specificPensionFundAndSchemeVerified","currentSchemeNavAndRiskLevelVerified","currentSubscriptionTermsAndFeesVerified","subscriberAgeResidencyKycAndSectorVerified","individualExitAndWithdrawalEligibilityVerified","commercialDataAndRedistributionRightsVerified","taxAndAdviceAuthorizationVerified","individualSuitabilityVerified"].some(k=>x.npsCommonSchemeReview[k]!==false))
     : x.npsCommonSchemeReview!==undefined)
+  || research.entries.some(x=>x.id==='catalog_2026_nps_vatsalya'
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.npsVatsalyaAccessReview?.officialPfrdaSchemeUrl!=='https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya'
+      || x.npsVatsalyaAccessReview?.reviewedOn!=='2026-10-29'
+      || x.npsVatsalyaAccessReview?.minimumInitialContributionInr!==250
+      || x.npsVatsalyaAccessReview?.minimumAnnualContributionInr!==250
+      || x.npsVatsalyaAccessReview?.partialWithdrawalLockInYears!==3
+      || x.npsVatsalyaAccessReview?.partialWithdrawalMaximumPctOfOwnContributions!==25
+      || x.npsVatsalyaAccessReview?.freshSubscriberKycRequiredAtAge!==18
+      || !Array.isArray(x.npsVatsalyaAccessReview?.riskConsiderations)
+      || x.npsVatsalyaAccessReview.riskConsiderations.length<2
+      || !Array.isArray(x.npsVatsalyaAccessReview?.investorAccessConstraints)
+      || x.npsVatsalyaAccessReview.investorAccessConstraints.length<2
+      || ['specificPensionFundAndAllocationVerified','minorCitizenshipAgeGuardianKycVerified',
+        'currentNavFeesAndMarketRiskVerified','individualWithdrawalAndExitEligibilityVerified',
+        'commercialDataRightsVerified','investorTaxAndAdviceAuthorizationVerified',
+        'individualSuitabilityVerified'].some(k=>x.npsVatsalyaAccessReview[k]!==false))
+    : x.npsVatsalyaAccessReview!==undefined)
   || research.entries.some((e,i)=> e.id!==universe[i].id
     || !idSet.has(e.id) || legacyIds.has(e.id)
     || e.referenceUrl!==universe[i].sourceUrl
@@ -260,8 +278,17 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('CONSERVATIVE_PROFILE_REQUIRES_ACTUAL_SCHEME_RISK_REVIEW');
    if(row.id.startsWith('catalog_2026_nps_')) {
      reasons.push('NPS_ALLOCATION_EXIT_AND_AGE_RULES_REQUIRE_SCHEME_REVIEW');
-     if(row.id === 'catalog_2026_nps_vatsalya')
+     if(row.id === 'catalog_2026_nps_vatsalya') {
        reasons.push('NPS_VATSALYA_MINOR_GUARDIAN_KYC_AND_AGE_18_TRANSITION_REQUIRE_REVIEW');
+       reasons.push('NPS_VATSALYA_PFRDA_2026_THREE_YEAR_RESTRICTED_WITHDRAWAL_AND_FRESH_KYC_REVIEW');
+       reasons.push('NPS_VATSALYA_SPECIFIC_PENSION_FUND_NAV_FEES_AND_MARKET_RISK_UNVERIFIED');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_REQUIRES_NPS_VATSALYA_RESTRICTED_WITHDRAWAL_REVIEW');
+       if(profile.investmentHorizonYears<3)
+         reasons.push('SHORT_HORIZON_BELOW_NPS_VATSALYA_PARTIAL_WITHDRAWAL_LOCK_IN');
+       if(profile.riskTolerance==='Conservative')
+         reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NPS_VATSALYA_MARKET_LOSS_CAPACITY_REVIEW');
+     }
      else
        // PFRDA All Citizen Model: removal of the five-year minimum does not
        // remove vesting, scheme-specific lock-in or premature-exit conditions.
