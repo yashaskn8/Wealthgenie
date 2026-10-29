@@ -38,5 +38,11 @@ def test_rag_query_benchmark(tmp_path):
     assert query_results["cold_cache"]["stats"]["count"] == 6
     assert query_results["warm_cache"]["stats"]["count"] == 6
 
-    # Warm cache latency should be <= Cold cache latency
-    assert query_results["warm_cache"]["stats"]["p50_ms"] <= query_results["cold_cache"]["stats"]["p50_ms"]
+    # Sub-millisecond p50 comparisons fluctuate under concurrent CI load.
+    # Verify genuine cache reuse instead of treating scheduler noise as a
+    # functional regression; the benchmark still reports both raw latencies.
+    cache_stats = query_results["cache_stats"]["stats"]
+    assert cache_stats["response_misses"] >= 5  # Five distinct cold questions.
+    assert cache_stats["response_hits"] >= 6    # Every warm question is cached.
+    assert query_results["cold_cache"]["qps"] > 0
+    assert query_results["warm_cache"]["qps"] > 0
