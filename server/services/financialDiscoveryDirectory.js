@@ -137,13 +137,13 @@ function buildDirectory() {
           ? { ...research.verifiedPublicFrameworkFact } : null,
         officialFrameworkVerification: research.publicFrameworkVerification,
         postalSavingsAccessReview: research.postalSavingsAccessReview
-          ? { ...research.postalSavingsAccessReview } : null,
+          ? structuredClone(research.postalSavingsAccessReview) : null,
         bankDepositAccessReview: research.bankDepositAccessReview
           ? { ...research.bankDepositAccessReview } : null,
         publicDepositAccessReview: research.nbfcPublicDepositAccessReview
           ? { ...research.nbfcPublicDepositAccessReview } : null,
         retailDirectAccessReview: research.rbiRetailDirectAccessReview
-          ? { ...research.rbiRetailDirectAccessReview } : null,
+          ? structuredClone(research.rbiRetailDirectAccessReview) : null,
         sebiDebtSchemeStructureReview: research.sebiDebtSchemeStructureReview
           ? structuredClone(research.sebiDebtSchemeStructureReview) : null,
         npsVatsalyaAccessReview: research.npsVatsalyaAccessReview
@@ -212,13 +212,13 @@ export function listFinancialDiscoveryDirectory() {
         reviewedOfficialFrameworkFact: item.frameworkResearch.reviewedOfficialFrameworkFact
           ? { ...item.frameworkResearch.reviewedOfficialFrameworkFact } : null,
         postalSavingsAccessReview: item.frameworkResearch.postalSavingsAccessReview
-          ? { ...item.frameworkResearch.postalSavingsAccessReview } : null,
+          ? structuredClone(item.frameworkResearch.postalSavingsAccessReview) : null,
         bankDepositAccessReview: item.frameworkResearch.bankDepositAccessReview
           ? { ...item.frameworkResearch.bankDepositAccessReview } : null,
         publicDepositAccessReview: item.frameworkResearch.publicDepositAccessReview
           ? { ...item.frameworkResearch.publicDepositAccessReview } : null,
         retailDirectAccessReview: item.frameworkResearch.retailDirectAccessReview
-          ? { ...item.frameworkResearch.retailDirectAccessReview } : null,
+          ? structuredClone(item.frameworkResearch.retailDirectAccessReview) : null,
         sebiDebtSchemeStructureReview: item.frameworkResearch.sebiDebtSchemeStructureReview
           ? structuredClone(item.frameworkResearch.sebiDebtSchemeStructureReview) : null,
         npsVatsalyaAccessReview: item.frameworkResearch.npsVatsalyaAccessReview
