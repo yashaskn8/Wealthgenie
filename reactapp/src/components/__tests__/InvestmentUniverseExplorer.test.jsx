@@ -38,6 +38,12 @@ const families = Array.from({length:250},(_,index)=>({
     standardCapitalReferenceInr:index===249?1000000:null,
     standardMinimumHasExceptions:index===249,
     actualRiskScore:null,issuerTermsVerified:false,sourceRightsVerified:false,
+    fundOfFundsCategoryReview:index===155?{
+      structure:'Underlying equity funds; actual holdings require issuer verification',
+      categoryRisks:'Concentration, drawdowns and layered fees',
+      investorAccessAndEligibility:'Check scheme KYC, actual holdings and riskometer',
+      officialSourceUrl:'https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html',
+    }:null,
     reviewedOfficialFrameworkFact:index===249?{
       factCode:'NPS_ACTIVE_EQUITY_MAX_SHARE_PERCENT',value:75,
       officialSourceUrl:'https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models',
@@ -135,6 +141,34 @@ describe('all 250 investment categories are browseable without product approval'
    expect(screen.getByText(/Independent commercial reuse permission has not been established/))
      .toBeTruthy();
    expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
+ });
+ it('lets a completed-profile visitor browse all 95 extended research categories without a suitability claim',async()=>{
+   render(<Explorer/>);
+   await waitFor(()=>expect(screen.getByText('250 matching options')).toBeTruthy());
+   expect(screen.getByText(/Financial-profile category screening is currently unavailable/)).toBeTruthy();
+   fireEvent.change(screen.getByLabelText('Filter catalog research group'),{
+     target:{value:'EXTENDED_95'},
+   });
+   expect(screen.getByText('95 matching options')).toBeTruthy();
+   expect(screen.getByText('Investment family 156')).toBeTruthy();
+   expect(screen.getByText('Investment family 250')).toBeTruthy();
+   expect(screen.queryByText('Investment family 1')).toBeNull();
+   expect(screen.getAllByText(/Extended research category — individual risk and suitability not verified/))
+     .toHaveLength(95);
+   fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 156'}));
+   const detail=screen.getByRole('region',{name:'Tailored top three for Investment family 156'});
+   expect(within(detail).getByText(/Underlying equity funds; actual holdings require issuer verification/))
+     .toBeTruthy();
+   expect(within(detail).getByText(/Concentration, drawdowns and layered fees/)).toBeTruthy();
+   expect(within(detail).getByText(/Check scheme KYC, actual holdings and riskometer/)).toBeTruthy();
+   expect(within(detail).getByRole('link',{name:'View underlying official framework'}))
+     .toHaveAttribute('href','https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html');
+   expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
+   fireEvent.change(screen.getByLabelText('Filter catalog research group'),{
+     target:{value:'LEGACY_155'},
+   });
+   expect(screen.getByText('155 matching options')).toBeTruthy();
+   expect(screen.queryByText('Investment family 156')).toBeNull();
  });
  it('shows detailed educational metadata without a current price, fake fees or tax',async()=>{
    render(<Explorer/>);
