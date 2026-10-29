@@ -2680,7 +2680,8 @@
         "investorAccessConstraints": [
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
-          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -2689,7 +2690,21 @@
         "individualExitAndWithdrawalEligibilityVerified": false,
         "commercialDataAndRedistributionRightsVerified": false,
         "taxAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
@@ -2742,7 +2757,8 @@
         "investorAccessConstraints": [
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
-          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -2751,7 +2767,21 @@
         "individualExitAndWithdrawalEligibilityVerified": false,
         "commercialDataAndRedistributionRightsVerified": false,
         "taxAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
@@ -2804,7 +2834,8 @@
         "investorAccessConstraints": [
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
-          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -2813,7 +2844,21 @@
         "individualExitAndWithdrawalEligibilityVerified": false,
         "commercialDataAndRedistributionRightsVerified": false,
         "taxAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
@@ -2866,7 +2911,8 @@
         "investorAccessConstraints": [
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
-          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -2875,7 +2921,21 @@
         "individualExitAndWithdrawalEligibilityVerified": false,
         "commercialDataAndRedistributionRightsVerified": false,
         "taxAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
@@ -2928,7 +2988,8 @@
         "investorAccessConstraints": [
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
-          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -2937,7 +2998,21 @@
         "individualExitAndWithdrawalEligibilityVerified": false,
         "commercialDataAndRedistributionRightsVerified": false,
         "taxAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
@@ -2990,7 +3065,8 @@
         "investorAccessConstraints": [
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
-          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -2999,7 +3075,21 @@
         "individualExitAndWithdrawalEligibilityVerified": false,
         "commercialDataAndRedistributionRightsVerified": false,
         "taxAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
@@ -3052,7 +3142,8 @@
         "investorAccessConstraints": [
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
-          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -3061,7 +3152,21 @@
         "individualExitAndWithdrawalEligibilityVerified": false,
         "commercialDataAndRedistributionRightsVerified": false,
         "taxAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
@@ -3114,7 +3219,8 @@
         "investorAccessConstraints": [
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
-          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification."
+          "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -3123,7 +3229,21 @@
         "individualExitAndWithdrawalEligibilityVerified": false,
         "commercialDataAndRedistributionRightsVerified": false,
         "taxAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
@@ -3185,7 +3305,8 @@
         "investorAccessConstraints": [
           "Actual minor age and citizenship, guardian authority, required KYC and registered intermediary must be checked independently.",
           "Current pension fund, selected allocation, NAV, charges, investor tax treatment, access and advice permissions are not verified.",
-          "Account exit/withdrawal rules depend on subscriber age, corpus and applicable regulations; do not infer personalized eligibility."
+          "Account exit/withdrawal rules depend on subscriber age, corpus and applicable regulations; do not infer personalized eligibility.",
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
         ],
         "specificPensionFundAndAllocationVerified": false,
         "minorCitizenshipAgeGuardianKycVerified": false,
@@ -3194,7 +3315,21 @@
         "commercialDataRightsVerified": false,
         "investorTaxAndAdviceAuthorizationVerified": false,
         "individualSuitabilityVerified": false,
-        "sourceScope": "PFRDA_PUBLIC_MINOR_SCHEME_FRAMEWORK_NOT_VERIFIED_ACCOUNT_OR_PRODUCT"
+        "sourceScope": "PFRDA_PUBLIC_MINOR_SCHEME_FRAMEWORK_NOT_VERIFIED_ACCOUNT_OR_PRODUCT",
+        "multipleNavFrameworkReview": {
+          "officialPfrdaNoticeUrl": "https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026",
+          "noticeIssuedOn": "2026-03-24",
+          "effectiveFrom": "2026-04-01",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV",
+          "governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted": true,
+          "popAndEnpsChannelChargesAdjustedThroughNavNoted": true,
+          "subscriberSectorAndChannelVerified": false,
+          "specificPensionFundNavVariantVerified": false,
+          "applicableFeesAndUnitsVerified": false,
+          "commercialNavReuseRightsVerified": false,
+          "individualSuitabilityVerified": false
+        }
       }
     },
     {
