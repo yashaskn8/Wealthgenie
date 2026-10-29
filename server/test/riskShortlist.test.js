@@ -1101,3 +1101,43 @@ test('zero emergency buffer flags unverified issuer and secondary exit access, n
  assert.ok(zero.every(row=>row.productQualified===false && row.scoreAvailable===false
   && row.productRiskLevel===null && row.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'));
 });
+
+test('October 7 SEBI merchant-banker exception is conditional issuer process, never retail eligibility',()=>{
+ const rows=listExtensionResearch();
+ const scopes={"catalog_2026_ncd_secured":"SECURED_LISTED_NCD_ONLY_IF_SENIOR_AND_ALL_ISSUER_CONDITIONS","catalog_2026_ncd_unsecured":"UNSECURED_LISTED_NCD_ONLY_IF_CPSE_PSU_STATUTORY_AND_ALL_ISSUER_CONDITIONS","catalog_2026_psu_bond_taxable":"PSU_BOND_ONLY_IF_ACTUAL_PSU_STATUS_SENIORITY_AND_ALL_CONDITIONS"};
+ const ids=Object.keys(scopes);
+ assert.equal(rows.filter(x=>x.debtInstrumentReview?.merchantBankerExemptionOct2026Review).length,3);
+ const conservative=screenExtensionResearchForProfile(canonicalProfile({
+  riskTolerance:'Conservative',investmentGoals:['Emergency Fund'],investmentHorizonYears:1,
+ }));
+ const other=screenExtensionResearchForProfile(canonicalProfile({
+  riskTolerance:'Aggressive',investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+ }));
+ for(const id of ids){
+  const row=rows.find(x=>x.id===id),review=row.debtInstrumentReview.merchantBankerExemptionOct2026Review;
+  assert.equal(review.categoryApplicability,scopes[id]);
+  assert.equal(review.circularIssuedOn,'2026-10-07');
+  assert.equal(review.effectiveFrom,'2026-10-07');
+  assert.equal(review.generalConditions.minimumIssueRating,'AA-');
+  assert.equal(review.generalConditions.lowestOfMultipleRatingsControls,true);
+  assert.equal(review.generalConditions.issuerListedMinimumYears,1);
+  assert.equal(review.generalConditions.cpsePsuStatutoryBodyUnsecuredExceptionOnly,true);
+  for(const field of [
+   'issuerFinancialRegulatorStatusVerified','issuerOneYearListingAndLodrClearanceVerified',
+   'issuerDefaultFreeAuditorCertificateVerified','issueSeniorityAndSecurityVerified',
+   'issueMinimumAaMinusRatingVerified','issuerPrivatePlacementRouteAndDenominationVerified',
+   'investorEligibilityAndKycVerified','issuerOfferIsinPriceAndDataRightsVerified',
+   'merchantBankerExemptionApprovedForIssuer','personalizedAdviceAuthorizationVerified'
+  ])assert.equal(review[field],false,id+' '+field);
+  const c=conservative.find(x=>x.id===id),o=other.find(x=>x.id===id);
+  assert.ok(c.screeningReasonCodes.includes('SEBI_OCT_2026_MERCHANT_BANKER_EXCEPTION_IS_ISSUER_PROCESS_NOT_RETAIL_APPROVAL'));
+  assert.ok(c.screeningReasonCodes.includes('EMERGENCY_FUND_REQUIRES_PRIVATE_DEBT_ISSUE_EXIT_LIQUIDITY_REVIEW'));
+  assert.ok(c.screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_DEBT_ISSUER_DEFAULT_SECURITY_AND_RATING_REVIEW'));
+  assert.ok(!o.screeningReasonCodes.includes('EMERGENCY_FUND_REQUIRES_PRIVATE_DEBT_ISSUE_EXIT_LIQUIDITY_REVIEW'));
+  assert.ok(!o.screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_DEBT_ISSUER_DEFAULT_SECURITY_AND_RATING_REVIEW'));
+  assert.equal(c.productQualified,false);assert.equal(c.scoreAvailable,false);
+  assert.equal(c.productRiskLevel,null);assert.equal(o.productQualified,false);
+ }
+ assert.ok(!rows.find(x=>x.id==='catalog_2026_ncd_unlisted')
+  .debtInstrumentReview.merchantBankerExemptionOct2026Review);
+});

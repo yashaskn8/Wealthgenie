@@ -432,6 +432,40 @@ if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentRevi
      ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
      ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
  }))throw new Error('FINANCIAL_OCTOBER_DEBT_CREDIT_METER_SCOPE_INVALID');
+// The Oct 7 issuer-process exception is not a retail access, rating or advice approval.
+const merchantBankerExemptionScope=Object.freeze({"catalog_2026_ncd_secured":"SECURED_LISTED_NCD_ONLY_IF_SENIOR_AND_ALL_ISSUER_CONDITIONS","catalog_2026_ncd_unsecured":"UNSECURED_LISTED_NCD_ONLY_IF_CPSE_PSU_STATUTORY_AND_ALL_ISSUER_CONDITIONS","catalog_2026_psu_bond_taxable":"PSU_BOND_ONLY_IF_ACTUAL_PSU_STATUS_SENIORITY_AND_ALL_CONDITIONS"});
+const merchantBankerExemptionUrl="https://www.sebi.gov.in/legal/circulars/oct-2026/exemption-from-the-requirement-of-mandatory-merchant-banker-appointment-for-debt-issued-through-private-placement-by-certain-listed-issuers_105080.html";
+const merchantBankerExemptionFalseFields=[
+ 'issuerFinancialRegulatorStatusVerified','issuerOneYearListingAndLodrClearanceVerified',
+ 'issuerDefaultFreeAuditorCertificateVerified','issueSeniorityAndSecurityVerified',
+ 'issueMinimumAaMinusRatingVerified','issuerPrivatePlacementRouteAndDenominationVerified',
+ 'investorEligibilityAndKycVerified','issuerOfferIsinPriceAndDataRightsVerified',
+ 'merchantBankerExemptionApprovedForIssuer','personalizedAdviceAuthorizationVerified',
+];
+if(research.entries.filter(row=>row.debtInstrumentReview?.merchantBankerExemptionOct2026Review).length!==3
+ ||research.entries.some(row=>{
+   const r=row.debtInstrumentReview?.merchantBankerExemptionOct2026Review;
+   if(!Object.hasOwn(merchantBankerExemptionScope,row.id))return r!==undefined;
+   const c=r?.generalConditions;
+   return r?.officialSebiCircularUrl!==merchantBankerExemptionUrl
+     ||r.circularIssuedOn!=='2026-10-07'||r.effectiveFrom!=='2026-10-07'
+     ||r.reviewedOn!=='2026-10-29'
+     ||r.sourceScope!=='PRIVATE_PLACEMENT_10000_FACE_VALUE_ISSUER_PROCESS_EXCEPTION_NOT_RETAIL_INVESTOR_MINIMUM'
+     ||r.categoryApplicability!==merchantBankerExemptionScope[row.id]
+     ||c?.financialSectorRegulatorRequired!=='SEBI_RBI_IRDAI_OR_PFRDA'
+     ||c.issuerListedMinimumYears!==1
+     ||c.noPendingLodrNoncomplianceFinesOrPenalties!==true
+     ||c.noDebtDepositLoanDefaultForPreviousFinancialYears!==3
+     ||c.currentFinancialYearDefaultCheckAlsoRequired!==true
+     ||c.statutoryAuditorCertificateRequired!==true
+     ||c.debtMustBeSeniorAndUnsubordinated!==true
+     ||c.generallyRequiresFirstOrPariPassuChargeOnIdentifiableAssets!==true
+     ||c.cpsePsuStatutoryBodyUnsecuredExceptionOnly!==true
+     ||c.minimumIssueRating!=='AA-'||c.lowestOfMultipleRatingsControls!==true
+     ||merchantBankerExemptionFalseFields.some(key=>r[key]!==false)
+     ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
+     ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<3;
+ }))throw new Error('FINANCIAL_OCTOBER_DEBT_ISSUER_PROCESS_EXCEPTION_SCOPE_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -790,6 +824,16 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('CP_RBI_2024_DEMAT_MINIMUM_DENOMINATION_AND_RELATED_PARTY_REVIEW');
        reasons.push('CP_RBI_2024_INDIVIDUAL_PRIMARY_SUBSCRIPTION_CAP_NOT_PERSONAL_APPROVAL');
      }
+   }
+   if(row.debtInstrumentReview?.merchantBankerExemptionOct2026Review) {
+     reasons.push('SEBI_OCT_2026_MERCHANT_BANKER_EXCEPTION_IS_ISSUER_PROCESS_NOT_RETAIL_APPROVAL');
+     reasons.push('DEBT_PRIVATE_PLACEMENT_10000_FACE_VALUE_NOT_PERSONAL_INVESTMENT_MINIMUM');
+     if(row.id==='catalog_2026_ncd_unsecured')
+       reasons.push('UNSECURED_ISSUER_MERCHANT_BANKER_EXCEPTION_REQUIRES_CPSE_PSU_OR_STATUTORY_STATUS');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_PRIVATE_DEBT_ISSUE_EXIT_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_ISSUER_DEFAULT_SECURITY_AND_RATING_REVIEW');
    }
    if(row.id==='catalog_2026_municipal_green')
      reasons.push('MUNICIPAL_GREEN_BOND_JULY_2026_ISSUE_DISCLOSURES_AND_GREEN_CLAIMS_REVIEW');

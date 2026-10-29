@@ -3816,6 +3816,46 @@
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
           ]
+        },
+        "merchantBankerExemptionOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/exemption-from-the-requirement-of-mandatory-merchant-banker-appointment-for-debt-issued-through-private-placement-by-certain-listed-issuers_105080.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-10-07",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PRIVATE_PLACEMENT_10000_FACE_VALUE_ISSUER_PROCESS_EXCEPTION_NOT_RETAIL_INVESTOR_MINIMUM",
+          "categoryApplicability": "SECURED_LISTED_NCD_ONLY_IF_SENIOR_AND_ALL_ISSUER_CONDITIONS",
+          "generalConditions": {
+            "financialSectorRegulatorRequired": "SEBI_RBI_IRDAI_OR_PFRDA",
+            "issuerListedMinimumYears": 1,
+            "noPendingLodrNoncomplianceFinesOrPenalties": true,
+            "noDebtDepositLoanDefaultForPreviousFinancialYears": 3,
+            "currentFinancialYearDefaultCheckAlsoRequired": true,
+            "statutoryAuditorCertificateRequired": true,
+            "debtMustBeSeniorAndUnsubordinated": true,
+            "generallyRequiresFirstOrPariPassuChargeOnIdentifiableAssets": true,
+            "cpsePsuStatutoryBodyUnsecuredExceptionOnly": true,
+            "minimumIssueRating": "AA-",
+            "lowestOfMultipleRatingsControls": true
+          },
+          "issuerFinancialRegulatorStatusVerified": false,
+          "issuerOneYearListingAndLodrClearanceVerified": false,
+          "issuerDefaultFreeAuditorCertificateVerified": false,
+          "issueSeniorityAndSecurityVerified": false,
+          "issueMinimumAaMinusRatingVerified": false,
+          "issuerPrivatePlacementRouteAndDenominationVerified": false,
+          "investorEligibilityAndKycVerified": false,
+          "issuerOfferIsinPriceAndDataRightsVerified": false,
+          "merchantBankerExemptionApprovedForIssuer": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Senior secured debt can still lose value or suffer enforcement shortfalls; a conditional merchant-banker appointment exemption does not reduce issuer or liquidity risk.",
+            "AA- is an issue-rating threshold for a narrow issuance-process exception, not a guarantee of principal, trading liquidity, suitability or investor eligibility."
+          ],
+          "investorAccessConstraints": [
+            "The October 7, 2026 SEBI circular applies to certain Rs 10,000 face-value private placements; face value is not proof of an applicant minimum, a public offering or retail access.",
+            "Verify issuer regulatory status, one-year listing, LODR compliance, auditor-certified default record, senior security charge and lowest applicable rating before interpreting a missing merchant banker.",
+            "A merchant-banker exemption is an issuer-process rule, not product approval, market-data redistribution permission, KYC clearance or personalized advice authority."
+          ]
         }
       }
     },
@@ -3896,6 +3936,46 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        },
+        "merchantBankerExemptionOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/exemption-from-the-requirement-of-mandatory-merchant-banker-appointment-for-debt-issued-through-private-placement-by-certain-listed-issuers_105080.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-10-07",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PRIVATE_PLACEMENT_10000_FACE_VALUE_ISSUER_PROCESS_EXCEPTION_NOT_RETAIL_INVESTOR_MINIMUM",
+          "categoryApplicability": "UNSECURED_LISTED_NCD_ONLY_IF_CPSE_PSU_STATUTORY_AND_ALL_ISSUER_CONDITIONS",
+          "generalConditions": {
+            "financialSectorRegulatorRequired": "SEBI_RBI_IRDAI_OR_PFRDA",
+            "issuerListedMinimumYears": 1,
+            "noPendingLodrNoncomplianceFinesOrPenalties": true,
+            "noDebtDepositLoanDefaultForPreviousFinancialYears": 3,
+            "currentFinancialYearDefaultCheckAlsoRequired": true,
+            "statutoryAuditorCertificateRequired": true,
+            "debtMustBeSeniorAndUnsubordinated": true,
+            "generallyRequiresFirstOrPariPassuChargeOnIdentifiableAssets": true,
+            "cpsePsuStatutoryBodyUnsecuredExceptionOnly": true,
+            "minimumIssueRating": "AA-",
+            "lowestOfMultipleRatingsControls": true
+          },
+          "issuerFinancialRegulatorStatusVerified": false,
+          "issuerOneYearListingAndLodrClearanceVerified": false,
+          "issuerDefaultFreeAuditorCertificateVerified": false,
+          "issueSeniorityAndSecurityVerified": false,
+          "issueMinimumAaMinusRatingVerified": false,
+          "issuerPrivatePlacementRouteAndDenominationVerified": false,
+          "investorEligibilityAndKycVerified": false,
+          "issuerOfferIsinPriceAndDataRightsVerified": false,
+          "merchantBankerExemptionApprovedForIssuer": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Unsecured debt has issuer default and recovery risk; the circular permits an unsecured exception only for qualifying CPSEs, PSUs or statutory bodies, not all issuers.",
+            "AA- is an issue-rating threshold for a narrow issuance-process exception, not a guarantee of principal, trading liquidity, suitability or investor eligibility."
+          ],
+          "investorAccessConstraints": [
+            "The October 7, 2026 SEBI circular applies to certain Rs 10,000 face-value private placements; face value is not proof of an applicant minimum, a public offering or retail access.",
+            "An unsecured non-PSU issuer cannot rely on the stated security exception; verify issuer classification and every other condition before interpreting a missing merchant banker.",
+            "A merchant-banker exemption is an issuer-process rule, not product approval, market-data redistribution permission, KYC clearance or personalized advice authority."
           ]
         }
       }
@@ -4463,6 +4543,46 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        },
+        "merchantBankerExemptionOct2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/exemption-from-the-requirement-of-mandatory-merchant-banker-appointment-for-debt-issued-through-private-placement-by-certain-listed-issuers_105080.html",
+          "circularIssuedOn": "2026-10-07",
+          "effectiveFrom": "2026-10-07",
+          "reviewedOn": "2026-10-29",
+          "sourceScope": "PRIVATE_PLACEMENT_10000_FACE_VALUE_ISSUER_PROCESS_EXCEPTION_NOT_RETAIL_INVESTOR_MINIMUM",
+          "categoryApplicability": "PSU_BOND_ONLY_IF_ACTUAL_PSU_STATUS_SENIORITY_AND_ALL_CONDITIONS",
+          "generalConditions": {
+            "financialSectorRegulatorRequired": "SEBI_RBI_IRDAI_OR_PFRDA",
+            "issuerListedMinimumYears": 1,
+            "noPendingLodrNoncomplianceFinesOrPenalties": true,
+            "noDebtDepositLoanDefaultForPreviousFinancialYears": 3,
+            "currentFinancialYearDefaultCheckAlsoRequired": true,
+            "statutoryAuditorCertificateRequired": true,
+            "debtMustBeSeniorAndUnsubordinated": true,
+            "generallyRequiresFirstOrPariPassuChargeOnIdentifiableAssets": true,
+            "cpsePsuStatutoryBodyUnsecuredExceptionOnly": true,
+            "minimumIssueRating": "AA-",
+            "lowestOfMultipleRatingsControls": true
+          },
+          "issuerFinancialRegulatorStatusVerified": false,
+          "issuerOneYearListingAndLodrClearanceVerified": false,
+          "issuerDefaultFreeAuditorCertificateVerified": false,
+          "issueSeniorityAndSecurityVerified": false,
+          "issueMinimumAaMinusRatingVerified": false,
+          "issuerPrivatePlacementRouteAndDenominationVerified": false,
+          "investorEligibilityAndKycVerified": false,
+          "issuerOfferIsinPriceAndDataRightsVerified": false,
+          "merchantBankerExemptionApprovedForIssuer": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Senior secured debt can still lose value or suffer enforcement shortfalls; a conditional merchant-banker appointment exemption does not reduce issuer or liquidity risk.",
+            "AA- is an issue-rating threshold for a narrow issuance-process exception, not a guarantee of principal, trading liquidity, suitability or investor eligibility."
+          ],
+          "investorAccessConstraints": [
+            "The October 7, 2026 SEBI circular applies to certain Rs 10,000 face-value private placements; face value is not proof of an applicant minimum, a public offering or retail access.",
+            "Actual PSU/CPSE or statutory-body status, seniority, regulator, listing tenure, clean compliance/default record, auditor certificate and issue rating must be established separately.",
+            "A merchant-banker exemption is an issuer-process rule, not product approval, market-data redistribution permission, KYC clearance or personalized advice authority."
           ]
         }
       }

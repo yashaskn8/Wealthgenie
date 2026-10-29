@@ -684,3 +684,24 @@ test('HDFC contradictory official channel wording remains a source warning, not 
   .sourceConsistencyNotice.status,
   'CONFLICTING_OFFICIAL_PUBLIC_CHANNEL_TEXT_REQUIRES_ISSUER_CONFIRMATION');
 });
+
+test('October 2026 debt issuer exemption research is copied, not product or retail approval',()=>{
+ const ids=['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured','catalog_2026_psu_bond_taxable'];
+ const find=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const row=find(id),r=row.frameworkResearch.debtInstrumentReview.merchantBankerExemptionOct2026Review;
+  assert.equal(r.merchantBankerExemptionApprovedForIssuer,false,id);
+  assert.equal(r.investorEligibilityAndKycVerified,false,id);
+  assert.equal(r.issuerOfferIsinPriceAndDataRightsVerified,false,id);
+  assert.equal(row.recommendationEligible,false,id);
+  assert.equal(row.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(row.productData).every(value=>value===null),id);
+  r.generalConditions.minimumIssueRating='AAA';
+  r.riskConsiderations.push('FORGED');
+  r.merchantBankerExemptionApprovedForIssuer=true;
+  const clean=find(id).frameworkResearch.debtInstrumentReview.merchantBankerExemptionOct2026Review;
+  assert.equal(clean.generalConditions.minimumIssueRating,'AA-',id);
+  assert.ok(!clean.riskConsiderations.includes('FORGED'),id);
+  assert.equal(clean.merchantBankerExemptionApprovedForIssuer,false,id);
+ }
+});
