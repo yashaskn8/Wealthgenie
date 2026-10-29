@@ -1224,3 +1224,29 @@ test('recorded zero emergency buffer adds deposit-specific exit review without r
  assert.ok(zero.every(row=>row.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
   &&row.productQualified===false&&row.scoreAvailable===false&&row.productRiskLevel===null));
 });
+
+test('recorded zero emergency buffer flags six government security categories for early-sale risk without approving them',()=>{
+ const notice='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_GSEC_EARLY_SALE_PRICE_AND_SETTLEMENT_REVIEW';
+ const make=months=>screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:months,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+ }));
+ const zero=make(0),missing=make(null),positive=make(6);
+ const find=(rows,id)=>rows.find(row=>row.id==='catalog_2026_'+id);
+ for(const id of ['tbill_91','tbill_182','tbill_364','sdl_dated',
+  'sovereign_green','gsec_floating']){
+  const row=find(zero,id);
+  assert.ok(row.screeningReasonCodes.includes(notice),id);
+  assert.ok(!find(missing,id).screeningReasonCodes.includes(notice),id+' missing');
+  assert.ok(!find(positive,id).screeningReasonCodes.includes(notice),id+' positive');
+  assert.equal(row.productQualified,false,id);
+  assert.equal(row.scoreAvailable,false,id);
+  assert.equal(row.productRiskLevel,null,id);
+  assert.equal(row.profileAssessment,'MISSING_SUITABILITY_EVIDENCE',id);
+ }
+ for(const id of ['gsec_coupon_strip','gsec_principal_strip','po_savings',
+  'index_nifty100','bank_rd']){
+  assert.ok(!find(zero,id).screeningReasonCodes.includes(notice),id);
+ }
+ assert.equal(zero.length,95);
+ assert.equal(new Set(zero.map(row=>row.id)).size,95);
+});

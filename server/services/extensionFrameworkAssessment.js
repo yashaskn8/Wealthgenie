@@ -926,6 +926,15 @@ export function screenExtensionResearchForProfile(profileInput) {
      || row.id==='catalog_2026_pms_nondiscretionary'
      || row.id==='catalog_2026_ncd_unlisted'
    ))reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_UNVERIFIED_EXIT_LIQUIDITY_REVIEW');
+   // RBI Retail Direct permits secondary sales but does not guarantee the
+   // executable price, depth or settlement timing for a particular security.
+   // A recorded zero-month emergency buffer warrants a separate liquidity
+   // notice even without an explicit Emergency Fund investment goal.
+   if(profile.emergencyFundMonths===0 && (
+     row.rbiRetailDirectAccessReview
+     ||(row.governmentBondStructureReview
+       && !row.governmentBondStructureReview.structureType.endsWith('_STRIP'))
+   ))reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_GSEC_EARLY_SALE_PRICE_AND_SETTLEMENT_REVIEW');
    return {
      id:row.id,
      profileAssessment:'MISSING_SUITABILITY_EVIDENCE',
