@@ -357,3 +357,42 @@ test('four central-government bond structures keep instrument and profile gates 
  assert.ok(conservative.find(x=>x.id==='catalog_2026_gsec_floating').screeningReasonCodes.includes('FLOATING_RATE_GSEC_RESET_BASIS_SPREAD_AND_DATES_UNVERIFIED'));
  assert.equal(rows.filter(x=>x.governmentBondStructureReview).length,4);
 });
+
+test('five bank deposit reviews produce distinct profile-bound non-ranking blockers',()=>{
+ const ids=['bank_rd','bank_tax_saver_fd','bank_sweep_fd','bank_fd_monthly','bank_fd_quarterly'];
+ const codes=['RECURRING_DEPOSIT_INSTALLMENT_AND_MISSED_PAYMENT_TERMS_UNVERIFIED',
+  'TAX_SAVER_FIVE_YEAR_SCHEME_AND_CURRENT_TAX_REGIME_REQUIRE_REVIEW',
+  'SWEEP_TRIGGER_PARTIAL_BREAKAGE_AND_LIQUIDITY_TERMS_UNVERIFIED',
+  'MONTHLY_DEPOSIT_PAYOUT_AND_EFFECTIVE_RETURN_REQUIRE_ISSUER_TERMS',
+  'QUARTERLY_DEPOSIT_PAYOUT_AND_EFFECTIVE_RETURN_REQUIRE_ISSUER_TERMS'];
+ const rows=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative',
+  investmentHorizonYears:1,investmentGoals:['Emergency Fund']}));
+ const long=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive',
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth']}));
+ for(const [i,suffix] of ids.entries()){
+  const id='catalog_2026_'+suffix,review=rows.find(x=>x.id===id).bankDepositAccessReview;
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.officialRbiInterestOnDepositsFaqUrl,'https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf');
+  assert.equal(review.officialDicgcCoverageUrl,'https://www.dicgc.org.in/guide-to-deposit-insurance');
+  for(const key of ['specificBankDepositIdentityVerified','bankInsuranceStatusAndAggregateBalanceVerified',
+   'issuerRatePayoutAndEarlyExitTermsVerified','accountKycAndIndividualEligibilityVerified',
+   'currentTaxRegimeAndDeductionEligibilityVerified','independentCommercialDataRightsVerified',
+   'personalizedSuitabilityVerified'])assert.equal(review[key],false);
+  for(const screened of [short,long]){
+   const x=screened.find(x=>x.id===id);
+   assert.ok(x.screeningReasonCodes.includes(codes[i]));
+   assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+  }
+  assert.ok(short.find(x=>x.id===id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_BANK_DEPOSIT_EARLY_ACCESS_REVIEW'));
+  assert.ok(!long.find(x=>x.id===id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_BANK_DEPOSIT_EARLY_ACCESS_REVIEW'));
+ }
+ assert.ok(short.find(x=>x.id==='catalog_2026_bank_tax_saver_fd').screeningReasonCodes.includes(
+  'TAX_SAVER_FIVE_YEAR_REFERENCE_EXCEEDS_PROFILE_HORIZON'));
+ assert.ok(!long.find(x=>x.id==='catalog_2026_bank_tax_saver_fd').screeningReasonCodes.includes(
+  'TAX_SAVER_FIVE_YEAR_REFERENCE_EXCEEDS_PROFILE_HORIZON'));
+ assert.equal(rows.filter(x=>x.bankDepositAccessReview).length,5);
+});

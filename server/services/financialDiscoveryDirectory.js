@@ -138,6 +138,8 @@ function buildDirectory() {
         officialFrameworkVerification: research.publicFrameworkVerification,
         postalSavingsAccessReview: research.postalSavingsAccessReview
           ? { ...research.postalSavingsAccessReview } : null,
+        bankDepositAccessReview: research.bankDepositAccessReview
+          ? { ...research.bankDepositAccessReview } : null,
         publicDepositAccessReview: research.nbfcPublicDepositAccessReview
           ? { ...research.nbfcPublicDepositAccessReview } : null,
         retailDirectAccessReview: research.rbiRetailDirectAccessReview
@@ -191,6 +193,8 @@ export function listFinancialDiscoveryDirectory() {
           ? { ...item.frameworkResearch.reviewedOfficialFrameworkFact } : null,
         postalSavingsAccessReview: item.frameworkResearch.postalSavingsAccessReview
           ? { ...item.frameworkResearch.postalSavingsAccessReview } : null,
+        bankDepositAccessReview: item.frameworkResearch.bankDepositAccessReview
+          ? { ...item.frameworkResearch.bankDepositAccessReview } : null,
         publicDepositAccessReview: item.frameworkResearch.publicDepositAccessReview
           ? { ...item.frameworkResearch.publicDepositAccessReview } : null,
         retailDirectAccessReview: item.frameworkResearch.retailDirectAccessReview

@@ -555,10 +555,10 @@
     {
       "id": "catalog_2026_bank_rd",
       "exposureClass": "RECURRING_PAYMENT_AND_PREMATURE_WITHDRAWAL",
-      "scenarioDescription": "Bank Recurring Deposit: Recurring Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Bank Recurring Deposit: Recurring Deposits category.: The RBI 2025 FAQ addresses bank-specific early-withdrawal penalties; DICGC describes eligible recurring deposits at insured banks. Actual installments, missed-payment rules, bank identity, rates, KYC, eligibility and source rights are unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=18",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -578,15 +578,31 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "bankDepositAccessReview": {
+        "depositStructure": "RECURRING_INSTALLMENT_DEPOSIT",
+        "officialRbiInterestOnDepositsFaqUrl": "https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf",
+        "officialDicgcCoverageUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_BANK_DEPOSIT_RULES_NOT_ISSUER_CONTRACT_CURRENT_RATE_OR_INDIVIDUAL_ELIGIBILITY",
+        "historicalTaxSaverSchemeSourceUrl": null,
+        "fiveYearSchemeReferenceMonths": null,
+        "specificBankDepositIdentityVerified": false,
+        "bankInsuranceStatusAndAggregateBalanceVerified": false,
+        "issuerRatePayoutAndEarlyExitTermsVerified": false,
+        "accountKycAndIndividualEligibilityVerified": false,
+        "currentTaxRegimeAndDeductionEligibilityVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_bank_tax_saver_fd",
       "exposureClass": "FIXED_LOCK_IN_AND_TAX_CONDITIONS",
-      "scenarioDescription": "Five-Year Tax-Saver Bank Fixed Deposit: Tax-Saving Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Five-Year Tax-Saver Bank Fixed Deposit: Tax-Saving Deposits category.: The Income Tax Department 2006 circular describes a five-year scheduled-bank term-deposit scheme in historical Section 80C context, not current tax eligibility. Bank terms, tax regime, early-exit rights, rates and suitability are unverified.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=18",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -606,15 +622,31 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "bankDepositAccessReview": {
+        "depositStructure": "FIVE_YEAR_TAX_SAVER_TERM_DEPOSIT",
+        "officialRbiInterestOnDepositsFaqUrl": "https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf",
+        "officialDicgcCoverageUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_BANK_DEPOSIT_RULES_NOT_ISSUER_CONTRACT_CURRENT_RATE_OR_INDIVIDUAL_ELIGIBILITY",
+        "historicalTaxSaverSchemeSourceUrl": "https://www.incometaxindia.gov.in/w/11/2006-circular-no.-11/2006-dated-16-11-2006",
+        "fiveYearSchemeReferenceMonths": 60,
+        "specificBankDepositIdentityVerified": false,
+        "bankInsuranceStatusAndAggregateBalanceVerified": false,
+        "issuerRatePayoutAndEarlyExitTermsVerified": false,
+        "accountKycAndIndividualEligibilityVerified": false,
+        "currentTaxRegimeAndDeductionEligibilityVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_bank_sweep_fd",
       "exposureClass": "BANK_ACCOUNT_TERMS_AND_DEPOSIT_MATURITY",
-      "scenarioDescription": "Sweep-In Linked Bank Term Deposit: Sweep Term Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Sweep-In Linked Bank Term Deposit: Sweep Term Deposits category.: The RBI 2025 FAQ covers general premature-withdrawal policy, not a bank's sweep trigger, linked account, partial breakage, interest calculation, KYC, current rates or source rights.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=18",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -634,15 +666,31 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "bankDepositAccessReview": {
+        "depositStructure": "SWEEP_LINKED_TERM_DEPOSIT",
+        "officialRbiInterestOnDepositsFaqUrl": "https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf",
+        "officialDicgcCoverageUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_BANK_DEPOSIT_RULES_NOT_ISSUER_CONTRACT_CURRENT_RATE_OR_INDIVIDUAL_ELIGIBILITY",
+        "historicalTaxSaverSchemeSourceUrl": null,
+        "fiveYearSchemeReferenceMonths": null,
+        "specificBankDepositIdentityVerified": false,
+        "bankInsuranceStatusAndAggregateBalanceVerified": false,
+        "issuerRatePayoutAndEarlyExitTermsVerified": false,
+        "accountKycAndIndividualEligibilityVerified": false,
+        "currentTaxRegimeAndDeductionEligibilityVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_bank_fd_monthly",
       "exposureClass": "BANK_ACCOUNT_TERMS_AND_DEPOSIT_MATURITY",
-      "scenarioDescription": "Bank FD with Monthly Interest Payout: Noncumulative Term Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Bank FD with Monthly Interest Payout: Noncumulative Term Deposits category.: Monthly noncumulative payout is a category archetype, not a verified bank offer. RBI 2025 guidance does not establish payout calculation, early closure, issuer rate, eligibility or current terms.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=18",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -662,15 +710,31 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "bankDepositAccessReview": {
+        "depositStructure": "NONCUMULATIVE_MONTHLY_PAYOUT",
+        "officialRbiInterestOnDepositsFaqUrl": "https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf",
+        "officialDicgcCoverageUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_BANK_DEPOSIT_RULES_NOT_ISSUER_CONTRACT_CURRENT_RATE_OR_INDIVIDUAL_ELIGIBILITY",
+        "historicalTaxSaverSchemeSourceUrl": null,
+        "fiveYearSchemeReferenceMonths": null,
+        "specificBankDepositIdentityVerified": false,
+        "bankInsuranceStatusAndAggregateBalanceVerified": false,
+        "issuerRatePayoutAndEarlyExitTermsVerified": false,
+        "accountKycAndIndividualEligibilityVerified": false,
+        "currentTaxRegimeAndDeductionEligibilityVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_bank_fd_quarterly",
       "exposureClass": "BANK_ACCOUNT_TERMS_AND_DEPOSIT_MATURITY",
-      "scenarioDescription": "Bank FD with Quarterly Interest Payout: Noncumulative Term Deposits category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Bank FD with Quarterly Interest Payout: Noncumulative Term Deposits category.: Quarterly noncumulative payout is a category archetype, not a verified bank offer. RBI 2025 guidance does not establish payout calculation, early closure, issuer rate, eligibility or current terms.",
       "referenceUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=18",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -690,7 +754,23 @@
         "reviewedOn": "2026-10-28",
         "scope": "GENERAL_OFFICIAL_FRAMEWORK_REFERENCE_NOT_PRODUCT_RISK_OR_ELIGIBILITY"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "bankDepositAccessReview": {
+        "depositStructure": "NONCUMULATIVE_QUARTERLY_PAYOUT",
+        "officialRbiInterestOnDepositsFaqUrl": "https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf",
+        "officialDicgcCoverageUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
+        "reviewedOn": "2026-10-29",
+        "sourceScope": "GENERAL_BANK_DEPOSIT_RULES_NOT_ISSUER_CONTRACT_CURRENT_RATE_OR_INDIVIDUAL_ELIGIBILITY",
+        "historicalTaxSaverSchemeSourceUrl": null,
+        "fiveYearSchemeReferenceMonths": null,
+        "specificBankDepositIdentityVerified": false,
+        "bankInsuranceStatusAndAggregateBalanceVerified": false,
+        "issuerRatePayoutAndEarlyExitTermsVerified": false,
+        "accountKycAndIndividualEligibilityVerified": false,
+        "currentTaxRegimeAndDeductionEligibilityVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "personalizedSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nbfc_fd_cumulative",

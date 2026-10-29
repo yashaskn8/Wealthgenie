@@ -258,3 +258,24 @@ test('four central-government bond directory entries expose read-only structure 
  all.find(x=>x.id==='catalog_2026_gsec_coupon_strip').frameworkResearch.governmentBondStructureReview.specificSecurityIsinVerified=true;
  assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_gsec_coupon_strip').frameworkResearch.governmentBondStructureReview.specificSecurityIsinVerified,false);
 });
+
+test('five bank deposit directory records copy dated evidence without product qualification',()=>{
+ const ids=['bank_rd','bank_tax_saver_fd','bank_sweep_fd','bank_fd_monthly','bank_fd_quarterly'];
+ const items=listFinancialDiscoveryDirectory().items;
+ for(const suffix of ids){
+  const row=items.find(x=>x.id==='catalog_2026_'+suffix);
+  assert.equal(row.frameworkResearch.bankDepositAccessReview.reviewedOn,'2026-10-29');
+  assert.equal(row.frameworkResearch.bankDepositAccessReview.independentCommercialDataRightsVerified,false);
+  assert.equal(row.frameworkResearch.bankDepositAccessReview.personalizedSuitabilityVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(row.productData).every(x=>x===null));
+ }
+ assert.equal(items.filter(x=>x.frameworkResearch?.bankDepositAccessReview).length,5);
+ const tax=items.find(x=>x.id==='catalog_2026_bank_tax_saver_fd');
+ assert.equal(tax.frameworkResearch.bankDepositAccessReview.fiveYearSchemeReferenceMonths,60);
+ items.find(x=>x.id==='catalog_2026_bank_rd').frameworkResearch.bankDepositAccessReview.independentCommercialDataRightsVerified=true;
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_bank_rd')
+  .frameworkResearch.bankDepositAccessReview.independentCommercialDataRightsVerified,false);
+});

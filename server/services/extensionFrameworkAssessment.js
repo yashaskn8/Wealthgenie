@@ -9,6 +9,10 @@ const research=JSON.parse(readFileSync(
 const idSet=new Set(universe.map(x=>x.id));
 const legacyIds=new Set(investmentDatabase.map(x=>x.id));
 const nbfcDepositIds=new Set(['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout']);
+const bankDepositStructures=Object.freeze({"catalog_2026_bank_rd":"RECURRING_INSTALLMENT_DEPOSIT","catalog_2026_bank_tax_saver_fd":"FIVE_YEAR_TAX_SAVER_TERM_DEPOSIT","catalog_2026_bank_sweep_fd":"SWEEP_LINKED_TERM_DEPOSIT","catalog_2026_bank_fd_monthly":"NONCUMULATIVE_MONTHLY_PAYOUT","catalog_2026_bank_fd_quarterly":"NONCUMULATIVE_QUARTERLY_PAYOUT"});
+const bankDepositRbiFaqUrl="https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf";
+const bankDepositDicgcUrl="https://www.dicgc.org.in/guide-to-deposit-insurance";
+const historicalTaxSaverCircularUrl="https://www.incometaxindia.gov.in/w/11/2006-circular-no.-11/2006-dated-16-11-2006";
 const retailDirectIds=new Set(['catalog_2026_tbill_91','catalog_2026_tbill_182','catalog_2026_tbill_364','catalog_2026_sdl_dated']);
 const postalSavingsIds=new Set(['catalog_2026_po_savings','catalog_2026_po_td_2','catalog_2026_po_td_3','catalog_2026_po_td_5']);
 const governmentBondStructureTypes=Object.freeze({"catalog_2026_gsec_coupon_strip":"CENTRAL_GSEC_COUPON_STRIP","catalog_2026_gsec_principal_strip":"CENTRAL_GSEC_PRINCIPAL_STRIP","catalog_2026_sovereign_green":"SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","catalog_2026_gsec_floating":"FLOATING_RATE_CENTRAL_GSEC"});
@@ -47,6 +51,23 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.nbfcPublicDepositAccessReview?.individualRetailEligibilityVerified!==false
       || x.nbfcPublicDepositAccessReview?.commercialDataRightsVerified!==false)
     : x.nbfcPublicDepositAccessReview!==undefined)
+  || research.entries.some(x=>Object.hasOwn(bankDepositStructures,x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.bankDepositAccessReview?.depositStructure!==bankDepositStructures[x.id]
+      || x.bankDepositAccessReview?.officialRbiInterestOnDepositsFaqUrl!==bankDepositRbiFaqUrl
+      || x.bankDepositAccessReview?.officialDicgcCoverageUrl!==bankDepositDicgcUrl
+      || x.bankDepositAccessReview?.reviewedOn!=='2026-10-29'
+      || x.bankDepositAccessReview?.sourceScope!=='GENERAL_BANK_DEPOSIT_RULES_NOT_ISSUER_CONTRACT_CURRENT_RATE_OR_INDIVIDUAL_ELIGIBILITY'
+      || x.bankDepositAccessReview?.historicalTaxSaverSchemeSourceUrl!==(x.id==='catalog_2026_bank_tax_saver_fd'?historicalTaxSaverCircularUrl:null)
+      || x.bankDepositAccessReview?.fiveYearSchemeReferenceMonths!==(x.id==='catalog_2026_bank_tax_saver_fd'?60:null)
+      || x.bankDepositAccessReview?.specificBankDepositIdentityVerified!==false
+      || x.bankDepositAccessReview?.bankInsuranceStatusAndAggregateBalanceVerified!==false
+      || x.bankDepositAccessReview?.issuerRatePayoutAndEarlyExitTermsVerified!==false
+      || x.bankDepositAccessReview?.accountKycAndIndividualEligibilityVerified!==false
+      || x.bankDepositAccessReview?.currentTaxRegimeAndDeductionEligibilityVerified!==false
+      || x.bankDepositAccessReview?.independentCommercialDataRightsVerified!==false
+      || x.bankDepositAccessReview?.personalizedSuitabilityVerified!==false)
+    : x.bankDepositAccessReview!==undefined)
   || research.entries.some(x=>postalSavingsIds.has(x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
       || x.postalSavingsAccessReview?.officialIndiaPostSchemeListingUrl!=='https://www.indiapost.gov.in/banking-services/savings'
@@ -160,6 +181,29 @@ export function screenExtensionResearchForProfile(profileInput) {
      } else {
        reasons.push('POST_OFFICE_SAVINGS_ACCOUNT_BALANCE_AND_WITHDRAWAL_TERMS_UNVERIFIED');
      }
+   }
+   if(row.bankDepositAccessReview) {
+     reasons.push('BANK_DEPOSIT_ISSUER_KYC_RATES_TERMS_AND_DATA_RIGHTS_UNVERIFIED');
+     reasons.push('DICGC_COVERAGE_REQUIRES_INSURED_BANK_AND_AGGREGATE_DEPOSITOR_CAPACITY_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_BANK_DEPOSIT_EARLY_ACCESS_REVIEW');
+     switch(row.bankDepositAccessReview.depositStructure) {
+       case 'RECURRING_INSTALLMENT_DEPOSIT':
+         reasons.push('RECURRING_DEPOSIT_INSTALLMENT_AND_MISSED_PAYMENT_TERMS_UNVERIFIED'); break;
+       case 'FIVE_YEAR_TAX_SAVER_TERM_DEPOSIT':
+         reasons.push('TAX_SAVER_FIVE_YEAR_SCHEME_AND_CURRENT_TAX_REGIME_REQUIRE_REVIEW');
+         if(profile.investmentHorizonYears<5)
+           reasons.push('TAX_SAVER_FIVE_YEAR_REFERENCE_EXCEEDS_PROFILE_HORIZON');
+         break;
+       case 'SWEEP_LINKED_TERM_DEPOSIT':
+         reasons.push('SWEEP_TRIGGER_PARTIAL_BREAKAGE_AND_LIQUIDITY_TERMS_UNVERIFIED'); break;
+       case 'NONCUMULATIVE_MONTHLY_PAYOUT':
+         reasons.push('MONTHLY_DEPOSIT_PAYOUT_AND_EFFECTIVE_RETURN_REQUIRE_ISSUER_TERMS'); break;
+       case 'NONCUMULATIVE_QUARTERLY_PAYOUT':
+         reasons.push('QUARTERLY_DEPOSIT_PAYOUT_AND_EFFECTIVE_RETURN_REQUIRE_ISSUER_TERMS'); break;
+     }
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_BANK_DEPOSIT_EARLY_EXIT_AND_COVERAGE_REVIEW');
    }
    if(row.nbfcPublicDepositAccessReview) {
      reasons.push('NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED');
