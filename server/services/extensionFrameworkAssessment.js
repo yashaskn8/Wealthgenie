@@ -788,6 +788,15 @@ export function screenExtensionResearchForProfile(profileInput) {
    if(profile.riskTolerance==='Conservative'
      && /NPS_EQUITY|NPS_ALTERNATIVES|SMALL_MID_CAP|SECTOR_CONCENTRATION|SIF_LONG_SHORT|PMS_MANAGER/.test(row.exposureClass))
      reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PRODUCT_SPECIFIC_RISK_REVIEW');
+   // Only a recorded zero-month emergency buffer justifies this additional
+   // non-ranking notice. Missing optional facts must not be treated as zero,
+   // and a broad category review never establishes product ineligibility.
+   if(profile.emergencyFundMonths===0 && (
+     row.aifCategoryAccessReview
+     ||row.id.startsWith('catalog_2026_nps_')
+     ||row.id==='catalog_2026_bank_tax_saver_fd'
+     ||row.id==='catalog_2026_sif_hybrid_longshort'
+   ))reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_RESTRICTED_EXIT_ACCESS_REVIEW');
    return {
      id:row.id,
      profileAssessment:'MISSING_SUITABILITY_EVIDENCE',

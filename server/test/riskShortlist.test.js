@@ -1036,3 +1036,27 @@ test('RBI CP, convertible ICDR, municipal July and REIT October evidence stays s
  assert.ok(reasons(short,'commercial_paper').includes('CP_RBI_2024_DEMAT_MINIMUM_DENOMINATION_AND_RELATED_PARTY_REVIEW'));
  assert.ok(short.every(x=>!x.productQualified&&!x.scoreAvailable&&x.productRiskLevel===null));
 });
+
+test('zero recorded emergency-fund months trigger restricted-exit review without inferring eligibility',()=>{
+ const flag='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_RESTRICTED_EXIT_ACCESS_REVIEW';
+ const zero=screenExtensionResearchForProfile(canonicalProfile({
+   emergencyFundMonths:0,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+   riskTolerance:'Aggressive',
+ }));
+ const unknown=screenExtensionResearchForProfile(canonicalProfile({emergencyFundMonths:null}));
+ const positive=screenExtensionResearchForProfile(canonicalProfile({emergencyFundMonths:6}));
+ const find=(rows,id)=>rows.find(x=>x.id==='catalog_2026_'+id);
+ for(const id of ['aif1_vc','aif2_debt','nps_lc25','nps_vatsalya',
+   'bank_tax_saver_fd','sif_hybrid_longshort']){
+   assert.ok(find(zero,id).screeningReasonCodes.includes(flag),id);
+   assert.ok(!find(unknown,id).screeningReasonCodes.includes(flag),id+' unknown');
+   assert.ok(!find(positive,id).screeningReasonCodes.includes(flag),id+' positive');
+ }
+ for(const id of ['po_savings','bank_rd','index_nifty100']){
+   assert.ok(!find(zero,id).screeningReasonCodes.includes(flag),id);
+ }
+ assert.equal(zero.length,95);
+ assert.ok(zero.every(x=>x.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'
+   && x.scoreAvailable===false && x.productQualified===false
+   && x.productRiskLevel===null));
+});
