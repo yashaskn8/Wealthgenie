@@ -22,6 +22,19 @@ const npsCommonChoiceSpecs=Object.freeze({"catalog_2026_nps_lc25":{"choiceCode":
 const npsAllCitizenUrl="https://pfrda.org.in/en/schemes/national-pension-system/nps-for-all-citizen-models";
 const npsPensionFundsUrl="https://pfrda.org.in/en/intermediaries/registered-intermediaries/pension-funds";
 const npsLifecycleCircularUrl="https://pfrda.org.in/documents/33652/154008/Circular%2Bon%2BRationalization%2Bof%2BNomenclature%2Bof%2BAuto%2BChoice%2BLife%2BCycle%2BFunds%2Bunder%2Bthe%2BNPS%2BMultiple%2BChoices%2Bof%2BInvestment%2Bunder%2BCommon%2BSchemes.pdf";
+const npsMultipleNavNoticeUrl="https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026";
+const validNpsMultipleNavReview=review=>{
+ const nav=review?.multipleNavFrameworkReview;
+ return nav?.officialPfrdaNoticeUrl===npsMultipleNavNoticeUrl
+  && nav.noticeIssuedOn==='2026-03-24' && nav.effectiveFrom==='2026-04-01'
+  && nav.reviewedOn==='2026-10-29'
+  && nav.sourceScope==='PFRDA_MULTIPLE_NAV_FEE_FRAMEWORK_NOT_AN_INDIVIDUAL_SUBSCRIBER_NAV'
+  && nav.governmentAndNonGovernmentInvestmentManagementFeeDifferentiationNoted===true
+  && nav.popAndEnpsChannelChargesAdjustedThroughNavNoted===true
+  && ['subscriberSectorAndChannelVerified','specificPensionFundNavVariantVerified',
+    'applicableFeesAndUnitsVerified','commercialNavReuseRightsVerified',
+    'individualSuitabilityVerified'].every(key=>nav[key]===false);
+};
 const npsExitFaqUrl="https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf";
 const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50","catalog_2026_index_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_index_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_index_midcap150":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150","catalog_2026_index_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"});
 const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
@@ -51,6 +64,10 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || !x.verifiedPublicFrameworkFact.officialSourceUrl.startsWith('https://')))
   || research.entries.some(x=>x.verifiedPublicFrameworkFact === null
     && x.publicFrameworkVerification !== 'INDIVIDUAL_FRAMEWORK_FACT_NOT_YET_VERIFIED')
+  || research.entries.some(x=>x.id.startsWith('catalog_2026_nps_')
+    ? !validNpsMultipleNavReview(x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)
+    : x.npsCommonSchemeReview?.multipleNavFrameworkReview!==undefined
+      || x.npsVatsalyaAccessReview?.multipleNavFrameworkReview!==undefined)
   || research.entries.some(x=> nbfcDepositIds.has(x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
       || x.nbfcPublicDepositAccessReview?.officialRbiDirectionsUrl!=='https://rbi.org.in/scripts/NotificationUser.aspx?Id=10563'
@@ -278,6 +295,13 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('CONSERVATIVE_PROFILE_REQUIRES_ACTUAL_SCHEME_RISK_REVIEW');
    if(row.id.startsWith('catalog_2026_nps_')) {
      reasons.push('NPS_ALLOCATION_EXIT_AND_AGE_RULES_REQUIRE_SCHEME_REVIEW');
+     reasons.push('NPS_MULTIPLE_NAV_FEE_SECTOR_AND_CHANNEL_NOT_INDIVIDUALLY_VERIFIED');
+     if(profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_NPS_APPLICABLE_NAV_FEES_AND_EXIT_VALUE_REVIEW');
+     if(profile.investmentGoals.includes('Tax Saving'))
+       reasons.push(row.id==='catalog_2026_nps_vatsalya'
+         ? 'TAX_SAVING_GOAL_REQUIRES_NPS_VATSALYA_FY_AND_GUARDIAN_TAX_RULE_REVIEW'
+         : 'TAX_SAVING_GOAL_REQUIRES_NPS_TIER_AND_CURRENT_FY_TAX_REGIME_REVIEW');
      if(row.id === 'catalog_2026_nps_vatsalya') {
        reasons.push('NPS_VATSALYA_MINOR_GUARDIAN_KYC_AND_AGE_18_TRANSITION_REQUIRE_REVIEW');
        reasons.push('NPS_VATSALYA_PFRDA_2026_THREE_YEAR_RESTRICTED_WITHDRAWAL_AND_FRESH_KYC_REVIEW');
