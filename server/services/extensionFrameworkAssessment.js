@@ -964,6 +964,21 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(row.fundOfFundsCategoryReview)
        reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FOF_UNDERLYING_RISK_AND_REDEMPTION_REVIEW');
    }
+   // These are profile-fact notices, not an assessment of personal eligibility.
+   // A recorded zero-month emergency buffer makes issuer credit, resale spreads,
+   // property-unit liquidity and underlying silver-fund NAV/exit risks relevant.
+   // Do not infer missing emergency-fund data means zero coverage.
+   if(profile.emergencyFundMonths===0){
+     if(row.debtInstrumentReview)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_ISSUER_REPAYMENT_AND_RESALE_REVIEW');
+     if(row.id==='catalog_2026_physical_gold_bullion'
+       ||row.id==='catalog_2026_physical_silver_bullion')
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PHYSICAL_BULLION_RESALE_SPREAD_AND_CUSTODY_REVIEW');
+     if(row.id==='catalog_2026_sm_reit_scheme')
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_UNIT_LIQUIDITY_AND_EXIT_REVIEW');
+     if(row.id==='catalog_2026_silver_fof')
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SILVER_FOF_NAV_AND_REDEMPTION_REVIEW');
+   }
    return {
      id:row.id,
      profileAssessment:'MISSING_SUITABILITY_EVIDENCE',

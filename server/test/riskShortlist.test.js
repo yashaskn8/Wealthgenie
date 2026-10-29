@@ -1307,3 +1307,48 @@ test('zero emergency buffer adds source-specific non-ranking MF and ETF liquidit
  assert.ok(zero.every(row=>row.productQualified===false&&row.scoreAvailable===false
   &&row.productRiskLevel===null&&row.profileAssessment==='MISSING_SUITABILITY_EVIDENCE'));
 });
+
+test('zero emergency buffer flags debt, bullion, SM REIT and silver FoF exit risks without product approval',()=>{
+ const groups=[
+  [['ncd_secured','ncd_unsecured','ncd_unlisted','bond_subordinated','bond_perpetual',
+    'bond_corporate_floating','bond_corporate_zero','bond_convertible','psu_bond_taxable',
+    'infra_corporate_bond','commercial_paper'],
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_ISSUER_REPAYMENT_AND_RESALE_REVIEW'],
+  [['physical_gold_bullion','physical_silver_bullion'],
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PHYSICAL_BULLION_RESALE_SPREAD_AND_CUSTODY_REVIEW'],
+  [['sm_reit_scheme'],
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_UNIT_LIQUIDITY_AND_EXIT_REVIEW'],
+  [['silver_fof'],
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SILVER_FOF_NAV_AND_REDEMPTION_REVIEW'],
+ ];
+ const make=months=>screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:months,investmentGoals:['Wealth Growth'],
+  investmentHorizonYears:10,riskTolerance:'Aggressive',
+ }));
+ const zero=make(0),missing=make(null),positive=make(6);
+ const byId=rows=>new Map(rows.map(row=>[row.id,row]));
+ const z=byId(zero),m=byId(missing),p=byId(positive);
+ const seen=new Set();
+ for(const [ids,notice] of groups){
+  for(const suffix of ids){
+   const id='catalog_2026_'+suffix;
+   assert.ok(!seen.has(id),id+' duplicate');
+   seen.add(id);
+   assert.ok(z.get(id).screeningReasonCodes.includes(notice),id+' zero');
+   assert.ok(!m.get(id).screeningReasonCodes.includes(notice),id+' missing');
+   assert.ok(!p.get(id).screeningReasonCodes.includes(notice),id+' positive');
+   assert.equal(z.get(id).profileAssessment,'MISSING_SUITABILITY_EVIDENCE',id);
+   assert.equal(z.get(id).scoreAvailable,false,id);
+   assert.equal(z.get(id).productQualified,false,id);
+   assert.equal(z.get(id).productRiskLevel,null,id);
+  }
+ }
+ assert.equal(seen.size,15);
+ const notices=groups.map(group=>group[1]);
+ for(const id of ['catalog_2026_po_savings','catalog_2026_bank_rd',
+  'catalog_2026_nps_vatsalya','catalog_2026_index_nifty100']){
+  assert.ok(notices.every(code=>!z.get(id).screeningReasonCodes.includes(code)),id);
+ }
+ assert.equal(zero.length,95);
+ assert.equal(new Set(zero.map(row=>row.id)).size,95);
+});
