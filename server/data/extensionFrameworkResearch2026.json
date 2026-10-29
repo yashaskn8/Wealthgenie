@@ -1950,7 +1950,7 @@
       "scenarioDescription": "Nifty India Defence Index-Tracking Fund Strategy: Thematic Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1970,7 +1970,16 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "thematicIndexReview": {
+        "theme": "Defence",
+        "officialIndexStructure": "Nifty Total Market eligible basic industries or at least 10% defence revenue; selection by six-month average free-float market capitalisation; free-float weighting with 20% stock cap.",
+        "categoryRisks": "Policy/procurement sensitivity, thematic concentration, equity drawdowns and index tracking error.",
+        "investorAccessAndEligibility": "Index methodology is not proof of a purchasable fund; require verified scheme/ISIN, KYC and applicable account access, issuer riskometer, current NAV or price and rights before product-level display.",
+        "financialProfileScreening": "When supplied profile indicates short horizon, emergency liquidity need or limited loss capacity, display non-ranking thematic equity drawdown warning; do not infer missing profile facts.",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
+        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION"
+      }
     },
     {
       "id": "catalog_2026_index_india_digital",
@@ -1978,7 +1987,7 @@
       "scenarioDescription": "Nifty India Digital Index-Tracking Fund Strategy: Thematic Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-digital",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -1998,7 +2007,16 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "thematicIndexReview": {
+        "theme": "Digital",
+        "officialIndexStructure": "Nifty 500 eligible stocks from defined digital-related basic industries; largest 30 by six-month average free-float market capitalisation; free-float weighting.",
+        "categoryRisks": "Technology/business-model disruption, valuation risk, thematic concentration and index tracking error.",
+        "investorAccessAndEligibility": "Index methodology is not proof of a purchasable fund; require verified scheme/ISIN, KYC and applicable account access, issuer riskometer, current NAV or price and rights before product-level display.",
+        "financialProfileScreening": "When supplied profile indicates short horizon, emergency liquidity need or limited loss capacity, display non-ranking thematic equity drawdown warning; do not infer missing profile facts.",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-digital",
+        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION"
+      }
     },
     {
       "id": "catalog_2026_index_india_consumption",
@@ -2006,7 +2024,7 @@
       "scenarioDescription": "Nifty India Consumption Index-Tracking Fund Strategy: Thematic Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2026,7 +2044,16 @@
         "reviewedOn": "2026-10-28",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "thematicIndexReview": {
+        "theme": "Consumption",
+        "officialIndexStructure": "Domestic consumption-oriented portfolio including consumer non-durables, healthcare, auto, telecom, pharmaceuticals, hotels and media; company domestic revenue condition stated by index provider.",
+        "categoryRisks": "Domestic demand cycles, cross-sector correlations, valuation and equity drawdown risk.",
+        "investorAccessAndEligibility": "Index methodology is not proof of a purchasable fund; require verified scheme/ISIN, KYC and applicable account access, issuer riskometer, current NAV or price and rights before product-level display.",
+        "financialProfileScreening": "When supplied profile indicates short horizon, emergency liquidity need or limited loss capacity, display non-ranking thematic equity drawdown warning; do not infer missing profile facts.",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
+        "scope": "INDEX_METHODOLOGY_ONLY_NOT_SCHEME_APPROVAL_OR_DATA_PERMISSION"
+      }
     },
     {
       "id": "catalog_2026_etf_nifty100",
