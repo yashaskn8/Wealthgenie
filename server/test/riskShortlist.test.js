@@ -711,3 +711,46 @@ test('NPS Vatsalya 2026 PFRDA facts produce only profile-supported, non-ranking 
    assert.ok(!long.screeningReasonCodes.includes(code),code);
  }
 });
+
+test('PFRDA April 2026 multiple-NAV fee variants remain unverified for all nine NPS categories',()=>{
+ const rows=listExtensionResearch().filter(x=>x.id.startsWith('catalog_2026_nps_'));
+ assert.equal(rows.length,9);
+ for(const row of rows){
+  const review=row.npsCommonSchemeReview||row.npsVatsalyaAccessReview;
+  const nav=review.multipleNavFrameworkReview;
+  assert.equal(nav.officialPfrdaNoticeUrl,'https://www.pfrda.org.in/w/implementation-of-multiple-navs-framework-w.e.f.-01st-april-2026');
+  assert.equal(nav.noticeIssuedOn,'2026-03-24');
+  assert.equal(nav.effectiveFrom,'2026-04-01');
+  assert.equal(nav.subscriberSectorAndChannelVerified,false);
+  assert.equal(nav.specificPensionFundNavVariantVerified,false);
+  assert.equal(nav.applicableFeesAndUnitsVerified,false);
+  assert.equal(nav.commercialNavReuseRightsVerified,false);
+  assert.equal(row.productRiskScore,null);
+  assert.equal(row.actualRetailProductEligible,false);
+ }
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:2,investmentGoals:['Tax Saving'],
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+ }));
+ for(const row of rows){
+  const a=short.find(x=>x.id===row.id),b=long.find(x=>x.id===row.id);
+  for(const result of [a,b]){
+   assert.ok(result.screeningReasonCodes.includes(
+    'NPS_MULTIPLE_NAV_FEE_SECTOR_AND_CHANNEL_NOT_INDIVIDUALLY_VERIFIED'));
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+  }
+  assert.ok(a.screeningReasonCodes.includes(
+   'SHORT_HORIZON_REQUIRES_NPS_APPLICABLE_NAV_FEES_AND_EXIT_VALUE_REVIEW'));
+  assert.ok(!b.screeningReasonCodes.includes(
+   'SHORT_HORIZON_REQUIRES_NPS_APPLICABLE_NAV_FEES_AND_EXIT_VALUE_REVIEW'));
+  const taxCode=row.id==='catalog_2026_nps_vatsalya'
+   ? 'TAX_SAVING_GOAL_REQUIRES_NPS_VATSALYA_FY_AND_GUARDIAN_TAX_RULE_REVIEW'
+   : 'TAX_SAVING_GOAL_REQUIRES_NPS_TIER_AND_CURRENT_FY_TAX_REGIME_REVIEW';
+  assert.ok(a.screeningReasonCodes.includes(taxCode));
+  assert.ok(!b.screeningReasonCodes.includes(taxCode));
+ }
+});
