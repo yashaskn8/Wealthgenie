@@ -565,3 +565,46 @@ test('six sourced NSE factor index archetypes remain non-ranking with profile-de
  }
  assert.equal(rows.filter(x=>x.indexBenchmarkReview).length,11);
 });
+
+
+test('five individually reviewed ETF benchmarks remain unqualified with fact-based profile screening',()=>{
+ const urls={"catalog_2026_etf_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_etf_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_etf_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250","catalog_2026_etf_nifty50_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","catalog_2026_etf_nifty100_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight"};
+ const rows=listExtensionResearch();
+ const conservative=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund']}));
+ const aggressive=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement']}));
+ assert.equal(rows.filter(x=>x.etfBenchmarkReview).length,5);
+ for(const [id,url] of Object.entries(urls)){
+  const row=rows.find(x=>x.id===id),review=row.etfBenchmarkReview;
+  assert.equal(row.referenceReviewedAt,'2026-10-29');
+  assert.equal(review.officialNseIndexUrl,url);
+  assert.equal(row.verifiedPublicFrameworkFact.officialSourceUrl,url);
+  assert.equal(review.officialSebiEtfInvestorEducationUrl,'https://investor.sebi.gov.in/exchange_traded_fund.html');
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2);
+  for(const key of ['specificListedEtfAndAmcVerified','exchangeTickerAndIsinVerified',
+   'currentSchemeRiskometerVerified','currentNavInavAndExchangeQuoteVerified',
+   'currentSidKimFeesTrackingAndLiquidityVerified','brokerDematKycAndRetailAccessVerified',
+   'independentCommercialDataRightsVerified','taxTreatmentAndAdviceAuthorizationVerified',
+   'individualSuitabilityVerified'])assert.equal(review[key],false,id+':'+key);
+  const short=conservative.find(x=>x.id===id),long=aggressive.find(x=>x.id===id);
+  for(const result of [short,long]){
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.ok(result.screeningReasonCodes.includes('ETF_INDEX_BENCHMARK_NOT_VERIFIED_AS_A_LISTED_PRODUCT'));
+   assert.ok(result.screeningReasonCodes.includes('ETF_EXCHANGE_SPREAD_PREMIUM_DISCOUNT_TRACKING_AND_SETTLEMENT_REVIEW'));
+  }
+  for(const code of ['SHORT_HORIZON_REQUIRES_ETF_EQUITY_DRAWDOWN_AND_EXIT_PRICE_REVIEW',
+   'EMERGENCY_FUND_REQUIRES_ETF_TRADING_AND_SETTLEMENT_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_ETF_EQUITY_LOSS_AND_SPREAD_CAPACITY_REVIEW']){
+   assert.ok(short.screeningReasonCodes.includes(code));
+   assert.ok(!long.screeningReasonCodes.includes(code));
+  }
+ }
+ assert.ok(conservative.find(x=>x.id==='catalog_2026_etf_smallcap250').screeningReasonCodes
+  .includes('SMALLCAP_ETF_UNDERLYING_LIQUIDITY_AND_MARKET_DEPTH_REVIEW'));
+ assert.ok(conservative.find(x=>x.id==='catalog_2026_etf_nifty100_equal').screeningReasonCodes
+  .includes('EQUAL_WEIGHT_ETF_REBALANCING_AND_RELATIVE_SIZE_EXPOSURE_REVIEW'));
+ rows.find(x=>x.id==='catalog_2026_etf_nifty100').etfBenchmarkReview.riskConsiderations.push('forged');
+ assert.ok(!listExtensionResearch().find(x=>x.id==='catalog_2026_etf_nifty100').etfBenchmarkReview.riskConsiderations.includes('forged'));
+});

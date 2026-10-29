@@ -393,3 +393,29 @@ test('six factor index directory rows isolate official methodology and retain pr
  assert.equal(fresh.frameworkResearch.indexBenchmarkReview.factorStrategyCode,'MOMENTUM_NIFTY500');
  assert.ok(!fresh.frameworkResearch.indexBenchmarkReview.riskConsiderations.includes('forged'));
 });
+
+
+test('five ETF category reviews expose isolated evidence without fabricated listing or quotes',()=>{
+ const ids=["catalog_2026_etf_nifty100","catalog_2026_etf_nifty500","catalog_2026_etf_smallcap250","catalog_2026_etf_nifty50_equal","catalog_2026_etf_nifty100_equal"];
+ const items=listFinancialDiscoveryDirectory().items;
+ assert.equal(items.filter(x=>x.frameworkResearch?.etfBenchmarkReview).length,5);
+ for(const id of ids){
+  const item=items.find(x=>x.id===id),review=item.frameworkResearch.etfBenchmarkReview;
+  assert.equal(review.reviewedOn,'2026-10-29');
+  assert.equal(review.officialNseIndexUrl,item.frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl);
+  assert.equal(review.specificListedEtfAndAmcVerified,false);
+  assert.equal(review.exchangeTickerAndIsinVerified,false);
+  assert.equal(review.currentNavInavAndExchangeQuoteVerified,false);
+  assert.equal(review.independentCommercialDataRightsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(v=>v===null));
+ }
+ const item=items.find(x=>x.id==='catalog_2026_etf_smallcap250');
+ item.frameworkResearch.etfBenchmarkReview.riskConsiderations.push('forged');
+ item.frameworkResearch.etfBenchmarkReview.specificListedEtfAndAmcVerified=true;
+ const fresh=listFinancialDiscoveryDirectory().items.find(x=>x.id===item.id);
+ assert.equal(fresh.frameworkResearch.etfBenchmarkReview.specificListedEtfAndAmcVerified,false);
+ assert.ok(!fresh.frameworkResearch.etfBenchmarkReview.riskConsiderations.includes('forged'));
+});

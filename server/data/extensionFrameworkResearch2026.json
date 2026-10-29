@@ -2031,10 +2031,10 @@
     {
       "id": "catalog_2026_etf_nifty100",
       "exposureClass": "EQUITY_INDEX_TRACKING_AND_MARKET_LOSS",
-      "scenarioDescription": "Nifty 100 Index ETF Strategy: Broad Market ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 100 Index ETF Strategy: Broad Market ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices independently describes the Nifty 100 benchmark; this archetype does not establish a named listed ETF, riskometer, current NAV/quote, investor eligibility or suitability.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2048,21 +2048,50 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty 100",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty 100",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "100 large-cap companies from Nifty 500; Nifty 50 plus Nifty Next 50",
+        "etfStructure": "Exchange-traded passive fund archetype; trading price may differ from NAV; actual listing unverified",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Equity market losses and large-company concentration",
+          "ETF trading spread, tracking differences and premium or discount to NAV"
+        ],
+        "investorAccessConstraints": [
+          "Identify actual AMC ETF, exchange ticker, ISIN, SID/KIM and scheme riskometer",
+          "Verify KYC, demat and brokerage access, charges, liquidity, iNAV and licensed quotes"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_nifty500",
       "exposureClass": "EQUITY_INDEX_TRACKING_AND_MARKET_LOSS",
-      "scenarioDescription": "Nifty 500 Index ETF Strategy: Broad Market ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 500 Index ETF Strategy: Broad Market ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices independently describes the Nifty 500 benchmark; this archetype does not establish a named listed ETF, riskometer, current NAV/quote, investor eligibility or suitability.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2076,21 +2105,50 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty 500",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty 500",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "500 companies selected from eligible universe using full market capitalization and average daily turnover",
+        "etfStructure": "Exchange-traded passive fund archetype; trading price may differ from NAV; actual listing unverified",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Large-, mid- and smaller-company equity losses and constituent liquidity",
+          "ETF tracking differences, bid-ask spreads and market-price versus NAV differences"
+        ],
+        "investorAccessConstraints": [
+          "Verify named AMC ETF, ticker, ISIN, SID/KIM and current riskometer",
+          "Verify broker/demat/KYC access, market depth, fees, iNAV and commercial quote rights"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_smallcap250",
       "exposureClass": "SMALL_MID_CAP_EQUITY_VOLATILITY",
-      "scenarioDescription": "Nifty Smallcap 250 Index ETF Strategy: Broad Market ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty Smallcap 250 Index ETF Strategy: Broad Market ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices independently describes the Nifty Smallcap 250 benchmark; this archetype does not establish a named listed ETF, riskometer, current NAV/quote, investor eligibility or suitability.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2104,21 +2162,50 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty Smallcap 250",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty Smallcap 250",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "250 companies ranked 251 to 500 from the Nifty 500",
+        "etfStructure": "Exchange-traded passive fund archetype; trading price may differ from NAV; actual listing unverified",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Small-company equity drawdowns and underlying constituent liquidity",
+          "Potentially wide ETF spreads, tracking differences and NAV deviations"
+        ],
+        "investorAccessConstraints": [
+          "Verify named ETF, AMC, exchange ticker, ISIN, SID/KIM and riskometer",
+          "Verify demat/KYC access, trading depth, iNAV, settlement and licensed quotes"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_nifty50_equal",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty 50 Equal Weight ETF Strategy: Equal Weight ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 50 Equal Weight ETF Strategy: Equal Weight ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices independently describes the Nifty50 Equal Weight benchmark; this archetype does not establish a named listed ETF, riskometer, current NAV/quote, investor eligibility or suitability.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2132,21 +2219,50 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty50 Equal Weight",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty50 Equal Weight",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "Nifty 50 parent constituents assigned equal weights instead of capitalization weights",
+        "etfStructure": "Exchange-traded passive fund archetype; trading price may differ from NAV; actual listing unverified",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Equal-weight rebalancing and relative company-size exposure",
+          "Equity losses, trading spreads and ETF price-to-NAV differences"
+        ],
+        "investorAccessConstraints": [
+          "Verify named listed ETF, AMC, ticker, ISIN, SID/KIM and riskometer",
+          "Verify demat/KYC, brokerage charges, iNAV, liquidity and authorized quotes"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_nifty100_equal",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty 100 Equal Weight ETF Strategy: Equal Weight ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 100 Equal Weight ETF Strategy: Equal Weight ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices independently describes the Nifty100 Equal Weight benchmark; this archetype does not establish a named listed ETF, riskometer, current NAV/quote, investor eligibility or suitability.",
       "referenceUrl": "https://www.niftyindices.com/resources/index-methodology",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2160,13 +2276,42 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
-        "value": "Nifty 100 Equal Weight",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
+        "value": "Nifty100 Equal Weight",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty100 Equal Weight",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "Nifty 100 parent constituents assigned equal weights at rebalancing",
+        "etfStructure": "Exchange-traded passive fund archetype; trading price may differ from NAV; actual listing unverified",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Equal weighting increases relative exposure to smaller constituents and turnover",
+          "Equity losses, ETF trading depth, spreads and premium or discount to NAV"
+        ],
+        "investorAccessConstraints": [
+          "First independently establish whether an Indian-listed ETF exists; index methodology alone is not a listed product",
+          "Then verify issuer, ticker, ISIN, SID/KIM, riskometer, KYC/demat, charges, iNAV and quote rights"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_nifty200_quality",

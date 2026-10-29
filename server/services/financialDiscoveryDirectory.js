@@ -150,6 +150,8 @@ function buildDirectory() {
           ? structuredClone(research.npsCommonSchemeReview) : null,
         indexBenchmarkReview: research.indexBenchmarkReview
           ? structuredClone(research.indexBenchmarkReview) : null,
+        etfBenchmarkReview: research.etfBenchmarkReview
+          ? structuredClone(research.etfBenchmarkReview) : null,
         governmentBondStructureReview: research.governmentBondStructureReview
           ? { ...research.governmentBondStructureReview } : null,
       };
@@ -211,6 +213,8 @@ export function listFinancialDiscoveryDirectory() {
           ? structuredClone(item.frameworkResearch.npsCommonSchemeReview) : null,
         indexBenchmarkReview: item.frameworkResearch.indexBenchmarkReview
           ? structuredClone(item.frameworkResearch.indexBenchmarkReview) : null,
+        etfBenchmarkReview: item.frameworkResearch.etfBenchmarkReview
+          ? structuredClone(item.frameworkResearch.etfBenchmarkReview) : null,
         governmentBondStructureReview: item.frameworkResearch.governmentBondStructureReview
           ? { ...item.frameworkResearch.governmentBondStructureReview } : null,
       } : null,

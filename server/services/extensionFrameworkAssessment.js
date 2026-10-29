@@ -27,6 +27,8 @@ const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https
 const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
 const nseFactorIndexSpecs=Object.freeze({"catalog_2026_index_nifty50_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","code":"EQUAL_WEIGHT_NIFTY50"},"catalog_2026_index_nifty100_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight","code":"EQUAL_WEIGHT_NIFTY100"},"catalog_2026_index_nifty200_quality":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","code":"QUALITY_SCORE_NIFTY200"},"catalog_2026_index_nifty_lowvol":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-low-volatility","code":"LOW_VOLATILITY_NIFTY100"},"catalog_2026_index_nifty500_momentum":{"url":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","code":"MOMENTUM_NIFTY500"},"catalog_2026_index_nifty500_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight","code":"EQUAL_WEIGHT_NIFTY500"}});
 const nseIndexPages=Object.freeze({...nseBroadIndexPages,...Object.fromEntries(Object.entries(nseFactorIndexSpecs).map(([id,x])=>[id,x.url]))});
+const nseEquityEtfBenchmarks=Object.freeze({"catalog_2026_etf_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_etf_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_etf_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250","catalog_2026_etf_nifty50_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","catalog_2026_etf_nifty100_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight"});
+const sebiEtfInvestorEducationUrl="https://investor.sebi.gov.in/exchange_traded_fund.html";
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -165,6 +167,26 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || typeof x.indexBenchmarkReview?.factorMethodology!=='string'
       || x.indexBenchmarkReview.factorMethodology.length<35)
     : x.indexBenchmarkReview?.factorStrategyCode!==undefined)
+  || research.entries.some(x=>Object.hasOwn(nseEquityEtfBenchmarks,x.id)
+    ? (x.referenceReviewedAt!=='2026-10-29'
+      || x.etfBenchmarkReview?.officialNseIndexUrl!==nseEquityEtfBenchmarks[x.id]
+      || x.etfBenchmarkReview?.officialSebiEtfInvestorEducationUrl!==sebiEtfInvestorEducationUrl
+      || x.etfBenchmarkReview?.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
+      || x.etfBenchmarkReview?.sebiMutualFundRegulationsLastAmendedOn!=='2026-10-10'
+      || x.etfBenchmarkReview?.reviewedOn!=='2026-10-29'
+      || x.etfBenchmarkReview?.sourceScope!=='OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY'
+      || x.verifiedPublicFrameworkFact?.officialSourceUrl!==nseEquityEtfBenchmarks[x.id]
+      || x.verifiedPublicFrameworkFact?.factCode!=='OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY'
+      || !Array.isArray(x.etfBenchmarkReview?.riskConsiderations)
+      || x.etfBenchmarkReview.riskConsiderations.length<2
+      || !Array.isArray(x.etfBenchmarkReview?.investorAccessConstraints)
+      || x.etfBenchmarkReview.investorAccessConstraints.length<2
+      || ['specificListedEtfAndAmcVerified','exchangeTickerAndIsinVerified',
+        'currentSchemeRiskometerVerified','currentNavInavAndExchangeQuoteVerified',
+        'currentSidKimFeesTrackingAndLiquidityVerified','brokerDematKycAndRetailAccessVerified',
+        'independentCommercialDataRightsVerified','taxTreatmentAndAdviceAuthorizationVerified',
+        'individualSuitabilityVerified'].some(k=>x.etfBenchmarkReview[k]!==false))
+    : x.etfBenchmarkReview!==undefined)
   || research.entries.some(x=>Object.hasOwn(npsCommonChoiceSpecs,x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
       || x.npsCommonSchemeReview?.choiceCode!==npsCommonChoiceSpecs[x.id].choiceCode
@@ -334,6 +356,21 @@ export function screenExtensionResearchForProfile(profileInput) {
        if(profile.riskTolerance==='Conservative')
          reasons.push('CONSERVATIVE_PROFILE_REQUIRES_FACTOR_STRATEGY_LOSS_CAPACITY_REVIEW');
      }
+   }
+   if(row.etfBenchmarkReview) {
+     reasons.push('ETF_INDEX_BENCHMARK_NOT_VERIFIED_AS_A_LISTED_PRODUCT');
+     reasons.push('ETF_TICKER_ISIN_RISKOMETER_NAV_INAV_KYC_AND_DATA_RIGHTS_UNVERIFIED');
+     reasons.push('ETF_EXCHANGE_SPREAD_PREMIUM_DISCOUNT_TRACKING_AND_SETTLEMENT_REVIEW');
+     if(row.id==='catalog_2026_etf_smallcap250')
+       reasons.push('SMALLCAP_ETF_UNDERLYING_LIQUIDITY_AND_MARKET_DEPTH_REVIEW');
+     if(row.id.endsWith('_equal'))
+       reasons.push('EQUAL_WEIGHT_ETF_REBALANCING_AND_RELATIVE_SIZE_EXPOSURE_REVIEW');
+     if(profile.investmentHorizonYears<3)
+       reasons.push('SHORT_HORIZON_REQUIRES_ETF_EQUITY_DRAWDOWN_AND_EXIT_PRICE_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_ETF_TRADING_AND_SETTLEMENT_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_ETF_EQUITY_LOSS_AND_SPREAD_CAPACITY_REVIEW');
    }
    if(row.nbfcPublicDepositAccessReview) {
      reasons.push('NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED');
