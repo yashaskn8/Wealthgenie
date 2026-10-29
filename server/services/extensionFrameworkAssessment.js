@@ -27,7 +27,8 @@ const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https
 const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
 const nseFactorIndexSpecs=Object.freeze({"catalog_2026_index_nifty50_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","code":"EQUAL_WEIGHT_NIFTY50"},"catalog_2026_index_nifty100_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight","code":"EQUAL_WEIGHT_NIFTY100"},"catalog_2026_index_nifty200_quality":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","code":"QUALITY_SCORE_NIFTY200"},"catalog_2026_index_nifty_lowvol":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-low-volatility","code":"LOW_VOLATILITY_NIFTY100"},"catalog_2026_index_nifty500_momentum":{"url":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","code":"MOMENTUM_NIFTY500"},"catalog_2026_index_nifty500_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight","code":"EQUAL_WEIGHT_NIFTY500"}});
 const nseIndexPages=Object.freeze({...nseBroadIndexPages,...Object.fromEntries(Object.entries(nseFactorIndexSpecs).map(([id,x])=>[id,x.url]))});
-const nseEquityEtfBenchmarks=Object.freeze({"catalog_2026_etf_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_etf_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_etf_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250","catalog_2026_etf_nifty50_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","catalog_2026_etf_nifty100_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight"});
+const nseEquityEtfBenchmarks=Object.freeze({"catalog_2026_etf_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_etf_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_etf_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250","catalog_2026_etf_nifty50_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","catalog_2026_etf_nifty100_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight","catalog_2026_etf_nifty200_quality":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","catalog_2026_etf_nifty500_lowvol":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50","catalog_2026_etf_nifty500_momentum":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","catalog_2026_etf_india_defence":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence","catalog_2026_etf_india_consumption":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption"});
+const nseAdditionalEtfBenchmarks=Object.freeze({"catalog_2026_etf_nifty200_quality":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","code":"QUALITY_FACTOR_NIFTY200"},"catalog_2026_etf_nifty500_lowvol":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50","code":"LOW_VOLATILITY_FACTOR_NIFTY500"},"catalog_2026_etf_nifty500_momentum":{"url":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","code":"MOMENTUM_FACTOR_NIFTY500"},"catalog_2026_etf_india_defence":{"url":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence","code":"DEFENCE_THEME"},"catalog_2026_etf_india_consumption":{"url":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption","code":"DOMESTIC_CONSUMPTION_THEME"}});
 const sebiEtfInvestorEducationUrl="https://investor.sebi.gov.in/exchange_traded_fund.html";
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
@@ -187,6 +188,10 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
         'independentCommercialDataRightsVerified','taxTreatmentAndAdviceAuthorizationVerified',
         'individualSuitabilityVerified'].some(k=>x.etfBenchmarkReview[k]!==false))
     : x.etfBenchmarkReview!==undefined)
+  || research.entries.some(x=>Object.hasOwn(nseAdditionalEtfBenchmarks,x.id)
+    ? (x.etfBenchmarkReview?.factorOrThemeCode!==nseAdditionalEtfBenchmarks[x.id].code
+      || x.etfBenchmarkReview?.officialNseIndexUrl!==nseAdditionalEtfBenchmarks[x.id].url)
+    : x.etfBenchmarkReview?.factorOrThemeCode!==undefined)
   || research.entries.some(x=>Object.hasOwn(npsCommonChoiceSpecs,x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
       || x.npsCommonSchemeReview?.choiceCode!==npsCommonChoiceSpecs[x.id].choiceCode
@@ -365,6 +370,15 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('SMALLCAP_ETF_UNDERLYING_LIQUIDITY_AND_MARKET_DEPTH_REVIEW');
      if(row.id.endsWith('_equal'))
        reasons.push('EQUAL_WEIGHT_ETF_REBALANCING_AND_RELATIVE_SIZE_EXPOSURE_REVIEW');
+     switch(row.etfBenchmarkReview.factorOrThemeCode) {
+       case 'QUALITY_FACTOR_NIFTY200': reasons.push('ETF_QUALITY_ACCOUNTING_FACTOR_AND_30_STOCK_CONCENTRATION_REVIEW'); break;
+       case 'LOW_VOLATILITY_FACTOR_NIFTY500': reasons.push('ETF_HISTORICAL_LOW_VOLATILITY_IS_NOT_DOWNSIDE_PROTECTION'); break;
+       case 'MOMENTUM_FACTOR_NIFTY500': reasons.push('ETF_MOMENTUM_REVERSAL_AND_RECONSTITUTION_TURNOVER_REVIEW'); break;
+       case 'DEFENCE_THEME': reasons.push('ETF_DEFENCE_THEME_CONTRACT_POLICY_AND_SECTOR_CONCENTRATION_REVIEW'); break;
+       case 'DOMESTIC_CONSUMPTION_THEME': reasons.push('ETF_CONSUMPTION_THEME_DOMESTIC_DEMAND_AND_SECTOR_EXPOSURE_REVIEW'); break;
+     }
+     if(row.etfBenchmarkReview.factorOrThemeCode && profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_FACTOR_OR_THEME_ETF_LOSS_CAPACITY_REVIEW');
      if(profile.investmentHorizonYears<3)
        reasons.push('SHORT_HORIZON_REQUIRES_ETF_EQUITY_DRAWDOWN_AND_EXIT_PRICE_REVIEW');
      if(profile.investmentGoals.includes('Emergency Fund'))

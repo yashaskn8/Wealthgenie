@@ -608,3 +608,30 @@ test('five individually reviewed ETF benchmarks remain unqualified with fact-bas
  rows.find(x=>x.id==='catalog_2026_etf_nifty100').etfBenchmarkReview.riskConsiderations.push('forged');
  assert.ok(!listExtensionResearch().find(x=>x.id==='catalog_2026_etf_nifty100').etfBenchmarkReview.riskConsiderations.includes('forged'));
 });
+
+
+test('five additional ETF factor and thematic categories remain unqualified with profile-dependent notices',()=>{
+ const specs={"catalog_2026_etf_nifty200_quality":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","code":"QUALITY_FACTOR_NIFTY200"},"catalog_2026_etf_nifty500_lowvol":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50","code":"LOW_VOLATILITY_FACTOR_NIFTY500"},"catalog_2026_etf_nifty500_momentum":{"url":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","code":"MOMENTUM_FACTOR_NIFTY500"},"catalog_2026_etf_india_defence":{"url":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence","code":"DEFENCE_THEME"},"catalog_2026_etf_india_consumption":{"url":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption","code":"DOMESTIC_CONSUMPTION_THEME"}};
+ const reasonCodes={QUALITY_FACTOR_NIFTY200:'ETF_QUALITY_ACCOUNTING_FACTOR_AND_30_STOCK_CONCENTRATION_REVIEW',LOW_VOLATILITY_FACTOR_NIFTY500:'ETF_HISTORICAL_LOW_VOLATILITY_IS_NOT_DOWNSIDE_PROTECTION',MOMENTUM_FACTOR_NIFTY500:'ETF_MOMENTUM_REVERSAL_AND_RECONSTITUTION_TURNOVER_REVIEW',DEFENCE_THEME:'ETF_DEFENCE_THEME_CONTRACT_POLICY_AND_SECTOR_CONCENTRATION_REVIEW',DOMESTIC_CONSUMPTION_THEME:'ETF_CONSUMPTION_THEME_DOMESTIC_DEMAND_AND_SECTOR_EXPOSURE_REVIEW'};
+ const rows=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund']}));
+ const long=screenExtensionResearchForProfile(canonicalProfile({riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement']}));
+ assert.equal(rows.filter(x=>x.etfBenchmarkReview).length,10);
+ for(const [id,spec] of Object.entries(specs)){
+  const r=rows.find(x=>x.id===id).etfBenchmarkReview;
+  assert.equal(r.officialNseIndexUrl,spec.url);assert.equal(r.factorOrThemeCode,spec.code);
+  assert.equal(r.reviewedOn,'2026-10-29');
+  assert.ok(r.riskConsiderations.length>=2&&r.investorAccessConstraints.length>=2);
+  for(const k of ['specificListedEtfAndAmcVerified','exchangeTickerAndIsinVerified','currentSchemeRiskometerVerified','currentNavInavAndExchangeQuoteVerified','currentSidKimFeesTrackingAndLiquidityVerified','brokerDematKycAndRetailAccessVerified','independentCommercialDataRightsVerified','taxTreatmentAndAdviceAuthorizationVerified','individualSuitabilityVerified'])assert.equal(r[k],false,id+':'+k);
+  const a=short.find(x=>x.id===id),b=long.find(x=>x.id===id);
+  for(const item of [a,b]){
+   assert.equal(item.productQualified,false);assert.equal(item.scoreAvailable,false);assert.equal(item.productRiskLevel,null);
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.ok(item.screeningReasonCodes.includes(reasonCodes[spec.code]));
+   assert.ok(item.screeningReasonCodes.includes('ETF_TICKER_ISIN_RISKOMETER_NAV_INAV_KYC_AND_DATA_RIGHTS_UNVERIFIED'));
+  }
+  for(const flag of ['SHORT_HORIZON_REQUIRES_ETF_EQUITY_DRAWDOWN_AND_EXIT_PRICE_REVIEW','EMERGENCY_FUND_REQUIRES_ETF_TRADING_AND_SETTLEMENT_LIQUIDITY_REVIEW','CONSERVATIVE_PROFILE_REQUIRES_FACTOR_OR_THEME_ETF_LOSS_CAPACITY_REVIEW']){
+   assert.ok(a.screeningReasonCodes.includes(flag));assert.ok(!b.screeningReasonCodes.includes(flag));
+  }
+ }
+});

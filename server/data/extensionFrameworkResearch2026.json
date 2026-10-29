@@ -2316,10 +2316,10 @@
     {
       "id": "catalog_2026_etf_nifty200_quality",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty 200 Quality 30 ETF Strategy: Factor ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty 200 Quality 30 ETF Strategy: Factor ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices documents the Nifty200 Quality 30 benchmark; this is not verification of an actual listed ETF, scheme riskometer, current price/NAV, retail access, data rights or suitability.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2333,21 +2333,51 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty200 Quality 30",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty200 Quality 30",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "30 Nifty 200 constituents selected by return on equity, debt/equity and five-year EPS variability; weights combine quality score and free-float market cap",
+        "factorOrThemeCode": "QUALITY_FACTOR_NIFTY200",
+        "etfStructure": "Exchange-traded passive fund archetype; individual issuer, listing and terms not verified in this research",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Accounting-quality metrics and 30-stock concentration do not prevent equity drawdowns",
+          "ETF tracking difference, bid-ask spread, market-price versus NAV and liquidity risks"
+        ],
+        "investorAccessConstraints": [
+          "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures",
+          "Verify personal KYC, demat and broker eligibility, current liquidity/NAV/iNAV, authorized market data rights, tax and advice permissions"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_nifty500_lowvol",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty500 Low Volatility 50 ETF Strategy: Factor ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty500 Low Volatility 50 ETF Strategy: Factor ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices documents the Nifty500 Low Volatility 50 benchmark; this is not verification of an actual listed ETF, scheme riskometer, current price/NAV, retail access, data rights or suitability.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2361,21 +2391,51 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty500 Low Volatility 50",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty500 Low Volatility 50",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "50 Nifty 500 constituents selected by one-year historical daily-return volatility; weights combine low-volatility score and free-float market cap",
+        "factorOrThemeCode": "LOW_VOLATILITY_FACTOR_NIFTY500",
+        "etfStructure": "Exchange-traded passive fund archetype; individual issuer, listing and terms not verified in this research",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Historical low volatility is not a capital guarantee or protection against future losses",
+          "ETF tracking difference, bid-ask spread, market-price versus NAV and liquidity risks"
+        ],
+        "investorAccessConstraints": [
+          "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures",
+          "Verify personal KYC, demat and broker eligibility, current liquidity/NAV/iNAV, authorized market data rights, tax and advice permissions"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_nifty500_momentum",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
-      "scenarioDescription": "Nifty500 Momentum 50 ETF Strategy: Factor ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty500 Momentum 50 ETF Strategy: Factor ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices documents the Nifty500 Momentum 50 benchmark; this is not verification of an actual listed ETF, scheme riskometer, current price/NAV, retail access, data rights or suitability.",
       "referenceUrl": "https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2389,21 +2449,51 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty500 Momentum 50",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty500 Momentum 50",
+        "officialNseIndexUrl": "https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "50 Nifty 500 constituents selected using volatility-adjusted six- and twelve-month price momentum; weights combine score and free-float market cap",
+        "factorOrThemeCode": "MOMENTUM_FACTOR_NIFTY500",
+        "etfStructure": "Exchange-traded passive fund archetype; individual issuer, listing and terms not verified in this research",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Momentum reversals and reconstitution turnover can cause significant equity drawdowns",
+          "ETF tracking difference, bid-ask spread, market-price versus NAV and liquidity risks"
+        ],
+        "investorAccessConstraints": [
+          "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures",
+          "Verify personal KYC, demat and broker eligibility, current liquidity/NAV/iNAV, authorized market data rights, tax and advice permissions"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_india_defence",
       "exposureClass": "SECTOR_CONCENTRATION_AND_EQUITY_LOSS",
-      "scenarioDescription": "Nifty India Defence ETF Strategy: Thematic ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty India Defence ETF Strategy: Thematic ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices documents the Nifty India Defence benchmark; this is not verification of an actual listed ETF, scheme riskometer, current price/NAV, retail access, data rights or suitability.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2417,21 +2507,51 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty India Defence",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty India Defence",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "Nifty Total Market defence-industry companies or companies with at least 10% defence revenue; free-float weights capped at 20%",
+        "factorOrThemeCode": "DEFENCE_THEME",
+        "etfStructure": "Exchange-traded passive fund archetype; individual issuer, listing and terms not verified in this research",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Defence-theme concentration and contract or policy sensitivity can cause equity losses",
+          "ETF tracking difference, bid-ask spread, market-price versus NAV and liquidity risks"
+        ],
+        "investorAccessConstraints": [
+          "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures",
+          "Verify personal KYC, demat and broker eligibility, current liquidity/NAV/iNAV, authorized market data rights, tax and advice permissions"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_etf_india_consumption",
       "exposureClass": "SECTOR_CONCENTRATION_AND_EQUITY_LOSS",
-      "scenarioDescription": "Nifty India Consumption ETF Strategy: Thematic ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Nifty India Consumption ETF Strategy: Thematic ETFs category. Examine actual issuer or scheme terms before assigning an investment risk rating. NSE Indices documents the Nifty India Consumption benchmark; this is not verification of an actual listed ETF, scheme riskometer, current price/NAV, retail access, data rights or suitability.",
       "referenceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": null,
+      "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -2445,13 +2565,43 @@
       "overallEvidence": "STRUCTURAL_CLASSIFICATION_ONLY_NOT_READY_FOR_RECOMMENDATION",
       "suitabilityRankingPermitted": false,
       "verifiedPublicFrameworkFact": {
-        "factCode": "OFFICIAL_INDEX_METHODOLGY_LISTS_NAMED_UNDERLYING",
+        "factCode": "OFFICIAL_NSE_ETF_UNDERLYING_INDEX_METHODOLOGY",
         "value": "Nifty India Consumption",
-        "officialSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
-        "reviewedOn": "2026-10-28",
+        "officialSourceUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
+        "reviewedOn": "2026-10-29",
         "scope": "PUBLIC_INDEX_METHODOLOGY_ONLY_NOT_AN_EXISTING_FUND_OR_ETF"
       },
-      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED"
+      "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
+      "etfBenchmarkReview": {
+        "benchmarkName": "Nifty India Consumption",
+        "officialNseIndexUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
+        "officialSebiEtfInvestorEducationUrl": "https://investor.sebi.gov.in/exchange_traded_fund.html",
+        "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+        "officialSebiMutualFundRegulationsListingUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListingLegal=yes&sid=1&ssid=3",
+        "sebiMutualFundRegulationsLastAmendedOn": "2026-10-10",
+        "reviewedOn": "2026-10-29",
+        "benchmarkConstituentStructure": "Companies in domestic consumption-related sectors, with more than 50% revenue from domestic markets",
+        "factorOrThemeCode": "DOMESTIC_CONSUMPTION_THEME",
+        "etfStructure": "Exchange-traded passive fund archetype; individual issuer, listing and terms not verified in this research",
+        "sourceScope": "OFFICIAL_BENCHMARK_AND_GENERAL_ETF_RULES_NOT_LISTED_PRODUCT_OR_PERSONAL_ELIGIBILITY",
+        "riskConsiderations": [
+          "Correlated domestic-demand, valuation and sector exposures persist despite multiple industries",
+          "ETF tracking difference, bid-ask spread, market-price versus NAV and liquidity risks"
+        ],
+        "investorAccessConstraints": [
+          "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures",
+          "Verify personal KYC, demat and broker eligibility, current liquidity/NAV/iNAV, authorized market data rights, tax and advice permissions"
+        ],
+        "specificListedEtfAndAmcVerified": false,
+        "exchangeTickerAndIsinVerified": false,
+        "currentSchemeRiskometerVerified": false,
+        "currentNavInavAndExchangeQuoteVerified": false,
+        "currentSidKimFeesTrackingAndLiquidityVerified": false,
+        "brokerDematKycAndRetailAccessVerified": false,
+        "independentCommercialDataRightsVerified": false,
+        "taxTreatmentAndAdviceAuthorizationVerified": false,
+        "individualSuitabilityVerified": false
+      }
     },
     {
       "id": "catalog_2026_nps_lc25",

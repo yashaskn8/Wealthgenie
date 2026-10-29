@@ -419,3 +419,26 @@ test('five ETF category reviews expose isolated evidence without fabricated list
  assert.equal(fresh.frameworkResearch.etfBenchmarkReview.specificListedEtfAndAmcVerified,false);
  assert.ok(!fresh.frameworkResearch.etfBenchmarkReview.riskConsiderations.includes('forged'));
 });
+
+
+test('five new ETF methodology records isolate source evidence and preserve product gates',()=>{
+ const ids=["catalog_2026_etf_nifty200_quality","catalog_2026_etf_nifty500_lowvol","catalog_2026_etf_nifty500_momentum","catalog_2026_etf_india_defence","catalog_2026_etf_india_consumption"];
+ const all=listFinancialDiscoveryDirectory().items;
+ assert.equal(all.filter(x=>x.frameworkResearch?.etfBenchmarkReview).length,10);
+ for(const id of ids){
+  const item=all.find(x=>x.id===id),r=item.frameworkResearch.etfBenchmarkReview;
+  assert.equal(r.reviewedOn,'2026-10-29');
+  assert.equal(r.officialNseIndexUrl,item.frameworkResearch.reviewedOfficialFrameworkFact.officialSourceUrl);
+  assert.ok(r.factorOrThemeCode);assert.equal(r.specificListedEtfAndAmcVerified,false);
+  assert.equal(r.currentSchemeRiskometerVerified,false);assert.equal(r.currentNavInavAndExchangeQuoteVerified,false);
+  assert.equal(r.independentCommercialDataRightsVerified,false);assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+ }
+ const changed=all.find(x=>x.id===ids[0]);
+ changed.frameworkResearch.etfBenchmarkReview.riskConsiderations.push('forged');
+ changed.frameworkResearch.etfBenchmarkReview.individualSuitabilityVerified=true;
+ const fresh=listFinancialDiscoveryDirectory().items.find(x=>x.id===ids[0]);
+ assert.equal(fresh.frameworkResearch.etfBenchmarkReview.individualSuitabilityVerified,false);
+ assert.ok(!fresh.frameworkResearch.etfBenchmarkReview.riskConsiderations.includes('forged'));
+});
