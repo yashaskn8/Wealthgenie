@@ -464,3 +464,30 @@ test('all 23 final category research reviews remain discovery-only and do not co
    assert.ok(review.investorAccessAndEligibility,item.id);
  }
 });
+
+test('PFRDA 2026 NPS Vatsalya facts are isolated and never qualify a subscriber or product',()=>{
+ const id='catalog_2026_nps_vatsalya';
+ const item=listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ const review=item.frameworkResearch.npsVatsalyaAccessReview;
+ assert.equal(review.officialPfrdaSchemeUrl,'https://pfrda.org.in/en/schemes/national-pension-system/nps-vatsalya');
+ assert.equal(review.reviewedOn,'2026-10-29');
+ assert.equal(review.minimumInitialContributionInr,250);
+ assert.equal(review.minimumAnnualContributionInr,250);
+ assert.equal(review.partialWithdrawalLockInYears,3);
+ assert.equal(review.partialWithdrawalMaximumPctOfOwnContributions,25);
+ assert.equal(review.freshSubscriberKycRequiredAtAge,18);
+ assert.equal(review.marketLinkedReturnsNotGuaranteed,true);
+ for(const key of ['specificPensionFundAndAllocationVerified','minorCitizenshipAgeGuardianKycVerified',
+   'currentNavFeesAndMarketRiskVerified','individualWithdrawalAndExitEligibilityVerified',
+   'commercialDataRightsVerified','investorTaxAndAdviceAuthorizationVerified',
+   'individualSuitabilityVerified'])assert.equal(review[key],false,key);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.equal(item.frameworkResearch.actualRiskScore,null);
+ review.riskConsiderations.push('forged');
+ review.individualSuitabilityVerified=true;
+ const fresh=listFinancialDiscoveryDirectory().items.find(x=>x.id===id).frameworkResearch.npsVatsalyaAccessReview;
+ assert.equal(fresh.individualSuitabilityVerified,false);
+ assert.ok(!fresh.riskConsiderations.includes('forged'));
+});
