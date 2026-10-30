@@ -7254,7 +7254,7 @@
     {
       "id": "catalog_2026_silver_fof",
       "exposureClass": "SILVER_COMMODITY_AND_FOF_COST",
-      "scenarioDescription": "Silver ETF Fund of Funds strategy: an illustrative mutual-fund category investing through an underlying silver ETF, not an identified purchasable FoF. October 2026 SEBI mutual-fund regulations and November 2024 scheme-level risk-o-meter and plan-expense disclosures do not authenticate a named FoF, its underlying ETF, current riskometers, NAV, fees, investor access, or advice and data permissions.",
+      "scenarioDescription": "Silver ETF Fund of Funds Strategy: an illustrative mutual-fund category investing through an underlying silver ETF, not an identified purchasable FoF. October 2026 SEBI mutual-fund regulations and November 2024 scheme-level risk-o-meter and plan-expense disclosures do not authenticate a named FoF, its underlying ETF, current riskometers, NAV, fees, investor access, or advice and data permissions.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
       "referenceReviewedAt": "2026-10-30",

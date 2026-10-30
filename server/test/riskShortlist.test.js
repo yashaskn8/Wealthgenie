@@ -1916,6 +1916,7 @@ test('silver ETF FoF has separate current scheme-risk and October 2026 regulator
  const id='catalog_2026_silver_fof';
  const get=()=>listExtensionResearch().find(row=>row.id===id);
  const evidence=get().preciousMetalsCategoryReview.october2026MutualFundRiskDisclosureReview;
+ assert.ok(get().scenarioDescription.includes('Silver ETF Fund of Funds Strategy'));
  assert.equal(evidence.regulationsInForceFrom,'2026-04-01');
  assert.equal(evidence.regulationsLastAmendedOn,'2026-10-10');
  assert.equal(evidence.riskometerCircularIssuedOn,'2024-11-05');
