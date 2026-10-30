@@ -251,12 +251,46 @@
         "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
         "riskConsiderations": [
           "A Treasury Bill sold before maturity may realize a different price; the RBI FAQ warns of government-security market risk on early sale.",
-          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed."
+          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed.",
+          "The 91-day bill's zero-coupon discount structure means there is no interim coupon to fund cash needs."
         ],
         "investorAccessConstraints": [
           "The RBI Retail Direct FAQ requires an eligible individual with an Indian rupee savings bank account, PAN, valid KYC document, email and registered mobile; individual onboarding is unverified.",
-          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission."
-        ]
+          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission.",
+          "The RBI FAQ's Rs 10,000 minimum is dated November 2021; auction allotment, current minimum, applicant KYC and provider data rights require fresh verification."
+        ],
+        "retailDirectAuctionMechanics2021Review": {
+          "officialRbiRetailDirectFaqUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+          "officialRbiGovernmentSecuritiesPrimerUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+          "faqPublishedOn": "2021-11-12",
+          "primerPublishedOn": "2020-04-01",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "HISTORICAL_RBI_RETAIL_DIRECT_FAQ_AND_SECURITY_STRUCTURE_NOT_CURRENT_AUCTION_OR_INVESTOR_APPROVAL",
+          "structureType": "91_DAY_DISCOUNT_TREASURY_BILL",
+          "categoryInterpretation": "The 91-day Treasury Bill is a discount-to-face-value central-government cash flow with no interim coupon; auction allotment and early-sale proceeds are not known for an actual issue.",
+          "historicalFaqMinimumInvestmentInr": 10000,
+          "minimumFigureAsOf": "2021-11-12",
+          "historicalMinimumIsVerifiedCurrentIssueMinimum": false,
+          "primaryAuctionBiddingIsNoncompetitiveOnly": true,
+          "primaryAuctionAllotmentPriceUnknownAtBid": true,
+          "bidsRequireFundingBeforeRbiSubmission": true,
+          "partialAuctionAllotmentPossible": true,
+          "secondaryMarketSaleRequiresSecurityHolding": true,
+          "zeroCouponDiscountCashFlow": true,
+          "actualAuctionAndIssueIsinVerified": false,
+          "applicantRdgKycAndChannelVerified": false,
+          "currentMinimumAndBidTermsVerified": false,
+          "currentExecutablePriceAndResaleLiquidityVerified": false,
+          "commercialMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The 91-day zero-coupon bill has no interim income; its actual auction discount, allocation and redemption cash flow are unverified.",
+            "An early sale of a 91-day bill depends on the market price and available bids, not the face value payable at maturity."
+          ],
+          "investorAccessConstraints": [
+            "The RBI Retail Direct FAQ states a Rs 10,000 platform minimum as of 12 November 2021; this is historical and not a verified current security minimum or personal eligibility decision.",
+            "A 91-day T-bill requires an eligible RDG account, funded noncompetitive primary bid or separate secondary purchase; no live auction, bid or ISIN is verified."
+          ]
+        }
       }
     },
     {
@@ -301,12 +335,46 @@
         "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
         "riskConsiderations": [
           "A Treasury Bill sold before maturity may realize a different price; the RBI FAQ warns of government-security market risk on early sale.",
-          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed."
+          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed.",
+          "The 182-day bill's zero-coupon discount structure means there is no interim coupon to fund cash needs."
         ],
         "investorAccessConstraints": [
           "The RBI Retail Direct FAQ requires an eligible individual with an Indian rupee savings bank account, PAN, valid KYC document, email and registered mobile; individual onboarding is unverified.",
-          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission."
-        ]
+          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission.",
+          "The RBI FAQ's Rs 10,000 minimum is dated November 2021; auction allotment, current minimum, applicant KYC and provider data rights require fresh verification."
+        ],
+        "retailDirectAuctionMechanics2021Review": {
+          "officialRbiRetailDirectFaqUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+          "officialRbiGovernmentSecuritiesPrimerUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+          "faqPublishedOn": "2021-11-12",
+          "primerPublishedOn": "2020-04-01",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "HISTORICAL_RBI_RETAIL_DIRECT_FAQ_AND_SECURITY_STRUCTURE_NOT_CURRENT_AUCTION_OR_INVESTOR_APPROVAL",
+          "structureType": "182_DAY_DISCOUNT_TREASURY_BILL",
+          "categoryInterpretation": "The 182-day Treasury Bill is a discount-to-face-value central-government cash flow with no interim coupon; its longer nominal term requires separate cash-horizon and resale-price review.",
+          "historicalFaqMinimumInvestmentInr": 10000,
+          "minimumFigureAsOf": "2021-11-12",
+          "historicalMinimumIsVerifiedCurrentIssueMinimum": false,
+          "primaryAuctionBiddingIsNoncompetitiveOnly": true,
+          "primaryAuctionAllotmentPriceUnknownAtBid": true,
+          "bidsRequireFundingBeforeRbiSubmission": true,
+          "partialAuctionAllotmentPossible": true,
+          "secondaryMarketSaleRequiresSecurityHolding": true,
+          "zeroCouponDiscountCashFlow": true,
+          "actualAuctionAndIssueIsinVerified": false,
+          "applicantRdgKycAndChannelVerified": false,
+          "currentMinimumAndBidTermsVerified": false,
+          "currentExecutablePriceAndResaleLiquidityVerified": false,
+          "commercialMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The 182-day zero-coupon bill has no interim income; its actual auction discount, allocation and redemption cash flow are unverified.",
+            "An early sale of a 182-day bill depends on the market price and available bids, not the face value payable at maturity."
+          ],
+          "investorAccessConstraints": [
+            "The RBI Retail Direct FAQ states a Rs 10,000 platform minimum as of 12 November 2021; this is historical and not a verified current security minimum or personal eligibility decision.",
+            "A 182-day T-bill requires an eligible RDG account, funded noncompetitive primary bid or separate secondary purchase; no live auction, bid or ISIN is verified."
+          ]
+        }
       }
     },
     {
@@ -351,12 +419,46 @@
         "officialTenorAuctionReferenceUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=60420",
         "riskConsiderations": [
           "A Treasury Bill sold before maturity may realize a different price; the RBI FAQ warns of government-security market risk on early sale.",
-          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed."
+          "The noncompetitive auction price is unknown when a retail bid is submitted, and secondary-market execution or liquidity is not guaranteed.",
+          "The 364-day bill's zero-coupon discount structure means there is no interim coupon to fund cash needs."
         ],
         "investorAccessConstraints": [
           "The RBI Retail Direct FAQ requires an eligible individual with an Indian rupee savings bank account, PAN, valid KYC document, email and registered mobile; individual onboarding is unverified.",
-          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission."
-        ]
+          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission.",
+          "The RBI FAQ's Rs 10,000 minimum is dated November 2021; auction allotment, current minimum, applicant KYC and provider data rights require fresh verification."
+        ],
+        "retailDirectAuctionMechanics2021Review": {
+          "officialRbiRetailDirectFaqUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+          "officialRbiGovernmentSecuritiesPrimerUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+          "faqPublishedOn": "2021-11-12",
+          "primerPublishedOn": "2020-04-01",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "HISTORICAL_RBI_RETAIL_DIRECT_FAQ_AND_SECURITY_STRUCTURE_NOT_CURRENT_AUCTION_OR_INVESTOR_APPROVAL",
+          "structureType": "364_DAY_DISCOUNT_TREASURY_BILL",
+          "categoryInterpretation": "The 364-day Treasury Bill is a discount-to-face-value central-government cash flow with no interim coupon; near-one-year cash needs and pre-maturity sale prices require separate review.",
+          "historicalFaqMinimumInvestmentInr": 10000,
+          "minimumFigureAsOf": "2021-11-12",
+          "historicalMinimumIsVerifiedCurrentIssueMinimum": false,
+          "primaryAuctionBiddingIsNoncompetitiveOnly": true,
+          "primaryAuctionAllotmentPriceUnknownAtBid": true,
+          "bidsRequireFundingBeforeRbiSubmission": true,
+          "partialAuctionAllotmentPossible": true,
+          "secondaryMarketSaleRequiresSecurityHolding": true,
+          "zeroCouponDiscountCashFlow": true,
+          "actualAuctionAndIssueIsinVerified": false,
+          "applicantRdgKycAndChannelVerified": false,
+          "currentMinimumAndBidTermsVerified": false,
+          "currentExecutablePriceAndResaleLiquidityVerified": false,
+          "commercialMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The 364-day zero-coupon bill has no interim income; its actual auction discount, allocation and redemption cash flow are unverified.",
+            "An early sale of a 364-day bill depends on the market price and available bids, not the face value payable at maturity."
+          ],
+          "investorAccessConstraints": [
+            "The RBI Retail Direct FAQ states a Rs 10,000 platform minimum as of 12 November 2021; this is historical and not a verified current security minimum or personal eligibility decision.",
+            "A 364-day T-bill requires an eligible RDG account, funded noncompetitive primary bid or separate secondary purchase; no live auction, bid or ISIN is verified."
+          ]
+        }
       }
     },
     {
@@ -400,12 +502,46 @@
         "instrumentSpecificSuitabilityVerified": false,
         "riskConsiderations": [
           "SDL secondary-market prices can change with yields, liquidity and security-specific terms; early sale can result in a loss.",
-          "A state security's actual maturity, coupon, settlement and market depth must be assessed instrument by instrument."
+          "A state security's actual maturity, coupon, settlement and market depth must be assessed instrument by instrument.",
+          "An SDL has issue-specific coupons and maturity; a category label does not verify a state issuer or cash-flow schedule."
         ],
         "investorAccessConstraints": [
           "The RBI Retail Direct FAQ requires an eligible individual with an Indian rupee savings bank account, PAN, valid KYC document, email and registered mobile; individual onboarding is unverified.",
-          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission."
-        ]
+          "The RBI FAQ's 2021 investment minimum is historical, not a verified current issue minimum, price, auction availability or trading permission.",
+          "The RBI FAQ's Rs 10,000 minimum is dated November 2021; auction allotment, current minimum, applicant KYC and provider data rights require fresh verification."
+        ],
+        "retailDirectAuctionMechanics2021Review": {
+          "officialRbiRetailDirectFaqUrl": "https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145",
+          "officialRbiGovernmentSecuritiesPrimerUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+          "faqPublishedOn": "2021-11-12",
+          "primerPublishedOn": "2020-04-01",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "HISTORICAL_RBI_RETAIL_DIRECT_FAQ_AND_SECURITY_STRUCTURE_NOT_CURRENT_AUCTION_OR_INVESTOR_APPROVAL",
+          "structureType": "DATED_STATE_DEVELOPMENT_LOAN",
+          "categoryInterpretation": "A dated State Development Loan is state-government borrowing with issue-specific coupon and maturity terms, unlike a discount Treasury Bill; the actual state security and resale market remain unknown.",
+          "historicalFaqMinimumInvestmentInr": 10000,
+          "minimumFigureAsOf": "2021-11-12",
+          "historicalMinimumIsVerifiedCurrentIssueMinimum": false,
+          "primaryAuctionBiddingIsNoncompetitiveOnly": true,
+          "primaryAuctionAllotmentPriceUnknownAtBid": true,
+          "bidsRequireFundingBeforeRbiSubmission": true,
+          "partialAuctionAllotmentPossible": true,
+          "secondaryMarketSaleRequiresSecurityHolding": true,
+          "zeroCouponDiscountCashFlow": false,
+          "actualAuctionAndIssueIsinVerified": false,
+          "applicantRdgKycAndChannelVerified": false,
+          "currentMinimumAndBidTermsVerified": false,
+          "currentExecutablePriceAndResaleLiquidityVerified": false,
+          "commercialMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The dated SDL's coupon, maturity and cash flows are security-specific; state-bond resale values can change with yields.",
+            "A noncompetitive SDL auction may allocate only part of a bid; secondary-market execution and proceeds are unverified."
+          ],
+          "investorAccessConstraints": [
+            "The RBI Retail Direct FAQ states a Rs 10,000 platform minimum as of 12 November 2021; this is historical and not a verified current security minimum or personal eligibility decision.",
+            "A dated SDL requires an eligible RDG account, funded noncompetitive primary bid or separate secondary purchase; no state issuer, ISIN or live offer is verified."
+          ]
+        }
       }
     },
     {

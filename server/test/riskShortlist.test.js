@@ -1705,3 +1705,57 @@ test('RBI 2025 NBFC emergency exception is conditional for both payout and cumul
  assert.equal(zero.size,95);
  assert.equal([...zero.values()].filter(row=>row.productQualified).length,0);
 });
+
+test('four RBI Retail Direct categories retain distinct historical auction evidence without approving instruments',()=>{
+ const ids=["catalog_2026_tbill_91","catalog_2026_tbill_182","catalog_2026_tbill_364","catalog_2026_sdl_dated"];
+ const rows=listExtensionResearch().filter(row=>ids.includes(row.id));
+ assert.equal(rows.length,4);
+ const interpretations=new Set();
+ const screened=new Map(screenExtensionResearchForProfile(canonicalProfile()).map(row=>[row.id,row]));
+ for(const row of rows){
+  const e=row.rbiRetailDirectAccessReview.retailDirectAuctionMechanics2021Review;
+  assert.equal(e.officialRbiRetailDirectFaqUrl,'https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145');
+  assert.equal(e.reviewedOn,'2026-10-30');
+  assert.equal(e.minimumFigureAsOf,'2021-11-12');
+  assert.equal(e.historicalFaqMinimumInvestmentInr,10000);
+  assert.equal(e.historicalMinimumIsVerifiedCurrentIssueMinimum,false);
+  assert.equal(e.primaryAuctionBiddingIsNoncompetitiveOnly,true);
+  assert.equal(e.primaryAuctionAllotmentPriceUnknownAtBid,true);
+  assert.equal(e.bidsRequireFundingBeforeRbiSubmission,true);
+  assert.equal(e.partialAuctionAllotmentPossible,true);
+  assert.equal(e.zeroCouponDiscountCashFlow,row.id.startsWith('catalog_2026_tbill_'));
+  for(const field of ['actualAuctionAndIssueIsinVerified','applicantRdgKycAndChannelVerified',
+   'currentMinimumAndBidTermsVerified','currentExecutablePriceAndResaleLiquidityVerified',
+   'commercialMarketDataAndAdviceRightsVerified'])assert.equal(e[field],false,row.id+':'+field);
+  assert.ok(e.riskConsiderations.length>=2&&e.investorAccessConstraints.length>=2);
+  interpretations.add(e.categoryInterpretation);
+  const item=screened.get(row.id);
+  assert.ok(item.screeningReasonCodes.includes('RBI_2021_RETAIL_DIRECT_MINIMUM_HISTORICAL_NOT_CURRENT_OFFER_APPROVAL'));
+  assert.ok(item.screeningReasonCodes.includes('RBI_RETAIL_DIRECT_NONCOMPETITIVE_AUCTION_PRICE_FUNDING_AND_ALLOTMENT_REVIEW'));
+  assert.equal(item.productQualified,false);
+  assert.equal(item.scoreAvailable,false);
+  assert.equal(item.productRiskLevel,null);
+ }
+ assert.equal(interpretations.size,4);
+ assert.equal(screened.size,95);
+});
+test('historical Retail Direct minimum triggers only a non-ranking notice for recorded smaller lump sums',()=>{
+ const ids=["catalog_2026_tbill_91","catalog_2026_tbill_182","catalog_2026_tbill_364","catalog_2026_sdl_dated"];
+ const make=(hasLumpSum,lumpSumAmount)=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  hasLumpSum,lumpSumAmount,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  riskTolerance:'Moderate',emergencyFundMonths:6,
+ })).map(row=>[row.id,row]));
+ const small=make(true,9000),atReference=make(true,10000),missing=make(false,0);
+ const flag='REPORTED_LUMP_SUM_BELOW_HISTORICAL_RETAIL_DIRECT_MINIMUM_REQUIRES_CURRENT_ACCESS_REVIEW_NOT_REJECTION';
+ for(const id of ids){
+  assert.ok(small.get(id).screeningReasonCodes.includes(flag),id);
+  assert.ok(!atReference.get(id).screeningReasonCodes.includes(flag),id);
+  assert.ok(!missing.get(id).screeningReasonCodes.includes(flag),id);
+  for(const rows of [small,atReference,missing]){
+   assert.equal(rows.get(id).productQualified,false);
+   assert.equal(rows.get(id).scoreAvailable,false);
+   assert.equal(rows.get(id).productRiskLevel,null);
+  }
+ }
+ assert.equal([...small.values()].filter(row=>row.productQualified).length,0);
+});

@@ -774,6 +774,32 @@ if(research.entries.some(row=>{
    'currentSchemeNavAndLicensedDataVerified','investorAccessAndAdviceRightsVerified']
    .some(field=>evidence[field]!==false);
 }))throw new Error('FINANCIAL_FOF_SCHEME_RISKOMETER_DISCLOSURE_EVIDENCE_INVALID');
+const retailDirectAuctionTypes=Object.freeze({"catalog_2026_tbill_91":"91_DAY_DISCOUNT_TREASURY_BILL","catalog_2026_tbill_182":"182_DAY_DISCOUNT_TREASURY_BILL","catalog_2026_tbill_364":"364_DAY_DISCOUNT_TREASURY_BILL","catalog_2026_sdl_dated":"DATED_STATE_DEVELOPMENT_LOAN"});
+if(research.entries.some(row=>{
+ const e=row.rbiRetailDirectAccessReview?.retailDirectAuctionMechanics2021Review;
+ if(!retailDirectIds.has(row.id))return e!==undefined;
+ return !e
+  || e.officialRbiRetailDirectFaqUrl!=='https://www.rbi.org.in/Scripts/FAQView.aspx?Id=145'
+  || e.officialRbiGovernmentSecuritiesPrimerUrl!=='https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711'
+  || e.faqPublishedOn!=='2021-11-12'||e.primerPublishedOn!=='2020-04-01'
+  || e.reviewedOn!=='2026-10-30'
+  || e.sourceScope!=='HISTORICAL_RBI_RETAIL_DIRECT_FAQ_AND_SECURITY_STRUCTURE_NOT_CURRENT_AUCTION_OR_INVESTOR_APPROVAL'
+  || e.structureType!==retailDirectAuctionTypes[row.id]
+  || typeof e.categoryInterpretation!=='string'||e.categoryInterpretation.length<100
+  || e.historicalFaqMinimumInvestmentInr!==10000||e.minimumFigureAsOf!=='2021-11-12'
+  || e.primaryAuctionBiddingIsNoncompetitiveOnly!==true
+  || e.primaryAuctionAllotmentPriceUnknownAtBid!==true
+  || e.bidsRequireFundingBeforeRbiSubmission!==true
+  || e.partialAuctionAllotmentPossible!==true
+  || e.secondaryMarketSaleRequiresSecurityHolding!==true
+  || e.zeroCouponDiscountCashFlow!==row.id.startsWith('catalog_2026_tbill_')
+  || ['historicalMinimumIsVerifiedCurrentIssueMinimum','actualAuctionAndIssueIsinVerified',
+      'applicantRdgKycAndChannelVerified','currentMinimumAndBidTermsVerified',
+      'currentExecutablePriceAndResaleLiquidityVerified','commercialMarketDataAndAdviceRightsVerified']
+      .some(field=>e[field]!==false)
+  || !Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
+  || !Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2;
+}))throw new Error('FINANCIAL_RBI_RETAIL_DIRECT_HISTORICAL_AUCTION_EVIDENCE_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -1017,6 +1043,14 @@ export function screenExtensionResearchForProfile(profileInput) {
      }
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_GOVT_BOND_MARKET_PRICE_AND_LIQUIDITY_REVIEW');
+   }
+   if(row.rbiRetailDirectAccessReview?.retailDirectAuctionMechanics2021Review) {
+     reasons.push('RBI_2021_RETAIL_DIRECT_MINIMUM_HISTORICAL_NOT_CURRENT_OFFER_APPROVAL');
+     reasons.push('RBI_RETAIL_DIRECT_NONCOMPETITIVE_AUCTION_PRICE_FUNDING_AND_ALLOTMENT_REVIEW');
+     const auction=row.rbiRetailDirectAccessReview.retailDirectAuctionMechanics2021Review;
+     if(profile.hasLumpSum===true&&nonnegative(profile.lumpSumAmount)
+       &&profile.lumpSumAmount<auction.historicalFaqMinimumInvestmentInr)
+       reasons.push('REPORTED_LUMP_SUM_BELOW_HISTORICAL_RETAIL_DIRECT_MINIMUM_REQUIRES_CURRENT_ACCESS_REVIEW_NOT_REJECTION');
    }
    if(row.rbiRetailDirectAccessReview) {
      reasons.push('RBI_RETAIL_DIRECT_ACCOUNT_KYC_AND_PERSONAL_ELIGIBILITY_UNVERIFIED');

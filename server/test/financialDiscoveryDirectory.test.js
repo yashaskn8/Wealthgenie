@@ -942,3 +942,24 @@ test('NBFC emergency repayment evidence is copied without converting a category 
   assert.ok(!clean.riskConsiderations.includes('FABRICATED INSURANCE'));
  }
 });
+
+test('four Retail Direct historical auction reviews are defensive educational copies, not quotes',()=>{
+ const ids=["catalog_2026_tbill_91","catalog_2026_tbill_182","catalog_2026_tbill_364","catalog_2026_sdl_dated"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ for(const id of ids){
+  const item=get(id),e=item.frameworkResearch.retailDirectAccessReview.retailDirectAuctionMechanics2021Review;
+  assert.equal(e.historicalFaqMinimumInvestmentInr,10000);
+  assert.equal(e.minimumFigureAsOf,'2021-11-12');
+  assert.equal(e.historicalMinimumIsVerifiedCurrentIssueMinimum,false);
+  assert.equal(e.currentMinimumAndBidTermsVerified,false);
+  assert.equal(e.commercialMarketDataAndAdviceRightsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(value=>value===null));
+  e.riskConsiderations.push('FORGED QUOTE');
+  e.historicalMinimumIsVerifiedCurrentIssueMinimum=true;
+  const fresh=get(id).frameworkResearch.retailDirectAccessReview.retailDirectAuctionMechanics2021Review;
+  assert.equal(fresh.historicalMinimumIsVerifiedCurrentIssueMinimum,false);
+  assert.ok(!fresh.riskConsiderations.includes('FORGED QUOTE'));
+ }
+});
