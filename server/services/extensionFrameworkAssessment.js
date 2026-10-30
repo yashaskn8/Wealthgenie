@@ -17,6 +17,34 @@ const bankDepositDicgcUrl="https://www.dicgc.org.in/guide-to-deposit-insurance";
 const historicalTaxSaverCircularUrl="https://www.incometaxindia.gov.in/w/11/2006-circular-no.-11/2006-dated-16-11-2006";
 const retailDirectIds=new Set(['catalog_2026_tbill_91','catalog_2026_tbill_182','catalog_2026_tbill_364','catalog_2026_sdl_dated']);
 const postalSavingsIds=new Set(['catalog_2026_po_savings','catalog_2026_po_td_2','catalog_2026_po_td_3','catalog_2026_po_td_5']);
+const postalTd2023AmendmentUrl='https://www.indiapost.gov.in/VAS/DOP_PDFFiles/SB_Orders_2023.pdf';
+const postalTd2023ExitSpecs=Object.freeze({
+ 'catalog_2026_po_td_2':{months:6,basis:'TWO_YEAR_SAVINGS_RATE_BEFORE_ONE_YEAR_THEN_ONE_YEAR_REFERENCE_LESS_TWO_PERCENTAGE_POINTS'},
+ 'catalog_2026_po_td_3':{months:6,basis:'THREE_YEAR_SAVINGS_RATE_BEFORE_ONE_YEAR_THEN_TWO_YEAR_REFERENCE_LESS_TWO_PERCENTAGE_POINTS'},
+ 'catalog_2026_po_td_5':{months:48,basis:'FIVE_YEAR_SAVINGS_ACCOUNT_RATE_AFTER_FOUR_YEARS'},
+});
+function validPostalTd2023AmendmentReview(row){
+ const expected=postalTd2023ExitSpecs[row.id];
+ const review=row.postalSavingsAccessReview?.prematureClosure2023AmendmentReview;
+ if(!expected)return review===undefined;
+ return review?.officialIndiaPostSbOrders2023Url===postalTd2023AmendmentUrl
+  &&review.officialGazetteNotification==='G.S.R. 830(E)'
+  &&review.gazetteNotificationDated==='2023-11-07'
+  &&review.indiaPostOrder==='SB Order 22/2023'
+  &&review.gazettePublicationDate==='2023-11-09'
+  &&review.amendedSchemeParagraph==='8'
+  &&review.reviewedOn==='2026-10-31'
+  &&review.sourceScope==='PUBLISHED_2023_AMENDMENT_TEXT_NOT_VERIFIED_ACCOUNT_COHORT_OR_CURRENT_INTEREST'
+  &&review.earliestOrdinaryPrematureClosureMonthsUnderAmendedText===expected.months
+  &&review.earlyClosureInterestRuleUnderAmendedText===expected.basis
+  &&review.interestAlreadyPaidSubjectToRecoveryUnderAmendedText===true
+  &&['accountOpeningDateAndApplicableRuleVersionVerified',
+   'subsequentClarificationsAndCurrentAccountTermsReconciled',
+   'individualPrematureClosurePermissionVerified','currentInterestRatesVerified',
+   'commercialDataAndAdviceRightsVerified'].every(key=>review[key]===false)
+  &&Array.isArray(review.riskConsiderations)&&review.riskConsiderations.length>=2
+  &&Array.isArray(review.investorAccessConstraints)&&review.investorAccessConstraints.length>=2;
+}
 const governmentBondStructureTypes=Object.freeze({"catalog_2026_gsec_coupon_strip":"CENTRAL_GSEC_COUPON_STRIP","catalog_2026_gsec_principal_strip":"CENTRAL_GSEC_PRINCIPAL_STRIP","catalog_2026_sovereign_green":"SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","catalog_2026_gsec_floating":"FLOATING_RATE_CENTRAL_GSEC"});
 const governmentBondOfficialSources=Object.freeze({"catalog_2026_gsec_coupon_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_gsec_principal_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_sovereign_green":"https://dea.gov.in/framework-sovereign-green-bonds","catalog_2026_gsec_floating":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711"});
 const sebiDebtSchemeKinds=Object.freeze({"catalog_2026_gilt_10y_constant":"GILT_10_YEAR_CONSTANT_DURATION","catalog_2026_medium_long_duration_mf":"MEDIUM_TO_LONG_TERM_DEBT_FUND","catalog_2026_long_duration_mf":"LONG_TERM_DEBT_FUND","catalog_2026_target_maturity_gsec_index":"GSEC_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_sdl_index":"SDL_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_psu_index":"PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_constant_maturity_debt_index":"CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY","catalog_2026_domestic_debt_fof":"DOMESTIC_DEBT_FUND_OF_FUNDS","catalog_2026_gsec_debt_etf":"GSEC_PASSIVE_DEBT_ETF_STRATEGY"});
@@ -143,6 +171,7 @@ export function hasCompleteCategoryRiskAccessResearch(row) {
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || research.entries.some(row=>!hasCompleteCategoryRiskAccessResearch(row))
+  || research.entries.some(row=>!validPostalTd2023AmendmentReview(row))
   || research.entries.some(row=>!validNpsPresentationReview(row))
   || research.entries.some(x=>!isOfficialFrameworkReferenceUrl(x.referenceUrl)
     || !isOfficialFrameworkReferenceUrl(x.verifiedPublicFrameworkFact?.officialSourceUrl))
@@ -1085,6 +1114,16 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('INDIA_POST_CURRENT_ACCOUNT_TERMS_RATE_AND_SOURCE_RIGHTS_UNVERIFIED');
      if(row.postalSavingsAccessReview.schemeType==='NATIONAL_SAVINGS_TIME_DEPOSIT') {
        reasons.push('POST_OFFICE_TIME_DEPOSIT_EARLY_CLOSURE_TERMS_REQUIRE_CURRENT_REVIEW');
+        if(row.postalSavingsAccessReview.prematureClosure2023AmendmentReview){
+          reasons.push('POSTAL_TD_2023_AMENDMENT_NOT_ACCOUNT_COHORT_OR_CURRENT_EXIT_APPROVAL');
+          if(row.nominalMaturityMonths===60){
+            reasons.push('POSTAL_FIVE_YEAR_TD_AMENDED_FOUR_YEAR_EXIT_NOT_GENERAL_SIX_MONTH_ACCESS');
+            if(profile.investmentHorizonYears<4)
+              reasons.push('RECORDED_HORIZON_BELOW_AMENDED_FIVE_YEAR_TD_FOUR_YEAR_EXIT_WINDOW');
+          }else{
+            reasons.push('POSTAL_TWO_THREE_YEAR_TD_AMENDED_INTEREST_RECALCULATION_REQUIRES_COHORT_CHECK');
+          }
+        }
        if(profile.investmentGoals.includes('Emergency Fund'))
          reasons.push('EMERGENCY_FUND_REQUIRES_POSTAL_TD_PREMATURE_CLOSURE_AND_ACCESS_REVIEW');
        if(row.nominalMaturityMonths===60)

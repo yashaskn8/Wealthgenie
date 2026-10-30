@@ -324,6 +324,51 @@ test('four India Post schemes retain individual eligibility and licensed-rate bl
  assert.equal(research.filter(x=>x.postalSavingsAccessReview).length,4);
 });
 
+test('India Post 2023 amended TD exit rules are tenor-specific and never become account approval',()=>{
+ const rows=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({investmentHorizonYears:3}));
+ const long=screenExtensionResearchForProfile(canonicalProfile({investmentHorizonYears:5}));
+ const amendmentUrl='https://www.indiapost.gov.in/VAS/DOP_PDFFiles/SB_Orders_2023.pdf';
+ for(const [suffix,months,basis] of [
+  ['po_td_2',6,'TWO_YEAR_SAVINGS_RATE_BEFORE_ONE_YEAR_THEN_ONE_YEAR_REFERENCE_LESS_TWO_PERCENTAGE_POINTS'],
+  ['po_td_3',6,'THREE_YEAR_SAVINGS_RATE_BEFORE_ONE_YEAR_THEN_TWO_YEAR_REFERENCE_LESS_TWO_PERCENTAGE_POINTS'],
+  ['po_td_5',48,'FIVE_YEAR_SAVINGS_ACCOUNT_RATE_AFTER_FOUR_YEARS'],
+ ]){
+  const id='catalog_2026_'+suffix;
+  const row=rows.find(x=>x.id===id);
+  const review=row.postalSavingsAccessReview.prematureClosure2023AmendmentReview;
+  assert.equal(review.officialIndiaPostSbOrders2023Url,amendmentUrl);
+  assert.equal(review.officialGazetteNotification,'G.S.R. 830(E)');
+  assert.equal(review.gazettePublicationDate,'2023-11-09');
+  assert.equal(review.earliestOrdinaryPrematureClosureMonthsUnderAmendedText,months);
+  assert.equal(review.earlyClosureInterestRuleUnderAmendedText,basis);
+  assert.equal(review.accountOpeningDateAndApplicableRuleVersionVerified,false);
+  assert.equal(review.subsequentClarificationsAndCurrentAccountTermsReconciled,false);
+  assert.equal(review.individualPrematureClosurePermissionVerified,false);
+  assert.equal(review.currentInterestRatesVerified,false);
+  assert.ok(row.postalSavingsAccessReview.riskConsiderations.length>=3);
+  for(const screened of [short,long]){
+   const item=screened.find(x=>x.id===id);
+   assert.ok(item.screeningReasonCodes.includes('POSTAL_TD_2023_AMENDMENT_NOT_ACCOUNT_COHORT_OR_CURRENT_EXIT_APPROVAL'));
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productQualified,false);
+   assert.equal(item.productRiskLevel,null);
+  }
+ }
+ const fiveShort=short.find(x=>x.id==='catalog_2026_po_td_5').screeningReasonCodes;
+ const fiveLong=long.find(x=>x.id==='catalog_2026_po_td_5').screeningReasonCodes;
+ assert.ok(fiveShort.includes('POSTAL_FIVE_YEAR_TD_AMENDED_FOUR_YEAR_EXIT_NOT_GENERAL_SIX_MONTH_ACCESS'));
+ assert.ok(fiveShort.includes('RECORDED_HORIZON_BELOW_AMENDED_FIVE_YEAR_TD_FOUR_YEAR_EXIT_WINDOW'));
+ assert.ok(!fiveLong.includes('RECORDED_HORIZON_BELOW_AMENDED_FIVE_YEAR_TD_FOUR_YEAR_EXIT_WINDOW'));
+ for(const suffix of ['po_td_2','po_td_3']){
+  const notices=short.find(x=>x.id==='catalog_2026_'+suffix).screeningReasonCodes;
+  assert.ok(notices.includes('POSTAL_TWO_THREE_YEAR_TD_AMENDED_INTEREST_RECALCULATION_REQUIRES_COHORT_CHECK'));
+  assert.ok(!notices.includes('POSTAL_FIVE_YEAR_TD_AMENDED_FOUR_YEAR_EXIT_NOT_GENERAL_SIX_MONTH_ACCESS'));
+ }
+ assert.equal(rows.find(x=>x.id==='catalog_2026_po_savings').postalSavingsAccessReview.prematureClosure2023AmendmentReview,undefined);
+});
+
 test('postal time-deposit emergency-fund warning uses only a recorded goal and never qualifies a product',()=>{
  const emergency=screenExtensionResearchForProfile(canonicalProfile({investmentGoals:['Emergency Fund']}));
  const other=screenExtensionResearchForProfile(canonicalProfile({investmentGoals:['Wealth Growth']}));

@@ -238,6 +238,24 @@ test('India Post research exposes dated scheme listings but no authorized accoun
   .frameworkResearch.postalSavingsAccessReview.independentlyAuthorizedCurrentRateVerified,false);
 });
 
+test('India Post 2023 tenor-specific amendment evidence is deep-copied and not a current exit quote',()=>{
+ const directory=listFinancialDiscoveryDirectory().items;
+ for(const [suffix,months] of [['po_td_2',6],['po_td_3',6],['po_td_5',48]]){
+  const row=directory.find(x=>x.id==='catalog_2026_'+suffix);
+  const review=row.frameworkResearch.postalSavingsAccessReview.prematureClosure2023AmendmentReview;
+  assert.equal(review.earliestOrdinaryPrematureClosureMonthsUnderAmendedText,months);
+  assert.equal(review.accountOpeningDateAndApplicableRuleVersionVerified,false);
+  assert.equal(review.currentInterestRatesVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.productData.currentInterestRate,null);
+  review.riskConsiderations.push('FABRICATED ACCOUNT APPROVAL');
+  const fresh=listFinancialDiscoveryDirectory().items.find(x=>x.id===row.id);
+  assert.ok(!fresh.frameworkResearch.postalSavingsAccessReview.prematureClosure2023AmendmentReview.riskConsiderations.includes('FABRICATED ACCOUNT APPROVAL'));
+ }
+ assert.equal(directory.find(x=>x.id==='catalog_2026_po_savings').frameworkResearch.postalSavingsAccessReview.prematureClosure2023AmendmentReview,undefined);
+});
+
 test('four central-government bond directory entries expose read-only structure evidence only',()=>{
  const ids=['gsec_coupon_strip','gsec_principal_strip','sovereign_green','gsec_floating'];
  const all=listFinancialDiscoveryDirectory().items;

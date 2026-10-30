@@ -97,14 +97,42 @@
         "personalizedSuitabilityVerified": false,
         "riskConsiderations": [
           "Premature closure and interest recalculation can change realized proceeds; current tenor-specific terms are not verified.",
-          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity."
+          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity.",
+          "The 2023 amended text recalculates early-closure interest for a two-year deposit: the savings-account rate applies between six and twelve months, with a one-year deposit rate reference less two percentage points after one year."
         ],
         "investorAccessConstraints": [
           "India Post lists National Savings Time Deposit and the original 2019 scheme text describes 1/2/3/5-year tenors, subject to amendments; current account terms are unverified.",
-          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established."
+          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established.",
+          "The 2023 amended text permits premature closure of a two-year deposit only after six months; the account-opening cohort and later amendments must be checked before treating this as an available exit."
         ],
         "officialOriginalSchemeRulesUrl": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf",
-        "originalRulesMayHaveSubsequentAmendments": true
+        "originalRulesMayHaveSubsequentAmendments": true,
+        "prematureClosure2023AmendmentReview": {
+          "officialIndiaPostSbOrders2023Url": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/SB_Orders_2023.pdf",
+          "officialGazetteNotification": "G.S.R. 830(E)",
+          "gazetteNotificationDated": "2023-11-07",
+          "indiaPostOrder": "SB Order 22/2023",
+          "gazettePublicationDate": "2023-11-09",
+          "amendedSchemeParagraph": "8",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "PUBLISHED_2023_AMENDMENT_TEXT_NOT_VERIFIED_ACCOUNT_COHORT_OR_CURRENT_INTEREST",
+          "earliestOrdinaryPrematureClosureMonthsUnderAmendedText": 6,
+          "earlyClosureInterestRuleUnderAmendedText": "TWO_YEAR_SAVINGS_RATE_BEFORE_ONE_YEAR_THEN_ONE_YEAR_REFERENCE_LESS_TWO_PERCENTAGE_POINTS",
+          "interestAlreadyPaidSubjectToRecoveryUnderAmendedText": true,
+          "accountOpeningDateAndApplicableRuleVersionVerified": false,
+          "subsequentClarificationsAndCurrentAccountTermsReconciled": false,
+          "individualPrematureClosurePermissionVerified": false,
+          "currentInterestRatesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The 2023 amended text recalculates early-closure interest for a two-year deposit: the savings-account rate applies between six and twelve months, with a one-year deposit rate reference less two percentage points after one year.",
+            "The account-opening date and applicable rules can change the permitted exit and interest calculation; no personal repayment value is established."
+          ],
+          "investorAccessConstraints": [
+            "The 2023 amended text permits premature closure of a two-year deposit only after six months; the account-opening cohort and later amendments must be checked before treating this as an available exit.",
+            "Check the actual account's governing terms, Form-4 requirements, KYC, applicable rate and subsequent circulars; a 2023 gazette text is not current individualized eligibility."
+          ]
+        }
       }
     },
     {
@@ -148,14 +176,42 @@
         "personalizedSuitabilityVerified": false,
         "riskConsiderations": [
           "Premature closure and interest recalculation can change realized proceeds; current tenor-specific terms are not verified.",
-          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity."
+          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity.",
+          "The 2023 amended text recalculates early-closure interest for a three-year deposit: the savings-account rate applies between six and twelve months, with a two-year deposit rate reference less two percentage points after one year."
         ],
         "investorAccessConstraints": [
           "India Post lists National Savings Time Deposit and the original 2019 scheme text describes 1/2/3/5-year tenors, subject to amendments; current account terms are unverified.",
-          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established."
+          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established.",
+          "The 2023 amended text permits premature closure of a three-year deposit only after six months; the account-opening cohort and later amendments must be checked before treating this as an available exit."
         ],
         "officialOriginalSchemeRulesUrl": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf",
-        "originalRulesMayHaveSubsequentAmendments": true
+        "originalRulesMayHaveSubsequentAmendments": true,
+        "prematureClosure2023AmendmentReview": {
+          "officialIndiaPostSbOrders2023Url": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/SB_Orders_2023.pdf",
+          "officialGazetteNotification": "G.S.R. 830(E)",
+          "gazetteNotificationDated": "2023-11-07",
+          "indiaPostOrder": "SB Order 22/2023",
+          "gazettePublicationDate": "2023-11-09",
+          "amendedSchemeParagraph": "8",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "PUBLISHED_2023_AMENDMENT_TEXT_NOT_VERIFIED_ACCOUNT_COHORT_OR_CURRENT_INTEREST",
+          "earliestOrdinaryPrematureClosureMonthsUnderAmendedText": 6,
+          "earlyClosureInterestRuleUnderAmendedText": "THREE_YEAR_SAVINGS_RATE_BEFORE_ONE_YEAR_THEN_TWO_YEAR_REFERENCE_LESS_TWO_PERCENTAGE_POINTS",
+          "interestAlreadyPaidSubjectToRecoveryUnderAmendedText": true,
+          "accountOpeningDateAndApplicableRuleVersionVerified": false,
+          "subsequentClarificationsAndCurrentAccountTermsReconciled": false,
+          "individualPrematureClosurePermissionVerified": false,
+          "currentInterestRatesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The 2023 amended text recalculates early-closure interest for a three-year deposit: the savings-account rate applies between six and twelve months, with a two-year deposit rate reference less two percentage points after one year.",
+            "The account-opening date and applicable rules can change the permitted exit and interest calculation; no personal repayment value is established."
+          ],
+          "investorAccessConstraints": [
+            "The 2023 amended text permits premature closure of a three-year deposit only after six months; the account-opening cohort and later amendments must be checked before treating this as an available exit.",
+            "Check the actual account's governing terms, Form-4 requirements, KYC, applicable rate and subsequent circulars; a 2023 gazette text is not current individualized eligibility."
+          ]
+        }
       }
     },
     {
@@ -199,14 +255,42 @@
         "personalizedSuitabilityVerified": false,
         "riskConsiderations": [
           "Premature closure and interest recalculation can change realized proceeds; current tenor-specific terms are not verified.",
-          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity."
+          "A fixed nominal term may not match a shorter cash need, and reinvestment rates can change at maturity.",
+          "Under the 2023 amended text a five-year deposit's ordinary premature closure is described after four years, not as a general six-month cash-access facility; the interest basis changes to the Post Office Savings Account rate."
         ],
         "investorAccessConstraints": [
           "India Post lists National Savings Time Deposit and the original 2019 scheme text describes 1/2/3/5-year tenors, subject to amendments; current account terms are unverified.",
-          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established."
+          "The specific depositor's KYC, premature-closure permissions, current tenor rate, tax position and commercial source rights are not established.",
+          "A five-year deposit opened under older rules may have different early-closure conditions; verify the account-opening date, applicable rule version and later clarifications before assuming the four-year amended window applies."
         ],
         "officialOriginalSchemeRulesUrl": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf",
-        "originalRulesMayHaveSubsequentAmendments": true
+        "originalRulesMayHaveSubsequentAmendments": true,
+        "prematureClosure2023AmendmentReview": {
+          "officialIndiaPostSbOrders2023Url": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/SB_Orders_2023.pdf",
+          "officialGazetteNotification": "G.S.R. 830(E)",
+          "gazetteNotificationDated": "2023-11-07",
+          "indiaPostOrder": "SB Order 22/2023",
+          "gazettePublicationDate": "2023-11-09",
+          "amendedSchemeParagraph": "8",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "PUBLISHED_2023_AMENDMENT_TEXT_NOT_VERIFIED_ACCOUNT_COHORT_OR_CURRENT_INTEREST",
+          "earliestOrdinaryPrematureClosureMonthsUnderAmendedText": 48,
+          "earlyClosureInterestRuleUnderAmendedText": "FIVE_YEAR_SAVINGS_ACCOUNT_RATE_AFTER_FOUR_YEARS",
+          "interestAlreadyPaidSubjectToRecoveryUnderAmendedText": true,
+          "accountOpeningDateAndApplicableRuleVersionVerified": false,
+          "subsequentClarificationsAndCurrentAccountTermsReconciled": false,
+          "individualPrematureClosurePermissionVerified": false,
+          "currentInterestRatesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "Under the 2023 amended text a five-year deposit's ordinary premature closure is described after four years, not as a general six-month cash-access facility; the interest basis changes to the Post Office Savings Account rate.",
+            "The account-opening date and applicable rules can change the permitted exit and interest calculation; no personal repayment value is established."
+          ],
+          "investorAccessConstraints": [
+            "A five-year deposit opened under older rules may have different early-closure conditions; verify the account-opening date, applicable rule version and later clarifications before assuming the four-year amended window applies.",
+            "Check the actual account's governing terms, Form-4 requirements, KYC, applicable rate and subsequent circulars; a 2023 gazette text is not current individualized eligibility."
+          ]
+        }
       }
     },
     {
