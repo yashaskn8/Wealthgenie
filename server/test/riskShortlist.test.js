@@ -697,7 +697,7 @@ test('October 2026 SEBI debt credit meters are future issue disclosures, not cat
    assert.equal(review.officialSebiCircularUrl,'https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html',id);
    assert.equal(row.referenceReviewedAt,'2026-10-29',id);
   assert.equal(row.debtInstrumentReview.reviewedOn,'2026-10-29',id);
-  assert.equal(review.reviewedOn,'2026-10-30',id);
+  assert.equal(review.reviewedOn,'2026-10-29',id);
   assert.equal(review.circularIssuedOn,'2026-10-07',id);
    assert.equal(review.effectiveFrom,'2026-11-21',id);
    assert.equal(review.effectiveAtReviewDate,false,id);
@@ -1449,4 +1449,38 @@ test('SEBI October 2026 private-placement ISIN limits remain issuer-side, not in
   assert.ok(!notices.get(id).screeningReasonCodes.includes(
    'SEBI_OCT_2026_PRIVATE_PLACEMENT_ISIN_CAP_NOT_RETAIL_ELIGIBILITY'),id);
  }
+});
+
+test('seven AIF GARUDA filing routes remain distinct from SEBI approval and investor access',()=>{
+ const rows=listExtensionResearch().filter(x=>x.aifCategoryAccessReview);
+ const screened=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund'],
+ }));
+ assert.equal(rows.length,7);
+ assert.equal(new Set(rows.map(x=>x.aifCategoryAccessReview.garudaPpmFilingReview.categoryInterpretation)).size,7);
+ for(const row of rows){
+   const g=row.aifCategoryAccessReview.garudaPpmFilingReview;
+   assert.equal(g.officialSebiCircularUrl,'https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html',row.id);
+   assert.equal(g.circularIssuedOn,'2026-07-30',row.id);
+   assert.equal(g.appliesToPpmsFiledFrom,'2026-07-14',row.id);
+   assert.equal(g.regularSchemeLaunchWaitingWorkingDays,10,row.id);
+   assert.equal(g.firstSchemeRegistrationRequired,true,row.id);
+   assert.equal(g.regularSchemeMerchantBankerDueDiligenceRequired,true,row.id);
+   assert.equal(g.aiOnlyAndLvfsCanLaunchUponPpmFiling,true,row.id);
+   assert.equal(g.angelFundsCanSolicitFromRegistration,true,row.id);
+   assert.equal(g.ppmFilingConstitutesSebiApproval,false,row.id);
+   assert.equal(g.categoryStructure,row.aifCategoryAccessReview.categoryStructure,row.id);
+   assert.ok(g.riskConsiderations.length>=2&&g.investorAccessConstraints.length>=2,row.id);
+   for(const key of ['actualAifSchemeAndPpmVerified','schemeCategoryAndFirstRegistrationVerified',
+     'merchantBankerOrManagerUndertakingVerified','individualAccreditationAndKycVerified',
+     'currentSchemeTermsAndValuationVerified','commercialDataRightsVerified',
+     'personalizedAdviceAuthorizationVerified'])assert.equal(g[key],false,row.id+':'+key);
+   const item=screened.find(x=>x.id===row.id);
+   assert.ok(item.screeningReasonCodes.includes('AIF_GARUDA_PPM_FILING_AND_LAUNCH_NOT_SEBI_SCHEME_APPROVAL'),row.id);
+   assert.ok(item.screeningReasonCodes.includes('AIF_GARUDA_ACTUAL_SCHEME_ROUTE_REGISTRATION_AND_DILIGENCE_UNVERIFIED'),row.id);
+   assert.equal(item.productQualified,false,row.id);
+   assert.equal(item.scoreAvailable,false,row.id);
+   assert.equal(item.productRiskLevel,null,row.id);
+ }
+ assert.equal(screened.filter(x=>x.productQualified).length,0);
 });

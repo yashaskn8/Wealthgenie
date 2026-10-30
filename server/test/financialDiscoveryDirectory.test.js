@@ -793,3 +793,24 @@ test('October 2026 issuer ISIN-cap evidence is defensively copied without retail
   assert.equal(fresh.generalIssuerIsinCapPerMaturityFinancialYear,17,id);
  }
 });
+
+test('GARUDA AIF PPM evidence is defensively copied without approving an offer',()=>{
+ const ids=['catalog_2026_aif1_vc','catalog_2026_aif1_sme','catalog_2026_aif1_social',
+  'catalog_2026_aif1_infra','catalog_2026_aif2_pe','catalog_2026_aif2_debt','catalog_2026_aif3_hedge'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(item=>item.id===id);
+ for(const id of ids){
+  const item=get(id);
+  const review=item.frameworkResearch.aifCategoryAccessReview.garudaPpmFilingReview;
+  assert.equal(review.ppmFilingConstitutesSebiApproval,false,id);
+  assert.equal(review.actualAifSchemeAndPpmVerified,false,id);
+  assert.equal(item.recommendationEligible,false,id);
+  assert.equal(item.productAvailability,'NOT_VERIFIED',id);
+  assert.equal(item.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(item.productData).every(value=>value===null),id);
+  review.actualAifSchemeAndPpmVerified=true;
+  review.riskConsiderations.push('unsupported approval');
+  const fresh=get(id).frameworkResearch.aifCategoryAccessReview.garudaPpmFilingReview;
+  assert.equal(fresh.actualAifSchemeAndPpmVerified,false,id);
+  assert.ok(!fresh.riskConsiderations.includes('unsupported approval'),id);
+ }
+});

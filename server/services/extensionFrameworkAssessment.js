@@ -37,6 +37,7 @@ const validNpsMultipleNavReview=review=>{
 };
 const aifCategoryStructures=Object.freeze({"catalog_2026_aif1_vc":"CATEGORY_I_VENTURE_CAPITAL","catalog_2026_aif1_sme":"CATEGORY_I_SME","catalog_2026_aif1_social":"CATEGORY_I_SOCIAL_IMPACT","catalog_2026_aif1_infra":"CATEGORY_I_INFRASTRUCTURE","catalog_2026_aif2_pe":"CATEGORY_II_PRIVATE_EQUITY","catalog_2026_aif2_debt":"CATEGORY_II_PRIVATE_DEBT","catalog_2026_aif3_hedge":"CATEGORY_III_HEDGE_STRATEGY"});
 const aifOctoberRegulationsUrl="https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-regulations-2012-last-amended-on-october-15-2026-_105374.html";
+const aifGarudaCircularUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html";
 const sifMinimumThresholdMonitoringUrl="https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html";
 const sifDistributorCertificationUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html";
 const pfrdaPopOctoberUrl="https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1";
@@ -465,6 +466,31 @@ if(research.entries.some(row=>!Object.values(row).some(v=>v&&typeof v==='object'
 // SEBI's 7 October 2026 debt-security Credit Risk-o-Meter is a future
 // issue-specific disclosure, NOT a mutual-fund scheme riskometer or an
 // independently verified credit rating for any discovery archetype.
+// GARUDA is a PPM filing/launch process. It is never SEBI approval of an AIF offer.
+if(research.entries.filter(row=>row.aifCategoryAccessReview?.garudaPpmFilingReview).length!==7
+ ||research.entries.some(row=>{
+   const g=row.aifCategoryAccessReview?.garudaPpmFilingReview;
+   if(!Object.hasOwn(aifCategoryStructures,row.id))return g!==undefined;
+   return !g||g.officialSebiCircularUrl!==aifGarudaCircularUrl
+     ||!isOfficialFrameworkReferenceUrl(g.officialSebiCircularUrl)
+     ||g.circularIssuedOn!=='2026-07-30'||g.appliesToPpmsFiledFrom!=='2026-07-14'
+     ||g.reviewedOn!=='2026-10-30'
+     ||g.sourceScope!=='AIF_PPM_FILING_AND_LAUNCH_PROCEDURE_NOT_SEBI_SCHEME_APPROVAL_OR_PERSONAL_INVESTOR_ACCESS'
+     ||g.categoryStructure!==aifCategoryStructures[row.id]
+     ||typeof g.categoryInterpretation!=='string'||g.categoryInterpretation.length<100
+     ||g.regularSchemeLaunchWaitingWorkingDays!==10
+     ||g.firstSchemeRegistrationRequired!==true
+     ||g.regularSchemeMerchantBankerDueDiligenceRequired!==true
+     ||g.aiOnlyAndLvfsCanLaunchUponPpmFiling!==true
+     ||g.angelFundsCanSolicitFromRegistration!==true
+     ||g.ppmFilingConstitutesSebiApproval!==false
+     ||['actualAifSchemeAndPpmVerified','schemeCategoryAndFirstRegistrationVerified',
+       'merchantBankerOrManagerUndertakingVerified','individualAccreditationAndKycVerified',
+       'currentSchemeTermsAndValuationVerified','commercialDataRightsVerified',
+       'personalizedAdviceAuthorizationVerified'].some(k=>g[k]!==false)
+     ||!Array.isArray(g.riskConsiderations)||g.riskConsiderations.length<2
+     ||!Array.isArray(g.investorAccessConstraints)||g.investorAccessConstraints.length<2;
+ }))throw new Error('FINANCIAL_AIF_GARUDA_FILING_MUST_NOT_IMPLY_PRODUCT_APPROVAL');
 const octoberDebtIds=new Set(["catalog_2026_ncd_secured","catalog_2026_ncd_unsecured","catalog_2026_ncd_unlisted","catalog_2026_bond_subordinated","catalog_2026_bond_perpetual","catalog_2026_bond_corporate_floating","catalog_2026_bond_corporate_zero","catalog_2026_bond_convertible","catalog_2026_psu_bond_taxable","catalog_2026_infra_corporate_bond","catalog_2026_commercial_paper"]);
 if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentReview).length!==11
  ||research.entries.some(row=>octoberDebtIds.has(row.id)!==Boolean(row.debtInstrumentReview?.creditRiskometerOct2026Review))
@@ -675,6 +701,8 @@ export function screenExtensionResearchForProfile(profileInput) {
    if(row.aifCategoryAccessReview) {
       reasons.push('AIF_PRIVATE_PLACEMENT_PPM_REGISTRATION_AND_KYC_UNVERIFIED');
       reasons.push('AIF_OCT_2026_ACCREDITATION_CHANGE_NOT_PERSONAL_ACCREDITATION');
+      reasons.push('AIF_GARUDA_PPM_FILING_AND_LAUNCH_NOT_SEBI_SCHEME_APPROVAL');
+      reasons.push('AIF_GARUDA_ACTUAL_SCHEME_ROUTE_REGISTRATION_AND_DILIGENCE_UNVERIFIED');
       reasons.push('AIF_FEES_REDEMPTION_VALUATION_AND_DATA_RIGHTS_UNVERIFIED');
       if(row.id==='catalog_2026_aif1_social')
         reasons.push('SOCIAL_IMPACT_NPO_ONLY_MINIMUM_AND_NO_RETURN_UNIT_TYPE_REQUIRE_VERIFICATION');

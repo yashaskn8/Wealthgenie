@@ -5028,7 +5028,37 @@
         "investorAccessConstraints": [
           "Verify a registered Category I venture-capital scheme, actual PPM, fees, capital calls and exits.",
           "The INR 1 crore general minimum has exceptions; individual private-placement invitation, KYC and accreditation are unverified."
-        ]
+        ],
+        "garudaPpmFilingReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html",
+          "circularIssuedOn": "2026-07-30",
+          "appliesToPpmsFiledFrom": "2026-07-14",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "AIF_PPM_FILING_AND_LAUNCH_PROCEDURE_NOT_SEBI_SCHEME_APPROVAL_OR_PERSONAL_INVESTOR_ACCESS",
+          "categoryStructure": "CATEGORY_I_VENTURE_CAPITAL",
+          "categoryInterpretation": "Venture capital AIF schemes may follow the regular, accredited-investor-only or large-value filing route; an unidentified venture fund's PPM filing does not establish its registration, investment access, or investment quality.",
+          "regularSchemeLaunchWaitingWorkingDays": 10,
+          "firstSchemeRegistrationRequired": true,
+          "regularSchemeMerchantBankerDueDiligenceRequired": true,
+          "aiOnlyAndLvfsCanLaunchUponPpmFiling": true,
+          "angelFundsCanSolicitFromRegistration": true,
+          "ppmFilingConstitutesSebiApproval": false,
+          "actualAifSchemeAndPpmVerified": false,
+          "schemeCategoryAndFirstRegistrationVerified": false,
+          "merchantBankerOrManagerUndertakingVerified": false,
+          "individualAccreditationAndKycVerified": false,
+          "currentSchemeTermsAndValuationVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Filing a placement memorandum does not validate underlying holdings, valuation, liquidity, or the manager's performance.",
+            "Regular and accredited-only launch routes impose different diligence responsibilities; inaccurate disclosures remain a risk even after filing."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
+            "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        }
       }
     },
     {
@@ -5083,7 +5113,37 @@
         "investorAccessConstraints": [
           "Verify the actual Category I SME mandate, PPM, eligible holdings and redemption conditions.",
           "General capital threshold exceptions, investor onboarding and accredited status require individual proof."
-        ]
+        ],
+        "garudaPpmFilingReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html",
+          "circularIssuedOn": "2026-07-30",
+          "appliesToPpmsFiledFrom": "2026-07-14",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "AIF_PPM_FILING_AND_LAUNCH_PROCEDURE_NOT_SEBI_SCHEME_APPROVAL_OR_PERSONAL_INVESTOR_ACCESS",
+          "categoryStructure": "CATEGORY_I_SME",
+          "categoryInterpretation": "SME AIF schemes may use different GARUDA PPM routes depending on scheme classification and first-scheme registration; the process does not validate SME portfolio holdings, liquidity or a particular investor's subscription.",
+          "regularSchemeLaunchWaitingWorkingDays": 10,
+          "firstSchemeRegistrationRequired": true,
+          "regularSchemeMerchantBankerDueDiligenceRequired": true,
+          "aiOnlyAndLvfsCanLaunchUponPpmFiling": true,
+          "angelFundsCanSolicitFromRegistration": true,
+          "ppmFilingConstitutesSebiApproval": false,
+          "actualAifSchemeAndPpmVerified": false,
+          "schemeCategoryAndFirstRegistrationVerified": false,
+          "merchantBankerOrManagerUndertakingVerified": false,
+          "individualAccreditationAndKycVerified": false,
+          "currentSchemeTermsAndValuationVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Filing a placement memorandum does not validate underlying holdings, valuation, liquidity, or the manager's performance.",
+            "Regular and accredited-only launch routes impose different diligence responsibilities; inaccurate disclosures remain a risk even after filing."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
+            "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        }
       }
     },
     {
@@ -5139,7 +5199,37 @@
         "investorAccessConstraints": [
           "The INR 1,000 individual threshold is restricted to social-impact funds investing solely in eligible NPO social-stock-exchange securities, not all social funds.",
           "Verify whether actual interests are social units, grants or return-bearing units and the applicable PPM, minimum and access terms."
-        ]
+        ],
+        "garudaPpmFilingReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html",
+          "circularIssuedOn": "2026-07-30",
+          "appliesToPpmsFiledFrom": "2026-07-14",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "AIF_PPM_FILING_AND_LAUNCH_PROCEDURE_NOT_SEBI_SCHEME_APPROVAL_OR_PERSONAL_INVESTOR_ACCESS",
+          "categoryStructure": "CATEGORY_I_SOCIAL_IMPACT",
+          "categoryInterpretation": "Social-impact AIF scheme filing cannot establish whether the specific offer is an NPO-only social unit with no financial return; verify scheme classification and investor rights rather than inferring eligibility from GARUDA.",
+          "regularSchemeLaunchWaitingWorkingDays": 10,
+          "firstSchemeRegistrationRequired": true,
+          "regularSchemeMerchantBankerDueDiligenceRequired": true,
+          "aiOnlyAndLvfsCanLaunchUponPpmFiling": true,
+          "angelFundsCanSolicitFromRegistration": true,
+          "ppmFilingConstitutesSebiApproval": false,
+          "actualAifSchemeAndPpmVerified": false,
+          "schemeCategoryAndFirstRegistrationVerified": false,
+          "merchantBankerOrManagerUndertakingVerified": false,
+          "individualAccreditationAndKycVerified": false,
+          "currentSchemeTermsAndValuationVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Filing a placement memorandum does not validate underlying holdings, valuation, liquidity, or the manager's performance.",
+            "Regular and accredited-only launch routes impose different diligence responsibilities; inaccurate disclosures remain a risk even after filing."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
+            "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        }
       }
     },
     {
@@ -5194,7 +5284,37 @@
         "investorAccessConstraints": [
           "Verify the specific Category I infrastructure mandate, project assets and placement memorandum.",
           "Private placement, standard minimum exceptions, investor KYC, accreditation and tenure are not established."
-        ]
+        ],
+        "garudaPpmFilingReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html",
+          "circularIssuedOn": "2026-07-30",
+          "appliesToPpmsFiledFrom": "2026-07-14",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "AIF_PPM_FILING_AND_LAUNCH_PROCEDURE_NOT_SEBI_SCHEME_APPROVAL_OR_PERSONAL_INVESTOR_ACCESS",
+          "categoryStructure": "CATEGORY_I_INFRASTRUCTURE",
+          "categoryInterpretation": "Infrastructure AIF scheme filing does not validate underlying project exposure, lock-up or exit; the regular versus accredited-only launch route and first-scheme registration must be established for an actual scheme.",
+          "regularSchemeLaunchWaitingWorkingDays": 10,
+          "firstSchemeRegistrationRequired": true,
+          "regularSchemeMerchantBankerDueDiligenceRequired": true,
+          "aiOnlyAndLvfsCanLaunchUponPpmFiling": true,
+          "angelFundsCanSolicitFromRegistration": true,
+          "ppmFilingConstitutesSebiApproval": false,
+          "actualAifSchemeAndPpmVerified": false,
+          "schemeCategoryAndFirstRegistrationVerified": false,
+          "merchantBankerOrManagerUndertakingVerified": false,
+          "individualAccreditationAndKycVerified": false,
+          "currentSchemeTermsAndValuationVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Filing a placement memorandum does not validate underlying holdings, valuation, liquidity, or the manager's performance.",
+            "Regular and accredited-only launch routes impose different diligence responsibilities; inaccurate disclosures remain a risk even after filing."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
+            "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        }
       }
     },
     {
@@ -5249,7 +5369,37 @@
         "investorAccessConstraints": [
           "Verify the specific Category II PE mandate, PPM, fees, capital calls and distribution waterfall.",
           "A broad category reference and a reported lump sum do not establish private-placement eligibility or accreditation."
-        ]
+        ],
+        "garudaPpmFilingReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html",
+          "circularIssuedOn": "2026-07-30",
+          "appliesToPpmsFiledFrom": "2026-07-14",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "AIF_PPM_FILING_AND_LAUNCH_PROCEDURE_NOT_SEBI_SCHEME_APPROVAL_OR_PERSONAL_INVESTOR_ACCESS",
+          "categoryStructure": "CATEGORY_II_PRIVATE_EQUITY",
+          "categoryInterpretation": "Private-equity AIF PPM submission under GARUDA does not authenticate valuation, capital-call terms or liquidity; confirm actual fund registration, scheme route and placement documents before evaluating investor access.",
+          "regularSchemeLaunchWaitingWorkingDays": 10,
+          "firstSchemeRegistrationRequired": true,
+          "regularSchemeMerchantBankerDueDiligenceRequired": true,
+          "aiOnlyAndLvfsCanLaunchUponPpmFiling": true,
+          "angelFundsCanSolicitFromRegistration": true,
+          "ppmFilingConstitutesSebiApproval": false,
+          "actualAifSchemeAndPpmVerified": false,
+          "schemeCategoryAndFirstRegistrationVerified": false,
+          "merchantBankerOrManagerUndertakingVerified": false,
+          "individualAccreditationAndKycVerified": false,
+          "currentSchemeTermsAndValuationVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Filing a placement memorandum does not validate underlying holdings, valuation, liquidity, or the manager's performance.",
+            "Regular and accredited-only launch routes impose different diligence responsibilities; inaccurate disclosures remain a risk even after filing."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
+            "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        }
       }
     },
     {
@@ -5304,7 +5454,37 @@
         "investorAccessConstraints": [
           "Verify borrower concentration, collateral, seniority and the actual Category II debt PPM.",
           "The general minimum and exceptions, accreditation, KYC and subscription permissions remain unverified."
-        ]
+        ],
+        "garudaPpmFilingReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html",
+          "circularIssuedOn": "2026-07-30",
+          "appliesToPpmsFiledFrom": "2026-07-14",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "AIF_PPM_FILING_AND_LAUNCH_PROCEDURE_NOT_SEBI_SCHEME_APPROVAL_OR_PERSONAL_INVESTOR_ACCESS",
+          "categoryStructure": "CATEGORY_II_PRIVATE_DEBT",
+          "categoryInterpretation": "Private-debt AIF PPM submission under GARUDA does not verify borrower credit, recovery seniority or lending permissions; confirm actual scheme route, manager, PPM and investor eligibility independently.",
+          "regularSchemeLaunchWaitingWorkingDays": 10,
+          "firstSchemeRegistrationRequired": true,
+          "regularSchemeMerchantBankerDueDiligenceRequired": true,
+          "aiOnlyAndLvfsCanLaunchUponPpmFiling": true,
+          "angelFundsCanSolicitFromRegistration": true,
+          "ppmFilingConstitutesSebiApproval": false,
+          "actualAifSchemeAndPpmVerified": false,
+          "schemeCategoryAndFirstRegistrationVerified": false,
+          "merchantBankerOrManagerUndertakingVerified": false,
+          "individualAccreditationAndKycVerified": false,
+          "currentSchemeTermsAndValuationVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Filing a placement memorandum does not validate underlying holdings, valuation, liquidity, or the manager's performance.",
+            "Regular and accredited-only launch routes impose different diligence responsibilities; inaccurate disclosures remain a risk even after filing."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
+            "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        }
       }
     },
     {
@@ -5359,7 +5539,37 @@
         "investorAccessConstraints": [
           "Verify the actual Category III strategy, leverage, redemption gates, PPM and current risk disclosures.",
           "Private-placement invitation, minimum exceptions, accreditation and investor eligibility cannot be inferred from a profile risk label."
-        ]
+        ],
+        "garudaPpmFilingReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html",
+          "circularIssuedOn": "2026-07-30",
+          "appliesToPpmsFiledFrom": "2026-07-14",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "AIF_PPM_FILING_AND_LAUNCH_PROCEDURE_NOT_SEBI_SCHEME_APPROVAL_OR_PERSONAL_INVESTOR_ACCESS",
+          "categoryStructure": "CATEGORY_III_HEDGE_STRATEGY",
+          "categoryInterpretation": "Category III hedge-strategy AIF filing under GARUDA does not verify derivatives leverage, redemption gates or valuations; scheme route and investor accreditation require independent evidence.",
+          "regularSchemeLaunchWaitingWorkingDays": 10,
+          "firstSchemeRegistrationRequired": true,
+          "regularSchemeMerchantBankerDueDiligenceRequired": true,
+          "aiOnlyAndLvfsCanLaunchUponPpmFiling": true,
+          "angelFundsCanSolicitFromRegistration": true,
+          "ppmFilingConstitutesSebiApproval": false,
+          "actualAifSchemeAndPpmVerified": false,
+          "schemeCategoryAndFirstRegistrationVerified": false,
+          "merchantBankerOrManagerUndertakingVerified": false,
+          "individualAccreditationAndKycVerified": false,
+          "currentSchemeTermsAndValuationVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Filing a placement memorandum does not validate underlying holdings, valuation, liquidity, or the manager's performance.",
+            "Regular and accredited-only launch routes impose different diligence responsibilities; inaccurate disclosures remain a risk even after filing."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
+            "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        }
       }
     },
     {
