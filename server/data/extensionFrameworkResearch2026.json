@@ -6750,13 +6750,40 @@
         ],
         "investorAccessConstraints": [
           "SEBI REIT rules amended 15 October 2026 define a regulatory category; verify actual SM REIT scheme, manager/trustee, offer documents and property disclosures.",
-          "Check current listing/ISIN, investor and demat eligibility, issue/lot size, distributions, valuation, tax, price and commercial rights."
+          "Check current listing/ISIN, investor and demat eligibility, issue/lot size, distributions, valuation, tax, price and commercial rights.",
+          "SEBI's October 2026 SM REIT trust registry and draft scheme filings are different evidence levels: a trust registration and draft filing do not establish a final, listed or accessible scheme."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "smReitTrustAndDraft2026Review": {
+          "officialSebiRegisteredTrustsUrl": "https://www.sebi.gov.in/sebiweb/other/OtherAction.do?doRecognisedFpi=yes&intmId=48",
+          "officialSebiSmReitDraftFilingsUrl": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=3&smid=140&ssid=98",
+          "reviewedOn": "2026-10-30",
+          "registryHeaderAsOf": "2025-04-01",
+          "registryIncludesTrustRegistrationDatedOn": "2026-10-12",
+          "draftSchemeFilingDateObserved": "2026-10-23",
+          "registryHeaderConflictsWithLaterDisplayedEntries": true,
+          "sourceScope": "OFFICIAL_TRUST_REGISTRY_AND_DRAFT_SCHEME_FILINGS_NOT_SCHEME_UNIT_APPROVAL",
+          "categoryInterpretation": "SEBI's registered SM REIT trust list contains a registration dated 12 October 2026 even though its page header still says 1 April 2025. SEBI separately lists draft scheme offer filings dated 23 October 2026. A registered trust is not the same as an independently qualified investment scheme, and draft filings do not establish final offer terms, listing, tradability or retail access.",
+          "riskConsiderations": [
+            "A registered trust or draft filing does not authenticate any particular scheme's property concentration, occupancy, borrowing, valuations, distribution coverage or trading liquidity.",
+            "Draft offer terms may change; without a verified final scheme offer, ISIN and current executable unit quote, neither loss capacity nor resale price can be assessed."
+          ],
+          "investorAccessConstraints": [
+            "The SEBI trust registry has a stale as-of header relative to displayed October 2026 entries; independently reconcile the current trust and specific scheme status before relying on the listing.",
+            "The 23 October 2026 scheme filings are labelled drafts, not final offer documents or proof of listed units; verify final scheme terms, demat/KYC, issue/lot size, actual access, fees and settlement separately."
+          ],
+          "currentTrustStatusIndependentlyReconciled": false,
+          "finalSchemeOfferAndListingVerified": false,
+          "actualSchemeIsinAndUnitPriceVerified": false,
+          "individualDematKycAndLotEligibilityVerified": false,
+          "propertyValuationDistributionsAndSchemeRiskVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "investmentAdviceAuthorizationVerified": false
+        }
       }
     },
     {

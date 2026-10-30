@@ -1759,3 +1759,43 @@ test('historical Retail Direct minimum triggers only a non-ranking notice for re
  }
  assert.equal([...small.values()].filter(row=>row.productQualified).length,0);
 });
+
+test('October 2026 SM REIT trust registration and draft scheme filings remain distinct, unqualified evidence',()=>{
+ const id='catalog_2026_sm_reit_scheme';
+ const get=()=>listExtensionResearch().find(row=>row.id===id);
+ const row=get(),review=row.individualCategoryReview.smReitTrustAndDraft2026Review;
+ assert.equal(review.registryHeaderAsOf,'2025-04-01');
+ assert.equal(review.registryIncludesTrustRegistrationDatedOn,'2026-10-12');
+ assert.equal(review.draftSchemeFilingDateObserved,'2026-10-23');
+ assert.equal(review.registryHeaderConflictsWithLaterDisplayedEntries,true);
+ assert.match(review.officialSebiRegisteredTrustsUrl,/sebi\.gov\.in\/sebiweb\/other/);
+ assert.match(review.officialSebiSmReitDraftFilingsUrl,/sebi\.gov\.in\/sebiweb\/home/);
+ assert.ok(review.riskConsiderations.length>=2);
+ assert.ok(review.investorAccessConstraints.length>=2);
+ for(const key of ['currentTrustStatusIndependentlyReconciled','finalSchemeOfferAndListingVerified',
+  'actualSchemeIsinAndUnitPriceVerified','individualDematKycAndLotEligibilityVerified',
+  'propertyValuationDistributionsAndSchemeRiskVerified','commercialMarketDataRightsVerified',
+  'investmentAdviceAuthorizationVerified'])assert.equal(review[key],false,key);
+ const screen=goals=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:goals,investmentHorizonYears:10,riskTolerance:'Moderate',emergencyFundMonths:6,
+ })).map(item=>[item.id,item]));
+ const ordinary=screen(['Wealth Growth']),emergency=screen(['Emergency Fund']);
+ for(const group of [ordinary,emergency]){
+  const item=group.get(id);
+  assert.ok(item.screeningReasonCodes.includes('SM_REIT_OCT_2026_TRUST_REGISTRATION_NOT_A_VERIFIED_LISTED_SCHEME'));
+  assert.ok(item.screeningReasonCodes.includes('SM_REIT_OCT_2026_DRAFT_FILINGS_NOT_FINAL_OFFER_OR_RETAIL_ACCESS'));
+  assert.equal(item.productQualified,false);
+  assert.equal(item.scoreAvailable,false);
+  assert.equal(item.productRiskLevel,null);
+ }
+ const goalNotice='EMERGENCY_FUND_GOAL_REQUIRES_SM_REIT_SCHEME_UNIT_EXIT_AND_SETTLEMENT_REVIEW';
+ assert.ok(!ordinary.get(id).screeningReasonCodes.includes(goalNotice));
+ assert.ok(emergency.get(id).screeningReasonCodes.includes(goalNotice));
+ assert.equal(ordinary.size,95);
+ assert.equal([...ordinary.values()].filter(item=>item.productQualified).length,0);
+ review.finalSchemeOfferAndListingVerified=true;
+ review.riskConsiderations.push('FABRICATED LIQUIDITY');
+ const clean=get().individualCategoryReview.smReitTrustAndDraft2026Review;
+ assert.equal(clean.finalSchemeOfferAndListingVerified,false);
+ assert.ok(!clean.riskConsiderations.includes('FABRICATED LIQUIDITY'));
+});

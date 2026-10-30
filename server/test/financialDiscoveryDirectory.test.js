@@ -963,3 +963,23 @@ test('four Retail Direct historical auction reviews are defensive educational co
   assert.ok(!fresh.riskConsiderations.includes('FORGED QUOTE'));
  }
 });
+
+test('SM REIT October 2026 trust registry and draft filings are defensive educational evidence only',()=>{
+ const get=()=>listFinancialDiscoveryDirectory().items.find(row=>row.id==='catalog_2026_sm_reit_scheme');
+ const row=get(),e=row.frameworkResearch.individualCategoryReview.smReitTrustAndDraft2026Review;
+ assert.equal(e.registryHeaderConflictsWithLaterDisplayedEntries,true);
+ assert.equal(e.registryIncludesTrustRegistrationDatedOn,'2026-10-12');
+ assert.equal(e.draftSchemeFilingDateObserved,'2026-10-23');
+ assert.equal(e.finalSchemeOfferAndListingVerified,false);
+ assert.equal(e.actualSchemeIsinAndUnitPriceVerified,false);
+ assert.equal(e.individualDematKycAndLotEligibilityVerified,false);
+ assert.equal(row.recommendationEligible,false);
+ assert.equal(row.productAvailability,'NOT_VERIFIED');
+ assert.equal(row.dataRights,'NOT_VERIFIED');
+ assert.ok(Object.values(row.productData).every(value=>value===null));
+ e.finalSchemeOfferAndListingVerified=true;
+ e.investorAccessConstraints.push('FABRICATED FINAL OFFER');
+ const clean=get().frameworkResearch.individualCategoryReview.smReitTrustAndDraft2026Review;
+ assert.equal(clean.finalSchemeOfferAndListingVerified,false);
+ assert.ok(!clean.investorAccessConstraints.includes('FABRICATED FINAL OFFER'));
+});

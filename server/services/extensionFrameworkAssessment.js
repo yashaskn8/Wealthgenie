@@ -497,6 +497,36 @@ if(research.entries.some(row=>{
   ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
   ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
 }))throw new Error('FINANCIAL_FINAL_15_SOURCE_SCOPED_RESEARCH_INVALID');
+// SEBI's SM REIT register has a stale as-of header while displaying an October
+// 2026 trust registration. Its October draft scheme filings are not final offers
+// or evidence that any individual scheme's units are listed or accessible.
+const smReitTrustRegistryUrl='https://www.sebi.gov.in/sebiweb/other/OtherAction.do?doRecognisedFpi=yes&intmId=48';
+const smReitDraftFilingsUrl='https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=3&smid=140&ssid=98';
+const smReitResearch=research.entries.find(row=>row.id==='catalog_2026_sm_reit_scheme');
+const smReitEvidence=smReitResearch?.individualCategoryReview?.smReitTrustAndDraft2026Review;
+if(!smReitEvidence
+ ||smReitEvidence.officialSebiRegisteredTrustsUrl!==smReitTrustRegistryUrl
+ ||smReitEvidence.officialSebiSmReitDraftFilingsUrl!==smReitDraftFilingsUrl
+ ||smReitEvidence.reviewedOn!=='2026-10-30'
+ ||smReitEvidence.registryHeaderAsOf!=='2025-04-01'
+ ||smReitEvidence.registryIncludesTrustRegistrationDatedOn!=='2026-10-12'
+ ||smReitEvidence.draftSchemeFilingDateObserved!=='2026-10-23'
+ ||smReitEvidence.registryHeaderConflictsWithLaterDisplayedEntries!==true
+ ||smReitEvidence.sourceScope!=='OFFICIAL_TRUST_REGISTRY_AND_DRAFT_SCHEME_FILINGS_NOT_SCHEME_UNIT_APPROVAL'
+ ||typeof smReitEvidence.categoryInterpretation!=='string'
+ ||smReitEvidence.categoryInterpretation.length<140
+ ||!Array.isArray(smReitEvidence.riskConsiderations)
+ ||smReitEvidence.riskConsiderations.length<2
+ ||!Array.isArray(smReitEvidence.investorAccessConstraints)
+ ||smReitEvidence.investorAccessConstraints.length<2
+ ||['currentTrustStatusIndependentlyReconciled','finalSchemeOfferAndListingVerified',
+   'actualSchemeIsinAndUnitPriceVerified','individualDematKycAndLotEligibilityVerified',
+   'propertyValuationDistributionsAndSchemeRiskVerified','commercialMarketDataRightsVerified',
+   'investmentAdviceAuthorizationVerified'].some(key=>smReitEvidence[key]!==false)
+ ||smReitResearch.individualCategoryReview.currentSchemeRegistrationAndListingVerified!==false
+ ||research.entries.some(row=>row.id!=='catalog_2026_sm_reit_scheme'
+   &&row.individualCategoryReview?.smReitTrustAndDraft2026Review!==undefined))
+ throw new Error('FINANCIAL_SM_REIT_2026_TRUST_DRAFT_SCHEME_EVIDENCE_INVALID');
 // October 2026 PMS replacement regulations have a future commencement date.
 // They must never be mistaken for a currently registered manager or client offer.
 if(research.entries.filter(row=>row.individualCategoryReview?.pmsRegulatoryTransitionReview).length!==2
@@ -1213,8 +1243,15 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('MUNICIPAL_GREEN_BOND_JULY_2026_ISSUE_DISCLOSURES_AND_GREEN_CLAIMS_REVIEW');
    if(row.id==='catalog_2026_municipal_green'&&profile.emergencyFundMonths===0)
      reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_MUNICIPAL_BOND_CREDIT_AND_RESALE_REVIEW');
-   if(row.id==='catalog_2026_sm_reit_scheme')
+   if(row.id==='catalog_2026_sm_reit_scheme'){
      reasons.push('SM_REIT_OCTOBER_2026_REGULATIONS_NOT_A_REGISTERED_SCHEME_OR_UNIT_QUOTE');
+     reasons.push('SM_REIT_OCT_2026_TRUST_REGISTRATION_NOT_A_VERIFIED_LISTED_SCHEME');
+     reasons.push('SM_REIT_OCT_2026_DRAFT_FILINGS_NOT_FINAL_OFFER_OR_RETAIL_ACCESS');
+     // The profile's stated emergency-fund goal warrants a liquidity notice;
+     // it cannot establish eligibility or a personal risk score.
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_SM_REIT_SCHEME_UNIT_EXIT_AND_SETTLEMENT_REVIEW');
+   }
    if(row.id==='catalog_2026_sif_hybrid_longshort'){
      reasons.push('SIF_DERIVATIVE_SHORT_AND_INTERVAL_REDEMPTION_TERMS_UNVERIFIED');
      reasons.push('SIF_PAN_AGGREGATE_THRESHOLD_ACTIVE_BREACH_AND_REDEMPTION_REVIEW');
