@@ -5147,7 +5147,7 @@
         ],
         "investorAccessConstraints": [
           "RBI 2024 CP directions specify 7-day to one-year tenor, demat and ₹5 lakh denominations; they do not prove a particular issuer/ISIN or individual purchase access.",
-          "Verify investor residency/related-party restrictions, the 25% aggregate individual primary subscription cap, issue rating, account route, quote and data rights."
+          "Verify residency and related-party restrictions, the combined 25% primary-issue subscription ceiling for all individuals including HUFs (not a per-person allowance), rating, demat/IPA route, quote and data rights."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5179,6 +5179,39 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        },
+        "rbiCpDirectionSpecificReview": {
+          "officialRbiDirectionUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592",
+          "directionsIssuedOn": "2024-01-03",
+          "effectiveFrom": "2024-04-01",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "CP_PRIMARY_ISSUANCE_AND_MARKET_RULES_NOT_PERSONAL_ELIGIBILITY_OR_LIVE_PRODUCT",
+          "instrumentDefinition": "UNSECURED_MONEY_MARKET_PROMISSORY_NOTE",
+          "minimumDenominationInr": 500000,
+          "minimumTenorDays": 7,
+          "maximumTenorDays": 365,
+          "primaryAllIndividualsIncludingHufsAggregateSubscriptionCapPct": 25,
+          "aggregateCapIsPerIndividual": false,
+          "cpIssuedAtDiscountToFaceValue": true,
+          "cpCallOrPutOptionsPermitted": false,
+          "cpIssueMinimumRating": "A3",
+          "residentInvestorCategoryPermittedSubjectToRestrictions": true,
+          "nonresidentParticipationSubjectToFema": true,
+          "relatedPartyPrimaryAndSecondaryInvestmentProhibited": true,
+          "issueIsinAndIssuerVerified": false,
+          "issueRatingAndOfferTermsVerified": false,
+          "investorResidencyRelatedPartyKycAndChannelVerified": false,
+          "currentPriceAndCommercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Commercial paper is unsecured short-term issuer debt; its RBI minimum issue rating is not a guarantee of payment or preservation of principal.",
+            "A short contractual tenor and issuer buyback permissions do not guarantee an investor can sell early at a fair or executable market price."
+          ],
+          "investorAccessConstraints": [
+            "The RBI's 25% limit applies to combined primary subscriptions by all individuals including HUFs, not a 25% personal allocation, entitlement or blanket retail approval.",
+            "Verify actual CP ISIN, ₹5 lakh denomination, 7-day to one-year tenor, rating, residency/FEMA and related-party rules, demat/IPA access, offer route and licensed price rights.",
+            "The 2024 directions' special definition of a secured NCD with initial maturity up to one year must not be generalized to all long-dated or unsecured NCD categories."
           ]
         }
       }

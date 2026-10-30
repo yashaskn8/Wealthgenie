@@ -626,6 +626,35 @@ if(research.entries.filter(row=>row.debtInstrumentReview?.merchantBankerExemptio
      ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
      ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<3;
  }))throw new Error('FINANCIAL_OCTOBER_DEBT_ISSUER_PROCESS_EXCEPTION_SCOPE_INVALID');
+// The RBI CP 25% primary subscription ceiling is aggregate across all
+// individuals/HUFs, not per person; short-tenor NCD rules are not universal.
+const cpDirectionRows=research.entries.filter(row=>row.debtInstrumentReview?.rbiCpDirectionSpecificReview);
+const cpInstrument=research.entries.find(row=>row.id==='catalog_2026_commercial_paper')?.debtInstrumentReview;
+const cpDirection=cpInstrument?.rbiCpDirectionSpecificReview;
+if(cpDirectionRows.length!==1||cpDirectionRows[0].id!=='catalog_2026_commercial_paper'
+  ||cpDirection?.officialRbiDirectionUrl!=='https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592'
+  ||cpDirection.directionsIssuedOn!=='2024-01-03'||cpDirection.effectiveFrom!=='2024-04-01'
+  ||cpDirection.reviewedOn!=='2026-10-30'
+  ||cpDirection.sourceScope!=='CP_PRIMARY_ISSUANCE_AND_MARKET_RULES_NOT_PERSONAL_ELIGIBILITY_OR_LIVE_PRODUCT'
+  ||cpDirection.instrumentDefinition!=='UNSECURED_MONEY_MARKET_PROMISSORY_NOTE'
+  ||cpDirection.minimumDenominationInr!==500000||cpDirection.minimumTenorDays!==7
+  ||cpDirection.maximumTenorDays!==365
+  ||cpDirection.primaryAllIndividualsIncludingHufsAggregateSubscriptionCapPct!==25
+  ||cpDirection.aggregateCapIsPerIndividual!==false
+  ||cpDirection.cpIssuedAtDiscountToFaceValue!==true||cpDirection.cpCallOrPutOptionsPermitted!==false
+  ||cpDirection.cpIssueMinimumRating!=='A3'
+  ||cpDirection.residentInvestorCategoryPermittedSubjectToRestrictions!==true
+  ||cpDirection.nonresidentParticipationSubjectToFema!==true
+  ||cpDirection.relatedPartyPrimaryAndSecondaryInvestmentProhibited!==true
+  ||['issueIsinAndIssuerVerified','issueRatingAndOfferTermsVerified',
+    'investorResidencyRelatedPartyKycAndChannelVerified',
+    'currentPriceAndCommercialDataRightsVerified','personalizedAdviceAuthorizationVerified']
+    .some(key=>cpDirection[key]!==false)
+  ||!hasCompleteCategoryRiskAccessResearch({debtInstrumentReview:cpDirection})
+  ||cpInstrument.rbiCpMinimumDenominationInr!==cpDirection.minimumDenominationInr
+  ||cpInstrument.rbiCpPrimaryIndividualSubscriptionAggregateCapPct
+    !==cpDirection.primaryAllIndividualsIncludingHufsAggregateSubscriptionCapPct)
+  throw new Error('FINANCIAL_RBI_CP_AGGREGATE_PRIMARY_LIMIT_SCOPE_INVALID');
 // Vatsalya 2026 effective scheme rules outrank an older still-live FAQ.
 const vatsalyaResearch=research.entries.find(x=>x.id==='catalog_2026_nps_vatsalya');
 const v=vatsalyaResearch?.npsVatsalyaAccessReview, e=v?.guidelines2026EvidenceReview;
@@ -1037,6 +1066,11 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(row.id==='catalog_2026_commercial_paper'){
        reasons.push('CP_RBI_2024_DEMAT_MINIMUM_DENOMINATION_AND_RELATED_PARTY_REVIEW');
        reasons.push('CP_RBI_2024_INDIVIDUAL_PRIMARY_SUBSCRIPTION_CAP_NOT_PERSONAL_APPROVAL');
+       reasons.push('CP_RBI_2024_25_PERCENT_PRIMARY_LIMIT_IS_ALL_INDIVIDUALS_AND_HUFS_COMBINED');
+       // Reported lump sum is not total resources or a verified subscription.
+       if(profile.hasLumpSum===true&&nonnegative(profile.lumpSumAmount)
+         &&profile.lumpSumAmount<row.debtInstrumentReview.rbiCpDirectionSpecificReview.minimumDenominationInr)
+         reasons.push('REPORTED_CP_LUMP_SUM_BELOW_5_LAKH_DENOMINATION_REQUIRES_ACCESS_REVIEW_NOT_REJECTION');
      }
    }
    if(row.debtInstrumentReview?.privatePlacementIsinOct2026Review)

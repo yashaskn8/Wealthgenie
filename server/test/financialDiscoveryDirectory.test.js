@@ -859,3 +859,23 @@ test('October 2026 mutual-fund regulations remain general evidence for nine debt
   assert.ok(!clean.riskConsiderations.includes('FORGED APPROVAL'),id);
  }
 });
+
+test('RBI CP 2024 research is copied and not purchasable product data',()=>{
+ const get=()=>listFinancialDiscoveryDirectory().items.find(row=>row.id==='catalog_2026_commercial_paper');
+ const row=get(),r=row.frameworkResearch.debtInstrumentReview.rbiCpDirectionSpecificReview;
+ assert.equal(r.reviewedOn,'2026-10-30');
+ assert.equal(r.primaryAllIndividualsIncludingHufsAggregateSubscriptionCapPct,25);
+ assert.equal(r.aggregateCapIsPerIndividual,false);
+ assert.equal(r.issueRatingAndOfferTermsVerified,false);
+ assert.equal(r.currentPriceAndCommercialDataRightsVerified,false);
+ assert.equal(row.recommendationEligible,false);
+ assert.equal(row.dataRights,'NOT_VERIFIED');
+ assert.ok(Object.values(row.productData).every(v=>v===null));
+ r.riskConsiderations.push('FORGED');
+ r.investorAccessConstraints[0]='FORGED';
+ r.aggregateCapIsPerIndividual=true;
+ const fresh=get().frameworkResearch.debtInstrumentReview.rbiCpDirectionSpecificReview;
+ assert.equal(fresh.aggregateCapIsPerIndividual,false);
+ assert.ok(!fresh.riskConsiderations.includes('FORGED'));
+ assert.notEqual(fresh.investorAccessConstraints[0],'FORGED');
+});

@@ -1558,3 +1558,38 @@ test('nine debt-fund archetypes distinguish October 2026 SEBI mutual-fund rules 
  assert.equal(screened.size,95);
  assert.equal([...screened.values()].filter(x=>x.productQualified).length,0);
 });
+
+test('RBI 2024 CP aggregate primary limit is not a personal cap or verified retail access',()=>{
+ const cp=listExtensionResearch().find(row=>row.id==='catalog_2026_commercial_paper');
+ const r=cp.debtInstrumentReview.rbiCpDirectionSpecificReview;
+ assert.equal(r.officialRbiDirectionUrl,'https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592');
+ assert.equal(r.reviewedOn,'2026-10-30');
+ assert.equal(r.minimumDenominationInr,500000);
+ assert.equal(r.minimumTenorDays,7);
+ assert.equal(r.maximumTenorDays,365);
+ assert.equal(r.primaryAllIndividualsIncludingHufsAggregateSubscriptionCapPct,25);
+ assert.equal(r.aggregateCapIsPerIndividual,false);
+ assert.equal(r.cpIssueMinimumRating,'A3');
+ assert.equal(r.relatedPartyPrimaryAndSecondaryInvestmentProhibited,true);
+ assert.equal(r.issueIsinAndIssuerVerified,false);
+ assert.equal(r.investorResidencyRelatedPartyKycAndChannelVerified,false);
+ assert.equal(r.currentPriceAndCommercialDataRightsVerified,false);
+ assert.equal(r.personalizedAdviceAuthorizationVerified,false);
+ assert.ok(r.investorAccessConstraints.some(x=>x.includes('all individuals including HUFs')));
+ const make=(hasLumpSum,lumpSumAmount)=>screenExtensionResearchForProfile(canonicalProfile({
+  hasLumpSum,lumpSumAmount,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  riskTolerance:'Aggressive',emergencyFundMonths:6,
+ })).find(row=>row.id==='catalog_2026_commercial_paper');
+ const flag='REPORTED_CP_LUMP_SUM_BELOW_5_LAKH_DENOMINATION_REQUIRES_ACCESS_REVIEW_NOT_REJECTION';
+ const small=make(true,400000),exact=make(true,500000),missing=make(false,0);
+ assert.ok(small.screeningReasonCodes.includes(flag));
+ assert.ok(!exact.screeningReasonCodes.includes(flag));
+ assert.ok(!missing.screeningReasonCodes.includes(flag));
+ for(const row of [small,exact,missing]){
+  assert.ok(row.screeningReasonCodes.includes('CP_RBI_2024_25_PERCENT_PRIMARY_LIMIT_IS_ALL_INDIVIDUALS_AND_HUFS_COMBINED'));
+  assert.equal(row.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(row.productQualified,false);
+  assert.equal(row.scoreAvailable,false);
+  assert.equal(row.productRiskLevel,null);
+ }
+});
