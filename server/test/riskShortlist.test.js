@@ -1661,3 +1661,47 @@ test('nine NPS categories distinguish August 2026 PFRDA scheme presentation from
   'NPS_VATSALYA_FOUR_A_SPECIFIC_GUARDIAN_AND_SCHEME_TERMS_REQUIRED'));
  assert.equal([...screened.values()].filter(row=>row.productQualified).length,0);
 });
+
+test('RBI 2025 NBFC emergency exception is conditional for both payout and cumulative deposits',()=>{
+ const ids=['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout'];
+ const rows=listExtensionResearch().filter(row=>ids.includes(row.id));
+ assert.equal(rows.length,2);
+ assert.equal(new Set(rows.map(row=>row.nbfcPublicDepositAccessReview.emergencyPrematurity2025Review.categoryInterpretation)).size,2);
+ for(const row of rows){
+  const r=row.nbfcPublicDepositAccessReview.emergencyPrematurity2025Review;
+  assert.equal(r.officialRbiAmendmentUrl,'https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12719&Mode=0');
+  assert.equal(r.officialRbiConsolidatedDirectionUrl,'https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=10563');
+  assert.equal(r.effectiveFrom,'2025-01-01');
+  assert.equal(r.consolidatedDirectionUpdatedThrough,'2025-02-27');
+  assert.equal(r.reviewedOn,'2026-10-30');
+  assert.equal(r.tinyDepositAggregateCeilingInr,10000);
+  assert.equal(r.ordinaryDepositEarlyPrincipalLimitPct,50);
+  assert.equal(r.ordinaryDepositEarlyPrincipalAbsoluteCapInr,500000);
+  assert.equal(r.nonProblemNbfcAndIssuerSatisfactionRequired,true);
+  assert.equal(r.criticalIllnessMayPermitFullPrincipalBeforeThreeMonths,true);
+  assert.equal(r.beforeThreeMonthsEmergencyRepaymentWithoutInterest,true);
+  for(const key of ['routineOnDemandWithdrawalEstablished','specificIssuerNonProblemStatusVerified',
+   'depositorEmergencyAndContractEligibilityVerified','actualIssuerDepositRatingAndTermsVerified',
+   'currentRateAndCommercialDataRightsVerified','personalizedAdviceAuthorizationVerified'])
+   assert.equal(r[key],false,row.id+':'+key);
+  assert.ok(r.riskConsiderations.length>=2&&r.investorAccessConstraints.length>=2);
+ }
+ const make=emergencyFundMonths=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,riskTolerance:'Moderate',emergencyFundMonths,
+ })).map(row=>[row.id,row]));
+ const zero=make(0),positive=make(6),missing=make(undefined);
+ const notice='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_NBFC_UNINSURED_CREDIT_AND_PREMATURITY_REVIEW';
+ for(const id of ids){
+  assert.ok(zero.get(id).screeningReasonCodes.includes(notice));
+  assert.ok(!positive.get(id).screeningReasonCodes.includes(notice));
+  assert.ok(!missing.get(id).screeningReasonCodes.includes(notice));
+  for(const screened of [zero.get(id),positive.get(id),missing.get(id)]){
+   assert.ok(screened.screeningReasonCodes.includes('RBI_2025_NBFC_EMERGENCY_PREMATURITY_IS_CONDITIONAL_NOT_ON_DEMAND_LIQUIDITY'));
+   assert.equal(screened.productQualified,false);
+   assert.equal(screened.scoreAvailable,false);
+   assert.equal(screened.productRiskLevel,null);
+  }
+ }
+ assert.equal(zero.size,95);
+ assert.equal([...zero.values()].filter(row=>row.productQualified).length,0);
+});

@@ -1001,16 +1001,49 @@
         "officialRiskAccessEvidenceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
         "riskConsiderations": [
           "A cumulative interest structure defers cash receipts to maturity; issuer default or delayed repayment can put principal and accrued interest at risk.",
-          "RBI registration is not a repayment guarantee and NBFC public deposits are outside DICGC insurance."
+          "RBI registration is not a repayment guarantee and NBFC public deposits are outside DICGC insurance.",
+          "Deferred interest increases dependence on issuer repayment at maturity; an emergency may occur before any contracted payout."
         ],
         "investorAccessConstraints": [
           "Verify the actual NBFC's current RBI deposit-taking authorisation, minimum investment-grade deposit rating and issue-specific compounding terms.",
-          "Check applicant KYC, permitted 12-60 month tenor, premature repayment restrictions, verified offer documents and data rights before any product display."
+          "Check applicant KYC, permitted 12-60 month tenor, premature repayment restrictions, verified offer documents and data rights before any product display.",
+          "Verify deposit-taking authorisation, current deposit rating, cumulative interest, actual issuer status and the depositor's qualifying circumstances."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "emergencyPrematurity2025Review": {
+          "officialRbiAmendmentUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12719&Mode=0",
+          "officialRbiConsolidatedDirectionUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=10563",
+          "circularIssuedOn": "2024-08-12",
+          "effectiveFrom": "2025-01-01",
+          "consolidatedDirectionUpdatedThrough": "2025-02-27",
+          "reviewedOn": "2026-10-30",
+          "scope": "CONDITIONAL_NBFC_PUBLIC_DEPOSIT_EMERGENCY_PREMATURITY_NOT_ON_DEMAND_ACCESS_OR_PRODUCT_APPROVAL",
+          "categoryInterpretation": "Cumulative deposits defer interest until maturity; RBI's emergency exception is not a normal early redemption or guarantee of principal.",
+          "nonProblemNbfcAndIssuerSatisfactionRequired": true,
+          "qualifyingEmergencyCircumstancesIncludeMedicalOrNotifiedDisaster": true,
+          "tinyDepositAggregateCeilingInr": 10000,
+          "ordinaryDepositEarlyPrincipalLimitPct": 50,
+          "ordinaryDepositEarlyPrincipalAbsoluteCapInr": 500000,
+          "criticalIllnessMayPermitFullPrincipalBeforeThreeMonths": true,
+          "beforeThreeMonthsEmergencyRepaymentWithoutInterest": true,
+          "routineOnDemandWithdrawalEstablished": false,
+          "specificIssuerNonProblemStatusVerified": false,
+          "depositorEmergencyAndContractEligibilityVerified": false,
+          "actualIssuerDepositRatingAndTermsVerified": false,
+          "currentRateAndCommercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Deferred interest increases dependence on issuer repayment at maturity; an emergency may occur before any contracted payout.",
+            "Emergency repayment is subject to issuer satisfaction and does not guarantee immediate access, deposit insurance or issuer solvency."
+          ],
+          "investorAccessConstraints": [
+            "Verify deposit-taking authorisation, current deposit rating, cumulative interest, actual issuer status and the depositor's qualifying circumstances.",
+            "Check aggregate tiny-deposit amount, medical/notified-disaster or critical-illness circumstances, the three-month window and applicable principal cap."
+          ]
+        }
       }
     },
     {
@@ -1054,16 +1087,49 @@
         "officialRiskAccessEvidenceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
         "riskConsiderations": [
           "Periodic payout does not remove issuer credit/default risk or guarantee repayment of principal at maturity.",
-          "Income frequency may differ from the effective yield; early exit and reinvestment of distributions create cash-flow and liquidity risk without DICGC insurance."
+          "Income frequency may differ from the effective yield; early exit and reinvestment of distributions create cash-flow and liquidity risk without DICGC insurance.",
+          "Periodic payouts may cease on issuer default, while principal remains exposed to restricted premature repayment and credit risk."
         ],
         "investorAccessConstraints": [
           "Confirm issuer-specific RBI deposit-taking permission, current credit rating and the actual monthly/quarterly payout contract rather than inferring a universal payout.",
-          "Verify individual KYC, minimum deposit, early withdrawal rules, maturity repayment, licensed rate source and any distribution rights."
+          "Verify individual KYC, minimum deposit, early withdrawal rules, maturity repayment, licensed rate source and any distribution rights.",
+          "Verify deposit-taking authorisation, current rating, payout schedule, early-principal terms and qualifying depositor circumstances."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "emergencyPrematurity2025Review": {
+          "officialRbiAmendmentUrl": "https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12719&Mode=0",
+          "officialRbiConsolidatedDirectionUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=10563",
+          "circularIssuedOn": "2024-08-12",
+          "effectiveFrom": "2025-01-01",
+          "consolidatedDirectionUpdatedThrough": "2025-02-27",
+          "reviewedOn": "2026-10-30",
+          "scope": "CONDITIONAL_NBFC_PUBLIC_DEPOSIT_EMERGENCY_PREMATURITY_NOT_ON_DEMAND_ACCESS_OR_PRODUCT_APPROVAL",
+          "categoryInterpretation": "Periodic interest receipts do not make an NBFC deposit's principal withdrawable on demand; RBI's emergency exception is conditional.",
+          "nonProblemNbfcAndIssuerSatisfactionRequired": true,
+          "qualifyingEmergencyCircumstancesIncludeMedicalOrNotifiedDisaster": true,
+          "tinyDepositAggregateCeilingInr": 10000,
+          "ordinaryDepositEarlyPrincipalLimitPct": 50,
+          "ordinaryDepositEarlyPrincipalAbsoluteCapInr": 500000,
+          "criticalIllnessMayPermitFullPrincipalBeforeThreeMonths": true,
+          "beforeThreeMonthsEmergencyRepaymentWithoutInterest": true,
+          "routineOnDemandWithdrawalEstablished": false,
+          "specificIssuerNonProblemStatusVerified": false,
+          "depositorEmergencyAndContractEligibilityVerified": false,
+          "actualIssuerDepositRatingAndTermsVerified": false,
+          "currentRateAndCommercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Periodic payouts may cease on issuer default, while principal remains exposed to restricted premature repayment and credit risk.",
+            "Emergency repayment is subject to issuer satisfaction and does not guarantee immediate access, deposit insurance or issuer solvency."
+          ],
+          "investorAccessConstraints": [
+            "Verify deposit-taking authorisation, current rating, payout schedule, early-principal terms and qualifying depositor circumstances.",
+            "Check aggregate tiny-deposit amount, medical/notified-disaster or critical-illness circumstances, the three-month window and applicable principal cap."
+          ]
+        }
       }
     },
     {

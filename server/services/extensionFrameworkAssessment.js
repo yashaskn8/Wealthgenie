@@ -9,6 +9,8 @@ const research=JSON.parse(readFileSync(
 const idSet=new Set(universe.map(x=>x.id));
 const legacyIds=new Set(investmentDatabase.map(x=>x.id));
 const nbfcDepositIds=new Set(['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout']);
+const nbfcEmergencyRbiAmendmentUrl='https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12719&Mode=0';
+const nbfcEmergencyRbiMasterUrl='https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=10563';
 const bankDepositStructures=Object.freeze({"catalog_2026_bank_rd":"RECURRING_INSTALLMENT_DEPOSIT","catalog_2026_bank_tax_saver_fd":"FIVE_YEAR_TAX_SAVER_TERM_DEPOSIT","catalog_2026_bank_sweep_fd":"SWEEP_LINKED_TERM_DEPOSIT","catalog_2026_bank_fd_monthly":"NONCUMULATIVE_MONTHLY_PAYOUT","catalog_2026_bank_fd_quarterly":"NONCUMULATIVE_QUARTERLY_PAYOUT"});
 const bankDepositRbiFaqUrl="https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf";
 const bankDepositDicgcUrl="https://www.dicgc.org.in/guide-to-deposit-insurance";
@@ -207,7 +209,29 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.nbfcPublicDepositAccessReview?.issuerCreditRatingVerified!==false
       || x.nbfcPublicDepositAccessReview?.issuerSpecificTermsVerified!==false
       || x.nbfcPublicDepositAccessReview?.individualRetailEligibilityVerified!==false
-      || x.nbfcPublicDepositAccessReview?.commercialDataRightsVerified!==false)
+      || x.nbfcPublicDepositAccessReview?.commercialDataRightsVerified!==false
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.officialRbiAmendmentUrl!==nbfcEmergencyRbiAmendmentUrl
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.officialRbiConsolidatedDirectionUrl!==nbfcEmergencyRbiMasterUrl
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.circularIssuedOn!=='2024-08-12'
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.effectiveFrom!=='2025-01-01'
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.consolidatedDirectionUpdatedThrough!=='2025-02-27'
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.reviewedOn!=='2026-10-30'
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.tinyDepositAggregateCeilingInr!==10000
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.ordinaryDepositEarlyPrincipalLimitPct!==50
+      || x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.ordinaryDepositEarlyPrincipalAbsoluteCapInr!==500000
+      || !['nonProblemNbfcAndIssuerSatisfactionRequired',
+        'qualifyingEmergencyCircumstancesIncludeMedicalOrNotifiedDisaster',
+        'criticalIllnessMayPermitFullPrincipalBeforeThreeMonths',
+        'beforeThreeMonthsEmergencyRepaymentWithoutInterest'].every(key=>
+          x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.[key]===true)
+      || !['routineOnDemandWithdrawalEstablished','specificIssuerNonProblemStatusVerified',
+        'depositorEmergencyAndContractEligibilityVerified','actualIssuerDepositRatingAndTermsVerified',
+        'currentRateAndCommercialDataRightsVerified','personalizedAdviceAuthorizationVerified'].every(key=>
+          x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.[key]===false)
+      || !Array.isArray(x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.riskConsiderations)
+      || x.nbfcPublicDepositAccessReview.emergencyPrematurity2025Review.riskConsiderations.length<2
+      || !Array.isArray(x.nbfcPublicDepositAccessReview?.emergencyPrematurity2025Review?.investorAccessConstraints)
+      || x.nbfcPublicDepositAccessReview.emergencyPrematurity2025Review.investorAccessConstraints.length<2)
     : x.nbfcPublicDepositAccessReview!==undefined)
   || research.entries.some(x=>Object.hasOwn(bankDepositStructures,x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
@@ -1051,6 +1075,9 @@ export function screenExtensionResearchForProfile(profileInput) {
    }
 
    if(row.nbfcPublicDepositAccessReview){
+     reasons.push('RBI_2025_NBFC_EMERGENCY_PREMATURITY_IS_CONDITIONAL_NOT_ON_DEMAND_LIQUIDITY');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_NBFC_UNINSURED_CREDIT_AND_PREMATURITY_REVIEW');
      if(profile.investmentGoals.includes('Emergency Fund'))
        reasons.push('EMERGENCY_FUND_REQUIRES_UNINSURED_NBFC_DEPOSIT_REPAYMENT_AND_LIQUIDITY_REVIEW');
      if(profile.investmentHorizonYears<=3)

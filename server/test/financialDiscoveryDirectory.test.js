@@ -923,3 +923,22 @@ test('PFRDA scheme-presentation research for nine NPS archetypes is defensively 
   assert.ok(!clean.investorAccessConstraints.includes('FABRICATED ELIGIBILITY'),id);
  }
 });
+
+test('NBFC emergency repayment evidence is copied without converting a category to a product',()=>{
+ const ids=['catalog_2026_nbfc_fd_cumulative','catalog_2026_nbfc_fd_payout'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ for(const id of ids){
+  const row=get(id),review=row.frameworkResearch.publicDepositAccessReview.emergencyPrematurity2025Review;
+  assert.equal(review.effectiveFrom,'2025-01-01');
+  assert.equal(review.routineOnDemandWithdrawalEstablished,false);
+  assert.equal(review.specificIssuerNonProblemStatusVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(row.productData).every(value=>value===null));
+  review.routineOnDemandWithdrawalEstablished=true;
+  review.riskConsiderations.push('FABRICATED INSURANCE');
+  const clean=get(id).frameworkResearch.publicDepositAccessReview.emergencyPrematurity2025Review;
+  assert.equal(clean.routineOnDemandWithdrawalEstablished,false);
+  assert.ok(!clean.riskConsiderations.includes('FABRICATED INSURANCE'));
+ }
+});
