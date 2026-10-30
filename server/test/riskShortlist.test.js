@@ -1955,7 +1955,9 @@ test('silver ETF FoF has separate current scheme-risk and October 2026 regulator
  // A silver FoF has scheme/underlying ETF risks, not direct bullion assay/custody.
  const silverResearch=get().preciousMetalsCategoryReview;
  assert.match(silverResearch.financialProfileScreening,/underlying ETF tracking/);
- assert.doesNotMatch(silverResearch.financialProfileScreening,/custody warnings/);
+ // The explicit negation is correct: physical-custody warnings must not be applied to FoF units.
+ assert.match(silverResearch.financialProfileScreening,/custody warnings do not describe FoF units\./);
+ assert.doesNotMatch(silverResearch.financialProfileScreening,/show[^.]*custody warnings/i);
  const schemeBoundary='SILVER_FOF_SCHEME_UNDERLYING_ETF_NAV_AND_RIGHTS_UNVERIFIED';
  const physicalBoundary='PHYSICAL_PRECIOUS_METALS_ASSAY_CUSTODY_AND_RESALE_TERMS_UNVERIFIED';
  const physical='PHYSICAL_BULLION_ASSAY_DEALER_SPREAD_CUSTODY_AND_RESALE_UNVERIFIED';
