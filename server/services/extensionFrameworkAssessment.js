@@ -1062,6 +1062,8 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('INDIA_POST_CURRENT_ACCOUNT_TERMS_RATE_AND_SOURCE_RIGHTS_UNVERIFIED');
      if(row.postalSavingsAccessReview.schemeType==='NATIONAL_SAVINGS_TIME_DEPOSIT') {
        reasons.push('POST_OFFICE_TIME_DEPOSIT_EARLY_CLOSURE_TERMS_REQUIRE_CURRENT_REVIEW');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_REQUIRES_POSTAL_TD_PREMATURE_CLOSURE_AND_ACCESS_REVIEW');
        if(row.nominalMaturityMonths===60)
          reasons.push('POST_OFFICE_FIVE_YEAR_TD_EARLY_EXIT_CONDITIONS_REQUIRE_SPECIAL_REVIEW');
        if(profile.riskTolerance==='Conservative')

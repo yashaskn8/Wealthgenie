@@ -324,6 +324,22 @@ test('four India Post schemes retain individual eligibility and licensed-rate bl
  assert.equal(research.filter(x=>x.postalSavingsAccessReview).length,4);
 });
 
+test('postal time-deposit emergency-fund warning uses only a recorded goal and never qualifies a product',()=>{
+ const emergency=screenExtensionResearchForProfile(canonicalProfile({investmentGoals:['Emergency Fund']}));
+ const other=screenExtensionResearchForProfile(canonicalProfile({investmentGoals:['Wealth Growth']}));
+ const notice='EMERGENCY_FUND_REQUIRES_POSTAL_TD_PREMATURE_CLOSURE_AND_ACCESS_REVIEW';
+ for(const suffix of ['po_td_2','po_td_3','po_td_5']) {
+  const id='catalog_2026_'+suffix;
+  const yes=emergency.find(x=>x.id===id),no=other.find(x=>x.id===id);
+  assert.ok(yes.screeningReasonCodes.includes(notice));
+  assert.ok(!no.screeningReasonCodes.includes(notice));
+  assert.equal(yes.productQualified,false);
+  assert.equal(yes.scoreAvailable,false);
+  assert.equal(yes.productRiskLevel,null);
+ }
+ assert.ok(!emergency.find(x=>x.id==='catalog_2026_po_savings').screeningReasonCodes.includes(notice));
+});
+
 test('four central-government bond structures keep instrument and profile gates closed',()=>{
  const ids=['gsec_coupon_strip','gsec_principal_strip','sovereign_green','gsec_floating'];
  const types=["CENTRAL_GSEC_COUPON_STRIP","CENTRAL_GSEC_PRINCIPAL_STRIP","SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","FLOATING_RATE_CENTRAL_GSEC"];
