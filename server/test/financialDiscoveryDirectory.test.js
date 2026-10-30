@@ -750,6 +750,30 @@ test('FoF scheme risk-o-meter disclosure references are copied without granting 
  }
 });
 
+
+test('Annexure C multi-underlying FoF evidence stays educational and defensively copied',()=>{
+ const ids=["catalog_2026_equity_diversified_fof","catalog_2026_equity_sector_fof","catalog_2026_fof_aggressive_hybrid","catalog_2026_fof_conservative_hybrid","catalog_2026_fof_income_arbitrage","catalog_2026_fof_dynamic_allocation"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(item=>item.id===id);
+ for(const id of ids){
+  const item=get(id);
+  const e=item.frameworkResearch.fundOfFundsCategoryReview.sebiMultiUnderlyingFoFAnnexureC2026Review;
+  assert.equal(e.applicability,'MULTIPLE_UNDERLYING_FUNDS_ONLY',id);
+  assert.equal(e.actualSchemeUnderlyingFundCountVerified,false,id);
+  assert.equal(e.currentSchemeRiskometerVerified,false,id);
+  assert.equal(e.investorKycAndRetailEligibilityVerified,false,id);
+  assert.equal(item.recommendationEligible,false,id);
+  assert.equal(item.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(item.productData).every(value=>value===null),id);
+  e.actualSchemeUnderlyingFundCountVerified=true;
+  e.categorySpecificBoundary='FORGED ELIGIBILITY';
+  e.riskConsiderations.push('FORGED RISK');
+  const clean=get(id).frameworkResearch.fundOfFundsCategoryReview.sebiMultiUnderlyingFoFAnnexureC2026Review;
+  assert.equal(clean.actualSchemeUnderlyingFundCountVerified,false,id);
+  assert.notEqual(clean.categorySpecificBoundary,'FORGED ELIGIBILITY',id);
+  assert.ok(!clean.riskConsiderations.includes('FORGED RISK'),id);
+ }
+});
+
 test('SIF certification and aggregate-threshold evidence is defensively copied and not a product',()=>{
  const find=()=>listFinancialDiscoveryDirectory().items
   .find(item=>item.id==='catalog_2026_sif_hybrid_longshort');

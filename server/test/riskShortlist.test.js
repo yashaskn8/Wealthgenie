@@ -1278,6 +1278,63 @@ test('six FoF categories retain source-scoped SEBI scheme risk-o-meter evidence,
  assert.equal(interpretations.size,6,'Each FoF has an individual risk interpretation');
 });
 
+
+test('six Annexure C FoF categories distinguish multiple underlying funds from actual schemes',()=>{
+ const ids=["catalog_2026_equity_diversified_fof","catalog_2026_equity_sector_fof","catalog_2026_fof_aggressive_hybrid","catalog_2026_fof_conservative_hybrid","catalog_2026_fof_income_arbitrage","catalog_2026_fof_dynamic_allocation"];
+ const rows=listExtensionResearch();
+ const byId=id=>rows.find(row=>row.id===id);
+ const boundaries=new Set();
+ for(const id of ids){
+  const row=byId(id),e=row.fundOfFundsCategoryReview.sebiMultiUnderlyingFoFAnnexureC2026Review;
+  assert.equal(e.officialSebiCircularUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf');
+  assert.ok(isOfficialFrameworkReferenceUrl(e.officialSebiCircularUrl));
+  assert.equal(e.circularIssuedOn,'2026-02-26');
+  assert.equal(e.reviewedOn,'2026-10-30');
+  assert.equal(e.applicability,'MULTIPLE_UNDERLYING_FUNDS_ONLY');
+  assert.equal(e.sourceScope,'ANNEXURE_C_CATEGORY_REQUIREMENTS_NOT_SINGLE_UNDERLYING_OR_NAMED_SCHEME_APPROVAL');
+  boundaries.add(e.categorySpecificBoundary);
+  assert.ok(e.riskConsiderations.length>=2&&e.investorAccessConstraints.length>=2,id);
+  for(const key of ['actualSchemeUnderlyingFundCountVerified','actualSchemeAllocationAndHoldingsVerified',
+    'specificAmcAndSchemeVerified','currentSchemeRiskometerVerified',
+    'currentNavAndLicensedDataRightsVerified','investorKycAndRetailEligibilityVerified',
+    'taxAndPersonalizedAdviceAuthorizationVerified'])assert.equal(e[key],false,id+' '+key);
+  assert.equal(row.productRiskScore,null);
+  assert.equal(row.suitabilityRankingPermitted,false);
+  assert.equal(row.actualRetailProductEligible,false);
+ }
+ assert.equal(boundaries.size,6);
+ assert.equal(rows.length,95);
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:1,investmentGoals:['Emergency Fund'],riskTolerance:'Conservative'
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive'
+ }));
+ const reasons=(all,id)=>all.find(row=>row.id===id).screeningReasonCodes;
+ for(const id of ids){
+  assert.ok(reasons(short,id).includes('SEBI_FOF_ANNEXURE_C_APPLIES_TO_MULTIPLE_UNDERLYING_FUNDS_ONLY'));
+  assert.ok(reasons(short,id).includes('ACTUAL_FOF_UNDERLYING_COUNT_ALLOCATIONS_AND_RETAIL_ACCESS_UNVERIFIED'));
+  assert.ok(reasons(long,id).includes('SEBI_FOF_ANNEXURE_C_APPLIES_TO_MULTIPLE_UNDERLYING_FUNDS_ONLY'));
+  const result=short.find(row=>row.id===id);
+  assert.equal(result.productQualified,false);
+  assert.equal(result.scoreAvailable,false);
+  assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+ }
+ for(const id of ids.slice(0,3)){
+  const code='RECORDED_SHORT_HORIZON_REQUIRES_EQUITY_FOF_DRAWDOWN_AND_SETTLEMENT_REVIEW';
+  assert.ok(reasons(short,id).includes(code),id);
+  assert.ok(!reasons(long,id).includes(code),id);
+ }
+ assert.ok(reasons(short,'catalog_2026_fof_income_arbitrage')
+  .includes('EMERGENCY_FUND_GOAL_REQUIRES_ARBITRAGE_FOF_SPREAD_AND_SETTLEMENT_REVIEW'));
+ assert.ok(!reasons(long,'catalog_2026_fof_income_arbitrage')
+  .includes('EMERGENCY_FUND_GOAL_REQUIRES_ARBITRAGE_FOF_SPREAD_AND_SETTLEMENT_REVIEW'));
+ assert.ok(reasons(short,'catalog_2026_fof_dynamic_allocation')
+  .includes('CONSERVATIVE_PROFILE_REQUIRES_DYNAMIC_FOF_REALLOCATION_LOSS_REVIEW'));
+ assert.ok(!reasons(long,'catalog_2026_fof_dynamic_allocation')
+  .includes('CONSERVATIVE_PROFILE_REQUIRES_DYNAMIC_FOF_REALLOCATION_LOSS_REVIEW'));
+});
+
 test('zero emergency buffer adds source-specific non-ranking MF and ETF liquidity notices',()=>{
  const categories=[
   ['indexBenchmarkReview','RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_EQUITY_SCHEME_DRAWDOWN_AND_EXIT_REVIEW',11],

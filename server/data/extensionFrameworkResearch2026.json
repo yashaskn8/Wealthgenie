@@ -7366,6 +7366,31 @@
           "underlyingSchemeRiskometersVerified": false,
           "currentSchemeNavAndLicensedDataVerified": false,
           "investorAccessAndAdviceRightsVerified": false
+        },
+        "sebiMultiUnderlyingFoFAnnexureC2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-10-30",
+          "applicability": "MULTIPLE_UNDERLYING_FUNDS_ONLY",
+          "categoryStructureCode": "DIVERSIFIED_EQUITY",
+          "categorySpecificBoundary": "Diversified equity FoFs with multiple underlying funds may combine market-cap strategies but exclude factor-based underlying schemes.",
+          "sourceScope": "ANNEXURE_C_CATEGORY_REQUIREMENTS_NOT_SINGLE_UNDERLYING_OR_NAMED_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "Underlying large/mid/small-cap equity schemes may fall together; diversification across funds does not remove market loss risk.",
+            "Underlying fund fees plus FoF expenses, allocation drift and redemption settlement can impair realised proceeds."
+          ],
+          "investorAccessConstraints": [
+            "SEBI's diversified domestic equity FoF classification excludes factor-based underlying schemes, but does not identify an approved AMC or scheme.",
+            "Verify actual underlying schemes, SID/KIM, current riskometer, NAV, layered charges, investor KYC, redemption and licensed rights.",
+            "Annexure C only covers FoFs with more than one underlying fund; actual scheme structure, KYC and lawful data permissions require independent verification."
+          ],
+          "actualSchemeUnderlyingFundCountVerified": false,
+          "actualSchemeAllocationAndHoldingsVerified": false,
+          "specificAmcAndSchemeVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndLicensedDataRightsVerified": false,
+          "investorKycAndRetailEligibilityVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -7431,6 +7456,31 @@
           "underlyingSchemeRiskometersVerified": false,
           "currentSchemeNavAndLicensedDataVerified": false,
           "investorAccessAndAdviceRightsVerified": false
+        },
+        "sebiMultiUnderlyingFoFAnnexureC2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-10-30",
+          "applicability": "MULTIPLE_UNDERLYING_FUNDS_ONLY",
+          "categoryStructureCode": "SECTORAL_THEMATIC_EQUITY",
+          "categorySpecificBoundary": "Sectoral/thematic equity FoFs with multiple underlying funds may target a single sector, a single theme or multiple sectors.",
+          "sourceScope": "ANNEXURE_C_CATEGORY_REQUIREMENTS_NOT_SINGLE_UNDERLYING_OR_NAMED_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "Single-theme or multi-sector underlying funds may share correlated exposures and experience severe sector drawdowns.",
+            "FoF expense layering and changes in underlying allocation can amplify tracking and liquidity uncertainty."
+          ],
+          "investorAccessConstraints": [
+            "Check whether the actual scheme mandate is single-sector, single-theme or multi-sector; a SEBI category is not a verified offering.",
+            "Verify holdings, concentration limits, AMC/scheme/ISIN, riskometer, NAV, KYC, redemption restrictions and provider data rights.",
+            "Annexure C only covers FoFs with more than one underlying fund; actual scheme structure, KYC and lawful data permissions require independent verification."
+          ],
+          "actualSchemeUnderlyingFundCountVerified": false,
+          "actualSchemeAllocationAndHoldingsVerified": false,
+          "specificAmcAndSchemeVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndLicensedDataRightsVerified": false,
+          "investorKycAndRetailEligibilityVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -7496,6 +7546,31 @@
           "underlyingSchemeRiskometersVerified": false,
           "currentSchemeNavAndLicensedDataVerified": false,
           "investorAccessAndAdviceRightsVerified": false
+        },
+        "sebiMultiUnderlyingFoFAnnexureC2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-10-30",
+          "applicability": "MULTIPLE_UNDERLYING_FUNDS_ONLY",
+          "categoryStructureCode": "AGGRESSIVE_HYBRID",
+          "categorySpecificBoundary": "Aggressive hybrid FoFs with multiple underlying funds allocate 65%-80% to equity-oriented and 20%-35% to debt-oriented underlying schemes.",
+          "sourceScope": "ANNEXURE_C_CATEGORY_REQUIREMENTS_NOT_SINGLE_UNDERLYING_OR_NAMED_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "The category's 65%-80% equity-oriented underlying-fund allocation creates substantial equity drawdown exposure.",
+            "Debt credit/rate losses, rebalancing and layered FoF/underlying fees add risks beyond the hybrid label."
+          ],
+          "investorAccessConstraints": [
+            "The SEBI allocation band is a category framework, not a verified current scheme allocation or guarantee.",
+            "Check actual equity/debt underlying holdings, scheme riskometer, NAV, KYC, exit loads, settlement and authorised data rights.",
+            "Annexure C only covers FoFs with more than one underlying fund; actual scheme structure, KYC and lawful data permissions require independent verification."
+          ],
+          "actualSchemeUnderlyingFundCountVerified": false,
+          "actualSchemeAllocationAndHoldingsVerified": false,
+          "specificAmcAndSchemeVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndLicensedDataRightsVerified": false,
+          "investorKycAndRetailEligibilityVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -7561,6 +7636,31 @@
           "underlyingSchemeRiskometersVerified": false,
           "currentSchemeNavAndLicensedDataVerified": false,
           "investorAccessAndAdviceRightsVerified": false
+        },
+        "sebiMultiUnderlyingFoFAnnexureC2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-10-30",
+          "applicability": "MULTIPLE_UNDERLYING_FUNDS_ONLY",
+          "categoryStructureCode": "CONSERVATIVE_HYBRID",
+          "categorySpecificBoundary": "Conservative hybrid FoFs with multiple underlying funds allocate 10%-25% to equity-oriented and 75%-90% to debt-oriented underlying schemes.",
+          "sourceScope": "ANNEXURE_C_CATEGORY_REQUIREMENTS_NOT_SINGLE_UNDERLYING_OR_NAMED_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "A 75%-90% debt-oriented underlying allocation may still suffer credit and interest-rate NAV losses.",
+            "The 10%-25% equity-oriented allocation and layered expenses mean 'conservative' is not capital protection."
+          ],
+          "investorAccessConstraints": [
+            "Confirm the actual scheme's holdings, credit/duration exposure and riskometer; the regulatory band is not an individual suitability rating.",
+            "Verify AMC/ISIN, NAV, exit loads, KYC, settlement and licensed provider terms before displaying a purchasable scheme.",
+            "Annexure C only covers FoFs with more than one underlying fund; actual scheme structure, KYC and lawful data permissions require independent verification."
+          ],
+          "actualSchemeUnderlyingFundCountVerified": false,
+          "actualSchemeAllocationAndHoldingsVerified": false,
+          "specificAmcAndSchemeVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndLicensedDataRightsVerified": false,
+          "investorKycAndRetailEligibilityVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -7626,6 +7726,31 @@
           "underlyingSchemeRiskometersVerified": false,
           "currentSchemeNavAndLicensedDataVerified": false,
           "investorAccessAndAdviceRightsVerified": false
+        },
+        "sebiMultiUnderlyingFoFAnnexureC2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-10-30",
+          "applicability": "MULTIPLE_UNDERLYING_FUNDS_ONLY",
+          "categoryStructureCode": "INCOME_PLUS_ARBITRAGE",
+          "categorySpecificBoundary": "Income plus arbitrage FoFs with multiple underlying funds may allocate up to 65% to debt-oriented schemes, with the balance only in arbitrage-based schemes.",
+          "sourceScope": "ANNEXURE_C_CATEGORY_REQUIREMENTS_NOT_SINGLE_UNDERLYING_OR_NAMED_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "Underlying debt credit/duration losses and changing arbitrage spreads can affect NAV even when labelled income plus arbitrage.",
+            "Basis risk, rollover costs and layered fees make this category different from an insured cash deposit."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual debt-versus-arbitrage allocation, underlying funds and riskometer; a category is not a cash-equivalent approval.",
+            "Confirm scheme identity, current NAV, redemption/settlement, KYC, tax classification and authorised data rights.",
+            "Annexure C only covers FoFs with more than one underlying fund; actual scheme structure, KYC and lawful data permissions require independent verification."
+          ],
+          "actualSchemeUnderlyingFundCountVerified": false,
+          "actualSchemeAllocationAndHoldingsVerified": false,
+          "specificAmcAndSchemeVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndLicensedDataRightsVerified": false,
+          "investorKycAndRetailEligibilityVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -7691,6 +7816,31 @@
           "underlyingSchemeRiskometersVerified": false,
           "currentSchemeNavAndLicensedDataVerified": false,
           "investorAccessAndAdviceRightsVerified": false
+        },
+        "sebiMultiUnderlyingFoFAnnexureC2026Review": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-10-30",
+          "applicability": "MULTIPLE_UNDERLYING_FUNDS_ONLY",
+          "categoryStructureCode": "DYNAMIC_ASSET_ALLOCATION",
+          "categorySpecificBoundary": "Dynamic allocation FoFs with multiple underlying funds may vary equity- and debt-oriented underlying allocations; no fixed percentage split is specified.",
+          "sourceScope": "ANNEXURE_C_CATEGORY_REQUIREMENTS_NOT_SINGLE_UNDERLYING_OR_NAMED_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "Dynamic equity/debt shifts can mis-time market changes; equity losses and debt credit/duration risk remain.",
+            "Turnover, model decisions and two layers of fund costs may change performance and redemption liquidity."
+          ],
+          "investorAccessConstraints": [
+            "SEBI permits dynamic allocation within the category, but no actual scheme policy or current exposure has been verified.",
+            "Check latest underlying allocations, scheme riskometer, NAV, manager rules, KYC, exit load, settlement and commercial data rights.",
+            "Annexure C only covers FoFs with more than one underlying fund; actual scheme structure, KYC and lawful data permissions require independent verification."
+          ],
+          "actualSchemeUnderlyingFundCountVerified": false,
+          "actualSchemeAllocationAndHoldingsVerified": false,
+          "specificAmcAndSchemeVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndLicensedDataRightsVerified": false,
+          "investorKycAndRetailEligibilityVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     }

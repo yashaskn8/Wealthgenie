@@ -805,6 +805,30 @@ if(research.entries.some(row=>{
    .some(field=>evidence[field]!==false);
 }))throw new Error('FINANCIAL_FOF_SCHEME_RISKOMETER_DISCLOSURE_EVIDENCE_INVALID');
 
+
+const fofAnnexureC2026Specs=Object.freeze({"catalog_2026_equity_diversified_fof":["DIVERSIFIED_EQUITY","Diversified equity FoFs with multiple underlying funds may combine market-cap strategies but exclude factor-based underlying schemes."],"catalog_2026_equity_sector_fof":["SECTORAL_THEMATIC_EQUITY","Sectoral/thematic equity FoFs with multiple underlying funds may target a single sector, a single theme or multiple sectors."],"catalog_2026_fof_aggressive_hybrid":["AGGRESSIVE_HYBRID","Aggressive hybrid FoFs with multiple underlying funds allocate 65%-80% to equity-oriented and 20%-35% to debt-oriented underlying schemes."],"catalog_2026_fof_conservative_hybrid":["CONSERVATIVE_HYBRID","Conservative hybrid FoFs with multiple underlying funds allocate 10%-25% to equity-oriented and 75%-90% to debt-oriented underlying schemes."],"catalog_2026_fof_income_arbitrage":["INCOME_PLUS_ARBITRAGE","Income plus arbitrage FoFs with multiple underlying funds may allocate up to 65% to debt-oriented schemes, with the balance only in arbitrage-based schemes."],"catalog_2026_fof_dynamic_allocation":["DYNAMIC_ASSET_ALLOCATION","Dynamic allocation FoFs with multiple underlying funds may vary equity- and debt-oriented underlying allocations; no fixed percentage split is specified."]});
+if(research.entries.some(row=>{
+ const spec=fofAnnexureC2026Specs[row.id];
+ const e=row.fundOfFundsCategoryReview?.sebiMultiUnderlyingFoFAnnexureC2026Review;
+ if(!spec)return e!==undefined;
+ return !e||e.officialSebiCircularUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf'
+  ||!isOfficialFrameworkReferenceUrl(e.officialSebiCircularUrl)
+  ||e.circularIssuedOn!=='2026-02-26'||e.reviewedOn!=='2026-10-30'
+  ||e.applicability!=='MULTIPLE_UNDERLYING_FUNDS_ONLY'
+  ||e.sourceScope!=='ANNEXURE_C_CATEGORY_REQUIREMENTS_NOT_SINGLE_UNDERLYING_OR_NAMED_SCHEME_APPROVAL'
+  ||e.categoryStructureCode!==spec[0]||e.categorySpecificBoundary!==spec[1]
+  ||!Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
+  ||e.riskConsiderations.some(x=>typeof x!=='string'||x.length<35)
+  ||!Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2
+  ||e.investorAccessConstraints.some(x=>typeof x!=='string'||x.length<35)
+  ||['actualSchemeUnderlyingFundCountVerified','actualSchemeAllocationAndHoldingsVerified',
+    'specificAmcAndSchemeVerified','currentSchemeRiskometerVerified',
+    'currentNavAndLicensedDataRightsVerified','investorKycAndRetailEligibilityVerified',
+    'taxAndPersonalizedAdviceAuthorizationVerified'].some(key=>e[key]!==false)
+  ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
+  ||row.suitabilityRankingPermitted!==false||row.sourcePermissionVerified!==false;
+}))throw new Error('FINANCIAL_FOF_ANNEXURE_C_MULTIPLE_UNDERLYING_EVIDENCE_INVALID');
+
 const etfTrading2026Classes=Object.freeze({
  "catalog_2026_etf_nifty100":"EQUITY_ETF",
  "catalog_2026_etf_nifty500":"EQUITY_ETF",
@@ -1230,6 +1254,22 @@ export function screenExtensionResearchForProfile(profileInput) {
        catalog_2026_index_india_consumption:'CONSUMPTION_INDEX_DOMESTIC_DEMAND_AND_CORRELATION_REVIEW',
      };
      if(themeNotices[row.id])reasons.push(themeNotices[row.id]);
+   }
+
+   if(row.fundOfFundsCategoryReview?.sebiMultiUnderlyingFoFAnnexureC2026Review){
+     reasons.push('SEBI_FOF_ANNEXURE_C_APPLIES_TO_MULTIPLE_UNDERLYING_FUNDS_ONLY');
+     reasons.push('ACTUAL_FOF_UNDERLYING_COUNT_ALLOCATIONS_AND_RETAIL_ACCESS_UNVERIFIED');
+     if(Number.isFinite(profile.investmentHorizonYears)
+       &&profile.investmentHorizonYears<=3
+       &&['catalog_2026_equity_diversified_fof','catalog_2026_equity_sector_fof',
+          'catalog_2026_fof_aggressive_hybrid'].includes(row.id))
+       reasons.push('RECORDED_SHORT_HORIZON_REQUIRES_EQUITY_FOF_DRAWDOWN_AND_SETTLEMENT_REVIEW');
+     if(row.id==='catalog_2026_fof_income_arbitrage'
+       &&profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_ARBITRAGE_FOF_SPREAD_AND_SETTLEMENT_REVIEW');
+     if(row.id==='catalog_2026_fof_dynamic_allocation'
+       &&profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DYNAMIC_FOF_REALLOCATION_LOSS_REVIEW');
    }
    if(row.fundOfFundsCategoryReview){
      reasons.push('FOF_UNDERLYING_SCHEMES_LAYERED_FEES_RISKOMETER_AND_NAV_UNVERIFIED');
