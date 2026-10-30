@@ -773,7 +773,34 @@
         "investorAccessConstraints": [
           "RBI describes STRIPS as derived from eligible fixed-coupon central G-Secs through authorized SGL/CSGL arrangements, not primary-auction securities.",
           "A specific coupon STRIP ISIN, maturity, custodian route, KYC, current price, tax treatment and authorized commercial market-data rights remain unverified."
-        ]
+        ],
+        "centralGsecStrips2025GazetteReview": {
+          "officialGazetteUrl": "https://egazette.gov.in/WriteReadData/2025/263478.pdf",
+          "gazetteNotificationDated": "2025-05-29",
+          "gazettePublishedOn": "2025-05-30",
+          "reviewedOn": "2026-10-31",
+          "notificationReference": "IDMD.S321/10.18.060/2025-26",
+          "sourceScope": "RBI_2025_GAZETTE_CENTRAL_GSEC_STRIPPING_ELIGIBILITY_NOT_A_RETAIL_STRIP_OFFER",
+          "separatedCashFlowType": "COUPON_PAYMENT",
+          "centralGovernmentFixedCouponSlrEligibleAndTransferableRequired": true,
+          "centralGovernmentMaturityYearUnrestrictedInAmendedText": true,
+          "stateOnlyFourteenYearAndThousandCroreThresholdNotCentralInvestorMinimum": true,
+          "eKuberReplacesPdoNdsInAmendedText": true,
+          "actualUnderlyingIsinAndStripIsinVerified": false,
+          "actualCashFlowMaturityAndPriceVerified": false,
+          "specificCustodianTradingChannelAndKycVerified": false,
+          "investorEligibilityAndPermissionsVerified": false,
+          "currentMarketQuoteAndCommercialRightsVerified": false,
+          "taxAndPersonalizedAdviceVerified": false,
+          "riskConsiderations": [
+            "A coupon STRIP is a separately tradable single coupon-date cash flow, not periodic income; its resale price can fall with changes in yields.",
+            "Market depth and bid-ask spread for a particular coupon STRIP are unknown, so a planned early exit may realize a loss."
+          ],
+          "investorAccessConstraints": [
+            "The 29 May 2025 Gazette covers eligible fixed-coupon Government of India securities that are SLR-eligible and transferable; the state-only 14-year and INR 1,000-crore tests are not a coupon-STRIP retail minimum.",
+            "The specific coupon STRIP ISIN, coupon payment date, permitted custodian/e-Kuber route, investor KYC, tradeable lot, price and commercial reuse rights are not verified."
+          ]
+        }
       }
     },
     {
@@ -821,7 +848,34 @@
         "investorAccessConstraints": [
           "RBI's stripping framework requires an eligible underlying fixed-coupon central G-Sec and an SGL/CSGL custody route; no specific principal STRIP ISIN is authenticated.",
           "The maturity, tradeable quantity, investor KYC, market spread, tax treatment and commercial quote permissions require independent verification."
-        ]
+        ],
+        "centralGsecStrips2025GazetteReview": {
+          "officialGazetteUrl": "https://egazette.gov.in/WriteReadData/2025/263478.pdf",
+          "gazetteNotificationDated": "2025-05-29",
+          "gazettePublishedOn": "2025-05-30",
+          "reviewedOn": "2026-10-31",
+          "notificationReference": "IDMD.S321/10.18.060/2025-26",
+          "sourceScope": "RBI_2025_GAZETTE_CENTRAL_GSEC_STRIPPING_ELIGIBILITY_NOT_A_RETAIL_STRIP_OFFER",
+          "separatedCashFlowType": "PRINCIPAL_REPAYMENT",
+          "centralGovernmentFixedCouponSlrEligibleAndTransferableRequired": true,
+          "centralGovernmentMaturityYearUnrestrictedInAmendedText": true,
+          "stateOnlyFourteenYearAndThousandCroreThresholdNotCentralInvestorMinimum": true,
+          "eKuberReplacesPdoNdsInAmendedText": true,
+          "actualUnderlyingIsinAndStripIsinVerified": false,
+          "actualCashFlowMaturityAndPriceVerified": false,
+          "specificCustodianTradingChannelAndKycVerified": false,
+          "investorEligibilityAndPermissionsVerified": false,
+          "currentMarketQuoteAndCommercialRightsVerified": false,
+          "taxAndPersonalizedAdviceVerified": false,
+          "riskConsiderations": [
+            "A principal STRIP is a separately tradable single principal-maturity cash flow, not a stream of coupons; resale value changes with discount yields.",
+            "An unknown maturity and secondary order book can make an early sale costly even though the separated cash flow originates from a sovereign security."
+          ],
+          "investorAccessConstraints": [
+            "The 29 May 2025 Gazette covers eligible fixed-coupon Government of India securities that are SLR-eligible and transferable; state-only residual-maturity and outstanding-size conditions do not establish a principal-STRIP investor threshold.",
+            "The specific principal STRIP ISIN, principal maturity date, permitted custodian/e-Kuber route, investor KYC, tradeable lot, price and commercial reuse rights are not verified."
+          ]
+        }
       }
     },
     {

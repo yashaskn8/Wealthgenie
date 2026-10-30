@@ -1125,3 +1125,23 @@ test('BIS 2025 silver HUID update stays scoped to jewellery rather than approved
   assert.ok(Object.values(row.productData).every(value=>value===null));
  }
 });
+
+test('2025 central G-Sec STRIPS Gazette research is copied without qualifying a tradable ISIN',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(item=>item.id===id);
+ for(const id of ['catalog_2026_gsec_coupon_strip','catalog_2026_gsec_principal_strip']){
+  const row=get(id),e=row.frameworkResearch.governmentBondStructureReview.centralGsecStrips2025GazetteReview;
+  assert.equal(e.officialGazetteUrl,'https://egazette.gov.in/WriteReadData/2025/263478.pdf');
+  assert.equal(e.stateOnlyFourteenYearAndThousandCroreThresholdNotCentralInvestorMinimum,true);
+  assert.equal(e.actualUnderlyingIsinAndStripIsinVerified,false);
+  assert.equal(e.currentMarketQuoteAndCommercialRightsVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(row.productData).every(value=>value===null));
+  e.actualUnderlyingIsinAndStripIsinVerified=true;
+  e.investorAccessConstraints.push('FABRICATED RETAIL ACCESS');
+  const fresh=get(id).frameworkResearch.governmentBondStructureReview.centralGsecStrips2025GazetteReview;
+  assert.equal(fresh.actualUnderlyingIsinAndStripIsinVerified,false);
+  assert.ok(!fresh.investorAccessConstraints.includes('FABRICATED RETAIL ACCESS'));
+ }
+});

@@ -2119,3 +2119,63 @@ test('BIS 2025 silver jewellery HUID scope does not certify physical silver bull
  assert.equal(screened.get('catalog_2026_physical_silver_bullion').scoreAvailable,false);
  assert.equal(screened.get('catalog_2026_physical_silver_bullion').productRiskLevel,null);
 });
+
+test('RBI May 2025 Gazette distinguishes coupon/principal central STRIPS from state-only outstanding tests',()=>{
+ const ids=['catalog_2026_gsec_coupon_strip','catalog_2026_gsec_principal_strip'];
+ const rows=new Map(listExtensionResearch().map(row=>[row.id,row]));
+ const official='https://egazette.gov.in/WriteReadData/2025/263478.pdf';
+ const make=options=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+  emergencyFundMonths:null,riskTolerance:'Moderate',...options,
+ })).map(row=>[row.id,row]));
+ const ordinary=make({}),short=make({investmentHorizonYears:2});
+ const goal=make({investmentGoals:['Emergency Fund']});
+ const zero=make({emergencyFundMonths:0});
+ const positive=make({emergencyFundMonths:6});
+ for(const [i,id] of ids.entries()){
+  const row=rows.get(id),e=row.governmentBondStructureReview.centralGsecStrips2025GazetteReview;
+  assert.equal(e.officialGazetteUrl,official,id);
+  assert.equal(e.gazetteNotificationDated,'2025-05-29',id);
+  assert.equal(e.gazettePublishedOn,'2025-05-30',id);
+  assert.equal(e.reviewedOn,'2026-10-31',id);
+  assert.equal(e.separatedCashFlowType,i===0?'COUPON_PAYMENT':'PRINCIPAL_REPAYMENT',id);
+  assert.equal(e.centralGovernmentFixedCouponSlrEligibleAndTransferableRequired,true,id);
+  assert.equal(e.stateOnlyFourteenYearAndThousandCroreThresholdNotCentralInvestorMinimum,true,id);
+  assert.equal(e.eKuberReplacesPdoNdsInAmendedText,true,id);
+  assert.equal(row.standardCapitalReferenceInr,null,id);
+  assert.ok(e.riskConsiderations.length>=2&&e.investorAccessConstraints.length>=2,id);
+  for(const key of ['actualUnderlyingIsinAndStripIsinVerified','actualCashFlowMaturityAndPriceVerified',
+   'specificCustodianTradingChannelAndKycVerified','investorEligibilityAndPermissionsVerified',
+   'currentMarketQuoteAndCommercialRightsVerified','taxAndPersonalizedAdviceVerified'])
+   assert.equal(e[key],false,id+key);
+  for(const all of [ordinary,short,goal,zero,positive]){
+   const item=all.get(id);
+   assert.ok(item.screeningReasonCodes.includes(
+    'RBI_2025_CENTRAL_STRIP_GAZETTE_NOT_SPECIFIC_ISIN_OR_RETAIL_ACCESS'),id);
+   assert.ok(item.screeningReasonCodes.includes(
+    'SGS_1000_CRORE_OUTSTANDING_TEST_NOT_CENTRAL_STRIP_INVESTOR_MINIMUM'),id);
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE',id);
+   assert.equal(item.productQualified,false,id);
+   assert.equal(item.scoreAvailable,false,id);
+   assert.equal(item.productRiskLevel,null,id);
+  }
+  const horizon='SHORT_HORIZON_REQUIRES_CENTRAL_STRIP_MATURITY_AND_DISCOUNT_PRICE_REVIEW';
+  const emergency='EMERGENCY_FUND_GOAL_REQUIRES_CENTRAL_STRIP_SINGLE_CASH_FLOW_AND_EXIT_REVIEW';
+  const buffer='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_CENTRAL_STRIP_CUSTODY_AND_EXIT_REVIEW';
+  assert.ok(short.get(id).screeningReasonCodes.includes(horizon),id);
+  assert.ok(!ordinary.get(id).screeningReasonCodes.includes(horizon),id);
+  assert.ok(goal.get(id).screeningReasonCodes.includes(emergency),id);
+  assert.ok(!ordinary.get(id).screeningReasonCodes.includes(emergency),id);
+  assert.ok(zero.get(id).screeningReasonCodes.includes(buffer),id);
+  assert.ok(!positive.get(id).screeningReasonCodes.includes(buffer),id);
+  assert.ok(!ordinary.get(id).screeningReasonCodes.includes(buffer),id);
+ }
+ for(const id of ['catalog_2026_sdl_coupon_strip','catalog_2026_sdl_principal_strip',
+  'catalog_2026_gsec_floating']){
+  assert.equal(rows.get(id).governmentBondStructureReview?.centralGsecStrips2025GazetteReview,undefined,id);
+  assert.ok(!ordinary.get(id).screeningReasonCodes.includes(
+   'SGS_1000_CRORE_OUTSTANDING_TEST_NOT_CENTRAL_STRIP_INVESTOR_MINIMUM'),id);
+ }
+ assert.equal(ordinary.size,95);
+ assert.equal([...ordinary.values()].filter(x=>x.productQualified).length,0);
+});

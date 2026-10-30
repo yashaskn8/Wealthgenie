@@ -1001,6 +1001,37 @@ if(research.entries.some(row=>{
   || !Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
   || !Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2;
 }))throw new Error('FINANCIAL_RBI_RETAIL_DIRECT_HISTORICAL_AUCTION_EVIDENCE_INVALID');
+const centralGsecStrip2025GazetteUrl='https://egazette.gov.in/WriteReadData/2025/263478.pdf';
+const centralGsecStripCashFlows=Object.freeze({
+ 'catalog_2026_gsec_coupon_strip':'COUPON_PAYMENT',
+ 'catalog_2026_gsec_principal_strip':'PRINCIPAL_REPAYMENT',
+});
+// RBI's 29 May 2025 Gazette distinguishes central fixed-coupon eligibility
+// from the 14-year / INR 1,000-crore tests applying to State securities.
+// Neither is a verified personal investment minimum or a quoted security.
+if(research.entries.some(row=>{
+ const expected=centralGsecStripCashFlows[row.id];
+ const e=row.governmentBondStructureReview?.centralGsecStrips2025GazetteReview;
+ if(!expected)return e!==undefined;
+ return !e||e.officialGazetteUrl!==centralGsecStrip2025GazetteUrl
+  ||e.gazetteNotificationDated!=='2025-05-29'
+  ||e.gazettePublishedOn!=='2025-05-30'
+  ||e.reviewedOn!=='2026-10-31'
+  ||e.separatedCashFlowType!==expected
+  ||e.centralGovernmentFixedCouponSlrEligibleAndTransferableRequired!==true
+  ||e.centralGovernmentMaturityYearUnrestrictedInAmendedText!==true
+  ||e.stateOnlyFourteenYearAndThousandCroreThresholdNotCentralInvestorMinimum!==true
+  ||e.eKuberReplacesPdoNdsInAmendedText!==true
+  ||['actualUnderlyingIsinAndStripIsinVerified','actualCashFlowMaturityAndPriceVerified',
+   'specificCustodianTradingChannelAndKycVerified','investorEligibilityAndPermissionsVerified',
+   'currentMarketQuoteAndCommercialRightsVerified','taxAndPersonalizedAdviceVerified']
+    .some(key=>e[key]!==false)
+  ||!Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
+  ||!Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2
+  ||row.standardCapitalReferenceInr!==null
+  ||row.productRiskScore!==null||row.suitabilityRankingPermitted!==false
+  ||row.actualRetailProductEligible!==false||row.sourcePermissionVerified!==false;
+}))throw new Error('FINANCIAL_CENTRAL_GSEC_2025_GAZETTE_SCOPE_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -1270,6 +1301,17 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(row.governmentBondStructureReview.structureType.endsWith('_STRIP')) {
        reasons.push('CENTRAL_GSEC_STRIP_CASH_FLOW_AND_CUSTODIAN_ACCESS_REQUIRE_ISIN_REVIEW');
        reasons.push('GSEC_STRIPS_SECONDARY_MARKET_LIQUIDITY_AND_NO_INTERIM_CASH_FLOW_REVIEW');
+       const gazette=row.governmentBondStructureReview.centralGsecStrips2025GazetteReview;
+       if(gazette){
+         reasons.push('RBI_2025_CENTRAL_STRIP_GAZETTE_NOT_SPECIFIC_ISIN_OR_RETAIL_ACCESS');
+         reasons.push('SGS_1000_CRORE_OUTSTANDING_TEST_NOT_CENTRAL_STRIP_INVESTOR_MINIMUM');
+         if(profile.investmentGoals.includes('Emergency Fund'))
+           reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_CENTRAL_STRIP_SINGLE_CASH_FLOW_AND_EXIT_REVIEW');
+         if(profile.investmentHorizonYears<=3)
+           reasons.push('SHORT_HORIZON_REQUIRES_CENTRAL_STRIP_MATURITY_AND_DISCOUNT_PRICE_REVIEW');
+         if(profile.emergencyFundMonths===0)
+           reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_CENTRAL_STRIP_CUSTODY_AND_EXIT_REVIEW');
+       }
      } else if(row.id==='catalog_2026_sovereign_green') {
        reasons.push('SOVEREIGN_GREEN_USE_OF_PROCEEDS_NOT_INSTRUMENT_OR_IMPACT_APPROVAL');
      } else if(row.id==='catalog_2026_gsec_floating') {
