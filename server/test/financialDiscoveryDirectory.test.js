@@ -814,3 +814,26 @@ test('GARUDA AIF PPM evidence is defensively copied without approving an offer',
   assert.ok(!fresh.riskConsiderations.includes('unsupported approval'),id);
  }
 });
+
+test('PMS future 2026 regulatory evidence is copied without manager, market or client qualification',()=>{
+ const ids=['catalog_2026_pms_discretionary','catalog_2026_pms_nondiscretionary'];
+ const find=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ for(const id of ids){
+   const item=find(id);
+   const p=item.frameworkResearch.individualCategoryReview.pmsRegulatoryTransitionReview;
+   assert.equal(p.effectiveFrom,'2027-04-01',id);
+   assert.equal(p.futureRegulationsAlreadyInForce,false,id);
+   assert.equal(p.currentRegisteredManagerAndMandateVerified,false,id);
+   assert.equal(p.commercialMarketDataRightsVerified,false,id);
+   assert.equal(item.recommendationEligible,false,id);
+   assert.equal(item.dataRights,'NOT_VERIFIED',id);
+   assert.ok(Object.values(item.productData).every(value=>value===null),id);
+   p.futureRegulationsAlreadyInForce=true;
+   p.currentRegisteredManagerAndMandateVerified=true;
+   p.investorAccessConstraints.push('fabricated approval');
+   const fresh=find(id).frameworkResearch.individualCategoryReview.pmsRegulatoryTransitionReview;
+   assert.equal(fresh.futureRegulationsAlreadyInForce,false,id);
+   assert.equal(fresh.currentRegisteredManagerAndMandateVerified,false,id);
+   assert.ok(!fresh.investorAccessConstraints.includes('fabricated approval'),id);
+ }
+});

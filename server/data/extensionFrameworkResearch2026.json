@@ -5625,7 +5625,31 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "pmsRegulatoryTransitionReview": {
+          "officialSebiFutureRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
+          "regulationsPublishedOn": "2026-10-12",
+          "effectiveFrom": "2027-04-01",
+          "reviewedOn": "2026-10-30",
+          "currentApplicableRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+          "mandateType": "DISCRETIONARY_PMS",
+          "categoryInterpretation": "Discretionary PMS permits the registered manager to make investment decisions within a signed client mandate. The October 12, 2026 replacement regulations are not effective until April 1, 2027; neither publication nor a general framework verifies the manager's current registration or a client contract.",
+          "sourceScope": "FUTURE_PMS_REGULATORY_TRANSITION_NOT_CURRENT_MANAGER_REGISTRATION_OR_CLIENT_APPROVAL",
+          "riskConsiderations": [
+            "Manager-initiated trading within the mandate exposes client assets to market, concentration and execution losses; contractual discretion is not guaranteed performance.",
+            "Custody, fees, trading turnover, illiquid securities and client-specific termination terms can change realized liquidation proceeds."
+          ],
+          "investorAccessConstraints": [
+            "Confirm current SEBI registration under the presently applicable 2020 framework, the signed discretionary mandate, custodian, actual client minimum and any lawful exceptions.",
+            "Reassess terms when the 2026 replacement framework takes effect on 1 April 2027; no future regulation proves a current offer, client access, live portfolio valuation or commercial data rights."
+          ],
+          "currentRegisteredManagerAndMandateVerified": false,
+          "individualInvestorMinimumAndExemptionsVerified": false,
+          "currentHoldingsValuationAndExitTermsVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "futureRegulationsAlreadyInForce": false
+        }
       }
     },
     {
@@ -5681,7 +5705,31 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "pmsRegulatoryTransitionReview": {
+          "officialSebiFutureRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
+          "regulationsPublishedOn": "2026-10-12",
+          "effectiveFrom": "2027-04-01",
+          "reviewedOn": "2026-10-30",
+          "currentApplicableRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+          "mandateType": "NON_DISCRETIONARY_PMS",
+          "categoryInterpretation": "Non-discretionary PMS requires client investment instructions under its mandate, unlike manager-directed discretionary PMS. SEBI's October 12, 2026 replacement regulations take effect only April 1, 2027 and cannot currently qualify a specific manager or client.",
+          "sourceScope": "FUTURE_PMS_REGULATORY_TRANSITION_NOT_CURRENT_MANAGER_REGISTRATION_OR_CLIENT_APPROVAL",
+          "riskConsiderations": [
+            "Client-controlled instructions do not eliminate market, concentration or loss risks in the portfolio or guarantee an execution price.",
+            "Instruction delays, transaction costs, custody arrangements, manager fees and underlying security illiquidity can reduce exit proceeds."
+          ],
+          "investorAccessConstraints": [
+            "Verify current SEBI registration under the 2020 framework, executed non-discretionary agreement, consent and order-instruction workflow, custodian, fees and client eligibility.",
+            "Future 2026 regulations are not presently operative; check actual contract, exemptions, holdings, current prices, data entitlements and authorized advice before any individualized offer."
+          ],
+          "currentRegisteredManagerAndMandateVerified": false,
+          "individualInvestorMinimumAndExemptionsVerified": false,
+          "currentHoldingsValuationAndExitTermsVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "futureRegulationsAlreadyInForce": false
+        }
       }
     },
     {

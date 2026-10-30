@@ -1484,3 +1484,46 @@ test('seven AIF GARUDA filing routes remain distinct from SEBI approval and inve
  }
  assert.equal(screened.filter(x=>x.productQualified).length,0);
 });
+
+test('PMS 2026 future regulations preserve current-framework boundaries and fact-based screening',()=>{
+ const rows=new Map(listExtensionResearch().map(row=>[row.id,row]));
+ const ids=['catalog_2026_pms_discretionary','catalog_2026_pms_nondiscretionary'];
+ const types=['DISCRETIONARY_PMS','NON_DISCRETIONARY_PMS'];
+ const screen=months=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+   emergencyFundMonths:months,investmentGoals:['Wealth Growth'],
+   investmentHorizonYears:10,riskTolerance:'Aggressive',
+ })).map(row=>[row.id,row]));
+ const zero=screen(0),unknown=screen(null),positive=screen(6);
+ for(const [index,id] of ids.entries()){
+   const row=rows.get(id),p=row.individualCategoryReview.pmsRegulatoryTransitionReview;
+   assert.equal(p.mandateType,types[index],id);
+   assert.equal(p.regulationsPublishedOn,'2026-10-12',id);
+   assert.equal(p.effectiveFrom,'2027-04-01',id);
+   assert.equal(p.reviewedOn,'2026-10-30',id);
+   assert.match(p.officialSebiFutureRegulationsUrl,/^https:\/\/www\.sebi\.gov\.in\/legal\/regulations\/oct-2026\//);
+   assert.match(p.currentApplicableRegulationsUrl,/portfolio-managers-regulations-2020/);
+   assert.ok(p.riskConsiderations.length>=2&&p.investorAccessConstraints.length>=2,id);
+   for(const key of ['currentRegisteredManagerAndMandateVerified',
+     'individualInvestorMinimumAndExemptionsVerified','currentHoldingsValuationAndExitTermsVerified',
+     'commercialMarketDataRightsVerified','personalizedAdviceAuthorizationVerified',
+     'futureRegulationsAlreadyInForce'])assert.equal(p[key],false,id+':'+key);
+   for(const screened of [zero,unknown,positive]){
+     const item=screened.get(id);
+     assert.ok(item.screeningReasonCodes.includes('PMS_FUTURE_2026_FRAMEWORK_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL'),id);
+     assert.equal(item.productQualified,false,id);
+     assert.equal(item.scoreAvailable,false,id);
+     assert.equal(item.productRiskLevel,null,id);
+   }
+   const code='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PMS_PORTFOLIO_LIQUIDATION_AND_CUSTODY_REVIEW';
+   assert.ok(zero.get(id).screeningReasonCodes.includes(code),id);
+   assert.ok(!unknown.get(id).screeningReasonCodes.includes(code),id);
+   assert.ok(!positive.get(id).screeningReasonCodes.includes(code),id);
+ }
+ const municipal='catalog_2026_municipal_green';
+ const notice='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_MUNICIPAL_BOND_CREDIT_AND_RESALE_REVIEW';
+ assert.ok(zero.get(municipal).screeningReasonCodes.includes(notice));
+ assert.ok(!unknown.get(municipal).screeningReasonCodes.includes(notice));
+ assert.ok(!positive.get(municipal).screeningReasonCodes.includes(notice));
+ assert.equal(zero.size,95);
+ assert.equal([...zero.values()].filter(row=>row.productQualified).length,0);
+});
