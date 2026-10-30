@@ -2320,3 +2320,56 @@ test('SEBI historical PMS FAQ distinguishes manager authority without qualifying
  }
  assert.equal(rows.size,95);
 });
+
+test('SEBI August 2026 municipal debt private-placement lots and pooled escrow do not establish green-bond retail access',()=>{
+ const id='catalog_2026_municipal_green';
+ const rows=listExtensionResearch();
+ const research=rows.find(row=>row.id===id);
+ const review=research.individualCategoryReview.municipalGreenDisclosure2026Review
+   .municipalDebtAug2026OperationalReview;
+ assert.equal(review.officialSebiCircularUrl,
+   'https://www.sebi.gov.in/sebi_data/attachdocs/aug-2026/1786447511614.pdf');
+ assert.equal(review.circularIssuedOn,'2026-08-11');
+ assert.equal(review.reviewedOn,'2026-10-31');
+ assert.deepEqual(review.privatePlacementFaceValueOptionsInr,[10000,100000]);
+ assert.equal(review.tenThousandFaceValueRequiresFixedMaturityWithoutStructuredObligations,true);
+ assert.equal(review.privatePlacementListedTradingLotEqualsFaceValue,true);
+ assert.equal(review.faceValueRulesApplyToPublicIssues,false);
+ assert.equal(review.pooledFinanceSpvEscrowAppliesOnlyToQualifyingPooledVehicles,true);
+ assert.equal(review.pooledSpvOneYearInterestObligationAccountRequired,true);
+ assert.equal(review.optionalCreditEnhancementsAreNotAutomaticGuarantees,true);
+ assert.equal(review.halfYearUnauditedResultsDeadlineDays,60);
+ assert.equal(review.annualAuditedResultsDeadlineDays,90);
+ for(const key of ['actualIssuerIssueRouteAndFaceValueVerified','actualPooledFinanceStructureAndEscrowVerified',
+   'specificCreditEnhancementOrGuaranteeVerified','issuerDisclosureAndCurrentFinancialResultsVerified',
+   'actualListedIsinBidAskAndRetailAccessVerified','currentMarketDataReuseAndAdviceRightsVerified'])
+   assert.equal(review[key],false,key);
+ assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2);
+ const screen=overrides=>screenExtensionResearchForProfile(canonicalProfile({
+   investmentHorizonYears:10,investmentGoals:['Wealth Growth'],riskTolerance:'Moderate',
+   emergencyFundMonths:null,...overrides,
+ })).find(row=>row.id===id);
+ const baseline=screen({});
+ const short=screen({investmentHorizonYears:2});
+ const emergency=screen({investmentGoals:['Emergency Fund']});
+ const unknown=screen({emergencyFundMonths:null});
+ const zero=screen({emergencyFundMonths:0});
+ const common=['SEBI_AUG_2026_MUNICIPAL_PRIVATE_PLACEMENT_FACE_VALUE_NOT_PERSONAL_MINIMUM',
+   'MUNICIPAL_POOLED_ESCROW_AND_CREDIT_ENHANCEMENT_NOT_SOVEREIGN_GUARANTEE'];
+ for(const code of common)assert.ok(baseline.screeningReasonCodes.includes(code),code);
+ const shortCode='SHORT_HORIZON_REQUIRES_MUNICIPAL_PRIVATE_PLACEMENT_MATURITY_AND_LOT_REVIEW';
+ const emergencyCode='EMERGENCY_FUND_GOAL_REQUIRES_MUNICIPAL_ISSUE_ROUTE_AND_POOLED_ESCROW_APPLICABILITY_REVIEW';
+ assert.ok(short.screeningReasonCodes.includes(shortCode));
+ assert.ok(!baseline.screeningReasonCodes.includes(shortCode));
+ assert.ok(emergency.screeningReasonCodes.includes(emergencyCode));
+ assert.ok(!baseline.screeningReasonCodes.includes(emergencyCode));
+ assert.ok(!unknown.screeningReasonCodes.includes('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_MUNICIPAL_BOND_CREDIT_AND_RESALE_REVIEW'));
+ assert.ok(zero.screeningReasonCodes.includes('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_MUNICIPAL_BOND_CREDIT_AND_RESALE_REVIEW'));
+ for(const item of [baseline,short,emergency,unknown,zero]){
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+ }
+ assert.equal(rows.length,95);
+});

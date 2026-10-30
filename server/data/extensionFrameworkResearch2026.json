@@ -6111,11 +6111,13 @@
         "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015-last-amendment-on-july-08-2026-_102918.html",
         "riskConsiderations": [
           "Municipal credit and revenue collection risk can cause repayment losses; a green label is not a sovereign guarantee.",
-          "Project delivery, use-of-proceeds reporting and illiquid trading can affect impact claims and early-sale proceeds."
+          "Project delivery, use-of-proceeds reporting and illiquid trading can affect impact claims and early-sale proceeds.",
+          "Municipal private-placement face value and exchange lot size may constrain exits; the actual issue and trading depth remain unverified."
         ],
         "investorAccessConstraints": [
           "Verify the exact municipal issuer, issue/ISIN, applicable July 2026 regulations, project use-of-proceeds disclosures and external review where required.",
-          "Check offer route, denomination, KYC/demat, credit support, current price and authorized rights; do not infer retail access from a framework."
+          "Check offer route, denomination, KYC/demat, credit support, current price and authorized rights; do not infer retail access from a framework.",
+          "SEBI's 11 August 2026 municipal debt operational circular distinguishes privately placed face values and conditional pooled-finance escrow from final issue access or repayment guarantees."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -6149,7 +6151,40 @@
             "SEBI's 24 November 2022 circular addresses municipal green debt issuance, while its 27 February 2026 circular revises green-debt third-party reviewer norms; neither authenticates a named issue's certification.",
             "Verify the actual municipal issuer, ISIN, offer document, issue route, rating, reviewer report, green-project disclosures, denomination, demat/KYC and investor access.",
             "Reconcile the 8 July 2026 municipal debt regulations with issue-specific terms; no current price, tax exemption, signed data permission or advice authorization is established."
-          ]
+          ],
+          "municipalDebtAug2026OperationalReview": {
+            "officialSebiCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/aug-2026/1786447511614.pdf",
+            "circularIssuedOn": "2026-08-11",
+            "reviewedOn": "2026-10-31",
+            "circularScope": "MUNICIPAL_DEBT_ISSUANCE_AND_LISTING_OPERATIONS_NOT_GREEN_CERTIFICATION_OR_RETAIL_APPROVAL",
+            "privatePlacementFaceValueOptionsInr": [
+              10000,
+              100000
+            ],
+            "tenThousandFaceValueRequiresFixedMaturityWithoutStructuredObligations": true,
+            "privatePlacementListedTradingLotEqualsFaceValue": true,
+            "faceValueRulesApplyToPublicIssues": false,
+            "pooledFinanceSpvEscrowAppliesOnlyToQualifyingPooledVehicles": true,
+            "pooledSpvOneYearInterestObligationAccountRequired": true,
+            "optionalCreditEnhancementsAreNotAutomaticGuarantees": true,
+            "halfYearUnauditedResultsDeadlineDays": 60,
+            "annualAuditedResultsDeadlineDays": 90,
+            "actualIssuerIssueRouteAndFaceValueVerified": false,
+            "actualPooledFinanceStructureAndEscrowVerified": false,
+            "specificCreditEnhancementOrGuaranteeVerified": false,
+            "issuerDisclosureAndCurrentFinancialResultsVerified": false,
+            "actualListedIsinBidAskAndRetailAccessVerified": false,
+            "currentMarketDataReuseAndAdviceRightsVerified": false,
+            "riskConsiderations": [
+              "Private-placement lot sizes and a fixed maturity do not guarantee an early secondary buyer; the issuer's credit quality and executable price remain unverified.",
+              "The pooled-finance two-step escrow requirement applies only to qualifying vehicles; optional enhancements and escrow arrangements are not proof of a sovereign guarantee or repayment."
+            ],
+            "investorAccessConstraints": [
+              "The August 11 SEBI circular specifies Rs 10,000 or Rs 1 lakh face values for privately placed municipal debt and trading lots equal to face value for listed privately placed issues; these are not universal retail subscription minimums.",
+              "A Rs 10,000 face-value private placement must have fixed maturity and no structured obligations; verify actual offer route, issuer, ISIN, demat/KYC, allocation and executable secondary liquidity.",
+              "For a qualifying pooled-finance SPV, verify constituent municipal accounts, pooled interest/sinking-fund arrangements, actual enhancements and issuer financial disclosures; no such structure is established for this archetype."
+            ]
+          }
         }
       }
     },
