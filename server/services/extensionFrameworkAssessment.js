@@ -494,6 +494,29 @@ if(research.entries.some(row=>{
   ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
 }))throw new Error('FINANCIAL_INDIVIDUAL_RISK_ACCESS_EVIDENCE_INVALID');
 
+// BIS's older general FAQ still names IS 2112:2014. Its October 2025
+// newsletter supersedes that standard for voluntary silver jewellery/article
+// HUID; neither document authenticates a particular silver bullion bar.
+const silverHallmarkScope=research.entries.find(row=>row.id==='catalog_2026_physical_silver_bullion')
+ ?.preciousMetalsCategoryReview?.silverHallmarking2025ScopeReview;
+if(!silverHallmarkScope
+ ||silverHallmarkScope.officialBisNewsletterUrl!=='https://www.bis.gov.in/wp-content/uploads/2025/10/BIS-NEWSLETTER-OCTOBER-2025.pdf'
+ ||silverHallmarkScope.olderBisFaqUrl!=='https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en'
+ ||silverHallmarkScope.reviewedOn!=='2026-10-30'
+ ||silverHallmarkScope.updatedSilverJewelleryStandard!=='IS 2112:2025'
+ ||silverHallmarkScope.supersededSilverJewelleryStandard!=='IS 2112:2014'
+ ||silverHallmarkScope.voluntarySilverJewelleryHuidEffectiveFrom!=='2025-09-01'
+ ||silverHallmarkScope.appliesToSilverJewelleryAndArticlesOnly!==true
+ ||['establishesSilverBullionBarHallmarkCertification','actualSilverBullionAssayVerified',
+   'currentSellerBuybackTermsAndPriceVerified','individualRetailEligibilityVerified',
+   'commercialDataRightsVerified'].some(key=>silverHallmarkScope[key]!==false)
+ ||!Array.isArray(silverHallmarkScope.riskConsiderations)
+ ||silverHallmarkScope.riskConsiderations.length<2
+ ||!Array.isArray(silverHallmarkScope.investorAccessConstraints)
+ ||silverHallmarkScope.investorAccessConstraints.length<2
+ ||research.entries.some(row=>row.id!=='catalog_2026_physical_silver_bullion'
+   &&row.preciousMetalsCategoryReview?.silverHallmarking2025ScopeReview!==undefined))
+ throw new Error('FINANCIAL_SILVER_2025_HALLMARK_SCOPE_INVALID');
 // The final 15 source-scoped profiles include corporate debt, money-market,
 // SIF, SM REIT and silver FoF structures; no verified instrument is inferred.
 const finalRiskAccessReviewFields=Object.freeze({"catalog_2026_ncd_secured":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html"],"catalog_2026_ncd_unsecured":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html"],"catalog_2026_ncd_unlisted":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_subordinated":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_perpetual":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_corporate_floating":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_corporate_zero":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_convertible":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/mar-2026/securities-and-exchange-board-of-india-issue-of-capital-and-disclosure-requirements-regulations-2018-last-amended-on-march-21-2026-_100581.html"],"catalog_2026_psu_bond_taxable":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_infra_corporate_bond":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_municipal_green":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015-last-amendment-on-july-08-2026-_102918.html"],"catalog_2026_commercial_paper":["debtInstrumentReview","https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592"],"catalog_2026_sif_hybrid_longshort":["individualCategoryReview","https://www.sebi.gov.in/legal/circulars/feb-2025/regulatory-framework-for-specialized-investment-funds-sif-_92299.html"],"catalog_2026_sm_reit_scheme":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-october-15-2026-_105376.html"],"catalog_2026_silver_fof":["preciousMetalsCategoryReview","https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html"]});
@@ -1349,6 +1372,7 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('PHYSICAL_BULLION_ASSAY_DEALER_SPREAD_CUSTODY_AND_RESALE_UNVERIFIED');
      if(row.id==='catalog_2026_physical_silver_bullion')
        reasons.push('SILVER_JEWELLERY_HALLMARK_NOT_BULLION_CERTIFICATION');
+     reasons.push('BIS_2025_SILVER_JEWELLERY_HUID_NOT_BULLION_BAR_ASSAY_OR_APPROVAL');
    }
 
    if(row.debtInstrumentReview){

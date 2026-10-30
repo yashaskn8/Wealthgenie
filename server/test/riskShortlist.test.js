@@ -2051,3 +2051,26 @@ test('all 95 source publishers and exact evidence scopes remain explicit and fai
  assert.equal(getFrameworkSourcePublisherType('https://investor.sebi.gov.in@attacker.test/bonds'),null);
  assert.equal(getFrameworkSourcePublisherType('http://www.sebi.gov.in/legal/circulars'),null);
 });
+
+// The updated BIS silver jewellery hallmarking standard cannot be used to
+// certify a bullion bar, and does not change product recommendation gates.
+test('BIS 2025 silver jewellery HUID scope does not certify physical silver bullion',()=>{
+ const silver=listExtensionResearch().find(row=>row.id==='catalog_2026_physical_silver_bullion');
+ const review=silver.preciousMetalsCategoryReview.silverHallmarking2025ScopeReview;
+ assert.equal(review.updatedSilverJewelleryStandard,'IS 2112:2025');
+ assert.equal(review.supersededSilverJewelleryStandard,'IS 2112:2014');
+ assert.equal(review.voluntarySilverJewelleryHuidEffectiveFrom,'2025-09-01');
+ assert.equal(review.appliesToSilverJewelleryAndArticlesOnly,true);
+ assert.equal(review.establishesSilverBullionBarHallmarkCertification,false);
+ assert.equal(review.actualSilverBullionAssayVerified,false);
+ assert.equal(review.commercialDataRightsVerified,false);
+ assert.ok(review.riskConsiderations.length>=2 && review.investorAccessConstraints.length>=2);
+ const screened=new Map(screenExtensionResearchForProfile(canonicalProfile()).map(row=>[row.id,row]));
+ const warning='BIS_2025_SILVER_JEWELLERY_HUID_NOT_BULLION_BAR_ASSAY_OR_APPROVAL';
+ assert.ok(screened.get('catalog_2026_physical_silver_bullion').screeningReasonCodes.includes(warning));
+ assert.ok(!screened.get('catalog_2026_physical_gold_bullion').screeningReasonCodes.includes(warning));
+ assert.ok(!screened.get('catalog_2026_silver_fof').screeningReasonCodes.includes(warning));
+ assert.equal(screened.get('catalog_2026_physical_silver_bullion').productQualified,false);
+ assert.equal(screened.get('catalog_2026_physical_silver_bullion').scoreAvailable,false);
+ assert.equal(screened.get('catalog_2026_physical_silver_bullion').productRiskLevel,null);
+});

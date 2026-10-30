@@ -7229,7 +7229,7 @@
       "publicFrameworkVerification": "DIRECT_OFFICIAL_FRAMEWORK_FACT_REVIEWED",
       "preciousMetalsCategoryReview": {
         "officialSourceUrl": "https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en",
-        "structure": "Physical silver bullion/bar; BIS lists IS 17278 refined gold and silver bars and IS 2113 silver assaying, but its refinery/mint bullion hallmarking scheme is currently described as gold-only; do not claim silver bullion hallmark certification.",
+        "structure": "Physical silver bullion/bar; BIS lists IS 17278 refined gold and silver bars and IS 2113 silver assaying, but its refinery/mint bullion hallmarking scheme is currently described as gold-only; do not claim silver bullion hallmark certification. The BIS general hallmarking FAQ still names the superseded IS 2112:2014 for silver jewellery; BIS's October 2025 newsletter confirms IS 2112:2025 voluntary HUID for silver jewellery/articles effective 1 September 2025, not individual silver bullion bar certification.",
         "categoryRisks": "Silver spot-price volatility, authenticity/purity and storage risks, transaction spreads and resale liquidity.",
         "investorAccessAndEligibility": "Verify bar assay, seller provenance, invoice, physical custody and local sale conditions; jewellery hallmarking is not proof of bullion certification.",
         "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
@@ -7248,7 +7248,29 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "silverHallmarking2025ScopeReview": {
+          "officialBisNewsletterUrl": "https://www.bis.gov.in/wp-content/uploads/2025/10/BIS-NEWSLETTER-OCTOBER-2025.pdf",
+          "olderBisFaqUrl": "https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en",
+          "reviewedOn": "2026-10-30",
+          "updatedSilverJewelleryStandard": "IS 2112:2025",
+          "supersededSilverJewelleryStandard": "IS 2112:2014",
+          "voluntarySilverJewelleryHuidEffectiveFrom": "2025-09-01",
+          "appliesToSilverJewelleryAndArticlesOnly": true,
+          "establishesSilverBullionBarHallmarkCertification": false,
+          "actualSilverBullionAssayVerified": false,
+          "currentSellerBuybackTermsAndPriceVerified": false,
+          "individualRetailEligibilityVerified": false,
+          "commercialDataRightsVerified": false,
+          "riskConsiderations": [
+            "The BIS 2025 silver HUID hallmarking update concerns jewellery and articles, not an independently assayed silver investment bar; using a jewellery mark as bullion proof can misstate authenticity.",
+            "Silver bullion still faces metal price changes, physical storage risks and dealer bid/ask spreads independent of jewellery hallmarking."
+          ],
+          "investorAccessConstraints": [
+            "Verify each bar's actual fineness, assay evidence, weight, dealer provenance and invoice; do not transfer voluntary jewellery HUID status to bullion.",
+            "The older BIS general FAQ references IS 2112:2014, superseded for silver jewellery/articles by IS 2112:2025; confirm the applicable current product-specific standards and any resale terms separately."
+          ]
+        }
       }
     },
     {

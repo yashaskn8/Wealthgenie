@@ -1084,3 +1084,26 @@ test('educational directory labels source publishers across all 95 unapproved ca
   NATIONAL_STANDARDS_BODY:2,
  });
 });
+
+test('BIS 2025 silver HUID update stays scoped to jewellery rather than approved bullion',()=>{
+ const rows=listFinancialDiscoveryDirectory().items;
+ const silver=rows.find(row=>row.id==='catalog_2026_physical_silver_bullion');
+ const gold=rows.find(row=>row.id==='catalog_2026_physical_gold_bullion');
+ const fof=rows.find(row=>row.id==='catalog_2026_silver_fof');
+ const review=silver.frameworkResearch.preciousMetalsCategoryReview.silverHallmarking2025ScopeReview;
+ assert.equal(review.officialBisNewsletterUrl,
+   'https://www.bis.gov.in/wp-content/uploads/2025/10/BIS-NEWSLETTER-OCTOBER-2025.pdf');
+ assert.equal(review.appliesToSilverJewelleryAndArticlesOnly,true);
+ assert.equal(review.establishesSilverBullionBarHallmarkCertification,false);
+ assert.equal(review.currentSellerBuybackTermsAndPriceVerified,false);
+ assert.equal(review.individualRetailEligibilityVerified,false);
+ assert.equal(review.commercialDataRightsVerified,false);
+ assert.equal(gold.frameworkResearch.preciousMetalsCategoryReview.silverHallmarking2025ScopeReview,undefined);
+ assert.equal(fof.frameworkResearch.preciousMetalsCategoryReview.silverHallmarking2025ScopeReview,undefined);
+ for(const row of [silver,gold,fof]){
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(row.productData).every(value=>value===null));
+ }
+});
