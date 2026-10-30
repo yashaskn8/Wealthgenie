@@ -1370,9 +1370,10 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(row.id==='catalog_2026_physical_gold_bullion'
        ||row.id==='catalog_2026_physical_silver_bullion')
        reasons.push('PHYSICAL_BULLION_ASSAY_DEALER_SPREAD_CUSTODY_AND_RESALE_UNVERIFIED');
-     if(row.id==='catalog_2026_physical_silver_bullion')
+     if(row.id==='catalog_2026_physical_silver_bullion') {
        reasons.push('SILVER_JEWELLERY_HALLMARK_NOT_BULLION_CERTIFICATION');
-     reasons.push('BIS_2025_SILVER_JEWELLERY_HUID_NOT_BULLION_BAR_ASSAY_OR_APPROVAL');
+       reasons.push('BIS_2025_SILVER_JEWELLERY_HUID_NOT_BULLION_BAR_ASSAY_OR_APPROVAL');
+     }
    }
 
    if(row.debtInstrumentReview){
