@@ -7283,7 +7283,7 @@
         "structure": "Illustrative SEBI-hosted Silver FoF scheme document describes an FoF investing in units of a silver ETF that holds silver-related exposure; this is a historical example, not proof of a currently offered scheme.",
         "categoryRisks": "Silver price fluctuations pass through underlying ETF NAV; additional fund layers, tracking differences, ETF liquidity and redemption terms matter.",
         "investorAccessAndEligibility": "Verify actual current FoF scheme identity, underlying ETF, current SID/KIM, riskometer, NAV, KYC and source rights. Historical filed documents are not current authorization.",
-        "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
+        "financialProfileScreening": "Use only recorded short horizon, emergency-fund goal, zero-month emergency buffer or conservative risk preference to show non-ranking silver ETF FoF volatility, underlying ETF tracking, layered fees, NAV and redemption-settlement review notices. Physical bullion assay, dealer-spread and custody warnings do not describe FoF units. Do not infer eligibility or assign a product riskometer.",
         "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION",
         "currentSchemeRiskometerVerified": false,
         "historicalIllustrativeSchemeSourceUrl": "https://www.sebi.gov.in/web/?file=%2Fsebi_data%2Fattachdocs%2Fjan-2022%2F1642395164041.pdf",

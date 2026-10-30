@@ -1953,12 +1953,22 @@ test('silver ETF FoF has separate current scheme-risk and October 2026 regulator
   assert.equal(group.size,95);
  }
  // A silver FoF has scheme/underlying ETF risks, not direct bullion assay/custody.
+ const silverResearch=get().preciousMetalsCategoryReview;
+ assert.match(silverResearch.financialProfileScreening,/underlying ETF tracking/);
+ assert.doesNotMatch(silverResearch.financialProfileScreening,/custody warnings/);
+ const schemeBoundary='SILVER_FOF_SCHEME_UNDERLYING_ETF_NAV_AND_RIGHTS_UNVERIFIED';
+ const physicalBoundary='PHYSICAL_PRECIOUS_METALS_ASSAY_CUSTODY_AND_RESALE_TERMS_UNVERIFIED';
  const physical='PHYSICAL_BULLION_ASSAY_DEALER_SPREAD_CUSTODY_AND_RESALE_UNVERIFIED';
  for(const group of [ordinary,short,emergency,conservative]){
+  assert.ok(group.get(id).screeningReasonCodes.includes(schemeBoundary));
+  assert.ok(!group.get(id).screeningReasonCodes.includes(physicalBoundary));
   assert.ok(!group.get(id).screeningReasonCodes.includes(physical));
   for(const physicalId of ['catalog_2026_physical_gold_bullion',
-   'catalog_2026_physical_silver_bullion'])
+   'catalog_2026_physical_silver_bullion']){
+   assert.ok(group.get(physicalId).screeningReasonCodes.includes(physicalBoundary));
    assert.ok(group.get(physicalId).screeningReasonCodes.includes(physical));
+   assert.ok(!group.get(physicalId).screeningReasonCodes.includes(schemeBoundary));
+  }
  }
  const horizon='SHORT_HORIZON_REQUIRES_SILVER_FOF_VOLATILITY_AND_REDEMPTION_SETTLEMENT_REVIEW';
  const goal='EMERGENCY_FUND_GOAL_REQUIRES_SILVER_FOF_SCHEME_EXIT_AND_NAV_REVIEW';
