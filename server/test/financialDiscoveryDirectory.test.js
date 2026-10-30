@@ -1145,3 +1145,22 @@ test('2025 central G-Sec STRIPS Gazette research is copied without qualifying a 
   assert.ok(!fresh.investorAccessConstraints.includes('FABRICATED RETAIL ACCESS'));
  }
 });
+
+test('municipal green circular research remains independently copied and not a purchasable issue',()=>{
+ const get=()=>listFinancialDiscoveryDirectory().items
+  .find(row=>row.id==='catalog_2026_municipal_green');
+ const item=get(),review=item.frameworkResearch.individualCategoryReview.municipalGreenDisclosure2026Review;
+ assert.equal(review.officialSebiGreenReviewerCircularUrl,'https://www.sebi.gov.in/legal/circulars/feb-2026/revised-norms-for-appointment-of-an-independent-third-party-reviewer-certifier-for-green-debt-security_100043.html');
+ assert.equal(review.actualIssueGreenProceedsAndIndependentReviewVerified,false);
+ assert.equal(review.currentListingAndIndividualRetailAccessVerified,false);
+ assert.equal(review.currentPriceLiquidityAndCommercialDataRightsVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.ok(Object.values(item.productData).every(value=>value===null));
+ review.actualMunicipalIssuerAndIsinVerified=true;
+ review.riskConsiderations.push('FABRICATED MUNICIPAL ISSUE');
+ const fresh=get().frameworkResearch.individualCategoryReview.municipalGreenDisclosure2026Review;
+ assert.equal(fresh.actualMunicipalIssuerAndIsinVerified,false);
+ assert.ok(!fresh.riskConsiderations.includes('FABRICATED MUNICIPAL ISSUE'));
+});

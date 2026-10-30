@@ -148,6 +148,32 @@ const validNpsPresentationReview=row=>{
     'individualPranSectorAndEligibilityVerified','applicableChargesAndTransactionRightsVerified',
     'licensedMarketDataAndAdviceRightsVerified'].every(key=>e[key]===false);
 };
+const municipalGreenDisclosure2026Sources=Object.freeze({
+ municipal:'https://www.sebi.gov.in/legal/circulars/nov-2022/issue-of-green-debt-securities-by-an-issuer-under-securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015_65404.html',
+ reviewer:'https://www.sebi.gov.in/legal/circulars/feb-2026/revised-norms-for-appointment-of-an-independent-third-party-reviewer-certifier-for-green-debt-security_100043.html',
+ regulations:'https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015-last-amendment-on-july-08-2026-_102918.html',
+});
+function validMunicipalGreenDisclosure2026Review(row){
+ const e=row.individualCategoryReview?.municipalGreenDisclosure2026Review;
+ if(row.id!=='catalog_2026_municipal_green')return e===undefined;
+ return e?.officialSebiMunicipalGreenCircularUrl===municipalGreenDisclosure2026Sources.municipal
+  &&e.circularIssuedOn==='2022-11-24'
+  &&e.officialSebiMunicipalDebtRegulationsUrl===municipalGreenDisclosure2026Sources.regulations
+  &&e.regulationsAmendedThrough==='2026-07-08'
+  &&e.officialSebiGreenReviewerCircularUrl===municipalGreenDisclosure2026Sources.reviewer
+  &&e.greenReviewerCircularIssuedOn==='2026-02-27'
+  &&e.reviewedOn==='2026-10-31'
+  &&e.sourceScope==='MUNICIPAL_GREEN_FRAMEWORK_AND_REVIEWER_NORMS_NOT_ISSUE_CERTIFICATION_OR_LIVE_OFFER'
+  &&e.municipalGreenCircularIsCategoryFrameworkNotIssueApproval===true
+  &&e.revisedReviewerCircularNotProofOfSpecificIssueCertification===true
+  &&e.greenLabelDoesNotEstablishSovereignGuaranteeOrTaxExemption===true
+  &&['actualMunicipalIssuerAndIsinVerified','actualIssueGreenProceedsAndIndependentReviewVerified',
+   'issuerCreditRatingRepaymentAndOfferTermsVerified','currentListingAndIndividualRetailAccessVerified',
+   'currentPriceLiquidityAndCommercialDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].every(key=>e[key]===false)
+  &&Array.isArray(e.riskConsiderations)&&e.riskConsiderations.length>=2
+  &&Array.isArray(e.investorAccessConstraints)&&e.investorAccessConstraints.length>=2;
+}
 const categoryRiskAccessReviewKeys=Object.freeze([
  'postalSavingsAccessReview','rbiRetailDirectAccessReview','sgsStripsAccessReview',
  'governmentBondStructureReview','bankDepositAccessReview','nbfcPublicDepositAccessReview',
@@ -172,6 +198,7 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
   || universe.length!==95 || legacyIds.size!==155
   || research.entries.some(row=>!hasCompleteCategoryRiskAccessResearch(row))
   || research.entries.some(row=>!validPostalTd2023AmendmentReview(row))
+  || research.entries.some(row=>!validMunicipalGreenDisclosure2026Review(row))
   || research.entries.some(row=>!validNpsPresentationReview(row))
   || research.entries.some(x=>!isOfficialFrameworkReferenceUrl(x.referenceUrl)
     || !isOfficialFrameworkReferenceUrl(x.verifiedPublicFrameworkFact?.officialSourceUrl))
@@ -1509,8 +1536,19 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_ISSUER_DEFAULT_SECURITY_AND_RATING_REVIEW');
    }
-   if(row.id==='catalog_2026_municipal_green')
+   if(row.id==='catalog_2026_municipal_green'){
      reasons.push('MUNICIPAL_GREEN_BOND_JULY_2026_ISSUE_DISCLOSURES_AND_GREEN_CLAIMS_REVIEW');
+     reasons.push('SEBI_2022_MUNICIPAL_GREEN_AND_2026_REVIEWER_CIRCULARS_NOT_ISSUE_CERTIFICATION');
+     reasons.push('MUNICIPAL_GREEN_LABEL_NOT_SOVEREIGN_GUARANTEE_OR_RETAIL_ACCESS');
+     if(profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_MUNICIPAL_GREEN_MATURITY_AND_RESALE_LIQUIDITY_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_MUNICIPAL_GREEN_BOND_EXIT_AND_SETTLEMENT_REVIEW');
+     if(profile.investmentGoals.includes('Tax Saving'))
+       reasons.push('TAX_SAVING_GOAL_REQUIRES_MUNICIPAL_GREEN_ISSUE_AND_FY_TAX_RULE_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_MUNICIPAL_GREEN_ISSUER_DEFAULT_AND_PRICE_LOSS_REVIEW');
+   }
    if(row.id==='catalog_2026_municipal_green'&&profile.emergencyFundMonths===0)
      reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_MUNICIPAL_BOND_CREDIT_AND_RESALE_REVIEW');
    if(row.id==='catalog_2026_sm_reit_scheme'){

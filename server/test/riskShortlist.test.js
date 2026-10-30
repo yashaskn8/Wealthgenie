@@ -2179,3 +2179,52 @@ test('RBI May 2025 Gazette distinguishes coupon/principal central STRIPS from st
  assert.equal(ordinary.size,95);
  assert.equal([...ordinary.values()].filter(x=>x.productQualified).length,0);
 });
+
+test('municipal green bonds separate SEBI 2022/2026 green issuance and reviewer frameworks from actual retail issue evidence',()=>{
+ const rows=listExtensionResearch();
+ const id='catalog_2026_municipal_green';
+ const municipal=rows.find(row=>row.id===id);
+ const review=municipal.individualCategoryReview.municipalGreenDisclosure2026Review;
+ assert.equal(review.officialSebiMunicipalGreenCircularUrl,'https://www.sebi.gov.in/legal/circulars/nov-2022/issue-of-green-debt-securities-by-an-issuer-under-securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015_65404.html');
+ assert.equal(review.circularIssuedOn,'2022-11-24');
+ assert.equal(review.officialSebiGreenReviewerCircularUrl,'https://www.sebi.gov.in/legal/circulars/feb-2026/revised-norms-for-appointment-of-an-independent-third-party-reviewer-certifier-for-green-debt-security_100043.html');
+ assert.equal(review.greenReviewerCircularIssuedOn,'2026-02-27');
+ assert.equal(review.officialSebiMunicipalDebtRegulationsUrl,'https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015-last-amendment-on-july-08-2026-_102918.html');
+ assert.equal(review.regulationsAmendedThrough,'2026-07-08');
+ assert.equal(review.reviewedOn,'2026-10-31');
+ assert.equal(review.greenLabelDoesNotEstablishSovereignGuaranteeOrTaxExemption,true);
+ for(const key of ['actualMunicipalIssuerAndIsinVerified',
+  'actualIssueGreenProceedsAndIndependentReviewVerified',
+  'issuerCreditRatingRepaymentAndOfferTermsVerified',
+  'currentListingAndIndividualRetailAccessVerified',
+  'currentPriceLiquidityAndCommercialDataRightsVerified',
+  'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])assert.equal(review[key],false,key);
+ assert.ok(review.riskConsiderations.length>=2);
+ assert.ok(review.investorAccessConstraints.length>=2);
+ assert.equal(rows.filter(row=>row.individualCategoryReview?.municipalGreenDisclosure2026Review).length,1);
+ const screen=overrides=>screenExtensionResearchForProfile(canonicalProfile(overrides))
+  .find(row=>row.id===id);
+ const baseline=screen({});
+ const short=screen({investmentHorizonYears:2});
+ const emergency=screen({investmentGoals:['Emergency Fund']});
+ const tax=screen({investmentGoals:['Tax Saving']});
+ const conservative=screen({riskTolerance:'Conservative'});
+ const common='SEBI_2022_MUNICIPAL_GREEN_AND_2026_REVIEWER_CIRCULARS_NOT_ISSUE_CERTIFICATION';
+ assert.ok(baseline.screeningReasonCodes.includes(common));
+ const checks=[
+  ['SHORT_HORIZON_REQUIRES_MUNICIPAL_GREEN_MATURITY_AND_RESALE_LIQUIDITY_REVIEW',short],
+  ['EMERGENCY_FUND_GOAL_REQUIRES_MUNICIPAL_GREEN_BOND_EXIT_AND_SETTLEMENT_REVIEW',emergency],
+  ['TAX_SAVING_GOAL_REQUIRES_MUNICIPAL_GREEN_ISSUE_AND_FY_TAX_RULE_REVIEW',tax],
+  ['CONSERVATIVE_PROFILE_REQUIRES_MUNICIPAL_GREEN_ISSUER_DEFAULT_AND_PRICE_LOSS_REVIEW',conservative],
+ ];
+ for(const [notice,matched] of checks){
+  assert.ok(matched.screeningReasonCodes.includes(notice),notice);
+  assert.ok(!baseline.screeningReasonCodes.includes(notice),notice);
+ }
+ for(const item of [baseline,short,emergency,tax,conservative]){
+  assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(item.productQualified,false);
+  assert.equal(item.scoreAvailable,false);
+  assert.equal(item.productRiskLevel,null);
+ }
+});

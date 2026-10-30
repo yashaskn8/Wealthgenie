@@ -6067,7 +6067,36 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "municipalGreenDisclosure2026Review": {
+          "officialSebiMunicipalGreenCircularUrl": "https://www.sebi.gov.in/legal/circulars/nov-2022/issue-of-green-debt-securities-by-an-issuer-under-securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015_65404.html",
+          "circularIssuedOn": "2022-11-24",
+          "officialSebiMunicipalDebtRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015-last-amendment-on-july-08-2026-_102918.html",
+          "regulationsAmendedThrough": "2026-07-08",
+          "officialSebiGreenReviewerCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/revised-norms-for-appointment-of-an-independent-third-party-reviewer-certifier-for-green-debt-security_100043.html",
+          "greenReviewerCircularIssuedOn": "2026-02-27",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "MUNICIPAL_GREEN_FRAMEWORK_AND_REVIEWER_NORMS_NOT_ISSUE_CERTIFICATION_OR_LIVE_OFFER",
+          "municipalGreenCircularIsCategoryFrameworkNotIssueApproval": true,
+          "revisedReviewerCircularNotProofOfSpecificIssueCertification": true,
+          "greenLabelDoesNotEstablishSovereignGuaranteeOrTaxExemption": true,
+          "actualMunicipalIssuerAndIsinVerified": false,
+          "actualIssueGreenProceedsAndIndependentReviewVerified": false,
+          "issuerCreditRatingRepaymentAndOfferTermsVerified": false,
+          "currentListingAndIndividualRetailAccessVerified": false,
+          "currentPriceLiquidityAndCommercialDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Municipal issuer revenue and debt-servicing capacity can deteriorate; a green label does not establish a sovereign guarantee or principal protection.",
+            "Project allocation, external review and post-issue reporting must be checked for the actual security; no category-level circular proves green use of proceeds.",
+            "Market-price and exit liquidity risks remain even when an issuer appears in a public municipal or green-debt regulatory listing."
+          ],
+          "investorAccessConstraints": [
+            "SEBI's 24 November 2022 circular addresses municipal green debt issuance, while its 27 February 2026 circular revises green-debt third-party reviewer norms; neither authenticates a named issue's certification.",
+            "Verify the actual municipal issuer, ISIN, offer document, issue route, rating, reviewer report, green-project disclosures, denomination, demat/KYC and investor access.",
+            "Reconcile the 8 July 2026 municipal debt regulations with issue-specific terms; no current price, tax exemption, signed data permission or advice authorization is established."
+          ]
+        }
       }
     },
     {
