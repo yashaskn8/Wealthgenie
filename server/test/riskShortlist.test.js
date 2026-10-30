@@ -1593,3 +1593,38 @@ test('RBI 2024 CP aggregate primary limit is not a personal cap or verified reta
   assert.equal(row.productRiskLevel,null);
  }
 });
+
+
+test('seven AIF categories distinguish October 2026 Regulation 25 from product approval',()=>{
+ const rows=listExtensionResearch().filter(row=>row.aifCategoryAccessReview);
+ assert.equal(rows.length,7);
+ const interpretations=new Set();
+ const screen=new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive',emergencyFundMonths:6,
+ })).map(row=>[row.id,row]));
+ for(const row of rows){
+  const d=row.aifCategoryAccessReview.october2026DisputeResolutionReview;
+  assert.equal(d.officialSebiAmendmentUrl,'https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html',row.id);
+  assert.equal(d.publishedOn,'2026-10-15',row.id);
+  assert.equal(d.reviewedOn,'2026-10-30',row.id);
+  assert.equal(d.regulationNumber,25,row.id);
+  assert.equal(d.categoryStructure,row.aifCategoryAccessReview.categoryStructure,row.id);
+  assert.equal(d.includesMediationConciliationOrArbitration,true,row.id);
+  for(const field of ['managerOfficerLossDamageAndExpensesChargedToAifProperty',
+   'automaticInvestorCompensationGuaranteed','specificFundAndManagerDisputeTermsVerified',
+   'actualFundRegistrationAndInvestorEligibilityVerified','currentValuationAndFeesVerified',
+   'commercialDataAndAdviceRightsVerified'])assert.equal(d[field],false,row.id+':'+field);
+  assert.ok(d.riskConsiderations.length>=2&&d.investorAccessConstraints.length>=2,row.id);
+  assert.ok(d.categoryInterpretation.length>=100,row.id);
+  interpretations.add(d.categoryInterpretation);
+  const result=screen.get(row.id);
+  assert.ok(result.screeningReasonCodes.includes('AIF_OCT_2026_REGULATION_25_DISPUTE_PROCEDURE_NOT_GUARANTEED_REMEDY_OR_ELIGIBILITY'),row.id);
+  assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE',row.id);
+  assert.equal(result.productQualified,false,row.id);
+  assert.equal(result.scoreAvailable,false,row.id);
+  assert.equal(result.productRiskLevel,null,row.id);
+ }
+ assert.equal(interpretations.size,7);
+ assert.equal(screen.size,95);
+ assert.equal([...screen.values()].filter(row=>row.productQualified).length,0);
+});

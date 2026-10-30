@@ -530,6 +530,30 @@ if(research.entries.filter(row=>row.aifCategoryAccessReview?.garudaPpmFilingRevi
      ||!Array.isArray(g.riskConsiderations)||g.riskConsiderations.length<2
      ||!Array.isArray(g.investorAccessConstraints)||g.investorAccessConstraints.length<2;
  }))throw new Error('FINANCIAL_AIF_GARUDA_FILING_MUST_NOT_IMPLY_PRODUCT_APPROVAL');
+
+ // SEBI's October 2026 AIF Regulation 25 amendment addresses dispute
+ // procedures and manager/officer expenses, not product or investor approval.
+ const aifDisputeAmendmentUrl='https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html';
+ if(research.entries.filter(row=>row.aifCategoryAccessReview?.october2026DisputeResolutionReview).length!==7
+  ||research.entries.some(row=>{
+   const r=row.aifCategoryAccessReview?.october2026DisputeResolutionReview;
+   if(!Object.hasOwn(aifCategoryStructures,row.id))return r!==undefined;
+   return !r||r.officialSebiAmendmentUrl!==aifDisputeAmendmentUrl
+    ||!isOfficialFrameworkReferenceUrl(r.officialSebiAmendmentUrl)
+    ||r.publishedOn!=='2026-10-15'||r.reviewedOn!=='2026-10-30'
+    ||r.regulationNumber!==25
+    ||r.sourceScope!=='GENERAL_AIF_INVESTOR_MANAGER_DISPUTE_PROCEDURE_NOT_SCHEME_APPROVAL_OR_GUARANTEED_REMEDY'
+    ||r.categoryStructure!==aifCategoryStructures[row.id]
+    ||typeof r.categoryInterpretation!=='string'||r.categoryInterpretation.length<100
+    ||r.mechanismScope!=='INVESTOR_AIF_OR_MANAGER_SECURITIES_MARKET_DISPUTES'
+    ||r.includesMediationConciliationOrArbitration!==true
+    ||['managerOfficerLossDamageAndExpensesChargedToAifProperty',
+      'automaticInvestorCompensationGuaranteed','specificFundAndManagerDisputeTermsVerified',
+      'actualFundRegistrationAndInvestorEligibilityVerified','currentValuationAndFeesVerified',
+      'commercialDataAndAdviceRightsVerified'].some(key=>r[key]!==false)
+    ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
+    ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
+  }))throw new Error('FINANCIAL_AIF_OCT_2026_DISPUTE_PROCEDURE_NOT_PRODUCT_APPROVAL');
 const octoberDebtIds=new Set(["catalog_2026_ncd_secured","catalog_2026_ncd_unsecured","catalog_2026_ncd_unlisted","catalog_2026_bond_subordinated","catalog_2026_bond_perpetual","catalog_2026_bond_corporate_floating","catalog_2026_bond_corporate_zero","catalog_2026_bond_convertible","catalog_2026_psu_bond_taxable","catalog_2026_infra_corporate_bond","catalog_2026_commercial_paper"]);
 if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentReview).length!==11
  ||research.entries.some(row=>octoberDebtIds.has(row.id)!==Boolean(row.debtInstrumentReview?.creditRiskometerOct2026Review))
@@ -774,6 +798,7 @@ export function screenExtensionResearchForProfile(profileInput) {
       reasons.push('AIF_PRIVATE_PLACEMENT_PPM_REGISTRATION_AND_KYC_UNVERIFIED');
       reasons.push('AIF_OCT_2026_ACCREDITATION_CHANGE_NOT_PERSONAL_ACCREDITATION');
       reasons.push('AIF_GARUDA_PPM_FILING_AND_LAUNCH_NOT_SEBI_SCHEME_APPROVAL');
+       reasons.push('AIF_OCT_2026_REGULATION_25_DISPUTE_PROCEDURE_NOT_GUARANTEED_REMEDY_OR_ELIGIBILITY');
       reasons.push('AIF_GARUDA_ACTUAL_SCHEME_ROUTE_REGISTRATION_AND_DILIGENCE_UNVERIFIED');
       reasons.push('AIF_FEES_REDEMPTION_VALUATION_AND_DATA_RIGHTS_UNVERIFIED');
       if(row.id==='catalog_2026_aif1_social')

@@ -5298,6 +5298,31 @@
             "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
             "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
           ]
+        },
+        "october2026DisputeResolutionReview": {
+          "officialSebiAmendmentUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html",
+          "publishedOn": "2026-10-15",
+          "reviewedOn": "2026-10-30",
+          "regulationNumber": 25,
+          "sourceScope": "GENERAL_AIF_INVESTOR_MANAGER_DISPUTE_PROCEDURE_NOT_SCHEME_APPROVAL_OR_GUARANTEED_REMEDY",
+          "categoryStructure": "CATEGORY_I_VENTURE_CAPITAL",
+          "categoryInterpretation": "Venture-capital investors must verify the actual manager's grievance route and PPM; the general dispute process does not restore startup losses or resolve unlisted valuation and long-exit risks.",
+          "mechanismScope": "INVESTOR_AIF_OR_MANAGER_SECURITIES_MARKET_DISPUTES",
+          "includesMediationConciliationOrArbitration": true,
+          "managerOfficerLossDamageAndExpensesChargedToAifProperty": false,
+          "automaticInvestorCompensationGuaranteed": false,
+          "specificFundAndManagerDisputeTermsVerified": false,
+          "actualFundRegistrationAndInvestorEligibilityVerified": false,
+          "currentValuationAndFeesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The general dispute mechanism does not guarantee recovery of investment losses or timely sale of fund interests.",
+            "Manager or officer dispute expense restrictions do not independently verify fund solvency, fees, custody or valuation."
+          ],
+          "investorAccessConstraints": [
+            "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
+            "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
+          ]
         }
       }
     },
@@ -5382,6 +5407,31 @@
           "investorAccessConstraints": [
             "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
             "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        },
+        "october2026DisputeResolutionReview": {
+          "officialSebiAmendmentUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html",
+          "publishedOn": "2026-10-15",
+          "reviewedOn": "2026-10-30",
+          "regulationNumber": 25,
+          "sourceScope": "GENERAL_AIF_INVESTOR_MANAGER_DISPUTE_PROCEDURE_NOT_SCHEME_APPROVAL_OR_GUARANTEED_REMEDY",
+          "categoryStructure": "CATEGORY_I_SME",
+          "categoryInterpretation": "SME-fund investors must verify the actual PPM dispute terms and manager; the general dispute mechanism does not guarantee liquidity in unlisted or thinly traded SME holdings.",
+          "mechanismScope": "INVESTOR_AIF_OR_MANAGER_SECURITIES_MARKET_DISPUTES",
+          "includesMediationConciliationOrArbitration": true,
+          "managerOfficerLossDamageAndExpensesChargedToAifProperty": false,
+          "automaticInvestorCompensationGuaranteed": false,
+          "specificFundAndManagerDisputeTermsVerified": false,
+          "actualFundRegistrationAndInvestorEligibilityVerified": false,
+          "currentValuationAndFeesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The general dispute mechanism does not guarantee recovery of investment losses or timely sale of fund interests.",
+            "Manager or officer dispute expense restrictions do not independently verify fund solvency, fees, custody or valuation."
+          ],
+          "investorAccessConstraints": [
+            "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
+            "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
           ]
         }
       }
@@ -5469,6 +5519,31 @@
             "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
             "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
           ]
+        },
+        "october2026DisputeResolutionReview": {
+          "officialSebiAmendmentUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html",
+          "publishedOn": "2026-10-15",
+          "reviewedOn": "2026-10-30",
+          "regulationNumber": 25,
+          "sourceScope": "GENERAL_AIF_INVESTOR_MANAGER_DISPUTE_PROCEDURE_NOT_SCHEME_APPROVAL_OR_GUARANTEED_REMEDY",
+          "categoryStructure": "CATEGORY_I_SOCIAL_IMPACT",
+          "categoryInterpretation": "Social-impact investors must distinguish social units without financial returns from return-bearing units; Regulation 25 does not create an investment return or verify rights in an NPO project.",
+          "mechanismScope": "INVESTOR_AIF_OR_MANAGER_SECURITIES_MARKET_DISPUTES",
+          "includesMediationConciliationOrArbitration": true,
+          "managerOfficerLossDamageAndExpensesChargedToAifProperty": false,
+          "automaticInvestorCompensationGuaranteed": false,
+          "specificFundAndManagerDisputeTermsVerified": false,
+          "actualFundRegistrationAndInvestorEligibilityVerified": false,
+          "currentValuationAndFeesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The general dispute mechanism does not guarantee recovery of investment losses or timely sale of fund interests.",
+            "Manager or officer dispute expense restrictions do not independently verify fund solvency, fees, custody or valuation."
+          ],
+          "investorAccessConstraints": [
+            "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
+            "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
+          ]
         }
       }
     },
@@ -5553,6 +5628,31 @@
           "investorAccessConstraints": [
             "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
             "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        },
+        "october2026DisputeResolutionReview": {
+          "officialSebiAmendmentUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html",
+          "publishedOn": "2026-10-15",
+          "reviewedOn": "2026-10-30",
+          "regulationNumber": 25,
+          "sourceScope": "GENERAL_AIF_INVESTOR_MANAGER_DISPUTE_PROCEDURE_NOT_SCHEME_APPROVAL_OR_GUARANTEED_REMEDY",
+          "categoryStructure": "CATEGORY_I_INFRASTRUCTURE",
+          "categoryInterpretation": "Infrastructure-fund investors must check actual project and PPM dispute terms; Regulation 25 does not guarantee construction completion, project cash flows or an early exit.",
+          "mechanismScope": "INVESTOR_AIF_OR_MANAGER_SECURITIES_MARKET_DISPUTES",
+          "includesMediationConciliationOrArbitration": true,
+          "managerOfficerLossDamageAndExpensesChargedToAifProperty": false,
+          "automaticInvestorCompensationGuaranteed": false,
+          "specificFundAndManagerDisputeTermsVerified": false,
+          "actualFundRegistrationAndInvestorEligibilityVerified": false,
+          "currentValuationAndFeesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The general dispute mechanism does not guarantee recovery of investment losses or timely sale of fund interests.",
+            "Manager or officer dispute expense restrictions do not independently verify fund solvency, fees, custody or valuation."
+          ],
+          "investorAccessConstraints": [
+            "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
+            "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
           ]
         }
       }
@@ -5639,6 +5739,31 @@
             "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
             "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
           ]
+        },
+        "october2026DisputeResolutionReview": {
+          "officialSebiAmendmentUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html",
+          "publishedOn": "2026-10-15",
+          "reviewedOn": "2026-10-30",
+          "regulationNumber": 25,
+          "sourceScope": "GENERAL_AIF_INVESTOR_MANAGER_DISPUTE_PROCEDURE_NOT_SCHEME_APPROVAL_OR_GUARANTEED_REMEDY",
+          "categoryStructure": "CATEGORY_II_PRIVATE_EQUITY",
+          "categoryInterpretation": "Private-equity investors must verify the actual manager, PPM and investor dispute terms; a general dispute procedure does not guarantee private-company valuations or distributions.",
+          "mechanismScope": "INVESTOR_AIF_OR_MANAGER_SECURITIES_MARKET_DISPUTES",
+          "includesMediationConciliationOrArbitration": true,
+          "managerOfficerLossDamageAndExpensesChargedToAifProperty": false,
+          "automaticInvestorCompensationGuaranteed": false,
+          "specificFundAndManagerDisputeTermsVerified": false,
+          "actualFundRegistrationAndInvestorEligibilityVerified": false,
+          "currentValuationAndFeesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The general dispute mechanism does not guarantee recovery of investment losses or timely sale of fund interests.",
+            "Manager or officer dispute expense restrictions do not independently verify fund solvency, fees, custody or valuation."
+          ],
+          "investorAccessConstraints": [
+            "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
+            "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
+          ]
         }
       }
     },
@@ -5724,6 +5849,31 @@
             "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
             "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
           ]
+        },
+        "october2026DisputeResolutionReview": {
+          "officialSebiAmendmentUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html",
+          "publishedOn": "2026-10-15",
+          "reviewedOn": "2026-10-30",
+          "regulationNumber": 25,
+          "sourceScope": "GENERAL_AIF_INVESTOR_MANAGER_DISPUTE_PROCEDURE_NOT_SCHEME_APPROVAL_OR_GUARANTEED_REMEDY",
+          "categoryStructure": "CATEGORY_II_PRIVATE_DEBT",
+          "categoryInterpretation": "Private-debt investors must verify fund-level dispute procedures separately from borrower enforcement and collateral recovery; Regulation 25 does not establish credit recovery or secondary liquidity.",
+          "mechanismScope": "INVESTOR_AIF_OR_MANAGER_SECURITIES_MARKET_DISPUTES",
+          "includesMediationConciliationOrArbitration": true,
+          "managerOfficerLossDamageAndExpensesChargedToAifProperty": false,
+          "automaticInvestorCompensationGuaranteed": false,
+          "specificFundAndManagerDisputeTermsVerified": false,
+          "actualFundRegistrationAndInvestorEligibilityVerified": false,
+          "currentValuationAndFeesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The general dispute mechanism does not guarantee recovery of investment losses or timely sale of fund interests.",
+            "Manager or officer dispute expense restrictions do not independently verify fund solvency, fees, custody or valuation."
+          ],
+          "investorAccessConstraints": [
+            "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
+            "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
+          ]
         }
       }
     },
@@ -5808,6 +5958,31 @@
           "investorAccessConstraints": [
             "Verify the actual registered AIF, scheme classification, first-scheme registration status, PPM filing date and required merchant-banker or manager declarations.",
             "Confirm scheme-specific subscription terms, accreditation if applicable, KYC, liquidity, valuations and commercial rights; a SEBI filing is not scheme approval."
+          ]
+        },
+        "october2026DisputeResolutionReview": {
+          "officialSebiAmendmentUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html",
+          "publishedOn": "2026-10-15",
+          "reviewedOn": "2026-10-30",
+          "regulationNumber": 25,
+          "sourceScope": "GENERAL_AIF_INVESTOR_MANAGER_DISPUTE_PROCEDURE_NOT_SCHEME_APPROVAL_OR_GUARANTEED_REMEDY",
+          "categoryStructure": "CATEGORY_III_HEDGE_STRATEGY",
+          "categoryInterpretation": "Hedge-strategy investors must verify the actual manager's dispute process and redemption gates; Regulation 25 does not protect against derivative, leverage or trading losses.",
+          "mechanismScope": "INVESTOR_AIF_OR_MANAGER_SECURITIES_MARKET_DISPUTES",
+          "includesMediationConciliationOrArbitration": true,
+          "managerOfficerLossDamageAndExpensesChargedToAifProperty": false,
+          "automaticInvestorCompensationGuaranteed": false,
+          "specificFundAndManagerDisputeTermsVerified": false,
+          "actualFundRegistrationAndInvestorEligibilityVerified": false,
+          "currentValuationAndFeesVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The general dispute mechanism does not guarantee recovery of investment losses or timely sale of fund interests.",
+            "Manager or officer dispute expense restrictions do not independently verify fund solvency, fees, custody or valuation."
+          ],
+          "investorAccessConstraints": [
+            "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
+            "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
           ]
         }
       }

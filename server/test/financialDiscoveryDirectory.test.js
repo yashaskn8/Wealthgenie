@@ -879,3 +879,24 @@ test('RBI CP 2024 research is copied and not purchasable product data',()=>{
  assert.ok(!fresh.riskConsiderations.includes('FORGED'));
  assert.notEqual(fresh.investorAccessConstraints[0],'FORGED');
 });
+
+
+test('October 2026 AIF dispute evidence remains educational and defensively copied',()=>{
+ const ids=["catalog_2026_aif1_vc","catalog_2026_aif1_sme","catalog_2026_aif1_social","catalog_2026_aif1_infra","catalog_2026_aif2_pe","catalog_2026_aif2_debt","catalog_2026_aif3_hedge"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(item=>item.id===id);
+ for(const id of ids){
+  const row=get(id),review=row.frameworkResearch.aifCategoryAccessReview.october2026DisputeResolutionReview;
+  assert.equal(review.regulationNumber,25,id);
+  assert.equal(review.automaticInvestorCompensationGuaranteed,false,id);
+  assert.equal(review.actualFundRegistrationAndInvestorEligibilityVerified,false,id);
+  assert.equal(row.recommendationEligible,false,id);
+  assert.equal(row.productAvailability,'NOT_VERIFIED',id);
+  assert.equal(row.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(row.productData).every(value=>value===null),id);
+  review.automaticInvestorCompensationGuaranteed=true;
+  review.riskConsiderations.push('FABRICATED GUARANTEE');
+  const fresh=get(id).frameworkResearch.aifCategoryAccessReview.october2026DisputeResolutionReview;
+  assert.equal(fresh.automaticInvestorCompensationGuaranteed,false,id);
+  assert.ok(!fresh.riskConsiderations.includes('FABRICATED GUARANTEE'),id);
+ }
+});
